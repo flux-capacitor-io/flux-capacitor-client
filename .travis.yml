@@ -13,8 +13,3 @@ deploy:
       repo: flux-capacitor-io/flux-capacitor-client
       tags: true
       jdk: oraclejdk8
-
-
-notifications:
-  email:
-    - admin@flux-capacitor.io
