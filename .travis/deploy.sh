@@ -1,6 +1,4 @@
-#!/bin/bash
-
-echo "Running deploy script"
+#!/usr/bin/env bash
 
 set -e
 
