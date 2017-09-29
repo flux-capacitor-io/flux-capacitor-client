@@ -1,5 +1,7 @@
 #!/usr/bin/env bash
 
+echo "Running deploy script"
+
 set -e
 
 # only do deployment, when travis detects a new tag
