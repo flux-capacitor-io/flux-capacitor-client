@@ -134,4 +134,43 @@
         </profile>
     </profiles>
 
+    <distributionManagement>
+        <snapshotRepository>
+            <id>sonatype</id>
+            <url>https://oss.sonatype.org/content/repositories/snapshots</url>
+            <uniqueVersion>true</uniqueVersion>
+        </snapshotRepository>
+        <repository>
+            <id>sonatype</id>
+            <url>https://oss.sonatype.org/service/local/staging/deploy/maven2</url>
+            <uniqueVersion>false</uniqueVersion>
+        </repository>
+    </distributionManagement>
+
+    <licenses>
+        <license>
+            <name>The Apache License, Version 2.0</name>
+            <url>http://www.apache.org/licenses/LICENSE-2.0.txt</url>
+        </license>
+    </licenses>
+
+    <organization>
+        <name>Flux Capacitor</name>
+        <url>https://flux-capacitor.io</url>
+    </organization>
+
+    <developers>
+        <developer>
+            <name>René de Waele</name>
+            <email>rene@flux-capacitor.io</email>
+            <url>https://github.com/renedewaele</url>
+        </developer>
+    </developers>
+
+    <scm>
+        <connection>scm:git:git://github.com/flux-capacitor-io/flux-capacitor-client.git</connection>
+        <developerConnection>scm:git:ssh://github.com:flux-capacitor-io/flux-capacitor-client.git</developerConnection>
+        <url>https://github.com/flux-capacitor-io/flux-capacitor-client</url>
+    </scm>
+
 </project>
