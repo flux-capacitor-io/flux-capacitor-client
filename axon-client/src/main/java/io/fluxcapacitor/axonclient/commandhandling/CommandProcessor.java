@@ -18,8 +18,8 @@ import io.fluxcapacitor.axonclient.common.serialization.AxonMessageSerializer;
 import io.fluxcapacitor.common.Registration;
 import io.fluxcapacitor.common.api.Message;
 import io.fluxcapacitor.javaclient.tracking.ConsumerService;
-import io.fluxcapacitor.javaclient.tracking.Processor;
 import io.fluxcapacitor.javaclient.tracking.ProducerService;
+import io.fluxcapacitor.javaclient.tracking.Tracking;
 import lombok.extern.slf4j.Slf4j;
 import org.axonframework.commandhandling.CommandBus;
 import org.axonframework.commandhandling.CommandCallback;
@@ -59,7 +59,7 @@ public class CommandProcessor {
 
     public void start() {
         if (registration == null) {
-            registration = Processor.startMultiple(name, threads, consumerService, this::handle);
+            registration = Tracking.start(name, threads, consumerService, this::handle);
         }
     }
 

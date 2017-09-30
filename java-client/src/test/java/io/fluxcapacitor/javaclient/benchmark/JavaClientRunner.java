@@ -20,8 +20,8 @@ import io.fluxcapacitor.common.handling.Handler;
 import io.fluxcapacitor.common.handling.HandlerInspector;
 import io.fluxcapacitor.common.handling.HandlerInvoker;
 import io.fluxcapacitor.javaclient.common.connection.ServiceUrlBuilder;
-import io.fluxcapacitor.javaclient.tracking.Processor;
 import io.fluxcapacitor.javaclient.tracking.ProducerService;
+import io.fluxcapacitor.javaclient.tracking.Tracking;
 import io.fluxcapacitor.javaclient.tracking.websocket.WebsocketConsumerService;
 import io.fluxcapacitor.javaclient.tracking.websocket.WebsocketProducerService;
 import lombok.extern.slf4j.Slf4j;
@@ -47,10 +47,10 @@ public class JavaClientRunner extends AbstractClientBenchmark {
 
         producerService = new WebsocketProducerService(
             ServiceUrlBuilder.producerUrl(MessageType.COMMAND, getApplicationProperties()));
-        Processor.startSingle("javaClientRunner/command",
-                              new WebsocketConsumerService(
+        Tracking.start("javaClientRunner/command",
+                       new WebsocketConsumerService(
                                   ServiceUrlBuilder.consumerUrl(MessageType.COMMAND, getApplicationProperties())),
-                              this::handleCommands);
+                       this::handleCommands);
         commandInvoker =
                 HandlerInspector.inspect(this.getClass(), Handler.class, Collections.singletonList(p -> m -> m));
 

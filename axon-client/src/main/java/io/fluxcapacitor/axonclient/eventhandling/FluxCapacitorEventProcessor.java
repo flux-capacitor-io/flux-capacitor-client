@@ -18,7 +18,7 @@ import io.fluxcapacitor.axonclient.common.serialization.AxonMessageSerializer;
 import io.fluxcapacitor.common.Registration;
 import io.fluxcapacitor.common.api.Message;
 import io.fluxcapacitor.javaclient.tracking.ConsumerService;
-import io.fluxcapacitor.javaclient.tracking.Processor;
+import io.fluxcapacitor.javaclient.tracking.Tracking;
 import lombok.extern.slf4j.Slf4j;
 import org.axonframework.eventhandling.*;
 import org.axonframework.messaging.unitofwork.RollbackConfiguration;
@@ -72,7 +72,7 @@ public class FluxCapacitorEventProcessor extends AbstractEventProcessor {
     @Override
     public void start() {
         if (registration == null) {
-            registration = Processor.startMultiple(getName(), threads, consumerService, this::handle);
+            registration = Tracking.start(getName(), threads, consumerService, this::handle);
         }
     }
 

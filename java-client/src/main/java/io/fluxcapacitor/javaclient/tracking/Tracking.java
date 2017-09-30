@@ -35,21 +35,21 @@ import static java.util.concurrent.TimeUnit.MILLISECONDS;
  * A processor keeps reading messages until it is stopped (generally only when the application is shut down).
  * <p>
  * A processor is always running in a single thread. To balance the processing load over multiple threads create
- * multiple processors with the same name but different channel (or use {@link #startMultiple}).
+ * multiple processors with the same name but different channel.
  * <p>
- * Processors with different names will receive the same messages. Processors with the same name will not.
- * (The messaging service will load balance between processors with the same name).
+ * Processors with different names will receive the same messages. Processors with the same name will not. (The
+ * messaging service will load balance between processors with the same name).
  * <p>
  * Processing stops if the provided message consumer throws an exception while handling messages (i.e. the processor
- * will need to be manually restarted in that case). However, if the processor encounters an exception while
- * fetching messages it will retry fetching until this succeeds.
+ * will need to be manually restarted in that case). However, if the processor encounters an exception while fetching
+ * messages it will retry fetching until this succeeds.
  * <p>
- * Consumers can choose a desired maximum batch size for processing. By default this batch size will be the same as
- * the batch size the processor uses to fetch messages from the messaging service. Each time the consumer has finished
+ * Consumers can choose a desired maximum batch size for processing. By default this batch size will be the same as the
+ * batch size the processor uses to fetch messages from the messaging service. Each time the consumer has finished
  * consuming a batch the processor will update its position with the messaging service.
  */
 @Slf4j
-public class Processor implements Runnable {
+public class Tracking implements Runnable {
 
     private final String name;
     private final int channel;
@@ -63,19 +63,9 @@ public class Processor implements Runnable {
 
     private volatile boolean running;
 
-    public Processor(String name, ConsumerService consumerService, Consumer<List<Message>> consumer) {
-        this(name, 0, consumerService, consumer);
-    }
-
-    public Processor(String name, int channel, ConsumerService consumerService, Consumer<List<Message>> consumer) {
-        this(name, channel, 1024, Duration.ofMillis(10_000), consumerService, consumer,
-             1024, Duration.ofSeconds(1),
-             (e, batch) -> log.error("Consumer {} failed to handle batch {}", name, batch, e));
-    }
-
-    public Processor(String name, int channel, int maxFetchBatchSize, Duration maxWaitDuration,
-                     ConsumerService consumerService, Consumer<List<Message>> consumer, int maxConsumerBatchSize,
-                     Duration retryDelay, ErrorHandler<List<Message>> consumerErrorHandler) {
+    protected Tracking(String name, int channel, int maxFetchBatchSize, Duration maxWaitDuration,
+                       ConsumerService consumerService, Consumer<List<Message>> consumer, int maxConsumerBatchSize,
+                       Duration retryDelay, ErrorHandler<List<Message>> consumerErrorHandler) {
         this.name = name;
         this.channel = channel;
         this.maxFetchBatchSize = maxFetchBatchSize;
@@ -87,27 +77,30 @@ public class Processor implements Runnable {
         this.consumerErrorHandler = consumerErrorHandler;
     }
 
-    public static Registration startSingle(String name, ConsumerService consumerService,
-                                           Consumer<List<Message>> consumer) {
-        Processor processor = new Processor(name, consumerService, consumer);
-        ExecutorService executor = Executors.newSingleThreadExecutor();
-        executor.submit(processor);
-        return () -> {
-            processor.stop();
-            executor.shutdown();
-            return true;
-        };
+    public static Registration start(String name, ConsumerService consumerService, Consumer<List<Message>> consumer) {
+        return start(name, 1, consumerService, consumer);
     }
 
-    public static Registration startMultiple(String name, int threads, ConsumerService consumerService,
-                                             Consumer<List<Message>> consumer) {
-        List<Processor> processors =
-                IntStream.range(0, threads).mapToObj(i -> new Processor(name, i, consumerService, consumer)).collect(
+    public static Registration start(String name, int threads, ConsumerService consumerService,
+                                     Consumer<List<Message>> consumer) {
+        return start(name, threads, 1024, Duration.ofMillis(10_000), consumerService, consumer,
+                     1024, Duration.ofSeconds(1),
+                     (e, batch) -> log.error("Consumer {} failed to handle batch {}", name, batch, e));
+    }
+
+    public static Registration start(String name, int threads, int maxFetchBatchSize, Duration maxWaitDuration,
+                                     ConsumerService consumerService, Consumer<List<Message>> consumer,
+                                     int maxConsumerBatchSize,
+                                     Duration retryDelay, ErrorHandler<List<Message>> consumerErrorHandler) {
+        List<Tracking> instances =
+                IntStream.range(0, threads).mapToObj(
+                        i -> new Tracking(name, i, maxFetchBatchSize, maxWaitDuration, consumerService, consumer,
+                                          maxConsumerBatchSize, retryDelay, consumerErrorHandler)).collect(
                         Collectors.toList());
         ExecutorService executor = Executors.newFixedThreadPool(threads);
-        processors.forEach(executor::submit);
+        instances.forEach(executor::submit);
         return () -> {
-            processors.forEach(Processor::stop);
+            instances.forEach(Tracking::stop);
             executor.shutdown();
             return true;
         };
@@ -140,7 +133,7 @@ public class Processor implements Runnable {
         }
         if (messages.size() > maxConsumerBatchSize) {
             for (int i = 0; i < messages.size(); i += maxConsumerBatchSize) {
-                List<Message> batch = messages.subList( i, Math.min(i + maxConsumerBatchSize, messages.size()));
+                List<Message> batch = messages.subList(i, Math.min(i + maxConsumerBatchSize, messages.size()));
                 processBatch(batch, segment);
             }
         } else {

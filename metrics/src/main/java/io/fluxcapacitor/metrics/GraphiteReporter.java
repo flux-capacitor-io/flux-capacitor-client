@@ -32,7 +32,7 @@ import io.fluxcapacitor.common.handling.HandlerInvoker;
 import io.fluxcapacitor.javaclient.common.connection.ApplicationProperties;
 import io.fluxcapacitor.javaclient.common.connection.ServiceUrlBuilder;
 import io.fluxcapacitor.javaclient.tracking.ConsumerService;
-import io.fluxcapacitor.javaclient.tracking.Processor;
+import io.fluxcapacitor.javaclient.tracking.Tracking;
 import io.fluxcapacitor.javaclient.tracking.websocket.WebsocketConsumerService;
 import lombok.extern.slf4j.Slf4j;
 
@@ -92,7 +92,7 @@ public class GraphiteReporter {
     private static void collectMetrics(ApplicationProperties applicationProperties) {
         String metricsLogUrl = ServiceUrlBuilder.consumerUrl(MessageType.USAGE, applicationProperties);
         ConsumerService consumerService = new WebsocketConsumerService(metricsLogUrl);
-        Processor.startSingle("graphiteReporter", consumerService, messages -> messages.stream().map(
+        Tracking.start("graphiteReporter", consumerService, messages -> messages.stream().map(
                 GraphiteReporter::deserialize).forEach(GraphiteReporter::handle));
     }
 
