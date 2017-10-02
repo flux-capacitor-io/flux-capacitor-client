@@ -44,7 +44,13 @@ public class InMemoryEventStore extends InMemoryMessageStore implements EventSto
     public Stream<Message> getEvents(String aggregateId, long lastSequenceNumber) {
         return domainEvents.getOrDefault(aggregateId, Collections.emptyList()).stream()
                 .filter(batch -> batch.getLastSequenceNumber() > lastSequenceNumber)
-                .flatMap(batch -> batch.getEvents().stream());
+                .flatMap(batch -> {
+                    List<Message> events = batch.getEvents();
+                    if (batch.getFirstSequenceNumber() > lastSequenceNumber) {
+                        return events.stream();
+                    }
+                    return events.stream().skip(lastSequenceNumber - batch.getFirstSequenceNumber() + 1);
+                });
     }
 
     @Override
