@@ -24,8 +24,13 @@ import java.util.List;
 public class EventBatch {
     String aggregateId;
     String domain;
-    Long lastSequenceNumber;
+    long lastSequenceNumber;
     List<Message> events;
+    
+    @JsonIgnore
+    public Long getFirstSequenceNumber() {
+        return lastSequenceNumber - events.size() + 1;
+    }
 
     @JsonIgnore
     public boolean isEmpty() {
