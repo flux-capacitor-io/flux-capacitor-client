@@ -90,7 +90,7 @@
                         </goals>
                         <configuration>
                             <includes>
-                                <include>**/*Utils</include>
+                                <include>**/*Utils.*</include>
                             </includes>
                         </configuration>
                     </execution>
