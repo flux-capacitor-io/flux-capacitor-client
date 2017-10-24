@@ -21,29 +21,29 @@ import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.util.*;
 import java.util.function.Function;
-import java.util.stream.Collectors;
+
+import static java.util.stream.Collectors.toList;
 
 public class HandlerInspector {
 
-    public static <M> HandlerInvoker<M> inspect(Class<?> target, Class<? extends Annotation> methodAnnotation,
-                                                List<ParameterResolver<M>> parameterResolvers) {
-        List<MethodInvoker<M>> methodInvokers = new ArrayList<>();
-        for (Method m : target.getMethods()) {
-            if (!m.isAnnotationPresent(methodAnnotation)) {
-                continue;
-            }
-            methodInvokers.add(new MethodInvoker<>(m, parameterResolvers));
-        }
-        methodInvokers.sort(Comparator.naturalOrder());
-        return new CompositeHandlerInvoker<>(methodInvokers);
+    public static boolean hasHandlerMethods(Class<?> target, Class<? extends Annotation> methodAnnotation) {
+        return Arrays.stream(target.getMethods()).anyMatch(m -> m.isAnnotationPresent(methodAnnotation));
     }
 
-    private static class MethodInvoker<M> implements HandlerInvoker<M>, Comparable<MethodInvoker<M>> {
+    public static <M> HandlerInvoker<M> inspect(Class<?> target, Class<? extends Annotation> methodAnnotation,
+                                                List<ParameterResolver<M>> parameterResolvers) {
+        return new CompositeHandlerInvoker<>(
+                Arrays.stream(target.getMethods()).filter(m -> m.isAnnotationPresent(methodAnnotation))
+                        .map(m -> new MethodInvoker<>(m, parameterResolvers)).sorted(Comparator.naturalOrder())
+                        .collect(toList()));
+    }
+
+    protected static class MethodInvoker<M> implements HandlerInvoker<M>, Comparable<MethodInvoker<M>> {
 
         private final Method method;
         private final List<Function<M, Object>> parameterSuppliers;
 
-        public MethodInvoker(Method method, List<ParameterResolver<M>> parameterResolvers) {
+        protected MethodInvoker(Method method, List<ParameterResolver<M>> parameterResolvers) {
             this.method = method;
             this.parameterSuppliers = getParameterSuppliers(method, parameterResolvers);
         }
@@ -73,7 +73,7 @@ public class HandlerInspector {
             return Arrays.stream(method.getParameters())
                     .map(p -> resolvers.stream().map(r -> r.resolve(p)).filter(Objects::nonNull).findFirst()
                             .orElseThrow(() -> new IllegalStateException("Could not resolve parameter " + p)))
-                    .collect(Collectors.toList());
+                    .collect(toList());
         }
 
         private Class<?> getPayloadType() {
@@ -99,4 +99,25 @@ public class HandlerInspector {
         }
     }
 
+    protected static class CompositeHandlerInvoker<M> implements HandlerInvoker<M> {
+        private final List<HandlerInvoker<M>> delegates;
+
+        protected CompositeHandlerInvoker(List<? extends HandlerInvoker<M>> delegates) {
+            this.delegates = new ArrayList<>(delegates);
+        }
+
+        @Override
+        public boolean canHandle(M message) {
+            return delegates.stream().anyMatch(h -> h.canHandle(message));
+        }
+
+        @Override
+        public Object invoke(Object target, M message) throws Exception {
+            Optional<HandlerInvoker<M>> delegate = delegates.stream().filter(d -> d.canHandle(message)).findFirst();
+            if (!delegate.isPresent()) {
+                throw new IllegalArgumentException("No delegate found that could handle " + message);
+            }
+            return delegate.get().invoke(target, message);
+        }
+    }
 }
