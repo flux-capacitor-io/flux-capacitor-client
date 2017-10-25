@@ -14,10 +14,12 @@
 
 package io.fluxcapacitor.javaclient.common.serialization;
 
+import io.fluxcapacitor.common.api.Data;
+
 public interface Serializer {
 
-    byte[] serialize(Object object);
+    Data<byte[]> serialize(Object object);
 
-    <T> T deserialize(byte[] data, Class<? extends T> type);
+    <T> T deserialize(Data<byte[]> data);
 
 }

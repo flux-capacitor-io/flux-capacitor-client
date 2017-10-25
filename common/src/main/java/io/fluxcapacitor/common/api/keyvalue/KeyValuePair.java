@@ -14,10 +14,11 @@
 
 package io.fluxcapacitor.common.api.keyvalue;
 
+import io.fluxcapacitor.common.api.Data;
 import lombok.Value;
 
 @Value
 public class KeyValuePair {
     String key;
-    byte[] value;
+    Data<byte[]> value;
 }

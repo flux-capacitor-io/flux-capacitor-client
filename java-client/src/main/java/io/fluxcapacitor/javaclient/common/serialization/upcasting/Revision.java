@@ -14,11 +14,12 @@
 
 package io.fluxcapacitor.javaclient.common.serialization.upcasting;
 
-import lombok.Value;
+import java.lang.annotation.*;
 
-@Value
-public class Data<T> {
-    T value;
-    String type;
-    int revision;
+@Retention(RetentionPolicy.RUNTIME)
+@Target(ElementType.TYPE)
+@Documented
+public @interface Revision {
+
+    int value();
 }

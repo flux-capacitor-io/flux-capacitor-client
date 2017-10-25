@@ -14,6 +14,8 @@
 
 package io.fluxcapacitor.javaclient.common.serialization.upcasting;
 
+import io.fluxcapacitor.common.api.Data;
+
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.lang.reflect.ParameterizedType;
@@ -24,7 +26,7 @@ import java.util.stream.Stream;
 
 public class UpcastInspector {
 
-    private static Comparator<AnnotatedUpcaster<?>> upcasterComparator =
+    private static final Comparator<AnnotatedUpcaster<?>> upcasterComparator =
             Comparator.<AnnotatedUpcaster<?>, Integer>comparing(u -> u.getAnnotation().revision())
                     .thenComparing(u -> u.getAnnotation().type());
 

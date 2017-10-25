@@ -72,19 +72,19 @@ public class DefaultAxonMessageSerializer implements AxonMessageSerializer {
 
     @Override
     public Message<?> deserializeMessage(io.fluxcapacitor.common.api.Message message) {
-        return toMessage(deserialize(message.getPayload()));
+        return toMessage(deserialize(message.getData().getValue()));
     }
 
     @Override
     public DomainEventMessage<?> deserializeSnapshot(Snapshot snapshot) {
         return upcastAndDeserializeDomainEvents(
-                Stream.of(new AxonDomainEventEntry(deserialize(snapshot.getData()))), delegate, upcasterChain,
+                Stream.of(new AxonDomainEventEntry(deserialize(snapshot.getData().getValue()))), delegate, upcasterChain,
                 false).peek();
     }
 
     @Override
     public CommandMessage<?> deserializeCommand(io.fluxcapacitor.common.api.Message message) {
-        AxonMessage axonMessage = deserialize(message.getPayload());
+        AxonMessage axonMessage = deserialize(message.getData().getValue());
         return new GenericCommandMessage<>(toMessage(axonMessage), axonMessage.getCommandName());
     }
 
@@ -92,13 +92,13 @@ public class DefaultAxonMessageSerializer implements AxonMessageSerializer {
     public Stream<? extends TrackedEventMessage<?>> deserializeEvents(
             Stream<io.fluxcapacitor.common.api.Message> messageStream) {
         return upcastAndDeserializeTrackedEvents(messageStream.map(m -> new AxonEventEntry(
-                new IndexTrackingToken(m.getIndex()), deserialize(m.getPayload()))), delegate, upcasterChain, false);
+                new IndexTrackingToken(m.getIndex()), deserialize(m.getData().getValue()))), delegate, upcasterChain, false);
     }
 
     @Override
     public DomainEventStream deserializeDomainEvents(Stream<io.fluxcapacitor.common.api.Message> messageStream) {
         return upcastAndDeserializeDomainEvents(
-                messageStream.map(m -> new AxonDomainEventEntry(deserialize(m.getPayload()))), delegate, upcasterChain,
+                messageStream.map(m -> new AxonDomainEventEntry(deserialize(m.getData().getValue()))), delegate, upcasterChain,
                 false);
     }
 

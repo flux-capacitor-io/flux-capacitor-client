@@ -14,6 +14,7 @@
 
 package io.fluxcapacitor.common;
 
+import io.fluxcapacitor.common.api.Data;
 import io.fluxcapacitor.common.api.Message;
 
 import java.nio.ByteBuffer;
@@ -39,13 +40,13 @@ public class TestUtils {
             byte[] randomBytes = new byte[16];
             random.nextBytes(randomBytes);
             return byteBuffer.put(randomBytes).array();
-        }).map(Message::new).collect(Collectors.toList());
+        }).map(bytes -> new Message(new Data<>(bytes, "test", 0))).collect(Collectors.toList());
     }
 
     public static void assertEqualMessages(List<Message> expected, List<Message> actual) {
         assertEquals("Lists have a different size", expected.size(), actual.size());
         for (int i = 0; i < expected.size(); i++) {
-            assertArrayEquals(expected.get(i).getPayload(), actual.get(i).getPayload());
+            assertArrayEquals(expected.get(i).getData().getValue(), actual.get(i).getData().getValue());
         }
     }
 

@@ -18,6 +18,8 @@ import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.fluxcapacitor.common.SerializationException;
+import io.fluxcapacitor.common.api.Data;
+import io.fluxcapacitor.javaclient.common.serialization.upcasting.Revision;
 
 import java.io.IOException;
 
@@ -33,20 +35,23 @@ public class JacksonSerializer implements Serializer {
     }
 
     @Override
-    public byte[] serialize(Object object) {
+    public Data<byte[]> serialize(Object object) {
         try {
-            return objectMapper.writeValueAsBytes(object);
+            byte[] bytes = objectMapper.writeValueAsBytes(object);
+            Revision revision = object.getClass().getAnnotation(Revision.class);
+            return new Data<>(bytes, object.getClass().getName(), revision == null ? 0 : revision.value());
         } catch (JsonProcessingException e) {
             throw new SerializationException("Could not serialize " + object, e);
         }
     }
 
     @Override
-    public <T> T deserialize(byte[] data, Class<? extends T> type) {
+    @SuppressWarnings("unchecked")
+    public <T> T deserialize(Data<byte[]> data) {
         try {
-            return objectMapper.readValue(data, type);
-        } catch (IOException e) {
-            throw new SerializationException("Could not deserialize a " + type, e);
+            return (T) objectMapper.readValue(data.getValue(), Class.forName(data.getType()));
+        } catch (IOException | ClassNotFoundException e) {
+            throw new SerializationException("Could not deserialize a " + data.getType(), e);
         }
     }
 }

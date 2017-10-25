@@ -98,7 +98,7 @@ public class GraphiteReporter {
 
     private static ClientAction deserialize(Message message) {
         try {
-            return objectMapper.readValue(message.getPayload(), ClientAction.class);
+            return objectMapper.readValue(message.getData().getValue(), ClientAction.class);
         } catch (IOException e) {
             log.error("Failed to deserialize to ClientAction", e);
             throw new IllegalStateException(e);

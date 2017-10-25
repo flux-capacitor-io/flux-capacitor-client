@@ -14,6 +14,8 @@
 
 package io.fluxcapacitor.javaclient.common.serialization.upcasting;
 
+import io.fluxcapacitor.common.api.Data;
+
 import java.lang.reflect.Method;
 import java.util.function.Function;
 import java.util.stream.Stream;

@@ -14,18 +14,11 @@
 
 package io.fluxcapacitor.common.api;
 
-import lombok.AllArgsConstructor;
+import lombok.Value;
 
-@lombok.Data
-@AllArgsConstructor
-public class Message {
-
-    private Data<byte[]> data;
-    private Integer segment;
-    private Long index;
-    private String target;
-
-    public Message(Data<byte[]> data) {
-        this.data = data;
-    }
+@Value
+public class Data<T> {
+    T value;
+    String type;
+    int revision;
 }

@@ -14,11 +14,12 @@
 
 package io.fluxcapacitor.common.api.keyvalue;
 
+import io.fluxcapacitor.common.api.Data;
 import io.fluxcapacitor.common.api.QueryResult;
 import lombok.Value;
 
 @Value
 public class GetValueResult implements QueryResult {
     long requestId;
-    byte[] value;
+    Data<byte[]> value;
 }

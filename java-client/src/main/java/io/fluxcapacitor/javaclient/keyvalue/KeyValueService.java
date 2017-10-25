@@ -15,12 +15,13 @@
 package io.fluxcapacitor.javaclient.keyvalue;
 
 import io.fluxcapacitor.common.Awaitable;
+import io.fluxcapacitor.common.api.Data;
 
 public interface KeyValueService {
 
-    Awaitable putValue(String key, byte[] value);
+    Awaitable putValue(String key, Data<byte[]> value);
 
-    byte[] getValue(String key);
+    Data<byte[]> getValue(String key);
 
     Awaitable deleteValue(String key);
 

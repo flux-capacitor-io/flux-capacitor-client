@@ -16,6 +16,7 @@ package io.fluxcapacitor.javaclient.keyvalue.websocket;
 
 import io.fluxcapacitor.common.Awaitable;
 import io.fluxcapacitor.common.Backlog;
+import io.fluxcapacitor.common.api.Data;
 import io.fluxcapacitor.common.api.keyvalue.*;
 import io.fluxcapacitor.common.serialization.websocket.JsonDecoder;
 import io.fluxcapacitor.common.serialization.websocket.JsonEncoder;
@@ -48,12 +49,12 @@ public class WebsocketKeyValueService extends AbstractWebsocketService implement
     }
 
     @Override
-    public Awaitable putValue(String key, byte[] value) {
+    public Awaitable putValue(String key, Data<byte[]> value) {
         return backlog.add(new KeyValuePair(key, value));
     }
 
     @Override
-    public byte[] getValue(String key) {
+    public Data<byte[]> getValue(String key) {
         GetValueResult result = sendRequest(new GetValue(key));
         return result.getValue();
     }

@@ -14,6 +14,7 @@
 
 package io.fluxcapacitor.javaclient.common.serialization.upcasting;
 
+import io.fluxcapacitor.common.api.Data;
 import org.junit.Test;
 
 import java.util.Arrays;

@@ -16,6 +16,7 @@ package io.fluxcapacitor.axonclient.eventhandling;
 
 import io.fluxcapacitor.axonclient.common.serialization.AxonMessageSerializer;
 import io.fluxcapacitor.common.ConsistentHashing;
+import io.fluxcapacitor.common.api.Data;
 import io.fluxcapacitor.common.api.Message;
 import io.fluxcapacitor.javaclient.eventsourcing.Snapshot;
 import lombok.extern.slf4j.Slf4j;
@@ -44,12 +45,14 @@ public class FluxCapacitorEventStore extends AbstractEventBus implements EventSt
     private final io.fluxcapacitor.javaclient.eventsourcing.EventStore delegate;
     private final AxonMessageSerializer serializer;
 
-    public FluxCapacitorEventStore(io.fluxcapacitor.javaclient.eventsourcing.EventStore delegate, AxonMessageSerializer serializer) {
+    public FluxCapacitorEventStore(io.fluxcapacitor.javaclient.eventsourcing.EventStore delegate,
+                                   AxonMessageSerializer serializer) {
         this(NoOpMessageMonitor.INSTANCE, delegate, serializer);
     }
 
     public FluxCapacitorEventStore(MessageMonitor<? super EventMessage<?>> messageMonitor,
-                                   io.fluxcapacitor.javaclient.eventsourcing.EventStore delegate, AxonMessageSerializer serializer) {
+                                   io.fluxcapacitor.javaclient.eventsourcing.EventStore delegate,
+                                   AxonMessageSerializer serializer) {
         super(messageMonitor);
         this.delegate = delegate;
         this.serializer = serializer;
@@ -79,9 +82,8 @@ public class FluxCapacitorEventStore extends AbstractEventBus implements EventSt
 
     protected List<Message> convert(List<? extends EventMessage<?>> events) {
         return events.stream().map(e -> {
-            Message message = new Message(serializer.serializeEvent(e));
+            Message message = new Message(new Data<>(serializer.serializeEvent(e), e.getPayloadType().getName(), 0));
             message.setSegment(ConsistentHashing.computeSegment(getAggregateId(e)));
-            message.setType(e.getPayloadType().getName());
             return message;
         }).collect(toList());
     }
@@ -126,7 +128,8 @@ public class FluxCapacitorEventStore extends AbstractEventBus implements EventSt
     @Override
     public void storeSnapshot(DomainEventMessage<?> snapshot) {
         byte[] bytes = serializer.serializeDomainEvent(snapshot);
-        delegate.storeSnapshot(new Snapshot(snapshot.getAggregateIdentifier(), snapshot.getSequenceNumber(), bytes));
+        delegate.storeSnapshot(new Snapshot(snapshot.getAggregateIdentifier(), snapshot.getSequenceNumber(),
+                                            new Data<>(bytes, snapshot.getPayloadType().getName(), 0)));
     }
 
     @Override

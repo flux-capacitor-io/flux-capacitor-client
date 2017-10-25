@@ -81,6 +81,7 @@ public class HandlerInspector {
         }
 
         @Override
+        @SuppressWarnings("NullableProblems")
         public int compareTo(MethodInvoker<M> o) {
             int result = comparePayloads(getPayloadType(), o.getPayloadType());
             if (result == 0) {

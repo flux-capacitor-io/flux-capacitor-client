@@ -14,11 +14,12 @@
 
 package io.fluxcapacitor.javaclient.eventsourcing;
 
+import io.fluxcapacitor.common.api.Data;
 import lombok.Value;
 
 @Value
 public class Snapshot {
     String aggregateId;
     long lastSequenceNumber;
-    byte[] data;
+    Data<byte[]> data;
 }

@@ -46,8 +46,9 @@ public class EventSourcingRepository<T> implements Repository<T> {
             snapshot = Optional.empty();
             eventStore.deleteSnapshot(aggregateId);
         }
-        Long lastSequenceNumber = snapshot.map(Snapshot::getLastSequenceNumber).orElse(null);
-        Iterator<Message> messageIterator = eventStore.getEvents(aggregateId, lastSequenceNumber).iterator();
+        Iterator<Message> messageIterator =
+                snapshot.map(s -> eventStore.getEvents(aggregateId, s.getLastSequenceNumber()))
+                        .orElse(eventStore.getEvents(aggregateId)).iterator();
         while (messageIterator.hasNext()) {
             value = eventHandler.apply(value, messageIterator.next());
         }

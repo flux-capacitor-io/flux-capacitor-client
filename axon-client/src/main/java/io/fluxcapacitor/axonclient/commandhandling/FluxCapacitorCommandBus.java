@@ -17,6 +17,7 @@ package io.fluxcapacitor.axonclient.commandhandling;
 import io.fluxcapacitor.axonclient.commandhandling.result.ResultService;
 import io.fluxcapacitor.axonclient.common.serialization.AxonMessageSerializer;
 import io.fluxcapacitor.common.ConsistentHashing;
+import io.fluxcapacitor.common.api.Data;
 import io.fluxcapacitor.common.api.Message;
 import io.fluxcapacitor.javaclient.tracking.ProducerService;
 import org.axonframework.commandhandling.*;
@@ -99,10 +100,9 @@ public class FluxCapacitorCommandBus implements CommandBus {
     }
 
     private Message toFluxCapacitorMessage(CommandMessage<?> commandMessage) {
-        Message result = new Message(serializer.serializeCommand(commandMessage));
+        Message result = new Message(new Data<>(serializer.serializeCommand(commandMessage), commandMessage.getCommandName(), 0));
         String routingKey = routingStrategy.getRoutingKey(commandMessage);
         result.setSegment(ConsistentHashing.computeSegment(routingKey));
-        result.setType(commandMessage.getCommandName());
         return result;
     }
 

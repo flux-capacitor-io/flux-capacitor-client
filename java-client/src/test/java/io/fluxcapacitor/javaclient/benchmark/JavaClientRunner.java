@@ -15,6 +15,7 @@
 package io.fluxcapacitor.javaclient.benchmark;
 
 import io.fluxcapacitor.common.MessageType;
+import io.fluxcapacitor.common.api.Data;
 import io.fluxcapacitor.common.api.Message;
 import io.fluxcapacitor.common.handling.Handler;
 import io.fluxcapacitor.common.handling.HandlerInspector;
@@ -65,7 +66,7 @@ public class JavaClientRunner extends AbstractClientBenchmark {
 
     @Override
     protected void doSendCommand(String payload) {
-        producerService.send(new Message(payload.getBytes()));
+        producerService.send(new Message(new Data<>(payload.getBytes(), String.class.getName(), 0)));
     }
 
     @Handler

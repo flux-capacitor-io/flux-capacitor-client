@@ -14,6 +14,7 @@
 
 package io.fluxcapacitor.javaclient.keyvalue;
 
+import io.fluxcapacitor.common.api.Data;
 import io.fluxcapacitor.javaclient.common.repository.Repository;
 import io.fluxcapacitor.javaclient.common.serialization.Serializer;
 
@@ -21,12 +22,10 @@ public class KeyValueRepository<T> implements Repository<T> {
 
     private final KeyValueService keyValueService;
     private final Serializer serializer;
-    private final Class<? extends T> type;
 
-    public KeyValueRepository(KeyValueService keyValueService, Serializer serializer, Class<? extends T> type) {
+    public KeyValueRepository(KeyValueService keyValueService, Serializer serializer) {
         this.keyValueService = keyValueService;
         this.serializer = serializer;
-        this.type = type;
     }
 
     @Override
@@ -40,8 +39,8 @@ public class KeyValueRepository<T> implements Repository<T> {
 
     @Override
     public T get(Object id) {
-        byte[] result = keyValueService.getValue(id.toString());
-        return result == null ? null : serializer.deserialize(result, type);
+        Data<byte[]> result = keyValueService.getValue(id.toString());
+        return result == null ? null : serializer.deserialize(result);
     }
 
     @Override

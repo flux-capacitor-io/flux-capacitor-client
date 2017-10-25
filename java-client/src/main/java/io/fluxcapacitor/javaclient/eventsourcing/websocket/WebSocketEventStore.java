@@ -62,7 +62,7 @@ public class WebSocketEventStore extends AbstractWebsocketService implements Eve
         super(endPointUri);
         this.backlog = new Backlog<>(this::doSend, backlogSize);
         this.fetchBatchSize = fetchBatchSize;
-        this.snapshotRepository = new KeyValueRepository<>(keyValueService, serializer, Snapshot.class);
+        this.snapshotRepository = new KeyValueRepository<>(keyValueService, serializer);
     }
 
     @Override
