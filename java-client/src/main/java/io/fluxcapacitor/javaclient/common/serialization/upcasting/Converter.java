@@ -14,11 +14,12 @@
 
 package io.fluxcapacitor.javaclient.common.serialization.upcasting;
 
-import java.util.stream.Stream;
+public interface Converter<T> {
 
-@FunctionalInterface
-public interface Upcaster<T> {
+    T convert(byte[] bytes);
 
-    Stream<T> upcast(Stream<T> input);
+    byte[] convert(T value);
+
+    Class<T> getDataType();
 
 }

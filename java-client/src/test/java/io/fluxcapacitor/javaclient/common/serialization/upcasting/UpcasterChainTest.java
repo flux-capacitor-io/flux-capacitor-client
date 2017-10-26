@@ -30,7 +30,7 @@ import static org.junit.Assert.assertEquals;
 public class UpcasterChainTest {
 
     private UpcasterStub upcasterStub = new UpcasterStub();
-    private UpcasterChain<String> subject = UpcasterChain.create(Collections.singleton(upcasterStub), String.class);
+    private Upcaster<Data<String>> subject = UpcasterChain.create(Collections.singleton(upcasterStub), String.class);
 
     @Test
     public void testMappingPayload() {

@@ -12,26 +12,49 @@
  * limitations under the License.
  */
 
-package io.fluxcapacitor.javaclient.common.serialization;
+package io.fluxcapacitor.javaclient.common.serialization.jackson;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.fluxcapacitor.common.SerializationException;
 import io.fluxcapacitor.common.api.Data;
+import io.fluxcapacitor.javaclient.common.serialization.Serializer;
 import io.fluxcapacitor.javaclient.common.serialization.upcasting.Revision;
+import io.fluxcapacitor.javaclient.common.serialization.upcasting.Upcaster;
+import io.fluxcapacitor.javaclient.common.serialization.upcasting.UpcasterChain;
 
 import java.io.IOException;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.stream.Stream;
 
 public class JacksonSerializer implements Serializer {
+    private static final ObjectMapper defaultObjectMapper =
+            new ObjectMapper().setSerializationInclusion(JsonInclude.Include.NON_NULL);
+
     private final ObjectMapper objectMapper;
+    private final Upcaster<Data<byte[]>> upcasterChain;
 
     public JacksonSerializer() {
-        this(new ObjectMapper().setSerializationInclusion(JsonInclude.Include.NON_NULL));
+        this(Collections.emptyList());
     }
 
-    public JacksonSerializer(ObjectMapper objectMapper) {
+    public JacksonSerializer(Collection<Object> upcasters) {
+        this(defaultObjectMapper, upcasters);
+    }
+
+    public JacksonSerializer(ObjectMapper objectMapper, Collection<Object> upcasters) {
+        this(objectMapper, UpcasterChain.create(upcasters, new ObjectNodeConverter(objectMapper)));
+    }
+
+    public JacksonSerializer(Upcaster<Data<byte[]>> upcasterChain) {
+        this(defaultObjectMapper, upcasterChain);
+    }
+
+    public JacksonSerializer(ObjectMapper objectMapper, Upcaster<Data<byte[]>> upcasterChain) {
         this.objectMapper = objectMapper;
+        this.upcasterChain = upcasterChain;
     }
 
     @Override
@@ -46,12 +69,17 @@ public class JacksonSerializer implements Serializer {
     }
 
     @Override
+    public Stream<Object> deserialize(Stream<Data<byte[]>> dataStream) {
+        return upcasterChain.upcast(dataStream).map(this::deserializeAfterUpcast);
+    }
+
     @SuppressWarnings("unchecked")
-    public <T> T deserialize(Data<byte[]> data) {
+    protected <T> T deserializeAfterUpcast(Data<byte[]> data) {
         try {
             return (T) objectMapper.readValue(data.getValue(), Class.forName(data.getType()));
         } catch (IOException | ClassNotFoundException e) {
             throw new SerializationException("Could not deserialize a " + data.getType(), e);
         }
     }
+
 }

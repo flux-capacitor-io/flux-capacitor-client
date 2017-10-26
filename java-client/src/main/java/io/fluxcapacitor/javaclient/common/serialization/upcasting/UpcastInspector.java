@@ -30,7 +30,7 @@ public class UpcastInspector {
             Comparator.<AnnotatedUpcaster<?>, Integer>comparing(u -> u.getAnnotation().revision())
                     .thenComparing(u -> u.getAnnotation().type());
 
-    public static <T> List<AnnotatedUpcaster<T>> inspect(Collection<Object> upcasters, Class<T> dataType) {
+    public static <T> List<AnnotatedUpcaster<T>> inspect(Collection<?> upcasters, Class<T> dataType) {
         List<AnnotatedUpcaster<T>> result = new ArrayList<>();
         for (Object upcaster : upcasters) {
             for (Method method : upcaster.getClass().getMethods()) {

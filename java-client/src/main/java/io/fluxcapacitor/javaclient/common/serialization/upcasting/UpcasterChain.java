@@ -29,7 +29,20 @@ import static java.util.stream.Collectors.toMap;
 
 public class UpcasterChain<T> implements Upcaster<Data<T>> {
 
-    public static <T> UpcasterChain<T> create(Collection<Object> upcasters, Class<T> dataType) {
+    public static <T> Upcaster<Data<byte[]>> create(Collection<?> upcasters, Converter<T> converter) {
+        if (upcasters.isEmpty()) {
+            return stream -> stream;
+        }
+        Upcaster<Data<T>> upcasterChain = create(upcasters, converter.getDataType());
+        return stream -> {
+            Stream<Data<T>> converted =
+                    stream.map(d -> new Data<>(converter.convert(d.getValue()), d.getType(), d.getRevision()));
+            Stream<? extends Data<T>> upcasted = upcasterChain.upcast(converted);
+            return upcasted.map(d -> new Data<>(converter.convert(d.getValue()), d.getType(), d.getRevision()));
+        };
+    }
+
+    public static <T> Upcaster<Data<T>> create(Collection<?> upcasters, Class<T> dataType) {
         return new UpcasterChain<>(UpcastInspector.inspect(upcasters, dataType));
     }
 

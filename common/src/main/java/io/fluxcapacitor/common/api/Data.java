@@ -14,9 +14,11 @@
 
 package io.fluxcapacitor.common.api;
 
+import lombok.ToString;
 import lombok.Value;
 
 @Value
+@ToString(exclude = "value")
 public class Data<T> {
     T value;
     String type;

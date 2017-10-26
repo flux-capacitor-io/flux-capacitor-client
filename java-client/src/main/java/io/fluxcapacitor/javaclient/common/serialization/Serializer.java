@@ -16,10 +16,26 @@ package io.fluxcapacitor.javaclient.common.serialization;
 
 import io.fluxcapacitor.common.api.Data;
 
+import java.util.List;
+import java.util.stream.Stream;
+
+import static java.util.stream.Collectors.toList;
+
 public interface Serializer {
 
     Data<byte[]> serialize(Object object);
 
-    <T> T deserialize(Data<byte[]> data);
+    @SuppressWarnings("unchecked")
+    default <T> T deserialize(Data<byte[]> data) {
+        List list = deserialize(Stream.of(data)).collect(toList());
+        if (list.size() != 1) {
+            throw new IllegalStateException(
+                    String.format("Invalid deserialization result for a '%s'. Expected a single object but got %s",
+                                  data, list));
+        }
+        return (T) list.get(0);
+    }
+
+    Stream<Object> deserialize(Stream<Data<byte[]>> dataStream);
 
 }
