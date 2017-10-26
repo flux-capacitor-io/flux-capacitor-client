@@ -30,9 +30,6 @@ import static java.util.stream.Collectors.toMap;
 public class UpcasterChain<T> implements Upcaster<Data<T>> {
 
     public static <T> Upcaster<Data<byte[]>> create(Collection<?> upcasters, Converter<T> converter) {
-        if (upcasters.isEmpty()) {
-            return stream -> stream;
-        }
         Upcaster<Data<T>> upcasterChain = create(upcasters, converter.getDataType());
         return stream -> {
             Stream<Data<T>> converted =

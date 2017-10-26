@@ -17,7 +17,7 @@ package io.fluxcapacitor.javaclient.common.serialization.jackson;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
-import io.fluxcapacitor.common.SerializationException;
+import io.fluxcapacitor.javaclient.common.serialization.SerializationException;
 import io.fluxcapacitor.javaclient.common.serialization.upcasting.Converter;
 import lombok.AllArgsConstructor;
 

@@ -14,9 +14,9 @@
 
 package io.fluxcapacitor.javaclient.eventsourcing;
 
-import io.fluxcapacitor.common.SerializationException;
 import io.fluxcapacitor.common.api.Message;
 import io.fluxcapacitor.javaclient.common.repository.Repository;
+import io.fluxcapacitor.javaclient.common.serialization.SerializationException;
 import lombok.extern.slf4j.Slf4j;
 
 import java.util.Iterator;

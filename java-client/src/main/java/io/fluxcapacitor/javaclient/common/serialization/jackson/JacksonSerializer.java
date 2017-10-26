@@ -15,71 +15,46 @@
 package io.fluxcapacitor.javaclient.common.serialization.jackson;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
-import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import io.fluxcapacitor.common.SerializationException;
 import io.fluxcapacitor.common.api.Data;
-import io.fluxcapacitor.javaclient.common.serialization.Serializer;
-import io.fluxcapacitor.javaclient.common.serialization.upcasting.Revision;
+import io.fluxcapacitor.javaclient.common.serialization.AbstractSerializer;
 import io.fluxcapacitor.javaclient.common.serialization.upcasting.Upcaster;
 import io.fluxcapacitor.javaclient.common.serialization.upcasting.UpcasterChain;
 
-import java.io.IOException;
 import java.util.Collection;
 import java.util.Collections;
-import java.util.stream.Stream;
 
-public class JacksonSerializer implements Serializer {
-    private static final ObjectMapper defaultObjectMapper =
+public class JacksonSerializer extends AbstractSerializer {
+    public static final ObjectMapper defaultObjectMapper =
             new ObjectMapper().setSerializationInclusion(JsonInclude.Include.NON_NULL);
 
     private final ObjectMapper objectMapper;
-    private final Upcaster<Data<byte[]>> upcasterChain;
 
     public JacksonSerializer() {
         this(Collections.emptyList());
     }
 
-    public JacksonSerializer(Collection<Object> upcasters) {
+    public JacksonSerializer(Collection<?> upcasters) {
         this(defaultObjectMapper, upcasters);
     }
 
-    public JacksonSerializer(ObjectMapper objectMapper, Collection<Object> upcasters) {
+    public JacksonSerializer(ObjectMapper objectMapper, Collection<?> upcasters) {
         this(objectMapper, UpcasterChain.create(upcasters, new ObjectNodeConverter(objectMapper)));
     }
 
-    public JacksonSerializer(Upcaster<Data<byte[]>> upcasterChain) {
-        this(defaultObjectMapper, upcasterChain);
-    }
-
     public JacksonSerializer(ObjectMapper objectMapper, Upcaster<Data<byte[]>> upcasterChain) {
+        super(upcasterChain);
         this.objectMapper = objectMapper;
-        this.upcasterChain = upcasterChain;
     }
 
     @Override
-    public Data<byte[]> serialize(Object object) {
-        try {
-            byte[] bytes = objectMapper.writeValueAsBytes(object);
-            Revision revision = object.getClass().getAnnotation(Revision.class);
-            return new Data<>(bytes, object.getClass().getName(), revision == null ? 0 : revision.value());
-        } catch (JsonProcessingException e) {
-            throw new SerializationException("Could not serialize " + object, e);
-        }
+    protected byte[] doSerialize(Object object) throws Exception {
+        return objectMapper.writeValueAsBytes(object);
     }
 
     @Override
-    public Stream<Object> deserialize(Stream<Data<byte[]>> dataStream) {
-        return upcasterChain.upcast(dataStream).map(this::deserializeAfterUpcast);
-    }
-
-    @SuppressWarnings("unchecked")
-    protected <T> T deserializeAfterUpcast(Data<byte[]> data) {
-        try {
-            return (T) objectMapper.readValue(data.getValue(), Class.forName(data.getType()));
-        } catch (IOException | ClassNotFoundException e) {
-            throw new SerializationException("Could not deserialize a " + data.getType(), e);
-        }
+    protected <T> T doDeserialize(byte[] bytes, Class<? extends T> type) throws Exception {
+        return objectMapper.readValue(bytes, type);
     }
 
 }

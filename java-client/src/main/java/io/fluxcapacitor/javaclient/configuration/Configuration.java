@@ -12,19 +12,16 @@
  * limitations under the License.
  */
 
-package io.fluxcapacitor.common;
+package io.fluxcapacitor.javaclient.configuration;
 
-public class SerializationException extends RuntimeException {
+import io.fluxcapacitor.javaclient.common.connection.ApplicationProperties;
 
-    public SerializationException(Throwable cause) {
-        super(cause);
-    }
+import java.util.List;
 
-    public SerializationException(String message) {
-        super(message);
-    }
+public interface Configuration {
 
-    public SerializationException(String message, Throwable cause) {
-        super(message, cause);
-    }
+    Configuration addHandlers(List<Object> handlers);
+
+    Configuration setApplicationProperties(ApplicationProperties applicationProperties);
+
 }
