@@ -48,9 +48,9 @@ while(true); do
 done
 
 # also publish the gpg key to MIT (Sonatype checks here)
-gpg --keyserver pgp.mit.edu --send-keys ${GPG_KEYNAME}
+gpg --keyserver pool.sks-keyservers.net --send-keys ${GPG_KEYNAME}
 
 while(true); do
   date
-  gpg --keyserver pgp.mit.edu  --recv-keys ${GPG_KEYNAME} && break || sleep 30
+  gpg --keyserver pool.sks-keyservers.net  --recv-keys ${GPG_KEYNAME} && break || sleep 30
 done
