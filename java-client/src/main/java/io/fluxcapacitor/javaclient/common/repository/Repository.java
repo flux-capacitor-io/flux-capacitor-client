@@ -14,12 +14,35 @@
 
 package io.fluxcapacitor.javaclient.common.repository;
 
+/**
+ * Represents a store of objects of type {@link T}. If a repository does not support modifications it is free to ignore
+ * those operations.
+ *
+ * @param <T> the object type stored in the repository
+ */
 public interface Repository<T> {
 
+    /**
+     * Adds or replaces a value in the repository. May be ignored if this repository does not support modifications.
+     *
+     * @param id    The object id
+     * @param value The value to store
+     */
     void put(Object id, T value);
 
+    /**
+     * Returns the value associated with the given id. If there is no association, {@code null} is returned.
+     *
+     * @param id The object id
+     * @return The value associated with given id
+     */
     T get(Object id);
 
+    /**
+     * Deletes the value associated with the given id.
+     *
+     * @param id The object id
+     */
     void delete(Object id);
 
 }

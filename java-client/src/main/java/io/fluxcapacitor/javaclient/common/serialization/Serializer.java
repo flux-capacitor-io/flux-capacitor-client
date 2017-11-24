@@ -21,10 +21,27 @@ import java.util.stream.Stream;
 
 import static java.util.stream.Collectors.toList;
 
+/**
+ * Mechanism to convert objects to a byte array and vice versa.
+ */
 public interface Serializer {
 
+    /**
+     * Serializes an object to a {@link Data} object containing a byte array.
+     *
+     * @param object The instance to serialize
+     * @return Data object containing byte array representation of the object
+     */
     Data<byte[]> serialize(Object object);
 
+    /**
+     * Deserializes the given {@link Data} object to an object of type {@link T}. Throws exception if the data object
+     * cannot be deserialized to a single object of the given type.
+     *
+     * @param data Data to deserialize
+     * @param <T>  Type of object to deserialize to
+     * @return Object resulting from the deserialization
+     */
     @SuppressWarnings("unchecked")
     default <T> T deserialize(Data<byte[]> data) {
         List list = deserialize(Stream.of(data)).collect(toList());
@@ -36,6 +53,12 @@ public interface Serializer {
         return (T) list.get(0);
     }
 
+    /**
+     * Deserializes a stream of {@link Data} objects to a stream of Objects.
+     *
+     * @param dataStream Data stream to deserialize
+     * @return Stream of Objects resulting from the deserialization
+     */
     Stream<Object> deserialize(Stream<Data<byte[]>> dataStream);
 
 }
