@@ -17,10 +17,31 @@ package io.fluxcapacitor.common.api;
 import lombok.ToString;
 import lombok.Value;
 
+import java.util.Objects;
+
 @Value
 @ToString(exclude = "value")
 public class Data<T> {
     T value;
     String type;
     int revision;
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) {
+            return true;
+        }
+        if (o == null || getClass() != o.getClass()) {
+            return false;
+        }
+        Data<?> data = (Data<?>) o;
+        return revision == data.revision &&
+                Objects.deepEquals(value, data.value) &&
+                Objects.equals(type, data.type);
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(value, type, revision);
+    }
 }

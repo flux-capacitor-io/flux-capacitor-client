@@ -83,7 +83,7 @@ public class Tracking implements Runnable {
 
     public static Registration start(String name, int threads, ConsumerService consumerService,
                                      Consumer<List<Message>> consumer) {
-        return start(name, threads, 1024, Duration.ofMillis(10_000), consumerService, consumer,
+        return start(name, threads, 1024, Duration.ofMillis(60_000), consumerService, consumer,
                      1024, Duration.ofSeconds(1),
                      (e, batch) -> log.error("Consumer {} failed to handle batch {}", name, batch, e));
     }

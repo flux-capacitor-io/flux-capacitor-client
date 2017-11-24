@@ -12,7 +12,7 @@
  * limitations under the License.
  */
 
-package io.fluxcapacitor.javaclient.common.serialization.upcasting;
+package io.fluxcapacitor.common.serialization;
 
 import java.lang.annotation.*;
 

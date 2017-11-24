@@ -15,7 +15,7 @@
 package io.fluxcapacitor.javaclient.common.serialization;
 
 import io.fluxcapacitor.common.api.Data;
-import io.fluxcapacitor.javaclient.common.serialization.upcasting.Revision;
+import io.fluxcapacitor.common.serialization.Revision;
 import io.fluxcapacitor.javaclient.common.serialization.upcasting.Upcaster;
 
 import java.util.stream.Stream;
