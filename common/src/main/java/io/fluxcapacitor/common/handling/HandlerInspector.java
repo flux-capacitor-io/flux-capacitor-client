@@ -30,20 +30,22 @@ public class HandlerInspector {
         return Arrays.stream(target.getMethods()).anyMatch(m -> m.isAnnotationPresent(methodAnnotation));
     }
 
-    public static <M> HandlerInvoker<M> inspect(Class<?> target, Class<? extends Annotation> methodAnnotation,
+    public static <M> HandlerInvoker<M> inspect(Object target, Class<? extends Annotation> methodAnnotation,
                                                 List<ParameterResolver<M>> parameterResolvers) {
-        return new ObjectInvoker<>(
-                Arrays.stream(target.getMethods()).filter(m -> m.isAnnotationPresent(methodAnnotation))
-                        .map(m -> new MethodInvoker<>(m, parameterResolvers)).sorted(Comparator.naturalOrder())
+        return new ObjectHandlerInvoker<>(
+                Arrays.stream(target.getClass().getMethods()).filter(m -> m.isAnnotationPresent(methodAnnotation))
+                        .map(m -> new MethodHandlerInvoker<>(target, m, parameterResolvers)).sorted(Comparator.naturalOrder())
                         .collect(toList()));
     }
 
-    protected static class MethodInvoker<M> implements HandlerInvoker<M>, Comparable<MethodInvoker<M>> {
+    protected static class MethodHandlerInvoker<M> implements HandlerInvoker<M>, Comparable<MethodHandlerInvoker<M>> {
 
+        private final Object target;
         private final Method method;
         private final List<Function<M, Object>> parameterSuppliers;
 
-        protected MethodInvoker(Method method, List<ParameterResolver<M>> parameterResolvers) {
+        protected MethodHandlerInvoker(Object target, Method method, List<ParameterResolver<M>> parameterResolvers) {
+            this.target = target;
             this.method = method;
             this.parameterSuppliers = getParameterSuppliers(method, parameterResolvers);
         }
@@ -54,7 +56,7 @@ public class HandlerInspector {
         }
 
         @Override
-        public Object invoke(Object target, M message) throws Exception {
+        public Object invoke(M message) throws Exception {
             try {
                 return method.invoke(target, parameterSuppliers.stream().map(s -> s.apply(message)).toArray());
             } catch (InvocationTargetException e) {
@@ -82,7 +84,7 @@ public class HandlerInspector {
 
         @Override
         @SuppressWarnings("NullableProblems")
-        public int compareTo(MethodInvoker<M> o) {
+        public int compareTo(MethodHandlerInvoker<M> o) {
             int result = comparePayloads(getPayloadType(), o.getPayloadType());
             if (result == 0) {
                 result = method.toGenericString().compareTo(o.method.toGenericString());
@@ -100,10 +102,10 @@ public class HandlerInspector {
         }
     }
 
-    protected static class ObjectInvoker<M> implements HandlerInvoker<M> {
+    protected static class ObjectHandlerInvoker<M> implements HandlerInvoker<M> {
         private final List<HandlerInvoker<M>> methodHandlers;
 
-        protected ObjectInvoker(List<? extends HandlerInvoker<M>> methodHandlers) {
+        protected ObjectHandlerInvoker(List<? extends HandlerInvoker<M>> methodHandlers) {
             this.methodHandlers = new ArrayList<>(methodHandlers);
         }
 
@@ -113,12 +115,12 @@ public class HandlerInspector {
         }
 
         @Override
-        public Object invoke(Object target, M message) throws Exception {
+        public Object invoke(M message) throws Exception {
             Optional<HandlerInvoker<M>> delegate = methodHandlers.stream().filter(d -> d.canHandle(message)).findFirst();
             if (!delegate.isPresent()) {
                 throw new IllegalArgumentException("No method found that could handle " + message);
             }
-            return delegate.get().invoke(target, message);
+            return delegate.get().invoke(message);
         }
     }
 }

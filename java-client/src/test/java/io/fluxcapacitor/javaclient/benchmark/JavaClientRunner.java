@@ -53,7 +53,7 @@ public class JavaClientRunner extends AbstractClientBenchmark {
                                   ServiceUrlBuilder.consumerUrl(MessageType.COMMAND, getApplicationProperties())),
                        this::handleCommands);
         commandInvoker =
-                HandlerInspector.inspect(this.getClass(), Handler.class, Collections.singletonList(p -> m -> m));
+                HandlerInspector.inspect(this, Handler.class, Collections.singletonList(p -> m -> m));
 
         CountDownLatch commandsSentCountdown = new CountDownLatch(commandCount);
         producerService.registerMonitor(m -> {
@@ -77,7 +77,7 @@ public class JavaClientRunner extends AbstractClientBenchmark {
     private void handleCommands(List<Message> commands) {
         commands.forEach(m -> {
             try {
-                commandInvoker.invoke(this, m);
+                commandInvoker.invoke(m);
             } catch (Exception e) {
                 log.error("Failed to handle command", e);
                 throw new IllegalStateException("Failed to handle command", e);

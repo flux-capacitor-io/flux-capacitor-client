@@ -26,9 +26,9 @@ public class ReadAction implements ClientAction {
     String processor;
     int channel;
     int maxSize;
-    int maxTimeout;
+    long maxTimeout;
 
     int size;
     Long lastIndex;
-    int timeout;
+    long timeout;
 }

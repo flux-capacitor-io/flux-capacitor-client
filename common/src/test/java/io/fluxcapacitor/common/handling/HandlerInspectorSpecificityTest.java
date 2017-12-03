@@ -14,7 +14,6 @@
 
 package io.fluxcapacitor.common.handling;
 
-import org.junit.Before;
 import org.junit.Test;
 
 import java.util.Collections;
@@ -23,14 +22,9 @@ import static junit.framework.TestCase.*;
 
 public class HandlerInspectorSpecificityTest {
 
-    private HandlerInvoker<Object> subject;
-    private Foo foo;
-
-    @Before
-    public void setUp() throws Exception {
-        subject = HandlerInspector.inspect(Foo.class, Handler.class, Collections.singletonList(p -> o -> o));
-        foo = new Foo();
-    }
+    private Foo foo = new Foo();
+    private HandlerInvoker<Object> subject =
+            HandlerInspector.inspect(foo, Handler.class, Collections.singletonList(p -> o -> o));
 
     @Test
     public void testCanHandle() {
@@ -42,7 +36,7 @@ public class HandlerInspectorSpecificityTest {
     @Test
     public void testInvoke() throws Exception {
         Message message = new Message();
-        assertEquals(message, subject.invoke(foo, message));
+        assertEquals(message, subject.invoke(message));
     }
 
     private static class Foo {

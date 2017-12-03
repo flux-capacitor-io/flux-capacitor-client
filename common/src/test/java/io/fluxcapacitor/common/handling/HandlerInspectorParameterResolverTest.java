@@ -15,7 +15,6 @@
 package io.fluxcapacitor.common.handling;
 
 import lombok.Value;
-import org.junit.Before;
 import org.junit.Test;
 
 import java.time.Instant;
@@ -25,25 +24,19 @@ import static junit.framework.TestCase.*;
 
 public class HandlerInspectorParameterResolverTest {
 
-    private HandlerInvoker<Message> subject;
-    private Foo foo;
-
-    @Before
-    public void setUp() throws Exception {
-        subject = HandlerInspector
-                .inspect(Foo.class, Handler.class, Arrays.asList(p -> {
-                    if (p.getDeclaringExecutable().getParameters()[0] == p) {
-                        return Message::getPayload;
-                    }
-                    return null;
-                }, p -> {
-                    if (p.getType().equals(Instant.class)) {
-                        return m -> Instant.now();
-                    }
-                    return null;
-                }));
-        foo = new Foo();
-    }
+    private Foo foo = new Foo();
+    private HandlerInvoker<Message> subject = HandlerInspector
+            .inspect(foo, Handler.class, Arrays.asList(p -> {
+                if (p.getDeclaringExecutable().getParameters()[0] == p) {
+                    return Message::getPayload;
+                }
+                return null;
+            }, p -> {
+                if (p.getType().equals(Instant.class)) {
+                    return m -> Instant.now();
+                }
+                return null;
+            }));
 
     @Test
     public void testCanHandle() {
@@ -55,9 +48,9 @@ public class HandlerInspectorParameterResolverTest {
     @Test
     public void testInvoke() throws Exception {
         Message message = new Message("payload");
-        assertEquals("payload", subject.invoke(foo, message));
+        assertEquals("payload", subject.invoke(message));
         message = new Message(100L);
-        assertEquals(100L, subject.invoke(foo, message));
+        assertEquals(100L, subject.invoke(message));
     }
 
     private static class Foo {

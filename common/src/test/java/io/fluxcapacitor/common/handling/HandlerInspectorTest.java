@@ -28,9 +28,9 @@ public class HandlerInspectorTest {
     private Foo foo;
 
     @Before
-    public void setUp() throws Exception {
-        subject = HandlerInspector.inspect(Foo.class, Handler.class, Collections.singletonList(p -> identity()));
+    public void setUp() {
         foo = new Foo();
+        subject = HandlerInspector.inspect(foo, Handler.class, Collections.singletonList(p -> identity()));
     }
 
     @Test
@@ -45,19 +45,19 @@ public class HandlerInspectorTest {
 
     @Test
     public void testInvoke() throws Exception {
-        assertEquals(200L, subject.invoke(foo, 200L));
-        assertEquals("a", subject.invoke(foo, "a"));
-        assertEquals(15, subject.invoke(foo, 15));
+        assertEquals(200L, subject.invoke(200L));
+        assertEquals("a", subject.invoke("a"));
+        assertEquals(15, subject.invoke(15));
     }
 
     @Test(expected = UnsupportedOperationException.class)
     public void testInvokeExceptionally() throws Exception {
-        subject.invoke(foo, 3f);
+        subject.invoke(3f);
     }
 
     @Test(expected = Exception.class)
     public void testInvokeUnknownType() throws Exception {
-        subject.invoke(foo, 'b');
+        subject.invoke('b');
     }
 
 
