@@ -14,13 +14,9 @@
 
 package io.fluxcapacitor.javaclient.tracking;
 
-import io.fluxcapacitor.common.ErrorHandler;
 import io.fluxcapacitor.common.Registration;
 import io.fluxcapacitor.common.api.Message;
-import io.fluxcapacitor.common.api.tracking.MessageBatch;
-import lombok.extern.slf4j.Slf4j;
 
-import java.time.Duration;
 import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -28,54 +24,11 @@ import java.util.function.Consumer;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
-import static io.fluxcapacitor.common.TimingUtils.retryOnFailure;
-import static java.util.concurrent.TimeUnit.MILLISECONDS;
-
 /**
- * A processor keeps reading messages until it is stopped (generally only when the application is shut down).
- * <p>
- * A processor is always running in a single thread. To balance the processing load over multiple threads create
- * multiple processors with the same name but different channel.
- * <p>
- * Processors with different names will receive the same messages. Processors with the same name will not. (The
- * messaging service will load balance between processors with the same name).
- * <p>
- * Processing stops if the provided message consumer throws an exception while handling messages (i.e. the processor
- * will need to be manually restarted in that case). However, if the processor encounters an exception while fetching
- * messages it will retry fetching until this succeeds.
- * <p>
- * Consumers can choose a desired maximum batch size for processing. By default this batch size will be the same as the
- * batch size the processor uses to fetch messages from the messaging service. Each time the consumer has finished
- * consuming a batch the processor will update its position with the messaging service.
+ * Utility that creates and starts one or more {@link Tracker Trackers} of the same name and configuration. Each
+ * tracker claims a single thread.
  */
-@Slf4j
-public class Tracking implements Runnable {
-
-    private final String name;
-    private final int channel;
-    private final int maxFetchBatchSize;
-    private final int maxWaitDuration;
-    private final ConsumerService consumerService;
-    private final Consumer<List<Message>> consumer;
-    private final int maxConsumerBatchSize;
-    private final Duration retryDelay;
-    private final ErrorHandler<List<Message>> consumerErrorHandler;
-
-    private volatile boolean running;
-
-    protected Tracking(String name, int channel, int maxFetchBatchSize, Duration maxWaitDuration,
-                       ConsumerService consumerService, Consumer<List<Message>> consumer, int maxConsumerBatchSize,
-                       Duration retryDelay, ErrorHandler<List<Message>> consumerErrorHandler) {
-        this.name = name;
-        this.channel = channel;
-        this.maxFetchBatchSize = maxFetchBatchSize;
-        this.maxWaitDuration = (int) maxWaitDuration.toMillis();
-        this.consumerService = consumerService;
-        this.consumer = consumer;
-        this.maxConsumerBatchSize = maxConsumerBatchSize;
-        this.retryDelay = retryDelay;
-        this.consumerErrorHandler = consumerErrorHandler;
-    }
+public class Tracking {
 
     public static Registration start(String name, ConsumerService consumerService, Consumer<List<Message>> consumer) {
         return start(name, 1, consumerService, consumer);
@@ -83,73 +36,21 @@ public class Tracking implements Runnable {
 
     public static Registration start(String name, int threads, ConsumerService consumerService,
                                      Consumer<List<Message>> consumer) {
-        return start(name, threads, 1024, Duration.ofMillis(60_000), consumerService, consumer,
-                     1024, Duration.ofSeconds(1),
-                     (e, batch) -> log.error("Consumer {} failed to handle batch {}", name, batch, e));
+        return start(name, consumer, consumerService, TrackingConfiguration.builder().threads(threads).build());
     }
 
-    public static Registration start(String name, int threads, int maxFetchBatchSize, Duration maxWaitDuration,
-                                     ConsumerService consumerService, Consumer<List<Message>> consumer,
-                                     int maxConsumerBatchSize,
-                                     Duration retryDelay, ErrorHandler<List<Message>> consumerErrorHandler) {
-        List<Tracking> instances =
-                IntStream.range(0, threads).mapToObj(
-                        i -> new Tracking(name, i, maxFetchBatchSize, maxWaitDuration, consumerService, consumer,
-                                          maxConsumerBatchSize, retryDelay, consumerErrorHandler)).collect(
+    public static Registration start(String consumerName, Consumer<List<Message>> consumer,
+                                     ConsumerService consumerService, TrackingConfiguration configuration) {
+        List<Tracker> instances =
+                IntStream.range(0, configuration.getThreads()).mapToObj(
+                        i -> new Tracker(consumerName, i, configuration, consumer, consumerService)).collect(
                         Collectors.toList());
-        ExecutorService executor = Executors.newFixedThreadPool(threads);
+        ExecutorService executor = Executors.newFixedThreadPool(configuration.getThreads());
         instances.forEach(executor::submit);
         return () -> {
-            instances.forEach(Tracking::stop);
+            instances.forEach(Tracker::cancel);
             executor.shutdown();
             return true;
         };
-    }
-
-    @Override
-    public void run() {
-        if (!running) {
-            running = true;
-        }
-        while (running) {
-            MessageBatch batch = fetch();
-            process(batch.getMessages(), batch.getSegment());
-        }
-    }
-
-    public void stop() {
-        running = false;
-    }
-
-    protected MessageBatch fetch() {
-        return retryOnFailure(
-                () -> consumerService.read(name, channel, maxFetchBatchSize, maxWaitDuration, MILLISECONDS),
-                retryDelay, e -> running);
-    }
-
-    protected void process(List<Message> messages, int[] segment) {
-        if (messages.isEmpty() || !running) {
-            return;
-        }
-        if (messages.size() > maxConsumerBatchSize) {
-            for (int i = 0; i < messages.size(); i += maxConsumerBatchSize) {
-                List<Message> batch = messages.subList(i, Math.min(i + maxConsumerBatchSize, messages.size()));
-                processBatch(batch, segment);
-            }
-        } else {
-            processBatch(messages, segment);
-        }
-    }
-
-    protected void processBatch(List<Message> batch, int[] segment) {
-        try {
-            consumer.accept(batch);
-        } catch (Exception e) {
-            consumerErrorHandler.handleError(e, batch);
-        }
-        retryOnFailure(() -> {
-            consumerService.storePosition(name, segment, batch.get(batch.size() - 1).getIndex());
-            return null;
-        }, retryDelay, e -> running);
     }
 }

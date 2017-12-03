@@ -24,5 +24,5 @@ public class Read extends Request {
     String processor;
     int channel;
     int maxSize;
-    int maxTimeout;
+    long maxTimeout;
 }

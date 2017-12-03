@@ -25,7 +25,7 @@ import io.fluxcapacitor.javaclient.tracking.ConsumerService;
 
 import javax.websocket.ClientEndpoint;
 import java.net.URI;
-import java.util.concurrent.TimeUnit;
+import java.time.Duration;
 
 @ClientEndpoint(encoders = JsonEncoder.class, decoders = JsonDecoder.class)
 public class WebsocketConsumerService extends AbstractWebsocketService implements ConsumerService {
@@ -39,9 +39,8 @@ public class WebsocketConsumerService extends AbstractWebsocketService implement
     }
 
     @Override
-    public MessageBatch read(String processor, int channel, int maxSize, int maxTimeout, TimeUnit timeUnit) {
-        ReadResult readResult = sendRequest(
-                new Read(processor, channel, maxSize, (int) TimeUnit.MILLISECONDS.convert(maxTimeout, timeUnit)));
+    public MessageBatch read(String processor, int channel, int maxSize, Duration maxTimeout) {
+        ReadResult readResult = sendRequest(new Read(processor, channel, maxSize, maxTimeout.toMillis()));
         return readResult.getMessageBatch();
     }
 

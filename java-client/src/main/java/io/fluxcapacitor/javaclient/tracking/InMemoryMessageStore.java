@@ -19,11 +19,11 @@ import io.fluxcapacitor.common.Registration;
 import io.fluxcapacitor.common.api.Message;
 import io.fluxcapacitor.common.api.tracking.MessageBatch;
 
+import java.time.Duration;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentSkipListMap;
 import java.util.concurrent.CopyOnWriteArrayList;
-import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Consumer;
 
@@ -48,8 +48,8 @@ public class InMemoryMessageStore implements ProducerService, ConsumerService {
     }
 
     @Override
-    public MessageBatch read(String processor, int channel, int maxSize, int maxTimeout, TimeUnit timeUnit) {
-        long deadline = System.currentTimeMillis() + timeUnit.toMillis(maxTimeout);
+    public MessageBatch read(String processor, int channel, int maxSize, Duration maxTimeout) {
+        long deadline = System.currentTimeMillis() + maxTimeout.toMillis();
         synchronized (this) {
             Map<Long, Message> tailMap = Collections.emptyMap();
             while (System.currentTimeMillis() < deadline

@@ -14,11 +14,35 @@
 
 package io.fluxcapacitor.common;
 
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
+import java.util.function.Consumer;
 import java.util.function.Function;
 
 @FunctionalInterface
 public interface Interceptor<T, R> {
 
-    Function<T, R> intercept(Function<T, R> invocation);
+    Function<T, R> intercept(Function<T, R> function);
+
+    default Consumer<T> intercept(Consumer<T> consumer) {
+        Function<T, R> function = intercept(t -> {
+            consumer.accept(t);
+            return null;
+        });
+        return function::apply;
+    }
+
+    static <T, R> Interceptor<T, R> join(List<Interceptor<T, R>> interceptors) {
+        List<Interceptor<T, R>> reversed = new ArrayList<>(interceptors);
+        Collections.reverse(reversed);
+        return f -> {
+            Function<T, R> result = f;
+            for (Interceptor<T, R> interceptor : reversed) {
+                result = interceptor.intercept(result);
+            }
+            return result;
+        };
+    }
 
 }

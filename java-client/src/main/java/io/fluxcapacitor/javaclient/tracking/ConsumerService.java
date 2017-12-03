@@ -16,11 +16,11 @@ package io.fluxcapacitor.javaclient.tracking;
 
 import io.fluxcapacitor.common.api.tracking.MessageBatch;
 
-import java.util.concurrent.TimeUnit;
+import java.time.Duration;
 
 public interface ConsumerService {
 
-    MessageBatch read(String processor, int channel, int maxSize, int maxTimeout, TimeUnit timeUnit);
+    MessageBatch read(String processor, int channel, int maxSize, Duration maxTimeout);
 
     void storePosition(String processor, int[] segment, long lastIndex);
 

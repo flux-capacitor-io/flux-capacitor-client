@@ -32,7 +32,7 @@ public class HandlerInspector {
 
     public static <M> HandlerInvoker<M> inspect(Class<?> target, Class<? extends Annotation> methodAnnotation,
                                                 List<ParameterResolver<M>> parameterResolvers) {
-        return new CompositeHandlerInvoker<>(
+        return new ObjectInvoker<>(
                 Arrays.stream(target.getMethods()).filter(m -> m.isAnnotationPresent(methodAnnotation))
                         .map(m -> new MethodInvoker<>(m, parameterResolvers)).sorted(Comparator.naturalOrder())
                         .collect(toList()));
@@ -100,23 +100,23 @@ public class HandlerInspector {
         }
     }
 
-    protected static class CompositeHandlerInvoker<M> implements HandlerInvoker<M> {
-        private final List<HandlerInvoker<M>> delegates;
+    protected static class ObjectInvoker<M> implements HandlerInvoker<M> {
+        private final List<HandlerInvoker<M>> methodHandlers;
 
-        protected CompositeHandlerInvoker(List<? extends HandlerInvoker<M>> delegates) {
-            this.delegates = new ArrayList<>(delegates);
+        protected ObjectInvoker(List<? extends HandlerInvoker<M>> methodHandlers) {
+            this.methodHandlers = new ArrayList<>(methodHandlers);
         }
 
         @Override
         public boolean canHandle(M message) {
-            return delegates.stream().anyMatch(h -> h.canHandle(message));
+            return methodHandlers.stream().anyMatch(h -> h.canHandle(message));
         }
 
         @Override
         public Object invoke(Object target, M message) throws Exception {
-            Optional<HandlerInvoker<M>> delegate = delegates.stream().filter(d -> d.canHandle(message)).findFirst();
+            Optional<HandlerInvoker<M>> delegate = methodHandlers.stream().filter(d -> d.canHandle(message)).findFirst();
             if (!delegate.isPresent()) {
-                throw new IllegalArgumentException("No delegate found that could handle " + message);
+                throw new IllegalArgumentException("No method found that could handle " + message);
             }
             return delegate.get().invoke(target, message);
         }

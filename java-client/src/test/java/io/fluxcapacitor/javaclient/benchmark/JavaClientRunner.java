@@ -34,7 +34,7 @@ import java.util.concurrent.CountDownLatch;
 @Slf4j
 public class JavaClientRunner extends AbstractClientBenchmark {
 
-    public static void main(final String[] args) throws Exception {
+    public static void main(final String[] args) {
         JavaClientRunner runner = new JavaClientRunner(100_000);
         runner.testCommands();
         System.exit(0);
