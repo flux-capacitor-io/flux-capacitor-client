@@ -15,6 +15,9 @@
 package io.fluxcapacitor.common.api.tracking;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
+import com.fasterxml.jackson.databind.annotation.JsonSerialize;
+import com.fasterxml.jackson.databind.ser.std.ToStringSerializer;
 import io.fluxcapacitor.common.api.Message;
 import lombok.Value;
 
@@ -24,6 +27,8 @@ import java.util.List;
 public class MessageBatch {
     int[] segment;
     List<Message> messages;
+    @JsonSerialize(using=ToStringSerializer.class)
+    @JsonDeserialize(as = Long.class)
     Long lastIndex;
 
     @JsonIgnore

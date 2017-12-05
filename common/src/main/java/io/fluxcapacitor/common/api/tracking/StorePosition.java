@@ -14,6 +14,9 @@
 
 package io.fluxcapacitor.common.api.tracking;
 
+import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
+import com.fasterxml.jackson.databind.annotation.JsonSerialize;
+import com.fasterxml.jackson.databind.ser.std.ToStringSerializer;
 import io.fluxcapacitor.common.api.JsonType;
 import lombok.Value;
 
@@ -21,5 +24,7 @@ import lombok.Value;
 public class StorePosition implements JsonType {
     String processor;
     int[] segment;
+    @JsonSerialize(using=ToStringSerializer.class)
+    @JsonDeserialize(as = Long.class)
     long lastIndex;
 }

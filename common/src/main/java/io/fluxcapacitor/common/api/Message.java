@@ -14,6 +14,9 @@
 
 package io.fluxcapacitor.common.api;
 
+import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
+import com.fasterxml.jackson.databind.annotation.JsonSerialize;
+import com.fasterxml.jackson.databind.ser.std.ToStringSerializer;
 import lombok.AllArgsConstructor;
 
 @lombok.Data
@@ -22,6 +25,8 @@ public class Message {
 
     private Data<byte[]> data;
     private Integer segment;
+    @JsonSerialize(using=ToStringSerializer.class)
+    @JsonDeserialize(as = Long.class)
     private Long index;
     private String target;
 
