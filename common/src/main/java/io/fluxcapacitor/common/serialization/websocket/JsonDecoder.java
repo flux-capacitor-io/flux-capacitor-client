@@ -16,7 +16,6 @@ package io.fluxcapacitor.common.serialization.websocket;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.fluxcapacitor.common.api.JsonType;
-import io.fluxcapacitor.common.serialization.CompressionUtils;
 
 import javax.websocket.DecodeException;
 import javax.websocket.Decoder;
@@ -41,7 +40,7 @@ public class JsonDecoder implements Decoder.Binary<JsonType> {
     @Override
     public JsonType decode(ByteBuffer bytes) throws DecodeException {
         try {
-            return objectMapper.readValue(CompressionUtils.decompress(bytes.array()), JsonType.class);
+            return objectMapper.readValue(bytes.array(), JsonType.class);
         } catch (IOException e) {
             throw new DecodeException(bytes, "Could not parse input string. Expected a Json message.", e);
         }

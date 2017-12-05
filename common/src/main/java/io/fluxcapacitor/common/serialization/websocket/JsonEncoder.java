@@ -16,7 +16,6 @@ package io.fluxcapacitor.common.serialization.websocket;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import io.fluxcapacitor.common.serialization.CompressionUtils;
 
 import javax.websocket.EncodeException;
 import javax.websocket.Encoder;
@@ -33,7 +32,7 @@ public class JsonEncoder implements Encoder.Binary<Object> {
     @Override
     public ByteBuffer encode(Object object) throws EncodeException {
         try {
-            return ByteBuffer.wrap(CompressionUtils.compress(objectMapper.writeValueAsBytes(object)));
+            return ByteBuffer.wrap(objectMapper.writeValueAsBytes(object));
         } catch (JsonProcessingException e) {
             throw new EncodeException(object, format("Could not convert %s to json", Objects.toString(object)), e);
         }
