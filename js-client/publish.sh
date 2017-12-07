@@ -2,7 +2,7 @@
 
 set -e
 
-rm -r dist
+rm -rf dist
 tsc
 npm version patch
-npm publish
+npm publish --userconfig ~/.npmrc-renedewaele
