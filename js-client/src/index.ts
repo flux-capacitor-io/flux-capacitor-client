@@ -12,4 +12,4 @@
  * limitations under the License.
  */
 
-export {FluxCapacitor} from './FluxCapacitor'
+export * from './FluxCapacitor'
