@@ -13,3 +13,4 @@
  */
 
 export * from './FluxCapacitor'
+export * from './Api'

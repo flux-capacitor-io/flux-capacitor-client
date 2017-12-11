@@ -1,6 +1,6 @@
 {
   "name": "flux-capacitor-io",
-  "version": "0.0.14",
+  "version": "0.0.33",
   "description": "Flux Capacitor JS client package",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
@@ -9,5 +9,8 @@
   },
   "keywords": [],
   "author": "Rene de Waele <rene@flux-capacitor.io>",
-  "license": "Apache-2.0"
+  "license": "Apache-2.0",
+  "devDependencies": {
+    "@types/es6-promise": "0.0.33"
+  }
 }
