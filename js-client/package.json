@@ -1,6 +1,6 @@
 {
   "name": "flux-capacitor-io",
-  "version": "0.0.34",
+  "version": "0.0.41",
   "description": "Flux Capacitor JS client package",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",

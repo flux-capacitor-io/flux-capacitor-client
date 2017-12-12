@@ -28,7 +28,7 @@ export interface ProducerService {
 export class WebSocketConsumerService extends WebSocketService implements ConsumerService {
     read(consumer: string, maxSize: number, maxTimeout: number): Promise<MessageBatch> {
         const result : Promise<ReadResult> = this.sendRequest(new Read(consumer, maxSize, maxTimeout, 0));
-        return result.then(success => success.messageBatch);
+        return result.then(success => MessageBatch.deserialize(success.messageBatch));
     }
 
     storePosition(consumer: string, segment: [number, number], lastIndex: any) : void {
@@ -46,7 +46,7 @@ export async function startTracking(consumerName: string, consumer: Function, se
     let stopped = false;
     while (!stopped) {
         const batch = await service.read(consumerName, 1024, 60000);
-        batch.messages.forEach(msg => consumer(msg));
+        batch.messages.map(msg => msg.payload()).forEach(payload => consumer(payload));
         if (batch.lastIndex) {
             service.storePosition(consumerName, batch.segment, batch.lastIndex);
         }

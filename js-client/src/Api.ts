@@ -15,10 +15,10 @@
 export class Message {
     private data;
 
-    constructor(type: string, payload: any, revision?: Number) {
+    constructor(type: string, payload: any, revision?: Number, payloadSerialized?: boolean) {
         this.data = {
             type: type,
-            value: window.btoa(JSON.stringify(payload)),
+            value: payloadSerialized ? payload : window.btoa(JSON.stringify(payload)),
             revision: revision || 0
         };
     }
@@ -40,6 +40,17 @@ export class MessageBatch {
     messages: Message[];
     segment: [number, number];
     lastIndex: any;
+
+    static deserialize(object : any) : MessageBatch {
+        const result = new MessageBatch();
+        result.segment = object.segment;
+        result.lastIndex = object.lastIndex;
+        result.messages = [];
+        for (let msg of object.messages) {
+            result.messages.push(new Message(msg.data.type, msg.data.value, msg.data.revision, true));
+        }
+        return result;
+    }
 }
 
 export enum MessageType {
