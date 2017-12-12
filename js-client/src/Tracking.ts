@@ -47,6 +47,8 @@ export async function startTracking(consumerName: string, consumer: Function, se
     while (!stopped) {
         const batch = await service.read(consumerName, 1024, 60000);
         batch.messages.forEach(msg => consumer(msg));
-        service.storePosition(consumerName, batch.segment, batch.lastIndex);
+        if (batch.lastIndex) {
+            service.storePosition(consumerName, batch.segment, batch.lastIndex);
+        }
     }
 }
