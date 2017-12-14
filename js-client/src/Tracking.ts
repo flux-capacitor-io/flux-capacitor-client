@@ -45,7 +45,7 @@ export class WebSocketProducerService extends WebSocketService implements Produc
 export async function startTracking(consumerName: string, consumer: Function, service: ConsumerService) {
     let stopped = false;
     while (!stopped) {
-        const batch = await service.read(consumerName, 1024, 60000);
+        const batch = await service.read(consumerName, 64, 60000);
         batch.messages.map(msg => {
             return {
                 type: msg.type(),

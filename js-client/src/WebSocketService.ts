@@ -30,6 +30,11 @@ export abstract class WebSocketService {
                 socket.binaryType = 'arraybuffer';
                 socket.onmessage = onMessage;
                 socket.onopen = flush;
+
+                window.onbeforeunload = function() {
+                    socket.onclose = function() {};
+                    socket.close();
+                };
             }
             backlog.push(new Blob([JSON.stringify(data)], {type: 'application/json'}));
             flush();
