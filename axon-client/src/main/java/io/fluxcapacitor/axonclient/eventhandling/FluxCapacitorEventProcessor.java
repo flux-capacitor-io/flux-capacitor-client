@@ -21,8 +21,10 @@ import io.fluxcapacitor.javaclient.tracking.ConsumerService;
 import io.fluxcapacitor.javaclient.tracking.Tracking;
 import lombok.extern.slf4j.Slf4j;
 import org.axonframework.eventhandling.*;
+import org.axonframework.messaging.unitofwork.BatchingUnitOfWork;
 import org.axonframework.messaging.unitofwork.RollbackConfiguration;
 import org.axonframework.messaging.unitofwork.RollbackConfigurationType;
+import org.axonframework.messaging.unitofwork.UnitOfWork;
 import org.axonframework.monitoring.MessageMonitor;
 import org.axonframework.monitoring.NoOpMessageMonitor;
 
@@ -61,7 +63,8 @@ public class FluxCapacitorEventProcessor extends AbstractEventProcessor {
             log.info("{} received events {}", getName(),
                      events.stream().map(org.axonframework.messaging.Message::getPayloadType).map(Class::getSimpleName)
                              .collect(toList()));
-            super.process(events);
+            UnitOfWork<? extends EventMessage<?>> unitOfWork = new BatchingUnitOfWork<>(events);
+            super.processInUnitOfWork(events, unitOfWork, Segment.ROOT_SEGMENT);
         } catch (RuntimeException e) {
             throw e;
         } catch (Exception e) {
