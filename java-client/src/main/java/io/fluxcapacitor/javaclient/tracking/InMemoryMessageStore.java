@@ -18,6 +18,7 @@ import io.fluxcapacitor.common.Awaitable;
 import io.fluxcapacitor.common.Registration;
 import io.fluxcapacitor.common.api.Message;
 import io.fluxcapacitor.common.api.tracking.MessageBatch;
+import io.fluxcapacitor.javaclient.gateway.GatewayService;
 
 import java.time.Duration;
 import java.util.*;
@@ -27,7 +28,7 @@ import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Consumer;
 
-public class InMemoryMessageStore implements ProducerService, ConsumerService {
+public class InMemoryMessageStore implements GatewayService, TrackingService {
 
     private final AtomicLong nextIndex = new AtomicLong();
     private final ConcurrentSkipListMap<Long, Message> messageLog = new ConcurrentSkipListMap<>();

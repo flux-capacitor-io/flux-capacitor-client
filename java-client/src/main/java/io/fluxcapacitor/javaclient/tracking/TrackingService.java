@@ -14,12 +14,14 @@
 
 package io.fluxcapacitor.javaclient.tracking;
 
-import io.fluxcapacitor.common.Awaitable;
-import io.fluxcapacitor.common.Monitored;
-import io.fluxcapacitor.common.api.Message;
+import io.fluxcapacitor.common.api.tracking.MessageBatch;
 
-public interface ProducerService extends Monitored<Message> {
+import java.time.Duration;
 
-    Awaitable send(Message... messages);
+public interface TrackingService {
+
+    MessageBatch read(String processor, int channel, int maxSize, Duration maxTimeout);
+
+    void storePosition(String processor, int[] segment, long lastIndex);
 
 }

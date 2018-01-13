@@ -23,9 +23,9 @@ import io.fluxcapacitor.common.handling.HandlerInspector;
 import io.fluxcapacitor.common.handling.HandlerInvoker;
 import io.fluxcapacitor.javaclient.common.connection.ApplicationProperties;
 import io.fluxcapacitor.javaclient.common.connection.ServiceUrlBuilder;
-import io.fluxcapacitor.javaclient.tracking.ConsumerService;
 import io.fluxcapacitor.javaclient.tracking.Tracking;
-import io.fluxcapacitor.javaclient.tracking.websocket.WebsocketConsumerService;
+import io.fluxcapacitor.javaclient.tracking.TrackingService;
+import io.fluxcapacitor.javaclient.tracking.websocket.WebsocketTrackingService;
 import lombok.extern.slf4j.Slf4j;
 
 import java.io.IOException;
@@ -46,8 +46,8 @@ public abstract class MetricsReporter {
 
     public void start() {
         String metricsLogUrl = ServiceUrlBuilder.consumerUrl(MessageType.USAGE, applicationProperties);
-        ConsumerService consumerService = new WebsocketConsumerService(metricsLogUrl);
-        Tracking.start("metricsReporter", consumerService, messages -> messages.stream().map(
+        TrackingService trackingService = new WebsocketTrackingService(metricsLogUrl);
+        Tracking.start("metricsReporter", trackingService, messages -> messages.stream().map(
                 this::deserialize).forEach(this::handle));
     }
 

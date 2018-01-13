@@ -25,30 +25,30 @@ import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
 /**
- * Utility that creates and starts one or more {@link Tracker Trackers} of the same name and configuration. Each
+ * Utility that creates and starts one or more {@link DefaultTracker Trackers} of the same name and configuration. Each
  * tracker claims a single thread.
  */
 public class Tracking {
 
-    public static Registration start(String name, ConsumerService consumerService, Consumer<List<Message>> consumer) {
-        return start(name, 1, consumerService, consumer);
+    public static Registration start(String name, TrackingService trackingService, Consumer<List<Message>> consumer) {
+        return start(name, 1, trackingService, consumer);
     }
 
-    public static Registration start(String name, int threads, ConsumerService consumerService,
+    public static Registration start(String name, int threads, TrackingService trackingService,
                                      Consumer<List<Message>> consumer) {
-        return start(name, consumer, consumerService, TrackingConfiguration.builder().threads(threads).build());
+        return start(name, consumer, trackingService, TrackingConfiguration.builder().threads(threads).build());
     }
 
     public static Registration start(String consumerName, Consumer<List<Message>> consumer,
-                                     ConsumerService consumerService, TrackingConfiguration configuration) {
-        List<Tracker> instances =
+                                     TrackingService trackingService, TrackingConfiguration configuration) {
+        List<DefaultTracker> instances =
                 IntStream.range(0, configuration.getThreads()).mapToObj(
-                        i -> new Tracker(consumerName, i, configuration, consumer, consumerService)).collect(
+                        i -> new DefaultTracker(consumerName, i, configuration, consumer, trackingService)).collect(
                         Collectors.toList());
         ExecutorService executor = Executors.newFixedThreadPool(configuration.getThreads());
         instances.forEach(executor::submit);
         return () -> {
-            instances.forEach(Tracker::cancel);
+            instances.forEach(DefaultTracker::cancel);
             executor.shutdown();
             return true;
         };

@@ -17,9 +17,9 @@ package io.fluxcapacitor.axonclient.commandhandling;
 import io.fluxcapacitor.axonclient.common.serialization.AxonMessageSerializer;
 import io.fluxcapacitor.common.Registration;
 import io.fluxcapacitor.common.api.Message;
-import io.fluxcapacitor.javaclient.tracking.ConsumerService;
-import io.fluxcapacitor.javaclient.tracking.ProducerService;
+import io.fluxcapacitor.javaclient.gateway.GatewayService;
 import io.fluxcapacitor.javaclient.tracking.Tracking;
+import io.fluxcapacitor.javaclient.tracking.TrackingService;
 import lombok.extern.slf4j.Slf4j;
 import org.axonframework.commandhandling.CommandBus;
 import org.axonframework.commandhandling.CommandCallback;
@@ -34,32 +34,32 @@ public class CommandProcessor {
     private final AxonMessageSerializer serializer;
     private final CommandBus localCommandBus;
     private final CommandCallback<Object, Object> commandCallback;
-    private final ConsumerService consumerService;
+    private final TrackingService trackingService;
     private final String name;
     private final int threads;
     private volatile Registration registration;
 
     public CommandProcessor(AxonMessageSerializer serializer, CommandBus localCommandBus,
-                            ProducerService resultProducerService, String name,
-                            ConsumerService consumerService) {
-        this(serializer, localCommandBus, new ReplyingCallback<>(resultProducerService, serializer), consumerService,
+                            GatewayService resultGatewayService, String name,
+                            TrackingService trackingService) {
+        this(serializer, localCommandBus, new ReplyingCallback<>(resultGatewayService, serializer), trackingService,
              name, 1);
     }
 
     public CommandProcessor(AxonMessageSerializer serializer, CommandBus localCommandBus,
                             CommandCallback<Object, Object> commandCallback,
-                            ConsumerService consumerService, String name, int threads) {
+                            TrackingService trackingService, String name, int threads) {
         this.serializer = serializer;
         this.localCommandBus = localCommandBus;
         this.commandCallback = commandCallback;
-        this.consumerService = consumerService;
+        this.trackingService = trackingService;
         this.name = name;
         this.threads = threads;
     }
 
     public void start() {
         if (registration == null) {
-            registration = Tracking.start(name, threads, consumerService, this::handle);
+            registration = Tracking.start(name, threads, trackingService, this::handle);
         }
     }
 

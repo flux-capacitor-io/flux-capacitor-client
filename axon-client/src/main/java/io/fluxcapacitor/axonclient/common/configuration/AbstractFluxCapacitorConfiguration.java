@@ -24,8 +24,8 @@ import io.fluxcapacitor.axonclient.eventhandling.FluxCapacitorEventStore;
 import io.fluxcapacitor.common.MessageType;
 import io.fluxcapacitor.javaclient.common.connection.ApplicationProperties;
 import io.fluxcapacitor.javaclient.eventsourcing.EventStore;
-import io.fluxcapacitor.javaclient.tracking.ConsumerService;
-import io.fluxcapacitor.javaclient.tracking.ProducerService;
+import io.fluxcapacitor.javaclient.gateway.GatewayService;
+import io.fluxcapacitor.javaclient.tracking.TrackingService;
 import org.axonframework.commandhandling.SimpleCommandBus;
 import org.axonframework.commandhandling.distributed.AnnotationRoutingStrategy;
 import org.axonframework.commandhandling.distributed.RoutingStrategy;
@@ -45,7 +45,7 @@ import static java.lang.String.format;
 public abstract class AbstractFluxCapacitorConfiguration implements FluxCapacitorConfiguration {
 
     private final ApplicationProperties applicationProperties;
-    private final AtomicReference<ConsumerService> eventConsumerService = new AtomicReference<>();
+    private final AtomicReference<TrackingService> eventConsumerService = new AtomicReference<>();
 
     protected AbstractFluxCapacitorConfiguration(ApplicationProperties applicationProperties) {
         this.applicationProperties = applicationProperties;
@@ -129,9 +129,9 @@ public abstract class AbstractFluxCapacitorConfiguration implements FluxCapacito
         return configurer;
     }
 
-    protected abstract ConsumerService createConsumerService(MessageType type);
+    protected abstract TrackingService createConsumerService(MessageType type);
 
-    protected abstract ProducerService createProducerService(MessageType type);
+    protected abstract GatewayService createProducerService(MessageType type);
 
     protected abstract EventStore createEventStore();
 
@@ -139,7 +139,7 @@ public abstract class AbstractFluxCapacitorConfiguration implements FluxCapacito
         return applicationProperties;
     }
 
-    private ConsumerService getEventConsumerService() {
+    private TrackingService getEventConsumerService() {
         return eventConsumerService
                 .updateAndGet(service -> service == null ? createConsumerService(MessageType.EVENT) : service);
     }

@@ -17,7 +17,7 @@ package io.fluxcapacitor.axonclient.commandhandling;
 import io.fluxcapacitor.axonclient.common.serialization.AxonMessageSerializer;
 import io.fluxcapacitor.common.api.Data;
 import io.fluxcapacitor.common.api.Message;
-import io.fluxcapacitor.javaclient.tracking.ProducerService;
+import io.fluxcapacitor.javaclient.gateway.GatewayService;
 import lombok.extern.slf4j.Slf4j;
 import org.axonframework.commandhandling.CommandCallback;
 import org.axonframework.commandhandling.CommandMessage;
@@ -28,11 +28,11 @@ import static java.util.Collections.singletonMap;
 @Slf4j
 public class ReplyingCallback<C, R> implements CommandCallback<C, R> {
 
-    private final ProducerService resultProducerService;
+    private final GatewayService resultGatewayService;
     private final AxonMessageSerializer serializer;
 
-    public ReplyingCallback(ProducerService resultProducerService, AxonMessageSerializer serializer) {
-        this.resultProducerService = resultProducerService;
+    public ReplyingCallback(GatewayService resultGatewayService, AxonMessageSerializer serializer) {
+        this.resultGatewayService = resultGatewayService;
         this.serializer = serializer;
     }
 
@@ -59,7 +59,7 @@ public class ReplyingCallback<C, R> implements CommandCallback<C, R> {
 
     protected void sendReply(CommandMessage<? extends C> commandMessage, Object result) {
         try {
-            resultProducerService.send(toMessage(result == null ? Void.TYPE : result, commandMessage)).await();
+            resultGatewayService.send(toMessage(result == null ? Void.TYPE : result, commandMessage)).await();
         } catch (Exception e) {
             log.error("Failed to send result {} of {}. Ignoring this and moving on.", result, commandMessage, e);
         }

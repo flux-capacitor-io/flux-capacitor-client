@@ -18,9 +18,9 @@ import io.fluxcapacitor.common.MessageType;
 import io.fluxcapacitor.javaclient.common.connection.ApplicationProperties;
 import io.fluxcapacitor.javaclient.eventsourcing.EventStore;
 import io.fluxcapacitor.javaclient.eventsourcing.InMemoryEventStore;
-import io.fluxcapacitor.javaclient.tracking.ConsumerService;
+import io.fluxcapacitor.javaclient.gateway.GatewayService;
 import io.fluxcapacitor.javaclient.tracking.InMemoryMessageStore;
-import io.fluxcapacitor.javaclient.tracking.ProducerService;
+import io.fluxcapacitor.javaclient.tracking.TrackingService;
 import org.axonframework.config.Configurer;
 
 import java.util.HashMap;
@@ -40,7 +40,7 @@ public class InMemoryFluxCapacitorConfiguration extends AbstractFluxCapacitorCon
     }
 
     @Override
-    protected ConsumerService createConsumerService(MessageType type) {
+    protected TrackingService createConsumerService(MessageType type) {
         if (type == MessageType.EVENT) {
             return eventStore;
         }
@@ -48,7 +48,7 @@ public class InMemoryFluxCapacitorConfiguration extends AbstractFluxCapacitorCon
     }
 
     @Override
-    protected ProducerService createProducerService(MessageType type) {
+    protected GatewayService createProducerService(MessageType type) {
         if (type == MessageType.EVENT) {
             return eventStore;
         }

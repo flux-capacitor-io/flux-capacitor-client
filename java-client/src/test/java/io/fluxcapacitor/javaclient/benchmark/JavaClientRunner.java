@@ -21,10 +21,10 @@ import io.fluxcapacitor.common.handling.Handler;
 import io.fluxcapacitor.common.handling.HandlerInspector;
 import io.fluxcapacitor.common.handling.HandlerInvoker;
 import io.fluxcapacitor.javaclient.common.connection.ServiceUrlBuilder;
-import io.fluxcapacitor.javaclient.tracking.ProducerService;
+import io.fluxcapacitor.javaclient.gateway.GatewayService;
+import io.fluxcapacitor.javaclient.gateway.websocket.WebsocketGatewayService;
 import io.fluxcapacitor.javaclient.tracking.Tracking;
-import io.fluxcapacitor.javaclient.tracking.websocket.WebsocketConsumerService;
-import io.fluxcapacitor.javaclient.tracking.websocket.WebsocketProducerService;
+import io.fluxcapacitor.javaclient.tracking.websocket.WebsocketTrackingService;
 import lombok.extern.slf4j.Slf4j;
 
 import java.util.Collections;
@@ -40,23 +40,23 @@ public class JavaClientRunner extends AbstractClientBenchmark {
         System.exit(0);
     }
 
-    private final ProducerService         producerService;
+    private final GatewayService gatewayService;
     private final HandlerInvoker<Message> commandInvoker;
 
     public JavaClientRunner(int commandCount) {
         super(commandCount);
 
-        producerService = new WebsocketProducerService(
+        gatewayService = new WebsocketGatewayService(
             ServiceUrlBuilder.producerUrl(MessageType.COMMAND, getApplicationProperties()));
         Tracking.start("javaClientRunner/command",
-                       new WebsocketConsumerService(
+                       new WebsocketTrackingService(
                                   ServiceUrlBuilder.consumerUrl(MessageType.COMMAND, getApplicationProperties())),
                        this::handleCommands);
         commandInvoker =
                 HandlerInspector.inspect(this, Handler.class, Collections.singletonList(p -> m -> m));
 
         CountDownLatch commandsSentCountdown = new CountDownLatch(commandCount);
-        producerService.registerMonitor(m -> {
+        gatewayService.registerMonitor(m -> {
             commandsSentCountdown.countDown();
             if (commandsSentCountdown.getCount() == 0L) {
                 log.info("Finished sending {} commands", commandCount);
@@ -66,7 +66,7 @@ public class JavaClientRunner extends AbstractClientBenchmark {
 
     @Override
     protected void doSendCommand(String payload) {
-        producerService.send(new Message(new Data<>(payload.getBytes(), String.class.getName(), 0)));
+        gatewayService.send(new Message(new Data<>(payload.getBytes(), String.class.getName(), 0)));
     }
 
     @Handler

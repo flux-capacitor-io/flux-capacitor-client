@@ -17,8 +17,8 @@ package io.fluxcapacitor.axonclient.commandhandling.result;
 import io.fluxcapacitor.axonclient.common.serialization.AxonMessageSerializer;
 import io.fluxcapacitor.common.Registration;
 import io.fluxcapacitor.common.api.Message;
-import io.fluxcapacitor.javaclient.tracking.ConsumerService;
 import io.fluxcapacitor.javaclient.tracking.Tracking;
+import io.fluxcapacitor.javaclient.tracking.TrackingService;
 import lombok.extern.slf4j.Slf4j;
 
 import java.util.List;
@@ -33,21 +33,21 @@ import static io.fluxcapacitor.common.ObjectUtils.ifTrue;
 public class ResultProcessor implements ResultService {
 
     private final AxonMessageSerializer serializer;
-    private final ConsumerService consumerService;
+    private final TrackingService trackingService;
     private final String name;
     private final int threads;
     private final Map<String, CompletableFuture<Object>> outstandingRequests = new ConcurrentHashMap<>();
     private volatile Registration registration;
 
-    public ResultProcessor(AxonMessageSerializer serializer, ConsumerService consumerService,
+    public ResultProcessor(AxonMessageSerializer serializer, TrackingService trackingService,
                            String name) {
-        this(serializer, consumerService, name, 1);
+        this(serializer, trackingService, name, 1);
     }
 
     public ResultProcessor(AxonMessageSerializer serializer,
-                           ConsumerService consumerService, String name, int threads) {
+                           TrackingService trackingService, String name, int threads) {
         this.serializer = serializer;
-        this.consumerService = consumerService;
+        this.trackingService = trackingService;
         this.name = name;
         this.threads = threads;
     }
@@ -83,7 +83,7 @@ public class ResultProcessor implements ResultService {
 
     public void start() {
         if (registration == null) {
-            registration = Tracking.start(name, threads, consumerService, this::handle);
+            registration = Tracking.start(name, threads, trackingService, this::handle);
         }
     }
 

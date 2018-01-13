@@ -21,20 +21,20 @@ import io.fluxcapacitor.common.api.tracking.StorePosition;
 import io.fluxcapacitor.common.serialization.websocket.JsonDecoder;
 import io.fluxcapacitor.common.serialization.websocket.JsonEncoder;
 import io.fluxcapacitor.javaclient.common.connection.AbstractWebsocketService;
-import io.fluxcapacitor.javaclient.tracking.ConsumerService;
+import io.fluxcapacitor.javaclient.tracking.TrackingService;
 
 import javax.websocket.ClientEndpoint;
 import java.net.URI;
 import java.time.Duration;
 
 @ClientEndpoint(encoders = JsonEncoder.class, decoders = JsonDecoder.class)
-public class WebsocketConsumerService extends AbstractWebsocketService implements ConsumerService {
+public class WebsocketTrackingService extends AbstractWebsocketService implements TrackingService {
 
-    public WebsocketConsumerService(String endPointUrl) {
+    public WebsocketTrackingService(String endPointUrl) {
         this(URI.create(endPointUrl));
     }
 
-    public WebsocketConsumerService(URI endPointUri) {
+    public WebsocketTrackingService(URI endPointUri) {
         super(endPointUri);
     }
 

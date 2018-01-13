@@ -19,12 +19,12 @@ import io.fluxcapacitor.javaclient.common.connection.ApplicationProperties;
 import io.fluxcapacitor.javaclient.common.connection.ServiceUrlBuilder;
 import io.fluxcapacitor.javaclient.eventsourcing.EventStore;
 import io.fluxcapacitor.javaclient.eventsourcing.websocket.WebSocketEventStore;
+import io.fluxcapacitor.javaclient.gateway.GatewayService;
+import io.fluxcapacitor.javaclient.gateway.websocket.WebsocketGatewayService;
 import io.fluxcapacitor.javaclient.keyvalue.KeyValueService;
 import io.fluxcapacitor.javaclient.keyvalue.websocket.WebsocketKeyValueService;
-import io.fluxcapacitor.javaclient.tracking.ConsumerService;
-import io.fluxcapacitor.javaclient.tracking.ProducerService;
-import io.fluxcapacitor.javaclient.tracking.websocket.WebsocketConsumerService;
-import io.fluxcapacitor.javaclient.tracking.websocket.WebsocketProducerService;
+import io.fluxcapacitor.javaclient.tracking.TrackingService;
+import io.fluxcapacitor.javaclient.tracking.websocket.WebsocketTrackingService;
 import org.axonframework.config.Configurer;
 
 public class WebsocketFluxCapacitorConfiguration extends AbstractFluxCapacitorConfiguration {
@@ -38,13 +38,13 @@ public class WebsocketFluxCapacitorConfiguration extends AbstractFluxCapacitorCo
     }
 
     @Override
-    protected ConsumerService createConsumerService(MessageType type) {
-        return new WebsocketConsumerService(ServiceUrlBuilder.consumerUrl(type, getApplicationProperties()));
+    protected TrackingService createConsumerService(MessageType type) {
+        return new WebsocketTrackingService(ServiceUrlBuilder.consumerUrl(type, getApplicationProperties()));
     }
 
     @Override
-    protected ProducerService createProducerService(MessageType type) {
-        return new WebsocketProducerService(ServiceUrlBuilder.producerUrl(type, getApplicationProperties()));
+    protected GatewayService createProducerService(MessageType type) {
+        return new WebsocketGatewayService(ServiceUrlBuilder.producerUrl(type, getApplicationProperties()));
     }
 
     @Override
