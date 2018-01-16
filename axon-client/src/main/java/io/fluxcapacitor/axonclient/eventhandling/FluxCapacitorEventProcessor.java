@@ -16,9 +16,9 @@ package io.fluxcapacitor.axonclient.eventhandling;
 
 import io.fluxcapacitor.axonclient.common.serialization.AxonMessageSerializer;
 import io.fluxcapacitor.common.Registration;
-import io.fluxcapacitor.common.api.Message;
-import io.fluxcapacitor.javaclient.tracking.Tracking;
-import io.fluxcapacitor.javaclient.tracking.TrackingService;
+import io.fluxcapacitor.common.api.SerializedMessage;
+import io.fluxcapacitor.javaclient.tracking.TrackingClient;
+import io.fluxcapacitor.javaclient.tracking.TrackingUtils;
 import lombok.extern.slf4j.Slf4j;
 import org.axonframework.eventhandling.*;
 import org.axonframework.messaging.unitofwork.BatchingUnitOfWork;
@@ -36,28 +36,28 @@ import static java.util.stream.Collectors.toList;
 @Slf4j
 public class FluxCapacitorEventProcessor extends AbstractEventProcessor {
 
-    private final TrackingService trackingService;
+    private final TrackingClient trackingClient;
     private final AxonMessageSerializer serializer;
     private final int threads;
     private volatile Registration registration;
 
     public FluxCapacitorEventProcessor(String name, List<?> eventHandlers,
-                                       TrackingService trackingService, AxonMessageSerializer serializer) {
+                                       TrackingClient trackingClient, AxonMessageSerializer serializer) {
         this(name, new SimpleEventHandlerInvoker(eventHandlers), RollbackConfigurationType.ANY_THROWABLE,
-             PropagatingErrorHandler.INSTANCE, NoOpMessageMonitor.INSTANCE, trackingService, serializer, 1);
+             PropagatingErrorHandler.INSTANCE, NoOpMessageMonitor.INSTANCE, trackingClient, serializer, 1);
     }
 
     public FluxCapacitorEventProcessor(String name, EventHandlerInvoker eventHandlerInvoker,
                                        RollbackConfiguration rollbackConfiguration, ErrorHandler errorHandler,
                                        MessageMonitor<? super EventMessage<?>> messageMonitor,
-                                       TrackingService trackingService, AxonMessageSerializer serializer, int threads) {
+                                       TrackingClient trackingClient, AxonMessageSerializer serializer, int threads) {
         super(name, eventHandlerInvoker, rollbackConfiguration, errorHandler, messageMonitor);
-        this.trackingService = trackingService;
+        this.trackingClient = trackingClient;
         this.serializer = serializer;
         this.threads = threads;
     }
 
-    protected void handle(List<Message> messages) {
+    protected void handle(List<SerializedMessage> messages) {
         List<EventMessage<?>> events = serializer.deserializeEvents(messages.stream()).collect(toList());
         try {
             log.info("{} received events {}", getName(),
@@ -75,7 +75,7 @@ public class FluxCapacitorEventProcessor extends AbstractEventProcessor {
     @Override
     public void start() {
         if (registration == null) {
-            registration = Tracking.start(getName(), threads, trackingService, this::handle);
+            registration = TrackingUtils.start(getName(), threads, trackingClient, this::handle);
         }
     }
 

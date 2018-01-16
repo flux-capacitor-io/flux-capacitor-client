@@ -16,8 +16,8 @@ package io.fluxcapacitor.axonclient.commandhandling;
 
 import io.fluxcapacitor.axonclient.common.serialization.AxonMessageSerializer;
 import io.fluxcapacitor.common.api.Data;
-import io.fluxcapacitor.common.api.Message;
-import io.fluxcapacitor.javaclient.gateway.GatewayService;
+import io.fluxcapacitor.common.api.SerializedMessage;
+import io.fluxcapacitor.javaclient.gateway.GatewayClient;
 import lombok.extern.slf4j.Slf4j;
 import org.axonframework.commandhandling.CommandCallback;
 import org.axonframework.commandhandling.CommandMessage;
@@ -28,11 +28,11 @@ import static java.util.Collections.singletonMap;
 @Slf4j
 public class ReplyingCallback<C, R> implements CommandCallback<C, R> {
 
-    private final GatewayService resultGatewayService;
+    private final GatewayClient resultGatewayClient;
     private final AxonMessageSerializer serializer;
 
-    public ReplyingCallback(GatewayService resultGatewayService, AxonMessageSerializer serializer) {
-        this.resultGatewayService = resultGatewayService;
+    public ReplyingCallback(GatewayClient resultGatewayClient, AxonMessageSerializer serializer) {
+        this.resultGatewayClient = resultGatewayClient;
         this.serializer = serializer;
     }
 
@@ -59,16 +59,16 @@ public class ReplyingCallback<C, R> implements CommandCallback<C, R> {
 
     protected void sendReply(CommandMessage<? extends C> commandMessage, Object result) {
         try {
-            resultGatewayService.send(toMessage(result == null ? Void.TYPE : result, commandMessage)).await();
+            resultGatewayClient.send(toMessage(result == null ? Void.TYPE : result, commandMessage)).await();
         } catch (Exception e) {
             log.error("Failed to send result {} of {}. Ignoring this and moving on.", result, commandMessage, e);
         }
     }
 
-    protected Message toMessage(Object result, CommandMessage<? extends C> commandMessage) {
-        Message message = new Message(new Data<>(serializer.serialize(
+    protected SerializedMessage toMessage(Object result, CommandMessage<? extends C> commandMessage) {
+        SerializedMessage message = new SerializedMessage(new Data<>(serializer.serialize(
                 new GenericMessage<>(result, singletonMap("correlationId", commandMessage.getIdentifier()))),
-                                                 result.getClass().getName(), 0));
+                                                                     result.getClass().getName(), 0));
         message.setTarget((String) commandMessage.getMetaData().get("sender"));
         return message;
     }

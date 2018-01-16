@@ -20,18 +20,18 @@ import io.fluxcapacitor.javaclient.common.serialization.Serializer;
 
 public class KeyValueRepository<T> implements Repository<T> {
 
-    private final KeyValueService keyValueService;
+    private final KeyValueClient keyValueClient;
     private final Serializer serializer;
 
-    public KeyValueRepository(KeyValueService keyValueService, Serializer serializer) {
-        this.keyValueService = keyValueService;
+    public KeyValueRepository(KeyValueClient keyValueClient, Serializer serializer) {
+        this.keyValueClient = keyValueClient;
         this.serializer = serializer;
     }
 
     @Override
     public void put(Object id, T value) {
         try {
-            keyValueService.putValue(id.toString(), serializer.serialize(value)).await();
+            keyValueClient.putValue(id.toString(), serializer.serialize(value)).await();
         } catch (Exception e) {
             throw new IllegalStateException(String.format("Could not store a value %s for key %s", value, id), e);
         }
@@ -39,12 +39,12 @@ public class KeyValueRepository<T> implements Repository<T> {
 
     @Override
     public T get(Object id) {
-        Data<byte[]> result = keyValueService.getValue(id.toString());
+        Data<byte[]> result = keyValueClient.getValue(id.toString());
         return result == null ? null : serializer.deserialize(result);
     }
 
     @Override
     public void delete(Object id) {
-        keyValueService.deleteValue(id.toString());
+        keyValueClient.deleteValue(id.toString());
     }
 }

@@ -17,12 +17,12 @@ package io.fluxcapacitor.javaclient.gateway.websocket;
 import io.fluxcapacitor.common.Awaitable;
 import io.fluxcapacitor.common.Backlog;
 import io.fluxcapacitor.common.Registration;
-import io.fluxcapacitor.common.api.Message;
+import io.fluxcapacitor.common.api.SerializedMessage;
 import io.fluxcapacitor.common.api.tracking.Append;
 import io.fluxcapacitor.common.serialization.websocket.JsonDecoder;
 import io.fluxcapacitor.common.serialization.websocket.JsonEncoder;
 import io.fluxcapacitor.javaclient.common.connection.AbstractWebsocketService;
-import io.fluxcapacitor.javaclient.gateway.GatewayService;
+import io.fluxcapacitor.javaclient.gateway.GatewayClient;
 
 import javax.websocket.ClientEndpoint;
 import javax.websocket.EncodeException;
@@ -32,34 +32,34 @@ import java.util.List;
 import java.util.function.Consumer;
 
 @ClientEndpoint(encoders = JsonEncoder.class, decoders = JsonDecoder.class)
-public class WebsocketGatewayService extends AbstractWebsocketService implements GatewayService {
+public class WebsocketGatewayClient extends AbstractWebsocketService implements GatewayClient {
 
-    private final Backlog<Message> backlog;
+    private final Backlog<SerializedMessage> backlog;
 
-    public WebsocketGatewayService(String endPointUrl) {
+    public WebsocketGatewayClient(String endPointUrl) {
         this(URI.create(endPointUrl), 1024);
     }
 
-    public WebsocketGatewayService(String endPointUrl, int backlogSize) {
+    public WebsocketGatewayClient(String endPointUrl, int backlogSize) {
         this(URI.create(endPointUrl), backlogSize);
     }
 
-    public WebsocketGatewayService(URI endPointUri, int backlogSize) {
+    public WebsocketGatewayClient(URI endPointUri, int backlogSize) {
         super(endPointUri);
         this.backlog = new Backlog<>(this::doSend, backlogSize);
     }
 
     @Override
-    public Awaitable send(Message... messages) {
+    public Awaitable send(SerializedMessage... messages) {
         return backlog.add(messages);
     }
 
     @Override
-    public Registration registerMonitor(Consumer<Message> monitor) {
+    public Registration registerMonitor(Consumer<SerializedMessage> monitor) {
         return backlog.registerMonitor(messages -> messages.forEach(monitor));
     }
 
-    private Awaitable doSend(List<Message> messages) throws IOException, EncodeException {
+    private Awaitable doSend(List<SerializedMessage> messages) throws IOException, EncodeException {
         getSession().getBasicRemote().sendObject(new Append(messages));
         return Awaitable.ready();
     }

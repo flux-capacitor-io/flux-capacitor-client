@@ -19,4 +19,11 @@ public interface Registration {
 
     boolean cancel();
 
+    default Registration merge(Registration otherRegistration) {
+        return () -> {
+            boolean result1 = cancel();
+            boolean result2 = otherRegistration.cancel();
+            return result1 || result2;
+        };
+    }
 }

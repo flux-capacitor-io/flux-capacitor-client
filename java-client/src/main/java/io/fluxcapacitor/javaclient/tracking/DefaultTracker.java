@@ -16,7 +16,7 @@ package io.fluxcapacitor.javaclient.tracking;
 
 import io.fluxcapacitor.common.Interceptor;
 import io.fluxcapacitor.common.Registration;
-import io.fluxcapacitor.common.api.Message;
+import io.fluxcapacitor.common.api.SerializedMessage;
 import io.fluxcapacitor.common.api.tracking.MessageBatch;
 import lombok.extern.slf4j.Slf4j;
 
@@ -53,18 +53,18 @@ public class DefaultTracker implements Runnable, Registration {
     private final String name;
     private final int channel;
     private final TrackingConfiguration configuration;
-    private final Consumer<List<Message>> consumer;
-    private final TrackingService trackingService;
+    private final Consumer<List<SerializedMessage>> consumer;
+    private final TrackingClient trackingClient;
 
     private final AtomicBoolean running = new AtomicBoolean();
 
     public DefaultTracker(String name, int channel, TrackingConfiguration configuration,
-                          Consumer<List<Message>> consumer, TrackingService trackingService) {
+                          Consumer<List<SerializedMessage>> consumer, TrackingClient trackingClient) {
         this.name = name;
         this.channel = channel;
         this.configuration = configuration;
         this.consumer = Interceptor.join(configuration.getBatchInterceptors()).intercept(consumer);
-        this.trackingService = trackingService;
+        this.trackingClient = trackingClient;
     }
 
     @Override
@@ -84,18 +84,18 @@ public class DefaultTracker implements Runnable, Registration {
 
     protected MessageBatch fetch() {
         return retryOnFailure(
-                () -> trackingService
+                () -> trackingClient
                         .read(name, channel, configuration.getMaxFetchBatchSize(), configuration.getMaxWaitDuration()),
                 configuration.getRetryDelay(), e -> running.get());
     }
 
-    protected void process(List<Message> messages, int[] segment) {
+    protected void process(List<SerializedMessage> messages, int[] segment) {
         if (messages.isEmpty() || !running.get()) {
             return;
         }
         if (messages.size() > configuration.getMaxConsumerBatchSize()) {
             for (int i = 0; i < messages.size(); i += configuration.getMaxConsumerBatchSize()) {
-                List<Message> batch =
+                List<SerializedMessage> batch =
                         messages.subList(i, Math.min(i + configuration.getMaxConsumerBatchSize(), messages.size()));
                 processBatch(batch, segment);
             }
@@ -104,7 +104,7 @@ public class DefaultTracker implements Runnable, Registration {
         }
     }
 
-    protected void processBatch(List<Message> batch, int[] segment) {
+    protected void processBatch(List<SerializedMessage> batch, int[] segment) {
         try {
             consumer.accept(batch);
         } catch (Exception e) {
@@ -114,7 +114,7 @@ public class DefaultTracker implements Runnable, Registration {
             throw e;
         }
         retryOnFailure(() -> {
-            trackingService.storePosition(name, segment, batch.get(batch.size() - 1).getIndex());
+            trackingClient.storePosition(name, segment, batch.get(batch.size() - 1).getIndex());
             return null;
         }, configuration.getRetryDelay(), e -> running.get());
     }

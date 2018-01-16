@@ -1,17 +1,33 @@
 package io.fluxcapacitor.javaclient;
 
-import io.fluxcapacitor.common.Awaitable;
 import io.fluxcapacitor.common.MessageType;
 import io.fluxcapacitor.common.Registration;
 import io.fluxcapacitor.common.api.Metadata;
 import io.fluxcapacitor.javaclient.eventsourcing.EventStore;
-import io.fluxcapacitor.javaclient.gateway.Gateway;
+import io.fluxcapacitor.javaclient.gateway.CommandGateway;
+import io.fluxcapacitor.javaclient.gateway.QueryGateway;
+import io.fluxcapacitor.javaclient.gateway.ResultGateway;
 import io.fluxcapacitor.javaclient.keyvalue.KeyValueStore;
 import io.fluxcapacitor.javaclient.scheduling.Scheduler;
-import io.fluxcapacitor.javaclient.tracking.Tracker;
+import io.fluxcapacitor.javaclient.tracking.Tracking;
 
 import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
 
+import static java.util.Arrays.stream;
+
+/**
+ * High-level client API for Flux Capacitor. If you are using anything other than this to interact with the service
+ * you're probably doing it wrong.
+ * <p>
+ * To start handling messages build an instance of this API and invoke {@link #startTracking}.
+ * <p>
+ * Once you are handling messages you can simply use the static methods provided (e.g. to publish messages etc).
+ * In those cases it is not necessary to inject an instance of this API. This minimizes the need for dependencies
+ * in your functional classes and maximally cashes in on location transparency.
+ * <p>
+ * To build an instance of this API check out {@link io.fluxcapacitor.javaclient.configuration.FluxCapacitorClient}.
+ */
 public interface FluxCapacitor {
 
     ThreadLocal<FluxCapacitor> instance = new ThreadLocal<>();
@@ -21,28 +37,41 @@ public interface FluxCapacitor {
                 .orElseThrow(() -> new IllegalStateException("FluxCapacitor instance not set"));
     }
 
-    static Awaitable publishEvent(Object payload) {
-        return get().gateway(MessageType.EVENT).publish(payload);
+    static void publishEvent(Object payload) {
+        get().eventStore().storeEvent(payload);
     }
 
-    static Awaitable publishEvent(Object payload, Metadata metadata) {
-        return get().gateway(MessageType.EVENT).publish(payload, metadata);
+    static void publishEvent(Object payload, Metadata metadata) {
+        get().eventStore().storeEvent(payload, metadata);
     }
 
-    static Awaitable dispatchCommand(Object payload) {
-        return get().gateway(MessageType.COMMAND).publish(payload);
+    static void sendAndForgetCommand(Object payload, Metadata metadata) {
+        get().commandGateway().sendAndForget(payload, metadata);
     }
 
-    static Awaitable dispatchCommand(Object payload, Metadata metadata) {
-        return get().gateway(MessageType.COMMAND).publish(payload, metadata);
+    static void sendAndForgetCommand(Object payload) {
+        get().commandGateway().sendAndForget(payload, Metadata.empty());
     }
 
-    static Awaitable query(Object payload) {
-        return get().gateway(MessageType.QUERY).publish(payload);
+    static <R> CompletableFuture<R> sendCommand(Object payload, Metadata metadata) {
+        return get().commandGateway().send(payload, metadata);
     }
 
-    static Awaitable query(Object payload, Metadata metadata) {
-        return get().gateway(MessageType.QUERY).publish(payload, metadata);
+    static <R> CompletableFuture<R> sendCommand(Object payload) {
+        return get().commandGateway().send(payload, Metadata.empty());
+    }
+
+    static <R> CompletableFuture<R> query(Object payload) {
+        return get().queryGateway().query(payload);
+    }
+
+    static <R> CompletableFuture<R> query(Object payload, Metadata metadata) {
+        return get().queryGateway().query(payload, metadata);
+    }
+
+    @SuppressWarnings("ConstantConditions")
+    default Registration startTracking(Object... handlers) {
+        return stream(MessageType.values()).map(t -> tracking(t).start(handlers)).reduce(Registration::merge).get();
     }
 
     EventStore eventStore();
@@ -51,7 +80,11 @@ public interface FluxCapacitor {
 
     KeyValueStore keyValueStore();
 
-    Gateway gateway(MessageType messageType);
+    CommandGateway commandGateway();
 
-    Registration track(MessageType messageType, Tracker tracker);
+    QueryGateway queryGateway();
+
+    ResultGateway resultGateway();
+
+    Tracking tracking(MessageType messageType);
 }

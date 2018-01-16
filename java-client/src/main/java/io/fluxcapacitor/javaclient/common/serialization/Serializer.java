@@ -46,7 +46,7 @@ public interface Serializer {
     default <T> T deserialize(Data<byte[]> data) {
         List list = deserialize(Stream.of(data)).collect(toList());
         if (list.size() != 1) {
-            throw new IllegalStateException(
+            throw new SerializationException(
                     String.format("Invalid deserialization result for a '%s'. Expected a single object but got %s",
                                   data, list));
         }

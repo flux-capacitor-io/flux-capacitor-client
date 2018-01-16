@@ -20,7 +20,7 @@ import io.fluxcapacitor.common.api.Data;
 /**
  * Represents a service to store and retrieve a piece of serialized data by key.
  */
-public interface KeyValueService {
+public interface KeyValueClient {
 
     /**
      * Adds or replaces the given value in the key value store.

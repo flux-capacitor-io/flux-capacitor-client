@@ -18,7 +18,6 @@ import com.codahale.metrics.Meter;
 import com.codahale.metrics.MetricFilter;
 import com.codahale.metrics.MetricRegistry;
 import com.codahale.metrics.graphite.Graphite;
-import io.fluxcapacitor.common.PropertyUtils;
 import io.fluxcapacitor.common.api.ClientAction;
 import io.fluxcapacitor.common.api.tracking.AppendAction;
 import io.fluxcapacitor.common.api.tracking.ReadAction;
@@ -27,6 +26,7 @@ import io.fluxcapacitor.common.handling.Handler;
 import lombok.extern.slf4j.Slf4j;
 
 import java.net.InetSocketAddress;
+import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 
 @Slf4j
@@ -38,7 +38,7 @@ public class GraphiteReporter extends MetricsReporter {
     public static void main(final String[] args) {
         String fluxCapacitorUrl = System.getProperty("fluxCapacitorUrl", "ws://localhost:8080");
         String host = System.getProperty("graphiteHostName", "localhost");
-        int port = PropertyUtils.propertyAsInt("port", 2003);
+        int port = Optional.ofNullable(System.getProperty("port")).map(Integer::valueOf).orElse(2003);
         new GraphiteReporter(host, port, fluxCapacitorUrl).start();
     }
 

@@ -21,35 +21,35 @@ import io.fluxcapacitor.common.api.tracking.StorePosition;
 import io.fluxcapacitor.common.serialization.websocket.JsonDecoder;
 import io.fluxcapacitor.common.serialization.websocket.JsonEncoder;
 import io.fluxcapacitor.javaclient.common.connection.AbstractWebsocketService;
-import io.fluxcapacitor.javaclient.tracking.TrackingService;
+import io.fluxcapacitor.javaclient.tracking.TrackingClient;
 
 import javax.websocket.ClientEndpoint;
 import java.net.URI;
 import java.time.Duration;
 
 @ClientEndpoint(encoders = JsonEncoder.class, decoders = JsonDecoder.class)
-public class WebsocketTrackingService extends AbstractWebsocketService implements TrackingService {
+public class WebsocketTrackingClient extends AbstractWebsocketService implements TrackingClient {
 
-    public WebsocketTrackingService(String endPointUrl) {
+    public WebsocketTrackingClient(String endPointUrl) {
         this(URI.create(endPointUrl));
     }
 
-    public WebsocketTrackingService(URI endPointUri) {
+    public WebsocketTrackingClient(URI endPointUri) {
         super(endPointUri);
     }
 
     @Override
-    public MessageBatch read(String processor, int channel, int maxSize, Duration maxTimeout) {
-        ReadResult readResult = sendRequest(new Read(processor, channel, maxSize, maxTimeout.toMillis()));
+    public MessageBatch read(String consumer, int channel, int maxSize, Duration maxTimeout) {
+        ReadResult readResult = sendRequest(new Read(consumer, channel, maxSize, maxTimeout.toMillis()));
         return readResult.getMessageBatch();
     }
 
     @Override
-    public void storePosition(String processor, int[] segment, long lastIndex) {
+    public void storePosition(String consumer, int[] segment, long lastIndex) {
         try {
-            getSession().getBasicRemote().sendObject(new StorePosition(processor, segment, lastIndex));
+            getSession().getBasicRemote().sendObject(new StorePosition(consumer, segment, lastIndex));
         } catch (Exception e) {
-            throw new IllegalStateException(String.format("Failed to store position of processor %s", processor), e);
+            throw new IllegalStateException(String.format("Failed to store position of processor %s", consumer), e);
         }
     }
 }

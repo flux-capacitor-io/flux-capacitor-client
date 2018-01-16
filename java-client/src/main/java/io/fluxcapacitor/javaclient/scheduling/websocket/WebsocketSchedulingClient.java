@@ -12,16 +12,17 @@
  * limitations under the License.
  */
 
-package io.fluxcapacitor.javaclient.keyvalue.websocket;
+package io.fluxcapacitor.javaclient.scheduling.websocket;
 
 import io.fluxcapacitor.common.Awaitable;
 import io.fluxcapacitor.common.Backlog;
-import io.fluxcapacitor.common.api.Data;
-import io.fluxcapacitor.common.api.keyvalue.*;
+import io.fluxcapacitor.common.api.scheduling.CancelSchedule;
+import io.fluxcapacitor.common.api.scheduling.Schedule;
+import io.fluxcapacitor.common.api.scheduling.ScheduledMessage;
 import io.fluxcapacitor.common.serialization.websocket.JsonDecoder;
 import io.fluxcapacitor.common.serialization.websocket.JsonEncoder;
 import io.fluxcapacitor.javaclient.common.connection.AbstractWebsocketService;
-import io.fluxcapacitor.javaclient.keyvalue.KeyValueService;
+import io.fluxcapacitor.javaclient.scheduling.SchedulingClient;
 import lombok.extern.slf4j.Slf4j;
 
 import javax.websocket.ClientEndpoint;
@@ -30,45 +31,39 @@ import java.util.List;
 
 @Slf4j
 @ClientEndpoint(encoders = JsonEncoder.class, decoders = JsonDecoder.class)
-public class WebsocketKeyValueService extends AbstractWebsocketService implements KeyValueService {
+public class WebsocketSchedulingClient extends AbstractWebsocketService implements SchedulingClient {
 
-    private final Backlog<KeyValuePair> backlog;
+    private final Backlog<ScheduledMessage> backlog;
 
-    public WebsocketKeyValueService(String endPointUrl) {
+    public WebsocketSchedulingClient(String endPointUrl) {
         this(URI.create(endPointUrl));
     }
 
-    public WebsocketKeyValueService(URI endpointUri) {
+    public WebsocketSchedulingClient(URI endpointUri) {
         super(endpointUri);
-        backlog = new Backlog<>(this::storeValues);
+        backlog = new Backlog<>(this::scheduleMessages);
     }
 
-    protected Awaitable storeValues(List<KeyValuePair> keyValuePairs) throws Exception {
-        getSession().getBasicRemote().sendObject(new StoreValues(keyValuePairs));
+    protected Awaitable scheduleMessages(List<ScheduledMessage> scheduledMessages) throws Exception {
+        getSession().getBasicRemote().sendObject(new Schedule(scheduledMessages));
         return Awaitable.ready();
     }
 
     @Override
-    public Awaitable putValue(String key, Data<byte[]> value) {
-        return backlog.add(new KeyValuePair(key, value));
+    public Awaitable schedule(ScheduledMessage... schedules) {
+        return backlog.add(schedules);
     }
 
     @Override
-    public Data<byte[]> getValue(String key) {
-        GetValueResult result = sendRequest(new GetValue(key));
-        return result.getValue();
-    }
-
-    @Override
-    public Awaitable deleteValue(String key) {
+    public Awaitable cancelSchedule(String scheduleId) {
         try {
-            getSession().getBasicRemote().sendObject(new DeleteValue(key));
+            getSession().getBasicRemote().sendObject(new CancelSchedule(scheduleId));
         } catch (Exception e) {
-            log.warn("Could not delete value {}", key, e);
+            log.warn("Could not cancel schedule {}", scheduleId, e);
             return () -> {
                 throw e;
             };
         }
-        return () -> {};
+        return Awaitable.ready();
     }
 }

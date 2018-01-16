@@ -15,7 +15,7 @@
 package io.fluxcapacitor.common.api.eventsourcing;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
-import io.fluxcapacitor.common.api.Message;
+import io.fluxcapacitor.common.api.SerializedMessage;
 import lombok.Value;
 
 import java.util.List;
@@ -25,7 +25,7 @@ public class EventBatch {
     String aggregateId;
     String domain;
     long lastSequenceNumber;
-    List<Message> events;
+    List<SerializedMessage> events;
     
     @JsonIgnore
     public Long getFirstSequenceNumber() {

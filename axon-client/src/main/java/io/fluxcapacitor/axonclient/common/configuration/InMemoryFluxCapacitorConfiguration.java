@@ -16,11 +16,11 @@ package io.fluxcapacitor.axonclient.common.configuration;
 
 import io.fluxcapacitor.common.MessageType;
 import io.fluxcapacitor.javaclient.common.connection.ApplicationProperties;
-import io.fluxcapacitor.javaclient.eventsourcing.EventStore;
-import io.fluxcapacitor.javaclient.eventsourcing.InMemoryEventStore;
-import io.fluxcapacitor.javaclient.gateway.GatewayService;
+import io.fluxcapacitor.javaclient.eventsourcing.EventStoreClient;
+import io.fluxcapacitor.javaclient.eventsourcing.InMemoryEventStoreClient;
+import io.fluxcapacitor.javaclient.gateway.GatewayClient;
 import io.fluxcapacitor.javaclient.tracking.InMemoryMessageStore;
-import io.fluxcapacitor.javaclient.tracking.TrackingService;
+import io.fluxcapacitor.javaclient.tracking.TrackingClient;
 import org.axonframework.config.Configurer;
 
 import java.util.HashMap;
@@ -33,14 +33,14 @@ public class InMemoryFluxCapacitorConfiguration extends AbstractFluxCapacitorCon
     }
 
     private final Map<MessageType, InMemoryMessageStore> messageStores = new HashMap<>();
-    private final InMemoryEventStore eventStore = new InMemoryEventStore();
+    private final InMemoryEventStoreClient eventStore = new InMemoryEventStoreClient();
 
     public InMemoryFluxCapacitorConfiguration(String applicationName) {
         super(new ApplicationProperties(applicationName, null));
     }
 
     @Override
-    protected TrackingService createConsumerService(MessageType type) {
+    protected TrackingClient createConsumerService(MessageType type) {
         if (type == MessageType.EVENT) {
             return eventStore;
         }
@@ -48,7 +48,7 @@ public class InMemoryFluxCapacitorConfiguration extends AbstractFluxCapacitorCon
     }
 
     @Override
-    protected GatewayService createProducerService(MessageType type) {
+    protected GatewayClient createProducerService(MessageType type) {
         if (type == MessageType.EVENT) {
             return eventStore;
         }
@@ -56,7 +56,7 @@ public class InMemoryFluxCapacitorConfiguration extends AbstractFluxCapacitorCon
     }
 
     @Override
-    protected EventStore createEventStore() {
+    protected EventStoreClient createEventStore() {
         return eventStore;
     }
 }

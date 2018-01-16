@@ -16,14 +16,14 @@ package io.fluxcapacitor.common.api.tracking;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import io.fluxcapacitor.common.api.JsonType;
-import io.fluxcapacitor.common.api.Message;
+import io.fluxcapacitor.common.api.SerializedMessage;
 import lombok.Value;
 
 import java.util.List;
 
 @Value
 public class Append implements JsonType {
-    List<Message> messages;
+    List<SerializedMessage> messages;
 
     @JsonIgnore
     public int getSize() {

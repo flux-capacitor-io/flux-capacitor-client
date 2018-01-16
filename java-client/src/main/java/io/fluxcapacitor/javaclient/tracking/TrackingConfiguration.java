@@ -15,7 +15,7 @@
 package io.fluxcapacitor.javaclient.tracking;
 
 import io.fluxcapacitor.common.Interceptor;
-import io.fluxcapacitor.common.api.Message;
+import io.fluxcapacitor.common.api.SerializedMessage;
 import lombok.Builder;
 import lombok.Builder.Default;
 import lombok.Getter;
@@ -27,8 +27,11 @@ import java.util.List;
 @Builder(builderClassName = "Builder", toBuilder = true)
 @Getter
 public class TrackingConfiguration {
+
+    public static final TrackingConfiguration DEFAULT = TrackingConfiguration.builder().build();
+
     @Singular
-    private final List<Interceptor<List<Message>, Void>> batchInterceptors;
+    private final List<Interceptor<List<SerializedMessage>, Void>> batchInterceptors;
     @Default
     private int threads = 1;
     @Default

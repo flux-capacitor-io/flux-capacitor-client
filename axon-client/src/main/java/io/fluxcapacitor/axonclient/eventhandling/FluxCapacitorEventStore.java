@@ -17,7 +17,8 @@ package io.fluxcapacitor.axonclient.eventhandling;
 import io.fluxcapacitor.axonclient.common.serialization.AxonMessageSerializer;
 import io.fluxcapacitor.common.ConsistentHashing;
 import io.fluxcapacitor.common.api.Data;
-import io.fluxcapacitor.common.api.Message;
+import io.fluxcapacitor.common.api.SerializedMessage;
+import io.fluxcapacitor.javaclient.eventsourcing.EventStoreClient;
 import io.fluxcapacitor.javaclient.eventsourcing.Snapshot;
 import lombok.extern.slf4j.Slf4j;
 import org.axonframework.common.Registration;
@@ -42,16 +43,16 @@ import static java.util.stream.Collectors.toList;
 @Slf4j
 public class FluxCapacitorEventStore extends AbstractEventBus implements EventStore {
 
-    private final io.fluxcapacitor.javaclient.eventsourcing.EventStore delegate;
+    private final EventStoreClient delegate;
     private final AxonMessageSerializer serializer;
 
-    public FluxCapacitorEventStore(io.fluxcapacitor.javaclient.eventsourcing.EventStore delegate,
+    public FluxCapacitorEventStore(EventStoreClient delegate,
                                    AxonMessageSerializer serializer) {
         this(NoOpMessageMonitor.INSTANCE, delegate, serializer);
     }
 
     public FluxCapacitorEventStore(MessageMonitor<? super EventMessage<?>> messageMonitor,
-                                   io.fluxcapacitor.javaclient.eventsourcing.EventStore delegate,
+                                   EventStoreClient delegate,
                                    AxonMessageSerializer serializer) {
         super(messageMonitor);
         this.delegate = delegate;
@@ -59,7 +60,7 @@ public class FluxCapacitorEventStore extends AbstractEventBus implements EventSt
     }
 
     protected void appendEvents(List<? extends EventMessage<?>> events) throws Exception {
-        List<Message> convertedEvents = convert(events);
+        List<SerializedMessage> convertedEvents = convert(events);
         for (int i = 0; i < events.size(); ) {
             String aggregateId = getAggregateId(events.get(i));
             int j = i + 1;
@@ -74,15 +75,16 @@ public class FluxCapacitorEventStore extends AbstractEventBus implements EventSt
                 sequenceNumber = domainEvent.getSequenceNumber();
                 domain = domainEvent.getType();
             }
-            List<Message> group = convertedEvents.subList(i, j);
+            List<SerializedMessage> group = convertedEvents.subList(i, j);
             delegate.storeEvents(aggregateId, domain, sequenceNumber, group).await();
             i = j;
         }
     }
 
-    protected List<Message> convert(List<? extends EventMessage<?>> events) {
+    protected List<SerializedMessage> convert(List<? extends EventMessage<?>> events) {
         return events.stream().map(e -> {
-            Message message = new Message(new Data<>(serializer.serializeEvent(e), e.getPayloadType().getName(), 0));
+            SerializedMessage
+                    message = new SerializedMessage(new Data<>(serializer.serializeEvent(e), e.getPayloadType().getName(), 0));
             message.setSegment(ConsistentHashing.computeSegment(getAggregateId(e)));
             return message;
         }).collect(toList());

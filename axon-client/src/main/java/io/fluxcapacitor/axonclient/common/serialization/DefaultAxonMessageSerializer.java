@@ -14,6 +14,7 @@
 
 package io.fluxcapacitor.axonclient.common.serialization;
 
+import io.fluxcapacitor.common.api.SerializedMessage;
 import io.fluxcapacitor.javaclient.eventsourcing.Snapshot;
 import org.axonframework.commandhandling.CommandMessage;
 import org.axonframework.commandhandling.GenericCommandMessage;
@@ -71,7 +72,7 @@ public class DefaultAxonMessageSerializer implements AxonMessageSerializer {
     }
 
     @Override
-    public Message<?> deserializeMessage(io.fluxcapacitor.common.api.Message message) {
+    public Message<?> deserializeMessage(SerializedMessage message) {
         return toMessage(deserialize(message.getData().getValue()));
     }
 
@@ -83,20 +84,20 @@ public class DefaultAxonMessageSerializer implements AxonMessageSerializer {
     }
 
     @Override
-    public CommandMessage<?> deserializeCommand(io.fluxcapacitor.common.api.Message message) {
+    public CommandMessage<?> deserializeCommand(SerializedMessage message) {
         AxonMessage axonMessage = deserialize(message.getData().getValue());
         return new GenericCommandMessage<>(toMessage(axonMessage), axonMessage.getCommandName());
     }
 
     @Override
     public Stream<? extends TrackedEventMessage<?>> deserializeEvents(
-            Stream<io.fluxcapacitor.common.api.Message> messageStream) {
+            Stream<SerializedMessage> messageStream) {
         return upcastAndDeserializeTrackedEvents(messageStream.map(m -> new AxonEventEntry(
                 new IndexTrackingToken(m.getIndex()), deserialize(m.getData().getValue()))), delegate, upcasterChain, false);
     }
 
     @Override
-    public DomainEventStream deserializeDomainEvents(Stream<io.fluxcapacitor.common.api.Message> messageStream) {
+    public DomainEventStream deserializeDomainEvents(Stream<SerializedMessage> messageStream) {
         return upcastAndDeserializeDomainEvents(
                 messageStream.map(m -> new AxonDomainEventEntry(deserialize(m.getData().getValue()))), delegate, upcasterChain,
                 false);

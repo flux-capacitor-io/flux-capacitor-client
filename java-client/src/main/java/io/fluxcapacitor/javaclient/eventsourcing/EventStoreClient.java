@@ -12,27 +12,25 @@
  * limitations under the License.
  */
 
-package io.fluxcapacitor.common.api.tracking;
+package io.fluxcapacitor.javaclient.eventsourcing;
 
-import com.fasterxml.jackson.annotation.JsonIgnore;
+import io.fluxcapacitor.common.Awaitable;
 import io.fluxcapacitor.common.api.SerializedMessage;
-import lombok.Value;
 
 import java.util.List;
+import java.util.Optional;
+import java.util.stream.Stream;
 
-@Value
-public class MessageBatch {
-    int[] segment;
-    List<SerializedMessage> messages;
-    Long lastIndex;
+public interface EventStoreClient {
 
-    @JsonIgnore
-    public boolean isEmpty() {
-        return messages.isEmpty();
-    }
+    Awaitable storeEvents(String aggregateId, String domain, long lastSequenceNumber, List<SerializedMessage> events);
 
-    @JsonIgnore
-    public int getSize() {
-        return messages.size();
-    }
+    Stream<SerializedMessage> getEvents(String aggregateId, long lastSequenceNumber);
+
+    void storeSnapshot(Snapshot snapshot);
+
+    Optional<Snapshot> getSnapshot(String aggregateId);
+
+    void deleteSnapshot(String aggregateId);
+
 }

@@ -14,7 +14,7 @@
 
 package io.fluxcapacitor.javaclient.eventsourcing;
 
-import io.fluxcapacitor.common.api.Message;
+import io.fluxcapacitor.common.api.SerializedMessage;
 import org.junit.Test;
 
 import java.util.List;
@@ -24,15 +24,15 @@ import java.util.stream.Stream;
 import static io.fluxcapacitor.common.TestUtils.assertEqualMessages;
 import static io.fluxcapacitor.common.TestUtils.createMessages;
 
-public class InMemoryEventStoreTest {
+public class InMemoryEventStoreClientTest {
 
-    private InMemoryEventStore subject = new InMemoryEventStore();
+    private InMemoryEventStoreClient subject = new InMemoryEventStoreClient();
 
     @Test
     public void returnsCorrectStreamWhenLastSnIsMidBatch() throws Exception {
-        List<Message> in = createMessages(300);
+        List<SerializedMessage> in = createMessages(300);
         subject.storeEvents("a", "d", in.size() - 1, in);
-        Stream<Message> out = subject.getEvents("a", 99L);
+        Stream<SerializedMessage> out = subject.getEvents("a", 99L);
         assertEqualMessages(in.subList(100, 300), out.collect(Collectors.toList()));
     }
 }

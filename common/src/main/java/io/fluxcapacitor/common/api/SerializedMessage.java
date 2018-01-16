@@ -12,14 +12,27 @@
  * limitations under the License.
  */
 
-package io.fluxcapacitor.javaclient.gateway;
+package io.fluxcapacitor.common.api;
 
-import io.fluxcapacitor.common.Awaitable;
-import io.fluxcapacitor.common.Monitored;
-import io.fluxcapacitor.common.api.Message;
+import lombok.AllArgsConstructor;
 
-public interface GatewayService extends Monitored<Message> {
+@lombok.Data
+@AllArgsConstructor
+public class SerializedMessage {
 
-    Awaitable send(Message... messages);
+    private Data<byte[]> data;
+    private Metadata metadata;
+    private Integer segment;
+    private Long index;
+    private String target;
+    private String requestId;
 
+    public SerializedMessage(Data<byte[]> data) {
+        this.data = data;
+    }
+
+    public SerializedMessage(Data<byte[]> data, Metadata metadata) {
+        this.data = data;
+        this.metadata = metadata;
+    }
 }

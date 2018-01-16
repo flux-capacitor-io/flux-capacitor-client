@@ -12,20 +12,16 @@
  * limitations under the License.
  */
 
-package io.fluxcapacitor.common.api;
+package io.fluxcapacitor.javaclient.tracking;
 
-import lombok.AllArgsConstructor;
+import io.fluxcapacitor.common.api.tracking.MessageBatch;
 
-@lombok.Data
-@AllArgsConstructor
-public class Message {
+import java.time.Duration;
 
-    private Data<byte[]> data;
-    private Integer segment;
-    private Long index;
-    private String target;
+public interface TrackingClient {
 
-    public Message(Data<byte[]> data) {
-        this.data = data;
-    }
+    MessageBatch read(String consumer, int channel, int maxSize, Duration maxTimeout);
+
+    void storePosition(String consumer, int[] segment, long lastIndex);
+
 }

@@ -16,9 +16,9 @@ package io.fluxcapacitor.axonclient.commandhandling.result;
 
 import io.fluxcapacitor.axonclient.common.serialization.AxonMessageSerializer;
 import io.fluxcapacitor.common.Registration;
-import io.fluxcapacitor.common.api.Message;
-import io.fluxcapacitor.javaclient.tracking.Tracking;
-import io.fluxcapacitor.javaclient.tracking.TrackingService;
+import io.fluxcapacitor.common.api.SerializedMessage;
+import io.fluxcapacitor.javaclient.tracking.TrackingClient;
+import io.fluxcapacitor.javaclient.tracking.TrackingUtils;
 import lombok.extern.slf4j.Slf4j;
 
 import java.util.List;
@@ -27,27 +27,25 @@ import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 
-import static io.fluxcapacitor.common.ObjectUtils.ifTrue;
-
 @Slf4j
 public class ResultProcessor implements ResultService {
 
     private final AxonMessageSerializer serializer;
-    private final TrackingService trackingService;
+    private final TrackingClient trackingClient;
     private final String name;
     private final int threads;
     private final Map<String, CompletableFuture<Object>> outstandingRequests = new ConcurrentHashMap<>();
     private volatile Registration registration;
 
-    public ResultProcessor(AxonMessageSerializer serializer, TrackingService trackingService,
+    public ResultProcessor(AxonMessageSerializer serializer, TrackingClient trackingClient,
                            String name) {
-        this(serializer, trackingService, name, 1);
+        this(serializer, trackingClient, name, 1);
     }
 
     public ResultProcessor(AxonMessageSerializer serializer,
-                           TrackingService trackingService, String name, int threads) {
+                           TrackingClient trackingClient, String name, int threads) {
         this.serializer = serializer;
-        this.trackingService = trackingService;
+        this.trackingClient = trackingClient;
         this.name = name;
         this.threads = threads;
     }
@@ -59,8 +57,8 @@ public class ResultProcessor implements ResultService {
         return result;
     }
 
-    protected void handle(List<Message> batch) {
-        for (Message message : batch) {
+    protected void handle(List<SerializedMessage> batch) {
+        for (SerializedMessage message : batch) {
             org.axonframework.messaging.Message<?> axonMessage = serializer.deserializeMessage(message);
             String correlationId = (String) axonMessage.getMetaData().get("correlationId");
             Optional<CompletableFuture<Object>> request =
@@ -73,8 +71,6 @@ public class ResultProcessor implements ResultService {
                 } else {
                     r.complete(payload);
                 }
-                ifTrue(log.isDebugEnabled(),
-                       () -> log.debug("Remaining outstanding requests: {}", outstandingRequests.size()));
             } else {
                 log.warn("Received result for an unknown request {}", correlationId);
             }
@@ -83,7 +79,7 @@ public class ResultProcessor implements ResultService {
 
     public void start() {
         if (registration == null) {
-            registration = Tracking.start(name, threads, trackingService, this::handle);
+            registration = TrackingUtils.start(name, threads, trackingClient, this::handle);
         }
     }
 

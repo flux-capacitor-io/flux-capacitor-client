@@ -16,51 +16,31 @@ package io.fluxcapacitor.common;
 
 import java.util.Iterator;
 import java.util.Map;
-import java.util.Optional;
 import java.util.Spliterators;
-import java.util.function.Consumer;
-import java.util.function.Predicate;
-import java.util.function.UnaryOperator;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.*;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 
-import static java.lang.String.format;
-import static java.util.Objects.requireNonNull;
-
 public class ObjectUtils {
-
-    @SuppressWarnings("unchecked")
-    public static <T> Optional<T> getValue(Map<?, ?> map, Object key) {
-        return Optional.ofNullable((T) map.get(key));
-    }
-
-    @SuppressWarnings("unchecked")
-    public static <T> T require(Map<?, ?> map, Object key) {
-        return (T) requireNonNull(map.get(key), () -> format("Map %s does not have a mapping for key %s", map, key));
-    }
-
-    public static void ifTrue(boolean value, Runnable task) {
-        if (value) {
-            task.run();
-        }
-    }
-
-    public static void ifFalse(boolean value, Runnable task) {
-        if (!value) {
-            task.run();
-        }
-    }
-
-    @SuppressWarnings("unchecked")
-    public static byte[] concat(byte[] array1, byte[] array2) {
-        byte[] result = new byte[array1.length + array2.length];
-        System.arraycopy(array1, 0, result, 0, array1.length);
-        System.arraycopy(array2, 0, result, array1.length, array2.length);
-        return result;
-    }
 
     public static <T> Stream<T> iterate(T seed, UnaryOperator<T> f, Predicate<T> breakCondition) {
         return StreamSupport.stream(new BreakingSpliterator<>(Stream.iterate(seed, f), breakCondition), false);
+    }
+
+    public static <T> Supplier<T> memoize(Supplier<T> supplier) {
+        AtomicReference<T> cache = new AtomicReference<>();
+        return () -> {
+            synchronized (cache) {
+                return cache.updateAndGet(existing -> existing == null ? supplier.get() : existing);
+            }
+        };
+    }
+
+    public static <K, V> Function<K, V> memoize(Function<K, V> supplier) {
+        Map<K, V> map = new ConcurrentHashMap<>();
+        return key -> map.computeIfAbsent(key, supplier);
     }
 
     private static class BreakingSpliterator<T> extends Spliterators.AbstractSpliterator<T> {

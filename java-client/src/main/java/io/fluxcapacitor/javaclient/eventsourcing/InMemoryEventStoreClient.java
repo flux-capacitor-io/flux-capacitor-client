@@ -15,7 +15,7 @@
 package io.fluxcapacitor.javaclient.eventsourcing;
 
 import io.fluxcapacitor.common.Awaitable;
-import io.fluxcapacitor.common.api.Message;
+import io.fluxcapacitor.common.api.SerializedMessage;
 import io.fluxcapacitor.common.api.eventsourcing.EventBatch;
 import io.fluxcapacitor.javaclient.tracking.InMemoryMessageStore;
 
@@ -23,13 +23,13 @@ import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Stream;
 
-public class InMemoryEventStore extends InMemoryMessageStore implements EventStore {
+public class InMemoryEventStoreClient extends InMemoryMessageStore implements EventStoreClient {
 
     private final Map<String, List<EventBatch>> domainEvents = new ConcurrentHashMap<>();
     private final Map<String, Snapshot> snapshots = new ConcurrentHashMap<>();
 
     @Override
-    public Awaitable storeEvents(String aggregateId, String domain, long lastSequenceNumber, List<Message> events) {
+    public Awaitable storeEvents(String aggregateId, String domain, long lastSequenceNumber, List<SerializedMessage> events) {
         domainEvents.compute(aggregateId, (id, list) -> {
             if (list == null) {
                 list = new ArrayList<>();
@@ -37,15 +37,15 @@ public class InMemoryEventStore extends InMemoryMessageStore implements EventSto
             list.add(new EventBatch(aggregateId, domain, lastSequenceNumber, events));
             return list;
         });
-        return super.send(events.toArray(new Message[0]));
+        return super.send(events.toArray(new SerializedMessage[0]));
     }
 
     @Override
-    public Stream<Message> getEvents(String aggregateId, long lastSequenceNumber) {
+    public Stream<SerializedMessage> getEvents(String aggregateId, long lastSequenceNumber) {
         return domainEvents.getOrDefault(aggregateId, Collections.emptyList()).stream()
                 .filter(batch -> batch.getLastSequenceNumber() > lastSequenceNumber)
                 .flatMap(batch -> {
-                    List<Message> events = batch.getEvents();
+                    List<SerializedMessage> events = batch.getEvents();
                     if (batch.getFirstSequenceNumber() > lastSequenceNumber) {
                         return events.stream();
                     }
@@ -66,10 +66,5 @@ public class InMemoryEventStore extends InMemoryMessageStore implements EventSto
     @Override
     public void deleteSnapshot(String aggregateId) {
         snapshots.remove(aggregateId);
-    }
-
-    @Override
-    public Awaitable send(Message... messages) {
-        throw new UnsupportedOperationException("Use #storeEvents instead");
     }
 }

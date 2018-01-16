@@ -1,13 +1,11 @@
 package io.fluxcapacitor.javaclient.keyvalue;
 
-import io.fluxcapacitor.common.Awaitable;
-
 public interface KeyValueStore {
 
-    Awaitable store(String key, Object value);
+    void store(String key, Object value);
 
-    Awaitable get(String key);
+    <R> R get(String key);
 
-    Awaitable delete(String key);
+    void delete(String key);
 
 }

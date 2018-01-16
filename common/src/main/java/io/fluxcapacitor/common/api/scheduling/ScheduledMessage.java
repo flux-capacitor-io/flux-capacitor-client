@@ -14,12 +14,12 @@
 
 package io.fluxcapacitor.common.api.scheduling;
 
-import io.fluxcapacitor.common.api.Message;
+import io.fluxcapacitor.common.api.SerializedMessage;
 import lombok.Value;
 
 @Value
 public class ScheduledMessage {
     String scheduleId;
     long timestamp;
-    Message message;
+    SerializedMessage message;
 }

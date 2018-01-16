@@ -18,8 +18,8 @@ import io.fluxcapacitor.axonclient.commandhandling.result.ResultService;
 import io.fluxcapacitor.axonclient.common.serialization.AxonMessageSerializer;
 import io.fluxcapacitor.common.ConsistentHashing;
 import io.fluxcapacitor.common.api.Data;
-import io.fluxcapacitor.common.api.Message;
-import io.fluxcapacitor.javaclient.gateway.GatewayService;
+import io.fluxcapacitor.common.api.SerializedMessage;
+import io.fluxcapacitor.javaclient.gateway.GatewayClient;
 import org.axonframework.commandhandling.*;
 import org.axonframework.commandhandling.distributed.RoutingStrategy;
 import org.axonframework.common.Registration;
@@ -35,7 +35,7 @@ import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
 
 public class FluxCapacitorCommandBus implements CommandBus {
-    private final GatewayService gatewayService;
+    private final GatewayClient gatewayClient;
     private final ResultService resultService;
     private final AxonMessageSerializer serializer;
     private final RoutingStrategy routingStrategy;
@@ -45,22 +45,22 @@ public class FluxCapacitorCommandBus implements CommandBus {
             new CopyOnWriteArrayList<>();
     private final MessageMonitor<? super CommandMessage<?>> messageMonitor;
 
-    public FluxCapacitorCommandBus(GatewayService gatewayService,
+    public FluxCapacitorCommandBus(GatewayClient gatewayClient,
                                    ResultService resultService,
                                    AxonMessageSerializer serializer,
                                    RoutingStrategy routingStrategy, String clientId,
                                    SimpleCommandBus localCommandBus) {
-        this(gatewayService, resultService, serializer, routingStrategy, clientId,
+        this(gatewayClient, resultService, serializer, routingStrategy, clientId,
              localCommandBus, NoOpMessageMonitor.INSTANCE);
     }
 
-    public FluxCapacitorCommandBus(GatewayService gatewayService,
+    public FluxCapacitorCommandBus(GatewayClient gatewayClient,
                                    ResultService resultService,
                                    AxonMessageSerializer serializer,
                                    RoutingStrategy routingStrategy, String clientId,
                                    SimpleCommandBus localCommandBus,
                                    MessageMonitor<? super CommandMessage<?>> messageMonitor) {
-        this.gatewayService = gatewayService;
+        this.gatewayClient = gatewayClient;
         this.resultService = resultService;
         this.serializer = serializer;
         this.routingStrategy = routingStrategy;
@@ -96,11 +96,12 @@ public class FluxCapacitorCommandBus implements CommandBus {
     }
 
     private void send(CommandMessage<?> command) {
-        gatewayService.send(toFluxCapacitorMessage(command));
+        gatewayClient.send(toFluxCapacitorMessage(command));
     }
 
-    private Message toFluxCapacitorMessage(CommandMessage<?> commandMessage) {
-        Message result = new Message(new Data<>(serializer.serializeCommand(commandMessage), commandMessage.getCommandName(), 0));
+    private SerializedMessage toFluxCapacitorMessage(CommandMessage<?> commandMessage) {
+        SerializedMessage
+                result = new SerializedMessage(new Data<>(serializer.serializeCommand(commandMessage), commandMessage.getCommandName(), 0));
         String routingKey = routingStrategy.getRoutingKey(commandMessage);
         result.setSegment(ConsistentHashing.computeSegment(routingKey));
         return result;

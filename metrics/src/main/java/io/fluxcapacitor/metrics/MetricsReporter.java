@@ -17,15 +17,15 @@ package io.fluxcapacitor.metrics;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.fluxcapacitor.common.MessageType;
 import io.fluxcapacitor.common.api.ClientAction;
-import io.fluxcapacitor.common.api.Message;
+import io.fluxcapacitor.common.api.SerializedMessage;
 import io.fluxcapacitor.common.handling.Handler;
 import io.fluxcapacitor.common.handling.HandlerInspector;
 import io.fluxcapacitor.common.handling.HandlerInvoker;
 import io.fluxcapacitor.javaclient.common.connection.ApplicationProperties;
 import io.fluxcapacitor.javaclient.common.connection.ServiceUrlBuilder;
-import io.fluxcapacitor.javaclient.tracking.Tracking;
-import io.fluxcapacitor.javaclient.tracking.TrackingService;
-import io.fluxcapacitor.javaclient.tracking.websocket.WebsocketTrackingService;
+import io.fluxcapacitor.javaclient.tracking.TrackingClient;
+import io.fluxcapacitor.javaclient.tracking.TrackingUtils;
+import io.fluxcapacitor.javaclient.tracking.websocket.WebsocketTrackingClient;
 import lombok.extern.slf4j.Slf4j;
 
 import java.io.IOException;
@@ -46,12 +46,12 @@ public abstract class MetricsReporter {
 
     public void start() {
         String metricsLogUrl = ServiceUrlBuilder.consumerUrl(MessageType.USAGE, applicationProperties);
-        TrackingService trackingService = new WebsocketTrackingService(metricsLogUrl);
-        Tracking.start("metricsReporter", trackingService, messages -> messages.stream().map(
+        TrackingClient trackingClient = new WebsocketTrackingClient(metricsLogUrl);
+        TrackingUtils.start("metricsReporter", trackingClient, messages -> messages.stream().map(
                 this::deserialize).forEach(this::handle));
     }
 
-    private ClientAction deserialize(Message message) {
+    private ClientAction deserialize(SerializedMessage message) {
         try {
             return objectMapper.readValue(message.getData().getValue(), ClientAction.class);
         } catch (IOException e) {

@@ -1,45 +1,37 @@
-/*
- * Copyright (c) 2016-2017 Flux Capacitor.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *     http://www.apache.org/licenses/LICENSE-2.0
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
-
 package io.fluxcapacitor.javaclient.eventsourcing;
 
-import io.fluxcapacitor.common.Awaitable;
-import io.fluxcapacitor.common.api.Message;
+import io.fluxcapacitor.common.api.Metadata;
+import io.fluxcapacitor.javaclient.common.Message;
 
-import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
 import java.util.stream.Stream;
 
+import static java.util.Arrays.asList;
+
 public interface EventStore {
 
-    default Awaitable storeEvents(String aggregateId, String domain, long lastSequenceNumber, Message... events) {
-        return storeEvents(aggregateId, domain, lastSequenceNumber, Arrays.asList(events));
+    default void storeEvent(Object payload) {
+        storeEvent(payload, Metadata.empty());
     }
 
-    Awaitable storeEvents(String aggregateId, String domain, long lastSequenceNumber, List<Message> events);
+    void storeEvent(Object payload, Metadata metadata);
 
-    default Stream<Message> getEvents(String aggregateId) {
-        return getEvents(aggregateId, -1L);
+    default void storeDomainEvents(String aggregateId, String domain, long lastSequenceNumber, Message... events) {
+        storeDomainEvents(aggregateId, domain, lastSequenceNumber, asList(events));
     }
 
-    Stream<Message> getEvents(String aggregateId, long lastSequenceNumber);
+    void storeDomainEvents(String aggregateId, String domain, long lastSequenceNumber, List<Message> events);
 
+    default Stream<Message> getDomainEvents(String aggregateId) {
+        return getDomainEvents(aggregateId, -1L);
+    }
 
-    void storeSnapshot(Snapshot snapshot);
+    Stream<Message> getDomainEvents(String aggregateId, long lastSequenceNumber);
 
-    Optional<Snapshot> getSnapshot(String aggregateId);
+    void storeSnapshot(String aggregateId, long sequenceNumber, Object snapshot);
+
+    Optional<Object> getSnapshot(String aggregateId);
 
     void deleteSnapshot(String aggregateId);
 

@@ -14,7 +14,7 @@
 
 package io.fluxcapacitor.javaclient.eventsourcing;
 
-import io.fluxcapacitor.common.api.Message;
+import io.fluxcapacitor.common.api.SerializedMessage;
 import io.fluxcapacitor.javaclient.common.repository.Repository;
 import io.fluxcapacitor.javaclient.common.serialization.SerializationException;
 import lombok.extern.slf4j.Slf4j;
@@ -26,29 +26,29 @@ import java.util.function.BiFunction;
 @Slf4j
 public class EventSourcingRepository<T> implements Repository<T> {
 
-    private final EventStore eventStore;
-    private final BiFunction<T, Message, T> eventHandler;
+    private final EventStoreClient eventStoreClient;
+    private final BiFunction<T, SerializedMessage, T> eventHandler;
 
-    public EventSourcingRepository(EventStore eventStore, BiFunction<T, Message, T> eventHandler) {
-        this.eventStore = eventStore;
+    public EventSourcingRepository(EventStoreClient eventStoreClient, BiFunction<T, SerializedMessage, T> eventHandler) {
+        this.eventStoreClient = eventStoreClient;
         this.eventHandler = eventHandler;
     }
 
     @Override
     public T get(Object id) {
         String aggregateId = id.toString();
-        Optional<Snapshot> snapshot = eventStore.getSnapshot(aggregateId);
+        Optional<Snapshot> snapshot = eventStoreClient.getSnapshot(aggregateId);
         T value = null;
         try {
-            value = snapshot.map(s -> eventHandler.apply(null, new Message(s.getData()))).orElse(null);
+            value = snapshot.map(s -> eventHandler.apply(null, new SerializedMessage(s.getData()))).orElse(null);
         } catch (SerializationException e) {
             log.warn("Failed to load snapshot for aggregate {}. Deleting existing one.", id, e);
             snapshot = Optional.empty();
-            eventStore.deleteSnapshot(aggregateId);
+            eventStoreClient.deleteSnapshot(aggregateId);
         }
-        Iterator<Message> messageIterator =
-                snapshot.map(s -> eventStore.getEvents(aggregateId, s.getLastSequenceNumber()))
-                        .orElse(eventStore.getEvents(aggregateId)).iterator();
+        Iterator<SerializedMessage> messageIterator =
+                snapshot.map(s -> eventStoreClient.getEvents(aggregateId, s.getLastSequenceNumber()))
+                        .orElse(eventStoreClient.getEvents(aggregateId, -1L)).iterator();
         while (messageIterator.hasNext()) {
             value = eventHandler.apply(value, messageIterator.next());
         }

@@ -23,9 +23,9 @@ import io.fluxcapacitor.axonclient.eventhandling.FluxCapacitorEventProcessor;
 import io.fluxcapacitor.axonclient.eventhandling.FluxCapacitorEventStore;
 import io.fluxcapacitor.common.MessageType;
 import io.fluxcapacitor.javaclient.common.connection.ApplicationProperties;
-import io.fluxcapacitor.javaclient.eventsourcing.EventStore;
-import io.fluxcapacitor.javaclient.gateway.GatewayService;
-import io.fluxcapacitor.javaclient.tracking.TrackingService;
+import io.fluxcapacitor.javaclient.eventsourcing.EventStoreClient;
+import io.fluxcapacitor.javaclient.gateway.GatewayClient;
+import io.fluxcapacitor.javaclient.tracking.TrackingClient;
 import org.axonframework.commandhandling.SimpleCommandBus;
 import org.axonframework.commandhandling.distributed.AnnotationRoutingStrategy;
 import org.axonframework.commandhandling.distributed.RoutingStrategy;
@@ -45,7 +45,7 @@ import static java.lang.String.format;
 public abstract class AbstractFluxCapacitorConfiguration implements FluxCapacitorConfiguration {
 
     private final ApplicationProperties applicationProperties;
-    private final AtomicReference<TrackingService> eventConsumerService = new AtomicReference<>();
+    private final AtomicReference<TrackingClient> eventConsumerService = new AtomicReference<>();
 
     protected AbstractFluxCapacitorConfiguration(ApplicationProperties applicationProperties) {
         this.applicationProperties = applicationProperties;
@@ -129,17 +129,17 @@ public abstract class AbstractFluxCapacitorConfiguration implements FluxCapacito
         return configurer;
     }
 
-    protected abstract TrackingService createConsumerService(MessageType type);
+    protected abstract TrackingClient createConsumerService(MessageType type);
 
-    protected abstract GatewayService createProducerService(MessageType type);
+    protected abstract GatewayClient createProducerService(MessageType type);
 
-    protected abstract EventStore createEventStore();
+    protected abstract EventStoreClient createEventStore();
 
     protected ApplicationProperties getApplicationProperties() {
         return applicationProperties;
     }
 
-    private TrackingService getEventConsumerService() {
+    private TrackingClient getEventConsumerService() {
         return eventConsumerService
                 .updateAndGet(service -> service == null ? createConsumerService(MessageType.EVENT) : service);
     }
@@ -147,7 +147,7 @@ public abstract class AbstractFluxCapacitorConfiguration implements FluxCapacito
     @SuppressWarnings("unchecked")
     protected FluxCapacitorEventStore createEventStore(Configuration configuration) {
         MessageMonitor monitor = configuration.messageMonitor(FluxCapacitorEventStore.class, "eventStore");
-        EventStore delegate = createEventStore();
+        EventStoreClient delegate = createEventStore();
         return new FluxCapacitorEventStore(monitor, delegate, configuration.getComponent(AxonMessageSerializer.class));
     }
 

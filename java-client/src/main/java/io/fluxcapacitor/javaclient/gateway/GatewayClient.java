@@ -12,16 +12,14 @@
  * limitations under the License.
  */
 
-package io.fluxcapacitor.javaclient.tracking;
+package io.fluxcapacitor.javaclient.gateway;
 
-import io.fluxcapacitor.common.api.tracking.MessageBatch;
+import io.fluxcapacitor.common.Awaitable;
+import io.fluxcapacitor.common.Monitored;
+import io.fluxcapacitor.common.api.SerializedMessage;
 
-import java.time.Duration;
+public interface GatewayClient extends Monitored<SerializedMessage> {
 
-public interface TrackingService {
-
-    MessageBatch read(String processor, int channel, int maxSize, Duration maxTimeout);
-
-    void storePosition(String processor, int[] segment, long lastIndex);
+    Awaitable send(SerializedMessage... messages);
 
 }

@@ -15,7 +15,7 @@
 package io.fluxcapacitor.common;
 
 import io.fluxcapacitor.common.api.Data;
-import io.fluxcapacitor.common.api.Message;
+import io.fluxcapacitor.common.api.SerializedMessage;
 
 import java.nio.ByteBuffer;
 import java.util.List;
@@ -30,20 +30,20 @@ public class TestUtils {
 
     private static final Random random = new Random();
 
-    public static Message createMessage() {
+    public static SerializedMessage createMessage() {
         return createMessages(1).get(0);
     }
 
-    public static List<Message> createMessages(int count) {
+    public static List<SerializedMessage> createMessages(int count) {
         return IntStream.range(0, count).mapToObj(i -> {
             ByteBuffer byteBuffer = ByteBuffer.allocate(20).putInt(i);
             byte[] randomBytes = new byte[16];
             random.nextBytes(randomBytes);
             return byteBuffer.put(randomBytes).array();
-        }).map(bytes -> new Message(new Data<>(bytes, "test", 0))).collect(Collectors.toList());
+        }).map(bytes -> new SerializedMessage(new Data<>(bytes, "test", 0))).collect(Collectors.toList());
     }
 
-    public static void assertEqualMessages(List<Message> expected, List<Message> actual) {
+    public static void assertEqualMessages(List<SerializedMessage> expected, List<SerializedMessage> actual) {
         assertEquals("Lists have a different size", expected.size(), actual.size());
         for (int i = 0; i < expected.size(); i++) {
             assertArrayEquals(expected.get(i).getData().getValue(), actual.get(i).getData().getValue());
