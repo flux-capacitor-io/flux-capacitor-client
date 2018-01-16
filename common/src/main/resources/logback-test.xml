@@ -19,15 +19,6 @@
         <encoder>
             <pattern>%d{HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n</pattern>
         </encoder>
-        <filter class="ch.qos.logback.core.filter.EvaluatorFilter">
-            <evaluator>
-                <expression>
-                    return formattedMessage.contains("XNIO worker was not set on WebSocketDeploymentInfo") ||
-                    formattedMessage.contains("Buffer pool was not set on WebSocketDeploymentInfo");
-                </expression>
-            </evaluator>
-            <onMatch>DENY</onMatch>
-        </filter>
     </appender>
 
     <logger name="io.fluxcapacitor" level="info"/>
