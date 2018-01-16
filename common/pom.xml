@@ -30,13 +30,6 @@
     <url>https://flux-capacitor.io</url>
 
     <dependencies>
-        <!--for consistent hashing-->
-        <dependency>
-            <groupId>com.google.guava</groupId>
-            <artifactId>guava</artifactId>
-            <version>23.0</version>
-        </dependency>
-
         <!--jackson serialization-->
         <dependency>
             <groupId>com.fasterxml.jackson.core</groupId>

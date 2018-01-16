@@ -14,10 +14,9 @@
 
 package io.fluxcapacitor.javaclient.common.repository;
 
-import com.google.common.cache.Cache;
-import com.google.common.cache.CacheBuilder;
 
-import java.util.concurrent.ExecutionException;
+import com.github.benmanes.caffeine.cache.Cache;
+import com.github.benmanes.caffeine.cache.Caffeine;
 
 public class CachingRepository<T> implements Repository<T> {
 
@@ -25,7 +24,7 @@ public class CachingRepository<T> implements Repository<T> {
     private final Cache<Object, T> cache;
 
     public CachingRepository(Repository<T> delegate) {
-        this(delegate, CacheBuilder.newBuilder().maximumSize(100_000).build());
+        this(delegate, Caffeine.newBuilder().maximumSize(100_000).build());
     }
 
     public CachingRepository(Repository<T> delegate, Cache<Object, T> cache) {
@@ -42,8 +41,8 @@ public class CachingRepository<T> implements Repository<T> {
     @Override
     public T get(Object id) {
         try {
-            return cache.get(id, () -> delegate.get(id));
-        } catch (ExecutionException e) {
+            return cache.get(id, delegate::get);
+        } catch (Exception e) {
             throw new IllegalStateException("Delegate repository threw an exception while loading " + id, e);
         }
     }

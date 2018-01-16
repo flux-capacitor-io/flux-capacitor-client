@@ -14,12 +14,10 @@
 
 package io.fluxcapacitor.common;
 
-import com.google.common.base.Stopwatch;
 import lombok.extern.slf4j.Slf4j;
 
 import java.time.Duration;
 import java.util.concurrent.Callable;
-import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 import java.util.function.Predicate;
 
@@ -27,23 +25,23 @@ import java.util.function.Predicate;
 public class TimingUtils {
 
     public static void time(Runnable task, Consumer<Long> callback) {
-        Stopwatch stopwatch = Stopwatch.createStarted();
+        long start = System.currentTimeMillis();
         try {
             task.run();
         } catch (Exception e) {
             throw new IllegalStateException("Task failed to execute", e);
         }
-        callback.accept(stopwatch.stop().elapsed(TimeUnit.MILLISECONDS));
+        callback.accept(System.currentTimeMillis() - start);
     }
 
     public static void time(Callable task, Consumer<Long> callback) {
-        Stopwatch stopwatch = Stopwatch.createStarted();
+        long start = System.currentTimeMillis();
         try {
             task.call();
         } catch (Exception e) {
             throw new IllegalStateException("Task failed to execute", e);
         }
-        callback.accept(stopwatch.stop().elapsed(TimeUnit.MILLISECONDS));
+        callback.accept(System.currentTimeMillis() - start);
     }
 
     public static <T> T retryOnFailure(Callable<T> task, Duration delay) {

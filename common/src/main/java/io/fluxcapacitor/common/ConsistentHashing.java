@@ -14,18 +14,11 @@
 
 package io.fluxcapacitor.common;
 
-import com.google.common.hash.HashFunction;
-import com.google.common.hash.Hashing;
-
-import java.nio.charset.Charset;
-import java.nio.charset.StandardCharsets;
 import java.util.function.Function;
 
 public class ConsistentHashing {
 
-    private static final Charset UTF8 = StandardCharsets.UTF_8;
-    private static final HashFunction MURMUR3_32 = Hashing.murmur3_32();
-    private static final Function<String, Long> defaultHashFunction = s -> MURMUR3_32.hashString(s, UTF8).padToLong();
+    private static final Function<String, Integer> defaultHashFunction = Murmur3::murmurhash3_x86_32;
 
     public static int computeSegment(String routingKey) {
         return computeSegment(routingKey, defaultHashFunction, 1024);
@@ -35,8 +28,8 @@ public class ConsistentHashing {
         return computeSegment(routingKey, defaultHashFunction, maxSegments);
     }
 
-    public static int computeSegment(String routingKey, Function<String, Long> hashFunction, int segments) {
-        return Hashing.consistentHash(hashFunction.apply(routingKey), segments);
+    public static int computeSegment(String routingKey, Function<String, Integer> hashFunction, int segments) {
+        return Math.abs(hashFunction.apply(routingKey)) % segments;
     }
 
 }
