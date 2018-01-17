@@ -35,7 +35,7 @@
 
     <properties>
         <axon.version>3.1.1</axon.version>
-        <spring.version>4.3.11.RELEASE</spring.version>
+        <spring.version>5.0.2.RELEASE</spring.version>
     </properties>
 
     <dependencies>

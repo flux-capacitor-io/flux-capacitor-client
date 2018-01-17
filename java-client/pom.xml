@@ -50,11 +50,13 @@
             <groupId>org.glassfish.tyrus</groupId>
             <artifactId>tyrus-client</artifactId>
             <version>${websocket-client.version}</version>
+            <scope>provided</scope>
         </dependency>
         <dependency>
             <groupId>org.glassfish.tyrus</groupId>
             <artifactId>tyrus-container-grizzly-client</artifactId>
             <version>${websocket-client.version}</version>
+            <scope>runtime</scope>
         </dependency>
 
         <!--for caching repository-->

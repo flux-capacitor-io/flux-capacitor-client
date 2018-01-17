@@ -30,7 +30,7 @@
     <url>https://flux-capacitor.io</url>
 
     <properties>
-        <dropwizard.version>3.2.5</dropwizard.version>
+        <dropwizard.version>4.0.2</dropwizard.version>
     </properties>
 
     <dependencies>
