@@ -18,7 +18,10 @@ import io.fluxcapacitor.common.api.Data;
 import io.fluxcapacitor.common.serialization.Revision;
 import io.fluxcapacitor.javaclient.common.serialization.upcasting.Upcaster;
 
+import java.util.List;
 import java.util.stream.Stream;
+
+import static java.util.stream.Collectors.toList;
 
 public abstract class AbstractSerializer implements Serializer {
     private final Upcaster<Data<byte[]>> upcasterChain;
@@ -42,6 +45,17 @@ public abstract class AbstractSerializer implements Serializer {
     protected abstract byte[] doSerialize(Object object) throws Exception;
 
     @Override
+    @SuppressWarnings("unchecked")
+    public <T> T deserialize(Data<byte[]> data) {
+        List list = deserialize(Stream.of(data)).collect(toList());
+        if (list.size() != 1) {
+            throw new SerializationException(
+                    String.format("Invalid deserialization result for a '%s'. Expected a single object but got %s",
+                                  data, list));
+        }
+        return (T) list.get(0);
+    }
+
     public Stream<Object> deserialize(Stream<Data<byte[]>> dataStream) {
         return upcasterChain.upcast(dataStream).map(data -> {
             try {

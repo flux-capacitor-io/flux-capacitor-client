@@ -5,6 +5,7 @@ import io.fluxcapacitor.common.api.SerializedMessage;
 import io.fluxcapacitor.javaclient.common.Message;
 import io.fluxcapacitor.javaclient.common.serialization.Serializer;
 import io.fluxcapacitor.javaclient.gateway.GatewayClient;
+import io.fluxcapacitor.javaclient.keyvalue.KeyValueStore;
 import lombok.AllArgsConstructor;
 
 import java.util.List;
@@ -19,6 +20,7 @@ public class DefaultEventStore implements EventStore {
 
     private final EventStoreClient client;
     private final GatewayClient eventGateway;
+    private final KeyValueStore keyValueStore;
     private final Serializer serializer;
 
     @Override
@@ -54,16 +56,17 @@ public class DefaultEventStore implements EventStore {
     @Override
     public void storeSnapshot(String aggregateId, long sequenceNumber, Object s) {
         try {
-            client.storeSnapshot(new Snapshot(aggregateId, sequenceNumber, serializer.serialize(s)));
+            keyValueStore.store(snapshotKey(aggregateId), new Snapshot(aggregateId, sequenceNumber, serializer.serialize(s)));
         } catch (Exception e) {
             throw new EventStoreException(format("Failed to store snapshot %s for aggregate %s", s, aggregateId), e);
         }
     }
 
     @Override
-    public Optional<Object> getSnapshot(String aggregateId) {
+    public <T> Optional<T> getSnapshot(String aggregateId) {
         try {
-            return client.getSnapshot(aggregateId).map(s -> serializer.deserialize(s.getData()));
+            Snapshot snapshot = keyValueStore.get(snapshotKey(aggregateId));
+            return Optional.ofNullable(snapshot).map(s -> serializer.deserialize(s.getData()));
         } catch (Exception e) {
             throw new EventStoreException(format("Failed to obtain snapshot for aggregate %s", aggregateId), e);
         }
@@ -72,9 +75,13 @@ public class DefaultEventStore implements EventStore {
     @Override
     public void deleteSnapshot(String aggregateId) {
         try {
-            client.deleteSnapshot(aggregateId);
+            keyValueStore.delete(snapshotKey(aggregateId));
         } catch (Exception e) {
             throw new EventStoreException(format("Failed to delete snapshot for aggregate %s", aggregateId), e);
         }
+    }
+
+    protected String snapshotKey(String aggregateId) {
+        return "$snapshot_" + aggregateId;
     }
 }

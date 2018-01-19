@@ -18,8 +18,12 @@ import io.fluxcapacitor.axonclient.common.serialization.AxonMessageSerializer;
 import io.fluxcapacitor.common.ConsistentHashing;
 import io.fluxcapacitor.common.api.Data;
 import io.fluxcapacitor.common.api.SerializedMessage;
+import io.fluxcapacitor.javaclient.common.serialization.jackson.JacksonSerializer;
 import io.fluxcapacitor.javaclient.eventsourcing.EventStoreClient;
 import io.fluxcapacitor.javaclient.eventsourcing.Snapshot;
+import io.fluxcapacitor.javaclient.keyvalue.DefaultKeyValueStore;
+import io.fluxcapacitor.javaclient.keyvalue.KeyValueClient;
+import io.fluxcapacitor.javaclient.keyvalue.KeyValueStore;
 import lombok.extern.slf4j.Slf4j;
 import org.axonframework.common.Registration;
 import org.axonframework.eventhandling.AbstractEventBus;
@@ -44,18 +48,22 @@ import static java.util.stream.Collectors.toList;
 public class FluxCapacitorEventStore extends AbstractEventBus implements EventStore {
 
     private final EventStoreClient delegate;
+    private final KeyValueStore keyValueStore;
     private final AxonMessageSerializer serializer;
 
     public FluxCapacitorEventStore(EventStoreClient delegate,
-                                   AxonMessageSerializer serializer) {
-        this(NoOpMessageMonitor.INSTANCE, delegate, serializer);
+                                   AxonMessageSerializer serializer,
+                                   KeyValueClient snapshotStore) {
+        this(NoOpMessageMonitor.INSTANCE, delegate, snapshotStore, serializer);
     }
 
     public FluxCapacitorEventStore(MessageMonitor<? super EventMessage<?>> messageMonitor,
                                    EventStoreClient delegate,
+                                   KeyValueClient snapshotStore,
                                    AxonMessageSerializer serializer) {
         super(messageMonitor);
         this.delegate = delegate;
+        this.keyValueStore = new DefaultKeyValueStore(snapshotStore, new JacksonSerializer());
         this.serializer = serializer;
     }
 
@@ -84,7 +92,8 @@ public class FluxCapacitorEventStore extends AbstractEventBus implements EventSt
     protected List<SerializedMessage> convert(List<? extends EventMessage<?>> events) {
         return events.stream().map(e -> {
             SerializedMessage
-                    message = new SerializedMessage(new Data<>(serializer.serializeEvent(e), e.getPayloadType().getName(), 0));
+                    message =
+                    new SerializedMessage(new Data<>(serializer.serializeEvent(e), e.getPayloadType().getName(), 0));
             message.setSegment(ConsistentHashing.computeSegment(getAggregateId(e)));
             return message;
         }).collect(toList());
@@ -98,12 +107,13 @@ public class FluxCapacitorEventStore extends AbstractEventBus implements EventSt
     public DomainEventStream readEvents(String aggregateIdentifier) {
         Optional<DomainEventMessage<?>> optionalSnapshot;
         try {
-            optionalSnapshot = delegate.getSnapshot(aggregateIdentifier).map(serializer::deserializeSnapshot);
+            Snapshot snapshot = keyValueStore.get(snapshotKey(aggregateIdentifier));
+            optionalSnapshot = Optional.ofNullable(snapshot).map(serializer::deserializeSnapshot);
         } catch (Exception | LinkageError e) {
             log.warn("Error reading snapshot. Reconstructing aggregate from entire event stream. Caused by: {} {}",
                      e.getClass().getName(), e.getMessage());
             optionalSnapshot = Optional.empty();
-            delegate.deleteSnapshot(aggregateIdentifier);
+            keyValueStore.delete(snapshotKey(aggregateIdentifier));
         }
         return optionalSnapshot
                 .map(snapshot -> DomainEventStream.concat(DomainEventStream.of(snapshot),
@@ -130,8 +140,9 @@ public class FluxCapacitorEventStore extends AbstractEventBus implements EventSt
     @Override
     public void storeSnapshot(DomainEventMessage<?> snapshot) {
         byte[] bytes = serializer.serializeDomainEvent(snapshot);
-        delegate.storeSnapshot(new Snapshot(snapshot.getAggregateIdentifier(), snapshot.getSequenceNumber(),
-                                            new Data<>(bytes, snapshot.getPayloadType().getName(), 0)));
+        keyValueStore.store(snapshotKey(snapshot.getAggregateIdentifier()),
+                            new Snapshot(snapshot.getAggregateIdentifier(), snapshot.getSequenceNumber(),
+                                         new Data<>(bytes, snapshot.getPayloadType().getName(), 0)));
     }
 
     @Override
@@ -152,5 +163,9 @@ public class FluxCapacitorEventStore extends AbstractEventBus implements EventSt
     @Override
     public TrackingEventStream openStream(TrackingToken trackingToken) {
         throw new UnsupportedOperationException("Tracking is supported via a dedicated event processor");
+    }
+
+    protected String snapshotKey(String aggregateId) {
+        return "$snapshot_" + aggregateId;
     }
 }

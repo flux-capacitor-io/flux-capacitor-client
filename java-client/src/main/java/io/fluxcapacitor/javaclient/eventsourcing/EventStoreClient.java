@@ -18,7 +18,6 @@ import io.fluxcapacitor.common.Awaitable;
 import io.fluxcapacitor.common.api.SerializedMessage;
 
 import java.util.List;
-import java.util.Optional;
 import java.util.stream.Stream;
 
 public interface EventStoreClient {
@@ -26,11 +25,5 @@ public interface EventStoreClient {
     Awaitable storeEvents(String aggregateId, String domain, long lastSequenceNumber, List<SerializedMessage> events);
 
     Stream<SerializedMessage> getEvents(String aggregateId, long lastSequenceNumber);
-
-    void storeSnapshot(Snapshot snapshot);
-
-    Optional<Snapshot> getSnapshot(String aggregateId);
-
-    void deleteSnapshot(String aggregateId);
 
 }

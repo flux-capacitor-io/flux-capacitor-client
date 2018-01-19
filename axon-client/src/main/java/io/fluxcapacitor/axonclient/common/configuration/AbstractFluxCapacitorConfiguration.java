@@ -25,6 +25,7 @@ import io.fluxcapacitor.common.MessageType;
 import io.fluxcapacitor.javaclient.common.connection.ApplicationProperties;
 import io.fluxcapacitor.javaclient.eventsourcing.EventStoreClient;
 import io.fluxcapacitor.javaclient.gateway.GatewayClient;
+import io.fluxcapacitor.javaclient.keyvalue.KeyValueClient;
 import io.fluxcapacitor.javaclient.tracking.TrackingClient;
 import org.axonframework.commandhandling.SimpleCommandBus;
 import org.axonframework.commandhandling.distributed.AnnotationRoutingStrategy;
@@ -135,6 +136,8 @@ public abstract class AbstractFluxCapacitorConfiguration implements FluxCapacito
 
     protected abstract EventStoreClient createEventStore();
 
+    protected abstract KeyValueClient createKeyValueClient();
+
     protected ApplicationProperties getApplicationProperties() {
         return applicationProperties;
     }
@@ -147,8 +150,8 @@ public abstract class AbstractFluxCapacitorConfiguration implements FluxCapacito
     @SuppressWarnings("unchecked")
     protected FluxCapacitorEventStore createEventStore(Configuration configuration) {
         MessageMonitor monitor = configuration.messageMonitor(FluxCapacitorEventStore.class, "eventStore");
-        EventStoreClient delegate = createEventStore();
-        return new FluxCapacitorEventStore(monitor, delegate, configuration.getComponent(AxonMessageSerializer.class));
+        return new FluxCapacitorEventStore(monitor, createEventStore(), createKeyValueClient(),
+                                           configuration.getComponent(AxonMessageSerializer.class));
     }
 
     protected static class FluxCapacitorModuleConfiguration implements ModuleConfiguration {

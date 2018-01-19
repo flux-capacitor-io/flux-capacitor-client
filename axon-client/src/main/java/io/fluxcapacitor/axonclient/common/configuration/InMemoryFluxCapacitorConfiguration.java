@@ -19,6 +19,8 @@ import io.fluxcapacitor.javaclient.common.connection.ApplicationProperties;
 import io.fluxcapacitor.javaclient.eventsourcing.EventStoreClient;
 import io.fluxcapacitor.javaclient.eventsourcing.InMemoryEventStoreClient;
 import io.fluxcapacitor.javaclient.gateway.GatewayClient;
+import io.fluxcapacitor.javaclient.keyvalue.InMemoryKeyValueClient;
+import io.fluxcapacitor.javaclient.keyvalue.KeyValueClient;
 import io.fluxcapacitor.javaclient.tracking.InMemoryMessageStore;
 import io.fluxcapacitor.javaclient.tracking.TrackingClient;
 import org.axonframework.config.Configurer;
@@ -34,6 +36,7 @@ public class InMemoryFluxCapacitorConfiguration extends AbstractFluxCapacitorCon
 
     private final Map<MessageType, InMemoryMessageStore> messageStores = new HashMap<>();
     private final InMemoryEventStoreClient eventStore = new InMemoryEventStoreClient();
+    private final InMemoryKeyValueClient keyValueClient = new InMemoryKeyValueClient();
 
     public InMemoryFluxCapacitorConfiguration(String applicationName) {
         super(new ApplicationProperties(applicationName, null));
@@ -58,5 +61,10 @@ public class InMemoryFluxCapacitorConfiguration extends AbstractFluxCapacitorCon
     @Override
     protected EventStoreClient createEventStore() {
         return eventStore;
+    }
+
+    @Override
+    protected KeyValueClient createKeyValueClient() {
+        return keyValueClient;
     }
 }

@@ -19,14 +19,16 @@ import io.fluxcapacitor.common.api.SerializedMessage;
 import io.fluxcapacitor.common.api.eventsourcing.EventBatch;
 import io.fluxcapacitor.javaclient.tracking.InMemoryMessageStore;
 
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
+import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Stream;
 
 public class InMemoryEventStoreClient extends InMemoryMessageStore implements EventStoreClient {
 
     private final Map<String, List<EventBatch>> domainEvents = new ConcurrentHashMap<>();
-    private final Map<String, Snapshot> snapshots = new ConcurrentHashMap<>();
 
     @Override
     public Awaitable storeEvents(String aggregateId, String domain, long lastSequenceNumber, List<SerializedMessage> events) {
@@ -53,18 +55,4 @@ public class InMemoryEventStoreClient extends InMemoryMessageStore implements Ev
                 });
     }
 
-    @Override
-    public void storeSnapshot(Snapshot snapshot) {
-        snapshots.put(snapshot.getAggregateId(), snapshot);
-    }
-
-    @Override
-    public Optional<Snapshot> getSnapshot(String aggregateId) {
-        return Optional.ofNullable(snapshots.get(aggregateId));
-    }
-
-    @Override
-    public void deleteSnapshot(String aggregateId) {
-        snapshots.remove(aggregateId);
-    }
 }
