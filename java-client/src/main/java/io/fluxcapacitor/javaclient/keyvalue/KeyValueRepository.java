@@ -14,37 +14,26 @@
 
 package io.fluxcapacitor.javaclient.keyvalue;
 
-import io.fluxcapacitor.common.api.Data;
 import io.fluxcapacitor.javaclient.common.repository.Repository;
-import io.fluxcapacitor.javaclient.common.serialization.Serializer;
+import lombok.AllArgsConstructor;
 
+@AllArgsConstructor
 public class KeyValueRepository<T> implements Repository<T> {
 
-    private final KeyValueClient keyValueClient;
-    private final Serializer serializer;
-
-    public KeyValueRepository(KeyValueClient keyValueClient, Serializer serializer) {
-        this.keyValueClient = keyValueClient;
-        this.serializer = serializer;
-    }
+    private final KeyValueStore keyValueStore;
 
     @Override
     public void put(Object id, T value) {
-        try {
-            keyValueClient.putValue(id.toString(), serializer.serialize(value)).await();
-        } catch (Exception e) {
-            throw new IllegalStateException(String.format("Could not store a value %s for key %s", value, id), e);
-        }
+        keyValueStore.store(id.toString(), value);
     }
 
     @Override
     public T get(Object id) {
-        Data<byte[]> result = keyValueClient.getValue(id.toString());
-        return result == null ? null : serializer.deserialize(result);
+        return keyValueStore.get(id.toString());
     }
 
     @Override
     public void delete(Object id) {
-        keyValueClient.deleteValue(id.toString());
+        keyValueStore.delete(id.toString());
     }
 }

@@ -29,6 +29,10 @@ public class DefaultKeyValueStore implements KeyValueStore {
 
     @Override
     public void delete(String key) {
-        client.deleteValue(key);
+        try {
+            client.deleteValue(key);
+        } catch (Exception e) {
+            throw new KeyValueStoreException(String.format("Could not delete the value at key %s", key), e);
+        }
     }
 }
