@@ -21,7 +21,7 @@ import io.fluxcapacitor.common.api.SerializedMessage;
 import io.fluxcapacitor.common.api.tracking.Append;
 import io.fluxcapacitor.common.serialization.websocket.JsonDecoder;
 import io.fluxcapacitor.common.serialization.websocket.JsonEncoder;
-import io.fluxcapacitor.javaclient.common.connection.AbstractWebsocketService;
+import io.fluxcapacitor.javaclient.common.websocket.AbstractWebsocketService;
 import io.fluxcapacitor.javaclient.gateway.GatewayClient;
 
 import javax.websocket.ClientEndpoint;

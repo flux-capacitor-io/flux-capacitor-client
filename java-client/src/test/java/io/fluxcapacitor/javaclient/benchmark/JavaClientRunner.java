@@ -20,7 +20,7 @@ import io.fluxcapacitor.common.api.SerializedMessage;
 import io.fluxcapacitor.common.handling.Handler;
 import io.fluxcapacitor.common.handling.HandlerInspector;
 import io.fluxcapacitor.common.handling.HandlerInvoker;
-import io.fluxcapacitor.javaclient.common.connection.ServiceUrlBuilder;
+import io.fluxcapacitor.javaclient.common.websocket.ServiceUrlBuilder;
 import io.fluxcapacitor.javaclient.gateway.GatewayClient;
 import io.fluxcapacitor.javaclient.gateway.websocket.WebsocketGatewayClient;
 import io.fluxcapacitor.javaclient.tracking.TrackingUtils;
@@ -47,10 +47,10 @@ public class JavaClientRunner extends AbstractClientBenchmark {
         super(commandCount);
 
         gatewayClient = new WebsocketGatewayClient(
-            ServiceUrlBuilder.producerUrl(MessageType.COMMAND, getApplicationProperties()));
+            ServiceUrlBuilder.producerUrl(MessageType.COMMAND, getClientProperties()));
         TrackingUtils.start("javaClientRunner/command",
                             new WebsocketTrackingClient(
-                                  ServiceUrlBuilder.consumerUrl(MessageType.COMMAND, getApplicationProperties())),
+                                  ServiceUrlBuilder.consumerUrl(MessageType.COMMAND, getClientProperties())),
                             this::handleCommands);
         commandInvoker =
                 HandlerInspector.inspect(this, Handler.class, Collections.singletonList(p -> m -> m));

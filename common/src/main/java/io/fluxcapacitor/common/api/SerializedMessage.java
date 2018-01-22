@@ -26,7 +26,7 @@ public class SerializedMessage {
     private Long index;
     private String source;
     private String target;
-    private String requestId;
+    private Integer requestId;
 
     public SerializedMessage(Data<byte[]> data) {
         this.data = data;

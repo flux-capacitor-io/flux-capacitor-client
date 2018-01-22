@@ -126,7 +126,8 @@ public class DefaultFluxCapacitor implements FluxCapacitor {
                     new DefaultResultGateway(client.getGatewayClient(RESULT), serializer);
             Map<MessageType, Tracking> trackingMap = stream(MessageType.values())
                     .collect(toMap(identity(), m -> createTracking(m, client, resultGateway)));
-            RequestHandler requestHandler = new DefaultRequestHandler(client.getTrackingClient(RESULT));
+            RequestHandler requestHandler =
+                    new DefaultRequestHandler(client.getTrackingClient(RESULT), client.getProperties());
             CommandGateway commandGateway =
                     new DefaultCommandGateway(client.getGatewayClient(COMMAND), requestHandler, serializer);
             QueryGateway queryGateway =

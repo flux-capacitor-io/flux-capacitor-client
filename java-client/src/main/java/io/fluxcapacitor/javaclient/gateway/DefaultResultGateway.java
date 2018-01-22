@@ -12,7 +12,7 @@ public class DefaultResultGateway implements ResultGateway {
     private final Serializer serializer;
 
     @Override
-    public void respond(Object payload, Metadata metadata, String target, String requestId) {
+    public void respond(Object payload, Metadata metadata, String target, int requestId) {
         try {
             SerializedMessage message = new SerializedMessage(serializer.serialize(payload), metadata);
             message.setTarget(target);

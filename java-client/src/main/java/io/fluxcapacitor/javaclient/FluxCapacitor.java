@@ -26,7 +26,7 @@ import static java.util.Arrays.stream;
  * In those cases it is not necessary to inject an instance of this API. This minimizes the need for dependencies
  * in your functional classes and maximally cashes in on location transparency.
  * <p>
- * To build an instance of this API check out {@link io.fluxcapacitor.javaclient.configuration.FluxCapacitorClient}.
+ * To build an instance of this API check out {@link io.fluxcapacitor.javaclient.configuration.DefaultFluxCapacitor}.
  */
 public interface FluxCapacitor {
 

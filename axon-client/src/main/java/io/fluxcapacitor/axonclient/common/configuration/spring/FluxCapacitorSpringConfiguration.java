@@ -16,8 +16,9 @@ package io.fluxcapacitor.axonclient.common.configuration.spring;
 
 import io.fluxcapacitor.axonclient.common.configuration.FluxCapacitorConfiguration;
 import io.fluxcapacitor.axonclient.common.configuration.InMemoryFluxCapacitorConfiguration;
-import io.fluxcapacitor.axonclient.common.configuration.WebsocketFluxCapacitorConfiguration;
-import io.fluxcapacitor.javaclient.common.connection.ApplicationProperties;
+import io.fluxcapacitor.javaclient.configuration.ClientProperties;
+import io.fluxcapacitor.javaclient.configuration.InMemoryClientProperties;
+import io.fluxcapacitor.javaclient.configuration.websocket.WebSocketClientProperties;
 import lombok.extern.slf4j.Slf4j;
 import org.axonframework.config.Configurer;
 import org.axonframework.config.EventHandlingConfiguration;
@@ -32,12 +33,15 @@ public class FluxCapacitorSpringConfiguration {
 
     @Bean
     @SuppressWarnings("ConstantConditions")
-    public FluxCapacitorConfiguration fluxCapacitorConfiguration(ApplicationProperties applicationProperties) {
-        if (applicationProperties.getFluxCapacitorUrl() == null) {
-            log.warn("Flux Capacitor url in application properties is not set. Falling back to in-memory service.");
-            return new InMemoryFluxCapacitorConfiguration(applicationProperties.getApplicationName());
+    public FluxCapacitorConfiguration fluxCapacitorConfiguration(ClientProperties clientProperties) {
+        if (clientProperties instanceof InMemoryClientProperties) {
+            log.info("Using in-memory Flux Capacitor client.");
+            return new InMemoryFluxCapacitorConfiguration(clientProperties.getApplicationName());
         }
-        return new WebsocketFluxCapacitorConfiguration(applicationProperties);
+        if (clientProperties instanceof WebSocketClientProperties) {
+            return new InMemoryFluxCapacitorConfiguration(clientProperties.getApplicationName());
+        }
+        throw new UnsupportedOperationException("Unsupported client properties: " + clientProperties);
     }
 
     @Autowired

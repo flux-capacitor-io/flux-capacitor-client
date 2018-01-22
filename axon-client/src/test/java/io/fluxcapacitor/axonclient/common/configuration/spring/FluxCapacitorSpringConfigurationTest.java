@@ -14,7 +14,8 @@
 
 package io.fluxcapacitor.axonclient.common.configuration.spring;
 
-import io.fluxcapacitor.javaclient.common.connection.ApplicationProperties;
+import io.fluxcapacitor.javaclient.configuration.ClientProperties;
+import io.fluxcapacitor.javaclient.configuration.InMemoryClientProperties;
 import lombok.NoArgsConstructor;
 import lombok.Value;
 import lombok.extern.slf4j.Slf4j;
@@ -176,8 +177,8 @@ public class FluxCapacitorSpringConfigurationTest {
         }
 
         @Bean
-        public ApplicationProperties applicationProperties() {
-            return new ApplicationProperties("test", null);
+        public ClientProperties applicationProperties() {
+            return new InMemoryClientProperties("test");
         }
     }
 

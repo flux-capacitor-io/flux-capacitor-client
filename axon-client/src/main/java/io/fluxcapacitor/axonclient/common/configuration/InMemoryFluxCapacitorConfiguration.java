@@ -15,7 +15,7 @@
 package io.fluxcapacitor.axonclient.common.configuration;
 
 import io.fluxcapacitor.common.MessageType;
-import io.fluxcapacitor.javaclient.common.connection.ApplicationProperties;
+import io.fluxcapacitor.javaclient.configuration.InMemoryClientProperties;
 import io.fluxcapacitor.javaclient.eventsourcing.EventStoreClient;
 import io.fluxcapacitor.javaclient.eventsourcing.InMemoryEventStoreClient;
 import io.fluxcapacitor.javaclient.gateway.GatewayClient;
@@ -39,7 +39,7 @@ public class InMemoryFluxCapacitorConfiguration extends AbstractFluxCapacitorCon
     private final InMemoryKeyValueClient keyValueClient = new InMemoryKeyValueClient();
 
     public InMemoryFluxCapacitorConfiguration(String applicationName) {
-        super(new ApplicationProperties(applicationName, null));
+        super(new InMemoryClientProperties(applicationName));
     }
 
     @Override

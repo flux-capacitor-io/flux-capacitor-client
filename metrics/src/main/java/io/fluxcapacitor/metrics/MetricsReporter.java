@@ -21,8 +21,8 @@ import io.fluxcapacitor.common.api.SerializedMessage;
 import io.fluxcapacitor.common.handling.Handler;
 import io.fluxcapacitor.common.handling.HandlerInspector;
 import io.fluxcapacitor.common.handling.HandlerInvoker;
-import io.fluxcapacitor.javaclient.common.connection.ApplicationProperties;
-import io.fluxcapacitor.javaclient.common.connection.ServiceUrlBuilder;
+import io.fluxcapacitor.javaclient.common.websocket.ServiceUrlBuilder;
+import io.fluxcapacitor.javaclient.configuration.websocket.WebSocketClientProperties;
 import io.fluxcapacitor.javaclient.tracking.TrackingClient;
 import io.fluxcapacitor.javaclient.tracking.TrackingUtils;
 import io.fluxcapacitor.javaclient.tracking.websocket.WebsocketTrackingClient;
@@ -35,17 +35,17 @@ import java.util.Collections;
 public abstract class MetricsReporter {
 
     private final ObjectMapper objectMapper;
-    private final ApplicationProperties applicationProperties;
+    private final WebSocketClientProperties clientProperties;
     private final HandlerInvoker<ClientAction> invoker;
 
     public MetricsReporter(String fluxCapacitorUrl) {
         this.objectMapper = new ObjectMapper();
         this.invoker = HandlerInspector.inspect(this, Handler.class, Collections.singletonList(p -> c -> c));
-        this.applicationProperties = new ApplicationProperties("graphiteReporter", fluxCapacitorUrl);
+        this.clientProperties = new WebSocketClientProperties("graphiteReporter", fluxCapacitorUrl);
     }
 
     public void start() {
-        String metricsLogUrl = ServiceUrlBuilder.consumerUrl(MessageType.USAGE, applicationProperties);
+        String metricsLogUrl = ServiceUrlBuilder.consumerUrl(MessageType.USAGE, clientProperties);
         TrackingClient trackingClient = new WebsocketTrackingClient(metricsLogUrl);
         TrackingUtils.start("metricsReporter", trackingClient, messages -> messages.stream().map(
                 this::deserialize).forEach(this::handle));

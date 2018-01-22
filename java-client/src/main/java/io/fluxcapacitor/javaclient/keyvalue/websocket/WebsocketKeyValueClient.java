@@ -20,7 +20,7 @@ import io.fluxcapacitor.common.api.Data;
 import io.fluxcapacitor.common.api.keyvalue.*;
 import io.fluxcapacitor.common.serialization.websocket.JsonDecoder;
 import io.fluxcapacitor.common.serialization.websocket.JsonEncoder;
-import io.fluxcapacitor.javaclient.common.connection.AbstractWebsocketService;
+import io.fluxcapacitor.javaclient.common.websocket.AbstractWebsocketService;
 import io.fluxcapacitor.javaclient.keyvalue.KeyValueClient;
 import lombok.extern.slf4j.Slf4j;
 

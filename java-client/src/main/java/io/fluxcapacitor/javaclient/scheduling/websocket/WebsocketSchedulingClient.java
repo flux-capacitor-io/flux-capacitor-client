@@ -21,7 +21,7 @@ import io.fluxcapacitor.common.api.scheduling.Schedule;
 import io.fluxcapacitor.common.api.scheduling.ScheduledMessage;
 import io.fluxcapacitor.common.serialization.websocket.JsonDecoder;
 import io.fluxcapacitor.common.serialization.websocket.JsonEncoder;
-import io.fluxcapacitor.javaclient.common.connection.AbstractWebsocketService;
+import io.fluxcapacitor.javaclient.common.websocket.AbstractWebsocketService;
 import io.fluxcapacitor.javaclient.scheduling.SchedulingClient;
 import lombok.extern.slf4j.Slf4j;
 

@@ -20,7 +20,7 @@ import io.fluxcapacitor.common.api.tracking.ReadResult;
 import io.fluxcapacitor.common.api.tracking.StorePosition;
 import io.fluxcapacitor.common.serialization.websocket.JsonDecoder;
 import io.fluxcapacitor.common.serialization.websocket.JsonEncoder;
-import io.fluxcapacitor.javaclient.common.connection.AbstractWebsocketService;
+import io.fluxcapacitor.javaclient.common.websocket.AbstractWebsocketService;
 import io.fluxcapacitor.javaclient.tracking.TrackingClient;
 
 import javax.websocket.ClientEndpoint;

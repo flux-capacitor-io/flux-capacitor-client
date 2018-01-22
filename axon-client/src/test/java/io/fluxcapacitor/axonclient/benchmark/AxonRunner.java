@@ -46,7 +46,7 @@ public class AxonRunner extends AbstractClientBenchmark {
                 .defaultConfiguration()
                 .configureSerializer(c -> new JacksonSerializer())
                 .registerCommandHandler(c -> this);
-        WebsocketFluxCapacitorConfiguration.configure(configurer, getApplicationProperties());
+        WebsocketFluxCapacitorConfiguration.configure(configurer, getClientProperties());
 
         this.configuration = configurer.buildConfiguration();
         this.commandBus = configuration.commandBus();

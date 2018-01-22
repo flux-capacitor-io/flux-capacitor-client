@@ -15,8 +15,8 @@
 package io.fluxcapacitor.axonclient.common.configuration;
 
 import io.fluxcapacitor.common.MessageType;
-import io.fluxcapacitor.javaclient.common.connection.ApplicationProperties;
-import io.fluxcapacitor.javaclient.common.connection.ServiceUrlBuilder;
+import io.fluxcapacitor.javaclient.common.websocket.ServiceUrlBuilder;
+import io.fluxcapacitor.javaclient.configuration.websocket.WebSocketClientProperties;
 import io.fluxcapacitor.javaclient.eventsourcing.EventStoreClient;
 import io.fluxcapacitor.javaclient.eventsourcing.websocket.WebSocketEventStoreClient;
 import io.fluxcapacitor.javaclient.gateway.GatewayClient;
@@ -29,31 +29,36 @@ import org.axonframework.config.Configurer;
 
 public class WebsocketFluxCapacitorConfiguration extends AbstractFluxCapacitorConfiguration {
 
-    public static Configurer configure(Configurer configurer, ApplicationProperties applicationProperties) {
-        return new WebsocketFluxCapacitorConfiguration(applicationProperties).configure(configurer);
+    public static Configurer configure(Configurer configurer, WebSocketClientProperties clientProperties) {
+        return new WebsocketFluxCapacitorConfiguration(clientProperties).configure(configurer);
     }
 
-    public WebsocketFluxCapacitorConfiguration(ApplicationProperties applicationProperties) {
-        super(applicationProperties);
+    public WebsocketFluxCapacitorConfiguration(WebSocketClientProperties clientProperties) {
+        super(clientProperties);
     }
 
     @Override
     protected TrackingClient createConsumerService(MessageType type) {
-        return new WebsocketTrackingClient(ServiceUrlBuilder.consumerUrl(type, getApplicationProperties()));
+        return new WebsocketTrackingClient(ServiceUrlBuilder.consumerUrl(type, getClientProperties()));
     }
 
     @Override
     protected GatewayClient createProducerService(MessageType type) {
-        return new WebsocketGatewayClient(ServiceUrlBuilder.producerUrl(type, getApplicationProperties()));
+        return new WebsocketGatewayClient(ServiceUrlBuilder.producerUrl(type, getClientProperties()));
     }
 
     @Override
     protected EventStoreClient createEventStore() {
-        return new WebSocketEventStoreClient(ServiceUrlBuilder.eventSourcingUrl(getApplicationProperties()));
+        return new WebSocketEventStoreClient(ServiceUrlBuilder.eventSourcingUrl(getClientProperties()));
     }
 
     @Override
     protected KeyValueClient createKeyValueClient() {
-        return new WebsocketKeyValueClient(ServiceUrlBuilder.keyValueUrl(getApplicationProperties()));
+        return new WebsocketKeyValueClient(ServiceUrlBuilder.keyValueUrl(getClientProperties()));
+    }
+
+    @Override
+    protected WebSocketClientProperties getClientProperties() {
+        return (WebSocketClientProperties) super.getClientProperties();
     }
 }

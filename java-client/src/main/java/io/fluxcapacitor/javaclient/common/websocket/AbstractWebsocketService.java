@@ -12,7 +12,7 @@
  * limitations under the License.
  */
 
-package io.fluxcapacitor.javaclient.common.connection;
+package io.fluxcapacitor.javaclient.common.websocket;
 
 import io.fluxcapacitor.common.api.JsonType;
 import io.fluxcapacitor.common.api.QueryResult;

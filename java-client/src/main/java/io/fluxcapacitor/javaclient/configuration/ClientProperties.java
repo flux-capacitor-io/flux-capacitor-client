@@ -12,21 +12,20 @@
  * limitations under the License.
  */
 
-package io.fluxcapacitor.javaclient.common.connection;
+package io.fluxcapacitor.javaclient.configuration;
 
 import lombok.AllArgsConstructor;
-import lombok.Value;
+import lombok.Getter;
 
 import java.lang.management.ManagementFactory;
 
-@Value
+@Getter
 @AllArgsConstructor
-public class ApplicationProperties {
-    String applicationName;
-    String clientId;
-    String fluxCapacitorUrl;
+public abstract class ClientProperties {
+    private final String applicationName;
+    private final String clientId;
 
-    public ApplicationProperties(String applicationName, String fluxCapacitorUrl) {
-        this(applicationName, ManagementFactory.getRuntimeMXBean().getName(), fluxCapacitorUrl);
+    public ClientProperties(String applicationName) {
+        this(applicationName, ManagementFactory.getRuntimeMXBean().getName());
     }
 }

@@ -1,7 +1,7 @@
 package io.fluxcapacitor.javaclient.configuration;
 
 import io.fluxcapacitor.common.MessageType;
-import io.fluxcapacitor.javaclient.common.connection.ApplicationProperties;
+import io.fluxcapacitor.javaclient.configuration.websocket.WebSocketClientProperties;
 import io.fluxcapacitor.javaclient.eventsourcing.EventStoreClient;
 import io.fluxcapacitor.javaclient.eventsourcing.InMemoryEventStoreClient;
 import io.fluxcapacitor.javaclient.eventsourcing.websocket.WebSocketEventStoreClient;
@@ -22,7 +22,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Function;
 
 import static io.fluxcapacitor.common.ObjectUtils.memoize;
-import static io.fluxcapacitor.javaclient.common.connection.ServiceUrlBuilder.*;
+import static io.fluxcapacitor.javaclient.common.websocket.ServiceUrlBuilder.*;
 
 public class FluxCapacitorClient {
 
@@ -31,29 +31,31 @@ public class FluxCapacitorClient {
     private final EventStoreClient eventStoreClient;
     private final SchedulingClient schedulingClient;
     private final KeyValueClient keyValueClient;
+    private final ClientProperties properties;
 
     public FluxCapacitorClient(
             Function<MessageType, ? extends GatewayClient> gatewayClients,
             Function<MessageType, ? extends TrackingClient> trackingClients,
             EventStoreClient eventStoreClient, SchedulingClient schedulingClient,
-            KeyValueClient keyValueClient) {
+            KeyValueClient keyValueClient, ClientProperties properties) {
         this.gatewayClients = memoize(gatewayClients);
         this.trackingClients = memoize(trackingClients);
         this.eventStoreClient = eventStoreClient;
         this.schedulingClient = schedulingClient;
         this.keyValueClient = keyValueClient;
+        this.properties = properties;
     }
 
-    public static FluxCapacitorClient usingWebSockets(ApplicationProperties properties) {
+    public static FluxCapacitorClient usingWebSockets(WebSocketClientProperties properties) {
         return new FluxCapacitorClient(
                 type -> new WebsocketGatewayClient(producerUrl(type, properties)),
                 type -> new WebsocketTrackingClient(consumerUrl(type, properties)),
                 new WebSocketEventStoreClient(eventSourcingUrl(properties)),
                 new WebsocketSchedulingClient(schedulingUrl(properties)),
-                new WebsocketKeyValueClient(keyValueUrl(properties)));
+                new WebsocketKeyValueClient(keyValueUrl(properties)), properties);
     }
 
-    public static FluxCapacitorClient usingInMemory() {
+    public static FluxCapacitorClient usingInMemory(InMemoryClientProperties properties) {
         InMemorySchedulingClient schedulingClient = new InMemorySchedulingClient();
         InMemoryEventStoreClient eventStoreClient = new InMemoryEventStoreClient();
         Map<MessageType, InMemoryMessageStore> messageStores = new ConcurrentHashMap<>();
@@ -69,7 +71,7 @@ public class FluxCapacitorClient {
                     }
                 });
         return new FluxCapacitorClient(messageStoreFactory, messageStoreFactory, eventStoreClient,
-                                       schedulingClient, new InMemoryKeyValueClient());
+                                       schedulingClient, new InMemoryKeyValueClient(), properties);
     }
 
     public GatewayClient getGatewayClient(MessageType messageType) {
@@ -90,5 +92,9 @@ public class FluxCapacitorClient {
 
     public KeyValueClient getKeyValueClient() {
         return keyValueClient;
+    }
+
+    public ClientProperties getProperties() {
+        return properties;
     }
 }
