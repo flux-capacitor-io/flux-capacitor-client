@@ -3,7 +3,6 @@ package io.fluxcapacitor.javaclient.gateway;
 import io.fluxcapacitor.common.api.Metadata;
 import io.fluxcapacitor.common.api.SerializedMessage;
 import io.fluxcapacitor.javaclient.common.serialization.Serializer;
-import io.fluxcapacitor.javaclient.tracking.RequestHandler;
 import lombok.AllArgsConstructor;
 
 import java.util.concurrent.CompletableFuture;
@@ -28,7 +27,7 @@ public class DefaultCommandGateway implements CommandGateway {
     public <R> CompletableFuture<R> send(Object payload, Metadata metadata) {
         try {
             return requestHandler.sendRequest(new SerializedMessage(serializer.serialize(payload), metadata),
-                                              commandGateway::send);
+                                              commandGateway::send).thenApply(s -> serializer.deserialize(s.getData()));
         } catch (Exception e) {
             throw new GatewayException(String.format("Failed to send command %s", payload), e);
         }

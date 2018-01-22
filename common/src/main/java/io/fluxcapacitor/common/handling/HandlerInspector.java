@@ -22,12 +22,13 @@ import java.lang.reflect.Method;
 import java.util.*;
 import java.util.function.Function;
 
+import static java.lang.String.format;
 import static java.util.stream.Collectors.toList;
 
 public class HandlerInspector {
 
-    public static boolean hasHandlerMethods(Class<?> target, Class<? extends Annotation> methodAnnotation) {
-        return Arrays.stream(target.getMethods()).anyMatch(m -> m.isAnnotationPresent(methodAnnotation));
+    public static boolean hasHandlerMethods(Object target, Class<? extends Annotation> methodAnnotation) {
+        return Arrays.stream(target.getClass().getMethods()).anyMatch(m -> m.isAnnotationPresent(methodAnnotation));
     }
 
     public static <M> HandlerInvoker<M> inspect(Object target, Class<? extends Annotation> methodAnnotation,
@@ -60,10 +61,11 @@ public class HandlerInspector {
             try {
                 return method.invoke(target, parameterSuppliers.stream().map(s -> s.apply(message)).toArray());
             } catch (InvocationTargetException e) {
+                Exception thrown = e;
                 if (e.getCause() instanceof Exception) {
-                    throw (Exception) e.getCause();
+                    thrown = (Exception) e.getCause();
                 }
-                throw e;
+                throw new HandlerException(format("Target failed to handle a %s, method: %s", message, method), thrown);
             }
         }
 

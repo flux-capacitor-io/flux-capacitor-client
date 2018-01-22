@@ -31,7 +31,7 @@ import java.util.stream.IntStream;
 public class TrackingUtils {
 
     public static Registration start(String name, TrackingClient trackingClient, Consumer<List<SerializedMessage>> consumer) {
-        return start(name, 1, trackingClient, consumer);
+        return start(name, consumer, trackingClient, TrackingConfiguration.DEFAULT);
     }
 
     public static Registration start(String name, int threads, TrackingClient trackingClient,

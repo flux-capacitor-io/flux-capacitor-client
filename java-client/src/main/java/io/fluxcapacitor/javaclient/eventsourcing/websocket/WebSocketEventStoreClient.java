@@ -24,12 +24,7 @@ import io.fluxcapacitor.common.api.eventsourcing.GetEventsResult;
 import io.fluxcapacitor.common.serialization.websocket.JsonDecoder;
 import io.fluxcapacitor.common.serialization.websocket.JsonEncoder;
 import io.fluxcapacitor.javaclient.common.connection.AbstractWebsocketService;
-import io.fluxcapacitor.javaclient.common.serialization.Serializer;
-import io.fluxcapacitor.javaclient.common.serialization.jackson.JacksonSerializer;
 import io.fluxcapacitor.javaclient.eventsourcing.EventStoreClient;
-import io.fluxcapacitor.javaclient.keyvalue.DefaultKeyValueStore;
-import io.fluxcapacitor.javaclient.keyvalue.KeyValueClient;
-import io.fluxcapacitor.javaclient.keyvalue.KeyValueStore;
 
 import javax.websocket.ClientEndpoint;
 import javax.websocket.EncodeException;
@@ -43,25 +38,21 @@ import static io.fluxcapacitor.common.ObjectUtils.iterate;
 @ClientEndpoint(encoders = JsonEncoder.class, decoders = JsonDecoder.class)
 public class WebSocketEventStoreClient extends AbstractWebsocketService implements EventStoreClient {
 
-    private final KeyValueStore snapshotStore;
     private final Backlog<EventBatch> backlog;
     private final int fetchBatchSize;
 
-    public WebSocketEventStoreClient(String endPointUrl, KeyValueClient keyValueClient) {
-        this(URI.create(endPointUrl), 1024, 1024, keyValueClient, new JacksonSerializer());
+    public WebSocketEventStoreClient(String endPointUrl) {
+        this(URI.create(endPointUrl), 1024, 1024);
     }
 
-    public WebSocketEventStoreClient(String endPointUrl, int backlogSize,
-                                     KeyValueClient keyValueClient) {
-        this(URI.create(endPointUrl), backlogSize, 1024, keyValueClient, new JacksonSerializer());
+    public WebSocketEventStoreClient(String endPointUrl, int backlogSize) {
+        this(URI.create(endPointUrl), backlogSize, 1024);
     }
 
-    public WebSocketEventStoreClient(URI endPointUri, int backlogSize, int fetchBatchSize,
-                                     KeyValueClient keyValueClient, Serializer serializer) {
+    public WebSocketEventStoreClient(URI endPointUri, int backlogSize, int fetchBatchSize) {
         super(endPointUri);
         this.backlog = new Backlog<>(this::doSend, backlogSize);
         this.fetchBatchSize = fetchBatchSize;
-        this.snapshotStore = new DefaultKeyValueStore(keyValueClient, serializer);
     }
 
     @Override

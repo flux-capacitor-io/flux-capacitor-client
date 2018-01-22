@@ -49,8 +49,7 @@ public class WebsocketFluxCapacitorConfiguration extends AbstractFluxCapacitorCo
 
     @Override
     protected EventStoreClient createEventStore() {
-        return new WebSocketEventStoreClient(ServiceUrlBuilder.eventSourcingUrl(getApplicationProperties()),
-                                             createKeyValueClient());
+        return new WebSocketEventStoreClient(ServiceUrlBuilder.eventSourcingUrl(getApplicationProperties()));
     }
 
     @Override

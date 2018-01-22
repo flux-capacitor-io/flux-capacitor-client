@@ -50,9 +50,14 @@ public class HandlerInspectorTest {
         assertEquals(15, subject.invoke(15));
     }
 
-    @Test(expected = UnsupportedOperationException.class)
+    @Test
     public void testInvokeExceptionally() throws Exception {
-        subject.invoke(3f);
+        try {
+            subject.invoke(3f);
+            fail();
+        } catch (HandlerException e) {
+            assertEquals(UnsupportedOperationException.class, e.getCause().getClass());
+        }
     }
 
     @Test(expected = Exception.class)

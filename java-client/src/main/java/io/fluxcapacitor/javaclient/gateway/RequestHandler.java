@@ -1,4 +1,4 @@
-package io.fluxcapacitor.javaclient.tracking;
+package io.fluxcapacitor.javaclient.gateway;
 
 import io.fluxcapacitor.common.api.SerializedMessage;
 
@@ -7,6 +7,6 @@ import java.util.function.Consumer;
 
 public interface RequestHandler {
 
-    <R> CompletableFuture<R> sendRequest(SerializedMessage request, Consumer<SerializedMessage> requestSender);
+   CompletableFuture<SerializedMessage> sendRequest(SerializedMessage request, Consumer<SerializedMessage> requestSender);
 
 }

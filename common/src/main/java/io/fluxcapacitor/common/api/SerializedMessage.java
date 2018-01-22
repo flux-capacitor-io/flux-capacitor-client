@@ -24,6 +24,7 @@ public class SerializedMessage {
     private Metadata metadata;
     private Integer segment;
     private Long index;
+    private String source;
     private String target;
     private String requestId;
 

@@ -71,7 +71,8 @@ public interface FluxCapacitor {
 
     @SuppressWarnings("ConstantConditions")
     default Registration startTracking(Object... handlers) {
-        return stream(MessageType.values()).map(t -> tracking(t).start(handlers)).reduce(Registration::merge).get();
+        return stream(MessageType.values())
+                .map(t -> tracking(t).start(this, handlers)).reduce(Registration::merge).get();
     }
 
     EventStore eventStore();
