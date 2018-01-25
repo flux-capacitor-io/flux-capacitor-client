@@ -15,6 +15,7 @@
 package io.fluxcapacitor.javaclient.common.serialization.upcasting;
 
 import io.fluxcapacitor.common.api.Data;
+import io.fluxcapacitor.javaclient.common.serialization.SerializationException;
 import lombok.AllArgsConstructor;
 import lombok.Value;
 
@@ -23,6 +24,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Stream;
 
+import static io.fluxcapacitor.common.ObjectUtils.memoize;
 import static java.lang.String.format;
 import static java.util.function.Function.identity;
 import static java.util.stream.Collectors.toMap;
@@ -36,9 +38,9 @@ public class UpcasterChain<T> implements Upcaster<Data<T>> {
         Upcaster<Data<T>> upcasterChain = create(upcasters, converter.getDataType());
         return stream -> {
             Stream<Data<T>> converted =
-                    stream.map(d -> new Data<>(converter.convert(d.getValue()), d.getType(), d.getRevision()));
+                    stream.map(d -> new Data<>(() -> converter.convert(d.getValue()), d.getType(), d.getRevision()));
             Stream<? extends Data<T>> upcasted = upcasterChain.upcast(converted);
-            return upcasted.map(d -> new Data<>(converter.convert(d.getValue()), d.getType(), d.getRevision()));
+            return upcasted.map(d -> new Data<>(memoize(() -> converter.convert(d.getValue())), d.getType(), d.getRevision()));
         };
     }
 
@@ -54,7 +56,7 @@ public class UpcasterChain<T> implements Upcaster<Data<T>> {
     protected UpcasterChain(Collection<AnnotatedUpcaster<T>> upcasters) {
         this.upcasters =
                 upcasters.stream().collect(toMap(u -> new DataRevision(u.getAnnotation()), identity(), (a, b) -> {
-                    throw new IllegalArgumentException(
+                    throw new SerializationException(
                             format("Failed to create upcaster chain. Methods '%s' and '%s' both apply to the same data revision.",
                                    a, b));
                 }));

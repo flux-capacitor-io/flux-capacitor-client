@@ -15,6 +15,8 @@
 package io.fluxcapacitor.javaclient.common.serialization.upcasting;
 
 import io.fluxcapacitor.common.api.Data;
+import io.fluxcapacitor.javaclient.common.serialization.SerializationException;
+import lombok.Getter;
 import org.junit.Test;
 
 import java.util.Arrays;
@@ -25,7 +27,7 @@ import java.util.stream.Stream;
 import static java.util.Collections.emptyList;
 import static java.util.Collections.singletonList;
 import static java.util.stream.Collectors.toList;
-import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.*;
 
 public class UpcasterChainTest {
 
@@ -138,14 +140,30 @@ public class UpcasterChainTest {
         Failures
      */
 
-    @Test(expected = IllegalArgumentException.class)
+    @Test(expected = SerializationException.class)
     public void testExceptionForUpcasterWithUnexpectedDataType() {
         UpcasterChain.create(Collections.singleton(upcasterStub), byte[].class);
     }
 
-    @Test(expected = IllegalArgumentException.class)
+    @Test(expected = SerializationException.class)
     public void testExceptionForConflictingUpcasters() {
         UpcasterChain.create(Arrays.asList(upcasterStub, new ConflictingUpcaster()), String.class);
+    }
+
+    /*
+        Lazy upcasting
+     */
+
+    @Test
+    public void testLazyUpcasting() {
+        MonitoringUpcaster upcaster = new MonitoringUpcaster();
+        Upcaster<Data<String>> subject =
+                UpcasterChain.create(Collections.singletonList(upcaster), String.class);
+        Stream<Data<String>> resultStream = subject.upcast(Stream.of(new Data<>("foo", "upcastLazily", 0)));
+        Data<String> result = resultStream.collect(toList()).get(0);
+        assertFalse(upcaster.isInvoked());
+        result.getValue();
+        assertTrue(upcaster.isInvoked());
     }
 
     private static class UpcasterStub {
@@ -223,6 +241,17 @@ public class UpcasterChainTest {
         @Upcast(type = "mapPayload", revision = 0)
         public String mapPayload(String input) {
             return "whatever";
+        }
+    }
+
+    @Getter
+    private static class MonitoringUpcaster {
+        private boolean invoked;
+
+        @Upcast(type = "upcastLazily", revision = 0)
+        public String mapPayload(String input) {
+            invoked = true;
+            return "bar";
         }
     }
 

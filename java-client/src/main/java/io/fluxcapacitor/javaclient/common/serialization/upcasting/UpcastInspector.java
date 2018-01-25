@@ -15,6 +15,7 @@
 package io.fluxcapacitor.javaclient.common.serialization.upcasting;
 
 import io.fluxcapacitor.common.api.Data;
+import io.fluxcapacitor.javaclient.common.serialization.SerializationException;
 
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
@@ -22,6 +23,7 @@ import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
 import java.util.*;
 import java.util.function.Function;
+import java.util.function.Supplier;
 import java.util.stream.Stream;
 
 public class UpcastInspector {
@@ -48,14 +50,14 @@ public class UpcastInspector {
             return new AnnotatedUpcaster<>(method, i -> Stream.empty());
         }
         Function<Data<T>, Object> invokeFunction = invokeFunction(method, target, dataType);
-        Function<Object, Stream<Data<T>>> resultMapper = mapResult(method, dataType);
-        return new AnnotatedUpcaster<>(method, d -> resultMapper.apply(invokeFunction.apply(d)));
+        Function<Supplier<Object>, Stream<Data<T>>> resultMapper = mapResult(method, dataType);
+        return new AnnotatedUpcaster<>(method, d -> resultMapper.apply(() -> invokeFunction.apply(d)));
     }
 
     private static <T> Function<Data<T>, Object> invokeFunction(Method method, Object target, Class<T> dataType) {
         Type[] parameters = method.getGenericParameterTypes();
         if (parameters.length != 1) {
-            throw new IllegalArgumentException(
+            throw new SerializationException(
                     String.format("Upcaster method '%s' has unexpected number of parameters. Expected 1 or 0.", method));
         }
         if (parameters[0] instanceof ParameterizedType) {
@@ -70,7 +72,7 @@ public class UpcastInspector {
         } else if (dataType.isAssignableFrom((Class<?>) parameters[0])) {
             return data -> invokeMethod(method, data.getValue(), target);
         }
-        throw new IllegalArgumentException(String.format(
+        throw new SerializationException(String.format(
                 "First parameter in upcaster method '%s' is of unexpected type. Expected Data<%s> or %s.",
                 method, dataType.getName(), dataType.getName()));
     }
@@ -79,20 +81,20 @@ public class UpcastInspector {
         try {
             return method.invoke(target, argument);
         } catch (IllegalAccessException e) {
-            throw new IllegalStateException("Not allowed to invoke method: " + method, e);
+            throw new SerializationException("Not allowed to invoke method: " + method, e);
         } catch (InvocationTargetException e) {
-            throw new IllegalStateException("Exception while upcasting using method: " + method, e);
+            throw new SerializationException("Exception while upcasting using method: " + method, e);
         }
     }
 
     @SuppressWarnings("unchecked")
-    private static <T> Function<Object, Stream<Data<T>>> mapResult(Method method, Class<T> dataType) {
+    private static <T> Function<Supplier<Object>, Stream<Data<T>>> mapResult(Method method, Class<T> dataType) {
         if (dataType.isAssignableFrom(method.getReturnType())) {
             Upcast annotation = method.getAnnotation(Upcast.class);
-            return r -> Stream.of(new Data<>((T) r, annotation.type(), annotation.revision() + 1));
+            return s -> Stream.of(new Data<>((Supplier<T>) s, annotation.type(), annotation.revision() + 1));
         }
         if (method.getReturnType().equals(Data.class)) {
-            return r -> Stream.of((Data<T>) r);
+            return s -> Stream.of((Data<T>) s.get());
         }
         if (method.getReturnType().equals(Optional.class)) {
             ParameterizedType parameterizedType = (ParameterizedType) method.getGenericReturnType();
@@ -100,21 +102,21 @@ public class UpcastInspector {
                 Class<?> typeParameter = (Class<?>) parameterizedType.getActualTypeArguments()[0];
                 if (dataType.isAssignableFrom(typeParameter)) {
                     Upcast annotation = method.getAnnotation(Upcast.class);
-                    return r -> ((Optional<T>) r)
+                    return s -> ((Optional<T>) s.get())
                             .map(d -> Stream.of(new Data<>(d, annotation.type(), annotation.revision() + 1)))
                             .orElse(Stream.empty());
                 }
             }
             else if (parameterizedType.getActualTypeArguments()[0] instanceof ParameterizedType) {
                 if (((ParameterizedType) parameterizedType.getActualTypeArguments()[0]).getRawType().equals(Data.class)) {
-                    return r -> ((Optional<Data<T>>) r).map(Stream::of).orElse(Stream.empty());
+                    return s -> ((Optional<Data<T>>) s.get()).map(Stream::of).orElse(Stream.empty());
                 }
             }
         }
         if (method.getReturnType().equals(Stream.class)) {
-            return r -> (Stream<Data<T>>) r;
+            return s -> (Stream<Data<T>>) s.get();
         }
-        throw new IllegalStateException(String.format(
+        throw new SerializationException(String.format(
                 "Unexpected return type of upcaster method '%s'. Expected Data<%s>, %s, Optional<Data<%s>>, Optional<%s>, Stream<Data<%s>> or void",
                 method, dataType.getName(), dataType.getName(), dataType.getName(), dataType.getName(),
                 dataType.getName()));
