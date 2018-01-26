@@ -19,6 +19,7 @@ import io.fluxcapacitor.common.api.SerializedObject;
 import io.fluxcapacitor.javaclient.common.serialization.SerializationException;
 import lombok.AllArgsConstructor;
 import lombok.Value;
+import lombok.experimental.Wither;
 
 import java.util.Collection;
 import java.util.List;
@@ -85,10 +86,12 @@ public class UpcasterChain<T> {
         }
     }
 
+    @AllArgsConstructor
     protected static class ConvertingSerializedObject<T> implements SerializedObject<T, ConvertingSerializedObject<T>> {
 
         private final SerializedObject<byte[], ?> source;
         private final Converter<T> converter;
+        @Wither
         private Data<T> data;
 
         public ConvertingSerializedObject(SerializedObject<byte[], ?> source, Converter<T> converter) {
@@ -100,12 +103,6 @@ public class UpcasterChain<T> {
         @Override
         public Data<T> data() {
             return data;
-        }
-
-        @Override
-        public ConvertingSerializedObject<T> withData(Data<T> data) {
-            this.data = data;
-            return this;
         }
 
         public SerializedObject<byte[], ?> getResult() {

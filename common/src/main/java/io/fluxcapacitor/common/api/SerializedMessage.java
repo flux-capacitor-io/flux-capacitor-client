@@ -15,11 +15,13 @@
 package io.fluxcapacitor.common.api;
 
 import lombok.AllArgsConstructor;
+import lombok.experimental.Wither;
 
 @lombok.Data
 @AllArgsConstructor
 public class SerializedMessage implements SerializedObject<byte[], SerializedMessage> {
 
+    @Wither
     private Data<byte[]> data;
     private Metadata metadata;
     private Integer segment;
@@ -42,9 +44,4 @@ public class SerializedMessage implements SerializedObject<byte[], SerializedMes
         return data;
     }
 
-    @Override
-    public SerializedMessage withData(Data<byte[]> data) {
-        this.data = data;
-        return this;
-    }
 }

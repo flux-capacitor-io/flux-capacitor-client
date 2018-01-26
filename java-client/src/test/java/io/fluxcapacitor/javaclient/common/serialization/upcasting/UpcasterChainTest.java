@@ -15,7 +15,6 @@
 package io.fluxcapacitor.javaclient.common.serialization.upcasting;
 
 import io.fluxcapacitor.common.api.Data;
-import io.fluxcapacitor.common.api.SerializedMessage;
 import io.fluxcapacitor.common.api.SerializedObject;
 import io.fluxcapacitor.javaclient.common.serialization.SerializationException;
 import lombok.Getter;
@@ -147,7 +146,7 @@ public class UpcasterChainTest {
         Upcaster<SerializedObject<byte[], ?>> subject
                 = UpcasterChain.create(Collections.singleton(upcasterStub), new StringConverter());
         Stream<SerializedObject<byte[], ?>> result =
-                subject.upcast(Stream.of(new SerializedMessage(new Data<>("input".getBytes(), "mapPayload", 0))));
+                subject.upcast(Stream.of(new Data<>("input".getBytes(), "mapPayload", 0)));
         assertEquals(singletonList(new Data<>("mappedPayload".getBytes(), "mapPayload", 1)),
                      result.map(SerializedObject::data).collect(toList()));
     }
