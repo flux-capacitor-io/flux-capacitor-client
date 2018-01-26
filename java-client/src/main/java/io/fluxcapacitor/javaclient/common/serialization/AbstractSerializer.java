@@ -15,18 +15,20 @@
 package io.fluxcapacitor.javaclient.common.serialization;
 
 import io.fluxcapacitor.common.api.Data;
+import io.fluxcapacitor.common.api.SerializedObject;
 import io.fluxcapacitor.common.serialization.Revision;
 import io.fluxcapacitor.javaclient.common.serialization.upcasting.Upcaster;
+import lombok.extern.slf4j.Slf4j;
 
-import java.util.List;
 import java.util.stream.Stream;
 
-import static java.util.stream.Collectors.toList;
+import static java.lang.String.format;
 
+@Slf4j
 public abstract class AbstractSerializer implements Serializer {
-    private final Upcaster<Data<byte[]>> upcasterChain;
+    private final Upcaster<SerializedObject<byte[], ?>> upcasterChain;
 
-    protected AbstractSerializer(Upcaster<Data<byte[]>> upcasterChain) {
+    protected AbstractSerializer(Upcaster<SerializedObject<byte[], ?>> upcasterChain) {
         this.upcasterChain = upcasterChain;
     }
 
@@ -44,27 +46,36 @@ public abstract class AbstractSerializer implements Serializer {
 
     protected abstract byte[] doSerialize(Object object) throws Exception;
 
-    @Override
     @SuppressWarnings("unchecked")
-    public <T> T deserialize(Data<byte[]> data) {
-        List list = deserialize(Stream.of(data)).collect(toList());
-        if (list.size() != 1) {
-            throw new SerializationException(
-                    String.format("Invalid deserialization result for a '%s'. Expected a single object but got %s",
-                                  data, list));
-        }
-        return (T) list.get(0);
+    @Override
+    public <S extends SerializedObject<byte[], S>> Stream<DeserializingObject<byte[], S>> deserialize(
+            Stream<S> dataStream, boolean failOnUnknownType) {
+        return upcasterChain.upcast((Stream<SerializedObject<byte[], ?>>) dataStream)
+                .flatMap(s -> {
+                    Class<?> type;
+                    try {
+                        type = Class.forName(s.data().getType());
+                    } catch (ClassNotFoundException e) {
+                        if (failOnUnknownType) {
+                            throw new SerializationException(
+                                    format("Could not deserialize object. The serialized type is unknown: %s (rev. %d)",
+                                           s.data().getType(), s.data().getRevision()), e);
+                        }
+                        return (Stream) handleUnknownType(s);
+                    }
+                    return (Stream) Stream.of(new DeserializingObject(s, () -> {
+                        try {
+                            return doDeserialize(s.data().getValue(), type);
+                        } catch (Exception e) {
+                            throw new SerializationException("Could not deserialize a " + s.data().getType(), e);
+                        }
+                    }));
+                });
     }
 
-    public Stream<Object> deserialize(Stream<Data<byte[]>> dataStream) {
-        return upcasterChain.upcast(dataStream).map(data -> {
-            try {
-                return doDeserialize(data.getValue(), Class.forName(data.getType()));
-            } catch (Exception e) {
-                throw new SerializationException("Could not deserialize a " + data.getType(), e);
-            }
-        });
+    protected Stream<DeserializingObject<byte[], ?>> handleUnknownType(SerializedObject<byte[], ?> serializedObject) {
+        return Stream.empty();
     }
 
-    protected abstract <T> T doDeserialize(byte[] bytes, Class<? extends T> type) throws Exception;
+    protected abstract Object doDeserialize(byte[] bytes, Class<?> type) throws Exception;
 }

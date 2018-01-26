@@ -19,6 +19,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import io.fluxcapacitor.common.api.Data;
 import io.fluxcapacitor.common.serialization.Revision;
+import io.fluxcapacitor.javaclient.common.serialization.DeserializingObject;
 import io.fluxcapacitor.javaclient.common.serialization.upcasting.Upcast;
 import lombok.Value;
 import org.junit.Test;
@@ -60,8 +61,10 @@ public class JacksonSerializerTest {
     @Test
     public void testDeserializeStream() throws JsonProcessingException {
         List<RevisedObject> expected = asList(new RevisedObject("test0", 5), new RevisedObject("test2", 42));
-        List<?> actual = subject.deserialize(Stream.of(createRev0Data(expected.get(0).getName()), subject.serialize(expected.get(1)))).collect(
-                Collectors.toList());
+        List<?> actual = subject.deserialize(Stream.of(createRev0Data(expected.get(0).getName()), subject.serialize(expected.get(1))),
+                                             true)
+                .map(DeserializingObject::getObject)
+                .collect(Collectors.toList());
         assertEquals(expected, actual);
     }
 

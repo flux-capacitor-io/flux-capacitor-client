@@ -14,7 +14,7 @@
 
 package io.fluxcapacitor.javaclient.common.serialization.upcasting;
 
-import io.fluxcapacitor.common.api.Data;
+import io.fluxcapacitor.common.api.SerializedObject;
 
 import java.lang.reflect.Method;
 import java.util.function.Function;
@@ -23,18 +23,19 @@ import java.util.stream.Stream;
 public class AnnotatedUpcaster<T> {
     private final Method method;
     private final Upcast annotation;
-    private final Function<Data<T>, Stream<Data<T>>> upcastFunction;
+    private final Function<SerializedObject<T, ?>, Stream<SerializedObject<T, ?>>> upcastFunction;
 
     public AnnotatedUpcaster(Method method,
-                             Function<Data<T>, Stream<Data<T>>> upcastFunction) {
+                             Function<SerializedObject<T, ?>, Stream<SerializedObject<T, ?>>> upcastFunction) {
         this.method = method;
         this.annotation = method.getAnnotation(Upcast.class);
         this.upcastFunction = upcastFunction;
     }
 
-    public Stream<Data<T>> upcast(Data<T> input) {
-        return annotation.type().equals(input.getType()) && annotation.revision() == input.getRevision() ?
-                upcastFunction.apply(input) : Stream.of(input);
+    @SuppressWarnings("unchecked")
+    public <S extends SerializedObject<T, S>> Stream<S> upcast(S input) {
+        return annotation.type().equals(input.data().getType()) && annotation.revision() == input.data().getRevision()
+                ? (Stream<S>) upcastFunction.apply(input) : Stream.of(input);
     }
 
     public Upcast getAnnotation() {

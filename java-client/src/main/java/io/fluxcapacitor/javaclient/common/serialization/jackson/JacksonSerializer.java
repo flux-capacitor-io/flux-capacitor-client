@@ -16,13 +16,19 @@ package io.fluxcapacitor.javaclient.common.serialization.jackson;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import io.fluxcapacitor.common.api.Data;
+import io.fluxcapacitor.common.api.SerializedObject;
 import io.fluxcapacitor.javaclient.common.serialization.AbstractSerializer;
+import io.fluxcapacitor.javaclient.common.serialization.DeserializingObject;
+import io.fluxcapacitor.javaclient.common.serialization.SerializationException;
 import io.fluxcapacitor.javaclient.common.serialization.upcasting.Upcaster;
 import io.fluxcapacitor.javaclient.common.serialization.upcasting.UpcasterChain;
 
 import java.util.Collection;
 import java.util.Collections;
+import java.util.Map;
+import java.util.stream.Stream;
+
+import static java.lang.String.format;
 
 public class JacksonSerializer extends AbstractSerializer {
     public static final ObjectMapper defaultObjectMapper =
@@ -42,7 +48,7 @@ public class JacksonSerializer extends AbstractSerializer {
         this(objectMapper, UpcasterChain.create(upcasters, new ObjectNodeConverter(objectMapper)));
     }
 
-    public JacksonSerializer(ObjectMapper objectMapper, Upcaster<Data<byte[]>> upcasterChain) {
+    public JacksonSerializer(ObjectMapper objectMapper, Upcaster<SerializedObject<byte[], ?>> upcasterChain) {
         super(upcasterChain);
         this.objectMapper = objectMapper;
     }
@@ -53,8 +59,21 @@ public class JacksonSerializer extends AbstractSerializer {
     }
 
     @Override
-    protected <T> T doDeserialize(byte[] bytes, Class<? extends T> type) throws Exception {
+    protected Object doDeserialize(byte[] bytes, Class<?> type) throws Exception {
         return objectMapper.readValue(bytes, type);
+    }
+
+    @SuppressWarnings("unchecked")
+    @Override
+    protected Stream<DeserializingObject<byte[], ?>> handleUnknownType(SerializedObject<byte[], ?> s) {
+        return Stream.of(new DeserializingObject(s, () -> {
+            try {
+                return doDeserialize(s.data().getValue(), Map.class);
+            } catch (Exception e) {
+                throw new SerializationException(format("Could not deserialize a %s to a Map. Invalid Json?",
+                                                        s.data().getType()), e);
+            }
+        }));
     }
 
 }

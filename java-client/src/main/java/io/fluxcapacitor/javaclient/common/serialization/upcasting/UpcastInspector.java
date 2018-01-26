@@ -15,6 +15,7 @@
 package io.fluxcapacitor.javaclient.common.serialization.upcasting;
 
 import io.fluxcapacitor.common.api.Data;
+import io.fluxcapacitor.common.api.SerializedObject;
 import io.fluxcapacitor.javaclient.common.serialization.SerializationException;
 
 import java.lang.reflect.InvocationTargetException;
@@ -22,6 +23,7 @@ import java.lang.reflect.Method;
 import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
 import java.util.*;
+import java.util.function.BiFunction;
 import java.util.function.Function;
 import java.util.function.Supplier;
 import java.util.stream.Stream;
@@ -49,16 +51,19 @@ public class UpcastInspector {
         if (method.getReturnType().equals(void.class)) {
             return new AnnotatedUpcaster<>(method, i -> Stream.empty());
         }
-        Function<Data<T>, Object> invokeFunction = invokeFunction(method, target, dataType);
-        Function<Supplier<Object>, Stream<Data<T>>> resultMapper = mapResult(method, dataType);
-        return new AnnotatedUpcaster<>(method, d -> resultMapper.apply(() -> invokeFunction.apply(d)));
+        Function<SerializedObject<T, ?>, Object> invokeFunction = invokeFunction(method, target, dataType);
+        BiFunction<SerializedObject<T, ?>, Supplier<Object>, Stream<SerializedObject<T, ?>>> resultMapper =
+                mapResult(method, dataType);
+        return new AnnotatedUpcaster<>(method, d -> resultMapper.apply(d, () -> invokeFunction.apply(d)));
     }
 
-    private static <T> Function<Data<T>, Object> invokeFunction(Method method, Object target, Class<T> dataType) {
+    private static <T> Function<SerializedObject<T, ?>, Object> invokeFunction(Method method, Object target,
+                                                                               Class<T> dataType) {
         Type[] parameters = method.getGenericParameterTypes();
         if (parameters.length != 1) {
             throw new SerializationException(
-                    String.format("Upcaster method '%s' has unexpected number of parameters. Expected 1 or 0.", method));
+                    String.format("Upcaster method '%s' has unexpected number of parameters. Expected 1 or 0.",
+                                  method));
         }
         if (parameters[0] instanceof ParameterizedType) {
             ParameterizedType parameterizedType = (ParameterizedType) parameters[0];
@@ -67,10 +72,10 @@ public class UpcastInspector {
                 return data -> invokeMethod(method, data, target);
             }
             if (dataType.isAssignableFrom((Class<?>) parameterizedType.getRawType())) {
-                return data -> invokeMethod(method, data.getValue(), target);
+                return s -> invokeMethod(method, s.data().getValue(), target);
             }
         } else if (dataType.isAssignableFrom((Class<?>) parameters[0])) {
-            return data -> invokeMethod(method, data.getValue(), target);
+            return s -> invokeMethod(method, s.data().getValue(), target);
         }
         throw new SerializationException(String.format(
                 "First parameter in upcaster method '%s' is of unexpected type. Expected Data<%s> or %s.",
@@ -88,13 +93,14 @@ public class UpcastInspector {
     }
 
     @SuppressWarnings("unchecked")
-    private static <T> Function<Supplier<Object>, Stream<Data<T>>> mapResult(Method method, Class<T> dataType) {
+    private static <T> BiFunction<SerializedObject<T, ?>, Supplier<Object>, Stream<SerializedObject<T, ?>>> mapResult(
+            Method method, Class<T> dataType) {
         if (dataType.isAssignableFrom(method.getReturnType())) {
             Upcast annotation = method.getAnnotation(Upcast.class);
-            return s -> Stream.of(new Data<>((Supplier<T>) s, annotation.type(), annotation.revision() + 1));
+            return (s, o) -> Stream.of(s.withData(new Data<>((Supplier<T>) o, annotation.type(), annotation.revision() + 1)));
         }
         if (method.getReturnType().equals(Data.class)) {
-            return s -> Stream.of((Data<T>) s.get());
+            return (s, o) -> Stream.of(s.withData((Data<T>) o.get()));
         }
         if (method.getReturnType().equals(Optional.class)) {
             ParameterizedType parameterizedType = (ParameterizedType) method.getGenericReturnType();
@@ -102,19 +108,23 @@ public class UpcastInspector {
                 Class<?> typeParameter = (Class<?>) parameterizedType.getActualTypeArguments()[0];
                 if (dataType.isAssignableFrom(typeParameter)) {
                     Upcast annotation = method.getAnnotation(Upcast.class);
-                    return s -> ((Optional<T>) s.get())
-                            .map(d -> Stream.of(new Data<>(d, annotation.type(), annotation.revision() + 1)))
-                            .orElse(Stream.empty());
+                    return (s, o) -> {
+                        Optional<T> result = (Optional<T>) o.get();
+                        return result.<Stream<SerializedObject<T, ?>>>map(
+                                t -> Stream.of(s.withData(new Data<>(t, annotation.type(), annotation.revision() + 1))))
+                                .orElseGet(Stream::empty);
+                    };
                 }
-            }
-            else if (parameterizedType.getActualTypeArguments()[0] instanceof ParameterizedType) {
-                if (((ParameterizedType) parameterizedType.getActualTypeArguments()[0]).getRawType().equals(Data.class)) {
-                    return s -> ((Optional<Data<T>>) s.get()).map(Stream::of).orElse(Stream.empty());
+            } else if (parameterizedType.getActualTypeArguments()[0] instanceof ParameterizedType) {
+                if (((ParameterizedType) parameterizedType.getActualTypeArguments()[0]).getRawType()
+                        .equals(Data.class)) {
+                    return (s, o) -> ((Optional<Data<T>>) o.get())
+                            .<Stream<SerializedObject<T, ?>>>map(d -> Stream.of(s.withData(d))).orElse(Stream.empty());
                 }
             }
         }
         if (method.getReturnType().equals(Stream.class)) {
-            return s -> (Stream<Data<T>>) s.get();
+            return (s, o) -> ((Stream<Data<T>>) o.get()).map(s::withData);
         }
         throw new SerializationException(String.format(
                 "Unexpected return type of upcaster method '%s'. Expected Data<%s>, %s, Optional<Data<%s>>, Optional<%s>, Stream<Data<%s>> or void",

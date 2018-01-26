@@ -38,7 +38,7 @@ public class ObjectNodeConverter implements Converter<ObjectNode> {
     }
 
     @Override
-    public byte[] convert(ObjectNode value) {
+    public byte[] convertBack(ObjectNode value) {
         try {
             return objectMapper.writeValueAsBytes(value);
         } catch (JsonProcessingException e) {

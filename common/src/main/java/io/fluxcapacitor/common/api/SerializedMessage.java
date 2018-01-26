@@ -18,7 +18,7 @@ import lombok.AllArgsConstructor;
 
 @lombok.Data
 @AllArgsConstructor
-public class SerializedMessage {
+public class SerializedMessage implements SerializedObject<byte[], SerializedMessage> {
 
     private Data<byte[]> data;
     private Metadata metadata;
@@ -35,5 +35,16 @@ public class SerializedMessage {
     public SerializedMessage(Data<byte[]> data, Metadata metadata) {
         this.data = data;
         this.metadata = metadata;
+    }
+
+    @Override
+    public Data<byte[]> data() {
+        return data;
+    }
+
+    @Override
+    public SerializedMessage withData(Data<byte[]> data) {
+        this.data = data;
+        return this;
     }
 }

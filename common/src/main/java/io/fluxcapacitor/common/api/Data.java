@@ -23,7 +23,7 @@ import java.util.function.Supplier;
 
 @Value
 @ToString(exclude = "value")
-public class Data<T> {
+public class Data<T> implements SerializedObject<T, Data<T>> {
     Supplier<T> value;
     String type;
     int revision;
@@ -62,5 +62,15 @@ public class Data<T> {
     @Override
     public int hashCode() {
         return Objects.hash(getValue(), type, revision);
+    }
+
+    @Override
+    public Data<T> data() {
+        return this;
+    }
+
+    @Override
+    public Data<T> withData(Data<T> data) {
+        return data;
     }
 }

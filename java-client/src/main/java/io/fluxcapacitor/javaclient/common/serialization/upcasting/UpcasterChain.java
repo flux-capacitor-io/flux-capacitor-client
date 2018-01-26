@@ -15,40 +15,42 @@
 package io.fluxcapacitor.javaclient.common.serialization.upcasting;
 
 import io.fluxcapacitor.common.api.Data;
+import io.fluxcapacitor.common.api.SerializedObject;
 import io.fluxcapacitor.javaclient.common.serialization.SerializationException;
 import lombok.AllArgsConstructor;
 import lombok.Value;
 
 import java.util.Collection;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Stream;
 
-import static io.fluxcapacitor.common.ObjectUtils.memoize;
 import static java.lang.String.format;
 import static java.util.function.Function.identity;
 import static java.util.stream.Collectors.toMap;
 
-public class UpcasterChain<T> implements Upcaster<Data<T>> {
+public class UpcasterChain<T> {
 
-    public static <T> Upcaster<Data<byte[]>> create(Collection<?> upcasters, Converter<T> converter) {
+    public static <T> Upcaster<SerializedObject<byte[], ?>> create(Collection<?> upcasters, Converter<T> converter) {
         if (upcasters.isEmpty()) {
             return s -> s;
         }
-        Upcaster<Data<T>> upcasterChain = create(upcasters, converter.getDataType());
+        Upcaster<ConvertingSerializedObject<T>> upcasterChain = create(upcasters, converter.getDataType());
         return stream -> {
-            Stream<Data<T>> converted =
-                    stream.map(d -> new Data<>(() -> converter.convert(d.getValue()), d.getType(), d.getRevision()));
-            Stream<? extends Data<T>> upcasted = upcasterChain.upcast(converted);
-            return upcasted.map(d -> new Data<>(memoize(() -> converter.convert(d.getValue())), d.getType(), d.getRevision()));
+            Stream<ConvertingSerializedObject<T>> converted = stream.map(s -> new ConvertingSerializedObject<>(s, converter));
+            Stream<ConvertingSerializedObject<T>> upcasted = upcasterChain.upcast(converted);
+            return upcasted.map(ConvertingSerializedObject::getResult);
         };
     }
 
-    public static <T> Upcaster<Data<T>> create(Collection<?> upcasters, Class<T> dataType) {
+    protected static <T, S extends SerializedObject<T, S>> Upcaster<S> create(Collection<?> upcasters, Class<T> dataType) {
         if (upcasters.isEmpty()) {
             return s -> s;
         }
-        return new UpcasterChain<>(UpcastInspector.inspect(upcasters, dataType));
+        List<AnnotatedUpcaster<T>> upcasterList = UpcastInspector.inspect(upcasters, dataType);
+        UpcasterChain<T> upcasterChain = new UpcasterChain<>(upcasterList);
+        return upcasterChain::upcast;
     }
 
     private final Map<DataRevision, AnnotatedUpcaster<T>> upcasters;
@@ -62,9 +64,8 @@ public class UpcasterChain<T> implements Upcaster<Data<T>> {
                 }));
     }
 
-    @Override
-    public Stream<Data<T>> upcast(Stream<Data<T>> input) {
-        return input.flatMap(i -> Optional.ofNullable(upcasters.get(new DataRevision(i)))
+    protected <S extends SerializedObject<T, S>> Stream<S> upcast(Stream<S> input) {
+        return input.flatMap(i -> Optional.ofNullable(upcasters.get(new DataRevision(i.data())))
                 .map(upcaster -> upcast(upcaster.upcast(i)))
                 .orElse(Stream.of(i)));
     }
@@ -84,4 +85,31 @@ public class UpcasterChain<T> implements Upcaster<Data<T>> {
         }
     }
 
+    protected static class ConvertingSerializedObject<T> implements SerializedObject<T, ConvertingSerializedObject<T>> {
+
+        private final SerializedObject<byte[], ?> source;
+        private final Converter<T> converter;
+        private Data<T> data;
+
+        public ConvertingSerializedObject(SerializedObject<byte[], ?> source, Converter<T> converter) {
+            this.source = source;
+            this.converter = converter;
+            this.data = converter.convert(source.data());
+        }
+
+        @Override
+        public Data<T> data() {
+            return data;
+        }
+
+        @Override
+        public ConvertingSerializedObject<T> withData(Data<T> data) {
+            this.data = data;
+            return this;
+        }
+
+        public SerializedObject<byte[], ?> getResult() {
+            return source.withData(converter.convertBack(data));
+        }
+    }
 }

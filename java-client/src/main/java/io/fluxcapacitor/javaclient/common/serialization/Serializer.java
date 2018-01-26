@@ -15,6 +15,12 @@
 package io.fluxcapacitor.javaclient.common.serialization;
 
 import io.fluxcapacitor.common.api.Data;
+import io.fluxcapacitor.common.api.SerializedObject;
+
+import java.util.List;
+import java.util.stream.Stream;
+
+import static java.util.stream.Collectors.toList;
 
 /**
  * Mechanism to convert objects to a byte array and vice versa.
@@ -36,6 +42,18 @@ public interface Serializer {
      * @param <T>  Type of object to deserialize to
      * @return Object resulting from the deserialization
      */
-    <T> T deserialize(Data<byte[]> data);
+    @SuppressWarnings("unchecked")
+    default <T> T deserialize(Data<byte[]> data) {
+        List<T> list = deserialize(Stream.of(data), true).map(d -> (T) d.getObject()).collect(toList());
+        if (list.size() != 1) {
+            throw new SerializationException(
+                    String.format("Invalid deserialization result for a '%s'. Expected a single object but got %s",
+                                  data, list));
+        }
+        return list.get(0);
+    }
+
+    <I extends SerializedObject<byte[], I>> Stream<DeserializingObject<byte[], I>> deserialize(Stream<I> dataStream,
+                                                                                               boolean failOnUnknownType);
 
 }
