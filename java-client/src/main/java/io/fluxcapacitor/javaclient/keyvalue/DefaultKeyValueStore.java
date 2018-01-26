@@ -1,5 +1,6 @@
 package io.fluxcapacitor.javaclient.keyvalue;
 
+import io.fluxcapacitor.common.api.Data;
 import io.fluxcapacitor.javaclient.common.serialization.Serializer;
 import lombok.AllArgsConstructor;
 
@@ -21,7 +22,8 @@ public class DefaultKeyValueStore implements KeyValueStore {
     @Override
     public <R> R get(String key) {
         try {
-            return serializer.deserialize(client.getValue(key));
+            Data<byte[]> value = client.getValue(key);
+            return value == null ? null : serializer.deserialize(value);
         } catch (Exception e) {
             throw new KeyValueStoreException(String.format("Could not get the value for key %s", key), e);
         }

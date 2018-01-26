@@ -54,8 +54,8 @@ public abstract class AbstractSerializer implements Serializer {
                 .flatMap(s -> {
                     Class<?> type;
                     try {
-                        type = Class.forName(s.data().getType());
-                    } catch (ClassNotFoundException e) {
+                        type = classForType(s.data().getType());
+                    } catch (Exception e) {
                         if (failOnUnknownType) {
                             throw new SerializationException(
                                     format("Could not deserialize object. The serialized type is unknown: %s (rev. %d)",
@@ -71,6 +71,10 @@ public abstract class AbstractSerializer implements Serializer {
                         }
                     }));
                 });
+    }
+
+    protected Class<?> classForType(String type) throws Exception {
+        return Class.forName(type);
     }
 
     protected Stream<DeserializingObject<byte[], ?>> handleUnknownType(SerializedObject<byte[], ?> serializedObject) {

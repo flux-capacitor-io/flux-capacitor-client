@@ -32,15 +32,18 @@ public interface Serializer {
      *
      * @param object The instance to serialize
      * @return Data object containing byte array representation of the object
+     * @throws SerializationException if serialization fails
      */
     Data<byte[]> serialize(Object object);
 
     /**
-     * Deserializes the given {@link Data} object to an object of type {@link T}.
+     * Upcasts and deserializes the given {@link Data} object to an object of type {@link T}. If the input data cannot
+     * be deserialized to a single result (due to upcasting) a {@link SerializationException} is thrown.
      *
      * @param data Data to deserialize
      * @param <T>  Type of object to deserialize to
      * @return Object resulting from the deserialization
+     * @throws SerializationException if deserialization fails
      */
     @SuppressWarnings("unchecked")
     default <T> T deserialize(Data<byte[]> data) {
@@ -53,6 +56,26 @@ public interface Serializer {
         return list.get(0);
     }
 
+    /**
+     * Upcasts and deserializes a stream of serialized objects. Each result in the output stream contains both a
+     * provider for the deserialized object and the serialized object after upcasting that is used as the source of the
+     * deserialized object.
+     * <p>
+     * Deserialization is performed lazily. This means that actual conversion for a given result in the output stream
+     * only happens if {@link DeserializingObject#getObject()} is invoked on the result. This has the advantage that a
+     * caller can inspect what type will be returned via {@link DeserializingObject#getSerializedObject()} before
+     * deciding to go through with the deserialization.
+     * <p>
+     * You can specify whether deserialization of a result in the output stream should fail with a {@link
+     * SerializationException} if a type is unknown (not a class). It is up to the implementation to determine what
+     * should happen if a type is unknown but the {@code failOnUnknownType) flag is false.
+     *
+     * @param dataStream        data input stream to deserialize
+     * @param failOnUnknownType flag that determines whether deserialization of an unknown type should give an
+     *                          exception
+     * @param <I>               the type of the serialized object
+     * @return a stream containing deserialization results
+     */
     <I extends SerializedObject<byte[], I>> Stream<DeserializingObject<byte[], I>> deserialize(Stream<I> dataStream,
                                                                                                boolean failOnUnknownType);
 

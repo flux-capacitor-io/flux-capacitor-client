@@ -25,7 +25,6 @@ import io.fluxcapacitor.javaclient.common.serialization.upcasting.UpcasterChain;
 
 import java.util.Collection;
 import java.util.Collections;
-import java.util.Map;
 import java.util.stream.Stream;
 
 import static java.lang.String.format;
@@ -68,7 +67,7 @@ public class JacksonSerializer extends AbstractSerializer {
     protected Stream<DeserializingObject<byte[], ?>> handleUnknownType(SerializedObject<byte[], ?> s) {
         return Stream.of(new DeserializingObject(s, () -> {
             try {
-                return doDeserialize(s.data().getValue(), Map.class);
+                return doDeserialize(s.data().getValue(), Object.class);
             } catch (Exception e) {
                 throw new SerializationException(format("Could not deserialize a %s to a Map. Invalid Json?",
                                                         s.data().getType()), e);

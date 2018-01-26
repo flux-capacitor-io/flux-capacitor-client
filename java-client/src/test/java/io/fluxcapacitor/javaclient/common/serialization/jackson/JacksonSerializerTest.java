@@ -20,6 +20,7 @@ import com.fasterxml.jackson.databind.node.ObjectNode;
 import io.fluxcapacitor.common.api.Data;
 import io.fluxcapacitor.common.serialization.Revision;
 import io.fluxcapacitor.javaclient.common.serialization.DeserializingObject;
+import io.fluxcapacitor.javaclient.common.serialization.SerializationException;
 import io.fluxcapacitor.javaclient.common.serialization.upcasting.Upcast;
 import lombok.Value;
 import org.junit.Test;
@@ -30,6 +31,7 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import static java.util.Arrays.asList;
+import static java.util.Collections.singletonMap;
 import static org.junit.Assert.assertEquals;
 
 public class JacksonSerializerTest {
@@ -61,11 +63,26 @@ public class JacksonSerializerTest {
     @Test
     public void testDeserializeStream() throws JsonProcessingException {
         List<RevisedObject> expected = asList(new RevisedObject("test0", 5), new RevisedObject("test2", 42));
-        List<?> actual = subject.deserialize(Stream.of(createRev0Data(expected.get(0).getName()), subject.serialize(expected.get(1))),
-                                             true)
+        List<?> actual = subject.deserialize(
+                Stream.of(createRev0Data(expected.get(0).getName()), subject.serialize(expected.get(1))), true)
                 .map(DeserializingObject::getObject)
                 .collect(Collectors.toList());
         assertEquals(expected, actual);
+    }
+
+    @Test(expected = SerializationException.class)
+    @SuppressWarnings("ResultOfMethodCallIgnored")
+    public void testFailOnUnknownType() {
+        subject.deserialize(Stream.of(new Data<>("bla".getBytes(), "unknownType", 0)), true)
+                .collect(Collectors.toList());
+    }
+
+    @Test
+    public void testReturnsMapIfTypeUnknownAndFailFlagIsOff() throws JsonProcessingException {
+        Data<byte[]> data = new Data<>(objectMapper.writeValueAsBytes(new Foo("bar")), "unknownType", 0);
+        List<DeserializingObject<byte[], Data<byte[]>>> result = subject.deserialize(Stream.of(data), false)
+                .collect(Collectors.toList());
+        assertEquals(singletonMap("foo", "bar"), result.get(0).getObject());
     }
 
     private Data<byte[]> createRev0Data(String name) throws JsonProcessingException {
@@ -91,6 +108,11 @@ public class JacksonSerializerTest {
         public ObjectNode upcastFrom1(ObjectNode input) {
             return input.put("name", input.remove("n").textValue());
         }
+    }
+
+    @Value
+    private static class Foo {
+        String foo;
     }
 
 }
