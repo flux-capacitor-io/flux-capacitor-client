@@ -15,6 +15,8 @@
 package io.fluxcapacitor.javaclient.common.serialization.upcasting;
 
 import io.fluxcapacitor.common.api.Data;
+import io.fluxcapacitor.common.api.SerializedMessage;
+import io.fluxcapacitor.common.api.SerializedObject;
 import io.fluxcapacitor.javaclient.common.serialization.SerializationException;
 import lombok.Getter;
 import org.junit.Test;
@@ -137,6 +139,20 @@ public class UpcasterChainTest {
     }
 
     /*
+        Type conversion
+     */
+
+    @Test
+    public void testUpcastingWithTypeConversion() {
+        Upcaster<SerializedObject<byte[], ?>> subject
+                = UpcasterChain.create(Collections.singleton(upcasterStub), new StringConverter());
+        Stream<SerializedObject<byte[], ?>> result =
+                subject.upcast(Stream.of(new SerializedMessage(new Data<>("input".getBytes(), "mapPayload", 0))));
+        assertEquals(singletonList(new Data<>("mappedPayload".getBytes(), "mapPayload", 1)),
+                     result.map(SerializedObject::data).collect(toList()));
+    }
+
+    /*
         Failures
      */
 
@@ -252,6 +268,24 @@ public class UpcasterChainTest {
         public String mapPayload(String input) {
             invoked = true;
             return "bar";
+        }
+    }
+
+    private static class StringConverter implements Converter<String> {
+
+        @Override
+        public String convert(byte[] bytes) {
+            return new String(bytes);
+        }
+
+        @Override
+        public byte[] convertBack(String value) {
+            return value.getBytes();
+        }
+
+        @Override
+        public Class<String> getDataType() {
+            return String.class;
         }
     }
 
