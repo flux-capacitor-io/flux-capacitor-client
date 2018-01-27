@@ -3,7 +3,7 @@ package io.fluxcapacitor.javaclient.configuration;
 import io.fluxcapacitor.common.MessageType;
 import io.fluxcapacitor.common.handling.ParameterResolver;
 import io.fluxcapacitor.javaclient.FluxCapacitor;
-import io.fluxcapacitor.javaclient.common.Message;
+import io.fluxcapacitor.javaclient.common.serialization.DeserializingMessage;
 import io.fluxcapacitor.javaclient.common.serialization.Serializer;
 import io.fluxcapacitor.javaclient.common.serialization.jackson.JacksonSerializer;
 import io.fluxcapacitor.javaclient.eventsourcing.DefaultEventStore;
@@ -86,9 +86,9 @@ public class DefaultFluxCapacitor implements FluxCapacitor {
 
         private Serializer serializer = new JacksonSerializer();
         private final Map<MessageType, List<ConsumerConfiguration>> consumerConfigurations = defaultConfigurations();
-        private final List<ParameterResolver<Message>> parameterResolvers = defaultParameterResolvers();
+        private final List<ParameterResolver<DeserializingMessage>> parameterResolvers = defaultParameterResolvers();
 
-        protected List<ParameterResolver<Message>> defaultParameterResolvers() {
+        protected List<ParameterResolver<DeserializingMessage>> defaultParameterResolvers() {
             return new ArrayList<>(Arrays.asList(new PayloadParameterResolver(), new MetadataParameterResolver()));
         }
 
@@ -116,7 +116,7 @@ public class DefaultFluxCapacitor implements FluxCapacitor {
             return this;
         }
 
-        public Builder addParameterResolver(ParameterResolver<Message> parameterResolver) {
+        public Builder addParameterResolver(ParameterResolver<DeserializingMessage> parameterResolver) {
             parameterResolvers.add(parameterResolver);
             return this;
         }

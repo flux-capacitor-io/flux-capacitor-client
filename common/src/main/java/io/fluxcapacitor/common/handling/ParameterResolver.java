@@ -15,11 +15,20 @@
 package io.fluxcapacitor.common.handling;
 
 import java.lang.reflect.Parameter;
+import java.util.Optional;
 import java.util.function.Function;
 
 @FunctionalInterface
 public interface ParameterResolver<M> {
 
     Function<M, Object> resolve(Parameter parameter);
+
+    default Function<M, ? extends Class<?>> resolveClass(Parameter parameter) {
+        Function<M, Object> valueResolver = resolve(parameter);
+        if (valueResolver == null) {
+            return null;
+        }
+        return Optional.ofNullable(resolve(parameter)).map(f -> f.andThen(Object::getClass)).orElse(null);
+    }
 
 }

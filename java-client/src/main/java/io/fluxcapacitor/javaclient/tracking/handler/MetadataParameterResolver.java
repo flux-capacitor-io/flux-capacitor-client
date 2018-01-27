@@ -2,16 +2,16 @@ package io.fluxcapacitor.javaclient.tracking.handler;
 
 import io.fluxcapacitor.common.api.Metadata;
 import io.fluxcapacitor.common.handling.ParameterResolver;
-import io.fluxcapacitor.javaclient.common.Message;
+import io.fluxcapacitor.javaclient.common.serialization.DeserializingMessage;
 
 import java.lang.reflect.Parameter;
 import java.util.function.Function;
 
-public class MetadataParameterResolver implements ParameterResolver<Message> {
+public class MetadataParameterResolver implements ParameterResolver<DeserializingMessage> {
     @Override
-    public Function<Message, Object> resolve(Parameter p) {
+    public Function<DeserializingMessage, Object> resolve(Parameter p) {
         if (p.getType().equals(Metadata.class)) {
-            return Message::getMetadata;
+            return DeserializingMessage::getMetadata;
         }
         return null;
     }

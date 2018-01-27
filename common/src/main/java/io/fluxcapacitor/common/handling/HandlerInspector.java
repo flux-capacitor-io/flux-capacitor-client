@@ -19,6 +19,7 @@ import io.fluxcapacitor.common.ObjectUtils;
 import java.lang.annotation.Annotation;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
+import java.lang.reflect.Parameter;
 import java.util.*;
 import java.util.function.Function;
 
@@ -35,7 +36,8 @@ public class HandlerInspector {
                                                 List<ParameterResolver<M>> parameterResolvers) {
         return new ObjectHandlerInvoker<>(
                 Arrays.stream(target.getClass().getMethods()).filter(m -> m.isAnnotationPresent(methodAnnotation))
-                        .map(m -> new MethodHandlerInvoker<>(target, m, parameterResolvers)).sorted(Comparator.naturalOrder())
+                        .map(m -> new MethodHandlerInvoker<>(target, m, parameterResolvers))
+                        .sorted(Comparator.naturalOrder())
                         .collect(toList()));
     }
 
@@ -44,16 +46,18 @@ public class HandlerInspector {
         private final Object target;
         private final Method method;
         private final List<Function<M, Object>> parameterSuppliers;
+        private final Function<M, ? extends Class<?>> payloadTypeSupplier;
 
         protected MethodHandlerInvoker(Object target, Method method, List<ParameterResolver<M>> parameterResolvers) {
             this.target = target;
             this.method = method;
             this.parameterSuppliers = getParameterSuppliers(method, parameterResolvers);
+            this.payloadTypeSupplier = getPayloadTypeSupplier(method, parameterResolvers);
         }
 
         @Override
         public boolean canHandle(M message) {
-            return getPayloadType().isAssignableFrom(parameterSuppliers.get(0).apply(message).getClass());
+            return getPayloadType().isAssignableFrom(payloadTypeSupplier.apply(message));
         }
 
         @Override
@@ -78,6 +82,13 @@ public class HandlerInspector {
                     .map(p -> resolvers.stream().map(r -> r.resolve(p)).filter(Objects::nonNull).findFirst()
                             .orElseThrow(() -> new IllegalStateException("Could not resolve parameter " + p)))
                     .collect(toList());
+        }
+
+        private Function<M, ? extends Class<?>> getPayloadTypeSupplier(Method method,
+                                                                       List<ParameterResolver<M>> resolvers) {
+            Parameter parameter = method.getParameters()[0];
+            return resolvers.stream().map(r -> r.resolveClass(parameter)).findFirst().orElseThrow(
+                    () -> new IllegalStateException("Could not determine payload type for method " + method));
         }
 
         private Class<?> getPayloadType() {
@@ -118,7 +129,8 @@ public class HandlerInspector {
 
         @Override
         public Object invoke(M message) throws Exception {
-            Optional<HandlerInvoker<M>> delegate = methodHandlers.stream().filter(d -> d.canHandle(message)).findFirst();
+            Optional<HandlerInvoker<M>> delegate =
+                    methodHandlers.stream().filter(d -> d.canHandle(message)).findFirst();
             if (!delegate.isPresent()) {
                 throw new IllegalArgumentException("No method found that could handle " + message);
             }

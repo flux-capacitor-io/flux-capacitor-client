@@ -7,8 +7,7 @@ import io.fluxcapacitor.common.handling.HandlerInspector;
 import io.fluxcapacitor.common.handling.HandlerInvoker;
 import io.fluxcapacitor.common.handling.ParameterResolver;
 import io.fluxcapacitor.javaclient.FluxCapacitor;
-import io.fluxcapacitor.javaclient.common.Message;
-import io.fluxcapacitor.javaclient.common.serialization.SerializationException;
+import io.fluxcapacitor.javaclient.common.serialization.DeserializingMessage;
 import io.fluxcapacitor.javaclient.common.serialization.Serializer;
 import io.fluxcapacitor.javaclient.gateway.ResultGateway;
 import lombok.AllArgsConstructor;
@@ -17,6 +16,7 @@ import lombok.extern.slf4j.Slf4j;
 import java.lang.annotation.Annotation;
 import java.util.*;
 import java.util.function.Consumer;
+import java.util.stream.Stream;
 
 import static java.lang.String.format;
 import static java.util.stream.Collectors.groupingBy;
@@ -31,7 +31,7 @@ public class DefaultTracking implements Tracking {
     private final ResultGateway resultGateway;
     private final List<ConsumerConfiguration> configurations;
     private final Serializer serializer;
-    private final List<ParameterResolver<Message>> parameterResolvers;
+    private final List<ParameterResolver<DeserializingMessage>> parameterResolvers;
     private final Set<ConsumerConfiguration> startedConfigurations = new HashSet<>();
 
     @Override
@@ -68,26 +68,22 @@ public class DefaultTracking implements Tracking {
 
     protected Consumer<List<SerializedMessage>> createConsumer(ConsumerConfiguration configuration,
                                                                List<Object> handlers) {
-        List<HandlerInvoker<Message>> invokers = handlers.stream()
+        List<HandlerInvoker<DeserializingMessage>> invokers = handlers.stream()
                 .map(h -> HandlerInspector.inspect(h, handlerAnnotation, parameterResolvers)).collect(toList());
-        return serializedMessages -> serializedMessages.forEach(s -> {
-            Message message;
-            try {
-                message = new Message(serializer.deserialize(s.getData()), s.getMetadata());
-            } catch (SerializationException e) {
-                log.error("Not handling message because of a serialization exception", e);
-                return;
-            }
-            invokers.stream().filter(i -> i.canHandle(message)).forEach(i -> {
+        return serializedMessages -> {
+            Stream<DeserializingMessage> messages =
+                    serializer.deserialize(serializedMessages.stream(), false).map(DeserializingMessage::new);
+
+            messages.forEach(message -> invokers.stream().filter(i -> i.canHandle(message)).forEach(i -> {
                 try {
-                    handleResult(i.invoke(message), s);
+                    handleResult(i.invoke(message), message.getSerializedMessage());
                 } catch (HandlerException e) {
-                    handleResult(e.getCause(), s);
+                    handleResult(e.getCause(), message.getSerializedMessage());
                 } catch (Exception e) {
-                    handleResult(e, s);
+                    handleResult(e, message.getSerializedMessage());
                 }
-            });
-        });
+            }));
+        };
     }
 
     protected void handleResult(Object result, SerializedMessage message) {

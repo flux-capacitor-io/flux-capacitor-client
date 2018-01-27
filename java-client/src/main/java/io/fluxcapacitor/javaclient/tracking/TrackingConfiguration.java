@@ -30,8 +30,6 @@ public class TrackingConfiguration {
 
     public static final TrackingConfiguration DEFAULT = TrackingConfiguration.builder().build();
 
-    @Singular
-    List<Interceptor<List<SerializedMessage>, Void>> batchInterceptors;
     @Default
     int threads = 1;
     @Default
@@ -42,4 +40,6 @@ public class TrackingConfiguration {
     Duration maxWaitDuration = Duration.ofSeconds(60);
     @Default
     Duration retryDelay = Duration.ofSeconds(1);
+    @Singular
+    List<Interceptor<List<SerializedMessage>, Void>> batchInterceptors;
 }
