@@ -47,7 +47,7 @@ public interface Serializer {
      */
     @SuppressWarnings("unchecked")
     default <T> T deserialize(Data<byte[]> data) {
-        List<T> list = deserialize(Stream.of(data), true).map(d -> (T) d.getObject()).collect(toList());
+        List<T> list = deserialize(Stream.of(data), true).map(d -> (T) d.getPayload()).collect(toList());
         if (list.size() != 1) {
             throw new SerializationException(
                     String.format("Invalid deserialization result for a '%s'. Expected a single object but got %s",
@@ -62,7 +62,7 @@ public interface Serializer {
      * deserialized object.
      * <p>
      * Deserialization is performed lazily. This means that actual conversion for a given result in the output stream
-     * only happens if {@link DeserializingObject#getObject()} is invoked on the result. This has the advantage that a
+     * only happens if {@link DeserializingObject#getPayload()} is invoked on the result. This has the advantage that a
      * caller can inspect what type will be returned via {@link DeserializingObject#getSerializedObject()} before
      * deciding to go through with the deserialization.
      * <p>

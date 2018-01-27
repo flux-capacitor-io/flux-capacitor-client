@@ -25,7 +25,7 @@ public interface Interceptor<T, R> {
 
     Function<T, R> intercept(Function<T, R> function);
 
-    default Consumer<T> intercept(Consumer<T> consumer) {
+    default Consumer<T> interceptInvocation(Consumer<T> consumer) {
         Function<T, R> function = intercept(t -> {
             consumer.accept(t);
             return null;
@@ -33,7 +33,11 @@ public interface Interceptor<T, R> {
         return function::apply;
     }
 
-    static <T, R> Interceptor<T, R> join(List<Interceptor<T, R>> interceptors) {
+    default Interceptor<T, R> merge(Interceptor<T, R> outerInterceptor) {
+        return f -> outerInterceptor.intercept(intercept(f));
+    }
+
+    static <T, R> Interceptor<T, R> join(List<? extends Interceptor<T, R>> interceptors) {
         List<Interceptor<T, R>> reversed = new ArrayList<>(interceptors);
         Collections.reverse(reversed);
         return f -> {

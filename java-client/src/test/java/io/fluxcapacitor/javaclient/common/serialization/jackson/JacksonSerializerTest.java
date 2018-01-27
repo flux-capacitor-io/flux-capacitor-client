@@ -65,7 +65,7 @@ public class JacksonSerializerTest {
         List<RevisedObject> expected = asList(new RevisedObject("test0", 5), new RevisedObject("test2", 42));
         List<?> actual = subject.deserialize(
                 Stream.of(createRev0Data(expected.get(0).getName()), subject.serialize(expected.get(1))), true)
-                .map(DeserializingObject::getObject)
+                .map(DeserializingObject::getPayload)
                 .collect(Collectors.toList());
         assertEquals(expected, actual);
     }
@@ -82,7 +82,7 @@ public class JacksonSerializerTest {
         Data<byte[]> data = new Data<>(objectMapper.writeValueAsBytes(new Foo("bar")), "unknownType", 0);
         List<DeserializingObject<byte[], Data<byte[]>>> result = subject.deserialize(Stream.of(data), false)
                 .collect(Collectors.toList());
-        assertEquals(singletonMap("foo", "bar"), result.get(0).getObject());
+        assertEquals(singletonMap("foo", "bar"), result.get(0).getPayload());
     }
 
     private Data<byte[]> createRev0Data(String name) throws JsonProcessingException {

@@ -20,7 +20,6 @@ import java.util.stream.Stream;
 
 import static java.lang.String.format;
 import static java.util.stream.Collectors.groupingBy;
-import static java.util.stream.Collectors.toList;
 
 @AllArgsConstructor
 @Slf4j
@@ -68,19 +67,18 @@ public class DefaultTracking implements Tracking {
 
     protected Consumer<List<SerializedMessage>> createConsumer(ConsumerConfiguration configuration,
                                                                List<Object> handlers) {
-        List<HandlerInvoker<DeserializingMessage>> invokers = handlers.stream()
-                .map(h -> HandlerInspector.inspect(h, handlerAnnotation, parameterResolvers)).collect(toList());
+        List<HandlerInvoker<DeserializingMessage>> invokers
+                = HandlerInspector.inspect(handlers, handlerAnnotation, parameterResolvers);
         return serializedMessages -> {
             Stream<DeserializingMessage> messages =
                     serializer.deserialize(serializedMessages.stream(), false).map(DeserializingMessage::new);
-
             messages.forEach(message -> invokers.stream().filter(i -> i.canHandle(message)).forEach(i -> {
                 try {
-                    handleResult(i.invoke(message), message.getSerializedMessage());
+                    handleResult(i.invoke(message), message.getSerializedObject());
                 } catch (HandlerException e) {
-                    handleResult(e.getCause(), message.getSerializedMessage());
+                    handleResult(e.getCause(), message.getSerializedObject());
                 } catch (Exception e) {
-                    handleResult(e, message.getSerializedMessage());
+                    handleResult(e, message.getSerializedObject());
                 }
             }));
         };

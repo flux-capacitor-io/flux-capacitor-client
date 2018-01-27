@@ -7,4 +7,9 @@ import lombok.Value;
 public class Message {
     Object payload;
     Metadata metadata;
+
+    @SuppressWarnings("unchecked")
+    public <R> R getPayload() {
+        return (R) payload;
+    }
 }

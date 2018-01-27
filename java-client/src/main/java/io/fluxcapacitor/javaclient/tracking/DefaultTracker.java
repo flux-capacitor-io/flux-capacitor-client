@@ -63,7 +63,7 @@ public class DefaultTracker implements Runnable, Registration {
         this.name = name;
         this.channel = channel;
         this.configuration = configuration;
-        this.consumer = Interceptor.join(configuration.getBatchInterceptors()).intercept(consumer);
+        this.consumer = Interceptor.join(configuration.getBatchInterceptors()).interceptInvocation(consumer);
         this.trackingClient = trackingClient;
     }
 

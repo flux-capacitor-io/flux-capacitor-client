@@ -28,6 +28,12 @@ import static java.util.stream.Collectors.toList;
 
 public class HandlerInspector {
 
+    public static <M> List<HandlerInvoker<M>> inspect(List<?> targets, Class<? extends Annotation> methodAnnotation,
+                                                      List<ParameterResolver<M>> parameterResolvers) {
+        return targets.stream().filter(o -> hasHandlerMethods(o, methodAnnotation))
+                .map(o -> inspect(o, methodAnnotation, parameterResolvers)).collect(toList());
+    }
+
     public static boolean hasHandlerMethods(Object target, Class<? extends Annotation> methodAnnotation) {
         return Arrays.stream(target.getClass().getMethods()).anyMatch(m -> m.isAnnotationPresent(methodAnnotation));
     }

@@ -12,12 +12,28 @@ public class DeserializingObject<T, S extends SerializedObject<T, S>> {
     private final S serializedObject;
     private final Supplier<Object> object;
 
-    public DeserializingObject(S serializedObject, Supplier<Object> object) {
+    public DeserializingObject(S serializedObject, Supplier<Object> payload) {
         this.serializedObject = serializedObject;
-        this.object = memoize(object);
+        this.object = memoize(payload);
     }
 
-    public Object getObject() {
+    public Object getPayload() {
         return object.get();
+    }
+
+    public String getType() {
+        return serializedObject.data().getType();
+    }
+
+    public int getRevision() {
+        return serializedObject.data().getRevision();
+    }
+
+    public Class<?> getPayloadClass() {
+        try {
+            return Class.forName(getType());
+        } catch (ClassNotFoundException e) {
+            throw new SerializationException(String.format("Failed to get the class name for a %s", getType()), e);
+        }
     }
 }

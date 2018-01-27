@@ -4,6 +4,7 @@ import io.fluxcapacitor.common.MessageType;
 import io.fluxcapacitor.common.handling.ParameterResolver;
 import io.fluxcapacitor.javaclient.FluxCapacitor;
 import io.fluxcapacitor.javaclient.common.serialization.DeserializingMessage;
+import io.fluxcapacitor.javaclient.common.serialization.MessageSerializer;
 import io.fluxcapacitor.javaclient.common.serialization.Serializer;
 import io.fluxcapacitor.javaclient.common.serialization.jackson.JacksonSerializer;
 import io.fluxcapacitor.javaclient.eventsourcing.DefaultEventStore;
@@ -87,6 +88,8 @@ public class DefaultFluxCapacitor implements FluxCapacitor {
         private Serializer serializer = new JacksonSerializer();
         private final Map<MessageType, List<ConsumerConfiguration>> consumerConfigurations = defaultConfigurations();
         private final List<ParameterResolver<DeserializingMessage>> parameterResolvers = defaultParameterResolvers();
+        private final Map<MessageType, DispatchInterceptor> dispatchInterceptors =
+                Arrays.stream(MessageType.values()).collect(toMap(identity(), m -> f -> f));
 
         protected List<ParameterResolver<DeserializingMessage>> defaultParameterResolvers() {
             return new ArrayList<>(Arrays.asList(new PayloadParameterResolver(), new MetadataParameterResolver()));
@@ -121,17 +124,25 @@ public class DefaultFluxCapacitor implements FluxCapacitor {
             return this;
         }
 
+        public Builder addDispatchInterceptor(DispatchInterceptor interceptor, MessageType... forTypes) {
+            Arrays.stream(forTypes).forEach(type -> dispatchInterceptors.get(type).merge(interceptor));
+            return this;
+        }
+
         public FluxCapacitor build(FluxCapacitorClient client) {
             ResultGateway resultGateway =
-                    new DefaultResultGateway(client.getGatewayClient(RESULT), serializer);
+                    new DefaultResultGateway(client.getGatewayClient(RESULT),
+                                             new MessageSerializer(serializer, dispatchInterceptors.get(RESULT)));
             Map<MessageType, Tracking> trackingMap = stream(MessageType.values())
                     .collect(toMap(identity(), m -> createTracking(m, client, resultGateway)));
             RequestHandler requestHandler =
                     new DefaultRequestHandler(client.getTrackingClient(RESULT), client.getProperties());
             CommandGateway commandGateway =
-                    new DefaultCommandGateway(client.getGatewayClient(COMMAND), requestHandler, serializer);
+                    new DefaultCommandGateway(client.getGatewayClient(COMMAND), requestHandler,
+                                              new MessageSerializer(serializer, dispatchInterceptors.get(COMMAND)));
             QueryGateway queryGateway =
-                    new DefaultQueryGateway(client.getGatewayClient(QUERY), requestHandler, serializer);
+                    new DefaultQueryGateway(client.getGatewayClient(QUERY), requestHandler,
+                                            new MessageSerializer(serializer, dispatchInterceptors.get(QUERY)));
             KeyValueStore keyValueStore = new DefaultKeyValueStore(client.getKeyValueClient(), serializer);
             EventStore eventStore = new DefaultEventStore(client.getEventStoreClient(), client.getGatewayClient(EVENT),
                                                           keyValueStore, serializer);
