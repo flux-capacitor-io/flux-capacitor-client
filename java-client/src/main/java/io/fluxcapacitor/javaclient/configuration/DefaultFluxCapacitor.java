@@ -9,6 +9,7 @@ import io.fluxcapacitor.javaclient.common.serialization.Serializer;
 import io.fluxcapacitor.javaclient.common.serialization.jackson.JacksonSerializer;
 import io.fluxcapacitor.javaclient.eventsourcing.DefaultEventStore;
 import io.fluxcapacitor.javaclient.eventsourcing.EventStore;
+import io.fluxcapacitor.javaclient.eventsourcing.SnapshotSerializer;
 import io.fluxcapacitor.javaclient.gateway.*;
 import io.fluxcapacitor.javaclient.keyvalue.DefaultKeyValueStore;
 import io.fluxcapacitor.javaclient.keyvalue.KeyValueStore;
@@ -131,24 +132,32 @@ public class DefaultFluxCapacitor implements FluxCapacitor {
 
         public FluxCapacitor build(FluxCapacitorClient client) {
             ResultGateway resultGateway =
-                    new DefaultResultGateway(client.getGatewayClient(RESULT),
-                                             new MessageSerializer(serializer, dispatchInterceptors.get(RESULT)));
+                    new DefaultResultGateway(client.getGatewayClient(RESULT), createMessageSerializer(RESULT));
             Map<MessageType, Tracking> trackingMap = stream(MessageType.values())
                     .collect(toMap(identity(), m -> createTracking(m, client, resultGateway)));
             RequestHandler requestHandler =
                     new DefaultRequestHandler(client.getTrackingClient(RESULT), client.getProperties());
             CommandGateway commandGateway =
                     new DefaultCommandGateway(client.getGatewayClient(COMMAND), requestHandler,
-                                              new MessageSerializer(serializer, dispatchInterceptors.get(COMMAND)));
+                                              createMessageSerializer(COMMAND));
             QueryGateway queryGateway =
                     new DefaultQueryGateway(client.getGatewayClient(QUERY), requestHandler,
-                                            new MessageSerializer(serializer, dispatchInterceptors.get(QUERY)));
+                                            createMessageSerializer(QUERY));
             KeyValueStore keyValueStore = new DefaultKeyValueStore(client.getKeyValueClient(), serializer);
             EventStore eventStore = new DefaultEventStore(client.getEventStoreClient(), client.getGatewayClient(EVENT),
-                                                          keyValueStore, serializer);
-            Scheduler scheduler = new DefaultScheduler(client.getSchedulingClient(), serializer);
+                                                          keyValueStore, createMessageSerializer(EVENT),
+                                                          createSnapshotSerializer());
+            Scheduler scheduler = new DefaultScheduler(client.getSchedulingClient(), createMessageSerializer(SCHEDULE));
             return new DefaultFluxCapacitor(trackingMap, commandGateway, queryGateway, resultGateway, eventStore,
                                             keyValueStore, scheduler);
+        }
+
+        protected MessageSerializer createMessageSerializer(MessageType messageType) {
+            return new MessageSerializer(serializer, dispatchInterceptors.get(messageType));
+        }
+
+        protected SnapshotSerializer createSnapshotSerializer() {
+            return new SnapshotSerializer(serializer);
         }
 
         protected Tracking createTracking(MessageType messageType, FluxCapacitorClient client,

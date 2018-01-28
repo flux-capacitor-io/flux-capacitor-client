@@ -15,7 +15,7 @@
 package io.fluxcapacitor.axonclient.common.serialization;
 
 import io.fluxcapacitor.common.api.SerializedMessage;
-import io.fluxcapacitor.javaclient.eventsourcing.Snapshot;
+import io.fluxcapacitor.javaclient.eventsourcing.SerializedSnapshot;
 import org.axonframework.commandhandling.CommandMessage;
 import org.axonframework.eventhandling.EventMessage;
 import org.axonframework.eventsourcing.DomainEventMessage;
@@ -42,6 +42,6 @@ public interface AxonMessageSerializer {
 
     DomainEventStream deserializeDomainEvents(Stream<SerializedMessage> messageStream);
 
-    DomainEventMessage<?> deserializeSnapshot(Snapshot snapshot);
+    DomainEventMessage<?> deserializeSnapshot(SerializedSnapshot snapshot);
 
 }

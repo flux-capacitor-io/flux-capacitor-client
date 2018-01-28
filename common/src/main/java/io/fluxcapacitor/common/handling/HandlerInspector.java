@@ -79,8 +79,8 @@ public class HandlerInspector {
             }
         }
 
-        private static <M> List<Function<M, Object>> getParameterSuppliers(Method method,
-                                                                           List<ParameterResolver<M>> resolvers) {
+        protected List<Function<M, Object>> getParameterSuppliers(Method method,
+                                                                  List<ParameterResolver<M>> resolvers) {
             if (method.getParameterCount() == 0) {
                 throw new IllegalStateException("Annotated method should contain at least one parameter");
             }
@@ -90,14 +90,14 @@ public class HandlerInspector {
                     .collect(toList());
         }
 
-        private Function<M, ? extends Class<?>> getPayloadTypeSupplier(Method method,
-                                                                       List<ParameterResolver<M>> resolvers) {
+        protected Function<M, ? extends Class<?>> getPayloadTypeSupplier(Method method,
+                                                                         List<ParameterResolver<M>> resolvers) {
             Parameter parameter = method.getParameters()[0];
             return resolvers.stream().map(r -> r.resolveClass(parameter)).findFirst().orElseThrow(
                     () -> new IllegalStateException("Could not determine payload type for method " + method));
         }
 
-        private Class<?> getPayloadType() {
+        protected Class<?> getPayloadType() {
             return method.getParameterTypes()[0];
         }
 

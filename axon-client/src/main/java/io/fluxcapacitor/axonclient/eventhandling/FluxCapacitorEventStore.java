@@ -20,7 +20,7 @@ import io.fluxcapacitor.common.api.Data;
 import io.fluxcapacitor.common.api.SerializedMessage;
 import io.fluxcapacitor.javaclient.common.serialization.jackson.JacksonSerializer;
 import io.fluxcapacitor.javaclient.eventsourcing.EventStoreClient;
-import io.fluxcapacitor.javaclient.eventsourcing.Snapshot;
+import io.fluxcapacitor.javaclient.eventsourcing.SerializedSnapshot;
 import io.fluxcapacitor.javaclient.keyvalue.DefaultKeyValueStore;
 import io.fluxcapacitor.javaclient.keyvalue.KeyValueClient;
 import io.fluxcapacitor.javaclient.keyvalue.KeyValueStore;
@@ -107,7 +107,7 @@ public class FluxCapacitorEventStore extends AbstractEventBus implements EventSt
     public DomainEventStream readEvents(String aggregateIdentifier) {
         Optional<DomainEventMessage<?>> optionalSnapshot;
         try {
-            Snapshot snapshot = keyValueStore.get(snapshotKey(aggregateIdentifier));
+            SerializedSnapshot snapshot = keyValueStore.get(snapshotKey(aggregateIdentifier));
             optionalSnapshot = Optional.ofNullable(snapshot).map(serializer::deserializeSnapshot);
         } catch (Exception | LinkageError e) {
             log.warn("Error reading snapshot. Reconstructing aggregate from entire event stream. Caused by: {} {}",
@@ -141,8 +141,8 @@ public class FluxCapacitorEventStore extends AbstractEventBus implements EventSt
     public void storeSnapshot(DomainEventMessage<?> snapshot) {
         byte[] bytes = serializer.serializeDomainEvent(snapshot);
         keyValueStore.store(snapshotKey(snapshot.getAggregateIdentifier()),
-                            new Snapshot(snapshot.getAggregateIdentifier(), snapshot.getSequenceNumber(),
-                                         new Data<>(bytes, snapshot.getPayloadType().getName(), 0)));
+                            new SerializedSnapshot(snapshot.getAggregateIdentifier(), snapshot.getSequenceNumber(),
+                                                   new Data<>(bytes, snapshot.getPayloadType().getName(), 0)));
     }
 
     @Override

@@ -31,7 +31,7 @@ public interface EventStore {
 
     void storeSnapshot(String aggregateId, long sequenceNumber, Object snapshot);
 
-    <T> Optional<T> getSnapshot(String aggregateId);
+    <T> Optional<Snapshot<T>> getSnapshot(String aggregateId);
 
     void deleteSnapshot(String aggregateId);
 

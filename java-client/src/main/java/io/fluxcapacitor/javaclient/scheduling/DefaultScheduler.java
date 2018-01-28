@@ -1,9 +1,8 @@
 package io.fluxcapacitor.javaclient.scheduling;
 
 import io.fluxcapacitor.common.api.Metadata;
-import io.fluxcapacitor.common.api.SerializedMessage;
 import io.fluxcapacitor.common.api.scheduling.ScheduledMessage;
-import io.fluxcapacitor.javaclient.common.serialization.Serializer;
+import io.fluxcapacitor.javaclient.common.serialization.MessageSerializer;
 import lombok.AllArgsConstructor;
 
 import java.time.Instant;
@@ -12,14 +11,13 @@ import java.time.Instant;
 public class DefaultScheduler implements Scheduler {
 
     private final SchedulingClient client;
-    private final Serializer serializer;
+    private final MessageSerializer serializer;
 
     @Override
     public void schedule(String scheduleId, Instant timestamp, Object payload, Metadata metadata) {
         try {
             client.schedule(new ScheduledMessage(scheduleId, timestamp.toEpochMilli(),
-                                                 new SerializedMessage(serializer.serialize(payload),
-                                                                                 metadata))).await();
+                                                 serializer.serialize(payload, metadata))).await();
         } catch (Exception e) {
             throw new SchedulerException(String.format("Failed to schedule message %s for %s", payload, timestamp), e);
         }
