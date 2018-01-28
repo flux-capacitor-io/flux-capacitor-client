@@ -24,6 +24,7 @@ import io.fluxcapacitor.javaclient.tracking.DefaultTracking;
 import io.fluxcapacitor.javaclient.tracking.Tracking;
 import io.fluxcapacitor.javaclient.tracking.TrackingException;
 import io.fluxcapacitor.javaclient.tracking.handler.*;
+import io.fluxcapacitor.javaclient.tracking.handler.validation.ValidatingInterceptor;
 import lombok.AllArgsConstructor;
 
 import java.lang.annotation.Annotation;
@@ -100,6 +101,8 @@ public class DefaultFluxCapacitor implements FluxCapacitor {
         private final Set<CorrelationDataProvider> correlationDataProviders = new LinkedHashSet<>();
         private DispatchInterceptor messageRoutingInterceptor = new MessageRoutingInterceptor();
         private boolean disableMessageCorrelation;
+        private boolean disableCommandValidation;
+        private HandlerInterceptor commandValidationInterceptor = new ValidatingInterceptor();
 
         protected List<ParameterResolver<DeserializingMessage>> defaultParameterResolvers() {
             return new ArrayList<>(Arrays.asList(new PayloadParameterResolver(), new MetadataParameterResolver()));
@@ -159,6 +162,16 @@ public class DefaultFluxCapacitor implements FluxCapacitor {
             return this;
         }
 
+        public Builder disableCommandValidation() {
+            disableCommandValidation = true;
+            return this;
+        }
+
+        public Builder changeCommandValidationInterceptor(HandlerInterceptor validationInterceptor) {
+            this.commandValidationInterceptor = validationInterceptor;
+            return this;
+        }
+
         public FluxCapacitor build(FluxCapacitorClient client) {
             Map<MessageType, DispatchInterceptor> dispatchInterceptors = new HashMap<>(this.dispatchInterceptors);
             Map<MessageType, HandlerInterceptor> handlerInterceptors = new HashMap<>(this.handlerInterceptors);
@@ -176,6 +189,11 @@ public class DefaultFluxCapacitor implements FluxCapacitor {
                     dispatchInterceptors.compute(type, (t, i) -> correlatingInterceptor.merge(i));
                     handlerInterceptors.compute(type, (t, i) -> correlatingInterceptor.merge(i));
                 });
+            }
+
+            //enable command validation
+            if (!disableCommandValidation) {
+                handlerInterceptors.compute(COMMAND, (t, i) -> i.merge(commandValidationInterceptor));
             }
 
             ResultGateway resultGateway =
