@@ -9,7 +9,7 @@ import io.fluxcapacitor.javaclient.common.serialization.Serializer;
 import io.fluxcapacitor.javaclient.common.serialization.jackson.JacksonSerializer;
 import io.fluxcapacitor.javaclient.eventsourcing.DefaultEventStore;
 import io.fluxcapacitor.javaclient.eventsourcing.EventStore;
-import io.fluxcapacitor.javaclient.eventsourcing.SnapshotSerializer;
+import io.fluxcapacitor.javaclient.eventsourcing.EventStoreSerializer;
 import io.fluxcapacitor.javaclient.gateway.*;
 import io.fluxcapacitor.javaclient.keyvalue.DefaultKeyValueStore;
 import io.fluxcapacitor.javaclient.keyvalue.KeyValueStore;
@@ -145,8 +145,7 @@ public class DefaultFluxCapacitor implements FluxCapacitor {
                                             createMessageSerializer(QUERY));
             KeyValueStore keyValueStore = new DefaultKeyValueStore(client.getKeyValueClient(), serializer);
             EventStore eventStore = new DefaultEventStore(client.getEventStoreClient(), client.getGatewayClient(EVENT),
-                                                          keyValueStore, createMessageSerializer(EVENT),
-                                                          createSnapshotSerializer());
+                                                          keyValueStore, createEventStoreSerializer());
             Scheduler scheduler = new DefaultScheduler(client.getSchedulingClient(), createMessageSerializer(SCHEDULE));
             return new DefaultFluxCapacitor(trackingMap, commandGateway, queryGateway, resultGateway, eventStore,
                                             keyValueStore, scheduler);
@@ -156,8 +155,8 @@ public class DefaultFluxCapacitor implements FluxCapacitor {
             return new MessageSerializer(serializer, dispatchInterceptors.get(messageType));
         }
 
-        protected SnapshotSerializer createSnapshotSerializer() {
-            return new SnapshotSerializer(serializer);
+        protected EventStoreSerializer createEventStoreSerializer() {
+            return new EventStoreSerializer(serializer, dispatchInterceptors.get(EVENT));
         }
 
         protected Tracking createTracking(MessageType messageType, FluxCapacitorClient client,
