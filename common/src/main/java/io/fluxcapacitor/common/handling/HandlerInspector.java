@@ -67,7 +67,7 @@ public class HandlerInspector {
         }
 
         @Override
-        public Object invoke(M message) throws Exception {
+        public Object invoke(M message) {
             try {
                 return method.invoke(target, parameterSuppliers.stream().map(s -> s.apply(message)).toArray());
             } catch (InvocationTargetException e) {
@@ -76,6 +76,8 @@ public class HandlerInspector {
                     thrown = (Exception) e.getCause();
                 }
                 throw new HandlerException(format("Target failed to handle a %s, method: %s", message, method), thrown);
+            } catch (IllegalAccessException e) {
+                throw new HandlerException(format("Failed to handle a %s, method: %s", message, method), e);
             }
         }
 
@@ -134,7 +136,7 @@ public class HandlerInspector {
         }
 
         @Override
-        public Object invoke(M message) throws Exception {
+        public Object invoke(M message) {
             Optional<HandlerInvoker<M>> delegate =
                     methodHandlers.stream().filter(d -> d.canHandle(message)).findFirst();
             if (!delegate.isPresent()) {

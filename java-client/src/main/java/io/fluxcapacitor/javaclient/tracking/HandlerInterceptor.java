@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016-2017 Flux Capacitor.
+ * Copyright (c) 2016-2018 Flux Capacitor.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -12,12 +12,16 @@
  * limitations under the License.
  */
 
-package io.fluxcapacitor.common.handling;
+package io.fluxcapacitor.javaclient.tracking;
 
-public interface HandlerInvoker<M> {
+import io.fluxcapacitor.common.Interceptor;
+import io.fluxcapacitor.javaclient.common.serialization.DeserializingMessage;
 
-    boolean canHandle(M message);
+import java.util.List;
 
-    Object invoke(M message);
-
+@FunctionalInterface
+public interface HandlerInterceptor extends Interceptor<DeserializingMessage, Object> {
+    static HandlerInterceptor join(List<? extends HandlerInterceptor> interceptors) {
+        return Interceptor.join(interceptors)::intercept;
+    }
 }

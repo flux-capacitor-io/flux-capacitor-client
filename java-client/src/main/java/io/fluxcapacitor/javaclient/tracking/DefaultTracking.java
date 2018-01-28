@@ -30,6 +30,7 @@ public class DefaultTracking implements Tracking {
     private final ResultGateway resultGateway;
     private final List<ConsumerConfiguration> configurations;
     private final Serializer serializer;
+    private final HandlerInterceptor handlerInterceptor;
     private final List<ParameterResolver<DeserializingMessage>> parameterResolvers;
     private final Set<ConsumerConfiguration> startedConfigurations = new HashSet<>();
 
@@ -72,16 +73,21 @@ public class DefaultTracking implements Tracking {
         return serializedMessages -> {
             Stream<DeserializingMessage> messages =
                     serializer.deserialize(serializedMessages.stream(), false).map(DeserializingMessage::new);
-            messages.forEach(message -> invokers.stream().filter(i -> i.canHandle(message)).forEach(i -> {
-                try {
-                    handleResult(i.invoke(message), message.getSerializedObject());
-                } catch (HandlerException e) {
-                    handleResult(e.getCause(), message.getSerializedObject());
-                } catch (Exception e) {
-                    handleResult(e, message.getSerializedObject());
-                }
-            }));
+            messages.forEach(m -> invokers.forEach(i -> handle(m, i)));
         };
+    }
+
+    protected void handle(DeserializingMessage message, HandlerInvoker<DeserializingMessage> handler) {
+        if (handler.canHandle(message)) {
+            try {
+                handleResult(handlerInterceptor.intercept(m -> handler.invoke(message)).apply(message),
+                             message.getSerializedObject());
+            } catch (HandlerException e) {
+                handleResult(e.getCause(), message.getSerializedObject());
+            } catch (Exception e) {
+                handleResult(e, message.getSerializedObject());
+            }
+        }
     }
 
     protected void handleResult(Object result, SerializedMessage message) {

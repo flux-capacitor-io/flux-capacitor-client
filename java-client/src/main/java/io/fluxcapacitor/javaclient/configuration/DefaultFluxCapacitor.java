@@ -15,10 +15,7 @@ import io.fluxcapacitor.javaclient.keyvalue.DefaultKeyValueStore;
 import io.fluxcapacitor.javaclient.keyvalue.KeyValueStore;
 import io.fluxcapacitor.javaclient.scheduling.DefaultScheduler;
 import io.fluxcapacitor.javaclient.scheduling.Scheduler;
-import io.fluxcapacitor.javaclient.tracking.ConsumerConfiguration;
-import io.fluxcapacitor.javaclient.tracking.DefaultTracking;
-import io.fluxcapacitor.javaclient.tracking.Tracking;
-import io.fluxcapacitor.javaclient.tracking.TrackingException;
+import io.fluxcapacitor.javaclient.tracking.*;
 import io.fluxcapacitor.javaclient.tracking.handler.*;
 import lombok.AllArgsConstructor;
 
@@ -91,6 +88,8 @@ public class DefaultFluxCapacitor implements FluxCapacitor {
         private final List<ParameterResolver<DeserializingMessage>> parameterResolvers = defaultParameterResolvers();
         private final Map<MessageType, DispatchInterceptor> dispatchInterceptors =
                 Arrays.stream(MessageType.values()).collect(toMap(identity(), m -> f -> f));
+        private final Map<MessageType, HandlerInterceptor> handlerInterceptors =
+                Arrays.stream(MessageType.values()).collect(toMap(identity(), m -> f -> f));
 
         protected List<ParameterResolver<DeserializingMessage>> defaultParameterResolvers() {
             return new ArrayList<>(Arrays.asList(new PayloadParameterResolver(), new MetadataParameterResolver()));
@@ -130,6 +129,11 @@ public class DefaultFluxCapacitor implements FluxCapacitor {
             return this;
         }
 
+        public Builder addHandlerInterceptor(HandlerInterceptor interceptor, MessageType... forTypes) {
+            Arrays.stream(forTypes).forEach(type -> handlerInterceptors.get(type).merge(interceptor));
+            return this;
+        }
+
         public FluxCapacitor build(FluxCapacitorClient client) {
             ResultGateway resultGateway =
                     new DefaultResultGateway(client.getGatewayClient(RESULT), createMessageSerializer(RESULT));
@@ -163,7 +167,7 @@ public class DefaultFluxCapacitor implements FluxCapacitor {
                                           ResultGateway resultGateway) {
             return new DefaultTracking(getHandlerAnnotation(messageType), client.getTrackingClient(messageType),
                                        resultGateway, consumerConfigurations.get(messageType), serializer,
-                                       parameterResolvers);
+                                       handlerInterceptors.get(messageType), parameterResolvers);
         }
 
         protected Class<? extends Annotation> getHandlerAnnotation(MessageType messageType) {
