@@ -14,8 +14,6 @@
 
 package io.fluxcapacitor.javaclient.tracking;
 
-import io.fluxcapacitor.common.Interceptor;
-import io.fluxcapacitor.common.api.SerializedMessage;
 import lombok.Builder;
 import lombok.Builder.Default;
 import lombok.Singular;
@@ -41,5 +39,5 @@ public class TrackingConfiguration {
     @Default
     Duration retryDelay = Duration.ofSeconds(1);
     @Singular
-    List<Interceptor<List<SerializedMessage>, Void>> batchInterceptors;
+    List<BatchInterceptor> batchMessageBatchInterceptors;
 }

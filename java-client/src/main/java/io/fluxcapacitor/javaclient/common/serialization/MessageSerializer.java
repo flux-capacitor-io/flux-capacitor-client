@@ -28,8 +28,8 @@ public class MessageSerializer {
     private final Function<SerializedMessage, Message> deserializer;
 
     public MessageSerializer(Serializer serializer, DispatchInterceptor dispatchInterceptor) {
-        this(dispatchInterceptor
-                     .intercept(m -> new SerializedMessage(serializer.serialize(m.getPayload()), m.getMetadata())),
+        this(dispatchInterceptor.interceptDispatch(
+                m -> new SerializedMessage(serializer.serialize(m.getPayload()), m.getMetadata())),
              s -> new Message(serializer.deserialize(s.getData()), s.getMetadata()));
     }
 

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016-2017 Flux Capacitor.
+ * Copyright (c) 2016-2018 Flux Capacitor.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -12,50 +12,52 @@
  * limitations under the License.
  */
 
-package io.fluxcapacitor.common;
+package io.fluxcapacitor.javaclient.tracking;
 
+import io.fluxcapacitor.common.api.SerializedMessage;
 import org.junit.Test;
 
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
-import java.util.function.Function;
+import java.util.function.Consumer;
 
 import static java.util.Collections.emptyList;
 import static org.junit.Assert.assertEquals;
 
-public class InterceptorTest {
+public class BatchInterceptorTest {
 
     @Test
     public void testInvocationOrder() {
         List<Object> invokedInstances = new ArrayList<>();
-        Interceptor<String, Object> outerInterceptor = new Interceptor<String, Object>() {
+        BatchInterceptor outerInterceptor = new BatchInterceptor() {
             @Override
-            public Function<String, Object> intercept(Function<String, Object> function) {
-                return s -> {
+            public Consumer<List<SerializedMessage>> intercept(Consumer<List<SerializedMessage>> consumer) {
+                return messages -> {
                     invokedInstances.add(this);
-                    return function.apply(s);
+                    consumer.accept(messages);
                 };
             }
         };
-        Interceptor<String, Object> innerInterceptor = new Interceptor<String, Object>() {
+        BatchInterceptor innerInterceptor = new BatchInterceptor() {
             @Override
-            public Function<String, Object> intercept(Function<String, Object> function) {
-                return s -> {
+            public Consumer<List<SerializedMessage>> intercept(Consumer<List<SerializedMessage>> consumer) {
+                return messages -> {
                     invokedInstances.add(this);
-                    return function.apply(s);
+                    consumer.accept(messages);
                 };
             }
         };
-        Function<String, Object> function = new Function<String, Object>() {
+        Consumer<List<SerializedMessage>> function = new Consumer<List<SerializedMessage>>() {
             @Override
-            public Object apply(String s) {
-                return invokedInstances.add(this);
+            public void accept(List<SerializedMessage> messages) {
+                invokedInstances.add(this);
             }
         };
-        Function<String, Object> invocation = Interceptor.join(Arrays.asList(outerInterceptor, innerInterceptor)).intercept(function);
+        Consumer<List<SerializedMessage>> invocation = BatchInterceptor
+                .join(Arrays.asList(outerInterceptor, innerInterceptor)).intercept(function);
         assertEquals(emptyList(), invokedInstances);
-        invocation.apply("test");
+        invocation.accept(emptyList());
         assertEquals(Arrays.asList(outerInterceptor, innerInterceptor, function), invokedInstances);
     }
 }

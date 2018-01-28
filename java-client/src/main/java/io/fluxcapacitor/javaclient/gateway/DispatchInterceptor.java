@@ -14,15 +14,16 @@
 
 package io.fluxcapacitor.javaclient.gateway;
 
-import io.fluxcapacitor.common.Interceptor;
 import io.fluxcapacitor.common.api.SerializedMessage;
 import io.fluxcapacitor.javaclient.common.Message;
 
-import java.util.List;
+import java.util.function.Function;
 
 @FunctionalInterface
-public interface DispatchInterceptor extends Interceptor<Message, SerializedMessage> {
-    static DispatchInterceptor join(List<? extends DispatchInterceptor> interceptors) {
-        return Interceptor.join(interceptors)::intercept;
+public interface DispatchInterceptor {
+    Function<Message, SerializedMessage> interceptDispatch(Function<Message, SerializedMessage> function);
+
+    default DispatchInterceptor merge(DispatchInterceptor outerInterceptor) {
+        return f -> outerInterceptor.interceptDispatch(interceptDispatch(f));
     }
 }

@@ -18,7 +18,7 @@ import static java.util.Arrays.stream;
 
 /**
  * High-level client API for Flux Capacitor. If you are using anything other than this to interact with the service
- * you're probably doing it wrong.
+ * at runtime you're probably doing it wrong.
  * <p>
  * To start handling messages build an instance of this API and invoke {@link #startTracking}.
  * <p>

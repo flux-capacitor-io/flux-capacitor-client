@@ -55,13 +55,16 @@ public class DefaultTracking implements Tracking {
     protected Registration startTracking(ConsumerConfiguration configuration, List<Object> handlers,
                                          FluxCapacitor fluxCapacitor) {
         Consumer<List<SerializedMessage>> consumer = createConsumer(configuration, handlers);
-        TrackingConfiguration config = configuration.getTrackingConfiguration().toBuilder().batchInterceptor(
-                f -> {
+        TrackingConfiguration config = configuration.getTrackingConfiguration().toBuilder().batchMessageBatchInterceptor(
+                c -> {
                     FluxCapacitor.instance.set(fluxCapacitor);
-                    return f.andThen(v -> {
-                        FluxCapacitor.instance.remove();
-                        return v;
-                    });
+                    return messages -> {
+                        try {
+                            c.accept(messages);
+                        } finally {
+                            FluxCapacitor.instance.remove();
+                        }
+                    };
                 }).build();
         return TrackingUtils.start(configuration.getName(), consumer, trackingClient, config);
     }
@@ -80,7 +83,7 @@ public class DefaultTracking implements Tracking {
     protected void handle(DeserializingMessage message, HandlerInvoker<DeserializingMessage> handler) {
         if (handler.canHandle(message)) {
             try {
-                handleResult(handlerInterceptor.intercept(m -> handler.invoke(message)).apply(message),
+                handleResult(handlerInterceptor.interceptHandling(m -> handler.invoke(message)).apply(message),
                              message.getSerializedObject());
             } catch (HandlerException e) {
                 handleResult(e.getCause(), message.getSerializedObject());

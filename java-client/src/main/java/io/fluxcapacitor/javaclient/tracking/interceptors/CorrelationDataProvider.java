@@ -12,17 +12,13 @@
  * limitations under the License.
  */
 
-package io.fluxcapacitor.javaclient.tracking;
+package io.fluxcapacitor.javaclient.tracking.interceptors;
 
 import io.fluxcapacitor.javaclient.common.serialization.DeserializingMessage;
 
-import java.util.function.Function;
+import java.util.Map;
 
 @FunctionalInterface
-public interface HandlerInterceptor {
-    Function<DeserializingMessage, Object> interceptHandling(Function<DeserializingMessage, Object> function);
-
-    default HandlerInterceptor merge(HandlerInterceptor outerInterceptor) {
-        return f -> outerInterceptor.interceptHandling(interceptHandling(f));
-    }
+public interface CorrelationDataProvider {
+    Map<String, String> fromMessage(DeserializingMessage message);
 }

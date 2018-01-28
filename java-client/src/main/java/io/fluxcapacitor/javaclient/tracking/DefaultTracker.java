@@ -14,7 +14,6 @@
 
 package io.fluxcapacitor.javaclient.tracking;
 
-import io.fluxcapacitor.common.Interceptor;
 import io.fluxcapacitor.common.Registration;
 import io.fluxcapacitor.common.api.SerializedMessage;
 import io.fluxcapacitor.common.api.tracking.MessageBatch;
@@ -63,7 +62,7 @@ public class DefaultTracker implements Runnable, Registration {
         this.name = name;
         this.channel = channel;
         this.configuration = configuration;
-        this.consumer = Interceptor.join(configuration.getBatchInterceptors()).interceptInvocation(consumer);
+        this.consumer = BatchInterceptor.join(configuration.getBatchMessageBatchInterceptors()).intercept(consumer);
         this.trackingClient = trackingClient;
     }
 

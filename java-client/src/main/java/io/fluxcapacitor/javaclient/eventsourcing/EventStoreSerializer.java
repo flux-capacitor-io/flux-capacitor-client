@@ -33,13 +33,13 @@ public class EventStoreSerializer {
 
     public EventStoreSerializer(Serializer eventDeserializer, Serializer snapshotSerializer,
                                 DispatchInterceptor dispatchInterceptor) {
-        this(dispatchInterceptor.intercept(
+        this(dispatchInterceptor.interceptDispatch(
                 m -> new SerializedMessage(eventDeserializer.serialize(m.getPayload()), m.getMetadata())),
              eventDeserializer, snapshotSerializer);
     }
 
     public EventStoreSerializer(Serializer serializer, DispatchInterceptor dispatchInterceptor) {
-        this(dispatchInterceptor.intercept(
+        this(dispatchInterceptor.interceptDispatch(
                 m -> new SerializedMessage(serializer.serialize(m.getPayload()), m.getMetadata())),
              serializer, serializer);
     }

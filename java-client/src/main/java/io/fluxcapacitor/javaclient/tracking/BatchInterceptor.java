@@ -14,15 +14,22 @@
 
 package io.fluxcapacitor.javaclient.tracking;
 
-import io.fluxcapacitor.javaclient.common.serialization.DeserializingMessage;
+import io.fluxcapacitor.common.api.SerializedMessage;
 
-import java.util.function.Function;
+import java.util.List;
+import java.util.function.Consumer;
 
 @FunctionalInterface
-public interface HandlerInterceptor {
-    Function<DeserializingMessage, Object> interceptHandling(Function<DeserializingMessage, Object> function);
+public interface BatchInterceptor {
 
-    default HandlerInterceptor merge(HandlerInterceptor outerInterceptor) {
-        return f -> outerInterceptor.interceptHandling(interceptHandling(f));
+    Consumer<List<SerializedMessage>> intercept(Consumer<List<SerializedMessage>> consumer);
+
+    default BatchInterceptor merge(BatchInterceptor outerBatchInterceptor) {
+        return f -> outerBatchInterceptor.intercept(intercept(f));
     }
+
+    static BatchInterceptor join(List<BatchInterceptor> interceptors) {
+        return interceptors.stream().reduce((a, b) -> b.merge(a)).orElse(c -> c);
+    }
+
 }

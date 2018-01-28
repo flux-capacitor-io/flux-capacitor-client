@@ -17,6 +17,9 @@ import io.fluxcapacitor.javaclient.scheduling.DefaultScheduler;
 import io.fluxcapacitor.javaclient.scheduling.Scheduler;
 import io.fluxcapacitor.javaclient.tracking.*;
 import io.fluxcapacitor.javaclient.tracking.handler.*;
+import io.fluxcapacitor.javaclient.tracking.interceptors.CorrelatingInterceptor;
+import io.fluxcapacitor.javaclient.tracking.interceptors.CorrelationDataProvider;
+import io.fluxcapacitor.javaclient.tracking.interceptors.MessageOriginProvider;
 import lombok.AllArgsConstructor;
 
 import java.lang.annotation.Annotation;
@@ -90,6 +93,8 @@ public class DefaultFluxCapacitor implements FluxCapacitor {
                 Arrays.stream(MessageType.values()).collect(toMap(identity(), m -> f -> f));
         private final Map<MessageType, HandlerInterceptor> handlerInterceptors =
                 Arrays.stream(MessageType.values()).collect(toMap(identity(), m -> f -> f));
+        private final Set<CorrelationDataProvider> correlationDataProviders = new LinkedHashSet<>();
+        private boolean disableMessageCorrelation;
 
         protected List<ParameterResolver<DeserializingMessage>> defaultParameterResolvers() {
             return new ArrayList<>(Arrays.asList(new PayloadParameterResolver(), new MetadataParameterResolver()));
@@ -134,40 +139,55 @@ public class DefaultFluxCapacitor implements FluxCapacitor {
             return this;
         }
 
+        public Builder addCorrelationDataProvider(CorrelationDataProvider dataProvider) {
+            correlationDataProviders.add(dataProvider);
+            return this;
+        }
+
+        public Builder disableMessageCorrelation() {
+            disableMessageCorrelation = true;
+            return this;
+        }
+
         public FluxCapacitor build(FluxCapacitorClient client) {
+            Map<MessageType, DispatchInterceptor> dispatchInterceptors = new HashMap<>(this.dispatchInterceptors);
+            Map<MessageType, HandlerInterceptor> handlerInterceptors = new HashMap<>(this.handlerInterceptors);
+
+            if (!disableMessageCorrelation) {
+                Set<CorrelationDataProvider> dataProviders = new LinkedHashSet<>(this.correlationDataProviders);
+                dataProviders.add(new MessageOriginProvider());
+                CorrelatingInterceptor correlatingInterceptor = new CorrelatingInterceptor(dataProviders);
+                Arrays.stream(MessageType.values()).forEach(type -> {
+                    dispatchInterceptors.compute(type, (t, i) -> correlatingInterceptor.merge(i));
+                    handlerInterceptors.compute(type, (t, i) -> correlatingInterceptor.merge(i));
+                });
+            }
+
             ResultGateway resultGateway =
-                    new DefaultResultGateway(client.getGatewayClient(RESULT), createMessageSerializer(RESULT));
-            Map<MessageType, Tracking> trackingMap = stream(MessageType.values())
-                    .collect(toMap(identity(), m -> createTracking(m, client, resultGateway)));
+                    new DefaultResultGateway(client.getGatewayClient(RESULT),
+                                             new MessageSerializer(serializer, dispatchInterceptors.get(RESULT)));
             RequestHandler requestHandler =
                     new DefaultRequestHandler(client.getTrackingClient(RESULT), client.getProperties());
             CommandGateway commandGateway =
                     new DefaultCommandGateway(client.getGatewayClient(COMMAND), requestHandler,
-                                              createMessageSerializer(COMMAND));
+                                              new MessageSerializer(serializer, dispatchInterceptors.get(COMMAND)));
             QueryGateway queryGateway =
                     new DefaultQueryGateway(client.getGatewayClient(QUERY), requestHandler,
-                                            createMessageSerializer(QUERY));
+                                            new MessageSerializer(serializer, dispatchInterceptors.get(QUERY)));
             KeyValueStore keyValueStore = new DefaultKeyValueStore(client.getKeyValueClient(), serializer);
-            EventStore eventStore = new DefaultEventStore(client.getEventStoreClient(), client.getGatewayClient(EVENT),
-                                                          keyValueStore, createEventStoreSerializer());
-            Scheduler scheduler = new DefaultScheduler(client.getSchedulingClient(), createMessageSerializer(SCHEDULE));
+            EventStore eventStore = new DefaultEventStore(
+                    client.getEventStoreClient(), client.getGatewayClient(EVENT), keyValueStore,
+                    new EventStoreSerializer(serializer, dispatchInterceptors.get(EVENT)));
+            Scheduler scheduler = new DefaultScheduler(client.getSchedulingClient(),
+                                                       new MessageSerializer(serializer,
+                                                                             dispatchInterceptors.get(SCHEDULE)));
+            Map<MessageType, Tracking> trackingMap = stream(MessageType.values())
+                    .collect(toMap(identity(),
+                                   m -> new DefaultTracking(getHandlerAnnotation(m), client.getTrackingClient(m),
+                                                            resultGateway, consumerConfigurations.get(m), serializer,
+                                                            handlerInterceptors.get(m), parameterResolvers)));
             return new DefaultFluxCapacitor(trackingMap, commandGateway, queryGateway, resultGateway, eventStore,
                                             keyValueStore, scheduler);
-        }
-
-        protected MessageSerializer createMessageSerializer(MessageType messageType) {
-            return new MessageSerializer(serializer, dispatchInterceptors.get(messageType));
-        }
-
-        protected EventStoreSerializer createEventStoreSerializer() {
-            return new EventStoreSerializer(serializer, dispatchInterceptors.get(EVENT));
-        }
-
-        protected Tracking createTracking(MessageType messageType, FluxCapacitorClient client,
-                                          ResultGateway resultGateway) {
-            return new DefaultTracking(getHandlerAnnotation(messageType), client.getTrackingClient(messageType),
-                                       resultGateway, consumerConfigurations.get(messageType), serializer,
-                                       handlerInterceptors.get(messageType), parameterResolvers);
         }
 
         protected Class<? extends Annotation> getHandlerAnnotation(MessageType messageType) {
