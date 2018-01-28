@@ -14,6 +14,10 @@
 
 package io.fluxcapacitor.javaclient.common.repository;
 
+import java.util.function.UnaryOperator;
+
+import static java.lang.String.format;
+
 /**
  * Represents a store of objects of type {@link T}. If a repository does not support modifications it is free to ignore
  * those operations.
@@ -37,6 +41,20 @@ public interface Repository<T> {
      * @return The value associated with given id
      */
     T get(Object id);
+
+    default T update(Object id, UnaryOperator<T> updateFunction) {
+        T value = get(id);
+        if (value == null) {
+            throw new RepositoryException(format("Could not update object with id %s because it was not found", id));
+        }
+        T result = updateFunction.apply(value);
+        if (result == null) {
+            delete(id);
+        } else {
+            put(id, result);
+        }
+        return result;
+    }
 
     /**
      * Deletes the value associated with the given id.

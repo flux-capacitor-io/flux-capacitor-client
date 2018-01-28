@@ -12,15 +12,15 @@
  * limitations under the License.
  */
 
-package io.fluxcapacitor.javaclient.common.serialization;
+package io.fluxcapacitor.javaclient.common.repository;
 
-public class SerializationException extends RuntimeException {
+public class RepositoryException extends RuntimeException {
 
-    public SerializationException(String message) {
+    public RepositoryException(String message) {
         super(message);
     }
 
-    public SerializationException(String message, Throwable cause) {
+    public RepositoryException(String message, Throwable cause) {
         super(message, cause);
     }
 }

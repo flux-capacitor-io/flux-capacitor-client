@@ -18,6 +18,8 @@ package io.fluxcapacitor.javaclient.common.repository;
 import com.github.benmanes.caffeine.cache.Cache;
 import com.github.benmanes.caffeine.cache.Caffeine;
 
+import java.util.function.UnaryOperator;
+
 public class CachingRepository<T> implements Repository<T> {
 
     private final Repository<T> delegate;
@@ -43,13 +45,28 @@ public class CachingRepository<T> implements Repository<T> {
         try {
             return cache.get(id, delegate::get);
         } catch (Exception e) {
-            throw new IllegalStateException("Delegate repository threw an exception while loading " + id, e);
+            throw new RepositoryException("Delegate repository threw an exception while loading " + id, e);
         }
+    }
+
+    @Override
+    public T update(Object id, UnaryOperator<T> updateFunction) {
+        T result = delegate.update(id, updateFunction);
+        if (result == null) {
+            delete(id);
+        } else {
+            put(id, result);
+        }
+        return result;
     }
 
     @Override
     public void delete(Object id) {
         cache.invalidate(id);
         delegate.delete(id);
+    }
+
+    public void invalidateCache() {
+        cache.invalidateAll();
     }
 }
