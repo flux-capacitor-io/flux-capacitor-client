@@ -11,15 +11,16 @@ import io.fluxcapacitor.javaclient.eventsourcing.DefaultEventStore;
 import io.fluxcapacitor.javaclient.eventsourcing.EventStore;
 import io.fluxcapacitor.javaclient.eventsourcing.EventStoreSerializer;
 import io.fluxcapacitor.javaclient.gateway.*;
+import io.fluxcapacitor.javaclient.gateway.interceptors.CorrelatingInterceptor;
+import io.fluxcapacitor.javaclient.gateway.interceptors.CorrelationDataProvider;
+import io.fluxcapacitor.javaclient.gateway.interceptors.MessageOriginProvider;
+import io.fluxcapacitor.javaclient.gateway.interceptors.MessageRoutingInterceptor;
 import io.fluxcapacitor.javaclient.keyvalue.DefaultKeyValueStore;
 import io.fluxcapacitor.javaclient.keyvalue.KeyValueStore;
 import io.fluxcapacitor.javaclient.scheduling.DefaultScheduler;
 import io.fluxcapacitor.javaclient.scheduling.Scheduler;
 import io.fluxcapacitor.javaclient.tracking.*;
 import io.fluxcapacitor.javaclient.tracking.handler.*;
-import io.fluxcapacitor.javaclient.tracking.interceptors.CorrelatingInterceptor;
-import io.fluxcapacitor.javaclient.tracking.interceptors.CorrelationDataProvider;
-import io.fluxcapacitor.javaclient.tracking.interceptors.MessageOriginProvider;
 import lombok.AllArgsConstructor;
 
 import java.lang.annotation.Annotation;
@@ -94,6 +95,7 @@ public class DefaultFluxCapacitor implements FluxCapacitor {
         private final Map<MessageType, HandlerInterceptor> handlerInterceptors =
                 Arrays.stream(MessageType.values()).collect(toMap(identity(), m -> f -> f));
         private final Set<CorrelationDataProvider> correlationDataProviders = new LinkedHashSet<>();
+        private DispatchInterceptor messageRoutingInterceptor = new MessageRoutingInterceptor();
         private boolean disableMessageCorrelation;
 
         protected List<ParameterResolver<DeserializingMessage>> defaultParameterResolvers() {
@@ -144,6 +146,11 @@ public class DefaultFluxCapacitor implements FluxCapacitor {
             return this;
         }
 
+        public Builder changeMessageRoutingInterceptor(DispatchInterceptor messageRoutingInterceptor) {
+            this.messageRoutingInterceptor = messageRoutingInterceptor;
+            return this;
+        }
+
         public Builder disableMessageCorrelation() {
             disableMessageCorrelation = true;
             return this;
@@ -153,6 +160,11 @@ public class DefaultFluxCapacitor implements FluxCapacitor {
             Map<MessageType, DispatchInterceptor> dispatchInterceptors = new HashMap<>(this.dispatchInterceptors);
             Map<MessageType, HandlerInterceptor> handlerInterceptors = new HashMap<>(this.handlerInterceptors);
 
+            //enable message routing
+            Arrays.stream(MessageType.values())
+                    .forEach(type -> dispatchInterceptors.compute(type, (t, i) -> i.merge(messageRoutingInterceptor)));
+
+            //enable message correlation
             if (!disableMessageCorrelation) {
                 Set<CorrelationDataProvider> dataProviders = new LinkedHashSet<>(this.correlationDataProviders);
                 dataProviders.add(new MessageOriginProvider());

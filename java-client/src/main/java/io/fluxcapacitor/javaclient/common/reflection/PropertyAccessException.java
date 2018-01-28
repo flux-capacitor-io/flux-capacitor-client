@@ -12,13 +12,13 @@
  * limitations under the License.
  */
 
-package io.fluxcapacitor.javaclient.tracking.interceptors;
+package io.fluxcapacitor.javaclient.common.reflection;
 
-import io.fluxcapacitor.javaclient.common.serialization.DeserializingMessage;
+import java.lang.reflect.AccessibleObject;
 
-import java.util.Map;
+public class PropertyAccessException extends RuntimeException {
 
-@FunctionalInterface
-public interface CorrelationDataProvider {
-    Map<String, String> fromMessage(DeserializingMessage message);
+    public PropertyAccessException(AccessibleObject accessibleObject, Throwable cause) {
+        super(String.format("Failed to access %s. Property values should be accessible", accessibleObject), cause);
+    }
 }
