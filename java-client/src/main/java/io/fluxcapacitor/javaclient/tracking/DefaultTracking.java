@@ -10,6 +10,7 @@ import io.fluxcapacitor.javaclient.FluxCapacitor;
 import io.fluxcapacitor.javaclient.common.serialization.DeserializingMessage;
 import io.fluxcapacitor.javaclient.common.serialization.Serializer;
 import io.fluxcapacitor.javaclient.gateway.ResultGateway;
+import io.fluxcapacitor.javaclient.tracking.handler.HandlerInterceptor;
 import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 

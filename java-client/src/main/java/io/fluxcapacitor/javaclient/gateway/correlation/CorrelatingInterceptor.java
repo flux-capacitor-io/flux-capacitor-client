@@ -12,13 +12,13 @@
  * limitations under the License.
  */
 
-package io.fluxcapacitor.javaclient.gateway.interceptors;
+package io.fluxcapacitor.javaclient.gateway.correlation;
 
 import io.fluxcapacitor.common.api.SerializedMessage;
 import io.fluxcapacitor.javaclient.common.Message;
 import io.fluxcapacitor.javaclient.common.serialization.DeserializingMessage;
 import io.fluxcapacitor.javaclient.gateway.DispatchInterceptor;
-import io.fluxcapacitor.javaclient.tracking.HandlerInterceptor;
+import io.fluxcapacitor.javaclient.tracking.handler.HandlerInterceptor;
 import lombok.AllArgsConstructor;
 
 import java.util.Collection;

@@ -12,7 +12,7 @@
  * limitations under the License.
  */
 
-package io.fluxcapacitor.javaclient.gateway.interceptors;
+package io.fluxcapacitor.javaclient.gateway.correlation;
 
 import io.fluxcapacitor.javaclient.common.serialization.DeserializingMessage;
 

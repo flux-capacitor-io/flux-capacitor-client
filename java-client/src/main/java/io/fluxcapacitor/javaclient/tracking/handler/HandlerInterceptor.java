@@ -12,7 +12,7 @@
  * limitations under the License.
  */
 
-package io.fluxcapacitor.javaclient.tracking;
+package io.fluxcapacitor.javaclient.tracking.handler;
 
 import io.fluxcapacitor.javaclient.common.serialization.DeserializingMessage;
 

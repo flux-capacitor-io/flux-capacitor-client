@@ -12,7 +12,7 @@
  * limitations under the License.
  */
 
-package io.fluxcapacitor.javaclient.gateway.interceptors;
+package io.fluxcapacitor.javaclient.gateway.routing;
 
 import io.fluxcapacitor.common.ConsistentHashing;
 import io.fluxcapacitor.common.api.Data;
