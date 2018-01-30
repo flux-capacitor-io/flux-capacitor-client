@@ -20,7 +20,6 @@ import io.fluxcapacitor.common.api.Data;
 import io.fluxcapacitor.common.api.SerializedMessage;
 import io.fluxcapacitor.javaclient.common.serialization.jackson.JacksonSerializer;
 import io.fluxcapacitor.javaclient.eventsourcing.EventStoreClient;
-import io.fluxcapacitor.javaclient.eventsourcing.SerializedSnapshot;
 import io.fluxcapacitor.javaclient.keyvalue.DefaultKeyValueStore;
 import io.fluxcapacitor.javaclient.keyvalue.KeyValueClient;
 import io.fluxcapacitor.javaclient.keyvalue.KeyValueStore;
