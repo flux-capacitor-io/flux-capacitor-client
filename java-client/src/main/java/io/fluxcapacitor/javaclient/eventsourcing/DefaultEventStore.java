@@ -43,7 +43,7 @@ public class DefaultEventStore implements EventStore {
     @Override
     public void storeSnapshot(String aggregateId, long sequenceNumber, Object s) {
         try {
-            keyValueStore.store(snapshotKey(aggregateId), serializer.serialize(aggregateId, sequenceNumber, s));
+            keyValueStore.store(snapshotKey(aggregateId), new Aggregate<>(aggregateId, sequenceNumber, s));
         } catch (Exception e) {
             throw new EventSourcingException(format("Failed to store snapshot %s for aggregate %s", s, aggregateId), e);
         }
@@ -52,8 +52,7 @@ public class DefaultEventStore implements EventStore {
     @Override
     public <T> Optional<Aggregate<T>> getSnapshot(String aggregateId) {
         try {
-            SerializedSnapshot snapshot = keyValueStore.get(snapshotKey(aggregateId));
-            return Optional.ofNullable(snapshot).map(serializer::deserialize);
+            return Optional.ofNullable(keyValueStore.get(snapshotKey(aggregateId)));
         } catch (Exception e) {
             throw new EventSourcingException(format("Failed to obtain snapshot for aggregate %s", aggregateId), e);
         }

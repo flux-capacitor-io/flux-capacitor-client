@@ -27,25 +27,17 @@ import java.util.stream.Stream;
 @AllArgsConstructor
 public class EventStoreSerializer {
     private final Function<Message, SerializedMessage> serializer;
-    private final Serializer eventDeserializer;
-    private final Serializer snapshotSerializer;
-
-    public EventStoreSerializer(Serializer eventDeserializer, Serializer snapshotSerializer,
-                                DispatchInterceptor dispatchInterceptor) {
-        this(dispatchInterceptor.interceptDispatch(
-                m -> new SerializedMessage(eventDeserializer.serialize(m.getPayload()), m.getMetadata())),
-             eventDeserializer, snapshotSerializer);
-    }
+    private final Serializer deserializer;
 
     public EventStoreSerializer(Serializer serializer, DispatchInterceptor dispatchInterceptor) {
         this(dispatchInterceptor.interceptDispatch(
                 m -> new SerializedMessage(serializer.serialize(m.getPayload()), m.getMetadata())),
-             serializer, serializer);
+             serializer);
     }
 
     public EventStoreSerializer(Serializer serializer) {
         this(m -> new SerializedMessage(serializer.serialize(m.getPayload()), m.getMetadata()),
-             serializer, serializer);
+             serializer);
     }
 
     public SerializedMessage serialize(Message message) {
@@ -53,15 +45,6 @@ public class EventStoreSerializer {
     }
 
     public Stream<DeserializingMessage> deserializeDomainEvents(Stream<SerializedMessage> messageStream) {
-        return eventDeserializer.deserialize(messageStream, true).map(DeserializingMessage::new);
-    }
-
-    public SerializedSnapshot serialize(String aggregateId, long sequenceNumber, Object snapshot) {
-        return new SerializedSnapshot(aggregateId, sequenceNumber, snapshotSerializer.serialize(snapshot));
-    }
-
-    public <T> Aggregate<T> deserialize(SerializedSnapshot serializedSnapshot) {
-        return new Aggregate<>(serializedSnapshot.getAggregateId(), serializedSnapshot.getLastSequenceNumber(),
-                              snapshotSerializer.deserialize(serializedSnapshot.data()));
+        return deserializer.deserialize(messageStream, true).map(DeserializingMessage::new);
     }
 }
