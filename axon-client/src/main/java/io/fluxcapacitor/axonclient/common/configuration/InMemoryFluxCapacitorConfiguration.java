@@ -15,14 +15,14 @@
 package io.fluxcapacitor.axonclient.common.configuration;
 
 import io.fluxcapacitor.common.MessageType;
-import io.fluxcapacitor.javaclient.configuration.InMemoryClientProperties;
-import io.fluxcapacitor.javaclient.eventsourcing.EventStoreClient;
-import io.fluxcapacitor.javaclient.eventsourcing.InMemoryEventStoreClient;
-import io.fluxcapacitor.javaclient.gateway.GatewayClient;
-import io.fluxcapacitor.javaclient.keyvalue.InMemoryKeyValueClient;
-import io.fluxcapacitor.javaclient.keyvalue.KeyValueClient;
-import io.fluxcapacitor.javaclient.tracking.InMemoryMessageStore;
-import io.fluxcapacitor.javaclient.tracking.TrackingClient;
+import io.fluxcapacitor.javaclient.configuration.client.InMemoryClientProperties;
+import io.fluxcapacitor.javaclient.eventsourcing.client.EventStoreClient;
+import io.fluxcapacitor.javaclient.eventsourcing.client.InMemoryEventStoreClient;
+import io.fluxcapacitor.javaclient.keyvalue.client.InMemoryKeyValueClient;
+import io.fluxcapacitor.javaclient.keyvalue.client.KeyValueClient;
+import io.fluxcapacitor.javaclient.publishing.client.GatewayClient;
+import io.fluxcapacitor.javaclient.tracking.client.InMemoryMessageStore;
+import io.fluxcapacitor.javaclient.tracking.client.TrackingClient;
 import org.axonframework.config.Configurer;
 
 import java.util.HashMap;

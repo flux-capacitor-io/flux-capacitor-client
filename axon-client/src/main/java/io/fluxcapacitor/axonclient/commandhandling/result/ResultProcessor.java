@@ -17,8 +17,8 @@ package io.fluxcapacitor.axonclient.commandhandling.result;
 import io.fluxcapacitor.axonclient.common.serialization.AxonMessageSerializer;
 import io.fluxcapacitor.common.Registration;
 import io.fluxcapacitor.common.api.SerializedMessage;
-import io.fluxcapacitor.javaclient.tracking.TrackingClient;
-import io.fluxcapacitor.javaclient.tracking.TrackingUtils;
+import io.fluxcapacitor.javaclient.tracking.client.TrackingClient;
+import io.fluxcapacitor.javaclient.tracking.client.TrackingUtils;
 import lombok.extern.slf4j.Slf4j;
 
 import java.util.List;

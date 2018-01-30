@@ -17,7 +17,7 @@ package io.fluxcapacitor.javaclient.common.serialization;
 import io.fluxcapacitor.common.api.Metadata;
 import io.fluxcapacitor.common.api.SerializedMessage;
 import io.fluxcapacitor.javaclient.common.Message;
-import io.fluxcapacitor.javaclient.gateway.DispatchInterceptor;
+import io.fluxcapacitor.javaclient.publishing.DispatchInterceptor;
 import lombok.AllArgsConstructor;
 
 import java.util.function.Function;

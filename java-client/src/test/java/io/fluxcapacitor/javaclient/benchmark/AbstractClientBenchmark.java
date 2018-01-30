@@ -15,7 +15,7 @@
 package io.fluxcapacitor.javaclient.benchmark;
 
 import io.fluxcapacitor.common.TimingUtils;
-import io.fluxcapacitor.javaclient.configuration.websocket.WebSocketClientProperties;
+import io.fluxcapacitor.javaclient.configuration.client.WebSocketClientProperties;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 

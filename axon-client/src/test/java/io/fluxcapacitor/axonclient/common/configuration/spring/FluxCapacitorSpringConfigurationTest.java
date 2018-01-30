@@ -14,8 +14,8 @@
 
 package io.fluxcapacitor.axonclient.common.configuration.spring;
 
-import io.fluxcapacitor.javaclient.configuration.ClientProperties;
-import io.fluxcapacitor.javaclient.configuration.InMemoryClientProperties;
+import io.fluxcapacitor.javaclient.configuration.client.ClientProperties;
+import io.fluxcapacitor.javaclient.configuration.client.InMemoryClientProperties;
 import lombok.NoArgsConstructor;
 import lombok.Value;
 import lombok.extern.slf4j.Slf4j;

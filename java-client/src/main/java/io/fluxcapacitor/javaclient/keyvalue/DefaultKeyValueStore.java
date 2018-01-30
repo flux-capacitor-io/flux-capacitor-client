@@ -2,6 +2,7 @@ package io.fluxcapacitor.javaclient.keyvalue;
 
 import io.fluxcapacitor.common.api.Data;
 import io.fluxcapacitor.javaclient.common.serialization.Serializer;
+import io.fluxcapacitor.javaclient.keyvalue.client.KeyValueClient;
 import lombok.AllArgsConstructor;
 
 @AllArgsConstructor

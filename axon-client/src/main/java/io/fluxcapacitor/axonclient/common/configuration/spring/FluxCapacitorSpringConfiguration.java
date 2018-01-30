@@ -16,9 +16,9 @@ package io.fluxcapacitor.axonclient.common.configuration.spring;
 
 import io.fluxcapacitor.axonclient.common.configuration.FluxCapacitorConfiguration;
 import io.fluxcapacitor.axonclient.common.configuration.InMemoryFluxCapacitorConfiguration;
-import io.fluxcapacitor.javaclient.configuration.ClientProperties;
-import io.fluxcapacitor.javaclient.configuration.InMemoryClientProperties;
-import io.fluxcapacitor.javaclient.configuration.websocket.WebSocketClientProperties;
+import io.fluxcapacitor.javaclient.configuration.client.ClientProperties;
+import io.fluxcapacitor.javaclient.configuration.client.InMemoryClientProperties;
+import io.fluxcapacitor.javaclient.configuration.client.WebSocketClientProperties;
 import lombok.extern.slf4j.Slf4j;
 import org.axonframework.config.Configurer;
 import org.axonframework.config.EventHandlingConfiguration;

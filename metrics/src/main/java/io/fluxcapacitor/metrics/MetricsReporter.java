@@ -22,10 +22,10 @@ import io.fluxcapacitor.common.handling.Handle;
 import io.fluxcapacitor.common.handling.Handler;
 import io.fluxcapacitor.common.handling.HandlerInspector;
 import io.fluxcapacitor.javaclient.common.websocket.ServiceUrlBuilder;
-import io.fluxcapacitor.javaclient.configuration.websocket.WebSocketClientProperties;
-import io.fluxcapacitor.javaclient.tracking.TrackingClient;
-import io.fluxcapacitor.javaclient.tracking.TrackingUtils;
-import io.fluxcapacitor.javaclient.tracking.websocket.WebsocketTrackingClient;
+import io.fluxcapacitor.javaclient.configuration.client.WebSocketClientProperties;
+import io.fluxcapacitor.javaclient.tracking.client.TrackingClient;
+import io.fluxcapacitor.javaclient.tracking.client.TrackingUtils;
+import io.fluxcapacitor.javaclient.tracking.client.WebsocketTrackingClient;
 import lombok.extern.slf4j.Slf4j;
 
 import java.io.IOException;

@@ -4,11 +4,11 @@ import io.fluxcapacitor.common.MessageType;
 import io.fluxcapacitor.common.Registration;
 import io.fluxcapacitor.common.api.Metadata;
 import io.fluxcapacitor.javaclient.eventsourcing.EventSourcing;
-import io.fluxcapacitor.javaclient.gateway.CommandGateway;
-import io.fluxcapacitor.javaclient.gateway.EventGateway;
-import io.fluxcapacitor.javaclient.gateway.QueryGateway;
-import io.fluxcapacitor.javaclient.gateway.ResultGateway;
 import io.fluxcapacitor.javaclient.keyvalue.KeyValueStore;
+import io.fluxcapacitor.javaclient.publishing.CommandGateway;
+import io.fluxcapacitor.javaclient.publishing.EventGateway;
+import io.fluxcapacitor.javaclient.publishing.QueryGateway;
+import io.fluxcapacitor.javaclient.publishing.ResultGateway;
 import io.fluxcapacitor.javaclient.scheduling.Scheduler;
 import io.fluxcapacitor.javaclient.tracking.Tracking;
 

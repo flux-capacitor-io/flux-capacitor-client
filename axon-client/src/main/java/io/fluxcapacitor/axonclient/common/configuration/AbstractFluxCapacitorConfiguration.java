@@ -22,11 +22,11 @@ import io.fluxcapacitor.axonclient.common.serialization.DefaultAxonMessageSerial
 import io.fluxcapacitor.axonclient.eventhandling.FluxCapacitorEventProcessor;
 import io.fluxcapacitor.axonclient.eventhandling.FluxCapacitorEventStore;
 import io.fluxcapacitor.common.MessageType;
-import io.fluxcapacitor.javaclient.configuration.ClientProperties;
-import io.fluxcapacitor.javaclient.eventsourcing.EventStoreClient;
-import io.fluxcapacitor.javaclient.gateway.GatewayClient;
-import io.fluxcapacitor.javaclient.keyvalue.KeyValueClient;
-import io.fluxcapacitor.javaclient.tracking.TrackingClient;
+import io.fluxcapacitor.javaclient.configuration.client.ClientProperties;
+import io.fluxcapacitor.javaclient.eventsourcing.client.EventStoreClient;
+import io.fluxcapacitor.javaclient.keyvalue.client.KeyValueClient;
+import io.fluxcapacitor.javaclient.publishing.client.GatewayClient;
+import io.fluxcapacitor.javaclient.tracking.client.TrackingClient;
 import org.axonframework.commandhandling.SimpleCommandBus;
 import org.axonframework.commandhandling.distributed.AnnotationRoutingStrategy;
 import org.axonframework.commandhandling.distributed.RoutingStrategy;

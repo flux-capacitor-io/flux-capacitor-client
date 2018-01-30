@@ -3,7 +3,7 @@ package io.fluxcapacitor.javaclient.eventsourcing;
 import io.fluxcapacitor.javaclient.common.Message;
 import io.fluxcapacitor.javaclient.common.caching.Cache;
 import io.fluxcapacitor.javaclient.common.serialization.DeserializingMessage;
-import io.fluxcapacitor.javaclient.tracking.handler.HandlerInterceptor;
+import io.fluxcapacitor.javaclient.tracking.handling.HandlerInterceptor;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 

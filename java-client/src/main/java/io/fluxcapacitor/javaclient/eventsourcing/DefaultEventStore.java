@@ -3,6 +3,7 @@ package io.fluxcapacitor.javaclient.eventsourcing;
 import io.fluxcapacitor.common.ConsistentHashing;
 import io.fluxcapacitor.javaclient.common.Message;
 import io.fluxcapacitor.javaclient.common.serialization.DeserializingMessage;
+import io.fluxcapacitor.javaclient.eventsourcing.client.EventStoreClient;
 import io.fluxcapacitor.javaclient.keyvalue.KeyValueStore;
 import lombok.AllArgsConstructor;
 

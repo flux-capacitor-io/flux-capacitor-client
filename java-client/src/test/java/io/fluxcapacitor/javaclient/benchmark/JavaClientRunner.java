@@ -21,10 +21,10 @@ import io.fluxcapacitor.common.handling.Handle;
 import io.fluxcapacitor.common.handling.Handler;
 import io.fluxcapacitor.common.handling.HandlerInspector;
 import io.fluxcapacitor.javaclient.common.websocket.ServiceUrlBuilder;
-import io.fluxcapacitor.javaclient.gateway.GatewayClient;
-import io.fluxcapacitor.javaclient.gateway.websocket.WebsocketGatewayClient;
-import io.fluxcapacitor.javaclient.tracking.TrackingUtils;
-import io.fluxcapacitor.javaclient.tracking.websocket.WebsocketTrackingClient;
+import io.fluxcapacitor.javaclient.publishing.client.GatewayClient;
+import io.fluxcapacitor.javaclient.publishing.client.WebsocketGatewayClient;
+import io.fluxcapacitor.javaclient.tracking.client.TrackingUtils;
+import io.fluxcapacitor.javaclient.tracking.client.WebsocketTrackingClient;
 import lombok.extern.slf4j.Slf4j;
 
 import java.util.Collections;

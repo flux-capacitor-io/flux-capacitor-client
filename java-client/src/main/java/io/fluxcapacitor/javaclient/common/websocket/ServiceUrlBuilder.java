@@ -16,7 +16,7 @@ package io.fluxcapacitor.javaclient.common.websocket;
 
 import io.fluxcapacitor.common.MessageType;
 import io.fluxcapacitor.common.ServicePathBuilder;
-import io.fluxcapacitor.javaclient.configuration.websocket.WebSocketClientProperties;
+import io.fluxcapacitor.javaclient.configuration.client.WebSocketClientProperties;
 
 public class ServiceUrlBuilder {
 

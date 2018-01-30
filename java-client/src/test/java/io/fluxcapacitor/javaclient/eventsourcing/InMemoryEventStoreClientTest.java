@@ -15,6 +15,7 @@
 package io.fluxcapacitor.javaclient.eventsourcing;
 
 import io.fluxcapacitor.common.api.SerializedMessage;
+import io.fluxcapacitor.javaclient.eventsourcing.client.InMemoryEventStoreClient;
 import org.junit.Test;
 
 import java.util.List;
