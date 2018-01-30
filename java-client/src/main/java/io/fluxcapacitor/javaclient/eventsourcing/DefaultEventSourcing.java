@@ -4,7 +4,7 @@ import io.fluxcapacitor.javaclient.common.Message;
 import io.fluxcapacitor.javaclient.common.caching.Cache;
 import io.fluxcapacitor.javaclient.common.serialization.DeserializingMessage;
 import io.fluxcapacitor.javaclient.tracking.handler.HandlerInterceptor;
-import lombok.AllArgsConstructor;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
 import java.util.ArrayList;
@@ -18,20 +18,20 @@ import static java.lang.String.format;
 import static java.util.stream.Collectors.toList;
 
 @Slf4j
-@AllArgsConstructor
+@RequiredArgsConstructor
 public class DefaultEventSourcing implements EventSourcing, HandlerInterceptor {
 
     private static final Map<Class, EventSourcingHandler> handlerCache = new ConcurrentHashMap<>();
 
     private final EventStore eventStore;
     private final Cache cache;
-    private final ThreadLocal<List<DefaultEsModel<?>>> loadedModels = new ThreadLocal<>();
+    private List<DefaultEsModel<?>> loadedModels;
 
     @Override
     public <T> EsModel<T> load(String id, Class<T> modelType) {
         DefaultEsModel<T> model = new DefaultEsModel<>(getEventSourcingHandler(modelType), cache, eventStore, id,
-                                                       loadedModels.get() == null);
-        Optional.ofNullable(loadedModels.get()).ifPresent(models -> models.add(model));
+                                                       loadedModels == null);
+        Optional.ofNullable(loadedModels).ifPresent(models -> models.add(model));
         return model;
     }
 
@@ -61,19 +61,18 @@ public class DefaultEventSourcing implements EventSourcing, HandlerInterceptor {
     @Override
     public Function<DeserializingMessage, Object> interceptHandling(Function<DeserializingMessage, Object> function) {
         return command -> {
-            List<DefaultEsModel<?>> models = new ArrayList<>();
-            loadedModels.set(models);
+            loadedModels = new ArrayList<>();
             try {
                 Object result = function.apply(command);
                 try {
-                    loadedModels.get().forEach(DefaultEsModel::commit);
+                    loadedModels.forEach(DefaultEsModel::commit);
                 } catch (Exception e) {
                     throw new EventSourcingException(
                             String.format("Failed to commit applied events after handling %s", command), e);
                 }
                 return result;
             } finally {
-                loadedModels.remove();
+                loadedModels = null;
             }
         };
     }

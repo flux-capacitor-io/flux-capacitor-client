@@ -19,26 +19,25 @@ import io.fluxcapacitor.javaclient.common.Message;
 import io.fluxcapacitor.javaclient.common.serialization.DeserializingMessage;
 import io.fluxcapacitor.javaclient.gateway.DispatchInterceptor;
 import io.fluxcapacitor.javaclient.tracking.handler.HandlerInterceptor;
-import lombok.AllArgsConstructor;
+import lombok.RequiredArgsConstructor;
 
 import java.util.Collection;
 import java.util.function.Function;
 
-@AllArgsConstructor
+@RequiredArgsConstructor
 public class CorrelatingInterceptor implements HandlerInterceptor, DispatchInterceptor {
 
-    private static final ThreadLocal<DeserializingMessage> currentMessage = new ThreadLocal<>();
-
     private final Collection<? extends CorrelationDataProvider> correlationDataProviders;
+    private DeserializingMessage currentMessage;
 
     @Override
     public Function<DeserializingMessage, Object> interceptHandling(Function<DeserializingMessage, Object> function) {
         return message -> {
-            currentMessage.set(message);
+            currentMessage = message;
             try {
                 return function.apply(message);
             } finally {
-                currentMessage.remove();
+                currentMessage = null;
             }
         };
     }
@@ -46,9 +45,8 @@ public class CorrelatingInterceptor implements HandlerInterceptor, DispatchInter
     @Override
     public Function<Message, SerializedMessage> interceptDispatch(Function<Message, SerializedMessage> function) {
         return message -> {
-            DeserializingMessage messageBeingHandled = currentMessage.get();
-            if (messageBeingHandled != null) {
-                correlationDataProviders.forEach(p -> message.getMetadata().putAll(p.fromMessage(messageBeingHandled)));
+            if (currentMessage != null) {
+                correlationDataProviders.forEach(p -> message.getMetadata().putAll(p.fromMessage(currentMessage)));
             }
             return function.apply(message);
         };
