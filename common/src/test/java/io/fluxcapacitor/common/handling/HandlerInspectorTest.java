@@ -24,13 +24,13 @@ import static junit.framework.TestCase.*;
 
 public class HandlerInspectorTest {
 
-    private HandlerInvoker<Object> subject;
+    private Handler<Object> subject;
     private Foo foo;
 
     @Before
     public void setUp() {
         foo = new Foo();
-        subject = HandlerInspector.inspect(foo, Handler.class, Collections.singletonList(p -> identity()));
+        subject = HandlerInspector.createHandler(foo, Handle.class, Collections.singletonList(p -> identity()));
     }
 
     @Test
@@ -69,25 +69,25 @@ public class HandlerInspectorTest {
 
 
     private static class Foo extends Bar implements SomeInterface {
-        @Handler
+        @Handle
         public Object handle(Long o) {
             return o;
         }
 
-        @Handler
+        @Handle
         @Override
         public Integer handle(Integer o) {
             return o;
         }
 
-        @Handler
+        @Handle
         public void handleAndThrowException(Float f) {
             throw new UnsupportedOperationException("yup");
         }
     }
 
     private static class Bar {
-        @Handler
+        @Handle
         public Object handle(String o) {
             return o;
         }

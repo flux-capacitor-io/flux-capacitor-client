@@ -12,28 +12,12 @@
  * limitations under the License.
  */
 
-package io.fluxcapacitor.javaclient.keyvalue;
+package io.fluxcapacitor.common.handling;
 
-import io.fluxcapacitor.javaclient.common.repository.Repository;
-import lombok.AllArgsConstructor;
+import java.lang.annotation.*;
 
-@AllArgsConstructor
-public class KeyValueRepository<T> implements Repository<T> {
-
-    private final KeyValueStore keyValueStore;
-
-    @Override
-    public void put(Object id, T value) {
-        keyValueStore.store(id.toString(), value);
-    }
-
-    @Override
-    public T get(Object id) {
-        return keyValueStore.get(id.toString());
-    }
-
-    @Override
-    public void delete(Object id) {
-        keyValueStore.delete(id.toString());
-    }
+@Documented
+@Retention(RetentionPolicy.RUNTIME)
+@Target(ElementType.METHOD)
+public @interface Handle {
 }

@@ -24,6 +24,7 @@ public class SerializedMessage implements SerializedObject<byte[], SerializedMes
     @Wither
     private Data<byte[]> data;
     private Metadata metadata;
+    @Wither
     private Integer segment;
     private Long index;
     private String source;

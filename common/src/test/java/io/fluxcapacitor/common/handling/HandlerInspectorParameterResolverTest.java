@@ -25,8 +25,8 @@ import static junit.framework.TestCase.*;
 public class HandlerInspectorParameterResolverTest {
 
     private Foo foo = new Foo();
-    private HandlerInvoker<Message> subject = HandlerInspector
-            .inspect(foo, Handler.class, Arrays.asList(p -> {
+    private Handler<Message> subject = HandlerInspector
+            .createHandler(foo, Handle.class, Arrays.asList(p -> {
                 if (p.getDeclaringExecutable().getParameters()[0] == p) {
                     return Message::getPayload;
                 }
@@ -54,13 +54,13 @@ public class HandlerInspectorParameterResolverTest {
     }
 
     private static class Foo {
-        @Handler
+        @Handle
         public Object handle(String o, Instant time) {
             assertNotNull(time);
             return o;
         }
 
-        @Handler
+        @Handle
         public Object handle(Long o, Instant time) {
             assertNotNull(time);
             return o;

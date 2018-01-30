@@ -1,6 +1,5 @@
 package io.fluxcapacitor.javaclient.eventsourcing;
 
-import io.fluxcapacitor.common.api.Metadata;
 import io.fluxcapacitor.javaclient.common.Message;
 import io.fluxcapacitor.javaclient.common.serialization.DeserializingMessage;
 
@@ -11,12 +10,6 @@ import java.util.stream.Stream;
 import static java.util.Arrays.asList;
 
 public interface EventStore {
-
-    default void storeEvent(Object payload) {
-        storeEvent(payload, Metadata.empty());
-    }
-
-    void storeEvent(Object payload, Metadata metadata);
 
     default void storeDomainEvents(String aggregateId, String domain, long lastSequenceNumber, Message... events) {
         storeDomainEvents(aggregateId, domain, lastSequenceNumber, asList(events));
@@ -32,7 +25,7 @@ public interface EventStore {
 
     void storeSnapshot(String aggregateId, long sequenceNumber, Object snapshot);
 
-    <T> Optional<Snapshot<T>> getSnapshot(String aggregateId);
+    <T> Optional<Aggregate<T>> getSnapshot(String aggregateId);
 
     void deleteSnapshot(String aggregateId);
 

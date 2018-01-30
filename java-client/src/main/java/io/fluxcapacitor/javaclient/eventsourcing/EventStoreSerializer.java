@@ -14,7 +14,6 @@
 
 package io.fluxcapacitor.javaclient.eventsourcing;
 
-import io.fluxcapacitor.common.api.Metadata;
 import io.fluxcapacitor.common.api.SerializedMessage;
 import io.fluxcapacitor.javaclient.common.Message;
 import io.fluxcapacitor.javaclient.common.serialization.DeserializingMessage;
@@ -53,10 +52,6 @@ public class EventStoreSerializer {
         return serializer.apply(message);
     }
 
-    public SerializedMessage serialize(Object payload, Metadata metadata) {
-        return serialize(new Message(payload, metadata));
-    }
-
     public Stream<DeserializingMessage> deserializeDomainEvents(Stream<SerializedMessage> messageStream) {
         return eventDeserializer.deserialize(messageStream, true).map(DeserializingMessage::new);
     }
@@ -65,8 +60,8 @@ public class EventStoreSerializer {
         return new SerializedSnapshot(aggregateId, sequenceNumber, snapshotSerializer.serialize(snapshot));
     }
 
-    public <T> Snapshot<T> deserialize(SerializedSnapshot serializedSnapshot) {
-        return new Snapshot<>(serializedSnapshot.getAggregateId(), serializedSnapshot.getLastSequenceNumber(),
+    public <T> Aggregate<T> deserialize(SerializedSnapshot serializedSnapshot) {
+        return new Aggregate<>(serializedSnapshot.getAggregateId(), serializedSnapshot.getLastSequenceNumber(),
                               snapshotSerializer.deserialize(serializedSnapshot.data()));
     }
 }

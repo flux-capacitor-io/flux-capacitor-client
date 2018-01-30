@@ -2,9 +2,9 @@ package io.fluxcapacitor.javaclient.tracking;
 
 import io.fluxcapacitor.common.Registration;
 import io.fluxcapacitor.common.api.SerializedMessage;
+import io.fluxcapacitor.common.handling.Handler;
 import io.fluxcapacitor.common.handling.HandlerException;
 import io.fluxcapacitor.common.handling.HandlerInspector;
-import io.fluxcapacitor.common.handling.HandlerInvoker;
 import io.fluxcapacitor.common.handling.ParameterResolver;
 import io.fluxcapacitor.javaclient.FluxCapacitor;
 import io.fluxcapacitor.javaclient.common.serialization.DeserializingMessage;
@@ -32,7 +32,7 @@ public class DefaultTracking implements Tracking {
     private final List<ConsumerConfiguration> configurations;
     private final Serializer serializer;
     private final HandlerInterceptor handlerInterceptor;
-    private final List<ParameterResolver<DeserializingMessage>> parameterResolvers;
+    private final List<ParameterResolver<? super DeserializingMessage>> parameterResolvers;
     private final Set<ConsumerConfiguration> startedConfigurations = new HashSet<>();
 
     @Override
@@ -72,8 +72,8 @@ public class DefaultTracking implements Tracking {
 
     protected Consumer<List<SerializedMessage>> createConsumer(ConsumerConfiguration configuration,
                                                                List<Object> handlers) {
-        List<HandlerInvoker<DeserializingMessage>> invokers
-                = HandlerInspector.inspect(handlers, handlerAnnotation, parameterResolvers);
+        List<Handler<DeserializingMessage>> invokers
+                = HandlerInspector.createHandlers(handlers, handlerAnnotation, parameterResolvers);
         return serializedMessages -> {
             Stream<DeserializingMessage> messages =
                     serializer.deserialize(serializedMessages.stream(), false).map(DeserializingMessage::new);
@@ -81,7 +81,7 @@ public class DefaultTracking implements Tracking {
         };
     }
 
-    protected void handle(DeserializingMessage message, HandlerInvoker<DeserializingMessage> handler) {
+    protected void handle(DeserializingMessage message, Handler<DeserializingMessage> handler) {
         if (handler.canHandle(message)) {
             try {
                 handleResult(handlerInterceptor.interceptHandling(m -> handler.invoke(message)).apply(message),

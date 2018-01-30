@@ -18,6 +18,6 @@ public interface HandlerInvoker<M> {
 
     boolean canHandle(M message);
 
-    Object invoke(M message);
+    Object invoke(Object target, M message);
 
 }

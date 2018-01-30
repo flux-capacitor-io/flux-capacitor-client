@@ -18,9 +18,9 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import io.fluxcapacitor.common.MessageType;
 import io.fluxcapacitor.common.api.ClientAction;
 import io.fluxcapacitor.common.api.SerializedMessage;
+import io.fluxcapacitor.common.handling.Handle;
 import io.fluxcapacitor.common.handling.Handler;
 import io.fluxcapacitor.common.handling.HandlerInspector;
-import io.fluxcapacitor.common.handling.HandlerInvoker;
 import io.fluxcapacitor.javaclient.common.websocket.ServiceUrlBuilder;
 import io.fluxcapacitor.javaclient.configuration.websocket.WebSocketClientProperties;
 import io.fluxcapacitor.javaclient.tracking.TrackingClient;
@@ -36,11 +36,11 @@ public abstract class MetricsReporter {
 
     private final ObjectMapper objectMapper;
     private final WebSocketClientProperties clientProperties;
-    private final HandlerInvoker<ClientAction> invoker;
+    private final Handler<ClientAction> invoker;
 
     public MetricsReporter(String fluxCapacitorUrl) {
         this.objectMapper = new ObjectMapper();
-        this.invoker = HandlerInspector.inspect(this, Handler.class, Collections.singletonList(p -> c -> c));
+        this.invoker = HandlerInspector.createHandler(this, Handle.class, Collections.singletonList(p -> c -> c));
         this.clientProperties = new WebSocketClientProperties("graphiteReporter", fluxCapacitorUrl);
     }
 

@@ -22,7 +22,7 @@ import io.fluxcapacitor.common.api.ClientAction;
 import io.fluxcapacitor.common.api.tracking.AppendAction;
 import io.fluxcapacitor.common.api.tracking.ReadAction;
 import io.fluxcapacitor.common.api.tracking.StorePositionAction;
-import io.fluxcapacitor.common.handling.Handler;
+import io.fluxcapacitor.common.handling.Handle;
 import lombok.extern.slf4j.Slf4j;
 
 import java.net.InetSocketAddress;
@@ -59,17 +59,17 @@ public class GraphiteReporter extends MetricsReporter {
         super.start();
     }
 
-    @Handler
+    @Handle
     public void handle(AppendAction action) {
         getMeter(action, action.getLog()).mark(action.getSize());
     }
 
-    @Handler
+    @Handle
     public void handle(ReadAction action) {
         getMeter(action, action.getLog()).mark(action.getSize());
     }
 
-    @Handler
+    @Handle
     public void handle(StorePositionAction action) {
         getMeter(action, action.getLog()).mark();
     }

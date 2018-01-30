@@ -15,50 +15,58 @@
 package io.fluxcapacitor.common.handling;
 
 import io.fluxcapacitor.common.ObjectUtils;
+import lombok.AllArgsConstructor;
 
 import java.lang.annotation.Annotation;
-import java.lang.reflect.InvocationTargetException;
-import java.lang.reflect.Method;
-import java.lang.reflect.Parameter;
-import java.util.*;
+import java.lang.reflect.*;
+import java.util.Comparator;
+import java.util.List;
+import java.util.Objects;
+import java.util.Optional;
 import java.util.function.Function;
 
 import static java.lang.String.format;
+import static java.util.Arrays.stream;
 import static java.util.stream.Collectors.toList;
+import static java.util.stream.Stream.concat;
 
 public class HandlerInspector {
 
-    public static <M> List<HandlerInvoker<M>> inspect(List<?> targets, Class<? extends Annotation> methodAnnotation,
-                                                      List<ParameterResolver<M>> parameterResolvers) {
+    public static <M> List<Handler<M>> createHandlers(List<?> targets, Class<? extends Annotation> methodAnnotation,
+                                                      List<ParameterResolver<? super M>> parameterResolvers) {
         return targets.stream().filter(o -> hasHandlerMethods(o, methodAnnotation))
-                .map(o -> inspect(o, methodAnnotation, parameterResolvers)).collect(toList());
+                .map(o -> createHandler(o, methodAnnotation, parameterResolvers)).collect(toList());
     }
 
     public static boolean hasHandlerMethods(Object target, Class<? extends Annotation> methodAnnotation) {
-        return Arrays.stream(target.getClass().getMethods()).anyMatch(m -> m.isAnnotationPresent(methodAnnotation));
+        return stream(target.getClass().getMethods()).anyMatch(m -> m.isAnnotationPresent(methodAnnotation));
     }
 
-    public static <M> HandlerInvoker<M> inspect(Object target, Class<? extends Annotation> methodAnnotation,
-                                                List<ParameterResolver<M>> parameterResolvers) {
-        return new ObjectHandlerInvoker<>(
-                Arrays.stream(target.getClass().getMethods()).filter(m -> m.isAnnotationPresent(methodAnnotation))
-                        .map(m -> new MethodHandlerInvoker<>(target, m, parameterResolvers))
-                        .sorted(Comparator.naturalOrder())
-                        .collect(toList()));
+    public static <M> Handler<M> createHandler(Object target, Class<? extends Annotation> methodAnnotation,
+                                               List<ParameterResolver<? super M>> parameterResolvers) {
+        return new DefaultHandler<>(target, inspect(target.getClass(), methodAnnotation, parameterResolvers));
+    }
+
+    public static <M> HandlerInvoker<M> inspect(Class<?> type, Class<? extends Annotation> methodAnnotation,
+                                                List<ParameterResolver<? super M>> parameterResolvers) {
+        return new ObjectHandlerInvoker<>(type, concat(stream(type.getMethods()), stream(type.getConstructors()))
+                                                  .filter(m -> m.isAnnotationPresent(methodAnnotation))
+                                                  .map(m -> new MethodHandlerInvoker<>(m, parameterResolvers))
+                                                  .sorted(Comparator.naturalOrder())
+                                                  .collect(toList()));
     }
 
     protected static class MethodHandlerInvoker<M> implements HandlerInvoker<M>, Comparable<MethodHandlerInvoker<M>> {
 
-        private final Object target;
-        private final Method method;
-        private final List<Function<M, Object>> parameterSuppliers;
-        private final Function<M, ? extends Class<?>> payloadTypeSupplier;
+        private final Executable executable;
+        private final List<Function<? super M, Object>> parameterSuppliers;
+        private final Function<? super M, ? extends Class<?>> payloadTypeSupplier;
 
-        protected MethodHandlerInvoker(Object target, Method method, List<ParameterResolver<M>> parameterResolvers) {
-            this.target = target;
-            this.method = method;
-            this.parameterSuppliers = getParameterSuppliers(method, parameterResolvers);
-            this.payloadTypeSupplier = getPayloadTypeSupplier(method, parameterResolvers);
+        protected MethodHandlerInvoker(Executable executable,
+                                       List<ParameterResolver<? super M>> parameterResolvers) {
+            this.executable = executable;
+            this.parameterSuppliers = getParameterSuppliers(executable, parameterResolvers);
+            this.payloadTypeSupplier = getPayloadTypeSupplier(executable, parameterResolvers);
         }
 
         @Override
@@ -67,40 +75,49 @@ public class HandlerInspector {
         }
 
         @Override
-        public Object invoke(M message) {
+        public Object invoke(Object target, M message) {
             try {
-                return method.invoke(target, parameterSuppliers.stream().map(s -> s.apply(message)).toArray());
+                if (executable instanceof Method) {
+                    return ((Method) executable)
+                            .invoke(target, parameterSuppliers.stream().map(s -> s.apply(message)).toArray());
+                } else {
+                    return ((Constructor) executable)
+                            .newInstance(parameterSuppliers.stream().map(s -> s.apply(message)).toArray());
+                }
+            } catch (InstantiationException e) {
+                throw new HandlerException(format("Failed to create an instance using constructor %s", executable), e);
             } catch (InvocationTargetException e) {
                 Exception thrown = e;
                 if (e.getCause() instanceof Exception) {
                     thrown = (Exception) e.getCause();
                 }
-                throw new HandlerException(format("Target failed to handle a %s, method: %s", message, method), thrown);
+                throw new HandlerException(format("Target failed to handle a %s, method: %s", message, executable),
+                                           thrown);
             } catch (IllegalAccessException e) {
-                throw new HandlerException(format("Failed to handle a %s, method: %s", message, method), e);
+                throw new HandlerException(format("Failed to handle a %s, method: %s", message, executable), e);
             }
         }
 
-        protected List<Function<M, Object>> getParameterSuppliers(Method method,
-                                                                  List<ParameterResolver<M>> resolvers) {
+        protected List<Function<? super M, Object>> getParameterSuppliers(Executable method,
+                                                                          List<ParameterResolver<? super M>> resolvers) {
             if (method.getParameterCount() == 0) {
-                throw new IllegalStateException("Annotated method should contain at least one parameter");
+                throw new HandlerException(format("Annotated method %s should contain at least one parameter", method));
             }
-            return Arrays.stream(method.getParameters())
+            return stream(method.getParameters())
                     .map(p -> resolvers.stream().map(r -> r.resolve(p)).filter(Objects::nonNull).findFirst()
-                            .orElseThrow(() -> new IllegalStateException("Could not resolve parameter " + p)))
+                            .orElseThrow(() -> new HandlerException(format("Could not resolve parameter %s", p))))
                     .collect(toList());
         }
 
-        protected Function<M, ? extends Class<?>> getPayloadTypeSupplier(Method method,
-                                                                         List<ParameterResolver<M>> resolvers) {
+        protected Function<? super M, ? extends Class<?>> getPayloadTypeSupplier(Executable method,
+                                                                                 List<ParameterResolver<? super M>> resolvers) {
             Parameter parameter = method.getParameters()[0];
             return resolvers.stream().map(r -> r.resolveClass(parameter)).findFirst().orElseThrow(
-                    () -> new IllegalStateException("Could not determine payload type for method " + method));
+                    () -> new HandlerException("Could not determine payload type for method " + method));
         }
 
         protected Class<?> getPayloadType() {
-            return method.getParameterTypes()[0];
+            return executable.getParameterTypes()[0];
         }
 
         @Override
@@ -108,7 +125,7 @@ public class HandlerInspector {
         public int compareTo(MethodHandlerInvoker<M> o) {
             int result = comparePayloads(getPayloadType(), o.getPayloadType());
             if (result == 0) {
-                result = method.toGenericString().compareTo(o.method.toGenericString());
+                result = executable.toGenericString().compareTo(o.executable.toGenericString());
             }
             return result;
         }
@@ -123,12 +140,10 @@ public class HandlerInspector {
         }
     }
 
+    @AllArgsConstructor
     protected static class ObjectHandlerInvoker<M> implements HandlerInvoker<M> {
+        private final Class<?> type;
         private final List<HandlerInvoker<M>> methodHandlers;
-
-        protected ObjectHandlerInvoker(List<? extends HandlerInvoker<M>> methodHandlers) {
-            this.methodHandlers = new ArrayList<>(methodHandlers);
-        }
 
         @Override
         public boolean canHandle(M message) {
@@ -136,13 +151,29 @@ public class HandlerInspector {
         }
 
         @Override
-        public Object invoke(M message) {
+        public Object invoke(Object target, M message) {
             Optional<HandlerInvoker<M>> delegate =
                     methodHandlers.stream().filter(d -> d.canHandle(message)).findFirst();
             if (!delegate.isPresent()) {
-                throw new IllegalArgumentException("No method found that could handle " + message);
+                throw new HandlerException(format("No method found on %s that could handle %s", type, message));
             }
-            return delegate.get().invoke(message);
+            return delegate.get().invoke(target, message);
+        }
+    }
+
+    @AllArgsConstructor
+    protected static class DefaultHandler<M> implements Handler<M> {
+        private final Object target;
+        private final HandlerInvoker<M> invoker;
+
+        @Override
+        public boolean canHandle(M message) {
+            return invoker.canHandle(message);
+        }
+
+        @Override
+        public Object invoke(M message) {
+            return invoker.invoke(target, message);
         }
     }
 }

@@ -2,12 +2,11 @@ package io.fluxcapacitor.common.handling;
 
 public class HandlerException extends RuntimeException {
 
-    public HandlerException(String message, Throwable cause) {
-        super(message, cause);
+    public HandlerException(String message) {
+        super(message);
     }
 
-    @Override
-    public synchronized Exception getCause() {
-        return (Exception) super.getCause();
+    public HandlerException(String message, Throwable cause) {
+        super(message, cause);
     }
 }

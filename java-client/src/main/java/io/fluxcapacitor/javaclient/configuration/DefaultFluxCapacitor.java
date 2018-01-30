@@ -44,6 +44,7 @@ public class DefaultFluxCapacitor implements FluxCapacitor {
     private final Map<MessageType, Tracking> trackingSupplier;
     private final CommandGateway commandGateway;
     private final QueryGateway queryGateway;
+    private final EventGateway eventGateway;
     private final ResultGateway resultGateway;
     private final EventStore eventStore;
     private final KeyValueStore keyValueStore;
@@ -79,6 +80,11 @@ public class DefaultFluxCapacitor implements FluxCapacitor {
     }
 
     @Override
+    public EventGateway eventGateway() {
+        return eventGateway;
+    }
+
+    @Override
     public ResultGateway resultGateway() {
         return resultGateway;
     }
@@ -93,7 +99,8 @@ public class DefaultFluxCapacitor implements FluxCapacitor {
 
         private Serializer serializer = new JacksonSerializer();
         private final Map<MessageType, List<ConsumerConfiguration>> consumerConfigurations = defaultConfigurations();
-        private final List<ParameterResolver<DeserializingMessage>> parameterResolvers = defaultParameterResolvers();
+        private final List<ParameterResolver<? super DeserializingMessage>> trackingParameterResolvers =
+                defaultTrackingParameterResolvers();
         private final Map<MessageType, DispatchInterceptor> dispatchInterceptors =
                 Arrays.stream(MessageType.values()).collect(toMap(identity(), m -> f -> f));
         private final Map<MessageType, HandlerInterceptor> handlerInterceptors =
@@ -104,7 +111,7 @@ public class DefaultFluxCapacitor implements FluxCapacitor {
         private boolean disableCommandValidation;
         private HandlerInterceptor commandValidationInterceptor = new ValidatingInterceptor();
 
-        protected List<ParameterResolver<DeserializingMessage>> defaultParameterResolvers() {
+        protected List<ParameterResolver<? super DeserializingMessage>> defaultTrackingParameterResolvers() {
             return new ArrayList<>(Arrays.asList(new PayloadParameterResolver(), new MetadataParameterResolver()));
         }
 
@@ -132,8 +139,8 @@ public class DefaultFluxCapacitor implements FluxCapacitor {
             return this;
         }
 
-        public Builder addParameterResolver(ParameterResolver<DeserializingMessage> parameterResolver) {
-            parameterResolvers.add(parameterResolver);
+        public Builder addTrackingParameterResolver(ParameterResolver<DeserializingMessage> parameterResolver) {
+            trackingParameterResolvers.add(parameterResolver);
             return this;
         }
 
@@ -196,6 +203,7 @@ public class DefaultFluxCapacitor implements FluxCapacitor {
                 handlerInterceptors.compute(COMMAND, (t, i) -> i.merge(commandValidationInterceptor));
             }
 
+            //create gateways
             ResultGateway resultGateway =
                     new DefaultResultGateway(client.getGatewayClient(RESULT),
                                              new MessageSerializer(serializer, dispatchInterceptors.get(RESULT)));
@@ -207,20 +215,28 @@ public class DefaultFluxCapacitor implements FluxCapacitor {
             QueryGateway queryGateway =
                     new DefaultQueryGateway(client.getGatewayClient(QUERY), requestHandler,
                                             new MessageSerializer(serializer, dispatchInterceptors.get(QUERY)));
+            EventGateway eventGateway =
+                    new DefaultEventGateway(client.getGatewayClient(EVENT),
+                                            new MessageSerializer(serializer, dispatchInterceptors.get(EVENT)));
+
+
             KeyValueStore keyValueStore = new DefaultKeyValueStore(client.getKeyValueClient(), serializer);
-            EventStore eventStore = new DefaultEventStore(
-                    client.getEventStoreClient(), client.getGatewayClient(EVENT), keyValueStore,
-                    new EventStoreSerializer(serializer, dispatchInterceptors.get(EVENT)));
             Scheduler scheduler = new DefaultScheduler(client.getSchedulingClient(),
                                                        new MessageSerializer(serializer,
                                                                              dispatchInterceptors.get(SCHEDULE)));
+
+            EventStore eventStore = new DefaultEventStore(client.getEventStoreClient(), keyValueStore,
+                                                          new EventStoreSerializer(serializer,
+                                                                                   dispatchInterceptors.get(EVENT)));
+
+
             Map<MessageType, Tracking> trackingMap = stream(MessageType.values())
                     .collect(toMap(identity(),
                                    m -> new DefaultTracking(getHandlerAnnotation(m), client.getTrackingClient(m),
                                                             resultGateway, consumerConfigurations.get(m), serializer,
-                                                            handlerInterceptors.get(m), parameterResolvers)));
-            return new DefaultFluxCapacitor(trackingMap, commandGateway, queryGateway, resultGateway, eventStore,
-                                            keyValueStore, scheduler);
+                                                            handlerInterceptors.get(m), trackingParameterResolvers)));
+            return new DefaultFluxCapacitor(trackingMap, commandGateway, queryGateway, eventGateway, resultGateway,
+                                            eventStore, keyValueStore, scheduler);
         }
 
         protected Class<? extends Annotation> getHandlerAnnotation(MessageType messageType) {

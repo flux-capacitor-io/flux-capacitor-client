@@ -17,9 +17,9 @@ package io.fluxcapacitor.javaclient.benchmark;
 import io.fluxcapacitor.common.MessageType;
 import io.fluxcapacitor.common.api.Data;
 import io.fluxcapacitor.common.api.SerializedMessage;
+import io.fluxcapacitor.common.handling.Handle;
 import io.fluxcapacitor.common.handling.Handler;
 import io.fluxcapacitor.common.handling.HandlerInspector;
-import io.fluxcapacitor.common.handling.HandlerInvoker;
 import io.fluxcapacitor.javaclient.common.websocket.ServiceUrlBuilder;
 import io.fluxcapacitor.javaclient.gateway.GatewayClient;
 import io.fluxcapacitor.javaclient.gateway.websocket.WebsocketGatewayClient;
@@ -41,7 +41,7 @@ public class JavaClientRunner extends AbstractClientBenchmark {
     }
 
     private final GatewayClient gatewayClient;
-    private final HandlerInvoker<SerializedMessage> commandInvoker;
+    private final Handler<SerializedMessage> commandInvoker;
 
     public JavaClientRunner(int commandCount) {
         super(commandCount);
@@ -53,7 +53,7 @@ public class JavaClientRunner extends AbstractClientBenchmark {
                                   ServiceUrlBuilder.consumerUrl(MessageType.COMMAND, getClientProperties())),
                             this::handleCommands);
         commandInvoker =
-                HandlerInspector.inspect(this, Handler.class, Collections.singletonList(p -> m -> m));
+                HandlerInspector.createHandler(this, Handle.class, Collections.singletonList(p -> m -> m));
 
         CountDownLatch commandsSentCountdown = new CountDownLatch(commandCount);
         gatewayClient.registerMonitor(m -> {
@@ -69,7 +69,7 @@ public class JavaClientRunner extends AbstractClientBenchmark {
         gatewayClient.send(new SerializedMessage(new Data<>(payload.getBytes(), String.class.getName(), 0)));
     }
 
-    @Handler
+    @Handle
     public void handleCommand(SerializedMessage command) {
         getCommandCountDownLatch().countDown();
     }

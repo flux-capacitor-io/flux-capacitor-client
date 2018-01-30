@@ -1,9 +1,8 @@
 package io.fluxcapacitor.javaclient.eventsourcing;
 
-import io.fluxcapacitor.common.api.Metadata;
+import io.fluxcapacitor.common.ConsistentHashing;
 import io.fluxcapacitor.javaclient.common.Message;
 import io.fluxcapacitor.javaclient.common.serialization.DeserializingMessage;
-import io.fluxcapacitor.javaclient.gateway.GatewayClient;
 import io.fluxcapacitor.javaclient.keyvalue.KeyValueStore;
 import lombok.AllArgsConstructor;
 
@@ -18,26 +17,17 @@ import static java.util.stream.Collectors.toList;
 public class DefaultEventStore implements EventStore {
 
     private final EventStoreClient client;
-    private final GatewayClient eventGateway;
     private final KeyValueStore keyValueStore;
     private final EventStoreSerializer serializer;
 
     @Override
-    public void storeEvent(Object payload, Metadata metadata) {
-        try {
-            eventGateway.send(serializer.serialize(payload, metadata)).await();
-        } catch (Exception e) {
-            throw new EventStoreException(format("Failed to store event %s with metadata %s", payload, metadata), e);
-        }
-    }
-
-    @Override
     public void storeDomainEvents(String aggregateId, String domain, long lastSequenceNumber, List<Message> events) {
         try {
+            int segment = ConsistentHashing.computeSegment(aggregateId);
             client.storeEvents(aggregateId, domain, lastSequenceNumber, events.stream().map(serializer::serialize)
-                    .collect(toList())).await();
+                    .map(e -> e.withSegment(segment)).collect(toList())).await();
         } catch (Exception e) {
-            throw new EventStoreException(format("Failed to store events %s for aggregate %s", events, aggregateId), e);
+            throw new EventSourcingException(format("Failed to store events %s for aggregate %s", events, aggregateId), e);
         }
     }
 
@@ -46,7 +36,7 @@ public class DefaultEventStore implements EventStore {
         try {
             return serializer.deserializeDomainEvents(client.getEvents(aggregateId, lastSequenceNumber));
         } catch (Exception e) {
-            throw new EventStoreException(format("Failed to obtain domain events for aggregate %s", aggregateId), e);
+            throw new EventSourcingException(format("Failed to obtain domain events for aggregate %s", aggregateId), e);
         }
     }
 
@@ -55,17 +45,17 @@ public class DefaultEventStore implements EventStore {
         try {
             keyValueStore.store(snapshotKey(aggregateId), serializer.serialize(aggregateId, sequenceNumber, s));
         } catch (Exception e) {
-            throw new EventStoreException(format("Failed to store snapshot %s for aggregate %s", s, aggregateId), e);
+            throw new EventSourcingException(format("Failed to store snapshot %s for aggregate %s", s, aggregateId), e);
         }
     }
 
     @Override
-    public <T> Optional<Snapshot<T>> getSnapshot(String aggregateId) {
+    public <T> Optional<Aggregate<T>> getSnapshot(String aggregateId) {
         try {
             SerializedSnapshot snapshot = keyValueStore.get(snapshotKey(aggregateId));
             return Optional.ofNullable(snapshot).map(serializer::deserialize);
         } catch (Exception e) {
-            throw new EventStoreException(format("Failed to obtain snapshot for aggregate %s", aggregateId), e);
+            throw new EventSourcingException(format("Failed to obtain snapshot for aggregate %s", aggregateId), e);
         }
     }
 
@@ -74,7 +64,7 @@ public class DefaultEventStore implements EventStore {
         try {
             keyValueStore.delete(snapshotKey(aggregateId));
         } catch (Exception e) {
-            throw new EventStoreException(format("Failed to delete snapshot for aggregate %s", aggregateId), e);
+            throw new EventSourcingException(format("Failed to delete snapshot for aggregate %s", aggregateId), e);
         }
     }
 

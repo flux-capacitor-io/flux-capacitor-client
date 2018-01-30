@@ -23,8 +23,8 @@ import static junit.framework.TestCase.*;
 public class HandlerInspectorSpecificityTest {
 
     private Foo foo = new Foo();
-    private HandlerInvoker<Object> subject =
-            HandlerInspector.inspect(foo, Handler.class, Collections.singletonList(p -> o -> o));
+    private Handler<Object> subject =
+            HandlerInspector.createHandler(foo, Handle.class, Collections.singletonList(p -> o -> o));
 
     @Test
     public void testCanHandle() {
@@ -40,17 +40,17 @@ public class HandlerInspectorSpecificityTest {
     }
 
     private static class Foo {
-        @Handler
+        @Handle
         public void handle(MessageSuper o) {
             throw new AssertionError("Undesired invocation");
         }
 
-        @Handler
+        @Handle
         public Object handle(Message o) {
             return o;
         }
 
-        @Handler
+        @Handle
         public void h0(MessageSuper o) {
             throw new AssertionError("Undesired invocation");
         }

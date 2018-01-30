@@ -14,10 +14,10 @@
 
 package io.fluxcapacitor.common.handling;
 
-import java.lang.annotation.*;
+public interface Handler<M> {
 
-@Documented
-@Retention(RetentionPolicy.RUNTIME)
-@Target(ElementType.METHOD)
-public @interface Handler {
+    boolean canHandle(M message);
+
+    Object invoke(M message);
+
 }

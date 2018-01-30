@@ -5,6 +5,7 @@ import io.fluxcapacitor.common.Registration;
 import io.fluxcapacitor.common.api.Metadata;
 import io.fluxcapacitor.javaclient.eventsourcing.EventStore;
 import io.fluxcapacitor.javaclient.gateway.CommandGateway;
+import io.fluxcapacitor.javaclient.gateway.EventGateway;
 import io.fluxcapacitor.javaclient.gateway.QueryGateway;
 import io.fluxcapacitor.javaclient.gateway.ResultGateway;
 import io.fluxcapacitor.javaclient.keyvalue.KeyValueStore;
@@ -38,11 +39,11 @@ public interface FluxCapacitor {
     }
 
     static void publishEvent(Object payload) {
-        get().eventStore().storeEvent(payload);
+        get().eventGateway().publishEvent(payload);
     }
 
     static void publishEvent(Object payload, Metadata metadata) {
-        get().eventStore().storeEvent(payload, metadata);
+        get().eventGateway().publishEvent(payload, metadata);
     }
 
     static void sendAndForgetCommand(Object payload, Metadata metadata) {
@@ -84,6 +85,8 @@ public interface FluxCapacitor {
     CommandGateway commandGateway();
 
     QueryGateway queryGateway();
+
+    EventGateway eventGateway();
 
     ResultGateway resultGateway();
 
