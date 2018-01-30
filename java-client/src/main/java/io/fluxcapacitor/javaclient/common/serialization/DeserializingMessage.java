@@ -16,6 +16,6 @@ public class DeserializingMessage {
     }
 
     public Message toMessage() {
-        return new Message(delegate.getObject(), getMetadata());
+        return new Message(delegate.getPayload(), getMetadata());
     }
 }

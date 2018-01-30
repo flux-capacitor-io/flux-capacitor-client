@@ -3,7 +3,7 @@ package io.fluxcapacitor.javaclient;
 import io.fluxcapacitor.common.MessageType;
 import io.fluxcapacitor.common.Registration;
 import io.fluxcapacitor.common.api.Metadata;
-import io.fluxcapacitor.javaclient.eventsourcing.EventStore;
+import io.fluxcapacitor.javaclient.eventsourcing.EventSourcing;
 import io.fluxcapacitor.javaclient.gateway.CommandGateway;
 import io.fluxcapacitor.javaclient.gateway.EventGateway;
 import io.fluxcapacitor.javaclient.gateway.QueryGateway;
@@ -76,7 +76,7 @@ public interface FluxCapacitor {
                 .map(t -> tracking(t).start(this, handlers)).reduce(Registration::merge).get();
     }
 
-    EventStore eventStore();
+    EventSourcing eventSourcing();
 
     Scheduler scheduler();
 

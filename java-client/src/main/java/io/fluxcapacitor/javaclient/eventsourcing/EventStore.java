@@ -11,11 +11,11 @@ import static java.util.Arrays.asList;
 
 public interface EventStore {
 
-    default void storeDomainEvents(String aggregateId, String domain, long lastSequenceNumber, Message... events) {
-        storeDomainEvents(aggregateId, domain, lastSequenceNumber, asList(events));
+    default void storeDomainEvents(String aggregateId, long lastSequenceNumber, Message... events) {
+        storeDomainEvents(aggregateId, lastSequenceNumber, asList(events));
     }
 
-    void storeDomainEvents(String aggregateId, String domain, long lastSequenceNumber, List<Message> events);
+    void storeDomainEvents(String aggregateId, long lastSequenceNumber, List<Message> events);
 
     default Stream<DeserializingMessage> getDomainEvents(String aggregateId) {
         return getDomainEvents(aggregateId, -1L);

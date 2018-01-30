@@ -39,7 +39,7 @@ public class DefaultTracking implements Tracking {
     public Registration start(List<Object> handlers, FluxCapacitor fluxCapacitor) {
         synchronized (this) {
             Map<ConsumerConfiguration, List<Object>> consumers = handlers.stream()
-                    .filter(h -> HandlerInspector.hasHandlerMethods(h, handlerAnnotation))
+                    .filter(h -> HandlerInspector.hasHandlerMethods(h.getClass(), handlerAnnotation))
                     .collect(groupingBy(h -> configurations.stream()
                             .filter(config -> config.getHandlerFilter().test(h)).findFirst()
                             .orElseThrow(() -> new TrackingException(format("Failed to find consumer for %s", h)))));

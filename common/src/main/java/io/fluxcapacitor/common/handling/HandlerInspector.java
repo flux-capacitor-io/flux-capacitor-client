@@ -34,12 +34,12 @@ public class HandlerInspector {
 
     public static <M> List<Handler<M>> createHandlers(List<?> targets, Class<? extends Annotation> methodAnnotation,
                                                       List<ParameterResolver<? super M>> parameterResolvers) {
-        return targets.stream().filter(o -> hasHandlerMethods(o, methodAnnotation))
+        return targets.stream().filter(o -> hasHandlerMethods(o.getClass(), methodAnnotation))
                 .map(o -> createHandler(o, methodAnnotation, parameterResolvers)).collect(toList());
     }
 
-    public static boolean hasHandlerMethods(Object target, Class<? extends Annotation> methodAnnotation) {
-        return stream(target.getClass().getMethods()).anyMatch(m -> m.isAnnotationPresent(methodAnnotation));
+    public static boolean hasHandlerMethods(Class<?> targetClass, Class<? extends Annotation> methodAnnotation) {
+        return stream(targetClass.getMethods()).anyMatch(m -> m.isAnnotationPresent(methodAnnotation));
     }
 
     public static <M> Handler<M> createHandler(Object target, Class<? extends Annotation> methodAnnotation,
@@ -49,11 +49,16 @@ public class HandlerInspector {
 
     public static <M> HandlerInvoker<M> inspect(Class<?> type, Class<? extends Annotation> methodAnnotation,
                                                 List<ParameterResolver<? super M>> parameterResolvers) {
+        if (!hasHandlerMethods(type, methodAnnotation)) {
+            throw new HandlerException(
+                    String.format("Could not find methods with %s annotation on %s", methodAnnotation.getSimpleName(),
+                                  type.getSimpleName()));
+        }
         return new ObjectHandlerInvoker<>(type, concat(stream(type.getMethods()), stream(type.getConstructors()))
-                                                  .filter(m -> m.isAnnotationPresent(methodAnnotation))
-                                                  .map(m -> new MethodHandlerInvoker<>(m, parameterResolvers))
-                                                  .sorted(Comparator.naturalOrder())
-                                                  .collect(toList()));
+                .filter(m -> m.isAnnotationPresent(methodAnnotation))
+                .map(m -> new MethodHandlerInvoker<>(m, parameterResolvers))
+                .sorted(Comparator.naturalOrder())
+                .collect(toList()));
     }
 
     protected static class MethodHandlerInvoker<M> implements HandlerInvoker<M>, Comparable<MethodHandlerInvoker<M>> {
@@ -155,7 +160,7 @@ public class HandlerInspector {
             Optional<HandlerInvoker<M>> delegate =
                     methodHandlers.stream().filter(d -> d.canHandle(message)).findFirst();
             if (!delegate.isPresent()) {
-                throw new HandlerException(format("No method found on %s that could handle %s", type, message));
+                throw new HandlerNotFoundException(format("No method found on %s that could handle %s", type, message));
             }
             return delegate.get().invoke(target, message);
         }

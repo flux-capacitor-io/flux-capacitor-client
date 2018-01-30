@@ -2,6 +2,7 @@ package io.fluxcapacitor.javaclient.eventsourcing;
 
 import io.fluxcapacitor.common.handling.HandlerInspector;
 import io.fluxcapacitor.common.handling.HandlerInvoker;
+import io.fluxcapacitor.common.handling.HandlerNotFoundException;
 import io.fluxcapacitor.common.handling.ParameterResolver;
 import io.fluxcapacitor.javaclient.common.Message;
 
@@ -25,7 +26,15 @@ public class AnnotatedEventSourcingHandler<T> implements EventSourcingHandler<T>
 
     @Override
     public T apply(Message message, T model) {
-        Object result = invoker.invoke(model, message);
+        Object result;
+        try {
+            result = invoker.invoke(model, message);
+        } catch (HandlerNotFoundException e) {
+            if (model == null) {
+                throw e;
+            }
+            return model;
+        }
         if (model == null) {
             return handlerType.cast(result);
         }

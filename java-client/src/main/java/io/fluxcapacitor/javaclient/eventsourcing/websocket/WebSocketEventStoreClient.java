@@ -56,8 +56,8 @@ public class WebSocketEventStoreClient extends AbstractWebsocketService implemen
     }
 
     @Override
-    public Awaitable storeEvents(String aggregateId, String domain, long lastSequenceNumber, List<SerializedMessage> events) {
-        return backlog.add(new EventBatch(aggregateId, domain, lastSequenceNumber, events));
+    public Awaitable storeEvents(String aggregateId, long lastSequenceNumber, List<SerializedMessage> events) {
+        return backlog.add(new EventBatch(aggregateId, lastSequenceNumber, events));
     }
 
     private Awaitable doSend(List<EventBatch> batches) throws IOException, EncodeException {

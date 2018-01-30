@@ -3,13 +3,12 @@ package io.fluxcapacitor.javaclient.configuration;
 import io.fluxcapacitor.common.MessageType;
 import io.fluxcapacitor.common.handling.ParameterResolver;
 import io.fluxcapacitor.javaclient.FluxCapacitor;
+import io.fluxcapacitor.javaclient.common.caching.DefaultCache;
 import io.fluxcapacitor.javaclient.common.serialization.DeserializingMessage;
 import io.fluxcapacitor.javaclient.common.serialization.MessageSerializer;
 import io.fluxcapacitor.javaclient.common.serialization.Serializer;
 import io.fluxcapacitor.javaclient.common.serialization.jackson.JacksonSerializer;
-import io.fluxcapacitor.javaclient.eventsourcing.DefaultEventStore;
-import io.fluxcapacitor.javaclient.eventsourcing.EventStore;
-import io.fluxcapacitor.javaclient.eventsourcing.EventStoreSerializer;
+import io.fluxcapacitor.javaclient.eventsourcing.*;
 import io.fluxcapacitor.javaclient.gateway.*;
 import io.fluxcapacitor.javaclient.gateway.correlation.CorrelatingInterceptor;
 import io.fluxcapacitor.javaclient.gateway.correlation.CorrelationDataProvider;
@@ -24,6 +23,8 @@ import io.fluxcapacitor.javaclient.tracking.DefaultTracking;
 import io.fluxcapacitor.javaclient.tracking.Tracking;
 import io.fluxcapacitor.javaclient.tracking.TrackingException;
 import io.fluxcapacitor.javaclient.tracking.handler.*;
+import io.fluxcapacitor.javaclient.tracking.handler.MetadataParameterResolver;
+import io.fluxcapacitor.javaclient.tracking.handler.PayloadParameterResolver;
 import io.fluxcapacitor.javaclient.tracking.handler.validation.ValidatingInterceptor;
 import lombok.AllArgsConstructor;
 
@@ -46,7 +47,7 @@ public class DefaultFluxCapacitor implements FluxCapacitor {
     private final QueryGateway queryGateway;
     private final EventGateway eventGateway;
     private final ResultGateway resultGateway;
-    private final EventStore eventStore;
+    private final EventSourcing eventSourcing;
     private final KeyValueStore keyValueStore;
     private final Scheduler scheduler;
 
@@ -55,8 +56,8 @@ public class DefaultFluxCapacitor implements FluxCapacitor {
     }
 
     @Override
-    public EventStore eventStore() {
-        return eventStore;
+    public EventSourcing eventSourcing() {
+        return eventSourcing;
     }
 
     @Override
@@ -228,6 +229,7 @@ public class DefaultFluxCapacitor implements FluxCapacitor {
             EventStore eventStore = new DefaultEventStore(client.getEventStoreClient(), keyValueStore,
                                                           new EventStoreSerializer(serializer,
                                                                                    dispatchInterceptors.get(EVENT)));
+            EventSourcing eventSourcing = new DefaultEventSourcing(eventStore, new DefaultCache());
 
 
             Map<MessageType, Tracking> trackingMap = stream(MessageType.values())
@@ -236,7 +238,7 @@ public class DefaultFluxCapacitor implements FluxCapacitor {
                                                             resultGateway, consumerConfigurations.get(m), serializer,
                                                             handlerInterceptors.get(m), trackingParameterResolvers)));
             return new DefaultFluxCapacitor(trackingMap, commandGateway, queryGateway, eventGateway, resultGateway,
-                                            eventStore, keyValueStore, scheduler);
+                                            eventSourcing, keyValueStore, scheduler);
         }
 
         protected Class<? extends Annotation> getHandlerAnnotation(MessageType messageType) {

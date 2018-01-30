@@ -21,10 +21,10 @@ public class DefaultEventStore implements EventStore {
     private final EventStoreSerializer serializer;
 
     @Override
-    public void storeDomainEvents(String aggregateId, String domain, long lastSequenceNumber, List<Message> events) {
+    public void storeDomainEvents(String aggregateId, long lastSequenceNumber, List<Message> events) {
         try {
             int segment = ConsistentHashing.computeSegment(aggregateId);
-            client.storeEvents(aggregateId, domain, lastSequenceNumber, events.stream().map(serializer::serialize)
+            client.storeEvents(aggregateId, lastSequenceNumber, events.stream().map(serializer::serialize)
                     .map(e -> e.withSegment(segment)).collect(toList())).await();
         } catch (Exception e) {
             throw new EventSourcingException(format("Failed to store events %s for aggregate %s", events, aggregateId), e);

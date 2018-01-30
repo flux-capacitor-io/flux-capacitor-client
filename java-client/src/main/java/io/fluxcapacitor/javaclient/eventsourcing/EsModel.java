@@ -22,4 +22,6 @@ public interface EsModel<T> {
     }
 
     T get();
+
+    long getSequenceNumber();
 }
