@@ -15,7 +15,7 @@
 package io.fluxcapacitor.javaclient.benchmark;
 
 import io.fluxcapacitor.common.TimingUtils;
-import io.fluxcapacitor.javaclient.configuration.client.WebSocketClientProperties;
+import io.fluxcapacitor.javaclient.configuration.client.WebSocketClient;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 
@@ -26,16 +26,16 @@ import java.util.stream.IntStream;
 @Getter
 public abstract class AbstractClientBenchmark {
 
-    private final CountDownLatch        commandCountDownLatch;
-    private final WebSocketClientProperties clientProperties;
+    private final CountDownLatch commandCountDownLatch;
+    private final WebSocketClient.Properties clientProperties;
 
-    public AbstractClientBenchmark(int commandCount, WebSocketClientProperties clientProperties) {
+    public AbstractClientBenchmark(int commandCount, WebSocketClient.Properties clientProperties) {
         this.commandCountDownLatch = new CountDownLatch(commandCount);
         this.clientProperties = clientProperties;
     }
 
     public AbstractClientBenchmark(int commandCount) {
-        this(commandCount, new WebSocketClientProperties("benchmark", "ws://localhost:8080"));
+        this(commandCount, new WebSocketClient.Properties("benchmark", "ws://localhost:8080"));
     }
 
     protected void testCommands() {

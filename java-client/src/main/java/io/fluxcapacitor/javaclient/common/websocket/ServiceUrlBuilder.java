@@ -16,33 +16,33 @@ package io.fluxcapacitor.javaclient.common.websocket;
 
 import io.fluxcapacitor.common.MessageType;
 import io.fluxcapacitor.common.ServicePathBuilder;
-import io.fluxcapacitor.javaclient.configuration.client.WebSocketClientProperties;
+import io.fluxcapacitor.javaclient.configuration.client.WebSocketClient;
 
 public class ServiceUrlBuilder {
 
-    public static String producerUrl(MessageType messageType, WebSocketClientProperties clientProperties) {
+    public static String producerUrl(MessageType messageType, WebSocketClient.Properties clientProperties) {
         return buildUrl(clientProperties, ServicePathBuilder.producerPath(messageType));
     }
 
-    public static String consumerUrl(MessageType messageType, WebSocketClientProperties clientProperties) {
+    public static String consumerUrl(MessageType messageType, WebSocketClient.Properties clientProperties) {
         return buildUrl(clientProperties, ServicePathBuilder.consumerPath(messageType));
     }
 
-    public static String eventSourcingUrl(WebSocketClientProperties clientProperties) {
+    public static String eventSourcingUrl(WebSocketClient.Properties clientProperties) {
         return buildUrl(clientProperties, ServicePathBuilder.eventSourcingPath());
     }
 
-    public static String keyValueUrl(WebSocketClientProperties clientProperties) {
+    public static String keyValueUrl(WebSocketClient.Properties clientProperties) {
         return buildUrl(clientProperties, ServicePathBuilder.keyValuePath());
     }
 
-    public static String schedulingUrl(WebSocketClientProperties clientProperties) {
+    public static String schedulingUrl(WebSocketClient.Properties clientProperties) {
         return buildUrl(clientProperties, ServicePathBuilder.schedulingPath());
     }
 
-    private static String buildUrl(WebSocketClientProperties clientProperties, String path) {
-        return String.format("%s/%s?clientId=%s&clientName=%s", clientProperties.getFluxCapacitorUrl(), path,
-                             clientProperties.getClientId(), clientProperties.getApplicationName());
+    private static String buildUrl(WebSocketClient.Properties clientProperties, String path) {
+        return String.format("%s/%s?clientId=%s&clientName=%s", clientProperties.getServiceBaseUrl(), path,
+                             clientProperties.getId(), clientProperties.getName());
     }
 
 }

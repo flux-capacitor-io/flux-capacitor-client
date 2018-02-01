@@ -14,8 +14,6 @@
 
 package io.fluxcapacitor.axonclient.common.configuration.spring;
 
-import io.fluxcapacitor.javaclient.configuration.client.ClientProperties;
-import io.fluxcapacitor.javaclient.configuration.client.InMemoryClientProperties;
 import lombok.NoArgsConstructor;
 import lombok.Value;
 import lombok.extern.slf4j.Slf4j;
@@ -174,11 +172,6 @@ public class FluxCapacitorSpringConfigurationTest {
         @Bean
         public CountDownLatch eventCountDown() {
             return new CountDownLatch(4);
-        }
-
-        @Bean
-        public ClientProperties applicationProperties() {
-            return new InMemoryClientProperties("test");
         }
     }
 

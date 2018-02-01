@@ -22,7 +22,7 @@ import io.fluxcapacitor.axonclient.common.serialization.DefaultAxonMessageSerial
 import io.fluxcapacitor.axonclient.eventhandling.FluxCapacitorEventProcessor;
 import io.fluxcapacitor.axonclient.eventhandling.FluxCapacitorEventStore;
 import io.fluxcapacitor.common.MessageType;
-import io.fluxcapacitor.javaclient.configuration.client.ClientProperties;
+import io.fluxcapacitor.javaclient.configuration.client.Client;
 import io.fluxcapacitor.javaclient.eventsourcing.client.EventStoreClient;
 import io.fluxcapacitor.javaclient.keyvalue.client.KeyValueClient;
 import io.fluxcapacitor.javaclient.publishing.client.GatewayClient;
@@ -45,11 +45,11 @@ import static java.lang.String.format;
 
 public abstract class AbstractFluxCapacitorConfiguration implements FluxCapacitorConfiguration {
 
-    private final ClientProperties clientProperties;
+    private final Client client;
     private final AtomicReference<TrackingClient> eventConsumerService = new AtomicReference<>();
 
-    protected AbstractFluxCapacitorConfiguration(ClientProperties clientProperties) {
-        this.clientProperties = clientProperties;
+    protected AbstractFluxCapacitorConfiguration(Client client) {
+        this.client = client;
     }
 
     @Override
@@ -61,19 +61,19 @@ public abstract class AbstractFluxCapacitorConfiguration implements FluxCapacito
                 .registerComponent(ResultProcessor.class,
                                    c -> new ResultProcessor(c.getComponent(AxonMessageSerializer.class),
                                                             createConsumerService(MessageType.RESULT),
-                                                            format("%s/result", clientProperties.getApplicationName())))
+                                                            format("%s/result", client.name())))
                 .registerComponent(CommandProcessor.class,
                                    c -> new CommandProcessor(
                                            c.getComponent(AxonMessageSerializer.class),
                                            localCommandBus, createProducerService(MessageType.RESULT),
-                                           format("%s/command", clientProperties.getApplicationName()),
+                                           format("%s/command", client.name()),
                                            createConsumerService(MessageType.COMMAND)))
                 .registerComponent(RoutingStrategy.class,
                                    c -> new AnnotationRoutingStrategy(UnresolvedRoutingKeyPolicy.RANDOM_KEY))
                 .configureCommandBus(c -> new FluxCapacitorCommandBus(
                         createProducerService(MessageType.COMMAND), c.getComponent(ResultProcessor.class),
                         c.getComponent(AxonMessageSerializer.class),
-                        c.getComponent(RoutingStrategy.class), clientProperties.getClientId(), localCommandBus))
+                        c.getComponent(RoutingStrategy.class), client.id(), localCommandBus))
                 .registerComponent(FluxCapacitorEventStore.class, this::createEventStore)
                 .configureEventStore(c -> c.getComponent(FluxCapacitorEventStore.class))
                 .registerModule(new FluxCapacitorModuleConfiguration());
@@ -86,7 +86,7 @@ public abstract class AbstractFluxCapacitorConfiguration implements FluxCapacito
     public EventHandlingConfiguration configure(EventHandlingConfiguration eventHandlingConfiguration) {
         return eventHandlingConfiguration.registerEventProcessorFactory(
                 (c, name, eventListeners) -> {
-                    String processorName = format("%s/%s", clientProperties.getApplicationName(), name);
+                    String processorName = format("%s/%s", client.name(), name);
                     return new FluxCapacitorEventProcessor(
                             processorName,
                             new SimpleEventHandlerInvoker(eventListeners, c.parameterResolverFactory(),
@@ -116,7 +116,7 @@ public abstract class AbstractFluxCapacitorConfiguration implements FluxCapacito
                 Component<EventProcessor> processorComponent = ReflectionUtils.getField("processor", sagaConfig);
                 String name = ReflectionUtils.getField("name", processorComponent);
                 processorComponent.update(c -> {
-                    String processorName = format("%s/%s", clientProperties.getApplicationName(), name);
+                    String processorName = format("%s/%s", client.name(), name);
                     Logger logger = LoggerFactory.getLogger(processorName);
                     return new FluxCapacitorEventProcessor(
                             processorName, sagaConfig.getSagaManager(),
@@ -137,10 +137,6 @@ public abstract class AbstractFluxCapacitorConfiguration implements FluxCapacito
     protected abstract EventStoreClient createEventStore();
 
     protected abstract KeyValueClient createKeyValueClient();
-
-    protected ClientProperties getClientProperties() {
-        return clientProperties;
-    }
 
     private TrackingClient getEventConsumerService() {
         return eventConsumerService

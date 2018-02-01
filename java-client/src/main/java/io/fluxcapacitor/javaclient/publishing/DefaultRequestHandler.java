@@ -1,7 +1,6 @@
 package io.fluxcapacitor.javaclient.publishing;
 
 import io.fluxcapacitor.common.api.SerializedMessage;
-import io.fluxcapacitor.javaclient.configuration.client.ClientProperties;
 import io.fluxcapacitor.javaclient.tracking.client.TrackingClient;
 import io.fluxcapacitor.javaclient.tracking.client.TrackingUtils;
 import lombok.AllArgsConstructor;
@@ -23,7 +22,7 @@ import static io.fluxcapacitor.javaclient.tracking.ConsumerConfiguration.DEFAULT
 public class DefaultRequestHandler implements RequestHandler {
 
     private final TrackingClient trackingClient;
-    private final ClientProperties properties;
+    private final String clientId;
     private final Map<Integer, CompletableFuture<SerializedMessage>> callbacks = new ConcurrentHashMap<>();
     private final AtomicInteger nextId = new AtomicInteger();
     private final AtomicBoolean started = new AtomicBoolean();
@@ -38,7 +37,7 @@ public class DefaultRequestHandler implements RequestHandler {
         int requestId = nextId.getAndIncrement();
         callbacks.put(requestId, result);
         request.setRequestId(requestId);
-        request.setSource(properties.getClientId());
+        request.setSource(clientId);
         requestSender.accept(request);
         return result;
     }

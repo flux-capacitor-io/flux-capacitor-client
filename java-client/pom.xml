@@ -61,7 +61,7 @@
             <scope>runtime</scope>
         </dependency>
 
-        <!--for caching repository-->
+        <!--for caching-->
         <dependency>
             <groupId>com.github.ben-manes.caffeine</groupId>
             <artifactId>caffeine</artifactId>
@@ -75,7 +75,7 @@
             <version>3.7</version>
         </dependency>
 
-        <!--for validating interceptor-->
+        <!--for the validating interceptor-->
         <dependency>
             <groupId>javax.validation</groupId>
             <artifactId>validation-api</artifactId>

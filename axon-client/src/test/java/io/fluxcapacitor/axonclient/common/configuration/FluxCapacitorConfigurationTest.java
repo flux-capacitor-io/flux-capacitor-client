@@ -54,7 +54,7 @@ public class FluxCapacitorConfigurationTest {
                 .registerModule(new EventHandlingConfiguration().registerEventHandler(c -> eventListener))
                 .configureAggregate(Aggregate.class)
                 .registerModule(SagaConfiguration.subscribingSagaManager(Saga.class));
-        configuration = InMemoryFluxCapacitorConfiguration.configure(configurer, "test").buildConfiguration();
+        configuration = new InMemoryFluxCapacitorConfiguration().configure(configurer).buildConfiguration();
         configuration.start();
     }
 

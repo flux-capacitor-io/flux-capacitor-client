@@ -8,7 +8,7 @@ import io.fluxcapacitor.javaclient.common.serialization.DeserializingMessage;
 import io.fluxcapacitor.javaclient.common.serialization.MessageSerializer;
 import io.fluxcapacitor.javaclient.common.serialization.Serializer;
 import io.fluxcapacitor.javaclient.common.serialization.jackson.JacksonSerializer;
-import io.fluxcapacitor.javaclient.configuration.client.FluxCapacitorClient;
+import io.fluxcapacitor.javaclient.configuration.client.Client;
 import io.fluxcapacitor.javaclient.eventsourcing.*;
 import io.fluxcapacitor.javaclient.keyvalue.DefaultKeyValueStore;
 import io.fluxcapacitor.javaclient.keyvalue.KeyValueStore;
@@ -190,7 +190,7 @@ public class DefaultFluxCapacitor implements FluxCapacitor {
             return this;
         }
 
-        public FluxCapacitor build(FluxCapacitorClient client) {
+        public FluxCapacitor build(Client client) {
             Map<MessageType, DispatchInterceptor> dispatchInterceptors = new HashMap<>(this.dispatchInterceptors);
             Map<MessageType, HandlerInterceptor> handlerInterceptors = new HashMap<>(this.handlerInterceptors);
 
@@ -219,7 +219,7 @@ public class DefaultFluxCapacitor implements FluxCapacitor {
                     new DefaultResultGateway(client.getGatewayClient(RESULT),
                                              new MessageSerializer(serializer, dispatchInterceptors.get(RESULT)));
             RequestHandler requestHandler =
-                    new DefaultRequestHandler(client.getTrackingClient(RESULT), client.getProperties());
+                    new DefaultRequestHandler(client.getTrackingClient(RESULT), client.id());
             CommandGateway commandGateway =
                     new DefaultCommandGateway(client.getGatewayClient(COMMAND), requestHandler,
                                               new MessageSerializer(serializer, dispatchInterceptors.get(COMMAND)));

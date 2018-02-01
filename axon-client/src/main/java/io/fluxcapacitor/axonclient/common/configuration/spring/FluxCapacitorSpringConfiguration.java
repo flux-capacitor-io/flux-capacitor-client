@@ -16,9 +16,8 @@ package io.fluxcapacitor.axonclient.common.configuration.spring;
 
 import io.fluxcapacitor.axonclient.common.configuration.FluxCapacitorConfiguration;
 import io.fluxcapacitor.axonclient.common.configuration.InMemoryFluxCapacitorConfiguration;
-import io.fluxcapacitor.javaclient.configuration.client.ClientProperties;
-import io.fluxcapacitor.javaclient.configuration.client.InMemoryClientProperties;
-import io.fluxcapacitor.javaclient.configuration.client.WebSocketClientProperties;
+import io.fluxcapacitor.axonclient.common.configuration.WebsocketFluxCapacitorConfiguration;
+import io.fluxcapacitor.javaclient.configuration.client.WebSocketClient;
 import lombok.extern.slf4j.Slf4j;
 import org.axonframework.config.Configurer;
 import org.axonframework.config.EventHandlingConfiguration;
@@ -31,17 +30,20 @@ import org.springframework.context.annotation.Configuration;
 @Slf4j
 public class FluxCapacitorSpringConfiguration {
 
+    private final WebSocketClient.Properties webSocketClientProperties;
+
+    public FluxCapacitorSpringConfiguration(@Autowired(required = false) WebSocketClient.Properties webSocketClientProperties) {
+        this.webSocketClientProperties = webSocketClientProperties;
+    }
+
     @Bean
     @SuppressWarnings("ConstantConditions")
-    public FluxCapacitorConfiguration fluxCapacitorConfiguration(ClientProperties clientProperties) {
-        if (clientProperties instanceof InMemoryClientProperties) {
+    public FluxCapacitorConfiguration fluxCapacitorConfiguration() {
+        if (webSocketClientProperties == null) {
             log.info("Using in-memory Flux Capacitor client.");
-            return new InMemoryFluxCapacitorConfiguration(clientProperties.getApplicationName());
+            return new InMemoryFluxCapacitorConfiguration();
         }
-        if (clientProperties instanceof WebSocketClientProperties) {
-            return new InMemoryFluxCapacitorConfiguration(clientProperties.getApplicationName());
-        }
-        throw new UnsupportedOperationException("Unsupported client properties: " + clientProperties);
+        return new WebsocketFluxCapacitorConfiguration(webSocketClientProperties);
     }
 
     @Autowired

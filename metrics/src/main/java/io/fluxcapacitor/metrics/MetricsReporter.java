@@ -22,7 +22,7 @@ import io.fluxcapacitor.common.handling.Handle;
 import io.fluxcapacitor.common.handling.Handler;
 import io.fluxcapacitor.common.handling.HandlerInspector;
 import io.fluxcapacitor.javaclient.common.websocket.ServiceUrlBuilder;
-import io.fluxcapacitor.javaclient.configuration.client.WebSocketClientProperties;
+import io.fluxcapacitor.javaclient.configuration.client.WebSocketClient;
 import io.fluxcapacitor.javaclient.tracking.client.TrackingClient;
 import io.fluxcapacitor.javaclient.tracking.client.TrackingUtils;
 import io.fluxcapacitor.javaclient.tracking.client.WebsocketTrackingClient;
@@ -35,13 +35,13 @@ import java.util.Collections;
 public abstract class MetricsReporter {
 
     private final ObjectMapper objectMapper;
-    private final WebSocketClientProperties clientProperties;
+    private final WebSocketClient.Properties clientProperties;
     private final Handler<ClientAction> invoker;
 
     public MetricsReporter(String fluxCapacitorUrl) {
         this.objectMapper = new ObjectMapper();
         this.invoker = HandlerInspector.createHandler(this, Handle.class, Collections.singletonList(p -> c -> c));
-        this.clientProperties = new WebSocketClientProperties("graphiteReporter", fluxCapacitorUrl);
+        this.clientProperties = new WebSocketClient.Properties("graphiteReporter", fluxCapacitorUrl);
     }
 
     public void start() {
