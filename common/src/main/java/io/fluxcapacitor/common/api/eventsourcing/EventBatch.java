@@ -23,6 +23,7 @@ import java.util.List;
 @Value
 public class EventBatch {
     String aggregateId;
+    String domain;
     long lastSequenceNumber;
     List<SerializedMessage> events;
     

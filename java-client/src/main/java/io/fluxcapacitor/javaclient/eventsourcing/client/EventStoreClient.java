@@ -22,7 +22,8 @@ import java.util.stream.Stream;
 
 public interface EventStoreClient {
 
-    Awaitable storeEvents(String aggregateId, long lastSequenceNumber, List<SerializedMessage> events);
+    Awaitable storeEvents(String aggregateId, String domain, long lastSequenceNumber,
+                          List<SerializedMessage> events);
 
     Stream<SerializedMessage> getEvents(String aggregateId, long lastSequenceNumber);
 

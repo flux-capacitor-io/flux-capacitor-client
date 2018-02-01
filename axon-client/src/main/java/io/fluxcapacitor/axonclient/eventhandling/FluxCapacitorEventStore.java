@@ -83,7 +83,7 @@ public class FluxCapacitorEventStore extends AbstractEventBus implements EventSt
                 domain = domainEvent.getType();
             }
             List<SerializedMessage> group = convertedEvents.subList(i, j);
-            delegate.storeEvents(aggregateId, sequenceNumber, group).await();
+            delegate.storeEvents(aggregateId, domain, sequenceNumber, group).await();
             i = j;
         }
     }

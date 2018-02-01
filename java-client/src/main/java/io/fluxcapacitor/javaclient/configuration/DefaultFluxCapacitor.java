@@ -100,6 +100,7 @@ public class DefaultFluxCapacitor implements FluxCapacitor {
     public static class Builder {
 
         private Serializer serializer = new JacksonSerializer();
+        private Serializer snapshotSerializer = serializer;
         private final Map<MessageType, List<ConsumerConfiguration>> consumerConfigurations = defaultConfigurations();
         private final List<ParameterResolver<? super DeserializingMessage>> trackingParameterResolvers =
                 defaultTrackingParameterResolvers();
@@ -123,7 +124,15 @@ public class DefaultFluxCapacitor implements FluxCapacitor {
         }
 
         public Builder serializer(Serializer serializer) {
+            if (snapshotSerializer == this.serializer) {
+                snapshotSerializer = serializer;
+            }
             this.serializer = serializer;
+            return this;
+        }
+
+        public Builder snapshotSerializer(Serializer serializer) {
+            this.snapshotSerializer = serializer;
             return this;
         }
 
@@ -221,23 +230,28 @@ public class DefaultFluxCapacitor implements FluxCapacitor {
                     new DefaultEventGateway(client.getGatewayClient(EVENT),
                                             new MessageSerializer(serializer, dispatchInterceptors.get(EVENT)));
 
-
-            KeyValueStore keyValueStore = new DefaultKeyValueStore(client.getKeyValueClient(), serializer);
-            Scheduler scheduler = new DefaultScheduler(client.getSchedulingClient(),
-                                                       new MessageSerializer(serializer,
-                                                                             dispatchInterceptors.get(SCHEDULE)));
-
-            EventStore eventStore = new DefaultEventStore(client.getEventStoreClient(), keyValueStore,
+            //event sourcing
+            EventStore eventStore = new DefaultEventStore(client.getEventStoreClient(),
                                                           new EventStoreSerializer(serializer,
                                                                                    dispatchInterceptors.get(EVENT)));
-            EventSourcing eventSourcing = new DefaultEventSourcing(eventStore, new DefaultCache());
+            DefaultSnapshotRepository snapshotRepository =
+                    new DefaultSnapshotRepository(client.getKeyValueClient(), snapshotSerializer);
+            EventSourcing eventSourcing = new DefaultEventSourcing(eventStore, snapshotRepository, new DefaultCache());
 
-
+            //tracking
             Map<MessageType, Tracking> trackingMap = stream(MessageType.values())
                     .collect(toMap(identity(),
                                    m -> new DefaultTracking(getHandlerAnnotation(m), client.getTrackingClient(m),
                                                             resultGateway, consumerConfigurations.get(m), serializer,
                                                             handlerInterceptors.get(m), trackingParameterResolvers)));
+
+            //misc
+            KeyValueStore keyValueStore = new DefaultKeyValueStore(client.getKeyValueClient(), serializer);
+            Scheduler scheduler = new DefaultScheduler(client.getSchedulingClient(),
+                                                       new MessageSerializer(serializer,
+                                                                             dispatchInterceptors.get(SCHEDULE)));
+
+            //and finally...
             return new DefaultFluxCapacitor(trackingMap, commandGateway, queryGateway, eventGateway, resultGateway,
                                             eventSourcing, keyValueStore, scheduler);
         }

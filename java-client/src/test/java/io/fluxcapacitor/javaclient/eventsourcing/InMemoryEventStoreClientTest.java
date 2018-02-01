@@ -32,7 +32,7 @@ public class InMemoryEventStoreClientTest {
     @Test
     public void returnsCorrectStreamWhenLastSnIsMidBatch() throws Exception {
         List<SerializedMessage> in = createMessages(300);
-        subject.storeEvents("a", in.size() - 1, in);
+        subject.storeEvents("a", "test", in.size() - 1, in);
         Stream<SerializedMessage> out = subject.getEvents("a", 99L);
         assertEqualMessages(in.subList(100, 300), out.collect(Collectors.toList()));
     }

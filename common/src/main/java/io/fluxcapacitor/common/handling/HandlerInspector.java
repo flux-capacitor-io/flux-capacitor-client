@@ -39,7 +39,8 @@ public class HandlerInspector {
     }
 
     public static boolean hasHandlerMethods(Class<?> targetClass, Class<? extends Annotation> methodAnnotation) {
-        return stream(targetClass.getMethods()).anyMatch(m -> m.isAnnotationPresent(methodAnnotation));
+        return concat(stream(targetClass.getMethods()), stream(targetClass.getConstructors()))
+                .anyMatch(m -> m.isAnnotationPresent(methodAnnotation));
     }
 
     public static <M> Handler<M> createHandler(Object target, Class<? extends Annotation> methodAnnotation,

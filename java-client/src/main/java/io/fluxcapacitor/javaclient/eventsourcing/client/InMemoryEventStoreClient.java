@@ -31,13 +31,13 @@ public class InMemoryEventStoreClient extends InMemoryMessageStore implements Ev
     private final Map<String, List<EventBatch>> domainEvents = new ConcurrentHashMap<>();
 
     @Override
-    public Awaitable storeEvents(String aggregateId, long lastSequenceNumber,
+    public Awaitable storeEvents(String aggregateId, String domain, long lastSequenceNumber,
                                  List<SerializedMessage> events) {
         domainEvents.compute(aggregateId, (id, list) -> {
             if (list == null) {
                 list = new ArrayList<>();
             }
-            list.add(new EventBatch(aggregateId, lastSequenceNumber, events));
+            list.add(new EventBatch(aggregateId, domain, lastSequenceNumber, events));
             return list;
         });
         return super.send(events.toArray(new SerializedMessage[0]));
