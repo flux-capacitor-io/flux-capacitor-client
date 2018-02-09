@@ -16,11 +16,13 @@ package io.fluxcapacitor.javaclient.publishing.correlation;
 
 import io.fluxcapacitor.javaclient.common.serialization.DeserializingMessage;
 import lombok.AllArgsConstructor;
+import lombok.EqualsAndHashCode;
 
 import java.util.HashMap;
 import java.util.Map;
 
 @AllArgsConstructor
+@EqualsAndHashCode
 public class MessageOriginProvider implements CorrelationDataProvider {
     private final String correlationId;
     private final String traceId;

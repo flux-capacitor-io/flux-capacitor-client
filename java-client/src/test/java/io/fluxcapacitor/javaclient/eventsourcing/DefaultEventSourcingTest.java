@@ -21,6 +21,7 @@ import java.util.Optional;
 import java.util.function.Function;
 import java.util.stream.Stream;
 
+import static io.fluxcapacitor.common.MessageType.EVENT;
 import static java.util.Arrays.stream;
 import static java.util.Collections.singletonList;
 import static org.junit.Assert.*;
@@ -76,7 +77,7 @@ public class DefaultEventSourcingTest {
     public void testApplyEvents() {
         Function<Message, EsModel<TestModel>> f = prepareSubjectForHandling();
         verifyZeroInteractions(eventStore, cache);
-        EsModel<TestModel> model = f.apply(new Message(new CreateModel()));
+        EsModel<TestModel> model = f.apply(new Message(new CreateModel(), EVENT));
         assertEquals(singletonList(new CreateModel()), model.get().events);
         assertEquals(0L, model.getSequenceNumber());
     }
@@ -112,7 +113,7 @@ public class DefaultEventSourcingTest {
     @Test
     public void testApplyEventsWithMetadata() {
         EsModel<TestModel> model = prepareSubjectForHandling()
-                .apply(new Message(new CreateModelWithMetadata(), Metadata.from("foo", "bar")));
+                .apply(new Message(new CreateModelWithMetadata(), Metadata.from("foo", "bar"), EVENT));
         assertEquals(Metadata.from("foo", "bar"), model.get().metadata);
         assertEquals(0L, model.getSequenceNumber());
     }
@@ -120,7 +121,7 @@ public class DefaultEventSourcingTest {
     @Test
     public void testEventsGetStoredWhenHandlingEnds() {
         reset(eventStore);
-        Message event = new Message(new CreateModel());
+        Message event = new Message(new CreateModel(), EVENT);
         prepareSubjectForHandling().apply(event);
         verify(eventStore).storeDomainEvents(modelId, TestModel.class.getSimpleName(), 0L, singletonList(event));
     }
@@ -144,7 +145,8 @@ public class DefaultEventSourcingTest {
     @Test
     public void testApplyingUnknownEventsAllowedIfModelExists() {
         reset(eventStore);
-        List<Message> events = Arrays.asList(new Message(new CreateModel()), new Message("foo"));
+        List<Message> events =
+                Arrays.asList(new Message(new CreateModel(), EVENT), new Message("foo", EVENT));
         executeWhileIntercepting(() -> {
             EsModel<TestModel> model = subject.load(modelId, TestModel.class);
             events.forEach(model::apply);
@@ -154,13 +156,16 @@ public class DefaultEventSourcingTest {
 
     @Test(expected = HandlerNotFoundException.class)
     public void testApplyingUnknownEventsFailsIfModelDoesNotExist() {
-        executeWhileIntercepting(() -> subject.load(modelId, TestModel.class).apply(new Message("foo")))
+        executeWhileIntercepting(
+                () -> subject.load(modelId, TestModel.class).apply(new Message("foo", EVENT)))
                 .apply(toDeserializingMessage("command"));
     }
 
     @Test
     public void testSnapshotStoredAfterThreshold() {
-        List<Message> events = Arrays.asList(new Message(new CreateModel()), new Message("foo"), new Message("foo"));
+        List<Message> events =
+                Arrays.asList(new Message(new CreateModel(), EVENT), new Message("foo", EVENT),
+                              new Message("foo", EVENT));
         executeWhileIntercepting(() -> {
             EsModel<TestModelForSnapshotting> model = subject.load(modelId, TestModelForSnapshotting.class);
             reset(snapshotRepository);
@@ -171,7 +176,8 @@ public class DefaultEventSourcingTest {
 
     @Test
     public void testNoSnapshotStoredBeforeThreshold() {
-        List<Message> events = Arrays.asList(new Message(new CreateModel()), new Message("foo"));
+        List<Message> events =
+                Arrays.asList(new Message(new CreateModel(), EVENT), new Message("foo", EVENT));
         executeWhileIntercepting(() -> {
             EsModel<TestModelForSnapshotting> model = subject.load(modelId, TestModelForSnapshotting.class);
             reset(snapshotRepository);
@@ -198,13 +204,13 @@ public class DefaultEventSourcingTest {
     }
 
     private DeserializingMessage toDeserializingMessage(Object payload) {
-        return toDeserializingMessage(new Message(payload, Metadata.empty()));
+        return toDeserializingMessage(new Message(payload, Metadata.empty(), EVENT));
     }
 
     private DeserializingMessage toDeserializingMessage(Message message) {
         return new DeserializingMessage(new DeserializingObject<>(
                 new SerializedMessage(new Data<>(new byte[0], message.getPayload().getClass().getName(), 0),
-                                      message.getMetadata()), message::getPayload));
+                                      message.getMetadata()), message::getPayload), EVENT);
     }
 
     @EventSourced(cached = true, snapshotPeriod = 100)

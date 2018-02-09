@@ -1,5 +1,6 @@
 package io.fluxcapacitor.javaclient.tracking.handling.validation;
 
+import io.fluxcapacitor.common.MessageType;
 import io.fluxcapacitor.common.api.Data;
 import io.fluxcapacitor.common.api.SerializedMessage;
 import io.fluxcapacitor.javaclient.common.serialization.DeserializingMessage;
@@ -19,7 +20,8 @@ public class ValidatingInterceptorTest {
 
     private ValidatingInterceptor subject = new ValidatingInterceptor();
     private Function<Object, DeserializingMessage> messageFactory = payload -> new DeserializingMessage(
-            new DeserializingObject<>(new SerializedMessage(new Data<>("test".getBytes(), "test", 0)), () -> payload));
+            new DeserializingObject<>(new SerializedMessage(new Data<>("test".getBytes(), "test", 0)), () -> payload),
+            MessageType.EVENT);
 
     @Test
     public void testWithConstraintViolations() {

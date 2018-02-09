@@ -1,5 +1,6 @@
 package io.fluxcapacitor.javaclient.tracking;
 
+import io.fluxcapacitor.common.MessageType;
 import io.fluxcapacitor.common.Registration;
 import io.fluxcapacitor.common.api.SerializedMessage;
 import io.fluxcapacitor.common.handling.Handler;
@@ -28,6 +29,7 @@ import static java.util.stream.Collectors.groupingBy;
 @Slf4j
 public class DefaultTracking implements Tracking {
 
+    private final MessageType messageType;
     private final Class<? extends Annotation> handlerAnnotation;
     private final TrackingClient trackingClient;
     private final ResultGateway resultGateway;
@@ -58,17 +60,16 @@ public class DefaultTracking implements Tracking {
     protected Registration startTracking(ConsumerConfiguration configuration, List<Object> handlers,
                                          FluxCapacitor fluxCapacitor) {
         Consumer<List<SerializedMessage>> consumer = createConsumer(configuration, handlers);
-        TrackingConfiguration config = configuration.getTrackingConfiguration().toBuilder().batchMessageBatchInterceptor(
-                c -> {
-                    FluxCapacitor.instance.set(fluxCapacitor);
-                    return messages -> {
-                        try {
-                            c.accept(messages);
-                        } finally {
-                            FluxCapacitor.instance.remove();
-                        }
-                    };
-                }).build();
+        TrackingConfiguration config =
+                configuration.getTrackingConfiguration().toBuilder().batchMessageBatchInterceptor(
+                        c -> messages -> {
+                            FluxCapacitor.instance.set(fluxCapacitor);
+                            try {
+                                c.accept(messages);
+                            } finally {
+                                FluxCapacitor.instance.remove();
+                            }
+                        }).build();
         return TrackingUtils.start(configuration.getName(), consumer, trackingClient, config);
     }
 
@@ -78,7 +79,8 @@ public class DefaultTracking implements Tracking {
                 = HandlerInspector.createHandlers(handlers, handlerAnnotation, parameterResolvers);
         return serializedMessages -> {
             Stream<DeserializingMessage> messages =
-                    serializer.deserialize(serializedMessages.stream(), false).map(DeserializingMessage::new);
+                    serializer.deserialize(serializedMessages.stream(), false)
+                            .map(m -> new DeserializingMessage(m, messageType));
             messages.forEach(m -> invokers.forEach(i -> handle(m, i)));
         };
     }

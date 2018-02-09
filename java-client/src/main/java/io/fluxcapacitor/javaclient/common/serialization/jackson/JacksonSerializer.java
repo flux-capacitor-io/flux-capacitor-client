@@ -27,11 +27,12 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.stream.Stream;
 
+import static com.fasterxml.jackson.databind.SerializationFeature.FAIL_ON_EMPTY_BEANS;
 import static java.lang.String.format;
 
 public class JacksonSerializer extends AbstractSerializer {
     public static final ObjectMapper defaultObjectMapper =
-            new ObjectMapper().setSerializationInclusion(JsonInclude.Include.NON_NULL);
+            new ObjectMapper().setSerializationInclusion(JsonInclude.Include.NON_NULL).disable(FAIL_ON_EMPTY_BEANS);
 
     private final ObjectMapper objectMapper;
 
@@ -41,6 +42,10 @@ public class JacksonSerializer extends AbstractSerializer {
 
     public JacksonSerializer(Collection<?> upcasters) {
         this(defaultObjectMapper, upcasters);
+    }
+
+    public JacksonSerializer(ObjectMapper objectMapper) {
+        this(objectMapper, Collections.emptyList());
     }
 
     public JacksonSerializer(ObjectMapper objectMapper, Collection<?> upcasters) {

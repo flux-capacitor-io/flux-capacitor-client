@@ -14,6 +14,7 @@
 
 package io.fluxcapacitor.javaclient.common.serialization;
 
+import io.fluxcapacitor.common.MessageType;
 import io.fluxcapacitor.common.api.Metadata;
 import io.fluxcapacitor.common.api.SerializedMessage;
 import io.fluxcapacitor.javaclient.common.Message;
@@ -26,16 +27,17 @@ import java.util.function.Function;
 public class MessageSerializer {
     private final Function<Message, SerializedMessage> serializer;
     private final Function<SerializedMessage, Message> deserializer;
+    private final MessageType messageType;
 
-    public MessageSerializer(Serializer serializer, DispatchInterceptor dispatchInterceptor) {
+    public MessageSerializer(Serializer serializer, DispatchInterceptor dispatchInterceptor, MessageType messageType) {
         this(dispatchInterceptor.interceptDispatch(
                 m -> new SerializedMessage(serializer.serialize(m.getPayload()), m.getMetadata())),
-             s -> new Message(serializer.deserialize(s.getData()), s.getMetadata()));
+             s -> new Message(serializer.deserialize(s.getData()), s.getMetadata(), messageType), messageType);
     }
 
-    public MessageSerializer(Serializer serializer) {
+    public MessageSerializer(Serializer serializer, MessageType messageType) {
         this(m -> new SerializedMessage(serializer.serialize(m.getPayload()), m.getMetadata()),
-             s -> new Message(serializer.deserialize(s.getData()), s.getMetadata()));
+             s -> new Message(serializer.deserialize(s.getData()), s.getMetadata(), messageType), messageType);
     }
 
     public SerializedMessage serialize(Message message) {
@@ -47,6 +49,6 @@ public class MessageSerializer {
     }
 
     public SerializedMessage serialize(Object payload, Metadata metadata) {
-        return serialize(new Message(payload, metadata));
+        return serialize(new Message(payload, metadata, messageType));
     }
 }

@@ -1,6 +1,7 @@
 package io.fluxcapacitor.javaclient.publishing;
 
 import io.fluxcapacitor.common.api.Metadata;
+import io.fluxcapacitor.javaclient.common.Message;
 import lombok.SneakyThrows;
 
 import java.util.concurrent.CompletableFuture;
@@ -10,14 +11,22 @@ import static java.lang.String.format;
 
 public interface QueryGateway {
 
-    default <R> CompletableFuture<R> query(Object payload) {
-        return query(payload, Metadata.empty());
+    default <R> CompletableFuture<R> query(Object query) {
+        if (query instanceof Message) {
+            return query(((Message) query).getPayload(), ((Message) query).getMetadata());
+        } else {
+            return query(query, Metadata.empty());
+        }
     }
 
     <R> CompletableFuture<R> query(Object payload, Metadata metadata);
 
-    default <R> R queryAndWait(Object payload) {
-        return queryAndWait(payload, Metadata.empty());
+    default <R> R queryAndWait(Object query) {
+        if (query instanceof Message) {
+            return queryAndWait(((Message) query).getPayload(), ((Message) query).getMetadata());
+        } else {
+            return queryAndWait(query, Metadata.empty());
+        }
     }
 
     @SneakyThrows

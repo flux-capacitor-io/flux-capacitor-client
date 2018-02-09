@@ -15,6 +15,7 @@
 package io.fluxcapacitor.javaclient.publishing.routing;
 
 import io.fluxcapacitor.common.ConsistentHashing;
+import io.fluxcapacitor.common.MessageType;
 import io.fluxcapacitor.common.api.Data;
 import io.fluxcapacitor.common.api.SerializedMessage;
 import io.fluxcapacitor.javaclient.common.Message;
@@ -34,7 +35,7 @@ public class MessageRoutingInterceptorTest {
 
     @Test
     public void testNoSegmentWithoutAnnotation() {
-        SerializedMessage result = subject.interceptDispatch(invocation).apply(new Message(new Object()));
+        SerializedMessage result = subject.interceptDispatch(invocation).apply(new Message(new Object(), MessageType.EVENT));
         assertNull(result.getSegment());
     }
 
@@ -64,7 +65,7 @@ public class MessageRoutingInterceptorTest {
     }
 
     private void testInvocation(Object payload) {
-        SerializedMessage result = subject.interceptDispatch(invocation).apply(new Message(payload));
+        SerializedMessage result = subject.interceptDispatch(invocation).apply(new Message(payload, MessageType.EVENT));
         assertEquals(expectedHash, (int) result.getSegment());
     }
 

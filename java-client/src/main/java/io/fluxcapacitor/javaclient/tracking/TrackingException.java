@@ -1,12 +1,10 @@
 package io.fluxcapacitor.javaclient.tracking;
 
-public class TrackingException extends RuntimeException {
+import java.beans.ConstructorProperties;
 
+public class TrackingException extends RuntimeException {
+    @ConstructorProperties({"message"})
     public TrackingException(String message) {
         super(message);
-    }
-
-    public TrackingException(String message, Throwable cause) {
-        super(message, cause);
     }
 }

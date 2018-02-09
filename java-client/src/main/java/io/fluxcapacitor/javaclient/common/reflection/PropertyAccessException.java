@@ -17,7 +17,6 @@ package io.fluxcapacitor.javaclient.common.reflection;
 import java.lang.reflect.AccessibleObject;
 
 public class PropertyAccessException extends RuntimeException {
-
     public PropertyAccessException(AccessibleObject accessibleObject, Throwable cause) {
         super(String.format("Failed to access %s. Property values should be accessible", accessibleObject), cause);
     }

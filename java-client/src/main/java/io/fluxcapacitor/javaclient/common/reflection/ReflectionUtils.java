@@ -25,6 +25,9 @@ import java.util.Optional;
 public class ReflectionUtils {
 
     public static Optional<?> getAnnotatedPropertyValue(Object target, Class<? extends Annotation> annotation) {
+        if (target == null) {
+            return Optional.empty();
+        }
         Optional<?> result = FieldUtils.getFieldsListWithAnnotation(target.getClass(), annotation).stream().findFirst()
                 .map(f -> getProperty(f, target));
         if (!result.isPresent()) {

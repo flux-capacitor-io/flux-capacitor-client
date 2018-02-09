@@ -14,6 +14,7 @@
 
 package io.fluxcapacitor.javaclient.eventsourcing;
 
+import io.fluxcapacitor.common.MessageType;
 import io.fluxcapacitor.common.api.SerializedMessage;
 import io.fluxcapacitor.javaclient.common.Message;
 import io.fluxcapacitor.javaclient.common.serialization.DeserializingMessage;
@@ -45,6 +46,7 @@ public class EventStoreSerializer {
     }
 
     public Stream<DeserializingMessage> deserializeDomainEvents(Stream<SerializedMessage> messageStream) {
-        return deserializer.deserialize(messageStream, true).map(DeserializingMessage::new);
+        return deserializer.deserialize(messageStream, true)
+                .map(m -> new DeserializingMessage(m, MessageType.EVENT));
     }
 }

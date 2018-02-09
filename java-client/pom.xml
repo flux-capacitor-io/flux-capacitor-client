@@ -115,6 +115,7 @@
                         </goals>
                         <configuration>
                             <includes>
+                                <include>**/test/**</include>
                                 <include>**/benchmark/**</include>
                             </includes>
                         </configuration>

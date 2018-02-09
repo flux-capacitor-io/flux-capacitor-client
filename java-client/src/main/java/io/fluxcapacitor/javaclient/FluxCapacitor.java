@@ -38,8 +38,8 @@ public interface FluxCapacitor {
                 .orElseThrow(() -> new IllegalStateException("FluxCapacitor instance not set"));
     }
 
-    static void publishEvent(Object payload) {
-        get().eventGateway().publishEvent(payload);
+    static void publishEvent(Object event) {
+        get().eventGateway().publishEvent(event);
     }
 
     static void publishEvent(Object payload, Metadata metadata) {
@@ -50,20 +50,20 @@ public interface FluxCapacitor {
         get().commandGateway().sendAndForget(payload, metadata);
     }
 
-    static void sendAndForgetCommand(Object payload) {
-        get().commandGateway().sendAndForget(payload, Metadata.empty());
+    static void sendAndForgetCommand(Object command) {
+        get().commandGateway().sendAndForget(command, Metadata.empty());
     }
 
     static <R> CompletableFuture<R> sendCommand(Object payload, Metadata metadata) {
         return get().commandGateway().send(payload, metadata);
     }
 
-    static <R> CompletableFuture<R> sendCommand(Object payload) {
-        return get().commandGateway().send(payload, Metadata.empty());
+    static <R> CompletableFuture<R> sendCommand(Object command) {
+        return get().commandGateway().send(command, Metadata.empty());
     }
 
-    static <R> CompletableFuture<R> query(Object payload) {
-        return get().queryGateway().query(payload);
+    static <R> CompletableFuture<R> query(Object query) {
+        return get().queryGateway().query(query);
     }
 
     static <R> CompletableFuture<R> query(Object payload, Metadata metadata) {
