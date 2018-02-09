@@ -73,6 +73,9 @@ public class HandlerInspector {
             this.executable = executable;
             this.parameterSuppliers = getParameterSuppliers(executable, parameterResolvers);
             this.payloadTypeSupplier = getPayloadTypeSupplier(executable, parameterResolvers);
+            if (!executable.isAccessible()) {
+                executable.setAccessible(true);
+            }
         }
 
         @Override

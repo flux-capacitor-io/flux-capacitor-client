@@ -29,7 +29,7 @@ public class GivenWhenThenTest {
         subject.givenNoPriorActivity().whenCommand(command).expectEvents(command).expectNoResult();
     }
 
-    public static class CommandHandler {
+    private static class CommandHandler {
         @HandleCommand
         public void handle(YieldsNoResult command) {
             //no op
