@@ -64,27 +64,27 @@ public class GivenWhenThenTest {
     }
 
     @Value
-    public static class YieldsNoResult {
+    private static class YieldsNoResult {
     }
 
     @Value
-    public static class YieldsResult {
+    private static class YieldsResult {
     }
 
     @Value
-    public static class YieldsException {
+    private static class YieldsException {
     }
 
     @Value
-    public static class YieldsEventAndNoResult {
+    private static class YieldsEventAndNoResult {
     }
 
     @Value
-    public static class YieldsEventAndResult {
+    private static class YieldsEventAndResult {
     }
 
     @Value
-    public static class YieldsEventAndException {
+    private static class YieldsEventAndException {
     }
 
 }

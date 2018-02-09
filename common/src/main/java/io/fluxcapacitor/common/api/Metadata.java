@@ -1,6 +1,5 @@
 package io.fluxcapacitor.common.api;
 
-import com.fasterxml.jackson.annotation.JsonCreator;
 import lombok.Value;
 
 import java.util.Collection;
@@ -13,17 +12,14 @@ import static java.util.Collections.singletonMap;
 
 @Value
 public class Metadata implements Map<String, String> {
-    private static Metadata emptyMetadata = new Metadata(emptyMap());
+    Map<String, String> entries;
 
-    HashMap<String, String> entries;
-
-    @JsonCreator
     private Metadata(Map<String, String> entries) {
         this.entries = new HashMap<>(entries);
     }
 
     public static Metadata empty() {
-        return emptyMetadata;
+        return new Metadata(emptyMap());
     }
 
     public static Metadata from(String key, String value) {
@@ -31,7 +27,7 @@ public class Metadata implements Map<String, String> {
     }
 
     public static Metadata from(Map<String, String> map) {
-        return map instanceof Metadata ? (Metadata) map : new Metadata(map);
+        return new Metadata(map);
     }
 
     @Override
