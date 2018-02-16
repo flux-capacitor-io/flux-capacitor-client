@@ -25,4 +25,5 @@ public class Read extends Request {
     int channel;
     int maxSize;
     long maxTimeout;
+    String typeFilter;
 }

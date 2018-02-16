@@ -28,6 +28,8 @@ import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Consumer;
 
+import static java.util.stream.Collectors.toList;
+
 public class InMemoryMessageStore implements GatewayClient, TrackingClient {
 
     private final AtomicLong nextIndex = new AtomicLong();
@@ -51,7 +53,7 @@ public class InMemoryMessageStore implements GatewayClient, TrackingClient {
     }
 
     @Override
-    public MessageBatch read(String consumer, int channel, int maxSize, Duration maxTimeout) {
+    public MessageBatch read(String consumer, int channel, int maxSize, Duration maxTimeout, String typeFilter) {
         if (channel != 0) {
             return new MessageBatch(new int[]{0, 1}, Collections.emptyList(), null);
         }
@@ -69,6 +71,9 @@ public class InMemoryMessageStore implements GatewayClient, TrackingClient {
             }
             List<SerializedMessage> messages = new ArrayList<>(tailMap.values());
             Long lastIndex = messages.isEmpty() ? null : messages.get(messages.size() - 1).getIndex();
+            if (typeFilter != null) {
+                messages = messages.stream().filter(m -> m.getData().getType().matches(typeFilter)).collect(toList());
+            }
             return new MessageBatch(new int[]{0, 1}, messages, lastIndex);
         }
     }

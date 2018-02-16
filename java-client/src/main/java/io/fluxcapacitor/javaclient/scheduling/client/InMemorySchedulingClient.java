@@ -21,13 +21,18 @@ public class InMemorySchedulingClient extends InMemoryMessageStore implements Sc
     private final ConcurrentSkipListMap<Long, String> times = new ConcurrentSkipListMap<>();
 
     @Override
-    public MessageBatch read(String consumer, int channel, int maxSize, Duration maxTimeout) {
-        MessageBatch messageBatch = super.read(consumer, channel, maxSize, maxTimeout);
-        List<SerializedMessage> schedulesPastDeadline = messageBatch.getMessages().stream()
+    public MessageBatch read(String consumer, int channel, int maxSize, Duration maxTimeout, String typeFilter) {
+        MessageBatch messageBatch = super.read(consumer, channel, maxSize, maxTimeout, typeFilter);
+        List<SerializedMessage> messages = messageBatch.getMessages().stream()
                 .filter(m -> times.containsKey(m.getIndex()))
-                .filter(m -> isMissedDeadline(timeFromIndex(m.getIndex()))).collect(toList());
-        return new MessageBatch(messageBatch.getSegment(), schedulesPastDeadline, schedulesPastDeadline.isEmpty()
-                ? null : schedulesPastDeadline.get(schedulesPastDeadline.size() - 1).getIndex());
+                .filter(m -> isMissedDeadline(timeFromIndex(m.getIndex())))
+                .collect(toList());
+        Long lastIndex = messages.isEmpty()
+                ? null : messages.get(messages.size() - 1).getIndex();
+        if (typeFilter != null) {
+            messages = messages.stream().filter(m -> m.getData().getType().matches(typeFilter)).collect(toList());
+        }
+        return new MessageBatch(messageBatch.getSegment(), messages, lastIndex);
     }
 
     @Override

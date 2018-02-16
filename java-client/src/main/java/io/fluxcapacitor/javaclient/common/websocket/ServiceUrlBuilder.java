@@ -25,7 +25,11 @@ public class ServiceUrlBuilder {
     }
 
     public static String consumerUrl(MessageType messageType, WebSocketClient.Properties clientProperties) {
-        return buildUrl(clientProperties, ServicePathBuilder.consumerPath(messageType));
+        String url = buildUrl(clientProperties, ServicePathBuilder.consumerPath(messageType));
+        if (clientProperties.getTypeFilter() != null) {
+            url += "&typeFilter=" + clientProperties.getTypeFilter();
+        }
+        return url;
     }
 
     public static String eventSourcingUrl(WebSocketClient.Properties clientProperties) {

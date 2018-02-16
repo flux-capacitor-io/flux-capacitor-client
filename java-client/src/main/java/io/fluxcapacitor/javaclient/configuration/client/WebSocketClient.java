@@ -12,6 +12,8 @@ import io.fluxcapacitor.javaclient.scheduling.client.WebsocketSchedulingClient;
 import io.fluxcapacitor.javaclient.tracking.client.TrackingClient;
 import io.fluxcapacitor.javaclient.tracking.client.WebsocketTrackingClient;
 import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.NonNull;
 import lombok.Value;
 
 import java.lang.management.ManagementFactory;
@@ -42,13 +44,15 @@ public class WebSocketClient extends AbstractClient {
 
     @Value
     @AllArgsConstructor
+    @Builder
     public static class Properties {
-        private final String name;
-        private final String id;
-        private final String serviceBaseUrl;
+        private final @NonNull String name;
+        private final @NonNull String id;
+        private final @NonNull String serviceBaseUrl;
+        private final String typeFilter;
 
         public Properties(String name, String serviceBaseUrl) {
-            this(name, ManagementFactory.getRuntimeMXBean().getName(), serviceBaseUrl);
+            this(name, ManagementFactory.getRuntimeMXBean().getName(), serviceBaseUrl, null);
         }
     }
 }

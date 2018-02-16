@@ -31,6 +31,8 @@ public class TrackingConfiguration {
     @Default
     int threads = 1;
     @Default
+    String typeFilter = null;
+    @Default
     int maxFetchBatchSize = 1024;
     @Default
     int maxConsumerBatchSize = 1024;

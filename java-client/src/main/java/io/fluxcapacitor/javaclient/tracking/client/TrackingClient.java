@@ -20,7 +20,7 @@ import java.time.Duration;
 
 public interface TrackingClient {
 
-    MessageBatch read(String consumer, int channel, int maxSize, Duration maxTimeout);
+    MessageBatch read(String consumer, int channel, int maxSize, Duration maxTimeout, String typeFilter);
 
     void storePosition(String consumer, int[] segment, long lastIndex);
 
