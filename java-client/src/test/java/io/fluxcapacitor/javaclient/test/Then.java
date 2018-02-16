@@ -5,8 +5,7 @@ import org.hamcrest.Matcher;
 import java.util.Arrays;
 import java.util.List;
 
-import static org.hamcrest.CoreMatchers.equalTo;
-import static org.hamcrest.CoreMatchers.nullValue;
+import static org.hamcrest.CoreMatchers.*;
 
 public interface Then {
 
@@ -26,6 +25,22 @@ public interface Then {
 
     Then expectEvents(List<?> events);
 
+    default Then expectOnlyCommands(Object... commands) {
+        return expectOnlyCommands(Arrays.asList(commands));
+    }
+
+    default Then expectCommands(Object... commands) {
+        return expectCommands(Arrays.asList(commands));
+    }
+
+    default Then expectNoCommands() {
+        return expectOnlyCommands();
+    }
+
+    Then expectOnlyCommands(List<?> commands);
+
+    Then expectCommands(List<?> commands);
+
     default Then expectResult(Object result) {
         if (result == null) {
             return expectResult(nullValue());
@@ -34,6 +49,12 @@ public interface Then {
     }
 
     Then expectResult(Matcher<?> resultMatcher);
+
+    Then expectException(Matcher<?> resultMatcher);
+
+    default Then expectException(Class<? extends Throwable> exceptionClass) {
+        return expectException(isA(exceptionClass));
+    }
 
     default Then expectNoResult() {
         return expectResult(nullValue());

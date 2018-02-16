@@ -10,56 +10,63 @@ import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 import java.util.concurrent.BlockingQueue;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 
+import static io.fluxcapacitor.common.MessageType.COMMAND;
 import static io.fluxcapacitor.common.MessageType.EVENT;
 import static java.lang.String.format;
 import static java.util.stream.Collectors.toList;
 
 @AllArgsConstructor
 public class ResultValidator implements Then {
-    private final ExecutorService executorService = Executors.newSingleThreadExecutor();
-    private final Message trigger;
     private final Object actualResult;
     private final BlockingQueue<Message> resultingEvents;
     private final BlockingQueue<Message> resultingCommands;
 
     @Override
     public Then expectOnlyEvents(List<?> events) {
-        List<Message> expected = asMessages(events, EVENT);
-        List<Message> actual = getActualEvents(expected);
-        if (!equals(expected, actual)) {
-            reportWrongEvents(expected, actual);
-        }
-        return this;
+        return expectOnlyMessages(events, EVENT, resultingEvents);
     }
 
     @Override
     public Then expectEvents(List<?> events) {
-        List<Message> expected = asMessages(events, EVENT);
-        List<Message> actual = getActualEvents(expected);
+        return expectMessages(events, EVENT, resultingEvents);
+    }
+
+    @Override
+    public Then expectOnlyCommands(List<?> commands) {
+        return expectOnlyMessages(commands, COMMAND, resultingCommands);
+    }
+
+    @Override
+    public Then expectCommands(List<?> commands) {
+        return expectMessages(commands, COMMAND, resultingCommands);
+    }
+
+    protected Then expectMessages(List<?> messages, MessageType messageType, BlockingQueue<Message> resultingMessages) {
+        List<Message> expected = asMessages(messages, messageType);
+        List<Message> actual = getActualMessages(expected, resultingMessages);
         if (!containsAll(expected, actual)) {
-            reportWrongEvents(expected, actual);
+            reportWrongMessages(expected, actual);
         }
         return this;
     }
 
-    protected void reportWrongEvents(List<Message> expected, List<Message> actual) {
-        String message = format("Published events did not match.\nExpected: %s\nGot: %s", expected, actual);
-        if (actualResult instanceof Throwable) {
-            message += "\nA probable cause is an exception that occurred during handling:";
-            throw new GivenWhenThenAssertionError(message, (Throwable) actualResult);
+    protected Then expectOnlyMessages(List<?> messages, MessageType messageType, BlockingQueue<Message> resultingMessages) {
+        List<Message> expected = asMessages(messages, messageType);
+        List<Message> actual = getActualMessages(expected, resultingMessages);
+        if (!equals(expected, actual)) {
+            reportWrongMessages(expected, actual);
         }
-        throw new GivenWhenThenAssertionError(message);
+        return this;
     }
 
-    protected List<Message> getActualEvents(List<Message> expected) {
+    protected List<Message> getActualMessages(List<Message> expected,
+                                              BlockingQueue<Message> resultingMessages) {
         List<Message> result = new ArrayList<>();
         try {
             while (!result.containsAll(expected) && !Thread.interrupted()) {
-                Message next = resultingEvents.poll(1L, TimeUnit.SECONDS);
+                Message next = resultingMessages.poll(1L, TimeUnit.SECONDS);
                 if (next == null) {
                     return result;
                 } else {
@@ -70,6 +77,15 @@ public class ResultValidator implements Then {
             return result;
         }
         return result;
+    }
+
+    protected void reportWrongMessages(List<Message> expected, List<Message> actual) {
+        String message = format("Published messages did not match.\nExpected: %s\nGot: %s", expected, actual);
+        if (actualResult instanceof Throwable) {
+            message += "\nA probable cause is an exception that occurred during handling:";
+            throw new GivenWhenThenAssertionError(message, (Throwable) actualResult);
+        }
+        throw new GivenWhenThenAssertionError(message);
     }
 
     protected boolean equals(List<Message> expected, List<Message> actual) {
@@ -113,6 +129,21 @@ public class ResultValidator implements Then {
         }
         if (!resultMatcher.matches(actualResult)) {
             throw new GivenWhenThenAssertionError(format("Handler returned an unexpected value.\nExpected: %s\nGot: %s",
+                                                         description, actualResult));
+        }
+        return this;
+    }
+
+    @Override
+    public Then expectException(Matcher<?> resultMatcher) {
+        StringDescription description = new StringDescription();
+        resultMatcher.describeTo(description);
+        if (!(actualResult instanceof Throwable)) {
+            throw new GivenWhenThenAssertionError(format("Handler returned normally but an exception was expected. Expected: %s. Got: %s",
+                                                         description, actualResult));
+        }
+        if (!resultMatcher.matches(actualResult)) {
+            throw new GivenWhenThenAssertionError(format("Handler returned unexpected value.\nExpected: %s\nGot: %s",
                                                          description, actualResult));
         }
         return this;

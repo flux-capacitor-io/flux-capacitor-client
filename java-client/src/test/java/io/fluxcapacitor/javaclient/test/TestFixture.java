@@ -1,5 +1,6 @@
 package io.fluxcapacitor.javaclient.test;
 
+import io.fluxcapacitor.common.MessageType;
 import io.fluxcapacitor.common.Registration;
 import io.fluxcapacitor.common.api.Metadata;
 import io.fluxcapacitor.common.api.SerializedMessage;
@@ -13,15 +14,16 @@ import io.fluxcapacitor.javaclient.publishing.correlation.ContextualDispatchInte
 import java.util.Arrays;
 import java.util.List;
 import java.util.UUID;
-import java.util.concurrent.BlockingQueue;
-import java.util.concurrent.LinkedBlockingQueue;
-import java.util.concurrent.TimeUnit;
+import java.util.concurrent.*;
 import java.util.function.Function;
 
 import static io.fluxcapacitor.common.MessageType.COMMAND;
+import static io.fluxcapacitor.common.MessageType.EVENT;
+import static java.util.concurrent.TimeUnit.SECONDS;
 
 public class TestFixture implements Given, When {
 
+    private final ScheduledExecutorService deregistrationService = Executors.newSingleThreadScheduledExecutor();
     private final FluxCapacitor fluxCapacitor;
     private final Registration registration;
     private final GivenWhenThenInterceptor interceptor;
@@ -47,8 +49,28 @@ public class TestFixture implements Given, When {
     public When givenCommands(Object... commands) {
         try {
             FluxCapacitor.instance.set(fluxCapacitor);
-            Arrays.stream(commands).forEach(c -> fluxCapacitor.commandGateway().sendAndForget(c));
+            CompletableFuture.allOf(Arrays.stream(commands).map(c -> fluxCapacitor.commandGateway().send(c))
+                                            .toArray(CompletableFuture[]::new)).get(2L, SECONDS);
             return this;
+        } catch (TimeoutException e) {
+            throw new IllegalStateException(
+                    "Failed to execute givenCommands due to a timeout. "
+                            + "Make sure all given commands are handled by the application under test.", e);
+        } catch (Exception e) {
+            throw new IllegalStateException("Failed to execute givenCommands", e);
+        } finally {
+            FluxCapacitor.instance.remove();
+        }
+    }
+
+    @Override
+    public When givenEvents(Object... events) {
+        try {
+            FluxCapacitor.instance.set(fluxCapacitor);
+            Arrays.stream(events).forEach(c -> fluxCapacitor.eventGateway().publishEvent(c));
+            return this;
+        } catch (Exception e) {
+            throw new IllegalStateException("Failed to execute givenEvents", e);
         } finally {
             FluxCapacitor.instance.remove();
         }
@@ -60,19 +82,52 @@ public class TestFixture implements Given, When {
     }
 
     @Override
+    public When andGivenEvents(Object... events) {
+        return givenEvents(events);
+    }
+
+    @Override
     public Then whenCommand(Object command) {
         try {
             FluxCapacitor.instance.set(fluxCapacitor);
-            Message commandMessage = interceptor.traceCommand(command);
             Object result;
             try {
-                result = fluxCapacitor.commandGateway().send(commandMessage).get(1L, TimeUnit.SECONDS);
+                result = fluxCapacitor.commandGateway().send(interceptor.trace(command, COMMAND)).get(1L, SECONDS);
             } catch (Exception e) {
                 result = e;
             }
-            return new ResultValidator(commandMessage, result, events, commands);
+            return new ResultValidator(result, events, commands);
         } finally {
-            registration.cancel();
+            deregistrationService.schedule(registration::cancel, 1L, SECONDS);
+            FluxCapacitor.instance.remove();
+        }
+    }
+
+    @Override
+    public Then whenEvent(Object event) {
+        try {
+            FluxCapacitor.instance.set(fluxCapacitor);
+            fluxCapacitor.eventGateway().publishEvent(interceptor.trace(event, EVENT));
+            return new ResultValidator(null, events, commands);
+        } finally {
+            deregistrationService.schedule(registration::cancel, 1L, SECONDS);
+            FluxCapacitor.instance.remove();
+        }
+    }
+
+    @Override
+    public Then whenQuery(Object query) {
+        try {
+            FluxCapacitor.instance.set(fluxCapacitor);
+            Object result;
+            try {
+                result = fluxCapacitor.queryGateway().query(query).get(1L, SECONDS);
+            } catch (Exception e) {
+                result = e;
+            }
+            return new ResultValidator(result, events, commands);
+        } finally {
+            deregistrationService.schedule(registration::cancel, 1L, SECONDS);
             FluxCapacitor.instance.remove();
         }
     }
@@ -83,8 +138,9 @@ public class TestFixture implements Given, When {
         private static final String TAG_NAME = "givenWhenThen.tagName";
         private static final String TRACE_NAME = "givenWhenThen.trace";
 
-        protected Message traceCommand(Object command) {
-            Message result = command instanceof Message ? (Message) command : new Message(command, Metadata.empty(), COMMAND);
+        protected Message trace(Object message, MessageType type) {
+            Message result =
+                    message instanceof Message ? (Message) message : new Message(message, Metadata.empty(), type);
             result.getMetadata().put(TAG_NAME, TAG);
             return result;
         }
