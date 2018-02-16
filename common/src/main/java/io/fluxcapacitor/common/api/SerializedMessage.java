@@ -33,6 +33,7 @@ public class SerializedMessage implements SerializedObject<byte[], SerializedMes
 
     public SerializedMessage(Data<byte[]> data) {
         this.data = data;
+        this.metadata = Metadata.empty();
     }
 
     public SerializedMessage(Data<byte[]> data, Metadata metadata) {
