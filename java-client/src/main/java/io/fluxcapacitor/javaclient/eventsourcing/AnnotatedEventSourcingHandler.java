@@ -41,6 +41,9 @@ public class AnnotatedEventSourcingHandler<T> implements EventSourcingHandler<T>
         if (handlerType.isInstance(result)) {
             return handlerType.cast(result);
         }
+        if (result == null && invoker.expectResult(message)) {
+            return null; //this handler has deleted the model on purpose
+        }
         return model; //apparently the model is mutable
     }
 

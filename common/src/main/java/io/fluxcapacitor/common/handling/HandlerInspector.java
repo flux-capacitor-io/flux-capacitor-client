@@ -65,12 +65,14 @@ public class HandlerInspector {
     protected static class MethodHandlerInvoker<M> implements HandlerInvoker<M>, Comparable<MethodHandlerInvoker<M>> {
 
         private final Executable executable;
+        private final boolean hasReturnValue;
         private final List<Function<? super M, Object>> parameterSuppliers;
         private final Function<? super M, ? extends Class<?>> payloadTypeSupplier;
 
         protected MethodHandlerInvoker(Executable executable,
                                        List<ParameterResolver<? super M>> parameterResolvers) {
             this.executable = executable;
+            this.hasReturnValue = !(executable instanceof Method) || !(((Method) executable).getReturnType()).equals(void.class);
             this.parameterSuppliers = getParameterSuppliers(executable, parameterResolvers);
             this.payloadTypeSupplier = getPayloadTypeSupplier(executable, parameterResolvers);
             if (!executable.isAccessible()) {
@@ -81,6 +83,11 @@ public class HandlerInspector {
         @Override
         public boolean canHandle(M message) {
             return getPayloadType().isAssignableFrom(payloadTypeSupplier.apply(message));
+        }
+
+        @Override
+        public boolean expectResult(M message) {
+            return canHandle(message) && hasReturnValue;
         }
 
         @Override
@@ -157,6 +164,11 @@ public class HandlerInspector {
         @Override
         public boolean canHandle(M message) {
             return methodHandlers.stream().anyMatch(h -> h.canHandle(message));
+        }
+
+        @Override
+        public boolean expectResult(M message) {
+            return methodHandlers.stream().anyMatch(h -> h.expectResult(message));
         }
 
         @Override
