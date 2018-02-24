@@ -5,6 +5,7 @@ import io.fluxcapacitor.common.api.Metadata;
 import io.fluxcapacitor.javaclient.common.Message;
 
 import java.util.function.Function;
+import java.util.function.Predicate;
 
 public interface EsModel<T> {
 
@@ -20,6 +21,13 @@ public interface EsModel<T> {
 
     default EsModel<T> apply(Function<T, Message> eventFunction) {
         return apply(eventFunction.apply(get()));
+    }
+
+    default <E extends Exception> EsModel<T> ensure(Predicate<T> check, Function<T, E> errorProvider) throws E {
+        if (!check.test(get())) {
+            throw errorProvider.apply(get());
+        }
+        return this;
     }
 
     T get();
