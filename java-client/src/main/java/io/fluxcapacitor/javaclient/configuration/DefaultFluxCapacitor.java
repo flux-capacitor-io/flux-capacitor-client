@@ -251,7 +251,10 @@ public class DefaultFluxCapacitor implements FluxCapacitor {
                                                                                    dispatchInterceptors.get(EVENT)));
             DefaultSnapshotRepository snapshotRepository =
                     new DefaultSnapshotRepository(client.getKeyValueClient(), snapshotSerializer);
-            EventSourcing eventSourcing = new DefaultEventSourcing(eventStore, snapshotRepository, new DefaultCache());
+            DefaultEventSourcing eventSourcing = new DefaultEventSourcing(eventStore, snapshotRepository, new DefaultCache());
+
+            //register event sourcing as the outermost handler interceptor
+            handlerInterceptors.compute(COMMAND, (t, i) -> eventSourcing.merge(i));
 
             //tracking
             Map<MessageType, Tracking> trackingMap = stream(MessageType.values())
