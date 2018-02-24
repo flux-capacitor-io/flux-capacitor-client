@@ -14,15 +14,12 @@
 
 package io.fluxcapacitor.javaclient.common.serialization;
 
-import java.beans.ConstructorProperties;
-
 public class SerializationException extends RuntimeException {
 
     public SerializationException(String message) {
         super(message);
     }
 
-    @ConstructorProperties({"message", "cause"})
     public SerializationException(String message, Throwable cause) {
         super(message, cause);
     }

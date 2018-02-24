@@ -14,7 +14,6 @@
 
 package io.fluxcapacitor.javaclient.common.serialization.jackson;
 
-import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.fluxcapacitor.common.api.SerializedObject;
 import io.fluxcapacitor.javaclient.common.serialization.AbstractSerializer;
@@ -27,12 +26,13 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.stream.Stream;
 
+import static com.fasterxml.jackson.databind.DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES;
 import static com.fasterxml.jackson.databind.SerializationFeature.FAIL_ON_EMPTY_BEANS;
 import static java.lang.String.format;
 
 public class JacksonSerializer extends AbstractSerializer {
     public static final ObjectMapper defaultObjectMapper =
-            new ObjectMapper().setSerializationInclusion(JsonInclude.Include.NON_NULL).disable(FAIL_ON_EMPTY_BEANS);
+            new ObjectMapper().disable(FAIL_ON_EMPTY_BEANS).disable(FAIL_ON_UNKNOWN_PROPERTIES);
 
     private final ObjectMapper objectMapper;
 
