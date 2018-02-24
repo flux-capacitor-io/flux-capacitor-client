@@ -48,7 +48,7 @@ public class WebsocketTrackingClient extends AbstractWebsocketService implements
         try {
             getSession().getBasicRemote().sendObject(new StorePosition(consumer, segment, lastIndex));
         } catch (Exception e) {
-            throw new IllegalStateException(String.format("Failed to store position of processor %s", consumer), e);
+            throw new IllegalStateException(String.format("Failed to store position of consumer %s", consumer), e);
         }
     }
 }
