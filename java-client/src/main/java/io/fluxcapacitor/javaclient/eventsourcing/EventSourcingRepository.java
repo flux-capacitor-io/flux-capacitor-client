@@ -1,6 +1,5 @@
 package io.fluxcapacitor.javaclient.eventsourcing;
 
-@FunctionalInterface
 public interface EventSourcingRepository<T> {
 
     default EsModel<T> load(String modelId) {
@@ -8,5 +7,7 @@ public interface EventSourcingRepository<T> {
     }
 
     EsModel<T> load(String modelId, Long expectedSequenceNumber);
+
+    EsModel<T> newInstance(String modelId);
 
 }

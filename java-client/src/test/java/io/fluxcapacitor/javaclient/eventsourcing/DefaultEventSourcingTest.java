@@ -41,9 +41,21 @@ public class DefaultEventSourcingTest {
     }
 
     @Test
-    public void testLoadingWithEmptyEventStore() {
-        EsModel<TestModel> model = subject.load(modelId, TestModel.class);
+    public void testNewInstanceWithEmptyEventStore() {
+        EsModel<TestModel> model = subject.newInstance(modelId, TestModel.class);
         assertNull(model.get());
+    }
+
+    @Test(expected = DuplicateModelException.class)
+    public void testNewInstanceWithExistingModel() {
+        when(eventStore.getDomainEvents(eq(modelId), anyLong()))
+                .thenReturn(eventStreamOf(new CreateModel(), new UpdateModel()));
+        subject.newInstance(modelId, TestModel.class);
+    }
+
+    @Test(expected = ModelNotFoundException.class)
+    public void testLoadingWithEmptyEventStore() {
+        subject.load(modelId, TestModel.class);
     }
 
     @Test
@@ -57,6 +69,8 @@ public class DefaultEventSourcingTest {
 
     @Test
     public void testModelIsLoadedFromCacheWhenPossible() {
+        when(eventStore.getDomainEvents(eq(modelId), anyLong()))
+                .thenReturn(eventStreamOf(new CreateModel(), new UpdateModel()));
         subject.load(modelId, TestModel.class);
         reset(eventStore);
         subject.load(modelId, TestModel.class);
@@ -82,16 +96,24 @@ public class DefaultEventSourcingTest {
         assertEquals(0L, model.getSequenceNumber());
     }
 
-    @Test
+    @Test(expected = EventSourcingException.class)
     public void testModelIsReadOnlyIfSubjectIsNotIntercepting() {
-        EsModel<TestModel> model = subject.load(modelId, TestModel.class);
-        assertNull(model.get());
+        EsModel<TestModel> model = subject.newInstance(modelId, TestModel.class);
+        model.apply("whatever");
     }
 
     @Test
     public void testLoadFromRepository() {
+        when(snapshotRepository.getSnapshot(modelId))
+                .thenReturn(Optional.of(new Aggregate<>(modelId, 0L, new TestModel(new CreateModel()))));
         EventSourcingRepository<TestModel> repository = subject.repository(TestModel.class);
-        assertNotNull(repository.load(modelId));
+        assertNotNull(repository.load(modelId).get());
+    }
+
+    @Test
+    public void testNewInstanceFromRepository() {
+        EventSourcingRepository<TestModel> repository = subject.repository(TestModel.class);
+        assertNotNull(repository.newInstance(modelId));
     }
 
     @Test
@@ -129,7 +151,7 @@ public class DefaultEventSourcingTest {
     @Test
     public void testEventsDoNotGetStoredWhenInterceptedMethodTriggersException() {
         Function<DeserializingMessage, Object> f = subject.interceptHandling(s -> {
-            EsModel<TestModel> model = subject.load(modelId, TestModel.class);
+            EsModel<TestModel> model = subject.newInstance(modelId, TestModel.class);
             reset(cache, eventStore);
             model.apply(new CreateModel());
             throw new IllegalStateException();
@@ -148,7 +170,7 @@ public class DefaultEventSourcingTest {
         List<Message> events =
                 Arrays.asList(new Message(new CreateModel(), EVENT), new Message("foo", EVENT));
         executeWhileIntercepting(() -> {
-            EsModel<TestModel> model = subject.load(modelId, TestModel.class);
+            EsModel<TestModel> model = subject.newInstance(modelId, TestModel.class);
             events.forEach(model::apply);
         }).apply(toDeserializingMessage("command"));
         verify(eventStore).storeDomainEvents(modelId, TestModel.class.getSimpleName(), 1L, events);
@@ -157,7 +179,7 @@ public class DefaultEventSourcingTest {
     @Test(expected = HandlerNotFoundException.class)
     public void testApplyingUnknownEventsFailsIfModelDoesNotExist() {
         executeWhileIntercepting(
-                () -> subject.load(modelId, TestModel.class).apply(new Message("foo", EVENT)))
+                () -> subject.newInstance(modelId, TestModel.class).apply(new Message("foo", EVENT)))
                 .apply(toDeserializingMessage("command"));
     }
 
@@ -167,7 +189,7 @@ public class DefaultEventSourcingTest {
                 Arrays.asList(new Message(new CreateModel(), EVENT), new Message("foo", EVENT),
                               new Message("foo", EVENT));
         executeWhileIntercepting(() -> {
-            EsModel<TestModelForSnapshotting> model = subject.load(modelId, TestModelForSnapshotting.class);
+            EsModel<TestModelForSnapshotting> model = subject.newInstance(modelId, TestModelForSnapshotting.class);
             reset(snapshotRepository);
             events.forEach(model::apply);
         }).apply(toDeserializingMessage("command"));
@@ -179,7 +201,7 @@ public class DefaultEventSourcingTest {
         List<Message> events =
                 Arrays.asList(new Message(new CreateModel(), EVENT), new Message("foo", EVENT));
         executeWhileIntercepting(() -> {
-            EsModel<TestModelForSnapshotting> model = subject.load(modelId, TestModelForSnapshotting.class);
+            EsModel<TestModelForSnapshotting> model = subject.newInstance(modelId, TestModelForSnapshotting.class);
             reset(snapshotRepository);
             events.forEach(model::apply);
         }).apply(toDeserializingMessage("command"));
@@ -188,7 +210,7 @@ public class DefaultEventSourcingTest {
 
     @SuppressWarnings("unchecked")
     private Function<Message, EsModel<TestModel>> prepareSubjectForHandling() {
-        return m -> (EsModel<TestModel>) subject.interceptHandling(s -> subject.load(modelId, TestModel.class).apply(m))
+        return m -> (EsModel<TestModel>) subject.interceptHandling(s -> subject.newInstance(modelId, TestModel.class).apply(m))
                 .apply(toDeserializingMessage(m));
     }
 

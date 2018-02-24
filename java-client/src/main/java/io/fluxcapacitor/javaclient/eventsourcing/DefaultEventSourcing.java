@@ -29,9 +29,29 @@ public class DefaultEventSourcing implements EventSourcing, HandlerInterceptor {
     private final Cache cache;
     private final ThreadLocal<List<DefaultEsModel<?>>> loadedModels = new ThreadLocal<>();
 
+    @Override
+    public <T> EsModel<T> newInstance(String id, Class<T> modelType) {
+        EsModel<T> result = doLoad(id, modelType);
+        if (result.get() != null) {
+            throw new DuplicateModelException(
+                    format("Model of type %s id %s already exists", modelType.getSimpleName(), id));
+        }
+        return result;
+    }
+
     @SuppressWarnings("unchecked")
     @Override
     public <T> EsModel<T> load(String modelId, Class<T> modelType) {
+        EsModel<T> model = doLoad(modelId, modelType);
+        if (model.get() == null) {
+            throw new ModelNotFoundException(
+                    format("No events founds for type %s id %s", modelType.getSimpleName(), modelId));
+        }
+        return model;
+    }
+
+    @SuppressWarnings("unchecked")
+    protected <T> EsModel<T> doLoad(String modelId, Class<T> modelType) {
         DefaultEsModel<T> model = createEsModel(modelType, modelId);
         Optional.ofNullable(loadedModels.get()).ifPresent(models -> models.add(model));
         return model;
@@ -39,15 +59,7 @@ public class DefaultEventSourcing implements EventSourcing, HandlerInterceptor {
 
     @Override
     public <T> EventSourcingRepository<T> repository(Class<T> modelClass) {
-        return (modelId, expectedSequenceNumber) -> {
-            EsModel<T> result = load(modelId, modelClass);
-            if (expectedSequenceNumber != null && expectedSequenceNumber != result.getSequenceNumber()) {
-                throw new EventSourcingException(String.format(
-                        "Failed to load %s of id %s. Expected sequence number %d but model had sequence number %d",
-                        modelClass.getSimpleName(), modelId, expectedSequenceNumber, result.getSequenceNumber()));
-            }
-            return result;
-        };
+        return new DefaultEventSourcingRepository<>(this, modelClass);
     }
 
     @Override
@@ -79,7 +91,7 @@ public class DefaultEventSourcing implements EventSourcing, HandlerInterceptor {
                     loadedModels.get().forEach(DefaultEsModel::commit);
                 } catch (Exception e) {
                     throw new EventSourcingException(
-                            String.format("Failed to commit applied events after handling %s", command), e);
+                            format("Failed to commit applied events after handling %s", command), e);
                 }
                 return result;
             } finally {
