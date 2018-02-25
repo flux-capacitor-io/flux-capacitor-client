@@ -6,7 +6,8 @@ public interface Cache {
 
     /**
      * Adds or replaces a value in the repository. May be ignored if this repository does not support modifications.
-     *  @param id    The object id
+     *
+     * @param id    The object id
      * @param value The value to store
      */
     void put(String id, Object value);
@@ -16,6 +17,7 @@ public interface Cache {
      *
      * @param id              The object id
      * @param mappingFunction The function to compute a value if the cache is not in the cache
+     * @param <T>             the type of object to return from the cache
      * @return The value associated with given id
      */
     <T> T get(String id, Function<? super String, T> mappingFunction);

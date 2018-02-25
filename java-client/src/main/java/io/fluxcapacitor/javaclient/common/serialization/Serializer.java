@@ -68,7 +68,7 @@ public interface Serializer {
      * <p>
      * You can specify whether deserialization of a result in the output stream should fail with a {@link
      * SerializationException} if a type is unknown (not a class). It is up to the implementation to determine what
-     * should happen if a type is unknown but the {@code failOnUnknownType) flag is false.
+     * should happen if a type is unknown but the {@code failOnUnknownType} flag is false.
      *
      * @param dataStream        data input stream to deserialize
      * @param failOnUnknownType flag that determines whether deserialization of an unknown type should give an
