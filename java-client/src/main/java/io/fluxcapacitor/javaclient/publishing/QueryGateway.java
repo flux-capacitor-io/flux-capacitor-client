@@ -19,7 +19,11 @@ public interface QueryGateway {
         }
     }
 
-    <R> CompletableFuture<R> query(Object payload, Metadata metadata);
+    default <R> CompletableFuture<R> query(Object payload, Metadata metadata) {
+        return queryForMessage(payload, metadata).thenApply(Message::getPayload);
+    }
+
+    CompletableFuture<Message> queryForMessage(Object payload, Metadata metadata);
 
     default <R> R queryAndWait(Object query) {
         if (query instanceof Message) {

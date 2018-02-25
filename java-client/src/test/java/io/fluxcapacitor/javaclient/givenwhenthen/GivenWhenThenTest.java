@@ -105,6 +105,11 @@ public class GivenWhenThenTest {
         subject.whenQuery("bla").expectResult("bla");
     }
 
+    @Test
+    public void testFailingQuery() {
+        subject.whenQuery(1L).expectException(MockException.class);
+    }
+
     private static class CommandHandler {
         @HandleCommand
         public void handle(YieldsNoResult command) {
@@ -155,6 +160,11 @@ public class GivenWhenThenTest {
         @HandleQuery
         public String handle(String query) {
             return query;
+        }
+
+        @HandleQuery
+        public String handleButFail(Long query) {
+            throw new MockException();
         }
     }
 

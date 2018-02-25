@@ -26,26 +26,15 @@ import java.util.function.Function;
 @AllArgsConstructor
 public class MessageSerializer {
     private final Function<Message, SerializedMessage> serializer;
-    private final Function<SerializedMessage, Message> deserializer;
     private final MessageType messageType;
 
     public MessageSerializer(Serializer serializer, DispatchInterceptor dispatchInterceptor, MessageType messageType) {
         this(dispatchInterceptor.interceptDispatch(
-                m -> new SerializedMessage(serializer.serialize(m.getPayload()), m.getMetadata())),
-             s -> new Message(serializer.deserialize(s.getData()), s.getMetadata(), messageType), messageType);
-    }
-
-    public MessageSerializer(Serializer serializer, MessageType messageType) {
-        this(m -> new SerializedMessage(serializer.serialize(m.getPayload()), m.getMetadata()),
-             s -> new Message(serializer.deserialize(s.getData()), s.getMetadata(), messageType), messageType);
+                m -> new SerializedMessage(serializer.serialize(m.getPayload()), m.getMetadata())), messageType);
     }
 
     public SerializedMessage serialize(Message message) {
         return serializer.apply(message);
-    }
-
-    public Message deserialize(SerializedMessage serializedMessage) {
-        return deserializer.apply(serializedMessage);
     }
 
     public SerializedMessage serialize(Object payload, Metadata metadata) {

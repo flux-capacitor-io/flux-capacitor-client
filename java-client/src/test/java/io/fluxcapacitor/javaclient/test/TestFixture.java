@@ -93,6 +93,8 @@ public class TestFixture implements Given, When {
             Object result;
             try {
                 result = fluxCapacitor.commandGateway().send(interceptor.trace(command, COMMAND)).get(1L, SECONDS);
+            } catch (ExecutionException e) {
+                result = e.getCause();
             } catch (Exception e) {
                 result = e;
             }
@@ -122,6 +124,8 @@ public class TestFixture implements Given, When {
             Object result;
             try {
                 result = fluxCapacitor.queryGateway().query(query).get(1L, SECONDS);
+            } catch (ExecutionException e) {
+                result = e.getCause();
             } catch (Exception e) {
                 result = e;
             }

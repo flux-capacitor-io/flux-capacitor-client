@@ -1,6 +1,7 @@
 package io.fluxcapacitor.javaclient.publishing;
 
 import io.fluxcapacitor.common.api.Metadata;
+import io.fluxcapacitor.javaclient.common.Message;
 import io.fluxcapacitor.javaclient.common.serialization.MessageSerializer;
 import io.fluxcapacitor.javaclient.publishing.client.GatewayClient;
 import lombok.AllArgsConstructor;
@@ -15,10 +16,9 @@ public class DefaultQueryGateway implements QueryGateway {
     private final MessageSerializer serializer;
 
     @Override
-    public <R> CompletableFuture<R> query(Object payload, Metadata metadata) {
+    public CompletableFuture<Message> queryForMessage(Object payload, Metadata metadata) {
         try {
-            return requestHandler.sendRequest(serializer.serialize(payload, metadata), queryGateway::send)
-                    .thenApply(s -> serializer.deserialize(s).getPayload());
+            return requestHandler.sendRequest(serializer.serialize(payload, metadata), queryGateway::send);
         } catch (Exception e) {
             throw new GatewayException(String.format("Failed to send query %s", payload), e);
         }

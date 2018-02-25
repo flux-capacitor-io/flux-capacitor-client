@@ -33,7 +33,11 @@ public interface CommandGateway {
         }
     }
 
-    <R> CompletableFuture<R> send(Object payload, Metadata metadata);
+    default <R> CompletableFuture<R> send(Object payload, Metadata metadata) {
+        return sendForMessage(payload, metadata).thenApply(Message::getPayload);
+    }
+
+    CompletableFuture<Message> sendForMessage(Object payload, Metadata metadata);
 
     default <R> R sendAndWait(Object command) {
         if (command instanceof Message) {

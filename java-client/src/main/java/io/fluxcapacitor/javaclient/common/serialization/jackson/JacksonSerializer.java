@@ -31,8 +31,8 @@ import static com.fasterxml.jackson.databind.SerializationFeature.FAIL_ON_EMPTY_
 import static java.lang.String.format;
 
 public class JacksonSerializer extends AbstractSerializer {
-    public static final ObjectMapper defaultObjectMapper =
-            new ObjectMapper().disable(FAIL_ON_EMPTY_BEANS).disable(FAIL_ON_UNKNOWN_PROPERTIES);
+    public static final ObjectMapper defaultObjectMapper = new ObjectMapper()
+            .findAndRegisterModules().disable(FAIL_ON_EMPTY_BEANS).disable(FAIL_ON_UNKNOWN_PROPERTIES);
 
     private final ObjectMapper objectMapper;
 
