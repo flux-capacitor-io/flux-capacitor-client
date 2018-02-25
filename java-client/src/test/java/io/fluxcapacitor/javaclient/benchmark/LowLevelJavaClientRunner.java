@@ -32,10 +32,10 @@ import java.util.List;
 import java.util.concurrent.CountDownLatch;
 
 @Slf4j
-public class JavaClientRunner extends AbstractClientBenchmark {
+public class LowLevelJavaClientRunner extends AbstractClientBenchmark {
 
     public static void main(final String[] args) {
-        JavaClientRunner runner = new JavaClientRunner(100_000);
+        LowLevelJavaClientRunner runner = new LowLevelJavaClientRunner(100_000);
         runner.testCommands();
         System.exit(0);
     }
@@ -43,7 +43,7 @@ public class JavaClientRunner extends AbstractClientBenchmark {
     private final GatewayClient gatewayClient;
     private final Handler<SerializedMessage> commandInvoker;
 
-    public JavaClientRunner(int commandCount) {
+    public LowLevelJavaClientRunner(int commandCount) {
         super(commandCount);
 
         gatewayClient = new WebsocketGatewayClient(

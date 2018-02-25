@@ -28,8 +28,10 @@ public abstract class AbstractClientBenchmark {
 
     private final CountDownLatch commandCountDownLatch;
     private final WebSocketClient.Properties clientProperties;
+    private final int commandCount;
 
     public AbstractClientBenchmark(int commandCount, WebSocketClient.Properties clientProperties) {
+        this.commandCount = commandCount;
         this.commandCountDownLatch = new CountDownLatch(commandCount);
         this.clientProperties = clientProperties;
     }
@@ -49,6 +51,10 @@ public abstract class AbstractClientBenchmark {
                 throw new IllegalStateException(e);
             }
         }, duration -> log.info("Finished sending and handling {} commands in {}ms", count, duration));
+    }
+
+    protected int getCommandCount() {
+        return commandCount;
     }
 
     protected abstract void doSendCommand(String payload);
