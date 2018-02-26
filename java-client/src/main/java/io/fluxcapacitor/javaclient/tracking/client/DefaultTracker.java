@@ -17,7 +17,6 @@ package io.fluxcapacitor.javaclient.tracking.client;
 import io.fluxcapacitor.common.Registration;
 import io.fluxcapacitor.common.api.SerializedMessage;
 import io.fluxcapacitor.common.api.tracking.MessageBatch;
-import io.fluxcapacitor.javaclient.tracking.BatchInterceptor;
 import io.fluxcapacitor.javaclient.tracking.TrackingConfiguration;
 import lombok.extern.slf4j.Slf4j;
 
@@ -26,6 +25,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Consumer;
 
 import static io.fluxcapacitor.common.TimingUtils.retryOnFailure;
+import static io.fluxcapacitor.javaclient.tracking.BatchInterceptor.join;
 
 /**
  * A tracker keeps reading messages until it is stopped (generally only when the application is shut down).
@@ -54,6 +54,7 @@ public class DefaultTracker implements Runnable, Registration {
     private final String name;
     private final int channel;
     private final TrackingConfiguration configuration;
+    private final Consumer<MessageBatch> processor;
     private final Consumer<List<SerializedMessage>> consumer;
     private final TrackingClient trackingClient;
 
@@ -64,7 +65,8 @@ public class DefaultTracker implements Runnable, Registration {
         this.name = name;
         this.channel = channel;
         this.configuration = configuration;
-        this.consumer = BatchInterceptor.join(configuration.getBatchMessageBatchInterceptors()).intercept(consumer);
+        this.processor = join(configuration.getBatchInterceptors()).intercept(this::processAll);
+        this.consumer = consumer;
         this.trackingClient = trackingClient;
     }
 
@@ -73,7 +75,7 @@ public class DefaultTracker implements Runnable, Registration {
         if (running.compareAndSet(false, true)) {
             while (running.get()) {
                 MessageBatch batch = fetch();
-                process(batch.getMessages(), batch.getSegment());
+                processor.accept(batch);
             }
         }
     }
@@ -91,7 +93,8 @@ public class DefaultTracker implements Runnable, Registration {
                 configuration.getRetryDelay(), e -> running.get());
     }
 
-    protected void process(List<SerializedMessage> messages, int[] segment) {
+    protected void processAll(MessageBatch messageBatch) {
+        List<SerializedMessage> messages = messageBatch.getMessages();
         if (messages.isEmpty() || !running.get()) {
             return;
         }
@@ -99,14 +102,14 @@ public class DefaultTracker implements Runnable, Registration {
             for (int i = 0; i < messages.size(); i += configuration.getMaxConsumerBatchSize()) {
                 List<SerializedMessage> batch =
                         messages.subList(i, Math.min(i + configuration.getMaxConsumerBatchSize(), messages.size()));
-                processBatch(batch, segment);
+                processPart(batch, messageBatch.getSegment());
             }
         } else {
-            processBatch(messages, segment);
+            processPart(messages, messageBatch.getSegment());
         }
     }
 
-    protected void processBatch(List<SerializedMessage> batch, int[] segment) {
+    protected void processPart(List<SerializedMessage> batch, int[] segment) {
         try {
             consumer.accept(batch);
         } catch (Exception e) {

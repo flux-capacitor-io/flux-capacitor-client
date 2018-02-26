@@ -14,7 +14,7 @@
 
 package io.fluxcapacitor.javaclient.tracking;
 
-import io.fluxcapacitor.common.api.SerializedMessage;
+import io.fluxcapacitor.common.api.tracking.MessageBatch;
 import org.junit.Test;
 
 import java.util.ArrayList;
@@ -32,7 +32,7 @@ public class BatchInterceptorTest {
         List<Object> invokedInstances = new ArrayList<>();
         BatchInterceptor outerInterceptor = new BatchInterceptor() {
             @Override
-            public Consumer<List<SerializedMessage>> intercept(Consumer<List<SerializedMessage>> consumer) {
+            public Consumer<MessageBatch> intercept(Consumer<MessageBatch> consumer) {
                 return messages -> {
                     invokedInstances.add(this);
                     consumer.accept(messages);
@@ -41,23 +41,23 @@ public class BatchInterceptorTest {
         };
         BatchInterceptor innerInterceptor = new BatchInterceptor() {
             @Override
-            public Consumer<List<SerializedMessage>> intercept(Consumer<List<SerializedMessage>> consumer) {
+            public Consumer<MessageBatch> intercept(Consumer<MessageBatch> consumer) {
                 return messages -> {
                     invokedInstances.add(this);
                     consumer.accept(messages);
                 };
             }
         };
-        Consumer<List<SerializedMessage>> function = new Consumer<List<SerializedMessage>>() {
+        Consumer<MessageBatch> function = new Consumer<MessageBatch>() {
             @Override
-            public void accept(List<SerializedMessage> messages) {
+            public void accept(MessageBatch messages) {
                 invokedInstances.add(this);
             }
         };
-        Consumer<List<SerializedMessage>> invocation = BatchInterceptor
+        Consumer<MessageBatch> invocation = BatchInterceptor
                 .join(Arrays.asList(outerInterceptor, innerInterceptor)).intercept(function);
         assertEquals(emptyList(), invokedInstances);
-        invocation.accept(emptyList());
+        invocation.accept(new MessageBatch(new int[]{0, 1}, emptyList(), 0L));
         assertEquals(Arrays.asList(outerInterceptor, innerInterceptor, function), invokedInstances);
     }
 }

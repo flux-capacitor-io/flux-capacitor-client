@@ -50,6 +50,11 @@ public class DefaultEventSourcing implements EventSourcing, HandlerInterceptor {
         return model;
     }
 
+    @Override
+    public void invalidateCache() {
+        cache.invalidateAll();
+    }
+
     @SuppressWarnings("unchecked")
     protected <T> EsModel<T> doLoad(String modelId, Class<T> modelType) {
         DefaultEsModel<T> model = createEsModel(modelType, modelId);

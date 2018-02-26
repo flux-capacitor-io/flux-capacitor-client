@@ -14,7 +14,7 @@
 
 package io.fluxcapacitor.javaclient.tracking;
 
-import io.fluxcapacitor.common.api.SerializedMessage;
+import io.fluxcapacitor.common.api.tracking.MessageBatch;
 
 import java.util.List;
 import java.util.function.Consumer;
@@ -22,7 +22,7 @@ import java.util.function.Consumer;
 @FunctionalInterface
 public interface BatchInterceptor {
 
-    Consumer<List<SerializedMessage>> intercept(Consumer<List<SerializedMessage>> consumer);
+    Consumer<MessageBatch> intercept(Consumer<MessageBatch> consumer);
 
     default BatchInterceptor merge(BatchInterceptor outerBatchInterceptor) {
         return f -> outerBatchInterceptor.intercept(intercept(f));

@@ -41,5 +41,5 @@ public class TrackingConfiguration {
     @Default
     Duration retryDelay = Duration.ofSeconds(1);
     @Singular
-    List<BatchInterceptor> batchMessageBatchInterceptors;
+    List<BatchInterceptor> batchInterceptors;
 }

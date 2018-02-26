@@ -37,14 +37,16 @@ public class TrackingUtils {
 
     public static Registration start(String name, int threads, TrackingClient trackingClient,
                                      Consumer<List<SerializedMessage>> consumer) {
-        return start(name, consumer, trackingClient, TrackingConfiguration.builder().threads(threads).build());
+        return start(name, consumer, trackingClient, TrackingConfiguration.builder().threads(threads).build()
+        );
     }
 
     public static Registration start(String consumerName, Consumer<List<SerializedMessage>> consumer,
                                      TrackingClient trackingClient, TrackingConfiguration configuration) {
         List<DefaultTracker> instances =
                 IntStream.range(0, configuration.getThreads()).mapToObj(
-                        i -> new DefaultTracker(consumerName, i, configuration, consumer, trackingClient)).collect(
+                        i -> new DefaultTracker(consumerName, i, configuration, consumer, trackingClient
+                        )).collect(
                         Collectors.toList());
         ExecutorService executor = Executors.newFixedThreadPool(configuration.getThreads());
         instances.forEach(executor::submit);
