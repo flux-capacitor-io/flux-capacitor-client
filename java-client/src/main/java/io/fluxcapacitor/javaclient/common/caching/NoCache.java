@@ -16,11 +16,6 @@ public enum NoCache implements Cache {
     }
 
     @Override
-    public void invalidate(String id) {
-        //no op
-    }
-
-    @Override
     public void invalidateAll() {
         //no op
     }

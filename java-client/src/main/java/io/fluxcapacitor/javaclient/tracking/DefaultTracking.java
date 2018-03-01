@@ -3,7 +3,6 @@ package io.fluxcapacitor.javaclient.tracking;
 import io.fluxcapacitor.common.MessageType;
 import io.fluxcapacitor.common.Registration;
 import io.fluxcapacitor.common.api.SerializedMessage;
-import io.fluxcapacitor.common.api.tracking.MessageBatch;
 import io.fluxcapacitor.common.handling.Handler;
 import io.fluxcapacitor.common.handling.HandlerException;
 import io.fluxcapacitor.common.handling.HandlerInspector;
@@ -11,6 +10,7 @@ import io.fluxcapacitor.common.handling.ParameterResolver;
 import io.fluxcapacitor.javaclient.FluxCapacitor;
 import io.fluxcapacitor.javaclient.common.serialization.DeserializingMessage;
 import io.fluxcapacitor.javaclient.common.serialization.Serializer;
+import io.fluxcapacitor.javaclient.eventsourcing.CacheInvalidatingInterceptor;
 import io.fluxcapacitor.javaclient.publishing.ResultGateway;
 import io.fluxcapacitor.javaclient.tracking.client.TrackingClient;
 import io.fluxcapacitor.javaclient.tracking.client.TrackingUtils;
@@ -61,38 +61,9 @@ public class DefaultTracking implements Tracking {
     protected Registration startTracking(ConsumerConfiguration configuration, List<Object> handlers,
                                          FluxCapacitor fluxCapacitor) {
         Consumer<List<SerializedMessage>> consumer = createConsumer(configuration, handlers);
-        TrackingConfiguration config =
-                configuration.getTrackingConfiguration().toBuilder()
-                        .batchInterceptor(
-                                c -> batch -> {
-                                    FluxCapacitor.instance.set(fluxCapacitor);
-                                    try {
-                                        c.accept(batch);
-                                    } finally {
-                                        FluxCapacitor.instance.remove();
-                                    }
-                                })
-                        .batchInterceptor(new BatchInterceptor() {
-                            private int[] lastSegment;
-
-                            @Override
-                            public Consumer<MessageBatch> intercept(Consumer<MessageBatch> consumer) {
-                                return batch -> {
-                                    int[] newSegment = batch.getSegment();
-                                    if (lastSegment != null && (newSegment[0] < lastSegment[0]
-                                            || newSegment[1] > lastSegment[1])) {
-                                        log.info("Consumer segment changed. Invalidating event model caches.");
-                                        lastSegment = newSegment;
-                                        try {
-                                            fluxCapacitor.eventSourcing().invalidateCache();
-                                        } catch (Exception e) {
-                                            log.error("Failed to invalidate event model cache", e);
-                                        }
-                                    }
-                                    consumer.accept(batch);
-                                };
-                            }
-                        })
+        TrackingConfiguration config = configuration.getTrackingConfiguration().toBuilder()
+                        .batchInterceptor(new FluxCapacitorInterceptor(fluxCapacitor))
+                        .batchInterceptor(new CacheInvalidatingInterceptor(fluxCapacitor.eventSourcing()))
                         .build();
         return TrackingUtils.start(configuration.getName(), consumer, trackingClient, config);
     }

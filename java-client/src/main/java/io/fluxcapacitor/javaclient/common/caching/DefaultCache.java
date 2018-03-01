@@ -42,11 +42,6 @@ public class DefaultCache implements io.fluxcapacitor.javaclient.common.caching.
     }
 
     @Override
-    public void invalidate(String id) {
-        cache.invalidate(id);
-    }
-
-    @Override
     public void invalidateAll() {
         cache.invalidateAll();
     }

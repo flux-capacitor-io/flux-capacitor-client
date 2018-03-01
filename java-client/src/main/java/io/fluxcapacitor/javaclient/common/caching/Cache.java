@@ -5,10 +5,10 @@ import java.util.function.Function;
 public interface Cache {
 
     /**
-     * Adds or replaces a value in the repository. May be ignored if this repository does not support modifications.
+     * Adds or replaces a value in the cache.
      *
      * @param id    The object id
-     * @param value The value to store
+     * @param value The value to cache
      */
     void put(String id, Object value);
 
@@ -21,13 +21,6 @@ public interface Cache {
      * @return The value associated with given id
      */
     <T> T get(String id, Function<? super String, T> mappingFunction);
-
-    /**
-     * Invalidates the cache entry with given id.
-     *
-     * @param id The object id
-     */
-    void invalidate(String id);
 
     /**
      * Invalidates all cache entries.
