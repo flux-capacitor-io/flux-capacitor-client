@@ -15,8 +15,8 @@
 package io.fluxcapacitor.javaclient.benchmark;
 
 import io.fluxcapacitor.javaclient.FluxCapacitor;
-import io.fluxcapacitor.javaclient.configuration.DefaultFluxCapacitor;
 import io.fluxcapacitor.javaclient.configuration.client.WebSocketClient;
+import io.fluxcapacitor.javaclient.configuration.spring.SpringFluxCapacitor;
 import io.fluxcapacitor.javaclient.tracking.handling.HandleCommand;
 import lombok.extern.slf4j.Slf4j;
 
@@ -33,7 +33,7 @@ public class HighLevelJavaClientRunner extends AbstractClientBenchmark {
 
     public HighLevelJavaClientRunner(int commandCount) {
         super(commandCount);
-        fluxCapacitor = DefaultFluxCapacitor.builder().build(WebSocketClient.newInstance(getClientProperties()));
+        fluxCapacitor = SpringFluxCapacitor.builder().build(WebSocketClient.newInstance(getClientProperties()));
         fluxCapacitor.startTracking(this);
     }
 

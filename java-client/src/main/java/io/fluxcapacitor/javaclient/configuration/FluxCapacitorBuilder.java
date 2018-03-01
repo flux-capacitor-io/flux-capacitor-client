@@ -14,32 +14,29 @@ import io.fluxcapacitor.javaclient.tracking.handling.HandlerInterceptor;
 import java.util.function.UnaryOperator;
 
 public interface FluxCapacitorBuilder {
-    DefaultFluxCapacitor.Builder serializer(Serializer serializer);
+    FluxCapacitorBuilder serializer(Serializer serializer);
 
-    DefaultFluxCapacitor.Builder snapshotSerializer(Serializer serializer);
+    FluxCapacitorBuilder snapshotSerializer(Serializer serializer);
 
-    DefaultFluxCapacitor.Builder configureDefaultConsumer(MessageType messageType,
-                                                          UnaryOperator<ConsumerConfiguration> updateFunction);
+    FluxCapacitorBuilder configureDefaultConsumer(MessageType messageType, UnaryOperator<ConsumerConfiguration> updateFunction);
 
-    DefaultFluxCapacitor.Builder addConsumerConfiguration(MessageType messageType,
-                                                          ConsumerConfiguration consumerConfiguration);
+    FluxCapacitorBuilder addConsumerConfiguration(MessageType messageType, ConsumerConfiguration consumerConfiguration);
 
-    DefaultFluxCapacitor.Builder addTrackingParameterResolver(
-            ParameterResolver<DeserializingMessage> parameterResolver);
+    FluxCapacitorBuilder addTrackingParameterResolver(ParameterResolver<DeserializingMessage> parameterResolver);
 
-    DefaultFluxCapacitor.Builder addDispatchInterceptor(DispatchInterceptor interceptor, MessageType... forTypes);
+    FluxCapacitorBuilder addDispatchInterceptor(DispatchInterceptor interceptor, MessageType... forTypes);
 
-    DefaultFluxCapacitor.Builder addHandlerInterceptor(HandlerInterceptor interceptor, MessageType... forTypes);
+    FluxCapacitorBuilder addHandlerInterceptor(HandlerInterceptor interceptor, MessageType... forTypes);
 
-    DefaultFluxCapacitor.Builder addCorrelationDataProvider(CorrelationDataProvider dataProvider);
+    FluxCapacitorBuilder addCorrelationDataProvider(CorrelationDataProvider dataProvider);
 
-    DefaultFluxCapacitor.Builder changeMessageRoutingInterceptor(DispatchInterceptor messageRoutingInterceptor);
+    FluxCapacitorBuilder changeMessageRoutingInterceptor(DispatchInterceptor messageRoutingInterceptor);
 
-    DefaultFluxCapacitor.Builder disableMessageCorrelation();
+    FluxCapacitorBuilder disableMessageCorrelation();
 
-    DefaultFluxCapacitor.Builder disableCommandValidation();
+    FluxCapacitorBuilder disableCommandValidation();
 
-    DefaultFluxCapacitor.Builder changeCommandValidationInterceptor(HandlerInterceptor validationInterceptor);
+    FluxCapacitorBuilder changeCommandValidationInterceptor(HandlerInterceptor validationInterceptor);
 
     FluxCapacitor build(Client client);
 }

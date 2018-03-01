@@ -1,3 +1,17 @@
+/*
+ * Copyright (c) 2016-2018 Flux Capacitor.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package io.fluxcapacitor.javaclient.configuration;
 
 import io.fluxcapacitor.common.MessageType;
@@ -27,6 +41,7 @@ import io.fluxcapacitor.javaclient.tracking.handling.*;
 import io.fluxcapacitor.javaclient.tracking.handling.MetadataParameterResolver;
 import io.fluxcapacitor.javaclient.tracking.handling.PayloadParameterResolver;
 import io.fluxcapacitor.javaclient.tracking.handling.validation.ValidatingInterceptor;
+import lombok.AccessLevel;
 import lombok.AllArgsConstructor;
 
 import java.lang.annotation.Annotation;
@@ -40,7 +55,7 @@ import static java.util.Collections.unmodifiableMap;
 import static java.util.function.Function.identity;
 import static java.util.stream.Collectors.toMap;
 
-@AllArgsConstructor
+@AllArgsConstructor(access = AccessLevel.PROTECTED)
 public class DefaultFluxCapacitor implements FluxCapacitor {
 
     private final Map<MessageType, Tracking> trackingSupplier;
@@ -51,10 +66,6 @@ public class DefaultFluxCapacitor implements FluxCapacitor {
     private final EventSourcing eventSourcing;
     private final KeyValueStore keyValueStore;
     private final Scheduler scheduler;
-
-    public static Builder builder() {
-        return new Builder();
-    }
 
     @Override
     public EventSourcing eventSourcing() {
@@ -232,12 +243,14 @@ public class DefaultFluxCapacitor implements FluxCapacitor {
             //create gateways
             ResultGateway resultGateway =
                     new DefaultResultGateway(client.getGatewayClient(RESULT),
-                                             new MessageSerializer(serializer, dispatchInterceptors.get(RESULT), RESULT));
+                                             new MessageSerializer(serializer, dispatchInterceptors.get(RESULT),
+                                                                   RESULT));
             RequestHandler requestHandler =
                     new DefaultRequestHandler(client.getTrackingClient(RESULT), serializer, client.id());
             CommandGateway commandGateway =
                     new DefaultCommandGateway(client.getGatewayClient(COMMAND), requestHandler,
-                                              new MessageSerializer(serializer, dispatchInterceptors.get(COMMAND), COMMAND));
+                                              new MessageSerializer(serializer, dispatchInterceptors.get(COMMAND),
+                                                                    COMMAND));
             QueryGateway queryGateway =
                     new DefaultQueryGateway(client.getGatewayClient(QUERY), requestHandler,
                                             new MessageSerializer(serializer, dispatchInterceptors.get(QUERY), QUERY));
@@ -251,7 +264,8 @@ public class DefaultFluxCapacitor implements FluxCapacitor {
                                                                                    dispatchInterceptors.get(EVENT)));
             DefaultSnapshotRepository snapshotRepository =
                     new DefaultSnapshotRepository(client.getKeyValueClient(), snapshotSerializer);
-            DefaultEventSourcing eventSourcing = new DefaultEventSourcing(eventStore, snapshotRepository, new DefaultCache());
+            DefaultEventSourcing eventSourcing =
+                    new DefaultEventSourcing(eventStore, snapshotRepository, new DefaultCache());
 
             //register event sourcing as the outermost handler interceptor
             handlerInterceptors.compute(COMMAND, (t, i) -> eventSourcing.merge(i));
@@ -267,10 +281,20 @@ public class DefaultFluxCapacitor implements FluxCapacitor {
             KeyValueStore keyValueStore = new DefaultKeyValueStore(client.getKeyValueClient(), serializer);
             Scheduler scheduler = new DefaultScheduler(client.getSchedulingClient(),
                                                        new MessageSerializer(serializer,
-                                                                             dispatchInterceptors.get(SCHEDULE), SCHEDULE));
+                                                                             dispatchInterceptors.get(SCHEDULE),
+                                                                             SCHEDULE));
 
             //and finally...
-            return new DefaultFluxCapacitor(trackingMap, commandGateway, queryGateway, eventGateway, resultGateway,
+            return doBuild(trackingMap, commandGateway, queryGateway, eventGateway, resultGateway,
+                           eventSourcing, keyValueStore, scheduler);
+        }
+
+        protected FluxCapacitor doBuild(Map<MessageType, Tracking> trackingSupplier,
+                                        CommandGateway commandGateway, QueryGateway queryGateway,
+                                        EventGateway eventGateway, ResultGateway resultGateway,
+                                        EventSourcing eventSourcing, KeyValueStore keyValueStore,
+                                        Scheduler scheduler) {
+            return new DefaultFluxCapacitor(trackingSupplier, commandGateway, queryGateway, eventGateway, resultGateway,
                                             eventSourcing, keyValueStore, scheduler);
         }
 

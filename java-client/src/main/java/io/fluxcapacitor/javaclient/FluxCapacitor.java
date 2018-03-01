@@ -3,6 +3,7 @@ package io.fluxcapacitor.javaclient;
 import io.fluxcapacitor.common.MessageType;
 import io.fluxcapacitor.common.Registration;
 import io.fluxcapacitor.common.api.Metadata;
+import io.fluxcapacitor.javaclient.configuration.spring.SpringFluxCapacitor;
 import io.fluxcapacitor.javaclient.eventsourcing.EventSourcing;
 import io.fluxcapacitor.javaclient.keyvalue.KeyValueStore;
 import io.fluxcapacitor.javaclient.publishing.CommandGateway;
@@ -27,7 +28,7 @@ import static java.util.Arrays.stream;
  * In those cases it is not necessary to inject an instance of this API. This minimizes the need for dependencies
  * in your functional classes and maximally cashes in on location transparency.
  * <p>
- * To build an instance of this API check out {@link io.fluxcapacitor.javaclient.configuration.DefaultFluxCapacitor}.
+ * To build an instance of this API check out {@link SpringFluxCapacitor}.
  */
 public interface FluxCapacitor {
 

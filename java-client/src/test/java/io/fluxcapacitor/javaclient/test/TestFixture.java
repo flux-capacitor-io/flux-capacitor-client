@@ -6,9 +6,9 @@ import io.fluxcapacitor.common.api.Metadata;
 import io.fluxcapacitor.common.api.SerializedMessage;
 import io.fluxcapacitor.javaclient.FluxCapacitor;
 import io.fluxcapacitor.javaclient.common.Message;
-import io.fluxcapacitor.javaclient.configuration.DefaultFluxCapacitor;
 import io.fluxcapacitor.javaclient.configuration.FluxCapacitorBuilder;
 import io.fluxcapacitor.javaclient.configuration.client.InMemoryClient;
+import io.fluxcapacitor.javaclient.configuration.spring.SpringFluxCapacitor;
 import io.fluxcapacitor.javaclient.publishing.correlation.ContextualDispatchInterceptor;
 
 import java.util.Arrays;
@@ -31,7 +31,7 @@ public class TestFixture implements Given, When {
     private final BlockingQueue<Message> commands = new LinkedBlockingQueue<>();
 
     public static TestFixture create(Object... handlers) {
-        return new TestFixture(DefaultFluxCapacitor.builder(), handlers);
+        return new TestFixture(SpringFluxCapacitor.builder(), handlers);
     }
 
     public static TestFixture create(FluxCapacitorBuilder fluxCapacitorBuilder, Object... handlers) {
