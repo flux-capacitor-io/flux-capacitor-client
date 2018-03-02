@@ -34,6 +34,15 @@ public class UpcastInspector {
             Comparator.<AnnotatedUpcaster<?>, Integer>comparing(u -> u.getAnnotation().revision())
                     .thenComparing(u -> u.getAnnotation().type());
 
+    public static boolean hasAnnotatedMethods(Class<?> type) {
+        for (Method method : type.getMethods()) {
+            if (method.isAnnotationPresent(Upcast.class)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     public static <T> List<AnnotatedUpcaster<T>> inspect(Collection<?> upcasters, Class<T> dataType) {
         List<AnnotatedUpcaster<T>> result = new ArrayList<>();
         for (Object upcaster : upcasters) {

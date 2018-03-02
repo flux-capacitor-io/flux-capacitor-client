@@ -15,8 +15,8 @@
 package io.fluxcapacitor.javaclient.common.serialization.jackson;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.node.ObjectNode;
 import io.fluxcapacitor.javaclient.common.serialization.SerializationException;
 import io.fluxcapacitor.javaclient.common.serialization.upcasting.Converter;
 import lombok.AllArgsConstructor;
@@ -24,21 +24,21 @@ import lombok.AllArgsConstructor;
 import java.io.IOException;
 
 @AllArgsConstructor
-public class ObjectNodeConverter implements Converter<ObjectNode> {
+public class ObjectNodeConverter implements Converter<JsonNode> {
 
     private final ObjectMapper objectMapper;
 
     @Override
-    public ObjectNode convert(byte[] bytes) {
+    public JsonNode convert(byte[] bytes) {
         try {
-            return (ObjectNode) objectMapper.readTree(bytes);
+            return (JsonNode) objectMapper.readTree(bytes);
         } catch (IOException e) {
             throw new SerializationException("Could not read JsonNode from byte[]", e);
         }
     }
 
     @Override
-    public byte[] convertBack(ObjectNode value) {
+    public byte[] convertBack(JsonNode value) {
         try {
             return objectMapper.writeValueAsBytes(value);
         } catch (JsonProcessingException e) {
@@ -47,7 +47,7 @@ public class ObjectNodeConverter implements Converter<ObjectNode> {
     }
 
     @Override
-    public Class<ObjectNode> getDataType() {
-        return ObjectNode.class;
+    public Class<JsonNode> getDataType() {
+        return JsonNode.class;
     }
 }

@@ -67,6 +67,10 @@ public class DefaultFluxCapacitor implements FluxCapacitor {
     private final KeyValueStore keyValueStore;
     private final Scheduler scheduler;
 
+    public static Builder builder() {
+        return new Builder();
+    }
+
     @Override
     public EventSourcing eventSourcing() {
         return eventSourcing;

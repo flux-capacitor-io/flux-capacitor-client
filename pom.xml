@@ -33,10 +33,6 @@
     <description>Flux Capacitor provides messaging-as-a-service for distributed applications.</description>
     <url>https://flux-capacitor.io</url>
 
-    <prerequisites>
-        <maven>3.0.0</maven>
-    </prerequisites>
-
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <jackson.version>2.9.3</jackson.version>
