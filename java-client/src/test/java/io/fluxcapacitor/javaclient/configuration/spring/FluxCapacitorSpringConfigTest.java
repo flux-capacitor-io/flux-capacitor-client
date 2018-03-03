@@ -16,7 +16,6 @@ package io.fluxcapacitor.javaclient.configuration.spring;
 
 import com.fasterxml.jackson.databind.node.TextNode;
 import io.fluxcapacitor.javaclient.FluxCapacitor;
-import io.fluxcapacitor.javaclient.common.serialization.Serializer;
 import io.fluxcapacitor.javaclient.common.serialization.upcasting.Upcast;
 import io.fluxcapacitor.javaclient.tracking.handling.HandleCommand;
 import lombok.extern.slf4j.Slf4j;
@@ -31,7 +30,6 @@ import org.springframework.test.context.ContextConfiguration;
 import org.springframework.test.context.junit4.SpringJUnit4ClassRunner;
 
 import static org.junit.Assert.assertEquals;
-import static org.mockito.Mockito.mock;
 
 @RunWith(SpringJUnit4ClassRunner.class)
 @ContextConfiguration(classes = FluxCapacitorSpringConfigTest.Config.class)
@@ -43,7 +41,6 @@ public class FluxCapacitorSpringConfigTest {
 
     @Test
     public void testHandleCommand() {
-        mock(Serializer.class).serialize(null);
         String result = fluxCapacitor.commandGateway().sendAndWait("command");
         assertEquals("upcasted result", result);
     }

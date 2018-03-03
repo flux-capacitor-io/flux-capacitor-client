@@ -86,7 +86,8 @@ public class DefaultEventSourcing implements EventSourcing, HandlerInterceptor {
     }
 
     @Override
-    public Function<DeserializingMessage, Object> interceptHandling(Function<DeserializingMessage, Object> function) {
+    public Function<DeserializingMessage, Object> interceptHandling(Function<DeserializingMessage, Object> function,
+                                                                    Object handler, String consumer) {
         return command -> {
             List<DefaultEsModel<?>> models = new ArrayList<>();
             loadedModels.set(models);

@@ -16,6 +16,7 @@ package io.fluxcapacitor.javaclient.eventsourcing;
 
 import io.fluxcapacitor.common.api.tracking.MessageBatch;
 import io.fluxcapacitor.javaclient.tracking.BatchInterceptor;
+import io.fluxcapacitor.javaclient.tracking.Tracker;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
@@ -28,7 +29,7 @@ public class CacheInvalidatingInterceptor implements BatchInterceptor {
     private int[] lastSegment;
 
     @Override
-    public Consumer<MessageBatch> intercept(Consumer<MessageBatch> consumer) {
+    public Consumer<MessageBatch> intercept(Consumer<MessageBatch> consumer, Tracker tracker) {
         return batch -> {
             if (shouldInvalidateCache(batch.getSegment())) {
                 log.info("Consumer segment changed. Invalidating event model caches.");

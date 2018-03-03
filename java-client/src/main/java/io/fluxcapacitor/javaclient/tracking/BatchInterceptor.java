@@ -22,14 +22,14 @@ import java.util.function.Consumer;
 @FunctionalInterface
 public interface BatchInterceptor {
 
-    Consumer<MessageBatch> intercept(Consumer<MessageBatch> consumer);
+    Consumer<MessageBatch> intercept(Consumer<MessageBatch> consumer, Tracker tracker);
 
     default BatchInterceptor merge(BatchInterceptor outerBatchInterceptor) {
-        return f -> outerBatchInterceptor.intercept(intercept(f));
+        return (c, t) -> outerBatchInterceptor.intercept(intercept(c, t), t);
     }
 
     static BatchInterceptor join(List<BatchInterceptor> interceptors) {
-        return interceptors.stream().reduce((a, b) -> b.merge(a)).orElse(c -> c);
+        return interceptors.stream().reduce((a, b) -> b.merge(a)).orElse((c, t) -> c);
     }
 
 }

@@ -4,19 +4,21 @@ import io.fluxcapacitor.common.api.Metadata;
 import io.fluxcapacitor.javaclient.common.serialization.MessageSerializer;
 import io.fluxcapacitor.javaclient.publishing.client.GatewayClient;
 import lombok.AllArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 
 @AllArgsConstructor
-public class DefaultEventGateway implements EventGateway {
+@Slf4j
+public class DefaultMetricsGateway implements MetricsGateway {
 
-    private final GatewayClient eventGateway;
+    private final GatewayClient metricsGateway;
     private final MessageSerializer serializer;
 
     @Override
     public void publish(Object payload, Metadata metadata) {
         try {
-            eventGateway.send(serializer.serialize(payload, metadata));
+            metricsGateway.send(serializer.serialize(payload, metadata));
         } catch (Exception e) {
-            throw new GatewayException(String.format("Failed to publish event %s", payload), e);
+            throw new GatewayException(String.format("Failed to publish metrics %s", payload), e);
         }
     }
 }

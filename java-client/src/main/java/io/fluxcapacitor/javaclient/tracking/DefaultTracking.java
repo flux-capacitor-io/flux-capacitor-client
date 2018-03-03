@@ -61,10 +61,12 @@ public class DefaultTracking implements Tracking {
     protected Registration startTracking(ConsumerConfiguration configuration, List<Object> handlers,
                                          FluxCapacitor fluxCapacitor) {
         Consumer<List<SerializedMessage>> consumer = createConsumer(configuration, handlers);
+        List<BatchInterceptor> batchInterceptors = new ArrayList<>(
+                Arrays.asList(new FluxCapacitorInterceptor(fluxCapacitor),
+                              new CacheInvalidatingInterceptor(fluxCapacitor.eventSourcing())));
+        batchInterceptors.addAll(configuration.getTrackingConfiguration().getBatchInterceptors());
         TrackingConfiguration config = configuration.getTrackingConfiguration().toBuilder()
-                        .batchInterceptor(new FluxCapacitorInterceptor(fluxCapacitor))
-                        .batchInterceptor(new CacheInvalidatingInterceptor(fluxCapacitor.eventSourcing()))
-                        .build();
+                .clearBatchInterceptors().batchInterceptors(batchInterceptors).build();
         return TrackingUtils.start(configuration.getName(), consumer, trackingClient, config);
     }
 
@@ -76,15 +78,16 @@ public class DefaultTracking implements Tracking {
             Stream<DeserializingMessage> messages =
                     serializer.deserialize(serializedMessages.stream(), false)
                             .map(m -> new DeserializingMessage(m, messageType));
-            messages.forEach(m -> invokers.forEach(i -> handle(m, i)));
+            messages.forEach(m -> invokers.forEach(h -> handle(m, h, configuration.getName())));
         };
     }
 
-    protected void handle(DeserializingMessage message, Handler<DeserializingMessage> handler) {
+    protected void handle(DeserializingMessage message, Handler<DeserializingMessage> handler, String consumer) {
         if (handler.canHandle(message)) {
             try {
-                handleResult(handlerInterceptor.interceptHandling(m -> handler.invoke(message)).apply(message),
-                             message.getSerializedObject());
+                handleResult(handlerInterceptor.interceptHandling(m -> handler.invoke(message), handler.getTarget(),
+                                                                  consumer)
+                                     .apply(message), message.getSerializedObject());
             } catch (HandlerException e) {
                 handleResult(e.getCause(), message.getSerializedObject());
             } catch (Exception e) {

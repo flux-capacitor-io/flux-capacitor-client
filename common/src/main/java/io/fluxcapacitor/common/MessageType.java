@@ -15,5 +15,5 @@
 package io.fluxcapacitor.common;
 
 public enum MessageType {
-    COMMAND, EVENT, NOTIFICATION, QUERY, RESULT, SCHEDULE, USAGE
+    COMMAND, EVENT, NOTIFICATION, QUERY, RESULT, SCHEDULE, METRICS
 }

@@ -67,7 +67,7 @@ public class TestFixture implements Given, When {
     public When givenEvents(Object... events) {
         try {
             FluxCapacitor.instance.set(fluxCapacitor);
-            Arrays.stream(events).forEach(c -> fluxCapacitor.eventGateway().publishEvent(c));
+            Arrays.stream(events).forEach(c -> fluxCapacitor.eventGateway().publish(c));
             return this;
         } catch (Exception e) {
             throw new IllegalStateException("Failed to execute givenEvents", e);
@@ -109,7 +109,7 @@ public class TestFixture implements Given, When {
     public Then whenEvent(Object event) {
         try {
             FluxCapacitor.instance.set(fluxCapacitor);
-            fluxCapacitor.eventGateway().publishEvent(interceptor.trace(event, EVENT));
+            fluxCapacitor.eventGateway().publish(interceptor.trace(event, EVENT));
             return new ResultValidator(null, events, commands);
         } finally {
             deregistrationService.schedule(registration::cancel, 1L, SECONDS);

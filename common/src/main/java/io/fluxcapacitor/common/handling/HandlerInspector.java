@@ -194,5 +194,10 @@ public class HandlerInspector {
         public Object invoke(M message) {
             return invoker.invoke(target, message);
         }
+
+        @Override
+        public Object getTarget() {
+            return target;
+        }
     }
 }

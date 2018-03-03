@@ -17,6 +17,7 @@ package io.fluxcapacitor.javaclient.tracking.client;
 import io.fluxcapacitor.common.Registration;
 import io.fluxcapacitor.common.api.SerializedMessage;
 import io.fluxcapacitor.common.api.tracking.MessageBatch;
+import io.fluxcapacitor.javaclient.tracking.Tracker;
 import io.fluxcapacitor.javaclient.tracking.TrackingConfiguration;
 import lombok.extern.slf4j.Slf4j;
 
@@ -65,7 +66,7 @@ public class DefaultTracker implements Runnable, Registration {
         this.name = name;
         this.channel = channel;
         this.configuration = configuration;
-        this.processor = join(configuration.getBatchInterceptors()).intercept(this::processAll);
+        this.processor = join(configuration.getBatchInterceptors()).intercept(this::processAll, new Tracker(name, channel));
         this.consumer = consumer;
         this.trackingClient = trackingClient;
     }
