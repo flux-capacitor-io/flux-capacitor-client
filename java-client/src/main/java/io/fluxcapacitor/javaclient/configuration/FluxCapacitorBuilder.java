@@ -38,6 +38,8 @@ public interface FluxCapacitorBuilder {
 
     FluxCapacitorBuilder collectTrackingMetrics();
 
+    FluxCapacitorBuilder collectApplicationMetrics();
+
     FluxCapacitorBuilder changeCommandValidationInterceptor(HandlerInterceptor validationInterceptor);
 
     FluxCapacitor build(Client client);

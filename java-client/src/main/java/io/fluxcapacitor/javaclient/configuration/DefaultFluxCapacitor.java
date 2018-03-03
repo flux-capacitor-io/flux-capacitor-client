@@ -18,6 +18,7 @@ import io.fluxcapacitor.common.MessageType;
 import io.fluxcapacitor.common.handling.ParameterResolver;
 import io.fluxcapacitor.javaclient.FluxCapacitor;
 import io.fluxcapacitor.javaclient.common.caching.DefaultCache;
+import io.fluxcapacitor.javaclient.common.metrics.ApplicationMonitor;
 import io.fluxcapacitor.javaclient.common.serialization.DeserializingMessage;
 import io.fluxcapacitor.javaclient.common.serialization.MessageSerializer;
 import io.fluxcapacitor.javaclient.common.serialization.Serializer;
@@ -44,6 +45,7 @@ import lombok.AccessLevel;
 import lombok.AllArgsConstructor;
 
 import java.lang.annotation.Annotation;
+import java.time.Duration;
 import java.util.*;
 import java.util.function.UnaryOperator;
 
@@ -137,10 +139,11 @@ public class DefaultFluxCapacitor implements FluxCapacitor {
                 Arrays.stream(MessageType.values()).collect(toMap(identity(), m -> (f, h, c) -> f));
         private final Set<CorrelationDataProvider> correlationDataProviders = new LinkedHashSet<>();
         private DispatchInterceptor messageRoutingInterceptor = new MessageRoutingInterceptor();
+        private HandlerInterceptor commandValidationInterceptor = new ValidatingInterceptor();
         private boolean disableMessageCorrelation;
         private boolean disableCommandValidation;
         private boolean collectTrackingMetrics;
-        private HandlerInterceptor commandValidationInterceptor = new ValidatingInterceptor();
+        private boolean collectApplicationMetrics;
 
         protected List<ParameterResolver<? super DeserializingMessage>> defaultTrackingParameterResolvers() {
             return new ArrayList<>(Arrays.asList(new PayloadParameterResolver(), new MetadataParameterResolver()));
@@ -233,6 +236,12 @@ public class DefaultFluxCapacitor implements FluxCapacitor {
         }
 
         @Override
+        public FluxCapacitorBuilder collectApplicationMetrics() {
+            collectApplicationMetrics = true;
+            return this;
+        }
+
+        @Override
         public Builder changeCommandValidationInterceptor(HandlerInterceptor validationInterceptor) {
             this.commandValidationInterceptor = validationInterceptor;
             return this;
@@ -273,7 +282,7 @@ public class DefaultFluxCapacitor implements FluxCapacitor {
                     consumerConfigurations.compute(type, (t, list) ->
                             t == METRICS ? list : list.stream().map(c -> c.toBuilder().trackingConfiguration(
                                     c.getTrackingConfiguration().toBuilder().batchInterceptor(batchInterceptor).build())
-                            .build()).collect(toList()));
+                                    .build()).collect(toList()));
                     handlerInterceptors.compute(type, (t, i) -> t == METRICS ? i : handlerMonitor.merge(i));
                 });
             }
@@ -326,8 +335,16 @@ public class DefaultFluxCapacitor implements FluxCapacitor {
                                                                              SCHEDULE));
 
             //and finally...
-            return doBuild(trackingMap, commandGateway, queryGateway, eventGateway, resultGateway, metricsGateway,
-                           eventSourcing, keyValueStore, scheduler, client);
+            FluxCapacitor fluxCapacitor = doBuild(trackingMap, commandGateway, queryGateway, eventGateway,
+                                                  resultGateway, metricsGateway, eventSourcing, keyValueStore,
+                                                  scheduler, client);
+
+            //collect application metrics
+            if (collectApplicationMetrics) {
+                ApplicationMonitor.start(fluxCapacitor, Duration.ofSeconds(1));
+            }
+
+            return fluxCapacitor;
         }
 
         protected FluxCapacitor doBuild(Map<MessageType, Tracking> trackingSupplier,
