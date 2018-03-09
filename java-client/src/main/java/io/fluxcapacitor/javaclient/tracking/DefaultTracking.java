@@ -67,7 +67,8 @@ public class DefaultTracking implements Tracking {
         batchInterceptors.addAll(configuration.getTrackingConfiguration().getBatchInterceptors());
         TrackingConfiguration config = configuration.getTrackingConfiguration().toBuilder()
                 .clearBatchInterceptors().batchInterceptors(batchInterceptors).build();
-        return TrackingUtils.start(configuration.getName(), consumer, trackingClient, config);
+        String trackerName = String.format("%s_%s", fluxCapacitor.client().name(), configuration.getName());
+        return TrackingUtils.start(trackerName, consumer, trackingClient, config);
     }
 
     protected Consumer<List<SerializedMessage>> createConsumer(ConsumerConfiguration configuration,
