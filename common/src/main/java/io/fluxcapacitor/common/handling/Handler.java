@@ -20,4 +20,6 @@ public interface Handler<M> {
 
     Object invoke(M message);
 
+    Object getTarget();
+
 }

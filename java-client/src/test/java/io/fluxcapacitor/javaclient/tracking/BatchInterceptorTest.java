@@ -32,7 +32,7 @@ public class BatchInterceptorTest {
         List<Object> invokedInstances = new ArrayList<>();
         BatchInterceptor outerInterceptor = new BatchInterceptor() {
             @Override
-            public Consumer<MessageBatch> intercept(Consumer<MessageBatch> consumer) {
+            public Consumer<MessageBatch> intercept(Consumer<MessageBatch> consumer, Tracker tracker) {
                 return messages -> {
                     invokedInstances.add(this);
                     consumer.accept(messages);
@@ -41,7 +41,7 @@ public class BatchInterceptorTest {
         };
         BatchInterceptor innerInterceptor = new BatchInterceptor() {
             @Override
-            public Consumer<MessageBatch> intercept(Consumer<MessageBatch> consumer) {
+            public Consumer<MessageBatch> intercept(Consumer<MessageBatch> consumer, Tracker tracker) {
                 return messages -> {
                     invokedInstances.add(this);
                     consumer.accept(messages);
@@ -55,7 +55,7 @@ public class BatchInterceptorTest {
             }
         };
         Consumer<MessageBatch> invocation = BatchInterceptor
-                .join(Arrays.asList(outerInterceptor, innerInterceptor)).intercept(function);
+                .join(Arrays.asList(outerInterceptor, innerInterceptor)).intercept(function, new Tracker("test", 0));
         assertEquals(emptyList(), invokedInstances);
         invocation.accept(new MessageBatch(new int[]{0, 1}, emptyList(), 0L));
         assertEquals(Arrays.asList(outerInterceptor, innerInterceptor, function), invokedInstances);

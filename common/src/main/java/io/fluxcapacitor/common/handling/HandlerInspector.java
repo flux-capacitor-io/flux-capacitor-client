@@ -75,9 +75,7 @@ public class HandlerInspector {
             this.hasReturnValue = !(executable instanceof Method) || !(((Method) executable).getReturnType()).equals(void.class);
             this.parameterSuppliers = getParameterSuppliers(executable, parameterResolvers);
             this.payloadTypeSupplier = getPayloadTypeSupplier(executable, parameterResolvers);
-            if (!executable.isAccessible()) {
-                executable.setAccessible(true);
-            }
+            executable.setAccessible(true);
         }
 
         @Override
@@ -195,6 +193,11 @@ public class HandlerInspector {
         @Override
         public Object invoke(M message) {
             return invoker.invoke(target, message);
+        }
+
+        @Override
+        public Object getTarget() {
+            return target;
         }
     }
 }

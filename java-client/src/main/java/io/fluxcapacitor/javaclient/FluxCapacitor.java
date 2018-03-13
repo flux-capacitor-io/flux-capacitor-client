@@ -3,13 +3,11 @@ package io.fluxcapacitor.javaclient;
 import io.fluxcapacitor.common.MessageType;
 import io.fluxcapacitor.common.Registration;
 import io.fluxcapacitor.common.api.Metadata;
-import io.fluxcapacitor.javaclient.configuration.spring.SpringFluxCapacitor;
+import io.fluxcapacitor.javaclient.configuration.DefaultFluxCapacitor;
+import io.fluxcapacitor.javaclient.configuration.client.Client;
 import io.fluxcapacitor.javaclient.eventsourcing.EventSourcing;
 import io.fluxcapacitor.javaclient.keyvalue.KeyValueStore;
-import io.fluxcapacitor.javaclient.publishing.CommandGateway;
-import io.fluxcapacitor.javaclient.publishing.EventGateway;
-import io.fluxcapacitor.javaclient.publishing.QueryGateway;
-import io.fluxcapacitor.javaclient.publishing.ResultGateway;
+import io.fluxcapacitor.javaclient.publishing.*;
 import io.fluxcapacitor.javaclient.scheduling.Scheduler;
 import io.fluxcapacitor.javaclient.tracking.Tracking;
 
@@ -28,7 +26,7 @@ import static java.util.Arrays.stream;
  * In those cases it is not necessary to inject an instance of this API. This minimizes the need for dependencies
  * in your functional classes and maximally cashes in on location transparency.
  * <p>
- * To build an instance of this API check out {@link SpringFluxCapacitor}.
+ * To build an instance of this API check out {@link DefaultFluxCapacitor}.
  */
 public interface FluxCapacitor {
 
@@ -40,11 +38,11 @@ public interface FluxCapacitor {
     }
 
     static void publishEvent(Object event) {
-        get().eventGateway().publishEvent(event);
+        get().eventGateway().publish(event);
     }
 
     static void publishEvent(Object payload, Metadata metadata) {
-        get().eventGateway().publishEvent(payload, metadata);
+        get().eventGateway().publish(payload, metadata);
     }
 
     static void sendAndForgetCommand(Object payload, Metadata metadata) {
@@ -71,6 +69,14 @@ public interface FluxCapacitor {
         return get().queryGateway().query(payload, metadata);
     }
 
+    static void publishMetrics(Object metrics) {
+        get().metricsGateway().publish(metrics);
+    }
+
+    static void publishMetrics(Object payload, Metadata metadata) {
+        get().metricsGateway().publish(payload, metadata);
+    }
+
     @SuppressWarnings("ConstantConditions")
     default Registration startTracking(Object... handlers) {
         return stream(MessageType.values())
@@ -91,5 +97,9 @@ public interface FluxCapacitor {
 
     ResultGateway resultGateway();
 
+    MetricsGateway metricsGateway();
+
     Tracking tracking(MessageType messageType);
+
+    Client client();
 }

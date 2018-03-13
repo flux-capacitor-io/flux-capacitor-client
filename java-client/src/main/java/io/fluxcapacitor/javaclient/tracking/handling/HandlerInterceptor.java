@@ -20,9 +20,10 @@ import java.util.function.Function;
 
 @FunctionalInterface
 public interface HandlerInterceptor {
-    Function<DeserializingMessage, Object> interceptHandling(Function<DeserializingMessage, Object> function);
+    Function<DeserializingMessage, Object> interceptHandling(Function<DeserializingMessage, Object> function,
+                                                             Object handler, String consumer);
 
     default HandlerInterceptor merge(HandlerInterceptor outerInterceptor) {
-        return f -> outerInterceptor.interceptHandling(interceptHandling(f));
+        return (f, h, c) -> outerInterceptor.interceptHandling(interceptHandling(f, h, c), h, c);
     }
 }

@@ -5,14 +5,14 @@ import io.fluxcapacitor.javaclient.common.Message;
 
 public interface EventGateway {
 
-    default void publishEvent(Object event) {
+    default void publish(Object event) {
         if (event instanceof Message) {
-            publishEvent(((Message) event).getPayload(), ((Message) event).getMetadata());
+            publish(((Message) event).getPayload(), ((Message) event).getMetadata());
         } else {
-            publishEvent(event, Metadata.empty());
+            publish(event, Metadata.empty());
         }
     }
 
-    void publishEvent(Object payload, Metadata metadata);
+    void publish(Object payload, Metadata metadata);
 
 }

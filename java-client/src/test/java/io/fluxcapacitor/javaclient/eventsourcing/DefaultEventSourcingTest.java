@@ -155,7 +155,7 @@ public class DefaultEventSourcingTest {
             reset(cache, eventStore);
             model.apply(new CreateModel());
             throw new IllegalStateException();
-        });
+        }, null, "test");
         try {
             f.apply(toDeserializingMessage("command"));
             fail();
@@ -210,7 +210,8 @@ public class DefaultEventSourcingTest {
 
     @SuppressWarnings("unchecked")
     private Function<Message, EsModel<TestModel>> prepareSubjectForHandling() {
-        return m -> (EsModel<TestModel>) subject.interceptHandling(s -> subject.newInstance(modelId, TestModel.class).apply(m))
+        return m -> (EsModel<TestModel>) subject.interceptHandling(s -> subject.newInstance(modelId, TestModel.class).apply(m),
+                                                                   null, "test")
                 .apply(toDeserializingMessage(m));
     }
 
@@ -218,7 +219,7 @@ public class DefaultEventSourcingTest {
         return subject.interceptHandling(s -> {
             task.run();
             return null;
-        });
+        }, null, "test");
     }
 
     private Stream<DeserializingMessage> eventStreamOf(Object... payloads) {

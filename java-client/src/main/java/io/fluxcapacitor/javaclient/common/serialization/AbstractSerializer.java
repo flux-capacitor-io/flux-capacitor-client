@@ -18,7 +18,6 @@ import io.fluxcapacitor.common.api.Data;
 import io.fluxcapacitor.common.api.SerializedObject;
 import io.fluxcapacitor.common.serialization.Revision;
 import io.fluxcapacitor.javaclient.common.serialization.upcasting.Upcaster;
-import io.fluxcapacitor.javaclient.publishing.NullValue;
 import lombok.extern.slf4j.Slf4j;
 
 import java.util.stream.Stream;
@@ -37,17 +36,20 @@ public abstract class AbstractSerializer implements Serializer {
     public Data<byte[]> serialize(Object object) {
         byte[] bytes;
         try {
-            object = prepare(object);
             bytes = doSerialize(object);
         } catch (Exception e) {
             throw new SerializationException("Could not serialize " + object, e);
         }
-        Revision revision = object.getClass().getAnnotation(Revision.class);
-        return new Data<>(bytes, object.getClass().getName(), revision == null ? 0 : revision.value());
+        Revision revision = getRevision(object);
+        return new Data<>(bytes, getObjectType(object), revision == null ? 0 : revision.value());
     }
 
-    protected Object prepare(Object object) {
-        return object == null ? NullValue.INSTANCE : object;
+    protected String getObjectType(Object object) {
+        return object == null ? Void.class.getName() : object.getClass().getName();
+    }
+
+    protected Revision getRevision(Object object) {
+        return object == null ? null : object.getClass().getAnnotation(Revision.class);
     }
 
     protected abstract byte[] doSerialize(Object object) throws Exception;
@@ -71,16 +73,12 @@ public abstract class AbstractSerializer implements Serializer {
                     }
                     return (Stream) Stream.of(new DeserializingObject(s, () -> {
                         try {
-                            return unprepare(doDeserialize(s.data().getValue(), type));
+                            return doDeserialize(s.data().getValue(), type);
                         } catch (Exception e) {
                             throw new SerializationException("Could not deserialize a " + s.data().getType(), e);
                         }
                     }));
                 });
-    }
-
-    protected Object unprepare(Object object) {
-        return object == NullValue.INSTANCE ? null : object;
     }
 
     protected Class<?> classForType(String type) throws Exception {
@@ -92,4 +90,8 @@ public abstract class AbstractSerializer implements Serializer {
     }
 
     protected abstract Object doDeserialize(byte[] bytes, Class<?> type) throws Exception;
+
+    protected enum NullValue {
+        INSTANCE;
+    }
 }

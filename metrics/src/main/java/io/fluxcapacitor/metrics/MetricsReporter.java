@@ -25,7 +25,7 @@ import io.fluxcapacitor.javaclient.configuration.client.WebSocketClient;
 import io.fluxcapacitor.javaclient.tracking.client.TrackingClient;
 import io.fluxcapacitor.javaclient.tracking.client.TrackingUtils;
 import io.fluxcapacitor.javaclient.tracking.client.WebsocketTrackingClient;
-import io.fluxcapacitor.javaclient.tracking.handling.HandleUsage;
+import io.fluxcapacitor.javaclient.tracking.handling.HandleMetrics;
 import lombok.extern.slf4j.Slf4j;
 
 import java.io.IOException;
@@ -40,12 +40,12 @@ public abstract class MetricsReporter {
 
     public MetricsReporter(String fluxCapacitorUrl) {
         this.objectMapper = new ObjectMapper();
-        this.invoker = HandlerInspector.createHandler(this, HandleUsage.class, Collections.singletonList(p -> c -> c));
+        this.invoker = HandlerInspector.createHandler(this, HandleMetrics.class, Collections.singletonList(p -> c -> c));
         this.clientProperties = new WebSocketClient.Properties("graphiteReporter", fluxCapacitorUrl);
     }
 
     public void start() {
-        String metricsLogUrl = ServiceUrlBuilder.consumerUrl(MessageType.USAGE, clientProperties);
+        String metricsLogUrl = ServiceUrlBuilder.consumerUrl(MessageType.METRICS, clientProperties);
         TrackingClient trackingClient = new WebsocketTrackingClient(metricsLogUrl);
         TrackingUtils.start("metricsReporter", trackingClient, messages -> messages.stream().map(
                 this::deserialize).forEach(this::handle));

@@ -28,7 +28,7 @@ public class ValidatingInterceptorTest {
         DeserializingMessage message =
                 messageFactory.apply(new ConstrainedObject(null, 3, new ConstrainedObjectMember(false)));
         try {
-            subject.interceptHandling(m -> null).apply(message);
+            subject.interceptHandling(m -> null, null, "test").apply(message);
         } catch (ValidationException e) {
             assertEquals(3, e.getViolations().size());
         }
@@ -38,13 +38,13 @@ public class ValidatingInterceptorTest {
     public void testWithoutConstraintViolations() {
         DeserializingMessage message =
                 messageFactory.apply(new ConstrainedObject("foo", 5, new ConstrainedObjectMember(true)));
-        subject.interceptHandling(m -> null).apply(message);
+        subject.interceptHandling(m -> null, null, "test").apply(message);
     }
 
     @Test
     public void testObjectWithoutAnnotations() {
         DeserializingMessage message = messageFactory.apply(new Object());
-        subject.interceptHandling(m -> null).apply(message);
+        subject.interceptHandling(m -> null, null, "test").apply(message);
     }
 
     @Value

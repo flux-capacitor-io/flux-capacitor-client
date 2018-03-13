@@ -36,6 +36,10 @@ public interface FluxCapacitorBuilder {
 
     FluxCapacitorBuilder disableCommandValidation();
 
+    FluxCapacitorBuilder collectTrackingMetrics();
+
+    FluxCapacitorBuilder collectApplicationMetrics();
+
     FluxCapacitorBuilder changeCommandValidationInterceptor(HandlerInterceptor validationInterceptor);
 
     FluxCapacitor build(Client client);

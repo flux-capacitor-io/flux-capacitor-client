@@ -14,16 +14,17 @@
 
 package io.fluxcapacitor.javaclient.configuration.spring;
 
+import com.fasterxml.jackson.databind.node.TextNode;
 import io.fluxcapacitor.javaclient.FluxCapacitor;
-import io.fluxcapacitor.javaclient.configuration.client.InMemoryClient;
+import io.fluxcapacitor.javaclient.common.serialization.upcasting.Upcast;
 import io.fluxcapacitor.javaclient.tracking.handling.HandleCommand;
 import lombok.extern.slf4j.Slf4j;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.ComponentScan;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.Import;
 import org.springframework.stereotype.Component;
 import org.springframework.test.context.ContextConfiguration;
 import org.springframework.test.context.junit4.SpringJUnit4ClassRunner;
@@ -31,33 +32,39 @@ import org.springframework.test.context.junit4.SpringJUnit4ClassRunner;
 import static org.junit.Assert.assertEquals;
 
 @RunWith(SpringJUnit4ClassRunner.class)
-@ContextConfiguration(classes = SpringFluxCapacitorTest.Config.class)
+@ContextConfiguration(classes = FluxCapacitorSpringConfigTest.Config.class)
 @Slf4j
-public class SpringFluxCapacitorTest {
+public class FluxCapacitorSpringConfigTest {
 
     @Autowired
     private FluxCapacitor fluxCapacitor;
 
     @Test
     public void testHandleCommand() {
-        int result = fluxCapacitor.commandGateway().sendAndWait("test");
-        assertEquals(1, result);
+        String result = fluxCapacitor.commandGateway().sendAndWait("command");
+        assertEquals("upcasted result", result);
     }
 
     @Component
     public static class SomeHandler {
         @HandleCommand
-        public int handleCommand(String command) {
-            return 1;
+        public Object handleCommand(String command) {
+            return "result";
+        }
+    }
+
+    @Component
+    public static class StringUpcaster {
+        @Upcast(type = "java.lang.String", revision = 0)
+        public TextNode upcastResult(TextNode node) {
+            return TextNode.valueOf(node.asText().equals("result") ? "upcasted result" : node.asText());
         }
     }
 
     @Configuration
+    @Import(FluxCapacitorSpringConfig.class)
     @ComponentScan
     public static class Config {
-        @Bean
-        public SpringFluxCapacitor fluxCapacitor() {
-            return SpringFluxCapacitor.builder().build(InMemoryClient.newInstance());
-        }
+
     }
 }

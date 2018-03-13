@@ -25,7 +25,7 @@ public class FluxCapacitorInterceptor implements BatchInterceptor {
     private final FluxCapacitor fluxCapacitor;
 
     @Override
-    public Consumer<MessageBatch> intercept(Consumer<MessageBatch> consumer) {
+    public Consumer<MessageBatch> intercept(Consumer<MessageBatch> consumer, Tracker tracker) {
         return batch -> {
             FluxCapacitor.instance.set(fluxCapacitor);
             try {
