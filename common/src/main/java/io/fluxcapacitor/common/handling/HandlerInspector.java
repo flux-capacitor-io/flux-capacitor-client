@@ -199,5 +199,10 @@ public class HandlerInspector {
         public Object getTarget() {
             return target;
         }
+
+        @Override
+        public String toString() {
+            return "DefaultHandler{target=" + target + '}';
+        }
     }
 }

@@ -16,6 +16,7 @@ import io.fluxcapacitor.javaclient.tracking.client.TrackingClient;
 import io.fluxcapacitor.javaclient.tracking.client.TrackingUtils;
 import io.fluxcapacitor.javaclient.tracking.handling.HandlerInterceptor;
 import lombok.AllArgsConstructor;
+import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
 
 import java.lang.annotation.Annotation;
@@ -79,30 +80,41 @@ public class DefaultTracking implements Tracking {
             Stream<DeserializingMessage> messages =
                     serializer.deserialize(serializedMessages.stream(), false)
                             .map(m -> new DeserializingMessage(m, messageType));
-            messages.forEach(m -> invokers.forEach(h -> handle(m, h, configuration.getName())));
+            messages.forEach(m -> invokers.forEach(h -> tryHandle(m, h, configuration)));
         };
     }
 
-    protected void handle(DeserializingMessage message, Handler<DeserializingMessage> handler, String consumer) {
+    @SneakyThrows
+    protected void tryHandle(DeserializingMessage message, Handler<DeserializingMessage> handler,
+                             ConsumerConfiguration config) {
         if (handler.canHandle(message)) {
             try {
-                handleResult(handlerInterceptor.interceptHandling(m -> handler.invoke(message), handler.getTarget(),
-                                                                  consumer)
-                                     .apply(message), message.getSerializedObject());
-            } catch (HandlerException e) {
-                handleResult(e.getCause(), message.getSerializedObject());
+                handle(message, handler, config);
             } catch (Exception e) {
-                handleResult(e, message.getSerializedObject());
+                config.getErrorHandler()
+                        .handleError(e, String.format("Handler %s failed to handle a %s", handler, message.getType()),
+                                     () -> handle(message, handler, config));
             }
         }
     }
 
-    protected void handleResult(Object result, SerializedMessage message) {
-        if (message.getRequestId() != null) {
-            resultGateway.respond(result, message.getSource(), message.getRequestId());
+    @SneakyThrows
+    protected void handle(DeserializingMessage message, Handler<DeserializingMessage> handler,
+                          ConsumerConfiguration config) {
+        Object result;
+        try {
+            result = handlerInterceptor.interceptHandling(m -> handler.invoke(message), handler.getTarget(),
+                                                          config.getName()).apply(message);
+        } catch (HandlerException e) {
+            result = e.getCause();
+        } catch (Exception e) {
+            result = e;
+        }
+        SerializedMessage serializedMessage = message.getSerializedObject();
+        if (serializedMessage.getRequestId() != null) {
+            resultGateway.respond(result, serializedMessage.getSource(), serializedMessage.getRequestId());
         } else if (result instanceof Exception) {
-            log.error(format("Failed to handle a message with index %s. Continuing processing with next handler.",
-                             message.getIndex()), (Exception) result);
+            throw (Exception) result;
         }
     }
 

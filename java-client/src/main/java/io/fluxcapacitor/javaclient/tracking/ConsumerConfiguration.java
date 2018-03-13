@@ -18,6 +18,8 @@ public class ConsumerConfiguration {
     Predicate<Object> handlerFilter = o -> true;
     @Default
     TrackingConfiguration trackingConfiguration = TrackingConfiguration.DEFAULT;
+    @Default
+    ErrorHandler errorHandler = LoggingErrorHandler.INSTANCE;
 
     public static ConsumerConfiguration getDefault(MessageType messageType) {
         return ConsumerConfiguration.builder().name(DEFAULT_CONSUMER_NAME.apply(messageType)).build();

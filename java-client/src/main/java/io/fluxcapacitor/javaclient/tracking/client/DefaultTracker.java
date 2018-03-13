@@ -119,10 +119,8 @@ public class DefaultTracker implements Runnable, Registration {
             cancel();
             throw e;
         }
-        retryOnFailure(() -> {
-            trackingClient.storePosition(name, segment, batch.get(batch.size() - 1).getIndex());
-            return null;
-        }, configuration.getRetryDelay(), e -> running.get());
+        retryOnFailure(() -> trackingClient.storePosition(name, segment, batch.get(batch.size() - 1).getIndex()),
+                       configuration.getRetryDelay(), e -> running.get());
     }
 
 

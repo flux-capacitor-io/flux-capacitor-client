@@ -44,8 +44,20 @@ public class TimingUtils {
         callback.accept(System.currentTimeMillis() - start);
     }
 
+    public static boolean retryOnFailure(Runnable task, Duration delay) {
+        return retryOnFailure(task, delay, e -> true);
+    }
+
     public static <T> T retryOnFailure(Callable<T> task, Duration delay) {
         return retryOnFailure(task, delay, e -> true);
+    }
+
+    public static boolean retryOnFailure(Runnable task, Duration delay, Predicate<Exception> predicate) {
+        Object result = retryOnFailure(() -> {
+            task.run();
+            return new Object();
+        }, delay, predicate);
+        return result != null;
     }
 
     public static <T> T retryOnFailure(Callable<T> task, Duration delay, Predicate<Exception> predicate) {
@@ -60,18 +72,18 @@ public class TimingUtils {
                 return result;
             } catch (Exception e) {
                 if (!predicate.test(e)) {
-                    log.info("Task {} failed. Will not retry.", task);
+                    log.error("Task {} failed. Will not retry.", task, e);
                     break;
                 }
                 if (!retrying) {
-                    log.warn("Task {} failed. retrying every {} ms...", task, delay.toMillis(), e);
+                    log.error("Task {} failed. retrying every {} ms...", task, delay.toMillis(), e);
                     retrying = true;
                 }
                 try {
                     Thread.sleep(delay.toMillis());
                 } catch (InterruptedException e1) {
                     Thread.interrupted();
-                    throw new IllegalStateException("Thread interrupted");
+                    throw new IllegalStateException("Thread interrupted while retrying task " + task);
                 }
             }
         }

@@ -31,6 +31,7 @@ public class DeserializingObject<T, S extends SerializedObject<T, S>> {
         return serializedObject;
     }
 
+    @SuppressWarnings("unused")
     public Class<?> getPayloadClass() {
         try {
             return Class.forName(getType());
