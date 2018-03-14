@@ -52,7 +52,7 @@ public class HandlerInspector {
                                                 List<ParameterResolver<? super M>> parameterResolvers) {
         if (!hasHandlerMethods(type, methodAnnotation)) {
             throw new HandlerException(
-                    String.format("Could not find methods with %s annotation on %s", methodAnnotation.getSimpleName(),
+                    format("Could not find methods with %s annotation on %s", methodAnnotation.getSimpleName(),
                                   type.getSimpleName()));
         }
         return new ObjectHandlerInvoker<>(type, concat(stream(type.getMethods()), stream(type.getConstructors()))
@@ -92,6 +92,12 @@ public class HandlerInspector {
         public Object invoke(Object target, M message) {
             try {
                 if (executable instanceof Method) {
+                    if (target == null && !Modifier.isStatic(executable.getModifiers())) {
+                        throw new HandlerNotFoundException(
+                                format("Found instance method on target class %s that can handle the message "
+                                               + "but the target instance is null. Should the method be static?",
+                                       executable.getDeclaringClass().getSimpleName()));
+                    }
                     return ((Method) executable)
                             .invoke(target, parameterSuppliers.stream().map(s -> s.apply(message)).toArray());
                 } else {

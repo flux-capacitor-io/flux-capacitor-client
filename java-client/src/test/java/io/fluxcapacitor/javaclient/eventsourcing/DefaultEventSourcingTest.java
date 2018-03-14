@@ -185,6 +185,20 @@ public class DefaultEventSourcingTest {
     }
 
     @Test
+    public void testCreateUsingFactoryMethod() {
+        executeWhileIntercepting(() -> subject.newInstance(modelId, TestModelWithFactoryMethod.class)
+                .apply(new Message(new CreateModel(), EVENT)))
+                .apply(toDeserializingMessage("command"));
+    }
+
+    @Test(expected = HandlerNotFoundException.class)
+    public void testApplyingUnknownEventsFailsIfModelHasNoConstructorOrFactoryMethod() {
+        executeWhileIntercepting(() -> subject.newInstance(modelId, TestModelWithoutFactoryMethodOrConstructor.class)
+                .apply(new Message(new CreateModel(), EVENT)))
+                .apply(toDeserializingMessage("command"));
+    }
+
+    @Test
     public void testSnapshotStoredAfterThreshold() {
         List<Message> events =
                 Arrays.asList(new Message(new CreateModel(), EVENT), new Message("foo", EVENT),
@@ -211,8 +225,9 @@ public class DefaultEventSourcingTest {
 
     @SuppressWarnings("unchecked")
     private Function<Message, Model<TestModel>> prepareSubjectForHandling() {
-        return m -> (Model<TestModel>) subject.interceptHandling(s -> subject.newInstance(modelId, TestModel.class).apply(m),
-                                                                 null, "test")
+        return m -> (Model<TestModel>) subject
+                .interceptHandling(s -> subject.newInstance(modelId, TestModel.class).apply(m),
+                                   null, "test")
                 .apply(toDeserializingMessage(m));
     }
 
@@ -239,6 +254,7 @@ public class DefaultEventSourcingTest {
 
     @EventSourced(cached = true, snapshotPeriod = 100)
     @Value
+    @NoArgsConstructor
     public static class TestModel {
         private final List<Object> events = new ArrayList<>();
         private final Metadata metadata = Metadata.empty();
@@ -257,6 +273,22 @@ public class DefaultEventSourcingTest {
         @ApplyEvent
         public void handle(UpdateModel event) {
             events.add(event);
+        }
+    }
+
+    @EventSourced
+    public static class TestModelWithFactoryMethod {
+        @ApplyEvent
+        public static TestModelWithFactoryMethod handle(CreateModel event) {
+            return new TestModelWithFactoryMethod();
+        }
+    }
+
+    @EventSourced
+    public static class TestModelWithoutFactoryMethodOrConstructor {
+        @ApplyEvent
+        public TestModelWithoutFactoryMethodOrConstructor handle(CreateModel event) {
+            return this;
         }
     }
 
