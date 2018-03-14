@@ -3,6 +3,7 @@ package io.fluxcapacitor.javaclient.eventsourcing;
 import io.fluxcapacitor.javaclient.common.Message;
 import io.fluxcapacitor.javaclient.common.caching.Cache;
 import io.fluxcapacitor.javaclient.common.caching.NoCache;
+import io.fluxcapacitor.javaclient.common.model.Model;
 import io.fluxcapacitor.javaclient.common.serialization.DeserializingMessage;
 import io.fluxcapacitor.javaclient.tracking.handling.HandlerInterceptor;
 import lombok.AllArgsConstructor;
@@ -23,15 +24,15 @@ import static java.util.stream.Collectors.toList;
 @AllArgsConstructor
 public class DefaultEventSourcing implements EventSourcing, HandlerInterceptor {
 
-    private final Map<Class, Function<String, DefaultEsModel<?>>> modelFactories = new ConcurrentHashMap<>();
+    private final Map<Class, Function<String, EventSourcedModel<?>>> modelFactories = new ConcurrentHashMap<>();
     private final EventStore eventStore;
     private final SnapshotRepository snapshotRepository;
     private final Cache cache;
-    private final ThreadLocal<List<DefaultEsModel<?>>> loadedModels = new ThreadLocal<>();
+    private final ThreadLocal<List<EventSourcedModel<?>>> loadedModels = new ThreadLocal<>();
 
     @Override
-    public <T> EsModel<T> newInstance(String id, Class<T> modelType) {
-        EsModel<T> result = doLoad(id, modelType);
+    public <T> Model<T> newInstance(String id, Class<T> modelType) {
+        Model<T> result = doLoad(id, modelType);
         if (result.get() != null) {
             throw new DuplicateModelException(
                     format("Model of type %s id %s already exists", modelType.getSimpleName(), id));
@@ -41,8 +42,8 @@ public class DefaultEventSourcing implements EventSourcing, HandlerInterceptor {
 
     @SuppressWarnings("unchecked")
     @Override
-    public <T> EsModel<T> load(String modelId, Class<T> modelType) {
-        EsModel<T> model = doLoad(modelId, modelType);
+    public <T> Model<T> load(String modelId, Class<T> modelType) {
+        Model<T> model = doLoad(modelId, modelType);
         if (model.get() == null) {
             throw new ModelNotFoundException(
                     format("No events founds for type %s id %s", modelType.getSimpleName(), modelId));
@@ -56,8 +57,8 @@ public class DefaultEventSourcing implements EventSourcing, HandlerInterceptor {
     }
 
     @SuppressWarnings("unchecked")
-    protected <T> EsModel<T> doLoad(String modelId, Class<T> modelType) {
-        DefaultEsModel<T> model = createEsModel(modelType, modelId);
+    protected <T> Model<T> doLoad(String modelId, Class<T> modelType) {
+        EventSourcedModel<T> model = createEsModel(modelType, modelId);
         Optional.ofNullable(loadedModels.get()).ifPresent(models -> models.add(model));
         return model;
     }
@@ -73,15 +74,15 @@ public class DefaultEventSourcing implements EventSourcing, HandlerInterceptor {
     }
 
     @SuppressWarnings("unchecked")
-    protected <T> DefaultEsModel<T> createEsModel(Class<T> modelType, String modelId) {
-        return (DefaultEsModel<T>) modelFactories.computeIfAbsent(modelType, t -> {
+    protected <T> EventSourcedModel<T> createEsModel(Class<T> modelType, String modelId) {
+        return (EventSourcedModel<T>) modelFactories.computeIfAbsent(modelType, t -> {
             EventSourcingHandler<T> eventSourcingHandler = new AnnotatedEventSourcingHandler<>(modelType);
             Cache cache = cache(modelType);
             SnapshotRepository snapshotRepository = snapshotRepository(modelType);
             SnapshotTrigger snapshotTrigger = snapshotTrigger(modelType);
             String domain = domain(modelType);
-            return id -> new DefaultEsModel<>(eventSourcingHandler, cache, eventStore, snapshotRepository,
-                                              snapshotTrigger, id, domain, loadedModels.get() == null);
+            return id -> new EventSourcedModel<>(eventSourcingHandler, cache, eventStore, snapshotRepository,
+                                                 snapshotTrigger, id, domain, loadedModels.get() == null);
         }).apply(modelId);
     }
 
@@ -89,12 +90,12 @@ public class DefaultEventSourcing implements EventSourcing, HandlerInterceptor {
     public Function<DeserializingMessage, Object> interceptHandling(Function<DeserializingMessage, Object> function,
                                                                     Object handler, String consumer) {
         return command -> {
-            List<DefaultEsModel<?>> models = new ArrayList<>();
+            List<EventSourcedModel<?>> models = new ArrayList<>();
             loadedModels.set(models);
             try {
                 Object result = function.apply(command);
                 try {
-                    loadedModels.get().forEach(DefaultEsModel::commit);
+                    loadedModels.get().forEach(EventSourcedModel::commit);
                 } catch (Exception e) {
                     throw new EventSourcingException(
                             format("Failed to commit applied events after handling %s", command), e);
@@ -135,7 +136,7 @@ public class DefaultEventSourcing implements EventSourcing, HandlerInterceptor {
                 .filter(s -> !s.isEmpty()).orElse(modelType.getSimpleName());
     }
 
-    protected static class DefaultEsModel<T> implements EsModel<T> {
+    protected static class EventSourcedModel<T> implements Model<T> {
 
         private final EventSourcingHandler<T> eventSourcingHandler;
         private final Cache cache;
@@ -147,9 +148,9 @@ public class DefaultEventSourcing implements EventSourcing, HandlerInterceptor {
         private final List<Message> unpublishedEvents = new ArrayList<>();
         private final boolean readOnly;
 
-        protected DefaultEsModel(EventSourcingHandler<T> eventSourcingHandler, Cache cache, EventStore eventStore,
-                                 SnapshotRepository snapshotRepository, SnapshotTrigger snapshotTrigger,
-                                 String id, String domain, boolean readOnly) {
+        protected EventSourcedModel(EventSourcingHandler<T> eventSourcingHandler, Cache cache, EventStore eventStore,
+                                    SnapshotRepository snapshotRepository, SnapshotTrigger snapshotTrigger,
+                                    String id, String domain, boolean readOnly) {
             this.eventSourcingHandler = eventSourcingHandler;
             this.cache = cache;
             this.eventStore = eventStore;
@@ -172,7 +173,7 @@ public class DefaultEventSourcing implements EventSourcing, HandlerInterceptor {
         }
 
         @Override
-        public EsModel<T> apply(Message message) {
+        public Model<T> apply(Message message) {
             if (readOnly) {
                 throw new EventSourcingException(format("Not allowed to apply a %s. The model is readonly.", message));
             }

@@ -3,8 +3,10 @@ package io.fluxcapacitor.javaclient;
 import io.fluxcapacitor.common.MessageType;
 import io.fluxcapacitor.common.Registration;
 import io.fluxcapacitor.common.api.Metadata;
+import io.fluxcapacitor.javaclient.common.model.Model;
 import io.fluxcapacitor.javaclient.configuration.DefaultFluxCapacitor;
 import io.fluxcapacitor.javaclient.configuration.client.Client;
+import io.fluxcapacitor.javaclient.eventsourcing.EventSourced;
 import io.fluxcapacitor.javaclient.eventsourcing.EventSourcing;
 import io.fluxcapacitor.javaclient.keyvalue.KeyValueStore;
 import io.fluxcapacitor.javaclient.publishing.*;
@@ -75,6 +77,20 @@ public interface FluxCapacitor {
 
     static void publishMetrics(Object payload, Metadata metadata) {
         get().metricsGateway().publish(payload, metadata);
+    }
+
+    static <T> Model<T> loadAggregate(String id, Class<T> modelType) {
+        if (modelType.isAnnotationPresent(EventSourced.class)) {
+            return get().eventSourcing().load(id, modelType);
+        }
+        throw new UnsupportedOperationException("Only event sourced aggregates are supported at the moment");
+    }
+
+    static <T> Model<T> newAggregate(String id, Class<T> modelType) {
+        if (modelType.isAnnotationPresent(EventSourced.class)) {
+            return get().eventSourcing().newInstance(id, modelType);
+        }
+        throw new UnsupportedOperationException("Only event sourced aggregates are supported at the moment");
     }
 
     @SuppressWarnings("ConstantConditions")

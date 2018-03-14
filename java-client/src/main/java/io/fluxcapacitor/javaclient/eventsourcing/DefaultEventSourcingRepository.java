@@ -1,5 +1,6 @@
 package io.fluxcapacitor.javaclient.eventsourcing;
 
+import io.fluxcapacitor.javaclient.common.model.Model;
 import lombok.AllArgsConstructor;
 
 import static java.lang.String.format;
@@ -10,8 +11,8 @@ public class DefaultEventSourcingRepository<T> implements EventSourcingRepositor
     private final Class<T> modelClass;
 
     @Override
-    public EsModel<T> load(String modelId, Long expectedSequenceNumber) {
-        EsModel<T> result = eventSourcing.load(modelId, modelClass);
+    public Model<T> load(String modelId, Long expectedSequenceNumber) {
+        Model<T> result = eventSourcing.load(modelId, modelClass);
         if (expectedSequenceNumber != null && expectedSequenceNumber != result.getSequenceNumber()) {
             throw new EventSourcingException(format(
                     "Failed to load %s of id %s. Expected sequence number %d but model had sequence number %d",
@@ -21,7 +22,7 @@ public class DefaultEventSourcingRepository<T> implements EventSourcingRepositor
     }
 
     @Override
-    public EsModel<T> newInstance(String modelId) {
+    public Model<T> newInstance(String modelId) {
         return eventSourcing.newInstance(modelId, modelClass);
     }
 }
