@@ -18,6 +18,8 @@ import com.fasterxml.jackson.annotation.JsonSubTypes;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import io.fluxcapacitor.common.api.eventsourcing.*;
 import io.fluxcapacitor.common.api.keyvalue.*;
+import io.fluxcapacitor.common.api.publishing.Append;
+import io.fluxcapacitor.common.api.publishing.AppendAction;
 import io.fluxcapacitor.common.api.scheduling.CancelSchedule;
 import io.fluxcapacitor.common.api.scheduling.CancelScheduleAction;
 import io.fluxcapacitor.common.api.scheduling.Schedule;
@@ -26,9 +28,11 @@ import io.fluxcapacitor.common.api.tracking.*;
 
 @JsonTypeInfo(use = JsonTypeInfo.Id.NAME)
 @JsonSubTypes({
-        //tracking
+        //publishing
         @JsonSubTypes.Type(value=Append.class, name="append"),
         @JsonSubTypes.Type(value=AppendAction.class, name="appendAction"),
+
+        //tracking
         @JsonSubTypes.Type(value=Read.class, name="read"),
         @JsonSubTypes.Type(value=ReadResult.class, name="readResult"),
         @JsonSubTypes.Type(value=ReadAction.class, name="readAction"),

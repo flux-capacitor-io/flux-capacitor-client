@@ -12,16 +12,21 @@
  * limitations under the License.
  */
 
-package io.fluxcapacitor.common.api.tracking;
+package io.fluxcapacitor.common.api.publishing;
 
-import io.fluxcapacitor.common.api.ClientAction;
+import com.fasterxml.jackson.annotation.JsonIgnore;
+import io.fluxcapacitor.common.api.JsonType;
+import io.fluxcapacitor.common.api.SerializedMessage;
 import lombok.Value;
 
-@Value
-public class AppendAction implements ClientAction {
-    String client;
-    long timestamp = System.currentTimeMillis();
+import java.util.List;
 
-    String log;
-    int size;
+@Value
+public class Append implements JsonType {
+    List<SerializedMessage> messages;
+
+    @JsonIgnore
+    public int getSize() {
+        return messages.size();
+    }
 }

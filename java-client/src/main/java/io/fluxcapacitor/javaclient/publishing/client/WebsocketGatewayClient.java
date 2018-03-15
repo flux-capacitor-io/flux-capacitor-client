@@ -18,7 +18,7 @@ import io.fluxcapacitor.common.Awaitable;
 import io.fluxcapacitor.common.Backlog;
 import io.fluxcapacitor.common.Registration;
 import io.fluxcapacitor.common.api.SerializedMessage;
-import io.fluxcapacitor.common.api.tracking.Append;
+import io.fluxcapacitor.common.api.publishing.Append;
 import io.fluxcapacitor.common.serialization.websocket.JsonDecoder;
 import io.fluxcapacitor.common.serialization.websocket.JsonEncoder;
 import io.fluxcapacitor.javaclient.common.websocket.AbstractWebsocketService;

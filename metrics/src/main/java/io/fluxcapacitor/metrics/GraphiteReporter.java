@@ -19,7 +19,7 @@ import com.codahale.metrics.MetricFilter;
 import com.codahale.metrics.MetricRegistry;
 import com.codahale.metrics.graphite.Graphite;
 import io.fluxcapacitor.common.api.ClientAction;
-import io.fluxcapacitor.common.api.tracking.AppendAction;
+import io.fluxcapacitor.common.api.publishing.AppendAction;
 import io.fluxcapacitor.common.api.tracking.ReadAction;
 import io.fluxcapacitor.common.api.tracking.StorePositionAction;
 import io.fluxcapacitor.javaclient.tracking.handling.HandleMetrics;
