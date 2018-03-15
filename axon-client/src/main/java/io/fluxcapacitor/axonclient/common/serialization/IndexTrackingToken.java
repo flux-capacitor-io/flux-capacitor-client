@@ -20,4 +20,19 @@ import org.axonframework.eventsourcing.eventstore.TrackingToken;
 @Value
 public class IndexTrackingToken implements TrackingToken {
     long index;
+
+    @Override
+    public TrackingToken lowerBound(TrackingToken other) {
+        throw new UnsupportedOperationException();
+    }
+
+    @Override
+    public TrackingToken upperBound(TrackingToken other) {
+        throw new UnsupportedOperationException();
+    }
+
+    @Override
+    public boolean covers(TrackingToken other) {
+        throw new UnsupportedOperationException();
+    }
 }

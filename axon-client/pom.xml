@@ -34,8 +34,8 @@
     <url>https://flux-capacitor.io</url>
 
     <properties>
-        <axon.version>3.1.1</axon.version>
-        <spring.version>5.0.2.RELEASE</spring.version>
+        <axon.version>3.2</axon.version>
+        <spring.version>5.0.4.RELEASE</spring.version>
     </properties>
 
     <dependencies>
