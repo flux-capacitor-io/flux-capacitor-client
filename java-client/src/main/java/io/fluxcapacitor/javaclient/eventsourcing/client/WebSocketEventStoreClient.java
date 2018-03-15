@@ -26,8 +26,6 @@ import io.fluxcapacitor.common.serialization.websocket.JsonEncoder;
 import io.fluxcapacitor.javaclient.common.websocket.AbstractWebsocketService;
 
 import javax.websocket.ClientEndpoint;
-import javax.websocket.EncodeException;
-import java.io.IOException;
 import java.net.URI;
 import java.util.List;
 import java.util.stream.Stream;
@@ -60,8 +58,8 @@ public class WebSocketEventStoreClient extends AbstractWebsocketService implemen
         return backlog.add(new EventBatch(aggregateId, domain, lastSequenceNumber, events));
     }
 
-    private Awaitable doSend(List<EventBatch> batches) throws IOException, EncodeException {
-        getSession().getBasicRemote().sendObject(new AppendEvents(batches));
+    private Awaitable doSend(List<EventBatch> batches) {
+        sendRequest(new AppendEvents(batches));
         return Awaitable.ready();
     }
 

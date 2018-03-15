@@ -12,16 +12,11 @@
  * limitations under the License.
  */
 
-package io.fluxcapacitor.common.api.eventsourcing;
+package io.fluxcapacitor.common.api;
 
-import io.fluxcapacitor.common.api.Request;
-import lombok.EqualsAndHashCode;
 import lombok.Value;
 
-import java.util.List;
-
-@EqualsAndHashCode(callSuper = true)
 @Value
-public class AppendEvents extends Request {
-    List<EventBatch> eventBatches;
+public class VoidResult implements QueryResult {
+    long requestId;
 }
