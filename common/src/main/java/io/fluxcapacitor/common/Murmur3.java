@@ -1,11 +1,11 @@
 package io.fluxcapacitor.common;
 
 /**
- * The MurmurHash3 algorithm was created by Austin Appleby and placed in the public domain.
- * This java port was authored by Yonik Seeley and also placed into the public domain.
+ * The MurmurHash3 algorithm was created by Austin Appleby and placed in the public domain. This java port was authored
+ * by Yonik Seeley and also placed into the public domain.
  * <p>
- * This produces exactly the same hash values as the final C++ version of MurmurHash3 and is thus suitable for
- * producing the same hash values across platforms.
+ * This produces exactly the same hash values as the final C++ version of MurmurHash3 and is thus suitable for producing
+ * the same hash values across platforms.
  * <p>
  * See http://github.com/yonik/java_util for future updates to this file.
  */
@@ -14,14 +14,23 @@ public class Murmur3 {
     /**
      * Returns the MurmurHash3_x86_32 hash of the UTF-8 bytes of the String using seed of 0 without actually encoding
      * the string to a temporary buffer.
+     *
+     * @param data string to hash
+     * @return the hash code
      */
     public static int murmurhash3_x86_32(CharSequence data) {
         return murmurhash3_x86_32(data, 0, data.length(), 0);
     }
 
     /**
-     * Returns the MurmurHash3_x86_32 hash of the UTF-8 bytes of the String without actually encoding
-     * the string to a temporary buffer.
+     * Returns the MurmurHash3_x86_32 hash of the UTF-8 bytes of the String without actually encoding the string to a
+     * temporary buffer.
+     *
+     * @param data   string to hash
+     * @param offset start in substring to hash
+     * @param len    length of substring to hash
+     * @param seed   algorithm seed
+     * @return the hash code
      */
     public static int murmurhash3_x86_32(CharSequence data, int offset, int len, int seed) {
 

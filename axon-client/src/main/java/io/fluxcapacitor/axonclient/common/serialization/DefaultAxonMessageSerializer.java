@@ -103,7 +103,7 @@ public class DefaultAxonMessageSerializer implements AxonMessageSerializer {
                 false);
     }
 
-    protected AxonMessage.Builder createBuilder(Message message, MessageSerializer serializer) {
+    private AxonMessage.Builder createBuilder(Message message, MessageSerializer serializer) {
         SerializedObject<byte[]> payload = serializer.serializePayload(message, byte[].class);
         SerializedObject<byte[]> metadata = serializer.serializeMetaData(message, byte[].class);
         return AxonMessage.builder().id(message.getIdentifier()).payload(payload.getData())

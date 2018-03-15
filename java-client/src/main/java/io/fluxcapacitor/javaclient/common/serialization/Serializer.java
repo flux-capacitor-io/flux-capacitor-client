@@ -37,7 +37,7 @@ public interface Serializer {
     Data<byte[]> serialize(Object object);
 
     /**
-     * Upcasts and deserializes the given {@link Data} object to an object of type {@link T}. If the input data cannot
+     * Upcasts and deserializes the given {@link Data} object to an object of type T. If the input data cannot
      * be deserialized to a single result (due to upcasting) a {@link SerializationException} is thrown.
      *
      * @param data Data to deserialize
