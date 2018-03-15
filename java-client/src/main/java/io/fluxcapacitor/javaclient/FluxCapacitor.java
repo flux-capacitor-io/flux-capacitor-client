@@ -113,6 +113,8 @@ public interface FluxCapacitor {
 
     ResultGateway resultGateway();
 
+    ErrorGateway errorGateway();
+
     MetricsGateway metricsGateway();
 
     Tracking tracking(MessageType messageType);

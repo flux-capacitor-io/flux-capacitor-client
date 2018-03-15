@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016-2017 Flux Capacitor.
+ * Copyright (c) 2016-2018 Flux Capacitor.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -12,16 +12,12 @@
  * limitations under the License.
  */
 
-package io.fluxcapacitor.common;
+package io.fluxcapacitor.javaclient.tracking.handling;
 
-import lombok.AllArgsConstructor;
-import lombok.Getter;
+import java.lang.annotation.*;
 
-@AllArgsConstructor
-@Getter
-public enum MessageType {
-    COMMAND(false), EVENT(false), NOTIFICATION(false), QUERY(false), RESULT(true), SCHEDULE(false), ERROR(true),
-    METRICS(false);
-
-    private final boolean targeted;
+@Documented
+@Retention(RetentionPolicy.RUNTIME)
+@Target(ElementType.METHOD)
+public @interface HandleError {
 }

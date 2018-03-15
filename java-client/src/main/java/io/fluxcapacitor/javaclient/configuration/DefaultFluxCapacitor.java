@@ -65,6 +65,7 @@ public class DefaultFluxCapacitor implements FluxCapacitor {
     private final QueryGateway queryGateway;
     private final EventGateway eventGateway;
     private final ResultGateway resultGateway;
+    private final ErrorGateway errorGateway;
     private final MetricsGateway metricsGateway;
     private final EventSourcing eventSourcing;
     private final KeyValueStore keyValueStore;
@@ -108,6 +109,11 @@ public class DefaultFluxCapacitor implements FluxCapacitor {
     @Override
     public ResultGateway resultGateway() {
         return resultGateway;
+    }
+
+    @Override
+    public ErrorGateway errorGateway() {
+        return errorGateway;
     }
 
     @Override
@@ -304,9 +310,14 @@ public class DefaultFluxCapacitor implements FluxCapacitor {
             EventGateway eventGateway =
                     new DefaultEventGateway(client.getGatewayClient(EVENT),
                                             new MessageSerializer(serializer, dispatchInterceptors.get(EVENT), EVENT));
+            ErrorGateway errorGateway =
+                    new DefaultErrorGateway(client.getGatewayClient(ERROR), new MessageSerializer(
+                            serializer, dispatchInterceptors.get(ERROR), ERROR));
+
             MetricsGateway metricsGateway =
                     new DefaultMetricsGateway(client.getGatewayClient(METRICS), new MessageSerializer(
                             serializer, dispatchInterceptors.get(METRICS), METRICS));
+
 
             //event sourcing
             EventStore eventStore = new DefaultEventStore(client.getEventStoreClient(),
@@ -324,7 +335,8 @@ public class DefaultFluxCapacitor implements FluxCapacitor {
             Map<MessageType, Tracking> trackingMap = stream(MessageType.values())
                     .collect(toMap(identity(),
                                    m -> new DefaultTracking(m, getHandlerAnnotation(m), client.getTrackingClient(m),
-                                                            resultGateway, consumerConfigurations.get(m), serializer,
+                                                            resultGateway, errorGateway,
+                                                            consumerConfigurations.get(m), serializer,
                                                             handlerInterceptors.get(m), trackingParameterResolvers)));
 
             //misc
@@ -336,8 +348,8 @@ public class DefaultFluxCapacitor implements FluxCapacitor {
 
             //and finally...
             FluxCapacitor fluxCapacitor = doBuild(trackingMap, commandGateway, queryGateway, eventGateway,
-                                                  resultGateway, metricsGateway, eventSourcing, keyValueStore,
-                                                  scheduler, client);
+                                                  resultGateway, errorGateway, metricsGateway, eventSourcing,
+                                                  keyValueStore, scheduler, client);
 
             //collect application metrics
             if (collectApplicationMetrics) {
@@ -350,11 +362,13 @@ public class DefaultFluxCapacitor implements FluxCapacitor {
         protected FluxCapacitor doBuild(Map<MessageType, Tracking> trackingSupplier,
                                         CommandGateway commandGateway, QueryGateway queryGateway,
                                         EventGateway eventGateway, ResultGateway resultGateway,
+                                        ErrorGateway errorGateway,
                                         MetricsGateway metricsGateway, EventSourcing eventSourcing,
                                         KeyValueStore keyValueStore,
                                         Scheduler scheduler, Client client) {
             return new DefaultFluxCapacitor(trackingSupplier, commandGateway, queryGateway, eventGateway, resultGateway,
-                                            metricsGateway, eventSourcing, keyValueStore, scheduler, client);
+                                            errorGateway, metricsGateway, eventSourcing, keyValueStore, scheduler,
+                                            client);
         }
 
         protected Class<? extends Annotation> getHandlerAnnotation(MessageType messageType) {
@@ -369,6 +383,8 @@ public class DefaultFluxCapacitor implements FluxCapacitor {
                     return HandleQuery.class;
                 case RESULT:
                     return HandleResult.class;
+                case ERROR:
+                    return HandleError.class;
                 case SCHEDULE:
                     return HandleSchedule.class;
                 case METRICS:
