@@ -21,8 +21,4 @@ public class DefaultEventSourcingRepository<T> implements EventSourcingRepositor
         return result;
     }
 
-    @Override
-    public Model<T> newInstance(String modelId) {
-        return eventSourcing.newInstance(modelId, modelClass);
-    }
 }

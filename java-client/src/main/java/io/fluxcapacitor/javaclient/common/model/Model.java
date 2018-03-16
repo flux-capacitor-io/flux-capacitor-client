@@ -23,6 +23,18 @@ import java.util.function.Predicate;
 
 public interface Model<T> {
 
+    default <E extends Exception> Model<T> assertThat(Validator<T, E> validator) throws E {
+        validator.validate(this.get());
+        return this;
+    }
+
+    default <E extends Exception> Model<T> ensure(Predicate<T> check, Function<T, E> errorProvider) throws E {
+        if (!check.test(get())) {
+            throw errorProvider.apply(get());
+        }
+        return this;
+    }
+
     default Model<T> apply(Object event) {
         return apply(new Message(event, MessageType.EVENT));
     }
@@ -37,14 +49,12 @@ public interface Model<T> {
         return apply(eventFunction.apply(get()));
     }
 
-    default <E extends Exception> Model<T> ensure(Predicate<T> check, Function<T, E> errorProvider) throws E {
-        if (!check.test(get())) {
-            throw errorProvider.apply(get());
-        }
-        return this;
-    }
-
     T get();
 
     long getSequenceNumber();
+
+    @FunctionalInterface
+    interface Validator<T, E extends Exception> {
+        void validate(T model) throws E;
+    }
 }

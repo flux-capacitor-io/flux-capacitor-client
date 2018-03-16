@@ -30,37 +30,17 @@ public class DefaultEventSourcing implements EventSourcing, HandlerInterceptor {
     private final Cache cache;
     private final ThreadLocal<List<EventSourcedModel<?>>> loadedModels = new ThreadLocal<>();
 
-    @Override
-    public <T> Model<T> newInstance(String id, Class<T> modelType) {
-        Model<T> result = doLoad(id, modelType);
-        if (result.get() != null) {
-            throw new DuplicateModelException(
-                    format("Model of type %s id %s already exists", modelType.getSimpleName(), id));
-        }
-        return result;
-    }
-
     @SuppressWarnings("unchecked")
     @Override
     public <T> Model<T> load(String modelId, Class<T> modelType) {
-        Model<T> model = doLoad(modelId, modelType);
-        if (model.get() == null) {
-            throw new ModelNotFoundException(
-                    format("No events founds for type %s id %s", modelType.getSimpleName(), modelId));
-        }
+        EventSourcedModel<T> model = createEsModel(modelType, modelId);
+        Optional.ofNullable(loadedModels.get()).ifPresent(models -> models.add(model));
         return model;
     }
 
     @Override
     public void invalidateCache() {
         cache.invalidateAll();
-    }
-
-    @SuppressWarnings("unchecked")
-    protected <T> Model<T> doLoad(String modelId, Class<T> modelType) {
-        EventSourcedModel<T> model = createEsModel(modelType, modelId);
-        Optional.ofNullable(loadedModels.get()).ifPresent(models -> models.add(model));
-        return model;
     }
 
     @Override

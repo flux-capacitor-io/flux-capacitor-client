@@ -10,6 +10,4 @@ public interface EventSourcingRepository<T> {
 
     Model<T> load(String modelId, Long expectedSequenceNumber);
 
-    Model<T> newInstance(String modelId);
-
 }

@@ -86,13 +86,6 @@ public interface FluxCapacitor {
         throw new UnsupportedOperationException("Only event sourced aggregates are supported at the moment");
     }
 
-    static <T> Model<T> newAggregate(String id, Class<T> modelType) {
-        if (modelType.isAnnotationPresent(EventSourced.class)) {
-            return get().eventSourcing().newInstance(id, modelType);
-        }
-        throw new UnsupportedOperationException("Only event sourced aggregates are supported at the moment");
-    }
-
     @SuppressWarnings("ConstantConditions")
     default Registration startTracking(Object... handlers) {
         return stream(MessageType.values())
