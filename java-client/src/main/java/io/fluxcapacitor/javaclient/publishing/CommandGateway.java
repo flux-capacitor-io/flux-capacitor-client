@@ -6,6 +6,8 @@ import lombok.SneakyThrows;
 
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 
 import static java.lang.String.format;
 
@@ -51,7 +53,14 @@ public interface CommandGateway {
     default <R> R sendAndWait(Object payload, Metadata metadata) {
         CompletableFuture<R> future = send(payload, metadata);
         try {
+            Timeout timeout = payload.getClass().getAnnotation(Timeout.class);
+            if (timeout != null) {
+                return future.get(timeout.millis(), TimeUnit.MILLISECONDS);
+            }
             return future.get();
+        } catch (TimeoutException e) {
+            throw new io.fluxcapacitor.javaclient.publishing.TimeoutException(
+                    format("Command %s has timed out", payload), e);
         } catch (InterruptedException e) {
             Thread.interrupted();
             throw new GatewayException(format("Thread interrupted while waiting for result of command %s", payload), e);

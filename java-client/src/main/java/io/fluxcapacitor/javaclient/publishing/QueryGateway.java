@@ -6,6 +6,8 @@ import lombok.SneakyThrows;
 
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 
 import static java.lang.String.format;
 
@@ -37,7 +39,14 @@ public interface QueryGateway {
     default <R> R queryAndWait(Object payload, Metadata metadata) {
         CompletableFuture<R> future = query(payload, metadata);
         try {
+            Timeout timeout = payload.getClass().getAnnotation(Timeout.class);
+            if (timeout != null) {
+                return future.get(timeout.millis(), TimeUnit.MILLISECONDS);
+            }
             return future.get();
+        } catch (TimeoutException e) {
+            throw new io.fluxcapacitor.javaclient.publishing.TimeoutException(
+                    format("Query %s has timed out", payload), e);
         } catch (InterruptedException e) {
             Thread.interrupted();
             throw new GatewayException(format("Thread interrupted while waiting for result of query %s", payload), e);
