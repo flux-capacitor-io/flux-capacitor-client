@@ -16,6 +16,7 @@ package io.fluxcapacitor.axonclient.commandhandling;
 
 import io.fluxcapacitor.axonclient.common.serialization.AxonMessageSerializer;
 import io.fluxcapacitor.common.api.Data;
+import io.fluxcapacitor.common.api.Metadata;
 import io.fluxcapacitor.common.api.SerializedMessage;
 import io.fluxcapacitor.javaclient.publishing.client.GatewayClient;
 import lombok.extern.slf4j.Slf4j;
@@ -68,7 +69,7 @@ public class ReplyingCallback<C, R> implements CommandCallback<C, R> {
     protected SerializedMessage toMessage(Object result, CommandMessage<? extends C> commandMessage) {
         SerializedMessage message = new SerializedMessage(new Data<>(serializer.serialize(
                 new GenericMessage<>(result, singletonMap("correlationId", commandMessage.getIdentifier()))),
-                                                                     result.getClass().getName(), 0));
+                                                                     result.getClass().getName(), 0), Metadata.empty());
         message.setTarget((String) commandMessage.getMetaData().get("sender"));
         return message;
     }

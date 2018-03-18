@@ -10,10 +10,7 @@ import lombok.AllArgsConstructor;
 import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
+import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Function;
 
@@ -28,7 +25,7 @@ public class DefaultEventSourcing implements EventSourcing, HandlerInterceptor {
     private final EventStore eventStore;
     private final SnapshotRepository snapshotRepository;
     private final Cache cache;
-    private final ThreadLocal<List<EventSourcedModel<?>>> loadedModels = new ThreadLocal<>();
+    private final ThreadLocal<Collection<EventSourcedModel<?>>> loadedModels = new ThreadLocal<>();
 
     @SuppressWarnings("unchecked")
     @Override
@@ -70,7 +67,7 @@ public class DefaultEventSourcing implements EventSourcing, HandlerInterceptor {
     public Function<DeserializingMessage, Object> interceptHandling(Function<DeserializingMessage, Object> function,
                                                                     Object handler, String consumer) {
         return command -> {
-            List<EventSourcedModel<?>> models = new ArrayList<>();
+            Collection<EventSourcedModel<?>> models = new ArrayList<>();
             loadedModels.set(models);
             try {
                 Object result = function.apply(command);

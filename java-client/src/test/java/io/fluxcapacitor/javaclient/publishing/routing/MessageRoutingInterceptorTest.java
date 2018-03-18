@@ -17,6 +17,7 @@ package io.fluxcapacitor.javaclient.publishing.routing;
 import io.fluxcapacitor.common.ConsistentHashing;
 import io.fluxcapacitor.common.MessageType;
 import io.fluxcapacitor.common.api.Data;
+import io.fluxcapacitor.common.api.Metadata;
 import io.fluxcapacitor.common.api.SerializedMessage;
 import io.fluxcapacitor.javaclient.common.Message;
 import io.fluxcapacitor.javaclient.common.reflection.PropertyAccessException;
@@ -30,12 +31,14 @@ import static org.junit.Assert.assertNull;
 public class MessageRoutingInterceptorTest {
 
     private MessageRoutingInterceptor subject = new MessageRoutingInterceptor();
-    private Function<Message, SerializedMessage> invocation = m -> new SerializedMessage(new Data<>("test".getBytes(), "test", 0));
+    private Function<Message, SerializedMessage> invocation = m -> new SerializedMessage(
+            new Data<>("test".getBytes(), "test", 0), Metadata.empty());
     private int expectedHash = ConsistentHashing.computeSegment("bar");
 
     @Test
     public void testNoSegmentWithoutAnnotation() {
-        SerializedMessage result = subject.interceptDispatch(invocation).apply(new Message(new Object(), MessageType.EVENT));
+        SerializedMessage result =
+                subject.interceptDispatch(invocation).apply(new Message(new Object(), MessageType.EVENT));
         assertNull(result.getSegment());
     }
 

@@ -17,6 +17,7 @@ package io.fluxcapacitor.axonclient.eventhandling;
 import io.fluxcapacitor.axonclient.common.serialization.AxonMessageSerializer;
 import io.fluxcapacitor.common.ConsistentHashing;
 import io.fluxcapacitor.common.api.Data;
+import io.fluxcapacitor.common.api.Metadata;
 import io.fluxcapacitor.common.api.SerializedMessage;
 import io.fluxcapacitor.javaclient.common.serialization.jackson.JacksonSerializer;
 import io.fluxcapacitor.javaclient.eventsourcing.client.EventStoreClient;
@@ -90,9 +91,9 @@ public class FluxCapacitorEventStore extends AbstractEventBus implements EventSt
 
     protected List<SerializedMessage> convert(List<? extends EventMessage<?>> events) {
         return events.stream().map(e -> {
-            SerializedMessage
-                    message =
-                    new SerializedMessage(new Data<>(serializer.serializeEvent(e), e.getPayloadType().getName(), 0));
+            SerializedMessage message =
+                    new SerializedMessage(new Data<>(serializer.serializeEvent(e), e.getPayloadType().getName(), 0),
+                                          Metadata.empty());
             message.setSegment(ConsistentHashing.computeSegment(getAggregateId(e)));
             return message;
         }).collect(toList());

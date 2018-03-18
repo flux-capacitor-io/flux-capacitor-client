@@ -31,11 +31,6 @@ public class SerializedMessage implements SerializedObject<byte[], SerializedMes
     private String target;
     private Integer requestId;
 
-    public SerializedMessage(Data<byte[]> data) {
-        this.data = data;
-        this.metadata = Metadata.empty();
-    }
-
     public SerializedMessage(Data<byte[]> data, Metadata metadata) {
         this.data = data;
         this.metadata = metadata;

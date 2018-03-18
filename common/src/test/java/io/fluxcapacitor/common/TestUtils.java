@@ -15,6 +15,7 @@
 package io.fluxcapacitor.common;
 
 import io.fluxcapacitor.common.api.Data;
+import io.fluxcapacitor.common.api.Metadata;
 import io.fluxcapacitor.common.api.SerializedMessage;
 
 import java.nio.ByteBuffer;
@@ -40,7 +41,8 @@ public class TestUtils {
             byte[] randomBytes = new byte[16];
             random.nextBytes(randomBytes);
             return byteBuffer.put(randomBytes).array();
-        }).map(bytes -> new SerializedMessage(new Data<>(bytes, "test", 0))).collect(Collectors.toList());
+        }).map(bytes -> new SerializedMessage(new Data<>(bytes, "test", 0), Metadata.empty()))
+                .collect(Collectors.toList());
     }
 
     public static void assertEqualMessages(List<SerializedMessage> expected, List<SerializedMessage> actual) {
