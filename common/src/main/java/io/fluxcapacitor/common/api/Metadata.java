@@ -1,18 +1,27 @@
 package io.fluxcapacitor.common.api;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import lombok.SneakyThrows;
 import lombok.Value;
+import lombok.experimental.Delegate;
 
-import java.util.Collection;
+import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.Set;
+import java.util.Optional;
 
+import static com.fasterxml.jackson.databind.DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES;
+import static com.fasterxml.jackson.databind.SerializationFeature.FAIL_ON_EMPTY_BEANS;
 import static java.util.Collections.emptyMap;
 import static java.util.Collections.singletonMap;
 
 @Value
 public class Metadata implements Map<String, String> {
+    public static ObjectMapper objectMapper = new ObjectMapper()
+            .findAndRegisterModules().disable(FAIL_ON_EMPTY_BEANS).disable(FAIL_ON_UNKNOWN_PROPERTIES);
+
+    @Delegate
     Map<String, String> entries;
 
     @JsonCreator
@@ -32,64 +41,21 @@ public class Metadata implements Map<String, String> {
         return new Metadata(map);
     }
 
-    @Override
-    public int size() {
-        return entries.size();
+    @SneakyThrows
+    public String put(String key, Object value) {
+        return put(key, objectMapper.writeValueAsString(value));
     }
 
-    @Override
-    public boolean isEmpty() {
-        return entries.isEmpty();
-    }
-
-    @Override
-    public boolean containsKey(Object key) {
-        return entries.containsKey(key);
-    }
-
-    @Override
-    public boolean containsValue(Object value) {
-        return entries.containsValue(value);
-    }
-
-    @Override
-    public String get(Object key) {
-        return entries.get(key);
-    }
-
-    @Override
-    public String put(String key, String value) {
-        return entries.put(key, value);
-    }
-
-    @Override
-    public String remove(Object key) {
-        return entries.remove(key);
-    }
-
-    @Override
-    public void putAll(Map<? extends String, ? extends String> m) {
-        entries.putAll(m);
-    }
-
-    @Override
-    public void clear() {
-        entries.clear();
-    }
-
-    @Override
-    public Set<String> keySet() {
-        return entries.keySet();
-    }
-
-    @Override
-    public Collection<String> values() {
-        return entries.values();
-    }
-
-    @Override
-    public Set<Entry<String, String>> entrySet() {
-        return entries.entrySet();
+    @SneakyThrows
+    public <T> T get(String key, Class<T> type) {
+        return Optional.ofNullable(get(key)).map(v -> {
+            try {
+                return objectMapper.readValue(v, type);
+            } catch (IOException e) {
+                throw new IllegalStateException(String.format("Failed to deserialize value %s to a %s for key %s",
+                                                              v, type.getSimpleName(), key), e);
+            }
+        }).orElse(null);
     }
 
 }
