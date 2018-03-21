@@ -19,8 +19,8 @@ import io.fluxcapacitor.common.MessageType;
 import io.fluxcapacitor.common.api.Data;
 import io.fluxcapacitor.common.api.Metadata;
 import io.fluxcapacitor.common.api.SerializedMessage;
+import io.fluxcapacitor.common.reflection.PropertyAccessException;
 import io.fluxcapacitor.javaclient.common.Message;
-import io.fluxcapacitor.javaclient.common.reflection.PropertyAccessException;
 import org.junit.Test;
 
 import java.util.function.Function;

@@ -12,15 +12,21 @@
  * limitations under the License.
  */
 
-package io.fluxcapacitor.javaclient.common.reflection;
+package io.fluxcapacitor.common.reflection;
 
 import org.apache.commons.lang3.reflect.FieldUtils;
 import org.apache.commons.lang3.reflect.MethodUtils;
 
 import java.lang.annotation.Annotation;
+import java.lang.reflect.AccessibleObject;
 import java.lang.reflect.Field;
+import java.lang.reflect.Member;
 import java.lang.reflect.Method;
+import java.lang.reflect.Modifier;
+import java.security.PrivilegedAction;
 import java.util.Optional;
+
+import static java.security.AccessController.doPrivileged;
 
 public class ReflectionUtils {
 
@@ -38,21 +44,39 @@ public class ReflectionUtils {
     }
 
     private static Object getProperty(Method method, Object target) {
-        method.setAccessible(true);
         try {
-            return method.invoke(target);
+            return ensureAccessible(method).invoke(target);
         } catch (Exception e) {
             throw new PropertyAccessException(method, e);
         }
     }
 
     private static Object getProperty(Field field, Object target) {
-        field.setAccessible(true);
         try {
-            return field.get(target);
+            return ensureAccessible(field).get(target);
         } catch (Exception e) {
             throw new PropertyAccessException(field, e);
         }
+    }
+
+    public static <T extends AccessibleObject> T ensureAccessible(T member) {
+        if (!isAccessible(member)) {
+            doPrivileged((PrivilegedAction<?>) () -> {
+                member.setAccessible(true);
+                return null;
+            });
+        }
+        return member;
+    }
+
+    private static boolean isAccessible(AccessibleObject member) {
+        return member.isAccessible() || (Member.class.isInstance(member) && isNonFinalPublicMember((Member) member));
+    }
+
+    private static boolean isNonFinalPublicMember(Member member) {
+        return (Modifier.isPublic(member.getModifiers())
+                && Modifier.isPublic(member.getDeclaringClass().getModifiers())
+                && !Modifier.isFinal(member.getModifiers()));
     }
 
 }

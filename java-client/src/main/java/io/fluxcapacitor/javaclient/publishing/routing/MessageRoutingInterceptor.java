@@ -22,7 +22,7 @@ import lombok.AllArgsConstructor;
 
 import java.util.function.Function;
 
-import static io.fluxcapacitor.javaclient.common.reflection.ReflectionUtils.getAnnotatedPropertyValue;
+import static io.fluxcapacitor.common.reflection.ReflectionUtils.getAnnotatedPropertyValue;
 
 @AllArgsConstructor
 public class MessageRoutingInterceptor implements DispatchInterceptor {

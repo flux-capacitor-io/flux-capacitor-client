@@ -18,13 +18,19 @@ import io.fluxcapacitor.common.ObjectUtils;
 import lombok.AllArgsConstructor;
 
 import java.lang.annotation.Annotation;
-import java.lang.reflect.*;
+import java.lang.reflect.Constructor;
+import java.lang.reflect.Executable;
+import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
+import java.lang.reflect.Modifier;
+import java.lang.reflect.Parameter;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.function.Function;
 
+import static io.fluxcapacitor.common.reflection.ReflectionUtils.ensureAccessible;
 import static java.lang.String.format;
 import static java.util.Arrays.stream;
 import static java.util.stream.Collectors.toList;
@@ -71,11 +77,10 @@ public class HandlerInspector {
 
         protected MethodHandlerInvoker(Executable executable,
                                        List<ParameterResolver<? super M>> parameterResolvers) {
-            this.executable = executable;
+            this.executable = ensureAccessible(executable);
             this.hasReturnValue = !(executable instanceof Method) || !(((Method) executable).getReturnType()).equals(void.class);
             this.parameterSuppliers = getParameterSuppliers(executable, parameterResolvers);
             this.payloadTypeSupplier = getPayloadTypeSupplier(executable, parameterResolvers);
-            executable.setAccessible(true);
         }
 
         @Override

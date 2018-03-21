@@ -12,7 +12,7 @@
  * limitations under the License.
  */
 
-package io.fluxcapacitor.javaclient.common.reflection;
+package io.fluxcapacitor.common.reflection;
 
 import java.lang.reflect.AccessibleObject;
 

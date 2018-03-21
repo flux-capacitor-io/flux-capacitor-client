@@ -69,13 +69,6 @@
             <version>2.6.2</version>
         </dependency>
 
-        <!--for their reflection utils-->
-        <dependency>
-            <groupId>org.apache.commons</groupId>
-            <artifactId>commons-lang3</artifactId>
-            <version>3.7</version>
-        </dependency>
-
         <!--for the validating interceptor-->
         <dependency>
             <groupId>javax.validation</groupId>

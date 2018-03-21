@@ -31,16 +31,27 @@ import org.axonframework.commandhandling.SimpleCommandBus;
 import org.axonframework.commandhandling.distributed.AnnotationRoutingStrategy;
 import org.axonframework.commandhandling.distributed.RoutingStrategy;
 import org.axonframework.commandhandling.distributed.UnresolvedRoutingKeyPolicy;
-import org.axonframework.config.*;
-import org.axonframework.eventhandling.*;
+import org.axonframework.config.Component;
+import org.axonframework.config.Configuration;
+import org.axonframework.config.Configurer;
+import org.axonframework.config.EventHandlingConfiguration;
+import org.axonframework.config.ModuleConfiguration;
+import org.axonframework.config.SagaConfiguration;
+import org.axonframework.eventhandling.EventProcessor;
+import org.axonframework.eventhandling.ListenerInvocationErrorHandler;
+import org.axonframework.eventhandling.LoggingErrorHandler;
+import org.axonframework.eventhandling.PropagatingErrorHandler;
+import org.axonframework.eventhandling.SimpleEventHandlerInvoker;
 import org.axonframework.messaging.unitofwork.RollbackConfigurationType;
 import org.axonframework.monitoring.MessageMonitor;
 import org.axonframework.serialization.upcasting.event.EventUpcasterChain;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.lang.reflect.Field;
 import java.util.concurrent.atomic.AtomicReference;
 
+import static io.fluxcapacitor.common.reflection.ReflectionUtils.ensureAccessible;
 import static java.lang.String.format;
 
 public abstract class AbstractFluxCapacitorConfiguration implements FluxCapacitorConfiguration {
@@ -99,7 +110,7 @@ public abstract class AbstractFluxCapacitorConfiguration implements FluxCapacito
     }
 
     protected Configurer configureEventHandling(Configurer configurer) {
-        Configuration configuration = ReflectionUtils.getField("config", configurer);
+        Configuration configuration = getField("config", configurer);
         configuration.getModules().forEach(m -> {
             if (m instanceof EventHandlingConfiguration) {
                 configure((EventHandlingConfiguration) m);
@@ -109,12 +120,12 @@ public abstract class AbstractFluxCapacitorConfiguration implements FluxCapacito
     }
 
     protected Configurer configureSagaManagers(Configurer configurer) {
-        Configuration configuration = ReflectionUtils.getField("config", configurer);
+        Configuration configuration = getField("config", configurer);
         configuration.getModules().forEach(m -> {
             if (m instanceof SagaConfiguration) {
                 SagaConfiguration sagaConfig = (SagaConfiguration) m;
-                Component<EventProcessor> processorComponent = ReflectionUtils.getField("processor", sagaConfig);
-                String name = ReflectionUtils.getField("name", processorComponent);
+                Component<EventProcessor> processorComponent = getField("processor", sagaConfig);
+                String name = getField("name", processorComponent);
                 processorComponent.update(c -> {
                     String processorName = format("%s/%s", client.name(), name);
                     Logger logger = LoggerFactory.getLogger(processorName);
@@ -148,6 +159,21 @@ public abstract class AbstractFluxCapacitorConfiguration implements FluxCapacito
         MessageMonitor monitor = configuration.messageMonitor(FluxCapacitorEventStore.class, "eventStore");
         return new FluxCapacitorEventStore(monitor, createEventStore(), createKeyValueClient(),
                                            configuration.getComponent(AxonMessageSerializer.class));
+    }
+
+    @SuppressWarnings("unchecked")
+    protected static <T> T getField(String location, Object instance) {
+        try {
+            String[] paths = location.split("/");
+            Object object = instance;
+            for (String path : paths) {
+                Field field = ensureAccessible(object.getClass().getDeclaredField(path));
+                object = field.get(object);
+            }
+            return (T) object;
+        } catch (Exception e) {
+            throw new IllegalArgumentException(String.format("Could not find %s on instance %s", location, instance));
+        }
     }
 
     protected static class FluxCapacitorModuleConfiguration implements ModuleConfiguration {

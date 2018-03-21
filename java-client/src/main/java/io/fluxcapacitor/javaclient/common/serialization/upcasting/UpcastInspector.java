@@ -22,11 +22,17 @@ import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Comparator;
+import java.util.List;
+import java.util.Optional;
 import java.util.function.BiFunction;
 import java.util.function.Function;
 import java.util.function.Supplier;
 import java.util.stream.Stream;
+
+import static io.fluxcapacitor.common.reflection.ReflectionUtils.ensureAccessible;
 
 public class UpcastInspector {
 
@@ -60,6 +66,7 @@ public class UpcastInspector {
         if (method.getReturnType().equals(void.class)) {
             return new AnnotatedUpcaster<>(method, i -> Stream.empty());
         }
+        method = ensureAccessible(method);
         Function<SerializedObject<T, ?>, Object> invokeFunction = invokeFunction(method, target, dataType);
         BiFunction<SerializedObject<T, ?>, Supplier<Object>, Stream<SerializedObject<T, ?>>> resultMapper =
                 mapResult(method, dataType);
