@@ -5,24 +5,24 @@ import io.fluxcapacitor.javaclient.FluxCapacitor;
 import io.fluxcapacitor.javaclient.configuration.DefaultFluxCapacitor;
 import io.fluxcapacitor.javaclient.configuration.client.InMemoryClient;
 import io.fluxcapacitor.javaclient.tracking.handling.HandleMetrics;
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
 import java.time.Duration;
 import java.util.concurrent.CountDownLatch;
 
-public class ApplicationMonitorTest {
+class ApplicationMonitorTest {
 
     private final MetricsHandler metricsHandler = new MetricsHandler();
     private final FluxCapacitor fluxCapacitor = DefaultFluxCapacitor.builder().build(InMemoryClient.newInstance());
 
-    @Before
-    public void setUp() throws Exception {
+    @BeforeEach
+    void setUp() {
         fluxCapacitor.startTracking(metricsHandler);
     }
 
     @Test
-    public void ensureMetricsGetPublished() throws InterruptedException {
+    void ensureMetricsGetPublished() throws InterruptedException {
         Registration registration = ApplicationMonitor.start(fluxCapacitor, Duration.ofMillis(10));
         metricsHandler.countDownLatch.await();
         registration.cancel();

@@ -21,31 +21,35 @@ import org.axonframework.commandhandling.CommandHandler;
 import org.axonframework.commandhandling.TargetAggregateIdentifier;
 import org.axonframework.commandhandling.gateway.CommandGateway;
 import org.axonframework.commandhandling.model.AggregateIdentifier;
-import org.axonframework.config.*;
+import org.axonframework.config.Configuration;
+import org.axonframework.config.Configurer;
+import org.axonframework.config.DefaultConfigurer;
+import org.axonframework.config.EventHandlingConfiguration;
+import org.axonframework.config.SagaConfiguration;
 import org.axonframework.eventhandling.EventHandler;
 import org.axonframework.eventhandling.saga.EndSaga;
 import org.axonframework.eventhandling.saga.SagaEventHandler;
 import org.axonframework.eventhandling.saga.StartSaga;
 import org.axonframework.eventsourcing.EventSourcingHandler;
-import org.junit.After;
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
 import java.util.UUID;
 
-import static junit.framework.TestCase.assertEquals;
 import static org.axonframework.commandhandling.model.AggregateLifecycle.apply;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.Mockito.spy;
 
 @Slf4j
-public class FluxCapacitorConfigurationTest {
+class FluxCapacitorConfigurationTest {
 
     private CommandListener commandListener;
     private EventListener eventListener;
     private Configuration configuration;
 
-    @Before
-    public void setUp() throws Exception {
+    @BeforeEach
+    void setUp() {
         commandListener = spy(new CommandListener());
         eventListener = spy(new EventListener());
 
@@ -58,13 +62,13 @@ public class FluxCapacitorConfigurationTest {
         configuration.start();
     }
 
-    @After
-    public void tearDown() throws Exception {
+    @AfterEach
+    void tearDown() {
         configuration.shutdown();
     }
 
     @Test
-    public void testConfiguration() throws Exception {
+    void testConfiguration() throws Exception {
         CommandGateway commandGateway = configuration.commandGateway();
         assertEquals(100L, commandGateway.send(100L).get());
 
@@ -92,14 +96,14 @@ public class FluxCapacitorConfigurationTest {
         }
 
         @EventSourcingHandler
-        public void handleEvent(CreateAggregate event) {
+        void handleEvent(CreateAggregate event) {
             id = event.getTarget();
         }
     }
 
     private static class EventListener {
         @EventHandler
-        public void handle(CreateAggregate event) {
+        void handle(CreateAggregate event) {
             log.info("Event {} handled by event listener", event);
         }
     }
@@ -114,13 +118,13 @@ public class FluxCapacitorConfigurationTest {
     public static class Saga {
         @StartSaga
         @SagaEventHandler(associationProperty = "target")
-        public void handle(CreateAggregate event) {
+        void handle(CreateAggregate event) {
             log.info("Event {} handled by saga", event);
         }
 
         @EndSaga
         @SagaEventHandler(associationProperty = "target")
-        public void handle(UpdateAggregate event) {
+        void handle(UpdateAggregate event) {
             log.info("Event {} handled by saga", event);
         }
     }

@@ -14,27 +14,30 @@
 
 package io.fluxcapacitor.common.handling;
 
-import org.junit.Test;
+
+import org.junit.jupiter.api.Test;
 
 import java.util.Collections;
 
-import static junit.framework.TestCase.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
-public class HandlerInspectorSpecificityTest {
+class HandlerInspectorSpecificityTest {
 
     private Foo foo = new Foo();
     private Handler<Object> subject =
             HandlerInspector.createHandler(foo, Handle.class, Collections.singletonList(p -> o -> o));
 
     @Test
-    public void testCanHandle() {
+    void testCanHandle() {
         assertTrue(subject.canHandle(new Message()));
         assertTrue(subject.canHandle(new MessageSuper()));
         assertFalse(subject.canHandle(foo));
     }
 
     @Test
-    public void testInvoke() throws Exception {
+    void testInvoke() {
         Message message = new Message();
         assertEquals(message, subject.invoke(message));
     }

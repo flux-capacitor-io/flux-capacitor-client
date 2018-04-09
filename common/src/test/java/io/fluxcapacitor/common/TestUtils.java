@@ -24,8 +24,8 @@ import java.util.Random;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
-import static org.junit.Assert.assertArrayEquals;
-import static org.junit.Assert.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
 public class TestUtils {
 
@@ -46,7 +46,7 @@ public class TestUtils {
     }
 
     public static void assertEqualMessages(List<SerializedMessage> expected, List<SerializedMessage> actual) {
-        assertEquals("Lists have a different size", expected.size(), actual.size());
+        assertEquals(expected.size(), actual.size(), "Lists have a different size");
         for (int i = 0; i < expected.size(); i++) {
             assertArrayEquals(expected.get(i).getData().getValue(), actual.get(i).getData().getValue());
         }

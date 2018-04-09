@@ -19,19 +19,20 @@ import io.fluxcapacitor.javaclient.FluxCapacitor;
 import io.fluxcapacitor.javaclient.common.serialization.upcasting.Upcast;
 import io.fluxcapacitor.javaclient.tracking.handling.HandleCommand;
 import lombok.extern.slf4j.Slf4j;
-import org.junit.Test;
-import org.junit.runner.RunWith;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.ComponentScan;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Import;
 import org.springframework.stereotype.Component;
 import org.springframework.test.context.ContextConfiguration;
-import org.springframework.test.context.junit4.SpringJUnit4ClassRunner;
+import org.springframework.test.context.junit.jupiter.SpringExtension;
 
-import static org.junit.Assert.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
-@RunWith(SpringJUnit4ClassRunner.class)
+
+@ExtendWith(SpringExtension.class)
 @ContextConfiguration(classes = FluxCapacitorSpringConfigTest.Config.class)
 @Slf4j
 public class FluxCapacitorSpringConfigTest {
@@ -40,7 +41,7 @@ public class FluxCapacitorSpringConfigTest {
     private FluxCapacitor fluxCapacitor;
 
     @Test
-    public void testHandleCommand() {
+    void testHandleCommand() {
         String result = fluxCapacitor.commandGateway().sendAndWait("command");
         assertEquals("upcasted result", result);
     }

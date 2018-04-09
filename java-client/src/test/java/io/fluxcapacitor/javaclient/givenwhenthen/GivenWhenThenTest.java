@@ -7,14 +7,14 @@ import io.fluxcapacitor.javaclient.tracking.handling.HandleCommand;
 import io.fluxcapacitor.javaclient.tracking.handling.HandleEvent;
 import io.fluxcapacitor.javaclient.tracking.handling.HandleQuery;
 import lombok.Value;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 import org.mockito.InOrder;
 
 import static org.hamcrest.CoreMatchers.isA;
 import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.spy;
 
-public class GivenWhenThenTest {
+class GivenWhenThenTest {
 
     private final CommandHandler commandHandler = spy(new CommandHandler());
     private final EventHandler eventHandler = spy(new EventHandler());
@@ -22,67 +22,67 @@ public class GivenWhenThenTest {
     private final TestFixture subject = TestFixture.create(commandHandler, eventHandler, queryHandler);
 
     @Test
-    public void testExpectNoEventsAndNoResult() {
+    void testExpectNoEventsAndNoResult() {
         subject.givenNoPriorActivity().whenCommand(new YieldsNoResult()).expectNoEvents().expectNoResult();
     }
 
     @Test
-    public void testExpectResultButNoEvents() {
+    void testExpectResultButNoEvents() {
         subject.givenNoPriorActivity().whenCommand(new YieldsResult()).expectNoEvents().expectResult(isA(String.class));
     }
 
     @Test
-    public void testExpectExceptionButNoEvents() {
+    void testExpectExceptionButNoEvents() {
         subject.givenNoPriorActivity().whenCommand(new YieldsException()).expectNoEvents().expectException(isA(MockException.class));
     }
 
     @Test
-    public void testExpectEventButNoResult() {
+    void testExpectEventButNoResult() {
         YieldsEventAndNoResult command = new YieldsEventAndNoResult();
         subject.givenNoPriorActivity().whenCommand(command).expectOnlyEvents(command).expectNoResult();
     }
 
     @Test
-    public void testExpectResultAndEvent() {
+    void testExpectResultAndEvent() {
         YieldsEventAndResult command = new YieldsEventAndResult();
         subject.givenNoPriorActivity().whenCommand(command).expectOnlyEvents(command).expectResult(isA(String.class));
     }
 
     @Test
-    public void testExpectExceptionAndEvent() {
+    void testExpectExceptionAndEvent() {
         YieldsEventAndException command = new YieldsEventAndException();
         subject.givenNoPriorActivity().whenCommand(command).expectOnlyEvents(command).expectException(isA(MockException.class));
     }
 
     @Test
-    public void testWithGivenCommandsAndResult() {
+    void testWithGivenCommandsAndResult() {
         subject.givenCommands(new YieldsNoResult()).whenCommand(new YieldsResult()).expectResult(isA(String.class)).expectNoEvents();
     }
 
     @Test
-    public void testWithGivenCommandsAndNoResult() {
+    void testWithGivenCommandsAndNoResult() {
         subject.givenCommands(new YieldsResult()).whenCommand(new YieldsNoResult()).expectNoResult().expectNoEvents();
     }
 
     @Test
-    public void testWithGivenCommandsAndEventsFromGiven() {
+    void testWithGivenCommandsAndEventsFromGiven() {
         subject.givenCommands(new YieldsEventAndResult()).whenCommand(new YieldsNoResult()).expectNoResult().expectNoEvents();
     }
 
     @Test
-    public void testWithGivenCommandsAndEventsFromCommand() {
+    void testWithGivenCommandsAndEventsFromCommand() {
         YieldsEventAndNoResult command = new YieldsEventAndNoResult();
         subject.givenCommands(new YieldsNoResult()).whenCommand(command).expectNoResult().expectEvents(command);
     }
 
     @Test
-    public void testWithMultipleGivenCommands() {
+    void testWithMultipleGivenCommands() {
         YieldsEventAndNoResult command = new YieldsEventAndNoResult();
         subject.givenCommands(new YieldsNoResult(), new YieldsResult(), command, command).whenCommand(command).expectNoResult().expectOnlyEvents(command);
     }
 
     @Test
-    public void testAndGivenCommands() {
+    void testAndGivenCommands() {
         subject.givenCommands(new YieldsResult()).andGivenCommands(new YieldsEventAndNoResult()).whenCommand(new YieldsNoResult()).expectNoResult().expectNoEvents();
         InOrder inOrder = inOrder(commandHandler);
         inOrder.verify(commandHandler).handle(new YieldsResult());
@@ -91,22 +91,22 @@ public class GivenWhenThenTest {
     }
 
     @Test
-    public void testExpectCommands() {
+    void testExpectCommands() {
         subject.whenEvent("some event").expectCommands(new YieldsNoResult()).expectNoEvents().expectNoResult();
     }
 
     @Test
-    public void testExpectCommandsAndIndirectEvents() {
+    void testExpectCommandsAndIndirectEvents() {
         subject.whenEvent(123).expectNoResult().expectCommands(new YieldsEventAndResult()).expectEvents(new YieldsEventAndResult());
     }
 
     @Test
-    public void testQuery() {
+    void testQuery() {
         subject.whenQuery("bla").expectResult("bla");
     }
 
     @Test
-    public void testFailingQuery() {
+    void testFailingQuery() {
         subject.whenQuery(1L).expectException(MockException.class);
     }
 

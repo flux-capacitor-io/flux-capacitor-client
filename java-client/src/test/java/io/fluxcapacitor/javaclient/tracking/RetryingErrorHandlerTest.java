@@ -1,46 +1,51 @@
 package io.fluxcapacitor.javaclient.tracking;
 
 import io.fluxcapacitor.javaclient.MockException;
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
 import java.time.Duration;
 
-import static org.mockito.Mockito.*;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyZeroInteractions;
 
 public class RetryingErrorHandlerTest {
 
     private final MockException exception = new MockException();
     private final Runnable mockTask = mock(Runnable.class);
 
-    @Before
-    public void setUp() throws Exception {
+    @BeforeEach
+    void setUp() {
         doThrow(exception).when(mockTask).run();
     }
 
     @Test
-    public void testRetryCountCorrect() throws Exception {
+    void testRetryCountCorrect() throws Exception {
         RetryingErrorHandler subject = new RetryingErrorHandler(3, Duration.ofMillis(10), e -> true, false);
         subject.handleError(exception, "mock exception", mockTask);
         verify(mockTask, times(3)).run();
     }
 
-    @Test(expected = MockException.class)
-    public void testThrowsExceptionIfDesired() throws Exception {
+    @Test
+    void testThrowsExceptionIfDesired() {
         RetryingErrorHandler subject = new RetryingErrorHandler(1, Duration.ofMillis(10), e -> true, true);
-        subject.handleError(exception, "mock exception", mockTask);
+        assertThrows(MockException.class, () -> subject.handleError(exception, "mock exception", mockTask));
     }
 
     @Test
-    public void testDontRetryIfErrorFilterFails() throws Exception {
+    void testDontRetryIfErrorFilterFails() throws Exception {
         RetryingErrorHandler subject = new RetryingErrorHandler(1, Duration.ofMillis(10), e -> false, false);
         subject.handleError(exception, "mock exception", mockTask);
         verifyZeroInteractions(mockTask);
     }
 
-    @Test(expected = MockException.class)
-    public void testThrowIfErrorFilterFails() throws Exception {
+    @Test
+    void testThrowIfErrorFilterFails() {
         RetryingErrorHandler subject = new RetryingErrorHandler(1, Duration.ofMillis(10), e -> false, true);
-        subject.handleError(exception, "mock exception", mockTask);
+        assertThrows(MockException.class, () -> subject.handleError(exception, "mock exception", mockTask));
     }
 }

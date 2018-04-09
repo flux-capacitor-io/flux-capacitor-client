@@ -12,8 +12,8 @@ import io.fluxcapacitor.javaclient.common.serialization.DeserializingMessage;
 import io.fluxcapacitor.javaclient.common.serialization.DeserializingObject;
 import lombok.NoArgsConstructor;
 import lombok.Value;
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -25,10 +25,21 @@ import java.util.stream.Stream;
 import static io.fluxcapacitor.common.MessageType.EVENT;
 import static java.util.Arrays.stream;
 import static java.util.Collections.singletonList;
-import static org.junit.Assert.*;
-import static org.mockito.Mockito.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.fail;
+import static org.mockito.Mockito.anyLong;
+import static org.mockito.Mockito.eq;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.reset;
+import static org.mockito.Mockito.spy;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoMoreInteractions;
+import static org.mockito.Mockito.verifyZeroInteractions;
+import static org.mockito.Mockito.when;
 
-public class DefaultEventSourcingTest {
+class DefaultEventSourcingTest {
 
     private final String modelId = "test";
     private EventStore eventStore = mock(EventStore.class);
@@ -36,13 +47,13 @@ public class DefaultEventSourcingTest {
     private Cache cache = spy(new DefaultCache());
     private DefaultEventSourcing subject = new DefaultEventSourcing(eventStore, snapshotRepository, cache);
 
-    @Before
-    public void setUp() {
+    @BeforeEach
+    void setUp() {
         when(eventStore.getDomainEvents(eq(modelId), anyLong())).thenReturn(Stream.empty());
     }
 
     @Test
-    public void testLoadingFromEventStore() {
+    void testLoadingFromEventStore() {
         when(eventStore.getDomainEvents(eq(modelId), anyLong()))
                 .thenReturn(eventStreamOf(new CreateModel(), new UpdateModel()));
         Model<TestModel> model = subject.load(modelId, TestModel.class);
@@ -51,7 +62,7 @@ public class DefaultEventSourcingTest {
     }
 
     @Test
-    public void testModelIsLoadedFromCacheWhenPossible() {
+    void testModelIsLoadedFromCacheWhenPossible() {
         when(eventStore.getDomainEvents(eq(modelId), anyLong()))
                 .thenReturn(eventStreamOf(new CreateModel(), new UpdateModel()));
         subject.load(modelId, TestModel.class);
@@ -61,7 +72,7 @@ public class DefaultEventSourcingTest {
     }
 
     @Test
-    public void testModelIsLoadedFromSnapshotWhenPossible() {
+    void testModelIsLoadedFromSnapshotWhenPossible() {
         when(snapshotRepository.getSnapshot(modelId))
                 .thenReturn(Optional.of(new Aggregate<>(modelId, 0L, new TestModel(new CreateModel()))));
         Model<TestModel> model = subject.load(modelId, TestModel.class);
@@ -71,7 +82,7 @@ public class DefaultEventSourcingTest {
 
     @SuppressWarnings("unchecked")
     @Test
-    public void testApplyEvents() {
+    void testApplyEvents() {
         Function<Message, Model<TestModel>> f = prepareSubjectForHandling();
         verifyZeroInteractions(eventStore, cache);
         Model<TestModel> model = f.apply(new Message(new CreateModel(), EVENT));
@@ -79,14 +90,14 @@ public class DefaultEventSourcingTest {
         assertEquals(0L, model.getSequenceNumber());
     }
 
-    @Test(expected = EventSourcingException.class)
-    public void testModelIsReadOnlyIfSubjectIsNotIntercepting() {
+    @Test
+    void testModelIsReadOnlyIfSubjectIsNotIntercepting() {
         Model<TestModel> model = subject.load(modelId, TestModel.class);
-        model.apply("whatever");
+        assertThrows(EventSourcingException.class, () -> model.apply("whatever"));
     }
 
     @Test
-    public void testLoadFromRepository() {
+    void testLoadFromRepository() {
         when(snapshotRepository.getSnapshot(modelId))
                 .thenReturn(Optional.of(new Aggregate<>(modelId, 0L, new TestModel(new CreateModel()))));
         EventSourcingRepository<TestModel> repository = subject.repository(TestModel.class);
@@ -94,23 +105,23 @@ public class DefaultEventSourcingTest {
     }
 
     @Test
-    public void testLoadFromRepositoryWithSequenceNumber() {
+    void testLoadFromRepositoryWithSequenceNumber() {
         when(snapshotRepository.getSnapshot(modelId))
                 .thenReturn(Optional.of(new Aggregate<>(modelId, 0L, new TestModel(new CreateModel()))));
         EventSourcingRepository<TestModel> repository = subject.repository(TestModel.class);
         assertEquals(singletonList(new CreateModel()), repository.load(modelId).get().events);
     }
 
-    @Test(expected = EventSourcingException.class)
-    public void testLoadFromRepoWithUnexpectedSequenceNumber() {
+    @Test
+    void testLoadFromRepoWithUnexpectedSequenceNumber() {
         when(snapshotRepository.getSnapshot(modelId))
                 .thenReturn(Optional.of(new Aggregate<>(modelId, 0L, new TestModel(new CreateModel()))));
         EventSourcingRepository<TestModel> repository = subject.repository(TestModel.class);
-        repository.load(modelId, 1L);
+        assertThrows(EventSourcingException.class, () -> repository.load(modelId, 1L));
     }
 
     @Test
-    public void testApplyEventsWithMetadata() {
+    void testApplyEventsWithMetadata() {
         Model<TestModel> model = prepareSubjectForHandling()
                 .apply(new Message(new CreateModelWithMetadata(), Metadata.from("foo", "bar"), EVENT));
         assertEquals(Metadata.from("foo", "bar"), model.get().metadata);
@@ -118,7 +129,7 @@ public class DefaultEventSourcingTest {
     }
 
     @Test
-    public void testEventsGetStoredWhenHandlingEnds() {
+    void testEventsGetStoredWhenHandlingEnds() {
         reset(eventStore);
         Message event = new Message(new CreateModel(), EVENT);
         prepareSubjectForHandling().apply(event);
@@ -126,7 +137,7 @@ public class DefaultEventSourcingTest {
     }
 
     @Test
-    public void testEventsDoNotGetStoredWhenInterceptedMethodTriggersException() {
+    void testEventsDoNotGetStoredWhenInterceptedMethodTriggersException() {
         Function<DeserializingMessage, Object> f = subject.interceptHandling(s -> {
             Model<TestModel> model = subject.load(modelId, TestModel.class);
             reset(cache, eventStore);
@@ -135,14 +146,14 @@ public class DefaultEventSourcingTest {
         }, null, "test");
         try {
             f.apply(toDeserializingMessage("command"));
-            fail();
+            fail("should not reach this");
         } catch (IllegalStateException ignored) {
         }
         verifyZeroInteractions(cache, eventStore);
     }
 
     @Test
-    public void testApplyingUnknownEventsAllowedIfModelExists() {
+    void testApplyingUnknownEventsAllowedIfModelExists() {
         reset(eventStore);
         List<Message> events =
                 Arrays.asList(new Message(new CreateModel(), EVENT), new Message("foo", EVENT));
@@ -153,29 +164,29 @@ public class DefaultEventSourcingTest {
         verify(eventStore).storeDomainEvents(modelId, TestModel.class.getSimpleName(), 1L, events);
     }
 
-    @Test(expected = HandlerNotFoundException.class)
-    public void testApplyingUnknownEventsFailsIfModelDoesNotExist() {
-        executeWhileIntercepting(
+    @Test
+    void testApplyingUnknownEventsFailsIfModelDoesNotExist() {
+        assertThrows(HandlerNotFoundException.class, () -> executeWhileIntercepting(
                 () -> subject.load(modelId, TestModel.class).apply(new Message("foo", EVENT)))
-                .apply(toDeserializingMessage("command"));
+                .apply(toDeserializingMessage("command")));
     }
 
     @Test
-    public void testCreateUsingFactoryMethod() {
+    void testCreateUsingFactoryMethod() {
         executeWhileIntercepting(() -> subject.load(modelId, TestModelWithFactoryMethod.class)
                 .apply(new Message(new CreateModel(), EVENT)))
                 .apply(toDeserializingMessage("command"));
     }
 
-    @Test(expected = HandlerNotFoundException.class)
-    public void testApplyingUnknownEventsFailsIfModelHasNoConstructorOrFactoryMethod() {
-        executeWhileIntercepting(() -> subject.load(modelId, TestModelWithoutFactoryMethodOrConstructor.class)
+    @Test
+    void testApplyingUnknownEventsFailsIfModelHasNoConstructorOrFactoryMethod() {
+        assertThrows(HandlerNotFoundException.class, () -> executeWhileIntercepting(() -> subject.load(modelId, TestModelWithoutFactoryMethodOrConstructor.class)
                 .apply(new Message(new CreateModel(), EVENT)))
-                .apply(toDeserializingMessage("command"));
+                .apply(toDeserializingMessage("command")));
     }
 
     @Test
-    public void testSnapshotStoredAfterThreshold() {
+    void testSnapshotStoredAfterThreshold() {
         List<Message> events =
                 Arrays.asList(new Message(new CreateModel(), EVENT), new Message("foo", EVENT),
                               new Message("foo", EVENT));
@@ -188,7 +199,7 @@ public class DefaultEventSourcingTest {
     }
 
     @Test
-    public void testNoSnapshotStoredBeforeThreshold() {
+    void testNoSnapshotStoredBeforeThreshold() {
         List<Message> events =
                 Arrays.asList(new Message(new CreateModel(), EVENT), new Message("foo", EVENT));
         executeWhileIntercepting(() -> {

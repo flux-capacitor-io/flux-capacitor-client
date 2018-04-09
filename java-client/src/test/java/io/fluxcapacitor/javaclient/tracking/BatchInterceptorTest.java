@@ -15,7 +15,7 @@
 package io.fluxcapacitor.javaclient.tracking;
 
 import io.fluxcapacitor.common.api.tracking.MessageBatch;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -23,12 +23,12 @@ import java.util.List;
 import java.util.function.Consumer;
 
 import static java.util.Collections.emptyList;
-import static org.junit.Assert.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
-public class BatchInterceptorTest {
+class BatchInterceptorTest {
 
     @Test
-    public void testInvocationOrder() {
+    void testInvocationOrder() {
         List<Object> invokedInstances = new ArrayList<>();
         BatchInterceptor outerInterceptor = new BatchInterceptor() {
             @Override

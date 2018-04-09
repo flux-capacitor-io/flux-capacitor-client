@@ -14,26 +14,27 @@
 
 package io.fluxcapacitor.common;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.util.concurrent.atomic.AtomicBoolean;
 
-import static org.junit.Assert.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
-public class BacklogTest {
+class BacklogTest {
 
     private Backlog.BatchConsumer<Object> consumer = consumables -> Awaitable.ready();
     private Backlog<Object> subject = new Backlog<>(consumer);
 
-    @Test(expected = Exception.class)
-    public void noMoreItemsAcceptedAfterShutdown() throws Exception {
+    @Test
+    void noMoreItemsAcceptedAfterShutdown() {
         subject.add(new Object());
         subject.shutdown();
-        subject.add(new Object());
+        assertThrows(Exception.class, () -> subject.add(new Object()));
     }
 
     @Test
-    public void backlogWaitsOnExistingConsumerTaskWhenShutdown() throws Exception {
+    void backlogWaitsOnExistingConsumerTaskWhenShutdown() {
         AtomicBoolean done = new AtomicBoolean();
         consumer = consumables -> {
             Thread.sleep(100);

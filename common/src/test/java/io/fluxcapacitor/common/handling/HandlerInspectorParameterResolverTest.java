@@ -15,12 +15,15 @@
 package io.fluxcapacitor.common.handling;
 
 import lombok.Value;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.time.Instant;
 import java.util.Arrays;
 
-import static junit.framework.TestCase.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 public class HandlerInspectorParameterResolverTest {
 
@@ -46,7 +49,7 @@ public class HandlerInspectorParameterResolverTest {
     }
 
     @Test
-    public void testInvoke() throws Exception {
+    public void testInvoke() {
         Message message = new Message("payload");
         assertEquals("payload", subject.invoke(message));
         message = new Message(100L);

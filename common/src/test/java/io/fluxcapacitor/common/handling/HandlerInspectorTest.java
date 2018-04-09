@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016-2017 Flux Capacitor.
+ * Copyright (c) 2016-2018 Flux Capacitor.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,27 +14,31 @@
 
 package io.fluxcapacitor.common.handling;
 
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
 import java.util.Collections;
 
 import static java.util.function.Function.identity;
-import static junit.framework.TestCase.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.fail;
 
-public class HandlerInspectorTest {
+class HandlerInspectorTest {
 
     private Handler<Object> subject;
     private Foo foo;
 
-    @Before
-    public void setUp() {
+    @BeforeEach
+    void setUp() {
         foo = new Foo();
         subject = HandlerInspector.createHandler(foo, Handle.class, Collections.singletonList(p -> identity()));
     }
 
     @Test
-    public void testCanHandle() {
+    void testCanHandle() {
         assertTrue(subject.canHandle(100L));
         assertTrue(subject.canHandle("bla"));
         assertTrue(subject.canHandle(50));
@@ -44,25 +48,25 @@ public class HandlerInspectorTest {
     }
 
     @Test
-    public void testInvoke() throws Exception {
+    void testInvoke() {
         assertEquals(200L, subject.invoke(200L));
         assertEquals("a", subject.invoke("a"));
         assertEquals(15, subject.invoke(15));
     }
 
     @Test
-    public void testInvokeExceptionally() throws Exception {
+    void testInvokeExceptionally() {
         try {
             subject.invoke(3f);
-            fail();
+            fail("should not reach here");
         } catch (HandlerException e) {
             assertEquals(UnsupportedOperationException.class, e.getCause().getClass());
         }
     }
 
-    @Test(expected = Exception.class)
-    public void testInvokeUnknownType() throws Exception {
-        subject.invoke('b');
+    @Test
+    void testInvokeUnknownType() {
+        assertThrows(Exception.class, () -> subject.invoke('b'));
     }
 
 

@@ -2,14 +2,14 @@ package io.fluxcapacitor.javaclient.common.serialization.jackson;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.fluxcapacitor.common.api.Metadata;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
-import static org.junit.Assert.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
-public class MetadataSerializationTest {
+class MetadataSerializationTest {
 
     @Test
-    public void testDeserializeMetadata() throws Exception {
+    void testDeserializeMetadata() throws Exception {
         ObjectMapper objectMapper = new ObjectMapper();
         Metadata in = Metadata.from("foo", "bar");
         Metadata out = objectMapper.readValue(objectMapper.writeValueAsBytes(in), Metadata.class);

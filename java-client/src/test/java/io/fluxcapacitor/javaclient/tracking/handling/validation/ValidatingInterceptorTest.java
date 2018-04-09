@@ -7,7 +7,7 @@ import io.fluxcapacitor.common.api.SerializedMessage;
 import io.fluxcapacitor.javaclient.common.serialization.DeserializingMessage;
 import io.fluxcapacitor.javaclient.common.serialization.DeserializingObject;
 import lombok.Value;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import javax.validation.Valid;
 import javax.validation.constraints.AssertTrue;
@@ -15,9 +15,9 @@ import javax.validation.constraints.Min;
 import javax.validation.constraints.NotNull;
 import java.util.function.Function;
 
-import static org.junit.Assert.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
-public class ValidatingInterceptorTest {
+class ValidatingInterceptorTest {
 
     private ValidatingInterceptor subject = new ValidatingInterceptor();
     private Function<Object, DeserializingMessage> messageFactory = payload -> new DeserializingMessage(
@@ -26,7 +26,7 @@ public class ValidatingInterceptorTest {
             MessageType.EVENT);
 
     @Test
-    public void testWithConstraintViolations() {
+    void testWithConstraintViolations() {
         DeserializingMessage message =
                 messageFactory.apply(new ConstrainedObject(null, 3, new ConstrainedObjectMember(false)));
         try {
@@ -37,14 +37,14 @@ public class ValidatingInterceptorTest {
     }
 
     @Test
-    public void testWithoutConstraintViolations() {
+    void testWithoutConstraintViolations() {
         DeserializingMessage message =
                 messageFactory.apply(new ConstrainedObject("foo", 5, new ConstrainedObjectMember(true)));
         subject.interceptHandling(m -> null, null, "test").apply(message);
     }
 
     @Test
-    public void testObjectWithoutAnnotations() {
+    void testObjectWithoutAnnotations() {
         DeserializingMessage message = messageFactory.apply(new Object());
         subject.interceptHandling(m -> null, null, "test").apply(message);
     }

@@ -30,43 +30,43 @@ import org.axonframework.eventsourcing.EventSourcingHandler;
 import org.axonframework.spring.config.EnableAxon;
 import org.axonframework.spring.stereotype.Aggregate;
 import org.axonframework.spring.stereotype.Saga;
-import org.junit.After;
-import org.junit.Before;
-import org.junit.Test;
-import org.junit.runner.RunWith;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Import;
 import org.springframework.context.annotation.Scope;
 import org.springframework.stereotype.Component;
 import org.springframework.test.context.ContextConfiguration;
-import org.springframework.test.context.junit4.SpringJUnit4ClassRunner;
+import org.springframework.test.context.junit.jupiter.SpringExtension;
 
 import java.util.UUID;
 import java.util.concurrent.CountDownLatch;
 
-import static junit.framework.TestCase.assertEquals;
 import static org.axonframework.commandhandling.model.AggregateLifecycle.apply;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
-@RunWith(SpringJUnit4ClassRunner.class)
+@ExtendWith(SpringExtension.class)
 @ContextConfiguration
 @Slf4j
-@SuppressWarnings({"SpringJavaAutowiredMembersInspection", "SpringJavaAutowiringInspection", "unused"})
 public class FluxCapacitorSpringConfigurationTest {
 
+    @SuppressWarnings("SpringJavaInjectionPointsAutowiringInspection")
     @Autowired
     private Configuration configuration;
 
     @Autowired
     private CountDownLatch eventCountDown;
 
-    @Before
-    public void setUp() throws Exception {
+    @BeforeEach
+    public void setUp() {
         configuration.start();
     }
 
-    @After
-    public void tearDown() throws Exception {
+    @AfterEach
+    public void tearDown() {
         configuration.shutdown();
     }
 

@@ -21,14 +21,15 @@ import io.fluxcapacitor.common.api.Metadata;
 import io.fluxcapacitor.common.api.SerializedMessage;
 import io.fluxcapacitor.common.reflection.PropertyAccessException;
 import io.fluxcapacitor.javaclient.common.Message;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.util.function.Function;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNull;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
-public class MessageRoutingInterceptorTest {
+class MessageRoutingInterceptorTest {
 
     private MessageRoutingInterceptor subject = new MessageRoutingInterceptor();
     private Function<Message, SerializedMessage> invocation = m -> new SerializedMessage(
@@ -36,35 +37,35 @@ public class MessageRoutingInterceptorTest {
     private int expectedHash = ConsistentHashing.computeSegment("bar");
 
     @Test
-    public void testNoSegmentWithoutAnnotation() {
+    void testNoSegmentWithoutAnnotation() {
         SerializedMessage result =
                 subject.interceptDispatch(invocation).apply(new Message(new Object(), MessageType.EVENT));
         assertNull(result.getSegment());
     }
 
     @Test
-    public void testFieldAnnotation() {
+    void testFieldAnnotation() {
         testInvocation(new AnnotationOnField());
     }
 
     @Test
-    public void testMethodAnnotation() {
+    void testMethodAnnotation() {
         testInvocation(new AnnotationOnMethod());
     }
 
     @Test
-    public void testAnnotationOnNestedField() {
+    void testAnnotationOnNestedField() {
         testInvocation(new AnnotationOnNestedField());
     }
 
     @Test
-    public void testAnnotationOnNestedMethod() {
+    void testAnnotationOnNestedMethod() {
         testInvocation(new AnnotationOnNestedMethod());
     }
 
-    @Test(expected = PropertyAccessException.class)
-    public void testAnnotationOnMethodWithParametersFails() {
-        testInvocation(new AnnotationOnWrongMethod());
+    @Test
+    void testAnnotationOnMethodWithParametersFails() {
+        assertThrows(PropertyAccessException.class, () -> testInvocation(new AnnotationOnWrongMethod()));
     }
 
     private void testInvocation(Object payload) {

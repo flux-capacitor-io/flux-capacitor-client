@@ -28,7 +28,7 @@ import org.axonframework.serialization.json.JacksonSerializer;
 @Slf4j
 public class AxonRunner extends AbstractClientBenchmark {
 
-    public static void main(final String[] args) throws Exception {
+    public static void main(final String[] args) {
         AxonRunner runner = new AxonRunner(100_000);
         runner.configuration.start();
         runner.testCommands();
