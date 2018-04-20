@@ -33,9 +33,10 @@ import static java.security.AccessController.doPrivileged;
 import static java.util.Arrays.stream;
 
 public class ReflectionUtils {
-    
+
     public static Stream<Method> getAllMethods(Class type) {
-        return ObjectUtils.iterate(type, Class::getSuperclass, Objects::isNull).filter(Objects::nonNull).flatMap(c -> stream(c.getMethods()));
+        return ObjectUtils.iterate(type, Class::getSuperclass, Objects::isNull).filter(Objects::nonNull)
+                .flatMap(c -> stream(c.getDeclaredMethods()));
     }
 
     public static Optional<?> getAnnotatedPropertyValue(Object target, Class<? extends Annotation> annotation) {

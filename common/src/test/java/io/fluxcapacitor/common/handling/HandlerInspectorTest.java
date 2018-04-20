@@ -48,6 +48,11 @@ class HandlerInspectorTest {
     }
 
     @Test
+    void testHandleInPrivateMethod() {
+        assertEquals(42, subject.invoke(true));
+    }
+
+    @Test
     void testInvoke() {
         assertEquals(200L, subject.invoke(200L));
         assertEquals("a", subject.invoke("a"));
@@ -74,6 +79,7 @@ class HandlerInspectorTest {
 
     private static class Foo extends Bar implements SomeInterface {
         @Handle
+        @Override
         public Object handle(Long o) {
             return o;
         }
@@ -82,6 +88,11 @@ class HandlerInspectorTest {
         @Override
         public Integer handle(Integer o) {
             return o;
+        }
+
+        @Handle
+        private Object handle(Boolean o) {
+            return 42;
         }
 
         @Handle
@@ -94,6 +105,16 @@ class HandlerInspectorTest {
         @Handle
         public Object handle(String o) {
             return o;
+        }
+
+        @Handle
+        public Object handle(Long o) {
+            return null;
+        }
+
+        @Handle
+        public void handleAndThrowException(Integer ignored) {
+            throw new UnsupportedOperationException("should not happen");
         }
     }
 

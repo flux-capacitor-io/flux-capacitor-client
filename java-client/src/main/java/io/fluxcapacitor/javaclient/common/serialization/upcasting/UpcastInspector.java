@@ -33,6 +33,7 @@ import java.util.function.Supplier;
 import java.util.stream.Stream;
 
 import static io.fluxcapacitor.common.reflection.ReflectionUtils.ensureAccessible;
+import static io.fluxcapacitor.common.reflection.ReflectionUtils.getAllMethods;
 
 public class UpcastInspector {
 
@@ -41,22 +42,14 @@ public class UpcastInspector {
                     .thenComparing(u -> u.getAnnotation().type());
 
     public static boolean hasAnnotatedMethods(Class<?> type) {
-        for (Method method : type.getMethods()) {
-            if (method.isAnnotationPresent(Upcast.class)) {
-                return true;
-            }
-        }
-        return false;
+        return getAllMethods(type).anyMatch(m -> m.isAnnotationPresent(Upcast.class));
     }
 
     public static <T> List<AnnotatedUpcaster<T>> inspect(Collection<?> upcasters, Class<T> dataType) {
         List<AnnotatedUpcaster<T>> result = new ArrayList<>();
         for (Object upcaster : upcasters) {
-            for (Method method : upcaster.getClass().getMethods()) {
-                if (method.isAnnotationPresent(Upcast.class)) {
-                    result.add(createUpcaster(method, upcaster, dataType));
-                }
-            }
+            getAllMethods(upcaster.getClass()).filter(m -> m.isAnnotationPresent(Upcast.class))
+                    .forEach(m -> result.add(createUpcaster(m, upcaster, dataType)));
         }
         result.sort(upcasterComparator);
         return result;
@@ -113,7 +106,8 @@ public class UpcastInspector {
             Method method, Class<T> dataType) {
         if (dataType.isAssignableFrom(method.getReturnType())) {
             Upcast annotation = method.getAnnotation(Upcast.class);
-            return (s, o) -> Stream.of(s.withData(new Data<>((Supplier<T>) o, annotation.type(), annotation.revision() + 1)));
+            return (s, o) -> Stream
+                    .of(s.withData(new Data<>((Supplier<T>) o, annotation.type(), annotation.revision() + 1)));
         }
         if (method.getReturnType().equals(Data.class)) {
             return (s, o) -> Stream.of(s.withData((Data<T>) o.get()));

@@ -46,7 +46,7 @@ public class HandlerInspector {
     }
 
     public static boolean hasHandlerMethods(Class<?> targetClass, Class<? extends Annotation> methodAnnotation) {
-        return concat(stream(targetClass.getMethods()), stream(targetClass.getConstructors()))
+        return concat(getAllMethods(targetClass), stream(targetClass.getConstructors()))
                 .anyMatch(m -> m.isAnnotationPresent(methodAnnotation));
     }
 
@@ -79,7 +79,7 @@ public class HandlerInspector {
 
         protected MethodHandlerInvoker(Executable executable, Class enclosingType,
                                        List<ParameterResolver<? super M>> parameterResolvers) {
-            this.methodDepth = methodDepth(executable, enclosingType);
+            this.methodDepth = executable instanceof Method ? methodDepth(executable, enclosingType) : 0;
             this.executable = ensureAccessible(executable);
             this.hasReturnValue = !(executable instanceof Method) || !(((Method) executable).getReturnType()).equals(void.class);
             this.parameterSuppliers = getParameterSuppliers(executable, parameterResolvers);
