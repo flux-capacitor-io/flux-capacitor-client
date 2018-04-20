@@ -31,6 +31,7 @@ import java.util.Optional;
 import java.util.function.Function;
 
 import static io.fluxcapacitor.common.reflection.ReflectionUtils.ensureAccessible;
+import static io.fluxcapacitor.common.reflection.ReflectionUtils.getAllMethods;
 import static java.lang.String.format;
 import static java.util.Arrays.stream;
 import static java.util.stream.Collectors.toList;
@@ -61,22 +62,24 @@ public class HandlerInspector {
                     format("Could not find methods with %s annotation on %s", methodAnnotation.getSimpleName(),
                                   type.getSimpleName()));
         }
-        return new ObjectHandlerInvoker<>(type, concat(stream(type.getMethods()), stream(type.getConstructors()))
+        return new ObjectHandlerInvoker<>(type, concat(getAllMethods(type), stream(type.getConstructors()))
                 .filter(m -> m.isAnnotationPresent(methodAnnotation))
-                .map(m -> new MethodHandlerInvoker<>(m, parameterResolvers))
+                .map(m -> new MethodHandlerInvoker<>(m, type, parameterResolvers))
                 .sorted(Comparator.naturalOrder())
                 .collect(toList()));
     }
 
     protected static class MethodHandlerInvoker<M> implements HandlerInvoker<M>, Comparable<MethodHandlerInvoker<M>> {
 
+        private final int methodDepth;
         private final Executable executable;
         private final boolean hasReturnValue;
         private final List<Function<? super M, Object>> parameterSuppliers;
         private final Function<? super M, ? extends Class<?>> payloadTypeSupplier;
 
-        protected MethodHandlerInvoker(Executable executable,
+        protected MethodHandlerInvoker(Executable executable, Class enclosingType,
                                        List<ParameterResolver<? super M>> parameterResolvers) {
+            this.methodDepth = methodDepth(executable, enclosingType);
             this.executable = ensureAccessible(executable);
             this.hasReturnValue = !(executable instanceof Method) || !(((Method) executable).getReturnType()).equals(void.class);
             this.parameterSuppliers = getParameterSuppliers(executable, parameterResolvers);
@@ -146,9 +149,11 @@ public class HandlerInspector {
         }
 
         @Override
-        @SuppressWarnings("NullableProblems")
         public int compareTo(MethodHandlerInvoker<M> o) {
             int result = comparePayloads(getPayloadType(), o.getPayloadType());
+            if (result == 0) {
+                result = methodDepth - o.methodDepth;
+            }
             if (result == 0) {
                 result = executable.toGenericString().compareTo(o.executable.toGenericString());
             }
@@ -156,12 +161,12 @@ public class HandlerInspector {
         }
 
         private static int comparePayloads(Class<?> p1, Class<?> p2) {
-            return Objects.equals(p1, p2) ? 0 : p1.isAssignableFrom(p2) ? 1 :
-                    p2.isAssignableFrom(p1) ? -1 : Long.compare(depthOf(p2), depthOf(p1));
+            return Objects.equals(p1, p2) ? 0 : p1.isAssignableFrom(p2) ? 1 : p2.isAssignableFrom(p1) ? -1 : 0;
         }
 
-        private static long depthOf(Class payload) {
-            return ObjectUtils.iterate(payload, Class::getSuperclass, Objects::isNull).count();
+        private static int methodDepth(Executable instanceMethod, Class instanceType) {
+            return (int) ObjectUtils.iterate(instanceType, Class::getSuperclass, type 
+                    -> stream(type.getDeclaredMethods()).anyMatch(m -> m.equals(instanceMethod))).count();
         }
     }
 

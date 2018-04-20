@@ -14,6 +14,7 @@
 
 package io.fluxcapacitor.common.reflection;
 
+import io.fluxcapacitor.common.ObjectUtils;
 import org.apache.commons.lang3.reflect.FieldUtils;
 import org.apache.commons.lang3.reflect.MethodUtils;
 
@@ -24,11 +25,18 @@ import java.lang.reflect.Member;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
 import java.security.PrivilegedAction;
+import java.util.Objects;
 import java.util.Optional;
+import java.util.stream.Stream;
 
 import static java.security.AccessController.doPrivileged;
+import static java.util.Arrays.stream;
 
 public class ReflectionUtils {
+    
+    public static Stream<Method> getAllMethods(Class type) {
+        return ObjectUtils.iterate(type, Class::getSuperclass, Objects::isNull).filter(Objects::nonNull).flatMap(c -> stream(c.getMethods()));
+    }
 
     public static Optional<?> getAnnotatedPropertyValue(Object target, Class<? extends Annotation> annotation) {
         if (target == null) {
