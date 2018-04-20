@@ -1,5 +1,6 @@
 package io.fluxcapacitor.javaclient.tracking.handling.validation;
 
+import io.fluxcapacitor.javaclient.common.exception.FunctionalException;
 import lombok.Getter;
 
 import javax.validation.ConstraintViolation;
@@ -12,7 +13,7 @@ import static java.util.stream.Collectors.toCollection;
 import static java.util.stream.Collectors.toList;
 
 @Getter
-public class ValidationException extends RuntimeException {
+public class ValidationException extends FunctionalException {
 
     private final SortedSet<String> violations;
 

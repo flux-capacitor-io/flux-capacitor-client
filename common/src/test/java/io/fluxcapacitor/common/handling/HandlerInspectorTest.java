@@ -24,7 +24,6 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-import static org.junit.jupiter.api.Assertions.fail;
 
 class HandlerInspectorTest {
 
@@ -56,12 +55,7 @@ class HandlerInspectorTest {
 
     @Test
     void testInvokeExceptionally() {
-        try {
-            subject.invoke(3f);
-            fail("should not reach here");
-        } catch (HandlerException e) {
-            assertEquals(UnsupportedOperationException.class, e.getCause().getClass());
-        }
+        assertThrows(UnsupportedOperationException.class, () -> subject.invoke(3f));
     }
 
     @Test

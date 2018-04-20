@@ -1,11 +1,13 @@
 package io.fluxcapacitor.javaclient.common.serialization;
 
 import io.fluxcapacitor.common.api.SerializedObject;
+import lombok.ToString;
 
 import java.util.function.Supplier;
 
 import static io.fluxcapacitor.common.ObjectUtils.memoize;
 
+@ToString(exclude = "object")
 public class DeserializingObject<T, S extends SerializedObject<T, S>> {
     private final S serializedObject;
     private final Supplier<Object> object;

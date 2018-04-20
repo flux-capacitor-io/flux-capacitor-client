@@ -16,6 +16,7 @@ package io.fluxcapacitor.common.handling;
 
 import io.fluxcapacitor.common.ObjectUtils;
 import lombok.AllArgsConstructor;
+import lombok.SneakyThrows;
 
 import java.lang.annotation.Annotation;
 import java.lang.reflect.Constructor;
@@ -94,6 +95,7 @@ public class HandlerInspector {
         }
 
         @Override
+        @SneakyThrows
         public Object invoke(Object target, M message) {
             try {
                 if (executable instanceof Method) {
@@ -109,17 +111,8 @@ public class HandlerInspector {
                     return ((Constructor) executable)
                             .newInstance(parameterSuppliers.stream().map(s -> s.apply(message)).toArray());
                 }
-            } catch (InstantiationException e) {
-                throw new HandlerException(format("Failed to create an instance using constructor %s", executable), e);
             } catch (InvocationTargetException e) {
-                Exception thrown = e;
-                if (e.getCause() instanceof Exception) {
-                    thrown = (Exception) e.getCause();
-                }
-                throw new HandlerException(format("Target failed to handle a %s, method: %s", message, executable),
-                                           thrown);
-            } catch (IllegalAccessException e) {
-                throw new HandlerException(format("Failed to handle a %s, method: %s", message, executable), e);
+                throw e.getCause();
             }
         }
 

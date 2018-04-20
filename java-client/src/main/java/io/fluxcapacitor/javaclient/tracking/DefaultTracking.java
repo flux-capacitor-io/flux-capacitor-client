@@ -4,11 +4,12 @@ import io.fluxcapacitor.common.MessageType;
 import io.fluxcapacitor.common.Registration;
 import io.fluxcapacitor.common.api.SerializedMessage;
 import io.fluxcapacitor.common.handling.Handler;
-import io.fluxcapacitor.common.handling.HandlerException;
 import io.fluxcapacitor.common.handling.HandlerInspector;
 import io.fluxcapacitor.common.handling.ParameterResolver;
 import io.fluxcapacitor.javaclient.FluxCapacitor;
 import io.fluxcapacitor.javaclient.common.Message;
+import io.fluxcapacitor.javaclient.common.exception.FunctionalException;
+import io.fluxcapacitor.javaclient.common.exception.TechnicalException;
 import io.fluxcapacitor.javaclient.common.serialization.DeserializingMessage;
 import io.fluxcapacitor.javaclient.common.serialization.Serializer;
 import io.fluxcapacitor.javaclient.eventsourcing.CacheInvalidatingInterceptor;
@@ -22,7 +23,13 @@ import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
 
 import java.lang.annotation.Annotation;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
 import java.util.function.Consumer;
 import java.util.stream.Stream;
 
@@ -71,7 +78,7 @@ public class DefaultTracking implements Tracking {
         batchInterceptors.addAll(configuration.getTrackingConfiguration().getBatchInterceptors());
         TrackingConfiguration config = configuration.getTrackingConfiguration().toBuilder()
                 .clearBatchInterceptors().batchInterceptors(batchInterceptors).build();
-        String trackerName = String.format("%s_%s", fluxCapacitor.client().name(), configuration.getName());
+        String trackerName = format("%s_%s", fluxCapacitor.client().name(), configuration.getName());
         return TrackingUtils.start(trackerName, consumer, trackingClient, config);
     }
 
@@ -97,7 +104,7 @@ public class DefaultTracking implements Tracking {
                 Message error = new Message(e, MessageType.ERROR);
                 errorGateway.report(error, message.getSerializedObject().getSource());
                 config.getErrorHandler()
-                        .handleError(e, String.format("Handler %s failed to handle a %s", handler, message.getType()),
+                        .handleError(e, format("Handler %s failed to handle a %s", handler, message.getType()),
                                      () -> handle(message, handler, config));
             }
         }
@@ -106,20 +113,24 @@ public class DefaultTracking implements Tracking {
     @SneakyThrows
     protected void handle(DeserializingMessage message, Handler<DeserializingMessage> handler,
                           ConsumerConfiguration config) {
+        Exception exception = null;
         Object result;
         try {
             result = handlerInterceptor.interceptHandling(m -> handler.invoke(message), handler.getTarget(),
                                                           config.getName()).apply(message);
-        } catch (HandlerException e) {
-            result = e.getCause();
-        } catch (Exception e) {
+        } catch (FunctionalException e) {
             result = e;
+            exception = e;
+        } catch (Exception e) {
+            result = new TechnicalException(format("Handler %s failed to handle a %s", handler, message.getType()));
+            exception = e;
         }
         SerializedMessage serializedMessage = message.getSerializedObject();
         if (serializedMessage.getRequestId() != null) {
             resultGateway.respond(result, serializedMessage.getSource(), serializedMessage.getRequestId());
-        } else if (result instanceof Exception) {
-            throw (Exception) result;
+        } 
+        if (exception != null) {
+            throw exception;
         }
     }
 

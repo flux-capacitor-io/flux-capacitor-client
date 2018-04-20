@@ -2,13 +2,18 @@ package io.fluxcapacitor.javaclient.givenwhenthen;
 
 import io.fluxcapacitor.javaclient.FluxCapacitor;
 import io.fluxcapacitor.javaclient.MockException;
+import io.fluxcapacitor.javaclient.common.exception.FunctionalException;
+import io.fluxcapacitor.javaclient.common.exception.TechnicalException;
 import io.fluxcapacitor.javaclient.test.TestFixture;
 import io.fluxcapacitor.javaclient.tracking.handling.HandleCommand;
 import io.fluxcapacitor.javaclient.tracking.handling.HandleEvent;
 import io.fluxcapacitor.javaclient.tracking.handling.HandleQuery;
+import io.fluxcapacitor.javaclient.tracking.handling.validation.ValidationException;
 import lombok.Value;
 import org.junit.jupiter.api.Test;
 import org.mockito.InOrder;
+
+import java.util.Collections;
 
 import static org.hamcrest.CoreMatchers.isA;
 import static org.mockito.Mockito.inOrder;
@@ -32,8 +37,13 @@ class GivenWhenThenTest {
     }
 
     @Test
-    void testExpectExceptionButNoEvents() {
-        subject.givenNoPriorActivity().whenCommand(new YieldsException()).expectNoEvents().expectException(isA(MockException.class));
+    void testExpectTechnicalExceptionButNoEvents() {
+        subject.givenNoPriorActivity().whenCommand(new YieldsTechnicalException()).expectNoEvents().expectException(TechnicalException.class);
+    }
+
+    @Test
+    void testExpectFunctionalExceptionButNoEvents() {
+        subject.givenNoPriorActivity().whenCommand(new YieldsFunctionalException()).expectNoEvents().expectException(FunctionalException.class);
     }
 
     @Test
@@ -51,7 +61,7 @@ class GivenWhenThenTest {
     @Test
     void testExpectExceptionAndEvent() {
         YieldsEventAndException command = new YieldsEventAndException();
-        subject.givenNoPriorActivity().whenCommand(command).expectOnlyEvents(command).expectException(isA(MockException.class));
+        subject.givenNoPriorActivity().whenCommand(command).expectOnlyEvents(command).expectException(TechnicalException.class);
     }
 
     @Test
@@ -107,7 +117,7 @@ class GivenWhenThenTest {
 
     @Test
     void testFailingQuery() {
-        subject.whenQuery(1L).expectException(MockException.class);
+        subject.whenQuery(1L).expectException(TechnicalException.class);
     }
 
     private static class CommandHandler {
@@ -122,8 +132,13 @@ class GivenWhenThenTest {
         }
 
         @HandleCommand
-        public void handle(YieldsException command) {
+        public void handle(YieldsTechnicalException command) {
             throw new MockException();
+        }
+
+        @HandleCommand
+        public void handle(YieldsFunctionalException command) {
+            throw new ValidationException(Collections.emptySet());
         }
 
         @HandleCommand
@@ -177,7 +192,11 @@ class GivenWhenThenTest {
     }
 
     @Value
-    private static class YieldsException {
+    private static class YieldsTechnicalException {
+    }
+
+    @Value
+    private static class YieldsFunctionalException {
     }
 
     @Value
