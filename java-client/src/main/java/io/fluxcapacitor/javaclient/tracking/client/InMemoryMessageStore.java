@@ -21,13 +21,18 @@ import io.fluxcapacitor.common.api.tracking.MessageBatch;
 import io.fluxcapacitor.javaclient.publishing.client.GatewayClient;
 
 import java.time.Duration;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.List;
+import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentSkipListMap;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Consumer;
 
+import static java.lang.Thread.currentThread;
 import static java.util.stream.Collectors.toList;
 
 public class InMemoryMessageStore implements GatewayClient, TrackingClient {
@@ -65,7 +70,7 @@ public class InMemoryMessageStore implements GatewayClient, TrackingClient {
                 try {
                     this.wait(deadline - System.currentTimeMillis());
                 } catch (InterruptedException e) {
-                    Thread.interrupted();
+                    currentThread().interrupt();
                     return new MessageBatch(new int[]{0, 1}, Collections.emptyList(), null);
                 }
             }

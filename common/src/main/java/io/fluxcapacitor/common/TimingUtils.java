@@ -21,6 +21,8 @@ import java.util.concurrent.Callable;
 import java.util.function.Consumer;
 import java.util.function.Predicate;
 
+import static java.lang.Thread.currentThread;
+
 @Slf4j
 public class TimingUtils {
 
@@ -82,7 +84,7 @@ public class TimingUtils {
                 try {
                     Thread.sleep(delay.toMillis());
                 } catch (InterruptedException e1) {
-                    Thread.interrupted();
+                    currentThread().interrupt();
                     throw new IllegalStateException("Thread interrupted while retrying task " + task);
                 }
             }

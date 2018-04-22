@@ -15,6 +15,7 @@ import java.util.concurrent.TimeUnit;
 import static io.fluxcapacitor.common.MessageType.COMMAND;
 import static io.fluxcapacitor.common.MessageType.EVENT;
 import static java.lang.String.format;
+import static java.lang.Thread.currentThread;
 import static java.util.stream.Collectors.toList;
 
 @AllArgsConstructor
@@ -74,6 +75,7 @@ public class ResultValidator implements Then {
                 }
             }
         } catch (InterruptedException e) {
+            currentThread().interrupt();
             return result;
         }
         return result;

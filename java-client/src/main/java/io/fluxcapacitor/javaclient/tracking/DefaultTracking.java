@@ -52,7 +52,7 @@ public class DefaultTracking implements Tracking {
     private final Set<ConsumerConfiguration> startedConfigurations = new HashSet<>();
 
     @Override
-    public Registration start(List<Object> handlers, FluxCapacitor fluxCapacitor) {
+    public Registration start(FluxCapacitor fluxCapacitor, List<?> handlers) {
         synchronized (this) {
             Map<ConsumerConfiguration, List<Object>> consumers = handlers.stream()
                     .filter(h -> HandlerInspector.hasHandlerMethods(h.getClass(), handlerAnnotation))

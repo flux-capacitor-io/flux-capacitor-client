@@ -22,6 +22,8 @@ import lombok.extern.slf4j.Slf4j;
 import java.util.concurrent.CountDownLatch;
 import java.util.stream.IntStream;
 
+import static java.lang.Thread.currentThread;
+
 @Slf4j
 @Getter
 public abstract class AbstractClientBenchmark {
@@ -48,6 +50,7 @@ public abstract class AbstractClientBenchmark {
             try {
                 commandCountDownLatch.await();
             } catch (InterruptedException e) {
+                currentThread().interrupt();
                 throw new IllegalStateException(e);
             }
         }, duration -> log.info("Finished sending and handling {} commands in {}ms", count, duration));

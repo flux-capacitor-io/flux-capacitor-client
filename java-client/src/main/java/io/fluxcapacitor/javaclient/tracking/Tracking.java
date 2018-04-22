@@ -9,9 +9,9 @@ import java.util.List;
 public interface Tracking {
 
     default Registration start(FluxCapacitor fluxCapacitor, Object... handlers) {
-        return start(Arrays.asList(handlers), fluxCapacitor);
+        return start(fluxCapacitor, Arrays.asList(handlers));
     }
 
-    Registration start(List<Object> handlers, FluxCapacitor fluxCapacitor);
+    Registration start(FluxCapacitor fluxCapacitor, List<?> handlers);
 
 }

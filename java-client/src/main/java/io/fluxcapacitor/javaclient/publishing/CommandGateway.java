@@ -10,6 +10,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
 import static java.lang.String.format;
+import static java.lang.Thread.currentThread;
 
 public interface CommandGateway {
 
@@ -62,7 +63,7 @@ public interface CommandGateway {
             throw new io.fluxcapacitor.javaclient.publishing.TimeoutException(
                     format("Command %s has timed out", payload), e);
         } catch (InterruptedException e) {
-            Thread.interrupted();
+            currentThread().interrupt();
             throw new GatewayException(format("Thread interrupted while waiting for result of command %s", payload), e);
         } catch (ExecutionException e) {
             throw e.getCause();

@@ -10,6 +10,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
 import static java.lang.String.format;
+import static java.lang.Thread.currentThread;
 
 public interface QueryGateway {
 
@@ -48,7 +49,7 @@ public interface QueryGateway {
             throw new io.fluxcapacitor.javaclient.publishing.TimeoutException(
                     format("Query %s has timed out", payload), e);
         } catch (InterruptedException e) {
-            Thread.interrupted();
+            currentThread().interrupt();
             throw new GatewayException(format("Thread interrupted while waiting for result of query %s", payload), e);
         } catch (ExecutionException e) {
             throw e.getCause();

@@ -14,7 +14,13 @@ import io.fluxcapacitor.javaclient.publishing.correlation.ContextualDispatchInte
 import java.util.Arrays;
 import java.util.List;
 import java.util.UUID;
-import java.util.concurrent.*;
+import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.Executors;
+import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeoutException;
 import java.util.function.Function;
 
 import static io.fluxcapacitor.common.MessageType.COMMAND;
@@ -31,18 +37,26 @@ public class TestFixture implements Given, When {
     private final BlockingQueue<Message> commands = new LinkedBlockingQueue<>();
 
     public static TestFixture create(Object... handlers) {
-        return new TestFixture(DefaultFluxCapacitor.builder(), handlers);
+        return new TestFixture(DefaultFluxCapacitor.builder(), fc -> Arrays.asList(handlers));
     }
 
     public static TestFixture create(FluxCapacitorBuilder fluxCapacitorBuilder, Object... handlers) {
-        return new TestFixture(fluxCapacitorBuilder, handlers);
+        return new TestFixture(fluxCapacitorBuilder, fc -> Arrays.asList(handlers));
     }
 
-    protected TestFixture(FluxCapacitorBuilder fluxCapacitorBuilder, Object... handlers) {
+    public static TestFixture create(Function<FluxCapacitor, List<?>> handlersFactory) {
+        return new TestFixture(DefaultFluxCapacitor.builder(), handlersFactory);
+    }
+
+    public static TestFixture create(FluxCapacitorBuilder fluxCapacitorBuilder, Function<FluxCapacitor, List<?>> handlersFactory) {
+        return new TestFixture(fluxCapacitorBuilder, handlersFactory);
+    }
+
+    protected TestFixture(FluxCapacitorBuilder fluxCapacitorBuilder, Function<FluxCapacitor, List<?>> handlers) {
         this.interceptor = new GivenWhenThenInterceptor();
         this.fluxCapacitor = fluxCapacitorBuilder.addDispatchInterceptor(interceptor).addHandlerInterceptor(interceptor)
                 .build(InMemoryClient.newInstance());
-        this.registration = fluxCapacitor.startTracking(handlers);
+        this.registration = fluxCapacitor.startTracking(handlers.apply(fluxCapacitor));
     }
 
     @Override

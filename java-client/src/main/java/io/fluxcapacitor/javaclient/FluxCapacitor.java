@@ -9,10 +9,17 @@ import io.fluxcapacitor.javaclient.configuration.client.Client;
 import io.fluxcapacitor.javaclient.eventsourcing.EventSourced;
 import io.fluxcapacitor.javaclient.eventsourcing.EventSourcing;
 import io.fluxcapacitor.javaclient.keyvalue.KeyValueStore;
-import io.fluxcapacitor.javaclient.publishing.*;
+import io.fluxcapacitor.javaclient.publishing.CommandGateway;
+import io.fluxcapacitor.javaclient.publishing.ErrorGateway;
+import io.fluxcapacitor.javaclient.publishing.EventGateway;
+import io.fluxcapacitor.javaclient.publishing.MetricsGateway;
+import io.fluxcapacitor.javaclient.publishing.QueryGateway;
+import io.fluxcapacitor.javaclient.publishing.ResultGateway;
 import io.fluxcapacitor.javaclient.scheduling.Scheduler;
 import io.fluxcapacitor.javaclient.tracking.Tracking;
 
+import java.util.Arrays;
+import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 
@@ -85,9 +92,13 @@ public interface FluxCapacitor {
         }
         throw new UnsupportedOperationException("Only event sourced aggregates are supported at the moment");
     }
+    
+    default Registration startTracking(Object... handlers) {
+        return startTracking(Arrays.asList(handlers));
+    }
 
     @SuppressWarnings("ConstantConditions")
-    default Registration startTracking(Object... handlers) {
+    default Registration startTracking(List<?> handlers) {
         return stream(MessageType.values())
                 .map(t -> tracking(t).start(this, handlers)).reduce(Registration::merge).get();
     }
