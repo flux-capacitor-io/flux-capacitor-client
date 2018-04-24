@@ -7,8 +7,7 @@ public class IllegalCommandException extends FunctionalException {
         super(String.format("Illegal command: %s : %s", message, command));
     }
 
-    @SuppressWarnings("unused") //allows Jackson to deserialize this exception
-    private IllegalCommandException(String message) {
+    public IllegalCommandException(String message) {
         super(message);
     }
 }
