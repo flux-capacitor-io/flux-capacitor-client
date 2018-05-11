@@ -71,11 +71,11 @@ public interface FluxCapacitor {
     }
 
     static <R> CompletableFuture<R> query(Object query) {
-        return get().queryGateway().query(query);
+        return get().queryGateway().send(query);
     }
 
     static <R> CompletableFuture<R> query(Object payload, Metadata metadata) {
-        return get().queryGateway().query(payload, metadata);
+        return get().queryGateway().send(payload, metadata);
     }
 
     static void publishMetrics(Object metrics) {

@@ -137,7 +137,7 @@ public class TestFixture implements Given, When {
             FluxCapacitor.instance.set(fluxCapacitor);
             Object result;
             try {
-                result = fluxCapacitor.queryGateway().query(query).get(1L, SECONDS);
+                result = fluxCapacitor.queryGateway().send(query).get(1L, SECONDS);
             } catch (ExecutionException e) {
                 result = e.getCause();
             } catch (Exception e) {

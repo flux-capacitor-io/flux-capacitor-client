@@ -24,18 +24,51 @@ import io.fluxcapacitor.javaclient.common.serialization.MessageSerializer;
 import io.fluxcapacitor.javaclient.common.serialization.Serializer;
 import io.fluxcapacitor.javaclient.common.serialization.jackson.JacksonSerializer;
 import io.fluxcapacitor.javaclient.configuration.client.Client;
-import io.fluxcapacitor.javaclient.eventsourcing.*;
+import io.fluxcapacitor.javaclient.eventsourcing.DefaultEventSourcing;
+import io.fluxcapacitor.javaclient.eventsourcing.DefaultEventStore;
+import io.fluxcapacitor.javaclient.eventsourcing.DefaultSnapshotRepository;
+import io.fluxcapacitor.javaclient.eventsourcing.EventSourcing;
+import io.fluxcapacitor.javaclient.eventsourcing.EventStore;
+import io.fluxcapacitor.javaclient.eventsourcing.EventStoreSerializer;
 import io.fluxcapacitor.javaclient.keyvalue.DefaultKeyValueStore;
 import io.fluxcapacitor.javaclient.keyvalue.KeyValueStore;
-import io.fluxcapacitor.javaclient.publishing.*;
+import io.fluxcapacitor.javaclient.publishing.CommandGateway;
+import io.fluxcapacitor.javaclient.publishing.DefaultCommandGateway;
+import io.fluxcapacitor.javaclient.publishing.DefaultErrorGateway;
+import io.fluxcapacitor.javaclient.publishing.DefaultEventGateway;
+import io.fluxcapacitor.javaclient.publishing.DefaultGenericGateway;
+import io.fluxcapacitor.javaclient.publishing.DefaultMetricsGateway;
+import io.fluxcapacitor.javaclient.publishing.DefaultQueryGateway;
+import io.fluxcapacitor.javaclient.publishing.DefaultRequestHandler;
+import io.fluxcapacitor.javaclient.publishing.DefaultResultGateway;
+import io.fluxcapacitor.javaclient.publishing.DispatchInterceptor;
+import io.fluxcapacitor.javaclient.publishing.ErrorGateway;
+import io.fluxcapacitor.javaclient.publishing.EventGateway;
+import io.fluxcapacitor.javaclient.publishing.GenericGateway;
+import io.fluxcapacitor.javaclient.publishing.MetricsGateway;
+import io.fluxcapacitor.javaclient.publishing.QueryGateway;
+import io.fluxcapacitor.javaclient.publishing.RequestHandler;
+import io.fluxcapacitor.javaclient.publishing.ResultGateway;
 import io.fluxcapacitor.javaclient.publishing.correlation.CorrelatingInterceptor;
 import io.fluxcapacitor.javaclient.publishing.correlation.CorrelationDataProvider;
 import io.fluxcapacitor.javaclient.publishing.correlation.MessageOriginProvider;
 import io.fluxcapacitor.javaclient.publishing.routing.MessageRoutingInterceptor;
 import io.fluxcapacitor.javaclient.scheduling.DefaultScheduler;
 import io.fluxcapacitor.javaclient.scheduling.Scheduler;
-import io.fluxcapacitor.javaclient.tracking.*;
-import io.fluxcapacitor.javaclient.tracking.handling.*;
+import io.fluxcapacitor.javaclient.tracking.BatchInterceptor;
+import io.fluxcapacitor.javaclient.tracking.ConsumerConfiguration;
+import io.fluxcapacitor.javaclient.tracking.DefaultTracking;
+import io.fluxcapacitor.javaclient.tracking.Tracking;
+import io.fluxcapacitor.javaclient.tracking.TrackingException;
+import io.fluxcapacitor.javaclient.tracking.handling.HandleCommand;
+import io.fluxcapacitor.javaclient.tracking.handling.HandleError;
+import io.fluxcapacitor.javaclient.tracking.handling.HandleEvent;
+import io.fluxcapacitor.javaclient.tracking.handling.HandleMetrics;
+import io.fluxcapacitor.javaclient.tracking.handling.HandleNotification;
+import io.fluxcapacitor.javaclient.tracking.handling.HandleQuery;
+import io.fluxcapacitor.javaclient.tracking.handling.HandleResult;
+import io.fluxcapacitor.javaclient.tracking.handling.HandleSchedule;
+import io.fluxcapacitor.javaclient.tracking.handling.HandlerInterceptor;
 import io.fluxcapacitor.javaclient.tracking.handling.MetadataParameterResolver;
 import io.fluxcapacitor.javaclient.tracking.handling.PayloadParameterResolver;
 import io.fluxcapacitor.javaclient.tracking.handling.validation.ValidatingInterceptor;
@@ -46,10 +79,24 @@ import lombok.AllArgsConstructor;
 
 import java.lang.annotation.Annotation;
 import java.time.Duration;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.HashMap;
+import java.util.LinkedHashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.Set;
+import java.util.function.Function;
 import java.util.function.UnaryOperator;
 
-import static io.fluxcapacitor.common.MessageType.*;
+import static io.fluxcapacitor.common.MessageType.COMMAND;
+import static io.fluxcapacitor.common.MessageType.ERROR;
+import static io.fluxcapacitor.common.MessageType.EVENT;
+import static io.fluxcapacitor.common.MessageType.METRICS;
+import static io.fluxcapacitor.common.MessageType.QUERY;
+import static io.fluxcapacitor.common.MessageType.RESULT;
+import static io.fluxcapacitor.common.MessageType.SCHEDULE;
 import static java.util.Arrays.stream;
 import static java.util.Collections.singletonList;
 import static java.util.Collections.unmodifiableMap;
@@ -144,6 +191,7 @@ public class DefaultFluxCapacitor implements FluxCapacitor {
         private final Map<MessageType, HandlerInterceptor> handlerInterceptors =
                 Arrays.stream(MessageType.values()).collect(toMap(identity(), m -> (f, h, c) -> f));
         private final Set<CorrelationDataProvider> correlationDataProviders = new LinkedHashSet<>();
+        private final List<Function<FluxCapacitor, Object>> localHandlers = new ArrayList<>();
         private DispatchInterceptor messageRoutingInterceptor = new MessageRoutingInterceptor();
         private HandlerInterceptor commandValidationInterceptor = new ValidatingInterceptor();
         private boolean disableMessageCorrelation;
@@ -254,6 +302,12 @@ public class DefaultFluxCapacitor implements FluxCapacitor {
         }
 
         @Override
+        public FluxCapacitorBuilder registerLocalHandler(Function<FluxCapacitor, Object> handlerFactory) {
+            this.localHandlers.add(handlerFactory);
+            return this;
+        }
+
+        @Override
         public FluxCapacitor build(Client client) {
             Map<MessageType, DispatchInterceptor> dispatchInterceptors = new HashMap<>(this.dispatchInterceptors);
             Map<MessageType, HandlerInterceptor> handlerInterceptors = new HashMap<>(this.handlerInterceptors);
@@ -301,15 +355,14 @@ public class DefaultFluxCapacitor implements FluxCapacitor {
             RequestHandler requestHandler =
                     new DefaultRequestHandler(client.getTrackingClient(RESULT), serializer, client.id());
             CommandGateway commandGateway =
-                    new DefaultCommandGateway(client.getGatewayClient(COMMAND), requestHandler,
-                                              new MessageSerializer(serializer, dispatchInterceptors.get(COMMAND),
-                                                                    COMMAND));
+                    new DefaultCommandGateway(createGenericGateway(client, COMMAND, requestHandler, 
+                                                                   dispatchInterceptors.get(COMMAND)));
             QueryGateway queryGateway =
-                    new DefaultQueryGateway(client.getGatewayClient(QUERY), requestHandler,
-                                            new MessageSerializer(serializer, dispatchInterceptors.get(QUERY), QUERY));
+                    new DefaultQueryGateway(createGenericGateway(client, QUERY, requestHandler, 
+                                                                 dispatchInterceptors.get(QUERY)));
             EventGateway eventGateway =
-                    new DefaultEventGateway(client.getGatewayClient(EVENT),
-                                            new MessageSerializer(serializer, dispatchInterceptors.get(EVENT), EVENT));
+                    new DefaultEventGateway(createGenericGateway(client, EVENT, requestHandler,
+                                                                 dispatchInterceptors.get(EVENT)));
             ErrorGateway errorGateway =
                     new DefaultErrorGateway(client.getGatewayClient(ERROR), new MessageSerializer(
                             serializer, dispatchInterceptors.get(ERROR), ERROR));
@@ -392,6 +445,13 @@ public class DefaultFluxCapacitor implements FluxCapacitor {
                 default:
                     throw new ConfigurationException(String.format("Unrecognized type: %s", messageType));
             }
+        }
+
+        protected GenericGateway createGenericGateway(Client client, MessageType messageType,
+                                                      RequestHandler requestHandler,
+                                                      DispatchInterceptor dispatchInterceptor) {
+            return new DefaultGenericGateway(client.getGatewayClient(messageType), requestHandler,
+                                             new MessageSerializer(serializer, dispatchInterceptor, messageType));
         }
     }
 
