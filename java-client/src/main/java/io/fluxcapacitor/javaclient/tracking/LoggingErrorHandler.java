@@ -10,7 +10,7 @@ public enum LoggingErrorHandler implements ErrorHandler {
     @Override
     public void handleError(Exception error, String errorMessage, Runnable retryFunction) {
         if (error instanceof FunctionalException) {
-            log.warn("{}: {}. Continuing...", errorMessage, error.getMessage());
+            log.warn("{}: {}({}). Continuing...", errorMessage, error.getClass().getSimpleName(), error.getMessage());
         } else {
             log.error("{}. Continuing...", errorMessage, error);
         }

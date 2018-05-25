@@ -35,9 +35,12 @@ public class MessageOriginProvider implements CorrelationDataProvider {
     @Override
     public Map<String, String> fromMessage(DeserializingMessage message) {
         Map<String, String> result = new HashMap<>();
-        String index = message.getSerializedObject().getIndex().toString();
-        result.put(correlationId, index);
-        result.put(traceId, message.getMetadata().getOrDefault(traceId, index));
+        Long index = message.getSerializedObject().getIndex();
+        if (index != null) {
+            String correlationId = index.toString();
+            result.put(correlationId, correlationId);
+            result.put(traceId, message.getMetadata().getOrDefault(traceId, correlationId));
+        }
         result.put(trigger, message.getSerializedObject().getData().getType());
         return result;
     }

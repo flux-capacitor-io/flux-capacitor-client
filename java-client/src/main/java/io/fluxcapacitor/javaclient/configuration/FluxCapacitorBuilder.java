@@ -11,7 +11,6 @@ import io.fluxcapacitor.javaclient.publishing.correlation.CorrelationDataProvide
 import io.fluxcapacitor.javaclient.tracking.ConsumerConfiguration;
 import io.fluxcapacitor.javaclient.tracking.handling.HandlerInterceptor;
 
-import java.util.function.Function;
 import java.util.function.UnaryOperator;
 
 public interface FluxCapacitorBuilder {
@@ -23,7 +22,7 @@ public interface FluxCapacitorBuilder {
 
     FluxCapacitorBuilder addConsumerConfiguration(MessageType messageType, ConsumerConfiguration consumerConfiguration);
 
-    FluxCapacitorBuilder addTrackingParameterResolver(ParameterResolver<DeserializingMessage> parameterResolver);
+    FluxCapacitorBuilder addHandlerParameterResolver(ParameterResolver<DeserializingMessage> parameterResolver);
 
     FluxCapacitorBuilder addDispatchInterceptor(DispatchInterceptor interceptor, MessageType... forTypes);
 
@@ -42,16 +41,6 @@ public interface FluxCapacitorBuilder {
     FluxCapacitorBuilder collectApplicationMetrics();
 
     FluxCapacitorBuilder changeCommandValidationInterceptor(HandlerInterceptor validationInterceptor);
-    
-    default FluxCapacitorBuilder registerLocalHandlers(Object... handlers) {
-        FluxCapacitorBuilder result = this;
-        for (Object handler : handlers) {
-            result = result.registerLocalHandler(fc -> handler);
-        }
-        return result;
-    }
-
-    FluxCapacitorBuilder registerLocalHandler(Function<FluxCapacitor, Object> handlerFactory);
 
     FluxCapacitor build(Client client);
 }

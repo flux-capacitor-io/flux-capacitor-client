@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016-2018 Flux Capacitor. 
+ * Copyright (c) 2016-2018 Flux Capacitor.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,37 +14,81 @@
 
 package io.fluxcapacitor.javaclient.publishing;
 
+import io.fluxcapacitor.common.MessageType;
+import io.fluxcapacitor.common.Registration;
 import io.fluxcapacitor.common.api.Metadata;
+import io.fluxcapacitor.common.api.SerializedMessage;
+import io.fluxcapacitor.common.handling.Handler;
 import io.fluxcapacitor.javaclient.common.Message;
+import io.fluxcapacitor.javaclient.common.serialization.DeserializingMessage;
+import io.fluxcapacitor.javaclient.common.serialization.DeserializingObject;
 import io.fluxcapacitor.javaclient.common.serialization.MessageSerializer;
 import io.fluxcapacitor.javaclient.publishing.client.GatewayClient;
+import io.fluxcapacitor.javaclient.tracking.handling.HandlerFactory;
 import lombok.AllArgsConstructor;
 
+import java.util.List;
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CopyOnWriteArrayList;
 
 import static java.lang.String.format;
 
 @AllArgsConstructor
 public class DefaultGenericGateway implements GenericGateway {
+    private final MessageType messageType;
     private final GatewayClient gatewayClient;
     private final RequestHandler requestHandler;
     private final MessageSerializer serializer;
+    private final HandlerFactory handlerFactory;
+    private final List<Handler<DeserializingMessage>> localHandlers = new CopyOnWriteArrayList<>();
 
     @Override
     public void sendAndForget(Object payload, Metadata metadata) {
-        try {
-            gatewayClient.send(serializer.serialize(payload, metadata));
-        } catch (Exception e) {
-            throw new GatewayException(format("Failed to send and forget %s", payload), e);
+        SerializedMessage serializedMessage = serializer.serialize(payload, metadata);
+        CompletableFuture<Message> localResult = tryHandleLocally(payload, serializedMessage);
+        if (localResult == null) {
+            try {
+                gatewayClient.send(serializedMessage);
+            } catch (Exception e) {
+                throw new GatewayException(format("Failed to send and forget %s", payload), e);
+            }
         }
     }
 
     @Override
     public CompletableFuture<Message> sendForMessage(Object payload, Metadata metadata) {
-        try {
-            return requestHandler.sendRequest(serializer.serialize(payload, metadata), gatewayClient::send);
-        } catch (Exception e) {
-            throw new GatewayException(format("Failed to send %s", payload), e);
+        SerializedMessage serializedMessage = serializer.serialize(payload, metadata);
+        CompletableFuture<Message> localResult = tryHandleLocally(payload, serializedMessage);
+        if (localResult == null) {
+            try {
+                return requestHandler.sendRequest(serializedMessage, gatewayClient::send);
+            } catch (Exception e) {
+                throw new GatewayException(format("Failed to send %s", payload), e);
+            }
+        } else {
+            return localResult;
         }
+    }
+
+    @Override
+    public Registration registerLocalHandler(Object target) {
+        Optional<Handler<DeserializingMessage>> handler = handlerFactory.createHandler(target);
+        handler.ifPresent(localHandlers::add);
+        return () -> handler.ifPresent(localHandlers::remove);
+    }
+
+    protected CompletableFuture<Message> tryHandleLocally(Object payload, SerializedMessage serializedMessage) {
+        if (!localHandlers.isEmpty()) {
+            DeserializingMessage deserializingMessage =
+                    new DeserializingMessage(new DeserializingObject<>(serializedMessage, () -> payload), messageType);
+            for (Handler<DeserializingMessage> handler : localHandlers) {
+                if (handler.canHandle(deserializingMessage)) {
+                    return CompletableFuture
+                            .completedFuture(new Message(handler.invoke(deserializingMessage), messageType));
+                }
+            }
+        }
+        return null;
     }
 }

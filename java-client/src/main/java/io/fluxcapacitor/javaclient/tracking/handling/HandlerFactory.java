@@ -12,18 +12,14 @@
  * limitations under the License.
  */
 
-package io.fluxcapacitor.javaclient.publishing.local;
+package io.fluxcapacitor.javaclient.tracking.handling;
 
-import java.lang.annotation.Documented;
-import java.lang.annotation.ElementType;
-import java.lang.annotation.Inherited;
-import java.lang.annotation.Retention;
-import java.lang.annotation.RetentionPolicy;
-import java.lang.annotation.Target;
+import io.fluxcapacitor.common.handling.Handler;
+import io.fluxcapacitor.javaclient.common.serialization.DeserializingMessage;
 
-@Documented
-@Target(ElementType.TYPE)
-@Retention(RetentionPolicy.RUNTIME)
-@Inherited
-public @interface LocalHandler {
+import java.util.Optional;
+
+@FunctionalInterface
+public interface HandlerFactory {
+    Optional<Handler<DeserializingMessage>> createHandler(Object target);
 }

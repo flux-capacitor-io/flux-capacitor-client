@@ -1,5 +1,6 @@
 package io.fluxcapacitor.javaclient.publishing;
 
+import io.fluxcapacitor.common.Registration;
 import io.fluxcapacitor.common.api.Metadata;
 import lombok.AllArgsConstructor;
 
@@ -15,5 +16,10 @@ public class DefaultEventGateway implements EventGateway {
     @Override
     public void publish(Object payload, Metadata metadata) {
         delegate.sendAndForget(payload, metadata);
+    }
+
+    @Override
+    public Registration registerLocalHandler(Object handler) {
+        return delegate.registerLocalHandler(handler);
     }
 }

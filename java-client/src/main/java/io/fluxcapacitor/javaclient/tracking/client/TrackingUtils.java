@@ -53,7 +53,6 @@ public class TrackingUtils {
         return () -> {
             instances.forEach(DefaultTracker::cancel);
             executor.shutdown();
-            return true;
         };
     }
 }

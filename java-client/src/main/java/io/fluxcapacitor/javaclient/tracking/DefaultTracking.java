@@ -33,6 +33,7 @@ import java.util.Set;
 import java.util.function.Consumer;
 import java.util.stream.Stream;
 
+import static io.fluxcapacitor.common.handling.HandlerInspector.createHandlers;
 import static java.lang.String.format;
 import static java.util.stream.Collectors.groupingBy;
 
@@ -65,7 +66,7 @@ public class DefaultTracking implements Tracking {
             }
             startedConfigurations.addAll(consumers.keySet());
             return consumers.entrySet().stream().map(e -> startTracking(e.getKey(), e.getValue(), fluxCapacitor))
-                    .reduce(Registration::merge).orElse(() -> true);
+                    .reduce(Registration::merge).orElse(Registration.noOp());
         }
     }
 
@@ -82,15 +83,14 @@ public class DefaultTracking implements Tracking {
         return TrackingUtils.start(trackerName, consumer, trackingClient, config);
     }
 
-    protected Consumer<List<SerializedMessage>> createConsumer(ConsumerConfiguration configuration,
-                                                               List<Object> handlers) {
-        List<Handler<DeserializingMessage>> invokers
-                = HandlerInspector.createHandlers(handlers, handlerAnnotation, parameterResolvers);
+    protected Consumer<List<SerializedMessage>> createConsumer(ConsumerConfiguration configuration, 
+                                                               List<Object> targets) {
+        List<Handler<DeserializingMessage>> handlers = createHandlers(targets, handlerAnnotation, parameterResolvers);
         return serializedMessages -> {
             Stream<DeserializingMessage> messages =
                     serializer.deserialize(serializedMessages.stream(), false)
                             .map(m -> new DeserializingMessage(m, messageType));
-            messages.forEach(m -> invokers.forEach(h -> tryHandle(m, h, configuration)));
+            messages.forEach(m -> handlers.forEach(h -> tryHandle(m, h, configuration)));
         };
     }
 

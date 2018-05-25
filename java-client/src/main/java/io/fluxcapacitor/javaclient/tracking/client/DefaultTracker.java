@@ -82,8 +82,8 @@ public class DefaultTracker implements Runnable, Registration {
     }
 
     @Override
-    public boolean cancel() {
-        return running.compareAndSet(true, false);
+    public void cancel() {
+        running.compareAndSet(true, false);
     }
 
     protected MessageBatch fetch() {

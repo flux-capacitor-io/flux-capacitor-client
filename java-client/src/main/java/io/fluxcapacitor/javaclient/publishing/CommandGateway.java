@@ -1,5 +1,6 @@
 package io.fluxcapacitor.javaclient.publishing;
 
+import io.fluxcapacitor.common.Registration;
 import io.fluxcapacitor.common.api.Metadata;
 import io.fluxcapacitor.javaclient.common.Message;
 
@@ -22,5 +23,7 @@ public interface CommandGateway {
     <R> R sendAndWait(Object command);
 
     <R> R sendAndWait(Object payload, Metadata metadata);
+    
+    Registration registerLocalHandler(Object handler);
 
 }

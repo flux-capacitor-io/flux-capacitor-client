@@ -14,6 +14,7 @@
 
 package io.fluxcapacitor.javaclient.publishing;
 
+import io.fluxcapacitor.common.Registration;
 import io.fluxcapacitor.common.api.Metadata;
 import io.fluxcapacitor.javaclient.common.Message;
 import lombok.SneakyThrows;
@@ -76,5 +77,7 @@ public interface RequestGateway {
             throw e.getCause();
         }
     }
+    
+    Registration registerLocalHandler(Object target);
     
 }

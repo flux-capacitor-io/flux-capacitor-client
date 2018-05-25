@@ -34,7 +34,7 @@ public class FluxCapacitorSpringConfig implements BeanPostProcessor {
 
     private final ApplicationContext context;
     private final List<Object> springBeans = new CopyOnWriteArrayList<>();
-    private final AtomicReference<Registration> trackingRegistration = new AtomicReference<>();
+    private final AtomicReference<Registration> handlerRegistration = new AtomicReference<>();
 
     @Autowired
     protected FluxCapacitorSpringConfig(ApplicationContext context) {
@@ -49,13 +49,19 @@ public class FluxCapacitorSpringConfig implements BeanPostProcessor {
 
     @EventListener
     public void handle(ContextRefreshedEvent event) {
-        trackingRegistration.updateAndGet(
-                r -> r == null ? context.getBean(FluxCapacitor.class).startTracking(springBeans.toArray()) : r);
+        FluxCapacitor fluxCapacitor = context.getBean(FluxCapacitor.class);
+        Object[] localHandlers =
+                springBeans.stream().filter(bean -> bean.getClass().isAnnotationPresent(LocalHandler.class)).toArray();
+        Object[] trackingCandidates =
+                springBeans.stream().filter(bean -> !bean.getClass().isAnnotationPresent(LocalHandler.class)).toArray();
+        handlerRegistration.updateAndGet(
+                r -> r == null ? fluxCapacitor.startTracking(trackingCandidates)
+                                .merge(fluxCapacitor.registerLocalHandlers(localHandlers)) : r);
     }
 
     @EventListener
     public void handle(ContextClosedEvent event) {
-        trackingRegistration.getAndUpdate(r -> null).cancel();
+        handlerRegistration.getAndUpdate(r -> null).cancel();
     }
 
     @Bean

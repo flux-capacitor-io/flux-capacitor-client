@@ -21,10 +21,7 @@ public class ApplicationMonitor {
     public static Registration start(FluxCapacitor fluxCapacitor, Duration period) {
         ApplicationMonitor applicationMonitor = new ApplicationMonitor(fluxCapacitor);
         applicationMonitor.start(period);
-        return () -> {
-            applicationMonitor.stop();
-            return true;
-        };
+        return applicationMonitor::stop;
     }
 
     protected void start(Duration period) {

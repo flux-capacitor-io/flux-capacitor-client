@@ -22,6 +22,7 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
+import java.util.stream.Stream;
 
 import static java.util.Arrays.stream;
 
@@ -101,6 +102,16 @@ public interface FluxCapacitor {
     default Registration startTracking(List<?> handlers) {
         return stream(MessageType.values())
                 .map(t -> tracking(t).start(this, handlers)).reduce(Registration::merge).get();
+    }
+
+    default Registration registerLocalHandlers(Object... handlers) {
+        return registerLocalHandlers(Arrays.asList(handlers));
+    }
+    
+    default Registration registerLocalHandlers(List<?> handlers) {
+        return handlers.stream().flatMap(h -> Stream
+                .of(commandGateway().registerLocalHandler(h), queryGateway().registerLocalHandler(h),
+                    eventGateway().registerLocalHandler(h))).reduce(Registration::merge).orElse(Registration.noOp());
     }
 
     EventSourcing eventSourcing();

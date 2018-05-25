@@ -14,6 +14,7 @@
 
 package io.fluxcapacitor.javaclient.publishing;
 
+import io.fluxcapacitor.common.Registration;
 import io.fluxcapacitor.common.api.Metadata;
 import io.fluxcapacitor.javaclient.common.Message;
 
@@ -32,5 +33,7 @@ public interface PublicationGateway {
     default void sendAndForget(Message message) {
         sendAndForget(message.getPayload(), message.getMetadata());
     }
+
+    Registration registerLocalHandler(Object handler);
     
 }

@@ -14,7 +14,9 @@
 
 package io.fluxcapacitor.javaclient.tracking.handling;
 
+import io.fluxcapacitor.common.handling.Handler;
 import io.fluxcapacitor.javaclient.common.serialization.DeserializingMessage;
+import lombok.AllArgsConstructor;
 
 import java.util.function.Function;
 
@@ -26,4 +28,31 @@ public interface HandlerInterceptor {
     default HandlerInterceptor merge(HandlerInterceptor outerInterceptor) {
         return (f, h, c) -> outerInterceptor.interceptHandling(interceptHandling(f, h, c), h, c);
     }
+    
+    default Handler<DeserializingMessage> wrap(Handler<DeserializingMessage> handler, String consumer) {
+        return new InterceptedHandler(this, handler, consumer);
+    }
+    
+    @AllArgsConstructor
+    class InterceptedHandler implements Handler<DeserializingMessage> {
+
+        private final HandlerInterceptor interceptor;
+        private final Handler<DeserializingMessage> delegate;
+        private final String consumer;
+
+        @Override
+        public Object invoke(DeserializingMessage message) {
+            return interceptor.interceptHandling(delegate::invoke, getTarget(), consumer).apply(message);
+        }
+
+        @Override
+        public boolean canHandle(DeserializingMessage message) {
+            return delegate.canHandle(message);
+        }
+
+        @Override
+        public Object getTarget() {
+            return delegate.getTarget();
+        }
+    }  
 }
