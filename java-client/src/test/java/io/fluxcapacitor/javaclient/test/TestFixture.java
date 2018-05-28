@@ -76,4 +76,9 @@ public class TestFixture extends AbstractTestFixture {
     protected Object getDispatchResult(CompletableFuture<?> dispatchResult) {
         return dispatchResult.getNow(null);
     }
+
+    @Override
+    protected void deregisterHandlers(Registration registration) {
+        registration.cancel();
+    }
 }

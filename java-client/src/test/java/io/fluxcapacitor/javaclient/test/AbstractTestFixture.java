@@ -28,17 +28,13 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.Executors;
-import java.util.concurrent.ScheduledExecutorService;
 import java.util.function.Function;
 
 import static io.fluxcapacitor.common.MessageType.COMMAND;
 import static io.fluxcapacitor.common.MessageType.EVENT;
-import static java.util.concurrent.TimeUnit.SECONDS;
 
 public abstract class AbstractTestFixture implements Given, When {
-
-    private final ScheduledExecutorService deregistrationService = Executors.newSingleThreadScheduledExecutor();
+    
     private final FluxCapacitor fluxCapacitor;
     private final Registration registration;
     private final GivenWhenThenInterceptor interceptor;
@@ -60,6 +56,8 @@ public abstract class AbstractTestFixture implements Given, When {
     protected abstract void registerEvent(Message event);
     
     protected abstract Object getDispatchResult(CompletableFuture<?> dispatchResult);
+
+    protected abstract void deregisterHandlers(Registration registration);
 
     @Override
     public When givenCommands(Object... commands) {
@@ -110,7 +108,7 @@ public abstract class AbstractTestFixture implements Given, When {
             }
             return createResultValidator(result);
         } finally {
-            deregistrationService.schedule(registration::cancel, 1L, SECONDS);
+            deregisterHandlers(registration);
             FluxCapacitor.instance.remove();
         }
     }
@@ -122,7 +120,7 @@ public abstract class AbstractTestFixture implements Given, When {
             fluxCapacitor.eventGateway().publish(interceptor.trace(event, EVENT));
             return createResultValidator(null);
         } finally {
-            deregistrationService.schedule(registration::cancel, 1L, SECONDS);
+            deregisterHandlers(registration);
             FluxCapacitor.instance.remove();
         }
     }
@@ -139,7 +137,7 @@ public abstract class AbstractTestFixture implements Given, When {
             }
             return createResultValidator(result);
         } finally {
-            deregistrationService.schedule(registration::cancel, 1L, SECONDS);
+            deregisterHandlers(registration);
             FluxCapacitor.instance.remove();
         }
     }

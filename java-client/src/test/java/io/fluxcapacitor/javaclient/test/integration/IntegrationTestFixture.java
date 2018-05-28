@@ -28,14 +28,19 @@ import java.util.List;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.Executors;
 import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
+
+import static java.util.concurrent.TimeUnit.SECONDS;
 
 public class IntegrationTestFixture extends AbstractTestFixture {
 
     private final BlockingQueue<Message> events = new LinkedBlockingQueue<>();
     private final BlockingQueue<Message> commands = new LinkedBlockingQueue<>();
+    private final ScheduledExecutorService deregistrationService = Executors.newSingleThreadScheduledExecutor();
 
     public static IntegrationTestFixture create(Object... handlers) {
         return new IntegrationTestFixture(DefaultFluxCapacitor.builder(), fc -> Arrays.asList(handlers));
@@ -85,5 +90,10 @@ public class IntegrationTestFixture extends AbstractTestFixture {
         } catch (ExecutionException e) {
             throw e.getCause();
         }
+    }
+
+    @Override
+    protected void deregisterHandlers(Registration registration) {
+        deregistrationService.schedule(registration::cancel, 1L, SECONDS);
     }
 }
