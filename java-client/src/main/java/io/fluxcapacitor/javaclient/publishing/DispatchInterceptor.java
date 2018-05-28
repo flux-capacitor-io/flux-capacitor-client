@@ -23,7 +23,7 @@ import java.util.function.Function;
 public interface DispatchInterceptor {
     Function<Message, SerializedMessage> interceptDispatch(Function<Message, SerializedMessage> function);
 
-    default DispatchInterceptor merge(DispatchInterceptor outerInterceptor) {
-        return f -> outerInterceptor.interceptDispatch(interceptDispatch(f));
+    default DispatchInterceptor merge(DispatchInterceptor nextInterceptor) {
+        return f -> interceptDispatch(nextInterceptor.interceptDispatch(f));
     }
 }

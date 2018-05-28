@@ -25,8 +25,8 @@ public interface HandlerInterceptor {
     Function<DeserializingMessage, Object> interceptHandling(Function<DeserializingMessage, Object> function,
                                                              Object handler, String consumer);
 
-    default HandlerInterceptor merge(HandlerInterceptor outerInterceptor) {
-        return (f, h, c) -> outerInterceptor.interceptHandling(interceptHandling(f, h, c), h, c);
+    default HandlerInterceptor merge(HandlerInterceptor nextInterceptor) {
+        return (f, h, c) -> interceptHandling(nextInterceptor.interceptHandling(f, h, c), h, c);
     }
     
     default Handler<DeserializingMessage> wrap(Handler<DeserializingMessage> handler, String consumer) {

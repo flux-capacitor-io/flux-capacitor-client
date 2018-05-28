@@ -24,12 +24,12 @@ public interface BatchInterceptor {
 
     Consumer<MessageBatch> intercept(Consumer<MessageBatch> consumer, Tracker tracker);
 
-    default BatchInterceptor merge(BatchInterceptor outerBatchInterceptor) {
-        return (c, t) -> outerBatchInterceptor.intercept(intercept(c, t), t);
+    default BatchInterceptor merge(BatchInterceptor nextInterceptor) {
+        return (c, t) -> intercept(nextInterceptor.intercept(c, t), t);
     }
 
     static BatchInterceptor join(List<BatchInterceptor> interceptors) {
-        return interceptors.stream().reduce((a, b) -> b.merge(a)).orElse((c, t) -> c);
+        return interceptors.stream().reduce(BatchInterceptor::merge).orElse((c, t) -> c);
     }
 
 }
