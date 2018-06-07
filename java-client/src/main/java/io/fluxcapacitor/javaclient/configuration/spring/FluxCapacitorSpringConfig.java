@@ -85,7 +85,7 @@ public class FluxCapacitorSpringConfig implements BeanPostProcessor {
     @Bean
     @ConditionalOnMissingBean
     public FluxCapacitor fluxCapacitor(FluxCapacitorBuilder builder) {
-        Client client = getBean(Client.class).orElse(getBean(WebSocketClient.Properties.class).<Client>map(
+        Client client = getBean(Client.class).orElseGet(() -> getBean(WebSocketClient.Properties.class).<Client>map(
                 WebSocketClient::newInstance).orElseGet(() -> {
             log.info("Using in-memory Flux Capacitor client");
             return InMemoryClient.newInstance();
