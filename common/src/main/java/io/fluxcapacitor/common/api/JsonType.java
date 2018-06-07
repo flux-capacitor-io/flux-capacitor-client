@@ -16,18 +16,35 @@ package io.fluxcapacitor.common.api;
 
 import com.fasterxml.jackson.annotation.JsonSubTypes;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
-import io.fluxcapacitor.common.api.eventsourcing.*;
-import io.fluxcapacitor.common.api.keyvalue.*;
+import io.fluxcapacitor.common.api.eventsourcing.AppendEvents;
+import io.fluxcapacitor.common.api.eventsourcing.AppendEventsAction;
+import io.fluxcapacitor.common.api.eventsourcing.GetEvents;
+import io.fluxcapacitor.common.api.eventsourcing.GetEventsAction;
+import io.fluxcapacitor.common.api.eventsourcing.GetEventsResult;
+import io.fluxcapacitor.common.api.keyvalue.DeleteValue;
+import io.fluxcapacitor.common.api.keyvalue.DeleteValueAction;
+import io.fluxcapacitor.common.api.keyvalue.GetValue;
+import io.fluxcapacitor.common.api.keyvalue.GetValueAction;
+import io.fluxcapacitor.common.api.keyvalue.GetValueResult;
+import io.fluxcapacitor.common.api.keyvalue.StoreValues;
+import io.fluxcapacitor.common.api.keyvalue.StoreValuesAction;
 import io.fluxcapacitor.common.api.publishing.Append;
 import io.fluxcapacitor.common.api.publishing.AppendAction;
 import io.fluxcapacitor.common.api.scheduling.CancelSchedule;
 import io.fluxcapacitor.common.api.scheduling.CancelScheduleAction;
 import io.fluxcapacitor.common.api.scheduling.Schedule;
 import io.fluxcapacitor.common.api.scheduling.ScheduleAction;
-import io.fluxcapacitor.common.api.tracking.*;
+import io.fluxcapacitor.common.api.tracking.Read;
+import io.fluxcapacitor.common.api.tracking.ReadAction;
+import io.fluxcapacitor.common.api.tracking.ReadResult;
+import io.fluxcapacitor.common.api.tracking.StorePosition;
+import io.fluxcapacitor.common.api.tracking.StorePositionAction;
 
 @JsonTypeInfo(use = JsonTypeInfo.Id.NAME)
 @JsonSubTypes({
+        //common
+        @JsonSubTypes.Type(value=VoidResult.class, name="void"),
+        
         //publishing
         @JsonSubTypes.Type(value=Append.class, name="append"),
         @JsonSubTypes.Type(value=AppendAction.class, name="appendAction"),
