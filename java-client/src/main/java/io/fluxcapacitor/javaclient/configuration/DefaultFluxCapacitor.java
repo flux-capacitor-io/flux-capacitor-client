@@ -350,7 +350,7 @@ public class DefaultFluxCapacitor implements FluxCapacitor {
                     new DefaultEventSourcing(eventStore, snapshotRepository, new DefaultCache());
 
             //register event sourcing as the outermost handler interceptor
-            handlerInterceptors.compute(COMMAND, (t, i) -> eventSourcing.merge(i));
+            handlerInterceptors.compute(COMMAND, (t, i) -> i.merge(eventSourcing));
 
             //create gateways
             ResultGateway resultGateway =
