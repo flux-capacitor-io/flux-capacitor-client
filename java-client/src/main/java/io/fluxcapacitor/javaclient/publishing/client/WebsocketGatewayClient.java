@@ -21,7 +21,7 @@ import io.fluxcapacitor.common.api.SerializedMessage;
 import io.fluxcapacitor.common.api.publishing.Append;
 import io.fluxcapacitor.common.serialization.websocket.JsonDecoder;
 import io.fluxcapacitor.common.serialization.websocket.JsonEncoder;
-import io.fluxcapacitor.javaclient.common.websocket.AbstractWebsocketService;
+import io.fluxcapacitor.javaclient.common.websocket.AbstractWebsocketClient;
 
 import javax.websocket.ClientEndpoint;
 import javax.websocket.EncodeException;
@@ -31,7 +31,7 @@ import java.util.List;
 import java.util.function.Consumer;
 
 @ClientEndpoint(encoders = JsonEncoder.class, decoders = JsonDecoder.class)
-public class WebsocketGatewayClient extends AbstractWebsocketService implements GatewayClient {
+public class WebsocketGatewayClient extends AbstractWebsocketClient implements GatewayClient {
 
     private final Backlog<SerializedMessage> backlog;
 

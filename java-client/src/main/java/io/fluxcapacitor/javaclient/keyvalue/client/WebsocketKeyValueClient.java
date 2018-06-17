@@ -17,10 +17,14 @@ package io.fluxcapacitor.javaclient.keyvalue.client;
 import io.fluxcapacitor.common.Awaitable;
 import io.fluxcapacitor.common.Backlog;
 import io.fluxcapacitor.common.api.Data;
-import io.fluxcapacitor.common.api.keyvalue.*;
+import io.fluxcapacitor.common.api.keyvalue.DeleteValue;
+import io.fluxcapacitor.common.api.keyvalue.GetValue;
+import io.fluxcapacitor.common.api.keyvalue.GetValueResult;
+import io.fluxcapacitor.common.api.keyvalue.KeyValuePair;
+import io.fluxcapacitor.common.api.keyvalue.StoreValues;
 import io.fluxcapacitor.common.serialization.websocket.JsonDecoder;
 import io.fluxcapacitor.common.serialization.websocket.JsonEncoder;
-import io.fluxcapacitor.javaclient.common.websocket.AbstractWebsocketService;
+import io.fluxcapacitor.javaclient.common.websocket.AbstractWebsocketClient;
 import lombok.extern.slf4j.Slf4j;
 
 import javax.websocket.ClientEndpoint;
@@ -29,7 +33,7 @@ import java.util.List;
 
 @Slf4j
 @ClientEndpoint(encoders = JsonEncoder.class, decoders = JsonDecoder.class)
-public class WebsocketKeyValueClient extends AbstractWebsocketService implements KeyValueClient {
+public class WebsocketKeyValueClient extends AbstractWebsocketClient implements KeyValueClient {
 
     private final Backlog<KeyValuePair> backlog;
 
