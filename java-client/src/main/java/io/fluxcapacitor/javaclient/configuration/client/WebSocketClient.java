@@ -15,10 +15,14 @@ import lombok.AllArgsConstructor;
 import lombok.NonNull;
 import lombok.Value;
 
-import java.lang.management.ManagementFactory;
 import java.util.function.Function;
 
-import static io.fluxcapacitor.javaclient.common.websocket.ServiceUrlBuilder.*;
+import static io.fluxcapacitor.javaclient.common.websocket.ServiceUrlBuilder.consumerUrl;
+import static io.fluxcapacitor.javaclient.common.websocket.ServiceUrlBuilder.eventSourcingUrl;
+import static io.fluxcapacitor.javaclient.common.websocket.ServiceUrlBuilder.keyValueUrl;
+import static io.fluxcapacitor.javaclient.common.websocket.ServiceUrlBuilder.producerUrl;
+import static io.fluxcapacitor.javaclient.common.websocket.ServiceUrlBuilder.schedulingUrl;
+import static java.util.UUID.randomUUID;
 
 public class WebSocketClient extends AbstractClient {
 
@@ -50,7 +54,7 @@ public class WebSocketClient extends AbstractClient {
         private final String typeFilter;
 
         public Properties(String name, String serviceBaseUrl) {
-            this(name, ManagementFactory.getRuntimeMXBean().getName(), serviceBaseUrl, null);
+            this(name, randomUUID().toString(), serviceBaseUrl, null);
         }
     }
 }
