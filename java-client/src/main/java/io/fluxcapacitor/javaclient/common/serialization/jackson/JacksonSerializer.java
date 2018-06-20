@@ -28,11 +28,13 @@ import java.util.stream.Stream;
 
 import static com.fasterxml.jackson.databind.DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES;
 import static com.fasterxml.jackson.databind.SerializationFeature.FAIL_ON_EMPTY_BEANS;
+import static com.fasterxml.jackson.databind.SerializationFeature.WRITE_DATES_AS_TIMESTAMPS;
 import static java.lang.String.format;
 
 public class JacksonSerializer extends AbstractSerializer {
     public static final ObjectMapper defaultObjectMapper = new ObjectMapper()
-            .findAndRegisterModules().disable(FAIL_ON_EMPTY_BEANS).disable(FAIL_ON_UNKNOWN_PROPERTIES);
+            .findAndRegisterModules().disable(FAIL_ON_EMPTY_BEANS)
+            .disable(WRITE_DATES_AS_TIMESTAMPS).disable(FAIL_ON_UNKNOWN_PROPERTIES);
 
     private final ObjectMapper objectMapper;
 
