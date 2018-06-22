@@ -61,6 +61,7 @@ import io.fluxcapacitor.javaclient.tracking.DefaultTracking;
 import io.fluxcapacitor.javaclient.tracking.Tracking;
 import io.fluxcapacitor.javaclient.tracking.TrackingException;
 import io.fluxcapacitor.javaclient.tracking.handling.DefaultHandlerFactory;
+import io.fluxcapacitor.javaclient.tracking.handling.DeserializingMessageParameterResolver;
 import io.fluxcapacitor.javaclient.tracking.handling.HandleCommand;
 import io.fluxcapacitor.javaclient.tracking.handling.HandleError;
 import io.fluxcapacitor.javaclient.tracking.handling.HandleEvent;
@@ -199,7 +200,7 @@ public class DefaultFluxCapacitor implements FluxCapacitor {
         private boolean collectApplicationMetrics;
 
         protected List<ParameterResolver<? super DeserializingMessage>> defaultHandlerParameterResolvers() {
-            return new ArrayList<>(Arrays.asList(new PayloadParameterResolver(), new MetadataParameterResolver()));
+            return new ArrayList<>(Arrays.asList(new PayloadParameterResolver(), new MetadataParameterResolver(), new DeserializingMessageParameterResolver()));
         }
 
         protected Map<MessageType, List<ConsumerConfiguration>> defaultConfigurations() {
