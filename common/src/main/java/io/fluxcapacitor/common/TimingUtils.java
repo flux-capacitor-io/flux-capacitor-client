@@ -87,6 +87,9 @@ public class TimingUtils {
                     currentThread().interrupt();
                     throw new IllegalStateException("Thread interrupted while retrying task " + task);
                 }
+            } catch (Error e) {
+                log.error("Task {} failed with error. Will not retry.", task, e);
+                throw e;
             }
         }
         return null;
