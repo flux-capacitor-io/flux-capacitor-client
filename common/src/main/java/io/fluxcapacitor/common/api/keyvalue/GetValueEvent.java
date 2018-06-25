@@ -12,15 +12,16 @@
  * limitations under the License.
  */
 
-package io.fluxcapacitor.common.api.scheduling;
+package io.fluxcapacitor.common.api.keyvalue;
 
-import io.fluxcapacitor.common.api.ClientAction;
+import io.fluxcapacitor.common.api.ClientEvent;
 import lombok.Value;
 
 @Value
-public class ScheduleAction implements ClientAction {
+public class GetValueEvent implements ClientEvent {
     String client;
+    String clientId;
     long timestamp = System.currentTimeMillis();
 
-    int size;
+    String key;
 }

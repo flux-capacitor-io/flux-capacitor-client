@@ -18,10 +18,10 @@ import com.codahale.metrics.Meter;
 import com.codahale.metrics.MetricFilter;
 import com.codahale.metrics.MetricRegistry;
 import com.codahale.metrics.graphite.Graphite;
-import io.fluxcapacitor.common.api.ClientAction;
-import io.fluxcapacitor.common.api.publishing.AppendAction;
-import io.fluxcapacitor.common.api.tracking.ReadAction;
-import io.fluxcapacitor.common.api.tracking.StorePositionAction;
+import io.fluxcapacitor.common.api.ClientEvent;
+import io.fluxcapacitor.common.api.publishing.AppendEvent;
+import io.fluxcapacitor.common.api.tracking.ReadEvent;
+import io.fluxcapacitor.common.api.tracking.StorePositionEvent;
 import io.fluxcapacitor.javaclient.tracking.handling.HandleMetrics;
 import lombok.extern.slf4j.Slf4j;
 
@@ -60,21 +60,21 @@ public class GraphiteReporter extends MetricsReporter {
     }
 
     @HandleMetrics
-    public void handle(AppendAction action) {
+    public void handle(AppendEvent action) {
         getMeter(action, action.getLog()).mark(action.getSize());
     }
 
     @HandleMetrics
-    public void handle(ReadAction action) {
+    public void handle(ReadEvent action) {
         getMeter(action, action.getLog()).mark(action.getSize());
     }
 
     @HandleMetrics
-    public void handle(StorePositionAction action) {
+    public void handle(StorePositionEvent action) {
         getMeter(action, action.getLog()).mark();
     }
 
-    private Meter getMeter(ClientAction action, String log) {
+    private Meter getMeter(ClientEvent action, String log) {
         String meterName = String.format("%s/%s/%s", action.getClass().getSimpleName(), action.getClient(), log);
         return metrics.meter(meterName);
     }

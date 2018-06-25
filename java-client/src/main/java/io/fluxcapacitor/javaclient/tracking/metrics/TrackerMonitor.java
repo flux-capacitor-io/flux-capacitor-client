@@ -25,7 +25,7 @@ public class TrackerMonitor implements BatchInterceptor {
             consumer.accept(batch);
             long nsDuration = start.until(Instant.now(), ChronoUnit.NANOS);
             try {
-                publishMetrics(new ProcessBatchAction(
+                publishMetrics(new ProcessBatchEvent(
                         FluxCapacitor.get().client().name(), FluxCapacitor.get().client().id(), tracker.getName(),
                         tracker.getChannel(), batch.getSize(), nsDuration));
             } catch (Exception e) {

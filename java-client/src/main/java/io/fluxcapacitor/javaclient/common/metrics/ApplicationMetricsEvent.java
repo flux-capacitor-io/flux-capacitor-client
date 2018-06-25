@@ -1,14 +1,13 @@
 package io.fluxcapacitor.javaclient.common.metrics;
 
-import io.fluxcapacitor.common.api.ClientAction;
+import io.fluxcapacitor.common.api.ClientEvent;
 import lombok.Value;
 
 @Value
-public class ApplicationMetrics implements ClientAction {
+public class ApplicationMetricsEvent implements ClientEvent {
     String client;
-    long timestamp = System.currentTimeMillis();
-
     String clientId;
+    long timestamp = System.currentTimeMillis();
 
     double cpuUsage;
     long memoryUsage;

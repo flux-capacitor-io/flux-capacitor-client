@@ -17,66 +17,68 @@ package io.fluxcapacitor.common.api;
 import com.fasterxml.jackson.annotation.JsonSubTypes;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import io.fluxcapacitor.common.api.eventsourcing.AppendEvents;
-import io.fluxcapacitor.common.api.eventsourcing.AppendEventsAction;
+import io.fluxcapacitor.common.api.eventsourcing.AppendEventsEvent;
 import io.fluxcapacitor.common.api.eventsourcing.GetEvents;
-import io.fluxcapacitor.common.api.eventsourcing.GetEventsAction;
+import io.fluxcapacitor.common.api.eventsourcing.GetEventsEvent;
 import io.fluxcapacitor.common.api.eventsourcing.GetEventsResult;
 import io.fluxcapacitor.common.api.keyvalue.DeleteValue;
-import io.fluxcapacitor.common.api.keyvalue.DeleteValueAction;
+import io.fluxcapacitor.common.api.keyvalue.DeleteValueEvent;
 import io.fluxcapacitor.common.api.keyvalue.GetValue;
-import io.fluxcapacitor.common.api.keyvalue.GetValueAction;
+import io.fluxcapacitor.common.api.keyvalue.GetValueEvent;
 import io.fluxcapacitor.common.api.keyvalue.GetValueResult;
 import io.fluxcapacitor.common.api.keyvalue.StoreValues;
-import io.fluxcapacitor.common.api.keyvalue.StoreValuesAction;
+import io.fluxcapacitor.common.api.keyvalue.StoreValuesEvent;
 import io.fluxcapacitor.common.api.publishing.Append;
-import io.fluxcapacitor.common.api.publishing.AppendAction;
+import io.fluxcapacitor.common.api.publishing.AppendEvent;
 import io.fluxcapacitor.common.api.scheduling.CancelSchedule;
-import io.fluxcapacitor.common.api.scheduling.CancelScheduleAction;
+import io.fluxcapacitor.common.api.scheduling.CancelScheduleEvent;
 import io.fluxcapacitor.common.api.scheduling.Schedule;
-import io.fluxcapacitor.common.api.scheduling.ScheduleAction;
+import io.fluxcapacitor.common.api.scheduling.ScheduleEvent;
 import io.fluxcapacitor.common.api.tracking.Read;
-import io.fluxcapacitor.common.api.tracking.ReadAction;
+import io.fluxcapacitor.common.api.tracking.ReadEvent;
 import io.fluxcapacitor.common.api.tracking.ReadResult;
 import io.fluxcapacitor.common.api.tracking.StorePosition;
-import io.fluxcapacitor.common.api.tracking.StorePositionAction;
+import io.fluxcapacitor.common.api.tracking.StorePositionEvent;
 
 @JsonTypeInfo(use = JsonTypeInfo.Id.NAME)
 @JsonSubTypes({
         //common
         @JsonSubTypes.Type(value=VoidResult.class, name="void"),
-        
+        @JsonSubTypes.Type(value=ConnectEvent.class, name="connectEvent"),
+        @JsonSubTypes.Type(value=DisconnectEvent.class, name="disconnectEvent"),
+                
         //publishing
         @JsonSubTypes.Type(value=Append.class, name="append"),
-        @JsonSubTypes.Type(value=AppendAction.class, name="appendAction"),
+        @JsonSubTypes.Type(value=AppendEvent.class, name="appendEvent"),
 
         //tracking
         @JsonSubTypes.Type(value=Read.class, name="read"),
         @JsonSubTypes.Type(value=ReadResult.class, name="readResult"),
-        @JsonSubTypes.Type(value=ReadAction.class, name="readAction"),
+        @JsonSubTypes.Type(value=ReadEvent.class, name="readEvent"),
         @JsonSubTypes.Type(value=StorePosition.class, name="storePosition"),
-        @JsonSubTypes.Type(value=StorePositionAction.class, name="storePositionAction"),
+        @JsonSubTypes.Type(value=StorePositionEvent.class, name="storePositionEvent"),
 
         //event sourcing
         @JsonSubTypes.Type(value=AppendEvents.class, name="appendEvents"),
-        @JsonSubTypes.Type(value=AppendEventsAction.class, name="appendEventsAction"),
+        @JsonSubTypes.Type(value=AppendEventsEvent.class, name="appendEventsEvent"),
         @JsonSubTypes.Type(value=GetEvents.class, name="getEvents"),
-        @JsonSubTypes.Type(value=GetEventsAction.class, name="getEventsAction"),
+        @JsonSubTypes.Type(value=GetEventsEvent.class, name="getEventsEvent"),
         @JsonSubTypes.Type(value=GetEventsResult.class, name="getEventsResult"),
 
         //scheduling
         @JsonSubTypes.Type(value=Schedule.class, name="schedule"),
-        @JsonSubTypes.Type(value=ScheduleAction.class, name="scheduleAction"),
+        @JsonSubTypes.Type(value=ScheduleEvent.class, name="scheduleEvent"),
         @JsonSubTypes.Type(value=CancelSchedule.class, name="cancelSchedule"),
-        @JsonSubTypes.Type(value=CancelScheduleAction.class, name="cancelScheduleAction"),
+        @JsonSubTypes.Type(value=CancelScheduleEvent.class, name="cancelScheduleEvent"),
 
         //key-value
         @JsonSubTypes.Type(value=StoreValues.class, name="storeValues"),
-        @JsonSubTypes.Type(value=StoreValuesAction.class, name="storeValuesAction"),
+        @JsonSubTypes.Type(value=StoreValuesEvent.class, name="storeValuesEvent"),
         @JsonSubTypes.Type(value=GetValue.class, name="getValue"),
-        @JsonSubTypes.Type(value=GetValueAction.class, name="getValueAction"),
+        @JsonSubTypes.Type(value=GetValueEvent.class, name="getValueEvent"),
         @JsonSubTypes.Type(value=GetValueResult.class, name="getValueResult"),
         @JsonSubTypes.Type(value=DeleteValue.class, name="deleteValue"),
-        @JsonSubTypes.Type(value=DeleteValueAction.class, name="deleteValueAction"),
+        @JsonSubTypes.Type(value=DeleteValueEvent.class, name="deleteValueEvent"),
 })
 public interface JsonType {
 }

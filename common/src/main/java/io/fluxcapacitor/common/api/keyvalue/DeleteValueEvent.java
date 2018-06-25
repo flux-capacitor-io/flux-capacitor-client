@@ -14,15 +14,14 @@
 
 package io.fluxcapacitor.common.api.keyvalue;
 
-import io.fluxcapacitor.common.api.ClientAction;
+import io.fluxcapacitor.common.api.ClientEvent;
 import lombok.Value;
 
-import java.util.List;
-
 @Value
-public class StoreValuesAction implements ClientAction {
+public class DeleteValueEvent implements ClientEvent {
     String client;
+    String clientId;
     long timestamp = System.currentTimeMillis();
 
-    List<String> keys;
+    String key;
 }

@@ -30,7 +30,7 @@ public class ApplicationMonitor {
     }
 
     protected void registerMetrics() {
-        ApplicationMetrics metrics;
+        ApplicationMetricsEvent metrics;
         try {
             double cpu = ManagementFactory.getOperatingSystemMXBean().getSystemLoadAverage();
             long memory = ManagementFactory.getMemoryMXBean().getHeapMemoryUsage().getUsed();
@@ -39,8 +39,8 @@ public class ApplicationMonitor {
                     .mapToDouble(bean -> bean.getCollectionCount() > 0 ?
                             (double) bean.getCollectionTime() / bean.getCollectionCount() : 0.0d)
                     .filter(avg -> avg > 0L).average().orElse(0);
-            metrics = new ApplicationMetrics(fluxCapacitor.client().name(), fluxCapacitor.client().id(),
-                                              cpu, memory, threadCount, garbageCollectionTimeAverage);
+            metrics = new ApplicationMetricsEvent(fluxCapacitor.client().name(), fluxCapacitor.client().id(),
+                                                  cpu, memory, threadCount, garbageCollectionTimeAverage);
         } catch (Exception e) {
             log.error("Failed to collect application metrics. Stopping application monitor.", e);
             stop();

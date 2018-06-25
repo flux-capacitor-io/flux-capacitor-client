@@ -14,16 +14,22 @@
 
 package io.fluxcapacitor.common.api.tracking;
 
-import io.fluxcapacitor.common.api.ClientAction;
+import io.fluxcapacitor.common.api.ClientEvent;
 import lombok.Value;
 
 @Value
-public class StorePositionAction implements ClientAction {
+public class ReadEvent implements ClientEvent {
     String client;
+    String clientId;
     long timestamp = System.currentTimeMillis();
 
     String log;
     String processor;
-    int[] segment;
-    long lastIndex;
+    int channel;
+    int maxSize;
+    long maxTimeout;
+
+    int size;
+    Long lastIndex;
+    long timeout;
 }

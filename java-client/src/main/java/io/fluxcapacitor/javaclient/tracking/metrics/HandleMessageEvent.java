@@ -1,16 +1,18 @@
 package io.fluxcapacitor.javaclient.tracking.metrics;
 
-import io.fluxcapacitor.common.api.ClientAction;
+import io.fluxcapacitor.common.api.ClientEvent;
 import lombok.Value;
 
 @Value
-public class ProcessBatchAction implements ClientAction {
+public class HandleMessageEvent implements ClientEvent {
     String client;
+    String clientId;
     long timestamp = System.currentTimeMillis();
 
-    String clientId;
     String consumer;
-    int channel;
-    int batchSize;
+    String handler;
+    String payloadType;
+    boolean exceptionalResult;
     long nanosecondDuration;
+
 }

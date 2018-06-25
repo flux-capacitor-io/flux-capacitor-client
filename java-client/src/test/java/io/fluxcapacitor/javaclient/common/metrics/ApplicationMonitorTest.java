@@ -32,7 +32,7 @@ class ApplicationMonitorTest {
         private final CountDownLatch countDownLatch = new CountDownLatch(1);
 
         @HandleMetrics
-        public void handle(ApplicationMetrics applicationMetrics) {
+        public void handle(ApplicationMetricsEvent metrics) {
             countDownLatch.countDown();
         }
     }

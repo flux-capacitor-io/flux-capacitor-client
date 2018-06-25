@@ -16,7 +16,7 @@ package io.fluxcapacitor.metrics;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.fluxcapacitor.common.MessageType;
-import io.fluxcapacitor.common.api.ClientAction;
+import io.fluxcapacitor.common.api.ClientEvent;
 import io.fluxcapacitor.common.api.SerializedMessage;
 import io.fluxcapacitor.common.handling.Handler;
 import io.fluxcapacitor.common.handling.HandlerInspector;
@@ -36,7 +36,7 @@ public abstract class MetricsReporter {
 
     private final ObjectMapper objectMapper;
     private final WebSocketClient.Properties clientProperties;
-    private final Handler<ClientAction> invoker;
+    private final Handler<ClientEvent> invoker;
 
     public MetricsReporter(String fluxCapacitorUrl) {
         this.objectMapper = new ObjectMapper();
@@ -51,20 +51,20 @@ public abstract class MetricsReporter {
                 this::deserialize).forEach(this::handle));
     }
 
-    private ClientAction deserialize(SerializedMessage message) {
+    private ClientEvent deserialize(SerializedMessage message) {
         try {
-            return objectMapper.readValue(message.getData().getValue(), ClientAction.class);
+            return objectMapper.readValue(message.getData().getValue(), ClientEvent.class);
         } catch (IOException e) {
-            log.error("Failed to deserialize to ClientAction", e);
+            log.error("Failed to deserialize to ClientEvent", e);
             throw new IllegalStateException(e);
         }
     }
 
-    private void handle(ClientAction action) {
+    private void handle(ClientEvent action) {
         try {
             invoker.invoke(action);
         } catch (Exception e) {
-            log.error("Failed to invoke method for ClientAction {}", action, e);
+            log.error("Failed to invoke method for ClientEvent {}", action, e);
             throw new IllegalStateException(e);
         }
     }

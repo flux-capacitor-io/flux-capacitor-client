@@ -12,16 +12,19 @@
  * limitations under the License.
  */
 
-package io.fluxcapacitor.common.api.publishing;
+package io.fluxcapacitor.common.api.tracking;
 
-import io.fluxcapacitor.common.api.ClientAction;
+import io.fluxcapacitor.common.api.ClientEvent;
 import lombok.Value;
 
 @Value
-public class AppendAction implements ClientAction {
+public class StorePositionEvent implements ClientEvent {
     String client;
+    String clientId;
     long timestamp = System.currentTimeMillis();
 
     String log;
-    int size;
+    String processor;
+    int[] segment;
+    long lastIndex;
 }

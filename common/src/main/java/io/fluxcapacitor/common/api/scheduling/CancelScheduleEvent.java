@@ -12,23 +12,16 @@
  * limitations under the License.
  */
 
-package io.fluxcapacitor.common.api.tracking;
+package io.fluxcapacitor.common.api.scheduling;
 
-import io.fluxcapacitor.common.api.ClientAction;
+import io.fluxcapacitor.common.api.ClientEvent;
 import lombok.Value;
 
 @Value
-public class ReadAction implements ClientAction {
+public class CancelScheduleEvent implements ClientEvent {
     String client;
+    String clientId;
     long timestamp = System.currentTimeMillis();
 
-    String log;
-    String processor;
-    int channel;
-    int maxSize;
-    long maxTimeout;
-
-    int size;
-    Long lastIndex;
-    long timeout;
+    String scheduleId;
 }

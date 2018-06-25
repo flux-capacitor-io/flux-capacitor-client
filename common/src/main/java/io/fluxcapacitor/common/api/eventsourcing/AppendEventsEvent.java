@@ -12,15 +12,16 @@
  * limitations under the License.
  */
 
-package io.fluxcapacitor.common.api.keyvalue;
+package io.fluxcapacitor.common.api.eventsourcing;
 
-import io.fluxcapacitor.common.api.ClientAction;
+import io.fluxcapacitor.common.api.ClientEvent;
 import lombok.Value;
 
 @Value
-public class DeleteValueAction implements ClientAction {
+public class AppendEventsEvent implements ClientEvent {
     String client;
+    String clientId;
     long timestamp = System.currentTimeMillis();
 
-    String key;
+    int size;
 }

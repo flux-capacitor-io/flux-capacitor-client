@@ -14,12 +14,13 @@
 
 package io.fluxcapacitor.common.api.eventsourcing;
 
-import io.fluxcapacitor.common.api.ClientAction;
+import io.fluxcapacitor.common.api.ClientEvent;
 import lombok.Value;
 
 @Value
-public class GetEventsAction implements ClientAction {
+public class GetEventsEvent implements ClientEvent {
     String client;
+    String clientId;
     long timestamp = System.currentTimeMillis();
 
     String aggregateId;

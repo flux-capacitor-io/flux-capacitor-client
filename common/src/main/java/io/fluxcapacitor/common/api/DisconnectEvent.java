@@ -12,15 +12,16 @@
  * limitations under the License.
  */
 
-package io.fluxcapacitor.common.api.eventsourcing;
+package io.fluxcapacitor.common.api;
 
-import io.fluxcapacitor.common.api.ClientAction;
 import lombok.Value;
 
 @Value
-public class AppendEventsAction implements ClientAction {
+public class DisconnectEvent implements ClientEvent {
     String client;
+    String clientId;
     long timestamp = System.currentTimeMillis();
-
-    int size;
+    
+    int code;
+    String reason;
 }
