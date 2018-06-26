@@ -38,7 +38,7 @@ public class MessageOriginProvider implements CorrelationDataProvider {
         Long index = message.getSerializedObject().getIndex();
         if (index != null) {
             String correlationId = index.toString();
-            result.put(correlationId, correlationId);
+            result.put(this.correlationId, correlationId);
             result.put(traceId, message.getMetadata().getOrDefault(traceId, correlationId));
         }
         result.put(trigger, message.getSerializedObject().getData().getType());
