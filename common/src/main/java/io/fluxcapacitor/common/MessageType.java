@@ -20,8 +20,5 @@ import lombok.Getter;
 @AllArgsConstructor
 @Getter
 public enum MessageType {
-    COMMAND(false), EVENT(false), NOTIFICATION(false), QUERY(false), RESULT(true), SCHEDULE(false), ERROR(true),
-    METRICS(false);
-
-    private final boolean targeted;
+    COMMAND, EVENT, NOTIFICATION, QUERY, RESULT, SCHEDULE, ERROR, METRICS;
 }
