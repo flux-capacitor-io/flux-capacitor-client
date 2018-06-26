@@ -30,10 +30,12 @@ public class SerializedMessage implements SerializedObject<byte[], SerializedMes
     private String source;
     private String target;
     private Integer requestId;
+    private Long timestamp;
 
     public SerializedMessage(Data<byte[]> data, Metadata metadata) {
         this.data = data;
         this.metadata = metadata;
+        this.timestamp = System.currentTimeMillis();
     }
 
     @Override
