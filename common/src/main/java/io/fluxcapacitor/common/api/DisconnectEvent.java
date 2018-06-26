@@ -21,7 +21,7 @@ public class DisconnectEvent implements ClientEvent {
     String client;
     String clientId;
     long timestamp = System.currentTimeMillis();
-    
+    String service;
     int code;
     String reason;
 }

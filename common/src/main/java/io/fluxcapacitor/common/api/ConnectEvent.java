@@ -21,4 +21,5 @@ public class ConnectEvent implements ClientEvent {
     String client;
     String clientId;
     long timestamp = System.currentTimeMillis();
+    String service;
 }
