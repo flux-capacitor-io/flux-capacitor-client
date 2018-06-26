@@ -359,7 +359,7 @@ public class DefaultFluxCapacitor implements FluxCapacitor {
                                              new MessageSerializer(serializer, dispatchInterceptors.get(RESULT),
                                                                    RESULT));
             RequestHandler requestHandler =
-                    new DefaultRequestHandler(client.getTrackingClient(RESULT), serializer, client.id());
+                    new DefaultRequestHandler(client.getTrackingClient(RESULT), serializer, client.name(), client.id());
             CommandGateway commandGateway =
                     new DefaultCommandGateway(createGenericGateway(client, COMMAND, requestHandler,
                                                                    dispatchInterceptors.get(COMMAND),

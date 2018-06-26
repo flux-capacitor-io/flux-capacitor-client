@@ -17,7 +17,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Consumer;
 
 import static io.fluxcapacitor.common.MessageType.RESULT;
-import static io.fluxcapacitor.javaclient.tracking.ConsumerConfiguration.DEFAULT_CONSUMER_NAME;
+import static java.lang.String.format;
 
 @AllArgsConstructor
 @Slf4j
@@ -25,6 +25,7 @@ public class DefaultRequestHandler implements RequestHandler {
 
     private final TrackingClient trackingClient;
     private final Serializer serializer;
+    private final String clientName;
     private final String clientId;
     private final Map<Integer, CompletableFuture<Message>> callbacks = new ConcurrentHashMap<>();
     private final AtomicInteger nextId = new AtomicInteger();
@@ -34,7 +35,7 @@ public class DefaultRequestHandler implements RequestHandler {
     public CompletableFuture<Message> sendRequest(SerializedMessage request,
                                                   Consumer<SerializedMessage> requestSender) {
         if (started.compareAndSet(false, true)) {
-            TrackingUtils.start(DEFAULT_CONSUMER_NAME.apply(RESULT), trackingClient, this::handleMessages);
+            TrackingUtils.start(format("%s_RESULT", clientName), trackingClient, this::handleMessages);
         }
         CompletableFuture<Message> result = new CompletableFuture<>();
         int requestId = nextId.getAndIncrement();
