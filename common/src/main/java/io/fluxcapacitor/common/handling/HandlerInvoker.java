@@ -16,9 +16,9 @@ package io.fluxcapacitor.common.handling;
 
 public interface HandlerInvoker<M> {
 
-    boolean canHandle(M message);
+    boolean canHandle(Object target, M message);
 
-    boolean expectResult(M message);
+    boolean expectResult(Object target, M message);
 
     Object invoke(Object target, M message);
 

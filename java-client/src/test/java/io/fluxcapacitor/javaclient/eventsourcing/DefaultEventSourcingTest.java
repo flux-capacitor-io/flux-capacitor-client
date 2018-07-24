@@ -179,6 +179,14 @@ class DefaultEventSourcingTest {
     }
 
     @Test
+    void testCreateUsingFactoryMethodIfInstanceMethodForSamePayloadExists() {
+        executeWhileIntercepting(() -> subject.load(modelId, TestModelWithFactoryMethodAndSameInstanceMethod.class)
+                .apply(new Message(new CreateModel(), EVENT))
+                .apply(new Message(new CreateModel(), EVENT)))
+                .apply(toDeserializingMessage("command"));
+    }
+
+    @Test
     void testApplyingUnknownEventsFailsIfModelHasNoConstructorOrFactoryMethod() {
         assertThrows(HandlerNotFoundException.class, () -> executeWhileIntercepting(() -> subject.load(modelId, TestModelWithoutFactoryMethodOrConstructor.class)
                 .apply(new Message(new CreateModel(), EVENT)))
@@ -275,6 +283,19 @@ class DefaultEventSourcingTest {
     public static class TestModelWithoutFactoryMethodOrConstructor {
         @ApplyEvent
         public TestModelWithoutFactoryMethodOrConstructor handle(CreateModel event) {
+            return this;
+        }
+    }
+
+    @EventSourced
+    public static class TestModelWithFactoryMethodAndSameInstanceMethod {
+        @ApplyEvent
+        public static TestModelWithFactoryMethodAndSameInstanceMethod handleStatic(CreateModel event) {
+            return new TestModelWithFactoryMethodAndSameInstanceMethod();
+        }
+
+        @ApplyEvent
+        public TestModelWithFactoryMethodAndSameInstanceMethod handle(CreateModel event) {
             return this;
         }
     }

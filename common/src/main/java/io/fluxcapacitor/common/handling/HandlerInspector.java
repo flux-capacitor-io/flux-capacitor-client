@@ -88,13 +88,19 @@ public class HandlerInspector {
         }
 
         @Override
-        public boolean canHandle(M message) {
-            return getPayloadType().isAssignableFrom(payloadTypeSupplier.apply(message));
+        public boolean canHandle(Object target, M message) {
+            if (!getPayloadType().isAssignableFrom(payloadTypeSupplier.apply(message))) {
+                return false;
+            }
+            if (target == null) {
+                return Modifier.isStatic(executable.getModifiers()) || executable instanceof Constructor;
+            }
+            return !Modifier.isStatic(executable.getModifiers()) && executable instanceof Method;
         }
 
         @Override
-        public boolean expectResult(M message) {
-            return canHandle(message) && hasReturnValue;
+        public boolean expectResult(Object target, M message) {
+            return canHandle(target, message) && hasReturnValue;
         }
 
         @Override
@@ -169,19 +175,19 @@ public class HandlerInspector {
         private final List<HandlerInvoker<M>> methodHandlers;
 
         @Override
-        public boolean canHandle(M message) {
-            return methodHandlers.stream().anyMatch(h -> h.canHandle(message));
+        public boolean canHandle(Object target, M message) {
+            return methodHandlers.stream().anyMatch(h -> h.canHandle(target, message));
         }
 
         @Override
-        public boolean expectResult(M message) {
-            return methodHandlers.stream().anyMatch(h -> h.expectResult(message));
+        public boolean expectResult(Object target, M message) {
+            return methodHandlers.stream().anyMatch(h -> h.expectResult(target, message));
         }
 
         @Override
         public Object invoke(Object target, M message) {
             Optional<HandlerInvoker<M>> delegate =
-                    methodHandlers.stream().filter(d -> d.canHandle(message)).findFirst();
+                    methodHandlers.stream().filter(d -> d.canHandle(target, message)).findFirst();
             if (!delegate.isPresent()) {
                 throw new HandlerNotFoundException(format("No method found on %s that could handle %s", type, message));
             }
@@ -196,7 +202,7 @@ public class HandlerInspector {
 
         @Override
         public boolean canHandle(M message) {
-            return invoker.canHandle(message);
+            return invoker.canHandle(target, message);
         }
 
         @Override
