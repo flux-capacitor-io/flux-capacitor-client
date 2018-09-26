@@ -14,6 +14,7 @@
 
 package io.fluxcapacitor.common.serialization.websocket;
 
+import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.fluxcapacitor.common.api.JsonType;
 
@@ -25,7 +26,8 @@ import java.nio.ByteBuffer;
 
 public class JsonDecoder implements Decoder.Binary<JsonType> {
 
-    private static final ObjectMapper defaultMapper = new ObjectMapper();
+    private static final ObjectMapper defaultMapper = new ObjectMapper()
+            .disable(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES);
 
     private final ObjectMapper objectMapper;
 
