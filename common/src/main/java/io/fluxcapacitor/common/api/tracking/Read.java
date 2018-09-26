@@ -26,4 +26,5 @@ public class Read extends Request {
     int maxSize;
     long maxTimeout;
     String typeFilter;
+    boolean ignoreMessageTarget;
 }

@@ -38,8 +38,10 @@ public class WebsocketTrackingClient extends AbstractWebsocketClient implements 
     }
 
     @Override
-    public MessageBatch read(String consumer, int channel, int maxSize, Duration maxTimeout, String typeFilter) {
-        ReadResult readResult = sendRequest(new Read(consumer, channel, maxSize, maxTimeout.toMillis(), typeFilter));
+    public MessageBatch read(String consumer, int channel, int maxSize, Duration maxTimeout, String typeFilter,
+                             boolean ignoreMessageTarget) {
+        ReadResult readResult = sendRequest(new Read(consumer, channel, maxSize, maxTimeout.toMillis(), 
+                                                     typeFilter, ignoreMessageTarget));
         return readResult.getMessageBatch();
     }
 

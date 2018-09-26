@@ -18,6 +18,7 @@ import lombok.Builder;
 import lombok.Builder.Default;
 import lombok.Singular;
 import lombok.Value;
+import lombok.experimental.Accessors;
 
 import java.time.Duration;
 import java.util.List;
@@ -42,4 +43,7 @@ public class TrackingConfiguration {
     Duration retryDelay = Duration.ofSeconds(1);
     @Singular
     List<BatchInterceptor> batchInterceptors;
+    @Default
+    @Accessors(fluent = true)
+    boolean ignoreMessageTarget = false;
 }

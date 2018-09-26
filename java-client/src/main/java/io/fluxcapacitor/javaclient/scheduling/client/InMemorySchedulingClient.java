@@ -21,8 +21,9 @@ public class InMemorySchedulingClient extends InMemoryMessageStore implements Sc
     private final ConcurrentSkipListMap<Long, String> times = new ConcurrentSkipListMap<>();
 
     @Override
-    public MessageBatch read(String consumer, int channel, int maxSize, Duration maxTimeout, String typeFilter) {
-        MessageBatch messageBatch = super.read(consumer, channel, maxSize, maxTimeout, typeFilter);
+    public MessageBatch read(String consumer, int channel, int maxSize, Duration maxTimeout, String typeFilter,
+                             boolean ignoreMessageTarget) {
+        MessageBatch messageBatch = super.read(consumer, channel, maxSize, maxTimeout, typeFilter, ignoreMessageTarget);
         List<SerializedMessage> messages = messageBatch.getMessages().stream()
                 .filter(m -> times.containsKey(m.getIndex()))
                 .filter(m -> isMissedDeadline(timeFromIndex(m.getIndex())))

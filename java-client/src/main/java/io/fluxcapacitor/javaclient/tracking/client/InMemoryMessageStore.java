@@ -58,7 +58,8 @@ public class InMemoryMessageStore implements GatewayClient, TrackingClient {
     }
 
     @Override
-    public MessageBatch read(String consumer, int channel, int maxSize, Duration maxTimeout, String typeFilter) {
+    public MessageBatch read(String consumer, int channel, int maxSize, Duration maxTimeout, String typeFilter,
+                             boolean ignoreMessageTarget) {
         if (channel != 0) {
             return new MessageBatch(new int[]{0, 1}, Collections.emptyList(), null);
         }
