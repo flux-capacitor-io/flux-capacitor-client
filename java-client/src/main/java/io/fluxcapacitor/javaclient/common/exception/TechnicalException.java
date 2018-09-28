@@ -1,5 +1,8 @@
 package io.fluxcapacitor.javaclient.common.exception;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+
+@JsonIgnoreProperties({"localizedMessage", "cause", "stackTrace", "suppressed"})
 public class TechnicalException extends RuntimeException {
 
     public TechnicalException() {
