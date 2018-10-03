@@ -107,32 +107,38 @@ public class Backlog<T> implements Monitored<List<T>> {
     }
 
     private void flush() {
-        while (!queue.isEmpty()) {
-            List<T> batch = new ArrayList<>(maxBatchSize);
-            while (batch.size() < maxBatchSize) {
-                T value = queue.poll();
-                if (value == null) {
-                    break;
+        try {
+            while (!queue.isEmpty()) {
+                List<T> batch = new ArrayList<>(maxBatchSize);
+                while (batch.size() < maxBatchSize) {
+                    T value = queue.poll();
+                    if (value == null) {
+                        break;
+                    }
+                    batch.add(value);
                 }
-                batch.add(value);
+                Awaitable awaitable;
+                try {
+                    awaitable = consumer.accept(batch);
+                } catch (Exception e) {
+                    awaitable = Awaitable.failed(e);
+                    errorHandler.handleError(e, batch);
+                }
+                flushPosition.addAndGet(batch.size());
+                synchronized (syncObject) {
+                    syncObject.set(awaitable);
+                    syncObject.notifyAll();
+                }
+                monitors.forEach(m -> m.accept(batch));
             }
-            Awaitable awaitable;
-            try {
-                awaitable = consumer.accept(batch);
-            } catch (Exception e) {
-                awaitable = Awaitable.failed(e);
-                errorHandler.handleError(e, batch);
+            flushing.set(false);
+            if (!queue.isEmpty()) { //a value could've been added after the while loop before flushing was set to false
+                flushIfNotFlushing();
             }
-            flushPosition.addAndGet(batch.size());
-            synchronized (syncObject) {
-                syncObject.set(awaitable);
-                syncObject.notifyAll();
-            }
-            monitors.forEach(m -> m.accept(batch));
-        }
-        flushing.set(false);
-        if (!queue.isEmpty()) { //a value could've been added after the while loop before flushing was set to false
-            flushIfNotFlushing();
+        } catch (Exception e) {
+            log.error("Failed to flush the backlog", e);
+            flushing.set(false);
+            throw e;
         }
     }
 
