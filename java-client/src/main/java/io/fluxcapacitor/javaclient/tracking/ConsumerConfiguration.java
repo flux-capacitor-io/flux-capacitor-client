@@ -19,7 +19,7 @@ public class ConsumerConfiguration {
     @Default
     TrackingConfiguration trackingConfiguration = TrackingConfiguration.DEFAULT;
     @Default
-    ErrorHandler errorHandler = LoggingErrorHandler.INSTANCE;
+    ErrorHandler errorHandler = new LoggingErrorHandler();
 
     public static ConsumerConfiguration getDefault(MessageType messageType) {
         return ConsumerConfiguration.builder().name(DEFAULT_CONSUMER_NAME.apply(messageType)).build();
