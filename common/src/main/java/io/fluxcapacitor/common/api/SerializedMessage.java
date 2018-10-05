@@ -15,6 +15,7 @@
 package io.fluxcapacitor.common.api;
 
 import lombok.AllArgsConstructor;
+import lombok.NonNull;
 import lombok.experimental.Wither;
 
 @lombok.Data
@@ -22,6 +23,7 @@ import lombok.experimental.Wither;
 public class SerializedMessage implements SerializedObject<byte[], SerializedMessage> {
 
     @Wither
+    @NonNull
     private Data<byte[]> data;
     private Metadata metadata;
     @Wither
