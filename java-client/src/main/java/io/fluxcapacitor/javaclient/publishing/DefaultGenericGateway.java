@@ -80,13 +80,19 @@ public class DefaultGenericGateway implements GenericGateway {
 
     protected CompletableFuture<Message> tryHandleLocally(Object payload, SerializedMessage serializedMessage) {
         if (!localHandlers.isEmpty()) {
-            DeserializingMessage deserializingMessage =
-                    new DeserializingMessage(new DeserializingObject<>(serializedMessage, () -> payload), messageType);
-            for (Handler<DeserializingMessage> handler : localHandlers) {
-                if (handler.canHandle(deserializingMessage)) {
-                    return CompletableFuture
-                            .completedFuture(new Message(handler.invoke(deserializingMessage), messageType));
+            DeserializingMessage current = DeserializingMessage.getCurrent();
+            try {
+                DeserializingMessage deserializingMessage =
+                        new DeserializingMessage(new DeserializingObject<>(serializedMessage, () -> payload), messageType);
+                DeserializingMessage.setCurrent(deserializingMessage);
+                for (Handler<DeserializingMessage> handler : localHandlers) {
+                    if (handler.canHandle(deserializingMessage)) {
+                        return CompletableFuture
+                                .completedFuture(new Message(handler.invoke(deserializingMessage), messageType));
+                    }
                 }
+            } finally {
+                DeserializingMessage.setCurrent(current);
             }
         }
         return null;

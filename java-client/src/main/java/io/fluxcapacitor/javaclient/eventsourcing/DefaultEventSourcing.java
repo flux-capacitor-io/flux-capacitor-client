@@ -10,7 +10,11 @@ import lombok.AllArgsConstructor;
 import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
 
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Function;
 
@@ -143,7 +147,15 @@ public class DefaultEventSourcing implements EventSourcing, HandlerInterceptor {
                 Aggregate<T> aggregate = snapshotRepository.<T>getSnapshot(id).orElse(new Aggregate<>(id, -1L, null));
                 for (DeserializingMessage event : eventStore.getDomainEvents(id, aggregate.getSequenceNumber())
                         .collect(toList())) {
-                    aggregate = aggregate.update(m -> eventSourcingHandler.apply(event.toMessage(), m));
+                    aggregate = aggregate.update(m -> {
+                        DeserializingMessage current = DeserializingMessage.getCurrent();
+                        try {
+                            DeserializingMessage.setCurrent(event);
+                            return eventSourcingHandler.apply(event.toMessage(), m);
+                        } finally {
+                            DeserializingMessage.setCurrent(current);
+                        }
+                    });
                 }
                 return aggregate;
             });

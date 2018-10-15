@@ -9,6 +9,8 @@ import lombok.experimental.Delegate;
 
 @Value
 public class DeserializingMessage {
+    private static final ThreadLocal<DeserializingMessage> current = new ThreadLocal<>();
+    
     @Delegate
     DeserializingObject<byte[], SerializedMessage> delegate;
     MessageType messageType;
@@ -19,5 +21,17 @@ public class DeserializingMessage {
 
     public Message toMessage() {
         return new Message(delegate.getPayload(), getMetadata(), messageType);
+    }
+    
+    public static void setCurrent(DeserializingMessage message) {
+        current.set(message);
+    }
+
+    public static DeserializingMessage getCurrent() {
+        return current.get();
+    }
+    
+    public static void removeCurrent() {
+        current.remove();
     }
 }

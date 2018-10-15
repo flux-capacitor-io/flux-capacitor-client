@@ -90,7 +90,14 @@ public class DefaultTracking implements Tracking {
             Stream<DeserializingMessage> messages =
                     serializer.deserialize(serializedMessages.stream(), false)
                             .map(m -> new DeserializingMessage(m, messageType));
-            messages.forEach(m -> handlers.forEach(h -> tryHandle(m, h, configuration)));
+            messages.forEach(m -> {
+                try {
+                    DeserializingMessage.setCurrent(m);
+                    handlers.forEach(h -> tryHandle(m, h, configuration));
+                } finally {
+                    DeserializingMessage.removeCurrent();
+                }
+            });
         };
     }
 

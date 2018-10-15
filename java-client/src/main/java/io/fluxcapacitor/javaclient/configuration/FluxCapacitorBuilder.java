@@ -13,9 +13,24 @@ import io.fluxcapacitor.javaclient.tracking.handling.HandlerInterceptor;
 
 import java.util.function.UnaryOperator;
 
+/**
+ * Builder for a Flux Capacitor client instance.
+ */
 public interface FluxCapacitorBuilder {
+    /**
+     * Register a custom serializer. This serializer will also be used for aggregate snapshots unless a custom snapshot
+     * serializer is registered using {@link #snapshotSerializer(Serializer)}.
+     *
+     * @param serializer the serializer to register
+     * @return the modified builder
+     */
     FluxCapacitorBuilder serializer(Serializer serializer);
 
+    /**
+     * 
+     * @param serializer
+     * @return
+     */
     FluxCapacitorBuilder snapshotSerializer(Serializer serializer);
 
     FluxCapacitorBuilder configureDefaultConsumer(MessageType messageType, UnaryOperator<ConsumerConfiguration> updateFunction);
