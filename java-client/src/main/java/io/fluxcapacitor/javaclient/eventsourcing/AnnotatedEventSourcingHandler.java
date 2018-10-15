@@ -15,7 +15,8 @@ public class AnnotatedEventSourcingHandler<T> implements EventSourcingHandler<T>
     private final HandlerInvoker<Message> invoker;
 
     public AnnotatedEventSourcingHandler(Class<T> handlerType) {
-        this(handlerType, Arrays.asList(new PayloadParameterResolver(), new MetadataParameterResolver()));
+        this(handlerType, Arrays.asList(new PayloadParameterResolver(), new MetadataParameterResolver(),
+                                        new MessageParameterResolver()));
     }
 
     public AnnotatedEventSourcingHandler(Class<T> handlerType,
