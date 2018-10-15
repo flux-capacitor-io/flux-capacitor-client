@@ -16,7 +16,6 @@ package io.fluxcapacitor.javaclient.publishing;
 
 import io.fluxcapacitor.common.MessageType;
 import io.fluxcapacitor.common.Registration;
-import io.fluxcapacitor.common.api.Metadata;
 import io.fluxcapacitor.common.api.SerializedMessage;
 import io.fluxcapacitor.common.handling.Handler;
 import io.fluxcapacitor.javaclient.common.Message;
@@ -44,27 +43,27 @@ public class DefaultGenericGateway implements GenericGateway {
     private final List<Handler<DeserializingMessage>> localHandlers = new CopyOnWriteArrayList<>();
 
     @Override
-    public void sendAndForget(Object payload, Metadata metadata) {
-        SerializedMessage serializedMessage = serializer.serialize(payload, metadata);
-        CompletableFuture<Message> localResult = tryHandleLocally(payload, serializedMessage);
+    public void sendAndForget(Message message) {
+        SerializedMessage serializedMessage = serializer.serialize(message);
+        CompletableFuture<Message> localResult = tryHandleLocally(message.getPayload(), serializedMessage);
         if (localResult == null) {
             try {
                 gatewayClient.send(serializedMessage);
             } catch (Exception e) {
-                throw new GatewayException(format("Failed to send and forget %s", payload), e);
+                throw new GatewayException(format("Failed to send and forget %s", message.getPayload()), e);
             }
         }
     }
 
     @Override
-    public CompletableFuture<Message> sendForMessage(Object payload, Metadata metadata) {
-        SerializedMessage serializedMessage = serializer.serialize(payload, metadata);
-        CompletableFuture<Message> localResult = tryHandleLocally(payload, serializedMessage);
+    public CompletableFuture<Message> sendForMessage(Message message) {
+        SerializedMessage serializedMessage = serializer.serialize(message);
+        CompletableFuture<Message> localResult = tryHandleLocally(message.getPayload(), serializedMessage);
         if (localResult == null) {
             try {
                 return requestHandler.sendRequest(serializedMessage, gatewayClient::send);
             } catch (Exception e) {
-                throw new GatewayException(format("Failed to send %s", payload), e);
+                throw new GatewayException(format("Failed to send %s", message.getPayload()), e);
             }
         } else {
             return localResult;
@@ -96,5 +95,10 @@ public class DefaultGenericGateway implements GenericGateway {
             }
         }
         return null;
+    }
+
+    @Override
+    public MessageType getMessageType() {
+        return messageType;
     }
 }

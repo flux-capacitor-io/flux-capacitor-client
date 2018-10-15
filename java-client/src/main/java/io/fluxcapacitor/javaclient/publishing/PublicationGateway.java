@@ -14,6 +14,7 @@
 
 package io.fluxcapacitor.javaclient.publishing;
 
+import io.fluxcapacitor.common.MessageType;
 import io.fluxcapacitor.common.Registration;
 import io.fluxcapacitor.common.api.Metadata;
 import io.fluxcapacitor.javaclient.common.Message;
@@ -21,19 +22,17 @@ import io.fluxcapacitor.javaclient.common.Message;
 public interface PublicationGateway {
 
     default void sendAndForget(Object payload) {
-        if (payload instanceof Message) {
-            sendAndForget(((Message) payload).getPayload(), ((Message) payload).getMetadata());
-        } else {
-            sendAndForget(payload, Metadata.empty());
-        }
+        sendAndForget(payload instanceof Message ? (Message) payload : new Message(payload, getMessageType()));
     }
 
-    void sendAndForget(Object payload, Metadata metadata);
-
-    default void sendAndForget(Message message) {
-        sendAndForget(message.getPayload(), message.getMetadata());
+    default void sendAndForget(Object payload, Metadata metadata) {
+        sendAndForget(new Message(payload, metadata, getMessageType()));
     }
+    
+    void sendAndForget(Message message);
 
     Registration registerLocalHandler(Object handler);
+
+    MessageType getMessageType();
     
 }

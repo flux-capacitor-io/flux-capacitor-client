@@ -18,7 +18,7 @@ public interface CommandGateway {
 
     <R> CompletableFuture<R> send(Object payload, Metadata metadata);
 
-    CompletableFuture<Message> sendForMessage(Object payload, Metadata metadata);
+    CompletableFuture<Message> sendForMessage(Message message);
 
     <R> R sendAndWait(Object command);
 

@@ -1,6 +1,8 @@
 package io.fluxcapacitor.javaclient.publishing;
 
+import io.fluxcapacitor.common.MessageType;
 import io.fluxcapacitor.common.api.Metadata;
+import io.fluxcapacitor.javaclient.common.Message;
 import io.fluxcapacitor.javaclient.common.serialization.MessageSerializer;
 import io.fluxcapacitor.javaclient.publishing.client.GatewayClient;
 import lombok.AllArgsConstructor;
@@ -16,7 +18,7 @@ public class DefaultMetricsGateway implements MetricsGateway {
     @Override
     public void publish(Object payload, Metadata metadata) {
         try {
-            metricsGateway.send(serializer.serialize(payload, metadata));
+            metricsGateway.send(serializer.serialize(new Message(payload, metadata, MessageType.METRICS)));
         } catch (Exception e) {
             throw new GatewayException(String.format("Failed to publish metrics %s", payload), e);
         }

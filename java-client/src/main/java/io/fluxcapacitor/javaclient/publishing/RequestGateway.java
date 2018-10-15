@@ -14,6 +14,7 @@
 
 package io.fluxcapacitor.javaclient.publishing;
 
+import io.fluxcapacitor.common.MessageType;
 import io.fluxcapacitor.common.Registration;
 import io.fluxcapacitor.common.api.Metadata;
 import io.fluxcapacitor.javaclient.common.Message;
@@ -29,55 +30,50 @@ import static java.lang.Thread.currentThread;
 public interface RequestGateway {
 
     default <R> CompletableFuture<R> send(Message message) {
-        return send(message.getPayload(), message.getMetadata());
+        return sendForMessage(message).thenApply(Message::getPayload);
     }
 
     default <R> CompletableFuture<R> send(Object payload) {
-        if (payload instanceof Message) {
-            return send(((Message) payload).getPayload(), ((Message) payload).getMetadata());
-        } else {
-            return send(payload, Metadata.empty());
-        }
+        return send(payload instanceof Message ? (Message) payload : new Message(payload, getMessageType()));
     }
 
     default <R> CompletableFuture<R> send(Object payload, Metadata metadata) {
-        return sendForMessage(payload, metadata).thenApply(Message::getPayload);
+        return send(new Message(payload, metadata, getMessageType()));
     }
 
-    CompletableFuture<Message> sendForMessage(Object payload, Metadata metadata);
-
-    default <R> R sendAndWait(Message message) {
-        return sendAndWait(message.getPayload(), message.getMetadata());
-    }
+    CompletableFuture<Message> sendForMessage(Message message);
     
     default <R> R sendAndWait(Object payload) {
-        if (payload instanceof Message) {
-            return sendAndWait(((Message) payload).getPayload(), ((Message) payload).getMetadata());
-        } else {
-            return sendAndWait(payload, Metadata.empty());
-        }
+        return sendAndWait(payload instanceof Message ? (Message) payload : new Message(payload, getMessageType()));
     }
 
     @SneakyThrows
     default <R> R sendAndWait(Object payload, Metadata metadata) {
-        CompletableFuture<R> future = send(payload, metadata);
+        return sendAndWait(new Message(payload, metadata, getMessageType()));
+    }
+
+    @SneakyThrows
+    default <R> R sendAndWait(Message message) {
+        CompletableFuture<R> future = send(message);
         try {
-            Timeout timeout = payload.getClass().getAnnotation(Timeout.class);
+            Timeout timeout = message.getPayload().getClass().getAnnotation(Timeout.class);
             if (timeout != null) {
                 return future.get(timeout.millis(), TimeUnit.MILLISECONDS);
             }
             return future.get();
         } catch (java.util.concurrent.TimeoutException e) {
             throw new TimeoutException(
-                    format("%s has timed out", payload), e);
+                    format("%s has timed out", message.getPayload()), e);
         } catch (InterruptedException e) {
             currentThread().interrupt();
-            throw new GatewayException(format("Thread interrupted while waiting for result of %s", payload), e);
+            throw new GatewayException(format("Thread interrupted while waiting for result of %s", message.getPayload()), e);
         } catch (ExecutionException e) {
             throw e.getCause();
         }
     }
     
     Registration registerLocalHandler(Object target);
+    
+    MessageType getMessageType();
     
 }
