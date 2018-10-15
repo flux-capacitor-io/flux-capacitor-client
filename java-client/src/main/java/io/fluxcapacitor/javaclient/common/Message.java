@@ -8,12 +8,19 @@ import lombok.Value;
 @Value
 @AllArgsConstructor
 public class Message {
+    public static IdentityProvider identityProvider = new UuidFactory();
+    
     Object payload;
     Metadata metadata;
     MessageType messageType;
+    String messageId;
 
     public Message(Object payload, MessageType messageType) {
-        this(payload, Metadata.empty(), messageType);
+        this(payload, Metadata.empty(), messageType, identityProvider.nextId());
+    }
+
+    public Message(Object payload, Metadata metadata, MessageType messageType) {
+        this(payload, metadata, messageType, identityProvider.nextId());
     }
 
     @SuppressWarnings("unchecked")

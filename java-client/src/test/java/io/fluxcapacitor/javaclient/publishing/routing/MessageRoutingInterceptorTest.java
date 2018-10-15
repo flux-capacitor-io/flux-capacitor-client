@@ -33,7 +33,7 @@ class MessageRoutingInterceptorTest {
 
     private MessageRoutingInterceptor subject = new MessageRoutingInterceptor();
     private Function<Message, SerializedMessage> invocation = m -> new SerializedMessage(
-            new Data<>("test".getBytes(), "test", 0), Metadata.empty());
+            new Data<>("test".getBytes(), "test", 0), Metadata.empty(), "someId");
     private int expectedHash = ConsistentHashing.computeSegment("bar");
 
     @Test

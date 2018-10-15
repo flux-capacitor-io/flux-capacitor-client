@@ -30,7 +30,7 @@ public class MessageSerializer {
 
     public MessageSerializer(Serializer serializer, DispatchInterceptor dispatchInterceptor, MessageType messageType) {
         this(dispatchInterceptor.interceptDispatch(
-                m -> new SerializedMessage(serializer.serialize(m.getPayload()), m.getMetadata())), messageType);
+                m -> new SerializedMessage(serializer.serialize(m.getPayload()), m.getMetadata(), m.getMessageId())), messageType);
     }
 
     public SerializedMessage serialize(Message message) {

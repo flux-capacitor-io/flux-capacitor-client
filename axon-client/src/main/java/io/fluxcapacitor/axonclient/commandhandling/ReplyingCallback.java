@@ -69,7 +69,8 @@ public class ReplyingCallback<C, R> implements CommandCallback<C, R> {
     protected SerializedMessage toMessage(Object result, CommandMessage<? extends C> commandMessage) {
         SerializedMessage message = new SerializedMessage(new Data<>(serializer.serialize(
                 new GenericMessage<>(result, singletonMap("correlationId", commandMessage.getIdentifier()))),
-                                                                     result.getClass().getName(), 0), Metadata.empty());
+                                                                     result.getClass().getName(), 0), Metadata.empty(),
+                                                          commandMessage.getIdentifier());
         message.setTarget((String) commandMessage.getMetaData().get("sender"));
         return message;
     }

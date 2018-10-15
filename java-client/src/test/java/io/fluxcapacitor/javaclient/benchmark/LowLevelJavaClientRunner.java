@@ -30,6 +30,7 @@ import lombok.extern.slf4j.Slf4j;
 
 import java.util.Collections;
 import java.util.List;
+import java.util.UUID;
 import java.util.concurrent.CountDownLatch;
 
 @Slf4j
@@ -67,7 +68,8 @@ public class LowLevelJavaClientRunner extends AbstractClientBenchmark {
 
     @Override
     protected void doSendCommand(String payload) {
-        gatewayClient.send(new SerializedMessage(new Data<>(payload.getBytes(), String.class.getName(), 0), Metadata.empty()));
+        gatewayClient.send(new SerializedMessage(new Data<>(payload.getBytes(), String.class.getName(), 0), Metadata.empty(),
+                                                 UUID.randomUUID().toString()));
     }
 
     @HandleCommand

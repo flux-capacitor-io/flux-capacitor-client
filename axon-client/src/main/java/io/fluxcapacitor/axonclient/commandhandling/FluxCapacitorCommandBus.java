@@ -21,7 +21,11 @@ import io.fluxcapacitor.common.api.Data;
 import io.fluxcapacitor.common.api.Metadata;
 import io.fluxcapacitor.common.api.SerializedMessage;
 import io.fluxcapacitor.javaclient.publishing.client.GatewayClient;
-import org.axonframework.commandhandling.*;
+import org.axonframework.commandhandling.CommandBus;
+import org.axonframework.commandhandling.CommandCallback;
+import org.axonframework.commandhandling.CommandMessage;
+import org.axonframework.commandhandling.MonitorAwareCallback;
+import org.axonframework.commandhandling.SimpleCommandBus;
 import org.axonframework.commandhandling.distributed.RoutingStrategy;
 import org.axonframework.common.Registration;
 import org.axonframework.messaging.MessageDispatchInterceptor;
@@ -84,7 +88,8 @@ public class FluxCapacitorCommandBus implements CommandBus {
     public <C, R> void dispatch(CommandMessage<C> command, CommandCallback<? super C, R> callback) {
         CommandMessage<? extends C> intercepted = intercept(command);
         MonitorAwareCallback<? super C, R>
-                monitorAwareCallback = new MonitorAwareCallback<>(callback, messageMonitor.onMessageIngested(intercepted));
+                monitorAwareCallback =
+                new MonitorAwareCallback<>(callback, messageMonitor.onMessageIngested(intercepted));
         resultService.awaitResult(command.getIdentifier()).handle((result, e) -> {
             if (e != null) {
                 monitorAwareCallback.onFailure(intercepted, e);
@@ -102,7 +107,9 @@ public class FluxCapacitorCommandBus implements CommandBus {
 
     private SerializedMessage toFluxCapacitorMessage(CommandMessage<?> commandMessage) {
         SerializedMessage
-                result = new SerializedMessage(new Data<>(serializer.serializeCommand(commandMessage), commandMessage.getCommandName(), 0), Metadata.empty());
+                result = new SerializedMessage(
+                new Data<>(serializer.serializeCommand(commandMessage), commandMessage.getCommandName(), 0),
+                Metadata.empty(), commandMessage.getIdentifier());
         String routingKey = routingStrategy.getRoutingKey(commandMessage);
         result.setSegment(ConsistentHashing.computeSegment(routingKey));
         return result;
@@ -128,7 +135,8 @@ public class FluxCapacitorCommandBus implements CommandBus {
         return () -> dispatchInterceptors.remove(dispatchInterceptor);
     }
 
-    public Registration registerHandlerInterceptor(MessageHandlerInterceptor<? super CommandMessage<?>> handlerInterceptor) {
+    public Registration registerHandlerInterceptor(
+            MessageHandlerInterceptor<? super CommandMessage<?>> handlerInterceptor) {
         return localCommandBus.registerHandlerInterceptor(handlerInterceptor);
     }
 

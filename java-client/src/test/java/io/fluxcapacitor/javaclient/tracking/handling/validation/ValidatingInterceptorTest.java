@@ -21,7 +21,7 @@ class ValidatingInterceptorTest {
 
     private ValidatingInterceptor subject = new ValidatingInterceptor();
     private Function<Object, DeserializingMessage> messageFactory = payload -> new DeserializingMessage(
-            new DeserializingObject<>(new SerializedMessage(new Data<>("test".getBytes(), "test", 0), Metadata.empty()),
+            new DeserializingObject<>(new SerializedMessage(new Data<>("test".getBytes(), "test", 0), Metadata.empty(), "someId"),
                                       () -> payload),
             MessageType.EVENT);
 

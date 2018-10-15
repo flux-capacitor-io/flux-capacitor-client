@@ -41,7 +41,7 @@ public class TestUtils {
             byte[] randomBytes = new byte[16];
             random.nextBytes(randomBytes);
             return byteBuffer.put(randomBytes).array();
-        }).map(bytes -> new SerializedMessage(new Data<>(bytes, "test", 0), Metadata.empty()))
+        }).map(bytes -> new SerializedMessage(new Data<>(bytes, "test", 0), Metadata.empty(), "someId"))
                 .collect(Collectors.toList());
     }
 

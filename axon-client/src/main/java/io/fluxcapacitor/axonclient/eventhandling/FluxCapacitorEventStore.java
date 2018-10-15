@@ -93,7 +93,7 @@ public class FluxCapacitorEventStore extends AbstractEventBus implements EventSt
         return events.stream().map(e -> {
             SerializedMessage message =
                     new SerializedMessage(new Data<>(serializer.serializeEvent(e), e.getPayloadType().getName(), 0),
-                                          Metadata.empty());
+                                          Metadata.empty(), e.getIdentifier());
             message.setSegment(ConsistentHashing.computeSegment(getAggregateId(e)));
             return message;
         }).collect(toList());

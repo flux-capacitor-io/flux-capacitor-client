@@ -20,7 +20,8 @@ public class DeserializingMessage {
     }
 
     public Message toMessage() {
-        return new Message(delegate.getPayload(), getMetadata(), messageType);
+        return new Message(delegate.getPayload(), getMetadata(), messageType, 
+                           delegate.getSerializedObject().getMessageId());
     }
     
     public static void setCurrent(DeserializingMessage message) {
