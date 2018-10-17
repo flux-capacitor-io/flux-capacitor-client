@@ -183,9 +183,9 @@ public class DefaultEventSourcing implements EventSourcing, HandlerInterceptor {
 
         protected void commit() {
             if (!unpublishedEvents.isEmpty()) {
+                cache.put(aggregate.getId(), aggregate);
                 eventStore.storeDomainEvents(aggregate.getId(), domain, aggregate.getSequenceNumber(),
                                              new ArrayList<>(unpublishedEvents));
-                cache.put(aggregate.getId(), aggregate);
                 if (snapshotTrigger.shouldCreateSnapshot(aggregate, unpublishedEvents)) {
                     snapshotRepository.storeSnapshot(aggregate);
                 }
