@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016-2018 Flux Capacitor. 
+ * Copyright (c) 2016-2018 Flux Capacitor.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -60,7 +60,7 @@ public class AsyncResultValidator extends AbstractResultValidator {
     public Then expectCommands(List<?> commands) {
         return expectMessages(commands, COMMAND, resultingCommands);
     }
-    
+
     protected Then expectMessages(List<?> messages, MessageType messageType, BlockingQueue<Message> resultingMessages) {
         Collection<Message> expected = asMessages(messages, messageType);
         Collection<Message> actual = getActualMessages(expected, resultingMessages);
@@ -76,7 +76,7 @@ public class AsyncResultValidator extends AbstractResultValidator {
     protected Collection<Message> getActualMessages(Collection<Message> expected, BlockingQueue<Message> resultingMessages) {
         Collection<Message> result = new ArrayList<>();
         try {
-            while (!result.containsAll(expected) && !Thread.interrupted()) {
+            while ((expected.isEmpty() || !result.containsAll(expected)) && !Thread.interrupted()) {
                 Message next = resultingMessages.poll(1L, TimeUnit.SECONDS);
                 if (next == null) {
                     return result;
