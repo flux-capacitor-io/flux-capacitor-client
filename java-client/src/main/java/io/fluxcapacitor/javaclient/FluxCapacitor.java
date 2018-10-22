@@ -219,7 +219,9 @@ public interface FluxCapacitor {
     default Registration registerLocalHandlers(List<?> handlers) {
         return handlers.stream().flatMap(h -> Stream
                 .of(commandGateway().registerLocalHandler(h), queryGateway().registerLocalHandler(h),
-                    eventGateway().registerLocalHandler(h))).reduce(Registration::merge).orElse(Registration.noOp());
+                    eventGateway().registerLocalHandler(h), 
+                    eventSourcing().eventStore().registerLocalHandler(h)))
+                .reduce(Registration::merge).orElse(Registration.noOp());
     }
 
     /**

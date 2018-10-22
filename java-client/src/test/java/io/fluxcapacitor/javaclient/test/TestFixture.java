@@ -21,35 +21,34 @@ import io.fluxcapacitor.javaclient.configuration.DefaultFluxCapacitor;
 import io.fluxcapacitor.javaclient.configuration.FluxCapacitorBuilder;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Function;
-
-import static java.util.Collections.singletonList;
 
 public class TestFixture extends AbstractTestFixture {
 
     private final List<Message> events = new ArrayList<>();
     private final List<Message> commands = new ArrayList<>();
 
-    public static TestFixture create(Object handler) {
-        return new TestFixture(DefaultFluxCapacitor.builder(), fc -> handler);
+    public static TestFixture create(Object... handlers) {
+        return new TestFixture(DefaultFluxCapacitor.builder(), fc -> Arrays.asList(handlers));
     }
 
-    public static TestFixture create(FluxCapacitorBuilder fluxCapacitorBuilder, Object handler) {
-        return new TestFixture(fluxCapacitorBuilder, fc -> handler);
+    public static TestFixture create(FluxCapacitorBuilder fluxCapacitorBuilder, Object... handlers) {
+        return new TestFixture(fluxCapacitorBuilder, fc -> Arrays.asList(handlers));
     }
 
-    public static TestFixture create(Function<FluxCapacitor, Object> handlerFactory) {
-        return new TestFixture(DefaultFluxCapacitor.builder(), handlerFactory);
+    public static TestFixture create(Function<FluxCapacitor, List<?>> handlersFactory) {
+        return new TestFixture(DefaultFluxCapacitor.builder(), handlersFactory);
     }
 
-    public static TestFixture create(FluxCapacitorBuilder fluxCapacitorBuilder, Function<FluxCapacitor, Object> handlerFactory) {
-        return new TestFixture(fluxCapacitorBuilder, handlerFactory);
+    public static TestFixture create(FluxCapacitorBuilder fluxCapacitorBuilder, Function<FluxCapacitor, List<?>> handlersFactory) {
+        return new TestFixture(fluxCapacitorBuilder, handlersFactory);
     }
 
-    protected TestFixture(FluxCapacitorBuilder fluxCapacitorBuilder, Function<FluxCapacitor, Object> handlerFactory) {
-        super(fluxCapacitorBuilder, fc -> singletonList(handlerFactory.apply(fc)));
+    protected TestFixture(FluxCapacitorBuilder fluxCapacitorBuilder, Function<FluxCapacitor, List<?>> handlersFactory) {
+        super(fluxCapacitorBuilder, handlersFactory);
     }
 
     @Override

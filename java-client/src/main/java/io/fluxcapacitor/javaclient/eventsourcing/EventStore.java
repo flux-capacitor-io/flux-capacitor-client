@@ -1,5 +1,6 @@
 package io.fluxcapacitor.javaclient.eventsourcing;
 
+import io.fluxcapacitor.common.Registration;
 import io.fluxcapacitor.javaclient.common.Message;
 import io.fluxcapacitor.javaclient.common.serialization.DeserializingMessage;
 
@@ -21,5 +22,7 @@ public interface EventStore {
     }
 
     Stream<DeserializingMessage> getDomainEvents(String aggregateId, long lastSequenceNumber);
+
+    Registration registerLocalHandler(Object handler);
 
 }

@@ -12,7 +12,7 @@
  * limitations under the License.
  */
 
-package io.fluxcapacitor.javaclient.test.integration;
+package io.fluxcapacitor.javaclient.test.streaming;
 
 import io.fluxcapacitor.common.MessageType;
 import io.fluxcapacitor.javaclient.common.Message;

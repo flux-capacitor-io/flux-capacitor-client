@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016-2018 Flux Capacitor. 
+ * Copyright (c) 2016-2018 Flux Capacitor.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -20,7 +20,6 @@ import io.fluxcapacitor.javaclient.common.exception.FunctionalException;
 import io.fluxcapacitor.javaclient.test.TestFixture;
 import io.fluxcapacitor.javaclient.tracking.handling.HandleCommand;
 import io.fluxcapacitor.javaclient.tracking.handling.HandleEvent;
-import io.fluxcapacitor.javaclient.tracking.handling.HandleQuery;
 import lombok.Value;
 import org.junit.jupiter.api.Test;
 import org.mockito.InOrder;
@@ -32,7 +31,7 @@ import static org.mockito.Mockito.spy;
 class GivenWhenThenTest {
 
     private final CommandHandler commandHandler = spy(new CommandHandler());
-    private final TestFixture subject = TestFixture.create(commandHandler);
+    private TestFixture subject = TestFixture.create(commandHandler);
 
     @Test
     void testExpectNoEventsAndNoResult() {
@@ -46,7 +45,8 @@ class GivenWhenThenTest {
 
     @Test
     void testExpectExceptionButNoEvents() {
-        subject.givenNoPriorActivity().whenCommand(new YieldsException()).expectNoEvents().expectException(MockException.class);
+        subject.givenNoPriorActivity().whenCommand(new YieldsException()).expectNoEvents()
+                .expectException(MockException.class);
     }
 
     @Test
@@ -64,12 +64,14 @@ class GivenWhenThenTest {
     @Test
     void testExpectExceptionAndEvent() {
         YieldsEventAndException command = new YieldsEventAndException();
-        subject.givenNoPriorActivity().whenCommand(command).expectOnlyEvents(command).expectException(MockException.class);
+        subject.givenNoPriorActivity().whenCommand(command).expectOnlyEvents(command)
+                .expectException(MockException.class);
     }
 
     @Test
     void testWithGivenCommandsAndResult() {
-        subject.givenCommands(new YieldsNoResult()).whenCommand(new YieldsResult()).expectResult(isA(String.class)).expectNoEvents();
+        subject.givenCommands(new YieldsNoResult()).whenCommand(new YieldsResult()).expectResult(isA(String.class))
+                .expectNoEvents();
     }
 
     @Test
@@ -79,7 +81,8 @@ class GivenWhenThenTest {
 
     @Test
     void testWithGivenCommandsAndEventsFromGiven() {
-        subject.givenCommands(new YieldsEventAndResult()).whenCommand(new YieldsNoResult()).expectNoResult().expectNoEvents();
+        subject.givenCommands(new YieldsEventAndResult()).whenCommand(new YieldsNoResult()).expectNoResult()
+                .expectNoEvents();
     }
 
     @Test
@@ -91,16 +94,26 @@ class GivenWhenThenTest {
     @Test
     void testWithMultipleGivenCommands() {
         YieldsEventAndNoResult command = new YieldsEventAndNoResult();
-        subject.givenCommands(new YieldsNoResult(), new YieldsResult(), command, command).whenCommand(command).expectNoResult().expectOnlyEvents(command);
+        subject.givenCommands(new YieldsNoResult(), new YieldsResult(), command, command).whenCommand(command)
+                .expectNoResult().expectOnlyEvents(command);
     }
 
     @Test
     void testAndGivenCommands() {
-        subject.givenCommands(new YieldsResult()).andGivenCommands(new YieldsEventAndNoResult()).whenCommand(new YieldsNoResult()).expectNoResult().expectNoEvents();
+        subject.givenCommands(new YieldsResult()).andGivenCommands(new YieldsEventAndNoResult())
+                .whenCommand(new YieldsNoResult()).expectNoResult().expectNoEvents();
         InOrder inOrder = inOrder(commandHandler);
         inOrder.verify(commandHandler).handle(new YieldsResult());
         inOrder.verify(commandHandler).handle(new YieldsEventAndNoResult());
         inOrder.verify(commandHandler).handle(new YieldsNoResult());
+    }
+
+    @Test
+    void testMultiHandler() {
+        subject = TestFixture.create(commandHandler, new EventHandler());
+        subject.whenCommand(new YieldsEventAndNoResult())
+                .expectEvents(new YieldsEventAndNoResult())
+                .expectCommands(new YieldsNoResult());
     }
 
     private static class CommandHandler {
@@ -139,25 +152,8 @@ class GivenWhenThenTest {
 
     private static class EventHandler {
         @HandleEvent
-        public void handle(String event) {
+        public void handle(Object event) {
             FluxCapacitor.sendCommand(new YieldsNoResult());
-        }
-
-        @HandleEvent
-        public void handle(Integer event) throws Exception {
-            FluxCapacitor.sendCommand(new YieldsEventAndResult()).get();
-        }
-    }
-
-    private static class QueryHandler {
-        @HandleQuery
-        public String handle(String query) {
-            return query;
-        }
-
-        @HandleQuery
-        public String handleButFail(Long query) {
-            throw new MockException();
         }
     }
 
@@ -184,7 +180,7 @@ class GivenWhenThenTest {
     @Value
     private static class YieldsEventAndException {
     }
-    
+
     private static class FunctionalMockException extends FunctionalException {
     }
 
