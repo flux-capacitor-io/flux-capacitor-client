@@ -30,10 +30,9 @@
     <url>https://flux-capacitor.io</url>
 
     <properties>
-        <websocket-client.version>1.13.1</websocket-client.version>
+        <websocket-client.version>1.14</websocket-client.version>
         <hibernate-validator.version>6.0.8.Final</hibernate-validator.version>
         <javax-el.version>3.0.0</javax-el.version>
-        <spring.version>5.0.4.RELEASE</spring.version>
     </properties>
 
     <dependencies>

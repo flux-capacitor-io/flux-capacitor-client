@@ -21,9 +21,7 @@ import org.apache.commons.lang3.reflect.MethodUtils;
 import java.lang.annotation.Annotation;
 import java.lang.reflect.AccessibleObject;
 import java.lang.reflect.Field;
-import java.lang.reflect.Member;
 import java.lang.reflect.Method;
-import java.lang.reflect.Modifier;
 import java.security.PrivilegedAction;
 import java.util.Objects;
 import java.util.Optional;
@@ -69,23 +67,11 @@ public class ReflectionUtils {
     }
 
     public static <T extends AccessibleObject> T ensureAccessible(T member) {
-        if (!isAccessible(member)) {
-            doPrivileged((PrivilegedAction<?>) () -> {
-                member.setAccessible(true);
-                return null;
-            });
-        }
+        doPrivileged((PrivilegedAction<?>) () -> {
+            member.setAccessible(true);
+            return null;
+        });
         return member;
-    }
-
-    private static boolean isAccessible(AccessibleObject member) {
-        return member.isAccessible() || (Member.class.isInstance(member) && isNonFinalPublicMember((Member) member));
-    }
-
-    private static boolean isNonFinalPublicMember(Member member) {
-        return (Modifier.isPublic(member.getModifiers())
-                && Modifier.isPublic(member.getDeclaringClass().getModifiers())
-                && !Modifier.isFinal(member.getModifiers()));
     }
 
 }
