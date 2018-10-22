@@ -1,7 +1,7 @@
 language: java
 
 jdk:
-  - oraclejdk8
+  - oraclejdk11
 
 script: mvn --settings .travis/settings.xml clean verify
 
@@ -12,4 +12,4 @@ deploy:
     on:
       repo: flux-capacitor-io/flux-capacitor-client
       tags: true
-      jdk: oraclejdk8
+      jdk: oraclejdk11
