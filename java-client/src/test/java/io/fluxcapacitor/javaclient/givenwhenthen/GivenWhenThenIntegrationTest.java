@@ -4,7 +4,7 @@ import io.fluxcapacitor.javaclient.FluxCapacitor;
 import io.fluxcapacitor.javaclient.MockException;
 import io.fluxcapacitor.javaclient.common.exception.FunctionalException;
 import io.fluxcapacitor.javaclient.common.exception.TechnicalException;
-import io.fluxcapacitor.javaclient.test.integration.IntegrationTestFixture;
+import io.fluxcapacitor.javaclient.test.streaming.StreamingTestFixture;
 import io.fluxcapacitor.javaclient.tracking.handling.HandleCommand;
 import io.fluxcapacitor.javaclient.tracking.handling.HandleEvent;
 import io.fluxcapacitor.javaclient.tracking.handling.HandleQuery;
@@ -21,8 +21,8 @@ class GivenWhenThenIntegrationTest {
     private final CommandHandler commandHandler = spy(new CommandHandler());
     private final EventHandler eventHandler = spy(new EventHandler());
     private final QueryHandler queryHandler = spy(new QueryHandler());
-    private final IntegrationTestFixture
-            subject = IntegrationTestFixture.create(commandHandler, eventHandler, queryHandler);
+    private final StreamingTestFixture
+            subject = StreamingTestFixture.create(commandHandler, eventHandler, queryHandler);
 
     @Test
     void testExpectNoEventsAndNoResult() {

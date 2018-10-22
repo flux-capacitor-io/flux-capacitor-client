@@ -34,7 +34,7 @@ import java.util.concurrent.CopyOnWriteArrayList;
 import static java.lang.String.format;
 
 @AllArgsConstructor
-public class DefaultGenericGateway implements GenericGateway {
+public class DefaultGenericGateway implements RequestGateway {
     private final MessageType messageType;
     private final GatewayClient gatewayClient;
     private final RequestHandler requestHandler;

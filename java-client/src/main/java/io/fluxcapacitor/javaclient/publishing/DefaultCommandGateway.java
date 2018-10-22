@@ -6,5 +6,5 @@ import lombok.experimental.Delegate;
 @AllArgsConstructor
 public class DefaultCommandGateway implements CommandGateway {
     @Delegate
-    private final GenericGateway delegate;
+    private final RequestGateway delegate;
 }

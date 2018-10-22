@@ -12,7 +12,7 @@
  * limitations under the License.
  */
 
-package io.fluxcapacitor.javaclient.test.integration;
+package io.fluxcapacitor.javaclient.test.streaming;
 
 import io.fluxcapacitor.common.Registration;
 import io.fluxcapacitor.javaclient.FluxCapacitor;
@@ -36,29 +36,29 @@ import java.util.function.Function;
 
 import static java.util.concurrent.TimeUnit.SECONDS;
 
-public class IntegrationTestFixture extends AbstractTestFixture {
+public class StreamingTestFixture extends AbstractTestFixture {
 
     private final BlockingQueue<Message> events = new LinkedBlockingQueue<>();
     private final BlockingQueue<Message> commands = new LinkedBlockingQueue<>();
     private final ScheduledExecutorService deregistrationService = Executors.newSingleThreadScheduledExecutor();
 
-    public static IntegrationTestFixture create(Object... handlers) {
-        return new IntegrationTestFixture(DefaultFluxCapacitor.builder(), fc -> Arrays.asList(handlers));
+    public static StreamingTestFixture create(Object... handlers) {
+        return new StreamingTestFixture(DefaultFluxCapacitor.builder(), fc -> Arrays.asList(handlers));
     }
 
-    public static IntegrationTestFixture create(FluxCapacitorBuilder fluxCapacitorBuilder, Object... handlers) {
-        return new IntegrationTestFixture(fluxCapacitorBuilder, fc -> Arrays.asList(handlers));
+    public static StreamingTestFixture create(FluxCapacitorBuilder fluxCapacitorBuilder, Object... handlers) {
+        return new StreamingTestFixture(fluxCapacitorBuilder, fc -> Arrays.asList(handlers));
     }
 
-    public static IntegrationTestFixture create(Function<FluxCapacitor, List<?>> handlersFactory) {
-        return new IntegrationTestFixture(DefaultFluxCapacitor.builder(), handlersFactory);
+    public static StreamingTestFixture create(Function<FluxCapacitor, List<?>> handlersFactory) {
+        return new StreamingTestFixture(DefaultFluxCapacitor.builder(), handlersFactory);
     }
 
-    public static IntegrationTestFixture create(FluxCapacitorBuilder fluxCapacitorBuilder, Function<FluxCapacitor, List<?>> handlersFactory) {
-        return new IntegrationTestFixture(fluxCapacitorBuilder, handlersFactory);
+    public static StreamingTestFixture create(FluxCapacitorBuilder fluxCapacitorBuilder, Function<FluxCapacitor, List<?>> handlersFactory) {
+        return new StreamingTestFixture(fluxCapacitorBuilder, handlersFactory);
     }
 
-    protected IntegrationTestFixture(FluxCapacitorBuilder fluxCapacitorBuilder, Function<FluxCapacitor, List<?>> handlersFactory) {
+    protected StreamingTestFixture(FluxCapacitorBuilder fluxCapacitorBuilder, Function<FluxCapacitor, List<?>> handlersFactory) {
         super(fluxCapacitorBuilder, handlersFactory);
     }
 

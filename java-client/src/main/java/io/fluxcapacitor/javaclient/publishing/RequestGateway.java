@@ -29,6 +29,16 @@ import static java.lang.Thread.currentThread;
 
 public interface RequestGateway {
 
+    default void sendAndForget(Object payload) {
+        sendAndForget(payload instanceof Message ? (Message) payload : new Message(payload, getMessageType()));
+    }
+
+    default void sendAndForget(Object payload, Metadata metadata) {
+        sendAndForget(new Message(payload, metadata, getMessageType()));
+    }
+
+    void sendAndForget(Message message);
+
     default <R> CompletableFuture<R> send(Message message) {
         return sendForMessage(message).thenApply(Message::getPayload);
     }

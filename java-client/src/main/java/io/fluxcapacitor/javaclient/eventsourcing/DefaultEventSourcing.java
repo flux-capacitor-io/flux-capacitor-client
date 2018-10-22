@@ -7,6 +7,7 @@ import io.fluxcapacitor.javaclient.common.model.Model;
 import io.fluxcapacitor.javaclient.common.serialization.DeserializingMessage;
 import io.fluxcapacitor.javaclient.tracking.handling.HandlerInterceptor;
 import lombok.AllArgsConstructor;
+import lombok.RequiredArgsConstructor;
 import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
 
@@ -34,9 +35,16 @@ public class DefaultEventSourcing implements EventSourcing, HandlerInterceptor {
     @SuppressWarnings("unchecked")
     @Override
     public <T> Model<T> load(String modelId, Class<T> modelType) {
-        EventSourcedModel<T> model = createEsModel(modelType, modelId);
-        Optional.ofNullable(loadedModels.get()).ifPresent(models -> models.add(model));
-        return model;
+        Collection<EventSourcedModel<?>> loaded = loadedModels.get();
+        if (loaded == null) {
+            return createEsModel(modelType, modelId);
+        }
+        return loaded.stream().filter(model -> model.id.equals(modelId)).map(m -> (EventSourcedModel<T>) m).findAny()
+                .orElseGet(() -> { 
+                    EventSourcedModel<T> model = createEsModel(modelType, modelId);
+                    loaded.add(model);
+                    return model;
+        });
     }
 
     @Override
@@ -62,8 +70,13 @@ public class DefaultEventSourcing implements EventSourcing, HandlerInterceptor {
             SnapshotRepository snapshotRepository = snapshotRepository(modelType);
             SnapshotTrigger snapshotTrigger = snapshotTrigger(modelType);
             String domain = domain(modelType);
-            return id -> new EventSourcedModel<>(eventSourcingHandler, cache, eventStore, snapshotRepository,
-                                                 snapshotTrigger, id, domain, loadedModels.get() == null);
+            return id -> {
+                EventSourcedModel<T> eventSourcedModel =
+                        new EventSourcedModel<>(eventSourcingHandler, cache, eventStore, snapshotRepository,
+                                                snapshotTrigger, domain, loadedModels.get() == null, id);
+                eventSourcedModel.initialize();
+                return eventSourcedModel;
+            };
         }).apply(modelId);
     }
 
@@ -71,12 +84,14 @@ public class DefaultEventSourcing implements EventSourcing, HandlerInterceptor {
     public Function<DeserializingMessage, Object> interceptHandling(Function<DeserializingMessage, Object> function,
                                                                     Object handler, String consumer) {
         return command -> {
-            Collection<EventSourcedModel<?>> models = new ArrayList<>();
+            List<EventSourcedModel<?>> models = new ArrayList<>();
             loadedModels.set(models);
             try {
                 Object result = function.apply(command);
                 try {
-                    loadedModels.get().forEach(EventSourcedModel::commit);
+                    while (!models.isEmpty()) {
+                        models.remove(models.size() - 1).commit();
+                    }
                 } catch (Exception e) {
                     throw new EventSourcingException(
                             format("Failed to commit applied events after handling %s", command), e);
@@ -117,6 +132,7 @@ public class DefaultEventSourcing implements EventSourcing, HandlerInterceptor {
                 .filter(s -> !s.isEmpty()).orElse(modelType.getSimpleName());
     }
 
+    @RequiredArgsConstructor
     protected static class EventSourcedModel<T> implements Model<T> {
 
         private final EventSourcingHandler<T> eventSourcingHandler;
@@ -125,24 +141,12 @@ public class DefaultEventSourcing implements EventSourcing, HandlerInterceptor {
         private final SnapshotRepository snapshotRepository;
         private final SnapshotTrigger snapshotTrigger;
         private final String domain;
-        private Aggregate<T> aggregate;
         private final List<Message> unpublishedEvents = new ArrayList<>();
         private final boolean readOnly;
+        private final String id;
+        private Aggregate<T> aggregate;
 
-        protected EventSourcedModel(EventSourcingHandler<T> eventSourcingHandler, Cache cache, EventStore eventStore,
-                                    SnapshotRepository snapshotRepository, SnapshotTrigger snapshotTrigger,
-                                    String id, String domain, boolean readOnly) {
-            this.eventSourcingHandler = eventSourcingHandler;
-            this.cache = cache;
-            this.eventStore = eventStore;
-            this.snapshotRepository = snapshotRepository;
-            this.snapshotTrigger = snapshotTrigger;
-            this.domain = domain;
-            this.readOnly = readOnly;
-            initializeModel(id);
-        }
-
-        protected void initializeModel(String id) {
+        protected void initialize() {
             aggregate = cache.get(id, i -> {
                 Aggregate<T> aggregate = snapshotRepository.<T>getSnapshot(id).orElse(new Aggregate<>(id, -1L, null));
                 for (DeserializingMessage event : eventStore.getDomainEvents(id, aggregate.getSequenceNumber())
@@ -160,7 +164,7 @@ public class DefaultEventSourcing implements EventSourcing, HandlerInterceptor {
                 return aggregate;
             });
         }
-
+        
         @Override
         public Model<T> apply(Message message) {
             if (readOnly) {

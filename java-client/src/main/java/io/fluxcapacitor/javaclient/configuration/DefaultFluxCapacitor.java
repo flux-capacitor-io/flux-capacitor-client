@@ -44,9 +44,9 @@ import io.fluxcapacitor.javaclient.publishing.DefaultResultGateway;
 import io.fluxcapacitor.javaclient.publishing.DispatchInterceptor;
 import io.fluxcapacitor.javaclient.publishing.ErrorGateway;
 import io.fluxcapacitor.javaclient.publishing.EventGateway;
-import io.fluxcapacitor.javaclient.publishing.GenericGateway;
 import io.fluxcapacitor.javaclient.publishing.MetricsGateway;
 import io.fluxcapacitor.javaclient.publishing.QueryGateway;
+import io.fluxcapacitor.javaclient.publishing.RequestGateway;
 import io.fluxcapacitor.javaclient.publishing.RequestHandler;
 import io.fluxcapacitor.javaclient.publishing.ResultGateway;
 import io.fluxcapacitor.javaclient.publishing.correlation.CorrelatingInterceptor;
@@ -345,7 +345,9 @@ public class DefaultFluxCapacitor implements FluxCapacitor {
             //event sourcing
             EventStore eventStore = new DefaultEventStore(client.getEventStoreClient(),
                                                           new EventStoreSerializer(serializer,
-                                                                                   dispatchInterceptors.get(EVENT)));
+                                                                                   dispatchInterceptors.get(EVENT)),
+                                                          new DefaultHandlerFactory(EVENT, handlerInterceptors.get(EVENT),
+                                                                                    handlerParameterResolvers));
             DefaultSnapshotRepository snapshotRepository =
                     new DefaultSnapshotRepository(client.getKeyValueClient(), snapshotSerializer);
             DefaultEventSourcing eventSourcing =
@@ -361,26 +363,24 @@ public class DefaultFluxCapacitor implements FluxCapacitor {
             RequestHandler requestHandler =
                     new DefaultRequestHandler(client.getTrackingClient(RESULT), serializer, client.name(), client.id());
             CommandGateway commandGateway =
-                    new DefaultCommandGateway(createGenericGateway(client, COMMAND, requestHandler,
+                    new DefaultCommandGateway(createRequestGateway(client, COMMAND, requestHandler,
                                                                    dispatchInterceptors.get(COMMAND),
                                                                    new DefaultHandlerFactory(COMMAND,
                                                                                              handlerInterceptors
                                                                                                      .get(COMMAND),
                                                                                              handlerParameterResolvers)));
             QueryGateway queryGateway =
-                    new DefaultQueryGateway(createGenericGateway(client, QUERY, requestHandler,
+                    new DefaultQueryGateway(createRequestGateway(client, QUERY, requestHandler,
                                                                  dispatchInterceptors.get(QUERY),
                                                                  new DefaultHandlerFactory(QUERY,
                                                                                            handlerInterceptors
                                                                                                    .get(QUERY),
                                                                                            handlerParameterResolvers)));
             EventGateway eventGateway =
-                    new DefaultEventGateway(createGenericGateway(client, EVENT, requestHandler,
-                                                                 dispatchInterceptors.get(EVENT),
-                                                                 new DefaultHandlerFactory(EVENT,
-                                                                                           handlerInterceptors
-                                                                                                   .get(EVENT),
-                                                                                           handlerParameterResolvers)));
+                    new DefaultEventGateway(client.getGatewayClient(EVENT),
+                                            new MessageSerializer(serializer, dispatchInterceptors.get(EVENT)),
+                                            new DefaultHandlerFactory(EVENT, handlerInterceptors.get(EVENT),
+                                                                      handlerParameterResolvers));
             ErrorGateway errorGateway =
                     new DefaultErrorGateway(client.getGatewayClient(ERROR),
                                             new MessageSerializer(serializer, dispatchInterceptors.get(ERROR)));
@@ -452,7 +452,7 @@ public class DefaultFluxCapacitor implements FluxCapacitor {
             }
         }
 
-        protected GenericGateway createGenericGateway(Client client, MessageType messageType,
+        protected RequestGateway createRequestGateway(Client client, MessageType messageType,
                                                       RequestHandler requestHandler,
                                                       DispatchInterceptor dispatchInterceptor,
                                                       DefaultHandlerFactory handlerFactory) {

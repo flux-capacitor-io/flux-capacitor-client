@@ -1,25 +1,63 @@
 package io.fluxcapacitor.javaclient.publishing;
 
 import io.fluxcapacitor.common.Registration;
-import io.fluxcapacitor.common.api.Metadata;
+import io.fluxcapacitor.common.api.SerializedMessage;
+import io.fluxcapacitor.common.handling.Handler;
+import io.fluxcapacitor.javaclient.common.Message;
+import io.fluxcapacitor.javaclient.common.serialization.DeserializingMessage;
+import io.fluxcapacitor.javaclient.common.serialization.DeserializingObject;
+import io.fluxcapacitor.javaclient.common.serialization.MessageSerializer;
+import io.fluxcapacitor.javaclient.publishing.client.GatewayClient;
+import io.fluxcapacitor.javaclient.tracking.handling.HandlerFactory;
 import lombok.AllArgsConstructor;
+
+import java.util.List;
+import java.util.Optional;
+import java.util.concurrent.CopyOnWriteArrayList;
+
+import static io.fluxcapacitor.common.MessageType.EVENT;
+import static java.lang.String.format;
 
 @AllArgsConstructor
 public class DefaultEventGateway implements EventGateway {
-    private final PublicationGateway delegate;
+    private final GatewayClient gatewayClient;
+    private final MessageSerializer serializer;
+    private final HandlerFactory handlerFactory;
+    private final List<Handler<DeserializingMessage>> localHandlers = new CopyOnWriteArrayList<>();
 
     @Override
-    public void publish(Object event) {
-        delegate.sendAndForget(event);
+    public void publish(Message message) {
+        SerializedMessage serializedMessage = serializer.serialize(message);
+        tryHandleLocally(message.getPayload(), serializedMessage);
+        try {
+            gatewayClient.send(serializedMessage);
+        } catch (Exception e) {
+            throw new GatewayException(format("Failed to send and forget %s", message.getPayload()), e);
+        }
     }
 
     @Override
-    public void publish(Object payload, Metadata metadata) {
-        delegate.sendAndForget(payload, metadata);
+    public Registration registerLocalHandler(Object target) {
+        Optional<Handler<DeserializingMessage>> handler = handlerFactory.createHandler(target);
+        handler.ifPresent(localHandlers::add);
+        return () -> handler.ifPresent(localHandlers::remove);
     }
 
-    @Override
-    public Registration registerLocalHandler(Object handler) {
-        return delegate.registerLocalHandler(handler);
+    protected void tryHandleLocally(Object payload, SerializedMessage serializedMessage) {
+        if (!localHandlers.isEmpty()) {
+            DeserializingMessage current = DeserializingMessage.getCurrent();
+            try {
+                DeserializingMessage deserializingMessage =
+                        new DeserializingMessage(new DeserializingObject<>(serializedMessage, () -> payload), EVENT);
+                DeserializingMessage.setCurrent(deserializingMessage);
+                for (Handler<DeserializingMessage> handler : localHandlers) {
+                    if (handler.canHandle(deserializingMessage)) {
+                        handler.invoke(deserializingMessage);
+                    }
+                }
+            } finally {
+                DeserializingMessage.setCurrent(current);
+            }
+        }
     }
 }
