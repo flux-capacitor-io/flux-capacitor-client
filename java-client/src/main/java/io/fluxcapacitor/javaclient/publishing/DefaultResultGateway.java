@@ -4,6 +4,7 @@ import io.fluxcapacitor.common.MessageType;
 import io.fluxcapacitor.common.api.Metadata;
 import io.fluxcapacitor.common.api.SerializedMessage;
 import io.fluxcapacitor.javaclient.common.Message;
+import io.fluxcapacitor.javaclient.common.exception.TechnicalException;
 import io.fluxcapacitor.javaclient.common.serialization.MessageSerializer;
 import io.fluxcapacitor.javaclient.publishing.client.GatewayClient;
 import lombok.AllArgsConstructor;
@@ -17,7 +18,12 @@ public class DefaultResultGateway implements ResultGateway {
     @Override
     public void respond(Object payload, Metadata metadata, String target, int requestId) {
         try {
-            SerializedMessage message = serializer.serialize(new Message(payload, metadata, MessageType.RESULT));
+            SerializedMessage message;
+            try {
+                message = serializer.serialize(new Message(payload, metadata, MessageType.RESULT));
+            } catch (Exception e) {
+                message = serializer.serialize(new Message(new TechnicalException(), metadata, MessageType.RESULT));
+            }
             message.setTarget(target);
             message.setRequestId(requestId);
             client.send(message);

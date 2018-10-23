@@ -6,6 +6,7 @@ import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 public class TechnicalException extends RuntimeException {
 
     public TechnicalException() {
+        super("An unexpected error occurred");
     }
 
     public TechnicalException(String message) {
