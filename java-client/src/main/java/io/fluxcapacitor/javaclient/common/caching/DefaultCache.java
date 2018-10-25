@@ -27,7 +27,7 @@ public class DefaultCache implements io.fluxcapacitor.javaclient.common.caching.
     private final Cache<String, Object> cache;
 
     public DefaultCache() {
-        this(Caffeine.newBuilder().maximumSize(10_000).build());
+        this(Caffeine.newBuilder().maximumSize(1_000).build());
     }
 
     @Override
