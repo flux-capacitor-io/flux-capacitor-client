@@ -36,7 +36,6 @@
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <jackson.version>2.9.7</jackson.version>
-        <jupiter.version>5.3.1</jupiter.version>
         <spring.version>5.1.1.RELEASE</spring.version>
     </properties>
 
@@ -97,7 +96,7 @@
         <dependency>
             <groupId>org.junit.jupiter</groupId>
             <artifactId>junit-jupiter-engine</artifactId>
-            <version>${jupiter.version}</version>
+            <version>5.3.1</version>
             <scope>test</scope>
         </dependency>
         <dependency>
