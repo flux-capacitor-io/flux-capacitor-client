@@ -36,14 +36,15 @@ public class TimingUtils {
         callback.accept(System.currentTimeMillis() - start);
     }
 
-    public static void time(Callable task, Consumer<Long> callback) {
+    public static <T> T time(Callable<T> task, Consumer<Long> callback) {
         long start = System.currentTimeMillis();
         try {
-            task.call();
+            return task.call();
         } catch (Exception e) {
             throw new IllegalStateException("Task failed to execute", e);
+        } finally {
+            callback.accept(System.currentTimeMillis() - start);
         }
-        callback.accept(System.currentTimeMillis() - start);
     }
 
     public static boolean retryOnFailure(Runnable task, Duration delay) {
