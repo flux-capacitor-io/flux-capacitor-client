@@ -1,5 +1,6 @@
 package io.fluxcapacitor.javaclient.eventsourcing;
 
+import io.fluxcapacitor.common.handling.Handler;
 import io.fluxcapacitor.javaclient.common.Message;
 import io.fluxcapacitor.javaclient.common.caching.Cache;
 import io.fluxcapacitor.javaclient.common.caching.NoCache;
@@ -82,7 +83,7 @@ public class DefaultEventSourcing implements EventSourcing, HandlerInterceptor {
 
     @Override
     public Function<DeserializingMessage, Object> interceptHandling(Function<DeserializingMessage, Object> function,
-                                                                    Object handler, String consumer) {
+                                                                    Handler<DeserializingMessage> handler, String consumer) {
         return command -> {
             List<EventSourcedModel<?>> models = new ArrayList<>();
             loadedModels.set(models);

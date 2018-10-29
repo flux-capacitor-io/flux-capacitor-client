@@ -61,7 +61,7 @@ public class HandlerInspector {
         if (!hasHandlerMethods(type, methodAnnotation)) {
             throw new HandlerException(
                     format("Could not find methods with %s annotation on %s", methodAnnotation.getSimpleName(),
-                                  type.getSimpleName()));
+                           type.getSimpleName()));
         }
         return new ObjectHandlerInvoker<>(type, concat(getAllMethods(type), stream(type.getConstructors()))
                 .filter(m -> m.isAnnotationPresent(methodAnnotation))
@@ -82,7 +82,8 @@ public class HandlerInspector {
                                        List<ParameterResolver<? super M>> parameterResolvers) {
             this.methodDepth = executable instanceof Method ? methodDepth(executable, enclosingType) : 0;
             this.executable = ensureAccessible(executable);
-            this.hasReturnValue = !(executable instanceof Method) || !(((Method) executable).getReturnType()).equals(void.class);
+            this.hasReturnValue =
+                    !(executable instanceof Method) || !(((Method) executable).getReturnType()).equals(void.class);
             this.parameterSuppliers = getParameterSuppliers(executable, parameterResolvers);
             this.payloadTypeSupplier = getPayloadTypeSupplier(executable, parameterResolvers);
         }
@@ -96,6 +97,11 @@ public class HandlerInspector {
                 return Modifier.isStatic(executable.getModifiers()) || executable instanceof Constructor;
             }
             return !Modifier.isStatic(executable.getModifiers()) && executable instanceof Method;
+        }
+
+        @Override
+        public Executable getMethod(Object target, M message) {
+            return canHandle(target, message) ? executable : null;
         }
 
         @Override
@@ -164,7 +170,7 @@ public class HandlerInspector {
         }
 
         private static int methodDepth(Executable instanceMethod, Class instanceType) {
-            return (int) ObjectUtils.iterate(instanceType, Class::getSuperclass, type 
+            return (int) ObjectUtils.iterate(instanceType, Class::getSuperclass, type
                     -> stream(type.getDeclaredMethods()).anyMatch(m -> m.equals(instanceMethod))).count();
         }
     }
@@ -177,6 +183,12 @@ public class HandlerInspector {
         @Override
         public boolean canHandle(Object target, M message) {
             return methodHandlers.stream().anyMatch(h -> h.canHandle(target, message));
+        }
+
+        @Override
+        public Executable getMethod(Object target, M message) {
+            return methodHandlers.stream().map(h -> h.getMethod(target, message)).filter(Objects::nonNull).findAny()
+                    .orElse(null);
         }
 
         @Override
@@ -203,6 +215,11 @@ public class HandlerInspector {
         @Override
         public boolean canHandle(M message) {
             return invoker.canHandle(target, message);
+        }
+
+        @Override
+        public Executable getMethod(M message) {
+            return invoker.getMethod(target, message);
         }
 
         @Override

@@ -12,12 +12,14 @@
  * limitations under the License.
  */
 
-package io.fluxcapacitor.common.reflection;
+package io.fluxcapacitor.javaclient.publishing.dataprotection;
 
-import java.lang.reflect.AccessibleObject;
+import java.lang.annotation.ElementType;
+import java.lang.annotation.Retention;
+import java.lang.annotation.RetentionPolicy;
+import java.lang.annotation.Target;
 
-public class PropertyAccessException extends RuntimeException {
-    public PropertyAccessException(AccessibleObject accessibleObject, Throwable cause) {
-        super(String.format("Failed to access %s. Property values should be accessible", accessibleObject), cause);
-    }
+@Target({ElementType.METHOD, ElementType.CONSTRUCTOR})
+@Retention(RetentionPolicy.RUNTIME)
+public @interface DropProtectedData {
 }

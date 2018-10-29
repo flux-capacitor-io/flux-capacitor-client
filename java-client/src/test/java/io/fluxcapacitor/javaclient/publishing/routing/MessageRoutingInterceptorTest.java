@@ -19,7 +19,6 @@ import io.fluxcapacitor.common.MessageType;
 import io.fluxcapacitor.common.api.Data;
 import io.fluxcapacitor.common.api.Metadata;
 import io.fluxcapacitor.common.api.SerializedMessage;
-import io.fluxcapacitor.common.reflection.PropertyAccessException;
 import io.fluxcapacitor.javaclient.common.Message;
 import org.junit.jupiter.api.Test;
 
@@ -65,7 +64,7 @@ class MessageRoutingInterceptorTest {
 
     @Test
     void testAnnotationOnMethodWithParametersFails() {
-        assertThrows(PropertyAccessException.class, () -> testInvocation(new AnnotationOnWrongMethod()));
+        assertThrows(Exception.class, () -> testInvocation(new AnnotationOnWrongMethod()));
     }
 
     private void testInvocation(Object payload) {

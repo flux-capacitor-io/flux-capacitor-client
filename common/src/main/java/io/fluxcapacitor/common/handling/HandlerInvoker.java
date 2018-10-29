@@ -14,12 +14,15 @@
 
 package io.fluxcapacitor.common.handling;
 
+import java.lang.reflect.Executable;
+
 public interface HandlerInvoker<M> {
 
     boolean canHandle(Object target, M message);
 
+    Executable getMethod(Object target, M message);
+
     boolean expectResult(Object target, M message);
 
     Object invoke(Object target, M message);
-
 }

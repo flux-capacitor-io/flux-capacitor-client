@@ -51,6 +51,8 @@ public interface FluxCapacitorBuilder {
 
     FluxCapacitorBuilder disableCommandValidation();
 
+    FluxCapacitorBuilder disableDataProtection();
+
     FluxCapacitorBuilder collectTrackingMetrics();
 
     FluxCapacitorBuilder collectApplicationMetrics();

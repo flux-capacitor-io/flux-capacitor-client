@@ -83,7 +83,7 @@ public class DefaultTracking implements Tracking {
         return TrackingUtils.start(trackerName, consumer, trackingClient, config);
     }
 
-    protected Consumer<List<SerializedMessage>> createConsumer(ConsumerConfiguration configuration, 
+    protected Consumer<List<SerializedMessage>> createConsumer(ConsumerConfiguration configuration,
                                                                List<Object> targets) {
         List<Handler<DeserializingMessage>> handlers = createHandlers(targets, handlerAnnotation, parameterResolvers);
         return serializedMessages -> {
@@ -123,8 +123,8 @@ public class DefaultTracking implements Tracking {
         Exception exception = null;
         Object result;
         try {
-            result = handlerInterceptor.interceptHandling(m -> handler.invoke(message), handler.getTarget(),
-                                                          config.getName()).apply(message);
+            result = handlerInterceptor.interceptHandling(m -> handler.invoke(message), handler, config.getName())
+                    .apply(message);
         } catch (FunctionalException e) {
             result = e;
             exception = e;
@@ -135,7 +135,7 @@ public class DefaultTracking implements Tracking {
         SerializedMessage serializedMessage = message.getSerializedObject();
         if (serializedMessage.getRequestId() != null) {
             resultGateway.respond(result, serializedMessage.getSource(), serializedMessage.getRequestId());
-        } 
+        }
         if (exception != null) {
             throw exception;
         }

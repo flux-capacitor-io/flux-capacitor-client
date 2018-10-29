@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016-2017 Flux Capacitor.
+ * Copyright (c) 2016-2018 Flux Capacitor.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -12,18 +12,14 @@
  * limitations under the License.
  */
 
-package io.fluxcapacitor.common.handling;
+package io.fluxcapacitor.javaclient.publishing.dataprotection;
 
-import java.lang.reflect.Executable;
+import java.lang.annotation.ElementType;
+import java.lang.annotation.Retention;
+import java.lang.annotation.RetentionPolicy;
+import java.lang.annotation.Target;
 
-public interface Handler<M> {
-
-    boolean canHandle(M message);
-
-    Executable getMethod(M message);
-    
-    Object invoke(M message);
-
-    Object getTarget();
-
+@Target(ElementType.FIELD)
+@Retention(RetentionPolicy.RUNTIME)
+public @interface ProtectData {
 }

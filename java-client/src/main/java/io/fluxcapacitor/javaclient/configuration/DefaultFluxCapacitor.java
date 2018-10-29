@@ -52,6 +52,7 @@ import io.fluxcapacitor.javaclient.publishing.ResultGateway;
 import io.fluxcapacitor.javaclient.publishing.correlation.CorrelatingInterceptor;
 import io.fluxcapacitor.javaclient.publishing.correlation.CorrelationDataProvider;
 import io.fluxcapacitor.javaclient.publishing.correlation.MessageOriginProvider;
+import io.fluxcapacitor.javaclient.publishing.dataprotection.DataProtectionInterceptor;
 import io.fluxcapacitor.javaclient.publishing.routing.MessageRoutingInterceptor;
 import io.fluxcapacitor.javaclient.scheduling.DefaultScheduler;
 import io.fluxcapacitor.javaclient.scheduling.Scheduler;
@@ -90,6 +91,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.function.UnaryOperator;
+import java.util.stream.Stream;
 
 import static io.fluxcapacitor.common.MessageType.COMMAND;
 import static io.fluxcapacitor.common.MessageType.ERROR;
@@ -196,6 +198,7 @@ public class DefaultFluxCapacitor implements FluxCapacitor {
         private HandlerInterceptor commandValidationInterceptor = new ValidatingInterceptor();
         private boolean disableMessageCorrelation;
         private boolean disableCommandValidation;
+        private boolean disableDataProtection;
         private boolean collectTrackingMetrics;
         private boolean collectApplicationMetrics;
 
@@ -285,6 +288,12 @@ public class DefaultFluxCapacitor implements FluxCapacitor {
         }
 
         @Override
+        public FluxCapacitorBuilder disableDataProtection() {
+            disableDataProtection = true;
+            return this;
+        }
+
+        @Override
         public FluxCapacitorBuilder collectTrackingMetrics() {
             collectTrackingMetrics = true;
             return this;
@@ -329,6 +338,17 @@ public class DefaultFluxCapacitor implements FluxCapacitor {
                 handlerInterceptors.compute(COMMAND, (t, i) -> i.merge(commandValidationInterceptor));
             }
 
+            KeyValueStore keyValueStore = new DefaultKeyValueStore(client.getKeyValueClient(), serializer);
+
+            //enable data protection validation
+            if (!disableDataProtection) {
+                DataProtectionInterceptor interceptor = new DataProtectionInterceptor(keyValueStore);
+                Stream.of(COMMAND, EVENT, QUERY, RESULT, SCHEDULE).forEach(type -> {
+                    dispatchInterceptors.compute(type, (t, i) -> i.merge(interceptor));
+                    handlerInterceptors.compute(type, (t, i) -> i.merge(interceptor));
+                });
+            }
+
             //collect metrics about consumers and handlers
             if (collectTrackingMetrics) {
                 BatchInterceptor batchInterceptor = new TrackerMonitor();
@@ -346,7 +366,8 @@ public class DefaultFluxCapacitor implements FluxCapacitor {
             EventStore eventStore = new DefaultEventStore(client.getEventStoreClient(),
                                                           new EventStoreSerializer(serializer,
                                                                                    dispatchInterceptors.get(EVENT)),
-                                                          new DefaultHandlerFactory(EVENT, handlerInterceptors.get(EVENT),
+                                                          new DefaultHandlerFactory(EVENT,
+                                                                                    handlerInterceptors.get(EVENT),
                                                                                     handlerParameterResolvers));
             DefaultSnapshotRepository snapshotRepository =
                     new DefaultSnapshotRepository(client.getKeyValueClient(), snapshotSerializer);
@@ -399,7 +420,6 @@ public class DefaultFluxCapacitor implements FluxCapacitor {
                                                             handlerInterceptors.get(m), handlerParameterResolvers)));
 
             //misc
-            KeyValueStore keyValueStore = new DefaultKeyValueStore(client.getKeyValueClient(), serializer);
             Scheduler scheduler = new DefaultScheduler(client.getSchedulingClient(),
                                                        new MessageSerializer(serializer,
                                                                              dispatchInterceptors.get(SCHEDULE)));

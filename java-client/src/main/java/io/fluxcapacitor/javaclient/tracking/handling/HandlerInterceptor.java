@@ -18,12 +18,13 @@ import io.fluxcapacitor.common.handling.Handler;
 import io.fluxcapacitor.javaclient.common.serialization.DeserializingMessage;
 import lombok.AllArgsConstructor;
 
+import java.lang.reflect.Executable;
 import java.util.function.Function;
 
 @FunctionalInterface
 public interface HandlerInterceptor {
     Function<DeserializingMessage, Object> interceptHandling(Function<DeserializingMessage, Object> function,
-                                                             Object handler, String consumer);
+                                                             Handler<DeserializingMessage> handler, String consumer);
 
     default HandlerInterceptor merge(HandlerInterceptor nextInterceptor) {
         return (f, h, c) -> interceptHandling(nextInterceptor.interceptHandling(f, h, c), h, c);
@@ -42,12 +43,17 @@ public interface HandlerInterceptor {
 
         @Override
         public Object invoke(DeserializingMessage message) {
-            return interceptor.interceptHandling(delegate::invoke, getTarget(), consumer).apply(message);
+            return interceptor.interceptHandling(delegate::invoke, delegate, consumer).apply(message);
         }
 
         @Override
         public boolean canHandle(DeserializingMessage message) {
             return delegate.canHandle(message);
+        }
+
+        @Override
+        public Executable getMethod(DeserializingMessage message) {
+            return delegate.getMethod(message);
         }
 
         @Override

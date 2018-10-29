@@ -1,5 +1,6 @@
 package io.fluxcapacitor.javaclient.tracking.metrics;
 
+import io.fluxcapacitor.common.handling.Handler;
 import io.fluxcapacitor.javaclient.FluxCapacitor;
 import io.fluxcapacitor.javaclient.common.serialization.DeserializingMessage;
 import io.fluxcapacitor.javaclient.tracking.handling.HandlerInterceptor;
@@ -13,7 +14,7 @@ import java.util.function.Function;
 public class HandlerMonitor implements HandlerInterceptor {
     @Override
     public Function<DeserializingMessage, Object> interceptHandling(Function<DeserializingMessage, Object> function,
-                                                                    Object handler, String consumer) {
+                                                                    Handler<DeserializingMessage> handler, String consumer) {
         return message -> {
             Instant start = Instant.now();
             try {
