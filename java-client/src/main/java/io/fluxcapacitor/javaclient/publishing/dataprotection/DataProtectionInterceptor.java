@@ -5,6 +5,7 @@ import io.fluxcapacitor.common.handling.Handler;
 import io.fluxcapacitor.common.reflection.ReflectionUtils;
 import io.fluxcapacitor.javaclient.common.Message;
 import io.fluxcapacitor.javaclient.common.serialization.DeserializingMessage;
+import io.fluxcapacitor.javaclient.common.serialization.Serializer;
 import io.fluxcapacitor.javaclient.keyvalue.KeyValueStore;
 import io.fluxcapacitor.javaclient.publishing.DispatchInterceptor;
 import io.fluxcapacitor.javaclient.tracking.handling.HandlerInterceptor;
@@ -25,6 +26,7 @@ public class DataProtectionInterceptor implements DispatchInterceptor, HandlerIn
     public static String METADATA_KEY = "$protectedData";
 
     private final KeyValueStore keyValueStore;
+    private final Serializer serializer;
     
     @Override
     @SuppressWarnings("unchecked")
@@ -34,8 +36,9 @@ public class DataProtectionInterceptor implements DispatchInterceptor, HandlerIn
             if (m.getMetadata().containsKey(METADATA_KEY)) {
                 protectedFields.putAll(m.getMetadata().get(METADATA_KEY, Map.class));
             } else {
+                Object payload = m.getPayload();
                 getAnnotatedFields(m.getPayload(), ProtectData.class).forEach(field -> {
-                    Object value = getProperty(field, m.getPayload());
+                    Object value = getProperty(field, payload);
                     String key = randomUUID().toString();
                     keyValueStore.store(key, value);
                     protectedFields.put(field.getName(), key);
@@ -44,7 +47,11 @@ public class DataProtectionInterceptor implements DispatchInterceptor, HandlerIn
                     m.getMetadata().put(METADATA_KEY, protectedFields);
                 }
             }
-            protectedFields.forEach((name, key) -> setField(name, m.getPayload(), null));
+            if (!protectedFields.isEmpty()) {
+                Object payloadCopy = serializer.deserialize(serializer.serialize(m.getPayload()));
+                protectedFields.forEach((name, key) -> setField(name, payloadCopy, null));
+                m = m.withPayload(payloadCopy);
+            }
             return function.apply(m);
         };
     }

@@ -318,6 +318,18 @@ public class DefaultFluxCapacitor implements FluxCapacitor {
             Map<MessageType, List<ConsumerConfiguration>> consumerConfigurations =
                     new HashMap<>(this.consumerConfigurations);
 
+
+            KeyValueStore keyValueStore = new DefaultKeyValueStore(client.getKeyValueClient(), serializer);
+
+            //enable data protection
+            if (!disableDataProtection) {
+                DataProtectionInterceptor interceptor = new DataProtectionInterceptor(keyValueStore, serializer);
+                Stream.of(COMMAND, EVENT, QUERY, RESULT, SCHEDULE).forEach(type -> {
+                    dispatchInterceptors.compute(type, (t, i) -> i.merge(interceptor));
+                    handlerInterceptors.compute(type, (t, i) -> i.merge(interceptor));
+                });
+            }
+            
             //enable message routing
             Arrays.stream(MessageType.values())
                     .forEach(type -> dispatchInterceptors.compute(type, (t, i) -> i.merge(messageRoutingInterceptor)));
@@ -330,17 +342,6 @@ public class DefaultFluxCapacitor implements FluxCapacitor {
                 Arrays.stream(MessageType.values()).forEach(type -> {
                     dispatchInterceptors.compute(type, (t, i) -> correlatingInterceptor.merge(i));
                     handlerInterceptors.compute(type, (t, i) -> correlatingInterceptor.merge(i));
-                });
-            }
-
-            KeyValueStore keyValueStore = new DefaultKeyValueStore(client.getKeyValueClient(), serializer);
-
-            //enable data protection validation
-            if (!disableDataProtection) {
-                DataProtectionInterceptor interceptor = new DataProtectionInterceptor(keyValueStore);
-                Stream.of(COMMAND, EVENT, QUERY, RESULT, SCHEDULE).forEach(type -> {
-                    dispatchInterceptors.compute(type, (t, i) -> i.merge(interceptor));
-                    handlerInterceptors.compute(type, (t, i) -> i.merge(interceptor));
                 });
             }
 
