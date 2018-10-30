@@ -25,23 +25,26 @@ public class DataProtectionInterceptor implements DispatchInterceptor, HandlerIn
     public static String METADATA_KEY = "$protectedData";
 
     private final KeyValueStore keyValueStore;
-
+    
     @Override
+    @SuppressWarnings("unchecked")
     public Function<Message, SerializedMessage> interceptDispatch(Function<Message, SerializedMessage> function) {
         return m -> {
-            if (!m.getMetadata().containsKey(METADATA_KEY)) {
-                Map<String, String> protectedFields = new HashMap<>();
+            Map<String, String> protectedFields = new HashMap<>();
+            if (m.getMetadata().containsKey(METADATA_KEY)) {
+                protectedFields.putAll(m.getMetadata().get(METADATA_KEY, Map.class));
+            } else {
                 getAnnotatedFields(m.getPayload(), ProtectData.class).forEach(field -> {
                     Object value = getProperty(field, m.getPayload());
                     String key = randomUUID().toString();
                     keyValueStore.store(key, value);
                     protectedFields.put(field.getName(), key);
-                    setField(field, m.getPayload(), null);
                 });
                 if (!protectedFields.isEmpty()) {
                     m.getMetadata().put(METADATA_KEY, protectedFields);
                 }
             }
+            protectedFields.forEach((name, key) -> setField(name, m.getPayload(), null));
             return function.apply(m);
         };
     }
