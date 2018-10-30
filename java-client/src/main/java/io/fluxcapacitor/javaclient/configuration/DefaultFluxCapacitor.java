@@ -195,9 +195,9 @@ public class DefaultFluxCapacitor implements FluxCapacitor {
                 Arrays.stream(MessageType.values()).collect(toMap(identity(), m -> (f, h, c) -> f));
         private final Set<CorrelationDataProvider> correlationDataProviders = new LinkedHashSet<>();
         private DispatchInterceptor messageRoutingInterceptor = new MessageRoutingInterceptor();
-        private HandlerInterceptor commandValidationInterceptor = new ValidatingInterceptor();
+        private HandlerInterceptor validationInterceptor = new ValidatingInterceptor();
         private boolean disableMessageCorrelation;
-        private boolean disableCommandValidation;
+        private boolean disablePayloadValidation;
         private boolean disableDataProtection;
         private boolean collectTrackingMetrics;
         private boolean collectApplicationMetrics;
@@ -282,8 +282,8 @@ public class DefaultFluxCapacitor implements FluxCapacitor {
         }
 
         @Override
-        public Builder disableCommandValidation() {
-            disableCommandValidation = true;
+        public Builder disablePayloadValidation() {
+            disablePayloadValidation = true;
             return this;
         }
 
@@ -307,7 +307,7 @@ public class DefaultFluxCapacitor implements FluxCapacitor {
 
         @Override
         public Builder changeCommandValidationInterceptor(HandlerInterceptor validationInterceptor) {
-            this.commandValidationInterceptor = validationInterceptor;
+            this.validationInterceptor = validationInterceptor;
             return this;
         }
 
@@ -333,11 +333,6 @@ public class DefaultFluxCapacitor implements FluxCapacitor {
                 });
             }
 
-            //enable command validation
-            if (!disableCommandValidation) {
-                handlerInterceptors.compute(COMMAND, (t, i) -> i.merge(commandValidationInterceptor));
-            }
-
             KeyValueStore keyValueStore = new DefaultKeyValueStore(client.getKeyValueClient(), serializer);
 
             //enable data protection validation
@@ -347,6 +342,12 @@ public class DefaultFluxCapacitor implements FluxCapacitor {
                     dispatchInterceptors.compute(type, (t, i) -> i.merge(interceptor));
                     handlerInterceptors.compute(type, (t, i) -> i.merge(interceptor));
                 });
+            }
+
+            //enable command and query validation
+            if (!disablePayloadValidation) {
+                Stream.of(COMMAND, QUERY)
+                        .forEach(type -> handlerInterceptors.compute(type, (t, i) -> i.merge(validationInterceptor)));
             }
 
             //collect metrics about consumers and handlers

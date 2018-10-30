@@ -49,7 +49,7 @@ public interface FluxCapacitorBuilder {
 
     FluxCapacitorBuilder disableMessageCorrelation();
 
-    FluxCapacitorBuilder disableCommandValidation();
+    FluxCapacitorBuilder disablePayloadValidation();
 
     FluxCapacitorBuilder disableDataProtection();
 

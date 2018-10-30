@@ -6,11 +6,14 @@ import io.fluxcapacitor.javaclient.common.serialization.DeserializingMessage;
 import io.fluxcapacitor.javaclient.common.serialization.jackson.JacksonSerializer;
 import io.fluxcapacitor.javaclient.configuration.DefaultFluxCapacitor;
 import io.fluxcapacitor.javaclient.configuration.client.InMemoryClient;
+import io.fluxcapacitor.javaclient.tracking.handling.HandleCommand;
 import io.fluxcapacitor.javaclient.tracking.handling.HandleEvent;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.Value;
 import org.junit.jupiter.api.Test;
+
+import javax.validation.constraints.NotNull;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
@@ -51,10 +54,27 @@ class DataProtectionInterceptorTest {
         assertNull(secondHandler.getLastEvent().getSensitiveData());
     }
 
+    @Test
+    void testCommandValidationAfterFieldIsSet() {
+        ValidatingHandler handler = new ValidatingHandler();
+        fluxCapacitor.registerLocalHandlers(handler);
+        String payload = "something super secret";
+        fluxCapacitor.commandGateway().sendAndWait(new ConstrainedCommand(payload));
+        assertEquals(payload, handler.getLastCommand().getSensitiveData());
+    }
+
     @Value
     @Builder(toBuilder = true)
     private static class SomeEvent {
         @ProtectData
+        String sensitiveData;
+    }
+
+    @Value
+    @Builder(toBuilder = true)
+    private static class ConstrainedCommand {
+        @ProtectData
+        @NotNull
         String sensitiveData;
     }
     
@@ -67,6 +87,16 @@ class DataProtectionInterceptorTest {
         private void handler(SomeEvent event, DeserializingMessage message) {
             lastEvent = event.toBuilder().build();
             data = message.getSerializedObject().getData();
+        }
+    }
+
+    @Getter
+    private static class ValidatingHandler {
+        private ConstrainedCommand lastCommand;
+
+        @HandleCommand
+        private void handler(ConstrainedCommand command) {
+            lastCommand = command;
         }
     }
     
