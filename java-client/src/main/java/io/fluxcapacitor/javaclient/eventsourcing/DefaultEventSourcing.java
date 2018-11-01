@@ -54,11 +54,6 @@ public class DefaultEventSourcing implements EventSourcing, HandlerInterceptor {
     }
 
     @Override
-    public <T> EventSourcingRepository<T> repository(Class<T> modelClass) {
-        return new DefaultEventSourcingRepository<>(this, modelClass);
-    }
-
-    @Override
     public EventStore eventStore() {
         return eventStore;
     }

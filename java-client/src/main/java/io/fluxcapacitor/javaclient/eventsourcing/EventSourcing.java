@@ -8,8 +8,6 @@ public interface EventSourcing {
 
     void invalidateCache();
 
-    <T> EventSourcingRepository<T> repository(Class<T> modelClass);
-
     EventStore eventStore();
 
 }

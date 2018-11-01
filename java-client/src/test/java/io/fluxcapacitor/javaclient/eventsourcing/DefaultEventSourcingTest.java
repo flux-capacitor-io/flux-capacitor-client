@@ -26,7 +26,6 @@ import static io.fluxcapacitor.common.MessageType.EVENT;
 import static java.util.Arrays.stream;
 import static java.util.Collections.singletonList;
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.fail;
 import static org.mockito.Mockito.anyLong;
@@ -94,30 +93,6 @@ class DefaultEventSourcingTest {
     void testModelIsReadOnlyIfSubjectIsNotIntercepting() {
         Model<TestModel> model = subject.load(modelId, TestModel.class);
         assertThrows(EventSourcingException.class, () -> model.apply("whatever"));
-    }
-
-    @Test
-    void testLoadFromRepository() {
-        when(snapshotRepository.getSnapshot(modelId))
-                .thenReturn(Optional.of(new Aggregate<>(modelId, 0L, new TestModel(new CreateModel()))));
-        EventSourcingRepository<TestModel> repository = subject.repository(TestModel.class);
-        assertNotNull(repository.load(modelId).get());
-    }
-
-    @Test
-    void testLoadFromRepositoryWithSequenceNumber() {
-        when(snapshotRepository.getSnapshot(modelId))
-                .thenReturn(Optional.of(new Aggregate<>(modelId, 0L, new TestModel(new CreateModel()))));
-        EventSourcingRepository<TestModel> repository = subject.repository(TestModel.class);
-        assertEquals(singletonList(new CreateModel()), repository.load(modelId).get().events);
-    }
-
-    @Test
-    void testLoadFromRepoWithUnexpectedSequenceNumber() {
-        when(snapshotRepository.getSnapshot(modelId))
-                .thenReturn(Optional.of(new Aggregate<>(modelId, 0L, new TestModel(new CreateModel()))));
-        EventSourcingRepository<TestModel> repository = subject.repository(TestModel.class);
-        assertThrows(EventSourcingException.class, () -> repository.load(modelId, 1L));
     }
 
     @Test
