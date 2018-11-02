@@ -38,6 +38,9 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Future;
 import java.util.concurrent.atomic.AtomicReference;
 
+import static java.lang.Thread.currentThread;
+import static java.lang.Thread.sleep;
+
 @Slf4j
 public abstract class AbstractWebsocketClient {
     private final ClientManager client;
@@ -87,13 +90,21 @@ public abstract class AbstractWebsocketClient {
     }
 
     protected void retryOutstandingRequests(String sessionId) {
-        requests.values().stream().filter(r -> sessionId.equals(r.getSessionId())).forEach(r -> {
+        if (!requests.isEmpty()) {
             try {
-                r.send(getSession());
-            } catch (Exception e) {
-                r.completeExceptionally(e);
+                sleep(reconnectDelay.toMillis());
+            } catch (InterruptedException e) {
+                currentThread().interrupt();
+                throw new IllegalStateException("Thread interrupted while trying to retry outstanding requests", e);
             }
-        });
+            requests.values().stream().filter(r -> sessionId.equals(r.getSessionId())).forEach(r -> {
+                try {
+                    r.send(getSession());
+                } catch (Exception e) {
+                    r.completeExceptionally(e);
+                }
+            });
+        }
     }
 
     @OnError
