@@ -62,21 +62,22 @@ public class AsyncResultValidator extends AbstractResultValidator {
     }
 
     protected Then expectMessages(List<?> messages, MessageType messageType, BlockingQueue<Message> resultingMessages) {
-        Collection<Message> expected = asMessages(messages, messageType);
+        Collection<?> expected = asMessages(messages, messageType);
         Collection<Message> actual = getActualMessages(expected, resultingMessages);
         return expectMessages(expected, actual);
     }
 
-    protected Then expectOnlyMessages(Collection<?> messages, MessageType messageType, BlockingQueue<Message> resultingMessages) {
-        Collection<Message> expected = asMessages(messages, messageType);
+    protected Then expectOnlyMessages(Collection<?> messages, MessageType messageType,
+                                      BlockingQueue<Message> resultingMessages) {
+        Collection<?> expected = asMessages(messages, messageType);
         Collection<Message> actual = getActualMessages(expected, resultingMessages);
         return expectOnlyMessages(expected, actual);
     }
 
-    protected Collection<Message> getActualMessages(Collection<Message> expected, BlockingQueue<Message> resultingMessages) {
+    protected Collection<Message> getActualMessages(Collection<?> expected, BlockingQueue<Message> resultingMessages) {
         Collection<Message> result = new ArrayList<>();
         try {
-            while ((expected.isEmpty() || !result.containsAll(expected)) && !Thread.interrupted()) {
+            while ((expected.isEmpty() || !containsAll(expected, result)) && !Thread.interrupted()) {
                 Message next = resultingMessages.poll(1L, TimeUnit.SECONDS);
                 if (next == null) {
                     return result;

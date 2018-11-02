@@ -142,6 +142,10 @@ public abstract class AbstractTestFixture implements Given, When {
         }
     }
 
+    public FluxCapacitor getFluxCapacitor() {
+        return fluxCapacitor;
+    }
+
     protected class GivenWhenThenInterceptor extends ContextualDispatchInterceptor {
 
         private static final String TAG = "givenWhenThen.tag";

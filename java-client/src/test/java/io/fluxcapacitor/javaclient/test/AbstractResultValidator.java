@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016-2018 Flux Capacitor. 
+ * Copyright (c) 2016-2018 Flux Capacitor.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,6 +17,7 @@ package io.fluxcapacitor.javaclient.test;
 import io.fluxcapacitor.common.MessageType;
 import io.fluxcapacitor.javaclient.common.Message;
 import lombok.AllArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.hamcrest.Matcher;
 import org.hamcrest.StringDescription;
 
@@ -27,61 +28,55 @@ import static java.lang.String.format;
 import static java.util.stream.Collectors.toList;
 
 @AllArgsConstructor
+@Slf4j
 public abstract class AbstractResultValidator implements Then {
     private final Object actualResult;
-    
-    protected Then expectMessages(Collection<Message> expected, Collection<Message> actual) {
+
+    protected Then expectMessages(Collection<?> expected, Collection<Message> actual) {
         if (!containsAll(expected, actual)) {
-            reportWrongMessages(expected, actual);
+            reportMismatch(expected, actual);
         }
         return this;
     }
 
-    protected Then expectOnlyMessages(Collection<Message> expected, Collection<Message> actual) {
-        if (!equals(expected, actual)) {
-            reportWrongMessages(expected, actual);
+    protected Then expectOnlyMessages(Collection<?> expected, Collection<Message> actual) {
+        if (expected.size() != actual.size()) {
+            reportMismatch(expected, actual);
+        } else {
+            Iterator<Message> actualIterator = actual.iterator();
+            if (!expected.stream().allMatch(e -> matches(e, actualIterator.next()))) {
+                reportMismatch(expected, actual);
+            }
         }
         return this;
+    }
+
+    protected void reportMismatch(Collection<?> expected, Collection<Message> actual) {
+        if (actualResult instanceof Throwable) {
+            throw new GivenWhenThenAssertionError(
+                    "Published messages did not match. Probable cause is an exception that occurred during handling:",
+                    (Throwable) actualResult);
+        }
+        throw new GivenWhenThenAssertionError(
+                format("Published messages did not match.\nExpected: %s\nGot: %s", expected, actual));
     }
     
-    protected void reportWrongMessages(Collection<Message> expected, Collection<Message> actual) {
-        String message = format("Published messages did not match.\nExpected: %s\nGot: %s", expected, actual);
-        if (actualResult instanceof Throwable) {
-            message += "\nA probable cause is an exception that occurred during handling:";
-            throw new GivenWhenThenAssertionError(message, (Throwable) actualResult);
-        }
-        throw new GivenWhenThenAssertionError(message);
+    protected boolean containsAll(Collection<?> expected, Collection<Message> actual) {
+        return expected.stream().allMatch(e -> actual.stream().anyMatch(a -> matches(e, a)));
     }
 
-    protected boolean equals(Collection<Message> expected, Collection<Message> actual) {
-        if (expected.size() != actual.size()) {
-            return false;
+    protected boolean matches(Object expected, Message actual) {
+        if (expected instanceof Matcher<?>) {
+            return ((Matcher<?>) expected).matches(actual.getPayload()) || ((Matcher<?>) expected).matches(actual);
         }
-        Iterator<Message> actualIterator = actual.iterator();
-        for (Message m : expected) {
-            if (!equalsIgnoreNewMetadata(m, actualIterator.next())) {
-                return false;
-            }
-        }
-        return true;
+        Message expectedMessage = (Message) expected;
+        return expectedMessage.getPayload().equals(actual.getPayload()) && actual.getMetadata().entrySet()
+                .containsAll(expectedMessage.getMetadata().entrySet());
     }
 
-    protected boolean containsAll(Collection<Message> expected, Collection<Message> actual) {
-        for (Message e : expected) {
-            if (actual.stream().noneMatch(a -> equalsIgnoreNewMetadata(e, a))) {
-                return false;
-            }
-        }
-        return true;
-    }
-
-    protected boolean equalsIgnoreNewMetadata(Message expected, Message actual) {
-        return expected.getPayload().equals(actual.getPayload()) && actual.getMetadata().entrySet()
-                .containsAll(expected.getMetadata().entrySet());
-    }
-
-    protected Collection<Message> asMessages(Collection<?> events, MessageType type) {
-        return events.stream().map(e -> e instanceof Message ? (Message) e : new Message(e, type)).collect(toList());
+    protected Collection<?> asMessages(Collection<?> events, MessageType type) {
+        return events.stream().map(e -> e instanceof Matcher<?> ? (Matcher<?>) e :
+                e instanceof Message ? (Message) e : new Message(e, type)).collect(toList());
     }
 
     @Override
@@ -104,8 +99,9 @@ public abstract class AbstractResultValidator implements Then {
         StringDescription description = new StringDescription();
         resultMatcher.describeTo(description);
         if (!(actualResult instanceof Throwable)) {
-            throw new GivenWhenThenAssertionError(format("Handler returned normally but an exception was expected. Expected: %s. Got: %s",
-                                                         description, actualResult));
+            throw new GivenWhenThenAssertionError(
+                    format("Handler returned normally but an exception was expected. Expected: %s. Got: %s",
+                           description, actualResult));
         }
         if (!resultMatcher.matches(actualResult)) {
             throw new GivenWhenThenAssertionError(format("Handler returned unexpected value.\nExpected: %s\nGot: %s",
