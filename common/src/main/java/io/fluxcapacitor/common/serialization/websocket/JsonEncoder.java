@@ -14,37 +14,34 @@
 
 package io.fluxcapacitor.common.serialization.websocket;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 import javax.websocket.EncodeException;
 import javax.websocket.Encoder;
 import javax.websocket.EndpointConfig;
-import java.nio.ByteBuffer;
+import java.io.OutputStream;
 import java.util.Objects;
 
 import static java.lang.String.format;
 
-public class JsonEncoder implements Encoder.Binary<Object> {
+public class JsonEncoder implements Encoder.BinaryStream<Object> {
 
     private static final ObjectMapper objectMapper = new ObjectMapper();
 
     @Override
-    public ByteBuffer encode(Object object) throws EncodeException {
+    public void encode(Object object, OutputStream os) throws EncodeException {
         try {
-            return ByteBuffer.wrap(objectMapper.writeValueAsBytes(object));
-        } catch (JsonProcessingException e) {
+            objectMapper.writeValue(os, object);
+        } catch (Exception e) {
             throw new EncodeException(object, format("Could not convert %s to json", Objects.toString(object)), e);
         }
     }
 
     @Override
     public void init(EndpointConfig config) {
-
     }
 
     @Override
     public void destroy() {
-
     }
 }

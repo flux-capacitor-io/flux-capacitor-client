@@ -21,10 +21,9 @@ import io.fluxcapacitor.common.api.JsonType;
 import javax.websocket.DecodeException;
 import javax.websocket.Decoder;
 import javax.websocket.EndpointConfig;
-import java.io.IOException;
-import java.nio.ByteBuffer;
+import java.io.InputStream;
 
-public class JsonDecoder implements Decoder.Binary<JsonType> {
+public class JsonDecoder implements Decoder.BinaryStream<JsonType> {
 
     private static final ObjectMapper defaultMapper = new ObjectMapper()
             .disable(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES);
@@ -40,26 +39,19 @@ public class JsonDecoder implements Decoder.Binary<JsonType> {
     }
 
     @Override
-    public JsonType decode(ByteBuffer bytes) throws DecodeException {
+    public JsonType decode(InputStream is) throws DecodeException {
         try {
-            return objectMapper.readValue(bytes.array(), JsonType.class);
-        } catch (IOException e) {
-            throw new DecodeException(bytes, "Could not parse input string. Expected a Json message.", e);
+            return objectMapper.readValue(is, JsonType.class);
+        } catch (Exception e) {
+            throw new DecodeException("", "Could not parse input. Expected a Json message.", e);
         }
     }
 
     @Override
-    public boolean willDecode(ByteBuffer bytes) {
-        return true;
-    }
-
-    @Override
     public void init(EndpointConfig config) {
-
     }
 
     @Override
     public void destroy() {
-
     }
 }
