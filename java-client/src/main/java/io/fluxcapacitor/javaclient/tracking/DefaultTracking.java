@@ -79,7 +79,9 @@ public class DefaultTracking implements Tracking {
         batchInterceptors.addAll(configuration.getTrackingConfiguration().getBatchInterceptors());
         TrackingConfiguration config = configuration.getTrackingConfiguration().toBuilder()
                 .clearBatchInterceptors().batchInterceptors(batchInterceptors).build();
-        String trackerName = format("%s_%s", fluxCapacitor.client().name(), configuration.getName());
+        String trackerName = configuration.prependApplicationName() 
+                ? format("%s_%s", fluxCapacitor.client().name(), configuration.getName()) 
+                : fluxCapacitor.client().name();
         return TrackingUtils.start(trackerName, consumer, trackingClient, config);
     }
 
