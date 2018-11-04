@@ -19,6 +19,7 @@ import io.fluxcapacitor.common.api.SerializedMessage;
 import io.fluxcapacitor.common.api.tracking.MessageBatch;
 import io.fluxcapacitor.javaclient.tracking.Tracker;
 import io.fluxcapacitor.javaclient.tracking.TrackingConfiguration;
+import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
 
 import java.util.List;
@@ -31,23 +32,23 @@ import static io.fluxcapacitor.javaclient.tracking.BatchInterceptor.join;
 /**
  * A tracker keeps reading messages until it is stopped (generally only when the application is shut down).
  * <p>
- * A tracker is always running in a single thread. To balance the processing load over multiple threads create
- * multiple trackers with the same name but different channel.
+ * A tracker is always running in a single thread. To balance the processing load over multiple threads create multiple
+ * trackers with the same name but different channel.
  * <p>
  * Trackers with different names will receive the same messages. Trackers with the same name will not. (Flux Capacitor
  * will load balance between trackers with the same name).
  * <p>
- * Tracking stops if the provided message consumer throws an exception while handling messages (i.e. the tracker
- * will need to be manually restarted in that case). However, if the tracker encounters an exception while fetching
- * messages it will retry fetching indefinitely until this succeeds.
+ * Tracking stops if the provided message consumer throws an exception while handling messages (i.e. the tracker will
+ * need to be manually restarted in that case). However, if the tracker encounters an exception while fetching messages
+ * it will retry fetching indefinitely until this succeeds.
  * <p>
  * Trackers can choose a desired maximum batch size for consuming. By default this batch size will be the same as the
- * batch size the tracker uses to fetch messages from Flux Capacitor. Each time the consumer has finished
- * consuming a batch the tracker will update its position with Flux Capacitor.
+ * batch size the tracker uses to fetch messages from Flux Capacitor. Each time the consumer has finished consuming a
+ * batch the tracker will update its position with Flux Capacitor.
  * <p>
  * Trackers can be configured to use batch interceptors. A batch interceptor manages the invocation of the message
- * consumer. It is therefore typically used to manage a database transaction around the invocation of the consumer.
- * Note that if the interceptor gives rise to an exception the tracker will be stopped.
+ * consumer. It is therefore typically used to manage a database transaction around the invocation of the consumer. Note
+ * that if the interceptor gives rise to an exception the tracker will be stopped.
  */
 @Slf4j
 public class DefaultTracker implements Runnable, Registration {
@@ -66,7 +67,8 @@ public class DefaultTracker implements Runnable, Registration {
         this.name = name;
         this.channel = channel;
         this.configuration = configuration;
-        this.processor = join(configuration.getBatchInterceptors()).intercept(this::processAll, new Tracker(name, channel));
+        this.processor =
+                join(configuration.getBatchInterceptors()).intercept(this::processAll, new Tracker(name, channel));
         this.consumer = consumer;
         this.trackingClient = trackingClient;
     }
@@ -119,8 +121,13 @@ public class DefaultTracker implements Runnable, Registration {
             cancel();
             throw e;
         }
-        retryOnFailure(() -> trackingClient.storePosition(name, segment, batch.get(batch.size() - 1).getIndex()),
+        retryOnFailure(() -> updatePosition(segment, batch.get(batch.size() - 1).getIndex()),
                        configuration.getRetryDelay(), e -> running.get());
+    }
+
+    @SneakyThrows
+    private void updatePosition(int[] segment, Long lastIndex) {
+        trackingClient.storePosition(name, segment, lastIndex).await();
     }
 
 
