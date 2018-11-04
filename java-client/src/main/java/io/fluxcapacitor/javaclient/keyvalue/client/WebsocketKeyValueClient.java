@@ -22,8 +22,6 @@ import io.fluxcapacitor.common.api.keyvalue.GetValue;
 import io.fluxcapacitor.common.api.keyvalue.GetValueResult;
 import io.fluxcapacitor.common.api.keyvalue.KeyValuePair;
 import io.fluxcapacitor.common.api.keyvalue.StoreValues;
-import io.fluxcapacitor.common.serialization.websocket.JsonDecoder;
-import io.fluxcapacitor.common.serialization.websocket.JsonEncoder;
 import io.fluxcapacitor.javaclient.common.websocket.AbstractWebsocketClient;
 import lombok.extern.slf4j.Slf4j;
 
@@ -32,7 +30,7 @@ import java.net.URI;
 import java.util.List;
 
 @Slf4j
-@ClientEndpoint(encoders = JsonEncoder.class, decoders = JsonDecoder.class)
+@ClientEndpoint
 public class WebsocketKeyValueClient extends AbstractWebsocketClient implements KeyValueClient {
 
     private final Backlog<KeyValuePair> backlog;
@@ -46,9 +44,8 @@ public class WebsocketKeyValueClient extends AbstractWebsocketClient implements 
         backlog = new Backlog<>(this::storeValues);
     }
 
-    protected Awaitable storeValues(List<KeyValuePair> keyValuePairs) throws Exception {
-        getSession().getBasicRemote().sendObject(new StoreValues(keyValuePairs));
-        return Awaitable.ready();
+    protected Awaitable storeValues(List<KeyValuePair> keyValuePairs) {
+        return send(new StoreValues(keyValuePairs));
     }
 
     @Override
@@ -64,14 +61,6 @@ public class WebsocketKeyValueClient extends AbstractWebsocketClient implements 
 
     @Override
     public Awaitable deleteValue(String key) {
-        try {
-            getSession().getBasicRemote().sendObject(new DeleteValue(key));
-        } catch (Exception e) {
-            log.warn("Could not delete value {}", key, e);
-            return () -> {
-                throw e;
-            };
-        }
-        return Awaitable.ready();
+        return send(new DeleteValue(key));
     }
 }

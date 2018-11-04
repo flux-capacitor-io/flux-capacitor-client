@@ -19,8 +19,6 @@ import io.fluxcapacitor.common.Backlog;
 import io.fluxcapacitor.common.api.scheduling.CancelSchedule;
 import io.fluxcapacitor.common.api.scheduling.Schedule;
 import io.fluxcapacitor.common.api.scheduling.ScheduledMessage;
-import io.fluxcapacitor.common.serialization.websocket.JsonDecoder;
-import io.fluxcapacitor.common.serialization.websocket.JsonEncoder;
 import io.fluxcapacitor.javaclient.common.websocket.AbstractWebsocketClient;
 import lombok.extern.slf4j.Slf4j;
 
@@ -29,7 +27,7 @@ import java.net.URI;
 import java.util.List;
 
 @Slf4j
-@ClientEndpoint(encoders = JsonEncoder.class, decoders = JsonDecoder.class)
+@ClientEndpoint
 public class WebsocketSchedulingClient extends AbstractWebsocketClient implements SchedulingClient {
 
     private final Backlog<ScheduledMessage> backlog;
@@ -43,9 +41,8 @@ public class WebsocketSchedulingClient extends AbstractWebsocketClient implement
         backlog = new Backlog<>(this::scheduleMessages);
     }
 
-    protected Awaitable scheduleMessages(List<ScheduledMessage> scheduledMessages) throws Exception {
-        getSession().getBasicRemote().sendObject(new Schedule(scheduledMessages));
-        return Awaitable.ready();
+    protected Awaitable scheduleMessages(List<ScheduledMessage> scheduledMessages) {
+        return send(new Schedule(scheduledMessages));
     }
 
     @Override
@@ -55,14 +52,6 @@ public class WebsocketSchedulingClient extends AbstractWebsocketClient implement
 
     @Override
     public Awaitable cancelSchedule(String scheduleId) {
-        try {
-            getSession().getBasicRemote().sendObject(new CancelSchedule(scheduleId));
-        } catch (Exception e) {
-            log.warn("Could not cancel schedule {}", scheduleId, e);
-            return () -> {
-                throw e;
-            };
-        }
-        return Awaitable.ready();
+        return send(new CancelSchedule(scheduleId));
     }
 }

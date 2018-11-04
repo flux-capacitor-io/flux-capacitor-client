@@ -37,9 +37,9 @@ public class InMemorySchedulingClient extends InMemoryMessageStore implements Sc
     }
 
     @Override
-    public void storePosition(String consumer, int[] segment, long lastIndex) {
+    public Awaitable storePosition(String consumer, int[] segment, long lastIndex) {
         times.headMap(lastIndex).clear();
-        super.storePosition(consumer, segment, lastIndex);
+        return super.storePosition(consumer, segment, lastIndex);
     }
 
     @Override

@@ -14,8 +14,10 @@
 
 package io.fluxcapacitor.javaclient.common.websocket;
 
+import com.fasterxml.jackson.databind.DeserializationFeature;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import io.fluxcapacitor.common.Awaitable;
 import io.fluxcapacitor.common.TimingUtils;
-import io.fluxcapacitor.common.api.JsonType;
 import io.fluxcapacitor.common.api.QueryResult;
 import io.fluxcapacitor.common.api.Request;
 import lombok.Getter;
@@ -30,6 +32,7 @@ import javax.websocket.OnClose;
 import javax.websocket.OnError;
 import javax.websocket.OnMessage;
 import javax.websocket.Session;
+import java.io.OutputStream;
 import java.net.URI;
 import java.time.Duration;
 import java.util.Map;
@@ -43,6 +46,9 @@ import static java.lang.Thread.sleep;
 
 @Slf4j
 public abstract class AbstractWebsocketClient {
+    public static ObjectMapper defaultObjectMapper = new ObjectMapper()
+            .disable(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES); 
+    private final ObjectMapper objectMapper;
     private final ClientManager client;
     private final URI endpointUri;
     private final Duration reconnectDelay;
@@ -50,13 +56,26 @@ public abstract class AbstractWebsocketClient {
     private final AtomicReference<Session> session = new AtomicReference<>();
 
     public AbstractWebsocketClient(URI endpointUri) {
-        this(ClientManager.createClient(), endpointUri, Duration.ofSeconds(1));
+        this(ClientManager.createClient(), endpointUri, Duration.ofSeconds(1), defaultObjectMapper);
     }
 
-    public AbstractWebsocketClient(ClientManager client, URI endpointUri, Duration reconnectDelay) {
+    public AbstractWebsocketClient(ClientManager client, URI endpointUri, Duration reconnectDelay, 
+                                   ObjectMapper objectMapper) {
         this.client = client;
         this.endpointUri = endpointUri;
         this.reconnectDelay = reconnectDelay;
+        this.objectMapper = objectMapper;
+    }
+
+    @SneakyThrows
+    protected Awaitable send(Object object) {
+        try (OutputStream outputStream = getSession().getBasicRemote().getSendStream()) {
+            objectMapper.writeValue(outputStream, object);
+            return Awaitable.ready();
+        } catch (Exception e) {
+            log.error("Failed to send {}", object);
+            return Awaitable.failed(e);
+        }
     }
 
     @SuppressWarnings("unchecked")
@@ -73,8 +92,9 @@ public abstract class AbstractWebsocketClient {
     }
 
     @OnMessage
-    public void onMessage(JsonType value) {
-        QueryResult readResult = (QueryResult) value;
+    @SneakyThrows
+    public void onMessage(byte[] value) {
+        QueryResult readResult = objectMapper.readValue(value, QueryResult.class);
         WebSocketRequest webSocketRequest = requests.remove(readResult.getRequestId());
         if (webSocketRequest == null) {
             log.warn("Could not find outstanding read request for id {}", readResult.getRequestId());
@@ -111,7 +131,7 @@ public abstract class AbstractWebsocketClient {
     public void onError(Session session, Throwable e) {
         log.error("Client side error for web socket connected to endpoint {}", session.getRequestURI(), e);
     }
-
+    
     protected Session getSession() {
         return session.updateAndGet(s -> {
             while (s == null || !s.isOpen()) {
@@ -123,7 +143,7 @@ public abstract class AbstractWebsocketClient {
 
     @RequiredArgsConstructor
     @Getter
-    protected static class WebSocketRequest implements Future<QueryResult> {
+    protected class WebSocketRequest implements Future<QueryResult> {
         private final Request request;
         @Delegate
         private final CompletableFuture<QueryResult> result = new CompletableFuture<>();
@@ -132,7 +152,7 @@ public abstract class AbstractWebsocketClient {
         @SneakyThrows
         protected void send(Session session) {
             this.sessionId = session.getId();
-            session.getBasicRemote().sendObject(request);
+            AbstractWebsocketClient.this.send(request);
         }
     }
 

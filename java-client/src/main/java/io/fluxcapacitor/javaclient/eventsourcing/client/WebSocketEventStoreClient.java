@@ -21,8 +21,6 @@ import io.fluxcapacitor.common.api.eventsourcing.AppendEvents;
 import io.fluxcapacitor.common.api.eventsourcing.EventBatch;
 import io.fluxcapacitor.common.api.eventsourcing.GetEvents;
 import io.fluxcapacitor.common.api.eventsourcing.GetEventsResult;
-import io.fluxcapacitor.common.serialization.websocket.JsonDecoder;
-import io.fluxcapacitor.common.serialization.websocket.JsonEncoder;
 import io.fluxcapacitor.javaclient.common.websocket.AbstractWebsocketClient;
 
 import javax.websocket.ClientEndpoint;
@@ -32,7 +30,7 @@ import java.util.stream.Stream;
 
 import static io.fluxcapacitor.common.ObjectUtils.iterate;
 
-@ClientEndpoint(encoders = JsonEncoder.class, decoders = JsonDecoder.class)
+@ClientEndpoint
 public class WebSocketEventStoreClient extends AbstractWebsocketClient implements EventStoreClient {
 
     private final Backlog<EventBatch> backlog;

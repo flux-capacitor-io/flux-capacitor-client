@@ -22,4 +22,9 @@ import java.util.List;
 @Value
 public class Schedule implements JsonType {
     List<ScheduledMessage> messages;
+
+    @Override
+    public String toString() {
+        return "Schedule of size " + messages.size();
+    }
 }

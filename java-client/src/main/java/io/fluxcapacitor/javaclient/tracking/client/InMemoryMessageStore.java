@@ -89,8 +89,9 @@ public class InMemoryMessageStore implements GatewayClient, TrackingClient {
     }
 
     @Override
-    public void storePosition(String consumer, int[] segment, long lastIndex) {
+    public Awaitable storePosition(String consumer, int[] segment, long lastIndex) {
         consumerTokens.put(consumer, lastIndex);
+        return Awaitable.ready();
     }
 
     @Override

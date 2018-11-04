@@ -18,6 +18,7 @@ import com.fasterxml.jackson.annotation.JsonIgnore;
 import io.fluxcapacitor.common.api.SerializedMessage;
 import lombok.Value;
 
+import java.util.Arrays;
 import java.util.List;
 
 @Value
@@ -34,5 +35,14 @@ public class MessageBatch {
     @JsonIgnore
     public int getSize() {
         return messages.size();
+    }
+
+    @Override
+    public String toString() {
+        return "MessageBatch{" +
+                "segment=" + Arrays.toString(segment) +
+                ", lastIndex=" + lastIndex +
+                ", message count=" + messages.size() +
+                '}';
     }
 }

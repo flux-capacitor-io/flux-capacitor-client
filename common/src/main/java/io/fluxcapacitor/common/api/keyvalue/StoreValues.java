@@ -22,4 +22,9 @@ import java.util.List;
 @Value
 public class StoreValues implements JsonType {
     List<KeyValuePair> values;
+
+    @Override
+    public String toString() {
+        return "StoreValues of size " + values.size();
+    }
 }

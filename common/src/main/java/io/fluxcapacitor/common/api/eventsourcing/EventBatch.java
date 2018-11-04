@@ -41,4 +41,14 @@ public class EventBatch {
     public int getSize() {
         return events.size();
     }
+
+    @Override
+    public String toString() {
+        return "EventBatch{" +
+                "aggregateId='" + aggregateId + '\'' +
+                ", domain='" + domain + '\'' +
+                ", lastSequenceNumber=" + lastSequenceNumber +
+                ", event count=" + events.size() +
+                '}';
+    }
 }

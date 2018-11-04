@@ -14,19 +14,18 @@
 
 package io.fluxcapacitor.javaclient.tracking.client;
 
+import io.fluxcapacitor.common.Awaitable;
 import io.fluxcapacitor.common.api.tracking.MessageBatch;
 import io.fluxcapacitor.common.api.tracking.Read;
 import io.fluxcapacitor.common.api.tracking.ReadResult;
 import io.fluxcapacitor.common.api.tracking.StorePosition;
-import io.fluxcapacitor.common.serialization.websocket.JsonDecoder;
-import io.fluxcapacitor.common.serialization.websocket.JsonEncoder;
 import io.fluxcapacitor.javaclient.common.websocket.AbstractWebsocketClient;
 
 import javax.websocket.ClientEndpoint;
 import java.net.URI;
 import java.time.Duration;
 
-@ClientEndpoint(encoders = JsonEncoder.class, decoders = JsonDecoder.class)
+@ClientEndpoint
 public class WebsocketTrackingClient extends AbstractWebsocketClient implements TrackingClient {
 
     public WebsocketTrackingClient(String endPointUrl) {
@@ -46,11 +45,7 @@ public class WebsocketTrackingClient extends AbstractWebsocketClient implements 
     }
 
     @Override
-    public void storePosition(String consumer, int[] segment, long lastIndex) {
-        try {
-            getSession().getBasicRemote().sendObject(new StorePosition(consumer, segment, lastIndex));
-        } catch (Exception e) {
-            throw new IllegalStateException(String.format("Failed to store position of consumer %s", consumer), e);
-        }
+    public Awaitable storePosition(String consumer, int[] segment, long lastIndex) {
+        return send(new StorePosition(consumer, segment, lastIndex));
     }
 }

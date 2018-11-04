@@ -24,4 +24,9 @@ import java.util.List;
 @Value
 public class AppendEvents extends Request {
     List<EventBatch> eventBatches;
+
+    @Override
+    public String toString() {
+        return "AppendEvents of size " + eventBatches.size();
+    }
 }

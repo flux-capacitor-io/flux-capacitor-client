@@ -19,18 +19,14 @@ import io.fluxcapacitor.common.Backlog;
 import io.fluxcapacitor.common.Registration;
 import io.fluxcapacitor.common.api.SerializedMessage;
 import io.fluxcapacitor.common.api.publishing.Append;
-import io.fluxcapacitor.common.serialization.websocket.JsonDecoder;
-import io.fluxcapacitor.common.serialization.websocket.JsonEncoder;
 import io.fluxcapacitor.javaclient.common.websocket.AbstractWebsocketClient;
 
 import javax.websocket.ClientEndpoint;
-import javax.websocket.EncodeException;
-import java.io.IOException;
 import java.net.URI;
 import java.util.List;
 import java.util.function.Consumer;
 
-@ClientEndpoint(encoders = JsonEncoder.class, decoders = JsonDecoder.class)
+@ClientEndpoint
 public class WebsocketGatewayClient extends AbstractWebsocketClient implements GatewayClient {
 
     private final Backlog<SerializedMessage> backlog;
@@ -58,8 +54,7 @@ public class WebsocketGatewayClient extends AbstractWebsocketClient implements G
         return backlog.registerMonitor(messages -> messages.forEach(monitor));
     }
 
-    private Awaitable doSend(List<SerializedMessage> messages) throws IOException, EncodeException {
-        getSession().getBasicRemote().sendObject(new Append(messages));
-        return Awaitable.ready();
+    private Awaitable doSend(List<SerializedMessage> messages) {
+        return send(new Append(messages));
     }
 }

@@ -29,4 +29,9 @@ public class Append implements JsonType {
     public int getSize() {
         return messages.size();
     }
+
+    @Override
+    public String toString() {
+        return "Append of length " + messages.size();
+    }
 }
