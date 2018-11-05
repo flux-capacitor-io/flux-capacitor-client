@@ -1,6 +1,7 @@
 package io.fluxcapacitor.javaclient.common.serialization;
 
 import io.fluxcapacitor.common.api.SerializedObject;
+import lombok.Getter;
 import lombok.ToString;
 
 import java.util.function.Supplier;
@@ -10,6 +11,7 @@ import static io.fluxcapacitor.common.ObjectUtils.memoize;
 @ToString(exclude = "object")
 public class DeserializingObject<T, S extends SerializedObject<T, S>> {
     private final S serializedObject;
+    @Getter private volatile boolean deserialized;
     private final Supplier<Object> object;
 
     public DeserializingObject(S serializedObject, Supplier<Object> payload) {
@@ -18,7 +20,9 @@ public class DeserializingObject<T, S extends SerializedObject<T, S>> {
     }
 
     public Object getPayload() {
-        return object.get();
+        Object result = object.get();
+        deserialized = true;
+        return result;
     }
 
     public String getType() {
