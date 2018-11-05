@@ -14,8 +14,6 @@
 
 package io.fluxcapacitor.javaclient.common.websocket;
 
-import com.fasterxml.jackson.databind.DeserializationFeature;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import io.fluxcapacitor.common.Awaitable;
 import io.fluxcapacitor.common.TimingUtils;
 import io.fluxcapacitor.common.api.JsonType;
@@ -24,7 +22,6 @@ import io.fluxcapacitor.common.api.Request;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import lombok.SneakyThrows;
-import lombok.experimental.Delegate;
 import lombok.extern.slf4j.Slf4j;
 import org.glassfish.tyrus.client.ClientManager;
 
@@ -38,7 +35,7 @@ import java.time.Duration;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.Future;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.atomic.AtomicReference;
 
 import static java.lang.Thread.currentThread;
@@ -46,9 +43,6 @@ import static java.lang.Thread.sleep;
 
 @Slf4j
 public abstract class AbstractWebsocketClient {
-    public static ObjectMapper defaultObjectMapper = new ObjectMapper()
-            .disable(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES); 
-    private final ObjectMapper objectMapper;
     private final ClientManager client;
     private final URI endpointUri;
     private final Duration reconnectDelay;
@@ -56,15 +50,13 @@ public abstract class AbstractWebsocketClient {
     private final AtomicReference<Session> session = new AtomicReference<>();
 
     public AbstractWebsocketClient(URI endpointUri) {
-        this(ClientManager.createClient(), endpointUri, Duration.ofSeconds(1), defaultObjectMapper);
+        this(ClientManager.createClient(), endpointUri, Duration.ofSeconds(1));
     }
 
-    public AbstractWebsocketClient(ClientManager client, URI endpointUri, Duration reconnectDelay, 
-                                   ObjectMapper objectMapper) {
+    public AbstractWebsocketClient(ClientManager client, URI endpointUri, Duration reconnectDelay) {
         this.client = client;
         this.endpointUri = endpointUri;
         this.reconnectDelay = reconnectDelay;
-        this.objectMapper = objectMapper;
     }
 
     @SneakyThrows
@@ -79,7 +71,7 @@ public abstract class AbstractWebsocketClient {
         requests.put(request.getRequestId(), webSocketRequest);
         try {
             webSocketRequest.send(getSession());
-            return (R) webSocketRequest.get();
+            return (R) webSocketRequest.getResult();
         } catch (Exception e) {
             requests.remove(request.getRequestId());
             throw new IllegalStateException("Failed to handle request " + request, e);
@@ -136,17 +128,26 @@ public abstract class AbstractWebsocketClient {
     }
 
     @RequiredArgsConstructor
-    @Getter
-    protected class WebSocketRequest implements Future<QueryResult> {
+    protected class WebSocketRequest {
         private final Request request;
-        @Delegate
         private final CompletableFuture<QueryResult> result = new CompletableFuture<>();
-        private volatile String sessionId;
-
-        @SneakyThrows
+        @Getter private volatile String sessionId;
+        
         protected void send(Session session) {
             this.sessionId = session.getId();
             AbstractWebsocketClient.this.send(request);
+        }
+
+        protected void completeExceptionally(Throwable e) {
+            result.completeExceptionally(e);
+        }
+
+        protected void complete(QueryResult value) {
+            result.complete(value);
+        }
+        
+        public QueryResult getResult() throws ExecutionException, InterruptedException {
+            return result.get();
         }
     }
 
