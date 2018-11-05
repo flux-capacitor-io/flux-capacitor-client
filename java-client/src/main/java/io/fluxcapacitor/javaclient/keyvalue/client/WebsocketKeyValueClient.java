@@ -23,6 +23,8 @@ import io.fluxcapacitor.common.api.keyvalue.GetValueResult;
 import io.fluxcapacitor.common.api.keyvalue.KeyValuePair;
 import io.fluxcapacitor.common.api.keyvalue.StoreValues;
 import io.fluxcapacitor.javaclient.common.websocket.AbstractWebsocketClient;
+import io.fluxcapacitor.javaclient.common.websocket.JsonDecoder;
+import io.fluxcapacitor.javaclient.common.websocket.JsonEncoder;
 import lombok.extern.slf4j.Slf4j;
 
 import javax.websocket.ClientEndpoint;
@@ -30,7 +32,7 @@ import java.net.URI;
 import java.util.List;
 
 @Slf4j
-@ClientEndpoint
+@ClientEndpoint(encoders = JsonEncoder.class, decoders = JsonDecoder.class)
 public class WebsocketKeyValueClient extends AbstractWebsocketClient implements KeyValueClient {
 
     private final Backlog<KeyValuePair> backlog;

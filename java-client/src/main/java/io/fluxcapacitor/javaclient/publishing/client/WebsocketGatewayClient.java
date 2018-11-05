@@ -20,13 +20,15 @@ import io.fluxcapacitor.common.Registration;
 import io.fluxcapacitor.common.api.SerializedMessage;
 import io.fluxcapacitor.common.api.publishing.Append;
 import io.fluxcapacitor.javaclient.common.websocket.AbstractWebsocketClient;
+import io.fluxcapacitor.javaclient.common.websocket.JsonDecoder;
+import io.fluxcapacitor.javaclient.common.websocket.JsonEncoder;
 
 import javax.websocket.ClientEndpoint;
 import java.net.URI;
 import java.util.List;
 import java.util.function.Consumer;
 
-@ClientEndpoint
+@ClientEndpoint(encoders = JsonEncoder.class, decoders = JsonDecoder.class)
 public class WebsocketGatewayClient extends AbstractWebsocketClient implements GatewayClient {
 
     private final Backlog<SerializedMessage> backlog;

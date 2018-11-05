@@ -20,6 +20,8 @@ import io.fluxcapacitor.common.api.scheduling.CancelSchedule;
 import io.fluxcapacitor.common.api.scheduling.Schedule;
 import io.fluxcapacitor.common.api.scheduling.ScheduledMessage;
 import io.fluxcapacitor.javaclient.common.websocket.AbstractWebsocketClient;
+import io.fluxcapacitor.javaclient.common.websocket.JsonDecoder;
+import io.fluxcapacitor.javaclient.common.websocket.JsonEncoder;
 import lombok.extern.slf4j.Slf4j;
 
 import javax.websocket.ClientEndpoint;
@@ -27,7 +29,7 @@ import java.net.URI;
 import java.util.List;
 
 @Slf4j
-@ClientEndpoint
+@ClientEndpoint(encoders = JsonEncoder.class, decoders = JsonDecoder.class)
 public class WebsocketSchedulingClient extends AbstractWebsocketClient implements SchedulingClient {
 
     private final Backlog<ScheduledMessage> backlog;

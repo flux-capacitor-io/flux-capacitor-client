@@ -18,6 +18,7 @@ import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.fluxcapacitor.common.Awaitable;
 import io.fluxcapacitor.common.TimingUtils;
+import io.fluxcapacitor.common.api.JsonType;
 import io.fluxcapacitor.common.api.QueryResult;
 import io.fluxcapacitor.common.api.Request;
 import lombok.Getter;
@@ -32,7 +33,6 @@ import javax.websocket.OnClose;
 import javax.websocket.OnError;
 import javax.websocket.OnMessage;
 import javax.websocket.Session;
-import java.io.OutputStream;
 import java.net.URI;
 import java.time.Duration;
 import java.util.Map;
@@ -69,13 +69,8 @@ public abstract class AbstractWebsocketClient {
 
     @SneakyThrows
     protected Awaitable send(Object object) {
-        try (OutputStream outputStream = getSession().getBasicRemote().getSendStream()) {
-            objectMapper.writeValue(outputStream, object);
-            return Awaitable.ready();
-        } catch (Exception e) {
-            log.error("Failed to send {}", object);
-            return Awaitable.failed(e);
-        }
+        getSession().getBasicRemote().sendObject(object);
+        return Awaitable.ready();
     }
 
     @SuppressWarnings("unchecked")
@@ -92,9 +87,8 @@ public abstract class AbstractWebsocketClient {
     }
 
     @OnMessage
-    @SneakyThrows
-    public void onMessage(byte[] value) {
-        QueryResult readResult = objectMapper.readValue(value, QueryResult.class);
+    public void onMessage(JsonType value) {
+        QueryResult readResult = (QueryResult) value;
         WebSocketRequest webSocketRequest = requests.remove(readResult.getRequestId());
         if (webSocketRequest == null) {
             log.warn("Could not find outstanding read request for id {}", readResult.getRequestId());
