@@ -35,7 +35,6 @@ import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Consumer;
 
-import static io.fluxcapacitor.common.api.tracking.TrackingStrategy.ALL;
 import static io.fluxcapacitor.common.api.tracking.TrackingStrategy.TYPE_DEFAULT;
 import static java.lang.Thread.currentThread;
 import static java.util.stream.Collectors.toList;
@@ -93,7 +92,7 @@ public class InMemoryMessageStore implements GatewayClient, TrackingClient {
 
     private long getLastIndex(String consumer, TrackingStrategy strategy) {
         TrackingStrategy s = strategy == TYPE_DEFAULT ? messageType.getDefaultReadStrategy() : strategy;
-        return consumerTokens.computeIfAbsent(consumer, k -> s == ALL ? -1L : nextIndex.get() - 1L);
+        return consumerTokens.computeIfAbsent(consumer, k -> -1L);
     }
 
     @Override
