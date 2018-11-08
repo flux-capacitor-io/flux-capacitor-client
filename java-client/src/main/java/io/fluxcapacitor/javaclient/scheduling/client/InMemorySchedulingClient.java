@@ -2,9 +2,11 @@ package io.fluxcapacitor.javaclient.scheduling.client;
 
 import io.fluxcapacitor.common.Awaitable;
 import io.fluxcapacitor.common.IndexUtils;
+import io.fluxcapacitor.common.MessageType;
 import io.fluxcapacitor.common.api.SerializedMessage;
 import io.fluxcapacitor.common.api.scheduling.ScheduledMessage;
 import io.fluxcapacitor.common.api.tracking.MessageBatch;
+import io.fluxcapacitor.common.api.tracking.TrackingStrategy;
 import io.fluxcapacitor.javaclient.tracking.client.InMemoryMessageStore;
 
 import java.time.Duration;
@@ -20,16 +22,20 @@ public class InMemorySchedulingClient extends InMemoryMessageStore implements Sc
 
     private final ConcurrentSkipListMap<Long, String> times = new ConcurrentSkipListMap<>();
 
+    public InMemorySchedulingClient() {
+        super(MessageType.SCHEDULE);
+    }
+
     @Override
     public MessageBatch read(String consumer, int channel, int maxSize, Duration maxTimeout, String typeFilter,
-                             boolean ignoreMessageTarget) {
-        MessageBatch messageBatch = super.read(consumer, channel, maxSize, maxTimeout, typeFilter, ignoreMessageTarget);
+                             boolean ignoreMessageTarget, TrackingStrategy readStrategy) {
+        MessageBatch messageBatch = super.read(consumer, channel, maxSize, maxTimeout, typeFilter, ignoreMessageTarget,
+                                               readStrategy);
         List<SerializedMessage> messages = messageBatch.getMessages().stream()
                 .filter(m -> times.containsKey(m.getIndex()))
                 .filter(m -> isMissedDeadline(timeFromIndex(m.getIndex())))
                 .collect(toList());
-        Long lastIndex = messages.isEmpty()
-                ? null : messages.get(messages.size() - 1).getIndex();
+        Long lastIndex = messages.isEmpty() ? null : messages.get(messages.size() - 1).getIndex();
         if (typeFilter != null) {
             messages = messages.stream().filter(m -> m.getData().getType().matches(typeFilter)).collect(toList());
         }

@@ -15,10 +15,13 @@
 package io.fluxcapacitor.javaclient.tracking.client;
 
 import io.fluxcapacitor.common.Awaitable;
+import io.fluxcapacitor.common.MessageType;
 import io.fluxcapacitor.common.Registration;
 import io.fluxcapacitor.common.api.SerializedMessage;
 import io.fluxcapacitor.common.api.tracking.MessageBatch;
+import io.fluxcapacitor.common.api.tracking.TrackingStrategy;
 import io.fluxcapacitor.javaclient.publishing.client.GatewayClient;
+import lombok.RequiredArgsConstructor;
 
 import java.time.Duration;
 import java.util.ArrayList;
@@ -32,11 +35,15 @@ import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Consumer;
 
+import static io.fluxcapacitor.common.api.tracking.TrackingStrategy.ALL;
+import static io.fluxcapacitor.common.api.tracking.TrackingStrategy.TYPE_DEFAULT;
 import static java.lang.Thread.currentThread;
 import static java.util.stream.Collectors.toList;
 
+@RequiredArgsConstructor
 public class InMemoryMessageStore implements GatewayClient, TrackingClient {
 
+    private final MessageType messageType;
     private final AtomicLong nextIndex = new AtomicLong();
     private final ConcurrentSkipListMap<Long, SerializedMessage> messageLog = new ConcurrentSkipListMap<>();
     private final Map<String, Long> consumerTokens = new ConcurrentHashMap<>();
@@ -59,7 +66,7 @@ public class InMemoryMessageStore implements GatewayClient, TrackingClient {
 
     @Override
     public MessageBatch read(String consumer, int channel, int maxSize, Duration maxTimeout, String typeFilter,
-                             boolean ignoreMessageTarget) {
+                             boolean ignoreMessageTarget, TrackingStrategy strategy) {
         if (channel != 0) {
             return new MessageBatch(new int[]{0, 1}, Collections.emptyList(), null);
         }
@@ -67,7 +74,7 @@ public class InMemoryMessageStore implements GatewayClient, TrackingClient {
         synchronized (this) {
             Map<Long, SerializedMessage> tailMap = Collections.emptyMap();
             while (System.currentTimeMillis() < deadline
-                    && (tailMap = messageLog.tailMap(getLastToken(consumer), false)).isEmpty()) {
+                    && (tailMap = messageLog.tailMap(getLastIndex(consumer, strategy), false)).isEmpty()) {
                 try {
                     this.wait(deadline - System.currentTimeMillis());
                 } catch (InterruptedException e) {
@@ -84,8 +91,9 @@ public class InMemoryMessageStore implements GatewayClient, TrackingClient {
         }
     }
 
-    private long getLastToken(String consumer) {
-        return consumerTokens.computeIfAbsent(consumer, k -> -1L);
+    private long getLastIndex(String consumer, TrackingStrategy strategy) {
+        TrackingStrategy s = strategy == TYPE_DEFAULT ? messageType.getDefaultReadStrategy() : strategy;
+        return consumerTokens.computeIfAbsent(consumer, k -> s == ALL ? -1L : nextIndex.get() - 1L);
     }
 
     @Override

@@ -19,6 +19,7 @@ import io.fluxcapacitor.common.api.tracking.MessageBatch;
 import io.fluxcapacitor.common.api.tracking.Read;
 import io.fluxcapacitor.common.api.tracking.ReadResult;
 import io.fluxcapacitor.common.api.tracking.StorePosition;
+import io.fluxcapacitor.common.api.tracking.TrackingStrategy;
 import io.fluxcapacitor.javaclient.common.websocket.AbstractWebsocketClient;
 import io.fluxcapacitor.javaclient.common.websocket.JsonDecoder;
 import io.fluxcapacitor.javaclient.common.websocket.JsonEncoder;
@@ -40,9 +41,9 @@ public class WebsocketTrackingClient extends AbstractWebsocketClient implements 
 
     @Override
     public MessageBatch read(String consumer, int channel, int maxSize, Duration maxTimeout, String typeFilter,
-                             boolean ignoreMessageTarget) {
+                             boolean ignoreMessageTarget, TrackingStrategy strategy) {
         ReadResult readResult = sendRequest(new Read(consumer, channel, maxSize, maxTimeout.toMillis(), 
-                                                     typeFilter, ignoreMessageTarget));
+                                                     typeFilter, ignoreMessageTarget, strategy));
         return readResult.getMessageBatch();
     }
 

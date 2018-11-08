@@ -14,6 +14,7 @@
 
 package io.fluxcapacitor.javaclient.tracking;
 
+import io.fluxcapacitor.common.api.tracking.TrackingStrategy;
 import lombok.Builder;
 import lombok.Builder.Default;
 import lombok.Singular;
@@ -46,4 +47,6 @@ public class TrackingConfiguration {
     @Default
     @Accessors(fluent = true)
     boolean ignoreMessageTarget = false;
+    @Default
+    TrackingStrategy readStrategy = TrackingStrategy.TYPE_DEFAULT;
 }

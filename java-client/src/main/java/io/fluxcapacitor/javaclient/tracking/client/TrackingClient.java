@@ -16,13 +16,14 @@ package io.fluxcapacitor.javaclient.tracking.client;
 
 import io.fluxcapacitor.common.Awaitable;
 import io.fluxcapacitor.common.api.tracking.MessageBatch;
+import io.fluxcapacitor.common.api.tracking.TrackingStrategy;
 
 import java.time.Duration;
 
 public interface TrackingClient {
 
     MessageBatch read(String consumer, int channel, int maxSize, Duration maxTimeout, String typeFilter,
-                      boolean ignoreMessageTarget);
+                      boolean ignoreMessageTarget, TrackingStrategy strategy);
 
     Awaitable storePosition(String consumer, int[] segment, long lastIndex);
 

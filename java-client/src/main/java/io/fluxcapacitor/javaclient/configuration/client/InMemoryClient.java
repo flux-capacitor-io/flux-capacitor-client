@@ -25,12 +25,13 @@ public class InMemoryClient extends AbstractClient {
         Function<MessageType, InMemoryMessageStore> messageStoreFactory = type -> messageStores.computeIfAbsent(
                 type, t -> {
                     switch (t) {
+                        case NOTIFICATION:
                         case EVENT:
                             return eventStoreClient;
                         case SCHEDULE:
                             return schedulingClient;
                         default:
-                            return new InMemoryMessageStore();
+                            return new InMemoryMessageStore(t);
                     }
                 });
         return new InMemoryClient("inMemory", ManagementFactory.getRuntimeMXBean().getName(), messageStoreFactory,

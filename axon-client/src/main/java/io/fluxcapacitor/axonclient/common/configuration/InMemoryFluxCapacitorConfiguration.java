@@ -39,18 +39,18 @@ public class InMemoryFluxCapacitorConfiguration extends AbstractFluxCapacitorCon
 
     @Override
     protected TrackingClient createConsumerService(MessageType type) {
-        if (type == MessageType.EVENT) {
-            return eventStore;
+        switch (type) {
+            case NOTIFICATION:
+            case EVENT:
+                return eventStore;
+            default:
+                return messageStores.computeIfAbsent(type, InMemoryMessageStore::new);
         }
-        return messageStores.computeIfAbsent(type, k -> new InMemoryMessageStore());
     }
 
     @Override
     protected GatewayClient createProducerService(MessageType type) {
-        if (type == MessageType.EVENT) {
-            return eventStore;
-        }
-        return messageStores.computeIfAbsent(type, k -> new InMemoryMessageStore());
+        return (GatewayClient) createConsumerService(type);
     }
 
     @Override

@@ -14,11 +14,20 @@
 
 package io.fluxcapacitor.common;
 
+import io.fluxcapacitor.common.api.tracking.TrackingStrategy;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
+
+import static io.fluxcapacitor.common.api.tracking.TrackingStrategy.NEW;
 
 @AllArgsConstructor
 @Getter
 public enum MessageType {
-    COMMAND, EVENT, NOTIFICATION, QUERY, RESULT, SCHEDULE, ERROR, METRICS;
+    COMMAND, EVENT, NOTIFICATION, QUERY, RESULT(NEW), SCHEDULE, ERROR(NEW), METRICS;
+    
+    private final TrackingStrategy defaultReadStrategy;
+
+    MessageType() {
+        this(TrackingStrategy.ALL);
+    }
 }

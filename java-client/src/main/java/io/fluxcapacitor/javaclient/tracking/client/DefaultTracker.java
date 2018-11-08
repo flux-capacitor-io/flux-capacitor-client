@@ -76,9 +76,10 @@ public class DefaultTracker implements Runnable, Registration {
     @Override
     public void run() {
         if (running.compareAndSet(false, true)) {
+            MessageBatch batch = fetch(null, null);
             while (running.get()) {
-                MessageBatch batch = fetch();
                 processor.accept(batch);
+                batch = fetch(batch.getSegment(), batch.getLastIndex());
             }
         }
     }
@@ -88,11 +89,12 @@ public class DefaultTracker implements Runnable, Registration {
         running.compareAndSet(true, false);
     }
 
-    protected MessageBatch fetch() {
+    protected MessageBatch fetch(int[] segment, Long lastIndex) {
         return retryOnFailure(
                 () -> trackingClient
                         .read(name, channel, configuration.getMaxFetchBatchSize(), configuration.getMaxWaitDuration(),
-                              configuration.getTypeFilter(), configuration.ignoreMessageTarget()),
+                              configuration.getTypeFilter(), configuration.ignoreMessageTarget(),
+                              configuration.getReadStrategy()),
                 configuration.getRetryDelay(), e -> running.get());
     }
 

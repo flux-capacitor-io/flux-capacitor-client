@@ -15,6 +15,7 @@
 package io.fluxcapacitor.javaclient.eventsourcing.client;
 
 import io.fluxcapacitor.common.Awaitable;
+import io.fluxcapacitor.common.MessageType;
 import io.fluxcapacitor.common.api.SerializedMessage;
 import io.fluxcapacitor.common.api.eventsourcing.EventBatch;
 import io.fluxcapacitor.javaclient.tracking.client.InMemoryMessageStore;
@@ -29,6 +30,10 @@ import java.util.stream.Stream;
 public class InMemoryEventStoreClient extends InMemoryMessageStore implements EventStoreClient {
 
     private final Map<String, List<EventBatch>> domainEvents = new ConcurrentHashMap<>();
+
+    public InMemoryEventStoreClient() {
+        super(MessageType.EVENT);
+    }
 
     @Override
     public Awaitable storeEvents(String aggregateId, String domain, long lastSequenceNumber,
