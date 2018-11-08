@@ -3,8 +3,7 @@ package io.fluxcapacitor.javaclient.givenwhenthen;
 import io.fluxcapacitor.javaclient.FluxCapacitor;
 import io.fluxcapacitor.javaclient.MockException;
 import io.fluxcapacitor.javaclient.common.exception.FunctionalException;
-import io.fluxcapacitor.javaclient.common.exception.TechnicalException;
-import io.fluxcapacitor.javaclient.test.streaming.StreamingTestFixture;
+import io.fluxcapacitor.javaclient.test.TestFixture;
 import io.fluxcapacitor.javaclient.tracking.handling.HandleCommand;
 import io.fluxcapacitor.javaclient.tracking.handling.HandleEvent;
 import io.fluxcapacitor.javaclient.tracking.handling.HandleQuery;
@@ -16,13 +15,13 @@ import static org.hamcrest.CoreMatchers.isA;
 import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.spy;
 
-class GivenWhenThenIntegrationTest {
+class GivenWhenThenMultiHandlerTest {
 
     private final CommandHandler commandHandler = spy(new CommandHandler());
     private final EventHandler eventHandler = spy(new EventHandler());
     private final QueryHandler queryHandler = spy(new QueryHandler());
-    private final StreamingTestFixture
-            subject = StreamingTestFixture.create(commandHandler, eventHandler, queryHandler);
+    private final TestFixture
+            subject = TestFixture.create(commandHandler, eventHandler, queryHandler);
 
     @Test
     void testExpectNoEventsAndNoResult() {
@@ -35,13 +34,8 @@ class GivenWhenThenIntegrationTest {
     }
 
     @Test
-    void testExpectTechnicalExceptionButNoEvents() {
-        subject.givenNoPriorActivity().whenCommand(new YieldsTechnicalException()).expectNoEvents().expectException(TechnicalException.class);
-    }
-
-    @Test
-    void testExpectFunctionalExceptionButNoEvents() {
-        subject.givenNoPriorActivity().whenCommand(new YieldsFunctionalException()).expectNoEvents().expectException(FunctionalException.class);
+    void testExpectExceptionButNoEvents() {
+        subject.givenNoPriorActivity().whenCommand(new YieldsFunctionalException()).expectNoEvents().expectException(FunctionalMockException.class);
     }
 
     @Test
@@ -59,7 +53,7 @@ class GivenWhenThenIntegrationTest {
     @Test
     void testExpectExceptionAndEvent() {
         YieldsEventAndException command = new YieldsEventAndException();
-        subject.givenNoPriorActivity().whenCommand(command).expectOnlyEvents(command).expectException(TechnicalException.class);
+        subject.givenNoPriorActivity().whenCommand(command).expectOnlyEvents(command).expectException(Exception.class);
     }
 
     @Test
@@ -115,7 +109,7 @@ class GivenWhenThenIntegrationTest {
 
     @Test
     void testFailingQuery() {
-        subject.whenQuery(1L).expectException(TechnicalException.class);
+        subject.whenQuery(1L).expectException(Exception.class);
     }
 
     private static class CommandHandler {
