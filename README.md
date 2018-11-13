@@ -52,7 +52,7 @@ Create a new project and add an event class:
 ```java
 package com.example;
 
-public class HelloWorld {
+class HelloWorld {
 }
 ```
 
@@ -63,9 +63,9 @@ package com.example;
 
 import io.fluxcapacitor.javaclient.tracking.handling.HandleEvent;
 
-public class HelloWorldEventHandler {
+class HelloWorldEventHandler {
     @HandleEvent
-    public void handle(HelloWorld event) {
+    void handle(HelloWorld event) {
         System.out.println("Hello World!");
     }
 }
@@ -103,8 +103,8 @@ functionality. Here's a summary of the most important features:
 
 ### Publishing and tracking
 
-Above all, Flux Capacitor lets you publish and subscribe to messages in real time. Those messages can come from your own 
-application or from any other application connected to the same Flux Capacitor service.
+Above all, Flux Capacitor lets you publish and subscribe to messages (events, commands, queries, etc.). Those messages 
+can come from your own application or from any other application connected to the same Flux Capacitor service.
 
 Here's an example of an event handler that dispatches a command to send a welcome email when a new user is created:
 
