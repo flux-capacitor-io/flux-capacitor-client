@@ -18,6 +18,7 @@ import io.fluxcapacitor.javaclient.publishing.EventGateway;
 import io.fluxcapacitor.javaclient.publishing.MetricsGateway;
 import io.fluxcapacitor.javaclient.publishing.QueryGateway;
 import io.fluxcapacitor.javaclient.publishing.ResultGateway;
+import io.fluxcapacitor.javaclient.publishing.Timeout;
 import io.fluxcapacitor.javaclient.scheduling.Scheduler;
 import io.fluxcapacitor.javaclient.tracking.Tracking;
 import io.fluxcapacitor.javaclient.tracking.handling.HandleCommand;
@@ -133,6 +134,26 @@ public interface FluxCapacitor {
      */
     static <R> CompletableFuture<R> query(Object payload, Metadata metadata) {
         return get().queryGateway().send(payload, metadata);
+    }
+
+    /**
+     * Sends a query with given payload and returns the result. The current thread will be blocked while waiting for 
+     * the result.
+     *
+     * @see Timeout to set the maximum timeout while waiting for a query result
+     */
+    static <R> R sendQueryAndWait(Object payload) {
+        return get().queryGateway().sendAndWait(payload);
+    }
+
+    /**
+     * Sends a query with given payload and metadata and returns the result. The current thread will be blocked while
+     * waiting for the result.
+     * 
+     * @see Timeout to set the maximum timeout while waiting for a query result
+     */
+    static <R> R sendQueryAndWait(Object payload, Metadata metadata) {
+        return get().queryGateway().sendAndWait(payload, metadata);
     }
 
     /**
