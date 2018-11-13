@@ -34,7 +34,7 @@ compile 'io.flux-capacitor:java-client:${flux-capacitor.version}'
 ### Others
 
 ```
-git clone --recursive https://github.com/flux-capacitor-io/flux-capacitor-client.git
+git clone https://github.com/flux-capacitor-io/flux-capacitor-client.git
 cd flux-capacitor-client
 mvn install
 ```
@@ -128,7 +128,7 @@ event handler you would create the following handler:
 class EmailCommandHandler {
     @HandleCommand
     void handle(SendWelcomeEmail command) {
-        //send the actual email
+        //send a welcome email to the user
     }
 }
 ```
@@ -159,7 +159,9 @@ class UserEventHandler {
 }
 ```
 
-### Testing handlers
+### Testing your handlers
+
+
 
 ### Event Sourcing
 
