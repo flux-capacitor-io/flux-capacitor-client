@@ -2,6 +2,7 @@ package io.fluxcapacitor.javaclient.common.serialization;
 
 import io.fluxcapacitor.common.api.SerializedObject;
 import lombok.Getter;
+import lombok.SneakyThrows;
 import lombok.ToString;
 
 import java.util.function.Supplier;
@@ -37,12 +38,9 @@ public class DeserializingObject<T, S extends SerializedObject<T, S>> {
         return serializedObject;
     }
 
+    @SneakyThrows
     @SuppressWarnings("unused")
     public Class<?> getPayloadClass() {
-        try {
-            return Class.forName(getType());
-        } catch (ClassNotFoundException e) {
-            throw new SerializationException(String.format("Failed to get the class name for a %s", getType()), e);
-        }
+        return Class.forName(getType());
     }
 }

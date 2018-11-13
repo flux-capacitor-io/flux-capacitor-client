@@ -110,16 +110,16 @@ public class DefaultTracking implements Tracking {
     @SneakyThrows
     protected void tryHandle(DeserializingMessage message, Handler<DeserializingMessage> handler,
                              ConsumerConfiguration config) {
-        if (handler.canHandle(message)) {
-            try {
+        try {
+            if (handler.canHandle(message)) {
                 handle(message, handler, config);
-            } catch (Exception e) {
-                Message error = new Message(e, MessageType.ERROR);
-                errorGateway.report(error, message.getSerializedObject().getSource());
-                config.getErrorHandler()
-                        .handleError(e, format("Handler %s failed to handle a %s", handler, message.getType()),
-                                     () -> handle(message, handler, config));
             }
+        } catch (Exception e) {
+            Message error = new Message(e, MessageType.ERROR);
+            errorGateway.report(error, message.getSerializedObject().getSource());
+            config.getErrorHandler()
+                    .handleError(e, format("Handler %s failed to handle a %s", handler, message.getType()),
+                                 () -> handle(message, handler, config));
         }
     }
 

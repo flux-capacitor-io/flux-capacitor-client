@@ -90,7 +90,8 @@ public class HandlerInspector {
 
         @Override
         public boolean canHandle(Object target, M message) {
-            if (!getPayloadType().isAssignableFrom(payloadTypeSupplier.apply(message))) {
+            Class<?> payloadClass = payloadTypeSupplier.apply(message);
+            if (!getPayloadType().isAssignableFrom(payloadClass)) {
                 return false;
             }
             if (target == null) {

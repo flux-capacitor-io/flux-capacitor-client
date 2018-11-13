@@ -32,7 +32,13 @@ public class PayloadParameterResolver implements ParameterResolver<Deserializing
     @Override
     public Function<DeserializingMessage, ? extends Class<?>> resolveClass(Parameter p) {
         if (p.getDeclaringExecutable().getParameters()[0] == p) {
-            return DeserializingMessage::getPayloadClass;
+            return m -> {
+                try {
+                    return m.getPayloadClass();
+                } catch (Exception e) {
+                    return UnknownType.class;
+                }
+            };
         }
         return null;
     }
