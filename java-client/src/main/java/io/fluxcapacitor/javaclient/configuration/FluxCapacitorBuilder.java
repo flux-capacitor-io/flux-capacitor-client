@@ -47,6 +47,8 @@ public interface FluxCapacitorBuilder {
 
     FluxCapacitorBuilder changeMessageRoutingInterceptor(DispatchInterceptor messageRoutingInterceptor);
 
+    FluxCapacitorBuilder disableErrorReporting();
+    
     FluxCapacitorBuilder disableMessageCorrelation();
 
     FluxCapacitorBuilder disablePayloadValidation();

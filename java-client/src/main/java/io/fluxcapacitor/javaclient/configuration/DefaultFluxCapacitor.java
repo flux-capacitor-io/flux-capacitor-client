@@ -74,6 +74,7 @@ import io.fluxcapacitor.javaclient.tracking.handling.HandleSchedule;
 import io.fluxcapacitor.javaclient.tracking.handling.HandlerInterceptor;
 import io.fluxcapacitor.javaclient.tracking.handling.MetadataParameterResolver;
 import io.fluxcapacitor.javaclient.tracking.handling.PayloadParameterResolver;
+import io.fluxcapacitor.javaclient.tracking.handling.errorreporting.ErrorReportingInterceptor;
 import io.fluxcapacitor.javaclient.tracking.handling.validation.ValidatingInterceptor;
 import io.fluxcapacitor.javaclient.tracking.metrics.HandlerMonitor;
 import io.fluxcapacitor.javaclient.tracking.metrics.TrackerMonitor;
@@ -196,6 +197,7 @@ public class DefaultFluxCapacitor implements FluxCapacitor {
         private final Set<CorrelationDataProvider> correlationDataProviders = new LinkedHashSet<>();
         private DispatchInterceptor messageRoutingInterceptor = new MessageRoutingInterceptor();
         private HandlerInterceptor validationInterceptor = new ValidatingInterceptor();
+        private boolean disableErrorReporting;
         private boolean disableMessageCorrelation;
         private boolean disablePayloadValidation;
         private boolean disableDataProtection;
@@ -276,6 +278,12 @@ public class DefaultFluxCapacitor implements FluxCapacitor {
         }
 
         @Override
+        public FluxCapacitorBuilder disableErrorReporting() {
+            disableErrorReporting = true;
+            return this;
+        }
+
+        @Override
         public Builder disableMessageCorrelation() {
             disableMessageCorrelation = true;
             return this;
@@ -321,6 +329,10 @@ public class DefaultFluxCapacitor implements FluxCapacitor {
 
             KeyValueStore keyValueStore = new DefaultKeyValueStore(client.getKeyValueClient(), serializer);
 
+            //enable message routing
+            Arrays.stream(MessageType.values())
+                    .forEach(type -> dispatchInterceptors.compute(type, (t, i) -> i.merge(messageRoutingInterceptor)));
+
             //enable data protection
             if (!disableDataProtection) {
                 DataProtectionInterceptor interceptor = new DataProtectionInterceptor(keyValueStore, serializer);
@@ -329,15 +341,11 @@ public class DefaultFluxCapacitor implements FluxCapacitor {
                     handlerInterceptors.compute(type, (t, i) -> i.merge(interceptor));
                 });
             }
-            
-            //enable message routing
-            Arrays.stream(MessageType.values())
-                    .forEach(type -> dispatchInterceptors.compute(type, (t, i) -> i.merge(messageRoutingInterceptor)));
 
             //enable message correlation
             if (!disableMessageCorrelation) {
                 Set<CorrelationDataProvider> dataProviders = new LinkedHashSet<>(this.correlationDataProviders);
-                dataProviders.add(new MessageOriginProvider());
+                dataProviders.add(new MessageOriginProvider(client));
                 CorrelatingInterceptor correlatingInterceptor = new CorrelatingInterceptor(dataProviders);
                 Arrays.stream(MessageType.values()).forEach(type -> {
                     dispatchInterceptors.compute(type, (t, i) -> correlatingInterceptor.merge(i));
@@ -376,8 +384,18 @@ public class DefaultFluxCapacitor implements FluxCapacitor {
             DefaultEventSourcing eventSourcing =
                     new DefaultEventSourcing(eventStore, snapshotRepository, new DefaultCache());
 
-            //register event sourcing as the outermost handler interceptor
+            //register event sourcing as handler interceptor
             handlerInterceptors.compute(COMMAND, (t, i) -> i.merge(eventSourcing));
+
+            //enable error reporter as the outermost handler interceptor
+            ErrorGateway errorGateway =
+                    new DefaultErrorGateway(client.getGatewayClient(ERROR),
+                                            new MessageSerializer(serializer, dispatchInterceptors.get(ERROR)));
+            if (!disableErrorReporting) {
+                ErrorReportingInterceptor interceptor = new ErrorReportingInterceptor(errorGateway);
+                Arrays.stream(MessageType.values())
+                        .forEach(type -> handlerInterceptors.compute(type, (t, i) -> i.merge(interceptor)));
+            }
 
             //create gateways
             ResultGateway resultGateway =
@@ -404,9 +422,6 @@ public class DefaultFluxCapacitor implements FluxCapacitor {
                                             new MessageSerializer(serializer, dispatchInterceptors.get(EVENT)),
                                             new DefaultHandlerFactory(EVENT, handlerInterceptors.get(EVENT),
                                                                       handlerParameterResolvers));
-            ErrorGateway errorGateway =
-                    new DefaultErrorGateway(client.getGatewayClient(ERROR),
-                                            new MessageSerializer(serializer, dispatchInterceptors.get(ERROR)));
 
             MetricsGateway metricsGateway =
                     new DefaultMetricsGateway(client.getGatewayClient(METRICS),
@@ -417,8 +432,7 @@ public class DefaultFluxCapacitor implements FluxCapacitor {
             Map<MessageType, Tracking> trackingMap = stream(MessageType.values())
                     .collect(toMap(identity(),
                                    m -> new DefaultTracking(m, getHandlerAnnotation(m), client.getTrackingClient(m),
-                                                            resultGateway, errorGateway,
-                                                            consumerConfigurations.get(m), serializer,
+                                                            resultGateway, consumerConfigurations.get(m), serializer,
                                                             handlerInterceptors.get(m), handlerParameterResolvers)));
 
             //misc

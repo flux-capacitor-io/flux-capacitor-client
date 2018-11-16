@@ -15,6 +15,7 @@
 package io.fluxcapacitor.javaclient.publishing.correlation;
 
 import io.fluxcapacitor.javaclient.common.serialization.DeserializingMessage;
+import io.fluxcapacitor.javaclient.configuration.client.Client;
 import lombok.AllArgsConstructor;
 import lombok.EqualsAndHashCode;
 
@@ -24,12 +25,14 @@ import java.util.Map;
 @AllArgsConstructor
 @EqualsAndHashCode
 public class MessageOriginProvider implements CorrelationDataProvider {
+    private final Client client;
+    private final String clientId;
     private final String correlationId;
     private final String traceId;
     private final String trigger;
 
-    public MessageOriginProvider() {
-        this("$correlationId", "$traceId", "$trigger");
+    public MessageOriginProvider(Client client) {
+        this(client, "$clientId", "$correlationId", "$traceId", "$trigger");
     }
 
     @Override
@@ -41,6 +44,7 @@ public class MessageOriginProvider implements CorrelationDataProvider {
             result.put(this.correlationId, correlationId);
             result.put(traceId, message.getMetadata().getOrDefault(traceId, correlationId));
         }
+        result.put(clientId, client.id());
         result.put(trigger, message.getSerializedObject().getData().getType());
         return result;
     }

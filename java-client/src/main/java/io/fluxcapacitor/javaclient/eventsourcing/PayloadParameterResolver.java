@@ -28,12 +28,13 @@ public class PayloadParameterResolver implements ParameterResolver<Message> {
         }
         return null;
     }
-
+    
     @Override
-    public Function<Message, ? extends Class<?>> resolveClass(Parameter p) {
+    public boolean matches(Parameter p, Message value) {
         if (p.getDeclaringExecutable().getParameters()[0] == p) {
-            return m -> m.getPayload().getClass();
+            return p.getType().isAssignableFrom(value.getPayload().getClass());
         }
-        return null;
+        return false;
     }
+
 }

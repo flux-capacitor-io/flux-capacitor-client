@@ -8,13 +8,11 @@ import io.fluxcapacitor.common.handling.Handler;
 import io.fluxcapacitor.common.handling.HandlerInspector;
 import io.fluxcapacitor.common.handling.ParameterResolver;
 import io.fluxcapacitor.javaclient.FluxCapacitor;
-import io.fluxcapacitor.javaclient.common.Message;
 import io.fluxcapacitor.javaclient.common.exception.FunctionalException;
 import io.fluxcapacitor.javaclient.common.exception.TechnicalException;
 import io.fluxcapacitor.javaclient.common.serialization.DeserializingMessage;
 import io.fluxcapacitor.javaclient.common.serialization.Serializer;
 import io.fluxcapacitor.javaclient.eventsourcing.CacheInvalidatingInterceptor;
-import io.fluxcapacitor.javaclient.publishing.ErrorGateway;
 import io.fluxcapacitor.javaclient.publishing.ResultGateway;
 import io.fluxcapacitor.javaclient.publishing.routing.RoutingKey;
 import io.fluxcapacitor.javaclient.tracking.client.TrackingClient;
@@ -49,7 +47,6 @@ public class DefaultTracking implements Tracking {
     private final Class<? extends Annotation> handlerAnnotation;
     private final TrackingClient trackingClient;
     private final ResultGateway resultGateway;
-    private final ErrorGateway errorGateway;
     private final List<ConsumerConfiguration> configurations;
     private final Serializer serializer;
     private final HandlerInterceptor handlerInterceptor;
@@ -115,8 +112,6 @@ public class DefaultTracking implements Tracking {
                 handle(message, handler, config);
             }
         } catch (Exception e) {
-            Message error = new Message(e, MessageType.ERROR);
-            errorGateway.report(error, message.getSerializedObject().getSource());
             config.getErrorHandler()
                     .handleError(e, format("Handler %s failed to handle a %s", handler, message.getType()),
                                  () -> handle(message, handler, config));
