@@ -347,10 +347,8 @@ public class DefaultFluxCapacitor implements FluxCapacitor {
                 Set<CorrelationDataProvider> dataProviders = new LinkedHashSet<>(this.correlationDataProviders);
                 dataProviders.add(new MessageOriginProvider(client));
                 CorrelatingInterceptor correlatingInterceptor = new CorrelatingInterceptor(dataProviders);
-                Arrays.stream(MessageType.values()).forEach(type -> {
-                    dispatchInterceptors.compute(type, (t, i) -> correlatingInterceptor.merge(i));
-                    handlerInterceptors.compute(type, (t, i) -> correlatingInterceptor.merge(i));
-                });
+                Arrays.stream(MessageType.values()).forEach(
+                        type -> dispatchInterceptors.compute(type, (t, i) -> correlatingInterceptor.merge(i)));
             }
 
             //enable command and query validation

@@ -20,12 +20,14 @@ import io.fluxcapacitor.common.api.Metadata;
 import io.fluxcapacitor.common.api.SerializedMessage;
 import io.fluxcapacitor.javaclient.FluxCapacitor;
 import io.fluxcapacitor.javaclient.common.Message;
+import io.fluxcapacitor.javaclient.common.serialization.DeserializingMessage;
 import io.fluxcapacitor.javaclient.configuration.FluxCapacitorBuilder;
 import io.fluxcapacitor.javaclient.configuration.client.InMemoryClient;
-import io.fluxcapacitor.javaclient.publishing.correlation.ContextualDispatchInterceptor;
+import io.fluxcapacitor.javaclient.publishing.DispatchInterceptor;
 
 import java.util.Arrays;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Function;
@@ -42,7 +44,7 @@ public abstract class AbstractTestFixture implements Given, When {
     protected AbstractTestFixture(FluxCapacitorBuilder fluxCapacitorBuilder,
                                   Function<FluxCapacitor, List<?>> handlerFactory) {
         this.interceptor = new GivenWhenThenInterceptor();
-        this.fluxCapacitor = fluxCapacitorBuilder.addDispatchInterceptor(interceptor).addHandlerInterceptor(interceptor)
+        this.fluxCapacitor = fluxCapacitorBuilder.addDispatchInterceptor(interceptor)
                 .build(InMemoryClient.newInstance());
         this.registration = registerHandlers(handlerFactory.apply(fluxCapacitor), fluxCapacitor);
     }
@@ -146,7 +148,7 @@ public abstract class AbstractTestFixture implements Given, When {
         return fluxCapacitor;
     }
 
-    protected class GivenWhenThenInterceptor extends ContextualDispatchInterceptor {
+    protected class GivenWhenThenInterceptor implements DispatchInterceptor {
 
         private static final String TAG = "givenWhenThen.tag";
         private static final String TAG_NAME = "givenWhenThen.tagName";
@@ -176,7 +178,7 @@ public abstract class AbstractTestFixture implements Given, When {
             return message -> {
                 String tag = UUID.randomUUID().toString();
                 message.getMetadata().putIfAbsent(TAG_NAME, tag);
-                getCurrentMessage().ifPresent(currentMessage -> {
+                Optional.ofNullable(DeserializingMessage.getCurrent()).ifPresent(currentMessage -> {
                     if (currentMessage.getMetadata().containsKey(TRACE_NAME)) {
                         message.getMetadata().put(TRACE_NAME, currentMessage.getMetadata().get(
                                 TRACE_NAME) + "," + currentMessage.getMetadata().get(TAG_NAME));
