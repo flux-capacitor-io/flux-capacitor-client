@@ -30,24 +30,28 @@ import javax.websocket.OnClose;
 import javax.websocket.OnError;
 import javax.websocket.OnMessage;
 import javax.websocket.Session;
+import java.io.IOException;
 import java.net.URI;
 import java.time.Duration;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 
 import static java.lang.Thread.currentThread;
 import static java.lang.Thread.sleep;
+import static javax.websocket.CloseReason.CloseCodes.NO_STATUS_CODE;
 
 @Slf4j
-public abstract class AbstractWebsocketClient {
+public abstract class AbstractWebsocketClient implements AutoCloseable {
     private final ClientManager client;
     private final URI endpointUri;
     private final Duration reconnectDelay;
     private final Map<Long, WebSocketRequest> requests = new ConcurrentHashMap<>();
     private final AtomicReference<Session> session = new AtomicReference<>();
+    private final AtomicBoolean closed = new AtomicBoolean();
 
     public AbstractWebsocketClient(URI endpointUri) {
         this(ClientManager.createClient(), endpointUri, Duration.ofSeconds(1));
@@ -91,12 +95,14 @@ public abstract class AbstractWebsocketClient {
 
     @OnClose
     public void onClose(Session session, CloseReason closeReason) {
-        log.info("Connection to endpoint {} closed with reason {}", session.getRequestURI(), closeReason);
+        if (closeReason.getCloseCode().getCode() > NO_STATUS_CODE.getCode()) {
+            log.warn("Connection to endpoint {} closed with reason {}", session.getRequestURI(), closeReason);
+        }
         retryOutstandingRequests(session.getId());
     }
 
     protected void retryOutstandingRequests(String sessionId) {
-        if (!requests.isEmpty()) {
+        if (!closed.get() && !requests.isEmpty()) {
             try {
                 sleep(reconnectDelay.toMillis());
             } catch (InterruptedException e) {
@@ -117,11 +123,31 @@ public abstract class AbstractWebsocketClient {
     public void onError(Session session, Throwable e) {
         log.error("Client side error for web socket connected to endpoint {}", session.getRequestURI(), e);
     }
-    
+
+    @Override
+    public void close() {
+        if (closed.compareAndSet(false, true)) {
+            Session session = getSession();
+            if (session != null) {
+                try {
+                    session.close();
+                } catch (IOException e) {
+                    log.warn("Failed to closed websocket session connected to endpoint {}. Reason: {}", 
+                             session.getRequestURI(), e.getMessage());
+                }
+            }
+            if (session != null && !requests.isEmpty()) {
+                log.warn("Closed websocket session to endpoint {} with {} outstanding requests",
+                         session.getRequestURI(), requests.size());
+            }
+        }
+    }
+
     protected Session getSession() {
         return session.updateAndGet(s -> {
-            while (s == null || !s.isOpen()) {
-                s = TimingUtils.retryOnFailure(() -> client.connectToServer(this, endpointUri), reconnectDelay);
+            while (!closed.get() && (s == null || !s.isOpen())) {
+                s = TimingUtils.retryOnFailure(() -> client.connectToServer(this, endpointUri), 
+                                               reconnectDelay, e -> !closed.get());
             }
             return s;
         });

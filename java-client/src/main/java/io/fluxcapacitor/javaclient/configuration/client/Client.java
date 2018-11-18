@@ -7,7 +7,7 @@ import io.fluxcapacitor.javaclient.publishing.client.GatewayClient;
 import io.fluxcapacitor.javaclient.scheduling.client.SchedulingClient;
 import io.fluxcapacitor.javaclient.tracking.client.TrackingClient;
 
-public interface Client {
+public interface Client extends AutoCloseable {
 
     String name();
 
@@ -22,4 +22,7 @@ public interface Client {
     SchedulingClient getSchedulingClient();
 
     KeyValueClient getKeyValueClient();
+
+    @Override
+    void close();
 }

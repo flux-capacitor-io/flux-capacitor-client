@@ -34,4 +34,9 @@ public class InMemoryKeyValueClient implements KeyValueClient {
         values.remove(key);
         return Awaitable.ready();
     }
+
+    @Override
+    public void close() {
+        //no op
+    }
 }

@@ -80,6 +80,7 @@ import io.fluxcapacitor.javaclient.tracking.metrics.HandlerMonitor;
 import io.fluxcapacitor.javaclient.tracking.metrics.TrackerMonitor;
 import lombok.AccessLevel;
 import lombok.AllArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 
 import java.lang.annotation.Annotation;
 import java.time.Duration;
@@ -101,6 +102,7 @@ import static io.fluxcapacitor.common.MessageType.METRICS;
 import static io.fluxcapacitor.common.MessageType.QUERY;
 import static io.fluxcapacitor.common.MessageType.RESULT;
 import static io.fluxcapacitor.common.MessageType.SCHEDULE;
+import static java.lang.Runtime.getRuntime;
 import static java.util.Arrays.stream;
 import static java.util.Collections.singletonList;
 import static java.util.Collections.unmodifiableMap;
@@ -108,10 +110,11 @@ import static java.util.function.Function.identity;
 import static java.util.stream.Collectors.toList;
 import static java.util.stream.Collectors.toMap;
 
+@Slf4j
 @AllArgsConstructor(access = AccessLevel.PROTECTED)
 public class DefaultFluxCapacitor implements FluxCapacitor {
 
-    private final Map<MessageType, Tracking> trackingSupplier;
+    private final Map<MessageType, ? extends Tracking> trackingSupplier;
     private final CommandGateway commandGateway;
     private final QueryGateway queryGateway;
     private final EventGateway eventGateway;
@@ -196,11 +199,11 @@ public class DefaultFluxCapacitor implements FluxCapacitor {
                 Arrays.stream(MessageType.values()).collect(toMap(identity(), m -> (f, h, c) -> f));
         private final Set<CorrelationDataProvider> correlationDataProviders = new LinkedHashSet<>();
         private DispatchInterceptor messageRoutingInterceptor = new MessageRoutingInterceptor();
-        private HandlerInterceptor validationInterceptor = new ValidatingInterceptor();
         private boolean disableErrorReporting;
         private boolean disableMessageCorrelation;
         private boolean disablePayloadValidation;
         private boolean disableDataProtection;
+        private boolean disableShutdownHook;
         private boolean collectTrackingMetrics;
         private boolean collectApplicationMetrics;
 
@@ -284,6 +287,12 @@ public class DefaultFluxCapacitor implements FluxCapacitor {
         }
 
         @Override
+        public FluxCapacitorBuilder disableShutdownHook() {
+            disableShutdownHook = true;
+            return this;
+        }
+
+        @Override
         public Builder disableMessageCorrelation() {
             disableMessageCorrelation = true;
             return this;
@@ -310,12 +319,6 @@ public class DefaultFluxCapacitor implements FluxCapacitor {
         @Override
         public FluxCapacitorBuilder collectApplicationMetrics() {
             collectApplicationMetrics = true;
-            return this;
-        }
-
-        @Override
-        public Builder changeCommandValidationInterceptor(HandlerInterceptor validationInterceptor) {
-            this.validationInterceptor = validationInterceptor;
             return this;
         }
 
@@ -354,7 +357,7 @@ public class DefaultFluxCapacitor implements FluxCapacitor {
             //enable command and query validation
             if (!disablePayloadValidation) {
                 Stream.of(COMMAND, QUERY)
-                        .forEach(type -> handlerInterceptors.compute(type, (t, i) -> i.merge(validationInterceptor)));
+                        .forEach(type -> handlerInterceptors.compute(type, (t, i) -> i.merge(new ValidatingInterceptor())));
             }
 
             //collect metrics about consumers and handlers
@@ -447,11 +450,21 @@ public class DefaultFluxCapacitor implements FluxCapacitor {
             if (collectApplicationMetrics) {
                 ApplicationMonitor.start(fluxCapacitor, Duration.ofSeconds(1));
             }
-
+            
+            //perform a controlled shutdown when the vm exits
+            if (!disableShutdownHook) {
+                getRuntime().addShutdownHook(new Thread(() -> {
+                    log.info("Initiating controlled shutdown");
+                    trackingMap.values().forEach(Tracking::close);
+                    client.close();
+                    log.info("Completed shutdown");
+                }));
+            }
+            
             return fluxCapacitor;
         }
 
-        protected FluxCapacitor doBuild(Map<MessageType, Tracking> trackingSupplier,
+        protected FluxCapacitor doBuild(Map<MessageType, ? extends Tracking> trackingSupplier,
                                         CommandGateway commandGateway, QueryGateway queryGateway,
                                         EventGateway eventGateway, ResultGateway resultGateway,
                                         ErrorGateway errorGateway,

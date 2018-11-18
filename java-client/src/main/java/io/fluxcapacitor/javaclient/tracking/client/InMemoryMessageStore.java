@@ -106,4 +106,9 @@ public class InMemoryMessageStore implements GatewayClient, TrackingClient {
         monitors.add(monitor);
         return () -> monitors.remove(monitor);
     }
+
+    @Override
+    public void close() {
+        //no op
+    }
 }

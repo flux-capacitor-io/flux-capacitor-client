@@ -20,11 +20,13 @@ import io.fluxcapacitor.common.api.tracking.TrackingStrategy;
 
 import java.time.Duration;
 
-public interface TrackingClient {
+public interface TrackingClient extends AutoCloseable {
 
     MessageBatch read(String consumer, int channel, int maxSize, Duration maxTimeout, String typeFilter,
                       boolean ignoreMessageTarget, TrackingStrategy strategy);
 
     Awaitable storePosition(String consumer, int[] segment, long lastIndex);
 
+    @Override
+    void close();
 }
