@@ -57,8 +57,8 @@ public abstract class AbstractResultValidator implements Then {
                     "Published messages did not match. Probable cause is an exception that occurred during handling:",
                     (Throwable) actualResult);
         }
-        throw new GivenWhenThenAssertionError(
-                format("Published messages did not match.\nExpected: %s\nGot: %s", expected, actual));
+        throw new GivenWhenThenAssertionError(format("Published messages did not match.\nExpected: %s\nGot: %s\n\n", 
+                                                       expected, actual) , expected, actual);
     }
     
     protected boolean containsAll(Collection<?> expected, Collection<Message> actual) {
