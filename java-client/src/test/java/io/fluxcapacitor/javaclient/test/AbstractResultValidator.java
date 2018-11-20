@@ -22,7 +22,6 @@ import org.hamcrest.Matcher;
 import org.hamcrest.StringDescription;
 
 import java.util.Collection;
-import java.util.Iterator;
 
 import static java.lang.String.format;
 import static java.util.stream.Collectors.toList;
@@ -43,10 +42,16 @@ public abstract class AbstractResultValidator implements Then {
         if (expected.size() != actual.size()) {
             reportMismatch(expected, actual);
         } else {
-            Iterator<Message> actualIterator = actual.iterator();
-            if (!expected.stream().allMatch(e -> matches(e, actualIterator.next()))) {
+            if (!containsAll(expected, actual)) {
                 reportMismatch(expected, actual);
             }
+        }
+        return this;
+    }
+
+    protected Then expectNotTheseMessages(Collection<?> expectedNotToGet, Collection<Message> actual) {
+        if (containsAny(expectedNotToGet, actual)) {
+            reportUnwantedMatch(expectedNotToGet, actual);
         }
         return this;
     }
@@ -60,9 +65,23 @@ public abstract class AbstractResultValidator implements Then {
         throw new GivenWhenThenAssertionError(format("Published messages did not match.\nExpected: %s\nGot: %s\n\n", 
                                                        expected, actual) , expected, actual);
     }
+
+    protected void reportUnwantedMatch(Collection<?> expected, Collection<Message> actual) {
+        if (actualResult instanceof Throwable) {
+            throw new GivenWhenThenAssertionError(
+                    "An exception occurred during handling:",
+                    (Throwable) actualResult);
+        }
+        throw new GivenWhenThenAssertionError(format("Unwanted match found in published messages.\nExpected not to get: %s\nGot: %s\n\n",
+                expected, actual) , expected, actual);
+    }
     
     protected boolean containsAll(Collection<?> expected, Collection<Message> actual) {
         return expected.stream().allMatch(e -> actual.stream().anyMatch(a -> matches(e, a)));
+    }
+
+    protected boolean containsAny(Collection<?> expected, Collection<Message> actual) {
+        return expected.stream().anyMatch(e -> actual.stream().anyMatch(a -> matches(e, a)));
     }
 
     protected boolean matches(Object expected, Message actual) {
@@ -90,6 +109,21 @@ public abstract class AbstractResultValidator implements Then {
         if (!resultMatcher.matches(actualResult)) {
             throw new GivenWhenThenAssertionError(format("Handler returned an unexpected value.\nExpected: %s\nGot: %s",
                                                          description, actualResult));
+        }
+        return this;
+    }
+
+    @Override
+    public Then expectNotThisResult(Matcher<?> resultMatcher) {
+        StringDescription description = new StringDescription();
+        resultMatcher.describeTo(description);
+        if (actualResult instanceof Throwable) {
+            throw new GivenWhenThenAssertionError(format("Handler threw an unexpected exception. Expected: %s",
+                    description), (Throwable) actualResult);
+        }
+        if (resultMatcher.matches(actualResult)) {
+            throw new GivenWhenThenAssertionError(format("Handler did return the unwanted result.\nExpected not to get: %s\nGot: %s",
+                    description, actualResult));
         }
         return this;
     }
