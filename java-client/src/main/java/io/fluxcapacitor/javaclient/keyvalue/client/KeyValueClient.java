@@ -20,7 +20,7 @@ import io.fluxcapacitor.common.api.Data;
 /**
  * Represents a service to store and retrieve a piece of serialized data by key.
  */
-public interface KeyValueClient {
+public interface KeyValueClient extends AutoCloseable {
 
     /**
      * Adds or replaces the given value in the key value store.
@@ -48,4 +48,6 @@ public interface KeyValueClient {
      */
     Awaitable deleteValue(String key);
 
+    @Override
+    void close();
 }

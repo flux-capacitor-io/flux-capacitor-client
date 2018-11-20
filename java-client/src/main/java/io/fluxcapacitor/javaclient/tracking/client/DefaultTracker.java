@@ -24,10 +24,12 @@ import lombok.extern.slf4j.Slf4j;
 
 import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
 
 import static io.fluxcapacitor.common.TimingUtils.retryOnFailure;
 import static io.fluxcapacitor.javaclient.tracking.BatchInterceptor.join;
+import static java.lang.Thread.currentThread;
 
 /**
  * A tracker keeps reading messages until it is stopped (generally only when the application is shut down).
@@ -61,6 +63,8 @@ public class DefaultTracker implements Runnable, Registration {
     private final TrackingClient trackingClient;
 
     private final AtomicBoolean running = new AtomicBoolean();
+    private final AtomicReference<Thread> thread = new AtomicReference<>();
+    private volatile boolean processing;
 
     public DefaultTracker(String name, int channel, TrackingConfiguration configuration,
                           Consumer<List<SerializedMessage>> consumer, TrackingClient trackingClient) {
@@ -76,20 +80,42 @@ public class DefaultTracker implements Runnable, Registration {
     @Override
     public void run() {
         if (running.compareAndSet(false, true)) {
-            MessageBatch batch = fetch(null, null);
+            thread.set(currentThread());
+            MessageBatch batch = fetch();
             while (running.get()) {
                 processor.accept(batch);
-                batch = fetch(batch.getSegment(), batch.getLastIndex());
+                batch = fetch();
             }
         }
     }
 
     @Override
     public void cancel() {
-        running.compareAndSet(true, false);
+        if (running.compareAndSet(true, false)) {
+            //wait for processing to complete
+            if (processing) {
+                while (processing) {
+                    try {
+                        Thread.sleep(1);
+                    } catch (InterruptedException e) {
+                        currentThread().interrupt();
+                        return;
+                    }
+                }
+            } else {
+                //interrupt message fetching
+                try {
+                    thread.get().interrupt();
+                } catch (Exception e) {
+                    log.warn("Not allowed to cancel tracker {}", name, e);
+                } finally {
+                    thread.set(null);
+                }
+            }
+        }
     }
 
-    protected MessageBatch fetch(int[] segment, Long lastIndex) {
+    protected MessageBatch fetch() {
         return retryOnFailure(
                 () -> trackingClient
                         .read(name, channel, configuration.getMaxFetchBatchSize(), configuration.getMaxWaitDuration(),
@@ -99,18 +125,23 @@ public class DefaultTracker implements Runnable, Registration {
     }
 
     protected void processAll(MessageBatch messageBatch) {
-        List<SerializedMessage> messages = messageBatch.getMessages();
-        if (messages.isEmpty() || !running.get()) {
-            return;
-        }
-        if (messages.size() > configuration.getMaxConsumerBatchSize()) {
-            for (int i = 0; i < messages.size(); i += configuration.getMaxConsumerBatchSize()) {
-                List<SerializedMessage> batch =
-                        messages.subList(i, Math.min(i + configuration.getMaxConsumerBatchSize(), messages.size()));
-                processPart(batch, messageBatch.getSegment());
+        try {
+            processing = true;
+            List<SerializedMessage> messages = messageBatch.getMessages();
+            if (messages.isEmpty() || !running.get()) {
+                return;
             }
-        } else {
-            processPart(messages, messageBatch.getSegment());
+            if (messages.size() > configuration.getMaxConsumerBatchSize()) {
+                for (int i = 0; i < messages.size(); i += configuration.getMaxConsumerBatchSize()) {
+                    List<SerializedMessage> batch =
+                            messages.subList(i, Math.min(i + configuration.getMaxConsumerBatchSize(), messages.size()));
+                    processPart(batch, messageBatch.getSegment());
+                }
+            } else {
+                processPart(messages, messageBatch.getSegment());
+            }
+        } finally {
+            processing = false;
         }
     }
 

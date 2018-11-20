@@ -14,7 +14,8 @@ import java.util.concurrent.CountDownLatch;
 class ApplicationMonitorTest {
 
     private final MetricsHandler metricsHandler = new MetricsHandler();
-    private final FluxCapacitor fluxCapacitor = DefaultFluxCapacitor.builder().build(InMemoryClient.newInstance());
+    private final FluxCapacitor fluxCapacitor = DefaultFluxCapacitor.builder().disableShutdownHook()
+            .build(InMemoryClient.newInstance());
 
     @BeforeEach
     void setUp() {

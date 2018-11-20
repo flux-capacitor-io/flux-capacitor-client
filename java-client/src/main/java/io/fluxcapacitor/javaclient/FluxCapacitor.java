@@ -281,4 +281,5 @@ public interface FluxCapacitor {
      * Of course the returned client may also be a stand-in for the actual service.   
      */
     Client client();
+
 }

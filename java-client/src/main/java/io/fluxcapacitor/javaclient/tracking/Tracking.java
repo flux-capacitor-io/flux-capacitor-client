@@ -6,7 +6,7 @@ import io.fluxcapacitor.javaclient.FluxCapacitor;
 import java.util.Arrays;
 import java.util.List;
 
-public interface Tracking {
+public interface Tracking extends AutoCloseable {
 
     default Registration start(FluxCapacitor fluxCapacitor, Object... handlers) {
         return start(fluxCapacitor, Arrays.asList(handlers));
@@ -14,4 +14,6 @@ public interface Tracking {
 
     Registration start(FluxCapacitor fluxCapacitor, List<?> handlers);
 
+    @Override
+    void close();
 }

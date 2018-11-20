@@ -44,8 +44,8 @@ public abstract class AbstractTestFixture implements Given, When {
     protected AbstractTestFixture(FluxCapacitorBuilder fluxCapacitorBuilder,
                                   Function<FluxCapacitor, List<?>> handlerFactory) {
         this.interceptor = new GivenWhenThenInterceptor();
-        this.fluxCapacitor = fluxCapacitorBuilder.addDispatchInterceptor(interceptor)
-                .build(InMemoryClient.newInstance());
+        this.fluxCapacitor = fluxCapacitorBuilder
+                .disableShutdownHook().addDispatchInterceptor(interceptor).build(InMemoryClient.newInstance());
         this.registration = registerHandlers(handlerFactory.apply(fluxCapacitor), fluxCapacitor);
     }
     

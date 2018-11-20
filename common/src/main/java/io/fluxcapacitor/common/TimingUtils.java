@@ -75,7 +75,6 @@ public class TimingUtils {
                 return result;
             } catch (Exception e) {
                 if (!predicate.test(e)) {
-                    log.error("Task {} failed. Will not retry.", task, e);
                     break;
                 }
                 if (!retrying) {
@@ -86,7 +85,8 @@ public class TimingUtils {
                     Thread.sleep(delay.toMillis());
                 } catch (InterruptedException e1) {
                     currentThread().interrupt();
-                    throw new IllegalStateException("Thread interrupted while retrying task " + task);
+                    log.info("Thread interrupted while retrying task {}", task);
+                    break;
                 }
             } catch (Error e) {
                 log.error("Task {} failed with error. Will not retry.", task, e);

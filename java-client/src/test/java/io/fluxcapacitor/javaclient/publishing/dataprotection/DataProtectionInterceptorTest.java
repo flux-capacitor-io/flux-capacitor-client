@@ -21,8 +21,8 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 class DataProtectionInterceptorTest {
 
     private final JacksonSerializer serializer = new JacksonSerializer();
-    private final FluxCapacitor fluxCapacitor = DefaultFluxCapacitor.builder().serializer(serializer)
-            .build(InMemoryClient.newInstance());
+    private final FluxCapacitor fluxCapacitor = DefaultFluxCapacitor.builder().disableShutdownHook()
+            .serializer(serializer).build(InMemoryClient.newInstance());
 
     @Test
     void testSerializedMessageDoesNotContainData() {

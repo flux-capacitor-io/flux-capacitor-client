@@ -48,6 +48,8 @@ public interface FluxCapacitorBuilder {
     FluxCapacitorBuilder changeMessageRoutingInterceptor(DispatchInterceptor messageRoutingInterceptor);
 
     FluxCapacitorBuilder disableErrorReporting();
+
+    FluxCapacitorBuilder disableShutdownHook();
     
     FluxCapacitorBuilder disableMessageCorrelation();
 
@@ -58,8 +60,6 @@ public interface FluxCapacitorBuilder {
     FluxCapacitorBuilder collectTrackingMetrics();
 
     FluxCapacitorBuilder collectApplicationMetrics();
-
-    FluxCapacitorBuilder changeCommandValidationInterceptor(HandlerInterceptor validationInterceptor);
 
     FluxCapacitor build(Client client);
 }

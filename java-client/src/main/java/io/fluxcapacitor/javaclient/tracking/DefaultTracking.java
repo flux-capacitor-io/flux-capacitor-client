@@ -31,6 +31,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
 import java.util.stream.Stream;
 
@@ -52,6 +53,7 @@ public class DefaultTracking implements Tracking {
     private final HandlerInterceptor handlerInterceptor;
     private final List<ParameterResolver<? super DeserializingMessage>> parameterResolvers;
     private final Set<ConsumerConfiguration> startedConfigurations = new HashSet<>();
+    private final AtomicReference<Registration> shutdownFunction = new AtomicReference<>(Registration.noOp());
 
     @Override
     public Registration start(FluxCapacitor fluxCapacitor, List<?> handlers) {
@@ -66,8 +68,11 @@ public class DefaultTracking implements Tracking {
                                                     + "Consumers for some handlers have already started tracking.");
             }
             startedConfigurations.addAll(consumers.keySet());
-            return consumers.entrySet().stream().map(e -> startTracking(e.getKey(), e.getValue(), fluxCapacitor))
-                    .reduce(Registration::merge).orElse(Registration.noOp());
+            Registration registration =
+                    consumers.entrySet().stream().map(e -> startTracking(e.getKey(), e.getValue(), fluxCapacitor))
+                            .reduce(Registration::merge).orElse(Registration.noOp());
+            shutdownFunction.updateAndGet(registration::merge);
+            return registration;
         }
     }
 
@@ -148,4 +153,8 @@ public class DefaultTracking implements Tracking {
         }
     }
 
+    @Override
+    public void close() {
+        shutdownFunction.get().cancel();
+    }
 }

@@ -20,11 +20,15 @@ import io.fluxcapacitor.common.api.SerializedMessage;
 import java.util.List;
 import java.util.stream.Stream;
 
-public interface EventStoreClient {
+public interface EventStoreClient extends AutoCloseable {
 
     Awaitable storeEvents(String aggregateId, String domain, long lastSequenceNumber,
                           List<SerializedMessage> events);
 
     Stream<SerializedMessage> getEvents(String aggregateId, long lastSequenceNumber);
 
+    @Override
+    default void close() {
+        //no op
+    }
 }

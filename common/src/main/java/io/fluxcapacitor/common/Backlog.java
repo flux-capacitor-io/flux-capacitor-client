@@ -25,13 +25,10 @@ import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.CopyOnWriteArraySet;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
-
-import static java.lang.Thread.currentThread;
 
 @Slf4j
 public class Backlog<T> implements Monitored<List<T>> {
@@ -63,8 +60,6 @@ public class Backlog<T> implements Monitored<List<T>> {
         this.consumer = consumer;
         this.executorService = Executors.newFixedThreadPool(threads);
         this.errorHandler = errorHandler;
-
-        Runtime.getRuntime().addShutdownHook(new Thread(this::shutdown));
     }
 
     @SafeVarargs
@@ -76,16 +71,6 @@ public class Backlog<T> implements Monitored<List<T>> {
     public Awaitable add(Collection<? extends T> values) {
         queue.addAll(values);
         return awaitFlush(insertPosition.updateAndGet(p -> p + values.size()));
-    }
-
-    public void shutdown() {
-        executorService.shutdown();
-        try {
-            executorService.awaitTermination(10L, TimeUnit.SECONDS);
-        } catch (InterruptedException e) {
-            currentThread().interrupt();
-            log.error("Shutdown of backlog executor was interrupted", e);
-        }
     }
 
     private Awaitable awaitFlush(long position) {
