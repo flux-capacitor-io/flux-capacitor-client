@@ -44,6 +44,11 @@ public class ResultValidator extends AbstractResultValidator {
     }
 
     @Override
+    public Then expectNotTheseEvents(List<?> events) {
+        return expectNotTheseMessages(asMessages(events, EVENT), resultingEvents);
+    }
+
+    @Override
     public Then expectOnlyCommands(List<?> commands) {
         return expectOnlyMessages(asMessages(commands, COMMAND), resultingCommands);
     }
@@ -51,5 +56,10 @@ public class ResultValidator extends AbstractResultValidator {
     @Override
     public Then expectCommands(List<?> commands) {
         return expectMessages(asMessages(commands, COMMAND), resultingCommands);
+    }
+
+    @Override
+    public Then expectNotTheseCommands(List<?> commands) {
+        return expectNotTheseMessages(asMessages(commands, COMMAND), resultingCommands);
     }
 }

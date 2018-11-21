@@ -17,6 +17,10 @@ public interface Then {
         return expectEvents(Arrays.asList(events));
     }
 
+    default Then expectNotTheseEvents(Object... events) {
+        return expectNotTheseEvents(Arrays.asList(events));
+    }
+
     default Then expectNoEvents() {
         return expectOnlyEvents();
     }
@@ -25,12 +29,18 @@ public interface Then {
 
     Then expectEvents(List<?> events);
 
+    Then expectNotTheseEvents(List<?> events);
+
     default Then expectOnlyCommands(Object... commands) {
         return expectOnlyCommands(Arrays.asList(commands));
     }
 
     default Then expectCommands(Object... commands) {
         return expectCommands(Arrays.asList(commands));
+    }
+
+    default Then expectNotTheseCommands(Object... commands) {
+        return expectNotTheseCommands(Arrays.asList(commands));
     }
 
     default Then expectNoCommands() {
@@ -41,6 +51,8 @@ public interface Then {
 
     Then expectCommands(List<?> commands);
 
+    Then expectNotTheseCommands(List<?> commands);
+
     default Then expectResult(Object result) {
         if (result == null) {
             return expectResult(nullValue());
@@ -49,6 +61,8 @@ public interface Then {
     }
 
     Then expectResult(Matcher<?> resultMatcher);
+
+    Then expectNotThisResult(Matcher<?> resultMatcher);
 
     Then expectException(Matcher<?> resultMatcher);
 
