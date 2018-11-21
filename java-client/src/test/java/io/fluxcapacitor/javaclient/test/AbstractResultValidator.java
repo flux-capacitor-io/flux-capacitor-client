@@ -49,7 +49,7 @@ public abstract class AbstractResultValidator implements Then {
         return this;
     }
 
-    protected Then expectNotTheseMessages(Collection<?> expectedNotToGet, Collection<Message> actual) {
+    protected Then expectNoMessagesLike(Collection<?> expectedNotToGet, Collection<Message> actual) {
         if (containsAny(expectedNotToGet, actual)) {
             reportUnwantedMatch(expectedNotToGet, actual);
         }

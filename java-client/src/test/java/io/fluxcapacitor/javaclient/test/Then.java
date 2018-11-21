@@ -5,7 +5,9 @@ import org.hamcrest.Matcher;
 import java.util.Arrays;
 import java.util.List;
 
-import static org.hamcrest.CoreMatchers.*;
+import static org.hamcrest.CoreMatchers.equalTo;
+import static org.hamcrest.CoreMatchers.isA;
+import static org.hamcrest.CoreMatchers.nullValue;
 
 public interface Then {
 
@@ -17,8 +19,8 @@ public interface Then {
         return expectEvents(Arrays.asList(events));
     }
 
-    default Then expectNotTheseEvents(Object... events) {
-        return expectNotTheseEvents(Arrays.asList(events));
+    default Then expectNoEventsLike(Object... events) {
+        return expectNoEventsLike(Arrays.asList(events));
     }
 
     default Then expectNoEvents() {
@@ -29,7 +31,7 @@ public interface Then {
 
     Then expectEvents(List<?> events);
 
-    Then expectNotTheseEvents(List<?> events);
+    Then expectNoEventsLike(List<?> events);
 
     default Then expectOnlyCommands(Object... commands) {
         return expectOnlyCommands(Arrays.asList(commands));
@@ -39,8 +41,8 @@ public interface Then {
         return expectCommands(Arrays.asList(commands));
     }
 
-    default Then expectNotTheseCommands(Object... commands) {
-        return expectNotTheseCommands(Arrays.asList(commands));
+    default Then expectNoCommandsLike(Object... commands) {
+        return expectNoCommandsLike(Arrays.asList(commands));
     }
 
     default Then expectNoCommands() {
@@ -51,7 +53,7 @@ public interface Then {
 
     Then expectCommands(List<?> commands);
 
-    Then expectNotTheseCommands(List<?> commands);
+    Then expectNoCommandsLike(List<?> commands);
 
     default Then expectResult(Object result) {
         if (result == null) {

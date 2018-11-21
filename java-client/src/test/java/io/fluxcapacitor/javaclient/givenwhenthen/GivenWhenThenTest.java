@@ -56,6 +56,12 @@ class GivenWhenThenTest {
     }
 
     @Test
+    void testExpectNoEventsLike() {
+        YieldsEventAndNoResult command = new YieldsEventAndNoResult();
+        subject.givenNoPriorActivity().whenCommand(command).expectNoEventsLike(isA(String.class));
+    }
+
+    @Test
     void testExpectResultAndEvent() {
         YieldsEventAndResult command = new YieldsEventAndResult();
         subject.givenNoPriorActivity().whenCommand(command).expectOnlyEvents(command).expectResult(isA(String.class));
