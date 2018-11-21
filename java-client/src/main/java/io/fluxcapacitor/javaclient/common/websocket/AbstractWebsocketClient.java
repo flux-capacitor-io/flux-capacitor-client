@@ -23,13 +23,14 @@ import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
-import org.glassfish.tyrus.client.ClientManager;
 
 import javax.websocket.CloseReason;
+import javax.websocket.ContainerProvider;
 import javax.websocket.OnClose;
 import javax.websocket.OnError;
 import javax.websocket.OnMessage;
 import javax.websocket.Session;
+import javax.websocket.WebSocketContainer;
 import java.io.IOException;
 import java.net.URI;
 import java.time.Duration;
@@ -46,7 +47,7 @@ import static javax.websocket.CloseReason.CloseCodes.NO_STATUS_CODE;
 
 @Slf4j
 public abstract class AbstractWebsocketClient implements AutoCloseable {
-    private final ClientManager client;
+    private final WebSocketContainer container;
     private final URI endpointUri;
     private final Duration reconnectDelay;
     private final Map<Long, WebSocketRequest> requests = new ConcurrentHashMap<>();
@@ -54,11 +55,11 @@ public abstract class AbstractWebsocketClient implements AutoCloseable {
     private final AtomicBoolean closed = new AtomicBoolean();
 
     public AbstractWebsocketClient(URI endpointUri) {
-        this(ClientManager.createClient(), endpointUri, Duration.ofSeconds(1));
+        this(ContainerProvider.getWebSocketContainer(), endpointUri, Duration.ofSeconds(1));
     }
 
-    public AbstractWebsocketClient(ClientManager client, URI endpointUri, Duration reconnectDelay) {
-        this.client = client;
+    public AbstractWebsocketClient(WebSocketContainer container, URI endpointUri, Duration reconnectDelay) {
+        this.container = container;
         this.endpointUri = endpointUri;
         this.reconnectDelay = reconnectDelay;
     }
@@ -145,12 +146,23 @@ public abstract class AbstractWebsocketClient implements AutoCloseable {
 
     protected Session getSession() {
         return session.updateAndGet(s -> {
-            while (!closed.get() && (s == null || !s.isOpen())) {
-                s = TimingUtils.retryOnFailure(() -> client.connectToServer(this, endpointUri), 
-                                               reconnectDelay, e -> !closed.get());
+            while (!closed.get() && !isOpen(s)) {
+                s = TimingUtils.retryOnFailure(
+                        () -> {
+                            synchronized (session) {
+                                if (isOpen(session.get())) {
+                                    return session.get();
+                                }
+                                return container.connectToServer(this, endpointUri);
+                            }
+                        }, reconnectDelay, e -> !closed.get());
             }
             return s;
         });
+    }
+    
+    protected boolean isOpen(Session session) {
+        return session != null && session.isOpen();
     }
 
     @RequiredArgsConstructor

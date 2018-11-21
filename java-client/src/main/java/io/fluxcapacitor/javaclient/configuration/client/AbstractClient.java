@@ -72,7 +72,7 @@ public abstract class AbstractClient implements Client {
     }
 
     @Override
-    public void close() {
+    public void shutDown() {
         MessageType[] types = MessageType.values();
         stream(types).filter(trackingClients::isCached).map(trackingClients).forEach(TrackingClient::close);
         stream(types).filter(gatewayClients::isCached).map(gatewayClients).forEach(GatewayClient::close);

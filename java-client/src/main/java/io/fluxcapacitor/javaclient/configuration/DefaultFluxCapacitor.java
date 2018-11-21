@@ -456,7 +456,7 @@ public class DefaultFluxCapacitor implements FluxCapacitor {
                 getRuntime().addShutdownHook(new Thread(() -> {
                     log.info("Initiating controlled shutdown");
                     trackingMap.values().forEach(Tracking::close);
-                    client.close();
+                    client.shutDown();
                     log.info("Completed shutdown");
                 }));
             }
