@@ -71,7 +71,7 @@ public abstract class AbstractSerializer implements Serializer {
                         }
                         return (Stream) handleUnknownType(s);
                     }
-                    return Stream.of(new DeserializingObject(s, () -> {
+                    return (Stream) Stream.of(new DeserializingObject(s, () -> {
                         try {
                             return doDeserialize(s.data().getValue(), type);
                         } catch (Exception e) {
