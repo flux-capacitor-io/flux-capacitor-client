@@ -2,7 +2,6 @@ package io.fluxcapacitor.javaclient.tracking;
 
 import io.fluxcapacitor.common.MessageType;
 import io.fluxcapacitor.common.Registration;
-import io.fluxcapacitor.common.api.Metadata;
 import io.fluxcapacitor.common.api.SerializedMessage;
 import io.fluxcapacitor.common.handling.Handler;
 import io.fluxcapacitor.common.handling.HandlerInspector;
@@ -14,7 +13,6 @@ import io.fluxcapacitor.javaclient.common.serialization.DeserializingMessage;
 import io.fluxcapacitor.javaclient.common.serialization.Serializer;
 import io.fluxcapacitor.javaclient.eventsourcing.CacheInvalidatingInterceptor;
 import io.fluxcapacitor.javaclient.publishing.ResultGateway;
-import io.fluxcapacitor.javaclient.publishing.routing.RoutingKey;
 import io.fluxcapacitor.javaclient.tracking.client.TrackingClient;
 import io.fluxcapacitor.javaclient.tracking.client.TrackingUtils;
 import io.fluxcapacitor.javaclient.tracking.handling.HandlerInterceptor;
@@ -29,14 +27,12 @@ import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
 import java.util.stream.Stream;
 
 import static io.fluxcapacitor.common.handling.HandlerInspector.createHandlers;
-import static io.fluxcapacitor.common.reflection.ReflectionUtils.getAnnotatedPropertyValue;
 import static java.lang.String.format;
 import static java.util.stream.Collectors.groupingBy;
 
@@ -140,13 +136,7 @@ public class DefaultTracking implements Tracking {
         }
         SerializedMessage serializedMessage = message.getSerializedObject();
         if (serializedMessage.getRequestId() != null) {
-            Metadata metadata = Metadata.empty();
-            if (message.isDeserialized()) {
-                Optional<String> routingValue =
-                        getAnnotatedPropertyValue(message.getPayload(), RoutingKey.class).map(Object::toString);
-                routingValue.ifPresent(r -> metadata.put("$requestRoutingValue", r));
-            }
-            resultGateway.respond(result, metadata, serializedMessage.getSource(), serializedMessage.getRequestId());
+            resultGateway.respond(result, serializedMessage.getSource(), serializedMessage.getRequestId());
         }
         if (exception != null) {
             throw exception;
