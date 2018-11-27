@@ -26,11 +26,13 @@ import io.fluxcapacitor.javaclient.configuration.client.InMemoryClient;
 import io.fluxcapacitor.javaclient.publishing.DispatchInterceptor;
 
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Function;
+import java.util.stream.Stream;
 
 import static io.fluxcapacitor.common.MessageType.COMMAND;
 import static io.fluxcapacitor.common.MessageType.EVENT;
@@ -65,8 +67,8 @@ public abstract class AbstractTestFixture implements Given, When {
     public When givenCommands(Object... commands) {
         try {
             FluxCapacitor.instance.set(fluxCapacitor);
-            getDispatchResult(CompletableFuture.allOf(Arrays.stream(commands).map(c -> fluxCapacitor.commandGateway().send(c))
-                                            .toArray(CompletableFuture[]::new)));
+            getDispatchResult(CompletableFuture.allOf(flatten(commands).map(
+                    c -> fluxCapacitor.commandGateway().send(c)).toArray(CompletableFuture[]::new)));
             return this;
         } catch (Exception e) {
             throw new IllegalStateException("Failed to execute givenCommands", e);
@@ -79,7 +81,7 @@ public abstract class AbstractTestFixture implements Given, When {
     public When givenEvents(Object... events) {
         try {
             FluxCapacitor.instance.set(fluxCapacitor);
-            Arrays.stream(events).forEach(c -> fluxCapacitor.eventGateway().publish(c));
+            flatten(events).forEach(c -> fluxCapacitor.eventGateway().publish(c));
             return this;
         } catch (Exception e) {
             throw new IllegalStateException("Failed to execute givenEvents", e);
@@ -146,6 +148,18 @@ public abstract class AbstractTestFixture implements Given, When {
 
     public FluxCapacitor getFluxCapacitor() {
         return fluxCapacitor;
+    }
+
+    protected Stream<Object> flatten(Object... messages) {
+        return Arrays.stream(messages).flatMap(c -> {
+            if (c instanceof Collection<?>) {
+                return ((Collection<?>) c).stream();
+            }
+            if (c.getClass().isArray()) {
+                return Arrays.stream((Object[]) c);
+            }
+            return Stream.of(c);
+        });
     }
 
     protected class GivenWhenThenInterceptor implements DispatchInterceptor {
