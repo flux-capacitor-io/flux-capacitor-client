@@ -19,7 +19,7 @@ public class LoggingErrorHandler implements ErrorHandler {
         if (!(error instanceof FunctionalException)) {
             log.error("{}. Continuing...", errorMessage, error);
         } else if (logFunctionalErrors) {
-            log.warn("{}: {}({}). Continuing...", errorMessage, error.getClass().getSimpleName(), error.getMessage());
+            log.warn("{}. Continuing...", errorMessage, error);
         }
     }
 }
