@@ -11,7 +11,7 @@ public class LoggingErrorHandler implements ErrorHandler {
     private final boolean logFunctionalErrors;
 
     public LoggingErrorHandler() {
-        this(false);
+        this(true);
     }
 
     @Override
