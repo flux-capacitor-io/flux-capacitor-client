@@ -30,6 +30,8 @@ import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
 
+import static java.util.concurrent.TimeUnit.SECONDS;
+
 @Slf4j
 public class Backlog<T> implements Monitored<List<T>> {
 
@@ -131,6 +133,16 @@ public class Backlog<T> implements Monitored<List<T>> {
     public Registration registerMonitor(Consumer<List<T>> monitor) {
         monitors.add(monitor);
         return () -> monitors.remove(monitor);
+    }
+    
+    public void shutDown() {
+        executorService.shutdown();
+        try {
+            executorService.awaitTermination(1L, SECONDS);
+        } catch (InterruptedException e) {
+            log.warn("Shutdown of executor was interrupted", e);
+            Thread.currentThread().interrupt();
+        }
     }
 
     @FunctionalInterface
