@@ -395,7 +395,7 @@ public class DefaultFluxCapacitor implements FluxCapacitor {
             if (!disableErrorReporting) {
                 ErrorReportingInterceptor interceptor = new ErrorReportingInterceptor(errorGateway);
                 Arrays.stream(MessageType.values())
-                        .forEach(type -> handlerInterceptors.compute(type, (t, i) -> i.merge(interceptor)));
+                        .forEach(type -> handlerInterceptors.compute(type, (t, i) -> interceptor.merge(i)));
             }
 
             //create gateways
