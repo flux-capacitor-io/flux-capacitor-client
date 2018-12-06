@@ -114,7 +114,7 @@ public abstract class AbstractResultValidator implements Then {
     }
 
     @Override
-    public Then expectNotThisResult(Matcher<?> resultMatcher) {
+    public Then expectNoResultLike(Matcher<?> resultMatcher) {
         StringDescription description = new StringDescription();
         resultMatcher.describeTo(description);
         if (actualResult instanceof Throwable) {
@@ -124,6 +124,16 @@ public abstract class AbstractResultValidator implements Then {
         if (resultMatcher.matches(actualResult)) {
             throw new GivenWhenThenAssertionError(format("Handler did return the unwanted result.\nExpected not to get: %s\nGot: %s",
                     description, actualResult));
+        }
+        return this;
+    }
+
+    @Override
+    public Then verify(Runnable check) {
+        try {
+            check.run();
+        } catch (Exception e) {
+            throw new GivenWhenThenAssertionError("Verify check failed", e);
         }
         return this;
     }

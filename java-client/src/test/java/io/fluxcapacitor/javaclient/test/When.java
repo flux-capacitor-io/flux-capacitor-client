@@ -10,4 +10,6 @@ public interface When {
     Then whenEvent(Object event);
 
     Then whenQuery(Object query);
+    
+    Then when(Runnable task);
 }

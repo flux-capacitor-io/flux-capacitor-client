@@ -64,15 +64,25 @@ public interface Then {
 
     Then expectResult(Matcher<?> resultMatcher);
 
-    Then expectNotThisResult(Matcher<?> resultMatcher);
-
-    Then expectException(Matcher<?> resultMatcher);
-
     default Then expectException(Class<? extends Throwable> exceptionClass) {
         return expectException(isA(exceptionClass));
     }
 
+    Then expectException(Matcher<?> resultMatcher);
+
     default Then expectNoResult() {
         return expectResult(nullValue());
     }
+
+    default Then expectNoResultLike(Object result) {
+        if (result == null) {
+            return expectNoResultLike(nullValue());
+        }
+        return expectNoResultLike(equalTo(result));
+    }
+
+    Then expectNoResultLike(Matcher<?> resultMatcher);
+    
+    Then verify(Runnable check);
+    
 }
