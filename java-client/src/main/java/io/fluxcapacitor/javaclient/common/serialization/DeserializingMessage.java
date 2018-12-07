@@ -9,6 +9,7 @@ import lombok.experimental.Delegate;
 
 @Value
 public class DeserializingMessage {
+    public static MessageFormatter messageFormatter = MessageFormatter.DEFAULT;
     private static final ThreadLocal<DeserializingMessage> current = new ThreadLocal<>();
     
     @Delegate
@@ -34,5 +35,10 @@ public class DeserializingMessage {
     
     public static void removeCurrent() {
         current.remove();
+    }
+
+    @Override
+    public String toString() {
+        return messageFormatter.apply(this);
     }
 }

@@ -114,7 +114,7 @@ public class DefaultTracking implements Tracking {
             }
         } catch (Exception e) {
             config.getErrorHandler()
-                    .handleError(e, format("Handler %s failed to handle a %s", handler, message.getType()),
+                    .handleError(e, format("Handler %s failed to handle a %s", handler, message), 
                                  () -> handle(message, handler, config));
         }
     }
@@ -131,7 +131,7 @@ public class DefaultTracking implements Tracking {
             result = e;
             exception = e;
         } catch (Exception e) {
-            result = new TechnicalException(format("Handler %s failed to handle a %s", handler, message.getType()));
+            result = new TechnicalException(format("Handler %s failed to handle a %s", handler, message));
             exception = e;
         }
         SerializedMessage serializedMessage = message.getSerializedObject();

@@ -30,14 +30,13 @@ public class ErrorReportingInterceptor implements HandlerInterceptor {
                 reportError(e, m);
                 throw e;
             } catch (Exception e) {
-                reportError(new TechnicalException(format("Handler %s failed to handle a %s", handler, m.getType())),
-                            m);
+                reportError(new TechnicalException(format("Handler %s failed to handle a %s", handler, m)), m);
                 throw e;
             }
         };
     }
 
-    private void reportError(Exception e, DeserializingMessage cause) {
+    protected void reportError(Exception e, DeserializingMessage cause) {
         errorGateway.report(new Message(e, MessageType.ERROR), cause.getSerializedObject().getSource());
     }
 }
