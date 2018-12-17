@@ -20,6 +20,7 @@ import java.util.Iterator;
 import java.util.Map;
 import java.util.Spliterators;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.function.BiFunction;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Predicate;
@@ -40,6 +41,10 @@ public class ObjectUtils {
 
     public static <K, V> MemoizingFunction<K, V> memoize(Function<K, V> supplier) {
         return new MemoizingFunction<>(supplier);
+    }
+
+    public static <T, U, R> MemoizingBiFunction<T, U, R> memoize(BiFunction<T, U, R> supplier) {
+        return new MemoizingBiFunction<>(supplier);
     }
     
     public static class MemoizingSupplier<T> implements Supplier<T> {
@@ -72,6 +77,21 @@ public class ObjectUtils {
         
         public boolean isCached(K key) {
             return map.containsKey(key);
+        }
+    }
+
+    @AllArgsConstructor
+    public static class MemoizingBiFunction<T, U, R> implements BiFunction<T, U, R> {
+        private final Map<T, MemoizingFunction<U, R>> map = new ConcurrentHashMap<>();
+        private final BiFunction<T, U, R> delegate;
+
+        @Override
+        public R apply(T t, U u) {
+            return map.computeIfAbsent(t, t2 -> new MemoizingFunction<>(u2 -> delegate.apply(t2, u2))).apply(u);
+        }
+
+        public boolean isCached(T t, U u) {
+            return map.containsKey(t) && map.get(t).isCached(u);
         }
     }
 

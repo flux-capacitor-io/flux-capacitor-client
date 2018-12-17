@@ -26,7 +26,6 @@
         <module>common</module>
         <module>java-client</module>
         <module>axon-client</module>
-        <module>metrics</module>
     </modules>
 
     <name>Flux Capacitor</name>
