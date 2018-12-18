@@ -91,6 +91,7 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Properties;
 import java.util.Set;
 import java.util.function.UnaryOperator;
 import java.util.stream.Stream;
@@ -125,6 +126,7 @@ public class DefaultFluxCapacitor implements FluxCapacitor {
     private final KeyValueStore keyValueStore;
     private final Scheduler scheduler;
     private final Client client;
+    private final Properties properties;
 
     public static Builder builder() {
         return new Builder();
@@ -181,6 +183,11 @@ public class DefaultFluxCapacitor implements FluxCapacitor {
     }
 
     @Override
+    public Properties properties() {
+        return properties;
+    }
+
+    @Override
     public Tracking tracking(MessageType messageType) {
         return Optional.ofNullable(trackingSupplier.get(messageType)).orElseThrow(
                 () -> new TrackingException(String.format("Tracking is not supported for type %s", messageType)));
@@ -206,6 +213,7 @@ public class DefaultFluxCapacitor implements FluxCapacitor {
         private boolean disableShutdownHook;
         private boolean collectTrackingMetrics;
         private boolean collectApplicationMetrics;
+        private Properties properties = new Properties();
 
         protected List<ParameterResolver<? super DeserializingMessage>> defaultHandlerParameterResolvers() {
             return new ArrayList<>(Arrays.asList(new PayloadParameterResolver(), new MetadataParameterResolver(),
@@ -319,6 +327,12 @@ public class DefaultFluxCapacitor implements FluxCapacitor {
         @Override
         public FluxCapacitorBuilder collectApplicationMetrics() {
             collectApplicationMetrics = true;
+            return this;
+        }
+
+        @Override
+        public FluxCapacitorBuilder registerProperties(Properties properties) {
+            this.properties.putAll(properties);
             return this;
         }
 
@@ -444,7 +458,7 @@ public class DefaultFluxCapacitor implements FluxCapacitor {
             //and finally...
             FluxCapacitor fluxCapacitor = doBuild(trackingMap, commandGateway, queryGateway, eventGateway,
                                                   resultGateway, errorGateway, metricsGateway, eventSourcing,
-                                                  keyValueStore, scheduler, client);
+                                                  keyValueStore, scheduler, client, properties);
 
             //collect application metrics
             if (collectApplicationMetrics) {
@@ -470,10 +484,10 @@ public class DefaultFluxCapacitor implements FluxCapacitor {
                                         ErrorGateway errorGateway,
                                         MetricsGateway metricsGateway, EventSourcing eventSourcing,
                                         KeyValueStore keyValueStore,
-                                        Scheduler scheduler, Client client) {
+                                        Scheduler scheduler, Client client, Properties properties) {
             return new DefaultFluxCapacitor(trackingSupplier, commandGateway, queryGateway, eventGateway, resultGateway,
                                             errorGateway, metricsGateway, eventSourcing, keyValueStore, scheduler,
-                                            client);
+                                            client, properties);
         }
 
         protected Class<? extends Annotation> getHandlerAnnotation(MessageType messageType) {

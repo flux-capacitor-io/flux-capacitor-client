@@ -11,6 +11,7 @@ import io.fluxcapacitor.javaclient.publishing.correlation.CorrelationDataProvide
 import io.fluxcapacitor.javaclient.tracking.ConsumerConfiguration;
 import io.fluxcapacitor.javaclient.tracking.handling.HandlerInterceptor;
 
+import java.util.Properties;
 import java.util.function.UnaryOperator;
 
 /**
@@ -60,6 +61,8 @@ public interface FluxCapacitorBuilder {
     FluxCapacitorBuilder collectTrackingMetrics();
 
     FluxCapacitorBuilder collectApplicationMetrics();
+    
+    FluxCapacitorBuilder registerProperties(Properties properties);
 
     FluxCapacitor build(Client client);
 }
