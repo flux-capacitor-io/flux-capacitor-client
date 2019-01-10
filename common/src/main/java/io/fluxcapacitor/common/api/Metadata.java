@@ -42,6 +42,11 @@ public class Metadata implements Map<String, String> {
     }
 
     @SneakyThrows
+    public static Metadata from(String key, Object value) {
+        return new Metadata(singletonMap(key, objectMapper.writeValueAsString(value)));
+    }
+
+    @SneakyThrows
     public String put(String key, Object value) {
         return put(key, objectMapper.writeValueAsString(value));
     }
