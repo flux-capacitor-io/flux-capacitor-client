@@ -36,6 +36,7 @@ import java.util.stream.Stream;
 
 import static io.fluxcapacitor.common.MessageType.COMMAND;
 import static io.fluxcapacitor.common.MessageType.EVENT;
+import static io.fluxcapacitor.common.MessageType.QUERY;
 
 public abstract class AbstractTestFixture implements Given, When {
     
@@ -145,7 +146,7 @@ public abstract class AbstractTestFixture implements Given, When {
             FluxCapacitor.instance.set(fluxCapacitor);
             Object result;
             try {
-                result = getDispatchResult(fluxCapacitor.queryGateway().send(query));
+                result = getDispatchResult(fluxCapacitor.queryGateway().send(interceptor.trace(query, QUERY)));
             } catch (Exception e) {
                 result = e;
             }
@@ -159,6 +160,7 @@ public abstract class AbstractTestFixture implements Given, When {
     @Override
     public Then when(Runnable task) {
         try {
+            interceptor.catchAll();
             task.run();
             return createResultValidator(null);
         } finally {
@@ -187,8 +189,14 @@ public abstract class AbstractTestFixture implements Given, When {
         private static final String TAG = "givenWhenThen.tag";
         private static final String TAG_NAME = "givenWhenThen.tagName";
         private static final String TRACE_NAME = "givenWhenThen.trace";
+        private volatile boolean catchAll;
+        
+        protected void catchAll() {
+            this.catchAll = true;
+        }
 
         protected Message trace(Object message, MessageType type) {
+            catchAll = false;
             Message result =
                     message instanceof Message ? (Message) message : new Message(message, Metadata.empty(), type);
             result.getMetadata().put(TAG_NAME, TAG);
@@ -220,7 +228,7 @@ public abstract class AbstractTestFixture implements Given, When {
                         message.getMetadata().put(TRACE_NAME, currentMessage.getMetadata().get(TAG_NAME));
                     }
                 });
-                if (isDescendantMetadata(message.getMetadata())) {
+                if (isDescendantMetadata(message.getMetadata()) || catchAll) {
                     switch (message.getMessageType()) {
                         case COMMAND:
                             registerCommand(message);
