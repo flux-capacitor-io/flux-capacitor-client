@@ -27,6 +27,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.Properties;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Stream;
 
 import static java.util.Arrays.stream;
@@ -46,6 +47,13 @@ import static java.util.Arrays.stream;
 public interface FluxCapacitor {
 
     /**
+     * Flux Capacitor instance set by the current application. Used as a fallback when no threadlocal instance was set.
+     * This is added as a convenience for applications that never have more than one than FluxCapacitor instance which
+     * will be the case for nearly all applications. On application startup simply fill this application instance.
+     */
+    AtomicReference<FluxCapacitor> applicationInstance = new AtomicReference<>();
+
+    /**
      * Flux Capacitor instance bound to the current thread. Normally there's only one FluxCapacitor client per
      * application. Before messages are passed to message handlers the FluxCapacitor client binds itself to this field.
      * By doing so message handlers can interact with Flux Capacitor without injecting any dependencies.
@@ -53,11 +61,13 @@ public interface FluxCapacitor {
     ThreadLocal<FluxCapacitor> instance = new ThreadLocal<>();
 
     /**
-     * Returns the FluxCapacitor client bound to the current thread. Throws an exception if no client was registered.
+     * Returns the FluxCapacitor client bound to the current thread or else set by the current application. 
+     * Throws an exception if no client was registered.
      */
     static FluxCapacitor get() {
         return Optional.ofNullable(instance.get())
-                .orElseThrow(() -> new IllegalStateException("FluxCapacitor instance not set"));
+                .orElseGet(() -> Optional.ofNullable(applicationInstance.get())
+                                .orElseThrow(() -> new IllegalStateException("FluxCapacitor instance not set")));
     }
 
     /**
