@@ -2,12 +2,15 @@ package io.fluxcapacitor.javaclient.tracking.handling.validation;
 
 import io.fluxcapacitor.javaclient.common.exception.FunctionalException;
 import lombok.Getter;
+import org.hibernate.validator.internal.metadata.descriptor.ConstraintDescriptorImpl;
 
 import javax.validation.ConstraintViolation;
 import java.beans.ConstructorProperties;
+import java.lang.annotation.ElementType;
 import java.util.Set;
 import java.util.SortedSet;
 import java.util.TreeSet;
+import java.util.stream.Collectors;
 
 import static java.lang.System.lineSeparator;
 import static java.util.stream.Collectors.joining;
@@ -19,7 +22,7 @@ public class ValidationException extends FunctionalException {
     private final SortedSet<String> violations;
 
     public ValidationException(Set<? extends ConstraintViolation<?>> violations) {
-        super(String.format("One or more constraints were violated:%s%s", lineSeparator(), format(violations)));
+        super(violations.stream().map(ValidationException::format).collect(Collectors.joining(lineSeparator())));
         this.violations = violations.stream().map(ValidationException::format).collect(toCollection(TreeSet::new));
     }
 
@@ -30,8 +33,10 @@ public class ValidationException extends FunctionalException {
     }
 
     protected static String format(ConstraintViolation<?> v) {
-        return String.format("property %s in class %s %s", v.getPropertyPath(), v.getRootBeanClass().getSimpleName(),
-                             v.getMessage());
+        if (((ConstraintDescriptorImpl) v.getConstraintDescriptor()).getElementType() == ElementType.METHOD) {
+            return v.getMessage();
+        }
+        return String.format("%s %s", v.getPropertyPath(), v.getMessage());
     }
 
     protected static String format(Set<? extends ConstraintViolation<?>> violations) {
