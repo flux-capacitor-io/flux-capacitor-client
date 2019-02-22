@@ -130,6 +130,23 @@ public interface FluxCapacitor {
     }
 
     /**
+     * Sends the given command and returns the command's result. The command 
+     * may be an instance of a {@link Message} in which case it will be sent as is. Otherwise the command is published 
+     * using the passed value as payload without additional metadata.
+     */
+    static <R> R sendCommandAndWait(Object command) {
+        return get().commandGateway().sendAndWait(command, Metadata.empty());
+    }
+
+    /**
+     * Sends a command with given payload and metadata and returns a future that will be completed with the command's
+     * result.
+     */
+    static <R> R sendCommandAndWait(Object payload, Metadata metadata) {
+        return get().commandGateway().sendAndWait(payload, metadata);
+    }
+
+    /**
      * Sends the given query and returns a future that will be completed with the query's result. The query may be an
      * instance of a {@link Message} in which case it will be sent as is. Otherwise the query is published using the
      * passed value as payload without additional metadata.
@@ -144,6 +161,22 @@ public interface FluxCapacitor {
      */
     static <R> CompletableFuture<R> query(Object payload, Metadata metadata) {
         return get().queryGateway().send(payload, metadata);
+    }
+
+    /**
+     * Sends the given query and returns the query's result. The query may be an
+     * instance of a {@link Message} in which case it will be sent as is. Otherwise the query is published using the
+     * passed value as payload without additional metadata.
+     */
+    static <R> R queryAndWait(Object query) {
+        return get().queryGateway().sendAndWait(query);
+    }
+
+    /**
+     * Sends a query with given payload and metadata and returns the query's result.
+     */
+    static <R> R queryAndWait(Object payload, Metadata metadata) {
+        return get().queryGateway().sendAndWait(payload, metadata);
     }
 
     /**
