@@ -94,11 +94,14 @@ public abstract class AbstractTestFixture implements Given, When {
     @Override
     public When given(Runnable condition) {
         try {
+            FluxCapacitor.instance.set(fluxCapacitor);
             condition.run();
+            return this;
         } catch (Exception e) {
-            throw new IllegalStateException("Failed to execute given condition", e); 
+            throw new IllegalStateException("Failed to execute given condition", e);
+        } finally {
+            FluxCapacitor.instance.remove();
         }
-        return this;
     }
 
     @Override
@@ -160,11 +163,13 @@ public abstract class AbstractTestFixture implements Given, When {
     @Override
     public Then when(Runnable task) {
         try {
+            FluxCapacitor.instance.set(fluxCapacitor);
             interceptor.catchAll();
             task.run();
             return createResultValidator(null);
         } finally {
             deregisterHandlers(registration);
+            FluxCapacitor.instance.remove();
         }
     }
 
