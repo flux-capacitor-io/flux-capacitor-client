@@ -48,5 +48,5 @@ public class TrackingConfiguration {
     @Accessors(fluent = true)
     boolean ignoreMessageTarget = false;
     @Default
-    TrackingStrategy readStrategy = TrackingStrategy.TYPE_DEFAULT;
+    TrackingStrategy readStrategy = TrackingStrategy.NEW;
 }

@@ -35,7 +35,6 @@ import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Consumer;
 
-import static io.fluxcapacitor.common.api.tracking.TrackingStrategy.TYPE_DEFAULT;
 import static java.lang.Thread.currentThread;
 import static java.util.stream.Collectors.toList;
 
@@ -73,7 +72,7 @@ public class InMemoryMessageStore implements GatewayClient, TrackingClient {
         synchronized (this) {
             Map<Long, SerializedMessage> tailMap = Collections.emptyMap();
             while (System.currentTimeMillis() < deadline
-                    && (tailMap = messageLog.tailMap(getLastIndex(consumer, strategy), false)).isEmpty()) {
+                    && (tailMap = messageLog.tailMap(getLastIndex(consumer), false)).isEmpty()) {
                 try {
                     this.wait(deadline - System.currentTimeMillis());
                 } catch (InterruptedException e) {
@@ -90,8 +89,7 @@ public class InMemoryMessageStore implements GatewayClient, TrackingClient {
         }
     }
 
-    private long getLastIndex(String consumer, TrackingStrategy strategy) {
-        TrackingStrategy s = strategy == TYPE_DEFAULT ? messageType.getDefaultReadStrategy() : strategy;
+    private long getLastIndex(String consumer) {
         return consumerTokens.computeIfAbsent(consumer, k -> -1L);
     }
 
