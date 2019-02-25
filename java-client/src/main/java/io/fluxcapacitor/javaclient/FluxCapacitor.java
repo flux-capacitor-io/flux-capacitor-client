@@ -100,7 +100,7 @@ public interface FluxCapacitor {
      * @see #sendCommand(Object) to send a command and inspect its result
      */
     static void sendAndForgetCommand(Object command) {
-        get().commandGateway().sendAndForget(command, Metadata.empty());
+        get().commandGateway().sendAndForget(command);
     }
 
     /**
@@ -118,7 +118,7 @@ public interface FluxCapacitor {
      * the passed value as payload without additional metadata.
      */
     static <R> CompletableFuture<R> sendCommand(Object command) {
-        return get().commandGateway().send(command, Metadata.empty());
+        return get().commandGateway().send(command);
     }
 
     /**
