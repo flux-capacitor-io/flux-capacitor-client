@@ -49,20 +49,20 @@ public abstract class AbstractTestFixture implements Given, When {
         this.interceptor = new GivenWhenThenInterceptor();
         this.fluxCapacitor = fluxCapacitorBuilder
                 .disableShutdownHook().addDispatchInterceptor(interceptor).build(InMemoryClient.newInstance());
-        this.registration = registerHandlers(handlerFactory.apply(fluxCapacitor), fluxCapacitor);
+        this.registration = registerHandlers(handlerFactory.apply(fluxCapacitor));
     }
     
-    protected abstract Registration registerHandlers(List<?> handlers, FluxCapacitor fluxCapacitor);
-    
-    protected abstract Then createResultValidator(Object result); 
-    
+    public abstract Registration registerHandlers(List<?> handlers);
+
+    public abstract void deregisterHandlers(Registration registration);
+
+    protected abstract Then createResultValidator(Object result);
+
     protected abstract void registerCommand(Message command);
 
     protected abstract void registerEvent(Message event);
-    
-    protected abstract Object getDispatchResult(CompletableFuture<?> dispatchResult);
 
-    protected abstract void deregisterHandlers(Registration registration);
+    protected abstract Object getDispatchResult(CompletableFuture<?> dispatchResult);
 
     @Override
     public When givenCommands(Object... commands) {
