@@ -33,6 +33,11 @@ public interface Cache {
     <T> T getIfPresent(String id);
 
     /**
+     * Invalidates the cache entry mapped to given id.
+     */
+    void invalidate(String id);
+
+    /**
      * Invalidates all cache entries.
      */
     void invalidateAll();
