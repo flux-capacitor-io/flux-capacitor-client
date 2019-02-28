@@ -42,6 +42,12 @@ public class DefaultCache implements io.fluxcapacitor.javaclient.common.caching.
     }
 
     @Override
+    @SuppressWarnings("unchecked")
+    public <T> T getIfPresent(String id) {
+        return (T) cache.getIfPresent(id);
+    }
+
+    @Override
     public void invalidateAll() {
         cache.invalidateAll();
     }
