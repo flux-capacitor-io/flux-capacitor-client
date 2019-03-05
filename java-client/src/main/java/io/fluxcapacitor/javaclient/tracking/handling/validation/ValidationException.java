@@ -5,12 +5,14 @@ import lombok.Getter;
 import org.hibernate.validator.internal.metadata.descriptor.ConstraintDescriptorImpl;
 
 import javax.validation.ConstraintViolation;
+import javax.validation.Path;
 import java.beans.ConstructorProperties;
 import java.lang.annotation.ElementType;
 import java.util.Set;
 import java.util.SortedSet;
 import java.util.TreeSet;
 import java.util.stream.Collectors;
+import java.util.stream.StreamSupport;
 
 import static java.lang.System.lineSeparator;
 import static java.util.stream.Collectors.joining;
@@ -36,7 +38,8 @@ public class ValidationException extends FunctionalException {
         if (((ConstraintDescriptorImpl) v.getConstraintDescriptor()).getElementType() == ElementType.METHOD) {
             return v.getMessage();
         }
-        return String.format("%s %s", v.getPropertyPath(), v.getMessage());
+        return String.format("%s %s", StreamSupport.stream(v.getPropertyPath().spliterator(), false)
+                .reduce((a, b) -> b).map(Path.Node::getName).orElse(v.getPropertyPath().toString()), v.getMessage());
     }
 
     protected static String format(Set<? extends ConstraintViolation<?>> violations) {
