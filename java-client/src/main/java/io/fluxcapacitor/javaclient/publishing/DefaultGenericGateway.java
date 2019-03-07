@@ -50,7 +50,7 @@ public class DefaultGenericGateway implements RequestGateway {
             try {
                 gatewayClient.send(serializedMessage);
             } catch (Exception e) {
-                throw new GatewayException(format("Failed to send and forget %s", message.getPayload()), e);
+                throw new GatewayException(format("Failed to send and forget %s", message.getPayload().toString()), e);
             }
         }
     }
@@ -63,7 +63,7 @@ public class DefaultGenericGateway implements RequestGateway {
             try {
                 return requestHandler.sendRequest(serializedMessage, gatewayClient::send);
             } catch (Exception e) {
-                throw new GatewayException(format("Failed to send %s", message.getPayload()), e);
+                throw new GatewayException(format("Failed to send %s", message.getPayload().toString()), e);
             }
         } else {
             return localResult;

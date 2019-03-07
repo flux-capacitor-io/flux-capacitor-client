@@ -32,7 +32,7 @@ public class DefaultEventGateway implements EventGateway {
         try {
             gatewayClient.send(serializedMessage);
         } catch (Exception e) {
-            throw new GatewayException(format("Failed to send and forget %s", message.getPayload()), e);
+            throw new GatewayException(format("Failed to send and forget %s", message.getPayload().toString()), e);
         }
     }
 
