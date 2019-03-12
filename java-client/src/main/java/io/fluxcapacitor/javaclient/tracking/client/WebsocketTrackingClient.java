@@ -51,4 +51,9 @@ public class WebsocketTrackingClient extends AbstractWebsocketClient implements 
     public Awaitable storePosition(String consumer, int[] segment, long lastIndex) {
         return send(new StorePosition(consumer, segment, lastIndex));
     }
+
+    @Override
+    public void close() {
+        close(true);
+    }
 }

@@ -127,13 +127,20 @@ public abstract class AbstractWebsocketClient implements AutoCloseable {
 
     @Override
     public void close() {
+        close(false);
+    }
+    
+    protected void close(boolean clearOutstandingRequests) {
         if (closed.compareAndSet(false, true)) {
+            if (clearOutstandingRequests) {
+                requests.clear();
+            }
             Session session = getSession();
             if (session != null) {
                 try {
                     session.close();
                 } catch (IOException e) {
-                    log.warn("Failed to closed websocket session connected to endpoint {}. Reason: {}", 
+                    log.warn("Failed to closed websocket session connected to endpoint {}. Reason: {}",
                              session.getRequestURI(), e.getMessage());
                 }
             }
