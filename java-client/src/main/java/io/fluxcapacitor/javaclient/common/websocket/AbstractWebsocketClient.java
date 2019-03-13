@@ -16,7 +16,6 @@ package io.fluxcapacitor.javaclient.common.websocket;
 
 import io.fluxcapacitor.common.Awaitable;
 import io.fluxcapacitor.common.RetryConfiguration;
-import io.fluxcapacitor.common.TimingUtils;
 import io.fluxcapacitor.common.api.JsonType;
 import io.fluxcapacitor.common.api.QueryResult;
 import io.fluxcapacitor.common.api.Request;
@@ -42,6 +41,7 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 
+import static io.fluxcapacitor.common.TimingUtils.retryOnFailure;
 import static java.lang.Thread.currentThread;
 import static java.lang.Thread.sleep;
 import static javax.websocket.CloseReason.CloseCodes.NO_STATUS_CODE;
@@ -164,18 +164,16 @@ public abstract class AbstractWebsocketClient implements AutoCloseable {
 
     protected Session getSession() {
         return session.updateAndGet(s -> {
-            while (!closed.get() && !isOpen(s)) {
-                s = TimingUtils.retryOnFailure(
-                        () -> {
-                            synchronized (session) {
-                                if (isOpen(session.get())) {
-                                    return session.get();
-                                }
-                                return container.connectToServer(this, endpointUri);
-                            }
-                        }, retryConfig);
+            if (closed.get() || isOpen(s)) {
+                return s;
             }
-            return s;
+            synchronized (session) {
+                while (!closed.get() && !isOpen(s)) {
+                    s = retryOnFailure(() -> isOpen(session.get()) ? session.get() 
+                            : container.connectToServer(this, endpointUri), retryConfig);
+                }
+                return s;
+            }
         });
     }
     

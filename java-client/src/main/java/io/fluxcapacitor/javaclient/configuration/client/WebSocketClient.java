@@ -50,7 +50,7 @@ public class WebSocketClient extends AbstractClient {
         super.shutDown();
         //Wait some time after closing all websocket sessions. It seems a Session.close() is not synchronous.
         try {
-            Thread.sleep(1000);
+            Thread.sleep(100);
         } catch (InterruptedException ignored) {
         }
     }
