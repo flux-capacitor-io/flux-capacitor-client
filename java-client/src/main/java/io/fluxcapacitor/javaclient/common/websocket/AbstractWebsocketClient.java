@@ -15,6 +15,7 @@
 package io.fluxcapacitor.javaclient.common.websocket;
 
 import io.fluxcapacitor.common.Awaitable;
+import io.fluxcapacitor.common.RetryConfiguration;
 import io.fluxcapacitor.common.TimingUtils;
 import io.fluxcapacitor.common.api.JsonType;
 import io.fluxcapacitor.common.api.QueryResult;
@@ -49,10 +50,10 @@ import static javax.websocket.CloseReason.CloseCodes.NO_STATUS_CODE;
 public abstract class AbstractWebsocketClient implements AutoCloseable {
     private final WebSocketContainer container;
     private final URI endpointUri;
-    private final Duration reconnectDelay;
     private final Map<Long, WebSocketRequest> requests = new ConcurrentHashMap<>();
     private final AtomicReference<Session> session = new AtomicReference<>();
     private final AtomicBoolean closed = new AtomicBoolean();
+    private final RetryConfiguration retryConfig;
 
     public AbstractWebsocketClient(URI endpointUri) {
         this(ContainerProvider.getWebSocketContainer(), endpointUri, Duration.ofSeconds(1));
@@ -61,7 +62,17 @@ public abstract class AbstractWebsocketClient implements AutoCloseable {
     public AbstractWebsocketClient(WebSocketContainer container, URI endpointUri, Duration reconnectDelay) {
         this.container = container;
         this.endpointUri = endpointUri;
-        this.reconnectDelay = reconnectDelay;
+        this.retryConfig = RetryConfiguration.builder()
+                .delay(reconnectDelay)
+                .errorTest(e -> !closed.get())
+                .successLogger(s -> log.info("Successfully reconnected to endpoint {}", endpointUri))
+                .exceptionLogger(status -> {
+                    if (status.hasCrossedThreshold(Duration.ofMinutes(2))) {
+                        log.error("Failed to connect to endpoint {} for 2 minutes. Retrying every {} ms...", 
+                                  endpointUri, status.getRetryConfiguration().getDelay().toMillis(), status.getException());
+                    }
+                })
+                .build();
     }
 
     @SneakyThrows
@@ -105,7 +116,7 @@ public abstract class AbstractWebsocketClient implements AutoCloseable {
     protected void retryOutstandingRequests(String sessionId) {
         if (!closed.get() && !requests.isEmpty()) {
             try {
-                sleep(reconnectDelay.toMillis());
+                sleep(retryConfig.getDelay().toMillis());
             } catch (InterruptedException e) {
                 currentThread().interrupt();
                 throw new IllegalStateException("Thread interrupted while trying to retry outstanding requests", e);
@@ -162,7 +173,7 @@ public abstract class AbstractWebsocketClient implements AutoCloseable {
                                 }
                                 return container.connectToServer(this, endpointUri);
                             }
-                        }, reconnectDelay, e -> !closed.get());
+                        }, retryConfig);
             }
             return s;
         });
