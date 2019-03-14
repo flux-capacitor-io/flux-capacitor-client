@@ -1,5 +1,6 @@
 package io.fluxcapacitor.javaclient.publishing.dataprotection;
 
+import io.fluxcapacitor.common.Guarantee;
 import io.fluxcapacitor.common.api.SerializedMessage;
 import io.fluxcapacitor.common.handling.Handler;
 import io.fluxcapacitor.common.reflection.ReflectionUtils;
@@ -40,7 +41,7 @@ public class DataProtectionInterceptor implements DispatchInterceptor, HandlerIn
                 getAnnotatedFields(m.getPayload(), ProtectData.class).forEach(field -> {
                     Object value = getProperty(field, payload);
                     String key = randomUUID().toString();
-                    keyValueStore.store(key, value);
+                    keyValueStore.store(key, value, Guarantee.STORED);
                     protectedFields.put(field.getName(), key);
                 });
                 if (!protectedFields.isEmpty()) {

@@ -1,5 +1,6 @@
 package io.fluxcapacitor.javaclient.eventsourcing;
 
+import io.fluxcapacitor.common.Guarantee;
 import io.fluxcapacitor.javaclient.common.serialization.SerializationException;
 import io.fluxcapacitor.javaclient.common.serialization.Serializer;
 import io.fluxcapacitor.javaclient.keyvalue.client.KeyValueClient;
@@ -20,7 +21,7 @@ public class DefaultSnapshotRepository implements SnapshotRepository {
     @Override
     public void storeSnapshot(Aggregate<?> snapshot) {
         try {
-            keyValueClient.putValue(snapshotKey(snapshot.getId()), serializer.serialize(snapshot));
+            keyValueClient.putValue(snapshotKey(snapshot.getId()), serializer.serialize(snapshot), Guarantee.SENT);
         } catch (Exception e) {
             throw new EventSourcingException(format("Failed to store a snapshot: %s", snapshot), e);
         }

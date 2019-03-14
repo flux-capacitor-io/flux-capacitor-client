@@ -22,11 +22,11 @@ import java.util.List;
 
 @Value
 @EqualsAndHashCode(callSuper = true)
-public class StoreValues extends Request {
+public class StoreValuesAndWait extends Request {
     List<KeyValuePair> values;
 
     @Override
     public String toString() {
-        return "StoreValues of size " + values.size();
+        return "StoreValuesAndWait of size " + values.size();
     }
 }

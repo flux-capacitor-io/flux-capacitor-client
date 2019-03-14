@@ -16,12 +16,14 @@ package io.fluxcapacitor.javaclient.keyvalue.client;
 
 import io.fluxcapacitor.common.Awaitable;
 import io.fluxcapacitor.common.Backlog;
+import io.fluxcapacitor.common.Guarantee;
 import io.fluxcapacitor.common.api.Data;
 import io.fluxcapacitor.common.api.keyvalue.DeleteValue;
 import io.fluxcapacitor.common.api.keyvalue.GetValue;
 import io.fluxcapacitor.common.api.keyvalue.GetValueResult;
 import io.fluxcapacitor.common.api.keyvalue.KeyValuePair;
 import io.fluxcapacitor.common.api.keyvalue.StoreValues;
+import io.fluxcapacitor.common.api.keyvalue.StoreValuesAndWait;
 import io.fluxcapacitor.javaclient.common.websocket.AbstractWebsocketClient;
 import io.fluxcapacitor.javaclient.common.websocket.JsonDecoder;
 import io.fluxcapacitor.javaclient.common.websocket.JsonEncoder;
@@ -30,6 +32,8 @@ import lombok.extern.slf4j.Slf4j;
 import javax.websocket.ClientEndpoint;
 import java.net.URI;
 import java.util.List;
+
+import static java.util.Collections.singletonList;
 
 @Slf4j
 @ClientEndpoint(encoders = JsonEncoder.class, decoders = JsonDecoder.class)
@@ -51,8 +55,19 @@ public class WebsocketKeyValueClient extends AbstractWebsocketClient implements 
     }
 
     @Override
-    public Awaitable putValue(String key, Data<byte[]> value) {
-        return backlog.add(new KeyValuePair(key, value));
+    public Awaitable putValue(String key, Data<byte[]> value, Guarantee guarantee) {
+        switch (guarantee) {
+            case NONE:
+                backlog.add(new KeyValuePair(key, value));
+                return Awaitable.ready();
+            case SENT:
+                return backlog.add(new KeyValuePair(key, value));
+            case STORED:
+                sendRequest(new StoreValuesAndWait(singletonList(new KeyValuePair(key, value))));
+                return Awaitable.ready();
+            default:
+                throw new UnsupportedOperationException("Unrecognized guarantee: " + guarantee);
+        }
     }
 
     @Override

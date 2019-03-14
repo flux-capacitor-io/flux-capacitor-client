@@ -24,6 +24,7 @@ public class StoreValuesEvent implements ClientEvent {
     String client;
     String clientId;
     long timestamp = System.currentTimeMillis();
+    boolean waiting;
 
     List<String> keys;
 }

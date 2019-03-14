@@ -15,6 +15,7 @@
 package io.fluxcapacitor.javaclient.keyvalue.client;
 
 import io.fluxcapacitor.common.Awaitable;
+import io.fluxcapacitor.common.Guarantee;
 import io.fluxcapacitor.common.api.Data;
 
 /**
@@ -25,15 +26,16 @@ public interface KeyValueClient extends AutoCloseable {
     /**
      * Adds or replaces the given value in the key value store.
      *
-     * @param key The key associated with this value
-     * @param value The value to store
+     * @param key       The key associated with this value
+     * @param value     The value to store
+     * @param guarantee The guarantee for storing
      * @return a handle that enables clients to wait until the value was safely sent to the store
      */
-    Awaitable putValue(String key, Data<byte[]> value);
+    Awaitable putValue(String key, Data<byte[]> value, Guarantee guarantee);
 
     /**
-     * Returns the {@link Data} object associated with the given key. Returns {@code null} if there is no
-     * associated value.
+     * Returns the {@link Data} object associated with the given key. Returns {@code null} if there is no associated
+     * value.
      *
      * @param key The key associated with the value
      * @return the value for the given key or null
