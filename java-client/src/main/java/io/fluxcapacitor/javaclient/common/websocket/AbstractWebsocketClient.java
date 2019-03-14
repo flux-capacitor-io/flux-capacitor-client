@@ -39,7 +39,6 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.concurrent.atomic.AtomicReference;
 
 import static io.fluxcapacitor.common.TimingUtils.retryOnFailure;
 import static java.lang.Thread.currentThread;
@@ -51,9 +50,9 @@ public abstract class AbstractWebsocketClient implements AutoCloseable {
     private final WebSocketContainer container;
     private final URI endpointUri;
     private final Map<Long, WebSocketRequest> requests = new ConcurrentHashMap<>();
-    private final AtomicReference<Session> session = new AtomicReference<>();
     private final AtomicBoolean closed = new AtomicBoolean();
     private final RetryConfiguration retryConfig;
+    private volatile Session session;
 
     public AbstractWebsocketClient(URI endpointUri) {
         this(ContainerProvider.getWebSocketContainer(), endpointUri, Duration.ofSeconds(1));
@@ -163,22 +162,19 @@ public abstract class AbstractWebsocketClient implements AutoCloseable {
     }
 
     protected Session getSession() {
-        return session.updateAndGet(s -> {
-            if (closed.get() || isOpen(s)) {
-                return s;
-            }
-            synchronized (session) {
-                while (!closed.get() && !isOpen(s)) {
-                    s = retryOnFailure(() -> isOpen(session.get()) ? session.get() 
-                            : container.connectToServer(this, endpointUri), retryConfig);
+        if (isClosed(session)) {
+            synchronized (this) {
+                while (isClosed(session)) {
+                    session = retryOnFailure(() -> isClosed(session) ? 
+                            container.connectToServer(this, endpointUri) : session, retryConfig);
                 }
-                return s;
             }
-        });
+        }
+        return session;
     }
     
-    protected boolean isOpen(Session session) {
-        return session != null && session.isOpen();
+    protected boolean isClosed(Session session) {
+        return session == null || !session.isOpen();
     }
 
     @RequiredArgsConstructor
