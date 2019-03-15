@@ -145,7 +145,6 @@ public abstract class AbstractWebsocketClient implements AutoCloseable {
             if (clearOutstandingRequests) {
                 requests.clear();
             }
-            Session session = getSession();
             if (session != null) {
                 try {
                     session.close();
