@@ -27,6 +27,7 @@ import io.fluxcapacitor.common.api.keyvalue.GetValue;
 import io.fluxcapacitor.common.api.keyvalue.GetValueEvent;
 import io.fluxcapacitor.common.api.keyvalue.GetValueResult;
 import io.fluxcapacitor.common.api.keyvalue.StoreValues;
+import io.fluxcapacitor.common.api.keyvalue.StoreValuesAndWait;
 import io.fluxcapacitor.common.api.keyvalue.StoreValuesEvent;
 import io.fluxcapacitor.common.api.publishing.Append;
 import io.fluxcapacitor.common.api.publishing.AppendEvent;
@@ -74,6 +75,7 @@ import io.fluxcapacitor.common.api.tracking.StorePositionEvent;
         //key-value
         @JsonSubTypes.Type(value=StoreValues.class, name="storeValues"),
         @JsonSubTypes.Type(value=StoreValuesEvent.class, name="storeValuesEvent"),
+        @JsonSubTypes.Type(value=StoreValuesAndWait.class, name="storeValuesAndWaitEvent"),
         @JsonSubTypes.Type(value=GetValue.class, name="getValue"),
         @JsonSubTypes.Type(value=GetValueEvent.class, name="getValueEvent"),
         @JsonSubTypes.Type(value=GetValueResult.class, name="getValueResult"),
