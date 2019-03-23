@@ -135,7 +135,7 @@ public interface FluxCapacitor {
      * using the passed value as payload without additional metadata.
      */
     static <R> R sendCommandAndWait(Object command) {
-        return get().commandGateway().sendAndWait(command, Metadata.empty());
+        return get().commandGateway().sendAndWait(command);
     }
 
     /**
