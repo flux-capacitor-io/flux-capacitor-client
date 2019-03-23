@@ -24,6 +24,10 @@ public interface EventStoreClient extends AutoCloseable {
 
     Awaitable storeEvents(String aggregateId, String domain, long lastSequenceNumber,
                           List<SerializedMessage> events);
+    
+    default Stream<SerializedMessage> getEvents(String aggregateId) {
+        return getEvents(aggregateId, -1L);
+    }
 
     Stream<SerializedMessage> getEvents(String aggregateId, long lastSequenceNumber);
 
