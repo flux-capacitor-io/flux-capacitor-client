@@ -35,14 +35,14 @@ public class DefaultEventSourcing implements EventSourcing, HandlerInterceptor {
 
     @SuppressWarnings("unchecked")
     @Override
-    public <T> Model<T> load(String modelId, Class<T> modelType) {
+    public <T> Model<T> load(String modelId, Class<T> modelType, boolean disableCaching, boolean disableSnapshotting) {
         Collection<EventSourcedModel<?>> loaded = loadedModels.get();
         if (loaded == null) {
-            return createEsModel(modelType, modelId);
+            return createEsModel(modelType, modelId, disableCaching, disableSnapshotting);
         }
         return loaded.stream().filter(model -> model.id.equals(modelId)).map(m -> (EventSourcedModel<T>) m).findAny()
                 .orElseGet(() -> { 
-                    EventSourcedModel<T> model = createEsModel(modelType, modelId);
+                    EventSourcedModel<T> model = createEsModel(modelType, modelId, disableCaching, disableSnapshotting);
                     loaded.add(model);
                     return model;
         });
@@ -59,11 +59,13 @@ public class DefaultEventSourcing implements EventSourcing, HandlerInterceptor {
     }
 
     @SuppressWarnings("unchecked")
-    protected <T> EventSourcedModel<T> createEsModel(Class<T> modelType, String modelId) {
+    protected <T> EventSourcedModel<T> createEsModel(Class<T> modelType, String modelId, boolean disableCaching,
+                                                     boolean disableSnapshotting) {
         return (EventSourcedModel<T>) modelFactories.computeIfAbsent(modelType, t -> {
             EventSourcingHandler<T> eventSourcingHandler = new AnnotatedEventSourcingHandler<>(modelType);
-            Cache cache = cache(modelType);
-            SnapshotRepository snapshotRepository = snapshotRepository(modelType);
+            Cache cache = disableCaching ? NoCache.INSTANCE : cache(modelType);
+            SnapshotRepository snapshotRepository = disableSnapshotting 
+                    ? NoOpSnapshotRepository.INSTANCE : snapshotRepository(modelType);
             SnapshotTrigger snapshotTrigger = snapshotTrigger(modelType);
             String domain = domain(modelType);
             return id -> {
