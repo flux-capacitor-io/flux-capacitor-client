@@ -32,4 +32,5 @@ public class ReadEvent implements ClientEvent {
     int size;
     Long lastIndex;
     long timeout;
+    int[] segment;
 }
