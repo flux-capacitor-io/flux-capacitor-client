@@ -67,8 +67,9 @@ public abstract class AbstractWebsocketClient implements AutoCloseable {
                 .successLogger(s -> log.info("Successfully reconnected to endpoint {}", endpointUri))
                 .exceptionLogger(status -> {
                     if (status.hasCrossedThreshold(Duration.ofMinutes(2))) {
-                        log.error("Failed to connect to endpoint {} for 2 minutes. Retrying every {} ms...", 
-                                  endpointUri, status.getRetryConfiguration().getDelay().toMillis(), status.getException());
+                        log.error("Failed to connect to endpoint {} for 2 minutes. Retrying every {} ms...",
+                                  endpointUri, status.getRetryConfiguration().getDelay().toMillis(),
+                                  status.getException());
                     }
                 })
                 .build();
@@ -81,16 +82,27 @@ public abstract class AbstractWebsocketClient implements AutoCloseable {
     }
 
     @SuppressWarnings("unchecked")
-    protected <R extends QueryResult> R sendRequest(Request request) {
+    @SneakyThrows
+    protected <R extends QueryResult> R sendRequestAndWait(Request request) {
+        return (R) sendRequest(request).get();
+    }
+
+    @SuppressWarnings("unchecked")
+    protected <R extends QueryResult> CompletableFuture<R> sendRequest(Request request) {
         WebSocketRequest webSocketRequest = new WebSocketRequest(request);
         requests.put(request.getRequestId(), webSocketRequest);
         try {
             webSocketRequest.send(getSession());
-            return (R) webSocketRequest.getResult();
         } catch (Exception e) {
             requests.remove(request.getRequestId());
-            throw new IllegalStateException("Failed to handle request " + request, e);
+            throw new IllegalStateException("Failed to send request " + request, e);
         }
+        return ((CompletableFuture<R>) webSocketRequest.result).whenComplete((r, e) -> {
+            if (e != null) {
+                log.error("Failed to handle request {}", request, e);
+            }
+            requests.remove(request.getRequestId());
+        });
     }
 
     @OnMessage
@@ -139,7 +151,7 @@ public abstract class AbstractWebsocketClient implements AutoCloseable {
     public void close() {
         close(false);
     }
-    
+
     protected void close(boolean clearOutstandingRequests) {
         if (closed.compareAndSet(false, true)) {
             if (clearOutstandingRequests) {
@@ -164,14 +176,14 @@ public abstract class AbstractWebsocketClient implements AutoCloseable {
         if (isClosed(session)) {
             synchronized (this) {
                 while (isClosed(session)) {
-                    session = retryOnFailure(() -> isClosed(session) ? 
+                    session = retryOnFailure(() -> isClosed(session) ?
                             container.connectToServer(this, endpointUri) : session, retryConfig);
                 }
             }
         }
         return session;
     }
-    
+
     protected boolean isClosed(Session session) {
         return session == null || !session.isOpen();
     }
@@ -180,8 +192,9 @@ public abstract class AbstractWebsocketClient implements AutoCloseable {
     protected class WebSocketRequest {
         private final Request request;
         private final CompletableFuture<QueryResult> result = new CompletableFuture<>();
-        @Getter private volatile String sessionId;
-        
+        @Getter
+        private volatile String sessionId;
+
         protected void send(Session session) {
             this.sessionId = session.getId();
             AbstractWebsocketClient.this.send(request);
@@ -194,7 +207,7 @@ public abstract class AbstractWebsocketClient implements AutoCloseable {
         protected void complete(QueryResult value) {
             result.complete(value);
         }
-        
+
         public QueryResult getResult() throws ExecutionException, InterruptedException {
             return result.get();
         }

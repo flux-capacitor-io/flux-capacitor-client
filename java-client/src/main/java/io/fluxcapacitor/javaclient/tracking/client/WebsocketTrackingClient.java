@@ -27,6 +27,7 @@ import io.fluxcapacitor.javaclient.common.websocket.JsonEncoder;
 import javax.websocket.ClientEndpoint;
 import java.net.URI;
 import java.time.Duration;
+import java.util.concurrent.CompletableFuture;
 
 @ClientEndpoint(encoders = JsonEncoder.class, decoders = JsonDecoder.class)
 public class WebsocketTrackingClient extends AbstractWebsocketClient implements TrackingClient {
@@ -40,11 +41,12 @@ public class WebsocketTrackingClient extends AbstractWebsocketClient implements 
     }
 
     @Override
-    public MessageBatch read(String consumer, int channel, int maxSize, Duration maxTimeout, String typeFilter,
-                             boolean ignoreMessageTarget, TrackingStrategy strategy) {
-        ReadResult readResult = sendRequest(new Read(consumer, channel, maxSize, maxTimeout.toMillis(), 
-                                                     typeFilter, ignoreMessageTarget, strategy));
-        return readResult.getMessageBatch();
+    public CompletableFuture<MessageBatch> read(String consumer, int channel, int maxSize, Duration maxTimeout,
+                                                String typeFilter, boolean ignoreMessageTarget,
+                                                TrackingStrategy strategy) {
+        CompletableFuture<ReadResult> readResult = sendRequest(new Read(
+                consumer, channel, maxSize, maxTimeout.toMillis(), typeFilter, ignoreMessageTarget, strategy));
+        return readResult.thenApply(ReadResult::getMessageBatch);
     }
 
     @Override

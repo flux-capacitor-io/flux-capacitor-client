@@ -29,6 +29,7 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentSkipListMap;
 import java.util.concurrent.CopyOnWriteArrayList;
@@ -63,8 +64,8 @@ public class InMemoryMessageStore implements GatewayClient, TrackingClient {
     }
 
     @Override
-    public MessageBatch read(String consumer, int channel, int maxSize, Duration maxTimeout, String typeFilter,
-                             boolean ignoreMessageTarget, TrackingStrategy strategy) {
+    public MessageBatch readAndWait(String consumer, int channel, int maxSize, Duration maxTimeout, String typeFilter,
+                                    boolean ignoreMessageTarget, TrackingStrategy strategy) {
         if (channel != 0) {
             return new MessageBatch(new int[]{0, 1}, Collections.emptyList(), null);
         }
@@ -87,6 +88,13 @@ public class InMemoryMessageStore implements GatewayClient, TrackingClient {
             }
             return new MessageBatch(new int[]{0, 1}, messages, lastIndex);
         }
+    }
+
+    @Override
+    public CompletableFuture<MessageBatch> read(String consumer, int channel, int maxSize, Duration maxTimeout,
+                                                String typeFilter, boolean ignoreMessageTarget,
+                                                TrackingStrategy strategy) {
+        return CompletableFuture.completedFuture(readAndWait(consumer, channel, maxSize, maxTimeout, typeFilter, ignoreMessageTarget, strategy));
     }
 
     private long getLastIndex(String consumer) {

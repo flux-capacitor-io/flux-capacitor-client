@@ -27,10 +27,10 @@ public class InMemorySchedulingClient extends InMemoryMessageStore implements Sc
     }
 
     @Override
-    public MessageBatch read(String consumer, int channel, int maxSize, Duration maxTimeout, String typeFilter,
-                             boolean ignoreMessageTarget, TrackingStrategy readStrategy) {
-        MessageBatch messageBatch = super.read(consumer, channel, maxSize, maxTimeout, typeFilter, ignoreMessageTarget,
-                                               readStrategy);
+    public MessageBatch readAndWait(String consumer, int channel, int maxSize, Duration maxTimeout, String typeFilter,
+                                    boolean ignoreMessageTarget, TrackingStrategy readStrategy) {
+        MessageBatch messageBatch = super.readAndWait(consumer, channel, maxSize, maxTimeout, typeFilter, ignoreMessageTarget,
+                                                      readStrategy);
         List<SerializedMessage> messages = messageBatch.getMessages().stream()
                 .filter(m -> times.containsKey(m.getIndex()))
                 .filter(m -> isMissedDeadline(timeFromIndex(m.getIndex())))

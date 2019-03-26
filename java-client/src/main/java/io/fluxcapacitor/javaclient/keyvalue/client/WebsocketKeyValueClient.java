@@ -63,7 +63,7 @@ public class WebsocketKeyValueClient extends AbstractWebsocketClient implements 
             case SENT:
                 return backlog.add(new KeyValuePair(key, value));
             case STORED:
-                sendRequest(new StoreValuesAndWait(singletonList(new KeyValuePair(key, value))));
+                sendRequestAndWait(new StoreValuesAndWait(singletonList(new KeyValuePair(key, value))));
                 return Awaitable.ready();
             default:
                 throw new UnsupportedOperationException("Unrecognized guarantee: " + guarantee);
@@ -72,7 +72,7 @@ public class WebsocketKeyValueClient extends AbstractWebsocketClient implements 
 
     @Override
     public Data<byte[]> getValue(String key) {
-        GetValueResult result = sendRequest(new GetValue(key));
+        GetValueResult result = sendRequestAndWait(new GetValue(key));
         return result.getValue();
     }
 

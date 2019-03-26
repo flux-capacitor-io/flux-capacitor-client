@@ -15,6 +15,7 @@ import io.fluxcapacitor.javaclient.eventsourcing.CacheInvalidatingInterceptor;
 import io.fluxcapacitor.javaclient.publishing.ResultGateway;
 import io.fluxcapacitor.javaclient.tracking.client.TrackingClient;
 import io.fluxcapacitor.javaclient.tracking.client.TrackingUtils;
+import io.fluxcapacitor.javaclient.tracking.handling.FutureResult;
 import io.fluxcapacitor.javaclient.tracking.handling.HandlerInterceptor;
 import lombok.AllArgsConstructor;
 import lombok.SneakyThrows;
@@ -136,7 +137,19 @@ public class DefaultTracking implements Tracking {
         }
         SerializedMessage serializedMessage = message.getSerializedObject();
         if (serializedMessage.getRequestId() != null) {
-            resultGateway.respond(result, serializedMessage.getSource(), serializedMessage.getRequestId());
+            if (result instanceof FutureResult<?>) {
+                ((FutureResult<?>) result).subscribe((r, e) -> {
+                    Object asyncResult = r;
+                    if (e != null) {
+                        if (!(e instanceof FunctionalException)) {
+                            asyncResult = new TechnicalException(format("Handler %s failed to handle a %s", handler, message));
+                        }
+                    }
+                    resultGateway.respond(asyncResult, serializedMessage.getSource(), serializedMessage.getRequestId());
+                });
+            } else {
+                resultGateway.respond(result, serializedMessage.getSource(), serializedMessage.getRequestId());
+            }
         }
         if (exception != null) {
             throw exception;
