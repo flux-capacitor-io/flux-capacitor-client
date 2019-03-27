@@ -15,7 +15,6 @@ import io.fluxcapacitor.javaclient.eventsourcing.CacheInvalidatingInterceptor;
 import io.fluxcapacitor.javaclient.publishing.ResultGateway;
 import io.fluxcapacitor.javaclient.tracking.client.TrackingClient;
 import io.fluxcapacitor.javaclient.tracking.client.TrackingUtils;
-import io.fluxcapacitor.javaclient.tracking.handling.FutureResult;
 import io.fluxcapacitor.javaclient.tracking.handling.HandlerInterceptor;
 import lombok.AllArgsConstructor;
 import lombok.SneakyThrows;
@@ -29,6 +28,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.CompletionStage;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
 import java.util.stream.Stream;
@@ -137,8 +137,8 @@ public class DefaultTracking implements Tracking {
         }
         SerializedMessage serializedMessage = message.getSerializedObject();
         if (serializedMessage.getRequestId() != null) {
-            if (result instanceof FutureResult<?>) {
-                ((FutureResult<?>) result).subscribe((r, e) -> {
+            if (result instanceof CompletionStage<?>) {
+                ((CompletionStage<?>) result).whenComplete((r, e) -> {
                     Object asyncResult = r;
                     if (e != null) {
                         if (!(e instanceof FunctionalException)) {
