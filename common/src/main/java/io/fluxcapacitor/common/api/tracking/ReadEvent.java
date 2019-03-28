@@ -24,7 +24,6 @@ public class ReadEvent implements ClientEvent {
     long timestamp = System.currentTimeMillis();
 
     String log;
-    String processor;
     String consumer;
     int channel;
     int maxSize;

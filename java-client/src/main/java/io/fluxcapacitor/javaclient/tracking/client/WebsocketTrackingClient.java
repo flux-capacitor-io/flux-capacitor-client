@@ -47,13 +47,13 @@ public class WebsocketTrackingClient extends AbstractWebsocketClient implements 
                                                 String typeFilter, boolean ignoreMessageTarget,
                                                 TrackingStrategy strategy) {
         CompletableFuture<ReadResult> readResult = sendRequest(new Read(
-                consumer, consumer, channel, maxSize, maxTimeout.toMillis(), typeFilter, ignoreMessageTarget, strategy));
+                consumer, channel, maxSize, maxTimeout.toMillis(), typeFilter, ignoreMessageTarget, strategy));
         return readResult.thenApply(ReadResult::getMessageBatch);
     }
 
     @Override
     public Awaitable storePosition(String consumer, int[] segment, long lastIndex) {
-        return send(new StorePosition(consumer, consumer, segment, lastIndex));
+        return send(new StorePosition(consumer, segment, lastIndex));
     }
 
     @Override
