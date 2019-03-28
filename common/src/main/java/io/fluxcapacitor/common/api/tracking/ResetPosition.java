@@ -14,19 +14,11 @@
 
 package io.fluxcapacitor.common.api.tracking;
 
-import io.fluxcapacitor.common.api.Request;
-import lombok.EqualsAndHashCode;
+import io.fluxcapacitor.common.api.JsonType;
 import lombok.Value;
 
 @Value
-@EqualsAndHashCode(callSuper = true)
-public class Read extends Request {
-    String processor;
+public class ResetPosition implements JsonType {
     String consumer;
-    int channel;
-    int maxSize;
-    long maxTimeout;
-    String typeFilter;
-    boolean ignoreMessageTarget;
-    TrackingStrategy strategy;
+    long lastIndex;
 }

@@ -15,7 +15,6 @@
 package io.fluxcapacitor.javaclient.tracking.client;
 
 import io.fluxcapacitor.common.Awaitable;
-import io.fluxcapacitor.common.MessageType;
 import io.fluxcapacitor.common.Registration;
 import io.fluxcapacitor.common.api.SerializedMessage;
 import io.fluxcapacitor.common.api.tracking.MessageBatch;
@@ -42,7 +41,6 @@ import static java.util.stream.Collectors.toList;
 @RequiredArgsConstructor
 public class InMemoryMessageStore implements GatewayClient, TrackingClient {
 
-    private final MessageType messageType;
     private final AtomicLong nextIndex = new AtomicLong();
     private final ConcurrentSkipListMap<Long, SerializedMessage> messageLog = new ConcurrentSkipListMap<>();
     private final Map<String, Long> consumerTokens = new ConcurrentHashMap<>();
@@ -103,7 +101,17 @@ public class InMemoryMessageStore implements GatewayClient, TrackingClient {
 
     @Override
     public Awaitable storePosition(String consumer, int[] segment, long lastIndex) {
+        return resetPosition(consumer, lastIndex);
+    }
+
+    @Override
+    public Awaitable resetPosition(String consumer, long lastIndex) {
         consumerTokens.put(consumer, lastIndex);
+        return Awaitable.ready();
+    }
+
+    @Override
+    public Awaitable disconnectTracker(String consumer, int channel) {
         return Awaitable.ready();
     }
 

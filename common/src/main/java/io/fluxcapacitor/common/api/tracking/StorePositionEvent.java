@@ -25,6 +25,7 @@ public class StorePositionEvent implements ClientEvent {
 
     String log;
     String processor;
+    String consumer;
     int[] segment;
     long lastIndex;
 }

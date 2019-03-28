@@ -15,9 +15,11 @@
 package io.fluxcapacitor.javaclient.tracking.client;
 
 import io.fluxcapacitor.common.Awaitable;
+import io.fluxcapacitor.common.api.tracking.DisconnectTracker;
 import io.fluxcapacitor.common.api.tracking.MessageBatch;
 import io.fluxcapacitor.common.api.tracking.Read;
 import io.fluxcapacitor.common.api.tracking.ReadResult;
+import io.fluxcapacitor.common.api.tracking.ResetPosition;
 import io.fluxcapacitor.common.api.tracking.StorePosition;
 import io.fluxcapacitor.common.api.tracking.TrackingStrategy;
 import io.fluxcapacitor.javaclient.common.websocket.AbstractWebsocketClient;
@@ -45,13 +47,23 @@ public class WebsocketTrackingClient extends AbstractWebsocketClient implements 
                                                 String typeFilter, boolean ignoreMessageTarget,
                                                 TrackingStrategy strategy) {
         CompletableFuture<ReadResult> readResult = sendRequest(new Read(
-                consumer, channel, maxSize, maxTimeout.toMillis(), typeFilter, ignoreMessageTarget, strategy));
+                consumer, consumer, channel, maxSize, maxTimeout.toMillis(), typeFilter, ignoreMessageTarget, strategy));
         return readResult.thenApply(ReadResult::getMessageBatch);
     }
 
     @Override
     public Awaitable storePosition(String consumer, int[] segment, long lastIndex) {
-        return send(new StorePosition(consumer, segment, lastIndex));
+        return send(new StorePosition(consumer, consumer, segment, lastIndex));
+    }
+
+    @Override
+    public Awaitable resetPosition(String consumer, long lastIndex) {
+        return send(new ResetPosition(consumer, lastIndex));
+    }
+
+    @Override
+    public Awaitable disconnectTracker(String consumer, int channel) {
+        return send(new DisconnectTracker(consumer, channel));
     }
 
     @Override

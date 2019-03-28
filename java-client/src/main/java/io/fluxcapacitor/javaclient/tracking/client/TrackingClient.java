@@ -35,6 +35,10 @@ public interface TrackingClient extends AutoCloseable {
 
     Awaitable storePosition(String consumer, int[] segment, long lastIndex);
 
+    Awaitable resetPosition(String consumer, long lastIndex);
+    
+    Awaitable disconnectTracker(String consumer, int channel);
+
     @Override
     void close();
 }

@@ -97,14 +97,13 @@ public abstract class AbstractFluxCapacitorConfiguration implements FluxCapacito
     public EventHandlingConfiguration configure(EventHandlingConfiguration eventHandlingConfiguration) {
         return eventHandlingConfiguration.registerEventProcessorFactory(
                 (c, name, eventListeners) -> {
-                    String processorName = format("%s/%s", client.name(), name);
+                    String consumer = format("%s/%s", client.name(), name);
                     return new FluxCapacitorEventProcessor(
-                            processorName,
-                            new SimpleEventHandlerInvoker(eventListeners, c.parameterResolverFactory(),
+                            consumer, new SimpleEventHandlerInvoker(eventListeners, c.parameterResolverFactory(),
                                                           c.getComponent(ListenerInvocationErrorHandler.class,
                                                                          LoggingErrorHandler::new)),
                             RollbackConfigurationType.ANY_THROWABLE, PropagatingErrorHandler.INSTANCE,
-                            c.messageMonitor(FluxCapacitorEventProcessor.class, processorName),
+                            c.messageMonitor(FluxCapacitorEventProcessor.class, consumer),
                             getEventConsumerService(), c.getComponent(AxonMessageSerializer.class), 1);
                 });
     }
@@ -127,13 +126,13 @@ public abstract class AbstractFluxCapacitorConfiguration implements FluxCapacito
                 Component<EventProcessor> processorComponent = getField("processor", sagaConfig);
                 String name = getField("name", processorComponent);
                 processorComponent.update(c -> {
-                    String processorName = format("%s/%s", client.name(), name);
-                    Logger logger = LoggerFactory.getLogger(processorName);
+                    String consumerName = format("%s/%s", client.name(), name);
+                    Logger logger = LoggerFactory.getLogger(consumerName);
                     return new FluxCapacitorEventProcessor(
-                            processorName, sagaConfig.getSagaManager(),
+                            consumerName, sagaConfig.getSagaManager(),
                             RollbackConfigurationType.ANY_THROWABLE,
                             errorContext -> logger.error("Failed to handle events on saga", errorContext.error()),
-                            c.messageMonitor(FluxCapacitorEventProcessor.class, processorName), getEventConsumerService(),
+                            c.messageMonitor(FluxCapacitorEventProcessor.class, consumerName), getEventConsumerService(),
                             c.getComponent(AxonMessageSerializer.class), 1);
                 });
             }

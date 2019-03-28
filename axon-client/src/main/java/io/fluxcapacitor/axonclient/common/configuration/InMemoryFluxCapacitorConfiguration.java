@@ -44,7 +44,7 @@ public class InMemoryFluxCapacitorConfiguration extends AbstractFluxCapacitorCon
             case EVENT:
                 return eventStore;
             default:
-                return messageStores.computeIfAbsent(type, InMemoryMessageStore::new);
+                return messageStores.computeIfAbsent(type, t -> new InMemoryMessageStore());
         }
     }
 

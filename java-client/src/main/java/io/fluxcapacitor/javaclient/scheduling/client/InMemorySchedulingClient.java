@@ -2,7 +2,6 @@ package io.fluxcapacitor.javaclient.scheduling.client;
 
 import io.fluxcapacitor.common.Awaitable;
 import io.fluxcapacitor.common.IndexUtils;
-import io.fluxcapacitor.common.MessageType;
 import io.fluxcapacitor.common.api.SerializedMessage;
 import io.fluxcapacitor.common.api.scheduling.ScheduledMessage;
 import io.fluxcapacitor.common.api.tracking.MessageBatch;
@@ -21,10 +20,6 @@ import static java.util.stream.Collectors.toList;
 public class InMemorySchedulingClient extends InMemoryMessageStore implements SchedulingClient {
 
     private final ConcurrentSkipListMap<Long, String> times = new ConcurrentSkipListMap<>();
-
-    public InMemorySchedulingClient() {
-        super(MessageType.SCHEDULE);
-    }
 
     @Override
     public MessageBatch readAndWait(String consumer, int channel, int maxSize, Duration maxTimeout, String typeFilter,

@@ -31,7 +31,7 @@ public class InMemoryClient extends AbstractClient {
                         case SCHEDULE:
                             return schedulingClient;
                         default:
-                            return new InMemoryMessageStore(t);
+                            return new InMemoryMessageStore();
                     }
                 });
         return new InMemoryClient("inMemory", ManagementFactory.getRuntimeMXBean().getName(), messageStoreFactory,
