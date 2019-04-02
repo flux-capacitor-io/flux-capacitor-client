@@ -35,9 +35,13 @@ import io.fluxcapacitor.common.api.scheduling.CancelSchedule;
 import io.fluxcapacitor.common.api.scheduling.CancelScheduleEvent;
 import io.fluxcapacitor.common.api.scheduling.Schedule;
 import io.fluxcapacitor.common.api.scheduling.ScheduleEvent;
+import io.fluxcapacitor.common.api.tracking.DisconnectTracker;
+import io.fluxcapacitor.common.api.tracking.DisconnectTrackerEvent;
 import io.fluxcapacitor.common.api.tracking.Read;
 import io.fluxcapacitor.common.api.tracking.ReadEvent;
 import io.fluxcapacitor.common.api.tracking.ReadResult;
+import io.fluxcapacitor.common.api.tracking.ResetPosition;
+import io.fluxcapacitor.common.api.tracking.ResetPositionEvent;
 import io.fluxcapacitor.common.api.tracking.StorePosition;
 import io.fluxcapacitor.common.api.tracking.StorePositionEvent;
 
@@ -58,6 +62,10 @@ import io.fluxcapacitor.common.api.tracking.StorePositionEvent;
         @JsonSubTypes.Type(value=ReadEvent.class, name="readEvent"),
         @JsonSubTypes.Type(value=StorePosition.class, name="storePosition"),
         @JsonSubTypes.Type(value=StorePositionEvent.class, name="storePositionEvent"),
+        @JsonSubTypes.Type(value= ResetPosition.class, name="resetPosition"),
+        @JsonSubTypes.Type(value= ResetPositionEvent.class, name="resetPositionEvent"),
+        @JsonSubTypes.Type(value= DisconnectTracker.class, name="disconnectTracker"),
+        @JsonSubTypes.Type(value= DisconnectTrackerEvent.class, name="disconnectTrackerEvent"),
 
         //event sourcing
         @JsonSubTypes.Type(value=AppendEvents.class, name="appendEvents"),
