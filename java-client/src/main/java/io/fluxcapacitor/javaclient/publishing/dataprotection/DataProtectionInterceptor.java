@@ -40,9 +40,11 @@ public class DataProtectionInterceptor implements DispatchInterceptor, HandlerIn
                 Object payload = m.getPayload();
                 getAnnotatedFields(m.getPayload(), ProtectData.class).forEach(field -> {
                     Object value = getProperty(field, payload);
-                    String key = randomUUID().toString();
-                    keyValueStore.store(key, value, Guarantee.STORED);
-                    protectedFields.put(field.getName(), key);
+                    if (value != null) {
+                        String key = randomUUID().toString();
+                        keyValueStore.store(key, value, Guarantee.STORED);
+                        protectedFields.put(field.getName(), key);
+                    }
                 });
                 if (!protectedFields.isEmpty()) {
                     m.getMetadata().put(METADATA_KEY, protectedFields);

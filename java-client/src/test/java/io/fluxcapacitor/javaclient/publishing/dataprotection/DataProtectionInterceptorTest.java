@@ -1,6 +1,7 @@
 package io.fluxcapacitor.javaclient.publishing.dataprotection;
 
 import io.fluxcapacitor.common.api.Data;
+import io.fluxcapacitor.common.api.Metadata;
 import io.fluxcapacitor.javaclient.FluxCapacitor;
 import io.fluxcapacitor.javaclient.common.serialization.DeserializingMessage;
 import io.fluxcapacitor.javaclient.common.serialization.jackson.JacksonSerializer;
@@ -16,7 +17,9 @@ import org.junit.jupiter.api.Test;
 import javax.validation.constraints.NotNull;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class DataProtectionInterceptorTest {
 
@@ -41,6 +44,7 @@ class DataProtectionInterceptorTest {
         String payload = "something super secret";
         fluxCapacitor.eventGateway().publish(new SomeEvent(payload));
         assertEquals(payload, handler.getLastEvent().getSensitiveData());
+        assertTrue(handler.getLastMetadata().containsKey(DataProtectionInterceptor.METADATA_KEY));
     }
 
     @Test
@@ -63,6 +67,15 @@ class DataProtectionInterceptorTest {
         assertEquals(payload, handler.getLastCommand().getSensitiveData());
     }
 
+    @Test
+    void testNullDataIsIgnored() {
+        SomeHandler handler = new SomeHandler();
+        fluxCapacitor.registerLocalHandlers(handler);
+        fluxCapacitor.eventGateway().publish(new SomeEvent(null));
+        assertNull(handler.getLastEvent().getSensitiveData());
+        assertFalse(handler.getLastMetadata().containsKey(DataProtectionInterceptor.METADATA_KEY));
+    }
+
     @Value
     @Builder(toBuilder = true)
     private static class SomeEvent {
@@ -77,15 +90,17 @@ class DataProtectionInterceptorTest {
         @NotNull
         String sensitiveData;
     }
-    
+
     @Getter
     private static class SomeHandler {
         private SomeEvent lastEvent;
+        private Metadata lastMetadata;
         private Data<byte[]> data;
-        
+
         @HandleEvent
         private void handler(SomeEvent event, DeserializingMessage message) {
             lastEvent = event.toBuilder().build();
+            lastMetadata = message.getMetadata();
             data = message.getSerializedObject().getData();
         }
     }
@@ -99,11 +114,11 @@ class DataProtectionInterceptorTest {
             lastCommand = command;
         }
     }
-    
+
     @Getter
     private static class DroppingHandler {
         private SomeEvent lastEvent;
-        
+
         @HandleEvent
         @DropProtectedData
         private void handler(SomeEvent event) {
