@@ -15,9 +15,12 @@
 package io.fluxcapacitor.javaclient.tracking.client;
 
 import io.fluxcapacitor.common.Awaitable;
+import io.fluxcapacitor.common.api.SerializedMessage;
 import io.fluxcapacitor.common.api.tracking.DisconnectTracker;
 import io.fluxcapacitor.common.api.tracking.MessageBatch;
 import io.fluxcapacitor.common.api.tracking.Read;
+import io.fluxcapacitor.common.api.tracking.ReadFromIndex;
+import io.fluxcapacitor.common.api.tracking.ReadFromIndexResult;
 import io.fluxcapacitor.common.api.tracking.ReadResult;
 import io.fluxcapacitor.common.api.tracking.ResetPosition;
 import io.fluxcapacitor.common.api.tracking.StorePosition;
@@ -29,6 +32,7 @@ import io.fluxcapacitor.javaclient.common.websocket.JsonEncoder;
 import javax.websocket.ClientEndpoint;
 import java.net.URI;
 import java.time.Duration;
+import java.util.List;
 import java.util.concurrent.CompletableFuture;
 
 @ClientEndpoint(encoders = JsonEncoder.class, decoders = JsonDecoder.class)
@@ -49,6 +53,12 @@ public class WebsocketTrackingClient extends AbstractWebsocketClient implements 
         CompletableFuture<ReadResult> readResult = sendRequest(new Read(
                 consumer, channel, maxSize, maxTimeout.toMillis(), typeFilter, ignoreMessageTarget, strategy));
         return readResult.thenApply(ReadResult::getMessageBatch);
+    }
+
+    @Override
+    public List<SerializedMessage> readFromIndex(long minIndex) {
+        ReadFromIndexResult result = sendRequestAndWait(new ReadFromIndex(minIndex));
+        return result.getMessages();
     }
 
     @Override

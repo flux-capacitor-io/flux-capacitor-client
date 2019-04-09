@@ -15,11 +15,13 @@
 package io.fluxcapacitor.javaclient.tracking.client;
 
 import io.fluxcapacitor.common.Awaitable;
+import io.fluxcapacitor.common.api.SerializedMessage;
 import io.fluxcapacitor.common.api.tracking.MessageBatch;
 import io.fluxcapacitor.common.api.tracking.TrackingStrategy;
 import lombok.SneakyThrows;
 
 import java.time.Duration;
+import java.util.List;
 import java.util.concurrent.CompletableFuture;
 
 public interface TrackingClient extends AutoCloseable {
@@ -32,6 +34,8 @@ public interface TrackingClient extends AutoCloseable {
     
     CompletableFuture<MessageBatch> read(String consumer, int channel, int maxSize, Duration maxTimeout,
                                          String typeFilter, boolean ignoreMessageTarget, TrackingStrategy strategy);
+    
+    List<SerializedMessage> readFromIndex(long minIndex);
 
     Awaitable storePosition(String consumer, int[] segment, long lastIndex);
 

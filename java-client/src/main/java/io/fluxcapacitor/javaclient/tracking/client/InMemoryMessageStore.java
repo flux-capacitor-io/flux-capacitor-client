@@ -95,6 +95,11 @@ public class InMemoryMessageStore implements GatewayClient, TrackingClient {
         return CompletableFuture.completedFuture(readAndWait(consumer, channel, maxSize, maxTimeout, typeFilter, ignoreMessageTarget, strategy));
     }
 
+    @Override
+    public List<SerializedMessage> readFromIndex(long minIndex) {
+        return new ArrayList<>(messageLog.tailMap(minIndex).values());
+    }
+
     private long getLastIndex(String consumer) {
         return consumerTokens.computeIfAbsent(consumer, k -> -1L);
     }
