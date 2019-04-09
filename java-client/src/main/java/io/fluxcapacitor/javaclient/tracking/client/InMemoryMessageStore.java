@@ -96,8 +96,9 @@ public class InMemoryMessageStore implements GatewayClient, TrackingClient {
     }
 
     @Override
-    public List<SerializedMessage> readFromIndex(long minIndex) {
-        return new ArrayList<>(messageLog.tailMap(minIndex).values());
+    public List<SerializedMessage> readFromIndex(long minIndex, int maxSize) {
+        ArrayList<SerializedMessage> list = new ArrayList<>(messageLog.tailMap(minIndex).values());
+        return list.subList(0, Math.min(maxSize, list.size()));
     }
 
     private long getLastIndex(String consumer) {

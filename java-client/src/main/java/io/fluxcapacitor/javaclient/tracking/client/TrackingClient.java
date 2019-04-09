@@ -35,7 +35,7 @@ public interface TrackingClient extends AutoCloseable {
     CompletableFuture<MessageBatch> read(String consumer, int channel, int maxSize, Duration maxTimeout,
                                          String typeFilter, boolean ignoreMessageTarget, TrackingStrategy strategy);
     
-    List<SerializedMessage> readFromIndex(long minIndex);
+    List<SerializedMessage> readFromIndex(long minIndex, int maxSize);
 
     Awaitable storePosition(String consumer, int[] segment, long lastIndex);
 

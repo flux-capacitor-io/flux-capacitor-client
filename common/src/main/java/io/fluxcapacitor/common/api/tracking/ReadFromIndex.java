@@ -22,4 +22,5 @@ import lombok.Value;
 @EqualsAndHashCode(callSuper = true)
 public class ReadFromIndex extends Request {
     long minIndex;
+    int maxSize;
 }

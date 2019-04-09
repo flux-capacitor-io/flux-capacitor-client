@@ -56,8 +56,8 @@ public class WebsocketTrackingClient extends AbstractWebsocketClient implements 
     }
 
     @Override
-    public List<SerializedMessage> readFromIndex(long minIndex) {
-        ReadFromIndexResult result = sendRequestAndWait(new ReadFromIndex(minIndex));
+    public List<SerializedMessage> readFromIndex(long minIndex, int maxSize) {
+        ReadFromIndexResult result = sendRequestAndWait(new ReadFromIndex(minIndex, maxSize));
         return result.getMessages();
     }
 

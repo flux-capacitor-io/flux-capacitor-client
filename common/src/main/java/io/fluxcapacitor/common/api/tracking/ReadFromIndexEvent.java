@@ -26,6 +26,7 @@ public class ReadFromIndexEvent implements ClientEvent {
     String log;
 
     long minIndex;
+    int maxSize;
     int size;
     Long lastIndex;
 }
