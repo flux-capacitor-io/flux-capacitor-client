@@ -14,10 +14,10 @@
 
 package io.fluxcapacitor.javaclient.common.caching;
 
-
-import com.github.benmanes.caffeine.cache.Cache;
-import com.github.benmanes.caffeine.cache.Caffeine;
+import com.google.common.cache.Cache;
+import com.google.common.cache.CacheBuilder;
 import lombok.AllArgsConstructor;
+import lombok.SneakyThrows;
 
 import java.util.function.Function;
 
@@ -27,7 +27,7 @@ public class DefaultCache implements io.fluxcapacitor.javaclient.common.caching.
     private final Cache<String, Object> cache;
 
     public DefaultCache() {
-        this(Caffeine.newBuilder().maximumSize(1_000).build());
+        this(CacheBuilder.newBuilder().maximumSize(1_000).build());
     }
 
     @Override
@@ -37,8 +37,9 @@ public class DefaultCache implements io.fluxcapacitor.javaclient.common.caching.
 
     @SuppressWarnings("unchecked")
     @Override
+    @SneakyThrows
     public <T> T get(String id, Function<? super String, T> mappingFunction) {
-        return (T) cache.get(id, mappingFunction);
+        return (T) cache.get(id, () -> mappingFunction.apply(id));
     }
 
     @Override
