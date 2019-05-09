@@ -27,7 +27,7 @@ import static java.util.stream.Collectors.toList;
 @AllArgsConstructor
 public class DefaultEventSourcing implements EventSourcing, HandlerInterceptor {
 
-    private final Map<Class, Function<String, EventSourcedModel<?>>> modelFactories = new ConcurrentHashMap<>();
+    private final Map<Class, Function<LoadSettings, EventSourcedModel<?>>> modelFactories = new ConcurrentHashMap<>();
     private final EventStore eventStore;
     private final SnapshotRepository snapshotRepository;
     private final Cache cache;
@@ -63,19 +63,19 @@ public class DefaultEventSourcing implements EventSourcing, HandlerInterceptor {
                                                      boolean disableSnapshotting) {
         return (EventSourcedModel<T>) modelFactories.computeIfAbsent(modelType, t -> {
             EventSourcingHandler<T> eventSourcingHandler = new AnnotatedEventSourcingHandler<>(modelType);
-            Cache cache = disableCaching ? NoCache.INSTANCE : cache(modelType);
-            SnapshotRepository snapshotRepository = disableSnapshotting 
-                    ? NoOpSnapshotRepository.INSTANCE : snapshotRepository(modelType);
+            Cache cache = cache(modelType);
+            SnapshotRepository snapshotRepository = snapshotRepository(modelType);
             SnapshotTrigger snapshotTrigger = snapshotTrigger(modelType);
             String domain = domain(modelType);
-            return id -> {
-                EventSourcedModel<T> eventSourcedModel =
-                        new EventSourcedModel<>(eventSourcingHandler, cache, eventStore, snapshotRepository,
-                                                snapshotTrigger, domain, loadedModels.get() == null, id);
+            return settings -> {
+                EventSourcedModel<T> eventSourcedModel = new EventSourcedModel<>(eventSourcingHandler, 
+                                                settings.disableCaching ? NoCache.INSTANCE : cache, eventStore, 
+                                                settings.disableSnapshotting ? NoOpSnapshotRepository.INSTANCE : snapshotRepository,
+                                                snapshotTrigger, domain, loadedModels.get() == null, settings.modelId);
                 eventSourcedModel.initialize();
                 return eventSourcedModel;
             };
-        }).apply(modelId);
+        }).apply(new LoadSettings(modelId, disableCaching, disableSnapshotting));
     }
 
     @Override
@@ -128,6 +128,13 @@ public class DefaultEventSourcing implements EventSourcing, HandlerInterceptor {
     protected String domain(Class<?> modelType) {
         return Optional.ofNullable(modelType.getAnnotation(EventSourced.class)).map(EventSourced::domain)
                 .filter(s -> !s.isEmpty()).orElse(modelType.getSimpleName());
+    }
+    
+    @AllArgsConstructor
+    protected static class LoadSettings {
+        String modelId;
+        boolean disableCaching;
+        boolean disableSnapshotting;
     }
 
     @RequiredArgsConstructor
