@@ -25,13 +25,13 @@ public class Metadata implements Map<String, String> {
     @Delegate
     Map<String, String> entries;
 
-    public Metadata(String... keyValues){
-        if(keyValues==null || keyValues.length==0 || keyValues.length % 2 == 1){
-            throw new IllegalStateException("Failed to create metadata for keys " + Arrays.toString(keyValues));
+    public Metadata(String... keyValues) {
+        if (keyValues == null || keyValues.length == 0 || keyValues.length % 2 == 1) {
+            throw new IllegalArgumentException("Failed to create metadata for keys " + Arrays.toString(keyValues));
         }
         entries = new HashMap<>();
-        for(int i = 0; i<keyValues.length; i+=2){
-            entries.put(keyValues[i], keyValues[i+1]);
+        for (int i = 0; i < keyValues.length; i += 2) {
+            entries.put(keyValues[i], keyValues[i + 1]);
         }
     }
 
