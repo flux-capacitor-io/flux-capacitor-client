@@ -11,6 +11,7 @@ import io.fluxcapacitor.javaclient.keyvalue.KeyValueStore;
 import io.fluxcapacitor.javaclient.publishing.DispatchInterceptor;
 import io.fluxcapacitor.javaclient.tracking.handling.HandlerInterceptor;
 import lombok.AllArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -22,6 +23,7 @@ import static io.fluxcapacitor.common.reflection.ReflectionUtils.setField;
 import static java.util.UUID.randomUUID;
 
 @AllArgsConstructor
+@Slf4j
 public class DataProtectionInterceptor implements DispatchInterceptor, HandlerInterceptor {
 
     public static String METADATA_KEY = "$protectedData";
@@ -70,7 +72,11 @@ public class DataProtectionInterceptor implements DispatchInterceptor, HandlerIn
                 Map<String, String> protectedFields = m.getMetadata().get(METADATA_KEY, Map.class);
                 boolean dropProtectedData = handler.getMethod(m).isAnnotationPresent(DropProtectedData.class);
                 protectedFields.forEach((fieldName, key) -> {
-                    ReflectionUtils.setField(fieldName, payload, keyValueStore.get(key));
+                    try {
+                        ReflectionUtils.setField(fieldName, payload, keyValueStore.get(key));
+                    } catch (Exception e) {
+                        log.warn("Failed to set field {}", fieldName, e);
+                    }
                     if (dropProtectedData) {
                         keyValueStore.delete(key);
                     }
