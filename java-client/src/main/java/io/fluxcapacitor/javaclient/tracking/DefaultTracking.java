@@ -145,7 +145,12 @@ public class DefaultTracking implements Tracking {
                             asyncResult = new TechnicalException(format("Handler %s failed to handle a %s", handler, message));
                         }
                     }
-                    resultGateway.respond(asyncResult, serializedMessage.getSource(), serializedMessage.getRequestId());
+                    try {
+                        DeserializingMessage.setCurrent(message);
+                        resultGateway.respond(asyncResult, serializedMessage.getSource(), serializedMessage.getRequestId());
+                    } finally {
+                        DeserializingMessage.removeCurrent();
+                    }
                 });
             } else {
                 resultGateway.respond(result, serializedMessage.getSource(), serializedMessage.getRequestId());
