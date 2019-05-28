@@ -10,6 +10,7 @@ import io.fluxcapacitor.javaclient.publishing.ErrorGateway;
 import io.fluxcapacitor.javaclient.tracking.handling.HandlerInterceptor;
 import lombok.AllArgsConstructor;
 
+import java.util.concurrent.CompletionStage;
 import java.util.function.Function;
 
 import static java.lang.String.format;
@@ -25,18 +26,26 @@ public class ErrorReportingInterceptor implements HandlerInterceptor {
                                                                     String consumer) {
         return m -> {
             try {
-                return function.apply(m);
-            } catch (FunctionalException | TechnicalException e) {
-                reportError(e, m);
-                throw e;
+                Object result = function.apply(m);
+                if (result instanceof CompletionStage<?>) {
+                    ((CompletionStage<?>) result).whenComplete((r, e) -> {
+                        if (e != null) {
+                            reportError(e, handler, m);
+                        }
+                    });
+                }
+                return result;
             } catch (Exception e) {
-                reportError(new TechnicalException(format("Handler %s failed to handle a %s", handler, m)), m);
+                reportError(e, handler, m);
                 throw e;
             }
         };
     }
 
-    protected void reportError(Exception e, DeserializingMessage cause) {
+    protected void reportError(Throwable e, Handler<DeserializingMessage> handler, DeserializingMessage cause) {
+        if (!(e instanceof FunctionalException || e instanceof TechnicalException)) {
+            e = new TechnicalException(format("Handler %s failed to handle a %s", handler, cause));
+        }
         errorGateway.report(new Message(e, MessageType.ERROR), cause.getSerializedObject().getSource());
     }
 }
