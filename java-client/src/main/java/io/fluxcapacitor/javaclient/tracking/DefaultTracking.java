@@ -142,7 +142,7 @@ public class DefaultTracking implements Tracking {
                     Object asyncResult = r;
                     if (e != null) {
                         if (!(e instanceof FunctionalException)) {
-                            asyncResult = e = new TechnicalException(format("Handler %s failed to handle a %s", handler, message));
+                            asyncResult = new TechnicalException(format("Handler %s failed to handle a %s", handler, message));
                         }
                     }
                     try {
@@ -155,7 +155,7 @@ public class DefaultTracking implements Tracking {
                         }
                     } catch (Exception exc) {
                         log.warn("Did not stop consumer {} after async handler {} failed to handle a {}", 
-                                 config.getName(), handler, message);
+                                 config.getName(), handler, message, exc);
                     } finally {
                         DeserializingMessage.removeCurrent();
                     }
