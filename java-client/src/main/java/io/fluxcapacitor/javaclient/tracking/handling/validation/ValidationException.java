@@ -7,7 +7,8 @@ import org.hibernate.validator.internal.metadata.descriptor.ConstraintDescriptor
 import javax.validation.ConstraintViolation;
 import javax.validation.Path;
 import java.beans.ConstructorProperties;
-import java.lang.annotation.ElementType;
+import java.lang.reflect.Method;
+import java.util.Objects;
 import java.util.Set;
 import java.util.SortedSet;
 import java.util.TreeSet;
@@ -34,9 +35,17 @@ public class ValidationException extends FunctionalException {
         this.violations = new TreeSet<>(violations);
     }
 
+    @SuppressWarnings("unchecked")
     protected static String format(ConstraintViolation<?> v) {
-        if (((ConstraintDescriptorImpl) v.getConstraintDescriptor()).getElementType() == ElementType.METHOD) {
-            return v.getMessage();
+        //If the validator uses a custom message we just return the message, otherwise we add the property path
+        try {
+            ConstraintDescriptorImpl constraintDescriptor = (ConstraintDescriptorImpl) v.getConstraintDescriptor();
+            Method method = constraintDescriptor.getAnnotationType().getDeclaredMethod("message");
+            Object defaultMessage = method.getDefaultValue();
+            if (!Objects.equals(defaultMessage, v.getMessage())) {
+                return v.getMessage();
+            }
+        } catch (Exception ignored) {
         }
         return String.format("%s %s", StreamSupport.stream(v.getPropertyPath().spliterator(), false)
                 .reduce((a, b) -> b).map(Path.Node::getName).orElse(v.getPropertyPath().toString()), v.getMessage());
