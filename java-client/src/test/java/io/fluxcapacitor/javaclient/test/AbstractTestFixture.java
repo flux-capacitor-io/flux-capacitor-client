@@ -105,6 +105,11 @@ public abstract class AbstractTestFixture implements Given, When {
     }
 
     @Override
+    public When andGiven(Runnable runnable) {
+        return given(runnable);
+    }
+
+    @Override
     public When andGivenCommands(Object... commands) {
         return givenCommands(commands);
     }
