@@ -16,6 +16,8 @@ import javax.validation.constraints.NotNull;
 import java.util.function.Function;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class ValidatingInterceptorTest {
 
@@ -28,18 +30,21 @@ class ValidatingInterceptorTest {
     @Test
     void testWithConstraintViolations() {
         DeserializingMessage message =
-                messageFactory.apply(new ConstrainedObject(null, 3, new ConstrainedObjectMember(false)));
-        try {
-            subject.interceptHandling(m -> null, null, "test").apply(message);
-        } catch (ValidationException e) {
-            assertEquals(3, e.getViolations().size());
-        }
+                messageFactory.apply(new ConstrainedObject(null, 3, null, new ConstrainedObjectMember(false)));
+        ValidationException e = assertThrows(
+                ValidationException.class, 
+                () -> subject.interceptHandling(m -> null, null, "test").apply(message),
+                "Expected doThing() to throw, but it didn't");
+        
+        assertEquals(4, e.getViolations().size());
+        assertTrue(e.getViolations().stream().anyMatch(v -> v.equals("custom message")));
+        assertTrue(e.getViolations().stream().anyMatch(v -> v.equals("string must not be null")));
     }
 
     @Test
     void testWithoutConstraintViolations() {
         DeserializingMessage message =
-                messageFactory.apply(new ConstrainedObject("foo", 5, new ConstrainedObjectMember(true)));
+                messageFactory.apply(new ConstrainedObject("foo", 5, "bar", new ConstrainedObjectMember(true)));
         subject.interceptHandling(m -> null, null, "test").apply(message);
     }
 
@@ -53,6 +58,7 @@ class ValidatingInterceptorTest {
     private static class ConstrainedObject {
         @NotNull String string;
         @Min(5) long number;
+        @NotNull(message = "custom message") String customString;
         @Valid ConstrainedObjectMember member;
     }
 
