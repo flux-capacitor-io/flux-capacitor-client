@@ -20,6 +20,7 @@ import io.fluxcapacitor.common.api.Data;
 import io.fluxcapacitor.common.api.Metadata;
 import io.fluxcapacitor.common.api.SerializedMessage;
 import io.fluxcapacitor.javaclient.common.Message;
+import lombok.Value;
 import org.junit.jupiter.api.Test;
 
 import java.util.function.Function;
@@ -48,18 +49,54 @@ class MessageRoutingInterceptorTest {
     }
 
     @Test
+    void testNonStringAnnotation() {
+        expectedHash = ConsistentHashing.computeSegment(String.valueOf(42));
+        testInvocation(new NonStringAnnotation(42));
+    }
+
+    @Test
+    void testStaticFieldAnnotation() {
+        testInvocation(new AnnotationOnStaticField());
+    }
+
+    @Test
+    void testAnnotationOnInterfaceMethod() {
+        testInvocation((AnnotationOnInterfaceMethod) () -> "bar");
+    }
+    
+    @Test
+    void testStaticInterfaceFieldAnnotation() {
+        testInvocation(new AnnotationOnStaticInterfaceField() {});
+    }
+
+    @Test
+    void testStaticInterfaceMethodAnnotation() {
+        testInvocation(new AnnotationOnStaticInterfaceMethod() {});
+    }
+
+    @Test
+    void testDefaultInterfaceMethodAnnotation() {
+        testInvocation(new AnnotationOnDefaultInterfaceMethod() {});
+    }
+
+    @Test
     void testMethodAnnotation() {
         testInvocation(new AnnotationOnMethod());
     }
 
     @Test
-    void testAnnotationOnNestedField() {
-        testInvocation(new AnnotationOnNestedField());
+    void testStaticMethodAnnotation() {
+        testInvocation(new AnnotationOnStaticMethod());
     }
 
     @Test
-    void testAnnotationOnNestedMethod() {
-        testInvocation(new AnnotationOnNestedMethod());
+    void testAnnotationOnExtendedField() {
+        testInvocation(new AnnotationOnExtendedField());
+    }
+
+    @Test
+    void testAnnotationOnExtendedMethod() {
+        testInvocation(new AnnotationOnExtendedMethod());
     }
 
     @Test
@@ -77,6 +114,41 @@ class MessageRoutingInterceptorTest {
         private Object foo = "bar";
     }
 
+    @Value
+    private static class NonStringAnnotation {
+        @RoutingKey
+        Object foo;
+    }
+
+    private static class AnnotationOnStaticField {
+        @RoutingKey
+        private static Object foo = "bar";
+    }
+
+    private interface AnnotationOnInterfaceMethod {
+        @RoutingKey
+        Object foo();
+    }
+
+    private interface AnnotationOnStaticInterfaceField {
+        @RoutingKey
+        Object foo = "bar";
+    }
+
+    private interface AnnotationOnStaticInterfaceMethod {
+        @RoutingKey
+        static Object foo() {
+            return "bar";
+        }
+    }
+
+    private interface AnnotationOnDefaultInterfaceMethod {
+        @RoutingKey
+        default Object foo() {
+            return "bar";
+        }
+    }
+
     private static class AnnotationOnMethod {
         @RoutingKey
         private Object foo() {
@@ -84,10 +156,17 @@ class MessageRoutingInterceptorTest {
         }
     }
 
-    private static class AnnotationOnNestedField extends AnnotationOnField {
+    private static class AnnotationOnStaticMethod {
+        @RoutingKey
+        private static Object foo() {
+            return "bar";
+        }
     }
 
-    private static class AnnotationOnNestedMethod extends AnnotationOnMethod {
+    private static class AnnotationOnExtendedField extends AnnotationOnField {
+    }
+
+    private static class AnnotationOnExtendedMethod extends AnnotationOnMethod {
     }
 
     private static class AnnotationOnWrongMethod {

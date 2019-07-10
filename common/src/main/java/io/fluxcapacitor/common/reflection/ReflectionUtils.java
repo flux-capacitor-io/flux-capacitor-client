@@ -16,6 +16,7 @@ package io.fluxcapacitor.common.reflection;
 
 import io.fluxcapacitor.common.ObjectUtils;
 import lombok.SneakyThrows;
+import org.apache.commons.lang3.ClassUtils;
 import org.apache.commons.lang3.reflect.FieldUtils;
 import org.apache.commons.lang3.reflect.MethodUtils;
 
@@ -51,6 +52,7 @@ public class ReflectionUtils {
         }
         List<AccessibleObject> result = new ArrayList<>(FieldUtils.getFieldsListWithAnnotation(target.getClass(), annotation));
         result.addAll(MethodUtils.getMethodsListWithAnnotation(target.getClass(), annotation, true, true));
+        ClassUtils.getAllInterfaces(target.getClass()).forEach(i -> result.addAll(FieldUtils.getFieldsListWithAnnotation(i, annotation)));
         return result;
     }
 
