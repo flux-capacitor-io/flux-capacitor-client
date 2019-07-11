@@ -14,6 +14,7 @@ public class Message {
     public static IdentityProvider identityProvider = new UuidFactory();
     
     @Wither
+    @JsonTypeInfo(use = JsonTypeInfo.Id.CLASS)
     Object payload;
     Metadata metadata;
     MessageType messageType;
