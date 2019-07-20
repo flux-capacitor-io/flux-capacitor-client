@@ -1,8 +1,14 @@
 package io.fluxcapacitor.javaclient.keyvalue;
 
+import io.fluxcapacitor.common.Guarantee;
+
 public interface KeyValueStore {
 
-    void store(String key, Object value);
+    default void store(String key, Object value) {
+        store(key, value, Guarantee.SENT);
+    }
+
+    void store(String key, Object value, Guarantee guarantee);
 
     <R> R get(String key);
 

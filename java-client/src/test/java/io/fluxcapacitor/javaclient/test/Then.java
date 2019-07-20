@@ -5,7 +5,9 @@ import org.hamcrest.Matcher;
 import java.util.Arrays;
 import java.util.List;
 
-import static org.hamcrest.CoreMatchers.*;
+import static org.hamcrest.CoreMatchers.equalTo;
+import static org.hamcrest.CoreMatchers.isA;
+import static org.hamcrest.CoreMatchers.nullValue;
 
 public interface Then {
 
@@ -17,6 +19,10 @@ public interface Then {
         return expectEvents(Arrays.asList(events));
     }
 
+    default Then expectNoEventsLike(Object... events) {
+        return expectNoEventsLike(Arrays.asList(events));
+    }
+
     default Then expectNoEvents() {
         return expectOnlyEvents();
     }
@@ -25,12 +31,18 @@ public interface Then {
 
     Then expectEvents(List<?> events);
 
+    Then expectNoEventsLike(List<?> events);
+
     default Then expectOnlyCommands(Object... commands) {
         return expectOnlyCommands(Arrays.asList(commands));
     }
 
     default Then expectCommands(Object... commands) {
         return expectCommands(Arrays.asList(commands));
+    }
+
+    default Then expectNoCommandsLike(Object... commands) {
+        return expectNoCommandsLike(Arrays.asList(commands));
     }
 
     default Then expectNoCommands() {
@@ -41,6 +53,8 @@ public interface Then {
 
     Then expectCommands(List<?> commands);
 
+    Then expectNoCommandsLike(List<?> commands);
+
     default Then expectResult(Object result) {
         if (result == null) {
             return expectResult(nullValue());
@@ -50,13 +64,25 @@ public interface Then {
 
     Then expectResult(Matcher<?> resultMatcher);
 
-    Then expectException(Matcher<?> resultMatcher);
-
     default Then expectException(Class<? extends Throwable> exceptionClass) {
         return expectException(isA(exceptionClass));
     }
 
+    Then expectException(Matcher<?> resultMatcher);
+
     default Then expectNoResult() {
         return expectResult(nullValue());
     }
+
+    default Then expectNoResultLike(Object result) {
+        if (result == null) {
+            return expectNoResultLike(nullValue());
+        }
+        return expectNoResultLike(equalTo(result));
+    }
+
+    Then expectNoResultLike(Matcher<?> resultMatcher);
+    
+    Then verify(Runnable check);
+    
 }

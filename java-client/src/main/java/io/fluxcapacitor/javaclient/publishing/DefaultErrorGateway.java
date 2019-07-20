@@ -37,7 +37,7 @@ public class DefaultErrorGateway implements ErrorGateway {
             message.setTarget(target);
             errorGateway.send(message);
         } catch (Exception e) {
-            throw new GatewayException(String.format("Failed to report error %s", payload), e);
+            log.error("Failed to report error {}", payload, e);
         }
     }
 }

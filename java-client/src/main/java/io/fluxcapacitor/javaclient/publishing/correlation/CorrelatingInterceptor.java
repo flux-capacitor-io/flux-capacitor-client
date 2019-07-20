@@ -16,20 +16,23 @@ package io.fluxcapacitor.javaclient.publishing.correlation;
 
 import io.fluxcapacitor.common.api.SerializedMessage;
 import io.fluxcapacitor.javaclient.common.Message;
+import io.fluxcapacitor.javaclient.common.serialization.DeserializingMessage;
+import io.fluxcapacitor.javaclient.publishing.DispatchInterceptor;
 import lombok.AllArgsConstructor;
 
 import java.util.Collection;
+import java.util.Optional;
 import java.util.function.Function;
 
 @AllArgsConstructor
-public class CorrelatingInterceptor extends ContextualDispatchInterceptor {
+public class CorrelatingInterceptor implements DispatchInterceptor {
 
     private final Collection<? extends CorrelationDataProvider> correlationDataProviders;
 
     @Override
     public Function<Message, SerializedMessage> interceptDispatch(Function<Message, SerializedMessage> function) {
         return message -> {
-            getCurrentMessage().ifPresent(currentMessage -> correlationDataProviders
+            Optional.ofNullable(DeserializingMessage.getCurrent()).ifPresent(currentMessage -> correlationDataProviders
                     .forEach(p -> message.getMetadata().putAll(p.fromMessage(currentMessage))));
             return function.apply(message);
         };

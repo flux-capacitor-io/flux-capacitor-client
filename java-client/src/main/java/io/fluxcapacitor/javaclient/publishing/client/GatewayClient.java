@@ -18,8 +18,10 @@ import io.fluxcapacitor.common.Awaitable;
 import io.fluxcapacitor.common.Monitored;
 import io.fluxcapacitor.common.api.SerializedMessage;
 
-public interface GatewayClient extends Monitored<SerializedMessage> {
+public interface GatewayClient extends Monitored<SerializedMessage>, AutoCloseable {
 
     Awaitable send(SerializedMessage... messages);
 
+    @Override
+    void close();
 }

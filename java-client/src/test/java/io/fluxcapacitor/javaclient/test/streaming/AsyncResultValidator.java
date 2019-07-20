@@ -52,6 +52,11 @@ public class AsyncResultValidator extends AbstractResultValidator {
     }
 
     @Override
+    public Then expectNoEventsLike(List<?> events) {
+        return expectNoMessagesLike(events, EVENT, resultingEvents);
+    }
+
+    @Override
     public Then expectOnlyCommands(List<?> commands) {
         return expectOnlyMessages(commands, COMMAND, resultingCommands);
     }
@@ -59,6 +64,11 @@ public class AsyncResultValidator extends AbstractResultValidator {
     @Override
     public Then expectCommands(List<?> commands) {
         return expectMessages(commands, COMMAND, resultingCommands);
+    }
+
+    @Override
+    public Then expectNoCommandsLike(List<?> commands) {
+        return expectNoMessagesLike(commands, COMMAND, resultingCommands);
     }
 
     protected Then expectMessages(List<?> messages, MessageType messageType, BlockingQueue<Message> resultingMessages) {
@@ -72,6 +82,14 @@ public class AsyncResultValidator extends AbstractResultValidator {
         Collection<?> expected = asMessages(messages, messageType);
         Collection<Message> actual = getActualMessages(expected, resultingMessages);
         return expectOnlyMessages(expected, actual);
+    }
+
+
+    protected Then expectNoMessagesLike(Collection<?> messages, MessageType messageType,
+                                        BlockingQueue<Message> resultingMessages) {
+        Collection<?> expected = asMessages(messages, messageType);
+        Collection<Message> actual = getActualMessages(expected, resultingMessages);
+        return expectNoMessagesLike(expected, actual);
     }
 
     protected Collection<Message> getActualMessages(Collection<?> expected, BlockingQueue<Message> resultingMessages) {

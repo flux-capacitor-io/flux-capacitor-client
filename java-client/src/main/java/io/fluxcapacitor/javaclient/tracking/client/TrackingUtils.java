@@ -20,10 +20,11 @@ import io.fluxcapacitor.javaclient.tracking.TrackingConfiguration;
 
 import java.util.List;
 import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 import java.util.function.Consumer;
-import java.util.stream.Collectors;
 import java.util.stream.IntStream;
+
+import static java.util.concurrent.Executors.newFixedThreadPool;
+import static java.util.stream.Collectors.toList;
 
 /**
  * Utility that creates and starts one or more {@link DefaultTracker Trackers} of the same name and configuration. Each
@@ -31,28 +32,26 @@ import java.util.stream.IntStream;
  */
 public class TrackingUtils {
 
-    public static Registration start(String name, TrackingClient trackingClient, Consumer<List<SerializedMessage>> consumer) {
+    public static Registration start(String name, TrackingClient trackingClient,
+                                     Consumer<List<SerializedMessage>> consumer) {
         return start(name, consumer, trackingClient, TrackingConfiguration.DEFAULT);
     }
 
     public static Registration start(String name, int threads, TrackingClient trackingClient,
                                      Consumer<List<SerializedMessage>> consumer) {
-        return start(name, consumer, trackingClient, TrackingConfiguration.builder().threads(threads).build()
-        );
+        return start(name, consumer, trackingClient, TrackingConfiguration.builder().threads(threads).build());
     }
 
     public static Registration start(String consumerName, Consumer<List<SerializedMessage>> consumer,
                                      TrackingClient trackingClient, TrackingConfiguration configuration) {
-        List<DefaultTracker> instances =
-                IntStream.range(0, configuration.getThreads()).mapToObj(
-                        i -> new DefaultTracker(consumerName, i, configuration, consumer, trackingClient
-                        )).collect(
-                        Collectors.toList());
-        ExecutorService executor = Executors.newFixedThreadPool(configuration.getThreads());
+        List<DefaultTracker> instances = IntStream.range(0, configuration.getThreads())
+                .mapToObj(i -> new DefaultTracker(consumerName, i, configuration, consumer, trackingClient))
+                .collect(toList());
+        ExecutorService executor = newFixedThreadPool(configuration.getThreads());
         instances.forEach(executor::submit);
         return () -> {
             instances.forEach(DefaultTracker::cancel);
-            executor.shutdown();
+            executor.shutdownNow();
         };
     }
 }

@@ -19,7 +19,7 @@ import lombok.Value;
 
 @Value
 public class StorePosition implements JsonType {
-    String processor;
+    String consumer;
     int[] segment;
     long lastIndex;
 }

@@ -21,7 +21,7 @@ import lombok.Value;
 @Value
 @EqualsAndHashCode(callSuper = true)
 public class Read extends Request {
-    String processor;
+    String consumer;
     int channel;
     int maxSize;
     long maxTimeout;

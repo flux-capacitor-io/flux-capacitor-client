@@ -15,7 +15,6 @@
 package io.fluxcapacitor.javaclient.tracking.client;
 
 import io.fluxcapacitor.common.Awaitable;
-import io.fluxcapacitor.common.MessageType;
 import io.fluxcapacitor.common.Registration;
 import io.fluxcapacitor.common.api.SerializedMessage;
 import io.fluxcapacitor.common.api.tracking.MessageBatch;
@@ -29,20 +28,19 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentSkipListMap;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Consumer;
 
-import static io.fluxcapacitor.common.api.tracking.TrackingStrategy.TYPE_DEFAULT;
 import static java.lang.Thread.currentThread;
 import static java.util.stream.Collectors.toList;
 
 @RequiredArgsConstructor
 public class InMemoryMessageStore implements GatewayClient, TrackingClient {
 
-    private final MessageType messageType;
     private final AtomicLong nextIndex = new AtomicLong();
     private final ConcurrentSkipListMap<Long, SerializedMessage> messageLog = new ConcurrentSkipListMap<>();
     private final Map<String, Long> consumerTokens = new ConcurrentHashMap<>();
@@ -64,8 +62,8 @@ public class InMemoryMessageStore implements GatewayClient, TrackingClient {
     }
 
     @Override
-    public MessageBatch read(String consumer, int channel, int maxSize, Duration maxTimeout, String typeFilter,
-                             boolean ignoreMessageTarget, TrackingStrategy strategy) {
+    public MessageBatch readAndWait(String consumer, int channel, int maxSize, Duration maxTimeout, String typeFilter,
+                                    boolean ignoreMessageTarget, TrackingStrategy strategy) {
         if (channel != 0) {
             return new MessageBatch(new int[]{0, 1}, Collections.emptyList(), null);
         }
@@ -73,7 +71,7 @@ public class InMemoryMessageStore implements GatewayClient, TrackingClient {
         synchronized (this) {
             Map<Long, SerializedMessage> tailMap = Collections.emptyMap();
             while (System.currentTimeMillis() < deadline
-                    && (tailMap = messageLog.tailMap(getLastIndex(consumer, strategy), false)).isEmpty()) {
+                    && (tailMap = messageLog.tailMap(getLastIndex(consumer), false)).isEmpty()) {
                 try {
                     this.wait(deadline - System.currentTimeMillis());
                 } catch (InterruptedException e) {
@@ -90,14 +88,36 @@ public class InMemoryMessageStore implements GatewayClient, TrackingClient {
         }
     }
 
-    private long getLastIndex(String consumer, TrackingStrategy strategy) {
-        TrackingStrategy s = strategy == TYPE_DEFAULT ? messageType.getDefaultReadStrategy() : strategy;
+    @Override
+    public CompletableFuture<MessageBatch> read(String consumer, int channel, int maxSize, Duration maxTimeout,
+                                                String typeFilter, boolean ignoreMessageTarget,
+                                                TrackingStrategy strategy) {
+        return CompletableFuture.completedFuture(readAndWait(consumer, channel, maxSize, maxTimeout, typeFilter, ignoreMessageTarget, strategy));
+    }
+
+    @Override
+    public List<SerializedMessage> readFromIndex(long minIndex, int maxSize) {
+        ArrayList<SerializedMessage> list = new ArrayList<>(messageLog.tailMap(minIndex).values());
+        return list.subList(0, Math.min(maxSize, list.size()));
+    }
+
+    private long getLastIndex(String consumer) {
         return consumerTokens.computeIfAbsent(consumer, k -> -1L);
     }
 
     @Override
     public Awaitable storePosition(String consumer, int[] segment, long lastIndex) {
+        return resetPosition(consumer, lastIndex);
+    }
+
+    @Override
+    public Awaitable resetPosition(String consumer, long lastIndex) {
         consumerTokens.put(consumer, lastIndex);
+        return Awaitable.ready();
+    }
+
+    @Override
+    public Awaitable disconnectTracker(String consumer, int channel) {
         return Awaitable.ready();
     }
 
@@ -105,5 +125,10 @@ public class InMemoryMessageStore implements GatewayClient, TrackingClient {
     public Registration registerMonitor(Consumer<SerializedMessage> monitor) {
         monitors.add(monitor);
         return () -> monitors.remove(monitor);
+    }
+
+    @Override
+    public void close() {
+        //no op
     }
 }

@@ -59,14 +59,14 @@ public class WebSocketEventStoreClient extends AbstractWebsocketClient implement
     }
 
     private Awaitable doSend(List<EventBatch> batches) {
-        sendRequest(new AppendEvents(batches));
+        sendRequestAndWait(new AppendEvents(batches));
         return Awaitable.ready();
     }
 
     @Override
     public Stream<SerializedMessage> getEvents(String aggregateId, long lastSequenceNumber) {
-        return iterate((GetEventsResult) sendRequest(new GetEvents(aggregateId, lastSequenceNumber, fetchBatchSize)),
-                       r -> sendRequest(new GetEvents(aggregateId, r.getEventBatch().getLastSequenceNumber(), fetchBatchSize)),
+        return iterate((GetEventsResult) sendRequestAndWait(new GetEvents(aggregateId, lastSequenceNumber, fetchBatchSize)),
+                       r -> sendRequestAndWait(new GetEvents(aggregateId, r.getEventBatch().getLastSequenceNumber(), fetchBatchSize)),
                        r -> r.getEventBatch().getEvents().size() < fetchBatchSize)
                 .flatMap(r -> r.getEventBatch().getEvents().stream());
     }

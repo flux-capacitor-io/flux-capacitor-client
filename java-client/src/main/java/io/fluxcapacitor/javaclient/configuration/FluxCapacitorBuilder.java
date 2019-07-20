@@ -11,6 +11,7 @@ import io.fluxcapacitor.javaclient.publishing.correlation.CorrelationDataProvide
 import io.fluxcapacitor.javaclient.tracking.ConsumerConfiguration;
 import io.fluxcapacitor.javaclient.tracking.handling.HandlerInterceptor;
 
+import java.util.Properties;
 import java.util.function.UnaryOperator;
 
 /**
@@ -47,6 +48,10 @@ public interface FluxCapacitorBuilder {
 
     FluxCapacitorBuilder changeMessageRoutingInterceptor(DispatchInterceptor messageRoutingInterceptor);
 
+    FluxCapacitorBuilder disableErrorReporting();
+
+    FluxCapacitorBuilder disableShutdownHook();
+    
     FluxCapacitorBuilder disableMessageCorrelation();
 
     FluxCapacitorBuilder disablePayloadValidation();
@@ -56,8 +61,8 @@ public interface FluxCapacitorBuilder {
     FluxCapacitorBuilder collectTrackingMetrics();
 
     FluxCapacitorBuilder collectApplicationMetrics();
-
-    FluxCapacitorBuilder changeCommandValidationInterceptor(HandlerInterceptor validationInterceptor);
+    
+    FluxCapacitorBuilder registerProperties(Properties properties);
 
     FluxCapacitor build(Client client);
 }

@@ -30,6 +30,7 @@ import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.function.Function;
+import java.util.function.Predicate;
 
 import static io.fluxcapacitor.common.reflection.ReflectionUtils.ensureAccessible;
 import static io.fluxcapacitor.common.reflection.ReflectionUtils.getAllMethods;
@@ -76,7 +77,7 @@ public class HandlerInspector {
         private final Executable executable;
         private final boolean hasReturnValue;
         private final List<Function<? super M, Object>> parameterSuppliers;
-        private final Function<? super M, ? extends Class<?>> payloadTypeSupplier;
+        private final Predicate<? super M> matcher;
 
         protected MethodHandlerInvoker(Executable executable, Class enclosingType,
                                        List<ParameterResolver<? super M>> parameterResolvers) {
@@ -85,12 +86,12 @@ public class HandlerInspector {
             this.hasReturnValue =
                     !(executable instanceof Method) || !(((Method) executable).getReturnType()).equals(void.class);
             this.parameterSuppliers = getParameterSuppliers(executable, parameterResolvers);
-            this.payloadTypeSupplier = getPayloadTypeSupplier(executable, parameterResolvers);
+            this.matcher = getMatcher(executable, parameterResolvers);
         }
 
         @Override
         public boolean canHandle(Object target, M message) {
-            if (!getPayloadType().isAssignableFrom(payloadTypeSupplier.apply(message))) {
+            if (!matcher.test(message)) {
                 return false;
             }
             if (target == null) {
@@ -142,15 +143,21 @@ public class HandlerInspector {
                     .collect(toList());
         }
 
-        protected Function<? super M, ? extends Class<?>> getPayloadTypeSupplier(Executable method,
-                                                                                 List<ParameterResolver<? super M>> resolvers) {
-            Parameter parameter = method.getParameters()[0];
-            return resolvers.stream().map(r -> r.resolveClass(parameter)).findFirst().orElseThrow(
-                    () -> new HandlerException("Could not determine payload type for method " + method));
-        }
-
         protected Class<?> getPayloadType() {
             return executable.getParameterTypes()[0];
+        }
+
+        protected Predicate<M> getMatcher(Executable executable,
+                                          List<ParameterResolver<? super M>> parameterResolvers) {
+            return m -> {
+                Parameter parameter = executable.getParameters()[0];
+                for (ParameterResolver<? super M> resolver : parameterResolvers) {
+                    if (resolver.matches(parameter, m)) {
+                        return true;
+                    }
+                }
+                return false;
+            };
         }
 
         @Override

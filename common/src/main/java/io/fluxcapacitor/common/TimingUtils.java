@@ -17,6 +17,7 @@ package io.fluxcapacitor.common;
 import lombok.extern.slf4j.Slf4j;
 
 import java.time.Duration;
+import java.time.Instant;
 import java.util.concurrent.Callable;
 import java.util.function.Consumer;
 import java.util.function.Predicate;
@@ -64,29 +65,41 @@ public class TimingUtils {
     }
 
     public static <T> T retryOnFailure(Callable<T> task, Duration delay, Predicate<Exception> predicate) {
+        return retryOnFailure(task, RetryConfiguration.builder().delay(delay).errorTest(predicate).build());
+    }
+
+    public static <T> T retryOnFailure(Callable<T> task, RetryConfiguration configuration) {
         T result = null;
-        boolean retrying = false;
+        RetryStatus retryStatus = null;
         while (result == null) {
             try {
                 result = task.call();
-                if (retrying) {
-                    log.info("Task {} completed successfully on retry", task);
+                if (retryStatus != null) {
+                    configuration.getSuccessLogger().accept(retryStatus);
                 }
                 return result;
             } catch (Exception e) {
-                if (!predicate.test(e)) {
-                    log.error("Task {} failed. Will not retry.", task, e);
+                Instant errorTimestamp = Instant.now();
+                if (retryStatus == null) {
+                    retryStatus = new RetryStatus(configuration, task, 0);
+                } else {
+                    retryStatus = retryStatus.withException(e);
+                }
+                if (!configuration.getErrorTest().test(e)) {
                     break;
                 }
-                if (!retrying) {
-                    log.error("Task {} failed. retrying every {} ms...", task, delay.toMillis(), e);
-                    retrying = true;
+                configuration.getExceptionLogger().accept(retryStatus);
+                if (configuration.getMaxRetries() > 0 
+                        && retryStatus.getNumberOfTimesRetried() >= configuration.getMaxRetries()) {
+                    break;
                 }
+                retryStatus = retryStatus.withPreviousErrorTimestamp(errorTimestamp);
                 try {
-                    Thread.sleep(delay.toMillis());
+                    Thread.sleep(configuration.getDelay().toMillis());
                 } catch (InterruptedException e1) {
                     currentThread().interrupt();
-                    throw new IllegalStateException("Thread interrupted while retrying task " + task);
+                    log.info("Thread interrupted while retrying task {}", task);
+                    break;
                 }
             } catch (Error e) {
                 log.error("Task {} failed with error. Will not retry.", task, e);

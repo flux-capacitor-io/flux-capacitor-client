@@ -20,18 +20,23 @@ import io.fluxcapacitor.common.api.Metadata;
 import io.fluxcapacitor.common.api.SerializedMessage;
 import io.fluxcapacitor.javaclient.FluxCapacitor;
 import io.fluxcapacitor.javaclient.common.Message;
+import io.fluxcapacitor.javaclient.common.serialization.DeserializingMessage;
 import io.fluxcapacitor.javaclient.configuration.FluxCapacitorBuilder;
 import io.fluxcapacitor.javaclient.configuration.client.InMemoryClient;
-import io.fluxcapacitor.javaclient.publishing.correlation.ContextualDispatchInterceptor;
+import io.fluxcapacitor.javaclient.publishing.DispatchInterceptor;
 
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Function;
+import java.util.stream.Stream;
 
 import static io.fluxcapacitor.common.MessageType.COMMAND;
 import static io.fluxcapacitor.common.MessageType.EVENT;
+import static io.fluxcapacitor.common.MessageType.QUERY;
 
 public abstract class AbstractTestFixture implements Given, When {
     
@@ -42,29 +47,29 @@ public abstract class AbstractTestFixture implements Given, When {
     protected AbstractTestFixture(FluxCapacitorBuilder fluxCapacitorBuilder,
                                   Function<FluxCapacitor, List<?>> handlerFactory) {
         this.interceptor = new GivenWhenThenInterceptor();
-        this.fluxCapacitor = fluxCapacitorBuilder.addDispatchInterceptor(interceptor).addHandlerInterceptor(interceptor)
-                .build(InMemoryClient.newInstance());
-        this.registration = registerHandlers(handlerFactory.apply(fluxCapacitor), fluxCapacitor);
+        this.fluxCapacitor = fluxCapacitorBuilder
+                .disableShutdownHook().addDispatchInterceptor(interceptor).build(InMemoryClient.newInstance());
+        this.registration = registerHandlers(handlerFactory.apply(fluxCapacitor));
     }
     
-    protected abstract Registration registerHandlers(List<?> handlers, FluxCapacitor fluxCapacitor);
-    
-    protected abstract Then createResultValidator(Object result); 
-    
+    public abstract Registration registerHandlers(List<?> handlers);
+
+    public abstract void deregisterHandlers(Registration registration);
+
+    protected abstract Then createResultValidator(Object result);
+
     protected abstract void registerCommand(Message command);
 
     protected abstract void registerEvent(Message event);
-    
-    protected abstract Object getDispatchResult(CompletableFuture<?> dispatchResult);
 
-    protected abstract void deregisterHandlers(Registration registration);
+    protected abstract Object getDispatchResult(CompletableFuture<?> dispatchResult);
 
     @Override
     public When givenCommands(Object... commands) {
         try {
             FluxCapacitor.instance.set(fluxCapacitor);
-            getDispatchResult(CompletableFuture.allOf(Arrays.stream(commands).map(c -> fluxCapacitor.commandGateway().send(c))
-                                            .toArray(CompletableFuture[]::new)));
+            getDispatchResult(CompletableFuture.allOf(flatten(commands).map(
+                    c -> fluxCapacitor.commandGateway().send(c)).toArray(CompletableFuture[]::new)));
             return this;
         } catch (Exception e) {
             throw new IllegalStateException("Failed to execute givenCommands", e);
@@ -77,13 +82,31 @@ public abstract class AbstractTestFixture implements Given, When {
     public When givenEvents(Object... events) {
         try {
             FluxCapacitor.instance.set(fluxCapacitor);
-            Arrays.stream(events).forEach(c -> fluxCapacitor.eventGateway().publish(c));
+            flatten(events).forEach(c -> fluxCapacitor.eventGateway().publish(c));
             return this;
         } catch (Exception e) {
             throw new IllegalStateException("Failed to execute givenEvents", e);
         } finally {
             FluxCapacitor.instance.remove();
         }
+    }
+
+    @Override
+    public When given(Runnable condition) {
+        try {
+            FluxCapacitor.instance.set(fluxCapacitor);
+            condition.run();
+            return this;
+        } catch (Exception e) {
+            throw new IllegalStateException("Failed to execute given condition", e);
+        } finally {
+            FluxCapacitor.instance.remove();
+        }
+    }
+
+    @Override
+    public When andGiven(Runnable runnable) {
+        return given(runnable);
     }
 
     @Override
@@ -131,7 +154,7 @@ public abstract class AbstractTestFixture implements Given, When {
             FluxCapacitor.instance.set(fluxCapacitor);
             Object result;
             try {
-                result = getDispatchResult(fluxCapacitor.queryGateway().send(query));
+                result = getDispatchResult(fluxCapacitor.queryGateway().send(interceptor.trace(query, QUERY)));
             } catch (Exception e) {
                 result = e;
             }
@@ -142,17 +165,48 @@ public abstract class AbstractTestFixture implements Given, When {
         }
     }
 
+    @Override
+    public Then when(Runnable task) {
+        try {
+            FluxCapacitor.instance.set(fluxCapacitor);
+            interceptor.catchAll();
+            task.run();
+            return createResultValidator(null);
+        } finally {
+            deregisterHandlers(registration);
+            FluxCapacitor.instance.remove();
+        }
+    }
+
     public FluxCapacitor getFluxCapacitor() {
         return fluxCapacitor;
     }
 
-    protected class GivenWhenThenInterceptor extends ContextualDispatchInterceptor {
+    protected Stream<Object> flatten(Object... messages) {
+        return Arrays.stream(messages).flatMap(c -> {
+            if (c instanceof Collection<?>) {
+                return ((Collection<?>) c).stream();
+            }
+            if (c.getClass().isArray()) {
+                return Arrays.stream((Object[]) c);
+            }
+            return Stream.of(c);
+        });
+    }
+
+    protected class GivenWhenThenInterceptor implements DispatchInterceptor {
 
         private static final String TAG = "givenWhenThen.tag";
         private static final String TAG_NAME = "givenWhenThen.tagName";
         private static final String TRACE_NAME = "givenWhenThen.trace";
+        private volatile boolean catchAll;
+        
+        protected void catchAll() {
+            this.catchAll = true;
+        }
 
         protected Message trace(Object message, MessageType type) {
+            catchAll = false;
             Message result =
                     message instanceof Message ? (Message) message : new Message(message, Metadata.empty(), type);
             result.getMetadata().put(TAG_NAME, TAG);
@@ -176,7 +230,7 @@ public abstract class AbstractTestFixture implements Given, When {
             return message -> {
                 String tag = UUID.randomUUID().toString();
                 message.getMetadata().putIfAbsent(TAG_NAME, tag);
-                getCurrentMessage().ifPresent(currentMessage -> {
+                Optional.ofNullable(DeserializingMessage.getCurrent()).ifPresent(currentMessage -> {
                     if (currentMessage.getMetadata().containsKey(TRACE_NAME)) {
                         message.getMetadata().put(TRACE_NAME, currentMessage.getMetadata().get(
                                 TRACE_NAME) + "," + currentMessage.getMetadata().get(TAG_NAME));
@@ -184,7 +238,7 @@ public abstract class AbstractTestFixture implements Given, When {
                         message.getMetadata().put(TRACE_NAME, currentMessage.getMetadata().get(TAG_NAME));
                     }
                 });
-                if (isDescendantMetadata(message.getMetadata())) {
+                if (isDescendantMetadata(message.getMetadata()) || catchAll) {
                     switch (message.getMessageType()) {
                         case COMMAND:
                             registerCommand(message);

@@ -15,21 +15,28 @@
 package io.fluxcapacitor.javaclient.publishing.correlation;
 
 import io.fluxcapacitor.javaclient.common.serialization.DeserializingMessage;
+import io.fluxcapacitor.javaclient.configuration.client.Client;
+import io.fluxcapacitor.javaclient.publishing.routing.RoutingKey;
 import lombok.AllArgsConstructor;
 import lombok.EqualsAndHashCode;
 
 import java.util.HashMap;
 import java.util.Map;
 
+import static io.fluxcapacitor.common.reflection.ReflectionUtils.getAnnotatedPropertyValue;
+
 @AllArgsConstructor
 @EqualsAndHashCode
 public class MessageOriginProvider implements CorrelationDataProvider {
+    private final Client client;
+    private final String clientId;
     private final String correlationId;
     private final String traceId;
     private final String trigger;
+    private final String triggerRoutingKey;
 
-    public MessageOriginProvider() {
-        this("$correlationId", "$traceId", "$trigger");
+    public MessageOriginProvider(Client client) {
+        this(client, "$clientId", "$correlationId", "$traceId", "$trigger", "$triggerRoutingKey");
     }
 
     @Override
@@ -41,7 +48,12 @@ public class MessageOriginProvider implements CorrelationDataProvider {
             result.put(this.correlationId, correlationId);
             result.put(traceId, message.getMetadata().getOrDefault(traceId, correlationId));
         }
+        result.put(clientId, client.id());
         result.put(trigger, message.getSerializedObject().getData().getType());
+        if (message.isDeserialized()) {
+            getAnnotatedPropertyValue(message.getPayload(), RoutingKey.class).map(Object::toString)
+                    .ifPresent(v -> result.put(triggerRoutingKey, v));
+        }
         return result;
     }
 }

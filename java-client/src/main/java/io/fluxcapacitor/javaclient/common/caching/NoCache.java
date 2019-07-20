@@ -16,6 +16,16 @@ public enum NoCache implements Cache {
     }
 
     @Override
+    public <T> T getIfPresent(String id) {
+        return null;
+    }
+
+    @Override
+    public void invalidate(String id) {
+        //no op
+    }
+
+    @Override
     public void invalidateAll() {
         //no op
     }

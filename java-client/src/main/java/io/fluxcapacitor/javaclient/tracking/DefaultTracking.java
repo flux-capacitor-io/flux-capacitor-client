@@ -2,21 +2,17 @@ package io.fluxcapacitor.javaclient.tracking;
 
 import io.fluxcapacitor.common.MessageType;
 import io.fluxcapacitor.common.Registration;
-import io.fluxcapacitor.common.api.Metadata;
 import io.fluxcapacitor.common.api.SerializedMessage;
 import io.fluxcapacitor.common.handling.Handler;
 import io.fluxcapacitor.common.handling.HandlerInspector;
 import io.fluxcapacitor.common.handling.ParameterResolver;
 import io.fluxcapacitor.javaclient.FluxCapacitor;
-import io.fluxcapacitor.javaclient.common.Message;
 import io.fluxcapacitor.javaclient.common.exception.FunctionalException;
 import io.fluxcapacitor.javaclient.common.exception.TechnicalException;
 import io.fluxcapacitor.javaclient.common.serialization.DeserializingMessage;
 import io.fluxcapacitor.javaclient.common.serialization.Serializer;
 import io.fluxcapacitor.javaclient.eventsourcing.CacheInvalidatingInterceptor;
-import io.fluxcapacitor.javaclient.publishing.ErrorGateway;
 import io.fluxcapacitor.javaclient.publishing.ResultGateway;
-import io.fluxcapacitor.javaclient.publishing.routing.RoutingKey;
 import io.fluxcapacitor.javaclient.tracking.client.TrackingClient;
 import io.fluxcapacitor.javaclient.tracking.client.TrackingUtils;
 import io.fluxcapacitor.javaclient.tracking.handling.HandlerInterceptor;
@@ -31,13 +27,13 @@ import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import java.util.Set;
+import java.util.concurrent.CompletionStage;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
 import java.util.stream.Stream;
 
 import static io.fluxcapacitor.common.handling.HandlerInspector.createHandlers;
-import static io.fluxcapacitor.common.reflection.ReflectionUtils.getAnnotatedPropertyValue;
 import static java.lang.String.format;
 import static java.util.stream.Collectors.groupingBy;
 
@@ -49,12 +45,12 @@ public class DefaultTracking implements Tracking {
     private final Class<? extends Annotation> handlerAnnotation;
     private final TrackingClient trackingClient;
     private final ResultGateway resultGateway;
-    private final ErrorGateway errorGateway;
     private final List<ConsumerConfiguration> configurations;
     private final Serializer serializer;
     private final HandlerInterceptor handlerInterceptor;
     private final List<ParameterResolver<? super DeserializingMessage>> parameterResolvers;
     private final Set<ConsumerConfiguration> startedConfigurations = new HashSet<>();
+    private final AtomicReference<Registration> shutdownFunction = new AtomicReference<>(Registration.noOp());
 
     @Override
     public Registration start(FluxCapacitor fluxCapacitor, List<?> handlers) {
@@ -69,8 +65,11 @@ public class DefaultTracking implements Tracking {
                                                     + "Consumers for some handlers have already started tracking.");
             }
             startedConfigurations.addAll(consumers.keySet());
-            return consumers.entrySet().stream().map(e -> startTracking(e.getKey(), e.getValue(), fluxCapacitor))
-                    .reduce(Registration::merge).orElse(Registration.noOp());
+            Registration registration =
+                    consumers.entrySet().stream().map(e -> startTracking(e.getKey(), e.getValue(), fluxCapacitor))
+                            .reduce(Registration::merge).orElse(Registration.noOp());
+            shutdownFunction.updateAndGet(registration::merge);
+            return registration;
         }
     }
 
@@ -110,16 +109,14 @@ public class DefaultTracking implements Tracking {
     @SneakyThrows
     protected void tryHandle(DeserializingMessage message, Handler<DeserializingMessage> handler,
                              ConsumerConfiguration config) {
-        if (handler.canHandle(message)) {
-            try {
+        try {
+            if (handler.canHandle(message)) {
                 handle(message, handler, config);
-            } catch (Exception e) {
-                Message error = new Message(e, MessageType.ERROR);
-                errorGateway.report(error, message.getSerializedObject().getSource());
-                config.getErrorHandler()
-                        .handleError(e, format("Handler %s failed to handle a %s", handler, message.getType()),
-                                     () -> handle(message, handler, config));
             }
+        } catch (Exception e) {
+            config.getErrorHandler()
+                    .handleError(e, format("Handler %s failed to handle a %s", handler, message), 
+                                 () -> handle(message, handler, config));
         }
     }
 
@@ -135,22 +132,45 @@ public class DefaultTracking implements Tracking {
             result = e;
             exception = e;
         } catch (Exception e) {
-            result = new TechnicalException(format("Handler %s failed to handle a %s", handler, message.getType()));
+            result = new TechnicalException(format("Handler %s failed to handle a %s", handler, message));
             exception = e;
         }
         SerializedMessage serializedMessage = message.getSerializedObject();
         if (serializedMessage.getRequestId() != null) {
-            Metadata metadata = Metadata.empty();
-            if (message.isDeserialized()) {
-                Optional<String> routingValue =
-                        getAnnotatedPropertyValue(message.getPayload(), RoutingKey.class).map(Object::toString);
-                routingValue.ifPresent(r -> metadata.put("$requestRoutingValue", r));
+            if (result instanceof CompletionStage<?>) {
+                ((CompletionStage<?>) result).whenComplete((r, e) -> {
+                    Object asyncResult = r;
+                    if (e != null) {
+                        if (!(e instanceof FunctionalException)) {
+                            asyncResult = new TechnicalException(format("Handler %s failed to handle a %s", handler, message));
+                        }
+                    }
+                    try {
+                        DeserializingMessage.setCurrent(message);
+                        resultGateway.respond(asyncResult, serializedMessage.getSource(), serializedMessage.getRequestId());
+                        if (e != null) {
+                            config.getErrorHandler().handleError((Exception) e, format(
+                                    "Handler %s failed to handle a %s", handler, message), 
+                                                                 () -> handle(message, handler, config));
+                        }
+                    } catch (Exception exc) {
+                        log.warn("Did not stop consumer {} after async handler {} failed to handle a {}", 
+                                 config.getName(), handler, message, exc);
+                    } finally {
+                        DeserializingMessage.removeCurrent();
+                    }
+                });
+            } else {
+                resultGateway.respond(result, serializedMessage.getSource(), serializedMessage.getRequestId());
             }
-            resultGateway.respond(result, metadata, serializedMessage.getSource(), serializedMessage.getRequestId());
         }
         if (exception != null) {
             throw exception;
         }
     }
 
+    @Override
+    public void close() {
+        shutdownFunction.get().cancel();
+    }
 }

@@ -18,7 +18,6 @@ import io.fluxcapacitor.javaclient.publishing.EventGateway;
 import io.fluxcapacitor.javaclient.publishing.MetricsGateway;
 import io.fluxcapacitor.javaclient.publishing.QueryGateway;
 import io.fluxcapacitor.javaclient.publishing.ResultGateway;
-import io.fluxcapacitor.javaclient.publishing.Timeout;
 import io.fluxcapacitor.javaclient.scheduling.Scheduler;
 import io.fluxcapacitor.javaclient.tracking.Tracking;
 import io.fluxcapacitor.javaclient.tracking.handling.HandleCommand;
@@ -26,7 +25,9 @@ import io.fluxcapacitor.javaclient.tracking.handling.HandleCommand;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
+import java.util.Properties;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Stream;
 
 import static java.util.Arrays.stream;
@@ -46,6 +47,13 @@ import static java.util.Arrays.stream;
 public interface FluxCapacitor {
 
     /**
+     * Flux Capacitor instance set by the current application. Used as a fallback when no threadlocal instance was set.
+     * This is added as a convenience for applications that never have more than one than FluxCapacitor instance which
+     * will be the case for nearly all applications. On application startup simply fill this application instance.
+     */
+    AtomicReference<FluxCapacitor> applicationInstance = new AtomicReference<>();
+
+    /**
      * Flux Capacitor instance bound to the current thread. Normally there's only one FluxCapacitor client per
      * application. Before messages are passed to message handlers the FluxCapacitor client binds itself to this field.
      * By doing so message handlers can interact with Flux Capacitor without injecting any dependencies.
@@ -53,11 +61,13 @@ public interface FluxCapacitor {
     ThreadLocal<FluxCapacitor> instance = new ThreadLocal<>();
 
     /**
-     * Returns the FluxCapacitor client bound to the current thread. Throws an exception if no client was registered.
+     * Returns the FluxCapacitor client bound to the current thread or else set by the current application. 
+     * Throws an exception if no client was registered.
      */
     static FluxCapacitor get() {
         return Optional.ofNullable(instance.get())
-                .orElseThrow(() -> new IllegalStateException("FluxCapacitor instance not set"));
+                .orElseGet(() -> Optional.ofNullable(applicationInstance.get())
+                                .orElseThrow(() -> new IllegalStateException("FluxCapacitor instance not set")));
     }
 
     /**
@@ -90,7 +100,7 @@ public interface FluxCapacitor {
      * @see #sendCommand(Object) to send a command and inspect its result
      */
     static void sendAndForgetCommand(Object command) {
-        get().commandGateway().sendAndForget(command, Metadata.empty());
+        get().commandGateway().sendAndForget(command);
     }
 
     /**
@@ -108,7 +118,7 @@ public interface FluxCapacitor {
      * the passed value as payload without additional metadata.
      */
     static <R> CompletableFuture<R> sendCommand(Object command) {
-        return get().commandGateway().send(command, Metadata.empty());
+        return get().commandGateway().send(command);
     }
 
     /**
@@ -117,6 +127,23 @@ public interface FluxCapacitor {
      */
     static <R> CompletableFuture<R> sendCommand(Object payload, Metadata metadata) {
         return get().commandGateway().send(payload, metadata);
+    }
+
+    /**
+     * Sends the given command and returns the command's result. The command 
+     * may be an instance of a {@link Message} in which case it will be sent as is. Otherwise the command is published 
+     * using the passed value as payload without additional metadata.
+     */
+    static <R> R sendCommandAndWait(Object command) {
+        return get().commandGateway().sendAndWait(command);
+    }
+
+    /**
+     * Sends a command with given payload and metadata and returns a future that will be completed with the command's
+     * result.
+     */
+    static <R> R sendCommandAndWait(Object payload, Metadata metadata) {
+        return get().commandGateway().sendAndWait(payload, metadata);
     }
 
     /**
@@ -137,22 +164,18 @@ public interface FluxCapacitor {
     }
 
     /**
-     * Sends a query with given payload and returns the result. The current thread will be blocked while waiting for 
-     * the result.
-     *
-     * @see Timeout to set the maximum timeout while waiting for a query result
+     * Sends the given query and returns the query's result. The query may be an
+     * instance of a {@link Message} in which case it will be sent as is. Otherwise the query is published using the
+     * passed value as payload without additional metadata.
      */
-    static <R> R sendQueryAndWait(Object payload) {
-        return get().queryGateway().sendAndWait(payload);
+    static <R> R queryAndWait(Object query) {
+        return get().queryGateway().sendAndWait(query);
     }
 
     /**
-     * Sends a query with given payload and metadata and returns the result. The current thread will be blocked while
-     * waiting for the result.
-     * 
-     * @see Timeout to set the maximum timeout while waiting for a query result
+     * Sends a query with given payload and metadata and returns the query's result.
      */
-    static <R> R sendQueryAndWait(Object payload, Metadata metadata) {
+    static <R> R queryAndWait(Object payload, Metadata metadata) {
         return get().queryGateway().sendAndWait(payload, metadata);
     }
 
@@ -184,6 +207,23 @@ public interface FluxCapacitor {
             return get().eventSourcing().load(id, modelType);
         }
         throw new UnsupportedOperationException("Only event sourced aggregates are supported at the moment");
+    }
+
+    /**
+     * Returns the property value registered with the given key. If the property can't be found on the FluxCapacitor
+     * instance it will try to get the property using {@link System#getProperty(String)}
+     */
+    static String getProperty(String key) {
+        return get().properties().getProperty(key, System.getProperty(key));
+    }
+
+    /**
+     * Returns the property value registered with the given key. If the property can't be found on the FluxCapacitor
+     * instance it will try to get the property using {@link System#getProperty(String)}. If the property is also not
+     * known as system property the given default value will be returned.
+     */
+    static String getProperty(String key, String defaultValue) {
+        return get().properties().getProperty(key, System.getProperty(key, defaultValue));
     }
 
     /**
@@ -302,4 +342,10 @@ public interface FluxCapacitor {
      * Of course the returned client may also be a stand-in for the actual service.   
      */
     Client client();
+
+    /**
+     * Returns custom properties registered with this FluxCapacitor instance.
+     */
+    Properties properties();
+
 }

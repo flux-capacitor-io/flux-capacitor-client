@@ -1,5 +1,6 @@
 package io.fluxcapacitor.javaclient.publishing.dataprotection;
 
+import io.fluxcapacitor.common.Guarantee;
 import io.fluxcapacitor.common.api.SerializedMessage;
 import io.fluxcapacitor.common.handling.Handler;
 import io.fluxcapacitor.common.reflection.ReflectionUtils;
@@ -10,6 +11,7 @@ import io.fluxcapacitor.javaclient.keyvalue.KeyValueStore;
 import io.fluxcapacitor.javaclient.publishing.DispatchInterceptor;
 import io.fluxcapacitor.javaclient.tracking.handling.HandlerInterceptor;
 import lombok.AllArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -21,6 +23,7 @@ import static io.fluxcapacitor.common.reflection.ReflectionUtils.setField;
 import static java.util.UUID.randomUUID;
 
 @AllArgsConstructor
+@Slf4j
 public class DataProtectionInterceptor implements DispatchInterceptor, HandlerInterceptor {
 
     public static String METADATA_KEY = "$protectedData";
@@ -39,9 +42,11 @@ public class DataProtectionInterceptor implements DispatchInterceptor, HandlerIn
                 Object payload = m.getPayload();
                 getAnnotatedFields(m.getPayload(), ProtectData.class).forEach(field -> {
                     Object value = getProperty(field, payload);
-                    String key = randomUUID().toString();
-                    keyValueStore.store(key, value);
-                    protectedFields.put(field.getName(), key);
+                    if (value != null) {
+                        String key = randomUUID().toString();
+                        keyValueStore.store(key, value, Guarantee.STORED);
+                        protectedFields.put(field.getName(), key);
+                    }
                 });
                 if (!protectedFields.isEmpty()) {
                     m.getMetadata().put(METADATA_KEY, protectedFields);
@@ -67,7 +72,11 @@ public class DataProtectionInterceptor implements DispatchInterceptor, HandlerIn
                 Map<String, String> protectedFields = m.getMetadata().get(METADATA_KEY, Map.class);
                 boolean dropProtectedData = handler.getMethod(m).isAnnotationPresent(DropProtectedData.class);
                 protectedFields.forEach((fieldName, key) -> {
-                    ReflectionUtils.setField(fieldName, payload, keyValueStore.get(key));
+                    try {
+                        ReflectionUtils.setField(fieldName, payload, keyValueStore.get(key));
+                    } catch (Exception e) {
+                        log.warn("Failed to set field {}", fieldName, e);
+                    }
                     if (dropProtectedData) {
                         keyValueStore.delete(key);
                     }

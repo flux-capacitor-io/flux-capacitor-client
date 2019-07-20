@@ -52,8 +52,13 @@ public class TestFixture extends AbstractTestFixture {
     }
 
     @Override
-    protected Registration registerHandlers(List<?> handlers, FluxCapacitor fluxCapacitor) {
-        return fluxCapacitor.registerLocalHandlers(handlers);
+    public Registration registerHandlers(List<?> handlers) {
+        return getFluxCapacitor().registerLocalHandlers(handlers);
+    }
+
+    @Override
+    public void deregisterHandlers(Registration registration) {
+        registration.cancel();
     }
 
     @Override
@@ -74,10 +79,5 @@ public class TestFixture extends AbstractTestFixture {
     @Override
     protected Object getDispatchResult(CompletableFuture<?> dispatchResult) {
         return dispatchResult.getNow(null);
-    }
-
-    @Override
-    protected void deregisterHandlers(Registration registration) {
-        registration.cancel();
     }
 }

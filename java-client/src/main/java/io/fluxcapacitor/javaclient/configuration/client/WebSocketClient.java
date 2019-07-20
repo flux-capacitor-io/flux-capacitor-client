@@ -45,16 +45,31 @@ public class WebSocketClient extends AbstractClient {
         super(name, id, gatewayClients, trackingClients, eventStoreClient, schedulingClient, keyValueClient);
     }
 
+    @Override
+    public void shutDown() {
+        super.shutDown();
+        //Wait some time after closing all websocket sessions. It seems a Session.close() is not synchronous.
+        try {
+            Thread.sleep(100);
+        } catch (InterruptedException ignored) {
+        }
+    }
+
     @Value
     @AllArgsConstructor
     public static class Properties {
-        private final @NonNull String name;
-        private final @NonNull String id;
-        private final @NonNull String serviceBaseUrl;
-        private final String typeFilter;
+        @NonNull String name;
+        @NonNull String id;
+        @NonNull String serviceBaseUrl;
+        String projectId;
+        String typeFilter;
+
+        public Properties(String name, String serviceBaseUrl, String projectId) {
+            this(name, randomUUID().toString(), serviceBaseUrl, projectId, null);
+        }
 
         public Properties(String name, String serviceBaseUrl) {
-            this(name, randomUUID().toString(), serviceBaseUrl, null);
+            this(name, randomUUID().toString(), serviceBaseUrl, null, null);
         }
     }
 }

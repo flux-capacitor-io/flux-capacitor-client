@@ -70,13 +70,13 @@ public interface RequestGateway {
             if (timeout != null) {
                 return future.get(timeout.millis(), TimeUnit.MILLISECONDS);
             }
-            return future.get();
+            return future.get(1, TimeUnit.MINUTES);
         } catch (java.util.concurrent.TimeoutException e) {
             throw new TimeoutException(
-                    format("%s has timed out", message.getPayload()), e);
+                    format("%s has timed out", message.getPayload().toString()), e);
         } catch (InterruptedException e) {
             currentThread().interrupt();
-            throw new GatewayException(format("Thread interrupted while waiting for result of %s", message.getPayload()), e);
+            throw new GatewayException(format("Thread interrupted while waiting for result of %s", message.getPayload().toString()), e);
         } catch (ExecutionException e) {
             throw e.getCause();
         }

@@ -24,7 +24,7 @@ public class StorePositionEvent implements ClientEvent {
     long timestamp = System.currentTimeMillis();
 
     String log;
-    String processor;
+    String consumer;
     int[] segment;
     long lastIndex;
 }

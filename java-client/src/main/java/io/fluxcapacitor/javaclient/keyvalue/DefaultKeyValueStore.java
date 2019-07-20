@@ -1,5 +1,6 @@
 package io.fluxcapacitor.javaclient.keyvalue;
 
+import io.fluxcapacitor.common.Guarantee;
 import io.fluxcapacitor.common.api.Data;
 import io.fluxcapacitor.javaclient.common.serialization.Serializer;
 import io.fluxcapacitor.javaclient.keyvalue.client.KeyValueClient;
@@ -12,9 +13,9 @@ public class DefaultKeyValueStore implements KeyValueStore {
     private final Serializer serializer;
 
     @Override
-    public void store(String key, Object value) {
+    public void store(String key, Object value, Guarantee guarantee) {
         try {
-            client.putValue(key, serializer.serialize(value)).await();
+            client.putValue(key, serializer.serialize(value), guarantee).await();
         } catch (Exception e) {
             throw new KeyValueStoreException(String.format("Could not store a value %s for key %s", value, key), e);
         }

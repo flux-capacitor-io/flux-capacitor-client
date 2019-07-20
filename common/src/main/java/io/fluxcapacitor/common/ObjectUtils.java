@@ -14,12 +14,18 @@
 
 package io.fluxcapacitor.common;
 
+import lombok.AllArgsConstructor;
+
 import java.util.Iterator;
 import java.util.Map;
 import java.util.Spliterators;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.atomic.AtomicReference;
-import java.util.function.*;
+import java.util.function.BiFunction;
+import java.util.function.Consumer;
+import java.util.function.Function;
+import java.util.function.Predicate;
+import java.util.function.Supplier;
+import java.util.function.UnaryOperator;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 
@@ -29,18 +35,64 @@ public class ObjectUtils {
         return StreamSupport.stream(new BreakingSpliterator<>(Stream.iterate(seed, f), breakCondition), false);
     }
 
-    public static <T> Supplier<T> memoize(Supplier<T> supplier) {
-        AtomicReference<T> cache = new AtomicReference<>();
-        return () -> {
-            synchronized (cache) {
-                return cache.updateAndGet(existing -> existing == null ? supplier.get() : existing);
-            }
-        };
+    public static <T> MemoizingSupplier<T> memoize(Supplier<T> supplier) {
+        return new MemoizingSupplier<>(supplier);
     }
 
-    public static <K, V> Function<K, V> memoize(Function<K, V> supplier) {
-        Map<K, V> map = new ConcurrentHashMap<>();
-        return key -> map.computeIfAbsent(key, supplier);
+    public static <K, V> MemoizingFunction<K, V> memoize(Function<K, V> supplier) {
+        return new MemoizingFunction<>(supplier);
+    }
+
+    public static <T, U, R> MemoizingBiFunction<T, U, R> memoize(BiFunction<T, U, R> supplier) {
+        return new MemoizingBiFunction<>(supplier);
+    }
+    
+    public static class MemoizingSupplier<T> implements Supplier<T> {
+        private final MemoizingFunction<Object, T> delegate;
+        private final Object singleton = new Object();
+
+        public MemoizingSupplier(Supplier<T> delegate) {
+            this.delegate = new MemoizingFunction<>(o -> delegate.get());
+        }
+
+        @Override
+        public T get() {
+            return delegate.apply(singleton);
+        }
+        
+        public boolean isCached() {
+            return delegate.isCached(singleton);
+        }
+    }
+    
+    @AllArgsConstructor
+    public static class MemoizingFunction<K, V> implements Function<K, V> {
+        private final Map<K, V> map = new ConcurrentHashMap<>();
+        private final Function<K, V> delegate;
+        
+        @Override
+        public V apply(K key) {
+            return map.computeIfAbsent(key, delegate);
+        }
+        
+        public boolean isCached(K key) {
+            return map.containsKey(key);
+        }
+    }
+
+    @AllArgsConstructor
+    public static class MemoizingBiFunction<T, U, R> implements BiFunction<T, U, R> {
+        private final Map<T, MemoizingFunction<U, R>> map = new ConcurrentHashMap<>();
+        private final BiFunction<T, U, R> delegate;
+
+        @Override
+        public R apply(T t, U u) {
+            return map.computeIfAbsent(t, t2 -> new MemoizingFunction<>(u2 -> delegate.apply(t2, u2))).apply(u);
+        }
+
+        public boolean isCached(T t, U u) {
+            return map.containsKey(t) && map.get(t).isCached(u);
+        }
     }
 
     private static class BreakingSpliterator<T> extends Spliterators.AbstractSpliterator<T> {

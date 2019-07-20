@@ -14,13 +14,15 @@
 
 package io.fluxcapacitor.common.api.keyvalue;
 
-import io.fluxcapacitor.common.api.JsonType;
+import io.fluxcapacitor.common.api.Request;
+import lombok.EqualsAndHashCode;
 import lombok.Value;
 
 import java.util.List;
 
 @Value
-public class StoreValues implements JsonType {
+@EqualsAndHashCode(callSuper = true)
+public class StoreValues extends Request {
     List<KeyValuePair> values;
 
     @Override

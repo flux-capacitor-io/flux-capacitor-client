@@ -2,12 +2,12 @@
 
 set -e
 
-# only do deployment, when travis detects a new tag
+# only do deployment when travis detects a new tag
 if [ ! -z "$TRAVIS_TAG" ]
 then
     echo "commit is tagged with $TRAVIS_TAG"
 
-    # only release tags that start with a number
+    # only deploy tags if they start with a number
     if [[ $TRAVIS_TAG =~ ^[0-9].*$ ]];
     then
         echo "deploying release $TRAVIS_TAG"
@@ -28,7 +28,7 @@ then
             rm -rf ~/.gnupg
         fi
     else
-        echo "not deploying release because the tag did not begin with a number"
+        echo "not deploying because the tag did not begin with a number"
     fi
 else
     echo "commit isn't tagged -> no need to deploy a new release"

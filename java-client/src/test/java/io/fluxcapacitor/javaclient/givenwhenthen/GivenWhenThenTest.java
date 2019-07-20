@@ -26,7 +26,9 @@ import org.mockito.InOrder;
 
 import static org.hamcrest.CoreMatchers.isA;
 import static org.mockito.Mockito.inOrder;
+import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.spy;
+import static org.mockito.Mockito.verify;
 
 class GivenWhenThenTest {
 
@@ -53,6 +55,12 @@ class GivenWhenThenTest {
     void testExpectEventButNoResult() {
         YieldsEventAndNoResult command = new YieldsEventAndNoResult();
         subject.givenNoPriorActivity().whenCommand(command).expectOnlyEvents(command).expectNoResult();
+    }
+
+    @Test
+    void testExpectNoEventsLike() {
+        YieldsEventAndNoResult command = new YieldsEventAndNoResult();
+        subject.givenNoPriorActivity().whenCommand(command).expectNoEventsLike(isA(String.class));
     }
 
     @Test
@@ -114,6 +122,18 @@ class GivenWhenThenTest {
         subject.whenCommand(new YieldsEventAndNoResult())
                 .expectEvents(new YieldsEventAndNoResult())
                 .expectCommands(new YieldsNoResult());
+    }
+
+    @Test
+    void testGivenCondition() {
+        Runnable mockCondition = mock(Runnable.class);
+        subject.given(mockCondition).whenCommand(new YieldsNoResult()).verify(() -> verify(mockCondition).run());
+    }
+
+    @Test
+    void testWhenCondition() {
+        Runnable mockCondition = mock(Runnable.class);
+        subject.givenNoPriorActivity().when(mockCondition).verify(() -> verify(mockCondition).run());
     }
 
     private static class CommandHandler {

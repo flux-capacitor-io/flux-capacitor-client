@@ -22,4 +22,6 @@ public interface Client {
     SchedulingClient getSchedulingClient();
 
     KeyValueClient getKeyValueClient();
+
+    void shutDown();
 }

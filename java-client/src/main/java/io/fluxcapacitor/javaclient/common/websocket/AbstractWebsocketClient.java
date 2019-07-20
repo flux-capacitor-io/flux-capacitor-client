@@ -15,7 +15,7 @@
 package io.fluxcapacitor.javaclient.common.websocket;
 
 import io.fluxcapacitor.common.Awaitable;
-import io.fluxcapacitor.common.TimingUtils;
+import io.fluxcapacitor.common.RetryConfiguration;
 import io.fluxcapacitor.common.api.JsonType;
 import io.fluxcapacitor.common.api.QueryResult;
 import io.fluxcapacitor.common.api.Request;
@@ -23,40 +23,56 @@ import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
-import org.glassfish.tyrus.client.ClientManager;
 
 import javax.websocket.CloseReason;
+import javax.websocket.ContainerProvider;
 import javax.websocket.OnClose;
 import javax.websocket.OnError;
 import javax.websocket.OnMessage;
 import javax.websocket.Session;
+import javax.websocket.WebSocketContainer;
+import java.io.IOException;
 import java.net.URI;
 import java.time.Duration;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutionException;
-import java.util.concurrent.atomic.AtomicReference;
+import java.util.concurrent.atomic.AtomicBoolean;
 
+import static io.fluxcapacitor.common.TimingUtils.retryOnFailure;
 import static java.lang.Thread.currentThread;
 import static java.lang.Thread.sleep;
+import static javax.websocket.CloseReason.CloseCodes.NO_STATUS_CODE;
 
 @Slf4j
-public abstract class AbstractWebsocketClient {
-    private final ClientManager client;
+public abstract class AbstractWebsocketClient implements AutoCloseable {
+    private final WebSocketContainer container;
     private final URI endpointUri;
-    private final Duration reconnectDelay;
     private final Map<Long, WebSocketRequest> requests = new ConcurrentHashMap<>();
-    private final AtomicReference<Session> session = new AtomicReference<>();
+    private final AtomicBoolean closed = new AtomicBoolean();
+    private final RetryConfiguration retryConfig;
+    private volatile Session session;
 
     public AbstractWebsocketClient(URI endpointUri) {
-        this(ClientManager.createClient(), endpointUri, Duration.ofSeconds(1));
+        this(ContainerProvider.getWebSocketContainer(), endpointUri, Duration.ofSeconds(1));
     }
 
-    public AbstractWebsocketClient(ClientManager client, URI endpointUri, Duration reconnectDelay) {
-        this.client = client;
+    public AbstractWebsocketClient(WebSocketContainer container, URI endpointUri, Duration reconnectDelay) {
+        this.container = container;
         this.endpointUri = endpointUri;
-        this.reconnectDelay = reconnectDelay;
+        this.retryConfig = RetryConfiguration.builder()
+                .delay(reconnectDelay)
+                .errorTest(e -> !closed.get())
+                .successLogger(s -> log.info("Successfully reconnected to endpoint {}", endpointUri))
+                .exceptionLogger(status -> {
+                    if (status.hasCrossedThreshold(Duration.ofMinutes(2))) {
+                        log.error("Failed to connect to endpoint {} for 2 minutes. Retrying every {} ms...",
+                                  endpointUri, status.getRetryConfiguration().getDelay().toMillis(),
+                                  status.getException());
+                    }
+                })
+                .build();
     }
 
     @SneakyThrows
@@ -66,16 +82,27 @@ public abstract class AbstractWebsocketClient {
     }
 
     @SuppressWarnings("unchecked")
-    protected <R extends QueryResult> R sendRequest(Request request) {
+    @SneakyThrows
+    protected <R extends QueryResult> R sendRequestAndWait(Request request) {
+        return (R) sendRequest(request).get();
+    }
+
+    @SuppressWarnings("unchecked")
+    protected <R extends QueryResult> CompletableFuture<R> sendRequest(Request request) {
         WebSocketRequest webSocketRequest = new WebSocketRequest(request);
         requests.put(request.getRequestId(), webSocketRequest);
         try {
             webSocketRequest.send(getSession());
-            return (R) webSocketRequest.getResult();
         } catch (Exception e) {
             requests.remove(request.getRequestId());
-            throw new IllegalStateException("Failed to handle request " + request, e);
+            throw new IllegalStateException("Failed to send request " + request, e);
         }
+        return ((CompletableFuture<R>) webSocketRequest.result).whenComplete((r, e) -> {
+            if (e != null) {
+                log.error("Failed to handle request {}", request, e);
+            }
+            requests.remove(request.getRequestId());
+        });
     }
 
     @OnMessage
@@ -91,14 +118,16 @@ public abstract class AbstractWebsocketClient {
 
     @OnClose
     public void onClose(Session session, CloseReason closeReason) {
-        log.info("Connection to endpoint {} closed with reason {}", session.getRequestURI(), closeReason);
+        if (closeReason.getCloseCode().getCode() > NO_STATUS_CODE.getCode()) {
+            log.warn("Connection to endpoint {} closed with reason {}", session.getRequestURI(), closeReason);
+        }
         retryOutstandingRequests(session.getId());
     }
 
     protected void retryOutstandingRequests(String sessionId) {
-        if (!requests.isEmpty()) {
+        if (!closed.get() && !requests.isEmpty()) {
             try {
-                sleep(reconnectDelay.toMillis());
+                sleep(retryConfig.getDelay().toMillis());
             } catch (InterruptedException e) {
                 currentThread().interrupt();
                 throw new IllegalStateException("Thread interrupted while trying to retry outstanding requests", e);
@@ -117,22 +146,55 @@ public abstract class AbstractWebsocketClient {
     public void onError(Session session, Throwable e) {
         log.error("Client side error for web socket connected to endpoint {}", session.getRequestURI(), e);
     }
-    
-    protected Session getSession() {
-        return session.updateAndGet(s -> {
-            while (s == null || !s.isOpen()) {
-                s = TimingUtils.retryOnFailure(() -> client.connectToServer(this, endpointUri), reconnectDelay);
+
+    @Override
+    public void close() {
+        close(false);
+    }
+
+    protected void close(boolean clearOutstandingRequests) {
+        if (closed.compareAndSet(false, true)) {
+            if (clearOutstandingRequests) {
+                requests.clear();
             }
-            return s;
-        });
+            if (session != null) {
+                try {
+                    session.close();
+                } catch (IOException e) {
+                    log.warn("Failed to closed websocket session connected to endpoint {}. Reason: {}",
+                             session.getRequestURI(), e.getMessage());
+                }
+            }
+            if (session != null && !requests.isEmpty()) {
+                log.warn("Closed websocket session to endpoint {} with {} outstanding requests",
+                         session.getRequestURI(), requests.size());
+            }
+        }
+    }
+
+    protected Session getSession() {
+        if (isClosed(session)) {
+            synchronized (this) {
+                while (isClosed(session)) {
+                    session = retryOnFailure(() -> isClosed(session) ?
+                            container.connectToServer(this, endpointUri) : session, retryConfig);
+                }
+            }
+        }
+        return session;
+    }
+
+    protected boolean isClosed(Session session) {
+        return session == null || !session.isOpen();
     }
 
     @RequiredArgsConstructor
     protected class WebSocketRequest {
         private final Request request;
         private final CompletableFuture<QueryResult> result = new CompletableFuture<>();
-        @Getter private volatile String sessionId;
-        
+        @Getter
+        private volatile String sessionId;
+
         protected void send(Session session) {
             this.sessionId = session.getId();
             AbstractWebsocketClient.this.send(request);
@@ -145,7 +207,7 @@ public abstract class AbstractWebsocketClient {
         protected void complete(QueryResult value) {
             result.complete(value);
         }
-        
+
         public QueryResult getResult() throws ExecutionException, InterruptedException {
             return result.get();
         }

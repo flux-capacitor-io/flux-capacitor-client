@@ -25,13 +25,12 @@ import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.CopyOnWriteArraySet;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
 
-import static java.lang.Thread.currentThread;
+import static java.util.concurrent.TimeUnit.SECONDS;
 
 @Slf4j
 public class Backlog<T> implements Monitored<List<T>> {
@@ -63,8 +62,6 @@ public class Backlog<T> implements Monitored<List<T>> {
         this.consumer = consumer;
         this.executorService = Executors.newFixedThreadPool(threads);
         this.errorHandler = errorHandler;
-
-        Runtime.getRuntime().addShutdownHook(new Thread(this::shutdown));
     }
 
     @SafeVarargs
@@ -76,16 +73,6 @@ public class Backlog<T> implements Monitored<List<T>> {
     public Awaitable add(Collection<? extends T> values) {
         queue.addAll(values);
         return awaitFlush(insertPosition.updateAndGet(p -> p + values.size()));
-    }
-
-    public void shutdown() {
-        executorService.shutdown();
-        try {
-            executorService.awaitTermination(10L, TimeUnit.SECONDS);
-        } catch (InterruptedException e) {
-            currentThread().interrupt();
-            log.error("Shutdown of backlog executor was interrupted", e);
-        }
     }
 
     private Awaitable awaitFlush(long position) {
@@ -146,6 +133,16 @@ public class Backlog<T> implements Monitored<List<T>> {
     public Registration registerMonitor(Consumer<List<T>> monitor) {
         monitors.add(monitor);
         return () -> monitors.remove(monitor);
+    }
+    
+    public void shutDown() {
+        executorService.shutdown();
+        try {
+            executorService.awaitTermination(1L, SECONDS);
+        } catch (InterruptedException e) {
+            log.warn("Shutdown of executor was interrupted", e);
+            Thread.currentThread().interrupt();
+        }
     }
 
     @FunctionalInterface

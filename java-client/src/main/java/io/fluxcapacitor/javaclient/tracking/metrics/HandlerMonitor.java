@@ -28,13 +28,13 @@ public class HandlerMonitor implements HandlerInterceptor {
         };
     }
 
-    protected void publishMetrics(Object handler, String consumer, DeserializingMessage message,
+    protected void publishMetrics(Handler<DeserializingMessage> handler, String consumer, DeserializingMessage message,
                                   boolean exceptionalResult, Instant start) {
         try {
             long nsDuration = start.until(Instant.now(), ChronoUnit.NANOS);
             FluxCapacitor.publishMetrics(
                     new HandleMessageEvent(FluxCapacitor.get().client().name(), FluxCapacitor.get().client().id(),
-                                           consumer, handler.getClass().getSimpleName(),
+                                           consumer, handler.getTarget().getClass().getSimpleName(),
                                            message.getPayloadClass().getSimpleName(), exceptionalResult, nsDuration));
         } catch (Exception e) {
             log.error("Failed to publish handler metrics", e);

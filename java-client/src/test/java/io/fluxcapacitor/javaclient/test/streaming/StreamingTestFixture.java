@@ -63,8 +63,13 @@ public class StreamingTestFixture extends AbstractTestFixture {
     }
 
     @Override
-    protected Registration registerHandlers(List<?> handlers, FluxCapacitor fluxCapacitor) {
-        return fluxCapacitor.startTracking(handlers);
+    public Registration registerHandlers(List<?> handlers) {
+        return getFluxCapacitor().startTracking(handlers);
+    }
+
+    @Override
+    public void deregisterHandlers(Registration registration) {
+        deregistrationService.schedule(registration::cancel, 1L, SECONDS);
     }
 
     @Override
@@ -90,10 +95,5 @@ public class StreamingTestFixture extends AbstractTestFixture {
         } catch (ExecutionException e) {
             throw e.getCause();
         }
-    }
-
-    @Override
-    protected void deregisterHandlers(Registration registration) {
-        deregistrationService.schedule(registration::cancel, 1L, SECONDS);
     }
 }
