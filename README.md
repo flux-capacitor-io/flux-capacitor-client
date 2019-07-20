@@ -82,7 +82,8 @@ import io.fluxcapacitor.javaclient.configuration.client.InMemoryClient;
 
 public class ExampleMain {
     public static void main(final String[] args) {
-        FluxCapacitor fluxCapacitor = DefaultFluxCapacitor.builder().build(InMemoryClient.newInstance());
+        FluxCapacitor fluxCapacitor 
+            = DefaultFluxCapacitor.builder().build(InMemoryClient.newInstance());
         fluxCapacitor.startTracking(new HelloWorldEventHandler());
         fluxCapacitor.eventGateway().publish(new HelloWorld());
     }
@@ -166,7 +167,7 @@ Here’s an example in which metadata is included in a command that is sent when
 ```java
 class UserEndpoint {
     @PUT @Path("/user")
-        void createUser(UserProfile profile, @HeaderParam("user-agent") String userAgent) {
+    void createUser(UserProfile profile, @HeaderParam("user-agent") String userAgent) {
         FluxCapacitor.sendCommand(new CreateUser(...), Metadata.of("userAgent", userAgent));
     }
 }
@@ -221,7 +222,8 @@ Additionally you may want to use a matcher in your test instead of a command ins
 ```java
 @Test
 void newUserGetsEmail() {
-    testFixture.whenEvent(new UserCreated(myUserProfile)).expectCommands(new SendWelcomeEmail(myUserProfile), isA(AddUserToOrganization.class));
+    testFixture.whenEvent(new UserCreated(myUserProfile))
+        .expectCommands(new SendWelcomeEmail(myUserProfile), isA(AddUserToOrganization.class));
 }
 ```
 
@@ -230,7 +232,8 @@ So far we’ve only tested if certain commands were issued in response to a prio
 ```java
 @Test
 void newUserGetsEmail() {
-    testFixture.whenEvent(new UserCreated(myUserProfile)).expectCommands(new SendWelcomeEmail(myUserProfile)).expectEvents(new UserStatsUpdated(...));
+    testFixture.whenEvent(new UserCreated(myUserProfile)).expectCommands(new SendWelcomeEmail(myUserProfile))
+        .expectEvents(new UserStatsUpdated(...));
 }
 ```
 
@@ -239,7 +242,8 @@ In most cases your tests will contain preconditions. You can use the givenXxx() 
 ```java
 @Test
 void userResetsPassword() {
-    testFixture.givenCommands(new CreateUser(...), new ResetPassword(...)).whenCommand(new UpdatePassword(...)).expectEvents(new PasswordUpdatedEvent(...));
+    testFixture.givenCommands(new CreateUser(...), new ResetPassword(...))
+        .whenCommand(new UpdatePassword(...)).expectEvents(new PasswordUpdatedEvent(...));
 }
 ```
 
@@ -248,7 +252,8 @@ Sometimes you need to make sure the right metadata is included in a published me
 ```java
 @Test
 void newAdminGetsAdditionalEmail() {
-    testFixture.whenCommand(new Message(new CreateUser(...), Metadata.of("roles", Arrays.asList("Customer", "Admin"))).expectCommands(new SendWelcomeEmail(...), new SendAdminEmail(...));
+    testFixture.whenCommand(new Message(new CreateUser(...), Metadata.of("roles", Arrays.asList("Customer", "Admin")))
+        .expectCommands(new SendWelcomeEmail(...), new SendAdminEmail(...));
 }
 ```
 
@@ -267,18 +272,21 @@ This is very handy to test for command validation too:
 ```java
 @Test
 void userCannotBeCreatedTwice() {
-    testFixture.givenCommands(new CreateUser(userProfile)).whenCommand(new CreateUser(userProfile)).expectException(IllegalCommandException.class);
+    testFixture.givenCommands(new CreateUser(userProfile)).whenCommand(new CreateUser(userProfile))
+        .expectException(IllegalCommandException.class);
 }
 ```
 
 You can configure the FluxCapacitor in your test instance to you use any kind of interceptor, same as in production. In the example below we add an interceptor that authenticates the sender of a command:
 
 ```java
-private final TestFixture testFixture = new TestFixture(FluxCapacitor.builder().registerHandlerInterceptor(new AuthenticationInterceptor()), new UserCommandHandler());
+private final TestFixture testFixture = new TestFixture(FluxCapacitor.builder()
+    .registerHandlerInterceptor(new AuthenticationInterceptor()), new UserCommandHandler());
 
 @Test
 void unauthenticatedUserCannotChangeProfile() {
-    testFixture.givenCommands(new CreateUser(userProfile)).whenCommand(new UpdateProfile(userProfile)).expectException(AuthenticationException.class);
+    testFixture.givenCommands(new CreateUser(userProfile)).whenCommand(new UpdateProfile(userProfile))
+        .expectException(AuthenticationException.class);
 }
 ```
 
