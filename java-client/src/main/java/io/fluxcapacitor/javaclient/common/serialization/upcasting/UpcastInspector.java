@@ -78,7 +78,7 @@ public class UpcastInspector {
             ParameterizedType parameterizedType = (ParameterizedType) parameters[0];
             if (parameterizedType.getRawType().equals(Data.class) && dataType
                     .isAssignableFrom((Class<?>) parameterizedType.getActualTypeArguments()[0])) {
-                return data -> invokeMethod(method, data, target);
+                return s -> invokeMethod(method, s.data(), target);
             }
             if (dataType.isAssignableFrom((Class<?>) parameterizedType.getRawType())) {
                 return s -> invokeMethod(method, s.data().getValue(), target);

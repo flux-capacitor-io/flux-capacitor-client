@@ -46,7 +46,7 @@ class JacksonSerializerTest {
     void testSerialization() {
         Data<byte[]> data = subject.serialize(new RevisedObject("test", 42));
         assertEquals(TYPE, data.getType());
-        assertEquals(2, data.getRevision());
+        assertEquals(3, data.getRevision());
     }
 
     @Test
@@ -92,7 +92,7 @@ class JacksonSerializerTest {
         return new Data<>(objectMapper.writeValueAsBytes(rev0Payload), TYPE, 0);
     }
 
-    @Revision(2)
+    @Revision(3)
     @Value
     private static class RevisedObject {
         String name;
@@ -108,6 +108,11 @@ class JacksonSerializerTest {
         @Upcast(type = TYPE, revision = 1)
         public ObjectNode upcastFrom1(ObjectNode input) {
             return input.put("name", input.remove("n").textValue());
+        }
+
+        @Upcast(type = TYPE, revision = 2)
+        public Data<ObjectNode> upcastFrom2(Data<ObjectNode> input) {
+            return new Data<>(input.getValue(), input.getType(), 3);
         }
     }
 
