@@ -198,7 +198,7 @@ public interface FluxCapacitor {
     }
 
     /**
-     * Loads the most recent aggregate root of type {@link T} with given id.
+     * Loads the most recent aggregate root of type {@link <T>} with given id.
      *
      * @see EventSourced for more info on how to define an event sourced aggregate root
      */
