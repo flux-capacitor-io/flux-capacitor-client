@@ -9,7 +9,7 @@ import java.util.function.Function;
 
 @AllArgsConstructor
 public class ValidatingInterceptor implements HandlerInterceptor {
-    public static final Validator defaultValidator = Jsr380CrossPropertyValidator.createDefault();
+    public static final Validator defaultValidator = Jsr380Validator.createDefault();
 
     private final Validator validator;
 
