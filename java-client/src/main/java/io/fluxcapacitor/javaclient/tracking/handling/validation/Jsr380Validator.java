@@ -18,6 +18,7 @@ import lombok.AllArgsConstructor;
 
 import javax.validation.ConstraintViolation;
 import javax.validation.Validation;
+import java.util.Optional;
 import java.util.Set;
 
 @AllArgsConstructor
@@ -29,11 +30,8 @@ public class Jsr380Validator implements Validator {
     }
 
     @Override
-    public <T> T validate(T object) throws ValidationException {
+    public <T> Optional<ValidationException> checkValidity(T object) {
         Set<? extends ConstraintViolation<?>> violations = validator.validate(object);
-        if (!violations.isEmpty()) {
-            throw new ValidationException(violations);
-        }
-        return object;
+        return violations.isEmpty() ? Optional.empty() : Optional.of(new ValidationException(violations));
     }
 }
