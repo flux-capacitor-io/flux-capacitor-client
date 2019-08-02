@@ -61,7 +61,7 @@ public interface FluxCapacitor {
     ThreadLocal<FluxCapacitor> instance = new ThreadLocal<>();
 
     /**
-     * Returns the FluxCapacitor client bound to the current thread or else set by the current application. 
+     * Returns the FluxCapacitor client bound to the current thread or else set by the current application.
      * Throws an exception if no client was registered.
      */
     static FluxCapacitor get() {
@@ -130,8 +130,8 @@ public interface FluxCapacitor {
     }
 
     /**
-     * Sends the given command and returns the command's result. The command 
-     * may be an instance of a {@link Message} in which case it will be sent as is. Otherwise the command is published 
+     * Sends the given command and returns the command's result. The command
+     * may be an instance of a {@link Message} in which case it will be sent as is. Otherwise the command is published
      * using the passed value as payload without additional metadata.
      */
     static <R> R sendCommandAndWait(Object command) {
@@ -198,7 +198,7 @@ public interface FluxCapacitor {
     }
 
     /**
-     * Loads the most recent aggregate root of type {@link <T>} with given id.
+     * Loads the most recent aggregate root of type {@code <T>} with given id.
      *
      * @see EventSourced for more info on how to define an event sourced aggregate root
      */
@@ -280,7 +280,7 @@ public interface FluxCapacitor {
     default Registration registerLocalHandlers(List<?> handlers) {
         return handlers.stream().flatMap(h -> Stream
                 .of(commandGateway().registerLocalHandler(h), queryGateway().registerLocalHandler(h),
-                    eventGateway().registerLocalHandler(h), 
+                    eventGateway().registerLocalHandler(h),
                     eventSourcing().eventStore().registerLocalHandler(h)))
                 .reduce(Registration::merge).orElse(Registration.noOp());
     }
@@ -339,7 +339,7 @@ public interface FluxCapacitor {
 
     /**
      * Returns the low level client used by this FluxCapacitor instance to interface with the Flux Capacitor service.
-     * Of course the returned client may also be a stand-in for the actual service.   
+     * Of course the returned client may also be a stand-in for the actual service.
      */
     Client client();
 
