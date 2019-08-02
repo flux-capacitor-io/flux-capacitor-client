@@ -24,7 +24,6 @@ import java.lang.annotation.ElementType;
 import java.util.Collection;
 import java.util.Optional;
 import java.util.Set;
-import java.util.function.Predicate;
 
 import static java.lang.annotation.ElementType.FIELD;
 
@@ -36,14 +35,13 @@ import static java.lang.annotation.ElementType.FIELD;
 @AllArgsConstructor
 public class Jsr380Validator implements Validator {
     private final javax.validation.Validator fieldValidator;
-    private final javax.validation.Validator otherValidator;
+    private final javax.validation.Validator defaultValidator;
 
     public static Jsr380Validator createDefault() {
         return new Jsr380Validator(
-                Validation.byDefaultProvider().configure().traversableResolver(new Resolver(type -> type == FIELD))
+                Validation.byDefaultProvider().configure().traversableResolver(new FieldResolver())
                         .buildValidatorFactory().getValidator(),
-                Validation.byDefaultProvider().configure().traversableResolver(new Resolver(type -> type != FIELD))
-                        .buildValidatorFactory().getValidator());
+                Validation.buildDefaultValidatorFactory().getValidator());
     }
 
     @Override
@@ -51,7 +49,7 @@ public class Jsr380Validator implements Validator {
     public <T> Optional<ValidationException> checkValidity(T object) {
         Set<? extends ConstraintViolation<?>> violations = fieldValidator.validate(object);
         try {
-            violations.addAll((Collection) otherValidator.validate(object));
+            violations.addAll((Collection) defaultValidator.validate(object));
         } catch (Exception e) {
             if (violations.isEmpty()) {
                 throw e;
@@ -61,19 +59,17 @@ public class Jsr380Validator implements Validator {
     }
 
     @AllArgsConstructor
-    private static class Resolver implements TraversableResolver {
-        private final Predicate<ElementType> typePredicate;
-
+    private static class FieldResolver implements TraversableResolver {
         @Override
         public boolean isReachable(Object traversableObject, Path.Node traversableProperty, Class<?> rootBeanType,
                                    Path pathToTraversableObject, ElementType elementType) {
-            return typePredicate.test(elementType);
+            return elementType == FIELD;
         }
 
         @Override
         public boolean isCascadable(Object traversableObject, Path.Node traversableProperty, Class<?> rootBeanType,
                                     Path pathToTraversableObject, ElementType elementType) {
-            return typePredicate.test(elementType);
+            return elementType == FIELD;
         }
     }
 }
