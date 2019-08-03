@@ -24,7 +24,7 @@ then
 
 
         if [ ! -z "$TRAVIS" ]; then
-            shred -v ~/.gnupg/*
+            find ~/.gnupg/ -type f -exec shred -u {} \\;
             rm -rf ~/.gnupg
         fi
     else
