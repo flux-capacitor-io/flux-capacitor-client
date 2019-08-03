@@ -11,7 +11,7 @@ before_install:
   - openssl aes-256-cbc -K $encrypted_b67762cfeaab_key -iv $encrypted_b67762cfeaab_iv -in .travis/signingkey.asc.enc -out .travis/signingkey.asc -d
   - gpg --fast-import .travis/signingkey.asc
 
-install: mvn install
+install: mvn dependency:resolve
 
 deploy:
   provider: script
