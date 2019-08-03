@@ -5,6 +5,7 @@ script: mvn --settings .travis/settings.xml clean verify
 deploy:
 - provider: script
   script: ".travis/deploy.sh"
+  skip_cleanup: true
   on:
     branch: master
     tags: true
