@@ -25,7 +25,9 @@ import java.util.Collection;
 import java.util.Optional;
 import java.util.Set;
 
+import static io.fluxcapacitor.common.reflection.ReflectionUtils.declaresField;
 import static java.lang.annotation.ElementType.FIELD;
+import static java.lang.annotation.ElementType.TYPE_USE;
 
 /**
  * This validator uses JSR 380 annotations. However, before attempting method and type validations it will first attempt
@@ -63,13 +65,17 @@ public class Jsr380Validator implements Validator {
         @Override
         public boolean isReachable(Object traversableObject, Path.Node traversableProperty, Class<?> rootBeanType,
                                    Path pathToTraversableObject, ElementType elementType) {
+            if (elementType == TYPE_USE) {
+                return declaresField(traversableObject.getClass(), traversableProperty.getName());
+            }
             return elementType == FIELD;
         }
 
         @Override
         public boolean isCascadable(Object traversableObject, Path.Node traversableProperty, Class<?> rootBeanType,
                                     Path pathToTraversableObject, ElementType elementType) {
-            return elementType == FIELD;
+            return isReachable(traversableObject, traversableProperty, rootBeanType, pathToTraversableObject,
+                               elementType);
         }
     }
 }
