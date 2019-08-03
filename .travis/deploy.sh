@@ -13,20 +13,10 @@ then
         echo "deploying release $TRAVIS_TAG"
         mvn --settings .travis/settings.xml org.codehaus.mojo:versions-maven-plugin:2.3:set -DnewVersion=$TRAVIS_TAG -Prelease
 
-        if [ ! -z "$TRAVIS" -a -f "$HOME/.gnupg" ]; then
-            shred -v ~/.gnupg/*
-            rm -rf ~/.gnupg
-        fi
+        gpg2 --keyring=$TRAVIS_BUILD_DIR/pubring.gpg --no-default-keyring --import .travis/signingkey.asc
+        gpg2 --allow-secret-key-import --keyring=$TRAVIS_BUILD_DIR/secring.gpg --no-default-keyring --import .travis/signingkey.asc
 
-        source .travis/gpg.sh
-
-        mvn clean deploy --settings .travis/settings.xml -DskipTests=true --batch-mode --update-snapshots -Prelease
-
-
-        if [ ! -z "$TRAVIS" ]; then
-            find ~/.gnupg/ -type f -exec shred -u {} \\;
-            rm -rf ~/.gnupg
-        fi
+        mvn clean deploy --settings .travis/settings.xml -Dgpg.executable=gpg2 -Dgpg.keyname=851216B95C455EF2A5FDC634905DD694F5A57F2C -Dgpg.passphrase=$PASSPHRASE -Dgpg.publicKeyring=$TRAVIS_BUILD_DIR/pubring.gpg -Dgpg.secretKeyring=$TRAVIS_BUILD_DIR/secring.gpg -DskipTests=true --batch-mode --update-snapshots -Prelease;
     else
         echo "not deploying because the tag did not begin with a number"
     fi
