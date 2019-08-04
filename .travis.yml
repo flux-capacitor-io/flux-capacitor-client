@@ -4,7 +4,7 @@ jdk:
 cache:
   directories:
   - "~/.m2/repository"
-install: mvn compile
+install: mvn clean verify
 deploy:
   provider: script
   script: ".travis/deploy.sh"
