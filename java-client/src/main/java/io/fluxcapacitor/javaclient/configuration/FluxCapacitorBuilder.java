@@ -26,12 +26,7 @@ public interface FluxCapacitorBuilder {
      * @return the modified builder
      */
     FluxCapacitorBuilder serializer(Serializer serializer);
-
-    /**
-     * 
-     * @param serializer
-     * @return
-     */
+    
     FluxCapacitorBuilder snapshotSerializer(Serializer serializer);
 
     FluxCapacitorBuilder configureDefaultConsumer(MessageType messageType, UnaryOperator<ConsumerConfiguration> updateFunction);

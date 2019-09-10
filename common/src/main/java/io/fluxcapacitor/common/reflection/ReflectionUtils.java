@@ -34,6 +34,7 @@ import java.util.stream.Stream;
 import static java.security.AccessController.doPrivileged;
 import static java.util.Arrays.stream;
 import static java.util.Collections.emptyList;
+import static org.apache.commons.lang3.StringUtils.isEmpty;
 
 public class ReflectionUtils {
 
@@ -45,7 +46,7 @@ public class ReflectionUtils {
     public static Optional<?> getAnnotatedPropertyValue(Object target, Class<? extends Annotation> annotation) {
         return getAnnotatedProperties(target, annotation).stream().findFirst().map(m -> getProperty(m, target));
     }
-    
+
     public static List<? extends AccessibleObject> getAnnotatedProperties(Object target, Class<? extends Annotation> annotation) {
         if (target == null) {
             return emptyList();
@@ -74,7 +75,11 @@ public class ReflectionUtils {
         }
         throw new IllegalStateException("Object property should be field or method: " + fieldOrMethod);
     }
-    
+
+    public static boolean declaresField(Class<?> target, String fieldName) {
+        return !isEmpty(fieldName) && FieldUtils.getDeclaredField(target, fieldName, true) != null;
+    }
+
     @SneakyThrows
     public static void setField(Field field, Object target, Object value) {
         ensureAccessible(field).set(target, value);

@@ -32,6 +32,7 @@
             </activation>
             <properties>
                 <gpg.executable>gpg</gpg.executable>
+                <gpg.keyname>36E2DD77F3464B1831BD9319887C4224566ABAD8</gpg.keyname>
                 <gpg.passphrase>${env.GPG_PASSPHRASE}</gpg.passphrase>
             </properties>
         </profile>

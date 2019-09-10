@@ -21,7 +21,7 @@ public class ValidatingInterceptor implements HandlerInterceptor {
     public Function<DeserializingMessage, Object> interceptHandling(Function<DeserializingMessage, Object> function,
                                                                     Handler<DeserializingMessage> handler, String consumer) {
         return m -> {
-            validator.validate(m.getPayload());
+            validator.assertValid(m.getPayload());
             return function.apply(m);
         };
     }

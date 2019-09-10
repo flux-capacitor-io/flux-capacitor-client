@@ -14,7 +14,20 @@
 
 package io.fluxcapacitor.javaclient.tracking.handling.validation;
 
+import java.util.Optional;
+
 @FunctionalInterface
 public interface Validator {
-    <T> T validate(T object) throws ValidationException;
+    <T> Optional<ValidationException> checkValidity(T object);
+
+    default <T> T assertValid(T object) throws ValidationException {
+        checkValidity(object).ifPresent(e -> {
+            throw e;
+        });
+        return object;
+    }
+
+    default boolean isValid(Object object) {
+        return !checkValidity(object).isPresent();
+    }
 }
