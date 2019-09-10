@@ -5,7 +5,7 @@
 Flux Capacitor java client
 ======================
 
-This is the official supported Java library for the Flux Capacitor service. 
+This is the 'official' Java library for the Flux Capacitor service. 
 To read more about Flux Capacitor visit [flux-capacitor.io](https://flux-capacitor.io).
 
 
@@ -174,7 +174,7 @@ class UserEndpoint {
 ```
 
 
-Note that we’ve used JAX-RS to define an http endpoint in this example, but of course this works for any other http library as well. 
+Note that we’ve used JAX-RS to define an http endpoint in this example, but of course this works with any other http library as well. 
 
 To read the metadata of a message in your handler simply add it as a method parameter:
 
@@ -187,7 +187,6 @@ class UserCommandHandler {
     }
 }
 ```
-
 
 ### Testing your handlers
 
@@ -333,17 +332,17 @@ Flux Capacitor Client comes with easy to use APIs to set up event sourcing for y
 class User {
     UserProfile userProfile;
 
-@ApplyEvent
-User(UserProfile userProfile) {
-    this.userProfile = userProfile;
-}
-
-@ApplyEvent
-User apply(EmailChanged event) {
-    return new User(this.userProfile.withEmail(event.getEmail()));
-}
-
-...
+    @ApplyEvent
+    User(UserProfile userProfile) {
+        this.userProfile = userProfile;
+    }
+    
+    @ApplyEvent
+    User apply(EmailChanged event) {
+        return new User(this.userProfile.withEmail(event.getEmail()));
+    }
+    
+    ...
 }
 ```
 
@@ -352,18 +351,18 @@ Basically all you need to do is provide methods annotated by @ApplyEvent that de
 ```java
 @EventSourced
 class User {
-UserProfile userProfile;
-
-User(UserProfile userProfile) {
-    this.userProfile = userProfile;
-}
-
-@ApplyEvent
-static User createUser(UserProfile userProfile) {
-    return new User(userProfile);
-}
-
-...
+    UserProfile userProfile;
+    
+    User(UserProfile userProfile) {
+        this.userProfile = userProfile;
+    }
+    
+    @ApplyEvent
+    static User createUser(UserProfile userProfile) {
+        return new User(userProfile);
+    }
+    
+    ...
 }
 ```
 
@@ -380,7 +379,7 @@ class UserCommandHandler {
 }
 ```
 
-When you invoke the static loadAggregate method the user entity with given user id is automatically event sourced and returned as Entity object. Once loaded you can apply new events to the entity as in the above example. Those events will be committed to the Flux Capacitor service in a single batch after your command handler method has returned without exceptions. Flux Capacitor Service will then store those events in the event log of this user *and* make them available for event tracking so event handlers can receive them.
+When you invoke the static `loadAggregate` method the user entity with given user id is automatically event sourced and returned as Entity object. Once loaded you can apply new events to the entity as in the above example. Those events will be committed to the Flux Capacitor service in a single batch after your command handler method has returned without exceptions. Flux Capacitor Service will then store those events in the event log of this user *and* make them available for event tracking so event handlers can receive them.
 
 Additionally you can provide assertions on the loaded model before applying new events:
 
@@ -455,7 +454,8 @@ class UserCommandHandler {
     ...
 }
 ```
-Note how the schedule can easily be cancelled if the user chooses to reopen the account within the month.
+In the example above you can see that the schedule can be easily cancelled if the user 
+chooses to reopen the account within the month.
 
 ### Key value store
 
@@ -485,7 +485,7 @@ class SettingsHandler {
 
 Flux Capacitor Client uses a serializer to transform message payloads and other stored values to a byte[] before 
 transmitting those to Flux Capacitor Service. The client comes packaged with a serializer that uses Jackson to 
-convert to json and uses it by default, but it is easy to roll your own serializer by extending ‘AbstractSerializer’.
+convert to json and uses it by default, but it is easy to roll your own serializer by extending `AbstractSerializer`.
 
 Before deserializing any stored value a serializer will first attempt to _upcast_ the value using a chain of upcasters. 
 Upcasters are so called because they transform serialized values to be compatible with the latest revision of the
@@ -517,19 +517,310 @@ class UserUpcaster {
 ```
 
 This upcaster will be applied to all revision 0 events of the UserCreated event. After upcasting, the revision of 
-the serialized event will automatically be incremented by 1. 
+the serialized event will automatically be incremented by 1.
 
+Note that the upcaster above applies its modifications to a Jackson ObjectNode instead of the raw serialized bytes. 
+This is possible because the `JacksonSerializer` first converts the `byte[]` to a `JsonNode` before applying any 
+registered upcasters.
+
+Aside from modifying message payload you can also modify the message type (class name) or metadata of a message. 
+To achieve that you need to apply your upcaster to a `Data` object:
+
+```java
+@Upcast(type="com.example.UserCreated", revision=0)
+Data<ObjectNode> upcastUserCreatedTo1(Data<ObjectNode> data) {
+    data.setType("com.example.CustomerCreated");
+    return data;
+}
+```
+
+Aside from modifying a serialized message it is also possible to drop or split a message up in multiple messages. 
+To drop a message from a stream of messages simply have the upcaster method return void:
+
+```java
+@Upcast(type="com.example.UserCreated", revision=0)
+void dropUserCreated(ObjectNode json) {
+}
+```
+
+Note again that this will not delete the message from the Flux Capacitor service but only from the client read stream. 
+
+To split up or optionally drop a message simply return a stream of Data objects:
+
+```java
+@Upcast(type="com.example.UserCreated", revision=0)
+Stream<Data<ObjectNode>> upcastUserCreatedTo1(Data<ObjectNode> data) {
+    return Stream.of(data, new Data<>(...));
+}
+```
+
+Upcasting is not limited to message payloads but can be used for all stored data, including aggregate snapshots and 
+values stored in the key value store. Simply apply the upcaster to the serialized type and you are good to go. 
+Here’s an example of an upcaster modifying a User snapshot:
+
+```java
+@Upcast(type="com.example.User", revision=0)
+ObjectNode upcastUserTo1(ObjectNode json) {
+    ... //do something to the json
+    return json;
+}
+```
+
+To activate an upcaster you can register it manually with the serializer. Or if you’re using Spring and your 
+upcaster class is a bean it will be automatically registered.
+
+###Parameter resolvers
+
+The parameters of annotated handler methods (e.g. a method annotated with `@HandleEvent`) are fully customizable 
+using parameter resolvers. By default a couple of common parameter resolvers are registered to resolve the message
+ payload, raw message or its metadata. 
+
+By default, the first parameter of an annotated handler method is assumed to refer to the message payload.
+ Here’s a method with parameters for the payload, metadata and raw serialized message:
+
+```java
+@HandleEvent
+void handle(UserCreated event, Metadata metadata, SerializedMessage message) {
+    // do something special 
+}
+```
+
+You can easily create your own parameter resolver. For instance, here’s one that will inject the message timestamp 
+to parameters of type `Instant`:
+
+```java
+public class TimestampParameterResolver implements ParameterResolver<DeserializingMessage> {
+    @Override
+    public Function<DeserializingMessage, Object> resolve(Parameter p) {
+        if (p.getType().equals(Instant.class)) {
+            return message -> Instant.of(message.getTimestamp());
+        }
+        return null;
+    }
+}
+```
+
+You can register your custom parameter resolver with the `FluxCapacitorBuilder` and then use it anywhere:
+
+```java
+@HandleEvent
+void handle(UserCreated event, Instant timestamp) {
+    // use the message time
+}
+```
+
+### Message interceptors
+
+Flux Capacitor client allows messages to be intercepted before they are handled or dispatched. 
+This can be useful in many situations. E.g. to check if a user is authorized to issue a command you can 
+write following interceptor:
+
+```java
+class AuthorizingInterceptor implements HandlerInterceptor {
+    @Override
+    public Function<DeserializingMessage, Object> interceptHandling(Function<DeserializingMessage, 
+                                                                    Handler<DeserializingMessage> handler, String consumer) {
+        return m -> {
+            Sender sender = Sender.fromMetadata(m.getMetadata());
+            RequiresRole requiresRole = m.getPayloadClass().getAnnotation(RequiresRole.class);
+            if (requiresRole != null) {
+                if (sender == null) {
+                    throw new RequiresAuthenticationException(m.getPayload());
+                }
+                if (Arrays.stream(requiresRole.value()).noneMatch(sender::hasRole)) {
+                    throw new UnauthorizedException(sender.getUserName(), m.getPayload());
+                }
+            }
+            return function.apply(m);
+        };
+    }
+}
+```
+
+Note that the `RequiresRole` annotation and `Sender` object in the above example are project specific and not 
+included in the client.
+
+The next few sections discuss some supported functionalities that have been implemented using message interceptors. 
 
 ### Data protection
 
+Sometimes you are dealing with messages that contain sensitive information. This could be e.g. a credit card, 
+or the entire profile of a user. Flux Capacitor client enables this part of a message to be removed from the message 
+payload and stored inside the key-value store of the service where it can be easily encrypted or removed forever 
+if needed. 
+
+Here's an example of a command to create a user where the user profile is sensitive:
+
+```java
+@Value
+class CreateUser {
+    @ProtectData
+    UserProfile userProfile;
+    
+    ...
+}
+```
+
+Placing `@ProtectData` on a top level field of a message will place the user profile in the key value store under a 
+randomly generated key. By placing the key in the metadata of the message the value will be automatically restored
+when the command is handled:
+
+```java
+class UserCommandHandler {
+    @HandleCommand
+    void handle(CreateUser command) {
+        // user profile will be automatically injected into the command before handling
+    }
+}
+```
+
+When you no longer need the protected data you can have Flux Capacitor client delete it for you after handling
+the message:
+
+```java
+class UserCommandHandler {
+    @HandleCommand
+    @DropProtectedData
+    void handle(CreateUser command) {
+        // user profile will be automatically injected into the command before handling
+    }
+}
+```
+
+This will drop the value from the key value store altogether without modifying the original message. Note that, 
+ even though the value cannot be recovered after dropping it, the message is still available for handling. After the 
+ data was dropped from the key-value store the field value will be `null`.
+
 ### Payload validation
+
+By default, Flux Capacitor client performs constraint JSR380 validations of commands and queries. Here's a sample of an
+annotated command:
+
+```java
+@Value
+class CreateUser {
+    @NotBlank 
+    String userId;
+    
+    @NotNull @Valid 
+    UserProfile userProfile;
+}
+```
+
+If you don't want automatic payload validation you can disable it using `FluxCapacitorBuilder.disablePayloadValidation()`.
 
 ### Correlating messages
 
+By default, Flux Capacitor client correlates related messages. For example, if an event is published as result of the
+ handling of a command, then metadata is added to the event that allows you to correlate it to the original command.
+ 
+ Following this example the following metadata entries would be added to the event:
+  * `$correlationId`: the index of the command
+  * `$traceId`: the index of the message that triggered the command, or the index of the command if no other message triggered that command
+  * `$trigger`: the type of the command, e.g. `com.example.CreateUser`
+  * `$triggerRoutingKey`: the value of the routing key of the command if any
+  
+  
+### Message routing
+
+In case multiple clients of the same consumer are subscribed to the Flux Capacitor service, the service uses the `segment` 
+of a message to route the message to one of the clients. This segment is automatically determined from the message id
+if the message segment was not provided by the client. However, Flux Capacitor client can automatically calculate
+a segment from the so-called routing key on a message. 
+
+Here's an example where the field `userId` is used to determine the routing key:
+
+```java
+@Value
+class CreateUser {
+    @RoutingKey String userId;
+    
+    UserProfile userProfile;
+}
+```
+
+By annotating the `userId` field with `@RoutingKey` the client will automatically calculate a segment using consistent 
+hashing and pass it to the message. The advantage of this is that all
+commands pertaining to a given user will be handled by the same client. This prevents conflicts that would arise when
+multiple clients would modify the user aggregate simultaneously.
+
+When listening to events there are situations where you'll need to handle every event. In that case you should use 
+the `@HandleNotification` annotation on your handler method instead of the default `@HandleEvent`.
+
 ### Metrics
+
+Flux Capacitor service is automatically collecting metrics about connected clients. These metrics are stored as
+messages like any other and can hence be tracked like any other message. Here's an example of metrics handler:
+
+ ```java
+ class MetricsHandler {
+     @HandleMetrics
+     void handle(ConnectEvent event) {
+        ...
+     }
+     
+     @HandleMetrics
+     void handle(AppendEvent event) {
+        ...
+     }
+ }
+ ```
+ 
+Clients can also choose to publish custom metrics events. Some useful metrics collected on the client can be 
+enabled using `FluxCapacitorBuilder.collectTrackingMetrics()`. This will collect metrics about handler methods on the
+client including the time it took to handle the message. This enables you to easily detect badly performing handlers.
 
 ### Miscellaneous
 
+#### Low-level APIs
+
+The `FluxCapacitor` interface provides a lower-level client API via `FluxCapacitor.client()` that allows 
+you to muddle with messages and data in serialized form. There may be situations where this will come in handy,
+for instance when you want to handle messages in batch.
+
+#### Timeouts
+
+Queries and commands sent using send-and-wait will time out after some time. By default this timeout period is 
+1 minute. You can change the default timeout by annotating the query or command class as follows:
+
+```java
+@Timeout(300_000) //timeout of 5 minutes
+class VerySlowQuery {
+    ...
+}
+```
+
+#### Message identity
+
+All messages receive an identifier when they are created. By default new random UUID will be used as identifier. You
+can use a custom `IdentityProvider` to supply the id by changing `Message.identityProvider` to something else.
+
+#### Error tracking
+
+Whenever a handle method gives rise to an exception the error will be published to a dedicated error log. 
+You can optionally these errors in a central location using `@HandleError`.
+
+
+#### Testing with time
+
+All messages receive a timestamp when they are published. That timestamp is determined using an internal clock 
+located on `SerializedMessage`. While testing it is often beneficial to fix the time. You can do so as 
+follows:
+
+ ```java
+ class SomeTest {
+     @Test
+     void testWithFixedTime() {
+        var clock = Clock.fixed(Instant.now(), ZoneId.systemDefault());
+        try {
+            SerializedMessage.useCustomClock(clock);
+            //test something
+        } finally{
+            SerializedMessage.useDefaultClock();
+        }
+     }
+ }
+ ```
 
 Configuration
 ======================
