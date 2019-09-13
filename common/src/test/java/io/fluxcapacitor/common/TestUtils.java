@@ -19,6 +19,7 @@ import io.fluxcapacitor.common.api.Metadata;
 import io.fluxcapacitor.common.api.SerializedMessage;
 
 import java.nio.ByteBuffer;
+import java.time.Clock;
 import java.util.List;
 import java.util.Random;
 import java.util.stream.Collectors;
@@ -41,7 +42,7 @@ public class TestUtils {
             byte[] randomBytes = new byte[16];
             random.nextBytes(randomBytes);
             return byteBuffer.put(randomBytes).array();
-        }).map(bytes -> new SerializedMessage(new Data<>(bytes, "test", 0), Metadata.empty(), "someId"))
+        }).map(bytes -> new SerializedMessage(new Data<>(bytes, "test", 0), Metadata.empty(), "someId", Clock.systemUTC().millis()))
                 .collect(Collectors.toList());
     }
 

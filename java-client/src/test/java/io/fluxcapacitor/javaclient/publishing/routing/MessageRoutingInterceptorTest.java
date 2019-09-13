@@ -23,6 +23,7 @@ import io.fluxcapacitor.javaclient.common.Message;
 import lombok.Value;
 import org.junit.jupiter.api.Test;
 
+import java.time.Clock;
 import java.util.function.Function;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -33,7 +34,8 @@ class MessageRoutingInterceptorTest {
 
     private MessageRoutingInterceptor subject = new MessageRoutingInterceptor();
     private Function<Message, SerializedMessage> invocation = m -> new SerializedMessage(
-            new Data<>("test".getBytes(), "test", 0), Metadata.empty(), "someId");
+            new Data<>("test".getBytes(), "test", 0), Metadata.empty(), "someId", 
+            Clock.systemUTC().millis());
     private int expectedHash = ConsistentHashing.computeSegment("bar");
 
     @Test

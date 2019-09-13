@@ -13,6 +13,7 @@ import javax.validation.Valid;
 import javax.validation.constraints.AssertTrue;
 import javax.validation.constraints.Min;
 import javax.validation.constraints.NotNull;
+import java.time.Clock;
 import java.util.function.Function;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -23,7 +24,9 @@ class ValidatingInterceptorTest {
 
     private ValidatingInterceptor subject = new ValidatingInterceptor();
     private Function<Object, DeserializingMessage> messageFactory = payload -> new DeserializingMessage(
-            new DeserializingObject<>(new SerializedMessage(new Data<>("test".getBytes(), "test", 0), Metadata.empty(), "someId"),
+            new DeserializingObject<>(new SerializedMessage(new Data<>(
+                    "test".getBytes(), "test", 0), Metadata.empty(), "someId", 
+                                                            Clock.systemUTC().millis()),
                                       () -> payload),
             MessageType.EVENT);
 

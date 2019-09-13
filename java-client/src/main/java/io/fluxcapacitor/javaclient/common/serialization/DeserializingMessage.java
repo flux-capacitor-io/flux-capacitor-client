@@ -7,6 +7,8 @@ import io.fluxcapacitor.javaclient.common.Message;
 import lombok.Value;
 import lombok.experimental.Delegate;
 
+import static java.time.Instant.ofEpochMilli;
+
 @Value
 public class DeserializingMessage {
     public static MessageFormatter messageFormatter = MessageFormatter.DEFAULT;
@@ -21,8 +23,9 @@ public class DeserializingMessage {
     }
 
     public Message toMessage() {
-        return new Message(delegate.getPayload(), getMetadata(), messageType, 
-                           delegate.getSerializedObject().getMessageId());
+        return new Message(delegate.getPayload(), getMetadata(), messageType,
+                           delegate.getSerializedObject().getMessageId(), 
+                           ofEpochMilli(delegate.getSerializedObject().getTimestamp()));
     }
     
     public static void setCurrent(DeserializingMessage message) {

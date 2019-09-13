@@ -32,12 +32,12 @@ public class EventStoreSerializer {
 
     public EventStoreSerializer(Serializer serializer, DispatchInterceptor dispatchInterceptor) {
         this(dispatchInterceptor.interceptDispatch(
-                m -> new SerializedMessage(serializer.serialize(m.getPayload()), m.getMetadata(), m.getMessageId())),
+                m -> new SerializedMessage(serializer.serialize(m.getPayload()), m.getMetadata(), m.getMessageId(), m.getTimestamp().toEpochMilli())),
              serializer);
     }
 
     public EventStoreSerializer(Serializer serializer) {
-        this(m -> new SerializedMessage(serializer.serialize(m.getPayload()), m.getMetadata(), m.getMessageId()),
+        this(m -> new SerializedMessage(serializer.serialize(m.getPayload()), m.getMetadata(), m.getMessageId(), m.getTimestamp().toEpochMilli()),
              serializer);
     }
 

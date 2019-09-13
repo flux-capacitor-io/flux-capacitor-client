@@ -18,14 +18,10 @@ import lombok.AllArgsConstructor;
 import lombok.NonNull;
 import lombok.experimental.Wither;
 
-import java.time.Clock;
-
 @lombok.Data
 @AllArgsConstructor
 public class SerializedMessage implements SerializedObject<byte[], SerializedMessage> {
-
-    private static final ThreadLocal<Clock> clock = ThreadLocal.withInitial(Clock::systemUTC);
-
+    
     @Wither
     @NonNull
     private Data<byte[]> data;
@@ -39,10 +35,10 @@ public class SerializedMessage implements SerializedObject<byte[], SerializedMes
     private Long timestamp;
     private String messageId;
 
-    public SerializedMessage(Data<byte[]> data, Metadata metadata, String messageId) {
+    public SerializedMessage(Data<byte[]> data, Metadata metadata, String messageId, Long timestamp) {
         this.data = data;
         this.metadata = metadata;
-        this.timestamp = clock.get().millis();
+        this.timestamp = timestamp;
         this.messageId = messageId;
     }
 
@@ -50,13 +46,4 @@ public class SerializedMessage implements SerializedObject<byte[], SerializedMes
     public Data<byte[]> data() {
         return data;
     }
-
-    public static void useCustomClock(Clock customClock) {
-        clock.set(customClock);
-    }
-
-    public static void useDefaultClock() {
-        clock.set(Clock.systemUTC());
-    }
-
 }

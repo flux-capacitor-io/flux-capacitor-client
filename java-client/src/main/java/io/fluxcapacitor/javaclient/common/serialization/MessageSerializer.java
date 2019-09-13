@@ -27,7 +27,7 @@ public class MessageSerializer {
 
     public MessageSerializer(Serializer serializer, DispatchInterceptor dispatchInterceptor) {
         this(dispatchInterceptor.interceptDispatch(
-                m -> new SerializedMessage(serializer.serialize(m.getPayload()), m.getMetadata(), m.getMessageId())));
+                m -> new SerializedMessage(serializer.serialize(m.getPayload()), m.getMetadata(), m.getMessageId(), m.getTimestamp().toEpochMilli())));
     }
 
     public SerializedMessage serialize(Message message) {
