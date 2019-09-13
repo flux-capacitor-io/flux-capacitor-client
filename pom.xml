@@ -34,7 +34,7 @@
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <jackson.version>2.9.9</jackson.version>
-        <spring.version>5.1.8.RELEASE</spring.version>
+        <spring.version>5.1.9.RELEASE</spring.version>
     </properties>
 
     <dependencyManagement>
@@ -72,7 +72,7 @@
         <dependency>
             <groupId>org.slf4j</groupId>
             <artifactId>slf4j-api</artifactId>
-            <version>1.7.26</version>
+            <version>1.7.28</version>
             <scope>provided</scope>
         </dependency>
         <dependency>
@@ -86,7 +86,7 @@
         <dependency>
             <groupId>org.projectlombok</groupId>
             <artifactId>lombok</artifactId>
-            <version>1.18.8</version>
+            <version>1.18.10</version>
             <scope>provided</scope>
         </dependency>
 
@@ -94,7 +94,7 @@
         <dependency>
             <groupId>org.junit.jupiter</groupId>
             <artifactId>junit-jupiter-engine</artifactId>
-            <version>5.5.1</version>
+            <version>5.5.2</version>
             <scope>test</scope>
         </dependency>
         <dependency>
