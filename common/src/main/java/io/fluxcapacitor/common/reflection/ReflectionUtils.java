@@ -39,8 +39,10 @@ import static org.apache.commons.lang3.StringUtils.isEmpty;
 public class ReflectionUtils {
 
     public static Stream<Method> getAllMethods(Class type) {
-        return ObjectUtils.iterate(type, Class::getSuperclass, Objects::isNull).filter(Objects::nonNull)
-                .flatMap(c -> stream(c.getDeclaredMethods()));
+        Stream<Method> result =
+                Stream.concat(ObjectUtils.iterate(type, Class::getSuperclass, Objects::isNull).filter(Objects::nonNull)
+                        .flatMap(c -> stream(c.getDeclaredMethods())), ClassUtils.getAllInterfaces(type).stream().flatMap(ReflectionUtils::getAllMethods));
+        return result;
     }
 
     public static Optional<?> getAnnotatedPropertyValue(Object target, Class<? extends Annotation> annotation) {

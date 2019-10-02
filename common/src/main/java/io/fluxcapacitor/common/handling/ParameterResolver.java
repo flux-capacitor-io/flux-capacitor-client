@@ -27,7 +27,8 @@ public interface ParameterResolver<M> {
         if (function == null) {
             return false;
         }
-        return parameter.getType().isAssignableFrom(function.apply(value).getClass());
+        Object parameterValue = function.apply(value);
+        return parameterValue == null || parameter.getType().isAssignableFrom(parameterValue.getClass());
     }
 
 }

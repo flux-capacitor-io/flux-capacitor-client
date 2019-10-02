@@ -22,7 +22,11 @@ import java.util.function.Function;
 import java.util.function.Predicate;
 
 public interface Model<T> {
-
+    default <E extends Exception> Model<T> assertLegal(Object command) throws E {
+        DefaultLegalCheck.assertLegal(command, this);
+        return this;
+    }
+    
     default <E extends Exception> Model<T> assertThat(Validator<T, E> validator) throws E {
         validator.validate(this.get());
         return this;

@@ -4,9 +4,11 @@ import io.fluxcapacitor.common.api.Data;
 import io.fluxcapacitor.common.api.Metadata;
 import io.fluxcapacitor.common.api.SerializedMessage;
 import io.fluxcapacitor.common.handling.HandlerNotFoundException;
+import io.fluxcapacitor.javaclient.MockException;
 import io.fluxcapacitor.javaclient.common.Message;
 import io.fluxcapacitor.javaclient.common.caching.Cache;
 import io.fluxcapacitor.javaclient.common.caching.DefaultCache;
+import io.fluxcapacitor.javaclient.common.model.AssertLegal;
 import io.fluxcapacitor.javaclient.common.model.Model;
 import io.fluxcapacitor.javaclient.common.serialization.DeserializingMessage;
 import io.fluxcapacitor.javaclient.common.serialization.DeserializingObject;
@@ -163,8 +165,9 @@ class DefaultEventSourcingTest {
 
     @Test
     void testApplyingUnknownEventsFailsIfModelHasNoConstructorOrFactoryMethod() {
-        assertThrows(HandlerNotFoundException.class, () -> executeWhileIntercepting(() -> subject.load(modelId, TestModelWithoutFactoryMethodOrConstructor.class)
-                .apply(new Message(new CreateModel(), EVENT)))
+        assertThrows(HandlerNotFoundException.class, () -> executeWhileIntercepting(
+                () -> subject.load(modelId, TestModelWithoutFactoryMethodOrConstructor.class)
+                        .apply(new Message(new CreateModel(), EVENT)))
                 .apply(toDeserializingMessage("command")));
     }
 
@@ -193,6 +196,23 @@ class DefaultEventSourcingTest {
         verifyZeroInteractions(snapshotRepository);
     }
 
+    @Test
+    void testCreateWithLegalCheckOnNonExistingModelSucceeds() {
+        subject.load(modelId, TestModelWithFactoryMethod.class).assertLegal(new CreateModelWithAssertion());
+    }
+
+    @Test
+    void testUpdateWithLegalCheckOnNonExistingModelFails() {
+        assertThrows(MockException.class, () -> subject.load(modelId, TestModelWithFactoryMethod.class)
+                .assertLegal(new UpdateModelWithAssertion()));
+    }
+
+    @Test
+    void testAssertionViaInterface() {
+        assertThrows(MockException.class, () -> subject.load(modelId, TestModelWithFactoryMethod.class)
+                .assertLegal(new CommandWithAssertionInInterface()));
+    }
+
     @SuppressWarnings("unchecked")
     private Function<Message, Model<TestModel>> prepareSubjectForHandling() {
         return m -> (Model<TestModel>) subject
@@ -219,7 +239,7 @@ class DefaultEventSourcingTest {
     private DeserializingMessage toDeserializingMessage(Message message) {
         return new DeserializingMessage(new DeserializingObject<>(
                 new SerializedMessage(new Data<>(new byte[0], message.getPayload().getClass().getName(), 0),
-                                      message.getMetadata(), message.getMessageId(), 
+                                      message.getMetadata(), message.getMessageId(),
                                       message.getTimestamp().toEpochMilli()), message::getPayload), EVENT);
     }
 
@@ -295,5 +315,36 @@ class DefaultEventSourcingTest {
 
     @Value
     private static class CreateModelWithMetadata {
+    }
+
+    @Value
+    private static class CreateModelWithAssertion {
+        @AssertLegal
+        private void assertDoesNotExist(Object model) {
+            if (model != null) {
+                throw new MockException("Model should not exist");
+            }
+        }
+    }
+
+    @Value
+    private static class UpdateModelWithAssertion {
+        @AssertLegal
+        private void assertExists(Object model) {
+            if (model == null) {
+                throw new MockException("Model should exist");
+            }
+        }
+    }
+
+    @Value
+    private static class CommandWithAssertionInInterface implements ImpossibleAssertion {
+    }
+
+    private interface ImpossibleAssertion {
+        @AssertLegal
+        default void assertTheImpossible(Object model) {
+            throw new MockException();
+        }
     }
 }

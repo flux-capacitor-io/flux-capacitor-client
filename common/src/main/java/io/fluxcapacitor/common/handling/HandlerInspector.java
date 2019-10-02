@@ -14,7 +14,7 @@
 
 package io.fluxcapacitor.common.handling;
 
-import io.fluxcapacitor.common.ObjectUtils;
+import io.fluxcapacitor.common.reflection.ReflectionUtils;
 import lombok.AllArgsConstructor;
 import lombok.SneakyThrows;
 
@@ -59,7 +59,13 @@ public class HandlerInspector {
 
     public static <M> HandlerInvoker<M> inspect(Class<?> type, Class<? extends Annotation> methodAnnotation,
                                                 List<ParameterResolver<? super M>> parameterResolvers) {
-        if (!hasHandlerMethods(type, methodAnnotation)) {
+        return inspect(type, methodAnnotation, parameterResolvers, true);
+    }
+
+    public static <M> HandlerInvoker<M> inspect(Class<?> type, Class<? extends Annotation> methodAnnotation,
+                                                List<ParameterResolver<? super M>> parameterResolvers, 
+                                                boolean failOnMissingMethods) {
+        if (failOnMissingMethods && !hasHandlerMethods(type, methodAnnotation)) {
             throw new HandlerException(
                     format("Could not find methods with %s annotation on %s", methodAnnotation.getSimpleName(),
                            type.getSimpleName()));
@@ -81,7 +87,7 @@ public class HandlerInspector {
 
         protected MethodHandlerInvoker(Executable executable, Class enclosingType,
                                        List<ParameterResolver<? super M>> parameterResolvers) {
-            this.methodDepth = executable instanceof Method ? methodDepth(executable, enclosingType) : 0;
+            this.methodDepth = executable instanceof Method ? methodDepth((Method) executable, enclosingType) : 0;
             this.executable = ensureAccessible(executable);
             this.hasReturnValue =
                     !(executable instanceof Method) || !(((Method) executable).getReturnType()).equals(void.class);
@@ -176,9 +182,8 @@ public class HandlerInspector {
             return Objects.equals(p1, p2) ? 0 : p1.isAssignableFrom(p2) ? 1 : p2.isAssignableFrom(p1) ? -1 : 0;
         }
 
-        private static int methodDepth(Executable instanceMethod, Class instanceType) {
-            return (int) ObjectUtils.iterate(instanceType, Class::getSuperclass, type
-                    -> stream(type.getDeclaredMethods()).anyMatch(m -> m.equals(instanceMethod))).count();
+        private static int methodDepth(Method instanceMethod, Class instanceType) {
+            return ReflectionUtils.getAllMethods(instanceType).collect(toList()).indexOf(instanceMethod);
         }
     }
 
