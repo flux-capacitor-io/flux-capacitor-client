@@ -15,7 +15,7 @@ public class DefaultLegalCheck {
         HandlerInvoker<Model<?>> invoker = invokerCache.computeIfAbsent(commandOrQuery.getClass(), type -> inspect(
                         commandOrQuery.getClass(), AssertLegal.class, singletonList(
                                 p -> p.getDeclaringExecutable().getParameters()[0] == p ? Model::get : null),
-                        false));
+                false, true));
         if (invoker.canHandle(commandOrQuery, model)) {
             invoker.invoke(commandOrQuery, model);
         }

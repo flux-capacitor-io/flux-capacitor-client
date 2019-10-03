@@ -14,6 +14,7 @@ import io.fluxcapacitor.javaclient.common.serialization.DeserializingMessage;
 import io.fluxcapacitor.javaclient.common.serialization.DeserializingObject;
 import lombok.NoArgsConstructor;
 import lombok.Value;
+import lombok.extern.slf4j.Slf4j;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -21,6 +22,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Function;
 import java.util.stream.Stream;
 
@@ -40,6 +42,7 @@ import static org.mockito.Mockito.verifyNoMoreInteractions;
 import static org.mockito.Mockito.verifyZeroInteractions;
 import static org.mockito.Mockito.when;
 
+@Slf4j
 class DefaultEventSourcingTest {
 
     private final String modelId = "test";
@@ -213,6 +216,18 @@ class DefaultEventSourcingTest {
                 .assertLegal(new CommandWithAssertionInInterface()));
     }
 
+    @Test
+    void testMultipleAssertionMethods() {
+        CommandWithMultipleAssertions command = new CommandWithMultipleAssertions();
+        subject.load(modelId, TestModelWithFactoryMethod.class).assertLegal(command);
+        assertEquals(3, command.getAssertionCount().get());
+    }
+
+    @Test
+    void testOverriddenAssertion() {
+        subject.load(modelId, TestModelWithFactoryMethod.class).assertLegal(new CommandWithOverriddenAssertion());
+    }
+
     @SuppressWarnings("unchecked")
     private Function<Message, Model<TestModel>> prepareSubjectForHandling() {
         return m -> (Model<TestModel>) subject
@@ -345,6 +360,30 @@ class DefaultEventSourcingTest {
         @AssertLegal
         default void assertTheImpossible(Object model) {
             throw new MockException();
+        }
+    }
+
+    @Value
+    private static class CommandWithMultipleAssertions {
+        AtomicInteger assertionCount = new AtomicInteger();
+        
+        @AssertLegal
+        private void assert1(Object model) {
+            assertionCount.addAndGet(1);
+        }
+
+        @AssertLegal
+        private void assert2(Object model) {
+            assertionCount.addAndGet(2);
+        }
+    }
+
+    @Value
+    private static class CommandWithOverriddenAssertion implements ImpossibleAssertion {
+        @Override
+        @AssertLegal
+        public void assertTheImpossible(Object model) {
+            //do nothing
         }
     }
 }

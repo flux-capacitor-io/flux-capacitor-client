@@ -14,48 +14,123 @@
 
 package io.fluxcapacitor.common.reflection;
 
-import io.fluxcapacitor.common.ObjectUtils;
 import lombok.SneakyThrows;
-import org.apache.commons.lang3.ClassUtils;
 import org.apache.commons.lang3.reflect.FieldUtils;
 import org.apache.commons.lang3.reflect.MethodUtils;
 
 import java.lang.annotation.Annotation;
+import java.lang.invoke.MethodType;
 import java.lang.reflect.AccessibleObject;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
+import java.lang.reflect.Modifier;
 import java.security.PrivilegedAction;
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.LinkedHashSet;
 import java.util.List;
-import java.util.Objects;
+import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
+import java.util.function.Predicate;
 import java.util.stream.Stream;
 
 import static java.security.AccessController.doPrivileged;
-import static java.util.Arrays.stream;
 import static java.util.Collections.emptyList;
+import static org.apache.commons.lang3.ClassUtils.getAllInterfaces;
 import static org.apache.commons.lang3.StringUtils.isEmpty;
 
 public class ReflectionUtils {
 
     public static Stream<Method> getAllMethods(Class type) {
-        Stream<Method> result =
-                Stream.concat(ObjectUtils.iterate(type, Class::getSuperclass, Objects::isNull).filter(Objects::nonNull)
-                        .flatMap(c -> stream(c.getDeclaredMethods())), ClassUtils.getAllInterfaces(type).stream().flatMap(ReflectionUtils::getAllMethods));
-        return result;
+        return getAllMethods(type, true, false).stream();
     }
+    
+    /*
+        Adopted from https://stackoverflow.com/questions/28400408/what-is-the-new-way-of-getting-all-methods-of-a-class-including-inherited-defau
+     */
+    public static Collection<Method> getAllMethods(Class clazz,
+                                                   boolean includePrivateMethodsOfSuperclasses,
+                                                   boolean includeOverriddenAndHidden) {
+
+        Predicate<Method> include = m -> !m.isBridge() && !m.isSynthetic() &&
+                Character.isJavaIdentifierStart(m.getName().charAt(0))
+                && m.getName().chars().skip(1).allMatch(Character::isJavaIdentifierPart);
+
+        Set<Method> methods = new LinkedHashSet<>();
+        Collections.addAll(methods, clazz.getMethods());
+        methods.removeIf(include.negate());
+        Stream.of(clazz.getDeclaredMethods()).filter(include).forEach(methods::add);
+
+        final int access = Modifier.PUBLIC | Modifier.PROTECTED | Modifier.PRIVATE;
+
+        Package p = clazz.getPackage();
+        if (!includePrivateMethodsOfSuperclasses) {
+            int pass = includeOverriddenAndHidden ?
+                    Modifier.PUBLIC | Modifier.PROTECTED : Modifier.PROTECTED;
+            include = include.and(m -> {
+                int mod = m.getModifiers();
+                return (mod & pass) != 0
+                        || (mod & access) == 0 && m.getDeclaringClass().getPackage() == p;
+            });
+        }
+        if (!includeOverriddenAndHidden) {
+            Map<Object, Set<Package>> types = new HashMap<>();
+            final Set<Package> pkgIndependent = Collections.emptySet();
+            for (Method m : methods) {
+                int acc = m.getModifiers() & access;
+                if (acc == Modifier.PRIVATE) {
+                    continue;
+                }
+                if (acc != 0) {
+                    types.put(methodKey(m), pkgIndependent);
+                } else {
+                    types.computeIfAbsent(methodKey(m), x -> new HashSet<>()).add(p);
+                }
+            }
+            include = include.and(m -> {
+                int acc = m.getModifiers() & access;
+                return acc != 0 ? acc == Modifier.PRIVATE
+                        || types.putIfAbsent(methodKey(m), pkgIndependent) == null :
+                        noPkgOverride(m, types, pkgIndependent);
+            });
+        }
+        for (clazz = clazz.getSuperclass(); clazz != null; clazz = clazz.getSuperclass()) {
+            Stream.of(clazz.getDeclaredMethods()).filter(include).forEach(methods::add);
+        }
+        return methods;
+    }
+
+    private static boolean noPkgOverride(
+            Method m, Map<Object, Set<Package>> types, Set<Package> pkgIndependent) {
+        Set<Package> pkg = types.computeIfAbsent(methodKey(m), key -> new HashSet<>());
+        return pkg != pkgIndependent && pkg.add(m.getDeclaringClass().getPackage());
+    }
+
+    private static Object methodKey(Method m) {
+        return Arrays.asList(m.getName(),
+                             MethodType.methodType(m.getReturnType(), m.getParameterTypes()));
+    }
+
 
     public static Optional<?> getAnnotatedPropertyValue(Object target, Class<? extends Annotation> annotation) {
         return getAnnotatedProperties(target, annotation).stream().findFirst().map(m -> getProperty(m, target));
     }
 
-    public static List<? extends AccessibleObject> getAnnotatedProperties(Object target, Class<? extends Annotation> annotation) {
+    public static List<? extends AccessibleObject> getAnnotatedProperties(Object target,
+                                                                          Class<? extends Annotation> annotation) {
         if (target == null) {
             return emptyList();
         }
-        List<AccessibleObject> result = new ArrayList<>(FieldUtils.getFieldsListWithAnnotation(target.getClass(), annotation));
+        List<AccessibleObject> result =
+                new ArrayList<>(FieldUtils.getFieldsListWithAnnotation(target.getClass(), annotation));
         result.addAll(MethodUtils.getMethodsListWithAnnotation(target.getClass(), annotation, true, true));
-        ClassUtils.getAllInterfaces(target.getClass()).forEach(i -> result.addAll(FieldUtils.getFieldsListWithAnnotation(i, annotation)));
+        getAllInterfaces(target.getClass())
+                .forEach(i -> result.addAll(FieldUtils.getFieldsListWithAnnotation(i, annotation)));
         return result;
     }
 

@@ -19,16 +19,13 @@ import io.fluxcapacitor.javaclient.common.Message;
 import io.fluxcapacitor.javaclient.common.serialization.DeserializingMessage;
 
 import java.lang.reflect.Parameter;
-import java.time.Instant;
 import java.util.function.Function;
 
 public class MessageParameterResolver implements ParameterResolver<DeserializingMessage> {
     @Override
     public Function<DeserializingMessage, Object> resolve(Parameter p) {
         if (p.getType().equals(Message.class)) {
-            return m -> new Message(m.getPayload(), m.getMetadata(), m.getMessageType(), 
-                                    m.getSerializedObject().getMessageId(), 
-                                    Instant.ofEpochMilli(m.getSerializedObject().getTimestamp()));
+            return DeserializingMessage::toMessage;
         }
         return null;
     }

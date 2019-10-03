@@ -31,6 +31,7 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.function.Function;
 import java.util.function.Predicate;
+import java.util.stream.Stream;
 
 import static io.fluxcapacitor.common.reflection.ReflectionUtils.ensureAccessible;
 import static io.fluxcapacitor.common.reflection.ReflectionUtils.getAllMethods;
@@ -59,12 +60,12 @@ public class HandlerInspector {
 
     public static <M> HandlerInvoker<M> inspect(Class<?> type, Class<? extends Annotation> methodAnnotation,
                                                 List<ParameterResolver<? super M>> parameterResolvers) {
-        return inspect(type, methodAnnotation, parameterResolvers, true);
+        return inspect(type, methodAnnotation, parameterResolvers, true, false);
     }
 
     public static <M> HandlerInvoker<M> inspect(Class<?> type, Class<? extends Annotation> methodAnnotation,
-                                                List<ParameterResolver<? super M>> parameterResolvers, 
-                                                boolean failOnMissingMethods) {
+                                                List<ParameterResolver<? super M>> parameterResolvers,
+                                                boolean failOnMissingMethods, boolean invokeMultipleMethods) {
         if (failOnMissingMethods && !hasHandlerMethods(type, methodAnnotation)) {
             throw new HandlerException(
                     format("Could not find methods with %s annotation on %s", methodAnnotation.getSimpleName(),
@@ -74,7 +75,7 @@ public class HandlerInspector {
                 .filter(m -> m.isAnnotationPresent(methodAnnotation))
                 .map(m -> new MethodHandlerInvoker<>(m, type, parameterResolvers))
                 .sorted(Comparator.naturalOrder())
-                .collect(toList()));
+                .collect(toList()), invokeMultipleMethods);
     }
 
     protected static class MethodHandlerInvoker<M> implements HandlerInvoker<M>, Comparable<MethodHandlerInvoker<M>> {
@@ -87,7 +88,8 @@ public class HandlerInspector {
 
         protected MethodHandlerInvoker(Executable executable, Class enclosingType,
                                        List<ParameterResolver<? super M>> parameterResolvers) {
-            this.methodDepth = executable instanceof Method ? methodDepth((Method) executable, enclosingType) : 0;
+            this.methodDepth = executable instanceof Method
+                    ? methodDepth((Method) executable, enclosingType) : 0;
             this.executable = ensureAccessible(executable);
             this.hasReturnValue =
                     !(executable instanceof Method) || !(((Method) executable).getReturnType()).equals(void.class);
@@ -191,6 +193,7 @@ public class HandlerInspector {
     protected static class ObjectHandlerInvoker<M> implements HandlerInvoker<M> {
         private final Class<?> type;
         private final List<HandlerInvoker<M>> methodHandlers;
+        private final boolean invokeMultipleMethods;
 
         @Override
         public boolean canHandle(Object target, M message) {
@@ -210,8 +213,12 @@ public class HandlerInspector {
 
         @Override
         public Object invoke(Object target, M message) {
-            Optional<HandlerInvoker<M>> delegate =
-                    methodHandlers.stream().filter(d -> d.canHandle(target, message)).findFirst();
+            Stream<HandlerInvoker<M>> handlerStream = methodHandlers.stream().filter(d -> d.canHandle(target, message));
+            if (invokeMultipleMethods) {
+                return handlerStream.map(h -> h.invoke(target, message)).filter(Objects::nonNull)
+                        .reduce((a, b) -> b).orElse(null);
+            }
+            Optional<HandlerInvoker<M>> delegate = handlerStream.findFirst();
             if (!delegate.isPresent()) {
                 throw new HandlerNotFoundException(format("No method found on %s that could handle %s", type, message));
             }
