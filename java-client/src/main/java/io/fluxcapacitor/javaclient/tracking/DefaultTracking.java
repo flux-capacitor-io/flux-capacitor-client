@@ -21,12 +21,15 @@ import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
 
 import java.lang.annotation.Annotation;
+import java.lang.reflect.Executable;
+import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.atomic.AtomicReference;
@@ -136,7 +139,7 @@ public class DefaultTracking implements Tracking {
             exception = e;
         }
         SerializedMessage serializedMessage = message.getSerializedObject();
-        if (serializedMessage.getRequestId() != null) {
+        if (shouldSendResponse(handler, message)) {
             if (result instanceof CompletionStage<?>) {
                 ((CompletionStage<?>) result).whenComplete((r, e) -> {
                     Object asyncResult = r;
@@ -167,6 +170,22 @@ public class DefaultTracking implements Tracking {
         if (exception != null) {
             throw exception;
         }
+    }
+    
+    @SneakyThrows
+    private boolean shouldSendResponse(Handler<DeserializingMessage> handler, DeserializingMessage message) {
+        SerializedMessage serializedMessage = message.getSerializedObject();
+        if (serializedMessage.getRequestId() == null) {
+            return false;
+        }
+        Executable method = handler.getMethod(message);
+        Annotation annotation = method.getAnnotation(handlerAnnotation);
+        Optional<Method> isPassive = Arrays.stream(handlerAnnotation.getMethods())
+                .filter(m -> m.getName().equals("passive")).findFirst();
+        if (isPassive.isPresent()) {
+            return !((boolean) isPassive.get().invoke(annotation));
+        }
+        return true;
     }
 
     @Override

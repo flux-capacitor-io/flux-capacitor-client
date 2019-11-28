@@ -5,7 +5,7 @@ import io.fluxcapacitor.common.MessageType;
 import io.fluxcapacitor.common.api.Metadata;
 import lombok.AllArgsConstructor;
 import lombok.Value;
-import lombok.experimental.Wither;
+import lombok.With;
 
 import java.time.Clock;
 import java.time.Instant;
@@ -17,7 +17,7 @@ public class Message {
     private static final ThreadLocal<Clock> clock = ThreadLocal.withInitial(Clock::systemUTC);
     public static IdentityProvider identityProvider = new UuidFactory();
     
-    @Wither
+    @With
     @JsonTypeInfo(use = JsonTypeInfo.Id.CLASS)
     Object payload;
     Metadata metadata;

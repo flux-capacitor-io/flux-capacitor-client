@@ -2,7 +2,7 @@ package io.fluxcapacitor.common;
 
 import lombok.AllArgsConstructor;
 import lombok.Value;
-import lombok.experimental.Wither;
+import lombok.With;
 
 import java.time.Duration;
 import java.time.Instant;
@@ -12,12 +12,12 @@ import java.time.Instant;
 public class RetryStatus {
     RetryConfiguration retryConfiguration;
     Object task;
-    @Wither
+    @With
     int numberOfTimesRetried;
-    @Wither
+    @With
     Exception exception;
     Instant initialErrorTimestamp;
-    @Wither
+    @With
     Instant previousErrorTimestamp;
 
     public RetryStatus(RetryConfiguration retryConfiguration, Object task, int numberOfTimesRetried) {

@@ -11,6 +11,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 
 import static org.mockito.Mockito.spy;
 
@@ -21,7 +22,7 @@ class GivenWhenThenStreamingTest {
     private final EventHandler eventHandler = spy(new EventHandler());
     private final StreamingTestFixture
             subject = StreamingTestFixture.create(commandHandler, eventHandler, asyncCommandHandler);
-    
+
     @Test
     void testExpectCommandsAndIndirectEvents() {
         subject.whenEvent(123).expectNoResult().expectCommands(new YieldsEventAndResult()).expectEvents(new YieldsEventAndResult());
@@ -32,11 +33,21 @@ class GivenWhenThenStreamingTest {
         subject.whenCommand(new YieldsAsyncResult()).expectResult("test");
     }
 
+    @Test
+    void testExpectPassiveHandling() {
+        subject.givenNoPriorActivity().whenCommand(new PassivelyHandled()).expectException(TimeoutException.class);
+    }
+
     private static class CommandHandler {
         @HandleCommand
         public String handle(YieldsEventAndResult command) {
             FluxCapacitor.publishEvent(command);
             return "result";
+        }
+
+        @HandleCommand(passive = true)
+        public String handle(PassivelyHandled command) {
+            return "this will be ignored";
         }
     }
 
@@ -69,6 +80,10 @@ class GivenWhenThenStreamingTest {
 
     @Value
     private static class YieldsAsyncResult {
+    }
+
+    @Value
+    private static class PassivelyHandled {
     }
 
 }

@@ -11,7 +11,7 @@ import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.verifyZeroInteractions;
+import static org.mockito.Mockito.verifyNoInteractions;
 
 public class RetryingErrorHandlerTest {
 
@@ -40,7 +40,7 @@ public class RetryingErrorHandlerTest {
     void testDontRetryIfErrorFilterFails() throws Exception {
         RetryingErrorHandler subject = new RetryingErrorHandler(1, Duration.ofMillis(10), e -> false, false);
         subject.handleError(exception, "mock exception", mockTask);
-        verifyZeroInteractions(mockTask);
+        verifyNoInteractions(mockTask);
     }
 
     @Test

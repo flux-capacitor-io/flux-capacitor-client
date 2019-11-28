@@ -19,7 +19,7 @@ import io.fluxcapacitor.common.api.SerializedObject;
 import io.fluxcapacitor.javaclient.common.serialization.SerializationException;
 import lombok.AllArgsConstructor;
 import lombok.Value;
-import lombok.experimental.Wither;
+import lombok.With;
 
 import java.util.Collection;
 import java.util.List;
@@ -91,7 +91,7 @@ public class UpcasterChain<T> {
 
         private final SerializedObject<byte[], ?> source;
         private final Converter<T> converter;
-        @Wither
+        @With
         private Data<T> data;
 
         public ConvertingSerializedObject(SerializedObject<byte[], ?> source, Converter<T> converter) {

@@ -38,8 +38,8 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.reset;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.verifyNoMoreInteractions;
-import static org.mockito.Mockito.verifyZeroInteractions;
 import static org.mockito.Mockito.when;
 
 @Slf4j
@@ -88,7 +88,7 @@ class DefaultEventSourcingTest {
     @Test
     void testApplyEvents() {
         Function<Message, Model<TestModel>> f = prepareSubjectForHandling();
-        verifyZeroInteractions(eventStore, cache);
+        verifyNoInteractions(eventStore, cache);
         Model<TestModel> model = f.apply(new Message(new CreateModel(), EVENT));
         assertEquals(singletonList(new CreateModel()), model.get().events);
         assertEquals(0L, model.getSequenceNumber());
@@ -129,7 +129,7 @@ class DefaultEventSourcingTest {
             fail("should not reach this");
         } catch (IllegalStateException ignored) {
         }
-        verifyZeroInteractions(cache, eventStore);
+        verifyNoInteractions(cache, eventStore);
     }
 
     @Test
@@ -196,7 +196,7 @@ class DefaultEventSourcingTest {
             reset(snapshotRepository);
             events.forEach(model::apply);
         }).apply(toDeserializingMessage("command"));
-        verifyZeroInteractions(snapshotRepository);
+        verifyNoInteractions(snapshotRepository);
     }
 
     @Test
