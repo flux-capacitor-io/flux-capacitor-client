@@ -33,8 +33,8 @@
 
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-        <jackson.version>2.9.9</jackson.version>
-        <spring.version>5.2.0.RELEASE</spring.version>
+        <jackson.version>2.10.1</jackson.version>
+        <spring.version>5.2.2.RELEASE</spring.version>
     </properties>
 
     <dependencyManagement>
@@ -72,7 +72,7 @@
         <dependency>
             <groupId>org.slf4j</groupId>
             <artifactId>slf4j-api</artifactId>
-            <version>1.7.28</version>
+            <version>1.7.29</version>
             <scope>provided</scope>
         </dependency>
         <dependency>
@@ -112,7 +112,7 @@
         <dependency>
             <groupId>org.mockito</groupId>
             <artifactId>mockito-core</artifactId>
-            <version>3.1.0</version>
+            <version>3.2.0</version>
             <scope>test</scope>
         </dependency>
     </dependencies>

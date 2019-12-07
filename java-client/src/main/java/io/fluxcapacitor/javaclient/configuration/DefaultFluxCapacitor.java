@@ -470,10 +470,10 @@ public class DefaultFluxCapacitor implements FluxCapacitor {
             //perform a controlled shutdown when the vm exits
             if (!disableShutdownHook) {
                 getRuntime().addShutdownHook(new Thread(() -> {
-                    log.info("Initiating controlled shutdown");
+                    System.out.println("Initiating controlled shutdown");
                     trackingMap.values().forEach(Tracking::close);
                     client.shutDown();
-                    log.info("Completed shutdown");
+                    System.out.println("Completed shutdown");
                 }));
             }
             

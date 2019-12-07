@@ -65,13 +65,9 @@ public abstract class AbstractWebsocketClient implements AutoCloseable {
                 .delay(reconnectDelay)
                 .errorTest(e -> !closed.get())
                 .successLogger(s -> log.info("Successfully reconnected to endpoint {}", endpointUri))
-                .exceptionLogger(status -> {
-                    if (status.hasCrossedThreshold(Duration.ofSeconds(30))) {
-                        log.error("Failed to connect to endpoint {} for 30 seconds. Retrying every {} ms...",
-                                  endpointUri, status.getRetryConfiguration().getDelay().toMillis(),
-                                  status.getException());
-                    }
-                })
+                .exceptionLogger(status -> log.warn("Failed to connect to endpoint {}. Retrying every {} ms...",
+                                                    endpointUri, status.getRetryConfiguration().getDelay().toMillis(),
+                                                    status.getException()))
                 .build();
     }
 
