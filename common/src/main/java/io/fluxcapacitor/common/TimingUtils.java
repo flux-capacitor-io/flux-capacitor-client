@@ -81,7 +81,7 @@ public class TimingUtils {
             } catch (Exception e) {
                 Instant errorTimestamp = Instant.now();
                 if (retryStatus == null) {
-                    retryStatus = new RetryStatus(configuration, task, 0);
+                    retryStatus = new RetryStatus(configuration, task, e);
                 } else {
                     retryStatus = retryStatus.withException(e);
                 }

@@ -20,11 +20,11 @@ public class RetryStatus {
     @With
     Instant previousErrorTimestamp;
 
-    public RetryStatus(RetryConfiguration retryConfiguration, Object task, int numberOfTimesRetried) {
+    public RetryStatus(RetryConfiguration retryConfiguration, Object task, Exception exception) {
         this.retryConfiguration = retryConfiguration;
         this.task = task;
-        this.numberOfTimesRetried = numberOfTimesRetried;
-        this.exception = null;
+        this.numberOfTimesRetried = 0;
+        this.exception = exception;
         this.initialErrorTimestamp = Instant.now();
         this.previousErrorTimestamp = Instant.now();
     }
