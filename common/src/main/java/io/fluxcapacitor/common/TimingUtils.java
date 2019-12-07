@@ -17,7 +17,6 @@ package io.fluxcapacitor.common;
 import lombok.extern.slf4j.Slf4j;
 
 import java.time.Duration;
-import java.time.Instant;
 import java.util.concurrent.Callable;
 import java.util.function.Consumer;
 import java.util.function.Predicate;
@@ -79,21 +78,17 @@ public class TimingUtils {
                 }
                 return result;
             } catch (Exception e) {
-                Instant errorTimestamp = Instant.now();
-                if (retryStatus == null) {
-                    retryStatus = new RetryStatus(configuration, task, e);
-                } else {
-                    retryStatus = retryStatus.withException(e);
-                }
+                retryStatus = retryStatus == null ?
+                        RetryStatus.builder().retryConfiguration(configuration).exception(e).task(task).build() :
+                        retryStatus.afterRetry(e);
                 if (!configuration.getErrorTest().test(e)) {
                     break;
                 }
                 configuration.getExceptionLogger().accept(retryStatus);
-                if (configuration.getMaxRetries() > 0 
+                if (configuration.getMaxRetries() >= 0
                         && retryStatus.getNumberOfTimesRetried() >= configuration.getMaxRetries()) {
                     break;
                 }
-                retryStatus = retryStatus.withPreviousErrorTimestamp(errorTimestamp);
                 try {
                     Thread.sleep(configuration.getDelay().toMillis());
                 } catch (InterruptedException e1) {
