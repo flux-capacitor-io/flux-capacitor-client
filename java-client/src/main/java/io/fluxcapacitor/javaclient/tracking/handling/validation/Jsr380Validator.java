@@ -22,8 +22,8 @@ import javax.validation.TraversableResolver;
 import javax.validation.Validation;
 import java.lang.annotation.ElementType;
 import java.util.Collection;
+import java.util.LinkedHashSet;
 import java.util.Optional;
-import java.util.Set;
 
 import static io.fluxcapacitor.common.reflection.ReflectionUtils.declaresField;
 import static java.lang.annotation.ElementType.FIELD;
@@ -49,7 +49,7 @@ public class Jsr380Validator implements Validator {
     @Override
     @SuppressWarnings("unchecked")
     public <T> Optional<ValidationException> checkValidity(T object) {
-        Set<? extends ConstraintViolation<?>> violations = fieldValidator.validate(object);
+        Collection<? extends ConstraintViolation<?>> violations = new LinkedHashSet<>(fieldValidator.validate(object));
         try {
             violations.addAll((Collection) defaultValidator.validate(object));
         } catch (Exception e) {

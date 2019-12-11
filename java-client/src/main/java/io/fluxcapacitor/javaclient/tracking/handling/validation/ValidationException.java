@@ -8,6 +8,8 @@ import javax.validation.ConstraintViolation;
 import javax.validation.Path;
 import java.beans.ConstructorProperties;
 import java.lang.reflect.Method;
+import java.util.Collection;
+import java.util.List;
 import java.util.Objects;
 import java.util.Set;
 import java.util.SortedSet;
@@ -15,18 +17,21 @@ import java.util.TreeSet;
 import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
 
+import static java.lang.String.CASE_INSENSITIVE_ORDER;
 import static java.lang.System.lineSeparator;
 import static java.util.stream.Collectors.joining;
 import static java.util.stream.Collectors.toCollection;
+import static java.util.stream.Collectors.toList;
+import static javax.validation.ElementKind.CONTAINER_ELEMENT;
 
 @Getter
 public class ValidationException extends FunctionalException {
 
     private final SortedSet<String> violations;
 
-    public ValidationException(Set<? extends ConstraintViolation<?>> violations) {
-        super(violations.stream().map(ValidationException::format).collect(Collectors.joining(lineSeparator())));
-        this.violations = violations.stream().map(ValidationException::format).collect(toCollection(TreeSet::new));
+    public ValidationException(Collection<? extends ConstraintViolation<?>> violations) {
+        super(format(violations, false).stream().collect(joining(lineSeparator())));
+        this.violations = format(violations, true);
     }
 
     @ConstructorProperties({"message", "violations"})
@@ -35,8 +40,14 @@ public class ValidationException extends FunctionalException {
         this.violations = new TreeSet<>(violations);
     }
 
+    protected static SortedSet<String> format(Collection<? extends ConstraintViolation<?>> violations,
+                                              boolean fullPath) {
+        return violations.stream().map(v -> format(v, fullPath))
+                .collect(toCollection(() -> new TreeSet<>(CASE_INSENSITIVE_ORDER)));
+    }
+
     @SuppressWarnings("unchecked")
-    protected static String format(ConstraintViolation<?> v) {
+    protected static String format(ConstraintViolation<?> v, boolean fullPath) {
         //If the validator uses a custom message we just return the message, otherwise we add the property path
         try {
             ConstraintDescriptorImpl constraintDescriptor = (ConstraintDescriptorImpl) v.getConstraintDescriptor();
@@ -47,11 +58,23 @@ public class ValidationException extends FunctionalException {
             }
         } catch (Exception ignored) {
         }
-        return String.format("%s %s", StreamSupport.stream(v.getPropertyPath().spliterator(), false)
-                .reduce((a, b) -> b).map(Path.Node::getName).orElse(v.getPropertyPath().toString()), v.getMessage());
+        return String.format("%s %s", getPropertyPath(v, fullPath), v.getMessage());
     }
 
-    protected static String format(Set<? extends ConstraintViolation<?>> violations) {
-        return violations.stream().map(ValidationException::format).sorted().collect(joining(lineSeparator()));
+    protected static String getPropertyPath(ConstraintViolation<?> v, boolean full) {
+        if (full) {
+            return v.getPropertyPath().toString();
+        }
+        List<Path.Node> path = StreamSupport.stream(v.getPropertyPath().spliterator(), false).collect(toList());
+        path = path.stream().skip(Math.max(0, path.size() - 2)).collect(Collectors.toList());
+        if (path.isEmpty()) {
+            return v.getPropertyPath().toString();
+        }
+        if (path.size() == 2) {
+            Path.Node a = path.get(0), b = path.get(1);
+            return b.isInIterable() && b.getKind() != CONTAINER_ELEMENT ? b.getName() :
+                    String.format("%s %s", a.getName(), b.getKind() == CONTAINER_ELEMENT ? "element" : b.getName());
+        }
+        return path.get(0).getName();
     }
 }
