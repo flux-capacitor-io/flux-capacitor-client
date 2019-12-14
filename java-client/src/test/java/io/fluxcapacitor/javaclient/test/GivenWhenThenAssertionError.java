@@ -52,12 +52,24 @@ public class GivenWhenThenAssertionError extends AssertionFailedError {
     private static class PayloadAndMetadata {
         Object payload;
         Metadata metadata;
-        MessageType type;
+        MessageType messageType;
 
         @Override
-        @SneakyThrows
         public String toString() {
-            return formatter.writeValueAsString(this).replaceAll("\\\\n", "\n");
+            try {
+                return formatter.writeValueAsString(this).replaceAll("\\\\n", "\n");
+            } catch (Exception e) {
+                return "Message{" +
+                        "payload=" + payload +
+                        ", metadata=" + metadata +
+                        ", messageType=" + messageType +
+                        ", payloadType=" + getPayloadType() +
+                        '}';
+            }
+        }
+
+        public String getPayloadType() {
+            return payload.getClass().getName();
         }
     }
 }

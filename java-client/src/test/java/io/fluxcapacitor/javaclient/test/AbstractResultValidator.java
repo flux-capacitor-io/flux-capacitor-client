@@ -21,7 +21,10 @@ import lombok.extern.slf4j.Slf4j;
 import org.hamcrest.Matcher;
 import org.hamcrest.StringDescription;
 
+import java.util.ArrayList;
 import java.util.Collection;
+import java.util.List;
+import java.util.stream.Stream;
 
 import static java.lang.String.format;
 import static java.util.stream.Collectors.toList;
@@ -33,7 +36,21 @@ public abstract class AbstractResultValidator implements Then {
 
     protected Then expectMessages(Collection<?> expected, Collection<Message> actual) {
         if (!containsAll(expected, actual)) {
-            reportMismatch(expected, actual);
+            List<Message> remaining = new ArrayList<>(actual);
+            List<Message> filtered = expected.stream().flatMap(e -> {
+                if (e != null && !(expected instanceof Matcher<?>)) {
+                    Class<?> payloadType = 
+                            e instanceof Message ? ((Message) e).getPayload().getClass() : expected.getClass();
+                    Message match = remaining.stream()
+                            .filter(a -> payloadType.equals(a.getPayload().getClass())).findFirst().orElse(null);
+                    if (match != null) {
+                        remaining.remove(match);
+                        return Stream.of(match);
+                    }
+                }
+                return Stream.empty();
+            }).collect(toList());
+            reportMismatch(expected, filtered.size() == expected.size() ? filtered : actual);
         }
         return this;
     }
@@ -67,12 +84,14 @@ public abstract class AbstractResultValidator implements Then {
 
     protected void reportUnwantedMatch(Collection<?> expected, Collection<Message> actual) {
         if (actualResult instanceof Throwable) {
-            throw new GivenWhenThenAssertionError("An unexpected exception occurred during handling", (Throwable) actualResult);
+            throw new GivenWhenThenAssertionError("An unexpected exception occurred during handling",
+                                                  (Throwable) actualResult);
         }
-        throw new GivenWhenThenAssertionError(format("Unwanted match found in published messages.\nExpected not to get: %s\nGot: %s\n\n",
-                                                     expected, actual));
+        throw new GivenWhenThenAssertionError(
+                format("Unwanted match found in published messages.\nExpected not to get: %s\nGot: %s\n\n",
+                       expected, actual));
     }
-    
+
     protected boolean containsAll(Collection<?> expected, Collection<Message> actual) {
         return expected.stream().allMatch(e -> actual.stream().anyMatch(a -> matches(e, a)));
     }
@@ -100,12 +119,12 @@ public abstract class AbstractResultValidator implements Then {
         StringDescription description = new StringDescription();
         resultMatcher.describeTo(description);
         if (actualResult instanceof Throwable) {
-            throw new GivenWhenThenAssertionError("An unexpected exception occurred during handling", 
+            throw new GivenWhenThenAssertionError("An unexpected exception occurred during handling",
                                                   description.toString(), actualResult);
         }
         if (!resultMatcher.matches(actualResult)) {
             throw new GivenWhenThenAssertionError("Handler returned an unexpected value",
-                                                         description.toString(), actualResult);
+                                                  description.toString(), actualResult);
         }
         return this;
     }
@@ -144,10 +163,10 @@ public abstract class AbstractResultValidator implements Then {
         if (!(actualResult instanceof Throwable)) {
             throw new GivenWhenThenAssertionError(
                     "Handler returned normally but an exception was expected",
-                           description, actualResult);
+                    description, actualResult);
         }
         if (!resultMatcher.matches(actualResult)) {
-            throw new GivenWhenThenAssertionError("Handler threw unexpected exception", 
+            throw new GivenWhenThenAssertionError("Handler threw unexpected exception",
                                                   description, actualResult);
         }
         return this;
