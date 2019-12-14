@@ -20,7 +20,7 @@ public class Message {
     @With
     @JsonTypeInfo(use = JsonTypeInfo.Id.CLASS)
     Object payload;
-    Metadata metadata;
+    @With Metadata metadata;
     MessageType messageType;
     String messageId;
     Instant timestamp;

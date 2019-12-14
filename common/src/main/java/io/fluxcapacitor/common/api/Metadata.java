@@ -74,4 +74,8 @@ public class Metadata implements Map<String, String> {
         }).orElse(null);
     }
 
+    @Override
+    public String toString() {
+        return entries.toString();
+    }
 }

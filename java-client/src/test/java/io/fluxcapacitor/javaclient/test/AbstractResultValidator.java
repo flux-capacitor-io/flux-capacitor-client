@@ -62,18 +62,15 @@ public abstract class AbstractResultValidator implements Then {
                     "Published messages did not match. Probable cause is an exception that occurred during handling:",
                     (Throwable) actualResult);
         }
-        throw new GivenWhenThenAssertionError(format("Published messages did not match.\nExpected: %s\nGot: %s\n\n", 
-                                                       expected, actual) , expected, actual);
+        throw new GivenWhenThenAssertionError("Published messages did not match", expected, actual);
     }
 
     protected void reportUnwantedMatch(Collection<?> expected, Collection<Message> actual) {
         if (actualResult instanceof Throwable) {
-            throw new GivenWhenThenAssertionError(
-                    "An exception occurred during handling:",
-                    (Throwable) actualResult);
+            throw new GivenWhenThenAssertionError("An unexpected exception occurred during handling", (Throwable) actualResult);
         }
         throw new GivenWhenThenAssertionError(format("Unwanted match found in published messages.\nExpected not to get: %s\nGot: %s\n\n",
-                expected, actual) , expected, actual);
+                                                     expected, actual));
     }
     
     protected boolean containsAll(Collection<?> expected, Collection<Message> actual) {
@@ -103,12 +100,12 @@ public abstract class AbstractResultValidator implements Then {
         StringDescription description = new StringDescription();
         resultMatcher.describeTo(description);
         if (actualResult instanceof Throwable) {
-            throw new GivenWhenThenAssertionError(format("Handler threw an unexpected exception. Expected: %s",
-                                                         description), (Throwable) actualResult);
+            throw new GivenWhenThenAssertionError("An unexpected exception occurred during handling", 
+                                                  description.toString(), actualResult);
         }
         if (!resultMatcher.matches(actualResult)) {
-            throw new GivenWhenThenAssertionError(format("Handler returned an unexpected value.\nExpected: %s\nGot: %s",
-                                                         description, actualResult));
+            throw new GivenWhenThenAssertionError("Handler returned an unexpected value",
+                                                         description.toString(), actualResult);
         }
         return this;
     }
@@ -118,12 +115,14 @@ public abstract class AbstractResultValidator implements Then {
         StringDescription description = new StringDescription();
         resultMatcher.describeTo(description);
         if (actualResult instanceof Throwable) {
-            throw new GivenWhenThenAssertionError(format("Handler threw an unexpected exception. Expected: %s",
-                    description), (Throwable) actualResult);
+            throw new GivenWhenThenAssertionError(
+                    format("Handler threw an unexpected exception. Expected not to get: %s",
+                           description), (Throwable) actualResult);
         }
         if (resultMatcher.matches(actualResult)) {
-            throw new GivenWhenThenAssertionError(format("Handler did return the unwanted result.\nExpected not to get: %s\nGot: %s",
-                    description, actualResult));
+            throw new GivenWhenThenAssertionError(
+                    format("Handler returned the unwanted result.\nExpected not to get: %s\nGot: %s",
+                           description, actualResult));
         }
         return this;
     }
@@ -144,12 +143,12 @@ public abstract class AbstractResultValidator implements Then {
         resultMatcher.describeTo(description);
         if (!(actualResult instanceof Throwable)) {
             throw new GivenWhenThenAssertionError(
-                    format("Handler returned normally but an exception was expected. Expected: %s. Got: %s",
-                           description, actualResult));
+                    "Handler returned normally but an exception was expected",
+                           description, actualResult);
         }
         if (!resultMatcher.matches(actualResult)) {
-            throw new GivenWhenThenAssertionError(format("Handler returned unexpected value.\nExpected: %s\nGot: %s",
-                                                         description, actualResult));
+            throw new GivenWhenThenAssertionError("Handler threw unexpected exception", 
+                                                  description, actualResult);
         }
         return this;
     }

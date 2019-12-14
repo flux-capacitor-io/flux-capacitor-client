@@ -197,8 +197,8 @@ public abstract class AbstractTestFixture implements Given, When {
     protected class GivenWhenThenInterceptor implements DispatchInterceptor {
 
         private static final String TAG = "givenWhenThen.tag";
-        private static final String TAG_NAME = "givenWhenThen.tagName";
-        private static final String TRACE_NAME = "givenWhenThen.trace";
+        private static final String TAG_NAME = "$givenWhenThen.tagName";
+        private static final String TRACE_NAME = "$givenWhenThen.trace";
         private volatile boolean catchAll;
         
         protected void catchAll() {
