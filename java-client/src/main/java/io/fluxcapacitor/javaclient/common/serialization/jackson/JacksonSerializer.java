@@ -15,6 +15,7 @@
 package io.fluxcapacitor.javaclient.common.serialization.jackson;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.json.JsonMapper;
 import io.fluxcapacitor.common.api.SerializedObject;
 import io.fluxcapacitor.javaclient.common.serialization.AbstractSerializer;
 import io.fluxcapacitor.javaclient.common.serialization.DeserializingObject;
@@ -32,9 +33,10 @@ import static com.fasterxml.jackson.databind.SerializationFeature.WRITE_DATES_AS
 import static java.lang.String.format;
 
 public class JacksonSerializer extends AbstractSerializer {
-    public static final ObjectMapper defaultObjectMapper = new ObjectMapper()
-            .findAndRegisterModules().disable(FAIL_ON_EMPTY_BEANS)
-            .disable(WRITE_DATES_AS_TIMESTAMPS).disable(FAIL_ON_UNKNOWN_PROPERTIES);
+    public static final JsonMapper defaultObjectMapper = JsonMapper.builder()
+            .findAndAddModules().addModule(new NullCollectionsAsEmptyModule())
+            .disable(FAIL_ON_EMPTY_BEANS).disable(WRITE_DATES_AS_TIMESTAMPS).disable(FAIL_ON_UNKNOWN_PROPERTIES)
+            .build();
 
     private final ObjectMapper objectMapper;
 
