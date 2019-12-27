@@ -32,18 +32,22 @@
     <properties>
         <hibernate-validator.version>6.1.0.Final</hibernate-validator.version>
         <javax-el.version>3.0.0</javax-el.version>
+        <spring.version>5.2.2.RELEASE</spring.version>
     </properties>
 
     <dependencies>
         <!--flux-capacitor common-->
         <dependency>
-            <groupId>${project.groupId}</groupId>
+            <groupId>io.flux-capacitor</groupId>
             <artifactId>common</artifactId>
+            <version>${project.version}</version>
         </dependency>
         <dependency>
-            <groupId>${project.groupId}</groupId>
+            <groupId>io.flux-capacitor</groupId>
             <artifactId>common</artifactId>
+            <version>${project.version}</version>
             <type>test-jar</type>
+            <scope>test</scope>
         </dependency>
 
         <!--websocket client-->
@@ -53,19 +57,7 @@
             <version>2.0.28.Final</version>
         </dependency>
         
-        <!--for caching-->
-        <dependency>
-            <groupId>com.google.guava</groupId>
-            <artifactId>guava</artifactId>
-            <version>28.1-jre</version>
-        </dependency>
-
-        <!--for the validating interceptor-->
-        <dependency>
-            <groupId>javax.validation</groupId>
-            <artifactId>validation-api</artifactId>
-            <version>2.0.1.Final</version>
-        </dependency>
+        <!--validating interceptor-->
         <dependency>
             <groupId>org.hibernate.validator</groupId>
             <artifactId>hibernate-validator</artifactId>
@@ -78,15 +70,16 @@
         </dependency>
         <dependency>
             <groupId>org.glassfish</groupId>
-            <artifactId>javax.el</artifactId>
-            <version>${javax-el.version}</version>
+            <artifactId>jakarta.el</artifactId>
+            <version>3.0.3</version>
         </dependency>
 
-        <!--tiny bit of spring magic-->
+        <!--spring-->
         <dependency>
             <groupId>org.springframework</groupId>
             <artifactId>spring-context</artifactId>
             <version>${spring.version}</version>
+            <optional>true</optional>
         </dependency>
         <dependency>
             <groupId>org.springframework</groupId>

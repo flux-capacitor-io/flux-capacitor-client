@@ -14,20 +14,27 @@
 
 package io.fluxcapacitor.javaclient.common.caching;
 
-import com.google.common.cache.Cache;
-import com.google.common.cache.CacheBuilder;
-import lombok.AllArgsConstructor;
 import lombok.SneakyThrows;
 
+import java.util.LinkedHashMap;
+import java.util.Map;
 import java.util.function.Function;
 
-@AllArgsConstructor
 public class DefaultCache implements io.fluxcapacitor.javaclient.common.caching.Cache {
 
-    private final Cache<String, Object> cache;
+    private final LinkedHashMap<String, Object> cache;
 
     public DefaultCache() {
-        this(CacheBuilder.newBuilder().maximumSize(1_000).build());
+        this(1_000);
+    }
+    
+    public DefaultCache(int maxSize) {
+        cache = new LinkedHashMap<String, Object>() {
+            @Override
+            protected boolean removeEldestEntry(Map.Entry eldest) {
+                return size() > maxSize;
+            }
+        };
     }
 
     @Override
@@ -39,22 +46,22 @@ public class DefaultCache implements io.fluxcapacitor.javaclient.common.caching.
     @Override
     @SneakyThrows
     public <T> T get(String id, Function<? super String, T> mappingFunction) {
-        return (T) cache.get(id, () -> mappingFunction.apply(id));
+        return (T) cache.computeIfAbsent(id, mappingFunction);
     }
 
     @Override
     @SuppressWarnings("unchecked")
     public <T> T getIfPresent(String id) {
-        return (T) cache.getIfPresent(id);
+        return (T) cache.get(id);
     }
 
     @Override
     public void invalidate(String id) {
-        cache.invalidate(id);
+        cache.remove(id);
     }
 
     @Override
     public void invalidateAll() {
-        cache.invalidateAll();
+        cache.clear();
     }
 }
