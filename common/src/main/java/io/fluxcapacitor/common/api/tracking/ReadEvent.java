@@ -25,7 +25,7 @@ public class ReadEvent implements ClientEvent {
 
     String log;
     String consumer;
-    int channel;
+    String trackerId;
     int maxSize;
     long maxTimeout;
 

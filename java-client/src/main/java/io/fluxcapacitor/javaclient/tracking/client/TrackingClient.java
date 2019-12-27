@@ -27,12 +27,12 @@ import java.util.concurrent.CompletableFuture;
 public interface TrackingClient extends AutoCloseable {
 
     @SneakyThrows
-    default MessageBatch readAndWait(String consumer, int channel, int maxSize, Duration maxTimeout, String typeFilter,
-                             boolean ignoreMessageTarget, TrackingStrategy strategy) {
-        return read(consumer, channel, maxSize, maxTimeout, typeFilter, ignoreMessageTarget, strategy).get();
+    default MessageBatch readAndWait(String consumer, String trackerId, int maxSize, Duration maxTimeout, 
+                                     String typeFilter, boolean ignoreMessageTarget, TrackingStrategy strategy) {
+        return read(consumer, trackerId, maxSize, maxTimeout, typeFilter, ignoreMessageTarget, strategy).get();
     }
     
-    CompletableFuture<MessageBatch> read(String consumer, int channel, int maxSize, Duration maxTimeout,
+    CompletableFuture<MessageBatch> read(String consumer, String trackerId, int maxSize, Duration maxTimeout,
                                          String typeFilter, boolean ignoreMessageTarget, TrackingStrategy strategy);
     
     List<SerializedMessage> readFromIndex(long minIndex, int maxSize);
@@ -41,7 +41,7 @@ public interface TrackingClient extends AutoCloseable {
 
     Awaitable resetPosition(String consumer, long lastIndex);
     
-    Awaitable disconnectTracker(String consumer, int channel);
+    Awaitable disconnectTracker(String consumer, String trackerId);
 
     @Override
     void close();

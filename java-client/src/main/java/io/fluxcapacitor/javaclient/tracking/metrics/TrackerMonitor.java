@@ -27,7 +27,7 @@ public class TrackerMonitor implements BatchInterceptor {
             try {
                 publishMetrics(new ProcessBatchEvent(
                         FluxCapacitor.get().client().name(), FluxCapacitor.get().client().id(), tracker.getName(),
-                        tracker.getChannel(), batch.getSize(), nsDuration));
+                        tracker.getTrackerId(), batch.getLastIndex(), batch.getSize(), nsDuration));
             } catch (Exception e) {
                 log.error("Failed to publish consumer metrics", e);
             }

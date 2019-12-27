@@ -55,7 +55,7 @@ class BatchInterceptorTest {
             }
         };
         Consumer<MessageBatch> invocation = BatchInterceptor
-                .join(Arrays.asList(outerInterceptor, innerInterceptor)).intercept(function, new Tracker("test", 0));
+                .join(Arrays.asList(outerInterceptor, innerInterceptor)).intercept(function, new Tracker("test", "0"));
         assertEquals(emptyList(), invokedInstances);
         invocation.accept(new MessageBatch(new int[]{0, 1}, emptyList(), 0L));
         assertEquals(Arrays.asList(outerInterceptor, innerInterceptor, function), invokedInstances);

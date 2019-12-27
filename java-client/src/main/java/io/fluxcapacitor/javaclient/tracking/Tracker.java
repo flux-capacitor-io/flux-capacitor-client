@@ -5,5 +5,5 @@ import lombok.Value;
 @Value
 public class Tracker {
     String name;
-    int channel;
+    String trackerId;
 }

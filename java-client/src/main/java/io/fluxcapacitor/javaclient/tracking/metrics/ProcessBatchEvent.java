@@ -10,7 +10,8 @@ public class ProcessBatchEvent implements ClientEvent {
     long timestamp = System.currentTimeMillis();
 
     String consumer;
-    int channel;
+    String trackerId;
+    Long lastIndex;
     int batchSize;
     long nanosecondDuration;
 

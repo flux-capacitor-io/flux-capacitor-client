@@ -19,6 +19,7 @@ import io.fluxcapacitor.common.api.SerializedMessage;
 import io.fluxcapacitor.javaclient.tracking.TrackingConfiguration;
 
 import java.util.List;
+import java.util.UUID;
 import java.util.concurrent.ExecutorService;
 import java.util.function.Consumer;
 import java.util.stream.IntStream;
@@ -45,7 +46,8 @@ public class TrackingUtils {
     public static Registration start(String consumerName, Consumer<List<SerializedMessage>> consumer,
                                      TrackingClient trackingClient, TrackingConfiguration configuration) {
         List<DefaultTracker> instances = IntStream.range(0, configuration.getThreads())
-                .mapToObj(i -> new DefaultTracker(consumerName, i, configuration, consumer, trackingClient))
+                .mapToObj(i -> new DefaultTracker(consumerName, UUID.randomUUID().toString(), 
+                                                  configuration, consumer, trackingClient))
                 .collect(toList());
         ExecutorService executor = newFixedThreadPool(configuration.getThreads());
         instances.forEach(executor::submit);

@@ -25,5 +25,5 @@ public class DisconnectTrackerEvent implements ClientEvent {
 
     String log;
     String consumer;
-    int channel;
+    String trackerId;
 }

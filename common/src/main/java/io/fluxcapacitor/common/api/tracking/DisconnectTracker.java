@@ -20,5 +20,5 @@ import lombok.Value;
 @Value
 public class DisconnectTracker implements JsonType {
     String consumer;
-    int channel;
+    String trackerId;
 }

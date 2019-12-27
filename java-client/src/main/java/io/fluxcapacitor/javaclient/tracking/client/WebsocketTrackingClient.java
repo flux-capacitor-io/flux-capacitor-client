@@ -47,11 +47,12 @@ public class WebsocketTrackingClient extends AbstractWebsocketClient implements 
     }
 
     @Override
-    public CompletableFuture<MessageBatch> read(String consumer, int channel, int maxSize, Duration maxTimeout,
+    public CompletableFuture<MessageBatch> read(String consumer, String trackerId, int maxSize, Duration maxTimeout,
                                                 String typeFilter, boolean ignoreMessageTarget,
                                                 TrackingStrategy strategy) {
         CompletableFuture<ReadResult> readResult = sendRequest(new Read(
-                consumer, channel, maxSize, maxTimeout.toMillis(), typeFilter, ignoreMessageTarget, strategy));
+                consumer, trackerId, maxSize, maxTimeout.toMillis(), typeFilter, 
+                ignoreMessageTarget, strategy));
         return readResult.thenApply(ReadResult::getMessageBatch);
     }
 
@@ -72,8 +73,8 @@ public class WebsocketTrackingClient extends AbstractWebsocketClient implements 
     }
 
     @Override
-    public Awaitable disconnectTracker(String consumer, int channel) {
-        return send(new DisconnectTracker(consumer, channel));
+    public Awaitable disconnectTracker(String consumer, String trackerId) {
+        return send(new DisconnectTracker(consumer, trackerId));
     }
 
     @Override

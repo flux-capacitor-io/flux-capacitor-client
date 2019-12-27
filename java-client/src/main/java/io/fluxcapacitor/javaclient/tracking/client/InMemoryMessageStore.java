@@ -43,6 +43,7 @@ public class InMemoryMessageStore implements GatewayClient, TrackingClient {
 
     private final AtomicLong nextIndex = new AtomicLong();
     private final ConcurrentSkipListMap<Long, SerializedMessage> messageLog = new ConcurrentSkipListMap<>();
+    private final Map<String, String> trackers = new ConcurrentHashMap<>();
     private final Map<String, Long> consumerTokens = new ConcurrentHashMap<>();
     private final List<Consumer<SerializedMessage>> monitors = new CopyOnWriteArrayList<>();
 
@@ -62,9 +63,9 @@ public class InMemoryMessageStore implements GatewayClient, TrackingClient {
     }
 
     @Override
-    public MessageBatch readAndWait(String consumer, int channel, int maxSize, Duration maxTimeout, String typeFilter,
+    public MessageBatch readAndWait(String consumer, String trackerId, int maxSize, Duration maxTimeout, String typeFilter,
                                     boolean ignoreMessageTarget, TrackingStrategy strategy) {
-        if (channel != 0) {
+        if (!trackerId.equals(trackers.computeIfAbsent(consumer, c -> trackerId))) {
             return new MessageBatch(new int[]{0, 1}, Collections.emptyList(), null);
         }
         long deadline = System.currentTimeMillis() + maxTimeout.toMillis();
@@ -89,10 +90,10 @@ public class InMemoryMessageStore implements GatewayClient, TrackingClient {
     }
 
     @Override
-    public CompletableFuture<MessageBatch> read(String consumer, int channel, int maxSize, Duration maxTimeout,
+    public CompletableFuture<MessageBatch> read(String consumer, String trackerId, int maxSize, Duration maxTimeout,
                                                 String typeFilter, boolean ignoreMessageTarget,
                                                 TrackingStrategy strategy) {
-        return CompletableFuture.completedFuture(readAndWait(consumer, channel, maxSize, maxTimeout, typeFilter, ignoreMessageTarget, strategy));
+        return CompletableFuture.completedFuture(readAndWait(consumer, trackerId, maxSize, maxTimeout, typeFilter, ignoreMessageTarget, strategy));
     }
 
     @Override
@@ -117,7 +118,8 @@ public class InMemoryMessageStore implements GatewayClient, TrackingClient {
     }
 
     @Override
-    public Awaitable disconnectTracker(String consumer, int channel) {
+    public Awaitable disconnectTracker(String consumer, String trackerId) {
+        trackers.remove(consumer, trackerId);
         return Awaitable.ready();
     }
 

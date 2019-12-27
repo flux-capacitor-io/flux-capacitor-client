@@ -11,6 +11,7 @@ public class HandleMessageEvent implements ClientEvent {
 
     String consumer;
     String handler;
+    Long messageIndex;
     String payloadType;
     boolean exceptionalResult;
     long nanosecondDuration;

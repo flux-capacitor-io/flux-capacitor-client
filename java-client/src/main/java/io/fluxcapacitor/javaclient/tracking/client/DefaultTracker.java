@@ -35,7 +35,7 @@ import static java.lang.Thread.currentThread;
  * A tracker keeps reading messages until it is stopped (generally only when the application is shut down).
  * <p>
  * A tracker is always running in a single thread. To balance the processing load over multiple threads create multiple
- * trackers with the same name but different channel.
+ * trackers with the same name but different tracker id.
  * <p>
  * Trackers with different names will receive the same messages. Trackers with the same name will not. (Flux Capacitor
  * will load balance between trackers with the same name).
@@ -56,7 +56,7 @@ import static java.lang.Thread.currentThread;
 public class DefaultTracker implements Runnable, Registration {
 
     private final String name;
-    private final int channel;
+    private final String trackerId;
     private final TrackingConfiguration configuration;
     private final Consumer<MessageBatch> processor;
     private final Consumer<List<SerializedMessage>> consumer;
@@ -66,13 +66,13 @@ public class DefaultTracker implements Runnable, Registration {
     private final AtomicReference<Thread> thread = new AtomicReference<>();
     private volatile boolean processing;
 
-    public DefaultTracker(String name, int channel, TrackingConfiguration configuration,
+    public DefaultTracker(String name, String trackerId, TrackingConfiguration configuration,
                           Consumer<List<SerializedMessage>> consumer, TrackingClient trackingClient) {
         this.name = name;
-        this.channel = channel;
+        this.trackerId = trackerId;
         this.configuration = configuration;
         this.processor =
-                join(configuration.getBatchInterceptors()).intercept(this::processAll, new Tracker(name, channel));
+                join(configuration.getBatchInterceptors()).intercept(this::processAll, new Tracker(name, trackerId));
         this.consumer = consumer;
         this.trackingClient = trackingClient;
     }
@@ -117,7 +117,7 @@ public class DefaultTracker implements Runnable, Registration {
 
     protected MessageBatch fetch() {
         return retryOnFailure(() -> trackingClient.readAndWait(
-                name, channel, configuration.getMaxFetchBatchSize(), configuration.getMaxWaitDuration(),
+                name, trackerId, configuration.getMaxFetchBatchSize(), configuration.getMaxWaitDuration(),
                 configuration.getTypeFilter(), configuration.ignoreMessageTarget(),
                 configuration.getReadStrategy()), configuration.getRetryDelay(), e -> running.get());
     }

@@ -35,6 +35,7 @@ public class HandlerMonitor implements HandlerInterceptor {
             FluxCapacitor.publishMetrics(
                     new HandleMessageEvent(FluxCapacitor.get().client().name(), FluxCapacitor.get().client().id(),
                                            consumer, handler.getTarget().getClass().getSimpleName(),
+                                           message.getSerializedObject().getIndex(),
                                            message.getPayloadClass().getSimpleName(), exceptionalResult, nsDuration));
         } catch (Exception e) {
             log.error("Failed to publish handler metrics", e);

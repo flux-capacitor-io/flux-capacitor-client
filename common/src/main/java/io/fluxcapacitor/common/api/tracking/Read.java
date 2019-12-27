@@ -22,7 +22,7 @@ import lombok.Value;
 @EqualsAndHashCode(callSuper = true)
 public class Read extends Request {
     String consumer;
-    int channel;
+    String trackerId;
     int maxSize;
     long maxTimeout;
     String typeFilter;
