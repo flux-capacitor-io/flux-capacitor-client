@@ -20,7 +20,7 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.function.Function;
 
-public class DefaultCache implements io.fluxcapacitor.javaclient.common.caching.Cache {
+public class DefaultCache implements Cache {
 
     private final LinkedHashMap<String, Object> cache;
 
@@ -42,11 +42,15 @@ public class DefaultCache implements io.fluxcapacitor.javaclient.common.caching.
         cache.put(id, value);
     }
 
-    @SuppressWarnings("unchecked")
     @Override
     @SneakyThrows
     public <T> T get(String id, Function<? super String, T> mappingFunction) {
-        return (T) cache.computeIfAbsent(id, mappingFunction);
+        T result = getIfPresent(id);
+        if (result == null) {
+            result = mappingFunction.apply(id);
+            cache.putIfAbsent(id, result);
+        }
+        return result;
     }
 
     @Override
