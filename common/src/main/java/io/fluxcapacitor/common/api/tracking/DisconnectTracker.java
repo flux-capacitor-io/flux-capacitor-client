@@ -21,4 +21,5 @@ import lombok.Value;
 public class DisconnectTracker implements JsonType {
     String consumer;
     String trackerId;
+    boolean sendFinalEmptyBatch;
 }

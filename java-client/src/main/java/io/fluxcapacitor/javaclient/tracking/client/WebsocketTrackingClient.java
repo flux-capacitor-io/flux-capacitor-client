@@ -73,8 +73,8 @@ public class WebsocketTrackingClient extends AbstractWebsocketClient implements 
     }
 
     @Override
-    public Awaitable disconnectTracker(String consumer, String trackerId) {
-        return send(new DisconnectTracker(consumer, trackerId));
+    public Awaitable disconnectTracker(String consumer, String trackerId, boolean sendFinalEmptyBatch) {
+        return send(new DisconnectTracker(consumer, trackerId, sendFinalEmptyBatch));
     }
 
     @Override

@@ -118,7 +118,7 @@ public class InMemoryMessageStore implements GatewayClient, TrackingClient {
     }
 
     @Override
-    public Awaitable disconnectTracker(String consumer, String trackerId) {
+    public Awaitable disconnectTracker(String consumer, String trackerId, boolean sendFinalEmptyBatch) {
         trackers.remove(consumer, trackerId);
         return Awaitable.ready();
     }
