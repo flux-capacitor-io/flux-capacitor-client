@@ -67,9 +67,7 @@ class DefaultEventSourcingTest {
 
     @Test
     void testModelIsLoadedFromCacheWhenPossible() {
-        when(eventStore.getDomainEvents(eq(modelId), anyLong()))
-                .thenReturn(eventStreamOf(new CreateModel(), new UpdateModel()));
-        subject.load(modelId, TestModel.class);
+        prepareSubjectForHandling().apply(new Message(new CreateModel(), EVENT));
         reset(eventStore);
         subject.load(modelId, TestModel.class);
         verifyNoMoreInteractions(eventStore);

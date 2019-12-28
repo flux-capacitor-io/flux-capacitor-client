@@ -19,11 +19,11 @@ import io.fluxcapacitor.common.api.SerializedMessage;
 import io.fluxcapacitor.common.api.eventsourcing.EventBatch;
 import io.fluxcapacitor.javaclient.tracking.client.InMemoryMessageStore;
 
-import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.stream.Stream;
 
 public class InMemoryEventStoreClient extends InMemoryMessageStore implements EventStoreClient {
@@ -35,7 +35,7 @@ public class InMemoryEventStoreClient extends InMemoryMessageStore implements Ev
                                  List<SerializedMessage> events) {
         domainEvents.compute(aggregateId, (id, list) -> {
             if (list == null) {
-                list = new ArrayList<>();
+                list = new CopyOnWriteArrayList<>();
             }
             list.add(new EventBatch(aggregateId, domain, lastSequenceNumber, events));
             return list;

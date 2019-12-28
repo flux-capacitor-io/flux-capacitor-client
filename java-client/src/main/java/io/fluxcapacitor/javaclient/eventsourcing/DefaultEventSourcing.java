@@ -152,8 +152,9 @@ public class DefaultEventSourcing implements EventSourcing, HandlerInterceptor {
         private Aggregate<T> aggregate;
 
         protected void initialize() {
-            aggregate = cache.get(id, i -> {
-                Aggregate<T> aggregate = snapshotRepository.<T>getSnapshot(id).orElse(new Aggregate<>(id, -1L, null));
+            aggregate = Optional.<Aggregate<T>>ofNullable(cache.getIfPresent(id)).orElseGet(() -> {
+                Aggregate<T> aggregate = snapshotRepository.<T>getSnapshot(id)
+                        .orElse(new Aggregate<>(id, -1L, null));
                 for (DeserializingMessage event : eventStore.getDomainEvents(id, aggregate.getSequenceNumber())
                         .collect(toList())) {
                     aggregate = aggregate.update(m -> {
