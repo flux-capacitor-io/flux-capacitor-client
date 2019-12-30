@@ -91,6 +91,7 @@ import java.util.HashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Properties;
 import java.util.Set;
@@ -105,6 +106,7 @@ import static io.fluxcapacitor.common.MessageType.QUERY;
 import static io.fluxcapacitor.common.MessageType.RESULT;
 import static io.fluxcapacitor.common.MessageType.SCHEDULE;
 import static java.lang.Runtime.getRuntime;
+import static java.lang.String.format;
 import static java.util.Arrays.stream;
 import static java.util.Collections.singletonList;
 import static java.util.Collections.unmodifiableMap;
@@ -218,7 +220,7 @@ public class DefaultFluxCapacitor implements FluxCapacitor {
 
         protected List<ParameterResolver<? super DeserializingMessage>> defaultHandlerParameterResolvers() {
             return new ArrayList<>(Arrays.asList(new PayloadParameterResolver(), new MetadataParameterResolver(),
-                                                 new DeserializingMessageParameterResolver(), 
+                                                 new DeserializingMessageParameterResolver(),
                                                  new MessageParameterResolver()));
         }
 
@@ -247,13 +249,25 @@ public class DefaultFluxCapacitor implements FluxCapacitor {
                                                 UnaryOperator<ConsumerConfiguration> updateFunction) {
             List<ConsumerConfiguration> configurations = consumerConfigurations.get(messageType);
             ConsumerConfiguration defaultConfiguration = configurations.get(configurations.size() - 1);
-            configurations.set(configurations.size() - 1, updateFunction.apply(defaultConfiguration));
+            ConsumerConfiguration updatedConfiguration = updateFunction.apply(defaultConfiguration);
+            if (configurations.subList(0, configurations.size() - 1).stream()
+                    .map(ConsumerConfiguration::getName)
+                    .anyMatch(n -> Objects.equals(n, updatedConfiguration.getName()))) {
+                throw new IllegalArgumentException(
+                        format("Consumer name %s is already in use", updatedConfiguration.getName()));
+            }
+            configurations.set(configurations.size() - 1, updatedConfiguration);
             return this;
         }
 
         @Override
         public Builder addConsumerConfiguration(MessageType messageType, ConsumerConfiguration consumerConfiguration) {
             List<ConsumerConfiguration> configurations = consumerConfigurations.get(messageType);
+            if (configurations.stream().map(ConsumerConfiguration::getName)
+                    .anyMatch(n -> Objects.equals(n, consumerConfiguration.getName()))) {
+                throw new IllegalArgumentException(
+                        format("Consumer name %s is already in use", consumerConfiguration.getName()));
+            }
             configurations.add(configurations.size() - 1, consumerConfiguration);
             return this;
         }
@@ -373,7 +387,8 @@ public class DefaultFluxCapacitor implements FluxCapacitor {
             //enable command and query validation
             if (!disablePayloadValidation) {
                 Stream.of(COMMAND, QUERY)
-                        .forEach(type -> handlerInterceptors.compute(type, (t, i) -> i.merge(new ValidatingInterceptor())));
+                        .forEach(type -> handlerInterceptors
+                                .compute(type, (t, i) -> i.merge(new ValidatingInterceptor())));
             }
 
             //collect metrics about consumers and handlers
@@ -466,7 +481,7 @@ public class DefaultFluxCapacitor implements FluxCapacitor {
             if (collectApplicationMetrics) {
                 ApplicationMonitor.start(fluxCapacitor, Duration.ofSeconds(1));
             }
-            
+
             //perform a controlled shutdown when the vm exits
             if (!disableShutdownHook) {
                 getRuntime().addShutdownHook(new Thread(() -> {
@@ -476,7 +491,7 @@ public class DefaultFluxCapacitor implements FluxCapacitor {
                     log.info("Completed shutdown");
                 }));
             }
-            
+
             return fluxCapacitor;
         }
 
