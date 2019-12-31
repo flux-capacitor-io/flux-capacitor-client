@@ -32,6 +32,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CopyOnWriteArrayList;
 
 import static java.lang.String.format;
+import static java.util.concurrent.CompletableFuture.completedFuture;
 
 @AllArgsConstructor
 public class DefaultGenericGateway implements RequestGateway {
@@ -86,8 +87,16 @@ public class DefaultGenericGateway implements RequestGateway {
                 DeserializingMessage.setCurrent(deserializingMessage);
                 for (Handler<DeserializingMessage> handler : localHandlers) {
                     if (handler.canHandle(deserializingMessage)) {
-                        return CompletableFuture
-                                .completedFuture(new Message(handler.invoke(deserializingMessage), messageType));
+                        try {
+                            Object result = handler.invoke(deserializingMessage);
+                            return result instanceof CompletableFuture<?> ?
+                                    ((CompletableFuture<?>) result).thenApply(r -> new Message(r, MessageType.RESULT)) :
+                                    completedFuture(new Message(result, MessageType.RESULT));
+                        } catch (Exception e) {
+                            CompletableFuture<Message> result = new CompletableFuture<>();
+                            result.completeExceptionally(e);
+                            return result;
+                        }
                     }
                 }
             } finally {

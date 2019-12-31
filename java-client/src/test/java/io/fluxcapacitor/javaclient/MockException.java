@@ -1,6 +1,8 @@
 package io.fluxcapacitor.javaclient;
 
-public class MockException extends RuntimeException {
+import io.fluxcapacitor.javaclient.common.exception.FunctionalException;
+
+public class MockException extends FunctionalException {
 
     public MockException() {
     }

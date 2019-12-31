@@ -19,11 +19,13 @@ import io.fluxcapacitor.javaclient.FluxCapacitor;
 import io.fluxcapacitor.javaclient.common.Message;
 import io.fluxcapacitor.javaclient.configuration.DefaultFluxCapacitor;
 import io.fluxcapacitor.javaclient.configuration.FluxCapacitorBuilder;
+import lombok.SneakyThrows;
 
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
 import java.util.function.Function;
 
 public class TestFixture extends AbstractTestFixture {
@@ -77,7 +79,12 @@ public class TestFixture extends AbstractTestFixture {
     }
 
     @Override
+    @SneakyThrows
     protected Object getDispatchResult(CompletableFuture<?> dispatchResult) {
-        return dispatchResult.getNow(null);
+        try {
+            return dispatchResult.getNow(null);
+        } catch (CompletionException e) {
+            throw e.getCause();
+        }
     }
 }
