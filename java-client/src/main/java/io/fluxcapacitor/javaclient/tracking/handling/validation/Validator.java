@@ -18,17 +18,17 @@ import java.util.Optional;
 
 @FunctionalInterface
 public interface Validator {
-    <T> Optional<ValidationException> checkValidity(T object, Class<?>... group);
+    <T> Optional<ValidationException> checkValidity(T object, Class<?>... groups);
 
 
-    default <T> T assertValid(T object, Class<?>... group) throws ValidationException {
-        checkValidity(object, group).ifPresent(e -> {
+    default <T> T assertValid(T object, Class<?>... groups) throws ValidationException {
+        checkValidity(object, groups).ifPresent(e -> {
             throw e;
         });
         return object;
     }
 
-    default boolean isValid(Object object, Class<?>... group) {
-        return !checkValidity(object, group).isPresent();
+    default boolean isValid(Object object, Class<?>... groups) {
+        return !checkValidity(object, groups).isPresent();
     }
 }
