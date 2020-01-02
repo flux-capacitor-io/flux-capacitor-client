@@ -19,7 +19,6 @@ import io.fluxcapacitor.common.api.SerializedMessage;
 import io.fluxcapacitor.javaclient.tracking.TrackingConfiguration;
 
 import java.util.List;
-import java.util.UUID;
 import java.util.concurrent.ExecutorService;
 import java.util.function.Consumer;
 import java.util.stream.IntStream;
@@ -33,20 +32,20 @@ import static java.util.stream.Collectors.toList;
  */
 public class TrackingUtils {
 
-    public static Registration start(String name, TrackingClient trackingClient,
+    public static Registration start(String consumerName, TrackingClient trackingClient,
                                      Consumer<List<SerializedMessage>> consumer) {
-        return start(name, consumer, trackingClient, TrackingConfiguration.DEFAULT);
+        return start(consumerName, consumer, trackingClient, TrackingConfiguration.DEFAULT);
     }
 
-    public static Registration start(String name, int threads, TrackingClient trackingClient,
+    public static Registration start(String consumerName, int threads, TrackingClient trackingClient,
                                      Consumer<List<SerializedMessage>> consumer) {
-        return start(name, consumer, trackingClient, TrackingConfiguration.builder().threads(threads).build());
+        return start(consumerName, consumer, trackingClient, TrackingConfiguration.builder().threads(threads).build());
     }
 
     public static Registration start(String consumerName, Consumer<List<SerializedMessage>> consumer,
                                      TrackingClient trackingClient, TrackingConfiguration configuration) {
         List<DefaultTracker> instances = IntStream.range(0, configuration.getThreads())
-                .mapToObj(i -> new DefaultTracker(consumerName, UUID.randomUUID().toString(), 
+                .mapToObj(i -> new DefaultTracker(consumerName, configuration.getTrackerIdFactory().get(), 
                                                   configuration, consumer, trackingClient))
                 .collect(toList());
         ExecutorService executor = newFixedThreadPool(configuration.getThreads());

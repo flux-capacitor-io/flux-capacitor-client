@@ -23,6 +23,8 @@ import lombok.experimental.Accessors;
 
 import java.time.Duration;
 import java.util.List;
+import java.util.UUID;
+import java.util.function.Supplier;
 
 @Value
 @Builder(builderClassName = "Builder", toBuilder = true)
@@ -49,4 +51,6 @@ public class TrackingConfiguration {
     boolean ignoreMessageTarget = false;
     @Default
     TrackingStrategy readStrategy = TrackingStrategy.NEW;
+    @Default
+    Supplier<String> trackerIdFactory = () -> UUID.randomUUID().toString();
 }

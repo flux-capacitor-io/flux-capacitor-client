@@ -18,6 +18,7 @@ import io.fluxcapacitor.javaclient.tracking.client.TrackingUtils;
 import io.fluxcapacitor.javaclient.tracking.handling.HandlerInterceptor;
 import lombok.AllArgsConstructor;
 import lombok.SneakyThrows;
+import lombok.Synchronized;
 import lombok.extern.slf4j.Slf4j;
 
 import java.lang.annotation.Annotation;
@@ -34,6 +35,7 @@ import java.util.Set;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
+import java.util.function.Supplier;
 import java.util.stream.Stream;
 
 import static io.fluxcapacitor.common.handling.HandlerInspector.createHandlers;
@@ -56,24 +58,23 @@ public class DefaultTracking implements Tracking {
     private final AtomicReference<Registration> shutdownFunction = new AtomicReference<>(Registration.noOp());
 
     @Override
+    @Synchronized
     public Registration start(FluxCapacitor fluxCapacitor, List<?> handlers) {
-        synchronized (this) {
-            Map<ConsumerConfiguration, List<Object>> consumers = handlers.stream()
-                    .filter(h -> HandlerInspector.hasHandlerMethods(h.getClass(), handlerAnnotation))
-                    .collect(groupingBy(h -> configurations.stream()
-                            .filter(config -> config.getHandlerFilter().test(h)).findFirst()
-                            .orElseThrow(() -> new TrackingException(format("Failed to find consumer for %s", h)))));
-            if (!Collections.disjoint(consumers.keySet(), startedConfigurations)) {
-                throw new TrackingException("Failed to start tracking. "
-                                                    + "Consumers for some handlers have already started tracking.");
-            }
-            startedConfigurations.addAll(consumers.keySet());
-            Registration registration =
-                    consumers.entrySet().stream().map(e -> startTracking(e.getKey(), e.getValue(), fluxCapacitor))
-                            .reduce(Registration::merge).orElse(Registration.noOp());
-            shutdownFunction.updateAndGet(registration::merge);
-            return registration;
+        Map<ConsumerConfiguration, List<Object>> consumers = handlers.stream()
+                .filter(h -> HandlerInspector.hasHandlerMethods(h.getClass(), handlerAnnotation))
+                .collect(groupingBy(h -> configurations.stream()
+                        .filter(config -> config.getHandlerFilter().test(h)).findFirst()
+                        .orElseThrow(() -> new TrackingException(format("Failed to find consumer for %s", h)))));
+        if (!Collections.disjoint(consumers.keySet(), startedConfigurations)) {
+            throw new TrackingException("Failed to start tracking. "
+                                                + "Consumers for some handlers have already started tracking.");
         }
+        startedConfigurations.addAll(consumers.keySet());
+        Registration registration =
+                consumers.entrySet().stream().map(e -> startTracking(e.getKey(), e.getValue(), fluxCapacitor))
+                        .reduce(Registration::merge).orElse(Registration.noOp());
+        shutdownFunction.updateAndGet(registration::merge);
+        return registration;
     }
 
     protected Registration startTracking(ConsumerConfiguration configuration, List<Object> handlers,
@@ -83,8 +84,11 @@ public class DefaultTracking implements Tracking {
                 Arrays.asList(new FluxCapacitorInterceptor(fluxCapacitor),
                               new CacheInvalidatingInterceptor(fluxCapacitor.eventSourcing())));
         batchInterceptors.addAll(configuration.getTrackingConfiguration().getBatchInterceptors());
+        Supplier<String> trackerIdFactory = configuration.getTrackingConfiguration().getTrackerIdFactory();
         TrackingConfiguration config = configuration.getTrackingConfiguration().toBuilder()
-                .clearBatchInterceptors().batchInterceptors(batchInterceptors).build();
+                .clearBatchInterceptors().batchInterceptors(batchInterceptors)
+                .trackerIdFactory(() -> format("%s_%s", fluxCapacitor.client().id(), trackerIdFactory.get()))
+                .build();
         String trackerName = configuration.prependApplicationName()
                 ? format("%s_%s", fluxCapacitor.client().name(), configuration.getName())
                 : configuration.getName();
@@ -118,7 +122,7 @@ public class DefaultTracking implements Tracking {
             }
         } catch (Exception e) {
             config.getErrorHandler()
-                    .handleError(e, format("Handler %s failed to handle a %s", handler, message), 
+                    .handleError(e, format("Handler %s failed to handle a %s", handler, message),
                                  () -> handle(message, handler, config));
         }
     }
@@ -145,19 +149,21 @@ public class DefaultTracking implements Tracking {
                     Object asyncResult = r;
                     if (e != null) {
                         if (!(e instanceof FunctionalException)) {
-                            asyncResult = new TechnicalException(format("Handler %s failed to handle a %s", handler, message));
+                            asyncResult = new TechnicalException(
+                                    format("Handler %s failed to handle a %s", handler, message));
                         }
                     }
                     try {
                         DeserializingMessage.setCurrent(message);
-                        resultGateway.respond(asyncResult, serializedMessage.getSource(), serializedMessage.getRequestId());
+                        resultGateway
+                                .respond(asyncResult, serializedMessage.getSource(), serializedMessage.getRequestId());
                         if (e != null) {
                             config.getErrorHandler().handleError((Exception) e, format(
-                                    "Handler %s failed to handle a %s", handler, message), 
+                                    "Handler %s failed to handle a %s", handler, message),
                                                                  () -> handle(message, handler, config));
                         }
                     } catch (Exception exc) {
-                        log.warn("Did not stop consumer {} after async handler {} failed to handle a {}", 
+                        log.warn("Did not stop consumer {} after async handler {} failed to handle a {}",
                                  config.getName(), handler, message, exc);
                     } finally {
                         DeserializingMessage.removeCurrent();
@@ -171,7 +177,7 @@ public class DefaultTracking implements Tracking {
             throw exception;
         }
     }
-    
+
     @SneakyThrows
     private boolean shouldSendResponse(Handler<DeserializingMessage> handler, DeserializingMessage message) {
         SerializedMessage serializedMessage = message.getSerializedObject();
@@ -189,6 +195,7 @@ public class DefaultTracking implements Tracking {
     }
 
     @Override
+    @Synchronized
     public void close() {
         shutdownFunction.get().cancel();
     }
