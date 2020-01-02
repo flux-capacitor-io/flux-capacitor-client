@@ -48,10 +48,10 @@ public class Jsr380Validator implements Validator {
 
     @Override
     @SuppressWarnings("unchecked")
-    public <T> Optional<ValidationException> checkValidity(T object) {
-        Collection<? extends ConstraintViolation<?>> violations = new LinkedHashSet<>(fieldValidator.validate(object));
+    public <T> Optional<ValidationException> checkValidity(T object, Class<?>... group) {
+        Collection<? extends ConstraintViolation<?>> violations = new LinkedHashSet<>(fieldValidator.validate(object, group));
         try {
-            violations.addAll((Collection) defaultValidator.validate(object));
+            violations.addAll((Collection) defaultValidator.validate(object, group));
         } catch (Exception e) {
             if (violations.isEmpty()) {
                 throw e;
