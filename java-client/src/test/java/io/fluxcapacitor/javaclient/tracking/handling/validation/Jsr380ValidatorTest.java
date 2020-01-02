@@ -64,7 +64,7 @@ class Jsr380ValidatorTest {
         ValidationException e =
                 assertThrows(ValidationException.class, () -> subject.assertValid(object, Group.class));
         assertEquals(1, e.getViolations().size());
-        assertEquals("aSpecialNumber must be greater than or equal to 5", e.getMessage());
+        assertEquals("aNumberWithGroupConstraint must be greater than or equal to 5", e.getMessage());
     }
 
     @Value
