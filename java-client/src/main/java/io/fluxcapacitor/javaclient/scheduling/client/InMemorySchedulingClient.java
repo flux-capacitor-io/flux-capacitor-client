@@ -1,7 +1,6 @@
 package io.fluxcapacitor.javaclient.scheduling.client;
 
 import io.fluxcapacitor.common.Awaitable;
-import io.fluxcapacitor.common.IndexUtils;
 import io.fluxcapacitor.common.api.SerializedMessage;
 import io.fluxcapacitor.common.api.scheduling.ScheduledMessage;
 import io.fluxcapacitor.common.api.tracking.MessageBatch;
@@ -13,7 +12,6 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.ConcurrentSkipListMap;
 
-import static io.fluxcapacitor.common.IndexUtils.timeFromIndex;
 import static io.fluxcapacitor.common.TimingUtils.isMissedDeadline;
 import static java.util.stream.Collectors.toList;
 
@@ -28,7 +26,7 @@ public class InMemorySchedulingClient extends InMemoryMessageStore implements Sc
                                                       readStrategy);
         List<SerializedMessage> messages = messageBatch.getMessages().stream()
                 .filter(m -> times.containsKey(m.getIndex()))
-                .filter(m -> isMissedDeadline(timeFromIndex(m.getIndex())))
+                .filter(m -> isMissedDeadline(m.getIndex()))
                 .collect(toList());
         Long lastIndex = messages.isEmpty() ? null : messages.get(messages.size() - 1).getIndex();
         if (typeFilter != null) {
@@ -46,7 +44,7 @@ public class InMemorySchedulingClient extends InMemoryMessageStore implements Sc
     @Override
     public Awaitable schedule(ScheduledMessage... schedules) {
         for (ScheduledMessage schedule : schedules) {
-            long index = IndexUtils.indexForCurrentTime();
+            long index = System.currentTimeMillis();
             while (times.putIfAbsent(index, schedule.getScheduleId()) != null) {
                 index++;
             }
