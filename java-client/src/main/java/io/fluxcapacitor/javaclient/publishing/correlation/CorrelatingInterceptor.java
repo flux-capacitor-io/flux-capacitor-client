@@ -18,24 +18,51 @@ import io.fluxcapacitor.common.MessageType;
 import io.fluxcapacitor.common.api.SerializedMessage;
 import io.fluxcapacitor.javaclient.common.Message;
 import io.fluxcapacitor.javaclient.common.serialization.DeserializingMessage;
+import io.fluxcapacitor.javaclient.configuration.client.Client;
 import io.fluxcapacitor.javaclient.publishing.DispatchInterceptor;
+import io.fluxcapacitor.javaclient.publishing.routing.RoutingKey;
 import lombok.AllArgsConstructor;
 
-import java.util.Collection;
-import java.util.Optional;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.function.Function;
+
+import static io.fluxcapacitor.common.reflection.ReflectionUtils.getAnnotatedPropertyValue;
 
 @AllArgsConstructor
 public class CorrelatingInterceptor implements DispatchInterceptor {
+    private final Client client;
+    private final String clientId;
+    private final String correlationId;
+    private final String traceId;
+    private final String trigger;
+    private final String triggerRoutingKey;
 
-    private final Collection<? extends CorrelationDataProvider> correlationDataProviders;
+    public CorrelatingInterceptor(Client client) {
+        this(client, "$clientId", "$correlationId", "$traceId", "$trigger", "$triggerRoutingKey");
+    }
 
     @Override
     public Function<Message, SerializedMessage> interceptDispatch(Function<Message, SerializedMessage> function,
                                                                   MessageType messageType) {
         return message -> {
-            Optional.ofNullable(DeserializingMessage.getCurrent()).ifPresent(currentMessage -> correlationDataProviders
-                    .forEach(p -> message.getMetadata().putAll(p.fromMessage(currentMessage))));
+            Map<String, String> result = new HashMap<>();
+            result.put(clientId, client.id());
+            DeserializingMessage currentMessage = DeserializingMessage.getCurrent();
+            if (currentMessage != null) {
+                Long index = currentMessage.getSerializedObject().getIndex();
+                if (index != null) {
+                    String correlationId = index.toString();
+                    result.put(this.correlationId, correlationId);
+                    result.put(traceId, currentMessage.getMetadata().getOrDefault(traceId, correlationId));
+                }
+                result.put(trigger, currentMessage.getSerializedObject().getData().getType());
+                if (currentMessage.isDeserialized()) {
+                    getAnnotatedPropertyValue(currentMessage.getPayload(), RoutingKey.class).map(Object::toString)
+                            .ifPresent(v -> result.put(triggerRoutingKey, v));
+                }
+            }
+            message.getMetadata().putAll(result);
             return function.apply(message);
         };
     }
