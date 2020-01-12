@@ -26,8 +26,7 @@ import io.fluxcapacitor.common.api.tracking.ResetPosition;
 import io.fluxcapacitor.common.api.tracking.StorePosition;
 import io.fluxcapacitor.common.api.tracking.TrackingStrategy;
 import io.fluxcapacitor.javaclient.common.websocket.AbstractWebsocketClient;
-import io.fluxcapacitor.javaclient.common.websocket.JsonDecoder;
-import io.fluxcapacitor.javaclient.common.websocket.JsonEncoder;
+import io.fluxcapacitor.javaclient.configuration.client.WebSocketClient.Properties;
 
 import javax.websocket.ClientEndpoint;
 import java.net.URI;
@@ -35,15 +34,15 @@ import java.time.Duration;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 
-@ClientEndpoint(encoders = JsonEncoder.class, decoders = JsonDecoder.class)
+@ClientEndpoint
 public class WebsocketTrackingClient extends AbstractWebsocketClient implements TrackingClient {
 
-    public WebsocketTrackingClient(String endPointUrl) {
-        this(URI.create(endPointUrl));
+    public WebsocketTrackingClient(String endPointUrl, Properties properties) {
+        this(URI.create(endPointUrl), properties);
     }
 
-    public WebsocketTrackingClient(URI endPointUri) {
-        super(endPointUri);
+    public WebsocketTrackingClient(URI endPointUri, Properties properties) {
+        super(endPointUri, properties);
     }
 
     @Override

@@ -39,10 +39,10 @@ public class HighLevelJavaClientRunner extends AbstractClientBenchmark {
 
     @Override
     protected void doSendCommand(String payload) {
-        fluxCapacitor.commandGateway().send(payload);
+        fluxCapacitor.commandGateway().sendAndForget(payload);
     }
 
-    @HandleCommand
+    @HandleCommand(passive = true)
     public void handleCommand(String command) {
         getCommandCountDownLatch().countDown();
     }

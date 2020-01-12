@@ -19,6 +19,7 @@ import io.fluxcapacitor.javaclient.configuration.client.WebSocketClient;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 
+import java.util.UUID;
 import java.util.concurrent.CountDownLatch;
 import java.util.stream.IntStream;
 
@@ -39,7 +40,8 @@ public abstract class AbstractClientBenchmark {
     }
 
     public AbstractClientBenchmark(int commandCount) {
-        this(commandCount, new WebSocketClient.Properties("benchmark", "ws://localhost:8080"));
+        this(commandCount, WebSocketClient.Properties.builder().name("benchmark-" + UUID.randomUUID())
+                     .serviceBaseUrl("ws://localhost:8081").build());
     }
 
     protected void testCommands() {

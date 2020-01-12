@@ -22,8 +22,7 @@ import io.fluxcapacitor.common.api.eventsourcing.EventBatch;
 import io.fluxcapacitor.common.api.eventsourcing.GetEvents;
 import io.fluxcapacitor.common.api.eventsourcing.GetEventsResult;
 import io.fluxcapacitor.javaclient.common.websocket.AbstractWebsocketClient;
-import io.fluxcapacitor.javaclient.common.websocket.JsonDecoder;
-import io.fluxcapacitor.javaclient.common.websocket.JsonEncoder;
+import io.fluxcapacitor.javaclient.configuration.client.WebSocketClient.Properties;
 
 import javax.websocket.ClientEndpoint;
 import java.net.URI;
@@ -32,22 +31,22 @@ import java.util.stream.Stream;
 
 import static io.fluxcapacitor.common.ObjectUtils.iterate;
 
-@ClientEndpoint(encoders = JsonEncoder.class, decoders = JsonDecoder.class)
+@ClientEndpoint
 public class WebSocketEventStoreClient extends AbstractWebsocketClient implements EventStoreClient {
 
     private final Backlog<EventBatch> backlog;
     private final int fetchBatchSize;
 
-    public WebSocketEventStoreClient(String endPointUrl) {
-        this(URI.create(endPointUrl), 1024, 1024);
+    public WebSocketEventStoreClient(String endPointUrl, Properties properties) {
+        this(URI.create(endPointUrl), 1024, 1024, properties);
     }
 
-    public WebSocketEventStoreClient(String endPointUrl, int backlogSize) {
-        this(URI.create(endPointUrl), backlogSize, 1024);
+    public WebSocketEventStoreClient(String endPointUrl, int backlogSize, Properties properties) {
+        this(URI.create(endPointUrl), backlogSize, 1024, properties);
     }
 
-    public WebSocketEventStoreClient(URI endPointUri, int backlogSize, int fetchBatchSize) {
-        super(endPointUri);
+    public WebSocketEventStoreClient(URI endPointUri, int backlogSize, int fetchBatchSize, Properties properties) {
+        super(endPointUri, properties);
         this.backlog = new Backlog<>(this::doSend, backlogSize);
         this.fetchBatchSize = fetchBatchSize;
     }

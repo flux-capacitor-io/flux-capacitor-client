@@ -18,18 +18,14 @@ import io.fluxcapacitor.common.MessageType;
 import io.fluxcapacitor.common.api.Data;
 import io.fluxcapacitor.common.api.Metadata;
 import io.fluxcapacitor.common.api.SerializedMessage;
-import io.fluxcapacitor.common.handling.Handler;
-import io.fluxcapacitor.common.handling.HandlerInspector;
 import io.fluxcapacitor.javaclient.common.websocket.ServiceUrlBuilder;
 import io.fluxcapacitor.javaclient.publishing.client.GatewayClient;
 import io.fluxcapacitor.javaclient.publishing.client.WebsocketGatewayClient;
 import io.fluxcapacitor.javaclient.tracking.client.TrackingUtils;
 import io.fluxcapacitor.javaclient.tracking.client.WebsocketTrackingClient;
-import io.fluxcapacitor.javaclient.tracking.handling.HandleCommand;
 import lombok.extern.slf4j.Slf4j;
 
 import java.time.Clock;
-import java.util.Collections;
 import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.CountDownLatch;
@@ -44,20 +40,17 @@ public class LowLevelJavaClientRunner extends AbstractClientBenchmark {
     }
 
     private final GatewayClient gatewayClient;
-    private final Handler<SerializedMessage> commandInvoker;
 
     public LowLevelJavaClientRunner(int commandCount) {
         super(commandCount);
 
         gatewayClient = new WebsocketGatewayClient(
-            ServiceUrlBuilder.producerUrl(MessageType.COMMAND, getClientProperties()));
+            ServiceUrlBuilder.producerUrl(MessageType.COMMAND, getClientProperties()), getClientProperties());
         TrackingUtils.start("javaClientRunner/command",
                             new WebsocketTrackingClient(
-                                  ServiceUrlBuilder.consumerUrl(MessageType.COMMAND, getClientProperties())),
+                                  ServiceUrlBuilder.consumerUrl(MessageType.COMMAND, getClientProperties()), getClientProperties()),
                             this::handleCommands);
-        commandInvoker =
-                HandlerInspector.createHandler(this, HandleCommand.class, Collections.singletonList(p -> m -> m));
-
+        
         CountDownLatch commandsSentCountdown = new CountDownLatch(commandCount);
         gatewayClient.registerMonitor(m -> {
             commandsSentCountdown.countDown();
@@ -72,16 +65,11 @@ public class LowLevelJavaClientRunner extends AbstractClientBenchmark {
         gatewayClient.send(new SerializedMessage(new Data<>(payload.getBytes(), String.class.getName(), 0), Metadata.empty(),
                                                  UUID.randomUUID().toString(), Clock.systemUTC().millis()));
     }
-
-    @HandleCommand
-    public void handleCommand(SerializedMessage command) {
-        getCommandCountDownLatch().countDown();
-    }
-
+    
     private void handleCommands(List<SerializedMessage> commands) {
         commands.forEach(m -> {
             try {
-                commandInvoker.invoke(m);
+                getCommandCountDownLatch().countDown();
             } catch (Exception e) {
                 log.error("Failed to handle command", e);
                 throw new IllegalStateException("Failed to handle command", e);

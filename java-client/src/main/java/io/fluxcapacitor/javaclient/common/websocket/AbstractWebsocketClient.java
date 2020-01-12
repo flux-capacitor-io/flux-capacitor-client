@@ -14,11 +14,14 @@
 
 package io.fluxcapacitor.javaclient.common.websocket;
 
+import com.fasterxml.jackson.databind.DeserializationFeature;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import io.fluxcapacitor.common.Awaitable;
 import io.fluxcapacitor.common.RetryConfiguration;
 import io.fluxcapacitor.common.api.JsonType;
 import io.fluxcapacitor.common.api.QueryResult;
 import io.fluxcapacitor.common.api.Request;
+import io.fluxcapacitor.javaclient.configuration.client.WebSocketClient.Properties;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import lombok.SneakyThrows;
@@ -26,12 +29,15 @@ import lombok.extern.slf4j.Slf4j;
 
 import javax.websocket.CloseReason;
 import javax.websocket.ContainerProvider;
+import javax.websocket.DecodeException;
+import javax.websocket.EncodeException;
 import javax.websocket.OnClose;
 import javax.websocket.OnError;
 import javax.websocket.OnMessage;
 import javax.websocket.Session;
 import javax.websocket.WebSocketContainer;
 import java.io.IOException;
+import java.io.OutputStream;
 import java.net.URI;
 import java.time.Duration;
 import java.util.Map;
@@ -41,26 +47,38 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import static io.fluxcapacitor.common.TimingUtils.retryOnFailure;
+import static io.fluxcapacitor.javaclient.common.serialization.compression.CompressionUtils.compress;
+import static io.fluxcapacitor.javaclient.common.serialization.compression.CompressionUtils.decompress;
+import static java.lang.String.format;
 import static java.lang.Thread.currentThread;
 import static java.lang.Thread.sleep;
 import static javax.websocket.CloseReason.CloseCodes.NO_STATUS_CODE;
 
 @Slf4j
 public abstract class AbstractWebsocketClient implements AutoCloseable {
+    public static final ObjectMapper defaultObjectMapper = new ObjectMapper()
+            .disable(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES);
+    
     private final WebSocketContainer container;
     private final URI endpointUri;
+    private final Properties properties;
+    private final ObjectMapper objectMapper;
     private final Map<Long, WebSocketRequest> requests = new ConcurrentHashMap<>();
     private final AtomicBoolean closed = new AtomicBoolean();
     private final RetryConfiguration retryConfig;
     private volatile Session session;
 
-    public AbstractWebsocketClient(URI endpointUri) {
-        this(ContainerProvider.getWebSocketContainer(), endpointUri, Duration.ofSeconds(1));
+    public AbstractWebsocketClient(URI endpointUri, Properties properties) {
+        this(ContainerProvider.getWebSocketContainer(), endpointUri, properties, Duration.ofSeconds(1),
+             defaultObjectMapper);
     }
 
-    public AbstractWebsocketClient(WebSocketContainer container, URI endpointUri, Duration reconnectDelay) {
+    public AbstractWebsocketClient(WebSocketContainer container, URI endpointUri,
+                                   Properties properties, Duration reconnectDelay, ObjectMapper objectMapper) {
         this.container = container;
         this.endpointUri = endpointUri;
+        this.properties = properties;
+        this.objectMapper = objectMapper;
         this.retryConfig = RetryConfiguration.builder()
                 .delay(reconnectDelay)
                 .errorTest(e -> !closed.get())
@@ -77,7 +95,12 @@ public abstract class AbstractWebsocketClient implements AutoCloseable {
 
     @SneakyThrows
     protected Awaitable send(Object object) {
-        getSession().getBasicRemote().sendObject(object);
+        try (OutputStream outputStream = getSession().getBasicRemote().getSendStream()) {
+            byte[] bytes = objectMapper.writeValueAsBytes(object);
+            outputStream.write(compress(bytes, properties.getCompression()));
+        } catch (Exception e) {
+            throw new EncodeException(object, format("Could not convert %s to json", object), e);
+        }
         return Awaitable.ready();
     }
 
@@ -106,7 +129,14 @@ public abstract class AbstractWebsocketClient implements AutoCloseable {
     }
 
     @OnMessage
-    public void onMessage(JsonType value) {
+    @SneakyThrows
+    public void onMessage(byte[] bytes) {
+        JsonType value;
+        try {
+            value = objectMapper.readValue(decompress(bytes, properties.getCompression()), JsonType.class);
+        } catch (Exception e) {
+            throw new DecodeException("", "Could not parse input. Expected a Json message.", e);
+        }
         QueryResult readResult = (QueryResult) value;
         WebSocketRequest webSocketRequest = requests.remove(readResult.getRequestId());
         if (webSocketRequest == null) {

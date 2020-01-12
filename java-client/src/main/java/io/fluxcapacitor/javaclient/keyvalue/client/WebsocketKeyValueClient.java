@@ -25,8 +25,7 @@ import io.fluxcapacitor.common.api.keyvalue.KeyValuePair;
 import io.fluxcapacitor.common.api.keyvalue.StoreValues;
 import io.fluxcapacitor.common.api.keyvalue.StoreValuesAndWait;
 import io.fluxcapacitor.javaclient.common.websocket.AbstractWebsocketClient;
-import io.fluxcapacitor.javaclient.common.websocket.JsonDecoder;
-import io.fluxcapacitor.javaclient.common.websocket.JsonEncoder;
+import io.fluxcapacitor.javaclient.configuration.client.WebSocketClient.Properties;
 import lombok.extern.slf4j.Slf4j;
 
 import javax.websocket.ClientEndpoint;
@@ -36,17 +35,17 @@ import java.util.List;
 import static java.util.Collections.singletonList;
 
 @Slf4j
-@ClientEndpoint(encoders = JsonEncoder.class, decoders = JsonDecoder.class)
+@ClientEndpoint
 public class WebsocketKeyValueClient extends AbstractWebsocketClient implements KeyValueClient {
 
     private final Backlog<KeyValuePair> backlog;
 
-    public WebsocketKeyValueClient(String endPointUrl) {
-        this(URI.create(endPointUrl));
+    public WebsocketKeyValueClient(String endPointUrl, Properties properties) {
+        this(URI.create(endPointUrl), properties);
     }
 
-    public WebsocketKeyValueClient(URI endpointUri) {
-        super(endpointUri);
+    public WebsocketKeyValueClient(URI endpointUri, Properties properties) {
+        super(endpointUri, properties);
         backlog = new Backlog<>(this::storeValues);
     }
 

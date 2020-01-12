@@ -45,14 +45,16 @@ public class ServiceUrlBuilder {
     }
 
     private static String buildUrl(WebSocketClient.Properties clientProperties, String path) {
-        if (clientProperties.getProjectId() != null) {
-            return String.format("%s/%s?projectId=%s&clientId=%s&clientName=%s",
-                                 clientProperties.getServiceBaseUrl(), path, clientProperties.getProjectId(),
-                                 clientProperties.getId(), clientProperties.getName());
-        }
-        return String.format("%s/%s?clientId=%s&clientName=%s",
+        String result = String.format("%s/%s?clientId=%s&clientName=%s",
                              clientProperties.getServiceBaseUrl(), path,
                              clientProperties.getId(), clientProperties.getName());
+        if (clientProperties.getProjectId() != null) {
+            result = String.format("%s&projectId=%s", result, clientProperties.getProjectId());
+        }
+        if (clientProperties.getCompression() != null) {
+            result = String.format("%s&compression=%s", result, clientProperties.getCompression());
+        }
+        return result;
     }
 
 }

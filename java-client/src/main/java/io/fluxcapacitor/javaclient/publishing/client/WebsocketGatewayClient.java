@@ -20,29 +20,28 @@ import io.fluxcapacitor.common.Registration;
 import io.fluxcapacitor.common.api.SerializedMessage;
 import io.fluxcapacitor.common.api.publishing.Append;
 import io.fluxcapacitor.javaclient.common.websocket.AbstractWebsocketClient;
-import io.fluxcapacitor.javaclient.common.websocket.JsonDecoder;
-import io.fluxcapacitor.javaclient.common.websocket.JsonEncoder;
+import io.fluxcapacitor.javaclient.configuration.client.WebSocketClient.Properties;
 
 import javax.websocket.ClientEndpoint;
 import java.net.URI;
 import java.util.List;
 import java.util.function.Consumer;
 
-@ClientEndpoint(encoders = JsonEncoder.class, decoders = JsonDecoder.class)
+@ClientEndpoint
 public class WebsocketGatewayClient extends AbstractWebsocketClient implements GatewayClient {
 
     private final Backlog<SerializedMessage> backlog;
 
-    public WebsocketGatewayClient(String endPointUrl) {
-        this(URI.create(endPointUrl), 1024);
+    public WebsocketGatewayClient(String endPointUrl, Properties properties) {
+        this(URI.create(endPointUrl), 1024, properties);
     }
 
-    public WebsocketGatewayClient(String endPointUrl, int backlogSize) {
-        this(URI.create(endPointUrl), backlogSize);
+    public WebsocketGatewayClient(String endPointUrl, int backlogSize, Properties properties) {
+        this(URI.create(endPointUrl), backlogSize, properties);
     }
 
-    public WebsocketGatewayClient(URI endPointUri, int backlogSize) {
-        super(endPointUri);
+    public WebsocketGatewayClient(URI endPointUri, int backlogSize, Properties properties) {
+        super(endPointUri, properties);
         this.backlog = new Backlog<>(this::doSend, backlogSize);
     }
 
