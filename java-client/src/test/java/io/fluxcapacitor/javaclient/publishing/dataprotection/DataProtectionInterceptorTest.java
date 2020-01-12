@@ -25,7 +25,7 @@ class DataProtectionInterceptorTest {
 
     private final JacksonSerializer serializer = new JacksonSerializer();
     private final FluxCapacitor fluxCapacitor = DefaultFluxCapacitor.builder().disableShutdownHook()
-            .serializer(serializer).build(InMemoryClient.newInstance());
+            .replaceSerializer(serializer).build(InMemoryClient.newInstance());
 
     @Test
     void testSerializedMessageDoesNotContainData() {

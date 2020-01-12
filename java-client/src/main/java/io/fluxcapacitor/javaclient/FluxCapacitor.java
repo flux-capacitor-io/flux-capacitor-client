@@ -25,7 +25,6 @@ import io.fluxcapacitor.javaclient.tracking.handling.HandleCommand;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
-import java.util.Properties;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Stream;
@@ -210,23 +209,6 @@ public interface FluxCapacitor {
     }
 
     /**
-     * Returns the property value registered with the given key. If the property can't be found on the FluxCapacitor
-     * instance it will try to get the property using {@link System#getProperty(String)}
-     */
-    static String getProperty(String key) {
-        return get().properties().getProperty(key, System.getProperty(key));
-    }
-
-    /**
-     * Returns the property value registered with the given key. If the property can't be found on the FluxCapacitor
-     * instance it will try to get the property using {@link System#getProperty(String)}. If the property is also not
-     * known as system property the given default value will be returned.
-     */
-    static String getProperty(String key, String defaultValue) {
-        return get().properties().getProperty(key, System.getProperty(key, defaultValue));
-    }
-
-    /**
      * Registers given handlers and initiates message tracking (i.e. listening for messages). The given handlers will be
      * inspected for annotated handler methods (e.g. methods annotated with {@link HandleCommand}). Depending on this
      * inspection message tracking will commence for any handled message types. To stop tracking at any time invoke
@@ -248,7 +230,6 @@ public interface FluxCapacitor {
      *
      * @see #startTracking(Object...) for more info
      */
-    @SuppressWarnings("ConstantConditions")
     default Registration startTracking(List<?> handlers) {
         return stream(MessageType.values())
                 .map(t -> tracking(t).start(this, handlers)).reduce(Registration::merge).orElse(Registration.noOp());
@@ -342,10 +323,5 @@ public interface FluxCapacitor {
      * Of course the returned client may also be a stand-in for the actual service.
      */
     Client client();
-
-    /**
-     * Returns custom properties registered with this FluxCapacitor instance.
-     */
-    Properties properties();
 
 }

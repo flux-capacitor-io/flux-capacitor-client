@@ -79,7 +79,7 @@ public class FluxCapacitorSpringConfig implements BeanPostProcessor {
     @Bean
     @ConditionalOnMissingBean
     public FluxCapacitorBuilder fluxCapacitorBuilder(Serializer serializer) {
-        return DefaultFluxCapacitor.builder().serializer(serializer).snapshotSerializer(serializer);
+        return DefaultFluxCapacitor.builder().replaceSerializer(serializer).replaceSnapshotSerializer(serializer);
     }
 
     @Bean

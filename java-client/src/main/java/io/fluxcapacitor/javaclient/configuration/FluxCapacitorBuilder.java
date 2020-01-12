@@ -10,51 +10,44 @@ import io.fluxcapacitor.javaclient.publishing.DispatchInterceptor;
 import io.fluxcapacitor.javaclient.tracking.ConsumerConfiguration;
 import io.fluxcapacitor.javaclient.tracking.handling.HandlerInterceptor;
 
-import java.util.Properties;
 import java.util.function.UnaryOperator;
 
 /**
  * Builder for a Flux Capacitor client instance.
  */
 public interface FluxCapacitorBuilder {
-    /**
-     * Register a custom serializer. This serializer will also be used for aggregate snapshots unless a custom snapshot
-     * serializer is registered using {@link #snapshotSerializer(Serializer)}.
-     *
-     * @param serializer the serializer to register
-     * @return the modified builder
-     */
-    FluxCapacitorBuilder serializer(Serializer serializer);
-    
-    FluxCapacitorBuilder snapshotSerializer(Serializer serializer);
-
-    FluxCapacitorBuilder configureDefaultConsumer(MessageType messageType, UnaryOperator<ConsumerConfiguration> updateFunction);
+    FluxCapacitorBuilder configureDefaultConsumer(MessageType messageType,
+                                                  UnaryOperator<ConsumerConfiguration> updateFunction);
 
     FluxCapacitorBuilder addConsumerConfiguration(MessageType messageType, ConsumerConfiguration consumerConfiguration);
-
-    FluxCapacitorBuilder addHandlerParameterResolver(ParameterResolver<DeserializingMessage> parameterResolver);
 
     FluxCapacitorBuilder addDispatchInterceptor(DispatchInterceptor interceptor, MessageType... forTypes);
 
     FluxCapacitorBuilder addHandlerInterceptor(HandlerInterceptor interceptor, MessageType... forTypes);
 
-    FluxCapacitorBuilder changeMessageRoutingInterceptor(DispatchInterceptor messageRoutingInterceptor);
+    FluxCapacitorBuilder replaceMessageRoutingInterceptor(DispatchInterceptor messageRoutingInterceptor);
+
+    FluxCapacitorBuilder addParameterResolver(ParameterResolver<DeserializingMessage> parameterResolver);
+
+    /**
+     * Register a custom serializer. This serializer will also be used for aggregate snapshots unless a custom snapshot
+     * serializer is registered using {@link #replaceSnapshotSerializer(Serializer)}.
+     */
+    FluxCapacitorBuilder replaceSerializer(Serializer serializer);
+
+    FluxCapacitorBuilder replaceSnapshotSerializer(Serializer serializer);
 
     FluxCapacitorBuilder disableErrorReporting();
 
     FluxCapacitorBuilder disableShutdownHook();
-    
+
     FluxCapacitorBuilder disableMessageCorrelation();
 
     FluxCapacitorBuilder disablePayloadValidation();
 
     FluxCapacitorBuilder disableDataProtection();
 
-    FluxCapacitorBuilder collectTrackingMetrics();
-
-    FluxCapacitorBuilder collectApplicationMetrics();
-    
-    FluxCapacitorBuilder registerProperties(Properties properties);
+    FluxCapacitorBuilder enableTrackingMetrics();
 
     FluxCapacitor build(Client client);
 }
