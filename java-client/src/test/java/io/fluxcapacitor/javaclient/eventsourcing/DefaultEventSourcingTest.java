@@ -67,7 +67,7 @@ class DefaultEventSourcingTest {
 
     @Test
     void testModelIsLoadedFromCacheWhenPossible() {
-        prepareSubjectForHandling().apply(new Message(new CreateModel(), EVENT));
+        prepareSubjectForHandling().apply(new Message(new CreateModel()));
         reset(eventStore);
         subject.load(modelId, TestModel.class);
         verifyNoMoreInteractions(eventStore);
@@ -82,12 +82,11 @@ class DefaultEventSourcingTest {
         assertEquals(0L, model.getSequenceNumber());
     }
 
-    @SuppressWarnings("unchecked")
     @Test
     void testApplyEvents() {
         Function<Message, Model<TestModel>> f = prepareSubjectForHandling();
         verifyNoInteractions(eventStore, cache);
-        Model<TestModel> model = f.apply(new Message(new CreateModel(), EVENT));
+        Model<TestModel> model = f.apply(new Message(new CreateModel()));
         assertEquals(singletonList(new CreateModel()), model.get().events);
         assertEquals(0L, model.getSequenceNumber());
     }
@@ -101,7 +100,7 @@ class DefaultEventSourcingTest {
     @Test
     void testApplyEventsWithMetadata() {
         Model<TestModel> model = prepareSubjectForHandling()
-                .apply(new Message(new CreateModelWithMetadata(), Metadata.from("foo", "bar"), EVENT));
+                .apply(new Message(new CreateModelWithMetadata(), Metadata.from("foo", "bar")));
         assertEquals(Metadata.from("foo", "bar"), model.get().metadata);
         assertEquals(0L, model.getSequenceNumber());
     }
@@ -109,7 +108,7 @@ class DefaultEventSourcingTest {
     @Test
     void testEventsGetStoredWhenHandlingEnds() {
         reset(eventStore);
-        Message event = new Message(new CreateModel(), EVENT);
+        Message event = new Message(new CreateModel());
         prepareSubjectForHandling().apply(event);
         verify(eventStore).storeDomainEvents(modelId, TestModel.class.getSimpleName(), 0L, singletonList(event));
     }
@@ -134,7 +133,7 @@ class DefaultEventSourcingTest {
     void testApplyingUnknownEventsAllowedIfModelExists() {
         reset(eventStore);
         List<Message> events =
-                Arrays.asList(new Message(new CreateModel(), EVENT), new Message("foo", EVENT));
+                Arrays.asList(new Message(new CreateModel()), new Message("foo"));
         executeWhileIntercepting(() -> {
             Model<TestModel> model = subject.load(modelId, TestModel.class);
             events.forEach(model::apply);
@@ -145,22 +144,22 @@ class DefaultEventSourcingTest {
     @Test
     void testApplyingUnknownEventsFailsIfModelDoesNotExist() {
         assertThrows(HandlerNotFoundException.class, () -> executeWhileIntercepting(
-                () -> subject.load(modelId, TestModel.class).apply(new Message("foo", EVENT)))
+                () -> subject.load(modelId, TestModel.class).apply(new Message("foo")))
                 .apply(toDeserializingMessage("command")));
     }
 
     @Test
     void testCreateUsingFactoryMethod() {
         executeWhileIntercepting(() -> subject.load(modelId, TestModelWithFactoryMethod.class)
-                .apply(new Message(new CreateModel(), EVENT)))
+                .apply(new Message(new CreateModel())))
                 .apply(toDeserializingMessage("command"));
     }
 
     @Test
     void testCreateUsingFactoryMethodIfInstanceMethodForSamePayloadExists() {
         executeWhileIntercepting(() -> subject.load(modelId, TestModelWithFactoryMethodAndSameInstanceMethod.class)
-                .apply(new Message(new CreateModel(), EVENT))
-                .apply(new Message(new CreateModel(), EVENT)))
+                .apply(new Message(new CreateModel()))
+                .apply(new Message(new CreateModel())))
                 .apply(toDeserializingMessage("command"));
     }
 
@@ -168,15 +167,15 @@ class DefaultEventSourcingTest {
     void testApplyingUnknownEventsFailsIfModelHasNoConstructorOrFactoryMethod() {
         assertThrows(HandlerNotFoundException.class, () -> executeWhileIntercepting(
                 () -> subject.load(modelId, TestModelWithoutFactoryMethodOrConstructor.class)
-                        .apply(new Message(new CreateModel(), EVENT)))
+                        .apply(new Message(new CreateModel())))
                 .apply(toDeserializingMessage("command")));
     }
 
     @Test
     void testSnapshotStoredAfterThreshold() {
         List<Message> events =
-                Arrays.asList(new Message(new CreateModel(), EVENT), new Message("foo", EVENT),
-                              new Message("foo", EVENT));
+                Arrays.asList(new Message(new CreateModel()), new Message("foo"),
+                              new Message("foo"));
         executeWhileIntercepting(() -> {
             Model<TestModelForSnapshotting> model = subject.load(modelId, TestModelForSnapshotting.class);
             reset(snapshotRepository);
@@ -188,7 +187,7 @@ class DefaultEventSourcingTest {
     @Test
     void testNoSnapshotStoredBeforeThreshold() {
         List<Message> events =
-                Arrays.asList(new Message(new CreateModel(), EVENT), new Message("foo", EVENT));
+                Arrays.asList(new Message(new CreateModel()), new Message("foo"));
         executeWhileIntercepting(() -> {
             Model<TestModelForSnapshotting> model = subject.load(modelId, TestModelForSnapshotting.class);
             reset(snapshotRepository);
@@ -246,7 +245,7 @@ class DefaultEventSourcingTest {
     }
 
     private DeserializingMessage toDeserializingMessage(Object payload) {
-        return toDeserializingMessage(new Message(payload, Metadata.empty(), EVENT));
+        return toDeserializingMessage(new Message(payload, Metadata.empty()));
     }
 
     private DeserializingMessage toDeserializingMessage(Message message) {

@@ -2,7 +2,6 @@ package io.fluxcapacitor.javaclient.test;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.ObjectWriter;
-import io.fluxcapacitor.common.MessageType;
 import io.fluxcapacitor.common.api.Metadata;
 import io.fluxcapacitor.javaclient.common.Message;
 import lombok.SneakyThrows;
@@ -39,7 +38,7 @@ public class GivenWhenThenAssertionError extends AssertionFailedError {
             Message message = (Message) expectedOrActual; 
             Metadata metadata = Metadata.from(message.getMetadata());
             metadata.keySet().removeIf(key -> key.startsWith("$"));
-            return new PayloadAndMetadata(message.getPayload(), metadata, message.getMessageType());
+            return new PayloadAndMetadata(message.getPayload(), metadata);
         }
         if (expectedOrActual instanceof Collection) {
             Collection<?> collection = (Collection<?>) expectedOrActual;
@@ -52,7 +51,6 @@ public class GivenWhenThenAssertionError extends AssertionFailedError {
     private static class PayloadAndMetadata {
         Object payload;
         Metadata metadata;
-        MessageType messageType;
 
         @Override
         public String toString() {
@@ -62,7 +60,6 @@ public class GivenWhenThenAssertionError extends AssertionFailedError {
                 return "Message{" +
                         "payload=" + payload +
                         ", metadata=" + metadata +
-                        ", messageType=" + messageType +
                         ", payloadType=" + getPayloadType() +
                         '}';
             }

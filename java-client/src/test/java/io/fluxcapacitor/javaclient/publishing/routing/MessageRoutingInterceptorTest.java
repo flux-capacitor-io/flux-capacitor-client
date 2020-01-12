@@ -15,7 +15,6 @@
 package io.fluxcapacitor.javaclient.publishing.routing;
 
 import io.fluxcapacitor.common.ConsistentHashing;
-import io.fluxcapacitor.common.MessageType;
 import io.fluxcapacitor.common.api.Data;
 import io.fluxcapacitor.common.api.Metadata;
 import io.fluxcapacitor.common.api.SerializedMessage;
@@ -26,6 +25,7 @@ import org.junit.jupiter.api.Test;
 import java.time.Clock;
 import java.util.function.Function;
 
+import static io.fluxcapacitor.common.MessageType.EVENT;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -41,7 +41,7 @@ class MessageRoutingInterceptorTest {
     @Test
     void testNoSegmentWithoutAnnotation() {
         SerializedMessage result =
-                subject.interceptDispatch(invocation).apply(new Message(new Object(), MessageType.EVENT));
+                subject.interceptDispatch(invocation, EVENT).apply(new Message(new Object()));
         assertNull(result.getSegment());
     }
 
@@ -107,7 +107,7 @@ class MessageRoutingInterceptorTest {
     }
 
     private void testInvocation(Object payload) {
-        SerializedMessage result = subject.interceptDispatch(invocation).apply(new Message(payload, MessageType.EVENT));
+        SerializedMessage result = subject.interceptDispatch(invocation, EVENT).apply(new Message(payload));
         assertEquals(expectedHash, (int) result.getSegment());
     }
 

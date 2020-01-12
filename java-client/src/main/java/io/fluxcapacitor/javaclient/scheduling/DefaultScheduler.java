@@ -1,6 +1,5 @@
 package io.fluxcapacitor.javaclient.scheduling;
 
-import io.fluxcapacitor.common.MessageType;
 import io.fluxcapacitor.common.api.Metadata;
 import io.fluxcapacitor.common.api.scheduling.ScheduledMessage;
 import io.fluxcapacitor.javaclient.common.Message;
@@ -20,7 +19,7 @@ public class DefaultScheduler implements Scheduler {
     public void schedule(String scheduleId, Instant timestamp, Object payload, Metadata metadata) {
         try {
             client.schedule(new ScheduledMessage(scheduleId, timestamp.toEpochMilli(),
-                                                 serializer.serialize(new Message(payload, metadata, MessageType.SCHEDULE)))).await();
+                                                 serializer.serialize(new Message(payload, metadata)))).await();
         } catch (Exception e) {
             throw new SchedulerException(String.format("Failed to schedule message %s for %s", payload, timestamp), e);
         }

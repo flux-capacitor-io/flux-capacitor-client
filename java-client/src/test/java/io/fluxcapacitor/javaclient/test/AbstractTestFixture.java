@@ -208,7 +208,7 @@ public abstract class AbstractTestFixture implements Given, When {
         protected Message trace(Object message, MessageType type) {
             catchAll = false;
             Message result =
-                    message instanceof Message ? (Message) message : new Message(message, Metadata.empty(), type);
+                    message instanceof Message ? (Message) message : new Message(message, Metadata.empty());
             result.getMetadata().put(TAG_NAME, TAG);
             return result;
         }
@@ -226,7 +226,8 @@ public abstract class AbstractTestFixture implements Given, When {
         }
 
         @Override
-        public Function<Message, SerializedMessage> interceptDispatch(Function<Message, SerializedMessage> function) {
+        public Function<Message, SerializedMessage> interceptDispatch(Function<Message, SerializedMessage> function,
+                                                                      MessageType messageType) {
             return message -> {
                 String tag = UUID.randomUUID().toString();
                 message.getMetadata().putIfAbsent(TAG_NAME, tag);
@@ -239,7 +240,7 @@ public abstract class AbstractTestFixture implements Given, When {
                     }
                 });
                 if (isDescendantMetadata(message.getMetadata()) || catchAll) {
-                    switch (message.getMessageType()) {
+                    switch (messageType) {
                         case COMMAND:
                             registerCommand(message);
                             break;

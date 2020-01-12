@@ -16,7 +16,6 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Consumer;
 
-import static io.fluxcapacitor.common.MessageType.RESULT;
 import static java.lang.String.format;
 
 @AllArgsConstructor
@@ -65,7 +64,7 @@ public class DefaultRequestHandler implements RequestHandler {
                 if (result instanceof Throwable) {
                     future.completeExceptionally((Exception) result);
                 } else {
-                    future.complete(new Message(result, m.getMetadata(), RESULT));
+                    future.complete(new Message(result, m.getMetadata()));
                 }
             } catch (Exception e) {
                 log.error("Failed to complete request with id {}", m.getRequestId(), e);

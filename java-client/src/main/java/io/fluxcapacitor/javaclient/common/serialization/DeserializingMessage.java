@@ -23,7 +23,7 @@ public class DeserializingMessage {
     }
 
     public Message toMessage() {
-        return new Message(delegate.getPayload(), getMetadata(), messageType,
+        return new Message(delegate.getPayload(), getMetadata(), 
                            delegate.getSerializedObject().getMessageId(), 
                            ofEpochMilli(delegate.getSerializedObject().getTimestamp()));
     }

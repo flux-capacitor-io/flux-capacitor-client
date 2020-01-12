@@ -14,7 +14,6 @@
 
 package io.fluxcapacitor.javaclient.publishing;
 
-import io.fluxcapacitor.common.MessageType;
 import io.fluxcapacitor.common.api.Metadata;
 import io.fluxcapacitor.common.api.SerializedMessage;
 import io.fluxcapacitor.javaclient.common.Message;
@@ -33,7 +32,7 @@ public class DefaultErrorGateway implements ErrorGateway {
     @Override
     public void report(Exception payload, Metadata metadata, String target) {
         try {
-            SerializedMessage message = serializer.serialize(new Message(payload, metadata, MessageType.ERROR));
+            SerializedMessage message = serializer.serialize(new Message(payload, metadata));
             message.setTarget(target);
             errorGateway.send(message);
         } catch (Exception e) {

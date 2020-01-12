@@ -14,7 +14,6 @@
 
 package io.fluxcapacitor.javaclient.publishing;
 
-import io.fluxcapacitor.common.MessageType;
 import io.fluxcapacitor.common.Registration;
 import io.fluxcapacitor.common.api.Metadata;
 import io.fluxcapacitor.javaclient.common.Message;
@@ -30,11 +29,11 @@ import static java.lang.Thread.currentThread;
 public interface RequestGateway {
 
     default void sendAndForget(Object payload) {
-        sendAndForget(payload instanceof Message ? (Message) payload : new Message(payload, getMessageType()));
+        sendAndForget(payload instanceof Message ? (Message) payload : new Message(payload));
     }
 
     default void sendAndForget(Object payload, Metadata metadata) {
-        sendAndForget(new Message(payload, metadata, getMessageType()));
+        sendAndForget(new Message(payload, metadata));
     }
 
     void sendAndForget(Message message);
@@ -44,22 +43,22 @@ public interface RequestGateway {
     }
 
     default <R> CompletableFuture<R> send(Object payload) {
-        return send(payload instanceof Message ? (Message) payload : new Message(payload, getMessageType()));
+        return send(payload instanceof Message ? (Message) payload : new Message(payload));
     }
 
     default <R> CompletableFuture<R> send(Object payload, Metadata metadata) {
-        return send(new Message(payload, metadata, getMessageType()));
+        return send(new Message(payload, metadata));
     }
 
     CompletableFuture<Message> sendForMessage(Message message);
     
     default <R> R sendAndWait(Object payload) {
-        return sendAndWait(payload instanceof Message ? (Message) payload : new Message(payload, getMessageType()));
+        return sendAndWait(payload instanceof Message ? (Message) payload : new Message(payload));
     }
 
     @SneakyThrows
     default <R> R sendAndWait(Object payload, Metadata metadata) {
-        return sendAndWait(new Message(payload, metadata, getMessageType()));
+        return sendAndWait(new Message(payload, metadata));
     }
 
     @SneakyThrows
@@ -83,7 +82,5 @@ public interface RequestGateway {
     }
     
     Registration registerLocalHandler(Object target);
-    
-    MessageType getMessageType();
-    
+
 }

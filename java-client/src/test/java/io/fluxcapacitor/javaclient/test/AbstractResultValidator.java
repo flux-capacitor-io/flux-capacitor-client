@@ -111,7 +111,7 @@ public abstract class AbstractResultValidator implements Then {
 
     protected Collection<?> asMessages(Collection<?> events, MessageType type) {
         return events.stream().map(e -> e instanceof Matcher<?> ? (Matcher<?>) e :
-                e instanceof Message ? (Message) e : new Message(e, type)).collect(toList());
+                e instanceof Message ? (Message) e : new Message(e)).collect(toList());
     }
 
     @Override

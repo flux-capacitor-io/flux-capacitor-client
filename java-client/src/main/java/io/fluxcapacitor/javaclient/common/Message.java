@@ -1,7 +1,6 @@
 package io.fluxcapacitor.javaclient.common;
 
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
-import io.fluxcapacitor.common.MessageType;
 import io.fluxcapacitor.common.api.Metadata;
 import lombok.AllArgsConstructor;
 import lombok.Value;
@@ -21,16 +20,15 @@ public class Message {
     @JsonTypeInfo(use = JsonTypeInfo.Id.CLASS)
     Object payload;
     @With Metadata metadata;
-    MessageType messageType;
     String messageId;
     Instant timestamp;
 
-    public Message(Object payload, MessageType messageType) {
-        this(payload, Metadata.empty(), messageType, identityProvider.nextId(), clock.get().instant());
+    public Message(Object payload) {
+        this(payload, Metadata.empty(), identityProvider.nextId(), clock.get().instant());
     }
 
-    public Message(Object payload, Metadata metadata, MessageType messageType) {
-        this(payload, metadata, messageType, identityProvider.nextId(), clock.get().instant());
+    public Message(Object payload, Metadata metadata) {
+        this(payload, metadata, identityProvider.nextId(), clock.get().instant());
     }
 
     @SuppressWarnings("unchecked")

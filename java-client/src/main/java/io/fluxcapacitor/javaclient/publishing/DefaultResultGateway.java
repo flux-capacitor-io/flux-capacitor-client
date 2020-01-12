@@ -1,6 +1,5 @@
 package io.fluxcapacitor.javaclient.publishing;
 
-import io.fluxcapacitor.common.MessageType;
 import io.fluxcapacitor.common.api.Metadata;
 import io.fluxcapacitor.common.api.SerializedMessage;
 import io.fluxcapacitor.javaclient.common.Message;
@@ -20,9 +19,9 @@ public class DefaultResultGateway implements ResultGateway {
         try {
             SerializedMessage message;
             try {
-                message = serializer.serialize(new Message(payload, metadata, MessageType.RESULT));
+                message = serializer.serialize(new Message(payload, metadata));
             } catch (Exception e) {
-                message = serializer.serialize(new Message(new TechnicalException(), metadata, MessageType.RESULT));
+                message = serializer.serialize(new Message(new TechnicalException(), metadata));
             }
             message.setTarget(target);
             message.setRequestId(requestId);

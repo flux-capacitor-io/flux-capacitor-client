@@ -15,6 +15,7 @@
 package io.fluxcapacitor.javaclient.publishing.routing;
 
 import io.fluxcapacitor.common.ConsistentHashing;
+import io.fluxcapacitor.common.MessageType;
 import io.fluxcapacitor.common.api.SerializedMessage;
 import io.fluxcapacitor.javaclient.common.Message;
 import io.fluxcapacitor.javaclient.publishing.DispatchInterceptor;
@@ -27,7 +28,8 @@ import static io.fluxcapacitor.common.reflection.ReflectionUtils.getAnnotatedPro
 @AllArgsConstructor
 public class MessageRoutingInterceptor implements DispatchInterceptor {
     @Override
-    public Function<Message, SerializedMessage> interceptDispatch(Function<Message, SerializedMessage> function) {
+    public Function<Message, SerializedMessage> interceptDispatch(Function<Message, SerializedMessage> function,
+                                                                  MessageType messageType) {
         return m -> getAnnotatedPropertyValue(m.getPayload(), RoutingKey.class).map(Object::toString)
                 .map(ConsistentHashing::computeSegment).map(s -> {
                     SerializedMessage serializedMessage = function.apply(m);

@@ -1,6 +1,5 @@
 package io.fluxcapacitor.javaclient.publishing;
 
-import io.fluxcapacitor.common.MessageType;
 import io.fluxcapacitor.common.api.Metadata;
 import io.fluxcapacitor.javaclient.common.Message;
 import io.fluxcapacitor.javaclient.common.serialization.MessageSerializer;
@@ -18,7 +17,7 @@ public class DefaultMetricsGateway implements MetricsGateway {
     @Override
     public void publish(Object payload, Metadata metadata) {
         try {
-            metricsGateway.send(serializer.serialize(new Message(payload, metadata, MessageType.METRICS)));
+            metricsGateway.send(serializer.serialize(new Message(payload, metadata)));
         } catch (Exception e) {
             throw new GatewayException(String.format("Failed to publish metrics %s", payload), e);
         }

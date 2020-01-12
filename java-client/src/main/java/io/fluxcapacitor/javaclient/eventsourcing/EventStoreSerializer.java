@@ -14,7 +14,6 @@
 
 package io.fluxcapacitor.javaclient.eventsourcing;
 
-import io.fluxcapacitor.common.MessageType;
 import io.fluxcapacitor.common.api.SerializedMessage;
 import io.fluxcapacitor.javaclient.common.Message;
 import io.fluxcapacitor.javaclient.common.serialization.DeserializingMessage;
@@ -25,6 +24,8 @@ import lombok.AllArgsConstructor;
 import java.util.function.Function;
 import java.util.stream.Stream;
 
+import static io.fluxcapacitor.common.MessageType.EVENT;
+
 @AllArgsConstructor
 public class EventStoreSerializer {
     private final Function<Message, SerializedMessage> serializer;
@@ -32,13 +33,13 @@ public class EventStoreSerializer {
 
     public EventStoreSerializer(Serializer serializer, DispatchInterceptor dispatchInterceptor) {
         this(dispatchInterceptor.interceptDispatch(
-                m -> new SerializedMessage(serializer.serialize(m.getPayload()), m.getMetadata(), m.getMessageId(), m.getTimestamp().toEpochMilli())),
-             serializer);
+                m -> new SerializedMessage(serializer.serialize(m.getPayload()), m.getMetadata(), m.getMessageId(),
+                                           m.getTimestamp().toEpochMilli()), EVENT), serializer);
     }
 
     public EventStoreSerializer(Serializer serializer) {
-        this(m -> new SerializedMessage(serializer.serialize(m.getPayload()), m.getMetadata(), m.getMessageId(), m.getTimestamp().toEpochMilli()),
-             serializer);
+        this(m -> new SerializedMessage(serializer.serialize(m.getPayload()), m.getMetadata(), m.getMessageId(),
+                                        m.getTimestamp().toEpochMilli()), serializer);
     }
 
     public SerializedMessage serialize(Message message) {
@@ -46,7 +47,6 @@ public class EventStoreSerializer {
     }
 
     public Stream<DeserializingMessage> deserializeDomainEvents(Stream<SerializedMessage> messageStream) {
-        return deserializer.deserialize(messageStream, true)
-                .map(m -> new DeserializingMessage(m, MessageType.EVENT));
+        return deserializer.deserialize(messageStream, true).map(m -> new DeserializingMessage(m, EVENT));
     }
 }

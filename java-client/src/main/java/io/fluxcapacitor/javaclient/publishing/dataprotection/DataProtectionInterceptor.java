@@ -1,6 +1,7 @@
 package io.fluxcapacitor.javaclient.publishing.dataprotection;
 
 import io.fluxcapacitor.common.Guarantee;
+import io.fluxcapacitor.common.MessageType;
 import io.fluxcapacitor.common.api.SerializedMessage;
 import io.fluxcapacitor.common.handling.Handler;
 import io.fluxcapacitor.common.reflection.ReflectionUtils;
@@ -33,7 +34,8 @@ public class DataProtectionInterceptor implements DispatchInterceptor, HandlerIn
     
     @Override
     @SuppressWarnings("unchecked")
-    public Function<Message, SerializedMessage> interceptDispatch(Function<Message, SerializedMessage> function) {
+    public Function<Message, SerializedMessage> interceptDispatch(Function<Message, SerializedMessage> function,
+                                                                  MessageType messageType) {
         return m -> {
             Map<String, String> protectedFields = new HashMap<>();
             if (m.getMetadata().containsKey(METADATA_KEY)) {

@@ -1,6 +1,5 @@
 package io.fluxcapacitor.javaclient.tracking.handling.errorreporting;
 
-import io.fluxcapacitor.common.MessageType;
 import io.fluxcapacitor.common.handling.Handler;
 import io.fluxcapacitor.javaclient.common.Message;
 import io.fluxcapacitor.javaclient.common.exception.FunctionalException;
@@ -46,6 +45,6 @@ public class ErrorReportingInterceptor implements HandlerInterceptor {
         if (!(e instanceof FunctionalException || e instanceof TechnicalException)) {
             e = new TechnicalException(format("Handler %s failed to handle a %s", handler, cause));
         }
-        errorGateway.report(new Message(e, MessageType.ERROR), cause.getSerializedObject().getSource());
+        errorGateway.report(new Message(e), cause.getSerializedObject().getSource());
     }
 }

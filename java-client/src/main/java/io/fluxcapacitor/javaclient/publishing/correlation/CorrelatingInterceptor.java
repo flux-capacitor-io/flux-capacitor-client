@@ -14,6 +14,7 @@
 
 package io.fluxcapacitor.javaclient.publishing.correlation;
 
+import io.fluxcapacitor.common.MessageType;
 import io.fluxcapacitor.common.api.SerializedMessage;
 import io.fluxcapacitor.javaclient.common.Message;
 import io.fluxcapacitor.javaclient.common.serialization.DeserializingMessage;
@@ -30,7 +31,8 @@ public class CorrelatingInterceptor implements DispatchInterceptor {
     private final Collection<? extends CorrelationDataProvider> correlationDataProviders;
 
     @Override
-    public Function<Message, SerializedMessage> interceptDispatch(Function<Message, SerializedMessage> function) {
+    public Function<Message, SerializedMessage> interceptDispatch(Function<Message, SerializedMessage> function,
+                                                                  MessageType messageType) {
         return message -> {
             Optional.ofNullable(DeserializingMessage.getCurrent()).ifPresent(currentMessage -> correlationDataProviders
                     .forEach(p -> message.getMetadata().putAll(p.fromMessage(currentMessage))));

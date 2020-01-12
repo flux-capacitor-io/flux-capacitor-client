@@ -204,7 +204,7 @@ public class DefaultFluxCapacitor implements FluxCapacitor {
         private final List<ParameterResolver<? super DeserializingMessage>> handlerParameterResolvers =
                 defaultHandlerParameterResolvers();
         private final Map<MessageType, DispatchInterceptor> dispatchInterceptors =
-                Arrays.stream(MessageType.values()).collect(toMap(identity(), m -> f -> f));
+                Arrays.stream(MessageType.values()).collect(toMap(identity(), m -> (f, messageType) -> f));
         private final Map<MessageType, HandlerInterceptor> handlerInterceptors =
                 Arrays.stream(MessageType.values()).collect(toMap(identity(), m -> (f, h, c) -> f));
         private final Set<CorrelationDataProvider> correlationDataProviders = new LinkedHashSet<>();
@@ -422,7 +422,8 @@ public class DefaultFluxCapacitor implements FluxCapacitor {
             //enable error reporter as the outermost handler interceptor
             ErrorGateway errorGateway =
                     new DefaultErrorGateway(client.getGatewayClient(ERROR),
-                                            new MessageSerializer(serializer, dispatchInterceptors.get(ERROR)));
+                                            new MessageSerializer(serializer, dispatchInterceptors.get(ERROR),
+                                                                  ERROR));
             if (!disableErrorReporting) {
                 ErrorReportingInterceptor interceptor = new ErrorReportingInterceptor(errorGateway);
                 Arrays.stream(MessageType.values())
@@ -432,7 +433,8 @@ public class DefaultFluxCapacitor implements FluxCapacitor {
             //create gateways
             ResultGateway resultGateway =
                     new DefaultResultGateway(client.getGatewayClient(RESULT),
-                                             new MessageSerializer(serializer, dispatchInterceptors.get(RESULT)));
+                                             new MessageSerializer(serializer, dispatchInterceptors.get(RESULT),
+                                                                   RESULT));
             RequestHandler requestHandler =
                     new DefaultRequestHandler(client.getTrackingClient(RESULT), serializer, client.name(), client.id());
             CommandGateway commandGateway =
@@ -451,13 +453,15 @@ public class DefaultFluxCapacitor implements FluxCapacitor {
                                                                                            handlerParameterResolvers)));
             EventGateway eventGateway =
                     new DefaultEventGateway(client.getGatewayClient(EVENT),
-                                            new MessageSerializer(serializer, dispatchInterceptors.get(EVENT)),
+                                            new MessageSerializer(serializer, dispatchInterceptors.get(EVENT),
+                                                                  EVENT),
                                             new DefaultHandlerFactory(EVENT, handlerInterceptors.get(EVENT),
                                                                       handlerParameterResolvers));
 
             MetricsGateway metricsGateway =
                     new DefaultMetricsGateway(client.getGatewayClient(METRICS),
-                                              new MessageSerializer(serializer, dispatchInterceptors.get(METRICS)));
+                                              new MessageSerializer(serializer, dispatchInterceptors.get(METRICS),
+                                                                    METRICS));
 
 
             //tracking
@@ -470,7 +474,8 @@ public class DefaultFluxCapacitor implements FluxCapacitor {
             //misc
             Scheduler scheduler = new DefaultScheduler(client.getSchedulingClient(),
                                                        new MessageSerializer(serializer,
-                                                                             dispatchInterceptors.get(SCHEDULE)));
+                                                                             dispatchInterceptors.get(SCHEDULE),
+                                                                             SCHEDULE));
 
             //and finally...
             FluxCapacitor fluxCapacitor = doBuild(trackingMap, commandGateway, queryGateway, eventGateway,
@@ -535,7 +540,7 @@ public class DefaultFluxCapacitor implements FluxCapacitor {
                                                       DispatchInterceptor dispatchInterceptor,
                                                       DefaultHandlerFactory handlerFactory) {
             return new DefaultGenericGateway(messageType, client.getGatewayClient(messageType), requestHandler,
-                                             new MessageSerializer(serializer, dispatchInterceptor),
+                                             new MessageSerializer(serializer, dispatchInterceptor, messageType),
                                              handlerFactory);
         }
     }

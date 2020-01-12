@@ -14,6 +14,7 @@
 
 package io.fluxcapacitor.javaclient.publishing;
 
+import io.fluxcapacitor.common.MessageType;
 import io.fluxcapacitor.common.api.SerializedMessage;
 import io.fluxcapacitor.javaclient.common.Message;
 
@@ -21,9 +22,10 @@ import java.util.function.Function;
 
 @FunctionalInterface
 public interface DispatchInterceptor {
-    Function<Message, SerializedMessage> interceptDispatch(Function<Message, SerializedMessage> function);
+    Function<Message, SerializedMessage> interceptDispatch(Function<Message, SerializedMessage> function,
+                                                           MessageType messageType);
 
     default DispatchInterceptor merge(DispatchInterceptor nextInterceptor) {
-        return f -> interceptDispatch(nextInterceptor.interceptDispatch(f));
+        return (f, messageType) -> interceptDispatch(nextInterceptor.interceptDispatch(f, messageType), messageType);
     }
 }

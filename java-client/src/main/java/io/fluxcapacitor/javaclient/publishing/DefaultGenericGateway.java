@@ -90,8 +90,8 @@ public class DefaultGenericGateway implements RequestGateway {
                         try {
                             Object result = handler.invoke(deserializingMessage);
                             return result instanceof CompletableFuture<?> ?
-                                    ((CompletableFuture<?>) result).thenApply(r -> new Message(r, MessageType.RESULT)) :
-                                    completedFuture(new Message(result, MessageType.RESULT));
+                                    ((CompletableFuture<?>) result).thenApply(Message::new) :
+                                    completedFuture(new Message(result));
                         } catch (Exception e) {
                             CompletableFuture<Message> result = new CompletableFuture<>();
                             result.completeExceptionally(e);
@@ -106,8 +106,4 @@ public class DefaultGenericGateway implements RequestGateway {
         return null;
     }
 
-    @Override
-    public MessageType getMessageType() {
-        return messageType;
-    }
 }

@@ -14,7 +14,6 @@
 
 package io.fluxcapacitor.javaclient.common.model;
 
-import io.fluxcapacitor.common.MessageType;
 import io.fluxcapacitor.common.api.Metadata;
 import io.fluxcapacitor.javaclient.common.Message;
 
@@ -40,11 +39,11 @@ public interface Model<T> {
     }
 
     default Model<T> apply(Object event) {
-        return apply(new Message(event, MessageType.EVENT));
+        return apply(new Message(event));
     }
 
     default Model<T> apply(Object event, Metadata metadata) {
-        return apply(new Message(event, metadata, MessageType.EVENT));
+        return apply(new Message(event, metadata));
     }
 
     Model<T> apply(Message message);

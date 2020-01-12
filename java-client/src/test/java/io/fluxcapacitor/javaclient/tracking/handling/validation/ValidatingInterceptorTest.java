@@ -1,6 +1,5 @@
 package io.fluxcapacitor.javaclient.tracking.handling.validation;
 
-import io.fluxcapacitor.common.MessageType;
 import io.fluxcapacitor.common.api.Data;
 import io.fluxcapacitor.common.api.Metadata;
 import io.fluxcapacitor.common.api.SerializedMessage;
@@ -13,6 +12,7 @@ import javax.validation.constraints.NotNull;
 import java.time.Clock;
 import java.util.function.Function;
 
+import static io.fluxcapacitor.common.MessageType.EVENT;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
 class ValidatingInterceptorTest {
@@ -21,8 +21,7 @@ class ValidatingInterceptorTest {
     private Function<Object, DeserializingMessage> messageFactory = payload -> new DeserializingMessage(
             new DeserializingObject<>(new SerializedMessage(new Data<>(
                     "test".getBytes(), "test", 0), Metadata.empty(), "someId",
-                                                            Clock.systemUTC().millis()),
-                                      () -> payload), MessageType.EVENT);
+                                                            Clock.systemUTC().millis()), () -> payload), EVENT);
 
     @Test
     void testWithConstraintViolations() {
