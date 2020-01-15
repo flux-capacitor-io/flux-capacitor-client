@@ -1,8 +1,8 @@
 package io.fluxcapacitor.javaclient.eventsourcing;
 
-import io.fluxcapacitor.javaclient.common.Message;
+import io.fluxcapacitor.javaclient.common.serialization.DeserializingMessage;
 
 @FunctionalInterface
 public interface EventSourcingHandler<T> {
-    T apply(Message message, T model);
+    T apply(DeserializingMessage message, T model);
 }

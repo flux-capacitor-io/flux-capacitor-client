@@ -1,11 +1,16 @@
 package io.fluxcapacitor.javaclient.eventsourcing;
 
+import io.fluxcapacitor.common.api.Data;
+import io.fluxcapacitor.common.api.SerializedMessage;
 import io.fluxcapacitor.common.handling.Handler;
+import io.fluxcapacitor.common.handling.ParameterResolver;
+import io.fluxcapacitor.common.serialization.Revision;
 import io.fluxcapacitor.javaclient.common.Message;
 import io.fluxcapacitor.javaclient.common.caching.Cache;
 import io.fluxcapacitor.javaclient.common.caching.NoCache;
 import io.fluxcapacitor.javaclient.common.model.Model;
 import io.fluxcapacitor.javaclient.common.serialization.DeserializingMessage;
+import io.fluxcapacitor.javaclient.common.serialization.DeserializingObject;
 import io.fluxcapacitor.javaclient.tracking.handling.HandlerInterceptor;
 import lombok.AllArgsConstructor;
 import lombok.RequiredArgsConstructor;
@@ -20,18 +25,27 @@ import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Function;
 
+import static io.fluxcapacitor.common.MessageType.EVENT;
+import static io.fluxcapacitor.javaclient.common.serialization.DeserializingMessage.defaultParameterResolvers;
 import static java.lang.String.format;
+import static java.util.Optional.ofNullable;
 import static java.util.stream.Collectors.toList;
 
 @Slf4j
 @AllArgsConstructor
 public class DefaultEventSourcing implements EventSourcing, HandlerInterceptor {
 
-    private final Map<Class, Function<LoadSettings, EventSourcedModel<?>>> modelFactories = new ConcurrentHashMap<>();
+    private final Map<Class<?>, Function<LoadSettings, EventSourcedModel<?>>> modelFactories =
+            new ConcurrentHashMap<>();
     private final EventStore eventStore;
     private final SnapshotRepository snapshotRepository;
     private final Cache cache;
+    private final List<ParameterResolver<? super DeserializingMessage>> parameterResolvers;
     private final ThreadLocal<Collection<EventSourcedModel<?>>> loadedModels = new ThreadLocal<>();
+
+    public DefaultEventSourcing(EventStore eventStore, SnapshotRepository snapshotRepository, Cache cache) {
+        this(eventStore, snapshotRepository, cache, defaultParameterResolvers);
+    }
 
     @SuppressWarnings("unchecked")
     @Override
@@ -41,11 +55,11 @@ public class DefaultEventSourcing implements EventSourcing, HandlerInterceptor {
             return createEsModel(modelType, modelId, disableCaching, disableSnapshotting);
         }
         return loaded.stream().filter(model -> model.id.equals(modelId)).map(m -> (EventSourcedModel<T>) m).findAny()
-                .orElseGet(() -> { 
+                .orElseGet(() -> {
                     EventSourcedModel<T> model = createEsModel(modelType, modelId, disableCaching, disableSnapshotting);
                     loaded.add(model);
                     return model;
-        });
+                });
     }
 
     @Override
@@ -62,16 +76,23 @@ public class DefaultEventSourcing implements EventSourcing, HandlerInterceptor {
     protected <T> EventSourcedModel<T> createEsModel(Class<T> modelType, String modelId, boolean disableCaching,
                                                      boolean disableSnapshotting) {
         return (EventSourcedModel<T>) modelFactories.computeIfAbsent(modelType, t -> {
-            EventSourcingHandler<T> eventSourcingHandler = new AnnotatedEventSourcingHandler<>(modelType);
+            EventSourcingHandler<T> eventSourcingHandler =
+                    new AnnotatedEventSourcingHandler<>(modelType, parameterResolvers);
             Cache cache = cache(modelType);
             SnapshotRepository snapshotRepository = snapshotRepository(modelType);
             SnapshotTrigger snapshotTrigger = snapshotTrigger(modelType);
             String domain = domain(modelType);
             return settings -> {
-                EventSourcedModel<T> eventSourcedModel = new EventSourcedModel<>(eventSourcingHandler, 
-                                                settings.disableCaching ? NoCache.INSTANCE : cache, eventStore, 
-                                                settings.disableSnapshotting ? NoOpSnapshotRepository.INSTANCE : snapshotRepository,
-                                                snapshotTrigger, domain, loadedModels.get() == null, settings.modelId);
+                EventSourcedModel<T> eventSourcedModel = new EventSourcedModel<>(eventSourcingHandler,
+                                                                                 settings.disableCaching ?
+                                                                                         NoCache.INSTANCE : cache,
+                                                                                 eventStore,
+                                                                                 settings.disableSnapshotting ?
+                                                                                         NoOpSnapshotRepository.INSTANCE :
+                                                                                         snapshotRepository,
+                                                                                 snapshotTrigger, domain,
+                                                                                 loadedModels.get() == null,
+                                                                                 settings.modelId);
                 eventSourcedModel.initialize();
                 return eventSourcedModel;
             };
@@ -80,7 +101,8 @@ public class DefaultEventSourcing implements EventSourcing, HandlerInterceptor {
 
     @Override
     public Function<DeserializingMessage, Object> interceptHandling(Function<DeserializingMessage, Object> function,
-                                                                    Handler<DeserializingMessage> handler, String consumer) {
+                                                                    Handler<DeserializingMessage> handler,
+                                                                    String consumer) {
         return command -> {
             List<EventSourcedModel<?>> models = new ArrayList<>();
             loadedModels.set(models);
@@ -104,7 +126,7 @@ public class DefaultEventSourcing implements EventSourcing, HandlerInterceptor {
     @SneakyThrows
     protected SnapshotRepository snapshotRepository(Class<?> modelType) {
         int frequency =
-                Optional.ofNullable(modelType.getAnnotation(EventSourced.class)).map(EventSourced::snapshotPeriod)
+                ofNullable(modelType.getAnnotation(EventSourced.class)).map(EventSourced::snapshotPeriod)
                         .orElse((int) EventSourced.class.getMethod("snapshotPeriod").getDefaultValue());
         return frequency > 0 ? this.snapshotRepository : NoOpSnapshotRepository.INSTANCE;
     }
@@ -112,7 +134,7 @@ public class DefaultEventSourcing implements EventSourcing, HandlerInterceptor {
     @SneakyThrows
     protected SnapshotTrigger snapshotTrigger(Class<?> modelType) {
         int frequency =
-                Optional.ofNullable(modelType.getAnnotation(EventSourced.class)).map(EventSourced::snapshotPeriod)
+                ofNullable(modelType.getAnnotation(EventSourced.class)).map(EventSourced::snapshotPeriod)
                         .orElse((int) EventSourced.class.getMethod("snapshotPeriod").getDefaultValue());
         return frequency > 0 ? new PeriodicSnapshotTrigger(frequency) : NoSnapshotTrigger.INSTANCE;
     }
@@ -120,16 +142,16 @@ public class DefaultEventSourcing implements EventSourcing, HandlerInterceptor {
     @SneakyThrows
     protected Cache cache(Class<?> modelType) {
         boolean cached =
-                Optional.ofNullable(modelType.getAnnotation(EventSourced.class)).map(EventSourced::cached)
+                ofNullable(modelType.getAnnotation(EventSourced.class)).map(EventSourced::cached)
                         .orElse((boolean) EventSourced.class.getMethod("cached").getDefaultValue());
         return cached ? this.cache : NoCache.INSTANCE;
     }
 
     protected String domain(Class<?> modelType) {
-        return Optional.ofNullable(modelType.getAnnotation(EventSourced.class)).map(EventSourced::domain)
+        return ofNullable(modelType.getAnnotation(EventSourced.class)).map(EventSourced::domain)
                 .filter(s -> !s.isEmpty()).orElse(modelType.getSimpleName());
     }
-    
+
     @AllArgsConstructor
     protected static class LoadSettings {
         String modelId;
@@ -161,7 +183,7 @@ public class DefaultEventSourcing implements EventSourcing, HandlerInterceptor {
                         DeserializingMessage current = DeserializingMessage.getCurrent();
                         try {
                             DeserializingMessage.setCurrent(event);
-                            return eventSourcingHandler.apply(event.toMessage(), m);
+                            return eventSourcingHandler.apply(event, m);
                         } finally {
                             DeserializingMessage.setCurrent(current);
                         }
@@ -170,14 +192,22 @@ public class DefaultEventSourcing implements EventSourcing, HandlerInterceptor {
                 return aggregate;
             });
         }
-        
+
         @Override
         public Model<T> apply(Message message) {
             if (readOnly) {
                 throw new EventSourcingException(format("Not allowed to apply a %s. The model is readonly.", message));
             }
             unpublishedEvents.add(message);
-            aggregate = aggregate.update(m -> eventSourcingHandler.apply(message, m));
+            DeserializingMessage deserializingMessage = new DeserializingMessage(new DeserializingObject<>(
+                    new SerializedMessage(new Data<>(() -> {
+                        throw new UnsupportedOperationException("Serialized data not available");
+                    }, message.getPayload().getClass().getName(), ofNullable(
+                            message.getPayload().getClass().getAnnotation(Revision.class)).map(Revision::value)
+                            .orElse(0)), message.getMetadata(), message.getMessageId(),
+                                          message.getTimestamp().toEpochMilli()),
+                    message::getPayload), EVENT);
+            aggregate = aggregate.update(a -> eventSourcingHandler.apply(deserializingMessage, a));
             return this;
         }
 

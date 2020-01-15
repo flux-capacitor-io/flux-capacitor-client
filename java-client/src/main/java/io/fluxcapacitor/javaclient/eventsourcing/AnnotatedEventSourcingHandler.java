@@ -4,29 +4,29 @@ import io.fluxcapacitor.common.handling.HandlerInspector;
 import io.fluxcapacitor.common.handling.HandlerInvoker;
 import io.fluxcapacitor.common.handling.HandlerNotFoundException;
 import io.fluxcapacitor.common.handling.ParameterResolver;
-import io.fluxcapacitor.javaclient.common.Message;
+import io.fluxcapacitor.javaclient.common.serialization.DeserializingMessage;
 
-import java.util.Arrays;
 import java.util.List;
+
+import static io.fluxcapacitor.javaclient.common.serialization.DeserializingMessage.defaultParameterResolvers;
 
 public class AnnotatedEventSourcingHandler<T> implements EventSourcingHandler<T> {
 
     private final Class<T> handlerType;
-    private final HandlerInvoker<Message> invoker;
+    private final HandlerInvoker<DeserializingMessage> invoker;
 
     public AnnotatedEventSourcingHandler(Class<T> handlerType) {
-        this(handlerType, Arrays.asList(new PayloadParameterResolver(), new MetadataParameterResolver(),
-                                        new MessageParameterResolver()));
+        this(handlerType, defaultParameterResolvers);
     }
 
     public AnnotatedEventSourcingHandler(Class<T> handlerType,
-                                         List<ParameterResolver<? super Message>> parameterResolvers) {
+                                         List<ParameterResolver<? super DeserializingMessage>> parameterResolvers) {
         this.handlerType = handlerType;
         this.invoker = HandlerInspector.inspect(handlerType, ApplyEvent.class, parameterResolvers);
     }
 
     @Override
-    public T apply(Message message, T model) {
+    public T apply(DeserializingMessage message, T model) {
         Object result;
         try {
             result = invoker.invoke(model, message);

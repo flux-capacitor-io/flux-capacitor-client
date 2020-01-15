@@ -59,7 +59,6 @@ import io.fluxcapacitor.javaclient.tracking.DefaultTracking;
 import io.fluxcapacitor.javaclient.tracking.Tracking;
 import io.fluxcapacitor.javaclient.tracking.TrackingException;
 import io.fluxcapacitor.javaclient.tracking.handling.DefaultHandlerFactory;
-import io.fluxcapacitor.javaclient.tracking.handling.DeserializingMessageParameterResolver;
 import io.fluxcapacitor.javaclient.tracking.handling.HandleCommand;
 import io.fluxcapacitor.javaclient.tracking.handling.HandleError;
 import io.fluxcapacitor.javaclient.tracking.handling.HandleEvent;
@@ -69,9 +68,6 @@ import io.fluxcapacitor.javaclient.tracking.handling.HandleQuery;
 import io.fluxcapacitor.javaclient.tracking.handling.HandleResult;
 import io.fluxcapacitor.javaclient.tracking.handling.HandleSchedule;
 import io.fluxcapacitor.javaclient.tracking.handling.HandlerInterceptor;
-import io.fluxcapacitor.javaclient.tracking.handling.MessageParameterResolver;
-import io.fluxcapacitor.javaclient.tracking.handling.MetadataParameterResolver;
-import io.fluxcapacitor.javaclient.tracking.handling.PayloadParameterResolver;
 import io.fluxcapacitor.javaclient.tracking.handling.errorreporting.ErrorReportingInterceptor;
 import io.fluxcapacitor.javaclient.tracking.handling.validation.ValidatingInterceptor;
 import io.fluxcapacitor.javaclient.tracking.metrics.HandlerMonitor;
@@ -98,6 +94,7 @@ import static io.fluxcapacitor.common.MessageType.METRICS;
 import static io.fluxcapacitor.common.MessageType.QUERY;
 import static io.fluxcapacitor.common.MessageType.RESULT;
 import static io.fluxcapacitor.common.MessageType.SCHEDULE;
+import static io.fluxcapacitor.javaclient.common.serialization.DeserializingMessage.defaultParameterResolvers;
 import static java.lang.Runtime.getRuntime;
 import static java.lang.String.format;
 import static java.util.Arrays.stream;
@@ -188,8 +185,8 @@ public class DefaultFluxCapacitor implements FluxCapacitor {
         private Serializer serializer = new JacksonSerializer();
         private Serializer snapshotSerializer = serializer;
         private final Map<MessageType, List<ConsumerConfiguration>> consumerConfigurations = defaultConfigurations();
-        private final List<ParameterResolver<? super DeserializingMessage>> handlerParameterResolvers =
-                defaultHandlerParameterResolvers();
+        private final List<ParameterResolver<? super DeserializingMessage>> parameterResolvers =
+                new ArrayList<>(defaultParameterResolvers);
         private final Map<MessageType, DispatchInterceptor> dispatchInterceptors =
                 Arrays.stream(MessageType.values()).collect(toMap(identity(), m -> (f, messageType) -> f));
         private final Map<MessageType, HandlerInterceptor> handlerInterceptors =
@@ -201,13 +198,7 @@ public class DefaultFluxCapacitor implements FluxCapacitor {
         private boolean disableDataProtection;
         private boolean disableShutdownHook;
         private boolean collectTrackingMetrics;
-
-        protected List<ParameterResolver<? super DeserializingMessage>> defaultHandlerParameterResolvers() {
-            return new ArrayList<>(Arrays.asList(new PayloadParameterResolver(), new MetadataParameterResolver(),
-                                                 new DeserializingMessageParameterResolver(),
-                                                 new MessageParameterResolver()));
-        }
-
+        
         protected Map<MessageType, List<ConsumerConfiguration>> defaultConfigurations() {
             return unmodifiableMap(stream(MessageType.values()).collect(toMap(identity(), messageType ->
                     new ArrayList<>(singletonList(ConsumerConfiguration.getDefault(messageType))))));
@@ -258,7 +249,7 @@ public class DefaultFluxCapacitor implements FluxCapacitor {
 
         @Override
         public Builder addParameterResolver(ParameterResolver<DeserializingMessage> parameterResolver) {
-            handlerParameterResolvers.add(parameterResolver);
+            parameterResolvers.add(parameterResolver);
             return this;
         }
 
@@ -374,11 +365,11 @@ public class DefaultFluxCapacitor implements FluxCapacitor {
                                                                                    dispatchInterceptors.get(EVENT)),
                                                           new DefaultHandlerFactory(EVENT,
                                                                                     handlerInterceptors.get(EVENT),
-                                                                                    handlerParameterResolvers));
+                                                                                    parameterResolvers));
             DefaultSnapshotRepository snapshotRepository =
                     new DefaultSnapshotRepository(client.getKeyValueClient(), snapshotSerializer);
-            DefaultEventSourcing eventSourcing =
-                    new DefaultEventSourcing(eventStore, snapshotRepository, new DefaultCache());
+            DefaultEventSourcing eventSourcing = new DefaultEventSourcing(
+                    eventStore, snapshotRepository, new DefaultCache(), parameterResolvers);
 
             //register event sourcing as handler interceptor
             handlerInterceptors.compute(COMMAND, (t, i) -> i.merge(eventSourcing));
@@ -407,20 +398,20 @@ public class DefaultFluxCapacitor implements FluxCapacitor {
                                                                    new DefaultHandlerFactory(COMMAND,
                                                                                              handlerInterceptors
                                                                                                      .get(COMMAND),
-                                                                                             handlerParameterResolvers)));
+                                                                                             parameterResolvers)));
             QueryGateway queryGateway =
                     new DefaultQueryGateway(createRequestGateway(client, QUERY, requestHandler,
                                                                  dispatchInterceptors.get(QUERY),
                                                                  new DefaultHandlerFactory(QUERY,
                                                                                            handlerInterceptors
                                                                                                    .get(QUERY),
-                                                                                           handlerParameterResolvers)));
+                                                                                           parameterResolvers)));
             EventGateway eventGateway =
                     new DefaultEventGateway(client.getGatewayClient(EVENT),
                                             new MessageSerializer(serializer, dispatchInterceptors.get(EVENT),
                                                                   EVENT),
                                             new DefaultHandlerFactory(EVENT, handlerInterceptors.get(EVENT),
-                                                                      handlerParameterResolvers));
+                                                                      parameterResolvers));
 
             MetricsGateway metricsGateway =
                     new DefaultMetricsGateway(client.getGatewayClient(METRICS),
@@ -433,7 +424,7 @@ public class DefaultFluxCapacitor implements FluxCapacitor {
                     .collect(toMap(identity(),
                                    m -> new DefaultTracking(m, getHandlerAnnotation(m), client.getTrackingClient(m),
                                                             resultGateway, consumerConfigurations.get(m), serializer,
-                                                            handlerInterceptors.get(m), handlerParameterResolvers)));
+                                                            handlerInterceptors.get(m), parameterResolvers)));
 
             //misc
             Scheduler scheduler = new DefaultScheduler(client.getSchedulingClient(),
