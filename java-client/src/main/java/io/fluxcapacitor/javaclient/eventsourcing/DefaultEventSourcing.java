@@ -179,15 +179,7 @@ public class DefaultEventSourcing implements EventSourcing, HandlerInterceptor {
                         .orElse(new Aggregate<>(id, -1L, null));
                 for (DeserializingMessage event : eventStore.getDomainEvents(id, aggregate.getSequenceNumber())
                         .collect(toList())) {
-                    aggregate = aggregate.update(m -> {
-                        DeserializingMessage current = DeserializingMessage.getCurrent();
-                        try {
-                            DeserializingMessage.setCurrent(event);
-                            return eventSourcingHandler.apply(event, m);
-                        } finally {
-                            DeserializingMessage.setCurrent(current);
-                        }
-                    });
+                    aggregate = aggregate.update(m -> eventSourcingHandler.apply(event, m));
                 }
                 return aggregate;
             });
