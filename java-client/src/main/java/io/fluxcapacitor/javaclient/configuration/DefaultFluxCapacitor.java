@@ -198,7 +198,7 @@ public class DefaultFluxCapacitor implements FluxCapacitor {
         private boolean disableDataProtection;
         private boolean disableShutdownHook;
         private boolean collectTrackingMetrics;
-        
+
         protected Map<MessageType, List<ConsumerConfiguration>> defaultConfigurations() {
             return unmodifiableMap(stream(MessageType.values()).collect(toMap(identity(), messageType ->
                     new ArrayList<>(singletonList(ConsumerConfiguration.getDefault(messageType))))));
@@ -236,8 +236,9 @@ public class DefaultFluxCapacitor implements FluxCapacitor {
         }
 
         @Override
-        public Builder addConsumerConfiguration(MessageType messageType, ConsumerConfiguration consumerConfiguration) {
-            List<ConsumerConfiguration> configurations = consumerConfigurations.get(messageType);
+        public Builder addConsumerConfiguration(ConsumerConfiguration consumerConfiguration) {
+            List<ConsumerConfiguration> configurations =
+                    consumerConfigurations.get(consumerConfiguration.getMessageType());
             if (configurations.stream().map(ConsumerConfiguration::getName)
                     .anyMatch(n -> Objects.equals(n, consumerConfiguration.getName()))) {
                 throw new IllegalArgumentException(

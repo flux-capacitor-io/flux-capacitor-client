@@ -19,7 +19,7 @@ public interface FluxCapacitorBuilder {
     FluxCapacitorBuilder configureDefaultConsumer(MessageType messageType,
                                                   UnaryOperator<ConsumerConfiguration> updateFunction);
 
-    FluxCapacitorBuilder addConsumerConfiguration(MessageType messageType, ConsumerConfiguration consumerConfiguration);
+    FluxCapacitorBuilder addConsumerConfiguration(ConsumerConfiguration consumerConfiguration);
 
     FluxCapacitorBuilder addDispatchInterceptor(DispatchInterceptor interceptor, MessageType... forTypes);
 

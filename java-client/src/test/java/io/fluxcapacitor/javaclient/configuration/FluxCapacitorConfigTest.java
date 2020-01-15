@@ -28,13 +28,13 @@ public class FluxCapacitorConfigTest {
     @Test
     void testAddConsumerWithExistingNameNotAllowed() {
         assertThrows(IllegalArgumentException.class, () -> DefaultFluxCapacitor.builder()
-                .addConsumerConfiguration(MessageType.QUERY, ConsumerConfiguration.getDefault(MessageType.QUERY)));
+                .addConsumerConfiguration(ConsumerConfiguration.getDefault(MessageType.QUERY)));
     }
 
     @Test
     void testUpdateConsumerToUseExistingNameNotAllowed() {
         assertThrows(IllegalArgumentException.class, () -> DefaultFluxCapacitor.builder()
-                .addConsumerConfiguration(MessageType.QUERY, ConsumerConfiguration.builder().name("foo").build())
+                .addConsumerConfiguration(ConsumerConfiguration.builder().messageType(MessageType.QUERY).name("foo").build())
                 .configureDefaultConsumer(MessageType.QUERY,
                                           consumerConfiguration -> consumerConfiguration.toBuilder().name("foo")
                                                   .build()));
