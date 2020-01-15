@@ -17,6 +17,7 @@ package io.fluxcapacitor.javaclient.tracking;
 import io.fluxcapacitor.common.api.tracking.TrackingStrategy;
 import lombok.Builder;
 import lombok.Builder.Default;
+import lombok.NonNull;
 import lombok.Singular;
 import lombok.Value;
 import lombok.experimental.Accessors;
@@ -41,7 +42,7 @@ public class TrackingConfiguration {
     @Default
     int maxConsumerBatchSize = 1024;
     @Default
-    Duration maxWaitDuration = Duration.ofSeconds(60);
+    @NonNull Duration maxWaitDuration = Duration.ofSeconds(60);
     @Default
     Duration retryDelay = Duration.ofSeconds(1);
     @Singular
@@ -53,4 +54,6 @@ public class TrackingConfiguration {
     TrackingStrategy readStrategy = TrackingStrategy.NEW;
     @Default
     Supplier<String> trackerIdFactory = () -> UUID.randomUUID().toString();
+    @Default 
+    Duration purgeDelay = null;
 }

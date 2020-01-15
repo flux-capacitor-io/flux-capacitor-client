@@ -24,14 +24,15 @@ import io.fluxcapacitor.common.api.tracking.ReadFromIndexResult;
 import io.fluxcapacitor.common.api.tracking.ReadResult;
 import io.fluxcapacitor.common.api.tracking.ResetPosition;
 import io.fluxcapacitor.common.api.tracking.StorePosition;
-import io.fluxcapacitor.common.api.tracking.TrackingStrategy;
 import io.fluxcapacitor.javaclient.common.websocket.AbstractWebsocketClient;
 import io.fluxcapacitor.javaclient.configuration.client.WebSocketClient.Properties;
+import io.fluxcapacitor.javaclient.tracking.TrackingConfiguration;
 
 import javax.websocket.ClientEndpoint;
 import java.net.URI;
 import java.time.Duration;
 import java.util.List;
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 
 @ClientEndpoint
@@ -46,12 +47,11 @@ public class WebsocketTrackingClient extends AbstractWebsocketClient implements 
     }
 
     @Override
-    public CompletableFuture<MessageBatch> read(String consumer, String trackerId, int maxSize, Duration maxTimeout,
-                                                String typeFilter, boolean ignoreMessageTarget,
-                                                TrackingStrategy strategy) {
+    public CompletableFuture<MessageBatch> read(String consumer, String trackerId, TrackingConfiguration configuration) {
         CompletableFuture<ReadResult> readResult = sendRequest(new Read(
-                consumer, trackerId, maxSize, maxTimeout.toMillis(), typeFilter, 
-                ignoreMessageTarget, strategy));
+                consumer, trackerId, configuration.getMaxFetchBatchSize(), configuration.getMaxWaitDuration().toMillis(), configuration.getTypeFilter(),
+                configuration.ignoreMessageTarget(), configuration.getReadStrategy(), 
+                Optional.ofNullable(configuration.getPurgeDelay()).map(Duration::toMillis).orElse(null)));
         return readResult.thenApply(ReadResult::getMessageBatch);
     }
 

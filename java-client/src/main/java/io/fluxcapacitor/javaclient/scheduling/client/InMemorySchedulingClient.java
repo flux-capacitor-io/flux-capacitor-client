@@ -4,10 +4,9 @@ import io.fluxcapacitor.common.Awaitable;
 import io.fluxcapacitor.common.api.SerializedMessage;
 import io.fluxcapacitor.common.api.scheduling.ScheduledMessage;
 import io.fluxcapacitor.common.api.tracking.MessageBatch;
-import io.fluxcapacitor.common.api.tracking.TrackingStrategy;
+import io.fluxcapacitor.javaclient.tracking.TrackingConfiguration;
 import io.fluxcapacitor.javaclient.tracking.client.InMemoryMessageStore;
 
-import java.time.Duration;
 import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.ConcurrentSkipListMap;
@@ -20,17 +19,17 @@ public class InMemorySchedulingClient extends InMemoryMessageStore implements Sc
     private final ConcurrentSkipListMap<Long, String> times = new ConcurrentSkipListMap<>();
 
     @Override
-    public MessageBatch readAndWait(String consumer, String trackerId, int maxSize, Duration maxTimeout, String typeFilter,
-                                    boolean ignoreMessageTarget, TrackingStrategy readStrategy) {
-        MessageBatch messageBatch = super.readAndWait(consumer, trackerId, maxSize, maxTimeout, typeFilter, ignoreMessageTarget,
-                                                      readStrategy);
+    public MessageBatch readAndWait(String consumer, String trackerId, TrackingConfiguration configuration) {
+        MessageBatch messageBatch = super.readAndWait(consumer, trackerId,
+                                                      configuration);
         List<SerializedMessage> messages = messageBatch.getMessages().stream()
                 .filter(m -> times.containsKey(m.getIndex()))
                 .filter(m -> isMissedDeadline(m.getIndex()))
                 .collect(toList());
         Long lastIndex = messages.isEmpty() ? null : messages.get(messages.size() - 1).getIndex();
-        if (typeFilter != null) {
-            messages = messages.stream().filter(m -> m.getData().getType().matches(typeFilter)).collect(toList());
+        if (configuration.getTypeFilter() != null) {
+            messages = messages.stream().filter(m -> m.getData().getType().matches(configuration.getTypeFilter()))
+                    .collect(toList());
         }
         return new MessageBatch(messageBatch.getSegment(), messages, lastIndex);
     }

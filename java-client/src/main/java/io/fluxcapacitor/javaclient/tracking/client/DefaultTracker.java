@@ -116,10 +116,8 @@ public class DefaultTracker implements Runnable, Registration {
     }
 
     protected MessageBatch fetch() {
-        return retryOnFailure(() -> trackingClient.readAndWait(
-                name, trackerId, configuration.getMaxFetchBatchSize(), configuration.getMaxWaitDuration(),
-                configuration.getTypeFilter(), configuration.ignoreMessageTarget(),
-                configuration.getReadStrategy()), configuration.getRetryDelay(), e -> running.get());
+        return retryOnFailure(() -> trackingClient.readAndWait(name, trackerId, configuration), 
+                              configuration.getRetryDelay(), e -> running.get());
     }
 
     protected void processAll(MessageBatch messageBatch) {

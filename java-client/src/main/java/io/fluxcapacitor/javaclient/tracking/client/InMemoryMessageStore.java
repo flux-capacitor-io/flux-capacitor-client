@@ -18,11 +18,10 @@ import io.fluxcapacitor.common.Awaitable;
 import io.fluxcapacitor.common.Registration;
 import io.fluxcapacitor.common.api.SerializedMessage;
 import io.fluxcapacitor.common.api.tracking.MessageBatch;
-import io.fluxcapacitor.common.api.tracking.TrackingStrategy;
 import io.fluxcapacitor.javaclient.publishing.client.GatewayClient;
+import io.fluxcapacitor.javaclient.tracking.TrackingConfiguration;
 import lombok.RequiredArgsConstructor;
 
-import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -63,12 +62,12 @@ public class InMemoryMessageStore implements GatewayClient, TrackingClient {
     }
 
     @Override
-    public MessageBatch readAndWait(String consumer, String trackerId, int maxSize, Duration maxTimeout, String typeFilter,
-                                    boolean ignoreMessageTarget, TrackingStrategy strategy) {
+    public MessageBatch readAndWait(String consumer, String trackerId,
+                                    TrackingConfiguration configuration) {
         if (!trackerId.equals(trackers.computeIfAbsent(consumer, c -> trackerId))) {
             return new MessageBatch(new int[]{0, 1}, Collections.emptyList(), null);
         }
-        long deadline = System.currentTimeMillis() + maxTimeout.toMillis();
+        long deadline = System.currentTimeMillis() + configuration.getMaxWaitDuration().toMillis();
         synchronized (this) {
             Map<Long, SerializedMessage> tailMap = Collections.emptyMap();
             while (System.currentTimeMillis() < deadline
@@ -82,18 +81,19 @@ public class InMemoryMessageStore implements GatewayClient, TrackingClient {
             }
             List<SerializedMessage> messages = new ArrayList<>(tailMap.values());
             Long lastIndex = messages.isEmpty() ? null : messages.get(messages.size() - 1).getIndex();
-            if (typeFilter != null) {
-                messages = messages.stream().filter(m -> m.getData().getType().matches(typeFilter)).collect(toList());
+            if (configuration.getTypeFilter() != null) {
+                messages = messages.stream().filter(m -> m.getData().getType()
+                        .matches(configuration.getTypeFilter())).collect(toList());
             }
             return new MessageBatch(new int[]{0, 1}, messages, lastIndex);
         }
     }
 
     @Override
-    public CompletableFuture<MessageBatch> read(String consumer, String trackerId, int maxSize, Duration maxTimeout,
-                                                String typeFilter, boolean ignoreMessageTarget,
-                                                TrackingStrategy strategy) {
-        return CompletableFuture.completedFuture(readAndWait(consumer, trackerId, maxSize, maxTimeout, typeFilter, ignoreMessageTarget, strategy));
+    public CompletableFuture<MessageBatch> read(String consumer, String trackerId,
+                                                TrackingConfiguration trackingConfiguration) {
+        return CompletableFuture.completedFuture(readAndWait(consumer, trackerId,
+                                                             trackingConfiguration));
     }
 
     @Override

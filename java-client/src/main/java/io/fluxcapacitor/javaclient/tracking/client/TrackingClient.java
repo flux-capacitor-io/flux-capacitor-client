@@ -17,23 +17,20 @@ package io.fluxcapacitor.javaclient.tracking.client;
 import io.fluxcapacitor.common.Awaitable;
 import io.fluxcapacitor.common.api.SerializedMessage;
 import io.fluxcapacitor.common.api.tracking.MessageBatch;
-import io.fluxcapacitor.common.api.tracking.TrackingStrategy;
+import io.fluxcapacitor.javaclient.tracking.TrackingConfiguration;
 import lombok.SneakyThrows;
 
-import java.time.Duration;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 
 public interface TrackingClient extends AutoCloseable {
 
     @SneakyThrows
-    default MessageBatch readAndWait(String consumer, String trackerId, int maxSize, Duration maxTimeout, 
-                                     String typeFilter, boolean ignoreMessageTarget, TrackingStrategy strategy) {
-        return read(consumer, trackerId, maxSize, maxTimeout, typeFilter, ignoreMessageTarget, strategy).get();
+    default MessageBatch readAndWait(String consumer, String trackerId, TrackingConfiguration configuration) {
+        return read(consumer, trackerId, configuration).get();
     }
     
-    CompletableFuture<MessageBatch> read(String consumer, String trackerId, int maxSize, Duration maxTimeout,
-                                         String typeFilter, boolean ignoreMessageTarget, TrackingStrategy strategy);
+    CompletableFuture<MessageBatch> read(String consumer, String trackerId, TrackingConfiguration trackingConfiguration);
     
     List<SerializedMessage> readFromIndex(long minIndex, int maxSize);
 
