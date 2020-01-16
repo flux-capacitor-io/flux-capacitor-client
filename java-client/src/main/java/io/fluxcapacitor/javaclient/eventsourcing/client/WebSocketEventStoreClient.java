@@ -38,7 +38,7 @@ public class WebSocketEventStoreClient extends AbstractWebsocketClient implement
     private final int fetchBatchSize;
 
     public WebSocketEventStoreClient(String endPointUrl, Properties properties) {
-        this(URI.create(endPointUrl), 1024, 1024, properties);
+        this(URI.create(endPointUrl), 1024, 8192, properties);
     }
 
     public WebSocketEventStoreClient(String endPointUrl, int backlogSize, Properties properties) {
