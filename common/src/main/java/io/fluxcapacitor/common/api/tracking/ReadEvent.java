@@ -28,7 +28,7 @@ public class ReadEvent implements ClientEvent {
     String trackerId;
     int maxSize;
     long maxTimeout;
-    Long purgeTimout;
+    Long purgeTimeout;
 
     int size;
     Long lastIndex;
