@@ -20,6 +20,7 @@ import lombok.Value;
 public class ConnectEvent implements ClientEvent {
     String client;
     String clientId;
+    String sessionId;
     long timestamp = System.currentTimeMillis();
     String service;
 }

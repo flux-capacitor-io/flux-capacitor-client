@@ -20,6 +20,7 @@ import lombok.Value;
 public class DisconnectEvent implements ClientEvent {
     String client;
     String clientId;
+    String sessionId;
     long timestamp = System.currentTimeMillis();
     String service;
     int code;
