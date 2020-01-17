@@ -145,36 +145,38 @@ public class DefaultTracking implements Tracking {
             exception = e;
         }
         SerializedMessage serializedMessage = message.getSerializedObject();
-        if (shouldSendResponse(handler, message)) {
-            if (result instanceof CompletionStage<?>) {
-                ((CompletionStage<?>) result).whenComplete((r, e) -> {
-                    Object asyncResult = r;
-                    if (e != null) {
-                        if (!(e instanceof FunctionalException)) {
-                            asyncResult = new TechnicalException(
-                                    format("Handler %s failed to handle a %s", handler, message));
-                        }
+        boolean shouldSendResponse = shouldSendResponse(handler, message);
+        if (result instanceof CompletionStage<?>) {
+            ((CompletionStage<?>) result).whenComplete((r, e) -> {
+                Object asyncResult = r;
+                if (e != null) {
+                    if (!(e instanceof FunctionalException)) {
+                        asyncResult = new TechnicalException(
+                                format("Handler %s failed to handle a %s", handler, message));
                     }
-                    try {
-                        DeserializingMessage.setCurrent(message);
+                }
+                try {
+                    DeserializingMessage.setCurrent(message);
+                    if (shouldSendResponse) {
                         resultGateway
                                 .respond(asyncResult, serializedMessage.getSource(), serializedMessage.getRequestId());
-                        if (e != null) {
-                            config.getErrorHandler().handleError((Exception) e, format(
-                                    "Handler %s failed to handle a %s", handler, message),
-                                                                 () -> handle(message, handler, config));
-                        }
-                    } catch (Exception exc) {
-                        log.warn("Did not stop consumer {} after async handler {} failed to handle a {}",
-                                 config.getName(), handler, message, exc);
-                    } finally {
-                        DeserializingMessage.removeCurrent();
                     }
-                });
-            } else {
-                resultGateway.respond(result, serializedMessage.getSource(), serializedMessage.getRequestId());
-            }
+                    if (e != null) {
+                        config.getErrorHandler().handleError((Exception) e, format(
+                                "Handler %s failed to handle a %s", handler, message),
+                                                             () -> handle(message, handler, config));
+                    }
+                } catch (Exception exc) {
+                    log.warn("Did not stop consumer {} after async handler {} failed to handle a {}",
+                             config.getName(), handler, message, exc);
+                } finally {
+                    DeserializingMessage.removeCurrent();
+                }
+            });
+        } else if (shouldSendResponse) {
+            resultGateway.respond(result, serializedMessage.getSource(), serializedMessage.getRequestId());
         }
+        
         if (exception != null) {
             throw exception;
         }
