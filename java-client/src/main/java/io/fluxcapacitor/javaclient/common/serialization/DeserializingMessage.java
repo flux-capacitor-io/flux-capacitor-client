@@ -13,9 +13,11 @@ import lombok.Value;
 import lombok.experimental.Delegate;
 
 import java.util.Arrays;
+import java.util.Iterator;
 import java.util.List;
 import java.util.stream.Stream;
 
+import static io.fluxcapacitor.common.ObjectUtils.iterate;
 import static java.time.Instant.ofEpochMilli;
 
 @Value
@@ -25,9 +27,16 @@ public class DeserializingMessage {
             Arrays.asList(new PayloadParameterResolver(), new MetadataParameterResolver(),
                           new DeserializingMessageParameterResolver(), new MessageParameterResolver());
     private static final ThreadLocal<DeserializingMessage> current = new ThreadLocal<>();
-    
-    public static Stream<DeserializingMessage> convert(Stream<DeserializingObject<byte[], SerializedMessage>> objects) {
-        
+
+    public static Stream<DeserializingMessage> convert(Stream<DeserializingObject<byte[], SerializedMessage>> input,
+                                                       MessageType messageType) {
+        Iterator<DeserializingObject<byte[], SerializedMessage>> iterator = input.iterator();
+        if (iterator.hasNext()) {
+            return iterate(new DeserializingMessage(iterator.next(), messageType, !iterator.hasNext()),
+                           m -> new DeserializingMessage(iterator.next(), messageType, iterator.hasNext()),
+                           DeserializingMessage::isLastOfBatch);
+        }
+        return Stream.empty();
     }
 
     @Delegate

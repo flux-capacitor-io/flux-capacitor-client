@@ -47,6 +47,6 @@ public class EventStoreSerializer {
     }
 
     public Stream<DeserializingMessage> deserializeDomainEvents(Stream<SerializedMessage> messageStream) {
-        return deserializer.deserialize(messageStream, true).map(m -> new DeserializingMessage(m, EVENT));
+        return DeserializingMessage.convert(deserializer.deserialize(messageStream, true), EVENT);
     }
 }

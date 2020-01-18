@@ -39,6 +39,7 @@ import java.util.function.Supplier;
 import java.util.stream.Stream;
 
 import static io.fluxcapacitor.common.handling.HandlerInspector.createHandlers;
+import static io.fluxcapacitor.javaclient.common.serialization.DeserializingMessage.convert;
 import static java.lang.String.format;
 import static java.util.stream.Collectors.groupingBy;
 
@@ -101,9 +102,8 @@ public class DefaultTracking implements Tracking {
                                                                List<Object> targets) {
         List<Handler<DeserializingMessage>> handlers = createHandlers(targets, handlerAnnotation, parameterResolvers);
         return serializedMessages -> {
-            Stream<DeserializingMessage> messages =
-                    serializer.deserialize(serializedMessages.stream(), false)
-                            .map(m -> new DeserializingMessage(m, messageType, false));
+            Stream<DeserializingMessage> messages = convert(
+                    serializer.deserialize(serializedMessages.stream(), false), messageType);
             messages.forEach(m -> {
                 try {
                     DeserializingMessage.setCurrent(m);

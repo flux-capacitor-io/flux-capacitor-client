@@ -252,7 +252,7 @@ class DefaultEventSourcingTest {
         return new DeserializingMessage(new DeserializingObject<>(
                 new SerializedMessage(new Data<>(new byte[0], message.getPayload().getClass().getName(), 0),
                                       message.getMetadata(), message.getMessageId(),
-                                      message.getTimestamp().toEpochMilli()), message::getPayload), EVENT);
+                                      message.getTimestamp().toEpochMilli()), message::getPayload), EVENT, true);
     }
 
     @EventSourced(cached = true, snapshotPeriod = 100)
