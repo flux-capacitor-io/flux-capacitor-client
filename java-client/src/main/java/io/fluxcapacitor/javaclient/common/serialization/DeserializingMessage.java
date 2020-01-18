@@ -33,7 +33,7 @@ public class DeserializingMessage {
         Iterator<DeserializingObject<byte[], SerializedMessage>> iterator = input.iterator();
         if (iterator.hasNext()) {
             return iterate(new DeserializingMessage(iterator.next(), messageType, !iterator.hasNext()),
-                           m -> new DeserializingMessage(iterator.next(), messageType, iterator.hasNext()),
+                           m -> new DeserializingMessage(iterator.next(), messageType, !iterator.hasNext()),
                            DeserializingMessage::isLastOfBatch);
         }
         return Stream.empty();
