@@ -83,7 +83,7 @@ public class DefaultGenericGateway implements RequestGateway {
             DeserializingMessage current = DeserializingMessage.getCurrent();
             try {
                 DeserializingMessage deserializingMessage =
-                        new DeserializingMessage(new DeserializingObject<>(serializedMessage, () -> payload), messageType);
+                        new DeserializingMessage(new DeserializingObject<>(serializedMessage, () -> payload), messageType, true);
                 DeserializingMessage.setCurrent(deserializingMessage);
                 for (Handler<DeserializingMessage> handler : localHandlers) {
                     if (handler.canHandle(deserializingMessage)) {

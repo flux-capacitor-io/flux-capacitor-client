@@ -198,7 +198,7 @@ public class DefaultEventSourcing implements EventSourcing, HandlerInterceptor {
                             message.getPayload().getClass().getAnnotation(Revision.class)).map(Revision::value)
                             .orElse(0)), message.getMetadata(), message.getMessageId(),
                                           message.getTimestamp().toEpochMilli()),
-                    message::getPayload), EVENT);
+                    message::getPayload), EVENT, true);
             aggregate = aggregate.update(a -> eventSourcingHandler.apply(deserializingMessage, a));
             return this;
         }

@@ -103,7 +103,7 @@ public class DefaultTracking implements Tracking {
         return serializedMessages -> {
             Stream<DeserializingMessage> messages =
                     serializer.deserialize(serializedMessages.stream(), false)
-                            .map(m -> new DeserializingMessage(m, messageType));
+                            .map(m -> new DeserializingMessage(m, messageType, false));
             messages.forEach(m -> {
                 try {
                     DeserializingMessage.setCurrent(m);

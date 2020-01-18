@@ -66,7 +66,7 @@ public class DefaultEventStore implements EventStore {
             DeserializingMessage current = DeserializingMessage.getCurrent();
             try {
                 DeserializingMessage deserializingMessage =
-                        new DeserializingMessage(new DeserializingObject<>(serializedMessage, () -> payload), EVENT);
+                        new DeserializingMessage(new DeserializingObject<>(serializedMessage, () -> payload), EVENT, true);
                 DeserializingMessage.setCurrent(deserializingMessage);
                 for (Handler<DeserializingMessage> handler : localHandlers) {
                     if (handler.canHandle(deserializingMessage)) {

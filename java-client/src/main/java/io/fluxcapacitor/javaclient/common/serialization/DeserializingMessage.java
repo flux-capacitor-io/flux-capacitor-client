@@ -14,6 +14,7 @@ import lombok.experimental.Delegate;
 
 import java.util.Arrays;
 import java.util.List;
+import java.util.stream.Stream;
 
 import static java.time.Instant.ofEpochMilli;
 
@@ -24,10 +25,15 @@ public class DeserializingMessage {
             Arrays.asList(new PayloadParameterResolver(), new MetadataParameterResolver(),
                           new DeserializingMessageParameterResolver(), new MessageParameterResolver());
     private static final ThreadLocal<DeserializingMessage> current = new ThreadLocal<>();
+    
+    public static Stream<DeserializingMessage> convert(Stream<DeserializingObject<byte[], SerializedMessage>> objects) {
+        
+    }
 
     @Delegate
     DeserializingObject<byte[], SerializedMessage> delegate;
     MessageType messageType;
+    boolean lastOfBatch;
 
     public Metadata getMetadata() {
         return delegate.getSerializedObject().getMetadata();

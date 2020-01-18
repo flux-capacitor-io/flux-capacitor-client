@@ -86,7 +86,7 @@ public class HandlerInspector {
         private final List<Function<? super M, Object>> parameterSuppliers;
         private final Predicate<? super M> matcher;
 
-        protected MethodHandlerInvoker(Executable executable, Class enclosingType,
+        protected MethodHandlerInvoker(Executable executable, Class<?> enclosingType,
                                        List<ParameterResolver<? super M>> parameterResolvers) {
             this.methodDepth = executable instanceof Method
                     ? methodDepth((Method) executable, enclosingType) : 0;
@@ -132,7 +132,7 @@ public class HandlerInspector {
                     return ((Method) executable)
                             .invoke(target, parameterSuppliers.stream().map(s -> s.apply(message)).toArray());
                 } else {
-                    return ((Constructor) executable)
+                    return ((Constructor<?>) executable)
                             .newInstance(parameterSuppliers.stream().map(s -> s.apply(message)).toArray());
                 }
             } catch (InvocationTargetException e) {
@@ -184,7 +184,7 @@ public class HandlerInspector {
             return Objects.equals(p1, p2) ? 0 : p1.isAssignableFrom(p2) ? 1 : p2.isAssignableFrom(p1) ? -1 : 0;
         }
 
-        private static int methodDepth(Method instanceMethod, Class instanceType) {
+        private static int methodDepth(Method instanceMethod, Class<?> instanceType) {
             return ReflectionUtils.getAllMethods(instanceType).collect(toList()).indexOf(instanceMethod);
         }
     }
