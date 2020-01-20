@@ -33,6 +33,7 @@ import java.util.function.Function;
 import java.util.function.Predicate;
 import java.util.stream.Stream;
 
+import static io.fluxcapacitor.common.handling.HandlerConfiguration.defaultHandlerConfiguration;
 import static io.fluxcapacitor.common.reflection.ReflectionUtils.ensureAccessible;
 import static io.fluxcapacitor.common.reflection.ReflectionUtils.getAllMethods;
 import static java.lang.String.format;
@@ -41,13 +42,7 @@ import static java.util.stream.Collectors.toList;
 import static java.util.stream.Stream.concat;
 
 public class HandlerInspector {
-
-    public static <M> List<Handler<M>> createHandlers(List<?> targets, Class<? extends Annotation> methodAnnotation,
-                                                      List<ParameterResolver<? super M>> parameterResolvers) {
-        return targets.stream().filter(o -> hasHandlerMethods(o.getClass(), methodAnnotation))
-                .map(o -> createHandler(o, methodAnnotation, parameterResolvers)).collect(toList());
-    }
-
+    
     public static boolean hasHandlerMethods(Class<?> targetClass, Class<? extends Annotation> methodAnnotation) {
         return concat(getAllMethods(targetClass), stream(targetClass.getConstructors()))
                 .anyMatch(m -> m.isAnnotationPresent(methodAnnotation));
@@ -55,27 +50,29 @@ public class HandlerInspector {
 
     public static <M> Handler<M> createHandler(Object target, Class<? extends Annotation> methodAnnotation,
                                                List<ParameterResolver<? super M>> parameterResolvers) {
-        return new DefaultHandler<>(target, inspect(target.getClass(), methodAnnotation, parameterResolvers));
+        return createHandler(target, methodAnnotation, parameterResolvers, defaultHandlerConfiguration());
     }
 
-    public static <M> HandlerInvoker<M> inspect(Class<?> type, Class<? extends Annotation> methodAnnotation,
-                                                List<ParameterResolver<? super M>> parameterResolvers) {
-        return inspect(type, methodAnnotation, parameterResolvers, true, false);
+    public static <M> Handler<M> createHandler(Object target, Class<? extends Annotation> methodAnnotation,
+                                               List<ParameterResolver<? super M>> parameterResolvers, 
+                                               HandlerConfiguration<M> handlerConfiguration) {
+        return new DefaultHandler<>(target, inspect(target.getClass(), methodAnnotation, parameterResolvers,
+                                                    handlerConfiguration));
     }
 
     public static <M> HandlerInvoker<M> inspect(Class<?> type, Class<? extends Annotation> methodAnnotation,
                                                 List<ParameterResolver<? super M>> parameterResolvers,
-                                                boolean failOnMissingMethods, boolean invokeMultipleMethods) {
-        if (failOnMissingMethods && !hasHandlerMethods(type, methodAnnotation)) {
+                                                HandlerConfiguration<M> handlerConfiguration) {
+        if (handlerConfiguration.failOnMissingMethods() && !hasHandlerMethods(type, methodAnnotation)) {
             throw new HandlerException(
                     format("Could not find methods with %s annotation on %s", methodAnnotation.getSimpleName(),
                            type.getSimpleName()));
         }
         return new ObjectHandlerInvoker<>(type, concat(getAllMethods(type), stream(type.getConstructors()))
                 .filter(m -> m.isAnnotationPresent(methodAnnotation))
-                .map(m -> new MethodHandlerInvoker<>(m, type, parameterResolvers))
+                .map(m -> handlerConfiguration.getInvokerFactory().create(m, type, parameterResolvers))
                 .sorted(Comparator.naturalOrder())
-                .collect(toList()), invokeMultipleMethods);
+                .collect(toList()), handlerConfiguration.invokeMultipleMethods());
     }
 
     protected static class MethodHandlerInvoker<M> implements HandlerInvoker<M>, Comparable<MethodHandlerInvoker<M>> {
