@@ -4,7 +4,7 @@ import io.fluxcapacitor.common.api.ClientEvent;
 import lombok.Value;
 
 @Value
-public class HandleMessageEvent implements ClientEvent {
+public class CompleteMessageEvent implements ClientEvent {
     String client;
     String clientId;
     long timestamp = System.currentTimeMillis();
@@ -15,6 +15,5 @@ public class HandleMessageEvent implements ClientEvent {
     String payloadType;
     boolean exceptionalResult;
     long nanosecondDuration;
-    boolean completed;
 
 }
