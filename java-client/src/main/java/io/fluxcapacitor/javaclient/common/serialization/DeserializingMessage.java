@@ -3,9 +3,12 @@ package io.fluxcapacitor.javaclient.common.serialization;
 import io.fluxcapacitor.common.MessageType;
 import io.fluxcapacitor.common.api.Metadata;
 import io.fluxcapacitor.common.api.SerializedMessage;
+import io.fluxcapacitor.common.handling.HandlerInspector.MethodHandlerInvoker;
+import io.fluxcapacitor.common.handling.MethodInvokerFactory;
 import io.fluxcapacitor.common.handling.ParameterResolver;
 import io.fluxcapacitor.javaclient.common.Message;
 import io.fluxcapacitor.javaclient.tracking.handling.DeserializingMessageParameterResolver;
+import io.fluxcapacitor.javaclient.tracking.handling.ListHandlerInvoker;
 import io.fluxcapacitor.javaclient.tracking.handling.MessageParameterResolver;
 import io.fluxcapacitor.javaclient.tracking.handling.MetadataParameterResolver;
 import io.fluxcapacitor.javaclient.tracking.handling.PayloadParameterResolver;
@@ -18,6 +21,7 @@ import java.util.List;
 import java.util.stream.Stream;
 
 import static io.fluxcapacitor.common.ObjectUtils.iterate;
+import static io.fluxcapacitor.javaclient.tracking.handling.ListHandlerInvoker.handlesList;
 import static java.time.Instant.ofEpochMilli;
 
 @Value
@@ -26,6 +30,10 @@ public class DeserializingMessage {
     public static List<ParameterResolver<? super DeserializingMessage>> defaultParameterResolvers =
             Arrays.asList(new PayloadParameterResolver(), new MetadataParameterResolver(),
                           new DeserializingMessageParameterResolver(), new MessageParameterResolver());
+    public static MethodInvokerFactory<DeserializingMessage> defaultInvokerFactory = 
+            (executable, enclosingType, parameterResolvers) -> handlesList(executable) 
+                    ? new ListHandlerInvoker(executable, enclosingType, parameterResolvers) 
+                    : new MethodHandlerInvoker<>(executable, enclosingType, parameterResolvers);
     private static final ThreadLocal<DeserializingMessage> current = new ThreadLocal<>();
 
     public static Stream<DeserializingMessage> convert(Stream<DeserializingObject<byte[], SerializedMessage>> input,

@@ -16,6 +16,7 @@ package io.fluxcapacitor.javaclient.tracking.handling;
 
 import io.fluxcapacitor.common.MessageType;
 import io.fluxcapacitor.common.handling.Handler;
+import io.fluxcapacitor.common.handling.HandlerConfiguration;
 import io.fluxcapacitor.common.handling.HandlerInspector;
 import io.fluxcapacitor.common.handling.ParameterResolver;
 import io.fluxcapacitor.javaclient.common.serialization.DeserializingMessage;
@@ -26,7 +27,7 @@ import java.lang.annotation.Annotation;
 import java.util.List;
 import java.util.Optional;
 
-import static io.fluxcapacitor.common.handling.HandlerConfiguration.defaultHandlerConfiguration;
+import static io.fluxcapacitor.javaclient.common.serialization.DeserializingMessage.defaultInvokerFactory;
 
 @AllArgsConstructor
 public class DefaultHandlerFactory implements HandlerFactory {
@@ -39,7 +40,9 @@ public class DefaultHandlerFactory implements HandlerFactory {
         Class<? extends Annotation> methodAnnotation = getHandlerAnnotation(messageType);
         if (HandlerInspector.hasHandlerMethods(target.getClass(), methodAnnotation)) {
             Handler<DeserializingMessage> handler = HandlerInspector
-                    .createHandler(target, methodAnnotation, parameterResolvers, defaultHandlerConfiguration());
+                    .createHandler(target, methodAnnotation, parameterResolvers,
+                                   HandlerConfiguration.<DeserializingMessage>builder()
+                                           .invokerFactory(defaultInvokerFactory).build());
             return Optional.of(handlerInterceptor.wrap(handler, "local-" + messageType.name().toLowerCase()));
         }
         return Optional.empty();

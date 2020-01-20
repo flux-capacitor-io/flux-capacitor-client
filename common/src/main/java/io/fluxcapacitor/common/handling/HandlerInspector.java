@@ -75,7 +75,7 @@ public class HandlerInspector {
                 .collect(toList()), handlerConfiguration.invokeMultipleMethods());
     }
 
-    protected static class MethodHandlerInvoker<M> implements HandlerInvoker<M>, Comparable<MethodHandlerInvoker<M>> {
+    public static class MethodHandlerInvoker<M> implements HandlerInvoker<M>, Comparable<MethodHandlerInvoker<M>> {
 
         private final int methodDepth;
         private final Executable executable;
@@ -83,10 +83,9 @@ public class HandlerInspector {
         private final List<Function<? super M, Object>> parameterSuppliers;
         private final Predicate<? super M> matcher;
 
-        protected MethodHandlerInvoker(Executable executable, Class<?> enclosingType,
+        public MethodHandlerInvoker(Executable executable, Class<?> enclosingType,
                                        List<ParameterResolver<? super M>> parameterResolvers) {
-            this.methodDepth = executable instanceof Method
-                    ? methodDepth((Method) executable, enclosingType) : 0;
+            this.methodDepth = executable instanceof Method ? methodDepth((Method) executable, enclosingType) : 0;
             this.executable = ensureAccessible(executable);
             this.hasReturnValue =
                     !(executable instanceof Method) || !(((Method) executable).getReturnType()).equals(void.class);
@@ -177,17 +176,17 @@ public class HandlerInspector {
             return result;
         }
 
-        private static int comparePayloads(Class<?> p1, Class<?> p2) {
+        protected static int comparePayloads(Class<?> p1, Class<?> p2) {
             return Objects.equals(p1, p2) ? 0 : p1.isAssignableFrom(p2) ? 1 : p2.isAssignableFrom(p1) ? -1 : 0;
         }
 
-        private static int methodDepth(Method instanceMethod, Class<?> instanceType) {
+        protected static int methodDepth(Method instanceMethod, Class<?> instanceType) {
             return ReflectionUtils.getAllMethods(instanceType).collect(toList()).indexOf(instanceMethod);
         }
     }
 
     @AllArgsConstructor
-    protected static class ObjectHandlerInvoker<M> implements HandlerInvoker<M> {
+    public static class ObjectHandlerInvoker<M> implements HandlerInvoker<M> {
         private final Class<?> type;
         private final List<HandlerInvoker<M>> methodHandlers;
         private final boolean invokeMultipleMethods;
@@ -224,7 +223,7 @@ public class HandlerInspector {
     }
 
     @AllArgsConstructor
-    protected static class DefaultHandler<M> implements Handler<M> {
+    public static class DefaultHandler<M> implements Handler<M> {
         private final Object target;
         private final HandlerInvoker<M> invoker;
 

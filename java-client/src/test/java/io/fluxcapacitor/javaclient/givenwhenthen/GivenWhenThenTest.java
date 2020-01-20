@@ -16,7 +16,6 @@ package io.fluxcapacitor.javaclient.givenwhenthen;
 
 import io.fluxcapacitor.javaclient.FluxCapacitor;
 import io.fluxcapacitor.javaclient.MockException;
-import io.fluxcapacitor.javaclient.common.exception.FunctionalException;
 import io.fluxcapacitor.javaclient.test.TestFixture;
 import io.fluxcapacitor.javaclient.tracking.handling.HandleCommand;
 import io.fluxcapacitor.javaclient.tracking.handling.HandleEvent;
@@ -200,8 +199,4 @@ class GivenWhenThenTest {
     @Value
     private static class YieldsEventAndException {
     }
-
-    private static class FunctionalMockException extends FunctionalException {
-    }
-
 }

@@ -11,13 +11,17 @@ import io.fluxcapacitor.javaclient.tracking.handling.HandleEvent;
 import lombok.Value;
 import org.junit.jupiter.api.Test;
 
+import java.util.List;
+import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import java.util.stream.IntStream;
 
 import static io.fluxcapacitor.common.MessageType.COMMAND;
+import static java.util.stream.Collectors.toList;
 import static org.mockito.Mockito.spy;
 
 class GivenWhenThenStreamingTest {
@@ -55,6 +59,33 @@ class GivenWhenThenStreamingTest {
         subject.givenNoPriorActivity().whenCommand(new PassivelyHandled()).expectException(TimeoutException.class);
     }
 
+    @Test
+    void testCommandBatch() {
+        List<HandledInBatchYieldsList> commands =
+                IntStream.range(0, 4).mapToObj(i -> new HandledInBatchYieldsList()).collect(toList());
+        subject.givenCommands(commands.subList(0, 3)).whenCommand(commands.get(3)).expectResult(commands.get(3));
+    }
+
+    @Test
+    void testCommandBatchYieldsId() {
+        List<HandledInBatchYieldsId> commands =
+                IntStream.range(0, 4).mapToObj(i -> new HandledInBatchYieldsId()).collect(toList());
+        subject.givenCommands(commands.subList(0, 3)).whenCommand(commands.get(3)).expectResult(commands.get(3).getId());
+    }
+
+    @Test
+    void testCommandBatchYieldsIdAsync() {
+        List<HandledInBatchYieldsIdAsync> commands =
+                IntStream.range(0, 4).mapToObj(i -> new HandledInBatchYieldsIdAsync()).collect(toList());
+        subject.givenCommands(commands.subList(0, 3)).whenCommand(commands.get(3)).expectResult(commands.get(3).getId());
+    }
+
+    @Test
+    void testAnyOtherList() {
+        List<String> commands = IntStream.range(0, 4).mapToObj(Integer::toString).collect(toList());
+        subject.givenCommands(commands.subList(0, 3)).whenCommand(commands.get(3)).expectResult(commands.get(3));
+    }
+
     private static class CommandHandler {
         @HandleCommand
         public String handle(YieldsEventAndResult command) {
@@ -75,6 +106,30 @@ class GivenWhenThenStreamingTest {
         @HandleCommand(passive = true)
         public String handle(PassivelyHandled command) {
             return "this will be ignored";
+        }
+
+        @HandleCommand
+        public List<HandledInBatchYieldsList> handleBatch(List<HandledInBatchYieldsList> commandBatch) {
+            return commandBatch;
+        }
+
+        @HandleCommand
+        public String handleBatchYieldsId(List<HandledInBatchYieldsId> commandBatch) {
+            return commandBatch.get(commandBatch.size() - 1).getId();
+        }
+
+        @HandleCommand
+        public List<CompletableFuture<?>> handleBatchYieldsFuture(List<HandledInBatchYieldsIdAsync> commandBatch) {
+            return commandBatch.stream().map(c -> {
+                CompletableFuture<Object> result = new CompletableFuture<>();
+                result.complete(c.getId());
+                return result;
+            }).collect(toList());
+        }
+        
+        @HandleCommand
+        public List<?> handleAnyStringList(List<? extends String> commands) {
+            return commands;
         }
     }
 
@@ -117,4 +172,18 @@ class GivenWhenThenStreamingTest {
     private static class PassivelyHandled {
     }
 
+    @Value
+    private static class HandledInBatchYieldsList {
+        String id = UUID.randomUUID().toString();
+    }
+
+    @Value
+    private static class HandledInBatchYieldsId {
+        String id = UUID.randomUUID().toString();
+    }
+
+    @Value
+    private static class HandledInBatchYieldsIdAsync {
+        String id = UUID.randomUUID().toString();
+    }
 }

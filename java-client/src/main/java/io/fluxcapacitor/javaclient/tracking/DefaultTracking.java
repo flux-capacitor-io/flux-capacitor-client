@@ -4,6 +4,7 @@ import io.fluxcapacitor.common.MessageType;
 import io.fluxcapacitor.common.Registration;
 import io.fluxcapacitor.common.api.SerializedMessage;
 import io.fluxcapacitor.common.handling.Handler;
+import io.fluxcapacitor.common.handling.HandlerConfiguration;
 import io.fluxcapacitor.common.handling.ParameterResolver;
 import io.fluxcapacitor.javaclient.FluxCapacitor;
 import io.fluxcapacitor.javaclient.common.exception.FunctionalException;
@@ -37,7 +38,6 @@ import java.util.function.Consumer;
 import java.util.function.Supplier;
 import java.util.stream.Stream;
 
-import static io.fluxcapacitor.common.handling.HandlerConfiguration.defaultHandlerConfiguration;
 import static io.fluxcapacitor.common.handling.HandlerInspector.createHandler;
 import static io.fluxcapacitor.common.handling.HandlerInspector.hasHandlerMethods;
 import static io.fluxcapacitor.javaclient.common.serialization.DeserializingMessage.convert;
@@ -104,7 +104,9 @@ public class DefaultTracking implements Tracking {
                                                                List<Object> targets) {
         List<Handler<DeserializingMessage>> handlers = targets.stream()
                 .filter(o -> hasHandlerMethods(o.getClass(), handlerAnnotation))
-                .map(o -> createHandler(o, handlerAnnotation, parameterResolvers, defaultHandlerConfiguration()))
+                .map(o -> createHandler(o, handlerAnnotation, parameterResolvers, 
+                                        HandlerConfiguration.<DeserializingMessage>builder()
+                                                .invokerFactory(DeserializingMessage.defaultInvokerFactory).build()))
                 .collect(toList());
         return serializedMessages -> {
             Stream<DeserializingMessage> messages = convert(

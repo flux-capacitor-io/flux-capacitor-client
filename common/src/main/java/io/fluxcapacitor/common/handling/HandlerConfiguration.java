@@ -6,9 +6,6 @@ import lombok.Builder.Default;
 import lombok.Value;
 import lombok.experimental.Accessors;
 
-import java.lang.reflect.Executable;
-import java.util.List;
-
 @Value
 @Builder
 public class HandlerConfiguration<T> {
@@ -25,9 +22,4 @@ public class HandlerConfiguration<T> {
         return HandlerConfiguration.<T>builder().build();
     }
 
-    @FunctionalInterface
-    interface MethodInvokerFactory<T> {
-        MethodHandlerInvoker<T> create(Executable executable, Class<?> enclosingType,
-                                       List<ParameterResolver<? super T>> parameterResolvers);
-    }
 }
