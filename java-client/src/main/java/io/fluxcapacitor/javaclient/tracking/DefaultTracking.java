@@ -4,7 +4,6 @@ import io.fluxcapacitor.common.MessageType;
 import io.fluxcapacitor.common.Registration;
 import io.fluxcapacitor.common.api.SerializedMessage;
 import io.fluxcapacitor.common.handling.Handler;
-import io.fluxcapacitor.common.handling.HandlerInspector;
 import io.fluxcapacitor.common.handling.ParameterResolver;
 import io.fluxcapacitor.javaclient.FluxCapacitor;
 import io.fluxcapacitor.javaclient.common.exception.FunctionalException;
@@ -38,10 +37,13 @@ import java.util.function.Consumer;
 import java.util.function.Supplier;
 import java.util.stream.Stream;
 
-import static io.fluxcapacitor.common.handling.HandlerInspector.createHandlers;
+import static io.fluxcapacitor.common.handling.HandlerConfiguration.defaultHandlerConfiguration;
+import static io.fluxcapacitor.common.handling.HandlerInspector.createHandler;
+import static io.fluxcapacitor.common.handling.HandlerInspector.hasHandlerMethods;
 import static io.fluxcapacitor.javaclient.common.serialization.DeserializingMessage.convert;
 import static java.lang.String.format;
 import static java.util.stream.Collectors.groupingBy;
+import static java.util.stream.Collectors.toList;
 
 @AllArgsConstructor
 @Slf4j
@@ -62,7 +64,7 @@ public class DefaultTracking implements Tracking {
     @Synchronized
     public Registration start(FluxCapacitor fluxCapacitor, List<?> handlers) {
         Map<ConsumerConfiguration, List<Object>> consumers = handlers.stream()
-                .filter(h -> HandlerInspector.hasHandlerMethods(h.getClass(), handlerAnnotation))
+                .filter(h -> hasHandlerMethods(h.getClass(), handlerAnnotation))
                 .collect(groupingBy(h -> configurations.stream()
                         .filter(config -> config.getHandlerFilter().test(h)).findFirst()
                         .orElseThrow(() -> new TrackingException(format("Failed to find consumer for %s", h)))));
@@ -100,7 +102,10 @@ public class DefaultTracking implements Tracking {
 
     protected Consumer<List<SerializedMessage>> createConsumer(ConsumerConfiguration configuration,
                                                                List<Object> targets) {
-        List<Handler<DeserializingMessage>> handlers = createHandlers(targets, handlerAnnotation, parameterResolvers);
+        List<Handler<DeserializingMessage>> handlers = targets.stream()
+                .filter(o -> hasHandlerMethods(o.getClass(), handlerAnnotation))
+                .map(o -> createHandler(o, handlerAnnotation, parameterResolvers, defaultHandlerConfiguration()))
+                .collect(toList());
         return serializedMessages -> {
             Stream<DeserializingMessage> messages = convert(
                     serializer.deserialize(serializedMessages.stream(), false), messageType);

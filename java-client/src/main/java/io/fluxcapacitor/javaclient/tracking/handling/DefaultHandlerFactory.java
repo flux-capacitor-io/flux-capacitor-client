@@ -26,6 +26,8 @@ import java.lang.annotation.Annotation;
 import java.util.List;
 import java.util.Optional;
 
+import static io.fluxcapacitor.common.handling.HandlerConfiguration.defaultHandlerConfiguration;
+
 @AllArgsConstructor
 public class DefaultHandlerFactory implements HandlerFactory {
     private final MessageType messageType;
@@ -36,8 +38,8 @@ public class DefaultHandlerFactory implements HandlerFactory {
     public Optional<Handler<DeserializingMessage>> createHandler(Object target) {
         Class<? extends Annotation> methodAnnotation = getHandlerAnnotation(messageType);
         if (HandlerInspector.hasHandlerMethods(target.getClass(), methodAnnotation)) {
-            Handler<DeserializingMessage> handler = 
-                    HandlerInspector.createHandler(target, methodAnnotation, parameterResolvers);
+            Handler<DeserializingMessage> handler = HandlerInspector
+                    .createHandler(target, methodAnnotation, parameterResolvers, defaultHandlerConfiguration());
             return Optional.of(handlerInterceptor.wrap(handler, "local-" + messageType.name().toLowerCase()));
         }
         return Optional.empty();

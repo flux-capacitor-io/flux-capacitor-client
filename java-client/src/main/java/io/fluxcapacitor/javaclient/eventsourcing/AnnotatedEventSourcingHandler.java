@@ -8,6 +8,7 @@ import io.fluxcapacitor.javaclient.common.serialization.DeserializingMessage;
 
 import java.util.List;
 
+import static io.fluxcapacitor.common.handling.HandlerConfiguration.defaultHandlerConfiguration;
 import static io.fluxcapacitor.javaclient.common.serialization.DeserializingMessage.defaultParameterResolvers;
 
 public class AnnotatedEventSourcingHandler<T> implements EventSourcingHandler<T> {
@@ -22,7 +23,8 @@ public class AnnotatedEventSourcingHandler<T> implements EventSourcingHandler<T>
     public AnnotatedEventSourcingHandler(Class<T> handlerType,
                                          List<ParameterResolver<? super DeserializingMessage>> parameterResolvers) {
         this.handlerType = handlerType;
-        this.invoker = HandlerInspector.inspect(handlerType, ApplyEvent.class, parameterResolvers);
+        this.invoker = HandlerInspector
+                .inspect(handlerType, ApplyEvent.class, parameterResolvers, defaultHandlerConfiguration());
     }
 
     @Override
