@@ -29,7 +29,13 @@ public class ErrorReportingInterceptor implements HandlerInterceptor {
                 if (result instanceof CompletionStage<?>) {
                     ((CompletionStage<?>) result).whenComplete((r, e) -> {
                         if (e != null) {
-                            reportError(e, handler, m);
+                            DeserializingMessage current = DeserializingMessage.getCurrent();
+                            try {
+                                DeserializingMessage.setCurrent(m);
+                                reportError(e, handler, m);
+                            } finally {
+                                DeserializingMessage.setCurrent(current);
+                            }
                         }
                     });
                 }
@@ -45,6 +51,6 @@ public class ErrorReportingInterceptor implements HandlerInterceptor {
         if (!(e instanceof FunctionalException || e instanceof TechnicalException)) {
             e = new TechnicalException(format("Handler %s failed to handle a %s", handler, cause));
         }
-        errorGateway.report(new Message(e), cause.getSerializedObject().getSource());
+        errorGateway.report(new Message(e, cause.getMetadata()), cause.getSerializedObject().getSource());
     }
 }
