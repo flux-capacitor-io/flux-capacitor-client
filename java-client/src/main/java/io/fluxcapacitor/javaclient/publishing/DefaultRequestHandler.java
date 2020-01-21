@@ -8,6 +8,7 @@ import io.fluxcapacitor.javaclient.tracking.client.TrackingUtils;
 import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
+import java.time.Duration;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
@@ -16,6 +17,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Consumer;
 
+import static io.fluxcapacitor.javaclient.common.ClientUtils.waitForResults;
 import static java.lang.String.format;
 
 @AllArgsConstructor
@@ -45,29 +47,38 @@ public class DefaultRequestHandler implements RequestHandler {
         return result;
     }
 
+    @Override
+    public void close() {
+        waitForResults(Duration.ofSeconds(2), callbacks.values());
+    }
+
     protected void handleMessages(List<SerializedMessage> messages) {
         messages.forEach(m -> {
-            CompletableFuture<Message> future = callbacks.remove(m.getRequestId());
-            if (future == null) {
-                log.warn("Received response with index {} for unknown request {}", m.getIndex(), m.getRequestId());
-                return;
-            }
-            Object result;
             try {
-                result = serializer.deserialize(m.getData());
-            } catch (Exception e) {
-                log.error("Failed to deserialize result with id {}. Continuing with next result", m.getRequestId(), e);
-                future.completeExceptionally(e);
-                return;
-            }
-            try {
-                if (result instanceof Throwable) {
-                    future.completeExceptionally((Exception) result);
-                } else {
-                    future.complete(new Message(result, m.getMetadata()));
+                CompletableFuture<Message> future = callbacks.get(m.getRequestId());
+                if (future == null) {
+                    log.warn("Received response with index {} for unknown request {}", m.getIndex(), m.getRequestId());
+                    return;
                 }
-            } catch (Exception e) {
-                log.error("Failed to complete request with id {}", m.getRequestId(), e);
+                Object result;
+                try {
+                    result = serializer.deserialize(m.getData());
+                } catch (Exception e) {
+                    log.error("Failed to deserialize result with id {}. Continuing with next result", m.getRequestId(), e);
+                    future.completeExceptionally(e);
+                    return;
+                }
+                try {
+                    if (result instanceof Throwable) {
+                        future.completeExceptionally((Exception) result);
+                    } else {
+                        future.complete(new Message(result, m.getMetadata()));
+                    }
+                } catch (Exception e) {
+                    log.error("Failed to complete request with id {}", m.getRequestId(), e);
+                }
+            } finally {
+                callbacks.remove(m.getRequestId());
             }
         });
     }

@@ -84,6 +84,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.UnaryOperator;
 import java.util.stream.Stream;
 
@@ -119,6 +120,7 @@ public class DefaultFluxCapacitor implements FluxCapacitor {
     private final KeyValueStore keyValueStore;
     private final Scheduler scheduler;
     private final Client client;
+    private final Runnable shutdownHandler;
 
     public static Builder builder() {
         return new Builder();
@@ -178,6 +180,11 @@ public class DefaultFluxCapacitor implements FluxCapacitor {
     public Tracking tracking(MessageType messageType) {
         return Optional.ofNullable(trackingSupplier.get(messageType)).orElseThrow(
                 () -> new TrackingException(String.format("Tracking is not supported for type %s", messageType)));
+    }
+
+    @Override
+    public void close() {
+        shutdownHandler.run();
     }
 
     public static class Builder implements FluxCapacitorBuilder {
@@ -257,14 +264,14 @@ public class DefaultFluxCapacitor implements FluxCapacitor {
         @Override
         public Builder addDispatchInterceptor(DispatchInterceptor interceptor, MessageType... forTypes) {
             Arrays.stream(forTypes.length == 0 ? MessageType.values() : forTypes)
-                    .forEach(type -> dispatchInterceptors.compute(type, (t, i) -> i.merge(interceptor)));
+                    .forEach(type -> dispatchInterceptors.computeIfPresent(type, (t, i) -> i.merge(interceptor)));
             return this;
         }
 
         @Override
         public Builder addHandlerInterceptor(HandlerInterceptor interceptor, MessageType... forTypes) {
             Arrays.stream(forTypes.length == 0 ? MessageType.values() : forTypes)
-                    .forEach(type -> handlerInterceptors.compute(type, (t, i) -> i.merge(interceptor)));
+                    .forEach(type -> handlerInterceptors.computeIfPresent(type, (t, i) -> i.merge(interceptor)));
             return this;
         }
 
@@ -321,15 +328,15 @@ public class DefaultFluxCapacitor implements FluxCapacitor {
             KeyValueStore keyValueStore = new DefaultKeyValueStore(client.getKeyValueClient(), serializer);
 
             //enable message routing
-            Arrays.stream(MessageType.values())
-                    .forEach(type -> dispatchInterceptors.compute(type, (t, i) -> i.merge(messageRoutingInterceptor)));
+            Arrays.stream(MessageType.values()).forEach(
+                    type -> dispatchInterceptors.computeIfPresent(type, (t, i) -> i.merge(messageRoutingInterceptor)));
 
             //enable data protection
             if (!disableDataProtection) {
                 DataProtectionInterceptor interceptor = new DataProtectionInterceptor(keyValueStore, serializer);
                 Stream.of(COMMAND, EVENT, QUERY, RESULT, SCHEDULE).forEach(type -> {
-                    dispatchInterceptors.compute(type, (t, i) -> i.merge(interceptor));
-                    handlerInterceptors.compute(type, (t, i) -> i.merge(interceptor));
+                    dispatchInterceptors.computeIfPresent(type, (t, i) -> i.merge(interceptor));
+                    handlerInterceptors.computeIfPresent(type, (t, i) -> i.merge(interceptor));
                 });
             }
 
@@ -342,9 +349,8 @@ public class DefaultFluxCapacitor implements FluxCapacitor {
 
             //enable command and query validation
             if (!disablePayloadValidation) {
-                Stream.of(COMMAND, QUERY)
-                        .forEach(type -> handlerInterceptors
-                                .compute(type, (t, i) -> i.merge(new ValidatingInterceptor())));
+                Stream.of(COMMAND, QUERY).forEach(type -> handlerInterceptors
+                        .computeIfPresent(type, (t, i) -> i.merge(new ValidatingInterceptor())));
             }
 
             //collect metrics about consumers and handlers
@@ -352,7 +358,7 @@ public class DefaultFluxCapacitor implements FluxCapacitor {
                 BatchInterceptor batchInterceptor = new TrackerMonitor();
                 HandlerMonitor handlerMonitor = new HandlerMonitor();
                 Arrays.stream(MessageType.values()).forEach(type -> {
-                    consumerConfigurations.compute(type, (t, list) ->
+                    consumerConfigurations.computeIfPresent(type, (t, list) ->
                             t == METRICS ? list : list.stream().map(c -> c.toBuilder().trackingConfiguration(
                                     c.getTrackingConfiguration().toBuilder().batchInterceptor(batchInterceptor).build())
                                     .build()).collect(toList()));
@@ -373,7 +379,7 @@ public class DefaultFluxCapacitor implements FluxCapacitor {
                     eventStore, snapshotRepository, new DefaultCache(), parameterResolvers);
 
             //register event sourcing as handler interceptor
-            handlerInterceptors.compute(COMMAND, (t, i) -> i.merge(eventSourcing));
+            handlerInterceptors.computeIfPresent(COMMAND, (t, i) -> i.merge(eventSourcing));
 
             //enable error reporter as the outermost handler interceptor
             ErrorGateway errorGateway =
@@ -432,22 +438,27 @@ public class DefaultFluxCapacitor implements FluxCapacitor {
                                                        new MessageSerializer(serializer,
                                                                              dispatchInterceptors.get(SCHEDULE),
                                                                              SCHEDULE));
+            AtomicBoolean closed = new AtomicBoolean();
+            Runnable shutdownHandler = () -> {
+                if (closed.compareAndSet(false, true)) {
+                    log.info("Initiating controlled shutdown");
+                    trackingMap.values().forEach(Tracking::close);
+                    requestHandler.close();
+                    client.shutDown();
+                    log.info("Completed shutdown");
+                }
+            };
 
             //and finally...
             FluxCapacitor fluxCapacitor = doBuild(trackingMap, commandGateway, queryGateway, eventGateway,
                                                   resultGateway, errorGateway, metricsGateway, eventSourcing,
-                                                  keyValueStore, scheduler, client);
+                                                  keyValueStore, scheduler, client, shutdownHandler);
 
             //perform a controlled shutdown when the vm exits
             if (!disableShutdownHook) {
-                getRuntime().addShutdownHook(new Thread(() -> {
-                    log.info("Initiating controlled shutdown");
-                    trackingMap.values().forEach(Tracking::close);
-                    client.shutDown();
-                    log.info("Completed shutdown");
-                }));
+                getRuntime().addShutdownHook(new Thread(shutdownHandler));
             }
-
+            
             return fluxCapacitor;
         }
 
@@ -457,10 +468,10 @@ public class DefaultFluxCapacitor implements FluxCapacitor {
                                         ErrorGateway errorGateway,
                                         MetricsGateway metricsGateway, EventSourcing eventSourcing,
                                         KeyValueStore keyValueStore,
-                                        Scheduler scheduler, Client client) {
+                                        Scheduler scheduler, Client client, Runnable shutdownHandler) {
             return new DefaultFluxCapacitor(trackingSupplier, commandGateway, queryGateway, eventGateway, resultGateway,
                                             errorGateway, metricsGateway, eventSourcing, keyValueStore, scheduler,
-                                            client);
+                                            client, shutdownHandler);
         }
 
         protected Class<? extends Annotation> getHandlerAnnotation(MessageType messageType) {

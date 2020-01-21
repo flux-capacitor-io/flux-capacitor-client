@@ -24,8 +24,10 @@ import lombok.extern.slf4j.Slf4j;
 import java.lang.annotation.Annotation;
 import java.lang.reflect.Executable;
 import java.lang.reflect.Method;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.Iterator;
@@ -33,13 +35,15 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
-import java.util.concurrent.CompletionStage;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
 
 import static io.fluxcapacitor.common.handling.HandlerInspector.createHandler;
 import static io.fluxcapacitor.common.handling.HandlerInspector.hasHandlerMethods;
+import static io.fluxcapacitor.javaclient.common.ClientUtils.waitForResults;
 import static java.lang.String.format;
 import static java.util.stream.Collectors.groupingBy;
 import static java.util.stream.Collectors.toList;
@@ -57,6 +61,7 @@ public class DefaultTracking implements Tracking {
     private final HandlerInterceptor handlerInterceptor;
     private final List<ParameterResolver<? super DeserializingMessage>> parameterResolvers;
     private final Set<ConsumerConfiguration> startedConfigurations = new HashSet<>();
+    private final Collection<CompletableFuture<?>> outstandingRequests = new CopyOnWriteArrayList<>();
     private final AtomicReference<Registration> shutdownFunction = new AtomicReference<>(Registration.noOp());
 
     @Override
@@ -75,7 +80,8 @@ public class DefaultTracking implements Tracking {
         Registration registration =
                 consumers.entrySet().stream().map(e -> startTracking(e.getKey(), e.getValue(), fluxCapacitor))
                         .reduce(Registration::merge).orElse(Registration.noOp());
-        shutdownFunction.updateAndGet(registration::merge);
+        registration = registration.merge(() -> waitForResults(Duration.ofSeconds(2), outstandingRequests));
+        shutdownFunction.set(registration);
         return registration;
     }
 
@@ -156,8 +162,8 @@ public class DefaultTracking implements Tracking {
         }
         SerializedMessage serializedMessage = message.getSerializedObject();
         boolean shouldSendResponse = shouldSendResponse(handler, message);
-        if (result instanceof CompletionStage<?>) {
-            ((CompletionStage<?>) result).whenComplete((r, e) -> {
+        if (result instanceof CompletableFuture<?>) {
+            CompletableFuture<?> future = ((CompletableFuture<?>) result).whenComplete((r, e) -> {
                 Object asyncResult = r;
                 if (e != null) {
                     if (!(e instanceof FunctionalException)) {
@@ -183,6 +189,8 @@ public class DefaultTracking implements Tracking {
                     DeserializingMessage.removeCurrent();
                 }
             });
+            outstandingRequests.add(future);
+            future.whenComplete((r, e) -> outstandingRequests.remove(future));
         } else if (shouldSendResponse) {
             resultGateway.respond(result, serializedMessage.getSource(), serializedMessage.getRequestId());
         }

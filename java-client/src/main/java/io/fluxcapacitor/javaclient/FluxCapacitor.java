@@ -43,7 +43,7 @@ import static java.util.Arrays.stream;
  * <p>
  * To build an instance of this client check out {@link DefaultFluxCapacitor}.
  */
-public interface FluxCapacitor {
+public interface FluxCapacitor extends AutoCloseable {
 
     /**
      * Flux Capacitor instance set by the current application. Used as a fallback when no threadlocal instance was set.
@@ -324,4 +324,6 @@ public interface FluxCapacitor {
      */
     Client client();
 
+    @Override
+    void close();
 }

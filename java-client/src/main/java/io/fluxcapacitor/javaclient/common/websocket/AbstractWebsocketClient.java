@@ -58,7 +58,7 @@ import static javax.websocket.CloseReason.CloseCodes.NO_STATUS_CODE;
 public abstract class AbstractWebsocketClient implements AutoCloseable {
     public static final ObjectMapper defaultObjectMapper = new ObjectMapper()
             .disable(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES);
-    
+
     private final WebSocketContainer container;
     private final URI endpointUri;
     private final Properties properties;
@@ -86,7 +86,7 @@ public abstract class AbstractWebsocketClient implements AutoCloseable {
                 .exceptionLogger(status -> {
                     if (status.getNumberOfTimesRetried() == 0) {
                         log.warn("Failed to connect to endpoint {}; reason: {}. Retrying every {} ms...",
-                                 endpointUri, status.getException().getMessage(), 
+                                 endpointUri, status.getException().getMessage(),
                                  status.getRetryConfiguration().getDelay().toMillis());
                     }
                 })
@@ -184,27 +184,32 @@ public abstract class AbstractWebsocketClient implements AutoCloseable {
 
     protected void close(boolean clearOutstandingRequests) {
         if (closed.compareAndSet(false, true)) {
-            if (clearOutstandingRequests) {
-                requests.clear();
-            }
-            if (session != null) {
-                try {
-                    session.close();
-                } catch (IOException e) {
-                    log.warn("Failed to closed websocket session connected to endpoint {}. Reason: {}",
-                             session.getRequestURI(), e.getMessage());
+            synchronized (closed) {
+                if (clearOutstandingRequests) {
+                    requests.clear();
                 }
-            }
-            if (session != null && !requests.isEmpty()) {
-                log.warn("Closed websocket session to endpoint {} with {} outstanding requests",
-                         session.getRequestURI(), requests.size());
+                if (session != null) {
+                    try {
+                        session.close();
+                    } catch (IOException e) {
+                        log.warn("Failed to closed websocket session connected to endpoint {}. Reason: {}",
+                                 session.getRequestURI(), e.getMessage());
+                    }
+                }
+                if (session != null && !requests.isEmpty()) {
+                    log.warn("Closed websocket session to endpoint {} with {} outstanding requests",
+                             session.getRequestURI(), requests.size());
+                }
             }
         }
     }
 
     protected Session getSession() {
         if (isClosed(session)) {
-            synchronized (this) {
+            synchronized (closed) {
+                if (closed.get()) {
+                    throw new IllegalStateException("Cannot provide session. This client has closed");
+                }
                 while (isClosed(session)) {
                     session = retryOnFailure(() -> isClosed(session) ?
                             container.connectToServer(this, endpointUri) : session, retryConfig);

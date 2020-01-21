@@ -18,7 +18,6 @@ import org.springframework.beans.factory.config.BeanPostProcessor;
 import org.springframework.context.ApplicationContext;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.context.event.ContextClosedEvent;
 import org.springframework.context.event.ContextRefreshedEvent;
 import org.springframework.context.event.EventListener;
 
@@ -59,11 +58,6 @@ public class FluxCapacitorSpringConfig implements BeanPostProcessor {
                                 .merge(fluxCapacitor.registerLocalHandlers(localHandlers)) : r);
     }
 
-    @EventListener
-    public void handle(ContextClosedEvent event) {
-        handlerRegistration.getAndUpdate(r -> null).cancel();
-    }
-
     @Bean
     @ConditionalOnMissingBean
     public Serializer serializer() {
@@ -79,7 +73,8 @@ public class FluxCapacitorSpringConfig implements BeanPostProcessor {
     @Bean
     @ConditionalOnMissingBean
     public FluxCapacitorBuilder fluxCapacitorBuilder(Serializer serializer) {
-        return DefaultFluxCapacitor.builder().replaceSerializer(serializer).replaceSnapshotSerializer(serializer);
+        return DefaultFluxCapacitor.builder().disableShutdownHook()
+                .replaceSerializer(serializer).replaceSnapshotSerializer(serializer);
     }
 
     @Bean
