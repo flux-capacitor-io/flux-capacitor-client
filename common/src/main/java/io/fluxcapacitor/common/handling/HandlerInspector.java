@@ -220,6 +220,11 @@ public class HandlerInspector {
             }
             return delegate.get().invoke(target, message);
         }
+
+        @Override
+        public void onEndOfBatch() {
+            methodHandlers.forEach(HandlerInvoker::onEndOfBatch);
+        }
     }
 
     @AllArgsConstructor
@@ -245,6 +250,11 @@ public class HandlerInspector {
         @Override
         public Object getTarget() {
             return target;
+        }
+
+        @Override
+        public void onEndOfBatch() {
+            invoker.onEndOfBatch();
         }
 
         @Override

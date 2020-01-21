@@ -60,5 +60,10 @@ public interface HandlerInterceptor {
         public Object getTarget() {
             return delegate.getTarget();
         }
+
+        @Override
+        public void onEndOfBatch() {
+            delegate.onEndOfBatch();
+        }
     }  
 }

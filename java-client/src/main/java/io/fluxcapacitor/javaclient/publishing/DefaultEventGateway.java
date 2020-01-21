@@ -48,11 +48,15 @@ public class DefaultEventGateway implements EventGateway {
             DeserializingMessage current = DeserializingMessage.getCurrent();
             try {
                 DeserializingMessage deserializingMessage =
-                        new DeserializingMessage(new DeserializingObject<>(serializedMessage, () -> payload), EVENT, true);
+                        new DeserializingMessage(new DeserializingObject<>(serializedMessage, () -> payload), EVENT);
                 DeserializingMessage.setCurrent(deserializingMessage);
                 for (Handler<DeserializingMessage> handler : localHandlers) {
-                    if (handler.canHandle(deserializingMessage)) {
-                        handler.invoke(deserializingMessage);
+                    try {
+                        if (handler.canHandle(deserializingMessage)) {
+                            handler.invoke(deserializingMessage);
+                        }
+                    } finally {
+                        handler.onEndOfBatch();
                     }
                 }
             } finally {

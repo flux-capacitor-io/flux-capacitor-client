@@ -83,7 +83,8 @@ public class DefaultGenericGateway implements RequestGateway {
             DeserializingMessage current = DeserializingMessage.getCurrent();
             try {
                 DeserializingMessage deserializingMessage =
-                        new DeserializingMessage(new DeserializingObject<>(serializedMessage, () -> payload), messageType, true);
+                        new DeserializingMessage(new DeserializingObject<>(serializedMessage, () -> payload),
+                                                 messageType);
                 DeserializingMessage.setCurrent(deserializingMessage);
                 for (Handler<DeserializingMessage> handler : localHandlers) {
                     if (handler.canHandle(deserializingMessage)) {
@@ -96,6 +97,8 @@ public class DefaultGenericGateway implements RequestGateway {
                             CompletableFuture<Message> result = new CompletableFuture<>();
                             result.completeExceptionally(e);
                             return result;
+                        } finally {
+                            handler.onEndOfBatch();
                         }
                     }
                 }

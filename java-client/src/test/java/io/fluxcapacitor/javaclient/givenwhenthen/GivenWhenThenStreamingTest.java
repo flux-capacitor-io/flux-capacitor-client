@@ -19,6 +19,7 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.stream.IntStream;
+import java.util.stream.Stream;
 
 import static io.fluxcapacitor.common.MessageType.COMMAND;
 import static java.util.stream.Collectors.toList;
@@ -70,7 +71,8 @@ class GivenWhenThenStreamingTest {
     void testCommandBatchYieldsId() {
         List<HandledInBatchYieldsId> commands =
                 IntStream.range(0, 4).mapToObj(i -> new HandledInBatchYieldsId()).collect(toList());
-        subject.givenCommands(commands.subList(0, 3)).whenCommand(commands.get(3)).expectResult(commands.get(3).getId());
+        subject.givenCommands(Stream.concat(commands.subList(0, 3).stream(), Stream.of("bla")).collect(toList()))
+                .whenCommand(commands.get(3)).expectResult(commands.get(3).getId());
     }
 
     @Test

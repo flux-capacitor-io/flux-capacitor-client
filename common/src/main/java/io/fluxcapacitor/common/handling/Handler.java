@@ -26,4 +26,6 @@ public interface Handler<M> {
 
     Object getTarget();
 
+    void onEndOfBatch();
+
 }

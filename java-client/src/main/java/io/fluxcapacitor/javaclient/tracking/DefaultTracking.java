@@ -28,6 +28,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashSet;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -36,11 +37,9 @@ import java.util.concurrent.CompletionStage;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
-import java.util.stream.Stream;
 
 import static io.fluxcapacitor.common.handling.HandlerInspector.createHandler;
 import static io.fluxcapacitor.common.handling.HandlerInspector.hasHandlerMethods;
-import static io.fluxcapacitor.javaclient.common.serialization.DeserializingMessage.convert;
 import static java.lang.String.format;
 import static java.util.stream.Collectors.groupingBy;
 import static java.util.stream.Collectors.toList;
@@ -109,12 +108,16 @@ public class DefaultTracking implements Tracking {
                                                 .invokerFactory(DeserializingMessage.defaultInvokerFactory).build()))
                 .collect(toList());
         return serializedMessages -> {
-            Stream<DeserializingMessage> messages = convert(
-                    serializer.deserialize(serializedMessages.stream(), false), messageType);
-            messages.forEach(m -> {
+            Iterator<DeserializingMessage> iterator =
+                    serializer.deserialize(serializedMessages.stream(), false)
+                            .map(m -> new DeserializingMessage(m, messageType)).iterator();
+            iterator.forEachRemaining(m -> {
                 try {
                     DeserializingMessage.setCurrent(m);
                     handlers.forEach(h -> tryHandle(m, h, configuration));
+                    if (!iterator.hasNext()) {
+                        handlers.forEach(Handler::onEndOfBatch);
+                    }
                 } finally {
                     DeserializingMessage.removeCurrent();
                 }

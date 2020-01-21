@@ -22,20 +22,21 @@ import java.util.function.Predicate;
 import static java.lang.String.format;
 import static java.util.stream.Collectors.toList;
 
-public class ListHandlerInvoker extends HandlerInspector.MethodHandlerInvoker<DeserializingMessage> {
+public class BatchHandlerInvoker extends HandlerInspector.MethodHandlerInvoker<DeserializingMessage> {
 
-    public static boolean handlesList(Executable method) {
+    public static boolean handlesBatch(Executable method) {
         return method.getParameterCount() > 0
                 && List.class.isAssignableFrom(method.getParameters()[0].getType());
     }
 
     private final Class<?> elementType;
-    private final Map<Object, Map<DeserializingMessage, CompletableFuture<Object>>> batches = new ConcurrentHashMap<>();
+    private final Map<Object, LinkedHashMap<DeserializingMessage, CompletableFuture<Object>>> batches =
+            new ConcurrentHashMap<>();
 
-    public ListHandlerInvoker(Executable executable, Class<?> enclosingType,
-                              List<ParameterResolver<? super DeserializingMessage>> parameterResolvers) {
+    public BatchHandlerInvoker(Executable executable, Class<?> enclosingType,
+                               List<ParameterResolver<? super DeserializingMessage>> parameterResolvers) {
         super(executable, enclosingType, parameterResolvers);
-        if (!handlesList(executable)) {
+        if (!handlesBatch(executable)) {
             throw new IllegalArgumentException(format("Delegate does not handle Collection types: %s", executable));
         }
         this.elementType = getListElementType(executable);
@@ -47,54 +48,58 @@ public class ListHandlerInvoker extends HandlerInspector.MethodHandlerInvoker<De
         Map<DeserializingMessage, CompletableFuture<Object>> batch =
                 batches.computeIfAbsent(target, t -> new LinkedHashMap<>());
         batch.put(message, result);
-        if (message.isLastOfBatch()) {
-            try {
-                List<Object> payloads =
-                        new ArrayList<>(batch.keySet()).stream().map(DeserializingMessage::getPayload)
-                                .collect(toList());
-                DeserializingMessage merged =
-                        new DeserializingMessage(
-                                new DeserializingObject<>(message.getSerializedObject(), () -> payloads),
-                                message.getMessageType(), true);
+        return result;
+    }
 
+    @Override
+    public void onEndOfBatch() {
+        try {
+            batches.forEach((target, batch) -> {
                 List<CompletableFuture<Object>> futures = new ArrayList<>(batch.values());
-                Object listResult;
                 try {
-                    listResult = super.invoke(target, merged);
+                    DeserializingMessage message = batch.keySet().stream().findFirst()
+                            .orElseThrow(() -> new IllegalStateException("expected at least one value"));
+                    List<Object> payloads =
+                            new ArrayList<>(batch.keySet()).stream().map(DeserializingMessage::getPayload)
+                                    .collect(toList());
+                    DeserializingMessage merged = new DeserializingMessage(
+                            new DeserializingObject<>(message.getSerializedObject(), () -> payloads),
+                            message.getMessageType());
+
+                    Object listResult = super.invoke(target, merged);
+
+                    if (listResult instanceof Collection<?>) {
+                        List<?> results = new ArrayList<>((Collection<?>) listResult);
+                        if (results.size() != futures.size()) {
+                            throw new IllegalStateException(
+                                    format("Number of results from method (%s) does not match number of handled messages (%s)",
+                                           results.size(), futures.size()));
+                        }
+                        for (int i = 0; i < results.size(); i++) {
+                            Object r = results.get(i);
+                            CompletableFuture<Object> future = futures.get(i);
+                            if (r instanceof CompletionStage<?>) {
+                                ((CompletionStage<?>) r).whenComplete((o, e) -> {
+                                    if (e == null) {
+                                        future.complete(o);
+                                    } else {
+                                        future.completeExceptionally(e);
+                                    }
+                                });
+                            } else {
+                                future.complete(r);
+                            }
+                        }
+                    } else {
+                        futures.forEach(f -> f.complete(listResult));
+                    }
                 } catch (Exception e) {
                     futures.forEach(f -> f.completeExceptionally(e));
-                    return result;
                 }
-                if (listResult instanceof Collection<?>) {
-                    List<?> results = new ArrayList<>((Collection<?>) listResult);
-                    if (results.size() != futures.size()) {
-                        throw new IllegalStateException(
-                                format("Number of results from method (%s) does not match number of handled messages (%s)",
-                                       results.size(), futures.size()));
-                    }
-                    for (int i = 0; i < results.size(); i++) {
-                        Object r = results.get(i);
-                        CompletableFuture<Object> future = futures.get(i);
-                        if (r instanceof CompletionStage<?>) {
-                            ((CompletionStage<?>) r).whenComplete((o, e) -> {
-                                if (e == null) {
-                                    future.complete(o);
-                                } else {
-                                    future.completeExceptionally(e);
-                                }
-                            });
-                        } else {
-                            future.complete(r);
-                        }
-                    }
-                } else {
-                    futures.forEach(f -> f.complete(listResult));
-                }
-            } finally {
-                batches.remove(target);
-            }
+            });
+        } finally {
+            batches.clear();
         }
-        return result;
     }
 
     @Override
