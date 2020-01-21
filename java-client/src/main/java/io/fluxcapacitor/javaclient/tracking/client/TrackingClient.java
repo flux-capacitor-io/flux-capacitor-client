@@ -26,11 +26,13 @@ import java.util.concurrent.CompletableFuture;
 public interface TrackingClient extends AutoCloseable {
 
     @SneakyThrows
-    default MessageBatch readAndWait(String consumer, String trackerId, TrackingConfiguration configuration) {
-        return read(consumer, trackerId, configuration).get();
+    default MessageBatch readAndWait(String consumer, String trackerId, Long lastIndex,
+                                     TrackingConfiguration configuration) {
+        return read(consumer, trackerId, lastIndex, configuration).get();
     }
     
-    CompletableFuture<MessageBatch> read(String consumer, String trackerId, TrackingConfiguration trackingConfiguration);
+    CompletableFuture<MessageBatch> read(String consumer, String trackerId, Long lastIndex,
+                                         TrackingConfiguration trackingConfiguration);
     
     List<SerializedMessage> readFromIndex(long minIndex, int maxSize);
 

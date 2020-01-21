@@ -27,6 +27,7 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentSkipListMap;
@@ -63,7 +64,7 @@ public class InMemoryMessageStore implements GatewayClient, TrackingClient {
 
     @Override
     public MessageBatch readAndWait(String consumer, String trackerId,
-                                    TrackingConfiguration configuration) {
+                                    Long previousLastIndex, TrackingConfiguration configuration) {
         if (!trackerId.equals(trackers.computeIfAbsent(consumer, c -> trackerId))) {
             return new MessageBatch(new int[]{0, 1}, Collections.emptyList(), null);
         }
@@ -71,7 +72,7 @@ public class InMemoryMessageStore implements GatewayClient, TrackingClient {
         synchronized (this) {
             Map<Long, SerializedMessage> tailMap = Collections.emptyMap();
             while (System.currentTimeMillis() < deadline
-                    && (tailMap = messageLog.tailMap(getLastIndex(consumer), false)).isEmpty()) {
+                    && (tailMap = messageLog.tailMap(Optional.ofNullable(previousLastIndex).orElseGet(() -> getLastIndex(consumer)), false)).isEmpty()) {
                 try {
                     this.wait(deadline - System.currentTimeMillis());
                 } catch (InterruptedException e) {
@@ -91,9 +92,9 @@ public class InMemoryMessageStore implements GatewayClient, TrackingClient {
 
     @Override
     public CompletableFuture<MessageBatch> read(String consumer, String trackerId,
-                                                TrackingConfiguration trackingConfiguration) {
+                                                Long lastIndex, TrackingConfiguration trackingConfiguration) {
         return CompletableFuture.completedFuture(readAndWait(consumer, trackerId,
-                                                             trackingConfiguration));
+                                                             lastIndex, trackingConfiguration));
     }
 
     @Override

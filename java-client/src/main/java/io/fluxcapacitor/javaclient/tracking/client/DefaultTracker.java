@@ -81,10 +81,10 @@ public class DefaultTracker implements Runnable, Registration {
     public void run() {
         if (running.compareAndSet(false, true)) {
             thread.set(currentThread());
-            MessageBatch batch = fetch();
+            MessageBatch batch = fetch(null);
             while (running.get()) {
                 processor.accept(batch);
-                batch = fetch();
+                batch = fetch(batch.getLastIndex());
             }
         }
     }
@@ -115,8 +115,8 @@ public class DefaultTracker implements Runnable, Registration {
         }
     }
 
-    protected MessageBatch fetch() {
-        return retryOnFailure(() -> trackingClient.readAndWait(name, trackerId, configuration), 
+    protected MessageBatch fetch(Long lastIndex) {
+        return retryOnFailure(() -> trackingClient.readAndWait(name, trackerId, lastIndex, configuration), 
                               configuration.getRetryDelay(), e -> running.get());
     }
 

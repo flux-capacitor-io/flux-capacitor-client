@@ -19,9 +19,9 @@ public class InMemorySchedulingClient extends InMemoryMessageStore implements Sc
     private final ConcurrentSkipListMap<Long, String> times = new ConcurrentSkipListMap<>();
 
     @Override
-    public MessageBatch readAndWait(String consumer, String trackerId, TrackingConfiguration configuration) {
-        MessageBatch messageBatch = super.readAndWait(consumer, trackerId,
-                                                      configuration);
+    public MessageBatch readAndWait(String consumer, String trackerId, Long previousLastIndex,
+                                    TrackingConfiguration configuration) {
+        MessageBatch messageBatch = super.readAndWait(consumer, trackerId, previousLastIndex, configuration);
         List<SerializedMessage> messages = messageBatch.getMessages().stream()
                 .filter(m -> times.containsKey(m.getIndex()))
                 .filter(m -> isMissedDeadline(m.getIndex()))

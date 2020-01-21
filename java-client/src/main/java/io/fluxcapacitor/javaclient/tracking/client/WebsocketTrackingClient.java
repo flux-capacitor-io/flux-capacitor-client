@@ -47,10 +47,11 @@ public class WebsocketTrackingClient extends AbstractWebsocketClient implements 
     }
 
     @Override
-    public CompletableFuture<MessageBatch> read(String consumer, String trackerId, TrackingConfiguration configuration) {
+    public CompletableFuture<MessageBatch> read(String consumer, String trackerId, Long lastIndex,
+                                                TrackingConfiguration configuration) {
         CompletableFuture<ReadResult> readResult = sendRequest(new Read(
                 consumer, trackerId, configuration.getMaxFetchBatchSize(), configuration.getMaxWaitDuration().toMillis(), configuration.getTypeFilter(),
-                configuration.ignoreMessageTarget(), configuration.getReadStrategy(), 
+                configuration.ignoreMessageTarget(), configuration.getReadStrategy(), lastIndex,
                 Optional.ofNullable(configuration.getPurgeDelay()).map(Duration::toMillis).orElse(null)));
         return readResult.thenApply(ReadResult::getMessageBatch);
     }
