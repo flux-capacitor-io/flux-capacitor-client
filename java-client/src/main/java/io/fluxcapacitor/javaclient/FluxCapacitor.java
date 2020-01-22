@@ -4,7 +4,7 @@ import io.fluxcapacitor.common.MessageType;
 import io.fluxcapacitor.common.Registration;
 import io.fluxcapacitor.common.api.Metadata;
 import io.fluxcapacitor.javaclient.common.Message;
-import io.fluxcapacitor.javaclient.common.model.Model;
+import io.fluxcapacitor.javaclient.common.model.Aggregate;
 import io.fluxcapacitor.javaclient.configuration.DefaultFluxCapacitor;
 import io.fluxcapacitor.javaclient.configuration.client.Client;
 import io.fluxcapacitor.javaclient.configuration.spring.FluxCapacitorSpringConfig;
@@ -201,9 +201,9 @@ public interface FluxCapacitor extends AutoCloseable {
      *
      * @see EventSourced for more info on how to define an event sourced aggregate root
      */
-    static <T> Model<T> loadAggregate(String id, Class<T> modelType) {
-        if (modelType.isAnnotationPresent(EventSourced.class)) {
-            return get().eventSourcing().load(id, modelType);
+    static <T> Aggregate<T> loadAggregate(String id, Class<T> aggregateType) {
+        if (aggregateType.isAnnotationPresent(EventSourced.class)) {
+            return get().eventSourcing().load(id, aggregateType);
         }
         throw new UnsupportedOperationException("Only event sourced aggregates are supported at the moment");
     }

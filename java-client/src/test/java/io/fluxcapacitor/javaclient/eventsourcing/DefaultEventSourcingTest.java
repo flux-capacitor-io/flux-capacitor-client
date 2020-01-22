@@ -8,8 +8,8 @@ import io.fluxcapacitor.javaclient.MockException;
 import io.fluxcapacitor.javaclient.common.Message;
 import io.fluxcapacitor.javaclient.common.caching.Cache;
 import io.fluxcapacitor.javaclient.common.caching.DefaultCache;
+import io.fluxcapacitor.javaclient.common.model.Aggregate;
 import io.fluxcapacitor.javaclient.common.model.AssertLegal;
-import io.fluxcapacitor.javaclient.common.model.Model;
 import io.fluxcapacitor.javaclient.common.serialization.DeserializingMessage;
 import io.fluxcapacitor.javaclient.common.serialization.DeserializingObject;
 import lombok.NoArgsConstructor;
@@ -45,7 +45,7 @@ import static org.mockito.Mockito.when;
 @Slf4j
 class DefaultEventSourcingTest {
 
-    private final String modelId = "test";
+    private final String aggregateId = "test";
     private EventStore eventStore = mock(EventStore.class);
     private SnapshotRepository snapshotRepository = mock(SnapshotRepository.class);
     private Cache cache = spy(new DefaultCache());
@@ -53,56 +53,56 @@ class DefaultEventSourcingTest {
 
     @BeforeEach
     void setUp() {
-        when(eventStore.getDomainEvents(eq(modelId), anyLong())).thenReturn(Stream.empty());
+        when(eventStore.getDomainEvents(eq(aggregateId), anyLong())).thenReturn(Stream.empty());
     }
 
     @Test
     void testLoadingFromEventStore() {
-        when(eventStore.getDomainEvents(eq(modelId), anyLong()))
+        when(eventStore.getDomainEvents(eq(aggregateId), anyLong()))
                 .thenReturn(eventStreamOf(new CreateModel(), new UpdateModel()));
-        Model<TestModel> model = subject.load(modelId, TestModel.class);
-        assertEquals(Arrays.asList(new CreateModel(), new UpdateModel()), model.get().events);
-        assertEquals(1L, model.getSequenceNumber());
+        Aggregate<TestModel> aggregate = subject.load(aggregateId, TestModel.class);
+        assertEquals(Arrays.asList(new CreateModel(), new UpdateModel()), aggregate.get().events);
+        assertEquals(1L, aggregate.getSequenceNumber());
     }
 
     @Test
     void testModelIsLoadedFromCacheWhenPossible() {
         prepareSubjectForHandling().apply(new Message(new CreateModel()));
         reset(eventStore);
-        subject.load(modelId, TestModel.class);
+        subject.load(aggregateId, TestModel.class);
         verifyNoMoreInteractions(eventStore);
     }
 
     @Test
     void testModelIsLoadedFromSnapshotWhenPossible() {
-        when(snapshotRepository.getSnapshot(modelId))
-                .thenReturn(Optional.of(new Aggregate<>(modelId, 0L, new TestModel(new CreateModel()))));
-        Model<TestModel> model = subject.load(modelId, TestModel.class);
-        assertEquals(singletonList(new CreateModel()), model.get().events);
-        assertEquals(0L, model.getSequenceNumber());
+        when(snapshotRepository.getSnapshot(aggregateId))
+                .thenReturn(Optional.of(new EventSourcedModel<>(aggregateId, 0L, new TestModel(new CreateModel()))));
+        Aggregate<TestModel> aggregate = subject.load(aggregateId, TestModel.class);
+        assertEquals(singletonList(new CreateModel()), aggregate.get().events);
+        assertEquals(0L, aggregate.getSequenceNumber());
     }
 
     @Test
     void testApplyEvents() {
-        Function<Message, Model<TestModel>> f = prepareSubjectForHandling();
+        Function<Message, Aggregate<TestModel>> f = prepareSubjectForHandling();
         verifyNoInteractions(eventStore, cache);
-        Model<TestModel> model = f.apply(new Message(new CreateModel()));
-        assertEquals(singletonList(new CreateModel()), model.get().events);
-        assertEquals(0L, model.getSequenceNumber());
+        Aggregate<TestModel> aggregate = f.apply(new Message(new CreateModel()));
+        assertEquals(singletonList(new CreateModel()), aggregate.get().events);
+        assertEquals(0L, aggregate.getSequenceNumber());
     }
 
     @Test
     void testModelIsReadOnlyIfSubjectIsNotIntercepting() {
-        Model<TestModel> model = subject.load(modelId, TestModel.class);
-        assertThrows(EventSourcingException.class, () -> model.apply("whatever"));
+        Aggregate<TestModel> aggregate = subject.load(aggregateId, TestModel.class);
+        assertThrows(EventSourcingException.class, () -> aggregate.apply("whatever"));
     }
 
     @Test
     void testApplyEventsWithMetadata() {
-        Model<TestModel> model = prepareSubjectForHandling()
+        Aggregate<TestModel> aggregate = prepareSubjectForHandling()
                 .apply(new Message(new CreateModelWithMetadata(), Metadata.from("foo", "bar")));
-        assertEquals(Metadata.from("foo", "bar"), model.get().metadata);
-        assertEquals(0L, model.getSequenceNumber());
+        assertEquals(Metadata.from("foo", "bar"), aggregate.get().metadata);
+        assertEquals(0L, aggregate.getSequenceNumber());
     }
 
     @Test
@@ -110,15 +110,15 @@ class DefaultEventSourcingTest {
         reset(eventStore);
         Message event = new Message(new CreateModel());
         prepareSubjectForHandling().apply(event);
-        verify(eventStore).storeDomainEvents(modelId, TestModel.class.getSimpleName(), 0L, singletonList(event));
+        verify(eventStore).storeDomainEvents(aggregateId, TestModel.class.getSimpleName(), 0L, singletonList(event));
     }
 
     @Test
     void testEventsDoNotGetStoredWhenInterceptedMethodTriggersException() {
         Function<DeserializingMessage, Object> f = subject.interceptHandling(s -> {
-            Model<TestModel> model = subject.load(modelId, TestModel.class);
+            Aggregate<TestModel> aggregate = subject.load(aggregateId, TestModel.class);
             reset(cache, eventStore);
-            model.apply(new CreateModel());
+            aggregate.apply(new CreateModel());
             throw new IllegalStateException();
         }, null, "test");
         try {
@@ -135,29 +135,29 @@ class DefaultEventSourcingTest {
         List<Message> events =
                 Arrays.asList(new Message(new CreateModel()), new Message("foo"));
         executeWhileIntercepting(() -> {
-            Model<TestModel> model = subject.load(modelId, TestModel.class);
-            events.forEach(model::apply);
+            Aggregate<TestModel> aggregate = subject.load(aggregateId, TestModel.class);
+            events.forEach(aggregate::apply);
         }).apply(toDeserializingMessage("command"));
-        verify(eventStore).storeDomainEvents(modelId, TestModel.class.getSimpleName(), 1L, events);
+        verify(eventStore).storeDomainEvents(aggregateId, TestModel.class.getSimpleName(), 1L, events);
     }
 
     @Test
     void testApplyingUnknownEventsFailsIfModelDoesNotExist() {
         assertThrows(HandlerNotFoundException.class, () -> executeWhileIntercepting(
-                () -> subject.load(modelId, TestModel.class).apply(new Message("foo")))
+                () -> subject.load(aggregateId, TestModel.class).apply(new Message("foo")))
                 .apply(toDeserializingMessage("command")));
     }
 
     @Test
     void testCreateUsingFactoryMethod() {
-        executeWhileIntercepting(() -> subject.load(modelId, TestModelWithFactoryMethod.class)
+        executeWhileIntercepting(() -> subject.load(aggregateId, TestModelWithFactoryMethod.class)
                 .apply(new Message(new CreateModel())))
                 .apply(toDeserializingMessage("command"));
     }
 
     @Test
     void testCreateUsingFactoryMethodIfInstanceMethodForSamePayloadExists() {
-        executeWhileIntercepting(() -> subject.load(modelId, TestModelWithFactoryMethodAndSameInstanceMethod.class)
+        executeWhileIntercepting(() -> subject.load(aggregateId, TestModelWithFactoryMethodAndSameInstanceMethod.class)
                 .apply(new Message(new CreateModel()))
                 .apply(new Message(new CreateModel())))
                 .apply(toDeserializingMessage("command"));
@@ -166,7 +166,7 @@ class DefaultEventSourcingTest {
     @Test
     void testApplyingUnknownEventsFailsIfModelHasNoConstructorOrFactoryMethod() {
         assertThrows(HandlerNotFoundException.class, () -> executeWhileIntercepting(
-                () -> subject.load(modelId, TestModelWithoutFactoryMethodOrConstructor.class)
+                () -> subject.load(aggregateId, TestModelWithoutFactoryMethodOrConstructor.class)
                         .apply(new Message(new CreateModel())))
                 .apply(toDeserializingMessage("command")));
     }
@@ -177,11 +177,11 @@ class DefaultEventSourcingTest {
                 Arrays.asList(new Message(new CreateModel()), new Message("foo"),
                               new Message("foo"));
         executeWhileIntercepting(() -> {
-            Model<TestModelForSnapshotting> model = subject.load(modelId, TestModelForSnapshotting.class);
+            Aggregate<TestModelForSnapshotting> aggregate = subject.load(aggregateId, TestModelForSnapshotting.class);
             reset(snapshotRepository);
-            events.forEach(model::apply);
+            events.forEach(aggregate::apply);
         }).apply(toDeserializingMessage("command"));
-        verify(snapshotRepository).storeSnapshot(new Aggregate<>(modelId, 2L, new TestModelForSnapshotting()));
+        verify(snapshotRepository).storeSnapshot(new EventSourcedModel<>(aggregateId, 2L, new TestModelForSnapshotting()));
     }
 
     @Test
@@ -189,46 +189,46 @@ class DefaultEventSourcingTest {
         List<Message> events =
                 Arrays.asList(new Message(new CreateModel()), new Message("foo"));
         executeWhileIntercepting(() -> {
-            Model<TestModelForSnapshotting> model = subject.load(modelId, TestModelForSnapshotting.class);
+            Aggregate<TestModelForSnapshotting> aggregate = subject.load(aggregateId, TestModelForSnapshotting.class);
             reset(snapshotRepository);
-            events.forEach(model::apply);
+            events.forEach(aggregate::apply);
         }).apply(toDeserializingMessage("command"));
         verifyNoInteractions(snapshotRepository);
     }
 
     @Test
     void testCreateWithLegalCheckOnNonExistingModelSucceeds() {
-        subject.load(modelId, TestModelWithFactoryMethod.class).assertLegal(new CreateModelWithAssertion());
+        subject.load(aggregateId, TestModelWithFactoryMethod.class).assertLegal(new CreateModelWithAssertion());
     }
 
     @Test
     void testUpdateWithLegalCheckOnNonExistingModelFails() {
-        assertThrows(MockException.class, () -> subject.load(modelId, TestModelWithFactoryMethod.class)
+        assertThrows(MockException.class, () -> subject.load(aggregateId, TestModelWithFactoryMethod.class)
                 .assertLegal(new UpdateModelWithAssertion()));
     }
 
     @Test
     void testAssertionViaInterface() {
-        assertThrows(MockException.class, () -> subject.load(modelId, TestModelWithFactoryMethod.class)
+        assertThrows(MockException.class, () -> subject.load(aggregateId, TestModelWithFactoryMethod.class)
                 .assertLegal(new CommandWithAssertionInInterface()));
     }
 
     @Test
     void testMultipleAssertionMethods() {
         CommandWithMultipleAssertions command = new CommandWithMultipleAssertions();
-        subject.load(modelId, TestModelWithFactoryMethod.class).assertLegal(command);
+        subject.load(aggregateId, TestModelWithFactoryMethod.class).assertLegal(command);
         assertEquals(3, command.getAssertionCount().get());
     }
 
     @Test
     void testOverriddenAssertion() {
-        subject.load(modelId, TestModelWithFactoryMethod.class).assertLegal(new CommandWithOverriddenAssertion());
+        subject.load(aggregateId, TestModelWithFactoryMethod.class).assertLegal(new CommandWithOverriddenAssertion());
     }
 
     @SuppressWarnings("unchecked")
-    private Function<Message, Model<TestModel>> prepareSubjectForHandling() {
-        return m -> (Model<TestModel>) subject
-                .interceptHandling(s -> subject.load(modelId, TestModel.class).apply(m),
+    private Function<Message, Aggregate<TestModel>> prepareSubjectForHandling() {
+        return m -> (Aggregate<TestModel>) subject
+                .interceptHandling(s -> subject.load(aggregateId, TestModel.class).apply(m),
                                    null, "test")
                 .apply(toDeserializingMessage(m));
     }

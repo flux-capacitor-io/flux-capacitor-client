@@ -8,7 +8,7 @@ public enum NoSnapshotTrigger implements SnapshotTrigger {
     INSTANCE;
 
     @Override
-    public boolean shouldCreateSnapshot(Aggregate<?> aggregate, List<Message> newEvents) {
+    public boolean shouldCreateSnapshot(EventSourcedModel<?> model, List<Message> newEvents) {
         return false;
     }
 }

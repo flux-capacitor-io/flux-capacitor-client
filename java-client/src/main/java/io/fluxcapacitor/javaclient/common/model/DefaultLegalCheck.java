@@ -10,16 +10,16 @@ import static io.fluxcapacitor.common.handling.HandlerInspector.inspect;
 import static java.util.Collections.singletonList;
 
 public class DefaultLegalCheck {
-    private static Map<Class<?>, HandlerInvoker<Model<?>>> invokerCache = new ConcurrentHashMap<>();
+    private static Map<Class<?>, HandlerInvoker<Aggregate<?>>> invokerCache = new ConcurrentHashMap<>();
 
-    public static <E extends Exception> void assertLegal(Object commandOrQuery, Model<?> model) throws E {
-        HandlerInvoker<Model<?>> invoker = invokerCache.computeIfAbsent(commandOrQuery.getClass(), type -> inspect(
+    public static <E extends Exception> void assertLegal(Object commandOrQuery, Aggregate<?> aggregate) throws E {
+        HandlerInvoker<Aggregate<?>> invoker = invokerCache.computeIfAbsent(commandOrQuery.getClass(), type -> inspect(
                 commandOrQuery.getClass(), AssertLegal.class, singletonList(
-                        p -> p.getDeclaringExecutable().getParameters()[0] == p ? Model::get : null),
-                HandlerConfiguration.<Model<?>>builder().failOnMissingMethods(false).invokeMultipleMethods(true)
+                        p -> p.getDeclaringExecutable().getParameters()[0] == p ? Aggregate::get : null),
+                HandlerConfiguration.<Aggregate<?>>builder().failOnMissingMethods(false).invokeMultipleMethods(true)
                         .build()));
-        if (invoker.canHandle(commandOrQuery, model)) {
-            invoker.invoke(commandOrQuery, model);
+        if (invoker.canHandle(commandOrQuery, aggregate)) {
+            invoker.invoke(commandOrQuery, aggregate);
         }
     }
 }

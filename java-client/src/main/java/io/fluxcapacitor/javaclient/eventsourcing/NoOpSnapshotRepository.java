@@ -6,12 +6,12 @@ public enum NoOpSnapshotRepository implements SnapshotRepository {
     INSTANCE;
 
     @Override
-    public void storeSnapshot(Aggregate<?> snapshot) {
+    public void storeSnapshot(EventSourcedModel<?> snapshot) {
         //no op
     }
 
     @Override
-    public <T> Optional<Aggregate<T>> getSnapshot(String aggregateId) {
+    public <T> Optional<EventSourcedModel<T>> getSnapshot(String aggregateId) {
         return Optional.empty();
     }
 

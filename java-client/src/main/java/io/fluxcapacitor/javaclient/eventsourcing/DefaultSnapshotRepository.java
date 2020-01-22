@@ -19,7 +19,7 @@ public class DefaultSnapshotRepository implements SnapshotRepository {
     private final Serializer serializer;
 
     @Override
-    public void storeSnapshot(Aggregate<?> snapshot) {
+    public void storeSnapshot(EventSourcedModel<?> snapshot) {
         try {
             keyValueClient.putValue(snapshotKey(snapshot.getId()), serializer.serialize(snapshot), Guarantee.SENT);
         } catch (Exception e) {
@@ -28,7 +28,7 @@ public class DefaultSnapshotRepository implements SnapshotRepository {
     }
 
     @Override
-    public <T> Optional<Aggregate<T>> getSnapshot(String aggregateId) {
+    public <T> Optional<EventSourcedModel<T>> getSnapshot(String aggregateId) {
         try {
             return Optional.ofNullable(keyValueClient.getValue(snapshotKey(aggregateId))).map(serializer::deserialize);
         } catch (SerializationException e) {

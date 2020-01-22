@@ -4,9 +4,9 @@ import java.util.Optional;
 
 public interface SnapshotRepository {
 
-    void storeSnapshot(Aggregate<?> snapshot);
+    void storeSnapshot(EventSourcedModel<?> snapshot);
 
-    <T> Optional<Aggregate<T>> getSnapshot(String aggregateId);
+    <T> Optional<EventSourcedModel<T>> getSnapshot(String aggregateId);
 
     void deleteSnapshot(String aggregateId);
 

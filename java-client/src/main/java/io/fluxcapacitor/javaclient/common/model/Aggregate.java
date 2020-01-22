@@ -20,35 +20,35 @@ import io.fluxcapacitor.javaclient.common.Message;
 import java.util.function.Function;
 import java.util.function.Predicate;
 
-public interface Model<T> {
-    default <E extends Exception> Model<T> assertLegal(Object command) throws E {
+public interface Aggregate<T> {
+    default <E extends Exception> Aggregate<T> assertLegal(Object command) throws E {
         DefaultLegalCheck.assertLegal(command, this);
         return this;
     }
     
-    default <E extends Exception> Model<T> assertThat(Validator<T, E> validator) throws E {
+    default <E extends Exception> Aggregate<T> assertThat(Validator<T, E> validator) throws E {
         validator.validate(this.get());
         return this;
     }
 
-    default <E extends Exception> Model<T> ensure(Predicate<T> check, Function<T, E> errorProvider) throws E {
+    default <E extends Exception> Aggregate<T> ensure(Predicate<T> check, Function<T, E> errorProvider) throws E {
         if (!check.test(get())) {
             throw errorProvider.apply(get());
         }
         return this;
     }
 
-    default Model<T> apply(Object event) {
+    default Aggregate<T> apply(Object event) {
         return apply(new Message(event));
     }
 
-    default Model<T> apply(Object event, Metadata metadata) {
+    default Aggregate<T> apply(Object event, Metadata metadata) {
         return apply(new Message(event, metadata));
     }
 
-    Model<T> apply(Message message);
+    Aggregate<T> apply(Message message);
 
-    default Model<T> apply(Function<T, Message> eventFunction) {
+    default Aggregate<T> apply(Function<T, Message> eventFunction) {
         return apply(eventFunction.apply(get()));
     }
 

@@ -26,7 +26,7 @@ import java.util.function.Consumer;
 @RequiredArgsConstructor
 public class CacheInvalidatingInterceptor implements BatchInterceptor {
     private final EventSourcing eventSourcing;
-    private int[] lastSegment;
+    private volatile int[] lastSegment;
 
     @Override
     public Consumer<MessageBatch> intercept(Consumer<MessageBatch> consumer, Tracker tracker) {

@@ -7,6 +7,6 @@ import java.util.List;
 @FunctionalInterface
 public interface SnapshotTrigger {
 
-    boolean shouldCreateSnapshot(Aggregate<?> aggregate, List<Message> newEvents);
+    boolean shouldCreateSnapshot(EventSourcedModel<?> model, List<Message> newEvents);
 
 }
