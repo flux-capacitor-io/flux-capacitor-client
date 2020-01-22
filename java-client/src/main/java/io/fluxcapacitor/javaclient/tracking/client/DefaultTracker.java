@@ -82,9 +82,13 @@ public class DefaultTracker implements Runnable, Registration {
         if (running.compareAndSet(false, true)) {
             thread.set(currentThread());
             MessageBatch batch = fetch(null);
+            Long lastKnownIndex = batch.getLastIndex();
             while (running.get()) {
                 processor.accept(batch);
-                batch = fetch(batch.getLastIndex());
+                batch = fetch(lastKnownIndex);
+                if (batch.getLastIndex() != null) {
+                    lastKnownIndex = batch.getLastIndex();
+                }
             }
         }
     }
