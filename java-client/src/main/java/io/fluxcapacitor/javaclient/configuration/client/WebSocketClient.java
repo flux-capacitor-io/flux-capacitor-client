@@ -2,10 +2,10 @@ package io.fluxcapacitor.javaclient.configuration.client;
 
 import io.fluxcapacitor.common.MessageType;
 import io.fluxcapacitor.javaclient.common.serialization.compression.CompressionAlgorithm;
-import io.fluxcapacitor.javaclient.eventsourcing.client.EventStoreClient;
-import io.fluxcapacitor.javaclient.eventsourcing.client.WebSocketEventStoreClient;
-import io.fluxcapacitor.javaclient.keyvalue.client.KeyValueClient;
-import io.fluxcapacitor.javaclient.keyvalue.client.WebsocketKeyValueClient;
+import io.fluxcapacitor.javaclient.persisting.eventsourcing.client.EventStoreClient;
+import io.fluxcapacitor.javaclient.persisting.eventsourcing.client.WebSocketEventStoreClient;
+import io.fluxcapacitor.javaclient.persisting.keyvalue.client.KeyValueClient;
+import io.fluxcapacitor.javaclient.persisting.keyvalue.client.WebsocketKeyValueClient;
 import io.fluxcapacitor.javaclient.publishing.client.GatewayClient;
 import io.fluxcapacitor.javaclient.publishing.client.WebsocketGatewayClient;
 import io.fluxcapacitor.javaclient.scheduling.client.SchedulingClient;

@@ -17,20 +17,21 @@ package io.fluxcapacitor.javaclient.configuration;
 import io.fluxcapacitor.common.MessageType;
 import io.fluxcapacitor.common.handling.ParameterResolver;
 import io.fluxcapacitor.javaclient.FluxCapacitor;
-import io.fluxcapacitor.javaclient.common.caching.DefaultCache;
 import io.fluxcapacitor.javaclient.common.serialization.DeserializingMessage;
 import io.fluxcapacitor.javaclient.common.serialization.MessageSerializer;
 import io.fluxcapacitor.javaclient.common.serialization.Serializer;
 import io.fluxcapacitor.javaclient.common.serialization.jackson.JacksonSerializer;
 import io.fluxcapacitor.javaclient.configuration.client.Client;
-import io.fluxcapacitor.javaclient.eventsourcing.DefaultEventSourcing;
-import io.fluxcapacitor.javaclient.eventsourcing.DefaultEventStore;
-import io.fluxcapacitor.javaclient.eventsourcing.DefaultSnapshotRepository;
-import io.fluxcapacitor.javaclient.eventsourcing.EventSourcing;
-import io.fluxcapacitor.javaclient.eventsourcing.EventStore;
-import io.fluxcapacitor.javaclient.eventsourcing.EventStoreSerializer;
-import io.fluxcapacitor.javaclient.keyvalue.DefaultKeyValueStore;
-import io.fluxcapacitor.javaclient.keyvalue.KeyValueStore;
+import io.fluxcapacitor.javaclient.persisting.caching.Cache;
+import io.fluxcapacitor.javaclient.persisting.caching.DefaultCache;
+import io.fluxcapacitor.javaclient.persisting.eventsourcing.DefaultEventSourcing;
+import io.fluxcapacitor.javaclient.persisting.eventsourcing.DefaultEventStore;
+import io.fluxcapacitor.javaclient.persisting.eventsourcing.DefaultSnapshotRepository;
+import io.fluxcapacitor.javaclient.persisting.eventsourcing.EventSourcing;
+import io.fluxcapacitor.javaclient.persisting.eventsourcing.EventStore;
+import io.fluxcapacitor.javaclient.persisting.eventsourcing.EventStoreSerializer;
+import io.fluxcapacitor.javaclient.persisting.keyvalue.DefaultKeyValueStore;
+import io.fluxcapacitor.javaclient.persisting.keyvalue.KeyValueStore;
 import io.fluxcapacitor.javaclient.publishing.CommandGateway;
 import io.fluxcapacitor.javaclient.publishing.DefaultCommandGateway;
 import io.fluxcapacitor.javaclient.publishing.DefaultErrorGateway;
@@ -74,6 +75,9 @@ import io.fluxcapacitor.javaclient.tracking.metrics.HandlerMonitor;
 import io.fluxcapacitor.javaclient.tracking.metrics.TrackerMonitor;
 import lombok.AccessLevel;
 import lombok.AllArgsConstructor;
+import lombok.Getter;
+import lombok.NonNull;
+import lombok.experimental.Accessors;
 import lombok.extern.slf4j.Slf4j;
 
 import java.lang.annotation.Annotation;
@@ -109,6 +113,8 @@ import static java.util.stream.Collectors.toMap;
 
 @Slf4j
 @AllArgsConstructor(access = AccessLevel.PROTECTED)
+@Getter
+@Accessors(fluent = true)
 public class DefaultFluxCapacitor implements FluxCapacitor {
 
     private final Map<MessageType, ? extends Tracking> trackingSupplier;
@@ -121,61 +127,12 @@ public class DefaultFluxCapacitor implements FluxCapacitor {
     private final EventSourcing eventSourcing;
     private final KeyValueStore keyValueStore;
     private final Scheduler scheduler;
+    private final Cache cache;
     private final Client client;
     private final Runnable shutdownHandler;
 
     public static Builder builder() {
         return new Builder();
-    }
-
-    @Override
-    public EventSourcing eventSourcing() {
-        return eventSourcing;
-    }
-
-    @Override
-    public Scheduler scheduler() {
-        return scheduler;
-    }
-
-    @Override
-    public KeyValueStore keyValueStore() {
-        return keyValueStore;
-    }
-
-    @Override
-    public CommandGateway commandGateway() {
-        return commandGateway;
-    }
-
-    @Override
-    public QueryGateway queryGateway() {
-        return queryGateway;
-    }
-
-    @Override
-    public EventGateway eventGateway() {
-        return eventGateway;
-    }
-
-    @Override
-    public ResultGateway resultGateway() {
-        return resultGateway;
-    }
-
-    @Override
-    public ErrorGateway errorGateway() {
-        return errorGateway;
-    }
-
-    @Override
-    public MetricsGateway metricsGateway() {
-        return metricsGateway;
-    }
-
-    @Override
-    public Client client() {
-        return client;
     }
 
     @Override
@@ -201,6 +158,7 @@ public class DefaultFluxCapacitor implements FluxCapacitor {
         private final Map<MessageType, HandlerInterceptor> handlerInterceptors =
                 Arrays.stream(MessageType.values()).collect(toMap(identity(), m -> (f, h, c) -> f));
         private DispatchInterceptor messageRoutingInterceptor = new MessageRoutingInterceptor();
+        private Cache cache = new DefaultCache();
         private boolean disableErrorReporting;
         private boolean disableMessageCorrelation;
         private boolean disablePayloadValidation;
@@ -214,7 +172,7 @@ public class DefaultFluxCapacitor implements FluxCapacitor {
         }
 
         @Override
-        public Builder replaceSerializer(Serializer serializer) {
+        public Builder replaceSerializer(@NonNull Serializer serializer) {
             if (snapshotSerializer == this.serializer) {
                 snapshotSerializer = serializer;
             }
@@ -223,14 +181,14 @@ public class DefaultFluxCapacitor implements FluxCapacitor {
         }
 
         @Override
-        public Builder replaceSnapshotSerializer(Serializer serializer) {
+        public Builder replaceSnapshotSerializer(@NonNull Serializer serializer) {
             this.snapshotSerializer = serializer;
             return this;
         }
 
         @Override
-        public Builder configureDefaultConsumer(MessageType messageType,
-                                                UnaryOperator<ConsumerConfiguration> updateFunction) {
+        public Builder configureDefaultConsumer(@NonNull MessageType messageType,
+                                                @NonNull UnaryOperator<ConsumerConfiguration> updateFunction) {
             List<ConsumerConfiguration> configurations = consumerConfigurations.get(messageType);
             ConsumerConfiguration defaultConfiguration = configurations.get(configurations.size() - 1);
             ConsumerConfiguration updatedConfiguration = updateFunction.apply(defaultConfiguration);
@@ -245,7 +203,7 @@ public class DefaultFluxCapacitor implements FluxCapacitor {
         }
 
         @Override
-        public Builder addConsumerConfiguration(ConsumerConfiguration consumerConfiguration) {
+        public Builder addConsumerConfiguration(@NonNull ConsumerConfiguration consumerConfiguration) {
             List<ConsumerConfiguration> configurations =
                     consumerConfigurations.get(consumerConfiguration.getMessageType());
             if (configurations.stream().map(ConsumerConfiguration::getName)
@@ -258,28 +216,34 @@ public class DefaultFluxCapacitor implements FluxCapacitor {
         }
 
         @Override
-        public Builder addParameterResolver(ParameterResolver<DeserializingMessage> parameterResolver) {
+        public Builder addParameterResolver(@NonNull ParameterResolver<DeserializingMessage> parameterResolver) {
             parameterResolvers.add(parameterResolver);
             return this;
         }
 
         @Override
-        public Builder addDispatchInterceptor(DispatchInterceptor interceptor, MessageType... forTypes) {
+        public Builder addDispatchInterceptor(@NonNull DispatchInterceptor interceptor, MessageType... forTypes) {
             Arrays.stream(forTypes.length == 0 ? MessageType.values() : forTypes)
                     .forEach(type -> dispatchInterceptors.computeIfPresent(type, (t, i) -> i.merge(interceptor)));
             return this;
         }
 
         @Override
-        public Builder addHandlerInterceptor(HandlerInterceptor interceptor, MessageType... forTypes) {
+        public Builder addHandlerInterceptor(@NonNull HandlerInterceptor interceptor, MessageType... forTypes) {
             Arrays.stream(forTypes.length == 0 ? MessageType.values() : forTypes)
                     .forEach(type -> handlerInterceptors.computeIfPresent(type, (t, i) -> i.merge(interceptor)));
             return this;
         }
 
         @Override
-        public Builder replaceMessageRoutingInterceptor(DispatchInterceptor messageRoutingInterceptor) {
+        public Builder replaceMessageRoutingInterceptor(@NonNull DispatchInterceptor messageRoutingInterceptor) {
             this.messageRoutingInterceptor = messageRoutingInterceptor;
+            return this;
+        }
+
+        @Override
+        public FluxCapacitorBuilder replaceCache(@NonNull Cache cache) {
+            this.cache = cache;
             return this;
         }
 
@@ -320,7 +284,7 @@ public class DefaultFluxCapacitor implements FluxCapacitor {
         }
 
         @Override
-        public FluxCapacitor build(Client client) {
+        public FluxCapacitor build(@NonNull Client client) {
             Map<MessageType, DispatchInterceptor> dispatchInterceptors = new HashMap<>(this.dispatchInterceptors);
             Map<MessageType, HandlerInterceptor> handlerInterceptors = new HashMap<>(this.handlerInterceptors);
             Map<MessageType, List<ConsumerConfiguration>> consumerConfigurations =
@@ -378,7 +342,7 @@ public class DefaultFluxCapacitor implements FluxCapacitor {
             DefaultSnapshotRepository snapshotRepository =
                     new DefaultSnapshotRepository(client.getKeyValueClient(), snapshotSerializer);
             DefaultEventSourcing eventSourcing = new DefaultEventSourcing(
-                    eventStore, snapshotRepository, new DefaultCache(), parameterResolvers);
+                    eventStore, snapshotRepository, cache, parameterResolvers);
 
             //register event sourcing as handler interceptor
             handlerInterceptors.computeIfPresent(COMMAND, (t, i) -> i.merge(eventSourcing));
@@ -457,7 +421,7 @@ public class DefaultFluxCapacitor implements FluxCapacitor {
             //and finally...
             FluxCapacitor fluxCapacitor = doBuild(trackingMap, commandGateway, queryGateway, eventGateway,
                                                   resultGateway, errorGateway, metricsGateway, eventSourcing,
-                                                  keyValueStore, scheduler, client, shutdownHandler);
+                                                  keyValueStore, scheduler, cache, client, shutdownHandler);
 
             //perform a controlled shutdown when the vm exits
             if (!disableShutdownHook) {
@@ -473,10 +437,10 @@ public class DefaultFluxCapacitor implements FluxCapacitor {
                                         ErrorGateway errorGateway,
                                         MetricsGateway metricsGateway, EventSourcing eventSourcing,
                                         KeyValueStore keyValueStore,
-                                        Scheduler scheduler, Client client, Runnable shutdownHandler) {
+                                        Scheduler scheduler, Cache cache, Client client, Runnable shutdownHandler) {
             return new DefaultFluxCapacitor(trackingSupplier, commandGateway, queryGateway, eventGateway, resultGateway,
                                             errorGateway, metricsGateway, eventSourcing, keyValueStore, scheduler,
-                                            client, shutdownHandler);
+                                            cache, client, shutdownHandler);
         }
 
         protected Class<? extends Annotation> getHandlerAnnotation(MessageType messageType) {

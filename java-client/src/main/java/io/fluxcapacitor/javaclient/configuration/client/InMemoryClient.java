@@ -1,10 +1,10 @@
 package io.fluxcapacitor.javaclient.configuration.client;
 
 import io.fluxcapacitor.common.MessageType;
-import io.fluxcapacitor.javaclient.eventsourcing.client.EventStoreClient;
-import io.fluxcapacitor.javaclient.eventsourcing.client.InMemoryEventStoreClient;
-import io.fluxcapacitor.javaclient.keyvalue.client.InMemoryKeyValueClient;
-import io.fluxcapacitor.javaclient.keyvalue.client.KeyValueClient;
+import io.fluxcapacitor.javaclient.persisting.eventsourcing.client.EventStoreClient;
+import io.fluxcapacitor.javaclient.persisting.eventsourcing.client.InMemoryEventStoreClient;
+import io.fluxcapacitor.javaclient.persisting.keyvalue.client.InMemoryKeyValueClient;
+import io.fluxcapacitor.javaclient.persisting.keyvalue.client.KeyValueClient;
 import io.fluxcapacitor.javaclient.publishing.client.GatewayClient;
 import io.fluxcapacitor.javaclient.scheduling.client.InMemorySchedulingClient;
 import io.fluxcapacitor.javaclient.scheduling.client.SchedulingClient;

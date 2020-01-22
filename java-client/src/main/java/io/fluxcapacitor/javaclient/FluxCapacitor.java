@@ -4,14 +4,15 @@ import io.fluxcapacitor.common.MessageType;
 import io.fluxcapacitor.common.Registration;
 import io.fluxcapacitor.common.api.Metadata;
 import io.fluxcapacitor.javaclient.common.Message;
-import io.fluxcapacitor.javaclient.common.model.Aggregate;
 import io.fluxcapacitor.javaclient.configuration.DefaultFluxCapacitor;
 import io.fluxcapacitor.javaclient.configuration.client.Client;
 import io.fluxcapacitor.javaclient.configuration.spring.FluxCapacitorSpringConfig;
 import io.fluxcapacitor.javaclient.configuration.spring.LocalHandler;
-import io.fluxcapacitor.javaclient.eventsourcing.EventSourced;
-import io.fluxcapacitor.javaclient.eventsourcing.EventSourcing;
-import io.fluxcapacitor.javaclient.keyvalue.KeyValueStore;
+import io.fluxcapacitor.javaclient.modelling.Aggregate;
+import io.fluxcapacitor.javaclient.persisting.caching.Cache;
+import io.fluxcapacitor.javaclient.persisting.eventsourcing.EventSourced;
+import io.fluxcapacitor.javaclient.persisting.eventsourcing.EventSourcing;
+import io.fluxcapacitor.javaclient.persisting.keyvalue.KeyValueStore;
 import io.fluxcapacitor.javaclient.publishing.CommandGateway;
 import io.fluxcapacitor.javaclient.publishing.ErrorGateway;
 import io.fluxcapacitor.javaclient.publishing.EventGateway;
@@ -317,6 +318,11 @@ public interface FluxCapacitor extends AutoCloseable {
      * Returns a client to assist with the tracking of a given message type.
      */
     Tracking tracking(MessageType messageType);
+
+    /**
+     * Returns the cache used by the client to temporarily cache aggregates etc.
+     */
+    Cache cache();
 
     /**
      * Returns the low level client used by this FluxCapacitor instance to interface with the Flux Capacitor service.

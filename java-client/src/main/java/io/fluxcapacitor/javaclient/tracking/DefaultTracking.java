@@ -11,7 +11,7 @@ import io.fluxcapacitor.javaclient.common.exception.FunctionalException;
 import io.fluxcapacitor.javaclient.common.exception.TechnicalException;
 import io.fluxcapacitor.javaclient.common.serialization.DeserializingMessage;
 import io.fluxcapacitor.javaclient.common.serialization.Serializer;
-import io.fluxcapacitor.javaclient.eventsourcing.CacheInvalidatingInterceptor;
+import io.fluxcapacitor.javaclient.persisting.caching.CacheInvalidatingInterceptor;
 import io.fluxcapacitor.javaclient.publishing.ResultGateway;
 import io.fluxcapacitor.javaclient.tracking.client.TrackingClient;
 import io.fluxcapacitor.javaclient.tracking.client.TrackingUtils;
@@ -91,7 +91,7 @@ public class DefaultTracking implements Tracking {
         List<BatchInterceptor> batchInterceptors = new ArrayList<>(
                 Collections.singletonList(new FluxCapacitorInterceptor(fluxCapacitor)));
         if (configuration.getMessageType() == MessageType.COMMAND) {
-            batchInterceptors.add(new CacheInvalidatingInterceptor(fluxCapacitor.eventSourcing()));
+            batchInterceptors.add(new CacheInvalidatingInterceptor(fluxCapacitor.cache()));
         }
         batchInterceptors.addAll(configuration.getTrackingConfiguration().getBatchInterceptors());
         Supplier<String> trackerIdFactory = configuration.getTrackingConfiguration().getTrackerIdFactory();
