@@ -84,6 +84,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.concurrent.Callable;
+import java.util.concurrent.ForkJoinPool;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.UnaryOperator;
 import java.util.stream.Stream;
@@ -442,7 +444,10 @@ public class DefaultFluxCapacitor implements FluxCapacitor {
             Runnable shutdownHandler = () -> {
                 if (closed.compareAndSet(false, true)) {
                     log.info("Initiating controlled shutdown");
-                    trackingMap.values().forEach(Tracking::close);
+                    ForkJoinPool.commonPool().invokeAll(trackingMap.values().stream().map(t -> (Callable<?>) () -> {
+                        t.close();
+                        return null;
+                    }).collect(toList()));
                     requestHandler.close();
                     client.shutDown();
                     log.info("Completed shutdown");
