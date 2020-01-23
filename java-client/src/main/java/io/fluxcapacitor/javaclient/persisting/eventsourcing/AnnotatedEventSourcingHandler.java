@@ -28,6 +28,11 @@ public class AnnotatedEventSourcingHandler<T> implements EventSourcingHandler<T>
     }
 
     @Override
+    public Class<T> getType() {
+        return handlerType;
+    }
+
+    @Override
     public T apply(DeserializingMessage message, T model) {
         Object result;
         try {

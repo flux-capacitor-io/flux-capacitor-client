@@ -44,13 +44,13 @@ import static org.mockito.Mockito.verifyNoMoreInteractions;
 import static org.mockito.Mockito.when;
 
 @Slf4j
-class DefaultEventSourcingTest {
+class EventSourcingRepositoryTest {
 
     private final String aggregateId = "test";
     private EventStore eventStore = mock(EventStore.class);
     private SnapshotRepository snapshotRepository = mock(SnapshotRepository.class);
     private Cache cache = spy(new DefaultCache());
-    private DefaultEventSourcing subject = new DefaultEventSourcing(eventStore, snapshotRepository, cache);
+    private EventSourcingRepository subject = new EventSourcingRepository(eventStore, snapshotRepository, cache);
 
     @BeforeEach
     void setUp() {

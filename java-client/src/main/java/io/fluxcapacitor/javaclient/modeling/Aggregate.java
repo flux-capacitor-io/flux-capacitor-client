@@ -23,9 +23,10 @@ import java.util.function.Predicate;
 public interface Aggregate<T> {
 
     String AGGREGATE_ID_METADATA_KEY = "$aggregateId";
+    String AGGREGATE_TYPE_METADATA_KEY = "$aggregateType";
     
     default <E extends Exception> Aggregate<T> assertLegal(Object command) throws E {
-        DefaultLegalCheck.assertLegal(command, this);
+        DefaultLegalCheck.assertLegal(command, get());
         return this;
     }
     

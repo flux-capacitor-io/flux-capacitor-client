@@ -24,10 +24,10 @@ import io.fluxcapacitor.javaclient.common.serialization.jackson.JacksonSerialize
 import io.fluxcapacitor.javaclient.configuration.client.Client;
 import io.fluxcapacitor.javaclient.persisting.caching.Cache;
 import io.fluxcapacitor.javaclient.persisting.caching.DefaultCache;
-import io.fluxcapacitor.javaclient.persisting.eventsourcing.DefaultEventSourcing;
+import io.fluxcapacitor.javaclient.persisting.eventsourcing.AggregateRepository;
 import io.fluxcapacitor.javaclient.persisting.eventsourcing.DefaultEventStore;
 import io.fluxcapacitor.javaclient.persisting.eventsourcing.DefaultSnapshotRepository;
-import io.fluxcapacitor.javaclient.persisting.eventsourcing.EventSourcing;
+import io.fluxcapacitor.javaclient.persisting.eventsourcing.EventSourcingRepository;
 import io.fluxcapacitor.javaclient.persisting.eventsourcing.EventStore;
 import io.fluxcapacitor.javaclient.persisting.eventsourcing.EventStoreSerializer;
 import io.fluxcapacitor.javaclient.persisting.keyvalue.DefaultKeyValueStore;
@@ -124,7 +124,8 @@ public class DefaultFluxCapacitor implements FluxCapacitor {
     private final ResultGateway resultGateway;
     private final ErrorGateway errorGateway;
     private final MetricsGateway metricsGateway;
-    private final EventSourcing eventSourcing;
+    private final AggregateRepository aggregateRepository;
+    private final EventStore eventStore;
     private final KeyValueStore keyValueStore;
     private final Scheduler scheduler;
     private final Cache cache;
@@ -341,7 +342,7 @@ public class DefaultFluxCapacitor implements FluxCapacitor {
                                                                                     parameterResolvers));
             DefaultSnapshotRepository snapshotRepository =
                     new DefaultSnapshotRepository(client.getKeyValueClient(), snapshotSerializer);
-            DefaultEventSourcing eventSourcing = new DefaultEventSourcing(
+            EventSourcingRepository eventSourcing = new EventSourcingRepository(
                     eventStore, snapshotRepository, cache, parameterResolvers);
 
             //register event sourcing as handler interceptor
@@ -421,7 +422,7 @@ public class DefaultFluxCapacitor implements FluxCapacitor {
             //and finally...
             FluxCapacitor fluxCapacitor = doBuild(trackingMap, commandGateway, queryGateway, eventGateway,
                                                   resultGateway, errorGateway, metricsGateway, eventSourcing,
-                                                  keyValueStore, scheduler, cache, client, shutdownHandler);
+                                                  eventStore, keyValueStore, scheduler, cache, client, shutdownHandler);
 
             //perform a controlled shutdown when the vm exits
             if (!disableShutdownHook) {
@@ -435,11 +436,11 @@ public class DefaultFluxCapacitor implements FluxCapacitor {
                                         CommandGateway commandGateway, QueryGateway queryGateway,
                                         EventGateway eventGateway, ResultGateway resultGateway,
                                         ErrorGateway errorGateway,
-                                        MetricsGateway metricsGateway, EventSourcing eventSourcing,
+                                        MetricsGateway metricsGateway, AggregateRepository aggregateRepository, EventStore eventStore,
                                         KeyValueStore keyValueStore,
                                         Scheduler scheduler, Cache cache, Client client, Runnable shutdownHandler) {
             return new DefaultFluxCapacitor(trackingSupplier, commandGateway, queryGateway, eventGateway, resultGateway,
-                                            errorGateway, metricsGateway, eventSourcing, keyValueStore, scheduler,
+                                            errorGateway, metricsGateway, aggregateRepository, eventStore, keyValueStore, scheduler,
                                             cache, client, shutdownHandler);
         }
 

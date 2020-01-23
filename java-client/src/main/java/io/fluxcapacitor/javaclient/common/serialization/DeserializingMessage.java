@@ -7,6 +7,8 @@ import io.fluxcapacitor.common.handling.HandlerInspector.MethodHandlerInvoker;
 import io.fluxcapacitor.common.handling.MethodInvokerFactory;
 import io.fluxcapacitor.common.handling.ParameterResolver;
 import io.fluxcapacitor.javaclient.common.Message;
+import io.fluxcapacitor.javaclient.modeling.AggregateIdParameterResolver;
+import io.fluxcapacitor.javaclient.modeling.AggregateTypeParameterResolver;
 import io.fluxcapacitor.javaclient.tracking.handling.BatchHandlerInvoker;
 import io.fluxcapacitor.javaclient.tracking.handling.DeserializingMessageParameterResolver;
 import io.fluxcapacitor.javaclient.tracking.handling.MessageParameterResolver;
@@ -26,7 +28,8 @@ public class DeserializingMessage {
     public static MessageFormatter messageFormatter = MessageFormatter.DEFAULT;
     public static List<ParameterResolver<? super DeserializingMessage>> defaultParameterResolvers =
             Arrays.asList(new DeserializingMessageParameterResolver(), new PayloadParameterResolver(), 
-                          new MetadataParameterResolver(), new MessageParameterResolver());
+                          new MetadataParameterResolver(), new MessageParameterResolver(), 
+                          new AggregateIdParameterResolver(), new AggregateTypeParameterResolver());
     public static MethodInvokerFactory<DeserializingMessage> defaultInvokerFactory = 
             (executable, enclosingType, parameterResolvers) -> handlesBatch(executable) 
                     ? new BatchHandlerInvoker(executable, enclosingType, parameterResolvers) 

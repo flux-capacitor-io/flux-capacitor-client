@@ -34,7 +34,7 @@ import static java.util.stream.Collectors.toList;
 
 @Slf4j
 @AllArgsConstructor
-public class DefaultEventSourcing implements EventSourcing, HandlerInterceptor {
+public class EventSourcingRepository implements AggregateRepository, HandlerInterceptor {
 
     private final Map<Class<?>, Function<LoadSettings, EventSourcedAggregate<?>>> modelFactories =
             new ConcurrentHashMap<>();
@@ -44,7 +44,7 @@ public class DefaultEventSourcing implements EventSourcing, HandlerInterceptor {
     private final List<ParameterResolver<? super DeserializingMessage>> parameterResolvers;
     private final ThreadLocal<Collection<EventSourcedAggregate<?>>> loadedModels = new ThreadLocal<>();
 
-    public DefaultEventSourcing(EventStore eventStore, SnapshotRepository snapshotRepository, Cache cache) {
+    public EventSourcingRepository(EventStore eventStore, SnapshotRepository snapshotRepository, Cache cache) {
         this(eventStore, snapshotRepository, cache, defaultParameterResolvers);
     }
 
@@ -64,11 +64,6 @@ public class DefaultEventSourcing implements EventSourcing, HandlerInterceptor {
                     loaded.add(model);
                     return model;
                 });
-    }
-
-    @Override
-    public EventStore eventStore() {
-        return eventStore;
     }
 
     @SuppressWarnings("unchecked")
@@ -186,6 +181,7 @@ public class DefaultEventSourcing implements EventSourcing, HandlerInterceptor {
             }
             Metadata metadata = message.getMetadata();
             metadata.put(Aggregate.AGGREGATE_ID_METADATA_KEY, id);
+            metadata.put(Aggregate.AGGREGATE_TYPE_METADATA_KEY, eventSourcingHandler.getType().getName());
             unpublishedEvents.add(message);
             DeserializingMessage deserializingMessage = new DeserializingMessage(new DeserializingObject<>(
                     new SerializedMessage(new Data<>(() -> {

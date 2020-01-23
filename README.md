@@ -415,7 +415,7 @@ because they reduce loading delays. Note that you may choose to override these d
 class UserCommandHandler {
     @HandleCommand
     void handle(CreateUser command) {
-        FluxCapacitor.get().eventSourcing().load(command.getUserId(), User.class, 
+        FluxCapacitor.get().aggregateRepository().load(command.getUserId(), User.class, 
         true, //disables caching
         true //disables snapshotting
         );

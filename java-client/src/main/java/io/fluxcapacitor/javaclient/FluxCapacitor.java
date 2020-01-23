@@ -10,8 +10,9 @@ import io.fluxcapacitor.javaclient.configuration.spring.FluxCapacitorSpringConfi
 import io.fluxcapacitor.javaclient.configuration.spring.LocalHandler;
 import io.fluxcapacitor.javaclient.modeling.Aggregate;
 import io.fluxcapacitor.javaclient.persisting.caching.Cache;
+import io.fluxcapacitor.javaclient.persisting.eventsourcing.AggregateRepository;
 import io.fluxcapacitor.javaclient.persisting.eventsourcing.EventSourced;
-import io.fluxcapacitor.javaclient.persisting.eventsourcing.EventSourcing;
+import io.fluxcapacitor.javaclient.persisting.eventsourcing.EventStore;
 import io.fluxcapacitor.javaclient.persisting.keyvalue.KeyValueStore;
 import io.fluxcapacitor.javaclient.publishing.CommandGateway;
 import io.fluxcapacitor.javaclient.publishing.ErrorGateway;
@@ -77,7 +78,7 @@ public interface FluxCapacitor extends AutoCloseable {
      * Note that the published event will not be available for event sourcing as it is does not belong to any
      * aggregate.
      *
-     * @see #eventSourcing() if you're interested in publishing events that belong to an aggregate.
+     * @see #aggregateRepository() if you're interested in publishing events that belong to an aggregate.
      */
     static void publishEvent(Object event) {
         get().eventGateway().publish(event);
@@ -204,7 +205,7 @@ public interface FluxCapacitor extends AutoCloseable {
      */
     static <T> Aggregate<T> loadAggregate(String id, Class<T> aggregateType) {
         if (aggregateType.isAnnotationPresent(EventSourced.class)) {
-            return get().eventSourcing().load(id, aggregateType);
+            return get().aggregateRepository().load(id, aggregateType);
         }
         throw new UnsupportedOperationException("Only event sourced aggregates are supported at the moment");
     }
@@ -262,15 +263,19 @@ public interface FluxCapacitor extends AutoCloseable {
     default Registration registerLocalHandlers(List<?> handlers) {
         return handlers.stream().flatMap(h -> Stream
                 .of(commandGateway().registerLocalHandler(h), queryGateway().registerLocalHandler(h),
-                    eventGateway().registerLocalHandler(h),
-                    eventSourcing().eventStore().registerLocalHandler(h)))
+                    eventGateway().registerLocalHandler(h), eventStore().registerLocalHandler(h)))
                 .reduce(Registration::merge).orElse(Registration.noOp());
     }
 
     /**
      * Returns a client to assist with event sourcing.
      */
-    EventSourcing eventSourcing();
+    AggregateRepository aggregateRepository();
+
+    /**
+     * Returns the event store client.
+     */
+    EventStore eventStore();
 
     /**
      * Returns the message scheduling client.
@@ -293,7 +298,7 @@ public interface FluxCapacitor extends AutoCloseable {
     QueryGateway queryGateway();
 
     /**
-     * Returns the message gateway for application events. Use {@link #eventSourcing()} to publish events belonging to
+     * Returns the message gateway for application events. Use {@link #aggregateRepository()} to publish events belonging to
      * an aggregate.
      */
     EventGateway eventGateway();
