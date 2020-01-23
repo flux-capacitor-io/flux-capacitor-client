@@ -1,6 +1,6 @@
 package io.fluxcapacitor.javaclient.persisting.eventsourcing;
 
-import io.fluxcapacitor.javaclient.modelling.Aggregate;
+import io.fluxcapacitor.javaclient.modeling.Aggregate;
 
 public interface EventSourcing {
 

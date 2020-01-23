@@ -12,7 +12,7 @@ import org.springframework.context.annotation.Primary;
 
 @Configuration
 @Import(FluxCapacitorSpringConfig.class)
-public class IntegrationTestConfig {
+public class FluxCapacitorTestConfig {
     
     @Bean
     @Primary

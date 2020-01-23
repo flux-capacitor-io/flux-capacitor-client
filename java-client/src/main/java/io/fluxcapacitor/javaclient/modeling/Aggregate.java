@@ -12,7 +12,7 @@
  * limitations under the License.
  */
 
-package io.fluxcapacitor.javaclient.modelling;
+package io.fluxcapacitor.javaclient.modeling;
 
 import io.fluxcapacitor.common.api.Metadata;
 import io.fluxcapacitor.javaclient.common.Message;
@@ -21,6 +21,9 @@ import java.util.function.Function;
 import java.util.function.Predicate;
 
 public interface Aggregate<T> {
+
+    String AGGREGATE_ID_METADATA_KEY = "$aggregateId";
+    
     default <E extends Exception> Aggregate<T> assertLegal(Object command) throws E {
         DefaultLegalCheck.assertLegal(command, this);
         return this;

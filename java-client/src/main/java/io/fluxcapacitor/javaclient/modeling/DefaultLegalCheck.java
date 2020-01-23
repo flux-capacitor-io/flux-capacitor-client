@@ -1,4 +1,4 @@
-package io.fluxcapacitor.javaclient.modelling;
+package io.fluxcapacitor.javaclient.modeling;
 
 import io.fluxcapacitor.common.handling.HandlerConfiguration;
 import io.fluxcapacitor.common.handling.HandlerInvoker;

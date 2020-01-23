@@ -47,7 +47,12 @@ public class AnnotatedEventSourcingHandler<T> implements EventSourcingHandler<T>
         if (result == null && invoker.expectResult(model, message)) {
             return null; //this handler has deleted the model on purpose
         }
-        return model; //apparently the model is mutable
+        return model; //Annotated method returned void - apparently the model is mutable
+    }
+
+    @Override
+    public boolean canHandle(DeserializingMessage message, T model) {
+        return invoker.canHandle(model, message);
     }
 
 

@@ -80,8 +80,7 @@ public class DefaultTracking implements Tracking {
         Registration registration =
                 consumers.entrySet().stream().map(e -> startTracking(e.getKey(), e.getValue(), fluxCapacitor))
                         .reduce(Registration::merge).orElse(Registration.noOp());
-        registration = registration.merge(() -> waitForResults(Duration.ofSeconds(2), outstandingRequests));
-        shutdownFunction.set(registration);
+        shutdownFunction.updateAndGet(r -> r.merge(registration));
         return registration;
     }
 
@@ -219,6 +218,6 @@ public class DefaultTracking implements Tracking {
     @Override
     @Synchronized
     public void close() {
-        shutdownFunction.get().cancel();
+        shutdownFunction.get().merge(() -> waitForResults(Duration.ofSeconds(2), outstandingRequests)).cancel();
     }
 }

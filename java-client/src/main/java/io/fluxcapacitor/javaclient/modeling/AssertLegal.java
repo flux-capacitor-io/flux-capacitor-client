@@ -12,7 +12,7 @@
  * limitations under the License.
  */
 
-package io.fluxcapacitor.javaclient.modelling;
+package io.fluxcapacitor.javaclient.modeling;
 
 import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;

@@ -8,8 +8,8 @@ import io.fluxcapacitor.javaclient.MockException;
 import io.fluxcapacitor.javaclient.common.Message;
 import io.fluxcapacitor.javaclient.common.serialization.DeserializingMessage;
 import io.fluxcapacitor.javaclient.common.serialization.DeserializingObject;
-import io.fluxcapacitor.javaclient.modelling.Aggregate;
-import io.fluxcapacitor.javaclient.modelling.AssertLegal;
+import io.fluxcapacitor.javaclient.modeling.Aggregate;
+import io.fluxcapacitor.javaclient.modeling.AssertLegal;
 import io.fluxcapacitor.javaclient.persisting.caching.Cache;
 import io.fluxcapacitor.javaclient.persisting.caching.DefaultCache;
 import lombok.NoArgsConstructor;
@@ -31,6 +31,7 @@ import static java.util.Arrays.stream;
 import static java.util.Collections.singletonList;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.fail;
 import static org.mockito.Mockito.anyLong;
 import static org.mockito.Mockito.eq;
@@ -99,9 +100,10 @@ class DefaultEventSourcingTest {
 
     @Test
     void testApplyEventsWithMetadata() {
+        Metadata metadata = Metadata.from("foo", "bar");
         Aggregate<TestModel> aggregate = prepareSubjectForHandling()
-                .apply(new Message(new CreateModelWithMetadata(), Metadata.from("foo", "bar")));
-        assertEquals(Metadata.from("foo", "bar"), aggregate.get().metadata);
+                .apply(new Message(new CreateModelWithMetadata(), metadata));
+        assertTrue(aggregate.get().metadata.entrySet().containsAll(metadata.entrySet()));
         assertEquals(0L, aggregate.getSequenceNumber());
     }
 

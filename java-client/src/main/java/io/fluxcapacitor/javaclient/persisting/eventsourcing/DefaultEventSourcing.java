@@ -1,6 +1,7 @@
 package io.fluxcapacitor.javaclient.persisting.eventsourcing;
 
 import io.fluxcapacitor.common.api.Data;
+import io.fluxcapacitor.common.api.Metadata;
 import io.fluxcapacitor.common.api.SerializedMessage;
 import io.fluxcapacitor.common.handling.Handler;
 import io.fluxcapacitor.common.handling.ParameterResolver;
@@ -8,7 +9,7 @@ import io.fluxcapacitor.common.serialization.Revision;
 import io.fluxcapacitor.javaclient.common.Message;
 import io.fluxcapacitor.javaclient.common.serialization.DeserializingMessage;
 import io.fluxcapacitor.javaclient.common.serialization.DeserializingObject;
-import io.fluxcapacitor.javaclient.modelling.Aggregate;
+import io.fluxcapacitor.javaclient.modeling.Aggregate;
 import io.fluxcapacitor.javaclient.persisting.caching.Cache;
 import io.fluxcapacitor.javaclient.persisting.caching.NoOpCache;
 import io.fluxcapacitor.javaclient.tracking.handling.HandlerInterceptor;
@@ -183,13 +184,15 @@ public class DefaultEventSourcing implements EventSourcing, HandlerInterceptor {
             if (readOnly) {
                 throw new EventSourcingException(format("Not allowed to apply a %s. The model is readonly.", message));
             }
+            Metadata metadata = message.getMetadata();
+            metadata.put(Aggregate.AGGREGATE_ID_METADATA_KEY, id);
             unpublishedEvents.add(message);
             DeserializingMessage deserializingMessage = new DeserializingMessage(new DeserializingObject<>(
                     new SerializedMessage(new Data<>(() -> {
                         throw new UnsupportedOperationException("Serialized data not available");
                     }, message.getPayload().getClass().getName(), ofNullable(
                             message.getPayload().getClass().getAnnotation(Revision.class)).map(Revision::value)
-                                                             .orElse(0)), message.getMetadata(), message.getMessageId(),
+                                                             .orElse(0)), metadata, message.getMessageId(),
                                           message.getTimestamp().toEpochMilli()),
                     message::getPayload), EVENT);
             model = model.update(a -> eventSourcingHandler.apply(deserializingMessage, a));

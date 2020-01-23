@@ -25,8 +25,8 @@ import static java.time.Instant.ofEpochMilli;
 public class DeserializingMessage {
     public static MessageFormatter messageFormatter = MessageFormatter.DEFAULT;
     public static List<ParameterResolver<? super DeserializingMessage>> defaultParameterResolvers =
-            Arrays.asList(new PayloadParameterResolver(), new MetadataParameterResolver(),
-                          new DeserializingMessageParameterResolver(), new MessageParameterResolver());
+            Arrays.asList(new DeserializingMessageParameterResolver(), new PayloadParameterResolver(), 
+                          new MetadataParameterResolver(), new MessageParameterResolver());
     public static MethodInvokerFactory<DeserializingMessage> defaultInvokerFactory = 
             (executable, enclosingType, parameterResolvers) -> handlesBatch(executable) 
                     ? new BatchHandlerInvoker(executable, enclosingType, parameterResolvers) 
