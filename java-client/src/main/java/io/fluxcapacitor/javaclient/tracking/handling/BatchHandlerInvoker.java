@@ -57,16 +57,23 @@ public class BatchHandlerInvoker extends HandlerInspector.MethodHandlerInvoker<D
             batches.forEach((target, batch) -> {
                 List<CompletableFuture<Object>> futures = new ArrayList<>(batch.values());
                 try {
-                    DeserializingMessage message = batch.keySet().stream().findFirst()
+                    DeserializingMessage firstMessage = batch.keySet().stream().findFirst()
                             .orElseThrow(() -> new IllegalStateException("expected at least one value"));
                     List<Object> payloads =
                             new ArrayList<>(batch.keySet()).stream().map(DeserializingMessage::getPayload)
                                     .collect(toList());
                     DeserializingMessage merged = new DeserializingMessage(
-                            new DeserializingObject<>(message.getSerializedObject(), () -> payloads),
-                            message.getMessageType());
+                            new DeserializingObject<>(firstMessage.getSerializedObject(), () -> payloads),
+                            firstMessage.getMessageType());
 
-                    Object listResult = super.invoke(target, merged);
+                    Object listResult;
+                    DeserializingMessage previous = DeserializingMessage.getCurrent();
+                    try {
+                        DeserializingMessage.setCurrent(firstMessage);
+                        listResult = super.invoke(target, merged);
+                    } finally {
+                        DeserializingMessage.setCurrent(previous);
+                    }
 
                     if (listResult instanceof Collection<?>) {
                         List<?> results = new ArrayList<>((Collection<?>) listResult);

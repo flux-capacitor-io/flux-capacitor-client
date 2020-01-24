@@ -120,11 +120,11 @@ public class DefaultTracking implements Tracking {
                 try {
                     DeserializingMessage.setCurrent(m);
                     handlers.forEach(h -> tryHandle(m, h, configuration));
-                    if (!iterator.hasNext()) {
-                        handlers.forEach(Handler::onEndOfBatch);
-                    }
                 } finally {
                     DeserializingMessage.removeCurrent();
+                }
+                if (!iterator.hasNext()) {
+                    handlers.forEach(Handler::onEndOfBatch);
                 }
             });
         };
