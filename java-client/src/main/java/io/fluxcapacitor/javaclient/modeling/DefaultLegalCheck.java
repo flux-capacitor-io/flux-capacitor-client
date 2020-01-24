@@ -4,10 +4,12 @@ import io.fluxcapacitor.common.handling.HandlerConfiguration;
 import io.fluxcapacitor.common.handling.HandlerInvoker;
 
 import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 
 import static io.fluxcapacitor.common.handling.HandlerInspector.inspect;
 import static java.util.Collections.singletonList;
+import static java.util.Optional.empty;
 
 public class DefaultLegalCheck {
     private static Map<Class<?>, HandlerInvoker<Object>> invokerCache = new ConcurrentHashMap<>();
@@ -21,5 +23,19 @@ public class DefaultLegalCheck {
         if (invoker.canHandle(commandOrQuery, aggregate)) {
             invoker.invoke(commandOrQuery, aggregate);
         }
+    }
+
+    @SuppressWarnings("unchecked")
+    public static <E extends Exception> Optional<E> checkLegality(Object commandOrQuery, Object aggregate) {
+        try {
+            assertLegal(commandOrQuery, aggregate);
+        } catch (Exception e){
+            return Optional.of((E) e);
+        }
+        return empty();
+    }
+
+    public static boolean isLegal(Object commandOrQuery, Object aggregate) {
+        return !checkLegality(commandOrQuery, aggregate).isPresent();
     }
 }
