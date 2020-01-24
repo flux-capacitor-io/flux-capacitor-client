@@ -33,6 +33,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.fail;
+import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.Mockito.anyLong;
 import static org.mockito.Mockito.eq;
 import static org.mockito.Mockito.mock;
@@ -63,7 +64,6 @@ class EventSourcingRepositoryTest {
                 .thenReturn(eventStreamOf(new CreateModel(), new UpdateModel()));
         Aggregate<TestModel> aggregate = subject.load(aggregateId, TestModel.class);
         assertEquals(Arrays.asList(new CreateModel(), new UpdateModel()), aggregate.get().events);
-        assertEquals(1L, aggregate.getSequenceNumber());
     }
 
     @Test
@@ -77,10 +77,10 @@ class EventSourcingRepositoryTest {
     @Test
     void testModelIsLoadedFromSnapshotWhenPossible() {
         when(snapshotRepository.getSnapshot(aggregateId))
-                .thenReturn(Optional.of(new EventSourcedModel<>(aggregateId, 0L, new TestModel(new CreateModel()))));
+                .thenReturn(Optional.of(new EventSourcedModel<>(
+                        aggregateId, 0L, null, null, new TestModel(new CreateModel()))));
         Aggregate<TestModel> aggregate = subject.load(aggregateId, TestModel.class);
         assertEquals(singletonList(new CreateModel()), aggregate.get().events);
-        assertEquals(0L, aggregate.getSequenceNumber());
     }
 
     @Test
@@ -89,13 +89,12 @@ class EventSourcingRepositoryTest {
         verifyNoInteractions(eventStore, cache);
         Aggregate<TestModel> aggregate = f.apply(new Message(new CreateModel()));
         assertEquals(singletonList(new CreateModel()), aggregate.get().events);
-        assertEquals(0L, aggregate.getSequenceNumber());
     }
 
     @Test
     void testModelIsReadOnlyIfSubjectIsNotIntercepting() {
         Aggregate<TestModel> aggregate = subject.load(aggregateId, TestModel.class);
-        assertThrows(EventSourcingException.class, () -> aggregate.apply("whatever"));
+        assertThrows(UnsupportedOperationException.class, () -> aggregate.apply("whatever"));
     }
 
     @Test
@@ -104,7 +103,6 @@ class EventSourcingRepositoryTest {
         Aggregate<TestModel> aggregate = prepareSubjectForHandling()
                 .apply(new Message(new CreateModelWithMetadata(), metadata));
         assertTrue(aggregate.get().metadata.entrySet().containsAll(metadata.entrySet()));
-        assertEquals(0L, aggregate.getSequenceNumber());
     }
 
     @Test
@@ -183,7 +181,7 @@ class EventSourcingRepositoryTest {
             reset(snapshotRepository);
             events.forEach(aggregate::apply);
         }).apply(toDeserializingMessage("command"));
-        verify(snapshotRepository).storeSnapshot(new EventSourcedModel<>(aggregateId, 2L, new TestModelForSnapshotting()));
+        verify(snapshotRepository).storeSnapshot(argThat(m -> m.sequenceNumber() == 2L));
     }
 
     @Test
@@ -365,7 +363,7 @@ class EventSourcingRepositoryTest {
     @Value
     private static class CommandWithMultipleAssertions {
         AtomicInteger assertionCount = new AtomicInteger();
-        
+
         @AssertLegal
         private void assert1(Object model) {
             assertionCount.addAndGet(1);

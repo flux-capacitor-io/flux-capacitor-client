@@ -47,8 +47,8 @@ public class HandlerMonitor implements HandlerInterceptor {
                         DeserializingMessage.setCurrent(message);
                         FluxCapacitor.publishMetrics(
                                 new CompleteMessageEvent(
-                                        FluxCapacitor.get().client().name(), FluxCapacitor.get().client().id(), consumer,
-                                        handler.getTarget().getClass().getSimpleName(),
+                                        FluxCapacitor.get().client().name(), FluxCapacitor.get().client().id(), 
+                                        consumer, handler.getTarget().getClass().getSimpleName(),
                                         message.getSerializedObject().getIndex(),
                                         message.getPayloadClass().getSimpleName(), e != null,
                                         start.until(Instant.now(), ChronoUnit.NANOS)));

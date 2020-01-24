@@ -17,6 +17,7 @@ package io.fluxcapacitor.javaclient.modeling;
 import io.fluxcapacitor.common.api.Metadata;
 import io.fluxcapacitor.javaclient.common.Message;
 
+import java.time.Instant;
 import java.util.function.Function;
 import java.util.function.Predicate;
 
@@ -24,12 +25,32 @@ public interface Aggregate<T> {
 
     String AGGREGATE_ID_METADATA_KEY = "$aggregateId";
     String AGGREGATE_TYPE_METADATA_KEY = "$aggregateType";
+
+    T get();
     
+    String lastEventId();
+    
+    Instant timestamp();
+
+    Aggregate<T> apply(Message eventMessage);
+
+    default Aggregate<T> apply(Object event) {
+        return apply(new Message(event));
+    }
+
+    default Aggregate<T> apply(Object event, Metadata metadata) {
+        return apply(new Message(event, metadata));
+    }
+
+    default Aggregate<T> apply(Function<T, Message> eventFunction) {
+        return apply(eventFunction.apply(get()));
+    }
+
     default <E extends Exception> Aggregate<T> assertLegal(Object command) throws E {
         DefaultLegalCheck.assertLegal(command, get());
         return this;
     }
-    
+
     default <E extends Exception> Aggregate<T> assertThat(Validator<T, E> validator) throws E {
         validator.validate(this.get());
         return this;
@@ -41,24 +62,6 @@ public interface Aggregate<T> {
         }
         return this;
     }
-
-    default Aggregate<T> apply(Object event) {
-        return apply(new Message(event));
-    }
-
-    default Aggregate<T> apply(Object event, Metadata metadata) {
-        return apply(new Message(event, metadata));
-    }
-
-    Aggregate<T> apply(Message message);
-
-    default Aggregate<T> apply(Function<T, Message> eventFunction) {
-        return apply(eventFunction.apply(get()));
-    }
-
-    T get();
-
-    long getSequenceNumber();
 
     @FunctionalInterface
     interface Validator<T, E extends Exception> {

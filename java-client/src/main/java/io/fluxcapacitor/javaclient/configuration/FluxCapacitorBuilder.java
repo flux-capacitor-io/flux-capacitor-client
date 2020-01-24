@@ -49,6 +49,8 @@ public interface FluxCapacitorBuilder {
     FluxCapacitorBuilder disablePayloadValidation();
 
     FluxCapacitorBuilder disableDataProtection();
+    
+    FluxCapacitorBuilder disableAutomaticAggregateCaching();
 
     FluxCapacitorBuilder enableTrackingMetrics();
 

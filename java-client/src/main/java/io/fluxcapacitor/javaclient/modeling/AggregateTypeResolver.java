@@ -16,16 +16,29 @@ package io.fluxcapacitor.javaclient.modeling;
 
 import io.fluxcapacitor.common.handling.ParameterResolver;
 import io.fluxcapacitor.javaclient.common.serialization.DeserializingMessage;
+import lombok.extern.slf4j.Slf4j;
 
 import java.lang.reflect.Parameter;
+import java.util.Optional;
 import java.util.function.Function;
 
-public class AggregateIdParameterResolver implements ParameterResolver<DeserializingMessage> {
+@Slf4j
+public class AggregateTypeResolver implements ParameterResolver<DeserializingMessage> {
     @Override
     public Function<DeserializingMessage, Object> resolve(Parameter p) {
-        if (p.isAnnotationPresent(AggregateId.class)) {
-            return m -> m.getMetadata().get(Aggregate.AGGREGATE_ID_METADATA_KEY);
+        if (p.isAnnotationPresent(AggregateType.class)) {
+            return AggregateTypeResolver::getAggregateType;
         }
         return null;
+    }
+
+    public static Class<?> getAggregateType(DeserializingMessage message) {
+        return Optional.ofNullable(message.getMetadata().get(Aggregate.AGGREGATE_TYPE_METADATA_KEY)).map(c -> {
+            try {
+                return Class.forName(c);
+            } catch (ClassNotFoundException e) {
+                return null;
+            }
+        }).orElse(null);
     }
 }

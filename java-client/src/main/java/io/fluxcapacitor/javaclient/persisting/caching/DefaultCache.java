@@ -15,11 +15,13 @@
 package io.fluxcapacitor.javaclient.persisting.caching;
 
 import lombok.SneakyThrows;
+import lombok.extern.slf4j.Slf4j;
 
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.function.Function;
 
+@Slf4j
 public class DefaultCache implements Cache {
 
     private final LinkedHashMap<String, Object> cache;

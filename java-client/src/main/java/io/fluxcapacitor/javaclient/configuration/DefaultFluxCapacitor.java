@@ -22,11 +22,15 @@ import io.fluxcapacitor.javaclient.common.serialization.MessageSerializer;
 import io.fluxcapacitor.javaclient.common.serialization.Serializer;
 import io.fluxcapacitor.javaclient.common.serialization.jackson.JacksonSerializer;
 import io.fluxcapacitor.javaclient.configuration.client.Client;
+import io.fluxcapacitor.javaclient.modeling.AggregateRepository;
+import io.fluxcapacitor.javaclient.modeling.CompositeAggregateRepository;
 import io.fluxcapacitor.javaclient.persisting.caching.Cache;
+import io.fluxcapacitor.javaclient.persisting.caching.CachingAggregateRepository;
 import io.fluxcapacitor.javaclient.persisting.caching.DefaultCache;
-import io.fluxcapacitor.javaclient.persisting.eventsourcing.AggregateRepository;
+import io.fluxcapacitor.javaclient.persisting.eventsourcing.DefaultEventSourcingHandlerFactory;
 import io.fluxcapacitor.javaclient.persisting.eventsourcing.DefaultEventStore;
 import io.fluxcapacitor.javaclient.persisting.eventsourcing.DefaultSnapshotRepository;
+import io.fluxcapacitor.javaclient.persisting.eventsourcing.EventSourcingHandlerFactory;
 import io.fluxcapacitor.javaclient.persisting.eventsourcing.EventSourcingRepository;
 import io.fluxcapacitor.javaclient.persisting.eventsourcing.EventStore;
 import io.fluxcapacitor.javaclient.persisting.eventsourcing.EventStoreSerializer;
@@ -98,6 +102,7 @@ import static io.fluxcapacitor.common.MessageType.COMMAND;
 import static io.fluxcapacitor.common.MessageType.ERROR;
 import static io.fluxcapacitor.common.MessageType.EVENT;
 import static io.fluxcapacitor.common.MessageType.METRICS;
+import static io.fluxcapacitor.common.MessageType.NOTIFICATION;
 import static io.fluxcapacitor.common.MessageType.QUERY;
 import static io.fluxcapacitor.common.MessageType.RESULT;
 import static io.fluxcapacitor.common.MessageType.SCHEDULE;
@@ -164,6 +169,7 @@ public class DefaultFluxCapacitor implements FluxCapacitor {
         private boolean disableMessageCorrelation;
         private boolean disablePayloadValidation;
         private boolean disableDataProtection;
+        private boolean disableAutomaticAggregateCaching;
         private boolean disableShutdownHook;
         private boolean collectTrackingMetrics;
 
@@ -279,6 +285,12 @@ public class DefaultFluxCapacitor implements FluxCapacitor {
         }
 
         @Override
+        public FluxCapacitorBuilder disableAutomaticAggregateCaching() {
+            disableAutomaticAggregateCaching = true;
+            return this;
+        }
+
+        @Override
         public FluxCapacitorBuilder enableTrackingMetrics() {
             collectTrackingMetrics = true;
             return this;
@@ -334,6 +346,8 @@ public class DefaultFluxCapacitor implements FluxCapacitor {
             }
 
             //event sourcing
+            EventSourcingHandlerFactory eventSourcingHandlerFactory =
+                    new DefaultEventSourcingHandlerFactory(parameterResolvers);
             EventStore eventStore = new DefaultEventStore(client.getEventStoreClient(),
                                                           new EventStoreSerializer(serializer,
                                                                                    dispatchInterceptors.get(EVENT)),
@@ -342,11 +356,21 @@ public class DefaultFluxCapacitor implements FluxCapacitor {
                                                                                     parameterResolvers));
             DefaultSnapshotRepository snapshotRepository =
                     new DefaultSnapshotRepository(client.getKeyValueClient(), snapshotSerializer);
-            EventSourcingRepository eventSourcing = new EventSourcingRepository(
-                    eventStore, snapshotRepository, cache, parameterResolvers);
+
+            EventSourcingRepository eventSourcingRepository = new EventSourcingRepository(
+                    eventStore, snapshotRepository, cache, eventSourcingHandlerFactory);
 
             //register event sourcing as handler interceptor
-            handlerInterceptors.computeIfPresent(COMMAND, (t, i) -> i.merge(eventSourcing));
+            handlerInterceptors.computeIfPresent(COMMAND, (t, i) -> i.merge(eventSourcingRepository));
+
+            AggregateRepository aggregateRepository = new CompositeAggregateRepository(eventSourcingRepository);
+
+            if (!disableAutomaticAggregateCaching) {
+                aggregateRepository =
+                        new CachingAggregateRepository(aggregateRepository, eventSourcingHandlerFactory, cache,
+                                                       client.name(), client.getTrackingClient(NOTIFICATION),
+                                                       serializer);
+            }
 
             //enable error reporter as the outermost handler interceptor
             ErrorGateway errorGateway =
@@ -421,26 +445,27 @@ public class DefaultFluxCapacitor implements FluxCapacitor {
 
             //and finally...
             FluxCapacitor fluxCapacitor = doBuild(trackingMap, commandGateway, queryGateway, eventGateway,
-                                                  resultGateway, errorGateway, metricsGateway, eventSourcing,
+                                                  resultGateway, errorGateway, metricsGateway, aggregateRepository,
                                                   eventStore, keyValueStore, scheduler, cache, client, shutdownHandler);
 
             //perform a controlled shutdown when the vm exits
             if (!disableShutdownHook) {
                 getRuntime().addShutdownHook(new Thread(shutdownHandler));
             }
-            
+
             return fluxCapacitor;
         }
 
         protected FluxCapacitor doBuild(Map<MessageType, ? extends Tracking> trackingSupplier,
                                         CommandGateway commandGateway, QueryGateway queryGateway,
                                         EventGateway eventGateway, ResultGateway resultGateway,
-                                        ErrorGateway errorGateway,
-                                        MetricsGateway metricsGateway, AggregateRepository aggregateRepository, EventStore eventStore,
-                                        KeyValueStore keyValueStore,
-                                        Scheduler scheduler, Cache cache, Client client, Runnable shutdownHandler) {
+                                        ErrorGateway errorGateway, MetricsGateway metricsGateway,
+                                        AggregateRepository aggregateRepository,
+                                        EventStore eventStore, KeyValueStore keyValueStore, Scheduler scheduler,
+                                        Cache cache, Client client, Runnable shutdownHandler) {
             return new DefaultFluxCapacitor(trackingSupplier, commandGateway, queryGateway, eventGateway, resultGateway,
-                                            errorGateway, metricsGateway, aggregateRepository, eventStore, keyValueStore, scheduler,
+                                            errorGateway, metricsGateway, aggregateRepository, eventStore,
+                                            keyValueStore, scheduler,
                                             cache, client, shutdownHandler);
         }
 

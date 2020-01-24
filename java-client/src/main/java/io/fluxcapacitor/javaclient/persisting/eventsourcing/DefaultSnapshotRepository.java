@@ -21,7 +21,7 @@ public class DefaultSnapshotRepository implements SnapshotRepository {
     @Override
     public void storeSnapshot(EventSourcedModel<?> snapshot) {
         try {
-            keyValueClient.putValue(snapshotKey(snapshot.getId()), serializer.serialize(snapshot), Guarantee.SENT);
+            keyValueClient.putValue(snapshotKey(snapshot.id()), serializer.serialize(snapshot), Guarantee.SENT);
         } catch (Exception e) {
             throw new EventSourcingException(format("Failed to store a snapshot: %s", snapshot), e);
         }

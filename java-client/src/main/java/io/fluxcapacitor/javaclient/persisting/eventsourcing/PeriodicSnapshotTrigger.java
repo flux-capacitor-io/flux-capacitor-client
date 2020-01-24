@@ -16,7 +16,7 @@ public class PeriodicSnapshotTrigger implements SnapshotTrigger {
 
     @Override
     public boolean shouldCreateSnapshot(EventSourcedModel<?> model, List<Message> newEvents) {
-        return periodIndex(model.getSequenceNumber()) > periodIndex(model.getSequenceNumber() - newEvents.size());
+        return periodIndex(model.sequenceNumber()) > periodIndex(model.sequenceNumber() - newEvents.size());
     }
 
     protected long periodIndex(long sequenceNumber) {
