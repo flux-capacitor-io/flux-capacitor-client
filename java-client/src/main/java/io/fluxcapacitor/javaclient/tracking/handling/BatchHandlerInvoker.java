@@ -93,6 +93,8 @@ public class BatchHandlerInvoker extends HandlerInspector.MethodHandlerInvoker<D
                                         future.completeExceptionally(e);
                                     }
                                 });
+                            } else if (r instanceof Throwable) {
+                                future.completeExceptionally((Throwable) r);
                             } else {
                                 future.complete(r);
                             }
