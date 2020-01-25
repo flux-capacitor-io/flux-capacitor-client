@@ -92,7 +92,7 @@ class EventSourcingRepositoryTest {
     }
 
     @Test
-    void testModelIsReadOnlyIfSubjectIsNotIntercepting() {
+    void testModelIsReadOnlyIfCurrentMessageIsntCommand() {
         Aggregate<TestModel> aggregate = subject.load(aggregateId, TestModel.class);
         assertThrows(UnsupportedOperationException.class, () -> aggregate.apply("whatever"));
     }
@@ -114,61 +114,58 @@ class EventSourcingRepositoryTest {
     }
 
     @Test
-    void testEventsDoNotGetStoredWhenInterceptedMethodTriggersException() {
-        Function<DeserializingMessage, Object> f = subject.interceptHandling(s -> {
+    void testEventsDoNotGetStoredWhenHandlerTriggersException() {
+        toDeserializingMessage("command").run(m -> {
             Aggregate<TestModel> aggregate = subject.load(aggregateId, TestModel.class);
             reset(cache, eventStore);
-            aggregate.apply(new CreateModel());
-            throw new IllegalStateException();
-        }, null, "test");
-        try {
-            f.apply(toDeserializingMessage("command"));
-            fail("should not reach this");
-        } catch (IllegalStateException ignored) {
-        }
-        verifyNoInteractions(cache, eventStore);
+            try {
+                aggregate.apply(new FailToCreateModel());
+                fail("should not reach this");
+            } catch (MockException ignored) {
+            }
+            verifyNoInteractions(cache, eventStore);
+        });
     }
 
     @Test
     void testApplyingUnknownEventsAllowedIfModelExists() {
-        reset(eventStore);
         List<Message> events =
                 Arrays.asList(new Message(new CreateModel()), new Message("foo"));
-        executeWhileIntercepting(() -> {
+        toDeserializingMessage("command").run(m -> {
             Aggregate<TestModel> aggregate = subject.load(aggregateId, TestModel.class);
+            reset(eventStore);
             events.forEach(aggregate::apply);
-        }).apply(toDeserializingMessage("command"));
+            verifyNoInteractions(eventStore);
+        });
         verify(eventStore).storeDomainEvents(aggregateId, TestModel.class.getSimpleName(), 1L, events);
     }
 
     @Test
     void testApplyingUnknownEventsFailsIfModelDoesNotExist() {
-        assertThrows(HandlerNotFoundException.class, () -> executeWhileIntercepting(
-                () -> subject.load(aggregateId, TestModel.class).apply(new Message("foo")))
-                .apply(toDeserializingMessage("command")));
+        assertThrows(HandlerNotFoundException.class, () -> toDeserializingMessage("command").run(
+                m -> subject.load(aggregateId, TestModel.class).apply(new Message("foo"))));
     }
 
     @Test
     void testCreateUsingFactoryMethod() {
-        executeWhileIntercepting(() -> subject.load(aggregateId, TestModelWithFactoryMethod.class)
-                .apply(new Message(new CreateModel())))
-                .apply(toDeserializingMessage("command"));
+        toDeserializingMessage("command").run(m -> subject.load(aggregateId, TestModelWithFactoryMethod.class)
+                .apply(new Message(new CreateModel())));
     }
 
     @Test
     void testCreateUsingFactoryMethodIfInstanceMethodForSamePayloadExists() {
-        executeWhileIntercepting(() -> subject.load(aggregateId, TestModelWithFactoryMethodAndSameInstanceMethod.class)
-                .apply(new Message(new CreateModel()))
-                .apply(new Message(new CreateModel())))
-                .apply(toDeserializingMessage("command"));
+        toDeserializingMessage("command")
+                .run(m -> subject.load(aggregateId, TestModelWithFactoryMethodAndSameInstanceMethod.class)
+                        .apply(new Message(new CreateModel()))
+                        .apply(new Message(new CreateModel())));
     }
 
     @Test
     void testApplyingUnknownEventsFailsIfModelHasNoConstructorOrFactoryMethod() {
-        assertThrows(HandlerNotFoundException.class, () -> executeWhileIntercepting(
-                () -> subject.load(aggregateId, TestModelWithoutFactoryMethodOrConstructor.class)
+        assertThrows(HandlerNotFoundException.class, () -> toDeserializingMessage("command").run(
+                m -> subject.load(aggregateId, TestModelWithoutFactoryMethodOrConstructor.class)
                         .apply(new Message(new CreateModel())))
-                .apply(toDeserializingMessage("command")));
+        );
     }
 
     @Test
@@ -176,11 +173,11 @@ class EventSourcingRepositoryTest {
         List<Message> events =
                 Arrays.asList(new Message(new CreateModel()), new Message("foo"),
                               new Message("foo"));
-        executeWhileIntercepting(() -> {
+        toDeserializingMessage("command").run(m -> {
             Aggregate<TestModelForSnapshotting> aggregate = subject.load(aggregateId, TestModelForSnapshotting.class);
             reset(snapshotRepository);
             events.forEach(aggregate::apply);
-        }).apply(toDeserializingMessage("command"));
+        });
         verify(snapshotRepository).storeSnapshot(argThat(m -> m.sequenceNumber() == 2L));
     }
 
@@ -188,11 +185,11 @@ class EventSourcingRepositoryTest {
     void testNoSnapshotStoredBeforeThreshold() {
         List<Message> events =
                 Arrays.asList(new Message(new CreateModel()), new Message("foo"));
-        executeWhileIntercepting(() -> {
+        toDeserializingMessage("command").run(m -> {
             Aggregate<TestModelForSnapshotting> aggregate = subject.load(aggregateId, TestModelForSnapshotting.class);
             reset(snapshotRepository);
             events.forEach(aggregate::apply);
-        }).apply(toDeserializingMessage("command"));
+        });
         verifyNoInteractions(snapshotRepository);
     }
 
@@ -225,19 +222,8 @@ class EventSourcingRepositoryTest {
         subject.load(aggregateId, TestModelWithFactoryMethod.class).assertLegal(new CommandWithOverriddenAssertion());
     }
 
-    @SuppressWarnings("unchecked")
     private Function<Message, Aggregate<TestModel>> prepareSubjectForHandling() {
-        return m -> (Aggregate<TestModel>) subject
-                .interceptHandling(s -> subject.load(aggregateId, TestModel.class).apply(m),
-                                   null, "test")
-                .apply(toDeserializingMessage(m));
-    }
-
-    private Function<DeserializingMessage, Object> executeWhileIntercepting(Runnable task) {
-        return subject.interceptHandling(s -> {
-            task.run();
-            return null;
-        }, null, "test");
+        return m -> toDeserializingMessage(m).apply(command -> subject.load(aggregateId, TestModel.class).apply(m));
     }
 
     private Stream<DeserializingMessage> eventStreamOf(Object... payloads) {
@@ -263,8 +249,13 @@ class EventSourcingRepositoryTest {
         private final Metadata metadata = Metadata.empty();
 
         @ApplyEvent
-        public TestModel(CreateModel event) {
-            events.add(event);
+        public TestModel(CreateModel command) {
+            events.add(command);
+        }
+
+        @ApplyEvent
+        public TestModel(FailToCreateModel command) {
+            throw new MockException();
         }
 
         @ApplyEvent
@@ -319,6 +310,10 @@ class EventSourcingRepositoryTest {
 
     @Value
     private static class CreateModel {
+    }
+
+    @Value
+    private static class FailToCreateModel {
     }
 
     @Value

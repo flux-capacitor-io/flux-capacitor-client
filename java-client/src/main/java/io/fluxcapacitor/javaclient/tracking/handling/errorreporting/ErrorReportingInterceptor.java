@@ -23,25 +23,19 @@ public class ErrorReportingInterceptor implements HandlerInterceptor {
     public Function<DeserializingMessage, Object> interceptHandling(Function<DeserializingMessage, Object> function,
                                                                     Handler<DeserializingMessage> handler,
                                                                     String consumer) {
-        return m -> {
+        return message -> {
             try {
-                Object result = function.apply(m);
+                Object result = function.apply(message);
                 if (result instanceof CompletionStage<?>) {
                     ((CompletionStage<?>) result).whenComplete((r, e) -> {
                         if (e != null) {
-                            DeserializingMessage current = DeserializingMessage.getCurrent();
-                            try {
-                                DeserializingMessage.setCurrent(m);
-                                reportError(e, handler, m);
-                            } finally {
-                                DeserializingMessage.setCurrent(current);
-                            }
+                            message.run(m -> reportError(e, handler, m));
                         }
                     });
                 }
                 return result;
             } catch (Exception e) {
-                reportError(e, handler, m);
+                reportError(e, handler, message);
                 throw e;
             }
         };

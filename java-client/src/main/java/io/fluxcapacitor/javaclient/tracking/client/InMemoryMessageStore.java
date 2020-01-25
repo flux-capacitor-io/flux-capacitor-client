@@ -21,6 +21,7 @@ import io.fluxcapacitor.common.api.tracking.MessageBatch;
 import io.fluxcapacitor.javaclient.publishing.client.GatewayClient;
 import io.fluxcapacitor.javaclient.tracking.TrackingConfiguration;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -38,6 +39,7 @@ import java.util.function.Consumer;
 import static java.lang.Thread.currentThread;
 import static java.util.stream.Collectors.toList;
 
+@Slf4j
 @RequiredArgsConstructor
 public class InMemoryMessageStore implements GatewayClient, TrackingClient {
 

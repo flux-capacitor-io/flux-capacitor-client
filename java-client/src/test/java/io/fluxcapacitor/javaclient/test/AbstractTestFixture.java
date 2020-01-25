@@ -22,7 +22,6 @@ import io.fluxcapacitor.javaclient.FluxCapacitor;
 import io.fluxcapacitor.javaclient.common.Message;
 import io.fluxcapacitor.javaclient.common.serialization.DeserializingMessage;
 import io.fluxcapacitor.javaclient.configuration.FluxCapacitorBuilder;
-import io.fluxcapacitor.javaclient.configuration.client.InMemoryClient;
 import io.fluxcapacitor.javaclient.publishing.DispatchInterceptor;
 
 import java.util.Arrays;
@@ -34,10 +33,6 @@ import java.util.concurrent.CompletableFuture;
 import java.util.function.Function;
 import java.util.stream.Stream;
 
-import static io.fluxcapacitor.common.MessageType.COMMAND;
-import static io.fluxcapacitor.common.MessageType.EVENT;
-import static io.fluxcapacitor.common.MessageType.QUERY;
-
 public abstract class AbstractTestFixture implements Given, When {
     
     private final FluxCapacitor fluxCapacitor;
@@ -48,7 +43,7 @@ public abstract class AbstractTestFixture implements Given, When {
                                   Function<FluxCapacitor, List<?>> handlerFactory) {
         this.interceptor = new GivenWhenThenInterceptor();
         this.fluxCapacitor = fluxCapacitorBuilder
-                .disableShutdownHook().addDispatchInterceptor(interceptor).build(InMemoryClient.newInstance());
+                .disableShutdownHook().addDispatchInterceptor(interceptor).build(new TestClient());
         this.registration = registerHandlers(handlerFactory.apply(fluxCapacitor));
     }
     
@@ -125,7 +120,7 @@ public abstract class AbstractTestFixture implements Given, When {
             FluxCapacitor.instance.set(fluxCapacitor);
             Object result;
             try {
-                result = getDispatchResult(fluxCapacitor.commandGateway().send(interceptor.trace(command, COMMAND)));
+                result = getDispatchResult(fluxCapacitor.commandGateway().send(interceptor.trace(command)));
             } catch (Exception e) {
                 result = e;
             }
@@ -140,7 +135,7 @@ public abstract class AbstractTestFixture implements Given, When {
     public Then whenEvent(Object event) {
         try {
             FluxCapacitor.instance.set(fluxCapacitor);
-            fluxCapacitor.eventGateway().publish(interceptor.trace(event, EVENT));
+            fluxCapacitor.eventGateway().publish(interceptor.trace(event));
             return createResultValidator(null);
         } finally {
             deregisterHandlers(registration);
@@ -154,7 +149,7 @@ public abstract class AbstractTestFixture implements Given, When {
             FluxCapacitor.instance.set(fluxCapacitor);
             Object result;
             try {
-                result = getDispatchResult(fluxCapacitor.queryGateway().send(interceptor.trace(query, QUERY)));
+                result = getDispatchResult(fluxCapacitor.queryGateway().send(interceptor.trace(query)));
             } catch (Exception e) {
                 result = e;
             }
@@ -205,16 +200,12 @@ public abstract class AbstractTestFixture implements Given, When {
             this.catchAll = true;
         }
 
-        protected Message trace(Object message, MessageType type) {
+        protected Message trace(Object message) {
             catchAll = false;
             Message result =
                     message instanceof Message ? (Message) message : new Message(message, Metadata.empty());
             result.getMetadata().put(TAG_NAME, TAG);
             return result;
-        }
-
-        protected boolean isChildMetadata(Metadata messageMetadata) {
-            return TAG.equals(messageMetadata.get(TRACE_NAME));
         }
 
         protected boolean isDescendantMetadata(Metadata messageMetadata) {

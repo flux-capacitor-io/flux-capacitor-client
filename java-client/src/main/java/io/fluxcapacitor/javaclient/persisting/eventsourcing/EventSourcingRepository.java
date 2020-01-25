@@ -3,7 +3,6 @@ package io.fluxcapacitor.javaclient.persisting.eventsourcing;
 import io.fluxcapacitor.common.api.Data;
 import io.fluxcapacitor.common.api.Metadata;
 import io.fluxcapacitor.common.api.SerializedMessage;
-import io.fluxcapacitor.common.handling.Handler;
 import io.fluxcapacitor.common.serialization.Revision;
 import io.fluxcapacitor.javaclient.common.Message;
 import io.fluxcapacitor.javaclient.common.serialization.DeserializingMessage;
@@ -12,13 +11,13 @@ import io.fluxcapacitor.javaclient.modeling.Aggregate;
 import io.fluxcapacitor.javaclient.modeling.AggregateRepository;
 import io.fluxcapacitor.javaclient.persisting.caching.Cache;
 import io.fluxcapacitor.javaclient.persisting.caching.NoOpCache;
-import io.fluxcapacitor.javaclient.tracking.handling.HandlerInterceptor;
 import lombok.AllArgsConstructor;
 import lombok.RequiredArgsConstructor;
 import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
 
 import java.time.Instant;
+import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
@@ -27,15 +26,17 @@ import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Function;
 
+import static io.fluxcapacitor.common.MessageType.COMMAND;
 import static io.fluxcapacitor.common.MessageType.EVENT;
 import static io.fluxcapacitor.javaclient.common.serialization.DeserializingMessage.defaultParameterResolvers;
 import static java.lang.String.format;
+import static java.util.Collections.asLifoQueue;
 import static java.util.Optional.ofNullable;
 import static java.util.stream.Collectors.toList;
 
 @Slf4j
 @AllArgsConstructor
-public class EventSourcingRepository implements AggregateRepository, HandlerInterceptor {
+public class EventSourcingRepository implements AggregateRepository {
     private static final Function<String, String> keyFunction = aggregateId ->
             EventSourcingRepository.class.getSimpleName() + ":" + aggregateId;
 
@@ -64,13 +65,23 @@ public class EventSourcingRepository implements AggregateRepository, HandlerInte
             return Optional.<EventSourcedModel<T>>ofNullable(cache.getIfPresent(keyFunction.apply(aggregateId)))
                     .orElse(null);
         }
-        Collection<EventSourcedAggregate<?>> loaded = loadedModels.get();
-        if (loaded == null) {
-            return createAggregate(aggregateType, aggregateId);
+        
+        if (loadedModels.get() == null) {
+            if (ofNullable(DeserializingMessage.getCurrent()).map(m -> m.getMessageType() == COMMAND).isPresent()) {
+                loadedModels.set(asLifoQueue(new ArrayDeque<>()));
+                DeserializingMessage.onComplete(() -> {
+                    Collection<EventSourcedAggregate<?>> models = loadedModels.get();
+                    loadedModels.remove();
+                    models.forEach(EventSourcedAggregate::commit);
+                });
+            } else {
+                return createAggregate(aggregateType, aggregateId);
+            }
         }
+        
+        Collection<EventSourcedAggregate<?>> loaded = loadedModels.get();
         return loaded.stream().filter(model -> model.id.equals(aggregateId)).map(m -> (EventSourcedAggregate<T>) m)
-                .findAny()
-                .orElseGet(() -> {
+                .findAny().orElseGet(() -> {
                     EventSourcedAggregate<T> model = createAggregate(aggregateType, aggregateId);
                     loaded.add(model);
                     return model;
@@ -93,30 +104,6 @@ public class EventSourcingRepository implements AggregateRepository, HandlerInte
                 return eventSourcedAggregate;
             };
         }).apply(aggregateId);
-    }
-
-    @Override
-    public Function<DeserializingMessage, Object> interceptHandling(Function<DeserializingMessage, Object> function,
-                                                                    Handler<DeserializingMessage> handler,
-                                                                    String consumer) {
-        return command -> {
-            List<EventSourcedAggregate<?>> models = new ArrayList<>();
-            loadedModels.set(models);
-            try {
-                Object result = function.apply(command);
-                try {
-                    while (!models.isEmpty()) {
-                        models.remove(models.size() - 1).commit();
-                    }
-                } catch (Exception e) {
-                    throw new EventSourcingException(
-                            format("Failed to commit applied events after handling %s", command), e);
-                }
-                return result;
-            } finally {
-                loadedModels.remove();
-            }
-        };
     }
 
     @SneakyThrows
@@ -219,13 +206,19 @@ public class EventSourcingRepository implements AggregateRepository, HandlerInte
 
         protected void commit() {
             if (!unpublishedEvents.isEmpty()) {
-                cache.put(keyFunction.apply(model.id()), model);
-                eventStore.storeDomainEvents(model.id(), domain, model.sequenceNumber(),
-                                             new ArrayList<>(unpublishedEvents));
-                if (snapshotTrigger.shouldCreateSnapshot(model, unpublishedEvents)) {
-                    snapshotRepository.storeSnapshot(model);
+                try {
+                    cache.put(keyFunction.apply(model.id()), model);
+                    eventStore.storeDomainEvents(model.id(), domain, model.sequenceNumber(),
+                                                 new ArrayList<>(unpublishedEvents));
+                    if (snapshotTrigger.shouldCreateSnapshot(model, unpublishedEvents)) {
+                        snapshotRepository.storeSnapshot(model);
+                    }
+                } catch (Exception e) {
+                    log.error("Failed to commit new events of aggregate {}", model.id(), e);
+                    cache.invalidate(keyFunction.apply(model.id()));
+                } finally {
+                    unpublishedEvents.clear();
                 }
-                unpublishedEvents.clear();
             }
         }
     }

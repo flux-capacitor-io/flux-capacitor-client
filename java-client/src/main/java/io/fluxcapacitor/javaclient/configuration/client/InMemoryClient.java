@@ -16,13 +16,15 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Function;
 
+import static io.fluxcapacitor.common.ObjectUtils.memoize;
+
 public class InMemoryClient extends AbstractClient {
 
-    public static InMemoryClient newInstance() {
+    private static Function<MessageType, InMemoryMessageStore> messageStoreFactory() {
         InMemorySchedulingClient schedulingClient = new InMemorySchedulingClient();
         InMemoryEventStoreClient eventStoreClient = new InMemoryEventStoreClient();
         Map<MessageType, InMemoryMessageStore> messageStores = new ConcurrentHashMap<>();
-        Function<MessageType, InMemoryMessageStore> messageStoreFactory = type -> messageStores.computeIfAbsent(
+        return memoize(type -> messageStores.computeIfAbsent(
                 type, t -> {
                     switch (t) {
                         case NOTIFICATION:
@@ -33,18 +35,23 @@ public class InMemoryClient extends AbstractClient {
                         default:
                             return new InMemoryMessageStore();
                     }
-                });
-        return new InMemoryClient("inMemory", ManagementFactory.getRuntimeMXBean().getName(), messageStoreFactory,
-                                  messageStoreFactory, eventStoreClient, schedulingClient,
-                                  new InMemoryKeyValueClient());
+                }));
     }
 
-    private InMemoryClient(String name, String id,
-                           Function<MessageType, ? extends GatewayClient> gatewayClients,
-                           Function<MessageType, ? extends TrackingClient> trackingClients,
-                           EventStoreClient eventStoreClient,
-                           SchedulingClient schedulingClient,
-                           KeyValueClient keyValueClient) {
-        super(name, id, gatewayClients, trackingClients, eventStoreClient, schedulingClient, keyValueClient);
+    public static InMemoryClient newInstance() {
+        return new InMemoryClient();
+    }
+
+    protected InMemoryClient() {
+        this("inMemory", ManagementFactory.getRuntimeMXBean().getName(), messageStoreFactory(),
+             new InMemoryKeyValueClient());
+    }
+
+    protected <T extends GatewayClient & TrackingClient> InMemoryClient(String name, String id,
+                                                                        Function<MessageType, T> messageStoreClients,
+                                                                        KeyValueClient keyValueClient) {
+        super(name, id, messageStoreClients, messageStoreClients,
+              (EventStoreClient) messageStoreClients.apply(MessageType.EVENT),
+              (SchedulingClient) messageStoreClients.apply(MessageType.SCHEDULE), keyValueClient);
     }
 }

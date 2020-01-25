@@ -3,7 +3,6 @@ package io.fluxcapacitor.javaclient.tracking.handling;
 import io.fluxcapacitor.common.handling.HandlerInspector;
 import io.fluxcapacitor.common.handling.ParameterResolver;
 import io.fluxcapacitor.javaclient.common.serialization.DeserializingMessage;
-import io.fluxcapacitor.javaclient.common.serialization.DeserializingObject;
 
 import java.lang.reflect.Executable;
 import java.lang.reflect.ParameterizedType;
@@ -63,18 +62,10 @@ public class BatchHandlerInvoker extends HandlerInspector.MethodHandlerInvoker<D
                             new ArrayList<>(batch.keySet()).stream().map(DeserializingMessage::getPayload)
                                     .collect(toList());
                     DeserializingMessage merged = new DeserializingMessage(
-                            new DeserializingObject<>(firstMessage.getSerializedObject(), () -> payloads),
-                            firstMessage.getMessageType());
+                            firstMessage.getSerializedObject(), () -> payloads, firstMessage.getMessageType());
 
-                    Object listResult;
-                    DeserializingMessage previous = DeserializingMessage.getCurrent();
-                    try {
-                        DeserializingMessage.setCurrent(firstMessage);
-                        listResult = super.invoke(target, merged);
-                    } finally {
-                        DeserializingMessage.setCurrent(previous);
-                    }
-
+                    Object listResult = firstMessage.apply(m -> super.invoke(target, merged));
+                    
                     if (listResult instanceof Collection<?>) {
                         List<?> results = new ArrayList<>((Collection<?>) listResult);
                         if (results.size() != futures.size()) {

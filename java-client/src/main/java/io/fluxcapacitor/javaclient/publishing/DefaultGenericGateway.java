@@ -20,7 +20,6 @@ import io.fluxcapacitor.common.api.SerializedMessage;
 import io.fluxcapacitor.common.handling.Handler;
 import io.fluxcapacitor.javaclient.common.Message;
 import io.fluxcapacitor.javaclient.common.serialization.DeserializingMessage;
-import io.fluxcapacitor.javaclient.common.serialization.DeserializingObject;
 import io.fluxcapacitor.javaclient.common.serialization.MessageSerializer;
 import io.fluxcapacitor.javaclient.publishing.client.GatewayClient;
 import io.fluxcapacitor.javaclient.tracking.handling.HandlerFactory;
@@ -80,16 +79,11 @@ public class DefaultGenericGateway implements RequestGateway {
 
     protected CompletableFuture<Message> tryHandleLocally(Object payload, SerializedMessage serializedMessage) {
         if (!localHandlers.isEmpty()) {
-            DeserializingMessage current = DeserializingMessage.getCurrent();
-            try {
-                DeserializingMessage deserializingMessage =
-                        new DeserializingMessage(new DeserializingObject<>(serializedMessage, () -> payload),
-                                                 messageType);
-                DeserializingMessage.setCurrent(deserializingMessage);
+            return new DeserializingMessage(serializedMessage, () -> payload, messageType).apply(m -> {
                 for (Handler<DeserializingMessage> handler : localHandlers) {
-                    if (handler.canHandle(deserializingMessage)) {
+                    if (handler.canHandle(m)) {
                         try {
-                            Object result = handler.invoke(deserializingMessage);
+                            Object result = handler.invoke(m);
                             return result instanceof CompletableFuture<?> ?
                                     ((CompletableFuture<?>) result).thenApply(Message::new) :
                                     completedFuture(new Message(result));
@@ -102,9 +96,8 @@ public class DefaultGenericGateway implements RequestGateway {
                         }
                     }
                 }
-            } finally {
-                DeserializingMessage.setCurrent(current);
-            }
+                return null;
+            });
         }
         return null;
     }

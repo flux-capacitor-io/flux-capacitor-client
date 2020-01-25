@@ -29,11 +29,15 @@ public abstract class AbstractClient implements Client {
                           KeyValueClient keyValueClient) {
         this.name = name;
         this.id = id;
-        this.gatewayClients = memoize(gatewayClients);
-        this.trackingClients = memoize(trackingClients);
-        this.eventStoreClient = eventStoreClient;
-        this.schedulingClient = schedulingClient;
-        this.keyValueClient = keyValueClient;
+        this.gatewayClients = memoize(m -> decorate(gatewayClients.apply(m)));
+        this.trackingClients = memoize(m -> decorate(trackingClients.apply(m)));
+        this.eventStoreClient = decorate(eventStoreClient);
+        this.schedulingClient = decorate(schedulingClient);
+        this.keyValueClient = decorate(keyValueClient);
+    }
+    
+    protected <T> T decorate(T component) {
+        return component;
     }
 
     @Override

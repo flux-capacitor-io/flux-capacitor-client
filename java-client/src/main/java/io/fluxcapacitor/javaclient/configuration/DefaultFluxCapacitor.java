@@ -357,13 +357,8 @@ public class DefaultFluxCapacitor implements FluxCapacitor {
             DefaultSnapshotRepository snapshotRepository =
                     new DefaultSnapshotRepository(client.getKeyValueClient(), snapshotSerializer);
 
-            EventSourcingRepository eventSourcingRepository = new EventSourcingRepository(
-                    eventStore, snapshotRepository, cache, eventSourcingHandlerFactory);
-
-            //register event sourcing as handler interceptor
-            handlerInterceptors.computeIfPresent(COMMAND, (t, i) -> i.merge(eventSourcingRepository));
-
-            AggregateRepository aggregateRepository = new CompositeAggregateRepository(eventSourcingRepository);
+            AggregateRepository aggregateRepository = new CompositeAggregateRepository(
+                    new EventSourcingRepository(eventStore, snapshotRepository, cache, eventSourcingHandlerFactory));
 
             if (!disableAutomaticAggregateCaching) {
                 aggregateRepository =

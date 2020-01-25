@@ -23,13 +23,12 @@ import java.util.stream.Stream;
 
 import static io.fluxcapacitor.common.MessageType.COMMAND;
 import static java.util.stream.Collectors.toList;
-import static org.mockito.Mockito.spy;
 
 class GivenWhenThenStreamingTest {
 
-    private final CommandHandler commandHandler = spy(new CommandHandler());
-    private final AsyncCommandHandler asyncCommandHandler = spy(new AsyncCommandHandler());
-    private final EventHandler eventHandler = spy(new EventHandler());
+    private final CommandHandler commandHandler = new CommandHandler();
+    private final AsyncCommandHandler asyncCommandHandler = new AsyncCommandHandler();
+    private final EventHandler eventHandler = new EventHandler();
     private final StreamingTestFixture
             subject = StreamingTestFixture.create(DefaultFluxCapacitor.builder().configureDefaultConsumer(
                     COMMAND, config -> config.toBuilder().errorHandler(new IgnoringErrorHandler()).build()), 

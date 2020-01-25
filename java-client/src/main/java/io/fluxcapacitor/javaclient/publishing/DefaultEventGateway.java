@@ -5,7 +5,6 @@ import io.fluxcapacitor.common.api.SerializedMessage;
 import io.fluxcapacitor.common.handling.Handler;
 import io.fluxcapacitor.javaclient.common.Message;
 import io.fluxcapacitor.javaclient.common.serialization.DeserializingMessage;
-import io.fluxcapacitor.javaclient.common.serialization.DeserializingObject;
 import io.fluxcapacitor.javaclient.common.serialization.MessageSerializer;
 import io.fluxcapacitor.javaclient.publishing.client.GatewayClient;
 import io.fluxcapacitor.javaclient.tracking.handling.HandlerFactory;
@@ -45,23 +44,17 @@ public class DefaultEventGateway implements EventGateway {
 
     protected void tryHandleLocally(Object payload, SerializedMessage serializedMessage) {
         if (!localHandlers.isEmpty()) {
-            DeserializingMessage current = DeserializingMessage.getCurrent();
-            try {
-                DeserializingMessage deserializingMessage =
-                        new DeserializingMessage(new DeserializingObject<>(serializedMessage, () -> payload), EVENT);
-                DeserializingMessage.setCurrent(deserializingMessage);
+            new DeserializingMessage(serializedMessage, () -> payload, EVENT).run(m -> {
                 for (Handler<DeserializingMessage> handler : localHandlers) {
                     try {
-                        if (handler.canHandle(deserializingMessage)) {
-                            handler.invoke(deserializingMessage);
+                        if (handler.canHandle(m)) {
+                            handler.invoke(m);
                         }
                     } finally {
                         handler.onEndOfBatch();
                     }
                 }
-            } finally {
-                DeserializingMessage.setCurrent(current);
-            }
+            });
         }
     }
 }

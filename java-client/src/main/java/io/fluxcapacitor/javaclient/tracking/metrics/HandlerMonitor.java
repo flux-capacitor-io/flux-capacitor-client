@@ -41,21 +41,12 @@ public class HandlerMonitor implements HandlerInterceptor {
                     message.getPayloadClass().getSimpleName(), exceptionalResult,
                     start.until(Instant.now(), ChronoUnit.NANOS), completed));
             if (!completed) {
-                ((CompletionStage<?>) result).whenComplete((r, e) -> {
-                    DeserializingMessage current = DeserializingMessage.getCurrent();
-                    try {
-                        DeserializingMessage.setCurrent(message);
-                        FluxCapacitor.publishMetrics(
-                                new CompleteMessageEvent(
-                                        FluxCapacitor.get().client().name(), FluxCapacitor.get().client().id(), 
-                                        consumer, handler.getTarget().getClass().getSimpleName(),
-                                        message.getSerializedObject().getIndex(),
-                                        message.getPayloadClass().getSimpleName(), e != null,
-                                        start.until(Instant.now(), ChronoUnit.NANOS)));
-                    } finally {
-                        DeserializingMessage.setCurrent(current);
-                    }
-                });
+                ((CompletionStage<?>) result).whenComplete((r, e) -> message.run(m -> FluxCapacitor.publishMetrics(
+                        new CompleteMessageEvent(
+                                FluxCapacitor.get().client().name(), FluxCapacitor.get().client().id(),
+                                consumer, handler.getTarget().getClass().getSimpleName(),
+                                m.getSerializedObject().getIndex(), m.getPayloadClass().getSimpleName(), 
+                                e != null, start.until(Instant.now(), ChronoUnit.NANOS)))));
             }
         } catch (Exception e) {
             log.error("Failed to publish handler metrics", e);

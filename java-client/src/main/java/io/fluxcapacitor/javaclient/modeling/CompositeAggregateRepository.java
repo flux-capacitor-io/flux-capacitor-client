@@ -27,6 +27,6 @@ public class CompositeAggregateRepository implements AggregateRepository {
             return delegate.get().load(aggregateId, aggregateType, onlyCached);
         }
         throw new UnsupportedOperationException(
-                "Could not a find a suitable aggregate repository for aggregate of type: " + aggregateId);
+                "Could not a find a suitable aggregate repository for aggregate of type: " + aggregateType);
     }
 }

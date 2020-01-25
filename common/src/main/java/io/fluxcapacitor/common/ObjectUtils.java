@@ -47,6 +47,13 @@ public class ObjectUtils {
         return new MemoizingBiFunction<>(supplier);
     }
     
+    public static Consumer<Runnable> ifTrue(boolean check) {
+        if (check) {
+            return Runnable::run;
+        }
+        return r -> {};
+    }
+    
     public static class MemoizingSupplier<T> implements Supplier<T> {
         private final MemoizingFunction<Object, T> delegate;
         private final Object singleton = new Object();
