@@ -11,7 +11,6 @@ import io.fluxcapacitor.javaclient.common.Message;
 import io.fluxcapacitor.javaclient.modeling.AggregateIdResolver;
 import io.fluxcapacitor.javaclient.modeling.AggregateTypeResolver;
 import io.fluxcapacitor.javaclient.tracking.handling.DeserializingMessageParameterResolver;
-import io.fluxcapacitor.javaclient.tracking.handling.ListParameterResolver;
 import io.fluxcapacitor.javaclient.tracking.handling.MessageParameterResolver;
 import io.fluxcapacitor.javaclient.tracking.handling.MetadataParameterResolver;
 import io.fluxcapacitor.javaclient.tracking.handling.PayloadParameterResolver;
@@ -45,7 +44,7 @@ import static java.util.stream.Collectors.toList;
 public class DeserializingMessage {
     public static MessageFormatter messageFormatter = MessageFormatter.DEFAULT;
     public static List<ParameterResolver<? super DeserializingMessage>> defaultParameterResolvers =
-            Arrays.asList(new DeserializingMessageParameterResolver(), new ListParameterResolver(), 
+            Arrays.asList(new DeserializingMessageParameterResolver(), 
                           new PayloadParameterResolver(), new MetadataParameterResolver(), 
                           new MessageParameterResolver(), new AggregateIdResolver(), 
                           new AggregateTypeResolver());
