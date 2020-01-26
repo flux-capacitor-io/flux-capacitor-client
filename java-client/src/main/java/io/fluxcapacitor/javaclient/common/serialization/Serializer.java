@@ -14,7 +14,9 @@
 
 package io.fluxcapacitor.javaclient.common.serialization;
 
+import io.fluxcapacitor.common.MessageType;
 import io.fluxcapacitor.common.api.Data;
+import io.fluxcapacitor.common.api.SerializedMessage;
 import io.fluxcapacitor.common.api.SerializedObject;
 
 import java.util.List;
@@ -37,8 +39,8 @@ public interface Serializer {
     Data<byte[]> serialize(Object object);
 
     /**
-     * Upcasts and deserializes the given {@link Data} object to an object of type T. If the input data cannot
-     * be deserialized to a single result (due to upcasting) a {@link SerializationException} is thrown.
+     * Upcasts and deserializes the given {@link Data} object to an object of type T. If the input data cannot be
+     * deserialized to a single result (due to upcasting) a {@link SerializationException} is thrown.
      *
      * @param data Data to deserialize
      * @param <T>  Type of object to deserialize to
@@ -78,5 +80,10 @@ public interface Serializer {
      */
     <I extends SerializedObject<byte[], I>> Stream<DeserializingObject<byte[], I>> deserialize(Stream<I> dataStream,
                                                                                                boolean failOnUnknownType);
+    
+    default Stream<DeserializingMessage> deserializeMessages(Stream<SerializedMessage> dataStream,
+                                                     boolean failOnUnknownType, MessageType messageType) {
+        return deserialize(dataStream, failOnUnknownType).map(s -> new DeserializingMessage(s, messageType));
+    }
 
 }

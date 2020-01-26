@@ -1,6 +1,5 @@
 package io.fluxcapacitor.javaclient.common;
 
-import lombok.experimental.UtilityClass;
 import lombok.extern.slf4j.Slf4j;
 
 import java.time.Duration;
@@ -11,7 +10,6 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
-@UtilityClass
 @Slf4j
 public class ClientUtils {
     

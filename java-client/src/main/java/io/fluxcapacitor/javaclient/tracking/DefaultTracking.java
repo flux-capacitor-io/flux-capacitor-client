@@ -112,8 +112,7 @@ public class DefaultTracking implements Tracking {
                                                 .invokerFactory(DeserializingMessage.defaultInvokerFactory).build()))
                 .collect(toList());
         return serializedMessages -> {
-            serializer.deserialize(serializedMessages.stream(), false)
-                    .map(m -> new DeserializingMessage(m, messageType))
+            serializer.deserializeMessages(serializedMessages.stream(), false, messageType)
                     .forEach(m -> m.run(m2 -> handlers.forEach(h -> tryHandle(m2, h, configuration))));
             handlers.forEach(Handler::onEndOfBatch);
         };

@@ -97,7 +97,7 @@ public class CachingAggregateRepository implements AggregateRepository {
     }
 
     protected void handleEvents(List<SerializedMessage> messages) {
-        serializer.deserialize(messages.stream(), false).map(m -> new DeserializingMessage(m, EVENT))
+        serializer.deserializeMessages(messages.stream(), false, EVENT)
                 .forEach(m -> {
                     String aggregateId = getAggregateId(m);
                     Class<?> aggregateType = getAggregateType(m);

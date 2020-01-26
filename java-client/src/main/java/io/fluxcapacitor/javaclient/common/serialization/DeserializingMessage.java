@@ -11,6 +11,7 @@ import io.fluxcapacitor.javaclient.modeling.AggregateIdResolver;
 import io.fluxcapacitor.javaclient.modeling.AggregateTypeResolver;
 import io.fluxcapacitor.javaclient.tracking.handling.BatchHandlerInvoker;
 import io.fluxcapacitor.javaclient.tracking.handling.DeserializingMessageParameterResolver;
+import io.fluxcapacitor.javaclient.tracking.handling.ListParameterResolver;
 import io.fluxcapacitor.javaclient.tracking.handling.MessageParameterResolver;
 import io.fluxcapacitor.javaclient.tracking.handling.MetadataParameterResolver;
 import io.fluxcapacitor.javaclient.tracking.handling.PayloadParameterResolver;
@@ -36,9 +37,10 @@ import static java.time.Instant.ofEpochMilli;
 public class DeserializingMessage {
     public static MessageFormatter messageFormatter = MessageFormatter.DEFAULT;
     public static List<ParameterResolver<? super DeserializingMessage>> defaultParameterResolvers =
-            Arrays.asList(new DeserializingMessageParameterResolver(), new PayloadParameterResolver(),
-                          new MetadataParameterResolver(), new MessageParameterResolver(),
-                          new AggregateIdResolver(), new AggregateTypeResolver());
+            Arrays.asList(new DeserializingMessageParameterResolver(), new ListParameterResolver(), 
+                          new PayloadParameterResolver(), new MetadataParameterResolver(), 
+                          new MessageParameterResolver(), new AggregateIdResolver(), 
+                          new AggregateTypeResolver());
     public static MethodInvokerFactory<DeserializingMessage> defaultInvokerFactory = 
             (executable, enclosingType, parameterResolvers) -> handlesBatch(executable) 
                     ? new BatchHandlerInvoker(executable, enclosingType, parameterResolvers) 

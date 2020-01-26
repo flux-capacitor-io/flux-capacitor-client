@@ -24,6 +24,9 @@ import java.lang.reflect.AccessibleObject;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
+import java.lang.reflect.ParameterizedType;
+import java.lang.reflect.Type;
+import java.lang.reflect.WildcardType;
 import java.security.PrivilegedAction;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -151,6 +154,18 @@ public class ReflectionUtils {
             return ((Field) fieldOrMethod).get(target);
         }
         throw new IllegalStateException("Object property should be field or method: " + fieldOrMethod);
+    }
+    
+    public static Class<?> getCollectionElementType(Type parameterizedType) {
+        if (parameterizedType instanceof ParameterizedType) {
+            Type elementType = ((ParameterizedType) parameterizedType).getActualTypeArguments()[0];
+            if (elementType instanceof WildcardType) {
+                Type[] upperBounds = ((WildcardType) elementType).getUpperBounds();
+                elementType = upperBounds.length > 0 ? upperBounds[0] : null;
+            }
+            return elementType instanceof Class<?> ? (Class<?>) elementType : Object.class;
+        }
+        return Object.class;
     }
 
     public static boolean declaresField(Class<?> target, String fieldName) {

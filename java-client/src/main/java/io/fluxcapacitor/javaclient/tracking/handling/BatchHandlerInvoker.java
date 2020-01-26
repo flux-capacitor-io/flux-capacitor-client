@@ -5,9 +5,6 @@ import io.fluxcapacitor.common.handling.ParameterResolver;
 import io.fluxcapacitor.javaclient.common.serialization.DeserializingMessage;
 
 import java.lang.reflect.Executable;
-import java.lang.reflect.ParameterizedType;
-import java.lang.reflect.Type;
-import java.lang.reflect.WildcardType;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.LinkedHashMap;
@@ -18,8 +15,8 @@ import java.util.concurrent.CompletionStage;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Predicate;
 
+import static io.fluxcapacitor.common.reflection.ReflectionUtils.getCollectionElementType;
 import static java.lang.String.format;
-import static java.util.stream.Collectors.toList;
 
 public class BatchHandlerInvoker extends HandlerInspector.MethodHandlerInvoker<DeserializingMessage> {
 
@@ -38,7 +35,7 @@ public class BatchHandlerInvoker extends HandlerInspector.MethodHandlerInvoker<D
         if (!handlesBatch(executable)) {
             throw new IllegalArgumentException(format("Delegate does not handle Collection types: %s", executable));
         }
-        this.elementType = getListElementType(executable);
+        this.elementType = getCollectionElementType(executable.getGenericParameterTypes()[0]);
     }
 
     @Override
@@ -58,14 +55,13 @@ public class BatchHandlerInvoker extends HandlerInspector.MethodHandlerInvoker<D
                 try {
                     DeserializingMessage firstMessage = batch.keySet().stream().findFirst()
                             .orElseThrow(() -> new IllegalStateException("expected at least one value"));
-                    List<Object> payloads =
-                            new ArrayList<>(batch.keySet()).stream().map(DeserializingMessage::getPayload)
-                                    .collect(toList());
+                    List<DeserializingMessage> messages = new ArrayList<>(batch.keySet());
+                     
                     DeserializingMessage merged = new DeserializingMessage(
-                            firstMessage.getSerializedObject(), () -> payloads, firstMessage.getMessageType());
+                            firstMessage.getSerializedObject(), () -> messages, firstMessage.getMessageType());
 
-                    Object listResult = firstMessage.apply(m -> super.invoke(target, merged));
-                    
+                    Object listResult = merged.apply(m -> super.invoke(target, m));
+
                     if (listResult instanceof Collection<?>) {
                         List<?> results = new ArrayList<>((Collection<?>) listResult);
                         if (results.size() != futures.size()) {
@@ -110,20 +106,7 @@ public class BatchHandlerInvoker extends HandlerInspector.MethodHandlerInvoker<D
     @Override
     protected Predicate<DeserializingMessage> getMatcher(Executable executable,
                                                          List<ParameterResolver<? super DeserializingMessage>> parameterResolvers) {
-        Class<?> elementType = getListElementType(executable);
-        return d -> elementType.isAssignableFrom(d.getPayloadClass());
-    }
-
-    private static Class<?> getListElementType(Executable method) {
-        Type type = method.getGenericParameterTypes()[0];
-        if (type instanceof ParameterizedType) {
-            Type elementType = ((ParameterizedType) type).getActualTypeArguments()[0];
-            if (elementType instanceof WildcardType) {
-                Type[] upperBounds = ((WildcardType) elementType).getUpperBounds();
-                elementType = upperBounds.length > 0 ? upperBounds[0] : null;
-            }
-            return elementType instanceof Class<?> ? (Class<?>) elementType : Object.class;
-        }
-        return Object.class;
+        Class<?> elementType = getCollectionElementType(executable.getGenericParameterTypes()[0]);
+        return d -> DeserializingMessage.class.equals(elementType) || elementType.isAssignableFrom(d.getPayloadClass());
     }
 }

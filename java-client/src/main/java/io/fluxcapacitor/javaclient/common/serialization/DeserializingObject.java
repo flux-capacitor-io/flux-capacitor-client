@@ -19,8 +19,9 @@ public class DeserializingObject<T, S extends SerializedObject<T, S>> {
         this.object = memoize(payload);
     }
 
-    public Object getPayload() {
-        return object.get();
+    @SuppressWarnings("unchecked")
+    public <V> V getPayload() {
+        return (V) object.get();
     }
     
     public boolean isDeserialized() {
