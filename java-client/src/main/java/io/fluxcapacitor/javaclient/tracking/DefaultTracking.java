@@ -43,6 +43,7 @@ import java.util.function.Supplier;
 import static io.fluxcapacitor.common.handling.HandlerInspector.createHandler;
 import static io.fluxcapacitor.common.handling.HandlerInspector.hasHandlerMethods;
 import static io.fluxcapacitor.javaclient.common.ClientUtils.waitForResults;
+import static io.fluxcapacitor.javaclient.common.serialization.DeserializingMessage.handleBatch;
 import static java.lang.String.format;
 import static java.util.stream.Collectors.groupingBy;
 import static java.util.stream.Collectors.toList;
@@ -111,11 +112,9 @@ public class DefaultTracking implements Tracking {
                                         HandlerConfiguration.<DeserializingMessage>builder()
                                                 .invokerFactory(DeserializingMessage.defaultInvokerFactory).build()))
                 .collect(toList());
-        return serializedMessages -> {
-            serializer.deserializeMessages(serializedMessages.stream(), false, messageType)
-                    .forEach(m -> m.run(m2 -> handlers.forEach(h -> tryHandle(m2, h, configuration))));
-            handlers.forEach(Handler::onEndOfBatch);
-        };
+        return serializedMessages -> 
+                handleBatch(serializer.deserializeMessages(serializedMessages.stream(), false, messageType))
+                .forEach(m -> handlers.forEach(h -> tryHandle(m, h, configuration)));
     }
 
     @SneakyThrows

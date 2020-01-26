@@ -44,17 +44,8 @@ public class DefaultEventGateway implements EventGateway {
 
     protected void tryHandleLocally(Object payload, SerializedMessage serializedMessage) {
         if (!localHandlers.isEmpty()) {
-            new DeserializingMessage(serializedMessage, () -> payload, EVENT).run(m -> {
-                for (Handler<DeserializingMessage> handler : localHandlers) {
-                    try {
-                        if (handler.canHandle(m)) {
-                            handler.invoke(m);
-                        }
-                    } finally {
-                        handler.onEndOfBatch();
-                    }
-                }
-            });
+            new DeserializingMessage(serializedMessage, () -> payload, EVENT).run(m -> localHandlers.stream()
+                    .filter(handler -> handler.canHandle(m)).forEach(handler -> handler.invoke(m)));
         }
     }
 }

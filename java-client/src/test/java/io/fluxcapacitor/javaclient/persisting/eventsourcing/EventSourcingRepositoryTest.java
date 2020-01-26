@@ -8,6 +8,7 @@ import io.fluxcapacitor.javaclient.MockException;
 import io.fluxcapacitor.javaclient.common.Message;
 import io.fluxcapacitor.javaclient.common.serialization.DeserializingMessage;
 import io.fluxcapacitor.javaclient.common.serialization.DeserializingObject;
+import io.fluxcapacitor.javaclient.common.serialization.jackson.JacksonSerializer;
 import io.fluxcapacitor.javaclient.modeling.Aggregate;
 import io.fluxcapacitor.javaclient.modeling.AssertLegal;
 import io.fluxcapacitor.javaclient.persisting.caching.Cache;
@@ -23,7 +24,6 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.atomic.AtomicInteger;
-import java.util.function.Function;
 import java.util.stream.Stream;
 
 import static io.fluxcapacitor.common.MessageType.EVENT;
@@ -33,6 +33,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.fail;
+import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.Mockito.anyLong;
 import static org.mockito.Mockito.eq;
@@ -51,7 +52,8 @@ class EventSourcingRepositoryTest {
     private EventStore eventStore = mock(EventStore.class);
     private SnapshotRepository snapshotRepository = mock(SnapshotRepository.class);
     private Cache cache = spy(new DefaultCache());
-    private EventSourcingRepository subject = new EventSourcingRepository(eventStore, snapshotRepository, cache);
+    private EventStoreSerializer serializer = spy(new EventStoreSerializer(new JacksonSerializer()));
+    private EventSourcingRepository subject = new EventSourcingRepository(eventStore, snapshotRepository, cache, serializer);
 
     @BeforeEach
     void setUp() {
@@ -68,7 +70,7 @@ class EventSourcingRepositoryTest {
 
     @Test
     void testModelIsLoadedFromCacheWhenPossible() {
-        prepareSubjectForHandling().apply(new Message(new CreateModel()));
+        applyAndCommit(new Message(new CreateModel()));
         reset(eventStore);
         subject.load(aggregateId, TestModel.class);
         verifyNoMoreInteractions(eventStore);
@@ -85,9 +87,8 @@ class EventSourcingRepositoryTest {
 
     @Test
     void testApplyEvents() {
-        Function<Message, Aggregate<TestModel>> f = prepareSubjectForHandling();
         verifyNoInteractions(eventStore, cache);
-        Aggregate<TestModel> aggregate = f.apply(new Message(new CreateModel()));
+        Aggregate<TestModel> aggregate = applyAndCommit(new Message(new CreateModel()));
         assertEquals(singletonList(new CreateModel()), aggregate.get().events);
     }
 
@@ -100,8 +101,7 @@ class EventSourcingRepositoryTest {
     @Test
     void testApplyEventsWithMetadata() {
         Metadata metadata = Metadata.from("foo", "bar");
-        Aggregate<TestModel> aggregate = prepareSubjectForHandling()
-                .apply(new Message(new CreateModelWithMetadata(), metadata));
+        Aggregate<TestModel> aggregate = applyAndCommit(new Message(new CreateModelWithMetadata(), metadata));
         assertTrue(aggregate.get().metadata.entrySet().containsAll(metadata.entrySet()));
     }
 
@@ -109,8 +109,8 @@ class EventSourcingRepositoryTest {
     void testEventsGetStoredWhenHandlingEnds() {
         reset(eventStore);
         Message event = new Message(new CreateModel());
-        prepareSubjectForHandling().apply(event);
-        verify(eventStore).storeDomainEvents(aggregateId, TestModel.class.getSimpleName(), 0L, singletonList(event));
+        applyAndCommit(event);
+        verify(eventStore).storeDomainEvents(eq(aggregateId), eq(TestModel.class.getSimpleName()), eq(0L), anyList());
     }
 
     @Test
@@ -131,13 +131,14 @@ class EventSourcingRepositoryTest {
     void testApplyingUnknownEventsAllowedIfModelExists() {
         List<Message> events =
                 Arrays.asList(new Message(new CreateModel()), new Message("foo"));
-        toDeserializingMessage("command").run(m -> {
+        DeserializingMessage.handleBatch(Stream.of(toDeserializingMessage("command"))).forEach(m -> {
             Aggregate<TestModel> aggregate = subject.load(aggregateId, TestModel.class);
             reset(eventStore);
             events.forEach(aggregate::apply);
             verifyNoInteractions(eventStore);
         });
-        verify(eventStore).storeDomainEvents(aggregateId, TestModel.class.getSimpleName(), 1L, events);
+        verify(eventStore).storeDomainEvents(eq(aggregateId), eq(TestModel.class.getSimpleName()), eq(1L), 
+                                             anyList());
     }
 
     @Test
@@ -173,7 +174,7 @@ class EventSourcingRepositoryTest {
         List<Message> events =
                 Arrays.asList(new Message(new CreateModel()), new Message("foo"),
                               new Message("foo"));
-        toDeserializingMessage("command").run(m -> {
+        DeserializingMessage.handleBatch(Stream.of(toDeserializingMessage("command"))).forEach(m -> {
             Aggregate<TestModelForSnapshotting> aggregate = subject.load(aggregateId, TestModelForSnapshotting.class);
             reset(snapshotRepository);
             events.forEach(aggregate::apply);
@@ -222,8 +223,10 @@ class EventSourcingRepositoryTest {
         subject.load(aggregateId, TestModelWithFactoryMethod.class).assertLegal(new CommandWithOverriddenAssertion());
     }
 
-    private Function<Message, Aggregate<TestModel>> prepareSubjectForHandling() {
-        return m -> toDeserializingMessage(m).apply(command -> subject.load(aggregateId, TestModel.class).apply(m));
+    private Aggregate<TestModel> applyAndCommit(Message message) {
+        DeserializingMessage.handleBatch(Stream.of(toDeserializingMessage(message)))
+                .forEach(command -> subject.load(aggregateId, TestModel.class).apply(message));
+        return subject.load(aggregateId, TestModel.class);
     }
 
     private Stream<DeserializingMessage> eventStreamOf(Object... payloads) {

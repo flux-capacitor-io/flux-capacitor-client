@@ -91,8 +91,6 @@ public class DefaultGenericGateway implements RequestGateway {
                             CompletableFuture<Message> result = new CompletableFuture<>();
                             result.completeExceptionally(e);
                             return result;
-                        } finally {
-                            handler.onEndOfBatch();
                         }
                     }
                 }

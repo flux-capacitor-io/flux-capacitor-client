@@ -29,18 +29,26 @@ public class DefaultEventStore implements EventStore {
 
     @Override
     public void storeDomainEvents(String aggregateId, String domain, long lastSequenceNumber,
-                                  List<Message> events) {
+                                  List<?> events) {
         try {
             int segment = ConsistentHashing.computeSegment(aggregateId);
             List<SerializedMessage> messages = new ArrayList<>(events.size());
             events.forEach(e -> {
-                SerializedMessage message = serializer.serialize(e).withSegment(segment);
-                messages.add(message);
-                tryHandleLocally(e.getPayload(), message);
+                DeserializingMessage deserializingMessage;
+                if (e instanceof DeserializingMessage) {
+                    deserializingMessage = (DeserializingMessage) e;
+                } else {
+                    Message message = e instanceof Message ? (Message) e : new Message(e);
+                    deserializingMessage = new DeserializingMessage(serializer.serialize(message),
+                                                                    message::getPayload, EVENT);
+                }
+                messages.add(deserializingMessage.getSerializedObject().withSegment(segment));
+                tryHandleLocally(deserializingMessage);
             });
             client.storeEvents(aggregateId, domain, lastSequenceNumber, messages).await();
         } catch (Exception e) {
-            throw new EventSourcingException(format("Failed to store events %s for aggregate %s", events, aggregateId), e);
+            throw new EventSourcingException(format("Failed to store events %s for aggregate %s", events, aggregateId),
+                                             e);
         }
     }
 
@@ -60,19 +68,10 @@ public class DefaultEventStore implements EventStore {
         return () -> handler.ifPresent(localHandlers::remove);
     }
 
-    protected void tryHandleLocally(Object payload, SerializedMessage serializedMessage) {
+    protected void tryHandleLocally(DeserializingMessage deserializingMessage) {
         if (!localHandlers.isEmpty()) {
-            new DeserializingMessage(serializedMessage, () -> payload, EVENT).run(m -> {
-                for (Handler<DeserializingMessage> handler : localHandlers) {
-                    try {
-                        if (handler.canHandle(m)) {
-                            handler.invoke(m);
-                        }
-                    } finally {
-                        handler.onEndOfBatch();
-                    }
-                }
-            });
+            deserializingMessage.run(m -> localHandlers.stream().filter(handler -> handler.canHandle(m))
+                    .forEach(handler -> handler.invoke(m)));
         }
     }
 }

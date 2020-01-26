@@ -1,9 +1,6 @@
 package io.fluxcapacitor.javaclient.persisting.eventsourcing;
 
-import io.fluxcapacitor.common.api.Data;
 import io.fluxcapacitor.common.api.Metadata;
-import io.fluxcapacitor.common.api.SerializedMessage;
-import io.fluxcapacitor.common.serialization.Revision;
 import io.fluxcapacitor.javaclient.common.Message;
 import io.fluxcapacitor.javaclient.common.serialization.DeserializingMessage;
 import io.fluxcapacitor.javaclient.common.serialization.DeserializingObject;
@@ -43,14 +40,16 @@ public class EventSourcingRepository implements AggregateRepository {
     private final EventStore eventStore;
     private final SnapshotRepository snapshotRepository;
     private final Cache cache;
+    private final EventStoreSerializer serializer;
     private final EventSourcingHandlerFactory handlerFactory;
 
     private final Map<Class<?>, Function<String, EventSourcedAggregate<?>>> aggregateFactory =
             new ConcurrentHashMap<>();
     private final ThreadLocal<Collection<EventSourcedAggregate<?>>> loadedModels = new ThreadLocal<>();
 
-    public EventSourcingRepository(EventStore eventStore, SnapshotRepository snapshotRepository, Cache cache) {
-        this(eventStore, snapshotRepository, cache, new DefaultEventSourcingHandlerFactory(defaultParameterResolvers));
+    public EventSourcingRepository(EventStore eventStore, SnapshotRepository snapshotRepository, Cache cache, EventStoreSerializer serializer) {
+        this(eventStore, snapshotRepository, cache, serializer, 
+             new DefaultEventSourcingHandlerFactory(defaultParameterResolvers));
     }
 
     @Override
@@ -69,7 +68,7 @@ public class EventSourcingRepository implements AggregateRepository {
         if (loadedModels.get() == null) {
             if (ofNullable(DeserializingMessage.getCurrent()).map(m -> m.getMessageType() == COMMAND).isPresent()) {
                 loadedModels.set(asLifoQueue(new ArrayDeque<>()));
-                DeserializingMessage.onComplete(() -> {
+                DeserializingMessage.whenBatchCompletes(() -> {
                     Collection<EventSourcedAggregate<?>> models = loadedModels.get();
                     loadedModels.remove();
                     models.forEach(EventSourcedAggregate::commit);
@@ -98,7 +97,7 @@ public class EventSourcingRepository implements AggregateRepository {
             String domain = domain(aggregateType);
             return id -> {
                 EventSourcedAggregate<T> eventSourcedAggregate = new EventSourcedAggregate<>(
-                        aggregateType, eventSourcingHandler, cache, eventStore, snapshotRepository,
+                        aggregateType, eventSourcingHandler, cache, serializer, eventStore, snapshotRepository,
                         snapshotTrigger, domain, loadedModels.get() == null, id);
                 eventSourcedAggregate.initialize();
                 return eventSourcedAggregate;
@@ -139,11 +138,12 @@ public class EventSourcingRepository implements AggregateRepository {
         private final Class<T> aggregateType;
         private final EventSourcingHandler<T> eventSourcingHandler;
         private final Cache cache;
+        private final EventStoreSerializer serializer;
         private final EventStore eventStore;
         private final SnapshotRepository snapshotRepository;
         private final SnapshotTrigger snapshotTrigger;
         private final String domain;
-        private final List<Message> unpublishedEvents = new ArrayList<>();
+        private final List<DeserializingMessage> unpublishedEvents = new ArrayList<>();
         private final boolean readOnly;
         private final String id;
         
@@ -174,15 +174,10 @@ public class EventSourcingRepository implements AggregateRepository {
             Metadata metadata = eventMessage.getMetadata();
             metadata.put(Aggregate.AGGREGATE_ID_METADATA_KEY, id);
             metadata.put(Aggregate.AGGREGATE_TYPE_METADATA_KEY, aggregateType.getName());
-            unpublishedEvents.add(eventMessage);
+            
             DeserializingMessage deserializingMessage = new DeserializingMessage(new DeserializingObject<>(
-                    new SerializedMessage(new Data<>(() -> {
-                        throw new UnsupportedOperationException("Serialized data not available");
-                    }, eventMessage.getPayload().getClass().getName(), ofNullable(
-                            eventMessage.getPayload().getClass().getAnnotation(Revision.class)).map(Revision::value)
-                                                             .orElse(0)), metadata, eventMessage.getMessageId(),
-                                          eventMessage.getTimestamp().toEpochMilli()),
-                    eventMessage::getPayload), EVENT);
+                    serializer.serialize(eventMessage), eventMessage::getPayload), EVENT);
+            unpublishedEvents.add(deserializingMessage);
             model = model.toBuilder().sequenceNumber(model.sequenceNumber() + 1)
                     .lastEventId(eventMessage.getMessageId()).timestamp(eventMessage.getTimestamp())
                     .model(eventSourcingHandler.invoke(model.get(), deserializingMessage)).build();

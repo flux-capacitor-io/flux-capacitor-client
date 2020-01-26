@@ -25,8 +25,5 @@ public interface HandlerInvoker<M> {
     boolean expectResult(Object target, M message);
 
     Object invoke(Object target, M message);
-    
-    default void onEndOfBatch() {
-        //no op by default
-    }
+
 }

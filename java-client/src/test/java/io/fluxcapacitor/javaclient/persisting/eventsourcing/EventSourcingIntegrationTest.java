@@ -1,7 +1,6 @@
 package io.fluxcapacitor.javaclient.persisting.eventsourcing;
 
 import io.fluxcapacitor.javaclient.FluxCapacitor;
-import io.fluxcapacitor.javaclient.common.serialization.DeserializingMessage;
 import io.fluxcapacitor.javaclient.publishing.routing.RoutingKey;
 import io.fluxcapacitor.javaclient.test.AbstractTestFixture;
 import io.fluxcapacitor.javaclient.test.streaming.StreamingTestFixture;
@@ -11,9 +10,6 @@ import lombok.Builder;
 import lombok.Value;
 import lombok.extern.slf4j.Slf4j;
 import org.junit.jupiter.api.Test;
-
-import java.util.List;
-import java.util.Optional;
 
 import static io.fluxcapacitor.javaclient.FluxCapacitor.loadAggregate;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -31,7 +27,8 @@ class EventSourcingIntegrationTest {
     @Test
     void testHandleBatch() {
         testFixture.givenCommands(new AggregateCommand("test", "0"), new AggregateCommand("test", "1"),
-                                  new AggregateCommand("test", "2")).whenCommand(new AggregateCommand("test", "3"))
+                                  new AggregateCommand("test", "2"))
+                .whenCommand(new AggregateCommand("test", "3"))
                 .expectOnlyEvents(new AggregateCommand("test", "3"))
                 .expectOnlyCommands(new SecondOrderCommand());
 
@@ -43,10 +40,8 @@ class EventSourcingIntegrationTest {
 
     static class CommandHandler {
         @HandleCommand
-        void handle(List<AggregateCommand> commands, List<DeserializingMessage> messages) {
-            messages.forEach(message -> message.run(m -> Optional.<AggregateCommand>of(
-                    m.getPayload()).ifPresent(c -> loadAggregate(c.id, Aggregate.class).apply(c))
-            ));
+        void handle(AggregateCommand command) {
+            loadAggregate(command.id, Aggregate.class).apply(command);
         }
     }
     
