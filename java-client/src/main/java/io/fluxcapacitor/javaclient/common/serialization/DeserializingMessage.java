@@ -50,6 +50,7 @@ public class DeserializingMessage {
                           new AggregateTypeResolver());
     public static MethodInvokerFactory<DeserializingMessage> defaultInvokerFactory = MethodHandlerInvoker::new;
 
+    private static final ThreadLocal<Collection<Runnable>> messageCompletionHandlers = new ThreadLocal<>();
     private static final ThreadLocal<Collection<Runnable>> batchCompletionHandlers = new ThreadLocal<>();
     private static final ThreadLocal<Map<Object, Object>> batchResources = new ThreadLocal<>();
     private static final ThreadLocal<DeserializingMessage> current = new ThreadLocal<>();
@@ -95,6 +96,15 @@ public class DeserializingMessage {
         handlers.add(handler);
         return () -> handlers.remove(handler);
     }
+
+    public static void whenMessageCompletes(Runnable handler) {
+        if (messageCompletionHandlers.get() == null) {
+            messageCompletionHandlers.set(new ArrayList<>());
+        }
+        Collection<Runnable> handlers = messageCompletionHandlers.get();
+        handlers.add(handler);
+    }
+    
     
     public static Stream<DeserializingMessage> handleBatch(Stream<DeserializingMessage> batch) {
         return StreamSupport.stream(new MessageSpliterator(batch.spliterator()), false);
@@ -127,6 +137,16 @@ public class DeserializingMessage {
         return messageFormatter.apply(this);
     }
     
+    private static void setCurrent(DeserializingMessage message) {
+        current.set(message);
+        if (message == null) {
+            Optional.ofNullable(messageCompletionHandlers.get()).ifPresent(handlers -> {
+                messageCompletionHandlers.remove();
+                handlers.forEach(Runnable::run);
+            });
+        }
+    }
+    
     private static class MessageSpliterator extends Spliterators.AbstractSpliterator<DeserializingMessage> {
         private final Spliterator<DeserializingMessage> upStream;
 
@@ -140,10 +160,10 @@ public class DeserializingMessage {
             boolean hadNext = upStream.tryAdvance(d -> {
                 DeserializingMessage previous = getCurrent();
                 try {
-                    current.set(d);
+                    setCurrent(d);
                     action.accept(d);
                 } finally {
-                    current.set(previous);
+                    setCurrent(previous);
                 }
             });
             if (!hadNext && DeserializingMessage.getCurrent() == null) {

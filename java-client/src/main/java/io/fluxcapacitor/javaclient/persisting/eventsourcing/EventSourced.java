@@ -15,4 +15,5 @@ public @interface EventSourced {
     String domain() default "";
     int snapshotPeriod() default 0;
     boolean cached() default false;
+    boolean commitInBatch() default true;
 }

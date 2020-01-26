@@ -26,6 +26,8 @@ import java.util.function.Function;
 import static io.fluxcapacitor.common.MessageType.COMMAND;
 import static io.fluxcapacitor.common.MessageType.EVENT;
 import static io.fluxcapacitor.javaclient.common.serialization.DeserializingMessage.defaultParameterResolvers;
+import static io.fluxcapacitor.javaclient.common.serialization.DeserializingMessage.whenBatchCompletes;
+import static io.fluxcapacitor.javaclient.common.serialization.DeserializingMessage.whenMessageCompletes;
 import static java.lang.String.format;
 import static java.util.Collections.asLifoQueue;
 import static java.util.Optional.ofNullable;
@@ -68,11 +70,17 @@ public class EventSourcingRepository implements AggregateRepository {
         if (loadedModels.get() == null) {
             if (ofNullable(DeserializingMessage.getCurrent()).map(m -> m.getMessageType() == COMMAND).isPresent()) {
                 loadedModels.set(asLifoQueue(new ArrayDeque<>()));
-                DeserializingMessage.whenBatchCompletes(() -> {
+
+                Runnable commit = () -> {
                     Collection<EventSourcedAggregate<?>> models = loadedModels.get();
                     loadedModels.remove();
                     models.forEach(EventSourcedAggregate::commit);
-                });
+                };
+                if (aggregateType.getAnnotation(EventSourced.class).commitInBatch()) {
+                    whenBatchCompletes(commit);
+                } else {
+                    whenMessageCompletes(commit);
+                }
             } else {
                 return createAggregate(aggregateType, aggregateId);
             }
