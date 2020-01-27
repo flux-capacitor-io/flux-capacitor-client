@@ -143,7 +143,7 @@ public class DefaultTracking implements Tracking {
             result = e;
             exception = e;
         } catch (Exception e) {
-            result = new TechnicalException(format("Handler %s failed to handle a %s", handler, message));
+            result = new TechnicalException(format("Handler %s failed to handle a %s", handler, message), e);
             exception = e;
         }
         SerializedMessage serializedMessage = message.getSerializedObject();
@@ -151,7 +151,7 @@ public class DefaultTracking implements Tracking {
         if (result instanceof CompletableFuture<?>) {
             CompletableFuture<?> future = ((CompletableFuture<?>) result).whenComplete((r, e) -> {
                 Object asyncResult = e == null ? r : e instanceof FunctionalException ? e : new TechnicalException(
-                        format("Handler %s failed to handle a %s", handler, message));
+                        format("Handler %s failed to handle a %s", handler, message), e);
                 message.run(m -> {
                     try {
                         if (shouldSendResponse) {

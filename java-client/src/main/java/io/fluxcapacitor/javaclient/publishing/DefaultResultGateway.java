@@ -7,6 +7,7 @@ import io.fluxcapacitor.javaclient.common.exception.TechnicalException;
 import io.fluxcapacitor.javaclient.common.serialization.MessageSerializer;
 import io.fluxcapacitor.javaclient.publishing.client.GatewayClient;
 import lombok.AllArgsConstructor;
+import org.apache.commons.lang3.exception.ExceptionUtils;
 
 @AllArgsConstructor
 public class DefaultResultGateway implements ResultGateway {
@@ -17,12 +18,10 @@ public class DefaultResultGateway implements ResultGateway {
     @Override
     public void respond(Object payload, Metadata metadata, String target, int requestId) {
         try {
-            SerializedMessage message;
-            try {
-                message = serializer.serialize(new Message(payload, metadata));
-            } catch (Exception e) {
-                message = serializer.serialize(new Message(new TechnicalException(), metadata));
+            if (payload instanceof TechnicalException) {
+                metadata.put("stackTrace", ExceptionUtils.getStackTrace((TechnicalException) payload));
             }
+            SerializedMessage message = serializer.serialize(new Message(payload, metadata));
             message.setTarget(target);
             message.setRequestId(requestId);
             client.send(message);

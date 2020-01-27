@@ -1,5 +1,6 @@
 package io.fluxcapacitor.javaclient.tracking.handling.errorreporting;
 
+import io.fluxcapacitor.common.api.Metadata;
 import io.fluxcapacitor.common.handling.Handler;
 import io.fluxcapacitor.javaclient.common.Message;
 import io.fluxcapacitor.javaclient.common.exception.FunctionalException;
@@ -8,6 +9,7 @@ import io.fluxcapacitor.javaclient.common.serialization.DeserializingMessage;
 import io.fluxcapacitor.javaclient.publishing.ErrorGateway;
 import io.fluxcapacitor.javaclient.tracking.handling.HandlerInterceptor;
 import lombok.AllArgsConstructor;
+import org.apache.commons.lang3.exception.ExceptionUtils;
 
 import java.util.concurrent.CompletionStage;
 import java.util.function.Function;
@@ -42,9 +44,11 @@ public class ErrorReportingInterceptor implements HandlerInterceptor {
     }
 
     protected void reportError(Throwable e, Handler<DeserializingMessage> handler, DeserializingMessage cause) {
+        Metadata metadata = Metadata.from(cause.getMetadata());
         if (!(e instanceof FunctionalException || e instanceof TechnicalException)) {
+            metadata.put("stackTrace", ExceptionUtils.getStackTrace(e));
             e = new TechnicalException(format("Handler %s failed to handle a %s", handler, cause));
         }
-        errorGateway.report(new Message(e, cause.getMetadata()), cause.getSerializedObject().getSource());
+        errorGateway.report(new Message(e, metadata), cause.getSerializedObject().getSource());
     }
 }
