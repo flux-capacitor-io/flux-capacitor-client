@@ -26,13 +26,13 @@ import java.util.function.Consumer;
 @RequiredArgsConstructor
 public class CacheInvalidatingInterceptor implements BatchInterceptor {
     private final Cache cache;
-    private volatile int[] lastSegment;
+    private final ThreadLocal<int[]> lastSegment = new ThreadLocal<>();
 
     @Override
     public Consumer<MessageBatch> intercept(Consumer<MessageBatch> consumer, Tracker tracker) {
         return batch -> {
             if (shouldInvalidateCache(batch.getSegment())) {
-                log.info("Consumer segment changed. Invalidating event model caches.");
+                log.info("Consumer segment changed (tracker {}). Invalidating event model caches.", tracker);
                 try {
                     cache.invalidateAll();
                 } catch (Exception e) {
@@ -40,15 +40,15 @@ public class CacheInvalidatingInterceptor implements BatchInterceptor {
                 }
             }
             if (batch.getSegment()[0] != batch.getSegment()[1]) {
-                lastSegment = batch.getSegment();
+                lastSegment.set(batch.getSegment());
             }
             consumer.accept(batch);
         };
     }
 
     private boolean shouldInvalidateCache(int[] newSegment) {
-        return lastSegment != null
-                && newSegment[0] != newSegment[1]
+        int[] lastSegment = this.lastSegment.get();
+        return lastSegment != null && newSegment[0] != newSegment[1] 
                 && (newSegment[0] > lastSegment[0] || newSegment[1] < lastSegment[1]);
     }
 }
