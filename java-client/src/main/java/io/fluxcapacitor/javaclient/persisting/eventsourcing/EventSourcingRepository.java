@@ -185,10 +185,10 @@ public class EventSourcingRepository implements AggregateRepository {
             
             DeserializingMessage deserializingMessage = new DeserializingMessage(new DeserializingObject<>(
                     serializer.serialize(eventMessage), eventMessage::getPayload), EVENT);
-            unpublishedEvents.add(deserializingMessage);
             model = model.toBuilder().sequenceNumber(model.sequenceNumber() + 1)
                     .lastEventId(eventMessage.getMessageId()).timestamp(eventMessage.getTimestamp())
                     .model(eventSourcingHandler.invoke(model.get(), deserializingMessage)).build();
+            unpublishedEvents.add(deserializingMessage);
             return this;
         }
 
