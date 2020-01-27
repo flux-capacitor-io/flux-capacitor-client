@@ -129,24 +129,26 @@ public class CachingAggregateRepository implements AggregateRepository {
                 }
             }
 
-            if (aggregate == null || (!aggregate.inSync() && aggregate.timestamp().isBefore(timestamp))) {
+            if (aggregate == null) {
                 aggregate = Optional.ofNullable(delegate.load(aggregateId, type)).map(a -> new RefreshingAggregate<>(
-                        a.get(), a.lastEventId(), a.timestamp(),
-                        Objects.equals(a.lastEventId(), eventId))).orElseGet(() -> {
+                        a.get(), a.lastEventId(), a.timestamp(), Objects.equals(a.lastEventId(), eventId)))
+                        .orElseGet(() -> {
                     log.warn("Delegate repository did not contain aggregate with id {} of type {}",
                              aggregateId, type);
                     return null;
                 });
-            } else if (aggregate.inSync()) { //if cached aggregate is newer than event we don't refresh the cache
+            } else if (aggregate.inSync) {
                 try {
                     aggregate = new RefreshingAggregate<>(handler.invoke(aggregate.get(), event), eventId,
                                                           timestamp, true);
                 } catch (Exception e) {
-                    log.warn("Failed to update aggregate with id {} of type {}", aggregateId, type, e);
+                    log.error("Failed to update aggregate with id {} of type {}", aggregateId, type, e);
                     aggregate = null;
                 }
+            } else if (eventId.equals(aggregate.lastEventId)) {
+                aggregate = aggregate.toBuilder().inSync(true).build();
             }
-
+            
             if (aggregate == null) {
                 cache.invalidate(cacheKey);
             } else {
