@@ -23,7 +23,7 @@ public interface ErrorGateway {
         if (error instanceof Message) {
             report(((Message) error).getPayload(), ((Message) error).getMetadata());
         } else {
-            report((Exception) error, Metadata.empty());
+            report(error, Metadata.empty());
         }
     }
 
@@ -31,14 +31,14 @@ public interface ErrorGateway {
         if (error instanceof Message) {
             report(((Message) error).getPayload(), ((Message) error).getMetadata(), target);
         } else {
-            report((Exception) error, Metadata.empty(), target);
+            report(error, Metadata.empty(), target);
         }
     }
 
-    default void report(Exception payload, Metadata metadata) {
+    default void report(Object payload, Metadata metadata) {
         report(payload, metadata, null);
     }
 
-    void report(Exception payload, Metadata metadata, String target);
+    void report(Object payload, Metadata metadata, String target);
 
 }

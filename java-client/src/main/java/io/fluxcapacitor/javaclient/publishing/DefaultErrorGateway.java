@@ -30,7 +30,7 @@ public class DefaultErrorGateway implements ErrorGateway {
     private final MessageSerializer serializer;
 
     @Override
-    public void report(Exception payload, Metadata metadata, String target) {
+    public void report(Object payload, Metadata metadata, String target) {
         try {
             SerializedMessage message = serializer.serialize(new Message(payload, metadata));
             message.setTarget(target);
