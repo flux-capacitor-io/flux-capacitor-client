@@ -34,13 +34,19 @@ public class RetryingErrorHandler implements ErrorHandler {
             }
             return;
         }
-        log.error("{}. Retrying up to {} times.", errorMessage, retries);
+        log.error("{}. Retrying up to {} times.", errorMessage, retries, error);
         AtomicInteger remainingRetries = new AtomicInteger(retries);
         boolean success = retryOnFailure(retryFunction, delay,
                                          e -> errorFilter.test(e) && remainingRetries.decrementAndGet() > 0);
-        if (!success && throwOnFailure) {
-            log.error("Propagating error");
-            throw error;
+        if (success) {
+            log.info("Message handling was successful on retry");
+        } else {
+            if (throwOnFailure) {
+                log.error("Propagating error");
+                throw error;
+            } else {
+                log.error("{}. Not retrying any further. Continuing with next handler.", errorMessage);
+            }
         }
     }
 }
