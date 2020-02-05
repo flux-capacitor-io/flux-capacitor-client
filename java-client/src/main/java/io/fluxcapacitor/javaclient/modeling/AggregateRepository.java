@@ -4,6 +4,8 @@ public interface AggregateRepository {
     
     boolean supports(Class<?> aggregateType);
     
+    boolean cachingAllowed(Class<?> aggregateType);
+    
     default <T> Aggregate<T> load(String aggregateId, Class<T> aggregateType) {
         return load(aggregateId, aggregateType, false);
     }

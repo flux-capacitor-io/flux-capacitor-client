@@ -21,12 +21,23 @@ public class CompositeAggregateRepository implements AggregateRepository {
     }
 
     @Override
+    public boolean cachingAllowed(Class<?> aggregateType) {
+        return getDelegate(aggregateType).map(d -> d.cachingAllowed(aggregateType))
+                .orElseThrow(() -> new UnsupportedOperationException(
+                "Could not a find a suitable aggregate repository for aggregate of type: " + aggregateType));
+    }
+
+    @Override
     public <T> Aggregate<T> load(String aggregateId, Class<T> aggregateType, boolean onlyCached) {
-        Optional<AggregateRepository> delegate = delegates.stream().filter(r -> r.supports(aggregateType)).findFirst();
+        Optional<AggregateRepository> delegate = getDelegate(aggregateType);
         if (delegate.isPresent()) {
             return delegate.get().load(aggregateId, aggregateType, onlyCached);
         }
         throw new UnsupportedOperationException(
                 "Could not a find a suitable aggregate repository for aggregate of type: " + aggregateType);
+    }
+    
+    protected <T> Optional<AggregateRepository> getDelegate(Class<T> aggregateType) {
+        return delegates.stream().filter(r -> r.supports(aggregateType)).findFirst();
     }
 }

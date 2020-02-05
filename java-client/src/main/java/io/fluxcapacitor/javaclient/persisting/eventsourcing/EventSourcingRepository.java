@@ -30,6 +30,7 @@ import static io.fluxcapacitor.javaclient.common.serialization.DeserializingMess
 import static io.fluxcapacitor.javaclient.common.serialization.DeserializingMessage.whenMessageCompletes;
 import static java.lang.String.format;
 import static java.util.Collections.asLifoQueue;
+import static java.util.Collections.emptyList;
 import static java.util.Optional.ofNullable;
 import static java.util.stream.Collectors.toList;
 
@@ -49,14 +50,24 @@ public class EventSourcingRepository implements AggregateRepository {
             new ConcurrentHashMap<>();
     private final ThreadLocal<Collection<EventSourcedAggregate<?>>> loadedModels = new ThreadLocal<>();
 
-    public EventSourcingRepository(EventStore eventStore, SnapshotRepository snapshotRepository, Cache cache, EventStoreSerializer serializer) {
-        this(eventStore, snapshotRepository, cache, serializer, 
+    public EventSourcingRepository(EventStore eventStore, SnapshotRepository snapshotRepository, Cache cache,
+                                   EventStoreSerializer serializer) {
+        this(eventStore, snapshotRepository, cache, serializer,
              new DefaultEventSourcingHandlerFactory(defaultParameterResolvers));
     }
 
     @Override
     public boolean supports(Class<?> aggregateType) {
         return aggregateType.isAnnotationPresent(EventSourced.class);
+    }
+
+    @Override
+    public boolean cachingAllowed(Class<?> aggregateType) {
+        EventSourced eventSourced = aggregateType.getAnnotation(EventSourced.class);
+        if (eventSourced == null) {
+            throw new UnsupportedOperationException("Unsupported aggregate type: " + aggregateType);
+        }
+        return eventSourced.cached();
     }
 
     @SuppressWarnings("unchecked")
@@ -66,33 +77,11 @@ public class EventSourcingRepository implements AggregateRepository {
             return Optional.<EventSourcedModel<T>>ofNullable(cache.getIfPresent(keyFunction.apply(aggregateId)))
                     .orElse(null);
         }
-        
-        if (loadedModels.get() == null) {
-            if (ofNullable(DeserializingMessage.getCurrent()).map(m -> m.getMessageType() == COMMAND).isPresent()) {
-                loadedModels.set(asLifoQueue(new ArrayDeque<>()));
-
-                Runnable commit = () -> {
-                    Collection<EventSourcedAggregate<?>> models = loadedModels.get();
-                    loadedModels.remove();
-                    models.forEach(EventSourcedAggregate::commit);
-                };
-                if (aggregateType.getAnnotation(EventSourced.class).commitInBatch()) {
-                    whenBatchCompletes(commit);
-                } else {
-                    whenMessageCompletes(commit);
-                }
-            } else {
-                return createAggregate(aggregateType, aggregateId);
-            }
-        }
-        
-        Collection<EventSourcedAggregate<?>> loaded = loadedModels.get();
-        return loaded.stream().filter(model -> model.id.equals(aggregateId)).map(m -> (EventSourcedAggregate<T>) m)
-                .findAny().orElseGet(() -> {
-                    EventSourcedAggregate<T> model = createAggregate(aggregateType, aggregateId);
-                    loaded.add(model);
-                    return model;
-                });
+        return ofNullable(loadedModels.get()).orElse(emptyList()).stream()
+                .filter(model -> model.id.equals(aggregateId) 
+                        && aggregateType.isAssignableFrom(model.getAggregateType()))
+                .map(m -> (EventSourcedAggregate<T>) m)
+                .findAny().orElseGet(() -> createAggregate(aggregateType, aggregateId));
     }
 
     @SuppressWarnings("unchecked")
@@ -106,7 +95,7 @@ public class EventSourcingRepository implements AggregateRepository {
             return id -> {
                 EventSourcedAggregate<T> eventSourcedAggregate = new EventSourcedAggregate<>(
                         aggregateType, eventSourcingHandler, cache, serializer, eventStore, snapshotRepository,
-                        snapshotTrigger, domain, loadedModels.get() == null, id);
+                        snapshotTrigger, domain, id);
                 eventSourcedAggregate.initialize();
                 return eventSourcedAggregate;
             };
@@ -141,7 +130,7 @@ public class EventSourcingRepository implements AggregateRepository {
     }
 
     @RequiredArgsConstructor
-    protected static class EventSourcedAggregate<T> implements Aggregate<T> {
+    protected class EventSourcedAggregate<T> implements Aggregate<T> {
 
         private final Class<T> aggregateType;
         private final EventSourcingHandler<T> eventSourcingHandler;
@@ -152,15 +141,16 @@ public class EventSourcingRepository implements AggregateRepository {
         private final SnapshotTrigger snapshotTrigger;
         private final String domain;
         private final List<DeserializingMessage> unpublishedEvents = new ArrayList<>();
-        private final boolean readOnly;
         private final String id;
-        
+
         private EventSourcedModel<T> model;
 
         protected void initialize() {
             model = Optional.<EventSourcedModel<T>>ofNullable(cache.getIfPresent(keyFunction.apply(id)))
+                    .filter(a -> aggregateType.isAssignableFrom(a.get().getClass()))
                     .orElseGet(() -> {
                         EventSourcedModel<T> model = snapshotRepository.<T>getSnapshot(id)
+                                .filter(a -> aggregateType.isAssignableFrom(a.get().getClass()))
                                 .orElse(EventSourcedModel.<T>builder().id(id).build());
                         for (DeserializingMessage event : eventStore.getDomainEvents(id, model.sequenceNumber())
                                 .collect(toList())) {
@@ -172,24 +162,55 @@ public class EventSourcingRepository implements AggregateRepository {
                         return model;
                     });
         }
+        
+        @SuppressWarnings("rawtypes")
+        public Class<?> getAggregateType() {
+            return Optional.ofNullable(model).map(EventSourcedModel::get)
+                    .map(m -> (Class) m.getClass()).orElse(aggregateType);
+        }
 
         @Override
         public Aggregate<T> apply(Message eventMessage) {
-            if (readOnly) {
+            if (isReadOnly()) {
                 throw new UnsupportedOperationException(format("Not allowed to apply a %s. The model is readonly.",
                                                                eventMessage));
             }
-            Metadata metadata = eventMessage.getMetadata();
-            metadata.put(Aggregate.AGGREGATE_ID_METADATA_KEY, id);
-            metadata.put(Aggregate.AGGREGATE_TYPE_METADATA_KEY, aggregateType.getName());
             
+            Metadata metadata = Metadata.from(eventMessage.getMetadata());
+            metadata.put(Aggregate.AGGREGATE_ID_METADATA_KEY, id);
+            metadata.put(Aggregate.AGGREGATE_TYPE_METADATA_KEY, getAggregateType().getName());
+            
+            eventMessage = eventMessage.withMetadata(metadata);
             DeserializingMessage deserializingMessage = new DeserializingMessage(new DeserializingObject<>(
                     serializer.serialize(eventMessage), eventMessage::getPayload), EVENT);
             model = model.toBuilder().sequenceNumber(model.sequenceNumber() + 1)
                     .lastEventId(eventMessage.getMessageId()).timestamp(eventMessage.getTimestamp())
                     .model(eventSourcingHandler.invoke(model.get(), deserializingMessage)).build();
+            
             unpublishedEvents.add(deserializingMessage);
+
+            if (loadedModels.get() == null) {
+                loadedModels.set(asLifoQueue(new ArrayDeque<>()));
+                loadedModels.get().add(this);
+
+                Runnable commit = () -> {
+                    Collection<EventSourcedAggregate<?>> models = loadedModels.get();
+                    loadedModels.remove();
+                    models.forEach(EventSourcedAggregate::commit);
+                };
+                if (aggregateType.getAnnotation(EventSourced.class).commitInBatch()) {
+                    whenBatchCompletes(commit);
+                } else {
+                    whenMessageCompletes(commit);
+                }
+            } else if (loadedModels.get().stream().noneMatch(e -> e == this)) {
+                loadedModels.get().add(this);
+            }
             return this;
+        }
+
+        private boolean isReadOnly() {
+            return ofNullable(DeserializingMessage.getCurrent()).map(d -> d.getMessageType() != COMMAND).orElse(true);
         }
 
         @Override

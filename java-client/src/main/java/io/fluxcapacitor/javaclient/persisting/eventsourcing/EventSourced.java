@@ -14,6 +14,6 @@ import java.lang.annotation.Target;
 public @interface EventSourced {
     String domain() default "";
     int snapshotPeriod() default 0;
-    boolean cached() default false;
+    boolean cached() default true;
     boolean commitInBatch() default true;
 }

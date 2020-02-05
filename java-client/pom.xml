@@ -30,7 +30,7 @@
     <url>https://flux-capacitor.io</url>
 
     <properties>
-        <hibernate-validator.version>6.1.1.Final</hibernate-validator.version>
+        <hibernate-validator.version>6.1.2.Final</hibernate-validator.version>
         <javax-el.version>3.0.0</javax-el.version>
         <spring.version>5.2.3.RELEASE</spring.version>
     </properties>
@@ -78,7 +78,7 @@
         <dependency>
             <groupId>org.lz4</groupId>
             <artifactId>lz4-java</artifactId>
-            <version>1.7.0</version>
+            <version>1.7.1</version>
         </dependency>
 
         <!--spring-->

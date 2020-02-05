@@ -26,7 +26,7 @@ import java.util.Optional;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Stream;
 
-import static io.fluxcapacitor.common.MessageType.EVENT;
+import static io.fluxcapacitor.common.MessageType.COMMAND;
 import static java.util.Arrays.stream;
 import static java.util.Collections.singletonList;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -241,7 +241,7 @@ class EventSourcingRepositoryTest {
         return new DeserializingMessage(new DeserializingObject<>(
                 new SerializedMessage(new Data<>(new byte[0], message.getPayload().getClass().getName(), 0),
                                       message.getMetadata(), message.getMessageId(),
-                                      message.getTimestamp().toEpochMilli()), message::getPayload), EVENT);
+                                      message.getTimestamp().toEpochMilli()), message::getPayload), COMMAND);
     }
 
     @EventSourced(cached = true, snapshotPeriod = 100)

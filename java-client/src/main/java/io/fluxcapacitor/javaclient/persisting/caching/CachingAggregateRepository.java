@@ -42,7 +42,7 @@ public class CachingAggregateRepository implements AggregateRepository {
     private final AggregateRepository delegate;
     private final EventSourcingHandlerFactory handlerFactory;
     private final Cache cache;
-    
+
     private final String clientName;
     private final TrackingClient trackingClient;
     private final Serializer serializer;
@@ -59,7 +59,8 @@ public class CachingAggregateRepository implements AggregateRepository {
         Aggregate<T> result = delegate.load(aggregateId, aggregateType, true);
         if (result == null) {
             return Optional.<Aggregate<T>>ofNullable(doLoad(aggregateId))
-                    .orElseGet(() -> delegate.load(aggregateId, aggregateType, onlyCached));
+                    .filter(a -> Optional.ofNullable(a.get()).map(m -> aggregateType.isAssignableFrom(m.getClass()))
+                            .orElse(true)).orElseGet(() -> delegate.load(aggregateId, aggregateType, onlyCached));
         }
         return result;
     }
@@ -67,7 +68,7 @@ public class CachingAggregateRepository implements AggregateRepository {
     private <T> RefreshingAggregate<T> doLoad(String aggregateId) {
         if (started.compareAndSet(false, true)) {
             log.info("Start tracking notifications");
-            start(format("%s_%s", clientName, CachingAggregateRepository.class.getSimpleName()), 
+            start(format("%s_%s", clientName, CachingAggregateRepository.class.getSimpleName()),
                   trackingClient, this::handleEvents);
             return null;
         }
@@ -101,7 +102,7 @@ public class CachingAggregateRepository implements AggregateRepository {
                 .forEach(m -> {
                     String aggregateId = getAggregateId(m);
                     Class<?> aggregateType = getAggregateType(m);
-                    if (aggregateId != null && aggregateType != null) {
+                    if (aggregateId != null && aggregateType != null && delegate.cachingAllowed(aggregateType)) {
                         try {
                             handleEvent(m, aggregateId, aggregateType);
                         } catch (Exception e) {
@@ -119,7 +120,7 @@ public class CachingAggregateRepository implements AggregateRepository {
             String eventId = event.getSerializedObject().getMessageId();
             Instant timestamp = ofEpochMilli(event.getSerializedObject().getTimestamp());
             RefreshingAggregate<?> aggregate = cache.getIfPresent(cacheKey);
-            
+
             //may be the first event for this aggregate
             if (aggregate == null && handler.canHandle(null, event)) {
                 try {
@@ -133,10 +134,10 @@ public class CachingAggregateRepository implements AggregateRepository {
                 aggregate = Optional.ofNullable(delegate.load(aggregateId, type)).map(a -> new RefreshingAggregate<>(
                         a.get(), a.lastEventId(), a.timestamp(), Objects.equals(a.lastEventId(), eventId)))
                         .orElseGet(() -> {
-                    log.warn("Delegate repository did not contain aggregate with id {} of type {}",
-                             aggregateId, type);
-                    return null;
-                });
+                            log.warn("Delegate repository did not contain aggregate with id {} of type {}",
+                                     aggregateId, type);
+                            return null;
+                        });
             } else if (aggregate.inSync) {
                 try {
                     aggregate = new RefreshingAggregate<>(handler.invoke(aggregate.get(), event), eventId,
@@ -148,7 +149,7 @@ public class CachingAggregateRepository implements AggregateRepository {
             } else if (eventId.equals(aggregate.lastEventId)) {
                 aggregate = aggregate.toBuilder().inSync(true).build();
             }
-            
+
             if (aggregate == null) {
                 cache.invalidate(cacheKey);
             } else {
@@ -168,8 +169,14 @@ public class CachingAggregateRepository implements AggregateRepository {
         return delegate.supports(aggregateType);
     }
 
+    @Override
+    public boolean cachingAllowed(Class<?> aggregateType) {
+        return delegate.cachingAllowed(aggregateType);
+    }
+
     @AllArgsConstructor
-    @Value @Accessors(fluent = true)
+    @Value
+    @Accessors(fluent = true)
     @Builder(toBuilder = true)
     private static class RefreshingAggregate<T> implements Aggregate<T> {
         T model;
