@@ -42,13 +42,13 @@ public class UpcastInspector {
                     .thenComparing(u -> u.getAnnotation().type());
 
     public static boolean hasAnnotatedMethods(Class<?> type) {
-        return getAllMethods(type).anyMatch(m -> m.isAnnotationPresent(Upcast.class));
+        return getAllMethods(type).stream().anyMatch(m -> m.isAnnotationPresent(Upcast.class));
     }
 
     public static <T> List<AnnotatedUpcaster<T>> inspect(Collection<?> upcasters, Class<T> dataType) {
         List<AnnotatedUpcaster<T>> result = new ArrayList<>();
         for (Object upcaster : upcasters) {
-            getAllMethods(upcaster.getClass()).filter(m -> m.isAnnotationPresent(Upcast.class))
+            getAllMethods(upcaster.getClass()).stream().filter(m -> m.isAnnotationPresent(Upcast.class))
                     .forEach(m -> result.add(createUpcaster(m, upcaster, dataType)));
         }
         result.sort(upcasterComparator);

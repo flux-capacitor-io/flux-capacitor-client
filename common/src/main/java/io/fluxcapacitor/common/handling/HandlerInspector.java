@@ -16,6 +16,7 @@ package io.fluxcapacitor.common.handling;
 
 import io.fluxcapacitor.common.reflection.ReflectionUtils;
 import lombok.AllArgsConstructor;
+import lombok.Getter;
 import lombok.SneakyThrows;
 
 import java.lang.annotation.Annotation;
@@ -34,17 +35,19 @@ import java.util.function.Predicate;
 import java.util.stream.Stream;
 
 import static io.fluxcapacitor.common.handling.HandlerConfiguration.defaultHandlerConfiguration;
+import static io.fluxcapacitor.common.handling.HandlerInspector.MethodHandlerInvoker.comparator;
 import static io.fluxcapacitor.common.reflection.ReflectionUtils.ensureAccessible;
 import static io.fluxcapacitor.common.reflection.ReflectionUtils.getAllMethods;
 import static java.lang.String.format;
 import static java.util.Arrays.stream;
+import static java.util.Comparator.comparing;
 import static java.util.stream.Collectors.toList;
 import static java.util.stream.Stream.concat;
 
 public class HandlerInspector {
-    
+
     public static boolean hasHandlerMethods(Class<?> targetClass, Class<? extends Annotation> methodAnnotation) {
-        return concat(getAllMethods(targetClass), stream(targetClass.getConstructors()))
+        return concat(getAllMethods(targetClass).stream(), stream(targetClass.getConstructors()))
                 .anyMatch(m -> m.isAnnotationPresent(methodAnnotation));
     }
 
@@ -54,7 +57,7 @@ public class HandlerInspector {
     }
 
     public static <M> Handler<M> createHandler(Object target, Class<? extends Annotation> methodAnnotation,
-                                               List<ParameterResolver<? super M>> parameterResolvers, 
+                                               List<ParameterResolver<? super M>> parameterResolvers,
                                                HandlerConfiguration<M> handlerConfiguration) {
         return new DefaultHandler<>(target, inspect(target.getClass(), methodAnnotation, parameterResolvers,
                                                     handlerConfiguration));
@@ -68,24 +71,32 @@ public class HandlerInspector {
                     format("Could not find methods with %s annotation on %s", methodAnnotation.getSimpleName(),
                            type.getSimpleName()));
         }
-        return new ObjectHandlerInvoker<>(type, concat(getAllMethods(type), stream(type.getConstructors()))
+        return new ObjectHandlerInvoker<>(type, concat(getAllMethods(type).stream(), stream(type.getConstructors()))
                 .filter(m -> m.isAnnotationPresent(methodAnnotation))
                 .map(m -> handlerConfiguration.getInvokerFactory().create(m, type, parameterResolvers))
-                .sorted(Comparator.naturalOrder())
+                .sorted(comparator)
                 .collect(toList()), handlerConfiguration.invokeMultipleMethods());
     }
 
-    public static class MethodHandlerInvoker<M> implements HandlerInvoker<M>, Comparable<MethodHandlerInvoker<M>> {
+    @Getter
+    public static class MethodHandlerInvoker<M> implements HandlerInvoker<M> {
+        protected static final Comparator<MethodHandlerInvoker<?>> comparator = 
+                comparing((Function<MethodHandlerInvoker<?>, Class<?>>) MethodHandlerInvoker::getPayloadType, (o1, o2) 
+                        -> Objects.equals(o1, o2) ? 0 
+                        : o1.isAssignableFrom(o2) || (o1.isInterface() && !o2.isInterface()) ? 1 
+                        : o2.isAssignableFrom(o1) || (!o1.isInterface() && o2.isInterface()) ? -1 
+                        : specificity(o2) - specificity(o1))
+                .thenComparing(MethodHandlerInvoker::getMethodIndex);
 
-        private final int methodDepth;
+        private final int methodIndex;
         private final Executable executable;
         private final boolean hasReturnValue;
         private final List<Function<? super M, Object>> parameterSuppliers;
         private final Predicate<? super M> matcher;
 
         public MethodHandlerInvoker(Executable executable, Class<?> enclosingType,
-                                       List<ParameterResolver<? super M>> parameterResolvers) {
-            this.methodDepth = executable instanceof Method ? methodDepth((Method) executable, enclosingType) : 0;
+                                    List<ParameterResolver<? super M>> parameterResolvers) {
+            this.methodIndex = executable instanceof Method ? methodIndex((Method) executable, enclosingType) : 0;
             this.executable = ensureAccessible(executable);
             this.hasReturnValue =
                     !(executable instanceof Method) || !(((Method) executable).getReturnType()).equals(void.class);
@@ -164,24 +175,25 @@ public class HandlerInspector {
             };
         }
 
-        @Override
-        public int compareTo(MethodHandlerInvoker<M> o) {
-            int result = comparePayloads(getPayloadType(), o.getPayloadType());
-            if (result == 0) {
-                result = methodDepth - o.methodDepth;
+        protected static int specificity(Class<?> type) {
+            int depth = 0;
+            Class<?> t = type;
+            if (type.isInterface()) {
+                while (t.getInterfaces().length > 0) {
+                    depth++;
+                    t = t.getInterfaces()[0];
+                }
+            } else {
+                while (t != null) {
+                    depth++;
+                    t = t.getSuperclass();
+                }
             }
-            if (result == 0) {
-                result = executable.toGenericString().compareTo(o.executable.toGenericString());
-            }
-            return result;
+            return depth;
         }
 
-        protected static int comparePayloads(Class<?> p1, Class<?> p2) {
-            return Objects.equals(p1, p2) ? 0 : p1.isAssignableFrom(p2) ? 1 : p2.isAssignableFrom(p1) ? -1 : 0;
-        }
-
-        protected static int methodDepth(Method instanceMethod, Class<?> instanceType) {
-            return ReflectionUtils.getAllMethods(instanceType).collect(toList()).indexOf(instanceMethod);
+        protected static int methodIndex(Method instanceMethod, Class<?> instanceType) {
+            return ReflectionUtils.getAllMethods(instanceType).indexOf(instanceMethod);
         }
     }
 

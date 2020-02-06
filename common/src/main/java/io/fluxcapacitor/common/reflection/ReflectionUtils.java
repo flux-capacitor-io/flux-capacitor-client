@@ -30,7 +30,6 @@ import java.lang.reflect.WildcardType;
 import java.security.PrivilegedAction;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -39,75 +38,65 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.function.Function;
 import java.util.function.Predicate;
 import java.util.stream.Stream;
 
+import static io.fluxcapacitor.common.ObjectUtils.memoize;
 import static java.security.AccessController.doPrivileged;
 import static java.util.Collections.emptyList;
 import static org.apache.commons.lang3.ClassUtils.getAllInterfaces;
 import static org.apache.commons.lang3.StringUtils.isEmpty;
 
 public class ReflectionUtils {
+    
+    private static Function<Class<?>, List<Method>> methodsCache = memoize(ReflectionUtils::computeAllMethods);
 
-    public static Stream<Method> getAllMethods(Class type) {
-        return getAllMethods(type, true, false).stream();
+    public static List<Method> getAllMethods(Class<?> type) {
+        return methodsCache.apply(type);
     }
     
     /*
-        Adopted from https://stackoverflow.com/questions/28400408/what-is-the-new-way-of-getting-all-methods-of-a-class-including-inherited-defau
-     */
-    public static Collection<Method> getAllMethods(Class clazz,
-                                                   boolean includePrivateMethodsOfSuperclasses,
-                                                   boolean includeOverriddenAndHidden) {
-
+       Adopted from https://stackoverflow.com/questions/28400408/what-is-the-new-way-of-getting-all-methods-of-a-class-including-inherited-defau
+    */
+    private static List<Method> computeAllMethods(Class<?> type) {
         Predicate<Method> include = m -> !m.isBridge() && !m.isSynthetic() &&
                 Character.isJavaIdentifierStart(m.getName().charAt(0))
                 && m.getName().chars().skip(1).allMatch(Character::isJavaIdentifierPart);
 
         Set<Method> methods = new LinkedHashSet<>();
-        Collections.addAll(methods, clazz.getMethods());
+        Collections.addAll(methods, type.getMethods());
         methods.removeIf(include.negate());
-        Stream.of(clazz.getDeclaredMethods()).filter(include).forEach(methods::add);
+        Stream.of(type.getDeclaredMethods()).filter(include).forEach(methods::add);
 
         final int access = Modifier.PUBLIC | Modifier.PROTECTED | Modifier.PRIVATE;
 
-        Package p = clazz.getPackage();
-        if (!includePrivateMethodsOfSuperclasses) {
-            int pass = includeOverriddenAndHidden ?
-                    Modifier.PUBLIC | Modifier.PROTECTED : Modifier.PROTECTED;
-            include = include.and(m -> {
-                int mod = m.getModifiers();
-                return (mod & pass) != 0
-                        || (mod & access) == 0 && m.getDeclaringClass().getPackage() == p;
-            });
-        }
-        if (!includeOverriddenAndHidden) {
-            Map<Object, Set<Package>> types = new HashMap<>();
-            final Set<Package> pkgIndependent = Collections.emptySet();
-            for (Method m : methods) {
-                int acc = m.getModifiers() & access;
-                if (acc == Modifier.PRIVATE) {
-                    continue;
-                }
-                if (acc != 0) {
-                    types.put(methodKey(m), pkgIndependent);
-                } else {
-                    types.computeIfAbsent(methodKey(m), x -> new HashSet<>()).add(p);
-                }
+        Package p = type.getPackage();
+        Map<Object, Set<Package>> types = new HashMap<>();
+        final Set<Package> pkgIndependent = Collections.emptySet();
+        for (Method m : methods) {
+            int acc = m.getModifiers() & access;
+            if (acc == Modifier.PRIVATE) {
+                continue;
             }
-            include = include.and(m -> {
-                int acc = m.getModifiers() & access;
-                return acc != 0 ? acc == Modifier.PRIVATE
-                        || types.putIfAbsent(methodKey(m), pkgIndependent) == null :
-                        noPkgOverride(m, types, pkgIndependent);
-            });
+            if (acc != 0) {
+                types.put(methodKey(m), pkgIndependent);
+            } else {
+                types.computeIfAbsent(methodKey(m), x -> new HashSet<>()).add(p);
+            }
         }
-        for (clazz = clazz.getSuperclass(); clazz != null; clazz = clazz.getSuperclass()) {
-            Stream.of(clazz.getDeclaredMethods()).filter(include).forEach(methods::add);
+        include = include.and(m -> {
+            int acc = m.getModifiers() & access;
+            return acc != 0 ? acc == Modifier.PRIVATE
+                    || types.putIfAbsent(methodKey(m), pkgIndependent) == null :
+                    noPkgOverride(m, types, pkgIndependent);
+        });
+        for (type = type.getSuperclass(); type != null; type = type.getSuperclass()) {
+            Stream.of(type.getDeclaredMethods()).filter(include).forEach(methods::add);
         }
-        return methods;
+        return new ArrayList<>(methods);
     }
-
+    
     private static boolean noPkgOverride(
             Method m, Map<Object, Set<Package>> types, Set<Package> pkgIndependent) {
         Set<Package> pkg = types.computeIfAbsent(methodKey(m), key -> new HashSet<>());
