@@ -52,6 +52,9 @@ public class CachingAggregateRepository implements AggregateRepository {
 
     @Override
     public <T> Aggregate<T> load(@NonNull String aggregateId, @NonNull Class<T> aggregateType, boolean onlyCached) {
+        if (!delegate.cachingAllowed(aggregateType)) {
+            return delegate.load(aggregateId, aggregateType, onlyCached);
+        }
         DeserializingMessage current = DeserializingMessage.getCurrent();
         if (current != null && current.getMessageType() == MessageType.COMMAND) {
             return delegate.load(aggregateId, aggregateType, onlyCached);
