@@ -10,6 +10,7 @@ import io.fluxcapacitor.javaclient.persisting.caching.Cache;
 import io.fluxcapacitor.javaclient.publishing.DispatchInterceptor;
 import io.fluxcapacitor.javaclient.tracking.ConsumerConfiguration;
 import io.fluxcapacitor.javaclient.tracking.handling.HandlerInterceptor;
+import io.fluxcapacitor.javaclient.tracking.handling.authentication.UserSupplier;
 
 import java.util.function.UnaryOperator;
 
@@ -39,6 +40,8 @@ public interface FluxCapacitorBuilder {
     FluxCapacitorBuilder replaceSerializer(Serializer serializer);
 
     FluxCapacitorBuilder replaceSnapshotSerializer(Serializer serializer);
+    
+    FluxCapacitorBuilder registerUserSupplier(UserSupplier userSupplier);
 
     FluxCapacitorBuilder disableErrorReporting();
 

@@ -73,6 +73,8 @@ import io.fluxcapacitor.javaclient.tracking.handling.HandleQuery;
 import io.fluxcapacitor.javaclient.tracking.handling.HandleResult;
 import io.fluxcapacitor.javaclient.tracking.handling.HandleSchedule;
 import io.fluxcapacitor.javaclient.tracking.handling.HandlerInterceptor;
+import io.fluxcapacitor.javaclient.tracking.handling.authentication.AuthenticatingInterceptor;
+import io.fluxcapacitor.javaclient.tracking.handling.authentication.UserSupplier;
 import io.fluxcapacitor.javaclient.tracking.handling.errorreporting.ErrorReportingInterceptor;
 import io.fluxcapacitor.javaclient.tracking.handling.validation.ValidatingInterceptor;
 import io.fluxcapacitor.javaclient.tracking.metrics.HandlerMonitor;
@@ -172,6 +174,7 @@ public class DefaultFluxCapacitor implements FluxCapacitor {
         private boolean disableAutomaticAggregateCaching;
         private boolean disableShutdownHook;
         private boolean collectTrackingMetrics;
+        private UserSupplier userSupplier;
 
         protected Map<MessageType, List<ConsumerConfiguration>> defaultConfigurations() {
             return unmodifiableMap(stream(MessageType.values()).collect(toMap(identity(), messageType ->
@@ -190,6 +193,12 @@ public class DefaultFluxCapacitor implements FluxCapacitor {
         @Override
         public Builder replaceSnapshotSerializer(@NonNull Serializer serializer) {
             this.snapshotSerializer = serializer;
+            return this;
+        }
+
+        @Override
+        public FluxCapacitorBuilder registerUserSupplier(UserSupplier userSupplier) {
+            this.userSupplier = userSupplier;
             return this;
         }
 
@@ -309,6 +318,15 @@ public class DefaultFluxCapacitor implements FluxCapacitor {
             //enable message routing
             Arrays.stream(MessageType.values()).forEach(
                     type -> dispatchInterceptors.computeIfPresent(type, (t, i) -> i.merge(messageRoutingInterceptor)));
+
+            //enable authentication
+            if (userSupplier != null) {
+                AuthenticatingInterceptor interceptor = new AuthenticatingInterceptor(userSupplier);
+                Stream.of(COMMAND, QUERY, EVENT, SCHEDULE).forEach(type -> {
+                    dispatchInterceptors.computeIfPresent(type, (t, i) -> i.merge(interceptor));
+                    handlerInterceptors.computeIfPresent(type, (t, i) -> i.merge(interceptor));
+                });
+            }
 
             //enable data protection
             if (!disableDataProtection) {
