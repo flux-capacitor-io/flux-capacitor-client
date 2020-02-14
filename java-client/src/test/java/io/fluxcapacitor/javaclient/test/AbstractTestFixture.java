@@ -21,6 +21,7 @@ import io.fluxcapacitor.common.api.SerializedMessage;
 import io.fluxcapacitor.javaclient.FluxCapacitor;
 import io.fluxcapacitor.javaclient.common.Message;
 import io.fluxcapacitor.javaclient.common.serialization.DeserializingMessage;
+import io.fluxcapacitor.javaclient.configuration.DefaultFluxCapacitor;
 import io.fluxcapacitor.javaclient.configuration.FluxCapacitorBuilder;
 import io.fluxcapacitor.javaclient.publishing.DispatchInterceptor;
 
@@ -34,10 +35,17 @@ import java.util.function.Function;
 import java.util.stream.Stream;
 
 public abstract class AbstractTestFixture implements Given, When {
+
+    public static FluxCapacitorBuilder defaultFluxCapacitorBuilder =
+            DefaultFluxCapacitor.builder().registerUserSupplier(new TestUserSupplier());
     
     private final FluxCapacitor fluxCapacitor;
     private final Registration registration;
     private final GivenWhenThenInterceptor interceptor;
+    
+    protected AbstractTestFixture(Function<FluxCapacitor, List<?>> handlerFactory) {
+        this(defaultFluxCapacitorBuilder, handlerFactory);
+    }
 
     protected AbstractTestFixture(FluxCapacitorBuilder fluxCapacitorBuilder,
                                   Function<FluxCapacitor, List<?>> handlerFactory) {

@@ -12,5 +12,5 @@ import java.lang.annotation.Target;
 @Retention(RetentionPolicy.RUNTIME)
 @Inherited
 public @interface RequiresRole {
-    String[] value();
+    String[] value() default {};
 }

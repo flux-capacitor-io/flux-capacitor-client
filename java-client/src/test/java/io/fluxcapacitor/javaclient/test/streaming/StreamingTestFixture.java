@@ -17,7 +17,6 @@ package io.fluxcapacitor.javaclient.test.streaming;
 import io.fluxcapacitor.common.Registration;
 import io.fluxcapacitor.javaclient.FluxCapacitor;
 import io.fluxcapacitor.javaclient.common.Message;
-import io.fluxcapacitor.javaclient.configuration.DefaultFluxCapacitor;
 import io.fluxcapacitor.javaclient.configuration.FluxCapacitorBuilder;
 import io.fluxcapacitor.javaclient.test.AbstractTestFixture;
 import io.fluxcapacitor.javaclient.test.Then;
@@ -43,7 +42,7 @@ public class StreamingTestFixture extends AbstractTestFixture {
     private final ScheduledExecutorService deregistrationService = Executors.newSingleThreadScheduledExecutor();
 
     public static StreamingTestFixture create(Object... handlers) {
-        return new StreamingTestFixture(DefaultFluxCapacitor.builder(), fc -> Arrays.asList(handlers));
+        return new StreamingTestFixture(fc -> Arrays.asList(handlers));
     }
 
     public static StreamingTestFixture create(FluxCapacitorBuilder fluxCapacitorBuilder, Object... handlers) {
@@ -51,11 +50,15 @@ public class StreamingTestFixture extends AbstractTestFixture {
     }
 
     public static StreamingTestFixture create(Function<FluxCapacitor, List<?>> handlersFactory) {
-        return new StreamingTestFixture(DefaultFluxCapacitor.builder(), handlersFactory);
+        return new StreamingTestFixture(handlersFactory);
     }
 
     public static StreamingTestFixture create(FluxCapacitorBuilder fluxCapacitorBuilder, Function<FluxCapacitor, List<?>> handlersFactory) {
         return new StreamingTestFixture(fluxCapacitorBuilder, handlersFactory);
+    }
+
+    protected StreamingTestFixture(Function<FluxCapacitor, List<?>> handlersFactory) {
+        super(handlersFactory);
     }
 
     protected StreamingTestFixture(FluxCapacitorBuilder fluxCapacitorBuilder, Function<FluxCapacitor, List<?>> handlersFactory) {

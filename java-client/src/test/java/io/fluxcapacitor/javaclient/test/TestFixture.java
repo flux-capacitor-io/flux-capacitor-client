@@ -17,7 +17,6 @@ package io.fluxcapacitor.javaclient.test;
 import io.fluxcapacitor.common.Registration;
 import io.fluxcapacitor.javaclient.FluxCapacitor;
 import io.fluxcapacitor.javaclient.common.Message;
-import io.fluxcapacitor.javaclient.configuration.DefaultFluxCapacitor;
 import io.fluxcapacitor.javaclient.configuration.FluxCapacitorBuilder;
 import lombok.SneakyThrows;
 
@@ -34,7 +33,7 @@ public class TestFixture extends AbstractTestFixture {
     private final List<Message> commands = new ArrayList<>();
 
     public static TestFixture create(Object... handlers) {
-        return new TestFixture(DefaultFluxCapacitor.builder(), fc -> Arrays.asList(handlers));
+        return new TestFixture(fc -> Arrays.asList(handlers));
     }
 
     public static TestFixture create(FluxCapacitorBuilder fluxCapacitorBuilder, Object... handlers) {
@@ -42,11 +41,15 @@ public class TestFixture extends AbstractTestFixture {
     }
 
     public static TestFixture create(Function<FluxCapacitor, List<?>> handlersFactory) {
-        return new TestFixture(DefaultFluxCapacitor.builder(), handlersFactory);
+        return new TestFixture(handlersFactory);
     }
 
     public static TestFixture create(FluxCapacitorBuilder fluxCapacitorBuilder, Function<FluxCapacitor, List<?>> handlersFactory) {
         return new TestFixture(fluxCapacitorBuilder, handlersFactory);
+    }
+
+    protected TestFixture(Function<FluxCapacitor, List<?>> handlersFactory) {
+        super(handlersFactory);
     }
 
     protected TestFixture(FluxCapacitorBuilder fluxCapacitorBuilder, Function<FluxCapacitor, List<?>> handlersFactory) {

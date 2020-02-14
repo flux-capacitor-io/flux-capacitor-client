@@ -1,5 +1,6 @@
 package io.fluxcapacitor.javaclient.tracking.handling.authentication;
 
+import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import io.fluxcapacitor.common.MessageType;
 import io.fluxcapacitor.common.api.SerializedMessage;
 import io.fluxcapacitor.common.handling.Handler;
@@ -10,10 +11,12 @@ import io.fluxcapacitor.javaclient.publishing.DispatchInterceptor;
 import io.fluxcapacitor.javaclient.tracking.handling.HandlerInterceptor;
 import lombok.AllArgsConstructor;
 import lombok.SneakyThrows;
+import lombok.Value;
 
 import java.lang.annotation.Annotation;
 import java.lang.reflect.Method;
 import java.util.Arrays;
+import java.util.Optional;
 import java.util.function.Function;
 
 import static java.lang.String.format;
@@ -21,7 +24,7 @@ import static java.lang.String.format;
 @AllArgsConstructor
 public class AuthenticatingInterceptor implements DispatchInterceptor, HandlerInterceptor {
     public static String metadataKey = "$SENDER";
-    
+
     private final UserSupplier userSupplier;
 
     @Override
@@ -33,7 +36,7 @@ public class AuthenticatingInterceptor implements DispatchInterceptor, HandlerIn
             if (user == null) {
                 m.getMetadata().remove(metadataKey);
             } else {
-                m.getMetadata().put(metadataKey, user);
+                m.getMetadata().put(metadataKey, new UserHolder(user));
             }
             return function.apply(m);
         };
@@ -44,8 +47,9 @@ public class AuthenticatingInterceptor implements DispatchInterceptor, HandlerIn
                                                                     Handler<DeserializingMessage> handler,
                                                                     String consumer) {
         return m -> {
-            User previous = User.current.get();
-            User user = m.getMetadata().get(metadataKey, userSupplier.getUserClass());
+            User previous = User.getCurrent();
+            User user = Optional.ofNullable(m.getMetadata().get(metadataKey, UserHolder.class)).map(UserHolder::getUser)
+                    .orElse(null);
             try {
                 User.current.set(user);
                 String[] requiredRoles = getRequiredRoles(m.getPayloadClass());
@@ -55,7 +59,7 @@ public class AuthenticatingInterceptor implements DispatchInterceptor, HandlerIn
                     }
                     if (Arrays.stream(requiredRoles).noneMatch(user::hasRole)) {
                         throw new UnauthorizedException(
-                                format("User %s is unauthorized to issue message %s", user.getName(), m.getType()));
+                                format("User %s is unauthorized to issue %s", user.getName(), m.getType()));
                     }
                 }
                 return function.apply(m);
@@ -64,7 +68,7 @@ public class AuthenticatingInterceptor implements DispatchInterceptor, HandlerIn
             }
         };
     }
-    
+
     @SneakyThrows
     protected String[] getRequiredRoles(Class<?> payloadClass) {
         for (Annotation annotation : payloadClass.getAnnotations()) {
@@ -81,5 +85,11 @@ public class AuthenticatingInterceptor implements DispatchInterceptor, HandlerIn
             }
         }
         return null;
+    }
+
+    @Value
+    protected static class UserHolder {
+        @JsonTypeInfo(use = JsonTypeInfo.Id.CLASS)
+        User user;
     }
 }
