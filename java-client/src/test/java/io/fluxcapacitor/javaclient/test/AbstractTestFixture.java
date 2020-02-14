@@ -35,16 +35,13 @@ import java.util.function.Function;
 import java.util.stream.Stream;
 
 public abstract class AbstractTestFixture implements Given, When {
-
-    public static FluxCapacitorBuilder defaultFluxCapacitorBuilder =
-            DefaultFluxCapacitor.builder().registerUserSupplier(new TestUserSupplier());
     
     private final FluxCapacitor fluxCapacitor;
     private final Registration registration;
     private final GivenWhenThenInterceptor interceptor;
     
     protected AbstractTestFixture(Function<FluxCapacitor, List<?>> handlerFactory) {
-        this(defaultFluxCapacitorBuilder, handlerFactory);
+        this(DefaultFluxCapacitor.builder().registerUserSupplier(new TestUserSupplier()), handlerFactory);
     }
 
     protected AbstractTestFixture(FluxCapacitorBuilder fluxCapacitorBuilder,
