@@ -2,6 +2,7 @@ package io.fluxcapacitor.common.api;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import lombok.NonNull;
 import lombok.SneakyThrows;
 import lombok.Value;
 import lombok.experimental.Delegate;
@@ -25,8 +26,8 @@ public class Metadata implements Map<String, String> {
     @Delegate
     Map<String, String> entries;
 
-    public Metadata(String... keyValues) {
-        if (keyValues == null || keyValues.length == 0 || keyValues.length % 2 == 1) {
+    public Metadata(@NonNull String... keyValues) {
+        if (keyValues.length % 2 == 1) {
             throw new IllegalArgumentException("Failed to create metadata for keys " + Arrays.toString(keyValues));
         }
         entries = new HashMap<>();

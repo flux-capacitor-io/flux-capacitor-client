@@ -174,7 +174,7 @@ public class DefaultFluxCapacitor implements FluxCapacitor {
         private boolean disableAutomaticAggregateCaching;
         private boolean disableShutdownHook;
         private boolean collectTrackingMetrics;
-        private UserSupplier userSupplier;
+        private UserSupplier userSupplier = UserSupplier.defaultUserSupplier;
 
         protected Map<MessageType, List<ConsumerConfiguration>> defaultConfigurations() {
             return unmodifiableMap(stream(MessageType.values()).collect(toMap(identity(), messageType ->

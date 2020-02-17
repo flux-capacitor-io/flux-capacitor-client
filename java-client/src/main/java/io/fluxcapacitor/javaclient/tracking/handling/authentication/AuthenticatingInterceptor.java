@@ -14,6 +14,7 @@ import lombok.SneakyThrows;
 import java.lang.annotation.Annotation;
 import java.lang.reflect.Method;
 import java.util.Arrays;
+import java.util.Optional;
 import java.util.function.Function;
 
 import static java.lang.String.format;
@@ -28,11 +29,13 @@ public class AuthenticatingInterceptor implements DispatchInterceptor, HandlerIn
                                                                   MessageType messageType) {
         return m -> {
             DeserializingMessage currentMessage = DeserializingMessage.getCurrent();
-            User user = currentMessage == null ? userSupplier.get() : userSupplier.getSystemUser();
+            User user = currentMessage == null ? userSupplier.get() 
+                    : Optional.ofNullable((User) userSupplier.fromMetadata(m.getMetadata())).orElseGet(
+                        userSupplier::getSystemUser);
             if (user == null) {
-                User.removeFromMetadata(m.getMetadata());
+                userSupplier.removeFromMetadata(m.getMetadata());
             } else {
-                user.addToMetadata(m.getMetadata());
+                userSupplier.addToMetadata(m.getMetadata(), user);
             }
             return function.apply(m);
         };
@@ -44,7 +47,7 @@ public class AuthenticatingInterceptor implements DispatchInterceptor, HandlerIn
                                                                     String consumer) {
         return m -> {
             User previous = User.getCurrent();
-            User user = User.fromMetadata(m.getMetadata());
+            User user = userSupplier.fromMetadata(m.getMetadata());
             try {
                 User.current.set(user);
                 String[] requiredRoles = getRequiredRoles(m.getPayloadClass());
