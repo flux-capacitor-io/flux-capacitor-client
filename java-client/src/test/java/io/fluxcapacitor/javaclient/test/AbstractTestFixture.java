@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016-2018 Flux Capacitor. 
+ * Copyright (c) 2016-2018 Flux Capacitor.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -24,6 +24,7 @@ import io.fluxcapacitor.javaclient.common.serialization.DeserializingMessage;
 import io.fluxcapacitor.javaclient.configuration.DefaultFluxCapacitor;
 import io.fluxcapacitor.javaclient.configuration.FluxCapacitorBuilder;
 import io.fluxcapacitor.javaclient.publishing.DispatchInterceptor;
+import io.fluxcapacitor.javaclient.tracking.handling.authentication.UserProvider;
 
 import java.util.Arrays;
 import java.util.Collection;
@@ -35,19 +36,21 @@ import java.util.function.Function;
 import java.util.stream.Stream;
 
 public abstract class AbstractTestFixture implements Given, When {
-    
+
     private final FluxCapacitor fluxCapacitor;
     private final Registration registration;
     private final GivenWhenThenInterceptor interceptor;
-    
+
     protected AbstractTestFixture(Function<FluxCapacitor, List<?>> handlerFactory) {
-        this(DefaultFluxCapacitor.builder().registerUserSupplier(TestUserSupplier.INSTANCE), handlerFactory);
+        this(DefaultFluxCapacitor.builder(), handlerFactory);
     }
 
     protected AbstractTestFixture(FluxCapacitorBuilder fluxCapacitorBuilder,
                                   Function<FluxCapacitor, List<?>> handlerFactory) {
         this.interceptor = new GivenWhenThenInterceptor();
         this.fluxCapacitor = fluxCapacitorBuilder
+                .registerUserSupplier(Optional.ofNullable(UserProvider.defaultUserSupplier).map(
+                        TestUserProvider::new).orElse(null))
                 .disableShutdownHook().addDispatchInterceptor(interceptor).build(new TestClient());
         this.registration = registerHandlers(handlerFactory.apply(fluxCapacitor));
     }
@@ -200,7 +203,7 @@ public abstract class AbstractTestFixture implements Given, When {
         private static final String TAG_NAME = "$givenWhenThen.tagName";
         private static final String TRACE_NAME = "$givenWhenThen.trace";
         private volatile boolean catchAll;
-        
+
         protected void catchAll() {
             this.catchAll = true;
         }

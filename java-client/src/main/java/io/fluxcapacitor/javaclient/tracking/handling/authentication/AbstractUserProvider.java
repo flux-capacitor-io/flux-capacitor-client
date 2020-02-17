@@ -6,12 +6,12 @@ import lombok.AllArgsConstructor;
 import java.util.Optional;
 
 @AllArgsConstructor
-public abstract class AbstractUserSupplier implements UserSupplier {
+public abstract class AbstractUserProvider implements UserProvider {
     
     private final String metadataKey;
     private final Class<? extends User> userClass;
 
-    public AbstractUserSupplier(Class<? extends User> userClass) {
+    public AbstractUserProvider(Class<? extends User> userClass) {
         this("$user", userClass);
     }
 

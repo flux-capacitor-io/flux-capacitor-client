@@ -74,7 +74,7 @@ import io.fluxcapacitor.javaclient.tracking.handling.HandleResult;
 import io.fluxcapacitor.javaclient.tracking.handling.HandleSchedule;
 import io.fluxcapacitor.javaclient.tracking.handling.HandlerInterceptor;
 import io.fluxcapacitor.javaclient.tracking.handling.authentication.AuthenticatingInterceptor;
-import io.fluxcapacitor.javaclient.tracking.handling.authentication.UserSupplier;
+import io.fluxcapacitor.javaclient.tracking.handling.authentication.UserProvider;
 import io.fluxcapacitor.javaclient.tracking.handling.errorreporting.ErrorReportingInterceptor;
 import io.fluxcapacitor.javaclient.tracking.handling.validation.ValidatingInterceptor;
 import io.fluxcapacitor.javaclient.tracking.metrics.HandlerMonitor;
@@ -174,7 +174,7 @@ public class DefaultFluxCapacitor implements FluxCapacitor {
         private boolean disableAutomaticAggregateCaching;
         private boolean disableShutdownHook;
         private boolean collectTrackingMetrics;
-        private UserSupplier userSupplier = UserSupplier.defaultUserSupplier;
+        private UserProvider userProvider = UserProvider.defaultUserSupplier;
 
         protected Map<MessageType, List<ConsumerConfiguration>> defaultConfigurations() {
             return unmodifiableMap(stream(MessageType.values()).collect(toMap(identity(), messageType ->
@@ -197,8 +197,8 @@ public class DefaultFluxCapacitor implements FluxCapacitor {
         }
 
         @Override
-        public FluxCapacitorBuilder registerUserSupplier(UserSupplier userSupplier) {
-            this.userSupplier = userSupplier;
+        public FluxCapacitorBuilder registerUserSupplier(UserProvider userProvider) {
+            this.userProvider = userProvider;
             return this;
         }
 
@@ -320,8 +320,8 @@ public class DefaultFluxCapacitor implements FluxCapacitor {
                     type -> dispatchInterceptors.computeIfPresent(type, (t, i) -> i.merge(messageRoutingInterceptor)));
 
             //enable authentication
-            if (userSupplier != null) {
-                AuthenticatingInterceptor interceptor = new AuthenticatingInterceptor(userSupplier);
+            if (userProvider != null) {
+                AuthenticatingInterceptor interceptor = new AuthenticatingInterceptor(userProvider);
                 Stream.of(COMMAND, QUERY, EVENT, SCHEDULE).forEach(type -> {
                     dispatchInterceptors.computeIfPresent(type, (t, i) -> i.merge(interceptor));
                     handlerInterceptors.computeIfPresent(type, (t, i) -> i.merge(interceptor));

@@ -22,20 +22,20 @@ import static java.lang.String.format;
 @AllArgsConstructor
 public class AuthenticatingInterceptor implements DispatchInterceptor, HandlerInterceptor {
 
-    private final UserSupplier userSupplier;
+    private final UserProvider userProvider;
 
     @Override
     public Function<Message, SerializedMessage> interceptDispatch(Function<Message, SerializedMessage> function,
                                                                   MessageType messageType) {
         return m -> {
             DeserializingMessage currentMessage = DeserializingMessage.getCurrent();
-            User user = currentMessage == null ? userSupplier.get() 
-                    : Optional.ofNullable((User) userSupplier.fromMetadata(m.getMetadata())).orElseGet(
-                        userSupplier::getSystemUser);
+            User user = currentMessage == null ? userProvider.getUser(m) 
+                    : Optional.ofNullable((User) userProvider.fromMetadata(m.getMetadata())).orElseGet(
+                    userProvider::getSystemUser);
             if (user == null) {
-                userSupplier.removeFromMetadata(m.getMetadata());
+                userProvider.removeFromMetadata(m.getMetadata());
             } else {
-                userSupplier.addToMetadata(m.getMetadata(), user);
+                userProvider.addToMetadata(m.getMetadata(), user);
             }
             return function.apply(m);
         };
@@ -47,7 +47,7 @@ public class AuthenticatingInterceptor implements DispatchInterceptor, HandlerIn
                                                                     String consumer) {
         return m -> {
             User previous = User.getCurrent();
-            User user = userSupplier.fromMetadata(m.getMetadata());
+            User user = userProvider.fromMetadata(m.getMetadata());
             try {
                 User.current.set(user);
                 String[] requiredRoles = getRequiredRoles(m.getPayloadClass());

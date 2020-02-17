@@ -1,16 +1,18 @@
 package io.fluxcapacitor.javaclient.tracking.handling.authentication;
 
 import io.fluxcapacitor.common.api.Metadata;
+import io.fluxcapacitor.javaclient.common.Message;
 
 import java.util.Iterator;
 import java.util.Optional;
 import java.util.ServiceLoader;
-import java.util.function.Supplier;
 
-public interface UserSupplier extends Supplier<User> {
+public interface UserProvider {
     
-    UserSupplier defaultUserSupplier = Optional.of(ServiceLoader.load(UserSupplier.class)).map(
+    UserProvider defaultUserSupplier = Optional.of(ServiceLoader.load(UserProvider.class)).map(
                 ServiceLoader::iterator).filter(Iterator::hasNext).map(Iterator::next).orElse(null);
+    
+    User getUser(Message message);
     
     User getSystemUser();
     
