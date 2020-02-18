@@ -28,14 +28,16 @@ public class AuthenticatingInterceptor implements DispatchInterceptor, HandlerIn
     public Function<Message, SerializedMessage> interceptDispatch(Function<Message, SerializedMessage> function,
                                                                   MessageType messageType) {
         return m -> {
-            DeserializingMessage currentMessage = DeserializingMessage.getCurrent();
-            User user = currentMessage == null ? userProvider.getUser(m) 
-                    : Optional.ofNullable((User) userProvider.fromMetadata(m.getMetadata())).orElseGet(
-                    userProvider::getSystemUser);
-            if (user == null) {
-                userProvider.removeFromMetadata(m.getMetadata());
-            } else {
-                userProvider.addToMetadata(m.getMetadata(), user);
+            if (!userProvider.containsUser(m.getMetadata())) {
+                User user = userProvider.getActiveUser();
+                if (user == null) {
+                    user = Optional.ofNullable(DeserializingMessage.getCurrent())
+                            .map(d -> userProvider.getSystemUser()).orElse(null);
+
+                }
+                if (user != null) {
+                    userProvider.addToMetadata(m.getMetadata(), user);
+                }
             }
             return function.apply(m);
         };

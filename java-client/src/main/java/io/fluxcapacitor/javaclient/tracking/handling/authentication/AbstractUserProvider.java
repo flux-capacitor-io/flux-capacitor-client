@@ -16,9 +16,13 @@ public abstract class AbstractUserProvider implements UserProvider {
     }
 
     @Override
-    @SuppressWarnings("unchecked")
-    public <U extends User> U fromMetadata(Metadata metadata) {
-        return (U) Optional.ofNullable(metadata.get(metadataKey, userClass)).orElse(null);
+    public User fromMetadata(Metadata metadata) {
+        return Optional.ofNullable(metadata.get(metadataKey, userClass)).orElse(null);
+    }
+
+    @Override
+    public boolean containsUser(Metadata metadata) {
+        return metadata.containsKey(metadataKey);
     }
 
     @Override
@@ -33,9 +37,4 @@ public abstract class AbstractUserProvider implements UserProvider {
         return metadata;
     }
 
-    @Override
-    public Metadata asMetadata(User user) {
-        return Metadata.from(metadataKey, user);
-    }
-    
 }
