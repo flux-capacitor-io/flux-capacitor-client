@@ -27,25 +27,27 @@ public class AnnotatedEventSourcingHandler<T> implements EventSourcingHandler<T>
 
     @Override
     public T invoke(T target, DeserializingMessage message) {
-        Object result;
-        try {
-            result = invoker.invoke(target, message);
-        } catch (HandlerNotFoundException e) {
-            if (target == null) {
-                throw e;
+        return message.apply(m -> {
+            Object result;
+            try {
+                result = invoker.invoke(target, m);
+            } catch (HandlerNotFoundException e) {
+                if (target == null) {
+                    throw e;
+                }
+                return target;
             }
-            return target;
-        }
-        if (target == null) {
-            return handlerType.cast(result);
-        }
-        if (handlerType.isInstance(result)) {
-            return handlerType.cast(result);
-        }
-        if (result == null && invoker.expectResult(target, message)) {
-            return null; //this handler has deleted the model on purpose
-        }
-        return target; //Annotated method returned void - apparently the model is mutable
+            if (target == null) {
+                return handlerType.cast(result);
+            }
+            if (handlerType.isInstance(result)) {
+                return handlerType.cast(result);
+            }
+            if (result == null && invoker.expectResult(target, m)) {
+                return null; //this handler has deleted the model on purpose
+            }
+            return target; //Annotated method returned void - apparently the model is mutable
+        });
     }
 
     @Override
