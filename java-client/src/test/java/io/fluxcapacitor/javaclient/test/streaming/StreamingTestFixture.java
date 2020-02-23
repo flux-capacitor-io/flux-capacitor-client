@@ -18,6 +18,7 @@ import io.fluxcapacitor.common.Registration;
 import io.fluxcapacitor.javaclient.FluxCapacitor;
 import io.fluxcapacitor.javaclient.common.Message;
 import io.fluxcapacitor.javaclient.configuration.FluxCapacitorBuilder;
+import io.fluxcapacitor.javaclient.scheduling.Schedule;
 import io.fluxcapacitor.javaclient.test.AbstractTestFixture;
 import io.fluxcapacitor.javaclient.test.Then;
 import lombok.SneakyThrows;
@@ -39,6 +40,7 @@ public class StreamingTestFixture extends AbstractTestFixture {
 
     private final BlockingQueue<Message> events = new LinkedBlockingQueue<>();
     private final BlockingQueue<Message> commands = new LinkedBlockingQueue<>();
+    private final BlockingQueue<Schedule> schedules = new LinkedBlockingQueue<>();
     private final ScheduledExecutorService deregistrationService = Executors.newSingleThreadScheduledExecutor();
 
     public static StreamingTestFixture create(Object... handlers) {
@@ -77,7 +79,7 @@ public class StreamingTestFixture extends AbstractTestFixture {
 
     @Override
     protected Then createResultValidator(Object result) {
-        return new AsyncResultValidator(result, events, commands);
+        return new AsyncResultValidator(result, events, commands, schedules);
     }
 
     @Override
@@ -88,6 +90,11 @@ public class StreamingTestFixture extends AbstractTestFixture {
     @Override
     protected void registerEvent(Message event) {
         events.add(event);
+    }
+
+    @Override
+    protected void registerSchedule(Schedule schedule) {
+        schedules.add(schedule);
     }
 
     @Override

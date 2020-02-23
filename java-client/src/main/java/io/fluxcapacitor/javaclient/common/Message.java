@@ -5,6 +5,7 @@ import io.fluxcapacitor.common.api.Metadata;
 import lombok.AllArgsConstructor;
 import lombok.Value;
 import lombok.With;
+import lombok.experimental.NonFinal;
 
 import java.time.Clock;
 import java.time.Instant;
@@ -12,9 +13,14 @@ import java.time.Instant;
 @Value
 @AllArgsConstructor
 @JsonTypeInfo(use = JsonTypeInfo.Id.CLASS)
+@NonFinal
 public class Message {
     private static final ThreadLocal<Clock> clock = ThreadLocal.withInitial(Clock::systemUTC);
     public static IdentityProvider identityProvider = new UuidFactory();
+    
+    public static Clock getClock() {
+        return clock.get();
+    }
     
     @With
     @JsonTypeInfo(use = JsonTypeInfo.Id.CLASS)

@@ -1,5 +1,10 @@
 package io.fluxcapacitor.javaclient.test;
 
+import io.fluxcapacitor.javaclient.scheduling.Schedule;
+
+import java.time.Duration;
+import java.time.Instant;
+
 public interface When {
     When andGiven(Runnable runnable);
     
@@ -7,11 +12,17 @@ public interface When {
 
     When andGivenEvents(Object... events);
 
+    When andGivenSchedules(Schedule... schedules);
+
     Then whenCommand(Object command);
 
     Then whenEvent(Object event);
 
     Then whenQuery(Object query);
-    
+
     Then when(Runnable task);
+    
+    Then whenTimeAdvancesTo(Instant instant);
+    
+    Then whenTimeElapses(Duration duration);
 }

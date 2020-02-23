@@ -74,7 +74,7 @@ public class InMemoryMessageStore implements GatewayClient, TrackingClient {
         synchronized (this) {
             Map<Long, SerializedMessage> tailMap = Collections.emptyMap();
             while (System.currentTimeMillis() < deadline
-                    && (tailMap = messageLog.tailMap(Optional.ofNullable(previousLastIndex).orElseGet(() -> getLastIndex(consumer)), false)).isEmpty()) {
+                    && shouldWait(tailMap = messageLog.tailMap(Optional.ofNullable(previousLastIndex).orElseGet(() -> getLastIndex(consumer)), false))) {
                 try {
                     this.wait(deadline - System.currentTimeMillis());
                 } catch (InterruptedException e) {
@@ -90,6 +90,10 @@ public class InMemoryMessageStore implements GatewayClient, TrackingClient {
             }
             return new MessageBatch(new int[]{0, 1}, messages, lastIndex);
         }
+    }
+    
+    protected boolean shouldWait(Map<Long, SerializedMessage> tailMap) {
+        return tailMap.isEmpty();
     }
 
     @Override

@@ -14,10 +14,12 @@
 
 package io.fluxcapacitor.javaclient.test;
 
+import io.fluxcapacitor.common.MessageType;
 import io.fluxcapacitor.common.Registration;
 import io.fluxcapacitor.javaclient.FluxCapacitor;
 import io.fluxcapacitor.javaclient.common.Message;
 import io.fluxcapacitor.javaclient.configuration.FluxCapacitorBuilder;
+import io.fluxcapacitor.javaclient.scheduling.Schedule;
 import lombok.SneakyThrows;
 
 import java.util.ArrayList;
@@ -31,6 +33,7 @@ public class TestFixture extends AbstractTestFixture {
 
     private final List<Message> events = new ArrayList<>();
     private final List<Message> commands = new ArrayList<>();
+    private final List<Schedule> schedules = new ArrayList<>();
 
     public static TestFixture create(Object... handlers) {
         return new TestFixture(fc -> Arrays.asList(handlers));
@@ -58,7 +61,8 @@ public class TestFixture extends AbstractTestFixture {
 
     @Override
     public Registration registerHandlers(List<?> handlers) {
-        return getFluxCapacitor().registerLocalHandlers(handlers);
+        return getFluxCapacitor().registerLocalHandlers(handlers)
+                .merge(getFluxCapacitor().tracking(MessageType.SCHEDULE).start(getFluxCapacitor(), handlers));
     }
 
     @Override
@@ -68,7 +72,7 @@ public class TestFixture extends AbstractTestFixture {
 
     @Override
     protected Then createResultValidator(Object result) {
-        return new ResultValidator(result, events, commands);
+        return new ResultValidator(result, events, commands, schedules);
     }
 
     @Override
@@ -79,6 +83,11 @@ public class TestFixture extends AbstractTestFixture {
     @Override
     protected void registerEvent(Message event) {
         events.add(event);
+    }
+
+    @Override
+    protected void registerSchedule(Schedule schedule) {
+        schedules.add(schedule);
     }
 
     @Override

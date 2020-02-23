@@ -14,8 +14,8 @@
 
 package io.fluxcapacitor.javaclient.test.streaming;
 
-import io.fluxcapacitor.common.MessageType;
 import io.fluxcapacitor.javaclient.common.Message;
+import io.fluxcapacitor.javaclient.scheduling.Schedule;
 import io.fluxcapacitor.javaclient.test.AbstractResultValidator;
 import io.fluxcapacitor.javaclient.test.Then;
 
@@ -25,78 +25,97 @@ import java.util.List;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.TimeUnit;
 
-import static io.fluxcapacitor.common.MessageType.COMMAND;
-import static io.fluxcapacitor.common.MessageType.EVENT;
 import static java.lang.Thread.currentThread;
 
 public class AsyncResultValidator extends AbstractResultValidator {
     private final BlockingQueue<Message> resultingEvents;
     private final BlockingQueue<Message> resultingCommands;
+    private final BlockingQueue<Schedule> resultingSchedules;
 
     public AsyncResultValidator(Object actualResult,
                                 BlockingQueue<Message> resultingEvents,
-                                BlockingQueue<Message> resultingCommands) {
+                                BlockingQueue<Message> resultingCommands,
+                                BlockingQueue<Schedule> resultingSchedules) {
         super(actualResult);
         this.resultingEvents = resultingEvents;
         this.resultingCommands = resultingCommands;
+        this.resultingSchedules = resultingSchedules;
     }
 
     @Override
     public Then expectOnlyEvents(List<?> events) {
-        return expectOnlyMessages(events, EVENT, resultingEvents);
+        return expectOnlyMessages(events, resultingEvents);
     }
 
     @Override
     public Then expectEvents(List<?> events) {
-        return expectMessages(events, EVENT, resultingEvents);
+        return expectMessages(events, resultingEvents);
     }
 
     @Override
     public Then expectNoEventsLike(List<?> events) {
-        return expectNoMessagesLike(events, EVENT, resultingEvents);
+        return expectNoMessagesLike(events, resultingEvents);
     }
 
     @Override
     public Then expectOnlyCommands(List<?> commands) {
-        return expectOnlyMessages(commands, COMMAND, resultingCommands);
+        return expectOnlyMessages(commands, resultingCommands);
     }
 
     @Override
     public Then expectCommands(List<?> commands) {
-        return expectMessages(commands, COMMAND, resultingCommands);
+        return expectMessages(commands, resultingCommands);
     }
 
     @Override
     public Then expectNoCommandsLike(List<?> commands) {
-        return expectNoMessagesLike(commands, COMMAND, resultingCommands);
+        return expectNoMessagesLike(commands, resultingCommands);
     }
 
-    protected Then expectMessages(List<?> messages, MessageType messageType, BlockingQueue<Message> resultingMessages) {
-        Collection<?> expected = asMessages(messages, messageType);
+    @Override
+    public Then expectOnlySchedules(List<?> schedules) {
+        Collection<?> expected = asMessages(schedules);
+        Collection<Schedule> actual = getActualMessages(expected, resultingSchedules);
+        return expectOnlyScheduledMessages(expected, actual);
+    }
+
+    @Override
+    public Then expectSchedules(List<?> schedules) {
+        Collection<?> expected = asMessages(schedules);
+        Collection<Schedule> actual = getActualMessages(expected, resultingSchedules);
+        return expectScheduledMessages(expected, actual);
+    }
+
+    @Override
+    public Then expectNoSchedulesLike(List<?> schedules) {
+        return expectNoMessagesLike(schedules, resultingSchedules);
+    }
+
+    protected Then expectMessages(List<?> messages, BlockingQueue<Message> resultingMessages) {
+        Collection<?> expected = asMessages(messages);
         Collection<Message> actual = getActualMessages(expected, resultingMessages);
         return expectMessages(expected, actual);
     }
 
-    protected Then expectOnlyMessages(Collection<?> messages, MessageType messageType,
+    protected Then expectOnlyMessages(Collection<?> messages,
                                       BlockingQueue<Message> resultingMessages) {
-        Collection<?> expected = asMessages(messages, messageType);
+        Collection<?> expected = asMessages(messages);
         Collection<Message> actual = getActualMessages(expected, resultingMessages);
         return expectOnlyMessages(expected, actual);
     }
-
-
-    protected Then expectNoMessagesLike(Collection<?> messages, MessageType messageType,
+    
+    protected Then expectNoMessagesLike(Collection<?> messages,
                                         BlockingQueue<Message> resultingMessages) {
-        Collection<?> expected = asMessages(messages, messageType);
+        Collection<?> expected = asMessages(messages);
         Collection<Message> actual = getActualMessages(expected, resultingMessages);
         return expectNoMessagesLike(expected, actual);
     }
 
-    protected Collection<Message> getActualMessages(Collection<?> expected, BlockingQueue<Message> resultingMessages) {
-        Collection<Message> result = new ArrayList<>();
+    protected <M extends Message> Collection<M> getActualMessages(Collection<?> expected, BlockingQueue<M> resultingMessages) {
+        Collection<M> result = new ArrayList<>();
         try {
             while ((expected.isEmpty() || !containsAll(expected, result)) && !Thread.interrupted()) {
-                Message next = resultingMessages.poll(1L, TimeUnit.SECONDS);
+                M next = resultingMessages.poll(1L, TimeUnit.SECONDS);
                 if (next == null) {
                     return result;
                 } else {

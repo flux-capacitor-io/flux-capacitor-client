@@ -24,8 +24,16 @@ import io.fluxcapacitor.javaclient.common.serialization.DeserializingMessage;
 import io.fluxcapacitor.javaclient.configuration.DefaultFluxCapacitor;
 import io.fluxcapacitor.javaclient.configuration.FluxCapacitorBuilder;
 import io.fluxcapacitor.javaclient.publishing.DispatchInterceptor;
+import io.fluxcapacitor.javaclient.scheduling.Schedule;
+import io.fluxcapacitor.javaclient.scheduling.client.SchedulingClient;
+import io.fluxcapacitor.javaclient.scheduling.client.SupportsTimeTravel;
 import io.fluxcapacitor.javaclient.tracking.handling.authentication.UserProvider;
+import lombok.SneakyThrows;
 
+import java.time.Clock;
+import java.time.Duration;
+import java.time.Instant;
+import java.time.ZoneId;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
@@ -40,6 +48,7 @@ public abstract class AbstractTestFixture implements Given, When {
     private final FluxCapacitor fluxCapacitor;
     private final Registration registration;
     private final GivenWhenThenInterceptor interceptor;
+    private volatile Clock clock;
 
     protected AbstractTestFixture(Function<FluxCapacitor, List<?>> handlerFactory) {
         this(DefaultFluxCapacitor.builder(), handlerFactory);
@@ -53,8 +62,9 @@ public abstract class AbstractTestFixture implements Given, When {
                         TestUserProvider::new).orElse(null))
                 .disableShutdownHook().addDispatchInterceptor(interceptor).build(new TestClient());
         this.registration = registerHandlers(handlerFactory.apply(fluxCapacitor));
+        withClock(Clock.fixed(Instant.now(), ZoneId.systemDefault()));
     }
-    
+
     public abstract Registration registerHandlers(List<?> handlers);
 
     public abstract void deregisterHandlers(Registration registration);
@@ -65,7 +75,15 @@ public abstract class AbstractTestFixture implements Given, When {
 
     protected abstract void registerEvent(Message event);
 
+    protected abstract void registerSchedule(Schedule schedule);
+
     protected abstract Object getDispatchResult(CompletableFuture<?> dispatchResult);
+
+    @Override
+    public Given withClock(Clock clock) {
+        getSchedulingClient().useClock(this.clock = clock);
+        return this;
+    }
 
     @Override
     public When givenCommands(Object... commands) {
@@ -108,6 +126,24 @@ public abstract class AbstractTestFixture implements Given, When {
     }
 
     @Override
+    public When givenSchedules(Schedule... schedules) {
+        try {
+            FluxCapacitor.instance.set(fluxCapacitor);
+            Arrays.stream(schedules).forEach(s -> fluxCapacitor.scheduler().schedule(s));
+            return this;
+        } catch (Exception e) {
+            throw new IllegalStateException("Failed to execute givenEvents", e);
+        } finally {
+            FluxCapacitor.instance.remove();
+        }
+    }
+
+    @Override
+    public Clock getClock() {
+        return clock;
+    }
+
+    @Override
     public When andGiven(Runnable runnable) {
         return given(runnable);
     }
@@ -120,6 +156,11 @@ public abstract class AbstractTestFixture implements Given, When {
     @Override
     public When andGivenEvents(Object... events) {
         return givenEvents(events);
+    }
+
+    @Override
+    public When andGivenSchedules(Schedule... schedules) {
+        return givenSchedules(schedules);
     }
 
     @Override
@@ -179,6 +220,42 @@ public abstract class AbstractTestFixture implements Given, When {
             deregisterHandlers(registration);
             FluxCapacitor.instance.remove();
         }
+    }
+
+    @Override
+    @SneakyThrows
+    public Then whenTimeElapses(Duration duration) {
+        try {
+            FluxCapacitor.instance.set(fluxCapacitor);
+            interceptor.catchAll();
+            getSchedulingClient().advanceTimeBy(duration);
+            return createResultValidator(null);
+        } finally {
+            deregisterHandlers(registration);
+            FluxCapacitor.instance.remove();
+        }
+    }
+
+    @Override
+    @SneakyThrows
+    public Then whenTimeAdvancesTo(Instant instant) {
+        try {
+            FluxCapacitor.instance.set(fluxCapacitor);
+            interceptor.catchAll();
+            getSchedulingClient().advanceTimeTo(instant);
+            return createResultValidator(null);
+        } finally {
+            deregisterHandlers(registration);
+            FluxCapacitor.instance.remove();
+        }
+    }
+
+    protected SupportsTimeTravel getSchedulingClient() {
+        SchedulingClient schedulingClient = fluxCapacitor.client().getSchedulingClient();
+        if (!(schedulingClient instanceof SupportsTimeTravel)) {
+            throw new UnsupportedOperationException("Client does not support time jumps");
+        }
+        return (SupportsTimeTravel) schedulingClient;
     }
 
     public FluxCapacitor getFluxCapacitor() {
@@ -245,6 +322,9 @@ public abstract class AbstractTestFixture implements Given, When {
                             break;
                         case EVENT:
                             registerEvent(message);
+                            break;
+                        case SCHEDULE:
+                            registerSchedule((Schedule) message);
                             break;
                     }
                 }

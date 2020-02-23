@@ -10,6 +10,10 @@ import static org.hamcrest.CoreMatchers.isA;
 import static org.hamcrest.CoreMatchers.nullValue;
 
 public interface Then {
+    
+    /*
+        Events
+     */
 
     default Then expectOnlyEvents(Object... events) {
         return expectOnlyEvents(Arrays.asList(events));
@@ -32,6 +36,10 @@ public interface Then {
     Then expectEvents(List<?> events);
 
     Then expectNoEventsLike(List<?> events);
+    
+    /*
+        Commands
+     */
 
     default Then expectOnlyCommands(Object... commands) {
         return expectOnlyCommands(Arrays.asList(commands));
@@ -54,6 +62,36 @@ public interface Then {
     Then expectCommands(List<?> commands);
 
     Then expectNoCommandsLike(List<?> commands);
+    
+    /*
+        Schedules
+     */
+
+    default Then expectOnlySchedules(Object... schedules) {
+        return expectOnlySchedules(Arrays.asList(schedules));
+    }
+
+    default Then expectSchedules(Object... schedules) {
+        return expectSchedules(Arrays.asList(schedules));
+    }
+
+    default Then expectNoSchedulesLike(Object... schedules) {
+        return expectNoSchedulesLike(Arrays.asList(schedules));
+    }
+
+    default Then expectNoSchedules() {
+        return expectOnlySchedules();
+    }
+
+    Then expectOnlySchedules(List<?> schedules);
+
+    Then expectSchedules(List<?> schedules);
+
+    Then expectNoSchedulesLike(List<?> schedules);
+    
+    /*
+        Result
+     */
 
     default Then expectResult(Object result) {
         if (result == null) {
@@ -82,6 +120,10 @@ public interface Then {
     }
 
     Then expectNoResultLike(Matcher<?> resultMatcher);
+    
+    /*
+        External process
+     */
     
     Then verify(Runnable check);
     

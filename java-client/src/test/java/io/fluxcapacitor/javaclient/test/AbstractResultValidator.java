@@ -14,8 +14,8 @@
 
 package io.fluxcapacitor.javaclient.test;
 
-import io.fluxcapacitor.common.MessageType;
 import io.fluxcapacitor.javaclient.common.Message;
+import io.fluxcapacitor.javaclient.scheduling.Schedule;
 import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.hamcrest.Matcher;
@@ -24,6 +24,7 @@ import org.hamcrest.StringDescription;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
+import java.util.Objects;
 import java.util.stream.Stream;
 
 import static java.lang.String.format;
@@ -34,12 +35,12 @@ import static java.util.stream.Collectors.toList;
 public abstract class AbstractResultValidator implements Then {
     private final Object actualResult;
 
-    protected Then expectMessages(Collection<?> expected, Collection<Message> actual) {
+    protected AbstractResultValidator expectMessages(Collection<?> expected, Collection<? extends Message> actual) {
         if (!containsAll(expected, actual)) {
             List<Message> remaining = new ArrayList<>(actual);
             List<Message> filtered = expected.stream().flatMap(e -> {
                 if (e != null && !(expected instanceof Matcher<?>)) {
-                    Class<?> payloadType = 
+                    Class<?> payloadType =
                             e instanceof Message ? ((Message) e).getPayload().getClass() : expected.getClass();
                     Message match = remaining.stream()
                             .filter(a -> payloadType.equals(a.getPayload().getClass())).findFirst().orElse(null);
@@ -55,7 +56,7 @@ public abstract class AbstractResultValidator implements Then {
         return this;
     }
 
-    protected Then expectOnlyMessages(Collection<?> expected, Collection<Message> actual) {
+    protected AbstractResultValidator expectOnlyMessages(Collection<?> expected, Collection<? extends Message> actual) {
         if (expected.size() != actual.size()) {
             reportMismatch(expected, actual);
         } else {
@@ -66,14 +67,37 @@ public abstract class AbstractResultValidator implements Then {
         return this;
     }
 
-    protected Then expectNoMessagesLike(Collection<?> expectedNotToGet, Collection<Message> actual) {
+    protected AbstractResultValidator expectNoMessagesLike(Collection<?> expectedNotToGet, Collection<? extends Message> actual) {
         if (containsAny(expectedNotToGet, actual)) {
             reportUnwantedMatch(expectedNotToGet, actual);
         }
         return this;
     }
 
-    protected void reportMismatch(Collection<?> expected, Collection<Message> actual) {
+    protected AbstractResultValidator expectScheduledMessages(Collection<?> expected, Collection<? extends Schedule> actual) {
+        if (!expected.isEmpty() && actual.isEmpty()) {
+            throw new GivenWhenThenAssertionError("No messages were scheduled");
+        }
+        expected.forEach(e -> {
+            if (e instanceof Schedule) {
+                if (actual.stream().noneMatch(s -> Objects.equals(s.getDeadline(), ((Schedule) e).getDeadline()))) {
+                    throw new GivenWhenThenAssertionError(
+                            format("Found no schedules with matching deadline. Expected %s. Got %s",
+                                   ((Schedule) e).getDeadline(),
+                                   actual.stream().map(Schedule::getDeadline).collect(toList())));
+                }
+            }
+        });
+        return expectMessages(asMessages(expected), actual);
+    }
+
+    protected AbstractResultValidator expectOnlyScheduledMessages(Collection<?> expected,
+                                                                  Collection<? extends Schedule> actual) {
+        AbstractResultValidator result = expectScheduledMessages(expected, actual);
+        return result.expectOnlyMessages(expected, actual);
+    }
+
+    protected void reportMismatch(Collection<?> expected, Collection<? extends Message> actual) {
         if (actualResult instanceof Throwable) {
             throw new GivenWhenThenAssertionError(
                     "Published messages did not match. Probable cause is an exception that occurred during handling:",
@@ -82,7 +106,7 @@ public abstract class AbstractResultValidator implements Then {
         throw new GivenWhenThenAssertionError("Published messages did not match", expected, actual);
     }
 
-    protected void reportUnwantedMatch(Collection<?> expected, Collection<Message> actual) {
+    protected void reportUnwantedMatch(Collection<?> expected, Collection<? extends Message> actual) {
         if (actualResult instanceof Throwable) {
             throw new GivenWhenThenAssertionError("An unexpected exception occurred during handling",
                                                   (Throwable) actualResult);
@@ -92,11 +116,11 @@ public abstract class AbstractResultValidator implements Then {
                        expected, actual));
     }
 
-    protected boolean containsAll(Collection<?> expected, Collection<Message> actual) {
+    protected boolean containsAll(Collection<?> expected, Collection<? extends Message> actual) {
         return expected.stream().allMatch(e -> actual.stream().anyMatch(a -> matches(e, a)));
     }
 
-    protected boolean containsAny(Collection<?> expected, Collection<Message> actual) {
+    protected boolean containsAny(Collection<?> expected, Collection<? extends Message> actual) {
         return expected.stream().anyMatch(e -> actual.stream().anyMatch(a -> matches(e, a)));
     }
 
@@ -109,13 +133,13 @@ public abstract class AbstractResultValidator implements Then {
                 .containsAll(expectedMessage.getMetadata().entrySet());
     }
 
-    protected Collection<?> asMessages(Collection<?> events, MessageType type) {
+    protected Collection<?> asMessages(Collection<?> events) {
         return events.stream().map(e -> e instanceof Matcher<?> ? (Matcher<?>) e :
                 e instanceof Message ? (Message) e : new Message(e)).collect(toList());
     }
 
     @Override
-    public Then expectResult(Matcher<?> resultMatcher) {
+    public AbstractResultValidator expectResult(Matcher<?> resultMatcher) {
         StringDescription description = new StringDescription();
         resultMatcher.describeTo(description);
         if (actualResult instanceof Throwable) {
@@ -130,7 +154,7 @@ public abstract class AbstractResultValidator implements Then {
     }
 
     @Override
-    public Then expectNoResultLike(Matcher<?> resultMatcher) {
+    public AbstractResultValidator expectNoResultLike(Matcher<?> resultMatcher) {
         StringDescription description = new StringDescription();
         resultMatcher.describeTo(description);
         if (actualResult instanceof Throwable) {
@@ -147,7 +171,7 @@ public abstract class AbstractResultValidator implements Then {
     }
 
     @Override
-    public Then verify(Runnable check) {
+    public AbstractResultValidator verify(Runnable check) {
         try {
             check.run();
         } catch (Exception e) {
@@ -157,7 +181,7 @@ public abstract class AbstractResultValidator implements Then {
     }
 
     @Override
-    public Then expectException(Matcher<?> resultMatcher) {
+    public AbstractResultValidator expectException(Matcher<?> resultMatcher) {
         StringDescription description = new StringDescription();
         resultMatcher.describeTo(description);
         if (!(actualResult instanceof Throwable)) {

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016-2018 Flux Capacitor. 
+ * Copyright (c) 2016-2018 Flux Capacitor.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,51 +15,67 @@
 package io.fluxcapacitor.javaclient.test;
 
 import io.fluxcapacitor.javaclient.common.Message;
+import io.fluxcapacitor.javaclient.scheduling.Schedule;
 
 import java.util.List;
-
-import static io.fluxcapacitor.common.MessageType.COMMAND;
-import static io.fluxcapacitor.common.MessageType.EVENT;
 
 public class ResultValidator extends AbstractResultValidator {
     private final List<Message> resultingEvents;
     private final List<Message> resultingCommands;
+    private final List<Schedule> resultingSchedules;
 
     public ResultValidator(Object actualResult,
                            List<Message> resultingEvents,
-                           List<Message> resultingCommands) {
+                           List<Message> resultingCommands,
+                           List<Schedule> resultingSchedules) {
         super(actualResult);
         this.resultingEvents = resultingEvents;
         this.resultingCommands = resultingCommands;
+        this.resultingSchedules = resultingSchedules;
     }
 
     @Override
     public Then expectOnlyEvents(List<?> events) {
-        return expectOnlyMessages(asMessages(events, EVENT), resultingEvents);
+        return expectOnlyMessages(asMessages(events), resultingEvents);
     }
 
     @Override
     public Then expectEvents(List<?> events) {
-        return expectMessages(asMessages(events, EVENT), resultingEvents);
+        return expectMessages(asMessages(events), resultingEvents);
     }
 
     @Override
     public Then expectNoEventsLike(List<?> events) {
-        return expectNoMessagesLike(asMessages(events, EVENT), resultingEvents);
+        return expectNoMessagesLike(asMessages(events), resultingEvents);
     }
 
     @Override
     public Then expectOnlyCommands(List<?> commands) {
-        return expectOnlyMessages(asMessages(commands, COMMAND), resultingCommands);
+        return expectOnlyMessages(asMessages(commands), resultingCommands);
     }
 
     @Override
     public Then expectCommands(List<?> commands) {
-        return expectMessages(asMessages(commands, COMMAND), resultingCommands);
+        return expectMessages(asMessages(commands), resultingCommands);
     }
 
     @Override
     public Then expectNoCommandsLike(List<?> commands) {
-        return expectNoMessagesLike(asMessages(commands, COMMAND), resultingCommands);
+        return expectNoMessagesLike(asMessages(commands), resultingCommands);
+    }
+
+    @Override
+    public Then expectOnlySchedules(List<?> schedules) {
+        return expectOnlyScheduledMessages(asMessages(schedules), resultingSchedules);
+    }
+
+    @Override
+    public Then expectSchedules(List<?> schedules) {
+        return expectScheduledMessages(asMessages(schedules), resultingSchedules);
+    }
+
+    @Override
+    public Then expectNoSchedulesLike(List<?> schedules) {
+        return expectNoMessagesLike(asMessages(schedules), resultingSchedules);
     }
 }
