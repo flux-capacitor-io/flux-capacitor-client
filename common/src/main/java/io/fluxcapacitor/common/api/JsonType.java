@@ -26,6 +26,7 @@ import io.fluxcapacitor.common.api.keyvalue.DeleteValueEvent;
 import io.fluxcapacitor.common.api.keyvalue.GetValue;
 import io.fluxcapacitor.common.api.keyvalue.GetValueEvent;
 import io.fluxcapacitor.common.api.keyvalue.GetValueResult;
+import io.fluxcapacitor.common.api.keyvalue.StoreValueIfAbsent;
 import io.fluxcapacitor.common.api.keyvalue.StoreValues;
 import io.fluxcapacitor.common.api.keyvalue.StoreValuesAndWait;
 import io.fluxcapacitor.common.api.keyvalue.StoreValuesEvent;
@@ -52,6 +53,7 @@ import io.fluxcapacitor.common.api.tracking.StorePositionEvent;
 @JsonSubTypes({
         //common
         @JsonSubTypes.Type(value = VoidResult.class, name = "void"),
+        @JsonSubTypes.Type(value = BooleanResult.class, name = "boolean"),
         @JsonSubTypes.Type(value = ConnectEvent.class, name = "connectEvent"),
         @JsonSubTypes.Type(value = DisconnectEvent.class, name = "disconnectEvent"),
 
@@ -95,6 +97,7 @@ import io.fluxcapacitor.common.api.tracking.StorePositionEvent;
         @JsonSubTypes.Type(value = GetValueResult.class, name = "getValueResult"),
         @JsonSubTypes.Type(value = DeleteValue.class, name = "deleteValue"),
         @JsonSubTypes.Type(value = DeleteValueEvent.class, name = "deleteValueEvent"),
+        @JsonSubTypes.Type(value = StoreValueIfAbsent.class, name = "storeValueIfAbsent"),
 })
 public interface JsonType {
 }

@@ -17,11 +17,13 @@ package io.fluxcapacitor.javaclient.persisting.keyvalue.client;
 import io.fluxcapacitor.common.Awaitable;
 import io.fluxcapacitor.common.Backlog;
 import io.fluxcapacitor.common.Guarantee;
+import io.fluxcapacitor.common.api.BooleanResult;
 import io.fluxcapacitor.common.api.Data;
 import io.fluxcapacitor.common.api.keyvalue.DeleteValue;
 import io.fluxcapacitor.common.api.keyvalue.GetValue;
 import io.fluxcapacitor.common.api.keyvalue.GetValueResult;
 import io.fluxcapacitor.common.api.keyvalue.KeyValuePair;
+import io.fluxcapacitor.common.api.keyvalue.StoreValueIfAbsent;
 import io.fluxcapacitor.common.api.keyvalue.StoreValues;
 import io.fluxcapacitor.common.api.keyvalue.StoreValuesAndWait;
 import io.fluxcapacitor.javaclient.common.websocket.AbstractWebsocketClient;
@@ -31,6 +33,7 @@ import lombok.extern.slf4j.Slf4j;
 import javax.websocket.ClientEndpoint;
 import java.net.URI;
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
 
 import static java.util.Collections.singletonList;
 
@@ -67,6 +70,12 @@ public class WebsocketKeyValueClient extends AbstractWebsocketClient implements 
             default:
                 throw new UnsupportedOperationException("Unrecognized guarantee: " + guarantee);
         }
+    }
+
+    @Override
+    public CompletableFuture<Boolean> putValueIfAbsent(String key, Data<byte[]> value) {
+        return sendRequest(new StoreValueIfAbsent(new KeyValuePair(key, value)))
+                .thenApply(r -> ((BooleanResult) r).value());
     }
 
     @Override

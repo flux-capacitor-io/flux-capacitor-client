@@ -5,6 +5,7 @@ import io.fluxcapacitor.common.Guarantee;
 import io.fluxcapacitor.common.api.Data;
 
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 
 public class InMemoryKeyValueClient implements KeyValueClient {
@@ -23,6 +24,11 @@ public class InMemoryKeyValueClient implements KeyValueClient {
     public Awaitable putValue(String key, Data<byte[]> value, Guarantee guarantee) {
         values.put(key, value);
         return Awaitable.ready();
+    }
+
+    @Override
+    public CompletableFuture<Boolean> putValueIfAbsent(String key, Data<byte[]> value) {
+        return CompletableFuture.completedFuture(values.putIfAbsent(key, value) == null);
     }
 
     @Override
