@@ -1,6 +1,7 @@
 package io.fluxcapacitor.javaclient.scheduling;
 
 import io.fluxcapacitor.common.MessageType;
+import io.fluxcapacitor.common.api.Metadata;
 import io.fluxcapacitor.common.api.SerializedMessage;
 import io.fluxcapacitor.common.handling.Handler;
 import io.fluxcapacitor.javaclient.FluxCapacitor;
@@ -12,6 +13,7 @@ import io.fluxcapacitor.javaclient.tracking.handling.HandlerInterceptor;
 import lombok.extern.slf4j.Slf4j;
 
 import java.lang.reflect.Method;
+import java.time.Duration;
 import java.time.Instant;
 import java.time.temporal.TemporalAccessor;
 import java.time.temporal.TemporalAmount;
@@ -24,7 +26,9 @@ import static io.fluxcapacitor.common.reflection.ReflectionUtils.ensureAccessibl
 import static io.fluxcapacitor.common.reflection.ReflectionUtils.getAnnotatedMethods;
 import static io.fluxcapacitor.javaclient.common.Message.getClock;
 import static java.lang.String.format;
+import static java.time.Duration.between;
 import static java.time.Instant.ofEpochMilli;
+import static java.time.temporal.ChronoUnit.MINUTES;
 import static java.util.UUID.randomUUID;
 
 @Slf4j
@@ -98,20 +102,45 @@ public class SchedulingInterceptor implements DispatchInterceptor, HandlerInterc
                         Optional.ofNullable(handler.getMethod(m)).map(method -> method.getAnnotation(Periodic.class))
                                 .orElse(m.getPayloadClass().getAnnotation(Periodic.class));
                 Object result;
+                Instant now = ofEpochMilli(deadline);
                 try {
                     result = function.apply(m);
                 } catch (Exception e) {
                     if (periodic != null && periodic.continueOnError()) {
-                        reschedule(m, ofEpochMilli(deadline).plusMillis(periodic.value()));
+                        reschedule(m, now.plusMillis(periodic.value()));
                     }
                     throw e;
                 }
                 if (result instanceof TemporalAmount) {
-                    reschedule(m, ofEpochMilli(deadline).plus((TemporalAmount) result));
+                    reschedule(m, now.plus((TemporalAmount) result));
                 } else if (result instanceof TemporalAccessor) {
                     reschedule(m, Instant.from((TemporalAccessor) result));
+                } else if (result != null) {
+                    Metadata metadata = m.getMetadata();
+                    Object nextPayload = result;
+                    if (result instanceof Message) {
+                        metadata = ((Message) result).getMetadata();
+                        nextPayload = ((Message) result).getPayload();
+                    }
+                    if (nextPayload != null && m.getPayloadClass().isAssignableFrom(nextPayload.getClass())) {
+                        if (periodic == null) {
+                            Instant dispatched = ofEpochMilli(m.getSerializedObject().getTimestamp());
+                            Duration previousDelay = between(dispatched, now);
+                            if (previousDelay.compareTo(Duration.ZERO) > 0) {
+                                reschedule(nextPayload, metadata, now.plus(previousDelay));
+                            } else {
+                                log.warn("Delay between the time this schedule was created and scheduled is <= 0, "
+                                                 + "rescheduling with delay of 1 minute");
+                                reschedule(nextPayload, metadata, now.plus(Duration.of(1, MINUTES)));
+                            }
+                        } else {
+                            reschedule(nextPayload, metadata, now.plusMillis(periodic.value()));
+                        }
+                    } else if (periodic != null) {
+                        reschedule(m, now.plusMillis(periodic.value()));
+                    }
                 } else if (periodic != null) {
-                    reschedule(m, ofEpochMilli(deadline).plusMillis(periodic.value()));
+                    reschedule(m, now.plusMillis(periodic.value()));
                 }
                 return result;
             }
@@ -120,11 +149,15 @@ public class SchedulingInterceptor implements DispatchInterceptor, HandlerInterc
     }
 
     private void reschedule(DeserializingMessage message, Instant instant) {
+        reschedule(message.getPayload(), message.getMetadata(), instant);
+    }
+
+    private void reschedule(Object payload, Metadata metadata, Instant instant) {
         try {
-            FluxCapacitor.get().scheduler().schedule(new Schedule(message.getPayload(), message.getMetadata()
+            FluxCapacitor.get().scheduler().schedule(new Schedule(payload, metadata
                     .getOrDefault(scheduleIdMetadataKey, randomUUID().toString()), instant));
         } catch (Exception e) {
-            log.error("Failed to reschedule a {}", message.getPayloadClass(), e);
+            log.error("Failed to reschedule a {}", payload.getClass(), e);
         }
     }
 }

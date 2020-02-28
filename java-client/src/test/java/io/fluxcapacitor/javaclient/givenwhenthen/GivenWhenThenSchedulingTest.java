@@ -157,6 +157,20 @@ class GivenWhenThenSchedulingTest {
                      });
     }
 
+    @Test
+    void testAlteredPayloadPeriodic() {
+        TestFixture.create(new AlteredPayloadPeriodicHandler()).givenNoPriorActivity()
+                .whenTimeElapses(Duration.ofMillis(100)).expectOnlySchedules(new YieldsAlteredSchedule(1));
+    }
+
+    @Test
+    void testAlteredPayloadNonPeriodic() {
+        subject = TestFixture.create(new AlteredPayloadNonPeriodicHandler());
+        Instant deadline = subject.getClock().instant().plusSeconds(1);
+        subject.givenSchedules(new Schedule(new YieldsAlteredSchedule(), "test", deadline))
+                .whenTimeAdvancesTo(deadline).expectOnlySchedules(new YieldsAlteredSchedule(1));
+    }
+
     static class CommandHandler {
         @HandleCommand
         void handle(YieldsSchedule command) {
@@ -196,6 +210,21 @@ class GivenWhenThenSchedulingTest {
         void handle(MethodPeriodicSchedule schedule) {
         }
     }
+    
+    static class AlteredPayloadPeriodicHandler {
+        @HandleSchedule
+        @Periodic(1000)
+        YieldsAlteredSchedule handle(YieldsAlteredSchedule schedule) {
+            return new YieldsAlteredSchedule(schedule.getSequence() + 1);
+        }
+    }
+
+    static class AlteredPayloadNonPeriodicHandler {
+        @HandleSchedule
+        YieldsAlteredSchedule handle(YieldsAlteredSchedule schedule) {
+            return new YieldsAlteredSchedule(schedule.getSequence() + 1);
+        }
+    }
 
     @AllArgsConstructor
     @Value
@@ -215,6 +244,16 @@ class GivenWhenThenSchedulingTest {
     @Value
     static class YieldsNewSchedule {
         long delay;
+    }
+
+    @Value
+    @AllArgsConstructor
+    static class YieldsAlteredSchedule {
+        int sequence;
+
+        public YieldsAlteredSchedule() {
+            this(0);
+        }
     }
 
     @Value
