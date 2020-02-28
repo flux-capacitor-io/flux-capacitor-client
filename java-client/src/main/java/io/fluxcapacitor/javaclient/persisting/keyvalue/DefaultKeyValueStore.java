@@ -6,6 +6,8 @@ import io.fluxcapacitor.javaclient.common.serialization.Serializer;
 import io.fluxcapacitor.javaclient.persisting.keyvalue.client.KeyValueClient;
 import lombok.AllArgsConstructor;
 
+import java.util.concurrent.TimeUnit;
+
 @AllArgsConstructor
 public class DefaultKeyValueStore implements KeyValueStore {
 
@@ -16,6 +18,15 @@ public class DefaultKeyValueStore implements KeyValueStore {
     public void store(String key, Object value, Guarantee guarantee) {
         try {
             client.putValue(key, serializer.serialize(value), guarantee).await();
+        } catch (Exception e) {
+            throw new KeyValueStoreException(String.format("Could not store a value %s for key %s", value, key), e);
+        }
+    }
+
+    @Override
+    public boolean storeIfAbsent(String key, Object value) {
+        try {
+            return client.putValueIfAbsent(key, serializer.serialize(value)).get(5, TimeUnit.SECONDS);
         } catch (Exception e) {
             throw new KeyValueStoreException(String.format("Could not store a value %s for key %s", value, key), e);
         }

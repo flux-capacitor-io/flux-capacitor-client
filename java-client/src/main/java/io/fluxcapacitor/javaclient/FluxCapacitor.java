@@ -29,6 +29,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.Function;
 import java.util.stream.Stream;
 
 import static java.util.Arrays.stream;
@@ -62,13 +63,13 @@ public interface FluxCapacitor extends AutoCloseable {
     ThreadLocal<FluxCapacitor> instance = new ThreadLocal<>();
 
     /**
-     * Returns the FluxCapacitor client bound to the current thread or else set by the current application.
-     * Throws an exception if no client was registered.
+     * Returns the FluxCapacitor client bound to the current thread or else set by the current application. Throws an
+     * exception if no client was registered.
      */
     static FluxCapacitor get() {
         return Optional.ofNullable(instance.get())
                 .orElseGet(() -> Optional.ofNullable(applicationInstance.get())
-                                .orElseThrow(() -> new IllegalStateException("FluxCapacitor instance not set")));
+                        .orElseThrow(() -> new IllegalStateException("FluxCapacitor instance not set")));
     }
 
     /**
@@ -131,9 +132,9 @@ public interface FluxCapacitor extends AutoCloseable {
     }
 
     /**
-     * Sends the given command and returns the command's result. The command
-     * may be an instance of a {@link Message} in which case it will be sent as is. Otherwise the command is published
-     * using the passed value as payload without additional metadata.
+     * Sends the given command and returns the command's result. The command may be an instance of a {@link Message} in
+     * which case it will be sent as is. Otherwise the command is published using the passed value as payload without
+     * additional metadata.
      */
     static <R> R sendCommandAndWait(Object command) {
         return get().commandGateway().sendAndWait(command);
@@ -165,9 +166,9 @@ public interface FluxCapacitor extends AutoCloseable {
     }
 
     /**
-     * Sends the given query and returns the query's result. The query may be an
-     * instance of a {@link Message} in which case it will be sent as is. Otherwise the query is published using the
-     * passed value as payload without additional metadata.
+     * Sends the given query and returns the query's result. The query may be an instance of a {@link Message} in which
+     * case it will be sent as is. Otherwise the query is published using the passed value as payload without additional
+     * metadata.
      */
     static <R> R queryAndWait(Object query) {
         return get().queryGateway().sendAndWait(query);
@@ -230,8 +231,8 @@ public interface FluxCapacitor extends AutoCloseable {
      * @see #startTracking(Object...) for more info
      */
     default Registration startTracking(List<?> handlers) {
-        return stream(MessageType.values())
-                .map(t -> tracking(t).start(this, handlers)).reduce(Registration::merge).orElse(Registration.noOp());
+        return execute(f -> stream(MessageType.values())
+                .map(t -> tracking(t).start(this, handlers)).reduce(Registration::merge).orElse(Registration.noOp()));
     }
 
     /**
@@ -258,10 +259,10 @@ public interface FluxCapacitor extends AutoCloseable {
      * @see #registerLocalHandlers(Object...) for more info
      */
     default Registration registerLocalHandlers(List<?> handlers) {
-        return handlers.stream().flatMap(h -> Stream
+        return execute(f -> handlers.stream().flatMap(h -> Stream
                 .of(commandGateway().registerLocalHandler(h), queryGateway().registerLocalHandler(h),
                     eventGateway().registerLocalHandler(h), eventStore().registerLocalHandler(h)))
-                .reduce(Registration::merge).orElse(Registration.noOp());
+                .reduce(Registration::merge).orElse(Registration.noOp()));
     }
 
     /**
@@ -295,8 +296,8 @@ public interface FluxCapacitor extends AutoCloseable {
     QueryGateway queryGateway();
 
     /**
-     * Returns the message gateway for application events. Use {@link #aggregateRepository()} to publish events belonging to
-     * an aggregate.
+     * Returns the message gateway for application events. Use {@link #aggregateRepository()} to publish events
+     * belonging to an aggregate.
      */
     EventGateway eventGateway();
 
@@ -311,8 +312,8 @@ public interface FluxCapacitor extends AutoCloseable {
     ErrorGateway errorGateway();
 
     /**
-     * Returns the gateway for metrics events. Metrics events can be published in any form to log custom
-     * performance metrics about an application.
+     * Returns the gateway for metrics events. Metrics events can be published in any form to log custom performance
+     * metrics about an application.
      */
     MetricsGateway metricsGateway();
 
@@ -327,10 +328,23 @@ public interface FluxCapacitor extends AutoCloseable {
     Cache cache();
 
     /**
-     * Returns the low level client used by this FluxCapacitor instance to interface with the Flux Capacitor service.
-     * Of course the returned client may also be a stand-in for the actual service.
+     * Returns the low level client used by this FluxCapacitor instance to interface with the Flux Capacitor service. Of
+     * course the returned client may also be a stand-in for the actual service.
      */
     Client client();
+
+    /**
+     * Executes the given task with this Flux Capacitor set as current threadlocal instance.
+     */
+    default <R> R execute(Function<FluxCapacitor, R> task) {
+        FluxCapacitor current = FluxCapacitor.instance.get();
+        try {
+            FluxCapacitor.instance.set(this);
+            return task.apply(this);
+        } finally {
+            FluxCapacitor.instance.set(current);
+        }
+    }
 
     @Override
     void close();

@@ -26,6 +26,7 @@ import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
 import java.lang.reflect.Parameter;
+import java.util.Arrays;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Objects;
@@ -73,29 +74,33 @@ public class HandlerInspector {
         }
         return new ObjectHandlerInvoker<>(type, concat(getAllMethods(type).stream(), stream(type.getConstructors()))
                 .filter(m -> m.isAnnotationPresent(methodAnnotation))
-                .map(m -> handlerConfiguration.getInvokerFactory().create(m, type, parameterResolvers))
+                .map(m -> handlerConfiguration.getInvokerFactory()
+                        .create(m, type, parameterResolvers, methodAnnotation))
                 .sorted(comparator)
                 .collect(toList()), handlerConfiguration.invokeMultipleMethods());
     }
 
     @Getter
     public static class MethodHandlerInvoker<M> implements HandlerInvoker<M> {
-        protected static final Comparator<MethodHandlerInvoker<?>> comparator = 
-                comparing((Function<MethodHandlerInvoker<?>, Class<?>>) MethodHandlerInvoker::getPayloadType, (o1, o2) 
-                        -> Objects.equals(o1, o2) ? 0 
-                        : o1.isAssignableFrom(o2) || (o1.isInterface() && !o2.isInterface()) ? 1 
-                        : o2.isAssignableFrom(o1) || (!o1.isInterface() && o2.isInterface()) ? -1 
+        protected static final Comparator<MethodHandlerInvoker<?>> comparator =
+                comparing((Function<MethodHandlerInvoker<?>, Class<?>>) MethodHandlerInvoker::getPayloadType, (o1, o2)
+                        -> Objects.equals(o1, o2) ? 0
+                        : o1.isAssignableFrom(o2) || (o1.isInterface() && !o2.isInterface()) ? 1
+                        : o2.isAssignableFrom(o1) || (!o1.isInterface() && o2.isInterface()) ? -1
                         : specificity(o2) - specificity(o1))
-                .thenComparing(MethodHandlerInvoker::getMethodIndex);
+                        .thenComparing(MethodHandlerInvoker::getMethodIndex);
 
         private final int methodIndex;
         private final Executable executable;
         private final boolean hasReturnValue;
         private final List<Function<? super M, Object>> parameterSuppliers;
         private final Predicate<? super M> matcher;
+        private final Class<? extends Annotation> methodAnnotation;
 
         public MethodHandlerInvoker(Executable executable, Class<?> enclosingType,
-                                    List<ParameterResolver<? super M>> parameterResolvers) {
+                                    List<ParameterResolver<? super M>> parameterResolvers,
+                                    Class<? extends Annotation> methodAnnotation) {
+            this.methodAnnotation = methodAnnotation;
             this.methodIndex = executable instanceof Method ? methodIndex((Method) executable, enclosingType) : 0;
             this.executable = ensureAccessible(executable);
             this.hasReturnValue =
@@ -145,6 +150,21 @@ public class HandlerInspector {
             } catch (InvocationTargetException e) {
                 throw e.getCause();
             }
+        }
+
+        @Override
+        @SneakyThrows
+        public boolean isPassive(Object target, M message) {
+            if (!canHandle(target, message)) {
+                return true;
+            }
+            Annotation annotation = executable.getAnnotation(methodAnnotation);
+            Optional<Method> isPassive = Arrays.stream(methodAnnotation.getMethods())
+                    .filter(m -> m.getName().equals("passive")).findFirst();
+            if (isPassive.isPresent()) {
+                return (boolean) isPassive.get().invoke(annotation);
+            }
+            return false;
         }
 
         protected List<Function<? super M, Object>> getParameterSuppliers(Executable method,
@@ -233,6 +253,11 @@ public class HandlerInspector {
             return delegate.get().invoke(target, message);
         }
 
+        @Override
+        public boolean isPassive(Object target, M message) {
+            return methodHandlers.stream().allMatch(h -> h.isPassive(target, message));
+        }
+
     }
 
     @AllArgsConstructor
@@ -248,6 +273,11 @@ public class HandlerInspector {
         @Override
         public Executable getMethod(M message) {
             return invoker.getMethod(target, message);
+        }
+
+        @Override
+        public boolean isPassive(M message) {
+            return invoker.isPassive(target, message);
         }
 
         @Override

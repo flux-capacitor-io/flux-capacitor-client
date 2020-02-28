@@ -21,6 +21,8 @@ public interface Handler<M> {
     boolean canHandle(M message);
 
     Executable getMethod(M message);
+
+    boolean isPassive(M message);
     
     Object invoke(M message);
 

@@ -58,20 +58,13 @@ import io.fluxcapacitor.javaclient.publishing.dataprotection.DataProtectionInter
 import io.fluxcapacitor.javaclient.publishing.routing.MessageRoutingInterceptor;
 import io.fluxcapacitor.javaclient.scheduling.DefaultScheduler;
 import io.fluxcapacitor.javaclient.scheduling.Scheduler;
+import io.fluxcapacitor.javaclient.scheduling.SchedulingInterceptor;
 import io.fluxcapacitor.javaclient.tracking.BatchInterceptor;
 import io.fluxcapacitor.javaclient.tracking.ConsumerConfiguration;
 import io.fluxcapacitor.javaclient.tracking.DefaultTracking;
 import io.fluxcapacitor.javaclient.tracking.Tracking;
 import io.fluxcapacitor.javaclient.tracking.TrackingException;
 import io.fluxcapacitor.javaclient.tracking.handling.DefaultHandlerFactory;
-import io.fluxcapacitor.javaclient.tracking.handling.HandleCommand;
-import io.fluxcapacitor.javaclient.tracking.handling.HandleError;
-import io.fluxcapacitor.javaclient.tracking.handling.HandleEvent;
-import io.fluxcapacitor.javaclient.tracking.handling.HandleMetrics;
-import io.fluxcapacitor.javaclient.tracking.handling.HandleNotification;
-import io.fluxcapacitor.javaclient.tracking.handling.HandleQuery;
-import io.fluxcapacitor.javaclient.tracking.handling.HandleResult;
-import io.fluxcapacitor.javaclient.tracking.handling.HandleSchedule;
 import io.fluxcapacitor.javaclient.tracking.handling.HandlerInterceptor;
 import io.fluxcapacitor.javaclient.tracking.handling.authentication.AuthenticatingInterceptor;
 import io.fluxcapacitor.javaclient.tracking.handling.authentication.UserProvider;
@@ -86,7 +79,6 @@ import lombok.NonNull;
 import lombok.experimental.Accessors;
 import lombok.extern.slf4j.Slf4j;
 
-import java.lang.annotation.Annotation;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -166,6 +158,7 @@ public class DefaultFluxCapacitor implements FluxCapacitor {
         private final Map<MessageType, HandlerInterceptor> handlerInterceptors =
                 Arrays.stream(MessageType.values()).collect(toMap(identity(), m -> (f, h, c) -> f));
         private DispatchInterceptor messageRoutingInterceptor = new MessageRoutingInterceptor();
+        private SchedulingInterceptor schedulingInterceptor = new SchedulingInterceptor();
         private Cache cache = new DefaultCache();
         private boolean disableErrorReporting;
         private boolean disableMessageCorrelation;
@@ -350,6 +343,10 @@ public class DefaultFluxCapacitor implements FluxCapacitor {
                         .computeIfPresent(type, (t, i) -> i.merge(new ValidatingInterceptor())));
             }
 
+            //enable scheduling interceptor
+            dispatchInterceptors.computeIfPresent(SCHEDULE, (t, i) -> i.merge(schedulingInterceptor));
+            handlerInterceptors.computeIfPresent(SCHEDULE, (t, i) -> i.merge(schedulingInterceptor));
+
             //collect metrics about consumers and handlers
             if (collectTrackingMetrics) {
                 BatchInterceptor batchInterceptor = new TrackerMonitor();
@@ -367,7 +364,7 @@ public class DefaultFluxCapacitor implements FluxCapacitor {
             EventSourcingHandlerFactory eventSourcingHandlerFactory =
                     new DefaultEventSourcingHandlerFactory(parameterResolvers);
             EventStoreSerializer eventStoreSerializer = new EventStoreSerializer(this.serializer,
-                                                                       dispatchInterceptors.get(EVENT));
+                                                                                 dispatchInterceptors.get(EVENT));
             EventStore eventStore = new DefaultEventStore(client.getEventStoreClient(),
                                                           eventStoreSerializer,
                                                           new DefaultHandlerFactory(EVENT,
@@ -377,7 +374,7 @@ public class DefaultFluxCapacitor implements FluxCapacitor {
                     new DefaultSnapshotRepository(client.getKeyValueClient(), snapshotSerializer);
 
             AggregateRepository aggregateRepository = new CompositeAggregateRepository(
-                    new EventSourcingRepository(eventStore, snapshotRepository, cache, eventStoreSerializer, 
+                    new EventSourcingRepository(eventStore, snapshotRepository, cache, eventStoreSerializer,
                                                 eventSourcingHandlerFactory));
 
             if (!disableAutomaticAggregateCaching) {
@@ -404,7 +401,8 @@ public class DefaultFluxCapacitor implements FluxCapacitor {
                                              new MessageSerializer(this.serializer, dispatchInterceptors.get(RESULT),
                                                                    RESULT));
             RequestHandler requestHandler =
-                    new DefaultRequestHandler(client.getTrackingClient(RESULT), this.serializer, client.name(), client.id());
+                    new DefaultRequestHandler(client.getTrackingClient(RESULT), this.serializer, client.name(),
+                                              client.id());
             CommandGateway commandGateway =
                     new DefaultCommandGateway(createRequestGateway(client, COMMAND, requestHandler,
                                                                    dispatchInterceptors.get(COMMAND),
@@ -434,11 +432,10 @@ public class DefaultFluxCapacitor implements FluxCapacitor {
 
             //tracking
             Map<MessageType, Tracking> trackingMap = stream(MessageType.values())
-                    .collect(toMap(identity(),
-                                   m -> new DefaultTracking(m, getHandlerAnnotation(m), client.getTrackingClient(m),
-                                                            resultGateway, consumerConfigurations.get(m),
-                                                            this.serializer,
-                                                            handlerInterceptors.get(m), parameterResolvers)));
+                    .collect(toMap(identity(), m -> new DefaultTracking(m, client.getTrackingClient(m), resultGateway,
+                                                                        consumerConfigurations.get(m), this.serializer,
+                                                                        new DefaultHandlerFactory(m, handlerInterceptors
+                                                                                .get(m), parameterResolvers))));
 
             //misc
             Scheduler scheduler = new DefaultScheduler(client.getSchedulingClient(),
@@ -483,29 +480,6 @@ public class DefaultFluxCapacitor implements FluxCapacitor {
                                             errorGateway, metricsGateway, aggregateRepository, eventStore,
                                             keyValueStore, scheduler,
                                             cache, client, shutdownHandler);
-        }
-
-        protected Class<? extends Annotation> getHandlerAnnotation(MessageType messageType) {
-            switch (messageType) {
-                case COMMAND:
-                    return HandleCommand.class;
-                case EVENT:
-                    return HandleEvent.class;
-                case NOTIFICATION:
-                    return HandleNotification.class;
-                case QUERY:
-                    return HandleQuery.class;
-                case RESULT:
-                    return HandleResult.class;
-                case ERROR:
-                    return HandleError.class;
-                case SCHEDULE:
-                    return HandleSchedule.class;
-                case METRICS:
-                    return HandleMetrics.class;
-                default:
-                    throw new ConfigurationException(String.format("Unrecognized type: %s", messageType));
-            }
         }
 
         protected RequestGateway createRequestGateway(Client client, MessageType messageType,

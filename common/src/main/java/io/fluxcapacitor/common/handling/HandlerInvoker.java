@@ -26,4 +26,5 @@ public interface HandlerInvoker<M> {
 
     Object invoke(Object target, M message);
 
+    boolean isPassive(Object target, M message);
 }

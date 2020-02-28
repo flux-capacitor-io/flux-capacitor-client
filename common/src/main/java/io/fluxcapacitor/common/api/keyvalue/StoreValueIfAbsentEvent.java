@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016-2018 Flux Capacitor. 
+ * Copyright (c) 2016-2017 Flux Capacitor.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -12,14 +12,17 @@
  * limitations under the License.
  */
 
-package io.fluxcapacitor.javaclient.tracking.handling;
+package io.fluxcapacitor.common.api.keyvalue;
 
-import io.fluxcapacitor.common.handling.Handler;
-import io.fluxcapacitor.javaclient.common.serialization.DeserializingMessage;
+import io.fluxcapacitor.common.api.ClientEvent;
+import lombok.Value;
 
-import java.util.Optional;
+@Value
+public class StoreValueIfAbsentEvent implements ClientEvent {
+    String client;
+    String clientId;
+    long timestamp = System.currentTimeMillis();
 
-@FunctionalInterface
-public interface HandlerFactory {
-    Optional<Handler<DeserializingMessage>> createHandler(Object target, String consumer);
+    String key;
+    boolean updated;
 }

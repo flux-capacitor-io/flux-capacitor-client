@@ -15,6 +15,7 @@
 package io.fluxcapacitor.javaclient.givenwhenthen;
 
 import io.fluxcapacitor.javaclient.FluxCapacitor;
+import io.fluxcapacitor.javaclient.scheduling.Periodic;
 import io.fluxcapacitor.javaclient.scheduling.Schedule;
 import io.fluxcapacitor.javaclient.test.GivenWhenThenAssertionError;
 import io.fluxcapacitor.javaclient.test.TestFixture;
@@ -28,11 +29,13 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.UUID;
 
+import static java.time.Instant.now;
+import static org.hamcrest.Matchers.isA;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
 class GivenWhenThenSchedulingTest {
 
-    private final TestFixture subject = TestFixture.create(new CommandHandler(), new ScheduleHandler());
+    private TestFixture subject = TestFixture.create(new CommandHandler(), new ScheduleHandler());
 
     @Test
     void testExpectCommandAfterDeadline() {
@@ -93,6 +96,66 @@ class GivenWhenThenSchedulingTest {
         assertThrows(GivenWhenThenAssertionError.class,
                      () -> subject.whenCommand(new YieldsSchedule()).expectOnlySchedules("otherPayload"));
     }
+    
+    /*
+        Test rescheduling
+     */
+
+    @Test
+    void testNoRescheduleOnVoid() {
+        Duration delay = Duration.ofSeconds(10);
+        Object payload = new YieldsCommand("whatever");
+        subject.givenSchedules(new Schedule(payload, "test", subject.getClock().instant().plus(delay)))
+                .whenTimeElapses(delay).expectNoSchedulesLike(isA(YieldsCommand.class));
+    }
+
+    @Test
+    void testReschedule() {
+        Duration delay = Duration.ofSeconds(10);
+        YieldsNewSchedule payload = new YieldsNewSchedule(delay.toMillis());
+        subject.givenSchedules(new Schedule(payload, "test", subject.getClock().instant().plus(delay)))
+                .whenTimeElapses(delay).expectSchedules(payload);
+    }
+
+    @Test
+    void testNoAutomaticRescheduleBeforeDeadline() {
+        subject.givenNoPriorActivity().andThenTimeElapses(Duration.ofMillis(500)).when(() -> {}).expectNoSchedules();
+    }
+
+    @Test
+    void testAutomaticReschedule() {
+        subject.givenNoPriorActivity().andThenTimeElapses(Duration.ofMillis(500))
+                .whenTimeElapses(Duration.ofMillis(1000)).expectOnlySchedules(new PeriodicSchedule());
+    }
+
+    @Test
+    void testAutomaticPeriodicSchedule() {
+        subject.givenNoPriorActivity().whenTimeElapses(Duration.ofMillis(1000))
+                .expectSchedules(isA(PeriodicSchedule.class));
+    }
+
+    @Test
+    void testAutomaticPeriodicScheduleWithMethodAnnotation() {
+        TestFixture.create(new MethodPeriodicHandler()).givenNoPriorActivity()
+                .whenTimeElapses(Duration.ofMillis(1000)).expectSchedules(isA(MethodPeriodicSchedule.class));
+    }
+
+    @Test
+    void testNonAutomaticPeriodicSchedule() {
+        subject.givenNoPriorActivity().whenTimeElapses(Duration.ofMillis(1000))
+                .expectNoSchedulesLike(isA(NonAutomaticPeriodicSchedule.class));
+    }
+
+    @Test
+    void testInvalidPeriodicSchedule() {
+        assertThrows(Exception.class,
+                     () -> {
+                         subject = TestFixture.create(new InvalidScheduleHandler());
+                         subject.givenNoPriorActivity().andGivenSchedules(
+                                 new Schedule(new InvalidPeriodicSchedule(), "any",
+                                              subject.getClock().instant().plusSeconds(10)));
+                     });
+    }
 
     static class CommandHandler {
         @HandleCommand
@@ -106,6 +169,32 @@ class GivenWhenThenSchedulingTest {
         void handle(YieldsCommand schedule) {
             FluxCapacitor.get().commandGateway().sendAndForget(schedule.getCommand());
         }
+
+        @HandleSchedule
+        Duration handle(YieldsNewSchedule schedule) {
+            return Duration.ofMillis(schedule.getDelay());
+        }
+
+        @HandleSchedule
+        void handle(PeriodicSchedule schedule) {
+        }
+
+        @HandleSchedule
+        void handle(NonAutomaticPeriodicSchedule schedule) {
+        }
+    }
+
+    static class InvalidScheduleHandler {
+        @HandleSchedule
+        void handle(InvalidPeriodicSchedule schedule) {
+        }
+    }
+    
+    static class MethodPeriodicHandler {
+        @HandleSchedule
+        @Periodic(1000)
+        void handle(MethodPeriodicSchedule schedule) {
+        }
     }
 
     @AllArgsConstructor
@@ -114,13 +203,37 @@ class GivenWhenThenSchedulingTest {
         Schedule schedule;
 
         public YieldsSchedule() {
-            this(new Schedule("schedule", UUID.randomUUID().toString(), Instant.now().plusSeconds(10)));
+            this(new Schedule("schedule", UUID.randomUUID().toString(), now().plusSeconds(10)));
         }
     }
 
     @Value
     static class YieldsCommand {
         Object command;
+    }
+
+    @Value
+    static class YieldsNewSchedule {
+        long delay;
+    }
+
+    @Value
+    @Periodic(1000)
+    static class PeriodicSchedule {
+    }
+
+    @Value
+    static class MethodPeriodicSchedule {
+    }
+
+    @Value
+    @Periodic(value = 1000, autoStart = false)
+    static class NonAutomaticPeriodicSchedule {
+    }
+
+    @Value
+    @Periodic(-1000)
+    static class InvalidPeriodicSchedule {
     }
 
 }

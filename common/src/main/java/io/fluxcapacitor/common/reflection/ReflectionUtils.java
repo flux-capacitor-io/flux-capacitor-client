@@ -16,7 +16,6 @@ package io.fluxcapacitor.common.reflection;
 
 import lombok.SneakyThrows;
 import org.apache.commons.lang3.reflect.FieldUtils;
-import org.apache.commons.lang3.reflect.MethodUtils;
 
 import java.lang.annotation.Annotation;
 import java.lang.invoke.MethodType;
@@ -45,8 +44,10 @@ import java.util.stream.Stream;
 import static io.fluxcapacitor.common.ObjectUtils.memoize;
 import static java.security.AccessController.doPrivileged;
 import static java.util.Collections.emptyList;
+import static java.util.stream.Collectors.toList;
 import static org.apache.commons.lang3.ClassUtils.getAllInterfaces;
 import static org.apache.commons.lang3.StringUtils.isEmpty;
+import static org.apache.commons.lang3.reflect.MethodUtils.getMethodsListWithAnnotation;
 
 public class ReflectionUtils {
     
@@ -120,10 +121,14 @@ public class ReflectionUtils {
         }
         List<AccessibleObject> result =
                 new ArrayList<>(FieldUtils.getFieldsListWithAnnotation(target.getClass(), annotation));
-        result.addAll(MethodUtils.getMethodsListWithAnnotation(target.getClass(), annotation, true, true));
+        result.addAll(getMethodsListWithAnnotation(target.getClass(), annotation, true, true).stream().filter(m -> m.getParameterCount() == 0).collect(toList()));
         getAllInterfaces(target.getClass())
                 .forEach(i -> result.addAll(FieldUtils.getFieldsListWithAnnotation(i, annotation)));
         return result;
+    }
+    
+    public static List<Method> getAnnotatedMethods(Object target, Class<? extends Annotation> annotation) {
+        return getMethodsListWithAnnotation(target.getClass(), annotation, true, true);
     }
 
     public static List<Field> getAnnotatedFields(Object target, Class<? extends Annotation> annotation) {

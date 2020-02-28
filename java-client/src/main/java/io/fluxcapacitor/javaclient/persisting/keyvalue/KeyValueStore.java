@@ -9,6 +9,8 @@ public interface KeyValueStore {
     }
 
     void store(String key, Object value, Guarantee guarantee);
+    
+    boolean storeIfAbsent(String key, Object value);
 
     <R> R get(String key);
 

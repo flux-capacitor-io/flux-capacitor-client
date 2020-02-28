@@ -33,17 +33,17 @@ import static io.fluxcapacitor.javaclient.common.serialization.DeserializingMess
 public class DefaultHandlerFactory implements HandlerFactory {
     private final MessageType messageType;
     private final HandlerInterceptor handlerInterceptor;
-    private List<ParameterResolver<? super DeserializingMessage>> parameterResolvers;
+    private final List<ParameterResolver<? super DeserializingMessage>> parameterResolvers;
 
     @Override
-    public Optional<Handler<DeserializingMessage>> createHandler(Object target) {
+    public Optional<Handler<DeserializingMessage>> createHandler(Object target, String consumer) {
         Class<? extends Annotation> methodAnnotation = getHandlerAnnotation(messageType);
         if (HandlerInspector.hasHandlerMethods(target.getClass(), methodAnnotation)) {
             Handler<DeserializingMessage> handler = HandlerInspector
                     .createHandler(target, methodAnnotation, parameterResolvers,
                                    HandlerConfiguration.<DeserializingMessage>builder()
                                            .invokerFactory(defaultInvokerFactory).build());
-            return Optional.of(handlerInterceptor.wrap(handler, "local-" + messageType.name().toLowerCase()));
+            return Optional.of(handlerInterceptor.wrap(handler, consumer));
         }
         return Optional.empty();
     }

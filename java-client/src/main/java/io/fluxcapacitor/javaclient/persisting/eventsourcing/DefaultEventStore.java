@@ -65,7 +65,7 @@ public class DefaultEventStore implements EventStore {
 
     @Override
     public Registration registerLocalHandler(Object target) {
-        Optional<Handler<DeserializingMessage>> handler = handlerFactory.createHandler(target);
+        Optional<Handler<DeserializingMessage>> handler = handlerFactory.createHandler(target, "local-event");
         handler.ifPresent(localHandlers::add);
         return () -> handler.ifPresent(localHandlers::remove);
     }

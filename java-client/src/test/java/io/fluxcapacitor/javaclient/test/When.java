@@ -13,6 +13,10 @@ public interface When {
     When andGivenEvents(Object... events);
 
     When andGivenSchedules(Schedule... schedules);
+    
+    When andThenTimeAdvancesTo(Instant instant);
+    
+    When andThenTimeElapses(Duration duration);
 
     Then whenCommand(Object command);
 

@@ -163,6 +163,34 @@ public abstract class AbstractTestFixture implements Given, When {
         return givenSchedules(schedules);
     }
 
+    @SneakyThrows
+    @Override
+    public When andThenTimeAdvancesTo(Instant instant) {
+        try {
+            FluxCapacitor.instance.set(fluxCapacitor);
+            getSchedulingClient().advanceTimeTo(instant);
+            return this;
+        } catch (Exception e) {
+            throw new IllegalStateException("Failed to advance time", e);
+        } finally {
+            FluxCapacitor.instance.remove();
+        }
+    }
+
+    @SneakyThrows
+    @Override
+    public When andThenTimeElapses(Duration duration) {
+        try {
+            FluxCapacitor.instance.set(fluxCapacitor);
+            getSchedulingClient().advanceTimeBy(duration);
+            return this;
+        } catch (Exception e) {
+            throw new IllegalStateException("Failed to advance time", e);
+        } finally {
+            FluxCapacitor.instance.remove();
+        }
+    }
+
     @Override
     public Then whenCommand(Object command) {
         try {

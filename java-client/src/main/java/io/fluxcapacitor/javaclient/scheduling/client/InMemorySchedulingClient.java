@@ -19,6 +19,8 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentSkipListMap;
 import java.util.concurrent.atomic.AtomicReference;
 
+import static io.fluxcapacitor.common.IndexUtils.indexFromMillis;
+import static io.fluxcapacitor.common.IndexUtils.millisFromIndex;
 import static java.util.stream.Collectors.toList;
 
 @Slf4j
@@ -32,8 +34,7 @@ public class InMemorySchedulingClient extends InMemoryMessageStore implements Sc
                                     TrackingConfiguration configuration) {
         MessageBatch messageBatch = super.readAndWait(consumer, trackerId, previousLastIndex, configuration);
         List<SerializedMessage> messages = messageBatch.getMessages().stream()
-                .filter(m -> times.containsKey(m.getIndex()))
-                .filter(m -> clock.get().millis() >= m.getIndex())
+                .filter(m -> times.containsKey(m.getIndex()) && clock.get().millis() >= millisFromIndex(m.getIndex()))
                 .collect(toList());
         Long lastIndex = messages.isEmpty() ? null : messages.get(messages.size() - 1).getIndex();
         if (configuration.getTypeFilter() != null) {
@@ -45,7 +46,8 @@ public class InMemorySchedulingClient extends InMemoryMessageStore implements Sc
 
     @Override
     protected boolean shouldWait(Map<Long, SerializedMessage> tailMap) {
-        return tailMap.isEmpty() || tailMap.keySet().stream().noneMatch(index -> index <= clock.get().millis());
+        long deadline = indexFromMillis(clock.get().millis());
+        return tailMap.isEmpty() || tailMap.keySet().stream().noneMatch(index -> index <= deadline);
     }
 
     @Override
@@ -57,7 +59,8 @@ public class InMemorySchedulingClient extends InMemoryMessageStore implements Sc
     @Override
     public Awaitable schedule(ScheduledMessage... schedules) {
         for (ScheduledMessage schedule : schedules) {
-            long index = schedule.getTimestamp();
+            cancelSchedule(schedule.getScheduleId());
+            long index = indexFromMillis(schedule.getTimestamp());
             while (times.putIfAbsent(index, schedule.getScheduleId()) != null) {
                 index++;
             }
@@ -92,7 +95,7 @@ public class InMemorySchedulingClient extends InMemoryMessageStore implements Sc
             synchronized (this) {
                 notifyAll();
             }
-            Thread.sleep(10); //give read thread time to process
+            Thread.sleep(20); //give read thread time to process
         }
     }
 

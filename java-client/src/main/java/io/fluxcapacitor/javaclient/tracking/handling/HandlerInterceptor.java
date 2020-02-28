@@ -17,8 +17,8 @@ package io.fluxcapacitor.javaclient.tracking.handling;
 import io.fluxcapacitor.common.handling.Handler;
 import io.fluxcapacitor.javaclient.common.serialization.DeserializingMessage;
 import lombok.AllArgsConstructor;
+import lombok.experimental.Delegate;
 
-import java.lang.reflect.Executable;
 import java.util.function.Function;
 
 @FunctionalInterface
@@ -26,19 +26,20 @@ public interface HandlerInterceptor {
     Function<DeserializingMessage, Object> interceptHandling(Function<DeserializingMessage, Object> function,
                                                              Handler<DeserializingMessage> handler, String consumer);
 
-    default HandlerInterceptor merge(HandlerInterceptor nextInterceptor) {
-        return (f, h, c) -> interceptHandling(nextInterceptor.interceptHandling(f, h, c), h, c);
-    }
-    
     default Handler<DeserializingMessage> wrap(Handler<DeserializingMessage> handler, String consumer) {
-        return new InterceptedHandler(this, handler, consumer);
+        return new InterceptedHandler(handler, this, consumer);
     }
-    
+
+    default HandlerInterceptor merge(HandlerInterceptor nextInterceptor) {
+        return new MergedInterceptor(this, nextInterceptor);
+    }
+
     @AllArgsConstructor
     class InterceptedHandler implements Handler<DeserializingMessage> {
 
-        private final HandlerInterceptor interceptor;
+        @Delegate(excludes = ExcludedMethods.class)
         private final Handler<DeserializingMessage> delegate;
+        private final HandlerInterceptor interceptor;
         private final String consumer;
 
         @Override
@@ -46,20 +47,28 @@ public interface HandlerInterceptor {
             return interceptor.interceptHandling(delegate::invoke, delegate, consumer).apply(message);
         }
 
+        private interface ExcludedMethods {
+            Object invoke(DeserializingMessage message);
+        }
+    }
+
+    @AllArgsConstructor
+    class MergedInterceptor implements HandlerInterceptor {
+        private final HandlerInterceptor first, second;
+
         @Override
-        public boolean canHandle(DeserializingMessage message) {
-            return delegate.canHandle(message);
+        public Function<DeserializingMessage, Object> interceptHandling(Function<DeserializingMessage, Object> function,
+                                                                        Handler<DeserializingMessage> handler,
+                                                                        String consumer) {
+            return first.interceptHandling(second.interceptHandling(function, handler, consumer), handler, consumer);
         }
 
         @Override
-        public Executable getMethod(DeserializingMessage message) {
-            return delegate.getMethod(message);
+        public Handler<DeserializingMessage> wrap(Handler<DeserializingMessage> handler, String consumer) {
+            //this allows the delegate interceptors to initialize themselves
+            second.wrap(handler, consumer);
+            first.wrap(handler, consumer);
+            return HandlerInterceptor.super.wrap(handler, consumer);
         }
-
-        @Override
-        public Object getTarget() {
-            return delegate.getTarget();
-        }
-
-    }  
+    }
 }

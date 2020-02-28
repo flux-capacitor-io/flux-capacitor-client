@@ -4,8 +4,6 @@ import io.fluxcapacitor.common.MessageType;
 import io.fluxcapacitor.common.Registration;
 import io.fluxcapacitor.common.api.SerializedMessage;
 import io.fluxcapacitor.common.handling.Handler;
-import io.fluxcapacitor.common.handling.HandlerConfiguration;
-import io.fluxcapacitor.common.handling.ParameterResolver;
 import io.fluxcapacitor.javaclient.FluxCapacitor;
 import io.fluxcapacitor.javaclient.common.exception.FunctionalException;
 import io.fluxcapacitor.javaclient.common.exception.TechnicalException;
@@ -15,51 +13,47 @@ import io.fluxcapacitor.javaclient.persisting.caching.CacheInvalidatingIntercept
 import io.fluxcapacitor.javaclient.publishing.ResultGateway;
 import io.fluxcapacitor.javaclient.tracking.client.TrackingClient;
 import io.fluxcapacitor.javaclient.tracking.client.TrackingUtils;
-import io.fluxcapacitor.javaclient.tracking.handling.HandlerInterceptor;
+import io.fluxcapacitor.javaclient.tracking.handling.HandlerFactory;
 import lombok.AllArgsConstructor;
 import lombok.SneakyThrows;
 import lombok.Synchronized;
 import lombok.extern.slf4j.Slf4j;
 
-import java.lang.annotation.Annotation;
-import java.lang.reflect.Executable;
-import java.lang.reflect.Method;
 import java.time.Duration;
+import java.util.AbstractMap.SimpleEntry;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
+import java.util.Map.Entry;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
+import java.util.stream.Stream;
 
-import static io.fluxcapacitor.common.handling.HandlerInspector.createHandler;
-import static io.fluxcapacitor.common.handling.HandlerInspector.hasHandlerMethods;
 import static io.fluxcapacitor.javaclient.common.ClientUtils.waitForResults;
 import static io.fluxcapacitor.javaclient.common.serialization.DeserializingMessage.handleBatch;
 import static java.lang.String.format;
 import static java.util.stream.Collectors.groupingBy;
 import static java.util.stream.Collectors.toList;
+import static java.util.stream.Collectors.toMap;
 
 @AllArgsConstructor
 @Slf4j
 public class DefaultTracking implements Tracking {
 
     private final MessageType messageType;
-    private final Class<? extends Annotation> handlerAnnotation;
     private final TrackingClient trackingClient;
     private final ResultGateway resultGateway;
     private final List<ConsumerConfiguration> configurations;
     private final Serializer serializer;
-    private final HandlerInterceptor handlerInterceptor;
-    private final List<ParameterResolver<? super DeserializingMessage>> parameterResolvers;
+    private final HandlerFactory handlerFactory;
+
     private final Set<ConsumerConfiguration> startedConfigurations = new HashSet<>();
     private final Collection<CompletableFuture<?>> outstandingRequests = new CopyOnWriteArrayList<>();
     private final AtomicReference<Registration> shutdownFunction = new AtomicReference<>(Registration.noOp());
@@ -67,24 +61,33 @@ public class DefaultTracking implements Tracking {
     @Override
     @Synchronized
     public Registration start(FluxCapacitor fluxCapacitor, List<?> handlers) {
-        Map<ConsumerConfiguration, List<Object>> consumers = handlers.stream()
-                .filter(h -> hasHandlerMethods(h.getClass(), handlerAnnotation))
-                .collect(groupingBy(h -> configurations.stream()
-                        .filter(config -> config.getHandlerFilter().test(h)).findFirst()
-                        .orElseThrow(() -> new TrackingException(format("Failed to find consumer for %s", h)))));
-        if (!Collections.disjoint(consumers.keySet(), startedConfigurations)) {
-            throw new TrackingException("Failed to start tracking. "
-                                                + "Consumers for some handlers have already started tracking.");
-        }
-        startedConfigurations.addAll(consumers.keySet());
-        Registration registration =
-                consumers.entrySet().stream().map(e -> startTracking(e.getKey(), e.getValue(), fluxCapacitor))
-                        .reduce(Registration::merge).orElse(Registration.noOp());
-        shutdownFunction.updateAndGet(r -> r.merge(registration));
-        return registration;
+        return fluxCapacitor.execute(fc -> {
+            Map<ConsumerConfiguration, List<Handler<DeserializingMessage>>> consumers = handlers.stream()
+                    .collect(groupingBy(h -> configurations.stream()
+                            .filter(config -> config.getHandlerFilter().test(h)).findFirst()
+                            .orElseThrow(() -> new TrackingException(format("Failed to find consumer for %s", h)))))
+                    .entrySet().stream().flatMap(e -> {
+                        List<Handler<DeserializingMessage>> converted = e.getValue().stream()
+                                .flatMap(target -> handlerFactory.createHandler(target, e.getKey().getName()).map(
+                                        Stream::of).orElse(Stream.empty())).collect(toList());
+                        return converted.isEmpty() ? Stream.empty() : Stream.of(new SimpleEntry<>(e.getKey(), converted));
+                    }).collect(toMap(Entry::getKey, Entry::getValue));
+
+            if (!Collections.disjoint(consumers.keySet(), startedConfigurations)) {
+                throw new TrackingException("Failed to start tracking. "
+                                                    + "Consumers for some handlers have already started tracking.");
+            }
+
+            startedConfigurations.addAll(consumers.keySet());
+            Registration registration =
+                    consumers.entrySet().stream().map(e -> startTracking(e.getKey(), e.getValue(), fc))
+                            .reduce(Registration::merge).orElse(Registration.noOp());
+            shutdownFunction.updateAndGet(r -> r.merge(registration));
+            return registration;
+        });
     }
 
-    protected Registration startTracking(ConsumerConfiguration configuration, List<Object> handlers,
+    protected Registration startTracking(ConsumerConfiguration configuration, List<Handler<DeserializingMessage>> handlers,
                                          FluxCapacitor fluxCapacitor) {
         Consumer<List<SerializedMessage>> consumer = createConsumer(configuration, handlers);
         List<BatchInterceptor> batchInterceptors = new ArrayList<>(
@@ -105,16 +108,10 @@ public class DefaultTracking implements Tracking {
     }
 
     protected Consumer<List<SerializedMessage>> createConsumer(ConsumerConfiguration configuration,
-                                                               List<Object> targets) {
-        List<Handler<DeserializingMessage>> handlers = targets.stream()
-                .filter(o -> hasHandlerMethods(o.getClass(), handlerAnnotation))
-                .map(o -> createHandler(o, handlerAnnotation, parameterResolvers,
-                                        HandlerConfiguration.<DeserializingMessage>builder()
-                                                .invokerFactory(DeserializingMessage.defaultInvokerFactory).build()))
-                .collect(toList());
-        return serializedMessages -> 
+                                                               List<Handler<DeserializingMessage>> handlers) {
+        return serializedMessages ->
                 handleBatch(serializer.deserializeMessages(serializedMessages.stream(), false, messageType))
-                .forEach(m -> handlers.forEach(h -> tryHandle(m, h, configuration)));
+                        .forEach(m -> handlers.forEach(h -> tryHandle(m, h, configuration)));
     }
 
     @SneakyThrows
@@ -137,8 +134,7 @@ public class DefaultTracking implements Tracking {
         Exception exception = null;
         Object result;
         try {
-            result = handlerInterceptor.interceptHandling(m -> handler.invoke(message), handler, config.getName())
-                    .apply(message);
+            result = handler.invoke(message);
         } catch (FunctionalException e) {
             result = e;
             exception = e;
@@ -186,14 +182,7 @@ public class DefaultTracking implements Tracking {
         if (serializedMessage.getRequestId() == null) {
             return false;
         }
-        Executable method = handler.getMethod(message);
-        Annotation annotation = method.getAnnotation(handlerAnnotation);
-        Optional<Method> isPassive = Arrays.stream(handlerAnnotation.getMethods())
-                .filter(m -> m.getName().equals("passive")).findFirst();
-        if (isPassive.isPresent()) {
-            return !((boolean) isPassive.get().invoke(annotation));
-        }
-        return true;
+        return !handler.isPassive(message);
     }
 
     @Override
