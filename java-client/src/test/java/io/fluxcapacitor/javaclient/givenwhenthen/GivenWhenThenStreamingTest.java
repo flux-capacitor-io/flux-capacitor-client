@@ -5,12 +5,16 @@ import io.fluxcapacitor.javaclient.MockException;
 import io.fluxcapacitor.javaclient.common.IgnoringErrorHandler;
 import io.fluxcapacitor.javaclient.common.exception.TechnicalException;
 import io.fluxcapacitor.javaclient.configuration.DefaultFluxCapacitor;
+import io.fluxcapacitor.javaclient.scheduling.Schedule;
 import io.fluxcapacitor.javaclient.test.streaming.StreamingTestFixture;
 import io.fluxcapacitor.javaclient.tracking.handling.HandleCommand;
 import io.fluxcapacitor.javaclient.tracking.handling.HandleEvent;
+import io.fluxcapacitor.javaclient.tracking.handling.HandleSchedule;
 import lombok.Value;
 import org.junit.jupiter.api.Test;
 
+import java.time.Duration;
+import java.time.Instant;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
@@ -21,17 +25,16 @@ import static io.fluxcapacitor.common.MessageType.COMMAND;
 
 class GivenWhenThenStreamingTest {
 
-    private final CommandHandler commandHandler = new CommandHandler();
-    private final AsyncCommandHandler asyncCommandHandler = new AsyncCommandHandler();
-    private final EventHandler eventHandler = new EventHandler();
     private final StreamingTestFixture
             subject = StreamingTestFixture.create(DefaultFluxCapacitor.builder().configureDefaultConsumer(
-                    COMMAND, config -> config.toBuilder().errorHandler(new IgnoringErrorHandler()).build()), 
-                                                  commandHandler, eventHandler, asyncCommandHandler);
+            COMMAND, config -> config.toBuilder().errorHandler(new IgnoringErrorHandler()).build()),
+                                                  new CommandHandler(), new EventHandler(), new AsyncCommandHandler(), 
+                                                  new ScheduleHandler());
 
     @Test
     void testExpectCommandsAndIndirectEvents() {
-        subject.whenEvent(123).expectNoResult().expectCommands(new YieldsEventAndResult()).expectEvents(new YieldsEventAndResult());
+        subject.whenEvent(123).expectNoResult().expectCommands(new YieldsEventAndResult())
+                .expectEvents(new YieldsEventAndResult());
     }
 
     @Test
@@ -52,6 +55,18 @@ class GivenWhenThenStreamingTest {
     @Test
     void testExpectPassiveHandling() {
         subject.givenNoPriorActivity().whenCommand(new PassivelyHandled()).expectException(TimeoutException.class);
+    }
+
+    @Test
+    void testExpectSchedule() {
+        subject.whenCommand(new YieldsSchedule("test")).expectSchedules("test");
+    }
+
+    @Test
+    void testScheduledCommand() {
+        Instant deadline = subject.getClock().instant().plusSeconds(1);
+        subject.givenSchedules(new Schedule(new DelayedCommand(), "test", deadline))
+                .whenTimeAdvancesTo(deadline).expectOnlyCommands(new DelayedCommand()).expectNoSchedules();
     }
 
     private static class CommandHandler {
@@ -76,6 +91,11 @@ class GivenWhenThenStreamingTest {
             return "this will be ignored";
         }
 
+        @HandleCommand
+        public void handle(YieldsSchedule command) {
+            FluxCapacitor.get().scheduler().schedule(command.getSchedule(), Duration.ofSeconds(10));
+        }
+
     }
 
     private static class EventHandler {
@@ -84,11 +104,18 @@ class GivenWhenThenStreamingTest {
             FluxCapacitor.sendCommand(new YieldsEventAndResult()).get();
         }
     }
-    
+
+    private static class ScheduleHandler {
+        @HandleSchedule
+        public void handle(DelayedCommand schedule) {
+            FluxCapacitor.sendAndForgetCommand(schedule);
+        }
+    }
+
     private static class AsyncCommandHandler {
-        
+
         private final ScheduledExecutorService scheduler = Executors.newSingleThreadScheduledExecutor();
-        
+
         @HandleCommand
         public CompletableFuture<String> handle(YieldsAsyncResult command) {
             CompletableFuture<String> result = new CompletableFuture<>();
@@ -96,7 +123,7 @@ class GivenWhenThenStreamingTest {
             return result;
         }
     }
-    
+
     @Value
     private static class YieldsEventAndResult {
     }
@@ -110,11 +137,20 @@ class GivenWhenThenStreamingTest {
     }
 
     @Value
+    private static class YieldsSchedule {
+        Object schedule;
+    }
+
+    @Value
     private static class YieldsRuntimeException {
     }
 
     @Value
     private static class PassivelyHandled {
     }
-    
+
+    @Value
+    private static class DelayedCommand {
+    }
+
 }

@@ -6,6 +6,7 @@ import lombok.EqualsAndHashCode;
 import lombok.Value;
 
 import java.beans.ConstructorProperties;
+import java.time.Clock;
 import java.time.Instant;
 
 @Value
@@ -32,5 +33,13 @@ public class Schedule extends Message {
         super(payload, metadata, messageId, timestamp);
         this.scheduleId = scheduleId;
         this.deadline = deadline;
+    }
+    
+    public boolean isExpired() {
+        return isExpired(Message.getClock());
+    }
+    
+    public boolean isExpired(Clock clock) {
+        return !deadline.isAfter(clock.instant());
     }
 }

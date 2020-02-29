@@ -106,4 +106,15 @@ public class StreamingTestFixture extends AbstractTestFixture {
             throw e.getCause();
         }
     }
+
+    @Override
+    protected void handleGivenSchedule(Schedule schedule) {
+        super.handleGivenSchedule(schedule);
+        getFluxCapacitor().scheduler().schedule(schedule);
+    }
+
+    @Override
+    protected void handleExpiredSchedule(Schedule schedule) {
+        //no op - has already been scheduled
+    }
 }

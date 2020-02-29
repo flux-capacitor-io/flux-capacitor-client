@@ -25,30 +25,40 @@ import io.fluxcapacitor.javaclient.configuration.DefaultFluxCapacitor;
 import io.fluxcapacitor.javaclient.configuration.FluxCapacitorBuilder;
 import io.fluxcapacitor.javaclient.publishing.DispatchInterceptor;
 import io.fluxcapacitor.javaclient.scheduling.Schedule;
+import io.fluxcapacitor.javaclient.scheduling.client.InMemorySchedulingClient;
 import io.fluxcapacitor.javaclient.scheduling.client.SchedulingClient;
-import io.fluxcapacitor.javaclient.scheduling.client.SupportsTimeTravel;
 import io.fluxcapacitor.javaclient.tracking.handling.authentication.UserProvider;
+import lombok.Getter;
 import lombok.SneakyThrows;
+import lombok.extern.slf4j.Slf4j;
 
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.ZoneId;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Function;
+import java.util.function.Supplier;
 import java.util.stream.Stream;
 
+import static java.util.Comparator.comparing;
+
+@Slf4j
 public abstract class AbstractTestFixture implements Given, When {
 
+    @Getter
     private final FluxCapacitor fluxCapacitor;
     private final Registration registration;
     private final GivenWhenThenInterceptor interceptor;
-    private volatile Clock clock;
+    
+    private final Collection<Schedule> givenSchedules = new ArrayList<>();
 
     protected AbstractTestFixture(Function<FluxCapacitor, List<?>> handlerFactory) {
         this(DefaultFluxCapacitor.builder(), handlerFactory);
@@ -56,14 +66,21 @@ public abstract class AbstractTestFixture implements Given, When {
 
     protected AbstractTestFixture(FluxCapacitorBuilder fluxCapacitorBuilder,
                                   Function<FluxCapacitor, List<?>> handlerFactory) {
+        Optional<TestUserProvider> userProvider =
+                Optional.ofNullable(UserProvider.defaultUserSupplier).map(TestUserProvider::new);
+        if (userProvider.isPresent()) {
+            fluxCapacitorBuilder = fluxCapacitorBuilder.registerUserSupplier(userProvider.get());
+        }
         this.interceptor = new GivenWhenThenInterceptor();
-        this.fluxCapacitor = fluxCapacitorBuilder
-                .registerUserSupplier(Optional.ofNullable(UserProvider.defaultUserSupplier).map(
-                        TestUserProvider::new).orElse(null))
-                .disableShutdownHook().addDispatchInterceptor(interceptor).build(new TestClient());
-        this.registration = registerHandlers(handlerFactory.apply(fluxCapacitor));
+        this.fluxCapacitor = fluxCapacitorBuilder.disableShutdownHook().addDispatchInterceptor(interceptor)
+                .build(new TestClient());
         withClock(Clock.fixed(Instant.now(), ZoneId.systemDefault()));
+        this.registration = registerHandlers(handlerFactory.apply(fluxCapacitor));
     }
+    
+    /*
+        abstract
+     */
 
     public abstract Registration registerHandlers(List<?> handlers);
 
@@ -79,37 +96,41 @@ public abstract class AbstractTestFixture implements Given, When {
 
     protected abstract Object getDispatchResult(CompletableFuture<?> dispatchResult);
 
+    protected abstract void handleExpiredSchedule(Schedule schedule);
+    
+    /*
+        init
+     */
+
     @Override
     public Given withClock(Clock clock) {
-        getSchedulingClient().useClock(this.clock = clock);
+        SchedulingClient schedulingClient = getFluxCapacitor().client().getSchedulingClient();
+        if (schedulingClient instanceof InMemorySchedulingClient) {
+            ((InMemorySchedulingClient) schedulingClient).setClock(clock);
+        } else {
+            log.warn("Could not update clock of scheduling client. Timing tests may not work.");
+        }
         return this;
     }
+    
+    /*
+        given
+     */
 
     @Override
     public When givenCommands(Object... commands) {
-        try {
-            FluxCapacitor.instance.set(fluxCapacitor);
-            getDispatchResult(CompletableFuture.allOf(flatten(commands).map(
-                    c -> fluxCapacitor.commandGateway().send(c)).toArray(CompletableFuture[]::new)));
-            return this;
-        } catch (Exception e) {
-            throw new IllegalStateException("Failed to execute givenCommands", e);
-        } finally {
-            FluxCapacitor.instance.remove();
-        }
+        return given(() -> getDispatchResult(CompletableFuture.allOf(flatten(commands).map(
+                c -> fluxCapacitor.commandGateway().send(c)).toArray(CompletableFuture[]::new))));
     }
 
     @Override
     public When givenEvents(Object... events) {
-        try {
-            FluxCapacitor.instance.set(fluxCapacitor);
-            flatten(events).forEach(c -> fluxCapacitor.eventGateway().publish(c));
-            return this;
-        } catch (Exception e) {
-            throw new IllegalStateException("Failed to execute givenEvents", e);
-        } finally {
-            FluxCapacitor.instance.remove();
-        }
+        return given(() -> flatten(events).forEach(c -> fluxCapacitor.eventGateway().publish(c)));
+    }
+
+    @Override
+    public When givenSchedules(Schedule... schedules) {
+        return given(() -> Arrays.stream(schedules).forEach(this::handleGivenSchedule));
     }
 
     @Override
@@ -119,29 +140,15 @@ public abstract class AbstractTestFixture implements Given, When {
             condition.run();
             return this;
         } catch (Exception e) {
-            throw new IllegalStateException("Failed to execute given condition", e);
+            throw new IllegalStateException("Failed to execute given", e);
         } finally {
             FluxCapacitor.instance.remove();
         }
     }
-
-    @Override
-    public When givenSchedules(Schedule... schedules) {
-        try {
-            FluxCapacitor.instance.set(fluxCapacitor);
-            Arrays.stream(schedules).forEach(s -> fluxCapacitor.scheduler().schedule(s));
-            return this;
-        } catch (Exception e) {
-            throw new IllegalStateException("Failed to execute givenEvents", e);
-        } finally {
-            FluxCapacitor.instance.remove();
-        }
-    }
-
-    @Override
-    public Clock getClock() {
-        return clock;
-    }
+    
+    /*
+        and given
+     */
 
     @Override
     public When andGiven(Runnable runnable) {
@@ -163,131 +170,106 @@ public abstract class AbstractTestFixture implements Given, When {
         return givenSchedules(schedules);
     }
 
-    @SneakyThrows
     @Override
     public When andThenTimeAdvancesTo(Instant instant) {
-        try {
-            FluxCapacitor.instance.set(fluxCapacitor);
-            getSchedulingClient().advanceTimeTo(instant);
-            return this;
-        } catch (Exception e) {
-            throw new IllegalStateException("Failed to advance time", e);
-        } finally {
-            FluxCapacitor.instance.remove();
-        }
+        return given(() -> advanceTimeTo(instant));
     }
 
-    @SneakyThrows
     @Override
     public When andThenTimeElapses(Duration duration) {
-        try {
-            FluxCapacitor.instance.set(fluxCapacitor);
-            getSchedulingClient().advanceTimeBy(duration);
-            return this;
-        } catch (Exception e) {
-            throw new IllegalStateException("Failed to advance time", e);
-        } finally {
-            FluxCapacitor.instance.remove();
-        }
+        return given(() -> advanceTimeBy(duration));
     }
+    
+    /*
+        when
+     */
 
     @Override
     public Then whenCommand(Object command) {
-        try {
-            FluxCapacitor.instance.set(fluxCapacitor);
-            Object result;
-            try {
-                result = getDispatchResult(fluxCapacitor.commandGateway().send(interceptor.trace(command)));
-            } catch (Exception e) {
-                result = e;
-            }
-            return createResultValidator(result);
-        } finally {
-            deregisterHandlers(registration);
-            FluxCapacitor.instance.remove();
-        }
-    }
-
-    @Override
-    public Then whenEvent(Object event) {
-        try {
-            FluxCapacitor.instance.set(fluxCapacitor);
-            fluxCapacitor.eventGateway().publish(interceptor.trace(event));
-            return createResultValidator(null);
-        } finally {
-            deregisterHandlers(registration);
-            FluxCapacitor.instance.remove();
-        }
+        return applyWhen(() -> getDispatchResult(fluxCapacitor.commandGateway().send(interceptor.trace(command))),
+                         false);
     }
 
     @Override
     public Then whenQuery(Object query) {
-        try {
-            FluxCapacitor.instance.set(fluxCapacitor);
-            Object result;
-            try {
-                result = getDispatchResult(fluxCapacitor.queryGateway().send(interceptor.trace(query)));
-            } catch (Exception e) {
-                result = e;
-            }
-            return createResultValidator(result);
-        } finally {
-            deregisterHandlers(registration);
-            FluxCapacitor.instance.remove();
-        }
+        return applyWhen(() -> getDispatchResult(fluxCapacitor.queryGateway().send(interceptor.trace(query))), false);
+    }
+
+    @Override
+    public Then whenEvent(Object event) {
+        return when(() -> fluxCapacitor.eventGateway().publish(interceptor.trace(event)), false);
     }
 
     @Override
     public Then when(Runnable task) {
-        try {
-            FluxCapacitor.instance.set(fluxCapacitor);
-            interceptor.catchAll();
-            task.run();
-            return createResultValidator(null);
-        } finally {
-            deregisterHandlers(registration);
-            FluxCapacitor.instance.remove();
-        }
+        return when(task, true);
     }
 
     @Override
     @SneakyThrows
     public Then whenTimeElapses(Duration duration) {
-        try {
-            FluxCapacitor.instance.set(fluxCapacitor);
-            interceptor.catchAll();
-            getSchedulingClient().advanceTimeBy(duration);
-            return createResultValidator(null);
-        } finally {
-            deregisterHandlers(registration);
-            FluxCapacitor.instance.remove();
-        }
+        return when(() -> advanceTimeBy(duration), true);
     }
 
     @Override
     @SneakyThrows
     public Then whenTimeAdvancesTo(Instant instant) {
+        return when(() -> advanceTimeTo(instant), true);
+    }
+    
+    /*
+        helper
+     */
+
+    @Override
+    public Clock getClock() {
+        return fluxCapacitor.client().getSchedulingClient().getClock();
+    }
+
+    protected void handleGivenSchedule(Schedule schedule) {
+        givenSchedules.removeIf(s -> Objects.equals(schedule.getScheduleId(), s.getScheduleId()));
+        if (!schedule.isExpired(getClock())) {
+            givenSchedules.add(schedule);
+        }
+    }
+
+    protected void advanceTimeBy(Duration duration) {
+        advanceTimeTo(getClock().instant().plus(duration));
+    }
+
+    protected void advanceTimeTo(Instant instant) {
+        withClock(Clock.fixed(instant, ZoneId.systemDefault()));
+        new ArrayList<>(givenSchedules).stream().sorted(comparing(Schedule::getDeadline)).forEach(s -> {
+            if (s.isExpired(getClock())) {
+                handleExpiredSchedule(s);
+            }
+        });
+    }
+
+    protected Then when(Runnable action, boolean catchAll) {
+        return applyWhen(() -> {
+            action.run();
+            return null;
+        }, catchAll);
+    }
+
+    protected Then applyWhen(Supplier<Object> action, boolean catchAll) {
         try {
             FluxCapacitor.instance.set(fluxCapacitor);
-            interceptor.catchAll();
-            getSchedulingClient().advanceTimeTo(instant);
-            return createResultValidator(null);
+            if (catchAll) {
+                interceptor.catchAll();
+            }
+            Object result;
+            try {
+                result = action.get();
+            } catch (Exception e) {
+                result = e;
+            }
+            return createResultValidator(result);
         } finally {
             deregisterHandlers(registration);
             FluxCapacitor.instance.remove();
         }
-    }
-
-    protected SupportsTimeTravel getSchedulingClient() {
-        SchedulingClient schedulingClient = fluxCapacitor.client().getSchedulingClient();
-        if (!(schedulingClient instanceof SupportsTimeTravel)) {
-            throw new UnsupportedOperationException("Client does not support time jumps");
-        }
-        return (SupportsTimeTravel) schedulingClient;
-    }
-
-    public FluxCapacitor getFluxCapacitor() {
-        return fluxCapacitor;
     }
 
     protected Stream<Object> flatten(Object... messages) {
@@ -322,19 +304,14 @@ public abstract class AbstractTestFixture implements Given, When {
         }
 
         protected boolean isDescendantMetadata(Metadata messageMetadata) {
-            return TAG.equals(getTrace(messageMetadata).get(0));
+            return TAG.equals(messageMetadata.getOrDefault(TRACE_NAME, "").split(",")[0]);
         }
-
-        protected List<String> getTrace(Metadata messageMetadata) {
-            return Arrays.asList(messageMetadata.getOrDefault(TRACE_NAME, "").split(","));
-        }
-
-        @Override
+        
+        @Override @SuppressWarnings("SuspiciousMethodCalls")
         public Function<Message, SerializedMessage> interceptDispatch(Function<Message, SerializedMessage> function,
                                                                       MessageType messageType) {
             return message -> {
-                String tag = UUID.randomUUID().toString();
-                message.getMetadata().putIfAbsent(TAG_NAME, tag);
+                message.getMetadata().putIfAbsent(TAG_NAME, UUID.randomUUID().toString());
                 Optional.ofNullable(DeserializingMessage.getCurrent()).ifPresent(currentMessage -> {
                     if (currentMessage.getMetadata().containsKey(TRACE_NAME)) {
                         message.getMetadata().put(TRACE_NAME, currentMessage.getMetadata().get(
@@ -343,6 +320,11 @@ public abstract class AbstractTestFixture implements Given, When {
                         message.getMetadata().put(TRACE_NAME, currentMessage.getMetadata().get(TAG_NAME));
                     }
                 });
+
+                if (givenSchedules.contains(message)) {
+                    return function.apply(message);
+                }
+                
                 if (isDescendantMetadata(message.getMetadata()) || catchAll) {
                     switch (messageType) {
                         case COMMAND:
@@ -355,7 +337,10 @@ public abstract class AbstractTestFixture implements Given, When {
                             registerSchedule((Schedule) message);
                             break;
                     }
+                } else if (message instanceof Schedule) {
+                    handleGivenSchedule((Schedule) message);
                 }
+                
                 return function.apply(message);
             };
         }

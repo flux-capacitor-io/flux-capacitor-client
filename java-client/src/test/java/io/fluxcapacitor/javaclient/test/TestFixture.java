@@ -14,13 +14,14 @@
 
 package io.fluxcapacitor.javaclient.test;
 
-import io.fluxcapacitor.common.MessageType;
 import io.fluxcapacitor.common.Registration;
 import io.fluxcapacitor.javaclient.FluxCapacitor;
 import io.fluxcapacitor.javaclient.common.Message;
 import io.fluxcapacitor.javaclient.configuration.FluxCapacitorBuilder;
+import io.fluxcapacitor.javaclient.scheduling.DefaultScheduler;
 import io.fluxcapacitor.javaclient.scheduling.Schedule;
 import lombok.SneakyThrows;
+import lombok.extern.slf4j.Slf4j;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -28,7 +29,9 @@ import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.function.Function;
+import java.util.stream.Stream;
 
+@Slf4j
 public class TestFixture extends AbstractTestFixture {
 
     private final List<Message> events = new ArrayList<>();
@@ -61,8 +64,15 @@ public class TestFixture extends AbstractTestFixture {
 
     @Override
     public Registration registerHandlers(List<?> handlers) {
-        return getFluxCapacitor().registerLocalHandlers(handlers)
-                .merge(getFluxCapacitor().tracking(MessageType.SCHEDULE).start(getFluxCapacitor(), handlers));
+        Registration registration = getFluxCapacitor().registerLocalHandlers(handlers);
+        if (getFluxCapacitor().scheduler() instanceof DefaultScheduler) {
+            DefaultScheduler scheduler = (DefaultScheduler) getFluxCapacitor().scheduler();
+            registration = registration.merge(getFluxCapacitor().execute(fc -> handlers.stream().flatMap(h -> Stream
+                    .of(scheduler.registerLocalHandler(h))).reduce(Registration::merge).orElse(Registration.noOp())));
+        } else {
+            log.warn("Could not register local schedule handlers");
+        }
+        return registration;
     }
 
     @Override
@@ -98,5 +108,10 @@ public class TestFixture extends AbstractTestFixture {
         } catch (CompletionException e) {
             throw e.getCause();
         }
+    }
+
+    @Override
+    protected void handleExpiredSchedule(Schedule schedule) {
+        getFluxCapacitor().scheduler().schedule(schedule);
     }
 }

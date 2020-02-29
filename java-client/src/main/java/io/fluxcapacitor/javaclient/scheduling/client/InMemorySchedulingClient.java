@@ -7,26 +7,24 @@ import io.fluxcapacitor.common.api.tracking.MessageBatch;
 import io.fluxcapacitor.javaclient.common.Message;
 import io.fluxcapacitor.javaclient.tracking.TrackingConfiguration;
 import io.fluxcapacitor.javaclient.tracking.client.InMemoryMessageStore;
-import lombok.SneakyThrows;
+import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 
 import java.time.Clock;
-import java.time.Duration;
-import java.time.Instant;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentSkipListMap;
-import java.util.concurrent.atomic.AtomicReference;
 
 import static io.fluxcapacitor.common.IndexUtils.indexFromMillis;
 import static io.fluxcapacitor.common.IndexUtils.millisFromIndex;
 import static java.util.stream.Collectors.toList;
 
 @Slf4j
-public class InMemorySchedulingClient extends InMemoryMessageStore implements SchedulingClient, SupportsTimeTravel {
+public class InMemorySchedulingClient extends InMemoryMessageStore implements SchedulingClient {
     
-    private final AtomicReference<Clock> clock = new AtomicReference<>(Message.getClock());
+    @Getter
+    private volatile Clock clock = Message.getClock();
     private final ConcurrentSkipListMap<Long, String> times = new ConcurrentSkipListMap<>();
 
     @Override
@@ -34,7 +32,7 @@ public class InMemorySchedulingClient extends InMemoryMessageStore implements Sc
                                     TrackingConfiguration configuration) {
         MessageBatch messageBatch = super.readAndWait(consumer, trackerId, previousLastIndex, configuration);
         List<SerializedMessage> messages = messageBatch.getMessages().stream()
-                .filter(m -> times.containsKey(m.getIndex()) && clock.get().millis() >= millisFromIndex(m.getIndex()))
+                .filter(m -> times.containsKey(m.getIndex()) && clock.millis() >= millisFromIndex(m.getIndex()))
                 .collect(toList());
         Long lastIndex = messages.isEmpty() ? null : messages.get(messages.size() - 1).getIndex();
         if (configuration.getTypeFilter() != null) {
@@ -46,7 +44,7 @@ public class InMemorySchedulingClient extends InMemoryMessageStore implements Sc
 
     @Override
     protected boolean shouldWait(Map<Long, SerializedMessage> tailMap) {
-        long deadline = indexFromMillis(clock.get().millis());
+        long deadline = indexFromMillis(clock.millis());
         return tailMap.isEmpty() || tailMap.keySet().stream().noneMatch(index -> index <= deadline);
     }
 
@@ -81,27 +79,10 @@ public class InMemorySchedulingClient extends InMemoryMessageStore implements Sc
         throw new UnsupportedOperationException("Use method #schedule instead");
     }
 
-    @Override
-    @SneakyThrows
-    public void useClock(Clock clock) {
-        this.clock.set(clock);
-    }
-
-    @Override
-    @SneakyThrows
-    public void advanceTimeBy(Duration duration) {
-        if (!duration.isNegative()) {
-            clock.updateAndGet(c -> Clock.offset(c, duration));
-            synchronized (this) {
-                notifyAll();
-            }
-            Thread.sleep(20); //give read thread time to process
+    public void setClock(Clock clock) {
+        this.clock = clock;
+        synchronized (this) {
+            notifyAll();
         }
     }
-
-    @Override
-    public void advanceTimeTo(Instant timestamp) {
-        advanceTimeBy(Duration.between(clock.get().instant(), timestamp));
-    }
-
 }

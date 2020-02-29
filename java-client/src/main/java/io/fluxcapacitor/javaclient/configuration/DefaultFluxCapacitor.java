@@ -438,10 +438,9 @@ public class DefaultFluxCapacitor implements FluxCapacitor {
                                                                                 .get(m), parameterResolvers))));
 
             //misc
-            Scheduler scheduler = new DefaultScheduler(client.getSchedulingClient(),
-                                                       new MessageSerializer(this.serializer,
-                                                                             dispatchInterceptors.get(SCHEDULE),
-                                                                             SCHEDULE));
+            Scheduler scheduler = new DefaultScheduler(client.getSchedulingClient(), new MessageSerializer(
+                    this.serializer, dispatchInterceptors.get(SCHEDULE), SCHEDULE), new DefaultHandlerFactory(
+                            SCHEDULE, handlerInterceptors.get(SCHEDULE), parameterResolvers));
             AtomicBoolean closed = new AtomicBoolean();
             Runnable shutdownHandler = () -> {
                 if (closed.compareAndSet(false, true)) {
