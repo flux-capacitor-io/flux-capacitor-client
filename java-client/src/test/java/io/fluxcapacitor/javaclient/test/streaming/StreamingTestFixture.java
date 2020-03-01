@@ -18,6 +18,7 @@ import io.fluxcapacitor.common.Registration;
 import io.fluxcapacitor.javaclient.FluxCapacitor;
 import io.fluxcapacitor.javaclient.common.Message;
 import io.fluxcapacitor.javaclient.configuration.FluxCapacitorBuilder;
+import io.fluxcapacitor.javaclient.configuration.client.Client;
 import io.fluxcapacitor.javaclient.scheduling.Schedule;
 import io.fluxcapacitor.javaclient.test.AbstractTestFixture;
 import io.fluxcapacitor.javaclient.test.Then;
@@ -59,12 +60,20 @@ public class StreamingTestFixture extends AbstractTestFixture {
         return new StreamingTestFixture(fluxCapacitorBuilder, handlersFactory);
     }
 
+    public static StreamingTestFixture create(FluxCapacitorBuilder fluxCapacitorBuilder, Client client, Object... handlers) {
+        return new StreamingTestFixture(fluxCapacitorBuilder, fc -> Arrays.asList(handlers), client);
+    }
+
     protected StreamingTestFixture(Function<FluxCapacitor, List<?>> handlersFactory) {
         super(handlersFactory);
     }
 
     protected StreamingTestFixture(FluxCapacitorBuilder fluxCapacitorBuilder, Function<FluxCapacitor, List<?>> handlersFactory) {
         super(fluxCapacitorBuilder, handlersFactory);
+    }
+
+    protected StreamingTestFixture(FluxCapacitorBuilder fluxCapacitorBuilder, Function<FluxCapacitor, List<?>> handlersFactory, Client client) {
+        super(fluxCapacitorBuilder, handlersFactory, client);
     }
 
     @Override

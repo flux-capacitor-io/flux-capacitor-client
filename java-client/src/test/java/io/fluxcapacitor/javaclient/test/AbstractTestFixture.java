@@ -23,6 +23,7 @@ import io.fluxcapacitor.javaclient.common.Message;
 import io.fluxcapacitor.javaclient.common.serialization.DeserializingMessage;
 import io.fluxcapacitor.javaclient.configuration.DefaultFluxCapacitor;
 import io.fluxcapacitor.javaclient.configuration.FluxCapacitorBuilder;
+import io.fluxcapacitor.javaclient.configuration.client.Client;
 import io.fluxcapacitor.javaclient.publishing.DispatchInterceptor;
 import io.fluxcapacitor.javaclient.scheduling.Schedule;
 import io.fluxcapacitor.javaclient.scheduling.client.InMemorySchedulingClient;
@@ -57,7 +58,9 @@ public abstract class AbstractTestFixture implements Given, When {
     private final FluxCapacitor fluxCapacitor;
     private final Registration registration;
     private final GivenWhenThenInterceptor interceptor;
-    
+
+    @Getter
+    private Clock clock;
     private final Collection<Schedule> givenSchedules = new ArrayList<>();
 
     protected AbstractTestFixture(Function<FluxCapacitor, List<?>> handlerFactory) {
@@ -66,6 +69,11 @@ public abstract class AbstractTestFixture implements Given, When {
 
     protected AbstractTestFixture(FluxCapacitorBuilder fluxCapacitorBuilder,
                                   Function<FluxCapacitor, List<?>> handlerFactory) {
+        this(fluxCapacitorBuilder, handlerFactory, new TestClient());
+    }
+
+    protected AbstractTestFixture(FluxCapacitorBuilder fluxCapacitorBuilder,
+                                  Function<FluxCapacitor, List<?>> handlerFactory, Client client) {
         Optional<TestUserProvider> userProvider =
                 Optional.ofNullable(UserProvider.defaultUserSupplier).map(TestUserProvider::new);
         if (userProvider.isPresent()) {
@@ -73,7 +81,7 @@ public abstract class AbstractTestFixture implements Given, When {
         }
         this.interceptor = new GivenWhenThenInterceptor();
         this.fluxCapacitor = fluxCapacitorBuilder.disableShutdownHook().addDispatchInterceptor(interceptor)
-                .build(new TestClient());
+                .build(client);
         withClock(Clock.fixed(Instant.now(), ZoneId.systemDefault()));
         this.registration = registerHandlers(handlerFactory.apply(fluxCapacitor));
     }
@@ -104,6 +112,7 @@ public abstract class AbstractTestFixture implements Given, When {
 
     @Override
     public Given withClock(Clock clock) {
+        this.clock = clock;
         SchedulingClient schedulingClient = getFluxCapacitor().client().getSchedulingClient();
         if (schedulingClient instanceof InMemorySchedulingClient) {
             ((InMemorySchedulingClient) schedulingClient).setClock(clock);
@@ -221,11 +230,6 @@ public abstract class AbstractTestFixture implements Given, When {
         helper
      */
 
-    @Override
-    public Clock getClock() {
-        return fluxCapacitor.client().getSchedulingClient().getClock();
-    }
-
     protected void handleGivenSchedule(Schedule schedule) {
         givenSchedules.removeIf(s -> Objects.equals(schedule.getScheduleId(), s.getScheduleId()));
         if (!schedule.isExpired(getClock())) {
@@ -306,8 +310,9 @@ public abstract class AbstractTestFixture implements Given, When {
         protected boolean isDescendantMetadata(Metadata messageMetadata) {
             return TAG.equals(messageMetadata.getOrDefault(TRACE_NAME, "").split(",")[0]);
         }
-        
-        @Override @SuppressWarnings("SuspiciousMethodCalls")
+
+        @Override
+        @SuppressWarnings("SuspiciousMethodCalls")
         public Function<Message, SerializedMessage> interceptDispatch(Function<Message, SerializedMessage> function,
                                                                       MessageType messageType) {
             return message -> {
@@ -324,7 +329,7 @@ public abstract class AbstractTestFixture implements Given, When {
                 if (givenSchedules.contains(message)) {
                     return function.apply(message);
                 }
-                
+
                 if (isDescendantMetadata(message.getMetadata()) || catchAll) {
                     switch (messageType) {
                         case COMMAND:
@@ -340,7 +345,7 @@ public abstract class AbstractTestFixture implements Given, When {
                 } else if (message instanceof Schedule) {
                     handleGivenSchedule((Schedule) message);
                 }
-                
+
                 return function.apply(message);
             };
         }

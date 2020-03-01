@@ -15,11 +15,9 @@
 package io.fluxcapacitor.common.api;
 
 import lombok.Value;
-import lombok.experimental.Accessors;
 
 @Value
 public class BooleanResult implements QueryResult {
     long requestId;
-    @Accessors(fluent = true)
-    boolean value;
+    boolean success;
 }

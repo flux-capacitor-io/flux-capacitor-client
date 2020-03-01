@@ -75,7 +75,7 @@ public class WebsocketKeyValueClient extends AbstractWebsocketClient implements 
     @Override
     public CompletableFuture<Boolean> putValueIfAbsent(String key, Data<byte[]> value) {
         return sendRequest(new StoreValueIfAbsent(new KeyValuePair(key, value)))
-                .thenApply(r -> ((BooleanResult) r).value());
+                .thenApply(r -> ((BooleanResult) r).isSuccess());
     }
 
     @Override
