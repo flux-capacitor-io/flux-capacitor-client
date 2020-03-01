@@ -21,10 +21,7 @@ import org.springframework.test.annotation.DirtiesContext;
 import org.springframework.test.context.ContextConfiguration;
 import org.springframework.test.context.junit.jupiter.SpringExtension;
 
-import java.util.concurrent.CompletableFuture;
-
 import static org.hamcrest.Matchers.isA;
-import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.springframework.test.annotation.DirtiesContext.ClassMode.AFTER_EACH_TEST_METHOD;
 
 @Disabled("Leave here to enable tests against real server")
@@ -45,14 +42,6 @@ class GivenWhenThenSpringCustomClientTest {
     @Test
     void testBar() {
         testFixture.givenNoPriorActivity().whenCommand("command1").expectCommands("command2");
-    }
-
-    @Test
-    @SneakyThrows
-    void testWaitForSlowResultAfterTerminate() {
-        CompletableFuture<Object> result = testFixture.getFluxCapacitor().commandGateway().send(new SlowCommand());
-        testFixture.getFluxCapacitor().close();
-        assertTrue(result.isDone());
     }
 
     @Test
@@ -93,12 +82,6 @@ class GivenWhenThenSpringCustomClientTest {
         public void handle(String command) {
             FluxCapacitor.publishEvent("event");
         }
-
-        @HandleCommand
-        public CompletableFuture<?> handle(SlowCommand command) {
-           return CompletableFuture.runAsync(GivenWhenThenSpringCustomClientTest::sleepAWhile);
-        }
-        
         
     }
 
@@ -115,10 +98,6 @@ class GivenWhenThenSpringCustomClientTest {
         public void handle(String event) {
             FluxCapacitor.sendAndForgetCommand("command2");
         }
-    }
-    
-    @Value
-    private static class SlowCommand {
     }
 
     @SneakyThrows
