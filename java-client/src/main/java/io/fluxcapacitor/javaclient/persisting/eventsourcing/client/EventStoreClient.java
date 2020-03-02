@@ -18,6 +18,7 @@ import io.fluxcapacitor.common.Awaitable;
 import io.fluxcapacitor.common.api.SerializedMessage;
 
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
 import java.util.stream.Stream;
 
 public interface EventStoreClient extends AutoCloseable {
@@ -30,9 +31,9 @@ public interface EventStoreClient extends AutoCloseable {
     }
 
     Stream<SerializedMessage> getEvents(String aggregateId, long lastSequenceNumber);
+    
+    CompletableFuture<Boolean> deleteEvents(String aggregateId);
 
     @Override
-    default void close() {
-        //no op
-    }
+    void close();
 }

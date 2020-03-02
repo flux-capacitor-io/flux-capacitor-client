@@ -16,8 +16,10 @@ package io.fluxcapacitor.javaclient.persisting.eventsourcing.client;
 
 import io.fluxcapacitor.common.Awaitable;
 import io.fluxcapacitor.common.Backlog;
+import io.fluxcapacitor.common.api.BooleanResult;
 import io.fluxcapacitor.common.api.SerializedMessage;
 import io.fluxcapacitor.common.api.eventsourcing.AppendEvents;
+import io.fluxcapacitor.common.api.eventsourcing.DeleteEvents;
 import io.fluxcapacitor.common.api.eventsourcing.EventBatch;
 import io.fluxcapacitor.common.api.eventsourcing.GetEvents;
 import io.fluxcapacitor.common.api.eventsourcing.GetEventsResult;
@@ -27,6 +29,7 @@ import io.fluxcapacitor.javaclient.configuration.client.WebSocketClient.Properti
 import javax.websocket.ClientEndpoint;
 import java.net.URI;
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
 import java.util.stream.Stream;
 
 import static io.fluxcapacitor.common.ObjectUtils.iterate;
@@ -68,6 +71,11 @@ public class WebSocketEventStoreClient extends AbstractWebsocketClient implement
                        r -> sendRequestAndWait(new GetEvents(aggregateId, r.getEventBatch().getLastSequenceNumber(), fetchBatchSize)),
                        r -> r.getEventBatch().getEvents().size() < fetchBatchSize)
                 .flatMap(r -> r.getEventBatch().getEvents().stream());
+    }
+
+    @Override
+    public CompletableFuture<Boolean> deleteEvents(String aggregateId) {
+        return sendRequest(new DeleteEvents(aggregateId)).thenApply(r -> ((BooleanResult) r).isSuccess());
     }
 
 }

@@ -18,6 +18,8 @@ import com.fasterxml.jackson.annotation.JsonSubTypes;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import io.fluxcapacitor.common.api.eventsourcing.AppendEvents;
 import io.fluxcapacitor.common.api.eventsourcing.AppendEventsEvent;
+import io.fluxcapacitor.common.api.eventsourcing.DeleteEvents;
+import io.fluxcapacitor.common.api.eventsourcing.DeleteEventsEvent;
 import io.fluxcapacitor.common.api.eventsourcing.GetEvents;
 import io.fluxcapacitor.common.api.eventsourcing.GetEventsEvent;
 import io.fluxcapacitor.common.api.eventsourcing.GetEventsResult;
@@ -82,6 +84,8 @@ import io.fluxcapacitor.common.api.tracking.StorePositionEvent;
         @JsonSubTypes.Type(value = GetEvents.class, name = "getEvents"),
         @JsonSubTypes.Type(value = GetEventsEvent.class, name = "getEventsEvent"),
         @JsonSubTypes.Type(value = GetEventsResult.class, name = "getEventsResult"),
+        @JsonSubTypes.Type(value = DeleteEvents.class, name = "deleteEvents"),
+        @JsonSubTypes.Type(value = DeleteEventsEvent.class, name = "deleteEventsEvent"),
 
         //scheduling
         @JsonSubTypes.Type(value = Schedule.class, name = "schedule"),

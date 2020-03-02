@@ -22,6 +22,7 @@ import io.fluxcapacitor.javaclient.tracking.client.InMemoryMessageStore;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.stream.Stream;
@@ -54,6 +55,11 @@ public class InMemoryEventStoreClient extends InMemoryMessageStore implements Ev
                     }
                     return events.stream().skip(lastSequenceNumber - batch.getFirstSequenceNumber() + 1);
                 });
+    }
+
+    @Override
+    public CompletableFuture<Boolean> deleteEvents(String aggregateId) {
+        return CompletableFuture.completedFuture(domainEvents.remove(aggregateId) != null);
     }
 
 }
