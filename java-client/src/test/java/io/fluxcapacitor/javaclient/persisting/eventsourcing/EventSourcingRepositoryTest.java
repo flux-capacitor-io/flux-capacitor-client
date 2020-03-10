@@ -1,5 +1,6 @@
 package io.fluxcapacitor.javaclient.persisting.eventsourcing;
 
+import io.fluxcapacitor.common.Awaitable;
 import io.fluxcapacitor.common.api.Data;
 import io.fluxcapacitor.common.api.Metadata;
 import io.fluxcapacitor.common.api.SerializedMessage;
@@ -34,6 +35,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.fail;
 import static org.mockito.ArgumentMatchers.anyList;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.Mockito.anyLong;
 import static org.mockito.Mockito.eq;
@@ -58,6 +60,7 @@ class EventSourcingRepositoryTest {
     @BeforeEach
     void setUp() {
         when(eventStore.getDomainEvents(eq(aggregateId), anyLong())).thenReturn(Stream.empty());
+        when(eventStore.storeDomainEvents(anyString(), anyString(), anyLong(), anyList())).thenReturn(Awaitable.ready());
     }
 
     @Test
@@ -107,7 +110,6 @@ class EventSourcingRepositoryTest {
 
     @Test
     void testEventsGetStoredWhenHandlingEnds() {
-        reset(eventStore);
         Message event = new Message(new CreateModel());
         applyAndCommit(event);
         verify(eventStore).storeDomainEvents(eq(aggregateId), eq(TestModel.class.getSimpleName()), eq(0L), anyList());
@@ -134,6 +136,7 @@ class EventSourcingRepositoryTest {
         DeserializingMessage.handleBatch(Stream.of(toDeserializingMessage("command"))).forEach(m -> {
             Aggregate<TestModel> aggregate = subject.load(aggregateId, TestModel.class);
             reset(eventStore);
+            setUp();
             events.forEach(aggregate::apply);
             verifyNoInteractions(eventStore);
         });

@@ -1,5 +1,6 @@
 package io.fluxcapacitor.javaclient.persisting.eventsourcing;
 
+import io.fluxcapacitor.common.Awaitable;
 import io.fluxcapacitor.common.api.Metadata;
 import io.fluxcapacitor.javaclient.common.Message;
 import io.fluxcapacitor.javaclient.common.serialization.DeserializingMessage;
@@ -78,7 +79,7 @@ public class EventSourcingRepository implements AggregateRepository {
                     .orElse(null);
         }
         return ofNullable(loadedModels.get()).orElse(emptyList()).stream()
-                .filter(model -> model.id.equals(aggregateId) 
+                .filter(model -> model.id.equals(aggregateId)
                         && aggregateType.isAssignableFrom(model.getAggregateType()))
                 .map(m -> (EventSourcedAggregate<T>) m)
                 .findAny().orElseGet(() -> createAggregate(aggregateType, aggregateId));
@@ -162,7 +163,7 @@ public class EventSourcingRepository implements AggregateRepository {
                         return model;
                     });
         }
-        
+
         @SuppressWarnings("rawtypes")
         public Class<?> getAggregateType() {
             return Optional.ofNullable(model).map(EventSourcedModel::get)
@@ -175,18 +176,18 @@ public class EventSourcingRepository implements AggregateRepository {
                 throw new UnsupportedOperationException(format("Not allowed to apply a %s. The model is readonly.",
                                                                eventMessage));
             }
-            
+
             Metadata metadata = Metadata.from(eventMessage.getMetadata());
             metadata.put(Aggregate.AGGREGATE_ID_METADATA_KEY, id);
             metadata.put(Aggregate.AGGREGATE_TYPE_METADATA_KEY, getAggregateType().getName());
-            
+
             eventMessage = eventMessage.withMetadata(metadata);
             DeserializingMessage deserializingMessage = new DeserializingMessage(new DeserializingObject<>(
                     serializer.serialize(eventMessage), eventMessage::getPayload), EVENT);
             model = model.toBuilder().sequenceNumber(model.sequenceNumber() + 1)
                     .lastEventId(eventMessage.getMessageId()).timestamp(eventMessage.getTimestamp())
                     .model(eventSourcingHandler.invoke(model.get(), deserializingMessage)).build();
-            
+
             unpublishedEvents.add(deserializingMessage);
 
             if (loadedModels.get() == null) {
@@ -196,7 +197,15 @@ public class EventSourcingRepository implements AggregateRepository {
                 Runnable commit = () -> {
                     Collection<EventSourcedAggregate<?>> models = loadedModels.get();
                     loadedModels.remove();
-                    models.forEach(EventSourcedAggregate::commit);
+                    models.stream().map(EventSourcedAggregate::commit).reduce(Awaitable::join).ifPresent(a -> {
+                        try {
+                            a.await();
+                        } catch (Exception e) {
+                            List<String> aggregateIds = models.stream().map(m -> m.id).collect(toList());
+                            log.error("Failed to commit new events of aggregates {}", aggregateIds, e);
+                            aggregateIds.forEach(id -> cache.invalidate(keyFunction.apply(id)));
+                        }
+                    });
                 };
                 if (aggregateType.getAnnotation(EventSourced.class).commitInBatch()) {
                     whenBatchCompletes(commit);
@@ -228,12 +237,13 @@ public class EventSourcingRepository implements AggregateRepository {
             return model.timestamp();
         }
 
-        protected void commit() {
+        protected Awaitable commit() {
+            Awaitable result = Awaitable.ready();
             if (!unpublishedEvents.isEmpty()) {
                 try {
                     cache.put(keyFunction.apply(model.id()), model);
-                    eventStore.storeDomainEvents(model.id(), domain, model.sequenceNumber(),
-                                                 new ArrayList<>(unpublishedEvents));
+                    result = eventStore.storeDomainEvents(model.id(), domain, model.sequenceNumber(),
+                                                          new ArrayList<>(unpublishedEvents));
                     if (snapshotTrigger.shouldCreateSnapshot(model, unpublishedEvents)) {
                         snapshotRepository.storeSnapshot(model);
                     }
@@ -244,6 +254,7 @@ public class EventSourcingRepository implements AggregateRepository {
                     unpublishedEvents.clear();
                 }
             }
+            return result;
         }
     }
 }

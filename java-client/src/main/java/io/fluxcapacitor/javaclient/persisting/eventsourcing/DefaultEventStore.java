@@ -1,5 +1,6 @@
 package io.fluxcapacitor.javaclient.persisting.eventsourcing;
 
+import io.fluxcapacitor.common.Awaitable;
 import io.fluxcapacitor.common.ConsistentHashing;
 import io.fluxcapacitor.common.Registration;
 import io.fluxcapacitor.common.handling.Handler;
@@ -28,8 +29,9 @@ public class DefaultEventStore implements EventStore {
     private final List<Handler<DeserializingMessage>> localHandlers = new CopyOnWriteArrayList<>();
 
     @Override
-    public void storeDomainEvents(String aggregateId, String domain, long lastSequenceNumber,
-                                  List<?> events) {
+    public Awaitable storeDomainEvents(String aggregateId, String domain, long lastSequenceNumber,
+                                       List<?> events) {
+        Awaitable result;
         List<DeserializingMessage> messages = new ArrayList<>(events.size());
         try {
             int segment = ConsistentHashing.computeSegment(aggregateId);
@@ -44,14 +46,15 @@ public class DefaultEventStore implements EventStore {
                 }
                 messages.add(deserializingMessage);
             });
-            client.storeEvents(aggregateId, domain, lastSequenceNumber, 
+            result = client.storeEvents(aggregateId, domain, lastSequenceNumber, 
                                messages.stream().map(m -> m.getSerializedObject().withSegment(segment))
-                                       .collect(toList())).await();
+                                       .collect(toList()));
         } catch (Exception e) {
             throw new EventSourcingException(format("Failed to store events %s for aggregate %s", events, aggregateId),
                                              e);
         }
         messages.forEach(this::tryHandleLocally);
+        return result;
     }
 
     @Override

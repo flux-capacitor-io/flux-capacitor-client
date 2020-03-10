@@ -1,5 +1,6 @@
 package io.fluxcapacitor.javaclient.persisting.eventsourcing;
 
+import io.fluxcapacitor.common.Awaitable;
 import io.fluxcapacitor.common.Registration;
 import io.fluxcapacitor.javaclient.common.serialization.DeserializingMessage;
 
@@ -10,11 +11,11 @@ import static java.util.Arrays.asList;
 
 public interface EventStore {
 
-    default void storeDomainEvents(String aggregateId, String domain, long lastSequenceNumber, Object... events) {
-        storeDomainEvents(aggregateId, domain, lastSequenceNumber, asList(events));
+    default Awaitable storeDomainEvents(String aggregateId, String domain, long lastSequenceNumber, Object... events) {
+        return storeDomainEvents(aggregateId, domain, lastSequenceNumber, asList(events));
     }
 
-    void storeDomainEvents(String aggregateId, String domain, long lastSequenceNumber, List<?> events);
+    Awaitable storeDomainEvents(String aggregateId, String domain, long lastSequenceNumber, List<?> events);
 
     default Stream<DeserializingMessage> getDomainEvents(String aggregateId) {
         return getDomainEvents(aggregateId, -1L);
