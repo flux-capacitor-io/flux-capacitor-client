@@ -7,10 +7,10 @@ import lombok.AllArgsConstructor;
 
 import java.util.function.Function;
 
+import static io.fluxcapacitor.javaclient.tracking.handling.validation.ValidationUtils.defaultValidator;
+
 @AllArgsConstructor
 public class ValidatingInterceptor implements HandlerInterceptor {
-    public static final Validator defaultValidator = Jsr380Validator.createDefault();
-
     private final Validator validator;
 
     public ValidatingInterceptor() {
