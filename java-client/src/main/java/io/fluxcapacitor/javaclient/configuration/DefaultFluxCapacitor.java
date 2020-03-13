@@ -66,6 +66,8 @@ import io.fluxcapacitor.javaclient.tracking.Tracking;
 import io.fluxcapacitor.javaclient.tracking.TrackingException;
 import io.fluxcapacitor.javaclient.tracking.handling.DefaultHandlerFactory;
 import io.fluxcapacitor.javaclient.tracking.handling.HandlerInterceptor;
+import io.fluxcapacitor.javaclient.tracking.handling.HandlerRegistry;
+import io.fluxcapacitor.javaclient.tracking.handling.LocalHandlerRegistry;
 import io.fluxcapacitor.javaclient.tracking.handling.authentication.AuthenticatingInterceptor;
 import io.fluxcapacitor.javaclient.tracking.handling.authentication.UserProvider;
 import io.fluxcapacitor.javaclient.tracking.handling.errorreporting.ErrorReportingInterceptor;
@@ -366,10 +368,8 @@ public class DefaultFluxCapacitor implements FluxCapacitor {
             EventStoreSerializer eventStoreSerializer = new EventStoreSerializer(this.serializer,
                                                                                  dispatchInterceptors.get(EVENT));
             EventStore eventStore = new DefaultEventStore(client.getEventStoreClient(),
-                                                          eventStoreSerializer,
-                                                          new DefaultHandlerFactory(EVENT,
-                                                                                    handlerInterceptors.get(EVENT),
-                                                                                    parameterResolvers));
+                                                          eventStoreSerializer, 
+                                                          localHandlerRegistry(EVENT, handlerInterceptors));
             DefaultSnapshotRepository snapshotRepository =
                     new DefaultSnapshotRepository(client.getKeyValueClient(), snapshotSerializer);
 
@@ -406,23 +406,16 @@ public class DefaultFluxCapacitor implements FluxCapacitor {
             CommandGateway commandGateway =
                     new DefaultCommandGateway(createRequestGateway(client, COMMAND, requestHandler,
                                                                    dispatchInterceptors.get(COMMAND),
-                                                                   new DefaultHandlerFactory(COMMAND,
-                                                                                             handlerInterceptors
-                                                                                                     .get(COMMAND),
-                                                                                             parameterResolvers)));
+                                                                   handlerInterceptors));
             QueryGateway queryGateway =
                     new DefaultQueryGateway(createRequestGateway(client, QUERY, requestHandler,
                                                                  dispatchInterceptors.get(QUERY),
-                                                                 new DefaultHandlerFactory(QUERY,
-                                                                                           handlerInterceptors
-                                                                                                   .get(QUERY),
-                                                                                           parameterResolvers)));
+                                                                 handlerInterceptors));
             EventGateway eventGateway =
                     new DefaultEventGateway(client.getGatewayClient(EVENT),
                                             new MessageSerializer(this.serializer, dispatchInterceptors.get(EVENT),
-                                                                  EVENT),
-                                            new DefaultHandlerFactory(EVENT, handlerInterceptors.get(EVENT),
-                                                                      parameterResolvers));
+                                                                  EVENT), 
+                                            localHandlerRegistry(EVENT, handlerInterceptors));
 
             MetricsGateway metricsGateway =
                     new DefaultMetricsGateway(client.getGatewayClient(METRICS),
@@ -440,7 +433,7 @@ public class DefaultFluxCapacitor implements FluxCapacitor {
             //misc
             Scheduler scheduler = new DefaultScheduler(client.getSchedulingClient(), new MessageSerializer(
                     this.serializer, dispatchInterceptors.get(SCHEDULE), SCHEDULE), new DefaultHandlerFactory(
-                            SCHEDULE, handlerInterceptors.get(SCHEDULE), parameterResolvers));
+                    SCHEDULE, handlerInterceptors.get(SCHEDULE), parameterResolvers));
             AtomicBoolean closed = new AtomicBoolean();
             Runnable shutdownHandler = () -> {
                 if (closed.compareAndSet(false, true)) {
@@ -484,10 +477,17 @@ public class DefaultFluxCapacitor implements FluxCapacitor {
         protected RequestGateway createRequestGateway(Client client, MessageType messageType,
                                                       RequestHandler requestHandler,
                                                       DispatchInterceptor dispatchInterceptor,
-                                                      DefaultHandlerFactory handlerFactory) {
-            return new DefaultGenericGateway(messageType, client.getGatewayClient(messageType), requestHandler,
+                                                      Map<MessageType, HandlerInterceptor> handlerInterceptors) {
+            return new DefaultGenericGateway(client.getGatewayClient(messageType), requestHandler,
                                              new MessageSerializer(serializer, dispatchInterceptor, messageType),
-                                             handlerFactory);
+                                             localHandlerRegistry(messageType, handlerInterceptors));
+        }
+
+        protected HandlerRegistry localHandlerRegistry(MessageType messageType,
+                                                       Map<MessageType, HandlerInterceptor> handlerInterceptors) {
+            return new LocalHandlerRegistry(messageType,
+                                            new DefaultHandlerFactory(messageType, handlerInterceptors.get(messageType),
+                                                                      parameterResolvers));
         }
     }
 
