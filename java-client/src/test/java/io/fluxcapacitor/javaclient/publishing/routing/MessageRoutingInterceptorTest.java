@@ -65,6 +65,11 @@ class MessageRoutingInterceptorTest {
     void testAnnotationOnInterfaceMethod() {
         testInvocation((AnnotationOnInterfaceMethod) () -> "bar");
     }
+
+    @Test
+    void testAnnotationOnType() {
+        testInvocation(new Message(new AnnotationOnType(), Metadata.from("foo", "bar")));
+    }
     
     @Test
     void testStaticInterfaceFieldAnnotation() {
@@ -107,7 +112,11 @@ class MessageRoutingInterceptorTest {
     }
 
     private void testInvocation(Object payload) {
-        SerializedMessage result = subject.interceptDispatch(invocation, EVENT).apply(new Message(payload));
+        testInvocation(new Message(payload));
+    }
+
+    private void testInvocation(Message message) {
+        SerializedMessage result = subject.interceptDispatch(invocation, EVENT).apply(message);
         assertEquals(expectedHash, (int) result.getSegment());
     }
 
@@ -163,6 +172,10 @@ class MessageRoutingInterceptorTest {
         private static Object foo() {
             return "bar";
         }
+    }
+
+    @RoutingKey(metadataKey = "foo")
+    private static class AnnotationOnType {
     }
 
     private static class AnnotationOnExtendedField extends AnnotationOnField {

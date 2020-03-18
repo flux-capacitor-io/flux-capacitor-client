@@ -20,21 +20,40 @@ import io.fluxcapacitor.common.api.SerializedMessage;
 import io.fluxcapacitor.javaclient.common.Message;
 import io.fluxcapacitor.javaclient.publishing.DispatchInterceptor;
 import lombok.AllArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 
 import java.util.function.Function;
 
 import static io.fluxcapacitor.common.reflection.ReflectionUtils.getAnnotatedPropertyValue;
 
 @AllArgsConstructor
+@Slf4j
 public class MessageRoutingInterceptor implements DispatchInterceptor {
     @Override
     public Function<Message, SerializedMessage> interceptDispatch(Function<Message, SerializedMessage> function,
                                                                   MessageType messageType) {
-        return m -> getAnnotatedPropertyValue(m.getPayload(), RoutingKey.class).map(Object::toString)
-                .map(ConsistentHashing::computeSegment).map(s -> {
-                    SerializedMessage serializedMessage = function.apply(m);
-                    serializedMessage.setSegment(s);
-                    return serializedMessage;
-                }).orElse(function.apply(m));
+        return m -> {
+            if (m.getPayload() != null) {
+                Class<?> payloadType = m.getPayload().getClass();
+                RoutingKey typeAnnotation = payloadType.getAnnotation(RoutingKey.class);
+                if (typeAnnotation != null) {
+                    String routingValue = m.getMetadata().get(typeAnnotation.metadataKey());
+                    if (routingValue == null) {
+                        log.warn("Did not find metadata routingValue for {} for routing key of message {} (id {})",
+                                 typeAnnotation.metadataKey(), payloadType, m.getMessageId());
+                    } else {
+                        SerializedMessage serializedMessage = function.apply(m);
+                        serializedMessage.setSegment(ConsistentHashing.computeSegment(routingValue));
+                        return serializedMessage;
+                    }
+                }
+            }
+            return getAnnotatedPropertyValue(m.getPayload(), RoutingKey.class).map(Object::toString)
+                    .map(ConsistentHashing::computeSegment).map(s -> {
+                        SerializedMessage serializedMessage = function.apply(m);
+                        serializedMessage.setSegment(s);
+                        return serializedMessage;
+                    }).orElse(function.apply(m));
+        };
     }
 }
