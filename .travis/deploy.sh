@@ -4,4 +4,4 @@ set -e
 
 gpg --allow-secret-key-import --import .travis/codesigning.asc
 mvn versions:set -DnewVersion=${TRAVIS_TAG}
-mvn deploy --settings .travis/settings.xml -DskipTests=true -P release
+mvn deploy --settings .travis/settings.xml -DskipTests=true -P deploy
