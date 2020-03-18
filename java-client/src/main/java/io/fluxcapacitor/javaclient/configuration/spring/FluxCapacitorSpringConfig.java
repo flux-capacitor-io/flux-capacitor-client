@@ -11,6 +11,7 @@ import io.fluxcapacitor.javaclient.configuration.FluxCapacitorBuilder;
 import io.fluxcapacitor.javaclient.configuration.client.Client;
 import io.fluxcapacitor.javaclient.configuration.client.InMemoryClient;
 import io.fluxcapacitor.javaclient.configuration.client.WebSocketClient;
+import io.fluxcapacitor.javaclient.tracking.handling.authentication.UserProvider;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.BeansException;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -69,12 +70,15 @@ public class FluxCapacitorSpringConfig implements BeanPostProcessor {
         return getBean(ObjectMapper.class).map(objectMapper -> new JacksonSerializer(objectMapper, upcasters))
                 .orElse(new JacksonSerializer(upcasters));
     }
-
+    
     @Bean
     @ConditionalOnMissingBean
-    public FluxCapacitorBuilder fluxCapacitorBuilder(Serializer serializer) {
-        return DefaultFluxCapacitor.builder().disableShutdownHook()
+    @SuppressWarnings("OptionalUsedAsFieldOrParameterType")
+    public FluxCapacitorBuilder fluxCapacitorBuilder(Serializer serializer, Optional<UserProvider> userProvider) {
+        FluxCapacitorBuilder builder = DefaultFluxCapacitor.builder().disableShutdownHook()
                 .replaceSerializer(serializer).replaceSnapshotSerializer(serializer);
+        userProvider.ifPresent(builder::registerUserSupplier);
+        return builder;
     }
 
     @Bean

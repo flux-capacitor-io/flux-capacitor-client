@@ -16,6 +16,7 @@ package io.fluxcapacitor.javaclient.modeling;
 
 import io.fluxcapacitor.common.api.Metadata;
 import io.fluxcapacitor.javaclient.common.Message;
+import io.fluxcapacitor.javaclient.tracking.handling.validation.ValidationUtils;
 
 import java.time.Instant;
 import java.util.function.Function;
@@ -47,7 +48,7 @@ public interface Aggregate<T> {
     }
 
     default <E extends Exception> Aggregate<T> assertLegal(Object command) throws E {
-        DefaultLegalCheck.assertLegal(command, get());
+        ValidationUtils.assertLegal(command, get());
         return this;
     }
 
