@@ -51,7 +51,7 @@ import static org.apache.commons.lang3.reflect.MethodUtils.getMethodsListWithAnn
 
 public class ReflectionUtils {
     
-    private static Function<Class<?>, List<Method>> methodsCache = memoize(ReflectionUtils::computeAllMethods);
+    private static final Function<Class<?>, List<Method>> methodsCache = memoize(ReflectionUtils::computeAllMethods);
 
     public static List<Method> getAllMethods(Class<?> type) {
         return methodsCache.apply(type);

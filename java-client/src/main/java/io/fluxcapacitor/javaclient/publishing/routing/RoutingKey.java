@@ -24,7 +24,8 @@ import java.lang.annotation.Target;
  * enclosing object as payload. The value of the field or method converted to a string via the value's
  * {@code toString()} method. If placed on a method, that method must contain no parameters.
  */
-@Target({ElementType.METHOD, ElementType.FIELD})
+@Target({ElementType.METHOD, ElementType.FIELD, ElementType.TYPE})
 @Retention(RetentionPolicy.RUNTIME)
 public @interface RoutingKey {
+    String metadataKey() default "";
 }
