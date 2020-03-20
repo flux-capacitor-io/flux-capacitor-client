@@ -7,7 +7,7 @@ on:
 
 jobs:
   deploy:
-    runs-on: ubuntu-18.04
+    runs-on: ubuntu-latest
     steps:
       - name: Check out Git repository
         uses: actions/checkout@v2
@@ -16,7 +16,12 @@ jobs:
         uses: actions/setup-java@v1
         with:
           java-version: 11
-
+          
+      - name: Set maven version
+        run: |
+          echo ${GITHUB_REF#refs/*/}
+          mvn -B versions:set -DnewVersion=${GITHUB_REF#refs/*/}
+          
       - name: Deploy to Maven Central
         uses: samuelmeuli/action-maven-publish@v1
         with:
@@ -24,4 +29,3 @@ jobs:
           gpg_passphrase: ${{ secrets.gpg_passphrase }}
           nexus_username: ${{ secrets.nexus_username }}
           nexus_password: ${{ secrets.nexus_password }}
-          maven_goals_phases: clean versions:set -DnewVersion=${GITHUB_REF##*/} deploy
