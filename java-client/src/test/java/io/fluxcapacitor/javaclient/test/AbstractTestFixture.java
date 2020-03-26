@@ -44,9 +44,9 @@ import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.concurrent.Callable;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Function;
-import java.util.function.Supplier;
 import java.util.stream.Stream;
 
 import static java.util.Comparator.comparing;
@@ -215,6 +215,11 @@ public abstract class AbstractTestFixture implements Given, When {
     }
 
     @Override
+    public Then whenApplying(Callable<?> task) {
+        return applyWhen(task, true);
+    }
+
+    @Override
     @SneakyThrows
     public Then whenTimeElapses(Duration duration) {
         return when(() -> advanceTimeBy(duration), true);
@@ -257,7 +262,7 @@ public abstract class AbstractTestFixture implements Given, When {
         }, catchAll);
     }
 
-    protected Then applyWhen(Supplier<Object> action, boolean catchAll) {
+    protected Then applyWhen(Callable<?> action, boolean catchAll) {
         try {
             FluxCapacitor.instance.set(fluxCapacitor);
             if (catchAll) {
@@ -265,7 +270,7 @@ public abstract class AbstractTestFixture implements Given, When {
             }
             Object result;
             try {
-                result = action.get();
+                result = action.call();
             } catch (Exception e) {
                 result = e;
             }
