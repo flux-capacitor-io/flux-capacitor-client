@@ -123,24 +123,24 @@ public class CachingAggregateRepository implements AggregateRepository {
             String eventId = event.getSerializedObject().getMessageId();
             Instant timestamp = ofEpochMilli(event.getSerializedObject().getTimestamp());
             RefreshingAggregate<?> aggregate = cache.getIfPresent(cacheKey);
-
-            //may be the first event for this aggregate
-            if (aggregate == null && handler.canHandle(null, event)) {
-                try {
-                    aggregate = new RefreshingAggregate<>(handler.invoke(null, event), eventId,
-                                                          timestamp, true);
-                } catch (Exception ignored) {
-                }
-            }
-
+            
             if (aggregate == null) {
-                aggregate = Optional.ofNullable(delegate.load(aggregateId, type)).map(a -> new RefreshingAggregate<>(
-                        a.get(), a.lastEventId(), a.timestamp(), Objects.equals(a.lastEventId(), eventId)))
-                        .orElseGet(() -> {
-                            log.warn("Delegate repository did not contain aggregate with id {} of type {}",
-                                     aggregateId, type);
-                            return null;
-                        });
+                if (handler.canHandle(null, event)) { //may be the first event for this aggregate
+                    try {
+                        aggregate = new RefreshingAggregate<>(handler.invoke(null, event), eventId,
+                                                              timestamp, true);
+                    } catch (Exception ignored) {
+                    }
+                } else { //otherwise we just don't have it in the cache
+                    aggregate =
+                            Optional.ofNullable(delegate.load(aggregateId, type)).map(a -> new RefreshingAggregate<>(
+                                    a.get(), a.lastEventId(), a.timestamp(), Objects.equals(a.lastEventId(), eventId)))
+                                    .orElseGet(() -> {
+                                        log.warn("Delegate repository did not contain aggregate with id {} of type {}",
+                                                 aggregateId, type);
+                                        return null;
+                                    });
+                }
             } else if (aggregate.inSync) {
                 try {
                     aggregate = new RefreshingAggregate<>(handler.invoke(aggregate.get(), event), eventId,
