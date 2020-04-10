@@ -15,8 +15,10 @@
 package io.fluxcapacitor.javaclient.configuration;
 
 import io.fluxcapacitor.common.MessageType;
+import io.fluxcapacitor.common.Registration;
 import io.fluxcapacitor.common.handling.ParameterResolver;
 import io.fluxcapacitor.javaclient.FluxCapacitor;
+import io.fluxcapacitor.javaclient.common.ClientUtils;
 import io.fluxcapacitor.javaclient.common.serialization.DeserializingMessage;
 import io.fluxcapacitor.javaclient.common.serialization.MessageSerializer;
 import io.fluxcapacitor.javaclient.common.serialization.Serializer;
@@ -83,12 +85,14 @@ import lombok.extern.slf4j.Slf4j;
 
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.Callable;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.ForkJoinPool;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.UnaryOperator;
@@ -133,6 +137,9 @@ public class DefaultFluxCapacitor implements FluxCapacitor {
     private final Client client;
     private final Runnable shutdownHandler;
 
+    private final AtomicBoolean closed = new AtomicBoolean();
+    private final Collection<Runnable> cleanupTasks = new CopyOnWriteArrayList<>();
+
     public static Builder builder() {
         return new Builder();
     }
@@ -144,8 +151,19 @@ public class DefaultFluxCapacitor implements FluxCapacitor {
     }
 
     @Override
+    public Registration beforeShutdown(Runnable task) {
+        cleanupTasks.add(task);
+        return () -> cleanupTasks.remove(task);
+    }
+
+    @Override
     public void close() {
-        shutdownHandler.run();
+        if (closed.compareAndSet(false, true)) {
+            log.info("Initiating controlled shutdown");
+            cleanupTasks.forEach(ClientUtils::tryRun);
+            shutdownHandler.run();
+            log.info("Completed shutdown");
+        }
     }
 
     public static class Builder implements FluxCapacitorBuilder {
@@ -368,7 +386,7 @@ public class DefaultFluxCapacitor implements FluxCapacitor {
             EventStoreSerializer eventStoreSerializer = new EventStoreSerializer(this.serializer,
                                                                                  dispatchInterceptors.get(EVENT));
             EventStore eventStore = new DefaultEventStore(client.getEventStoreClient(),
-                                                          eventStoreSerializer, 
+                                                          eventStoreSerializer,
                                                           localHandlerRegistry(EVENT, handlerInterceptors));
             DefaultSnapshotRepository snapshotRepository =
                     new DefaultSnapshotRepository(client.getKeyValueClient(), snapshotSerializer);
@@ -414,7 +432,7 @@ public class DefaultFluxCapacitor implements FluxCapacitor {
             EventGateway eventGateway =
                     new DefaultEventGateway(client.getGatewayClient(EVENT),
                                             new MessageSerializer(this.serializer, dispatchInterceptors.get(EVENT),
-                                                                  EVENT), 
+                                                                  EVENT),
                                             localHandlerRegistry(EVENT, handlerInterceptors));
 
             MetricsGateway metricsGateway =
@@ -434,18 +452,14 @@ public class DefaultFluxCapacitor implements FluxCapacitor {
             Scheduler scheduler = new DefaultScheduler(client.getSchedulingClient(), new MessageSerializer(
                     this.serializer, dispatchInterceptors.get(SCHEDULE), SCHEDULE), new DefaultHandlerFactory(
                     SCHEDULE, handlerInterceptors.get(SCHEDULE), parameterResolvers));
-            AtomicBoolean closed = new AtomicBoolean();
+
             Runnable shutdownHandler = () -> {
-                if (closed.compareAndSet(false, true)) {
-                    log.info("Initiating controlled shutdown");
-                    ForkJoinPool.commonPool().invokeAll(trackingMap.values().stream().map(t -> (Callable<?>) () -> {
-                        t.close();
-                        return null;
-                    }).collect(toList()));
-                    requestHandler.close();
-                    client.shutDown();
-                    log.info("Completed shutdown");
-                }
+                ForkJoinPool.commonPool().invokeAll(trackingMap.values().stream().map(t -> (Callable<?>) () -> {
+                    t.close();
+                    return null;
+                }).collect(toList()));
+                requestHandler.close();
+                client.shutDown();
             };
 
             //and finally...
@@ -455,7 +469,7 @@ public class DefaultFluxCapacitor implements FluxCapacitor {
 
             //perform a controlled shutdown when the vm exits
             if (!disableShutdownHook) {
-                getRuntime().addShutdownHook(new Thread(shutdownHandler));
+                getRuntime().addShutdownHook(new Thread(fluxCapacitor::close));
             }
 
             return fluxCapacitor;
@@ -470,8 +484,7 @@ public class DefaultFluxCapacitor implements FluxCapacitor {
                                         Cache cache, Client client, Runnable shutdownHandler) {
             return new DefaultFluxCapacitor(trackingSupplier, commandGateway, queryGateway, eventGateway, resultGateway,
                                             errorGateway, metricsGateway, aggregateRepository, eventStore,
-                                            keyValueStore, scheduler,
-                                            cache, client, shutdownHandler);
+                                            keyValueStore, scheduler, cache, client, shutdownHandler);
         }
 
         protected RequestGateway createRequestGateway(Client client, MessageType messageType,

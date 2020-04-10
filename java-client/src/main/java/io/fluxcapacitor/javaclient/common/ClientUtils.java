@@ -12,7 +12,7 @@ import java.util.concurrent.TimeoutException;
 
 @Slf4j
 public class ClientUtils {
-    
+
     public static void waitForResults(Duration maxDuration, Collection<? extends CompletableFuture<?>> futures) {
         Instant deadline = Instant.now().plus(maxDuration);
         for (CompletableFuture<?> f : futures) {
@@ -28,6 +28,14 @@ public class ClientUtils {
             } catch (ExecutionException ignore) {
             }
         }
-    }     
+    }
+
+    public static void tryRun(Runnable task) {
+        try {
+            task.run();
+        } catch (Exception e) {
+            log.warn("Task {} failed", task, e);
+        }
+    }
 
 }

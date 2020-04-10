@@ -346,6 +346,11 @@ public interface FluxCapacitor extends AutoCloseable {
         }
     }
 
+    /**
+     * Register a task to run before this Flux Capacitor instance is closed.
+     */
+    Registration beforeShutdown(Runnable task);
+
     @Override
     void close();
 }
