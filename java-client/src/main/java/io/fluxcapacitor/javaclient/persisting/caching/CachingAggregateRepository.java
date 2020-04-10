@@ -63,7 +63,8 @@ public class CachingAggregateRepository implements AggregateRepository {
         if (result == null) {
             return Optional.<Aggregate<T>>ofNullable(doLoad(aggregateId))
                     .filter(a -> Optional.ofNullable(a.get()).map(m -> aggregateType.isAssignableFrom(m.getClass()))
-                            .orElse(true)).orElseGet(() -> delegate.load(aggregateId, aggregateType, onlyCached));
+                            .orElse(true))
+                    .orElseGet(() -> delegate.load(aggregateId, aggregateType, onlyCached));
         }
         return result;
     }
@@ -73,6 +74,9 @@ public class CachingAggregateRepository implements AggregateRepository {
             log.info("Start tracking notifications");
             start(format("%s_%s", clientName, CachingAggregateRepository.class.getSimpleName()),
                   trackingClient, this::handleEvents);
+            return null;
+        }
+        if (lastEventIndex.get() <= 0) {
             return null;
         }
         DeserializingMessage current = DeserializingMessage.getCurrent();
@@ -123,7 +127,7 @@ public class CachingAggregateRepository implements AggregateRepository {
             String eventId = event.getSerializedObject().getMessageId();
             Instant timestamp = ofEpochMilli(event.getSerializedObject().getTimestamp());
             RefreshingAggregate<?> aggregate = cache.getIfPresent(cacheKey);
-            
+
             if (aggregate == null) {
                 if (handler.canHandle(null, event)) { //may be the first event for this aggregate
                     try {
