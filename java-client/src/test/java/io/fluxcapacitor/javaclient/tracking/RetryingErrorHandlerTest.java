@@ -25,27 +25,27 @@ public class RetryingErrorHandlerTest {
 
     @Test
     void testRetryCountCorrect() throws Exception {
-        RetryingErrorHandler subject = new RetryingErrorHandler(3, Duration.ofMillis(10), e -> true, false);
+        RetryingErrorHandler subject = new RetryingErrorHandler(3, Duration.ofMillis(10), e -> true, false, true);
         subject.handleError(exception, "mock exception", mockTask);
         verify(mockTask, times(3)).run();
     }
 
     @Test
     void testThrowsExceptionIfDesired() {
-        RetryingErrorHandler subject = new RetryingErrorHandler(1, Duration.ofMillis(10), e -> true, true);
+        RetryingErrorHandler subject = new RetryingErrorHandler(1, Duration.ofMillis(10), e -> true, true, true);
         assertThrows(MockException.class, () -> subject.handleError(exception, "mock exception", mockTask));
     }
 
     @Test
     void testDontRetryIfErrorFilterFails() throws Exception {
-        RetryingErrorHandler subject = new RetryingErrorHandler(1, Duration.ofMillis(10), e -> false, false);
+        RetryingErrorHandler subject = new RetryingErrorHandler(1, Duration.ofMillis(10), e -> false, false, true);
         subject.handleError(exception, "mock exception", mockTask);
         verifyNoInteractions(mockTask);
     }
 
     @Test
     void testThrowIfErrorFilterFails() {
-        RetryingErrorHandler subject = new RetryingErrorHandler(1, Duration.ofMillis(10), e -> false, true);
+        RetryingErrorHandler subject = new RetryingErrorHandler(1, Duration.ofMillis(10), e -> false, true, true);
         assertThrows(MockException.class, () -> subject.handleError(exception, "mock exception", mockTask));
     }
 }
