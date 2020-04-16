@@ -66,7 +66,7 @@ public class RetryingErrorHandler implements ErrorHandler {
     protected void logMessage(String errorMessage, boolean severe) {
         if (severe) {
             log.error(errorMessage);
-        } else {
+        } else if (logFunctionalErrors) {
             log.warn(errorMessage);
         }
     }
