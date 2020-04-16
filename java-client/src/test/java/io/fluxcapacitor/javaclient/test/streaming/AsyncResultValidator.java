@@ -14,6 +14,7 @@
 
 package io.fluxcapacitor.javaclient.test.streaming;
 
+import io.fluxcapacitor.javaclient.FluxCapacitor;
 import io.fluxcapacitor.javaclient.common.Message;
 import io.fluxcapacitor.javaclient.scheduling.Schedule;
 import io.fluxcapacitor.javaclient.test.AbstractResultValidator;
@@ -32,11 +33,11 @@ public class AsyncResultValidator extends AbstractResultValidator {
     private final BlockingQueue<Message> resultingCommands;
     private final BlockingQueue<Schedule> resultingSchedules;
 
-    public AsyncResultValidator(Object actualResult,
+    public AsyncResultValidator(FluxCapacitor fluxCapacitor, Object actualResult,
                                 BlockingQueue<Message> resultingEvents,
                                 BlockingQueue<Message> resultingCommands,
                                 BlockingQueue<Schedule> resultingSchedules) {
-        super(actualResult);
+        super(fluxCapacitor, actualResult);
         this.resultingEvents = resultingEvents;
         this.resultingCommands = resultingCommands;
         this.resultingSchedules = resultingSchedules;
@@ -103,7 +104,7 @@ public class AsyncResultValidator extends AbstractResultValidator {
         Collection<Message> actual = getActualMessages(expected, resultingMessages);
         return expectOnlyMessages(expected, actual);
     }
-    
+
     protected Then expectNoMessagesLike(Collection<?> messages,
                                         BlockingQueue<Message> resultingMessages) {
         Collection<?> expected = asMessages(messages);

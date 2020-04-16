@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016-2018 Flux Capacitor. 
+ * Copyright (c) 2016-2018 Flux Capacitor.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -82,7 +82,7 @@ public class TestFixture extends AbstractTestFixture {
 
     @Override
     protected Then createResultValidator(Object result) {
-        return new ResultValidator(result, events, commands, schedules);
+        return new ResultValidator(getFluxCapacitor(), result, events, commands, schedules);
     }
 
     @Override

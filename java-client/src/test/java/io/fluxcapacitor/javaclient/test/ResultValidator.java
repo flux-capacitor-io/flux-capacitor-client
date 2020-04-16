@@ -14,6 +14,7 @@
 
 package io.fluxcapacitor.javaclient.test;
 
+import io.fluxcapacitor.javaclient.FluxCapacitor;
 import io.fluxcapacitor.javaclient.common.Message;
 import io.fluxcapacitor.javaclient.scheduling.Schedule;
 
@@ -24,11 +25,11 @@ public class ResultValidator extends AbstractResultValidator {
     private final List<Message> resultingCommands;
     private final List<Schedule> resultingSchedules;
 
-    public ResultValidator(Object actualResult,
+    public ResultValidator(FluxCapacitor fluxCapacitor, Object actualResult,
                            List<Message> resultingEvents,
                            List<Message> resultingCommands,
                            List<Schedule> resultingSchedules) {
-        super(actualResult);
+        super(fluxCapacitor, actualResult);
         this.resultingEvents = resultingEvents;
         this.resultingCommands = resultingCommands;
         this.resultingSchedules = resultingSchedules;

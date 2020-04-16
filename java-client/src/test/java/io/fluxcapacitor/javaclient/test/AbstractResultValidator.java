@@ -14,9 +14,12 @@
 
 package io.fluxcapacitor.javaclient.test;
 
+import io.fluxcapacitor.javaclient.FluxCapacitor;
 import io.fluxcapacitor.javaclient.common.Message;
 import io.fluxcapacitor.javaclient.scheduling.Schedule;
+import lombok.AccessLevel;
 import lombok.AllArgsConstructor;
+import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import org.hamcrest.Matcher;
 import org.hamcrest.StringDescription;
@@ -33,7 +36,119 @@ import static java.util.stream.Collectors.toList;
 @AllArgsConstructor
 @Slf4j
 public abstract class AbstractResultValidator implements Then {
+    @Getter(AccessLevel.PROTECTED)
+    private final FluxCapacitor fluxCapacitor;
     private final Object actualResult;
+
+    @Override
+    public AbstractResultValidator expectResult(Matcher<?> resultMatcher) {
+        return fluxCapacitor.execute(fc -> {
+            StringDescription description = new StringDescription();
+            resultMatcher.describeTo(description);
+            if (actualResult instanceof Throwable) {
+                throw new GivenWhenThenAssertionError("An unexpected exception occurred during handling",
+                                                      description.toString(), actualResult);
+            }
+            if (!resultMatcher.matches(actualResult)) {
+                throw new GivenWhenThenAssertionError("Handler returned an unexpected value",
+                                                      description.toString(), actualResult);
+            }
+            return this;
+        });
+    }
+
+    @Override
+    public AbstractResultValidator expectNoResultLike(Matcher<?> resultMatcher) {
+        return fluxCapacitor.execute(fc -> {
+            StringDescription description = new StringDescription();
+            resultMatcher.describeTo(description);
+            if (actualResult instanceof Throwable) {
+                throw new GivenWhenThenAssertionError(
+                        format("Handler threw an unexpected exception. Expected not to get: %s",
+                               description), (Throwable) actualResult);
+            }
+            if (resultMatcher.matches(actualResult)) {
+                throw new GivenWhenThenAssertionError(
+                        format("Handler returned the unwanted result.\nExpected not to get: %s\nGot: %s",
+                               description, actualResult));
+            }
+            return this;
+        });
+    }
+
+    @Override
+    public AbstractResultValidator verify(Runnable check) {
+        return fluxCapacitor.execute(fc -> {
+            try {
+                check.run();
+            } catch (Exception e) {
+                throw new GivenWhenThenAssertionError("Verify check failed", e);
+            }
+            return this;
+        });
+    }
+
+    @Override
+    public AbstractResultValidator expectException(Matcher<?> resultMatcher) {
+        return fluxCapacitor.execute(fc -> {
+            StringDescription description = new StringDescription();
+            resultMatcher.describeTo(description);
+            if (!(actualResult instanceof Throwable)) {
+                throw new GivenWhenThenAssertionError(
+                        "Handler returned normally but an exception was expected",
+                        description, actualResult);
+            }
+            if (!resultMatcher.matches(actualResult)) {
+                throw new GivenWhenThenAssertionError("Handler threw unexpected exception",
+                                                      description, actualResult);
+            }
+            return this;
+        });
+
+    }
+
+    protected AbstractResultValidator expectScheduledMessages(Collection<?> expected, Collection<? extends Schedule> actual) {
+        return fluxCapacitor.execute(fc -> {
+            if (!expected.isEmpty() && actual.isEmpty()) {
+                throw new GivenWhenThenAssertionError("No messages were scheduled");
+            }
+            expected.forEach(e -> {
+                if (e instanceof Schedule) {
+                    if (actual.stream().noneMatch(s -> Objects.equals(s.getDeadline(), ((Schedule) e).getDeadline()))) {
+                        throw new GivenWhenThenAssertionError(
+                                format("Found no schedules with matching deadline. Expected %s. Got %s",
+                                       ((Schedule) e).getDeadline(),
+                                       actual.stream().map(Schedule::getDeadline).collect(toList())));
+                    }
+                }
+            });
+            return expectMessages(asMessages(expected), actual);
+        });
+    }
+
+    protected void reportMismatch(Collection<?> expected, Collection<? extends Message> actual) {
+        fluxCapacitor.execute(fc -> {
+            if (actualResult instanceof Throwable) {
+                throw new GivenWhenThenAssertionError(
+                        "Published messages did not match. Probable cause is an exception that occurred during handling:",
+                        (Throwable) actualResult);
+            }
+            throw new GivenWhenThenAssertionError("Published messages did not match", expected, actual);
+        });
+    }
+
+    protected void reportUnwantedMatch(Collection<?> expected, Collection<? extends Message> actual) {
+        fluxCapacitor.execute(fc -> {
+            if (actualResult instanceof Throwable) {
+                throw new GivenWhenThenAssertionError("An unexpected exception occurred during handling",
+                                                      (Throwable) actualResult);
+            }
+            throw new GivenWhenThenAssertionError(
+                    format("Unwanted match found in published messages.\nExpected not to get: %s\nGot: %s\n\n",
+                           expected, actual));
+        });
+    }
+
 
     protected AbstractResultValidator expectMessages(Collection<?> expected, Collection<? extends Message> actual) {
         if (!containsAll(expected, actual)) {
@@ -74,46 +189,10 @@ public abstract class AbstractResultValidator implements Then {
         return this;
     }
 
-    protected AbstractResultValidator expectScheduledMessages(Collection<?> expected, Collection<? extends Schedule> actual) {
-        if (!expected.isEmpty() && actual.isEmpty()) {
-            throw new GivenWhenThenAssertionError("No messages were scheduled");
-        }
-        expected.forEach(e -> {
-            if (e instanceof Schedule) {
-                if (actual.stream().noneMatch(s -> Objects.equals(s.getDeadline(), ((Schedule) e).getDeadline()))) {
-                    throw new GivenWhenThenAssertionError(
-                            format("Found no schedules with matching deadline. Expected %s. Got %s",
-                                   ((Schedule) e).getDeadline(),
-                                   actual.stream().map(Schedule::getDeadline).collect(toList())));
-                }
-            }
-        });
-        return expectMessages(asMessages(expected), actual);
-    }
-
     protected AbstractResultValidator expectOnlyScheduledMessages(Collection<?> expected,
                                                                   Collection<? extends Schedule> actual) {
         AbstractResultValidator result = expectScheduledMessages(expected, actual);
         return result.expectOnlyMessages(expected, actual);
-    }
-
-    protected void reportMismatch(Collection<?> expected, Collection<? extends Message> actual) {
-        if (actualResult instanceof Throwable) {
-            throw new GivenWhenThenAssertionError(
-                    "Published messages did not match. Probable cause is an exception that occurred during handling:",
-                    (Throwable) actualResult);
-        }
-        throw new GivenWhenThenAssertionError("Published messages did not match", expected, actual);
-    }
-
-    protected void reportUnwantedMatch(Collection<?> expected, Collection<? extends Message> actual) {
-        if (actualResult instanceof Throwable) {
-            throw new GivenWhenThenAssertionError("An unexpected exception occurred during handling",
-                                                  (Throwable) actualResult);
-        }
-        throw new GivenWhenThenAssertionError(
-                format("Unwanted match found in published messages.\nExpected not to get: %s\nGot: %s\n\n",
-                       expected, actual));
     }
 
     protected boolean containsAll(Collection<?> expected, Collection<? extends Message> actual) {
@@ -136,63 +215,5 @@ public abstract class AbstractResultValidator implements Then {
     protected Collection<?> asMessages(Collection<?> events) {
         return events.stream().map(e -> e instanceof Matcher<?> ? (Matcher<?>) e :
                 e instanceof Message ? (Message) e : new Message(e)).collect(toList());
-    }
-
-    @Override
-    public AbstractResultValidator expectResult(Matcher<?> resultMatcher) {
-        StringDescription description = new StringDescription();
-        resultMatcher.describeTo(description);
-        if (actualResult instanceof Throwable) {
-            throw new GivenWhenThenAssertionError("An unexpected exception occurred during handling",
-                                                  description.toString(), actualResult);
-        }
-        if (!resultMatcher.matches(actualResult)) {
-            throw new GivenWhenThenAssertionError("Handler returned an unexpected value",
-                                                  description.toString(), actualResult);
-        }
-        return this;
-    }
-
-    @Override
-    public AbstractResultValidator expectNoResultLike(Matcher<?> resultMatcher) {
-        StringDescription description = new StringDescription();
-        resultMatcher.describeTo(description);
-        if (actualResult instanceof Throwable) {
-            throw new GivenWhenThenAssertionError(
-                    format("Handler threw an unexpected exception. Expected not to get: %s",
-                           description), (Throwable) actualResult);
-        }
-        if (resultMatcher.matches(actualResult)) {
-            throw new GivenWhenThenAssertionError(
-                    format("Handler returned the unwanted result.\nExpected not to get: %s\nGot: %s",
-                           description, actualResult));
-        }
-        return this;
-    }
-
-    @Override
-    public AbstractResultValidator verify(Runnable check) {
-        try {
-            check.run();
-        } catch (Exception e) {
-            throw new GivenWhenThenAssertionError("Verify check failed", e);
-        }
-        return this;
-    }
-
-    @Override
-    public AbstractResultValidator expectException(Matcher<?> resultMatcher) {
-        StringDescription description = new StringDescription();
-        resultMatcher.describeTo(description);
-        if (!(actualResult instanceof Throwable)) {
-            throw new GivenWhenThenAssertionError(
-                    "Handler returned normally but an exception was expected",
-                    description, actualResult);
-        }
-        if (!resultMatcher.matches(actualResult)) {
-            throw new GivenWhenThenAssertionError("Handler threw unexpected exception",
-                                                  description, actualResult);
-        }
-        return this;
     }
 }

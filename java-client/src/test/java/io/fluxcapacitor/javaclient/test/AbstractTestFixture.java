@@ -85,7 +85,7 @@ public abstract class AbstractTestFixture implements Given, When {
         withClock(Clock.fixed(Instant.now(), ZoneId.systemDefault()));
         this.registration = registerHandlers(handlerFactory.apply(fluxCapacitor));
     }
-    
+
     /*
         abstract
      */
@@ -105,7 +105,7 @@ public abstract class AbstractTestFixture implements Given, When {
     protected abstract Object getDispatchResult(CompletableFuture<?> dispatchResult);
 
     protected abstract void handleExpiredSchedule(Schedule schedule);
-    
+
     /*
         init
      */
@@ -121,7 +121,7 @@ public abstract class AbstractTestFixture implements Given, When {
         }
         return this;
     }
-    
+
     /*
         given
      */
@@ -144,17 +144,16 @@ public abstract class AbstractTestFixture implements Given, When {
 
     @Override
     public When given(Runnable condition) {
-        try {
-            FluxCapacitor.instance.set(fluxCapacitor);
-            condition.run();
-            return this;
-        } catch (Exception e) {
-            throw new IllegalStateException("Failed to execute given", e);
-        } finally {
-            FluxCapacitor.instance.remove();
-        }
+        return fluxCapacitor.execute(fc -> {
+            try {
+                condition.run();
+                return this;
+            } catch (Exception e) {
+                throw new IllegalStateException("Failed to execute given", e);
+            }
+        });
     }
-    
+
     /*
         and given
      */
@@ -188,7 +187,7 @@ public abstract class AbstractTestFixture implements Given, When {
     public When andThenTimeElapses(Duration duration) {
         return given(() -> advanceTimeBy(duration));
     }
-    
+
     /*
         when
      */
@@ -230,7 +229,7 @@ public abstract class AbstractTestFixture implements Given, When {
     public Then whenTimeAdvancesTo(Instant instant) {
         return when(() -> advanceTimeTo(instant), true);
     }
-    
+
     /*
         helper
      */
@@ -263,22 +262,22 @@ public abstract class AbstractTestFixture implements Given, When {
     }
 
     protected Then applyWhen(Callable<?> action, boolean catchAll) {
-        try {
-            FluxCapacitor.instance.set(fluxCapacitor);
-            if (catchAll) {
-                interceptor.catchAll();
-            }
-            Object result;
+        return fluxCapacitor.execute(fc -> {
             try {
-                result = action.call();
-            } catch (Exception e) {
-                result = e;
+                if (catchAll) {
+                    interceptor.catchAll();
+                }
+                Object result;
+                try {
+                    result = action.call();
+                } catch (Exception e) {
+                    result = e;
+                }
+                return createResultValidator(result);
+            } finally {
+                deregisterHandlers(registration);
             }
-            return createResultValidator(result);
-        } finally {
-            deregisterHandlers(registration);
-            FluxCapacitor.instance.remove();
-        }
+        });
     }
 
     protected Stream<Object> flatten(Object... messages) {
