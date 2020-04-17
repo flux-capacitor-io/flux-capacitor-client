@@ -19,7 +19,7 @@ public class GivenWhenThenAssertionError extends AssertionFailedError {
     public static ObjectWriter formatter = new ObjectMapper()
             .findAndRegisterModules().disable(FAIL_ON_EMPTY_BEANS)
             .disable(WRITE_DATES_AS_TIMESTAMPS).disable(FAIL_ON_UNKNOWN_PROPERTIES).writerWithDefaultPrettyPrinter();
-    
+
     public GivenWhenThenAssertionError(String message) {
         super(message);
     }
@@ -35,7 +35,7 @@ public class GivenWhenThenAssertionError extends AssertionFailedError {
     @SneakyThrows
     private static Object formatForComparison(Object expectedOrActual) {
         if (expectedOrActual instanceof Message) {
-            Message message = (Message) expectedOrActual; 
+            Message message = (Message) expectedOrActual;
             Metadata metadata = Metadata.from(message.getMetadata());
             metadata.keySet().removeIf(key -> key.startsWith("$"));
             return new PayloadAndMetadata(message.getPayload(), metadata);
@@ -44,9 +44,9 @@ public class GivenWhenThenAssertionError extends AssertionFailedError {
             Collection<?> collection = (Collection<?>) expectedOrActual;
             return collection.stream().map(GivenWhenThenAssertionError::formatForComparison).collect(toList());
         }
-        return expectedOrActual;
+        return new PayloadAndMetadata(expectedOrActual, Metadata.empty());
     }
-    
+
     @Value
     private static class PayloadAndMetadata {
         Object payload;
