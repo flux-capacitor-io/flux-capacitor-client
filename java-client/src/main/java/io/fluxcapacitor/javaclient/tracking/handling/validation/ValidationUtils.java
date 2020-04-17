@@ -9,6 +9,7 @@ import io.fluxcapacitor.javaclient.tracking.handling.authentication.RequiresRole
 import io.fluxcapacitor.javaclient.tracking.handling.authentication.UnauthenticatedException;
 import io.fluxcapacitor.javaclient.tracking.handling.authentication.UnauthorizedException;
 import io.fluxcapacitor.javaclient.tracking.handling.authentication.User;
+import io.fluxcapacitor.javaclient.tracking.handling.authentication.UserParameterResolver;
 import lombok.SneakyThrows;
 
 import java.lang.annotation.Annotation;
@@ -22,14 +23,13 @@ import java.util.function.Function;
 import static io.fluxcapacitor.common.ObjectUtils.memoize;
 import static io.fluxcapacitor.common.handling.HandlerInspector.inspect;
 import static java.lang.String.format;
-import static java.util.Collections.singletonList;
 import static java.util.Optional.empty;
 
 public class ValidationUtils {
     public static final Validator defaultValidator = Optional.of(ServiceLoader.load(Validator.class))
             .map(ServiceLoader::iterator).filter(Iterator::hasNext).map(Iterator::next)
             .orElse(Jsr380Validator.createDefault());
-    
+
     /*
         Check object validity
      */
@@ -45,15 +45,16 @@ public class ValidationUtils {
     public static void assertValid(Object object, Class<?>... group) {
         defaultValidator.assertValid(object, group);
     }
-    
-    
+
+
     /*
         Check command / query legality
      */
 
     private static final Function<Class<?>, HandlerInvoker<Object>> assertLegalInvokerCache = memoize(type -> inspect(
             type, AssertLegal.class,
-            singletonList(p -> v -> v instanceof Aggregate<?> ? ((Aggregate<?>) v).get() : v),
+            Arrays.asList(p -> v -> v instanceof Aggregate<?> ? ((Aggregate<?>) v).get() : v,
+                          new UserParameterResolver()),
             HandlerConfiguration.builder().failOnMissingMethods(false).invokeMultipleMethods(true)
                     .build()));
 
@@ -77,12 +78,12 @@ public class ValidationUtils {
     public static boolean isLegal(Object commandOrQuery, Object aggregate) {
         return !checkLegality(commandOrQuery, aggregate).isPresent();
     }
-    
-    
+
+
     /*
         Check command / query authorization
      */
-    
+
     private static final Function<Class<?>, String[]> requiredRolesCache = memoize(ValidationUtils::getRequiredRoles);
 
     public static void assertAuthorized(Class<?> payloadType, User user) throws UnauthenticatedException, UnauthorizedException {
