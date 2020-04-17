@@ -36,6 +36,7 @@ import org.springframework.test.context.ContextConfiguration;
 import org.springframework.test.context.junit.jupiter.SpringExtension;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
@@ -47,7 +48,7 @@ import static org.mockito.Mockito.when;
 public class FluxCapacitorSpringConfigTest {
     private static final User mockUser = mock(User.class);
     private static final UserProvider mockUserProvider = mock(UserProvider.class);
-    
+
     static {
         when(mockUserProvider.fromMetadata(any(Metadata.class))).thenReturn(mockUser);
     }
@@ -60,7 +61,7 @@ public class FluxCapacitorSpringConfigTest {
         String result = fluxCapacitor.commandGateway().sendAndWait("command");
         assertEquals("upcasted result", result);
     }
-    
+
     @Test
     void testUserProviderInjected() {
         assertEquals(mockUser, fluxCapacitor.queryGateway().sendAndWait(new GetUser()));
@@ -69,11 +70,12 @@ public class FluxCapacitorSpringConfigTest {
     @Component
     public static class SomeHandler {
         @HandleCommand
-        public Object handleCommand(String command) {
+        public Object handleCommand(String command, User user) {
+            assertNotNull(user);
             return "result";
         }
     }
-    
+
     @Component @LocalHandler
     public static class SomeLocalHandler {
         @HandleQuery
@@ -99,9 +101,9 @@ public class FluxCapacitorSpringConfigTest {
         public UserProvider userProvider() {
             return mockUserProvider;
         }
-        
+
     }
-    
+
     @Value
     static class GetUser {
     }

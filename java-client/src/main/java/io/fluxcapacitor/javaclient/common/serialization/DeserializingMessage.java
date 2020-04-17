@@ -14,6 +14,7 @@ import io.fluxcapacitor.javaclient.tracking.handling.DeserializingMessageParamet
 import io.fluxcapacitor.javaclient.tracking.handling.MessageParameterResolver;
 import io.fluxcapacitor.javaclient.tracking.handling.MetadataParameterResolver;
 import io.fluxcapacitor.javaclient.tracking.handling.PayloadParameterResolver;
+import io.fluxcapacitor.javaclient.tracking.handling.authentication.UserParameterResolver;
 import lombok.AllArgsConstructor;
 import lombok.Value;
 import lombok.experimental.Delegate;
@@ -44,17 +45,17 @@ import static java.util.stream.Collectors.toList;
 public class DeserializingMessage {
     public static MessageFormatter messageFormatter = MessageFormatter.DEFAULT;
     public static List<ParameterResolver<? super DeserializingMessage>> defaultParameterResolvers =
-            Arrays.asList(new DeserializingMessageParameterResolver(), 
-                          new PayloadParameterResolver(), new MetadataParameterResolver(), 
-                          new MessageParameterResolver(), new AggregateIdResolver(), 
-                          new AggregateTypeResolver());
+            Arrays.asList(new DeserializingMessageParameterResolver(),
+                          new PayloadParameterResolver(), new MetadataParameterResolver(),
+                          new MessageParameterResolver(), new AggregateIdResolver(),
+                          new AggregateTypeResolver(), new UserParameterResolver());
     public static MethodInvokerFactory<DeserializingMessage> defaultInvokerFactory = MethodHandlerInvoker::new;
 
     private static final ThreadLocal<Collection<Runnable>> messageCompletionHandlers = new ThreadLocal<>();
     private static final ThreadLocal<Collection<Runnable>> batchCompletionHandlers = new ThreadLocal<>();
     private static final ThreadLocal<Map<Object, Object>> batchResources = new ThreadLocal<>();
     private static final ThreadLocal<DeserializingMessage> current = new ThreadLocal<>();
-    
+
     @Delegate
     DeserializingObject<byte[], SerializedMessage> delegate;
     MessageType messageType;
@@ -104,8 +105,8 @@ public class DeserializingMessage {
         Collection<Runnable> handlers = messageCompletionHandlers.get();
         handlers.add(handler);
     }
-    
-    
+
+
     public static Stream<DeserializingMessage> handleBatch(Stream<DeserializingMessage> batch) {
         return StreamSupport.stream(new MessageSpliterator(batch.spliterator()), false);
     }
@@ -119,7 +120,7 @@ public class DeserializingMessage {
     public static <K, V> V computeForBatchIfAbsent(K key, Function<? super K, ? extends V> function) {
         return (V) getResources().computeIfAbsent(key, (Function) function);
     }
-    
+
     @SuppressWarnings("unchecked")
     public static <V> V getBatchResource(Object key) {
         return (V) getResources().get(key);
@@ -136,7 +137,7 @@ public class DeserializingMessage {
     public String toString() {
         return messageFormatter.apply(this);
     }
-    
+
     private static void setCurrent(DeserializingMessage message) {
         current.set(message);
         if (message == null) {
@@ -146,7 +147,7 @@ public class DeserializingMessage {
             });
         }
     }
-    
+
     private static class MessageSpliterator extends Spliterators.AbstractSpliterator<DeserializingMessage> {
         private final Spliterator<DeserializingMessage> upStream;
 
