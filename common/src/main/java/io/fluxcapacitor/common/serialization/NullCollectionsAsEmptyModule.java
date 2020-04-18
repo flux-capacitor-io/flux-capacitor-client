@@ -1,4 +1,4 @@
-package io.fluxcapacitor.javaclient.common.serialization.jackson;
+package io.fluxcapacitor.common.serialization;
 
 import com.fasterxml.jackson.annotation.JsonSetter;
 import com.fasterxml.jackson.annotation.Nulls;

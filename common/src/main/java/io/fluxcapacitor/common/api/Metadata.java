@@ -1,7 +1,8 @@
 package io.fluxcapacitor.common.api;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.json.JsonMapper;
+import io.fluxcapacitor.common.serialization.NullCollectionsAsEmptyModule;
 import lombok.NonNull;
 import lombok.SneakyThrows;
 import lombok.Value;
@@ -20,8 +21,10 @@ import static java.util.Collections.singletonMap;
 
 @Value
 public class Metadata implements Map<String, String> {
-    public static ObjectMapper objectMapper = new ObjectMapper()
-            .findAndRegisterModules().disable(FAIL_ON_EMPTY_BEANS).disable(FAIL_ON_UNKNOWN_PROPERTIES);
+    public static JsonMapper objectMapper = JsonMapper.builder()
+            .findAndAddModules().addModule(new NullCollectionsAsEmptyModule())
+            .disable(FAIL_ON_EMPTY_BEANS).disable(FAIL_ON_UNKNOWN_PROPERTIES)
+            .build();
 
     @Delegate
     Map<String, String> entries;

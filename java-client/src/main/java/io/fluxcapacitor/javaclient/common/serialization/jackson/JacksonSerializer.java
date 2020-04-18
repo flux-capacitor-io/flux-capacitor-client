@@ -17,6 +17,7 @@ package io.fluxcapacitor.javaclient.common.serialization.jackson;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.json.JsonMapper;
 import io.fluxcapacitor.common.api.SerializedObject;
+import io.fluxcapacitor.common.serialization.NullCollectionsAsEmptyModule;
 import io.fluxcapacitor.javaclient.common.serialization.AbstractSerializer;
 import io.fluxcapacitor.javaclient.common.serialization.DeserializingObject;
 import io.fluxcapacitor.javaclient.common.serialization.SerializationException;
