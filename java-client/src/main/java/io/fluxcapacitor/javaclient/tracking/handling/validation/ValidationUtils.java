@@ -53,7 +53,8 @@ public class ValidationUtils {
 
     private static final Function<Class<?>, HandlerInvoker<Object>> assertLegalInvokerCache = memoize(type -> inspect(
             type, AssertLegal.class,
-            Arrays.asList(p -> v -> v instanceof Aggregate<?> ? ((Aggregate<?>) v).get() : v,
+            Arrays.asList(p -> p.getDeclaringExecutable().getParameters()[0].equals(p)
+                                  ? (v -> v instanceof Aggregate<?> ? ((Aggregate<?>) v).get() : v) : null,
                           new UserParameterResolver()),
             HandlerConfiguration.builder().failOnMissingMethods(false).invokeMultipleMethods(true)
                     .build()));
