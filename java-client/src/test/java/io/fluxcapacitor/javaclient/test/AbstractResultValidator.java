@@ -41,36 +41,37 @@ public abstract class AbstractResultValidator implements Then {
     private final Object actualResult;
 
     @Override
-    public AbstractResultValidator expectResult(Matcher<?> resultMatcher) {
+    public AbstractResultValidator expectResult(Object expectedResult) {
         return fluxCapacitor.execute(fc -> {
-            StringDescription description = new StringDescription();
-            resultMatcher.describeTo(description);
             if (actualResult instanceof Throwable) {
                 throw new GivenWhenThenAssertionError("An unexpected exception occurred during handling",
-                                                      description.toString(), actualResult);
+                                                      (Throwable) actualResult);
             }
-            if (!resultMatcher.matches(actualResult)) {
-                throw new GivenWhenThenAssertionError("Handler returned an unexpected value",
-                                                      description.toString(), actualResult);
+            if (!matches(expectedResult, actualResult)) {
+                if (!(expectedResult instanceof Matcher<?>) && actualResult != null && expectedResult != null
+                        && !Objects.equals(expectedResult.getClass(), actualResult.getClass())) {
+                    throw new GivenWhenThenAssertionError(format(
+                            "Handler returned a result of unexpected type.\nExpected: %s\nGot: %s",
+                            expectedResult.getClass(), actualResult.getClass()));
+                }
+                throw new GivenWhenThenAssertionError("Handler returned an unexpected result",
+                                                      expectedResult, actualResult);
             }
             return this;
         });
     }
 
     @Override
-    public AbstractResultValidator expectNoResultLike(Matcher<?> resultMatcher) {
+    public AbstractResultValidator expectNoResultLike(Object value) {
         return fluxCapacitor.execute(fc -> {
-            StringDescription description = new StringDescription();
-            resultMatcher.describeTo(description);
             if (actualResult instanceof Throwable) {
-                throw new GivenWhenThenAssertionError(
-                        format("Handler threw an unexpected exception. Expected not to get: %s",
-                               description), (Throwable) actualResult);
+                throw new GivenWhenThenAssertionError("An unexpected exception occurred during handling",
+                                                      (Throwable) actualResult);
             }
-            if (resultMatcher.matches(actualResult)) {
+            if (matches(value, actualResult)) {
                 throw new GivenWhenThenAssertionError(
                         format("Handler returned the unwanted result.\nExpected not to get: %s\nGot: %s",
-                               description, actualResult));
+                               value, actualResult));
             }
             return this;
         });
@@ -107,7 +108,8 @@ public abstract class AbstractResultValidator implements Then {
 
     }
 
-    protected AbstractResultValidator expectScheduledMessages(Collection<?> expected, Collection<? extends Schedule> actual) {
+    protected AbstractResultValidator expectScheduledMessages(Collection<?> expected,
+                                                              Collection<? extends Schedule> actual) {
         return fluxCapacitor.execute(fc -> {
             if (!expected.isEmpty() && actual.isEmpty()) {
                 throw new GivenWhenThenAssertionError("No messages were scheduled");
@@ -182,7 +184,8 @@ public abstract class AbstractResultValidator implements Then {
         return this;
     }
 
-    protected AbstractResultValidator expectNoMessagesLike(Collection<?> expectedNotToGet, Collection<? extends Message> actual) {
+    protected AbstractResultValidator expectNoMessagesLike(Collection<?> expectedNotToGet,
+                                                           Collection<? extends Message> actual) {
         if (containsAny(expectedNotToGet, actual)) {
             reportUnwantedMatch(expectedNotToGet, actual);
         }
@@ -201,6 +204,16 @@ public abstract class AbstractResultValidator implements Then {
 
     protected boolean containsAny(Collection<?> expected, Collection<? extends Message> actual) {
         return expected.stream().anyMatch(e -> actual.stream().anyMatch(a -> matches(e, a)));
+    }
+
+    protected boolean matches(Object expected, Object actual) {
+        if (actual instanceof Message) {
+            return matches(expected, (Message) actual);
+        }
+        if (expected instanceof Matcher<?>) {
+            return ((Matcher<?>) expected).matches(actual);
+        }
+        return Objects.equals(expected, actual);
     }
 
     protected boolean matches(Object expected, Message actual) {

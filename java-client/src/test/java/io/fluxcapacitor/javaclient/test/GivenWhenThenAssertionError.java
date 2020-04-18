@@ -6,6 +6,7 @@ import io.fluxcapacitor.common.api.Metadata;
 import io.fluxcapacitor.javaclient.common.Message;
 import lombok.SneakyThrows;
 import lombok.Value;
+import org.hamcrest.Matcher;
 import org.opentest4j.AssertionFailedError;
 
 import java.util.Collection;
@@ -44,7 +45,14 @@ public class GivenWhenThenAssertionError extends AssertionFailedError {
             Collection<?> collection = (Collection<?>) expectedOrActual;
             return collection.stream().map(GivenWhenThenAssertionError::formatForComparison).collect(toList());
         }
-        return new PayloadAndMetadata(expectedOrActual, Metadata.empty());
+        if (expectedOrActual instanceof Matcher<?>) {
+            return expectedOrActual;
+        }
+        try {
+            return formatter.writeValueAsString(expectedOrActual).replaceAll("\\\\n", "\n");
+        } catch (Exception e) {
+            return expectedOrActual;
+        }
     }
 
     @Value
@@ -69,4 +77,6 @@ public class GivenWhenThenAssertionError extends AssertionFailedError {
             return payload.getClass().getName();
         }
     }
+
+
 }

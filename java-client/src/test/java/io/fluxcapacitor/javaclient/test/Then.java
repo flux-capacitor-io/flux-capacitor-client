@@ -5,12 +5,10 @@ import org.hamcrest.Matcher;
 import java.util.Arrays;
 import java.util.List;
 
-import static org.hamcrest.CoreMatchers.equalTo;
 import static org.hamcrest.CoreMatchers.isA;
-import static org.hamcrest.CoreMatchers.nullValue;
 
 public interface Then {
-    
+
     /*
         Events
      */
@@ -36,7 +34,7 @@ public interface Then {
     Then expectEvents(List<?> events);
 
     Then expectNoEventsLike(List<?> events);
-    
+
     /*
         Commands
      */
@@ -62,7 +60,7 @@ public interface Then {
     Then expectCommands(List<?> commands);
 
     Then expectNoCommandsLike(List<?> commands);
-    
+
     /*
         Schedules
      */
@@ -88,19 +86,12 @@ public interface Then {
     Then expectSchedules(List<?> schedules);
 
     Then expectNoSchedulesLike(List<?> schedules);
-    
+
     /*
         Result
      */
 
-    default Then expectResult(Object result) {
-        if (result == null) {
-            return expectResult(nullValue());
-        }
-        return expectResult(equalTo(result));
-    }
-
-    Then expectResult(Matcher<?> resultMatcher);
+    Then expectResult(Object result);
 
     default Then expectException(Class<? extends Throwable> exceptionClass) {
         return expectException(isA(exceptionClass));
@@ -109,22 +100,15 @@ public interface Then {
     Then expectException(Matcher<?> resultMatcher);
 
     default Then expectNoResult() {
-        return expectResult(nullValue());
+        return expectResult(null);
     }
 
-    default Then expectNoResultLike(Object result) {
-        if (result == null) {
-            return expectNoResultLike(nullValue());
-        }
-        return expectNoResultLike(equalTo(result));
-    }
+    Then expectNoResultLike(Object result);
 
-    Then expectNoResultLike(Matcher<?> resultMatcher);
-    
     /*
         External process
      */
-    
+
     Then verify(Runnable check);
-    
+
 }
