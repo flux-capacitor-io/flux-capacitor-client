@@ -47,9 +47,10 @@ import static java.util.stream.Stream.concat;
 
 public class HandlerInspector {
 
-    public static boolean hasHandlerMethods(Class<?> targetClass, Class<? extends Annotation> methodAnnotation) {
+    public static boolean hasHandlerMethods(Class<?> targetClass, Class<? extends Annotation> methodAnnotation,
+                                            HandlerConfiguration<?> handlerConfiguration) {
         return concat(getAllMethods(targetClass).stream(), stream(targetClass.getConstructors()))
-                .anyMatch(m -> m.isAnnotationPresent(methodAnnotation));
+                .anyMatch(m -> m.isAnnotationPresent(methodAnnotation) && handlerConfiguration.handlerFilter().test(m));
     }
 
     public static <M> Handler<M> createHandler(Object target, Class<? extends Annotation> methodAnnotation,
@@ -67,17 +68,10 @@ public class HandlerInspector {
     public static <M> HandlerInvoker<M> inspect(Class<?> type, Class<? extends Annotation> methodAnnotation,
                                                 List<ParameterResolver<? super M>> parameterResolvers,
                                                 HandlerConfiguration<M> handlerConfiguration) {
-        if (handlerConfiguration.failOnMissingMethods() && !hasHandlerMethods(type, methodAnnotation)) {
-            throw new HandlerException(
-                    format("Could not find methods with %s annotation on %s", methodAnnotation.getSimpleName(),
-                           type.getSimpleName()));
-        }
         return new ObjectHandlerInvoker<>(type, concat(getAllMethods(type).stream(), stream(type.getConstructors()))
-                .filter(m -> m.isAnnotationPresent(methodAnnotation))
-                .map(m -> handlerConfiguration.getInvokerFactory()
-                        .create(m, type, parameterResolvers, methodAnnotation))
-                .sorted(comparator)
-                .collect(toList()), handlerConfiguration.invokeMultipleMethods());
+                .filter(m -> m.isAnnotationPresent(methodAnnotation) && handlerConfiguration.handlerFilter().test(m))
+                .map(m -> handlerConfiguration.invokerFactory().create(m, type, parameterResolvers, methodAnnotation))
+                .sorted(comparator).collect(toList()), handlerConfiguration.invokeMultipleMethods());
     }
 
     @Getter

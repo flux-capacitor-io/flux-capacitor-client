@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016-2018 Flux Capacitor. 
+ * Copyright (c) 2016-2018 Flux Capacitor.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,11 +15,13 @@
 package io.fluxcapacitor.javaclient.tracking.handling;
 
 import io.fluxcapacitor.common.handling.Handler;
+import io.fluxcapacitor.common.handling.HandlerConfiguration;
 import io.fluxcapacitor.javaclient.common.serialization.DeserializingMessage;
 
 import java.util.Optional;
 
-@FunctionalInterface
 public interface HandlerFactory {
-    Optional<Handler<DeserializingMessage>> createHandler(Object target, String consumer);
+
+    Optional<Handler<DeserializingMessage>> createHandler(Object target, String consumer,
+                                                          HandlerConfiguration<DeserializingMessage> handlerConfiguration);
 }

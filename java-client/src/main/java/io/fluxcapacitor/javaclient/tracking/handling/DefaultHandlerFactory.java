@@ -21,29 +21,31 @@ import io.fluxcapacitor.common.handling.HandlerInspector;
 import io.fluxcapacitor.common.handling.ParameterResolver;
 import io.fluxcapacitor.javaclient.common.serialization.DeserializingMessage;
 import io.fluxcapacitor.javaclient.configuration.ConfigurationException;
-import lombok.AllArgsConstructor;
+import lombok.Getter;
+import lombok.RequiredArgsConstructor;
 
 import java.lang.annotation.Annotation;
+import java.lang.reflect.Executable;
 import java.util.List;
 import java.util.Optional;
 
+import static io.fluxcapacitor.common.handling.HandlerInspector.hasHandlerMethods;
 import static io.fluxcapacitor.javaclient.common.serialization.DeserializingMessage.defaultInvokerFactory;
 
-@AllArgsConstructor
+@RequiredArgsConstructor
 public class DefaultHandlerFactory implements HandlerFactory {
     private final MessageType messageType;
     private final HandlerInterceptor handlerInterceptor;
     private final List<ParameterResolver<? super DeserializingMessage>> parameterResolvers;
 
     @Override
-    public Optional<Handler<DeserializingMessage>> createHandler(Object target, String consumer) {
+    public Optional<Handler<DeserializingMessage>> createHandler(
+            Object target, String consumer, HandlerConfiguration<DeserializingMessage> handlerConfiguration) {
         Class<? extends Annotation> methodAnnotation = getHandlerAnnotation(messageType);
-        if (HandlerInspector.hasHandlerMethods(target.getClass(), methodAnnotation)) {
-            Handler<DeserializingMessage> handler = HandlerInspector
-                    .createHandler(target, methodAnnotation, parameterResolvers,
-                                   HandlerConfiguration.<DeserializingMessage>builder()
-                                           .invokerFactory(defaultInvokerFactory).build());
-            return Optional.of(handlerInterceptor.wrap(handler, consumer));
+        if (hasHandlerMethods(target.getClass(), methodAnnotation, handlerConfiguration)) {
+            return Optional.of(handlerInterceptor.wrap(
+                    HandlerInspector.createHandler(target, methodAnnotation, parameterResolvers, handlerConfiguration),
+                    consumer));
         }
         return Optional.empty();
     }

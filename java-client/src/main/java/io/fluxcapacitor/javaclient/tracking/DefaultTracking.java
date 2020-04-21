@@ -4,7 +4,9 @@ import io.fluxcapacitor.common.MessageType;
 import io.fluxcapacitor.common.Registration;
 import io.fluxcapacitor.common.api.SerializedMessage;
 import io.fluxcapacitor.common.handling.Handler;
+import io.fluxcapacitor.common.handling.HandlerConfiguration;
 import io.fluxcapacitor.javaclient.FluxCapacitor;
+import io.fluxcapacitor.javaclient.common.ClientUtils;
 import io.fluxcapacitor.javaclient.common.exception.FunctionalException;
 import io.fluxcapacitor.javaclient.common.exception.TechnicalException;
 import io.fluxcapacitor.javaclient.common.serialization.DeserializingMessage;
@@ -37,6 +39,7 @@ import java.util.function.Supplier;
 import java.util.stream.Stream;
 
 import static io.fluxcapacitor.javaclient.common.ClientUtils.waitForResults;
+import static io.fluxcapacitor.javaclient.common.serialization.DeserializingMessage.defaultInvokerFactory;
 import static io.fluxcapacitor.javaclient.common.serialization.DeserializingMessage.handleBatch;
 import static java.lang.String.format;
 import static java.util.stream.Collectors.groupingBy;
@@ -46,6 +49,9 @@ import static java.util.stream.Collectors.toMap;
 @AllArgsConstructor
 @Slf4j
 public class DefaultTracking implements Tracking {
+    private static final HandlerConfiguration<DeserializingMessage> trackingHandlerConfiguration =
+            HandlerConfiguration.<DeserializingMessage>builder().handlerFilter(e -> !ClientUtils.isLocalHandlerMethod(e))
+                    .invokerFactory(defaultInvokerFactory).build();
 
     private final MessageType messageType;
     private final TrackingClient trackingClient;
@@ -67,8 +73,9 @@ public class DefaultTracking implements Tracking {
                             .filter(config -> config.getHandlerFilter().test(h)).findFirst()
                             .orElseThrow(() -> new TrackingException(format("Failed to find consumer for %s", h)))))
                     .entrySet().stream().flatMap(e -> {
-                        List<Handler<DeserializingMessage>> converted = e.getValue().stream()
-                                .flatMap(target -> handlerFactory.createHandler(target, e.getKey().getName()).map(
+                        List<Handler<DeserializingMessage>> converted = e.getValue().stream().flatMap(
+                                target -> handlerFactory.createHandler(
+                                        target, e.getKey().getName(), trackingHandlerConfiguration).map(
                                         Stream::of).orElse(Stream.empty())).collect(toList());
                         return converted.isEmpty() ? Stream.empty() : Stream.of(new SimpleEntry<>(e.getKey(), converted));
                     }).collect(toMap(Entry::getKey, Entry::getValue));

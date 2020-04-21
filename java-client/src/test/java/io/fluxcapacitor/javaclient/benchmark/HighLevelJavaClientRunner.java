@@ -34,7 +34,7 @@ public class HighLevelJavaClientRunner extends AbstractClientBenchmark {
     public HighLevelJavaClientRunner(int commandCount) {
         super(commandCount);
         fluxCapacitor = DefaultFluxCapacitor.builder().build(WebSocketClient.newInstance(getClientProperties()));
-        fluxCapacitor.startTracking(this);
+        fluxCapacitor.registerHandlers(this);
     }
 
     @Override

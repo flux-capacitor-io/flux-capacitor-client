@@ -78,7 +78,7 @@ public class StreamingTestFixture extends AbstractTestFixture {
 
     @Override
     public Registration registerHandlers(List<?> handlers) {
-        return getFluxCapacitor().startTracking(handlers);
+        return getFluxCapacitor().registerHandlers(handlers);
     }
 
     @Override

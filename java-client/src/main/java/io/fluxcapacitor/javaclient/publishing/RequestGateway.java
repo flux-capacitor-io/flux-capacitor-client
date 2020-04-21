@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016-2018 Flux Capacitor. 
+ * Copyright (c) 2016-2018 Flux Capacitor.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,7 +16,10 @@ package io.fluxcapacitor.javaclient.publishing;
 
 import io.fluxcapacitor.common.Registration;
 import io.fluxcapacitor.common.api.Metadata;
+import io.fluxcapacitor.common.handling.HandlerConfiguration;
 import io.fluxcapacitor.javaclient.common.Message;
+import io.fluxcapacitor.javaclient.common.serialization.DeserializingMessage;
+import io.fluxcapacitor.javaclient.tracking.handling.HasLocalHandlers;
 import lombok.SneakyThrows;
 
 import java.util.concurrent.CompletableFuture;
@@ -26,7 +29,7 @@ import java.util.concurrent.TimeUnit;
 import static java.lang.String.format;
 import static java.lang.Thread.currentThread;
 
-public interface RequestGateway {
+public interface RequestGateway extends HasLocalHandlers {
 
     default void sendAndForget(Object payload) {
         sendAndForget(payload instanceof Message ? (Message) payload : new Message(payload));
@@ -51,7 +54,7 @@ public interface RequestGateway {
     }
 
     CompletableFuture<Message> sendForMessage(Message message);
-    
+
     default <R> R sendAndWait(Object payload) {
         return sendAndWait(payload instanceof Message ? (Message) payload : new Message(payload));
     }
@@ -80,7 +83,5 @@ public interface RequestGateway {
             throw e.getCause();
         }
     }
-    
-    Registration registerLocalHandler(Object target);
 
 }

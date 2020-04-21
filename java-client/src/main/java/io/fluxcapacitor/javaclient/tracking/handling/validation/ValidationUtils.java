@@ -56,8 +56,7 @@ public class ValidationUtils {
             Arrays.asList(p -> p.getDeclaringExecutable().getParameters()[0].equals(p)
                                   ? (v -> v instanceof Aggregate<?> ? ((Aggregate<?>) v).get() : v) : null,
                           new UserParameterResolver()),
-            HandlerConfiguration.builder().failOnMissingMethods(false).invokeMultipleMethods(true)
-                    .build()));
+            HandlerConfiguration.builder().invokeMultipleMethods(true).build()));
 
     public static <E extends Exception> void assertLegal(Object commandOrQuery, Object aggregate) throws E {
         HandlerInvoker<Object> invoker = assertLegalInvokerCache.apply(commandOrQuery.getClass());

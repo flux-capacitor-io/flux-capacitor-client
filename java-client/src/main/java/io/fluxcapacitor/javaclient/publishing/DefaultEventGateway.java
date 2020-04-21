@@ -2,11 +2,14 @@ package io.fluxcapacitor.javaclient.publishing;
 
 import io.fluxcapacitor.common.Registration;
 import io.fluxcapacitor.common.api.SerializedMessage;
+import io.fluxcapacitor.common.handling.HandlerConfiguration;
 import io.fluxcapacitor.javaclient.common.Message;
+import io.fluxcapacitor.javaclient.common.serialization.DeserializingMessage;
 import io.fluxcapacitor.javaclient.common.serialization.MessageSerializer;
 import io.fluxcapacitor.javaclient.publishing.client.GatewayClient;
 import io.fluxcapacitor.javaclient.tracking.handling.HandlerRegistry;
 import lombok.AllArgsConstructor;
+import lombok.experimental.Delegate;
 
 import static java.lang.String.format;
 
@@ -14,6 +17,7 @@ import static java.lang.String.format;
 public class DefaultEventGateway implements EventGateway {
     private final GatewayClient gatewayClient;
     private final MessageSerializer serializer;
+    @Delegate
     private final HandlerRegistry localHandlerRegistry;
 
     @Override
@@ -25,10 +29,5 @@ public class DefaultEventGateway implements EventGateway {
         } catch (Exception e) {
             throw new GatewayException(format("Failed to send and forget %s", message.getPayload().toString()), e);
         }
-    }
-
-    @Override
-    public Registration registerLocalHandler(Object target) {
-        return localHandlerRegistry.registerHandler(target);
     }
 }

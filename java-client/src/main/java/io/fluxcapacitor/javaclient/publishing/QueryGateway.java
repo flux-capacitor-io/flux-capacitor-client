@@ -2,11 +2,14 @@ package io.fluxcapacitor.javaclient.publishing;
 
 import io.fluxcapacitor.common.Registration;
 import io.fluxcapacitor.common.api.Metadata;
+import io.fluxcapacitor.common.handling.HandlerConfiguration;
 import io.fluxcapacitor.javaclient.common.Message;
+import io.fluxcapacitor.javaclient.common.serialization.DeserializingMessage;
+import io.fluxcapacitor.javaclient.tracking.handling.HasLocalHandlers;
 
 import java.util.concurrent.CompletableFuture;
 
-public interface QueryGateway {
+public interface QueryGateway extends HasLocalHandlers {
 
     <R> CompletableFuture<R> send(Object query);
 
@@ -17,7 +20,5 @@ public interface QueryGateway {
     <R> R sendAndWait(Object query);
 
     <R> R sendAndWait(Object payload, Metadata metadata);
-
-    Registration registerLocalHandler(Object handler);
 
 }

@@ -7,7 +7,7 @@ import io.fluxcapacitor.javaclient.common.Message;
 import io.fluxcapacitor.javaclient.configuration.DefaultFluxCapacitor;
 import io.fluxcapacitor.javaclient.configuration.client.Client;
 import io.fluxcapacitor.javaclient.configuration.spring.FluxCapacitorSpringConfig;
-import io.fluxcapacitor.javaclient.configuration.spring.LocalHandler;
+import io.fluxcapacitor.javaclient.tracking.handling.LocalHandler;
 import io.fluxcapacitor.javaclient.modeling.Aggregate;
 import io.fluxcapacitor.javaclient.modeling.AggregateRepository;
 import io.fluxcapacitor.javaclient.persisting.caching.Cache;
@@ -38,7 +38,7 @@ import static java.util.Arrays.stream;
  * High-level client for Flux Capacitor. If you are using anything other than this to interact with the service at
  * runtime you're probably doing it wrong.
  * <p>
- * To start handling messages build an instance of this API and invoke {@link #startTracking}.
+ * To start handling messages build an instance of this API and invoke {@link #registerHandlers}.
  * <p>
  * Once you are handling messages you can simply use the static methods provided (e.g. to publish messages etc). In
  * those cases it is not necessary to inject an instance of this API. This minimizes the need for dependencies in your
@@ -209,60 +209,46 @@ public interface FluxCapacitor extends AutoCloseable {
     }
 
     /**
-     * Registers given handlers and initiates message tracking (i.e. listening for messages). The given handlers will be
-     * inspected for annotated handler methods (e.g. methods annotated with {@link HandleCommand}). Depending on this
-     * inspection message tracking will commence for any handled message types. To stop tracking at any time invoke
-     * {@link Registration#cancel()} on the returned object.
+     * Registers given handlers and initiates message tracking (i.e. listening for messages).
+     * <p>
+     * The given handlers will be inspected for annotated handler methods (e.g. methods annotated with {@link
+     * HandleCommand}). Depending on this inspection message tracking will commence for any handled message types. To
+     * stop listening at any time invoke {@link Registration#cancel()} on the returned object.
      * <p>
      * Note that an exception may be thrown if tracking for a given message type is already in progress.
      * <p>
-     * Note also that it will generally not be necessary to ever invoke this method manually if you have you use Spring
-     * to configure your application.
+     * If any of the handlers is a local handler or contains local handler methods, i.e. if type or method is annotated
+     * with {@link LocalHandler}, the target object will (also) be registered as local handler. Local handlers will
+     * handle messages in the publishing thread. If a published message can be handled locally it will not be published
+     * to the Flux Capacitor service. Local handling of messages may come in handy in several situations: e.g. when the
+     * message is expressly meant to be handled only by the current application or if the message needs to be handled as
+     * quickly as possible. However, in most cases it will not be necessary to register local handlers.
+     * <p>
+     * Note that it will generally not be necessary to invoke this method manually if you use Spring to configure your
+     * application.
      *
      * @see FluxCapacitorSpringConfig for more info on how to configure your application using Spring
+     * @see LocalHandler for more info on local handlers.
      */
-    default Registration startTracking(Object... handlers) {
-        return startTracking(Arrays.asList(handlers));
+    default Registration registerHandlers(Object... handlers) {
+        return registerHandlers(Arrays.asList(handlers));
     }
 
     /**
      * Registers given handlers and initiates message tracking.
      *
-     * @see #startTracking(Object...) for more info
+     * @see #registerHandlers(Object...) for more info
      */
-    default Registration startTracking(List<?> handlers) {
-        return execute(f -> stream(MessageType.values())
-                .map(t -> tracking(t).start(this, handlers)).reduce(Registration::merge).orElse(Registration.noOp()));
-    }
-
-    /**
-     * Registers given message handlers for immediate handling of messages as they are published by the application. The
-     * given handlers will be inspected for annotated handler methods (e.g. methods annotated with {@link
-     * HandleCommand}).
-     * <p>
-     * If a published message can be handled locally it will not be published to the Flux Capacitor service. Local
-     * handling of messages may come in handy in several situations: e.g. when the message is expressly meant to be
-     * handled only by the current application or if the message needs to be handled as quickly as possible. However, in
-     * most cases it will not be necessary to register any local handlers.
-     * <p>
-     * To stop listening for locally published messages invoke {@link Registration#cancel()} on the returned object.
-     *
-     * @see LocalHandler for more info on how to automatically register local handlers using Spring.
-     */
-    default Registration registerLocalHandlers(Object... handlers) {
-        return registerLocalHandlers(Arrays.asList(handlers));
-    }
-
-    /**
-     * Registers given message handlers for immediate handling of messages as they are published by the application.
-     *
-     * @see #registerLocalHandlers(Object...) for more info
-     */
-    default Registration registerLocalHandlers(List<?> handlers) {
-        return execute(f -> handlers.stream().flatMap(h -> Stream
-                .of(commandGateway().registerLocalHandler(h), queryGateway().registerLocalHandler(h),
-                    eventGateway().registerLocalHandler(h), eventStore().registerLocalHandler(h)))
-                .reduce(Registration::merge).orElse(Registration.noOp()));
+    default Registration registerHandlers(List<?> handlers) {
+        return execute(f -> {
+            Registration tracking = stream(MessageType.values()).map(t -> tracking(t).start(this, handlers))
+                    .reduce(Registration::merge).orElse(Registration.noOp());
+            Registration local = handlers.stream().flatMap(h -> Stream
+                    .of(commandGateway().registerHandler(h), queryGateway().registerHandler(h),
+                        eventGateway().registerHandler(h), eventStore().registerHandler(h)))
+                    .reduce(Registration::merge).orElse(Registration.noOp());
+            return tracking.merge(local);
+        });
     }
 
     /**

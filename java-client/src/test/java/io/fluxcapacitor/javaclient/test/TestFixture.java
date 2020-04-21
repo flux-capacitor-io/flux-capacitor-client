@@ -15,8 +15,11 @@
 package io.fluxcapacitor.javaclient.test;
 
 import io.fluxcapacitor.common.Registration;
+import io.fluxcapacitor.common.handling.Handler;
+import io.fluxcapacitor.common.handling.HandlerConfiguration;
 import io.fluxcapacitor.javaclient.FluxCapacitor;
 import io.fluxcapacitor.javaclient.common.Message;
+import io.fluxcapacitor.javaclient.common.serialization.DeserializingMessage;
 import io.fluxcapacitor.javaclient.configuration.FluxCapacitorBuilder;
 import io.fluxcapacitor.javaclient.scheduling.DefaultScheduler;
 import io.fluxcapacitor.javaclient.scheduling.Schedule;
@@ -30,6 +33,8 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.function.Function;
 import java.util.stream.Stream;
+
+import static io.fluxcapacitor.common.handling.HandlerConfiguration.defaultHandlerConfiguration;
 
 @Slf4j
 public class TestFixture extends AbstractTestFixture {
@@ -64,11 +69,19 @@ public class TestFixture extends AbstractTestFixture {
 
     @Override
     public Registration registerHandlers(List<?> handlers) {
-        Registration registration = getFluxCapacitor().registerLocalHandlers(handlers);
-        if (getFluxCapacitor().scheduler() instanceof DefaultScheduler) {
-            DefaultScheduler scheduler = (DefaultScheduler) getFluxCapacitor().scheduler();
-            registration = registration.merge(getFluxCapacitor().execute(fc -> handlers.stream().flatMap(h -> Stream
-                    .of(scheduler.registerLocalHandler(h))).reduce(Registration::merge).orElse(Registration.noOp())));
+        FluxCapacitor fluxCapacitor = getFluxCapacitor();
+        HandlerConfiguration<DeserializingMessage> handlerConfiguration = defaultHandlerConfiguration();
+        Registration registration = fluxCapacitor.execute(f -> handlers.stream().flatMap(h -> Stream
+                .of(fluxCapacitor.commandGateway().registerHandler(h, handlerConfiguration),
+                    fluxCapacitor.queryGateway().registerHandler(h, handlerConfiguration),
+                    fluxCapacitor.eventGateway().registerHandler(h, handlerConfiguration),
+                    fluxCapacitor.eventStore().registerHandler(h, handlerConfiguration)))
+                .reduce(Registration::merge).orElse(Registration.noOp()));
+        if (fluxCapacitor.scheduler() instanceof DefaultScheduler) {
+            DefaultScheduler scheduler = (DefaultScheduler) fluxCapacitor.scheduler();
+            registration = registration.merge(fluxCapacitor.execute(fc -> handlers.stream().flatMap(h -> Stream
+                    .of(scheduler.registerHandler(h, handlerConfiguration)))
+                    .reduce(Registration::merge).orElse(Registration.noOp())));
         } else {
             log.warn("Could not register local schedule handlers");
         }

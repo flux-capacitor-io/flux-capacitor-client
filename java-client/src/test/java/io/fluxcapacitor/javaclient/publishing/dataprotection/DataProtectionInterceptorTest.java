@@ -9,6 +9,7 @@ import io.fluxcapacitor.javaclient.configuration.DefaultFluxCapacitor;
 import io.fluxcapacitor.javaclient.configuration.client.InMemoryClient;
 import io.fluxcapacitor.javaclient.tracking.handling.HandleCommand;
 import io.fluxcapacitor.javaclient.tracking.handling.HandleEvent;
+import io.fluxcapacitor.javaclient.tracking.handling.LocalHandler;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.Value;
@@ -30,7 +31,7 @@ class DataProtectionInterceptorTest {
     @Test
     void testSerializedMessageDoesNotContainData() {
         SomeHandler handler = new SomeHandler();
-        fluxCapacitor.registerLocalHandlers(handler);
+        fluxCapacitor.registerHandlers(handler);
         String payload = "something super secret";
         fluxCapacitor.eventGateway().publish(new SomeEvent(payload));
         SomeEvent deserializedEvent = serializer.deserialize(handler.getData());
@@ -40,7 +41,7 @@ class DataProtectionInterceptorTest {
     @Test
     void testHandlerDoesGetData() {
         SomeHandler handler = new SomeHandler();
-        fluxCapacitor.registerLocalHandlers(handler);
+        fluxCapacitor.registerHandlers(handler);
         String payload = "something super secret";
         fluxCapacitor.eventGateway().publish(new SomeEvent(payload));
         assertEquals(payload, handler.getLastEvent().getSensitiveData());
@@ -51,7 +52,7 @@ class DataProtectionInterceptorTest {
     void testDroppingDataPermanently() {
         DroppingHandler droppingHandler = new DroppingHandler();
         SomeHandler secondHandler = new SomeHandler();
-        fluxCapacitor.registerLocalHandlers(droppingHandler, secondHandler);
+        fluxCapacitor.registerHandlers(droppingHandler, secondHandler);
         String payload = "something super secret";
         fluxCapacitor.eventGateway().publish(new SomeEvent(payload));
         assertEquals(payload, droppingHandler.getLastEvent().getSensitiveData());
@@ -61,7 +62,7 @@ class DataProtectionInterceptorTest {
     @Test
     void testCommandValidationAfterFieldIsSet() {
         ValidatingHandler handler = new ValidatingHandler();
-        fluxCapacitor.registerLocalHandlers(handler);
+        fluxCapacitor.registerHandlers(handler);
         String payload = "something super secret";
         fluxCapacitor.commandGateway().sendAndWait(new ConstrainedCommand(payload));
         assertEquals(payload, handler.getLastCommand().getSensitiveData());
@@ -70,7 +71,7 @@ class DataProtectionInterceptorTest {
     @Test
     void testNullDataIsIgnored() {
         SomeHandler handler = new SomeHandler();
-        fluxCapacitor.registerLocalHandlers(handler);
+        fluxCapacitor.registerHandlers(handler);
         fluxCapacitor.eventGateway().publish(new SomeEvent(null));
         assertNull(handler.getLastEvent().getSensitiveData());
         assertFalse(handler.getLastMetadata().containsKey(DataProtectionInterceptor.METADATA_KEY));
@@ -92,6 +93,7 @@ class DataProtectionInterceptorTest {
     }
 
     @Getter
+    @LocalHandler
     private static class SomeHandler {
         private SomeEvent lastEvent;
         private Metadata lastMetadata;
@@ -106,6 +108,7 @@ class DataProtectionInterceptorTest {
     }
 
     @Getter
+    @LocalHandler
     private static class ValidatingHandler {
         private ConstrainedCommand lastCommand;
 
@@ -116,6 +119,7 @@ class DataProtectionInterceptorTest {
     }
 
     @Getter
+    @LocalHandler
     private static class DroppingHandler {
         private SomeEvent lastEvent;
 

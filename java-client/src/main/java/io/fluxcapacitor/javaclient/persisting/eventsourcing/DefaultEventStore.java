@@ -3,11 +3,13 @@ package io.fluxcapacitor.javaclient.persisting.eventsourcing;
 import io.fluxcapacitor.common.Awaitable;
 import io.fluxcapacitor.common.ConsistentHashing;
 import io.fluxcapacitor.common.Registration;
+import io.fluxcapacitor.common.handling.HandlerConfiguration;
 import io.fluxcapacitor.javaclient.common.Message;
 import io.fluxcapacitor.javaclient.common.serialization.DeserializingMessage;
 import io.fluxcapacitor.javaclient.persisting.eventsourcing.client.EventStoreClient;
 import io.fluxcapacitor.javaclient.tracking.handling.HandlerRegistry;
 import lombok.AllArgsConstructor;
+import lombok.experimental.Delegate;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -19,9 +21,9 @@ import static java.util.stream.Collectors.toList;
 
 @AllArgsConstructor
 public class DefaultEventStore implements EventStore {
-
     private final EventStoreClient client;
     private final EventStoreSerializer serializer;
+    @Delegate
     private final HandlerRegistry localHandlerRegistry;
 
     @Override
@@ -42,7 +44,7 @@ public class DefaultEventStore implements EventStore {
                 }
                 messages.add(deserializingMessage);
             });
-            result = client.storeEvents(aggregateId, domain, lastSequenceNumber, 
+            result = client.storeEvents(aggregateId, domain, lastSequenceNumber,
                                messages.stream().map(m -> m.getSerializedObject().withSegment(segment))
                                        .collect(toList()));
         } catch (Exception e) {
@@ -60,10 +62,5 @@ public class DefaultEventStore implements EventStore {
         } catch (Exception e) {
             throw new EventSourcingException(format("Failed to obtain domain events for aggregate %s", aggregateId), e);
         }
-    }
-
-    @Override
-    public Registration registerLocalHandler(Object target) {
-        return localHandlerRegistry.registerHandler(target);
     }
 }

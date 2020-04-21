@@ -50,13 +50,7 @@ public class FluxCapacitorSpringConfig implements BeanPostProcessor {
     @EventListener
     public void handle(ContextRefreshedEvent event) {
         FluxCapacitor fluxCapacitor = context.getBean(FluxCapacitor.class);
-        Object[] localHandlers =
-                springBeans.stream().filter(bean -> bean.getClass().isAnnotationPresent(LocalHandler.class)).toArray();
-        Object[] trackingCandidates =
-                springBeans.stream().filter(bean -> !bean.getClass().isAnnotationPresent(LocalHandler.class)).toArray();
-        handlerRegistration.updateAndGet(
-                r -> r == null ? fluxCapacitor.startTracking(trackingCandidates)
-                                .merge(fluxCapacitor.registerLocalHandlers(localHandlers)) : r);
+        handlerRegistration.updateAndGet(r -> r == null ? fluxCapacitor.registerHandlers(springBeans) : r);
     }
 
     @Bean
@@ -70,7 +64,7 @@ public class FluxCapacitorSpringConfig implements BeanPostProcessor {
         return getBean(ObjectMapper.class).map(objectMapper -> new JacksonSerializer(objectMapper, upcasters))
                 .orElse(new JacksonSerializer(upcasters));
     }
-    
+
     @Bean
     @ConditionalOnMissingBean
     @SuppressWarnings("OptionalUsedAsFieldOrParameterType")

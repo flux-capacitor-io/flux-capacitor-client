@@ -2,14 +2,16 @@ package io.fluxcapacitor.javaclient.persisting.eventsourcing;
 
 import io.fluxcapacitor.common.Awaitable;
 import io.fluxcapacitor.common.Registration;
+import io.fluxcapacitor.common.handling.HandlerConfiguration;
 import io.fluxcapacitor.javaclient.common.serialization.DeserializingMessage;
+import io.fluxcapacitor.javaclient.tracking.handling.HasLocalHandlers;
 
 import java.util.List;
 import java.util.stream.Stream;
 
 import static java.util.Arrays.asList;
 
-public interface EventStore {
+public interface EventStore extends HasLocalHandlers {
 
     default Awaitable storeDomainEvents(String aggregateId, String domain, long lastSequenceNumber, Object... events) {
         return storeDomainEvents(aggregateId, domain, lastSequenceNumber, asList(events));
@@ -22,7 +24,4 @@ public interface EventStore {
     }
 
     Stream<DeserializingMessage> getDomainEvents(String aggregateId, long lastSequenceNumber);
-
-    Registration registerLocalHandler(Object handler);
-
 }

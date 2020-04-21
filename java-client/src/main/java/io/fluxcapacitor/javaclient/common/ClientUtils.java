@@ -1,7 +1,9 @@
 package io.fluxcapacitor.javaclient.common;
 
+import io.fluxcapacitor.javaclient.tracking.handling.LocalHandler;
 import lombok.extern.slf4j.Slf4j;
 
+import java.lang.reflect.Executable;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.Collection;
@@ -36,6 +38,14 @@ public class ClientUtils {
         } catch (Exception e) {
             log.warn("Task {} failed", task, e);
         }
+    }
+
+    public static boolean isLocalHandlerMethod(Executable method) {
+        LocalHandler localHandler = method.getAnnotation(LocalHandler.class);
+        if (localHandler == null) {
+            localHandler = method.getDeclaringClass().getAnnotation(LocalHandler.class);
+        }
+        return localHandler != null && localHandler.value();
     }
 
 }

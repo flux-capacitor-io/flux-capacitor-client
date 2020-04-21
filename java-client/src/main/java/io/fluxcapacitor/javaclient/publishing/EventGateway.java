@@ -1,10 +1,10 @@
 package io.fluxcapacitor.javaclient.publishing;
 
-import io.fluxcapacitor.common.Registration;
 import io.fluxcapacitor.common.api.Metadata;
 import io.fluxcapacitor.javaclient.common.Message;
+import io.fluxcapacitor.javaclient.tracking.handling.HasLocalHandlers;
 
-public interface EventGateway {
+public interface EventGateway extends HasLocalHandlers {
 
     default void publish(Object event) {
         Message message = event instanceof Message ? (Message) event : new Message(event, Metadata.empty());
@@ -14,9 +14,6 @@ public interface EventGateway {
     default void publish(Object payload, Metadata metadata) {
         publish(new Message(payload, metadata));
     }
-    
+
     void publish(Message message);
-
-    Registration registerLocalHandler(Object handler);
-
 }
