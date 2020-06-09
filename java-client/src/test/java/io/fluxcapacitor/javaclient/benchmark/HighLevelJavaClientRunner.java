@@ -20,11 +20,18 @@ import io.fluxcapacitor.javaclient.configuration.client.WebSocketClient;
 import io.fluxcapacitor.javaclient.tracking.handling.HandleCommand;
 import lombok.extern.slf4j.Slf4j;
 
+import java.util.UUID;
+
 @Slf4j
 public class HighLevelJavaClientRunner extends AbstractClientBenchmark {
 
     public static void main(final String[] args) {
-        HighLevelJavaClientRunner runner = new HighLevelJavaClientRunner(100_000);
+        HighLevelJavaClientRunner runner = new HighLevelJavaClientRunner(
+                1_000, WebSocketClient.Properties.builder()
+                .name("benchmark-" + UUID.randomUUID())
+                .projectId("benchmark")
+                .serviceBaseUrl("https://flux-capacitor.sloppy.zone")
+                .build());
         runner.testCommands();
         System.exit(0);
     }
@@ -34,6 +41,12 @@ public class HighLevelJavaClientRunner extends AbstractClientBenchmark {
     public HighLevelJavaClientRunner(int commandCount) {
         super(commandCount);
         fluxCapacitor = DefaultFluxCapacitor.builder().build(WebSocketClient.newInstance(getClientProperties()));
+        fluxCapacitor.registerHandlers(this);
+    }
+
+    public HighLevelJavaClientRunner(int commandCount, WebSocketClient.Properties clientProperties) {
+        super(commandCount, clientProperties);
+        fluxCapacitor = DefaultFluxCapacitor.builder().build(WebSocketClient.newInstance(clientProperties));
         fluxCapacitor.registerHandlers(this);
     }
 

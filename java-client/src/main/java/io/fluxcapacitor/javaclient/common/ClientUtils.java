@@ -40,10 +40,10 @@ public class ClientUtils {
         }
     }
 
-    public static boolean isLocalHandlerMethod(Executable method) {
+    public static boolean isLocalHandlerMethod(Class<?> target, Executable method) {
         LocalHandler localHandler = method.getAnnotation(LocalHandler.class);
         if (localHandler == null) {
-            localHandler = method.getDeclaringClass().getAnnotation(LocalHandler.class);
+            localHandler = target.getAnnotation(LocalHandler.class);
         }
         return localHandler != null && localHandler.value();
     }

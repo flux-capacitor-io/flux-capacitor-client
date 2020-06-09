@@ -50,7 +50,8 @@ public class HandlerInspector {
     public static boolean hasHandlerMethods(Class<?> targetClass, Class<? extends Annotation> methodAnnotation,
                                             HandlerConfiguration<?> handlerConfiguration) {
         return concat(getAllMethods(targetClass).stream(), stream(targetClass.getConstructors()))
-                .anyMatch(m -> m.isAnnotationPresent(methodAnnotation) && handlerConfiguration.handlerFilter().test(m));
+                .anyMatch(m -> m.isAnnotationPresent(methodAnnotation) && handlerConfiguration.handlerFilter()
+                        .test(targetClass, m));
     }
 
     public static <M> Handler<M> createHandler(Object target, Class<? extends Annotation> methodAnnotation,
@@ -69,7 +70,7 @@ public class HandlerInspector {
                                                 List<ParameterResolver<? super M>> parameterResolvers,
                                                 HandlerConfiguration<M> handlerConfiguration) {
         return new ObjectHandlerInvoker<>(type, concat(getAllMethods(type).stream(), stream(type.getConstructors()))
-                .filter(m -> m.isAnnotationPresent(methodAnnotation) && handlerConfiguration.handlerFilter().test(m))
+                .filter(m -> m.isAnnotationPresent(methodAnnotation) && handlerConfiguration.handlerFilter().test(type, m))
                 .map(m -> handlerConfiguration.invokerFactory().create(m, type, parameterResolvers, methodAnnotation))
                 .sorted(comparator).collect(toList()), handlerConfiguration.invokeMultipleMethods());
     }

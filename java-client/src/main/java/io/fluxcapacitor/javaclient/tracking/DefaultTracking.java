@@ -50,7 +50,7 @@ import static java.util.stream.Collectors.toMap;
 @Slf4j
 public class DefaultTracking implements Tracking {
     private static final HandlerConfiguration<DeserializingMessage> trackingHandlerConfiguration =
-            HandlerConfiguration.<DeserializingMessage>builder().handlerFilter(e -> !ClientUtils.isLocalHandlerMethod(e))
+            HandlerConfiguration.<DeserializingMessage>builder().handlerFilter((c, e) -> !ClientUtils.isLocalHandlerMethod(c, e))
                     .invokerFactory(defaultInvokerFactory).build();
 
     private final MessageType messageType;

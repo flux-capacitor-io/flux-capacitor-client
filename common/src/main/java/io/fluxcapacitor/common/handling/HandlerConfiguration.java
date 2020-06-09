@@ -7,7 +7,7 @@ import lombok.Value;
 import lombok.experimental.Accessors;
 
 import java.lang.reflect.Executable;
-import java.util.function.Predicate;
+import java.util.function.BiPredicate;
 
 @Value
 @Builder(toBuilder = true)
@@ -15,7 +15,7 @@ import java.util.function.Predicate;
 public class HandlerConfiguration<T> {
 
     @Default boolean invokeMultipleMethods = false;
-    @Default Predicate<Executable> handlerFilter = e -> true;
+    @Default BiPredicate<Class<?>, Executable> handlerFilter = (c, e) -> true;
     @Default MethodInvokerFactory<T> invokerFactory = MethodHandlerInvoker::new;
 
     @SuppressWarnings("unchecked")
