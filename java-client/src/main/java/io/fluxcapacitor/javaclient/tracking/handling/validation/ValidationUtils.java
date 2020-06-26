@@ -92,7 +92,7 @@ public class ValidationUtils {
             if (user == null) {
                 throw new UnauthenticatedException(format("Message %s requires authentication", payloadType));
             }
-            if (Arrays.stream(requiredRoles).noneMatch(user::hasRole)) {
+            if (requiredRoles.length > 0 && Arrays.stream(requiredRoles).noneMatch(user::hasRole)) {
                 throw new UnauthorizedException(
                         format("User %s is unauthorized to issue %s", user.getName(), payloadType));
             }
