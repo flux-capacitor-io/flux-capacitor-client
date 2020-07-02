@@ -70,7 +70,7 @@ public class FluxCapacitorSpringConfig implements BeanPostProcessor {
     @SuppressWarnings("OptionalUsedAsFieldOrParameterType")
     public FluxCapacitorBuilder fluxCapacitorBuilder(Serializer serializer, Optional<UserProvider> userProvider) {
         FluxCapacitorBuilder builder = DefaultFluxCapacitor.builder().disableShutdownHook()
-                .replaceSerializer(serializer).replaceSnapshotSerializer(serializer);
+                .replaceSerializer(serializer).replaceSnapshotSerializer(serializer).makeApplicationInstance();
         userProvider.ifPresent(builder::registerUserSupplier);
         return builder;
     }

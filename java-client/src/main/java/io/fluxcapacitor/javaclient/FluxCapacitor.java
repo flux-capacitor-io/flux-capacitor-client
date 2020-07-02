@@ -4,10 +4,10 @@ import io.fluxcapacitor.common.MessageType;
 import io.fluxcapacitor.common.Registration;
 import io.fluxcapacitor.common.api.Metadata;
 import io.fluxcapacitor.javaclient.common.Message;
+import io.fluxcapacitor.javaclient.common.serialization.Serializer;
 import io.fluxcapacitor.javaclient.configuration.DefaultFluxCapacitor;
 import io.fluxcapacitor.javaclient.configuration.client.Client;
 import io.fluxcapacitor.javaclient.configuration.spring.FluxCapacitorSpringConfig;
-import io.fluxcapacitor.javaclient.tracking.handling.LocalHandler;
 import io.fluxcapacitor.javaclient.modeling.Aggregate;
 import io.fluxcapacitor.javaclient.modeling.AggregateRepository;
 import io.fluxcapacitor.javaclient.persisting.caching.Cache;
@@ -23,6 +23,7 @@ import io.fluxcapacitor.javaclient.publishing.ResultGateway;
 import io.fluxcapacitor.javaclient.scheduling.Scheduler;
 import io.fluxcapacitor.javaclient.tracking.Tracking;
 import io.fluxcapacitor.javaclient.tracking.handling.HandleCommand;
+import io.fluxcapacitor.javaclient.tracking.handling.LocalHandler;
 
 import java.util.Arrays;
 import java.util.List;
@@ -309,9 +310,14 @@ public interface FluxCapacitor extends AutoCloseable {
     Tracking tracking(MessageType messageType);
 
     /**
-     * Returns the cache used by the client to temporarily cache aggregates etc.
+     * Returns the cache used by the client to cache aggregates etc.
      */
     Cache cache();
+
+    /**
+     * Returns the default serializer
+     */
+    Serializer serializer();
 
     /**
      * Returns the low level client used by this FluxCapacitor instance to interface with the Flux Capacitor service. Of

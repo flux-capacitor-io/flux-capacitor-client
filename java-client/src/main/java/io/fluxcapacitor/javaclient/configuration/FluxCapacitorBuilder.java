@@ -28,7 +28,7 @@ public interface FluxCapacitorBuilder {
     FluxCapacitorBuilder addHandlerInterceptor(HandlerInterceptor interceptor, MessageType... forTypes);
 
     FluxCapacitorBuilder replaceMessageRoutingInterceptor(DispatchInterceptor messageRoutingInterceptor);
-    
+
     FluxCapacitorBuilder replaceCache(Cache cache);
 
     FluxCapacitorBuilder addParameterResolver(ParameterResolver<DeserializingMessage> parameterResolver);
@@ -40,7 +40,7 @@ public interface FluxCapacitorBuilder {
     FluxCapacitorBuilder replaceSerializer(Serializer serializer);
 
     FluxCapacitorBuilder replaceSnapshotSerializer(Serializer serializer);
-    
+
     FluxCapacitorBuilder registerUserSupplier(UserProvider userProvider);
 
     FluxCapacitorBuilder disableErrorReporting();
@@ -52,10 +52,12 @@ public interface FluxCapacitorBuilder {
     FluxCapacitorBuilder disablePayloadValidation();
 
     FluxCapacitorBuilder disableDataProtection();
-    
+
     FluxCapacitorBuilder disableAutomaticAggregateCaching();
 
     FluxCapacitorBuilder enableTrackingMetrics();
+
+    FluxCapacitorBuilder makeApplicationInstance();
 
     FluxCapacitor build(Client client);
 }

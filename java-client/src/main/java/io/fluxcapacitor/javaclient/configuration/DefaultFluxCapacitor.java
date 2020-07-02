@@ -134,6 +134,7 @@ public class DefaultFluxCapacitor implements FluxCapacitor {
     private final KeyValueStore keyValueStore;
     private final Scheduler scheduler;
     private final Cache cache;
+    private final Serializer serializer;
     private final Client client;
     private final Runnable shutdownHandler;
 
@@ -151,6 +152,11 @@ public class DefaultFluxCapacitor implements FluxCapacitor {
     }
 
     @Override
+    public Serializer serializer() {
+        return serializer;
+    }
+
+    @Override
     public Registration beforeShutdown(Runnable task) {
         cleanupTasks.add(task);
         return () -> cleanupTasks.remove(task);
@@ -162,6 +168,9 @@ public class DefaultFluxCapacitor implements FluxCapacitor {
             log.info("Initiating controlled shutdown");
             cleanupTasks.forEach(ClientUtils::tryRun);
             shutdownHandler.run();
+            if (FluxCapacitor.applicationInstance.get() == this) {
+                FluxCapacitor.applicationInstance.set(null);
+            }
             log.info("Completed shutdown");
         }
     }
@@ -187,6 +196,7 @@ public class DefaultFluxCapacitor implements FluxCapacitor {
         private boolean disableAutomaticAggregateCaching;
         private boolean disableShutdownHook;
         private boolean collectTrackingMetrics;
+        private boolean makeApplicationInstance;
         private UserProvider userProvider = UserProvider.defaultUserSupplier;
 
         protected Map<MessageType, List<ConsumerConfiguration>> defaultConfigurations() {
@@ -315,6 +325,12 @@ public class DefaultFluxCapacitor implements FluxCapacitor {
         @Override
         public FluxCapacitorBuilder enableTrackingMetrics() {
             collectTrackingMetrics = true;
+            return this;
+        }
+
+        @Override
+        public FluxCapacitorBuilder makeApplicationInstance() {
+            makeApplicationInstance = true;
             return this;
         }
 
@@ -459,7 +475,12 @@ public class DefaultFluxCapacitor implements FluxCapacitor {
             //and finally...
             FluxCapacitor fluxCapacitor = doBuild(trackingMap, commandGateway, queryGateway, eventGateway,
                                                   resultGateway, errorGateway, metricsGateway, aggregateRepository,
-                                                  eventStore, keyValueStore, scheduler, cache, client, shutdownHandler);
+                                                  eventStore, keyValueStore, scheduler, cache, serializer,
+                                                  client, shutdownHandler);
+
+            if (makeApplicationInstance) {
+                FluxCapacitor.applicationInstance.set(fluxCapacitor);
+            }
 
             //perform a controlled shutdown when the vm exits
             if (!disableShutdownHook) {
@@ -475,10 +496,10 @@ public class DefaultFluxCapacitor implements FluxCapacitor {
                                         ErrorGateway errorGateway, MetricsGateway metricsGateway,
                                         AggregateRepository aggregateRepository,
                                         EventStore eventStore, KeyValueStore keyValueStore, Scheduler scheduler,
-                                        Cache cache, Client client, Runnable shutdownHandler) {
+                                        Cache cache, Serializer serializer, Client client, Runnable shutdownHandler) {
             return new DefaultFluxCapacitor(trackingSupplier, commandGateway, queryGateway, eventGateway, resultGateway,
                                             errorGateway, metricsGateway, aggregateRepository, eventStore,
-                                            keyValueStore, scheduler, cache, client, shutdownHandler);
+                                            keyValueStore, scheduler, cache, serializer, client, shutdownHandler);
         }
 
         protected RequestGateway createRequestGateway(Client client, MessageType messageType,
