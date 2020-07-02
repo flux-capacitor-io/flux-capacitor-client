@@ -49,7 +49,9 @@ public class GivenWhenThenAssertionError extends AssertionFailedError {
             return expectedOrActual;
         }
         try {
-            return formatter.writeValueAsString(expectedOrActual).replaceAll("\\\\n", "\n");
+            return expectedOrActual instanceof CharSequence
+                    ? expectedOrActual 
+                    : formatter.writeValueAsString(expectedOrActual).replaceAll("\\\\n", "\n");
         } catch (Exception e) {
             return expectedOrActual;
         }
