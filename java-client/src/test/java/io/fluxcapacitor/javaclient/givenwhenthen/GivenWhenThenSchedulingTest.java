@@ -63,7 +63,7 @@ class GivenWhenThenSchedulingTest {
                 .whenTimeAdvancesTo(deadline)
                 .expectCommands(command);
     }
-    
+
     /*
         Test expect
      */
@@ -96,7 +96,7 @@ class GivenWhenThenSchedulingTest {
         assertThrows(GivenWhenThenAssertionError.class,
                      () -> subject.whenCommand(new YieldsSchedule()).expectOnlySchedules("otherPayload"));
     }
-    
+
     /*
         Test rescheduling
      */
@@ -147,17 +147,6 @@ class GivenWhenThenSchedulingTest {
     }
 
     @Test
-    void testInvalidPeriodicSchedule() {
-        assertThrows(Exception.class,
-                     () -> {
-                         subject = TestFixture.create(new InvalidScheduleHandler());
-                         subject.givenNoPriorActivity().andGivenSchedules(
-                                 new Schedule(new InvalidPeriodicSchedule(), "any",
-                                              subject.getClock().instant().plusSeconds(10)));
-                     });
-    }
-
-    @Test
     void testAlteredPayloadPeriodic() {
         TestFixture.create(new AlteredPayloadPeriodicHandler()).givenNoPriorActivity()
                 .whenTimeElapses(Duration.ofMillis(100)).expectOnlySchedules(new YieldsAlteredSchedule(1));
@@ -198,19 +187,13 @@ class GivenWhenThenSchedulingTest {
         }
     }
 
-    static class InvalidScheduleHandler {
-        @HandleSchedule
-        void handle(InvalidPeriodicSchedule schedule) {
-        }
-    }
-    
     static class MethodPeriodicHandler {
         @HandleSchedule
         @Periodic(1000)
         void handle(MethodPeriodicSchedule schedule) {
         }
     }
-    
+
     static class AlteredPayloadPeriodicHandler {
         @HandleSchedule
         @Periodic(1000)
@@ -268,11 +251,6 @@ class GivenWhenThenSchedulingTest {
     @Value
     @Periodic(value = 1000, autoStart = false)
     static class NonAutomaticPeriodicSchedule {
-    }
-
-    @Value
-    @Periodic(-1000)
-    static class InvalidPeriodicSchedule {
     }
 
 }

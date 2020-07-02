@@ -48,7 +48,11 @@ public class SchedulingInterceptor implements DispatchInterceptor, HandlerInterc
                     periodic = type.getAnnotation(Periodic.class);
                 }
                 if (periodic != null) {
-                    initializePeriodicSchedule(type, periodic);
+                    try {
+                        initializePeriodicSchedule(type, periodic);
+                    } catch (Exception e) {
+                        log.error("Failed to initialize periodic schedule on method {}. Continuing...", method, e);
+                    }
                 }
             }
         }
