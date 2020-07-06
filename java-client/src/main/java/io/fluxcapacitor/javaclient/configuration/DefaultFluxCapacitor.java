@@ -456,7 +456,8 @@ public class DefaultFluxCapacitor implements FluxCapacitor {
                     .collect(toMap(identity(), m -> new DefaultTracking(m, client.getTrackingClient(m), resultGateway,
                                                                         consumerConfigurations.get(m), this.serializer,
                                                                         new DefaultHandlerFactory(m, handlerInterceptors
-                                                                                .get(m), parameterResolvers))));
+                                                                                .get(m == NOTIFICATION ? EVENT : m),
+                                                                                                  parameterResolvers))));
 
             //misc
             Scheduler scheduler = new DefaultScheduler(client.getSchedulingClient(),
