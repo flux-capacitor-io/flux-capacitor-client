@@ -96,7 +96,7 @@ public interface Then {
 
     Then expectResult(Object result);
 
-    default Then expectResult(Predicate<?> predicate) {
+    default <T> Then expectResult(Predicate<T> predicate) {
         return predicate == null ? expectResult((Object) null) : expectResult(toMatcher(predicate));
     }
 
@@ -108,7 +108,7 @@ public interface Then {
         return expectException(isA(exceptionClass));
     }
 
-    default Then expectException(Predicate<? extends Throwable> predicate) {
+    default <T extends Throwable> Then expectException(Predicate<T> predicate) {
         return expectException(toMatcher(predicate));
     }
 

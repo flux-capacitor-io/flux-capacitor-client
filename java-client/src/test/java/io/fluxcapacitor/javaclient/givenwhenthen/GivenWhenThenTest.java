@@ -23,8 +23,6 @@ import lombok.Value;
 import org.junit.jupiter.api.Test;
 import org.mockito.InOrder;
 
-import java.util.function.Predicate;
-
 import static org.hamcrest.CoreMatchers.isA;
 import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.mock;
@@ -74,7 +72,7 @@ class GivenWhenThenTest {
     @Test
     void testExpectResultUsingPredicate() {
         YieldsResult command = new YieldsResult();
-        subject.givenNoPriorActivity().whenCommand(command).expectResult((Predicate<String>) "result"::equals);
+        subject.givenNoPriorActivity().whenCommand(command).expectResult("result"::equals);
     }
 
     @Test
