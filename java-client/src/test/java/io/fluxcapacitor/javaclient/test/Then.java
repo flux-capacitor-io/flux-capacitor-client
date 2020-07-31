@@ -1,6 +1,7 @@
 package io.fluxcapacitor.javaclient.test;
 
 import org.hamcrest.Matcher;
+import org.hamcrest.core.IsNot;
 
 import java.util.Arrays;
 import java.util.List;
@@ -99,6 +100,10 @@ public interface Then {
         return predicate == null ? expectResult((Object) null) : expectResult(toMatcher(predicate));
     }
 
+    default Then expectException() {
+        return expectException(isA(Throwable.class));
+    }
+
     default Then expectException(Class<? extends Throwable> exceptionClass) {
         return expectException(isA(exceptionClass));
     }
@@ -111,6 +116,10 @@ public interface Then {
 
     default Then expectNoResult() {
         return expectResult((Object) null);
+    }
+
+    default Then expectNoException() {
+        return expectResult(new IsNot<>(isA(Throwable.class)));
     }
 
     Then expectNoResultLike(Object result);

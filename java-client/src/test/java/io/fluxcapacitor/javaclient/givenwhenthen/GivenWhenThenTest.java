@@ -55,7 +55,8 @@ class GivenWhenThenTest {
     @Test
     void testExpectEventButNoResult() {
         YieldsEventAndNoResult command = new YieldsEventAndNoResult();
-        subject.givenNoPriorActivity().whenCommand(command).expectOnlyEvents(command).expectNoResult();
+        subject.givenNoPriorActivity().whenCommand(command)
+                .expectOnlyEvents(command).expectNoResult().expectNoException();
     }
 
     @Test
@@ -132,6 +133,14 @@ class GivenWhenThenTest {
     }
 
     @Test
+    void testMultiHandlerWithExceptionInEventHandler() {
+        subject = TestFixture.create(commandHandler, new ThrowingEventHandler());
+        subject.whenCommand(new YieldsEventAndNoResult())
+                .expectEvents(new YieldsEventAndNoResult())
+                .expectException();
+    }
+
+    @Test
     void testGivenCondition() {
         Runnable mockCondition = mock(Runnable.class);
         subject.given(mockCondition).whenCommand(new YieldsNoResult()).verify(() -> verify(mockCondition).run());
@@ -181,6 +190,13 @@ class GivenWhenThenTest {
         @HandleEvent
         public void handle(Object event) {
             FluxCapacitor.sendCommand(new YieldsNoResult());
+        }
+    }
+
+    private static class ThrowingEventHandler {
+        @HandleEvent
+        public void handle(Object event) {
+            throw new MockException();
         }
     }
 
