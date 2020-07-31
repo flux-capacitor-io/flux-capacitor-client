@@ -28,8 +28,10 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 import java.util.Objects;
+import java.util.function.Predicate;
 import java.util.stream.Stream;
 
+import static io.fluxcapacitor.javaclient.test.GivenWhenThenUtils.toMatcher;
 import static java.lang.String.format;
 import static java.util.stream.Collectors.toList;
 
@@ -156,7 +158,7 @@ public abstract class AbstractResultValidator implements Then {
         if (!containsAll(expected, actual)) {
             List<Message> remaining = new ArrayList<>(actual);
             List<Message> filtered = expected.stream().flatMap(e -> {
-                if (e != null && !(expected instanceof Matcher<?>)) {
+                if (e != null && !(expected instanceof Matcher<?>) && !(expected instanceof Predicate<?>)) {
                     Class<?> payloadType =
                             e instanceof Message ? ((Message) e).getPayload().getClass() : expected.getClass();
                     Message match = remaining.stream()
@@ -210,6 +212,9 @@ public abstract class AbstractResultValidator implements Then {
         if (actual instanceof Message) {
             return matches(expected, (Message) actual);
         }
+        if (expected instanceof Predicate<?>) {
+            expected = toMatcher((Predicate<?>) expected);
+        }
         if (expected instanceof Matcher<?>) {
             return ((Matcher<?>) expected).matches(actual);
         }
@@ -217,6 +222,9 @@ public abstract class AbstractResultValidator implements Then {
     }
 
     protected boolean matches(Object expected, Message actual) {
+        if (expected instanceof Predicate<?>) {
+            expected = toMatcher((Predicate<?>) expected);
+        }
         if (expected instanceof Matcher<?>) {
             return ((Matcher<?>) expected).matches(actual.getPayload()) || ((Matcher<?>) expected).matches(actual);
         }

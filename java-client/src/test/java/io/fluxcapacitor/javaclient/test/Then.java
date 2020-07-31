@@ -4,7 +4,9 @@ import org.hamcrest.Matcher;
 
 import java.util.Arrays;
 import java.util.List;
+import java.util.function.Predicate;
 
+import static io.fluxcapacitor.javaclient.test.GivenWhenThenUtils.toMatcher;
 import static org.hamcrest.CoreMatchers.isA;
 
 public interface Then {
@@ -93,14 +95,22 @@ public interface Then {
 
     Then expectResult(Object result);
 
+    default Then expectResult(Predicate<?> predicate) {
+        return predicate == null ? expectResult((Object) null) : expectResult(toMatcher(predicate));
+    }
+
     default Then expectException(Class<? extends Throwable> exceptionClass) {
         return expectException(isA(exceptionClass));
+    }
+
+    default Then expectException(Predicate<? extends Throwable> predicate) {
+        return expectException(toMatcher(predicate));
     }
 
     Then expectException(Matcher<?> resultMatcher);
 
     default Then expectNoResult() {
-        return expectResult(null);
+        return expectResult((Object) null);
     }
 
     Then expectNoResultLike(Object result);
