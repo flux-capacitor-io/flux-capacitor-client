@@ -50,6 +50,7 @@ import java.util.function.Function;
 import java.util.stream.Stream;
 
 import static java.util.Comparator.comparing;
+import static java.util.stream.Collectors.toList;
 
 @Slf4j
 public abstract class AbstractTestFixture implements Given, When {
@@ -133,6 +134,12 @@ public abstract class AbstractTestFixture implements Given, When {
     }
 
     @Override
+    public When givenDomainEvents(String aggregateId, Object... events) {
+        return given(() -> fluxCapacitor.eventStore().storeDomainEvents(
+                aggregateId, aggregateId, events.length - 1, flatten(events).collect(toList())));
+    }
+
+    @Override
     public When givenEvents(Object... events) {
         return given(() -> flatten(events).forEach(c -> fluxCapacitor.eventGateway().publish(c)));
     }
@@ -171,6 +178,11 @@ public abstract class AbstractTestFixture implements Given, When {
     @Override
     public When andGivenEvents(Object... events) {
         return givenEvents(events);
+    }
+
+    @Override
+    public When andGivenDomainEvents(String aggregateId, Object... events) {
+        return givenDomainEvents(aggregateId, events);
     }
 
     @Override

@@ -7,13 +7,15 @@ import java.time.Instant;
 import java.time.ZoneId;
 
 public interface Given {
-    
+
     When givenCommands(Object... commands);
 
+    When givenDomainEvents(String aggregateId, Object... events);
+
     When givenEvents(Object... events);
-    
+
     When given(Runnable condition);
-    
+
     When givenSchedules(Schedule... schedules);
 
     default When givenNoPriorActivity() {
@@ -21,7 +23,7 @@ public interface Given {
     }
 
     Clock getClock();
-    
+
     Given withClock(Clock clock);
 
     default Given withFixedTime(Instant time) {

@@ -19,9 +19,9 @@ public interface When {
     Then whenTimeElapses(Duration duration);
 
     Then whenQuery(Object query);
-    
+
     Then whenEvent(Object event);
-    
+
     /*
         Continued
      */
@@ -31,6 +31,8 @@ public interface When {
     When andGivenCommands(Object... commands);
 
     When andGivenEvents(Object... events);
+
+    When andGivenDomainEvents(String aggregateId, Object... events);
 
     When andGivenSchedules(Schedule... schedules);
 

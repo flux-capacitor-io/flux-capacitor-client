@@ -69,7 +69,7 @@ public class HandlerInspector {
     public static <M> HandlerInvoker<M> inspect(Class<?> type, Class<? extends Annotation> methodAnnotation,
                                                 List<ParameterResolver<? super M>> parameterResolvers,
                                                 HandlerConfiguration<M> handlerConfiguration) {
-        return new ObjectHandlerInvoker<>(type, concat(getAllMethods(type).stream(), stream(type.getConstructors()))
+        return new ObjectHandlerInvoker<>(type, concat(getAllMethods(type).stream(), stream(type.getDeclaredConstructors()))
                 .filter(m -> m.isAnnotationPresent(methodAnnotation) && handlerConfiguration.handlerFilter().test(type, m))
                 .map(m -> handlerConfiguration.invokerFactory().create(m, type, parameterResolvers, methodAnnotation))
                 .sorted(comparator).collect(toList()), handlerConfiguration.invokeMultipleMethods());

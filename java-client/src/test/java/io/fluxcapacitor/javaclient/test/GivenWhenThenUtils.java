@@ -16,7 +16,7 @@ public class GivenWhenThenUtils {
 
             @Override
             public void describeTo(Description description) {
-                description.appendText("Predicate did not match");
+                description.appendText("Predicate matcher");
             }
         };
     }

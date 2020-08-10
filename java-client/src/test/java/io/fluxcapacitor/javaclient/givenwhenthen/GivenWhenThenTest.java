@@ -16,6 +16,8 @@ package io.fluxcapacitor.javaclient.givenwhenthen;
 
 import io.fluxcapacitor.javaclient.FluxCapacitor;
 import io.fluxcapacitor.javaclient.MockException;
+import io.fluxcapacitor.javaclient.persisting.eventsourcing.ApplyEvent;
+import io.fluxcapacitor.javaclient.persisting.eventsourcing.EventSourced;
 import io.fluxcapacitor.javaclient.test.TestFixture;
 import io.fluxcapacitor.javaclient.tracking.handling.HandleCommand;
 import io.fluxcapacitor.javaclient.tracking.handling.HandleEvent;
@@ -23,6 +25,7 @@ import lombok.Value;
 import org.junit.jupiter.api.Test;
 import org.mockito.InOrder;
 
+import static io.fluxcapacitor.javaclient.FluxCapacitor.loadAggregate;
 import static org.hamcrest.CoreMatchers.isA;
 import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.mock;
@@ -150,6 +153,13 @@ class GivenWhenThenTest {
         subject.givenNoPriorActivity().when(mockCondition).verify(() -> verify(mockCondition).run());
     }
 
+    @Test
+    void testGivenDomainEvents() {
+        subject.givenDomainEvents("test", new MockDomainEvent())
+                .whenApplying(() -> loadAggregate("test", MockAggregate.class).get())
+                .expectResult(r -> r instanceof MockAggregate);
+    }
+
     private static class CommandHandler {
         @HandleCommand
         public void handle(YieldsNoResult command) {
@@ -196,6 +206,17 @@ class GivenWhenThenTest {
         public void handle(Object event) {
             throw new MockException();
         }
+    }
+
+    @EventSourced
+    private static class MockAggregate {
+        @ApplyEvent
+        MockAggregate(MockDomainEvent event) {
+        }
+    }
+
+    @Value
+    private static class MockDomainEvent {
     }
 
     @Value
