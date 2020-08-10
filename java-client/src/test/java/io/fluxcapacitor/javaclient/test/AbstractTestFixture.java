@@ -24,6 +24,7 @@ import io.fluxcapacitor.javaclient.common.serialization.DeserializingMessage;
 import io.fluxcapacitor.javaclient.configuration.DefaultFluxCapacitor;
 import io.fluxcapacitor.javaclient.configuration.FluxCapacitorBuilder;
 import io.fluxcapacitor.javaclient.configuration.client.Client;
+import io.fluxcapacitor.javaclient.modeling.Aggregate;
 import io.fluxcapacitor.javaclient.publishing.DispatchInterceptor;
 import io.fluxcapacitor.javaclient.scheduling.Schedule;
 import io.fluxcapacitor.javaclient.scheduling.client.InMemorySchedulingClient;
@@ -136,7 +137,12 @@ public abstract class AbstractTestFixture implements Given, When {
     @Override
     public When givenDomainEvents(String aggregateId, Object... events) {
         return given(() -> fluxCapacitor.eventStore().storeDomainEvents(
-                aggregateId, aggregateId, events.length - 1, flatten(events).collect(toList())));
+                aggregateId, aggregateId, events.length - 1, flatten(events).map(e -> {
+                    Message message = e instanceof Message ? (Message) e : new Message(e);
+                    Metadata metadata = message.getMetadata();
+                    metadata.put(Aggregate.AGGREGATE_ID_METADATA_KEY, aggregateId);
+                    return message;
+                } ).collect(toList())));
     }
 
     @Override
