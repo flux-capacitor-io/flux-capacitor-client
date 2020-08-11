@@ -22,8 +22,8 @@ import java.time.Instant;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
-import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Function;
 
 import static io.fluxcapacitor.common.MessageType.EVENT;
@@ -47,7 +47,7 @@ public class CachingAggregateRepository implements AggregateRepository {
     private final TrackingClient trackingClient;
     private final Serializer serializer;
 
-    private final AtomicBoolean started = new AtomicBoolean();
+    private final AtomicReference<Instant> started = new AtomicReference<>();
     private final AtomicLong lastEventIndex = new AtomicLong();
 
     @Override
@@ -61,7 +61,7 @@ public class CachingAggregateRepository implements AggregateRepository {
         }
         Aggregate<T> result = delegate.load(aggregateId, aggregateType, true);
         if (result == null) {
-            return Optional.<Aggregate<T>>ofNullable(doLoad(aggregateId))
+            return Optional.<Aggregate<T>>ofNullable(doLoad(aggregateId, aggregateType, onlyCached))
                     .filter(a -> Optional.ofNullable(a.get()).map(m -> aggregateType.isAssignableFrom(m.getClass()))
                             .orElse(true))
                     .orElseGet(() -> delegate.load(aggregateId, aggregateType, onlyCached));
@@ -69,18 +69,18 @@ public class CachingAggregateRepository implements AggregateRepository {
         return result;
     }
 
-    private <T> RefreshingAggregate<T> doLoad(String aggregateId) {
-        if (started.compareAndSet(false, true)) {
+    private <T> RefreshingAggregate<T> doLoad(String aggregateId, Class<T> type, boolean onlyCached) {
+        if (started.compareAndSet(null, Instant.now())) {
             log.info("Start tracking notifications");
             start(format("%s_%s", clientName, CachingAggregateRepository.class.getSimpleName()),
                   trackingClient, this::handleEvents);
             return null;
         }
-        if (lastEventIndex.get() <= 0) {
-            return null;
+        if (lastEventIndex.get() <= 0 && started.get().isAfter(Instant.now().minusSeconds(5))) {
+            return null; //make sure we don't miss any events before placing anything into the cache
         }
         DeserializingMessage current = DeserializingMessage.getCurrent();
-        if (current != null) {
+        if (current != null && lastEventIndex.get() > 0) {
             switch (current.getMessageType()) {
                 case EVENT:
                 case NOTIFICATION:
@@ -101,7 +101,13 @@ public class CachingAggregateRepository implements AggregateRepository {
                     break;
             }
         }
-        return cache.getIfPresent(keyFunction.apply(aggregateId));
+        if (onlyCached) {
+            return cache.getIfPresent(aggregateId);
+        }
+        return cache.get(keyFunction.apply(aggregateId), id -> Optional.ofNullable(delegate.load(aggregateId, type))
+                .map(a -> new RefreshingAggregate<>(a.get(), a.lastEventId(), a.timestamp(),
+                                                    RefreshingAggregate.Status.UNVERIFIED))
+                .orElse(null));
     }
 
     protected void handleEvents(List<SerializedMessage> messages) {
@@ -128,33 +134,34 @@ public class CachingAggregateRepository implements AggregateRepository {
             Instant timestamp = ofEpochMilli(event.getSerializedObject().getTimestamp());
             RefreshingAggregate<?> aggregate = cache.getIfPresent(cacheKey);
 
-            if (aggregate == null) {
+            if (aggregate == null || aggregate.status == RefreshingAggregate.Status.UNVERIFIED) {
                 if (handler.canHandle(null, event)) { //may be the first event for this aggregate
                     try {
                         aggregate = new RefreshingAggregate<>(handler.invoke(null, event), eventId,
-                                                              timestamp, true);
+                                                              timestamp, RefreshingAggregate.Status.IN_SYNC);
                     } catch (Exception ignored) {
                     }
                 } else { //otherwise we just don't have it in the cache
                     aggregate =
                             Optional.ofNullable(delegate.load(aggregateId, type)).map(a -> new RefreshingAggregate<>(
-                                    a.get(), a.lastEventId(), a.timestamp(), Objects.equals(a.lastEventId(), eventId)))
+                                    a.get(), a.lastEventId(), a.timestamp(), Objects.equals(a.lastEventId(), eventId)
+                                    ? RefreshingAggregate.Status.IN_SYNC : RefreshingAggregate.Status.AHEAD))
                                     .orElseGet(() -> {
                                         log.warn("Delegate repository did not contain aggregate with id {} of type {}",
                                                  aggregateId, type);
                                         return null;
                                     });
                 }
-            } else if (aggregate.inSync) {
+            } else if (aggregate.status == RefreshingAggregate.Status.IN_SYNC) {
                 try {
                     aggregate = new RefreshingAggregate<>(handler.invoke(aggregate.get(), event), eventId,
-                                                          timestamp, true);
+                                                          timestamp, RefreshingAggregate.Status.IN_SYNC);
                 } catch (Exception e) {
                     log.error("Failed to update aggregate with id {} of type {}", aggregateId, type, e);
                     aggregate = null;
                 }
             } else if (eventId.equals(aggregate.lastEventId)) {
-                aggregate = aggregate.toBuilder().inSync(true).build();
+                aggregate = aggregate.toBuilder().status(RefreshingAggregate.Status.IN_SYNC).build();
             }
 
             if (aggregate == null) {
@@ -189,7 +196,7 @@ public class CachingAggregateRepository implements AggregateRepository {
         T model;
         String lastEventId;
         Instant timestamp;
-        boolean inSync;
+        Status status;
 
         @Override
         public T get() {
@@ -200,6 +207,10 @@ public class CachingAggregateRepository implements AggregateRepository {
         public Aggregate<T> apply(Message eventMessage) {
             throw new UnsupportedOperationException(
                     format("Not allowed to apply a %s. The aggregate is readonly.", eventMessage));
+        }
+
+        private enum Status {
+            IN_SYNC, AHEAD, UNVERIFIED
         }
     }
 }
