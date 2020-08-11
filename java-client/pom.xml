@@ -32,7 +32,7 @@
     <properties>
         <hibernate-validator.version>6.1.5.Final</hibernate-validator.version>
         <javax-el.version>3.0.0</javax-el.version>
-        <spring.version>5.2.7.RELEASE</spring.version>
+        <spring.version>5.2.8.RELEASE</spring.version>
     </properties>
 
     <dependencies>
