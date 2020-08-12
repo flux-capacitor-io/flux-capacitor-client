@@ -50,6 +50,11 @@ public interface HandlerInterceptor {
         private interface ExcludedMethods {
             Object invoke(DeserializingMessage message);
         }
+
+        @Override
+        public String toString() {
+            return delegate.toString();
+        }
     }
 
     @AllArgsConstructor

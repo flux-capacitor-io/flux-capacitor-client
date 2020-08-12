@@ -287,7 +287,8 @@ public class HandlerInspector {
 
         @Override
         public String toString() {
-            return "DefaultHandler{target=" + target + '}';
+            return Optional.ofNullable(target).map(o -> String.format("\"%s\"", o.getClass().getSimpleName()))
+                    .orElse("DefaultHandler");
         }
     }
 }
