@@ -136,13 +136,15 @@ public abstract class AbstractTestFixture implements Given, When {
 
     @Override
     public When givenDomainEvents(String aggregateId, Object... events) {
-        return given(() -> fluxCapacitor.eventStore().storeDomainEvents(
-                aggregateId, aggregateId, events.length - 1, flatten(events).map(e -> {
-                    Message message = e instanceof Message ? (Message) e : new Message(e);
-                    Metadata metadata = message.getMetadata();
-                    metadata.put(Aggregate.AGGREGATE_ID_METADATA_KEY, aggregateId);
-                    return message;
-                } ).collect(toList())));
+        return given(() -> {
+            List<Message> eventList = flatten(events).map(e -> {
+                Message message = e instanceof Message ? (Message) e : new Message(e);
+                Metadata metadata = message.getMetadata();
+                metadata.put(Aggregate.AGGREGATE_ID_METADATA_KEY, aggregateId);
+                return message;
+            }).collect(toList());
+            fluxCapacitor.eventStore().storeDomainEvents(aggregateId, aggregateId, eventList.size() - 1, eventList);
+        });
     }
 
     @Override
