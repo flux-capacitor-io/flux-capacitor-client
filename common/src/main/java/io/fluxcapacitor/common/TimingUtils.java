@@ -93,7 +93,7 @@ public class TimingUtils {
                     Thread.sleep(configuration.getDelay().toMillis());
                 } catch (InterruptedException e1) {
                     currentThread().interrupt();
-                    log.info("Thread interrupted while retrying task {}", task);
+                    log.info("Thread interrupted while retrying task {}", task, e1);
                     break;
                 }
             } catch (Error e) {

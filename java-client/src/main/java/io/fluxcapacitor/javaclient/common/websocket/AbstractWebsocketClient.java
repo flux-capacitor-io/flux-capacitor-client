@@ -207,10 +207,10 @@ public abstract class AbstractWebsocketClient implements AutoCloseable {
     protected Session getSession() {
         if (isClosed(session)) {
             synchronized (closed) {
-                if (closed.get()) {
-                    throw new IllegalStateException("Cannot provide session. This client has closed");
-                }
                 while (isClosed(session)) {
+                    if (closed.get()) {
+                        throw new IllegalStateException("Cannot provide session. This client has closed");
+                    }
                     session = retryOnFailure(() -> isClosed(session) ?
                             container.connectToServer(this, endpointUri) : session, retryConfig);
                 }
