@@ -19,6 +19,7 @@ import io.fluxcapacitor.common.MessageType;
 import io.fluxcapacitor.common.api.SerializedMessage;
 import io.fluxcapacitor.javaclient.common.Message;
 import io.fluxcapacitor.javaclient.publishing.DispatchInterceptor;
+import io.fluxcapacitor.javaclient.scheduling.Schedule;
 import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
@@ -48,12 +49,17 @@ public class MessageRoutingInterceptor implements DispatchInterceptor {
                     }
                 }
             }
-            return getAnnotatedPropertyValue(m.getPayload(), RoutingKey.class).map(Object::toString)
-                    .map(ConsistentHashing::computeSegment).map(s -> {
+            SerializedMessage result =
+                    getAnnotatedPropertyValue(m.getPayload(), RoutingKey.class).map(Object::toString)
+                            .map(ConsistentHashing::computeSegment).map(s -> {
                         SerializedMessage serializedMessage = function.apply(m);
                         serializedMessage.setSegment(s);
                         return serializedMessage;
                     }).orElse(function.apply(m));
+            if (result.getSegment() == null && m instanceof Schedule) {
+                result.setSegment(ConsistentHashing.computeSegment(((Schedule) m).getScheduleId()));
+            }
+            return result;
         };
     }
 }

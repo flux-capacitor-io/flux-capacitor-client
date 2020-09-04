@@ -3,6 +3,7 @@ package io.fluxcapacitor.javaclient.scheduling;
 import io.fluxcapacitor.common.api.Metadata;
 import io.fluxcapacitor.javaclient.common.Message;
 import lombok.EqualsAndHashCode;
+import lombok.NonNull;
 import lombok.Value;
 
 import java.beans.ConstructorProperties;
@@ -12,8 +13,8 @@ import java.time.Instant;
 @Value
 @EqualsAndHashCode(callSuper = true)
 public class Schedule extends Message {
-    String scheduleId;
-    Instant deadline;
+    @NonNull String scheduleId;
+    @NonNull Instant deadline;
 
     public Schedule(Object payload, String scheduleId, Instant deadline) {
         super(payload);
@@ -34,11 +35,11 @@ public class Schedule extends Message {
         this.scheduleId = scheduleId;
         this.deadline = deadline;
     }
-    
+
     public boolean isExpired() {
         return isExpired(Message.getClock());
     }
-    
+
     public boolean isExpired(Clock clock) {
         return !deadline.isAfter(clock.instant());
     }
