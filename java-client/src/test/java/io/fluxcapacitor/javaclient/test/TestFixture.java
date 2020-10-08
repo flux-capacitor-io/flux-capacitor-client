@@ -15,7 +15,6 @@
 package io.fluxcapacitor.javaclient.test;
 
 import io.fluxcapacitor.common.Registration;
-import io.fluxcapacitor.common.handling.Handler;
 import io.fluxcapacitor.common.handling.HandlerConfiguration;
 import io.fluxcapacitor.javaclient.FluxCapacitor;
 import io.fluxcapacitor.javaclient.common.Message;
@@ -30,7 +29,9 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.CompletionException;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import java.util.function.Function;
 import java.util.stream.Stream;
 
@@ -117,9 +118,12 @@ public class TestFixture extends AbstractTestFixture {
     @SneakyThrows
     protected Object getDispatchResult(CompletableFuture<?> dispatchResult) {
         try {
-            return dispatchResult.getNow(null);
-        } catch (CompletionException e) {
+            return dispatchResult.get(1L, TimeUnit.SECONDS);
+        } catch (ExecutionException e) {
             throw e.getCause();
+        } catch (TimeoutException e) {
+            throw new TimeoutException("Test fixture did not receive a dispatch result in time. "
+                                               + "Perhaps some messages did not have handlers?");
         }
     }
 
