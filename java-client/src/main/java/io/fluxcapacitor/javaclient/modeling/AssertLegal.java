@@ -30,4 +30,12 @@ import java.lang.annotation.Target;
 @Target(ElementType.METHOD)
 @Retention(RetentionPolicy.RUNTIME)
 public @interface AssertLegal {
+    int HIGHEST_PRIORITY = Integer.MAX_VALUE, LOWEST_PRIORITY = Integer.MIN_VALUE, DEFAULT_PRIORITY = 0;
+
+    /**
+     * Determines the order of assertions if there are multiple annotated methods. A method with higher priority will
+     * be invoked before methods with a lower priority. Use {@link #HIGHEST_PRIORITY} to ensure that the check
+     * is performed first.
+     */
+    int priority() default DEFAULT_PRIORITY;
 }

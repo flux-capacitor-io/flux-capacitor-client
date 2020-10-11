@@ -42,6 +42,7 @@ import static io.fluxcapacitor.common.reflection.ReflectionUtils.getAllMethods;
 import static java.lang.String.format;
 import static java.util.Arrays.stream;
 import static java.util.Comparator.comparing;
+import static java.util.Comparator.reverseOrder;
 import static java.util.stream.Collectors.toList;
 import static java.util.stream.Stream.concat;
 
@@ -69,21 +70,27 @@ public class HandlerInspector {
     public static <M> HandlerInvoker<M> inspect(Class<?> type, Class<? extends Annotation> methodAnnotation,
                                                 List<ParameterResolver<? super M>> parameterResolvers,
                                                 HandlerConfiguration<M> handlerConfiguration) {
-        return new ObjectHandlerInvoker<>(type, concat(getAllMethods(type).stream(), stream(type.getDeclaredConstructors()))
-                .filter(m -> m.isAnnotationPresent(methodAnnotation) && handlerConfiguration.handlerFilter().test(type, m))
-                .map(m -> handlerConfiguration.invokerFactory().create(m, type, parameterResolvers, methodAnnotation))
-                .sorted(comparator).collect(toList()), handlerConfiguration.invokeMultipleMethods());
+        return new ObjectHandlerInvoker<>(type,
+                                          concat(getAllMethods(type).stream(), stream(type.getDeclaredConstructors()))
+                                                  .filter(m -> m.isAnnotationPresent(methodAnnotation)
+                                                          && handlerConfiguration.handlerFilter().test(type, m))
+                                                  .map(m -> handlerConfiguration.invokerFactory()
+                                                          .create(m, type, parameterResolvers, methodAnnotation))
+                                                  .sorted(comparator).collect(toList()),
+                                          handlerConfiguration.invokeMultipleMethods());
     }
 
     @Getter
     public static class MethodHandlerInvoker<M> implements HandlerInvoker<M> {
-        protected static final Comparator<MethodHandlerInvoker<?>> comparator =
-                comparing((Function<MethodHandlerInvoker<?>, Class<?>>) MethodHandlerInvoker::getPayloadType, (o1, o2)
-                        -> Objects.equals(o1, o2) ? 0
-                        : o1.isAssignableFrom(o2) || (o1.isInterface() && !o2.isInterface()) ? 1
-                        : o2.isAssignableFrom(o1) || (!o1.isInterface() && o2.isInterface()) ? -1
-                        : specificity(o2) - specificity(o1))
-                        .thenComparing(MethodHandlerInvoker::getMethodIndex);
+        protected static final Comparator<MethodHandlerInvoker<?>> comparator = comparing(
+                (Function<MethodHandlerInvoker<?>, Integer>) MethodHandlerInvoker::getPriority, reverseOrder())
+                .thenComparing((Function<MethodHandlerInvoker<?>, Class<?>>) MethodHandlerInvoker::getPayloadType,
+                               (o1, o2)
+                                       -> Objects.equals(o1, o2) ? 0
+                                       : o1.isAssignableFrom(o2) || (o1.isInterface() && !o2.isInterface()) ? 1
+                                       : o2.isAssignableFrom(o1) || (!o1.isInterface() && o2.isInterface()) ? -1
+                                       : specificity(o2) - specificity(o1))
+                .thenComparing(MethodHandlerInvoker::getMethodIndex);
 
         private final int methodIndex;
         private final Executable executable;
@@ -91,6 +98,7 @@ public class HandlerInspector {
         private final List<Function<? super M, Object>> parameterSuppliers;
         private final Predicate<? super M> matcher;
         private final Class<? extends Annotation> methodAnnotation;
+        private final int priority;
 
         public MethodHandlerInvoker(Executable executable, Class<?> enclosingType,
                                     List<ParameterResolver<? super M>> parameterResolvers,
@@ -102,6 +110,7 @@ public class HandlerInspector {
                     !(executable instanceof Method) || !(((Method) executable).getReturnType()).equals(void.class);
             this.parameterSuppliers = getParameterSuppliers(executable, parameterResolvers);
             this.matcher = getMatcher(executable, parameterResolvers);
+            this.priority = getPriority(executable, methodAnnotation);
         }
 
         @Override
@@ -209,6 +218,16 @@ public class HandlerInspector {
 
         protected static int methodIndex(Method instanceMethod, Class<?> instanceType) {
             return ReflectionUtils.getAllMethods(instanceType).indexOf(instanceMethod);
+        }
+
+        @SneakyThrows
+        private static int getPriority(Executable executable, Class<? extends Annotation> methodAnnotation) {
+            for (Method method : ReflectionUtils.getAllMethods(methodAnnotation)) {
+                if (method.getName().equalsIgnoreCase("priority")) {
+                    return (int) method.invoke(executable.getAnnotation(methodAnnotation));
+                }
+            }
+            return 0;
         }
     }
 

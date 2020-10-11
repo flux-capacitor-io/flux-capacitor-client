@@ -29,6 +29,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Stream;
 
 import static io.fluxcapacitor.common.MessageType.COMMAND;
+import static io.fluxcapacitor.javaclient.modeling.AssertLegal.HIGHEST_PRIORITY;
 import static java.util.Arrays.stream;
 import static java.util.Collections.singletonList;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -422,8 +423,11 @@ class EventSourcingRepositoryTest {
             assertionCount.addAndGet(1);
         }
 
-        @AssertLegal
+        @AssertLegal(priority = HIGHEST_PRIORITY)
         private void assert2(Object model) {
+            if (assertionCount.get() > 0) {
+                throw new IllegalStateException("Expected to come first");
+            }
             assertionCount.addAndGet(2);
         }
     }
