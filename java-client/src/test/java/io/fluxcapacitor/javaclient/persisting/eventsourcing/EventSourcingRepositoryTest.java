@@ -14,6 +14,7 @@ import io.fluxcapacitor.javaclient.modeling.Aggregate;
 import io.fluxcapacitor.javaclient.modeling.AssertLegal;
 import io.fluxcapacitor.javaclient.persisting.caching.Cache;
 import io.fluxcapacitor.javaclient.persisting.caching.DefaultCache;
+import lombok.Builder;
 import lombok.NoArgsConstructor;
 import lombok.Value;
 import lombok.extern.slf4j.Slf4j;
@@ -31,6 +32,7 @@ import static io.fluxcapacitor.common.MessageType.COMMAND;
 import static java.util.Arrays.stream;
 import static java.util.Collections.singletonList;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.fail;
@@ -140,7 +142,7 @@ class EventSourcingRepositoryTest {
             events.forEach(aggregate::apply);
             verifyNoInteractions(eventStore);
         });
-        verify(eventStore).storeDomainEvents(eq(aggregateId), eq(TestModel.class.getSimpleName()), eq(1L), 
+        verify(eventStore).storeDomainEvents(eq(aggregateId), eq(TestModel.class.getSimpleName()), eq(1L),
                                              anyList());
     }
 
@@ -226,6 +228,33 @@ class EventSourcingRepositoryTest {
         subject.load(aggregateId, TestModelWithFactoryMethod.class).assertLegal(new CommandWithOverriddenAssertion());
     }
 
+    @Test
+    void testCreateViaEvent() {
+        Message message = new Message(new CreateModelFromEvent());
+        DeserializingMessage.handleBatch(Stream.of(toDeserializingMessage(message)))
+                .forEach(command -> subject.load(aggregateId, TestModelWithoutApplyEvent.class).apply(message));
+        Aggregate<TestModelWithoutApplyEvent> aggregate = subject.load(aggregateId, TestModelWithoutApplyEvent.class);
+        assertNotNull(aggregate.get());
+        assertEquals(aggregate.get().firstEvent, message.getPayload());
+    }
+
+    @Test
+    void testUpdateViaEvent() {
+        {
+            Message message = new Message(new CreateModelFromEvent());
+            DeserializingMessage.handleBatch(Stream.of(toDeserializingMessage(message)))
+                    .forEach(command -> subject.load(aggregateId, TestModelWithoutApplyEvent.class).apply(message));
+        }
+        {
+            Message message = new Message(new UpdateModelFromEvent());
+            DeserializingMessage.handleBatch(Stream.of(toDeserializingMessage(message)))
+                    .forEach(command -> subject.load(aggregateId, TestModelWithoutApplyEvent.class).apply(message));
+            Aggregate<TestModelWithoutApplyEvent> aggregate = subject.load(aggregateId, TestModelWithoutApplyEvent.class);
+            assertNotNull(aggregate.get());
+            assertEquals(aggregate.get().secondEvent, message.getPayload());
+        }
+    }
+
     private Aggregate<TestModel> applyAndCommit(Message message) {
         DeserializingMessage.handleBatch(Stream.of(toDeserializingMessage(message)))
                 .forEach(command -> subject.load(aggregateId, TestModel.class).apply(message));
@@ -247,12 +276,35 @@ class EventSourcingRepositoryTest {
                                       message.getTimestamp().toEpochMilli()), message::getPayload), COMMAND);
     }
 
+    @Value
+    public static class CreateModelFromEvent {
+        @Apply
+        public TestModelWithoutApplyEvent apply() {
+            return TestModelWithoutApplyEvent.builder().firstEvent(this).build();
+        }
+    }
+
+    @Value
+    public static class UpdateModelFromEvent {
+        @Apply
+        public TestModelWithoutApplyEvent apply(TestModelWithoutApplyEvent aggregate) {
+            return aggregate.toBuilder().secondEvent(this).build();
+        }
+    }
+
+    @EventSourced
+    @Value
+    @Builder(toBuilder = true)
+    public static class TestModelWithoutApplyEvent {
+        Object firstEvent, secondEvent;
+    }
+
     @EventSourced(cached = true, snapshotPeriod = 100)
     @Value
     @NoArgsConstructor
     public static class TestModel {
-        private final List<Object> events = new ArrayList<>();
-        private final Metadata metadata = Metadata.empty();
+        List<Object> events = new ArrayList<>();
+        Metadata metadata = Metadata.empty();
 
         @ApplyEvent
         public TestModel(CreateModel command) {

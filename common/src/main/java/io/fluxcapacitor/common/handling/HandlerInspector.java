@@ -164,9 +164,6 @@ public class HandlerInspector {
 
         protected List<Function<? super M, Object>> getParameterSuppliers(Executable method,
                                                                           List<ParameterResolver<? super M>> resolvers) {
-            if (method.getParameterCount() == 0) {
-                throw new HandlerException(format("Annotated method %s should contain at least one parameter", method));
-            }
             return stream(method.getParameters())
                     .map(p -> resolvers.stream().map(r -> r.resolve(p)).filter(Objects::nonNull).findFirst()
                             .orElseThrow(() -> new HandlerException(format("Could not resolve parameter %s", p))))
@@ -180,6 +177,9 @@ public class HandlerInspector {
         protected Predicate<M> getMatcher(Executable executable,
                                           List<ParameterResolver<? super M>> parameterResolvers) {
             return m -> {
+                if (executable.getParameters().length == 0) {
+                    return true;
+                }
                 Parameter parameter = executable.getParameters()[0];
                 for (ParameterResolver<? super M> resolver : parameterResolvers) {
                     if (resolver.matches(parameter, m)) {
