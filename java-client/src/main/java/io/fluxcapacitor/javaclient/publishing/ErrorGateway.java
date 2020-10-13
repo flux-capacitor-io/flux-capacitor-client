@@ -16,8 +16,9 @@ package io.fluxcapacitor.javaclient.publishing;
 
 import io.fluxcapacitor.common.api.Metadata;
 import io.fluxcapacitor.javaclient.common.Message;
+import io.fluxcapacitor.javaclient.tracking.handling.HasLocalHandlers;
 
-public interface ErrorGateway {
+public interface ErrorGateway extends HasLocalHandlers {
 
     default void report(Object error) {
         if (error instanceof Message) {

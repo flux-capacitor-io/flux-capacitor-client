@@ -421,7 +421,8 @@ public class DefaultFluxCapacitor implements FluxCapacitor {
             //enable error reporter as the outermost handler interceptor
             ErrorGateway errorGateway =
                     new DefaultErrorGateway(client.getGatewayClient(ERROR),
-                                            messageSerializer(ERROR, dispatchInterceptors));
+                                            messageSerializer(ERROR, dispatchInterceptors),
+                                            localHandlerRegistry(ERROR, handlerInterceptors));
             if (!disableErrorReporting) {
                 ErrorReportingInterceptor interceptor = new ErrorReportingInterceptor(errorGateway);
                 Arrays.stream(MessageType.values())

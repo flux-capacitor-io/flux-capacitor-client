@@ -76,7 +76,8 @@ public class TestFixture extends AbstractTestFixture {
                 .of(fluxCapacitor.commandGateway().registerHandler(h, handlerConfiguration),
                     fluxCapacitor.queryGateway().registerHandler(h, handlerConfiguration),
                     fluxCapacitor.eventGateway().registerHandler(h, handlerConfiguration),
-                    fluxCapacitor.eventStore().registerHandler(h, handlerConfiguration)))
+                    fluxCapacitor.eventStore().registerHandler(h, handlerConfiguration),
+                    fluxCapacitor.errorGateway().registerHandler(h, handlerConfiguration)))
                 .reduce(Registration::merge).orElse(Registration.noOp()));
         if (fluxCapacitor.scheduler() instanceof DefaultScheduler) {
             DefaultScheduler scheduler = (DefaultScheduler) fluxCapacitor.scheduler();

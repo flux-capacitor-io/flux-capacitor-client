@@ -246,7 +246,8 @@ public interface FluxCapacitor extends AutoCloseable {
                     .reduce(Registration::merge).orElse(Registration.noOp());
             Registration local = handlers.stream().flatMap(h -> Stream
                     .of(commandGateway().registerHandler(h), queryGateway().registerHandler(h),
-                        eventGateway().registerHandler(h), eventStore().registerHandler(h)))
+                        eventGateway().registerHandler(h), eventStore().registerHandler(h),
+                        errorGateway().registerHandler(h)))
                     .reduce(Registration::merge).orElse(Registration.noOp());
             return tracking.merge(local);
         });
