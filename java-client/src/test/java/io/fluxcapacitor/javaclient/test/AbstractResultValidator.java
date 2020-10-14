@@ -233,8 +233,9 @@ public abstract class AbstractResultValidator implements Then {
                 .containsAll(expectedMessage.getMetadata().entrySet());
     }
 
-    protected Collection<?> asMessages(Collection<?> events) {
-        return events.stream().map(e -> e instanceof Matcher<?> ? (Matcher<?>) e :
+    protected Collection<?> asMessages(Collection<?> expectedMessages) {
+        return expectedMessages.stream().map(e -> e instanceof Predicate<?>
+                ? GivenWhenThenUtils.toMatcher((Predicate<?>) e) : e instanceof Matcher<?> ? (Matcher<?>) e :
                 e instanceof Message ? (Message) e : new Message(e)).collect(toList());
     }
 }
