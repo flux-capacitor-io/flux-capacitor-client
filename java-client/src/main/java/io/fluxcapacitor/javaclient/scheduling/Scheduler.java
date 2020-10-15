@@ -16,9 +16,7 @@ public interface Scheduler {
         schedule(schedule, UUID.randomUUID().toString(), delay);
     }
 
-    default void schedule(Object schedule, String scheduleId, Duration delay) {
-        schedule(schedule, scheduleId, Message.getClock().instant().plus(delay));
-    }
+    void schedule(Object schedule, String scheduleId, Duration delay);
 
     default void schedule(Object schedule, String scheduleId, Instant deadline) {
         if (schedule instanceof Message) {

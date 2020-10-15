@@ -13,6 +13,7 @@ import io.fluxcapacitor.javaclient.tracking.handling.HandlerInterceptor;
 import lombok.extern.slf4j.Slf4j;
 
 import java.lang.reflect.Method;
+import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.temporal.TemporalAccessor;
@@ -24,7 +25,6 @@ import java.util.function.Function;
 import static io.fluxcapacitor.common.IndexUtils.millisFromIndex;
 import static io.fluxcapacitor.common.reflection.ReflectionUtils.ensureAccessible;
 import static io.fluxcapacitor.common.reflection.ReflectionUtils.getAnnotatedMethods;
-import static io.fluxcapacitor.javaclient.common.Message.getClock;
 import static java.lang.String.format;
 import static java.time.Duration.between;
 import static java.time.Instant.ofEpochMilli;
@@ -78,8 +78,9 @@ public class SchedulingInterceptor implements DispatchInterceptor, HandlerInterc
                               payloadType, e);
                     return;
                 }
-                FluxCapacitor.get().scheduler().schedule(
-                        new Schedule(payload, scheduleId, getClock().instant().plusMillis(periodic.initialDelay())));
+                Clock clock = FluxCapacitor.get().client().getSchedulingClient().getClock();
+                FluxCapacitor.get().scheduler().schedule(new Schedule(
+                        payload, scheduleId, clock.instant().plusMillis(periodic.initialDelay())));
             }
         }
     }

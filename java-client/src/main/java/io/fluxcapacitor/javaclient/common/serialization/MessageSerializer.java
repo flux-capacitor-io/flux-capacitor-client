@@ -27,9 +27,7 @@ public class MessageSerializer {
     private final Function<Message, SerializedMessage> serializer;
 
     public MessageSerializer(Serializer serializer, DispatchInterceptor dispatchInterceptor, MessageType messageType) {
-        this(dispatchInterceptor.interceptDispatch(
-                m -> new SerializedMessage(serializer.serialize(m.getPayload()), m.getMetadata(), m.getMessageId(), m.getTimestamp().toEpochMilli()),
-                messageType));
+        this(dispatchInterceptor.interceptDispatch(m -> m.serialize(serializer), messageType));
     }
 
     public SerializedMessage serialize(Message message) {

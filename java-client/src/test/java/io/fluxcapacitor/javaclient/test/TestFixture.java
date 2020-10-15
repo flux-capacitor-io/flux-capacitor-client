@@ -22,12 +22,15 @@ import io.fluxcapacitor.javaclient.common.serialization.DeserializingMessage;
 import io.fluxcapacitor.javaclient.configuration.FluxCapacitorBuilder;
 import io.fluxcapacitor.javaclient.scheduling.DefaultScheduler;
 import io.fluxcapacitor.javaclient.scheduling.Schedule;
+import io.fluxcapacitor.javaclient.scheduling.client.InMemorySchedulingClient;
+import io.fluxcapacitor.javaclient.scheduling.client.SchedulingClient;
 import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
 
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.concurrent.Callable;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
@@ -70,6 +73,9 @@ public class TestFixture extends AbstractTestFixture {
 
     @Override
     public Registration registerHandlers(List<?> handlers) {
+        if (handlers.isEmpty()) {
+            return Registration.noOp();
+        }
         FluxCapacitor fluxCapacitor = getFluxCapacitor();
         HandlerConfiguration<DeserializingMessage> handlerConfiguration = defaultHandlerConfiguration();
         Registration registration = fluxCapacitor.execute(f -> handlers.stream().flatMap(h -> Stream
@@ -129,7 +135,28 @@ public class TestFixture extends AbstractTestFixture {
     }
 
     @Override
-    protected void handleExpiredSchedule(Schedule schedule) {
-        getFluxCapacitor().scheduler().schedule(schedule);
+    protected Then applyWhen(Callable<?> action, boolean catchAll) {
+        getFluxCapacitor().execute(fc -> {
+            handleExpiredSchedulesLocally();
+            return null;
+        });
+        return super.applyWhen(() -> {
+            Object result = action.call();
+            handleExpiredSchedulesLocally();
+            return result;
+        }, catchAll);
+    }
+
+    protected void handleExpiredSchedulesLocally() {
+        SchedulingClient schedulingClient = getFluxCapacitor().client().getSchedulingClient();
+        if (schedulingClient instanceof InMemorySchedulingClient) {
+            List<Schedule> expiredSchedules = ((InMemorySchedulingClient) schedulingClient)
+                    .removeExpiredSchedules(getFluxCapacitor().serializer());
+            if (getFluxCapacitor().scheduler() instanceof DefaultScheduler) {
+                DefaultScheduler scheduler = (DefaultScheduler)  getFluxCapacitor().scheduler();
+                expiredSchedules.forEach(s -> scheduler.handleLocally(
+                        s, s.serialize(getFluxCapacitor().serializer())));
+            }
+        }
     }
 }

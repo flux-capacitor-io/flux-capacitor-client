@@ -36,10 +36,6 @@ public class Schedule extends Message {
         this.deadline = deadline;
     }
 
-    public boolean isExpired() {
-        return isExpired(Message.getClock());
-    }
-
     public boolean isExpired(Clock clock) {
         return !deadline.isAfter(clock.instant());
     }

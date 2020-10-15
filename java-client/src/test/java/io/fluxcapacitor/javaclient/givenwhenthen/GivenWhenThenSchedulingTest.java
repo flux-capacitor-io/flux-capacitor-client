@@ -47,6 +47,15 @@ class GivenWhenThenSchedulingTest {
     }
 
     @Test
+    void testExpectCommandAtTimestamp() {
+        Object command = "command";
+        Instant deadline = subject.getClock().instant().plusSeconds(10);
+        subject.givenSchedules(new Schedule(new YieldsCommand(command), "test", deadline))
+                .whenTimeAdvancesTo(deadline)
+                .expectCommands(command);
+    }
+
+    @Test
     void testExpectNoCommandBeforeDeadline() {
         Object command = "command";
         subject.givenSchedules(new Schedule(new YieldsCommand(command), "test",
@@ -56,12 +65,13 @@ class GivenWhenThenSchedulingTest {
     }
 
     @Test
-    void testExpectCommandExactTime() {
+    void testExpectNoCommandAfterCancel() {
         Object command = "command";
-        Instant deadline = subject.getClock().instant().plusSeconds(10);
-        subject.givenSchedules(new Schedule(new YieldsCommand(command), "test", deadline))
-                .whenTimeAdvancesTo(deadline)
-                .expectCommands(command);
+        subject.givenSchedules(new Schedule(new YieldsCommand(command), "test",
+                                            subject.getClock().instant().plusSeconds(10)))
+                .andGiven(() -> subject.getFluxCapacitor().scheduler().cancelSchedule("test"))
+                .whenTimeElapses(Duration.ofSeconds(10))
+                .expectNoCommands();
     }
 
     /*
@@ -149,7 +159,7 @@ class GivenWhenThenSchedulingTest {
     @Test
     void testAlteredPayloadPeriodic() {
         TestFixture.create(new AlteredPayloadPeriodicHandler()).givenNoPriorActivity()
-                .whenTimeElapses(Duration.ofMillis(100)).expectOnlySchedules(new YieldsAlteredSchedule(1));
+                .whenTimeElapses(Duration.ofMillis(1000)).expectOnlySchedules(new YieldsAlteredSchedule(2));
     }
 
     @Test

@@ -38,11 +38,9 @@ import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.ZoneId;
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
-import java.util.Objects;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.Callable;
@@ -50,7 +48,6 @@ import java.util.concurrent.CompletableFuture;
 import java.util.function.Function;
 import java.util.stream.Stream;
 
-import static java.util.Comparator.comparing;
 import static java.util.stream.Collectors.toList;
 
 @Slf4j
@@ -63,7 +60,6 @@ public abstract class AbstractTestFixture implements Given, When {
 
     @Getter
     private Clock clock;
-    private final Collection<Schedule> givenSchedules = new ArrayList<>();
 
     protected AbstractTestFixture(Function<FluxCapacitor, List<?>> handlerFactory) {
         this(DefaultFluxCapacitor.builder(), handlerFactory);
@@ -106,8 +102,6 @@ public abstract class AbstractTestFixture implements Given, When {
 
     protected abstract Object getDispatchResult(CompletableFuture<?> dispatchResult);
 
-    protected abstract void handleExpiredSchedule(Schedule schedule);
-
     /*
         init
      */
@@ -119,7 +113,7 @@ public abstract class AbstractTestFixture implements Given, When {
         if (schedulingClient instanceof InMemorySchedulingClient) {
             ((InMemorySchedulingClient) schedulingClient).setClock(clock);
         } else {
-            log.warn("Could not update clock of scheduling client. Timing tests may not work.");
+            log.warn("Could not update clock of scheduling client. Timing tests will probably not work.");
         }
         return this;
     }
@@ -154,7 +148,7 @@ public abstract class AbstractTestFixture implements Given, When {
 
     @Override
     public When givenSchedules(Schedule... schedules) {
-        return given(() -> Arrays.stream(schedules).forEach(this::handleGivenSchedule));
+        return given(() -> Arrays.stream(schedules).forEach(s -> fluxCapacitor.scheduler().schedule(s)));
     }
 
     @Override
@@ -254,24 +248,12 @@ public abstract class AbstractTestFixture implements Given, When {
         helper
      */
 
-    protected void handleGivenSchedule(Schedule schedule) {
-        givenSchedules.removeIf(s -> Objects.equals(schedule.getScheduleId(), s.getScheduleId()));
-        if (!schedule.isExpired(getClock())) {
-            givenSchedules.add(schedule);
-        }
-    }
-
     protected void advanceTimeBy(Duration duration) {
         advanceTimeTo(getClock().instant().plus(duration));
     }
 
     protected void advanceTimeTo(Instant instant) {
         withClock(Clock.fixed(instant, ZoneId.systemDefault()));
-        new ArrayList<>(givenSchedules).stream().sorted(comparing(Schedule::getDeadline)).forEach(s -> {
-            if (s.isExpired(getClock())) {
-                handleExpiredSchedule(s);
-            }
-        });
     }
 
     protected Then when(Runnable action, boolean catchAll) {
@@ -336,7 +318,6 @@ public abstract class AbstractTestFixture implements Given, When {
         }
 
         @Override
-        @SuppressWarnings("SuspiciousMethodCalls")
         public Function<Message, SerializedMessage> interceptDispatch(Function<Message, SerializedMessage> function,
                                                                       MessageType messageType) {
             return message -> {
@@ -350,10 +331,6 @@ public abstract class AbstractTestFixture implements Given, When {
                     }
                 });
 
-                if (givenSchedules.contains(message)) {
-                    return function.apply(message);
-                }
-
                 if (isDescendantMetadata(message.getMetadata()) || catchAll) {
                     switch (messageType) {
                         case COMMAND:
@@ -366,8 +343,6 @@ public abstract class AbstractTestFixture implements Given, When {
                             registerSchedule((Schedule) message);
                             break;
                     }
-                } else if (message instanceof Schedule) {
-                    handleGivenSchedule((Schedule) message);
                 }
 
                 return function.apply(message);

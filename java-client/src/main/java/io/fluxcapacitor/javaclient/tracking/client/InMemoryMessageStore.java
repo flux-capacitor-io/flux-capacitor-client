@@ -91,7 +91,7 @@ public class InMemoryMessageStore implements GatewayClient, TrackingClient {
             return new MessageBatch(new int[]{0, 1}, messages, lastIndex);
         }
     }
-    
+
     protected boolean shouldWait(Map<Long, SerializedMessage> tailMap) {
         return tailMap.isEmpty();
     }
@@ -139,5 +139,9 @@ public class InMemoryMessageStore implements GatewayClient, TrackingClient {
     @Override
     public void close() {
         //no op
+    }
+
+    protected SerializedMessage getMessage(long index) {
+        return messageLog.get(index);
     }
 }
