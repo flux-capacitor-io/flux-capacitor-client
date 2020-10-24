@@ -50,13 +50,13 @@ import static org.apache.commons.lang3.StringUtils.isEmpty;
 import static org.apache.commons.lang3.reflect.MethodUtils.getMethodsListWithAnnotation;
 
 public class ReflectionUtils {
-    
+
     private static final Function<Class<?>, List<Method>> methodsCache = memoize(ReflectionUtils::computeAllMethods);
 
     public static List<Method> getAllMethods(Class<?> type) {
         return methodsCache.apply(type);
     }
-    
+
     /*
        Adopted from https://stackoverflow.com/questions/28400408/what-is-the-new-way-of-getting-all-methods-of-a-class-including-inherited-defau
     */
@@ -97,7 +97,7 @@ public class ReflectionUtils {
         }
         return new ArrayList<>(methods);
     }
-    
+
     private static boolean noPkgOverride(
             Method m, Map<Object, Set<Package>> types, Set<Package> pkgIndependent) {
         Set<Package> pkg = types.computeIfAbsent(methodKey(m), key -> new HashSet<>());
@@ -126,7 +126,7 @@ public class ReflectionUtils {
                 .forEach(i -> result.addAll(FieldUtils.getFieldsListWithAnnotation(i, annotation)));
         return result;
     }
-    
+
     public static List<Method> getAnnotatedMethods(Object target, Class<? extends Annotation> annotation) {
         return getMethodsListWithAnnotation(target.getClass(), annotation, true, true);
     }
@@ -136,6 +136,19 @@ public class ReflectionUtils {
             return emptyList();
         }
         return new ArrayList<>(FieldUtils.getFieldsListWithAnnotation(target.getClass(), annotation));
+    }
+
+    public static <A extends Annotation> A getTypeAnnotation(Class<?> type, Class<A> annotationType) {
+        A result = type.getAnnotation(annotationType);
+        if (result == null) {
+            for (Class<?> iFace : type.getInterfaces()) {
+                result = iFace.getAnnotation(annotationType);
+                if (result != null) {
+                    break;
+                }
+            }
+        }
+        return result;
     }
 
     @SneakyThrows
@@ -149,7 +162,7 @@ public class ReflectionUtils {
         }
         throw new IllegalStateException("Object property should be field or method: " + fieldOrMethod);
     }
-    
+
     public static Class<?> getCollectionElementType(Type parameterizedType) {
         if (parameterizedType instanceof ParameterizedType) {
             Type elementType = ((ParameterizedType) parameterizedType).getActualTypeArguments()[0];

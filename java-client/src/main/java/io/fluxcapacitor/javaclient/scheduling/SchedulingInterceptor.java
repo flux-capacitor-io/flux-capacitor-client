@@ -4,6 +4,7 @@ import io.fluxcapacitor.common.MessageType;
 import io.fluxcapacitor.common.api.Metadata;
 import io.fluxcapacitor.common.api.SerializedMessage;
 import io.fluxcapacitor.common.handling.Handler;
+import io.fluxcapacitor.common.reflection.ReflectionUtils;
 import io.fluxcapacitor.javaclient.FluxCapacitor;
 import io.fluxcapacitor.javaclient.common.Message;
 import io.fluxcapacitor.javaclient.common.serialization.DeserializingMessage;
@@ -45,7 +46,7 @@ public class SchedulingInterceptor implements DispatchInterceptor, HandlerInterc
             if (method.getParameterCount() > 0) {
                 Class<?> type = method.getParameters()[0].getType();
                 if (periodic == null) {
-                    periodic = type.getAnnotation(Periodic.class);
+                    periodic = ReflectionUtils.getTypeAnnotation(type, Periodic.class);
                 }
                 if (periodic != null) {
                     try {
@@ -105,7 +106,7 @@ public class SchedulingInterceptor implements DispatchInterceptor, HandlerInterc
                 long deadline = millisFromIndex(m.getSerializedObject().getIndex());
                 Periodic periodic =
                         Optional.ofNullable(handler.getMethod(m)).map(method -> method.getAnnotation(Periodic.class))
-                                .orElse(m.getPayloadClass().getAnnotation(Periodic.class));
+                                .orElse(ReflectionUtils.getTypeAnnotation(m.getPayloadClass(), Periodic.class));
                 Object result;
                 Instant now = ofEpochMilli(deadline);
                 try {

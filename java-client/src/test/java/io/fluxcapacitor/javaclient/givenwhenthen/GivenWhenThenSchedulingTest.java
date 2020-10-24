@@ -198,6 +198,13 @@ class GivenWhenThenSchedulingTest {
                 .whenTimeAdvancesTo(deadline).expectOnlySchedules(new YieldsAlteredSchedule(1));
     }
 
+    @Test
+    void testInterfacePeriodicHandler() {
+        TestFixture.create(new InterfacePeriodicHandler())
+                .givenNoPriorActivity().whenTimeElapses(Duration.ofMillis(1000))
+                .expectSchedules(isA(PeriodicScheduleFromInterface.class));
+    }
+
     static class CommandHandler {
         @HandleCommand
         void handle(YieldsSchedule command) {
@@ -222,6 +229,12 @@ class GivenWhenThenSchedulingTest {
 
         @HandleSchedule
         void handle(NonAutomaticPeriodicSchedule schedule) {
+        }
+    }
+
+    static class InterfacePeriodicHandler {
+        @HandleSchedule
+        void handle(PeriodicScheduleFromInterface schedule) {
         }
     }
 
@@ -289,6 +302,14 @@ class GivenWhenThenSchedulingTest {
     @Value
     @Periodic(value = 1000, autoStart = false)
     static class NonAutomaticPeriodicSchedule {
+    }
+
+    @Value
+    static class PeriodicScheduleFromInterface implements PeriodicInterface {
+    }
+
+    @Periodic(1000)
+    interface PeriodicInterface {
     }
 
 }
