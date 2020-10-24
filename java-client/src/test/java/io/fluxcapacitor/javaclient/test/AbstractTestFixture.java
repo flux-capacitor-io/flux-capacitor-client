@@ -193,6 +193,11 @@ public abstract class AbstractTestFixture implements Given, When {
     }
 
     @Override
+    public When andGivenExpiredSchedules(Object... schedules) {
+        return givenExpiredSchedules(schedules);
+    }
+
+    @Override
     public When andThenTimeAdvancesTo(Instant instant) {
         return given(() -> advanceTimeTo(instant));
     }
@@ -220,6 +225,11 @@ public abstract class AbstractTestFixture implements Given, When {
     @Override
     public Then whenEvent(Object event) {
         return when(() -> fluxCapacitor.eventGateway().publish(interceptor.trace(event)), false);
+    }
+
+    @Override
+    public Then whenScheduleExpires(Object schedule) {
+        return when(() -> fluxCapacitor.scheduler().schedule(interceptor.trace(schedule), getClock().instant()), false);
     }
 
     @Override

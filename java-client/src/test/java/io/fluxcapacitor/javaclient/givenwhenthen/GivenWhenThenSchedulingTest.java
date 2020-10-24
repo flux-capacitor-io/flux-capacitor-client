@@ -56,6 +56,24 @@ class GivenWhenThenSchedulingTest {
     }
 
     @Test
+    void testGivenExpiredSchedule() {
+        Duration delay = Duration.ofMinutes(10);
+        YieldsNewSchedule schedule = new YieldsNewSchedule(delay.toMillis());
+        subject.givenExpiredSchedules(schedule)
+                .whenTimeElapses(delay)
+                .expectSchedules(schedule);
+    }
+
+    @Test
+    void testGivenScheduleWithTimeInPastExecuteBeforeTest() {
+        Object command = "command";
+        Instant deadline = subject.getClock().instant().minusSeconds(10);
+        subject.givenSchedules(new Schedule(new YieldsCommand(command), "test", deadline))
+                .when(() -> {})
+                .expectNoCommands();
+    }
+
+    @Test
     void testExpectNoCommandBeforeDeadline() {
         Object command = "command";
         subject.givenSchedules(new Schedule(new YieldsCommand(command), "test",
@@ -72,6 +90,16 @@ class GivenWhenThenSchedulingTest {
                 .andGiven(() -> subject.getFluxCapacitor().scheduler().cancelSchedule("test"))
                 .whenTimeElapses(Duration.ofSeconds(10))
                 .expectNoCommands();
+    }
+
+    /*
+        Test when expires
+     */
+
+    @Test
+    void testWhenExpires() {
+        Object command = "command";
+        subject.whenScheduleExpires(new YieldsCommand(command)).expectCommands(command);
     }
 
     /*

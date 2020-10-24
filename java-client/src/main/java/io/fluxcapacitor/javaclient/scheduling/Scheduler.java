@@ -23,8 +23,9 @@ public interface Scheduler {
             Message message = (Message) schedule;
             schedule(new Schedule(message.getPayload(), message.getMetadata(), message.getMessageId(),
                                   message.getTimestamp(), scheduleId, deadline));
+        } else {
+            schedule(new Schedule(schedule, scheduleId, deadline));
         }
-        schedule(new Schedule(schedule, scheduleId, deadline));
     }
 
     void schedule(Schedule message);

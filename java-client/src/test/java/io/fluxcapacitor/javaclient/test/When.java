@@ -10,17 +10,19 @@ public interface When {
 
     Then whenCommand(Object command);
 
-    Then when(Runnable task);
+    Then whenQuery(Object query);
 
-    Then whenApplying(Callable<?> task);
+    Then whenEvent(Object event);
+
+    Then whenScheduleExpires(Object schedule);
 
     Then whenTimeAdvancesTo(Instant instant);
 
     Then whenTimeElapses(Duration duration);
 
-    Then whenQuery(Object query);
+    Then when(Runnable task);
 
-    Then whenEvent(Object event);
+    Then whenApplying(Callable<?> task);
 
     /*
         Continued
@@ -35,6 +37,8 @@ public interface When {
     When andGivenDomainEvents(String aggregateId, Object... events);
 
     When andGivenSchedules(Schedule... schedules);
+
+    When andGivenExpiredSchedules(Object... schedules);
 
     When andThenTimeAdvancesTo(Instant instant);
 

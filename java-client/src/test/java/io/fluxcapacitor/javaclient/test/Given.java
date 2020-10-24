@@ -5,6 +5,8 @@ import io.fluxcapacitor.javaclient.scheduling.Schedule;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.ZoneId;
+import java.util.Arrays;
+import java.util.UUID;
 
 public interface Given {
 
@@ -17,6 +19,12 @@ public interface Given {
     When given(Runnable condition);
 
     When givenSchedules(Schedule... schedules);
+
+    default When givenExpiredSchedules(Object... schedules) {
+        return givenSchedules(
+                Arrays.stream(schedules).map(p -> new Schedule(p, UUID.randomUUID().toString(), getClock().instant()))
+                        .toArray(Schedule[]::new));
+    }
 
     default When givenNoPriorActivity() {
         return givenCommands();
