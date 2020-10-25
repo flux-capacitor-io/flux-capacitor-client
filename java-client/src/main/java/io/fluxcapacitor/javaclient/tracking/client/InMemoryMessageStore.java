@@ -19,7 +19,7 @@ import io.fluxcapacitor.common.Registration;
 import io.fluxcapacitor.common.api.SerializedMessage;
 import io.fluxcapacitor.common.api.tracking.MessageBatch;
 import io.fluxcapacitor.javaclient.publishing.client.GatewayClient;
-import io.fluxcapacitor.javaclient.tracking.TrackingConfiguration;
+import io.fluxcapacitor.javaclient.tracking.ConsumerConfiguration;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
@@ -66,7 +66,7 @@ public class InMemoryMessageStore implements GatewayClient, TrackingClient {
 
     @Override
     public MessageBatch readAndWait(String consumer, String trackerId,
-                                    Long previousLastIndex, TrackingConfiguration configuration) {
+                                    Long previousLastIndex, ConsumerConfiguration configuration) {
         if (!trackerId.equals(trackers.computeIfAbsent(consumer, c -> trackerId))) {
             return new MessageBatch(new int[]{0, 1}, Collections.emptyList(), null);
         }
@@ -98,7 +98,7 @@ public class InMemoryMessageStore implements GatewayClient, TrackingClient {
 
     @Override
     public CompletableFuture<MessageBatch> read(String consumer, String trackerId,
-                                                Long lastIndex, TrackingConfiguration trackingConfiguration) {
+                                                Long lastIndex, ConsumerConfiguration trackingConfiguration) {
         return CompletableFuture.completedFuture(readAndWait(consumer, trackerId,
                                                              lastIndex, trackingConfiguration));
     }

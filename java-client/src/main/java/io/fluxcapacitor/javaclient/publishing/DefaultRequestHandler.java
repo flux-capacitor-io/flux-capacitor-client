@@ -1,10 +1,12 @@
 package io.fluxcapacitor.javaclient.publishing;
 
+import io.fluxcapacitor.common.MessageType;
 import io.fluxcapacitor.common.api.SerializedMessage;
 import io.fluxcapacitor.javaclient.common.Message;
 import io.fluxcapacitor.javaclient.common.serialization.Serializer;
-import io.fluxcapacitor.javaclient.tracking.client.TrackingClient;
-import io.fluxcapacitor.javaclient.tracking.client.TrackingUtils;
+import io.fluxcapacitor.javaclient.configuration.client.Client;
+import io.fluxcapacitor.javaclient.tracking.ConsumerConfiguration;
+import io.fluxcapacitor.javaclient.tracking.client.DefaultTracker;
 import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
@@ -18,16 +20,13 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Consumer;
 
 import static io.fluxcapacitor.javaclient.common.ClientUtils.waitForResults;
-import static java.lang.String.format;
 
 @AllArgsConstructor
 @Slf4j
 public class DefaultRequestHandler implements RequestHandler {
 
-    private final TrackingClient trackingClient;
     private final Serializer serializer;
-    private final String clientName;
-    private final String clientId;
+    private final Client client;
     private final Map<Integer, CompletableFuture<Message>> callbacks = new ConcurrentHashMap<>();
     private final AtomicInteger nextId = new AtomicInteger();
     private final AtomicBoolean started = new AtomicBoolean();
@@ -36,13 +35,13 @@ public class DefaultRequestHandler implements RequestHandler {
     public CompletableFuture<Message> sendRequest(SerializedMessage request,
                                                   Consumer<SerializedMessage> requestSender) {
         if (started.compareAndSet(false, true)) {
-            TrackingUtils.start(format("%s_RESULT", clientName), trackingClient, this::handleMessages);
+            DefaultTracker.start(this::handleMessages, ConsumerConfiguration.getDefault(MessageType.RESULT), client);
         }
         CompletableFuture<Message> result = new CompletableFuture<>();
         int requestId = nextId.getAndIncrement();
         callbacks.put(requestId, result);
         request.setRequestId(requestId);
-        request.setSource(clientId);
+        request.setSource(client.id());
         requestSender.accept(request);
         return result;
     }

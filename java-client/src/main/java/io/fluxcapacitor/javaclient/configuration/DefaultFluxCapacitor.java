@@ -389,9 +389,9 @@ public class DefaultFluxCapacitor implements FluxCapacitor {
                 HandlerMonitor handlerMonitor = new HandlerMonitor();
                 Arrays.stream(MessageType.values()).forEach(type -> {
                     consumerConfigurations.computeIfPresent(type, (t, list) ->
-                            t == METRICS ? list : list.stream().map(c -> c.toBuilder().trackingConfiguration(
-                                    c.getTrackingConfiguration().toBuilder().batchInterceptor(batchInterceptor).build())
-                                    .build()).collect(toList()));
+                            t == METRICS ? list :
+                                    list.stream().map(c -> c.toBuilder().batchInterceptor(batchInterceptor).build())
+                                            .collect(toList()));
                     handlerInterceptors.compute(type, (t, i) -> t == METRICS ? i : handlerMonitor.merge(i));
                 });
             }
@@ -414,8 +414,7 @@ public class DefaultFluxCapacitor implements FluxCapacitor {
             if (!disableAutomaticAggregateCaching) {
                 aggregateRepository =
                         new CachingAggregateRepository(aggregateRepository, eventSourcingHandlerFactory, cache,
-                                                       client.name(), client.getTrackingClient(NOTIFICATION),
-                                                       this.serializer);
+                                                       client, this.serializer);
             }
 
             //enable error reporter as the outermost handler interceptor
@@ -433,9 +432,7 @@ public class DefaultFluxCapacitor implements FluxCapacitor {
             ResultGateway resultGateway =
                     new DefaultResultGateway(client.getGatewayClient(RESULT),
                                              messageSerializer(RESULT, dispatchInterceptors));
-            RequestHandler requestHandler =
-                    new DefaultRequestHandler(client.getTrackingClient(RESULT), this.serializer, client.name(),
-                                              client.id());
+            RequestHandler requestHandler = new DefaultRequestHandler(this.serializer, client);
             CommandGateway commandGateway =
                     new DefaultCommandGateway(createRequestGateway(client, COMMAND, requestHandler,
                                                                    dispatchInterceptors, handlerInterceptors));
@@ -454,7 +451,7 @@ public class DefaultFluxCapacitor implements FluxCapacitor {
 
             //tracking
             Map<MessageType, Tracking> trackingMap = stream(MessageType.values())
-                    .collect(toMap(identity(), m -> new DefaultTracking(m, client.getTrackingClient(m), resultGateway,
+                    .collect(toMap(identity(), m -> new DefaultTracking(m, client, resultGateway,
                                                                         consumerConfigurations.get(m), this.serializer,
                                                                         new DefaultHandlerFactory(m, handlerInterceptors
                                                                                 .get(m == NOTIFICATION ? EVENT : m),
@@ -513,7 +510,8 @@ public class DefaultFluxCapacitor implements FluxCapacitor {
                                              localHandlerRegistry(messageType, handlerInterceptors));
         }
 
-        protected MessageSerializer messageSerializer(MessageType messageType, Map<MessageType, DispatchInterceptor> dispatchInterceptors) {
+        protected MessageSerializer messageSerializer(MessageType messageType,
+                                                      Map<MessageType, DispatchInterceptor> dispatchInterceptors) {
             return new MessageSerializer(this.serializer, dispatchInterceptors.get(messageType), messageType);
         }
 

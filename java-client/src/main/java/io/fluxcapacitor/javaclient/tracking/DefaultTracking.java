@@ -11,10 +11,10 @@ import io.fluxcapacitor.javaclient.common.exception.FunctionalException;
 import io.fluxcapacitor.javaclient.common.exception.TechnicalException;
 import io.fluxcapacitor.javaclient.common.serialization.DeserializingMessage;
 import io.fluxcapacitor.javaclient.common.serialization.Serializer;
+import io.fluxcapacitor.javaclient.configuration.client.Client;
 import io.fluxcapacitor.javaclient.persisting.caching.CacheInvalidatingInterceptor;
 import io.fluxcapacitor.javaclient.publishing.ResultGateway;
-import io.fluxcapacitor.javaclient.tracking.client.TrackingClient;
-import io.fluxcapacitor.javaclient.tracking.client.TrackingUtils;
+import io.fluxcapacitor.javaclient.tracking.client.DefaultTracker;
 import io.fluxcapacitor.javaclient.tracking.handling.HandlerFactory;
 import lombok.AllArgsConstructor;
 import lombok.SneakyThrows;
@@ -35,7 +35,6 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
-import java.util.function.Supplier;
 import java.util.stream.Stream;
 
 import static io.fluxcapacitor.javaclient.common.ClientUtils.waitForResults;
@@ -54,7 +53,7 @@ public class DefaultTracking implements Tracking {
                     .invokerFactory(defaultInvokerFactory).build();
 
     private final MessageType messageType;
-    private final TrackingClient trackingClient;
+    private final Client client;
     private final ResultGateway resultGateway;
     private final List<ConsumerConfiguration> configurations;
     private final Serializer serializer;
@@ -102,16 +101,9 @@ public class DefaultTracking implements Tracking {
         if (configuration.getMessageType() == MessageType.COMMAND) {
             batchInterceptors.add(new CacheInvalidatingInterceptor(fluxCapacitor.cache()));
         }
-        batchInterceptors.addAll(configuration.getTrackingConfiguration().getBatchInterceptors());
-        Supplier<String> trackerIdFactory = configuration.getTrackingConfiguration().getTrackerIdFactory();
-        TrackingConfiguration config = configuration.getTrackingConfiguration().toBuilder()
-                .clearBatchInterceptors().batchInterceptors(batchInterceptors)
-                .trackerIdFactory(() -> format("%s_%s", fluxCapacitor.client().id(), trackerIdFactory.get()))
-                .build();
-        String trackerName = configuration.prependApplicationName()
-                ? format("%s_%s", fluxCapacitor.client().name(), configuration.getName())
-                : configuration.getName();
-        return TrackingUtils.start(trackerName, consumer, trackingClient, config);
+        batchInterceptors.addAll(configuration.getBatchInterceptors());
+        configuration = configuration.toBuilder().clearBatchInterceptors().batchInterceptors(batchInterceptors).build();
+        return DefaultTracker.start(consumer, configuration, client);
     }
 
     protected Consumer<List<SerializedMessage>> createConsumer(ConsumerConfiguration configuration,

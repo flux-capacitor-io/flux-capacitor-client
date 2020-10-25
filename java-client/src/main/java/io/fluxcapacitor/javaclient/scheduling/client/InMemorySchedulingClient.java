@@ -7,7 +7,7 @@ import io.fluxcapacitor.common.api.scheduling.ScheduledMessage;
 import io.fluxcapacitor.common.api.tracking.MessageBatch;
 import io.fluxcapacitor.javaclient.common.serialization.Serializer;
 import io.fluxcapacitor.javaclient.scheduling.Schedule;
-import io.fluxcapacitor.javaclient.tracking.TrackingConfiguration;
+import io.fluxcapacitor.javaclient.tracking.ConsumerConfiguration;
 import io.fluxcapacitor.javaclient.tracking.client.InMemoryMessageStore;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
@@ -33,7 +33,7 @@ public class InMemorySchedulingClient extends InMemoryMessageStore implements Sc
 
     @Override
     public MessageBatch readAndWait(String consumer, String trackerId, Long previousLastIndex,
-                                    TrackingConfiguration configuration) {
+                                    ConsumerConfiguration configuration) {
         MessageBatch messageBatch = super.readAndWait(consumer, trackerId, previousLastIndex, configuration);
         List<SerializedMessage> messages = messageBatch.getMessages().stream()
                 .filter(m -> times.containsKey(m.getIndex()) && clock.millis() >= millisFromIndex(m.getIndex()))

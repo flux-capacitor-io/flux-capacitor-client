@@ -26,7 +26,7 @@ import io.fluxcapacitor.common.api.tracking.ResetPosition;
 import io.fluxcapacitor.common.api.tracking.StorePosition;
 import io.fluxcapacitor.javaclient.common.websocket.AbstractWebsocketClient;
 import io.fluxcapacitor.javaclient.configuration.client.WebSocketClient.Properties;
-import io.fluxcapacitor.javaclient.tracking.TrackingConfiguration;
+import io.fluxcapacitor.javaclient.tracking.ConsumerConfiguration;
 
 import javax.websocket.ClientEndpoint;
 import java.net.URI;
@@ -48,7 +48,7 @@ public class WebsocketTrackingClient extends AbstractWebsocketClient implements 
 
     @Override
     public CompletableFuture<MessageBatch> read(String consumer, String trackerId, Long lastIndex,
-                                                TrackingConfiguration configuration) {
+                                                ConsumerConfiguration configuration) {
         CompletableFuture<ReadResult> readResult = sendRequest(new Read(
                 consumer, trackerId, configuration.getMaxFetchBatchSize(), configuration.getMaxWaitDuration().toMillis(), configuration.getTypeFilter(),
                 configuration.ignoreMessageTarget(), configuration.getReadStrategy(), lastIndex,

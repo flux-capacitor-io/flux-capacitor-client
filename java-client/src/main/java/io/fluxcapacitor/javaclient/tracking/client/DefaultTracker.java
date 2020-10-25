@@ -17,19 +17,25 @@ package io.fluxcapacitor.javaclient.tracking.client;
 import io.fluxcapacitor.common.Registration;
 import io.fluxcapacitor.common.api.SerializedMessage;
 import io.fluxcapacitor.common.api.tracking.MessageBatch;
+import io.fluxcapacitor.javaclient.configuration.client.Client;
+import io.fluxcapacitor.javaclient.tracking.ConsumerConfiguration;
 import io.fluxcapacitor.javaclient.tracking.Tracker;
-import io.fluxcapacitor.javaclient.tracking.TrackingConfiguration;
 import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
 
 import java.util.List;
+import java.util.concurrent.ExecutorService;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
+import java.util.stream.IntStream;
 
 import static io.fluxcapacitor.common.TimingUtils.retryOnFailure;
 import static io.fluxcapacitor.javaclient.tracking.BatchInterceptor.join;
+import static java.lang.String.format;
 import static java.lang.Thread.currentThread;
+import static java.util.concurrent.Executors.newFixedThreadPool;
+import static java.util.stream.Collectors.toList;
 
 /**
  * A tracker keeps reading messages until it is stopped (generally only when the application is shut down).
@@ -55,9 +61,9 @@ import static java.lang.Thread.currentThread;
 @Slf4j
 public class DefaultTracker implements Runnable, Registration {
 
-    private final String name;
+    private final String consumerName;
     private final String trackerId;
-    private final TrackingConfiguration configuration;
+    private final ConsumerConfiguration configuration;
     private final Consumer<MessageBatch> processor;
     private final Consumer<List<SerializedMessage>> consumer;
     private final TrackingClient trackingClient;
@@ -66,15 +72,36 @@ public class DefaultTracker implements Runnable, Registration {
     private final AtomicReference<Thread> thread = new AtomicReference<>();
     private volatile boolean processing;
 
-    public DefaultTracker(String name, String trackerId, TrackingConfiguration configuration,
-                          Consumer<List<SerializedMessage>> consumer, TrackingClient trackingClient) {
-        this.name = name;
-        this.trackerId = trackerId;
+    /**
+     * Starts one or more trackers. Messages will be passed to the given processor. Once the processor is done the
+     * position of the tracker is automatically updated.
+     * <p>
+     * Each tracker started is using a single thread. To track in parallel configure the number of trackers using {@link
+     * ConsumerConfiguration#getThreads()}.
+     */
+    public static Registration start(Consumer<List<SerializedMessage>> processor,
+                                     ConsumerConfiguration configuration, Client client) {
+        List<DefaultTracker> instances = IntStream.range(0, configuration.getThreads())
+                .mapToObj(i -> new DefaultTracker(processor, configuration, client))
+                .collect(toList());
+        ExecutorService executor = newFixedThreadPool(configuration.getThreads());
+        instances.forEach(executor::submit);
+        return () -> {
+            instances.forEach(DefaultTracker::cancel);
+            executor.shutdownNow();
+        };
+    }
+
+    private DefaultTracker(Consumer<List<SerializedMessage>> consumer, ConsumerConfiguration configuration,
+                           Client client) {
+        this.consumerName = configuration.prependApplicationName()
+                ? format("%s_%s", client.name(), configuration.getName()) : configuration.getName();
+        this.trackerId = configuration.getTrackerIdFactory().apply(client);
         this.configuration = configuration;
-        this.processor =
-                join(configuration.getBatchInterceptors()).intercept(this::processAll, new Tracker(name, trackerId));
+        this.processor = join(configuration.getBatchInterceptors())
+                .intercept(this::processAll, new Tracker(configuration.getName(), trackerId));
         this.consumer = consumer;
-        this.trackingClient = trackingClient;
+        this.trackingClient = client.getTrackingClient(configuration.getMessageType());
     }
 
     @Override
@@ -111,7 +138,7 @@ public class DefaultTracker implements Runnable, Registration {
                 try {
                     thread.get().interrupt();
                 } catch (Exception e) {
-                    log.warn("Not allowed to cancel tracker {}", name, e);
+                    log.warn("Not allowed to cancel tracker {}", consumerName, e);
                 } finally {
                     thread.set(null);
                 }
@@ -120,7 +147,7 @@ public class DefaultTracker implements Runnable, Registration {
     }
 
     protected MessageBatch fetch(Long lastIndex) {
-        return retryOnFailure(() -> trackingClient.readAndWait(name, trackerId, lastIndex, configuration), 
+        return retryOnFailure(() -> trackingClient.readAndWait(consumerName, trackerId, lastIndex, configuration),
                               configuration.getRetryDelay(), e -> running.get());
     }
 
@@ -150,7 +177,7 @@ public class DefaultTracker implements Runnable, Registration {
             consumer.accept(batch);
         } catch (Exception e) {
             log.error("Consumer {} failed to handle batch of {} messages and did not handle exception. "
-                              + "Tracker will be stopped.", name, batch.size(), e);
+                              + "Tracker will be stopped.", consumerName, batch.size(), e);
             cancel();
             throw e;
         }
@@ -160,7 +187,7 @@ public class DefaultTracker implements Runnable, Registration {
 
     @SneakyThrows
     private void updatePosition(int[] segment, Long lastIndex) {
-        trackingClient.storePosition(name, segment, lastIndex).await();
+        trackingClient.storePosition(consumerName, segment, lastIndex).await();
     }
 
 

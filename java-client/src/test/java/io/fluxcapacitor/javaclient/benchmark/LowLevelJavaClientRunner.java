@@ -18,11 +18,11 @@ import io.fluxcapacitor.common.MessageType;
 import io.fluxcapacitor.common.api.Data;
 import io.fluxcapacitor.common.api.Metadata;
 import io.fluxcapacitor.common.api.SerializedMessage;
-import io.fluxcapacitor.javaclient.common.websocket.ServiceUrlBuilder;
+import io.fluxcapacitor.javaclient.configuration.client.Client;
+import io.fluxcapacitor.javaclient.configuration.client.WebSocketClient;
 import io.fluxcapacitor.javaclient.publishing.client.GatewayClient;
-import io.fluxcapacitor.javaclient.publishing.client.WebsocketGatewayClient;
-import io.fluxcapacitor.javaclient.tracking.client.TrackingUtils;
-import io.fluxcapacitor.javaclient.tracking.client.WebsocketTrackingClient;
+import io.fluxcapacitor.javaclient.tracking.ConsumerConfiguration;
+import io.fluxcapacitor.javaclient.tracking.client.DefaultTracker;
 import lombok.extern.slf4j.Slf4j;
 
 import java.time.Clock;
@@ -39,20 +39,18 @@ public class LowLevelJavaClientRunner extends AbstractClientBenchmark {
         System.exit(0);
     }
 
-    private final GatewayClient gatewayClient;
+    private final Client client;
 
     public LowLevelJavaClientRunner(int commandCount) {
         super(commandCount);
 
-        gatewayClient = new WebsocketGatewayClient(
-            ServiceUrlBuilder.producerUrl(MessageType.COMMAND, getClientProperties()), getClientProperties());
-        TrackingUtils.start("javaClientRunner/command",
-                            new WebsocketTrackingClient(
-                                  ServiceUrlBuilder.consumerUrl(MessageType.COMMAND, getClientProperties()), getClientProperties()),
-                            this::handleCommands);
-        
+        client = WebSocketClient.newInstance(getClientProperties());
+        DefaultTracker.start(this::handleCommands, ConsumerConfiguration.getDefault(MessageType.COMMAND).toBuilder()
+                .prependApplicationName(false).name("javaClientRunner/command").build(), client
+        );
+
         CountDownLatch commandsSentCountdown = new CountDownLatch(commandCount);
-        gatewayClient.registerMonitor(m -> {
+        commandGateway().registerMonitor(m -> {
             commandsSentCountdown.countDown();
             if (commandsSentCountdown.getCount() == 0L) {
                 log.info("Finished sending {} commands", commandCount);
@@ -62,10 +60,15 @@ public class LowLevelJavaClientRunner extends AbstractClientBenchmark {
 
     @Override
     protected void doSendCommand(String payload) {
-        gatewayClient.send(new SerializedMessage(new Data<>(payload.getBytes(), String.class.getName(), 0), Metadata.empty(),
-                                                 UUID.randomUUID().toString(), Clock.systemUTC().millis()));
+        commandGateway().send(new SerializedMessage(
+                new Data<>(payload.getBytes(), String.class.getName(), 0), Metadata.empty(),
+                UUID.randomUUID().toString(), Clock.systemUTC().millis()));
     }
-    
+
+    protected GatewayClient commandGateway() {
+        return client.getGatewayClient(MessageType.COMMAND);
+    }
+
     private void handleCommands(List<SerializedMessage> commands) {
         commands.forEach(m -> {
             try {

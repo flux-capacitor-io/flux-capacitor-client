@@ -5,11 +5,12 @@ import io.fluxcapacitor.common.api.SerializedMessage;
 import io.fluxcapacitor.javaclient.common.Message;
 import io.fluxcapacitor.javaclient.common.serialization.DeserializingMessage;
 import io.fluxcapacitor.javaclient.common.serialization.Serializer;
+import io.fluxcapacitor.javaclient.configuration.client.Client;
 import io.fluxcapacitor.javaclient.modeling.Aggregate;
 import io.fluxcapacitor.javaclient.modeling.AggregateRepository;
 import io.fluxcapacitor.javaclient.persisting.eventsourcing.EventSourcingHandler;
 import io.fluxcapacitor.javaclient.persisting.eventsourcing.EventSourcingHandlerFactory;
-import io.fluxcapacitor.javaclient.tracking.client.TrackingClient;
+import io.fluxcapacitor.javaclient.tracking.ConsumerConfiguration;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.NonNull;
@@ -27,9 +28,10 @@ import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Function;
 
 import static io.fluxcapacitor.common.MessageType.EVENT;
+import static io.fluxcapacitor.common.MessageType.NOTIFICATION;
 import static io.fluxcapacitor.javaclient.modeling.AggregateIdResolver.getAggregateId;
 import static io.fluxcapacitor.javaclient.modeling.AggregateTypeResolver.getAggregateType;
-import static io.fluxcapacitor.javaclient.tracking.client.TrackingUtils.start;
+import static io.fluxcapacitor.javaclient.tracking.client.DefaultTracker.start;
 import static java.lang.String.format;
 import static java.time.Instant.ofEpochMilli;
 
@@ -43,8 +45,7 @@ public class CachingAggregateRepository implements AggregateRepository {
     private final EventSourcingHandlerFactory handlerFactory;
     private final Cache cache;
 
-    private final String clientName;
-    private final TrackingClient trackingClient;
+    private final Client client;
     private final Serializer serializer;
 
     private final AtomicReference<Instant> started = new AtomicReference<>();
@@ -72,8 +73,8 @@ public class CachingAggregateRepository implements AggregateRepository {
     private <T> RefreshingAggregate<T> doLoad(String aggregateId, Class<T> type, boolean onlyCached) {
         if (started.compareAndSet(null, Instant.now())) {
             log.info("Start tracking notifications");
-            start(format("%s_%s", clientName, CachingAggregateRepository.class.getSimpleName()),
-                  trackingClient, this::handleEvents);
+            start(this::handleEvents, ConsumerConfiguration.builder().messageType(NOTIFICATION)
+                    .name(CachingAggregateRepository.class.getSimpleName()).build(), client);
             return null;
         }
         if (lastEventIndex.get() <= 0 && started.get().isAfter(Instant.now().minusSeconds(5))) {
