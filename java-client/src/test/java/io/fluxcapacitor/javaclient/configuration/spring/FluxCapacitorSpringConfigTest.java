@@ -25,8 +25,11 @@ import io.fluxcapacitor.javaclient.tracking.handling.authentication.User;
 import io.fluxcapacitor.javaclient.tracking.handling.authentication.UserProvider;
 import lombok.Value;
 import lombok.extern.slf4j.Slf4j;
+import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.springframework.beans.factory.BeanFactory;
+import org.springframework.beans.factory.NoSuchBeanDefinitionException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.ComponentScan;
@@ -38,6 +41,7 @@ import org.springframework.test.context.junit.jupiter.SpringExtension;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
@@ -54,8 +58,16 @@ public class FluxCapacitorSpringConfigTest {
         when(mockUserProvider.fromMetadata(any(Metadata.class))).thenReturn(mockUser);
     }
 
+    @BeforeAll
+    static void beforeAll() {
+        System.setProperty("existingProperty", "test");
+    }
+
     @Autowired
     private FluxCapacitor fluxCapacitor;
+
+    @Autowired
+    BeanFactory beanFactory;
 
     @Test
     void testHandleCommand() {
@@ -66,6 +78,16 @@ public class FluxCapacitorSpringConfigTest {
     @Test
     void testUserProviderInjected() {
         assertEquals(mockUser, fluxCapacitor.queryGateway().sendAndWait(new GetUser()));
+    }
+
+    @Test
+    void testConditionalComponentMissing() {
+        assertThrows(NoSuchBeanDefinitionException.class, () -> beanFactory.getBean(ConditionalComponentMissing.class));
+    }
+
+    @Test
+    void testConditionalComponentPresentIfPropertyExists() {
+        assertNotNull(beanFactory.getBean(ConditionalComponentPresent.class));
     }
 
     @Component
@@ -108,4 +130,17 @@ public class FluxCapacitorSpringConfigTest {
     @Value
     static class GetUser {
     }
+
+    @Value
+    @ConditionalOnProperty("missingProperty")
+    @Component
+    public static class ConditionalComponentMissing {
+    }
+
+    @Value
+    @ConditionalOnProperty("existingProperty")
+    @Component
+    public static class ConditionalComponentPresent {
+    }
+
 }
