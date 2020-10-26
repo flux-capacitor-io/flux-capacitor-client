@@ -132,10 +132,8 @@ public abstract class AbstractTestFixture implements Given, When {
     public When givenDomainEvents(String aggregateId, Object... events) {
         return given(() -> {
             List<Message> eventList = flatten(events).map(e -> {
-                Message message = e instanceof Message ? (Message) e : new Message(e);
-                Metadata metadata = message.getMetadata();
-                metadata.put(Aggregate.AGGREGATE_ID_METADATA_KEY, aggregateId);
-                return message;
+                Message m = e instanceof Message ? (Message) e : new Message(e);
+                return m.withMetadata(m.getMetadata().with(Aggregate.AGGREGATE_ID_METADATA_KEY, aggregateId));
             }).collect(toList());
             fluxCapacitor.eventStore().storeDomainEvents(aggregateId, aggregateId, eventList.size() - 1, eventList);
         });
@@ -319,8 +317,7 @@ public abstract class AbstractTestFixture implements Given, When {
             catchAll = false;
             Message result =
                     message instanceof Message ? (Message) message : new Message(message, Metadata.empty());
-            result.getMetadata().put(TAG_NAME, TAG);
-            return result;
+            return result.withMetadata(result.getMetadata().with(TAG_NAME, TAG));
         }
 
         protected boolean isDescendantMetadata(Metadata messageMetadata) {
@@ -331,15 +328,18 @@ public abstract class AbstractTestFixture implements Given, When {
         public Function<Message, SerializedMessage> interceptDispatch(Function<Message, SerializedMessage> function,
                                                                       MessageType messageType) {
             return message -> {
-                message.getMetadata().putIfAbsent(TAG_NAME, UUID.randomUUID().toString());
-                Optional.ofNullable(DeserializingMessage.getCurrent()).ifPresent(currentMessage -> {
+                Metadata metadata = message.getMetadata().addIfAbsent(TAG_NAME, UUID.randomUUID().toString());
+
+                DeserializingMessage currentMessage = DeserializingMessage.getCurrent();
+                if (currentMessage != null) {
                     if (currentMessage.getMetadata().containsKey(TRACE_NAME)) {
-                        message.getMetadata().put(TRACE_NAME, currentMessage.getMetadata().get(
-                                TRACE_NAME) + "," + currentMessage.getMetadata().get(TAG_NAME));
+                        metadata = metadata.with(TRACE_NAME, currentMessage.getMetadata().get(TRACE_NAME)
+                                + "," + currentMessage.getMetadata().get(TAG_NAME));
                     } else {
-                        message.getMetadata().put(TRACE_NAME, currentMessage.getMetadata().get(TAG_NAME));
+                        metadata = metadata.with(TRACE_NAME, currentMessage.getMetadata().get(TAG_NAME));
                     }
-                });
+                }
+                message = message.withMetadata(metadata);
 
                 if (isDescendantMetadata(message.getMetadata()) || catchAll) {
                     switch (messageType) {

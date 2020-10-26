@@ -31,7 +31,7 @@ public class DataProtectionInterceptor implements DispatchInterceptor, HandlerIn
 
     private final KeyValueStore keyValueStore;
     private final Serializer serializer;
-    
+
     @Override
     @SuppressWarnings("unchecked")
     public Function<Message, SerializedMessage> interceptDispatch(Function<Message, SerializedMessage> function,
@@ -51,7 +51,7 @@ public class DataProtectionInterceptor implements DispatchInterceptor, HandlerIn
                     }
                 });
                 if (!protectedFields.isEmpty()) {
-                    m.getMetadata().put(METADATA_KEY, protectedFields);
+                    m = m.withMetadata(m.getMetadata().with(METADATA_KEY, protectedFields));
                 }
             }
             if (!protectedFields.isEmpty()) {

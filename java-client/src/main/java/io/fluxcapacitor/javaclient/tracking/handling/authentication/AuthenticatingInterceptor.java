@@ -31,7 +31,7 @@ public class AuthenticatingInterceptor implements DispatchInterceptor, HandlerIn
 
                 }
                 if (user != null) {
-                    userProvider.addToMetadata(m.getMetadata(), user);
+                    m = m.withMetadata(userProvider.addToMetadata(m.getMetadata(), user));
                 }
             }
             return function.apply(m);

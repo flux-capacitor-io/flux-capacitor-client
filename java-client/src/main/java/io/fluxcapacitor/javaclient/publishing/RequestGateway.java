@@ -14,11 +14,8 @@
 
 package io.fluxcapacitor.javaclient.publishing;
 
-import io.fluxcapacitor.common.Registration;
 import io.fluxcapacitor.common.api.Metadata;
-import io.fluxcapacitor.common.handling.HandlerConfiguration;
 import io.fluxcapacitor.javaclient.common.Message;
-import io.fluxcapacitor.javaclient.common.serialization.DeserializingMessage;
 import io.fluxcapacitor.javaclient.tracking.handling.HasLocalHandlers;
 import lombok.SneakyThrows;
 

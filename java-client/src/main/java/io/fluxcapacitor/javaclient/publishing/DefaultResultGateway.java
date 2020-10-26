@@ -19,7 +19,7 @@ public class DefaultResultGateway implements ResultGateway {
     public void respond(Object payload, Metadata metadata, String target, int requestId) {
         try {
             if (payload instanceof TechnicalException) {
-                metadata.put("stackTrace", ExceptionUtils.getStackTrace((TechnicalException) payload));
+                metadata = metadata.with("stackTrace", ExceptionUtils.getStackTrace((TechnicalException) payload));
             }
             SerializedMessage message = serializer.serialize(new Message(payload, metadata));
             message.setTarget(target);

@@ -62,8 +62,7 @@ public class CorrelatingInterceptor implements DispatchInterceptor {
                             .ifPresent(v -> result.put(triggerRoutingKey, v));
                 }
             }
-            message.getMetadata().putAll(result);
-            return function.apply(message);
+            return function.apply(message.withMetadata(message.getMetadata().with(result)));
         };
     }
 }

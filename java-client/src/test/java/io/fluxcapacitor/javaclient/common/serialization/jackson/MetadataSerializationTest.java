@@ -11,7 +11,7 @@ class MetadataSerializationTest {
     @Test
     void testDeserializeMetadata() throws Exception {
         ObjectMapper objectMapper = new ObjectMapper();
-        Metadata in = Metadata.from("foo", "bar");
+        Metadata in = Metadata.of("foo", "bar");
         Metadata out = objectMapper.readValue(objectMapper.writeValueAsBytes(in), Metadata.class);
         assertEquals(in, out);
     }

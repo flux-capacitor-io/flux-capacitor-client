@@ -34,7 +34,7 @@ class MessageRoutingInterceptorTest {
 
     private MessageRoutingInterceptor subject = new MessageRoutingInterceptor();
     private Function<Message, SerializedMessage> invocation = m -> new SerializedMessage(
-            new Data<>("test".getBytes(), "test", 0), Metadata.empty(), "someId", 
+            new Data<>("test".getBytes(), "test", 0), Metadata.empty(), "someId",
             Clock.systemUTC().millis());
     private int expectedHash = ConsistentHashing.computeSegment("bar");
 
@@ -68,9 +68,9 @@ class MessageRoutingInterceptorTest {
 
     @Test
     void testAnnotationOnType() {
-        testInvocation(new Message(new AnnotationOnType(), Metadata.from("foo", "bar")));
+        testInvocation(new Message(new AnnotationOnType(), Metadata.of("foo", "bar")));
     }
-    
+
     @Test
     void testStaticInterfaceFieldAnnotation() {
         testInvocation(new AnnotationOnStaticInterfaceField() {});

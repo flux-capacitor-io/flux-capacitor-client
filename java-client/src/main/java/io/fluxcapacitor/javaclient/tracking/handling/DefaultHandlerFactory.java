@@ -21,16 +21,13 @@ import io.fluxcapacitor.common.handling.HandlerInspector;
 import io.fluxcapacitor.common.handling.ParameterResolver;
 import io.fluxcapacitor.javaclient.common.serialization.DeserializingMessage;
 import io.fluxcapacitor.javaclient.configuration.ConfigurationException;
-import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 
 import java.lang.annotation.Annotation;
-import java.lang.reflect.Executable;
 import java.util.List;
 import java.util.Optional;
 
 import static io.fluxcapacitor.common.handling.HandlerInspector.hasHandlerMethods;
-import static io.fluxcapacitor.javaclient.common.serialization.DeserializingMessage.defaultInvokerFactory;
 
 @RequiredArgsConstructor
 public class DefaultHandlerFactory implements HandlerFactory {

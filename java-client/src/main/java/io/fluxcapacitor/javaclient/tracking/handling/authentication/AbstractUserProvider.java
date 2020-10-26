@@ -7,7 +7,7 @@ import java.util.Optional;
 
 @AllArgsConstructor
 public abstract class AbstractUserProvider implements UserProvider {
-    
+
     private final String metadataKey;
     private final Class<? extends User> userClass;
 
@@ -27,14 +27,12 @@ public abstract class AbstractUserProvider implements UserProvider {
 
     @Override
     public Metadata removeFromMetadata(Metadata metadata) {
-        metadata.remove(metadataKey);
-        return metadata;
+        return metadata.without(metadataKey);
     }
 
     @Override
     public Metadata addToMetadata(Metadata metadata, User user) {
-        metadata.put(metadataKey, user);
-        return metadata;
+        return metadata.with(metadataKey, user);
     }
 
 }

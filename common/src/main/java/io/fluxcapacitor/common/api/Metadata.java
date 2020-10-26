@@ -1,85 +1,171 @@
 package io.fluxcapacitor.common.api;
 
+import com.fasterxml.jackson.annotation.JsonAnyGetter;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.databind.json.JsonMapper;
 import io.fluxcapacitor.common.serialization.NullCollectionsAsEmptyModule;
 import lombok.NonNull;
 import lombok.SneakyThrows;
 import lombok.Value;
-import lombok.experimental.Delegate;
 
 import java.io.IOException;
 import java.util.Arrays;
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
+import java.util.function.Predicate;
 
 import static com.fasterxml.jackson.databind.DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES;
 import static com.fasterxml.jackson.databind.SerializationFeature.FAIL_ON_EMPTY_BEANS;
 import static java.util.Collections.emptyMap;
-import static java.util.Collections.singletonMap;
 
 @Value
-public class Metadata implements Map<String, String> {
+public class Metadata {
     public static JsonMapper objectMapper = JsonMapper.builder()
             .findAndAddModules().addModule(new NullCollectionsAsEmptyModule())
             .disable(FAIL_ON_EMPTY_BEANS).disable(FAIL_ON_UNKNOWN_PROPERTIES)
             .build();
 
-    @Delegate
     Map<String, String> entries;
 
-    public Metadata(@NonNull String... keyValues) {
-        if (keyValues.length % 2 == 1) {
-            throw new IllegalArgumentException("Failed to create metadata for keys " + Arrays.toString(keyValues));
-        }
-        entries = new HashMap<>();
-        for (int i = 0; i < keyValues.length; i += 2) {
-            entries.put(keyValues[i], keyValues[i + 1]);
-        }
+    @JsonAnyGetter
+    public Map<String, String> getEntries() {
+        return entries;
     }
 
-    @JsonCreator
-    private Metadata(Map<String, String> entries) {
-        this.entries = new HashMap<>(entries);
+    public static Metadata of(@NonNull Object... keyValues) {
+        return Metadata.empty().with(keyValues);
     }
 
     public static Metadata empty() {
         return new Metadata(emptyMap());
     }
 
-    public static Metadata from(String key, String value) {
-        return new Metadata(singletonMap(key, value));
+    public static Metadata of(String key, Object value) {
+        return Metadata.empty().with(key, value);
     }
 
-    public static Metadata from(Map<String, String> map) {
-        return new Metadata(map);
+    public static Metadata of(Map<String, ?> map) {
+        return Metadata.empty().with(map);
     }
 
-    @SneakyThrows
-    public static Metadata from(String key, Object value) {
-        return new Metadata(singletonMap(key, objectMapper.writeValueAsString(value)));
-    }
-
-    @SneakyThrows
-    public String put(String key, Object value) {
-        return put(key, objectMapper.writeValueAsString(value));
-    }
-
-    @SneakyThrows
-    public <T> T get(String key, Class<T> type) {
-        return Optional.ofNullable(get(key)).map(v -> {
-            try {
-                return objectMapper.readValue(v, type);
-            } catch (IOException e) {
-                throw new IllegalStateException(String.format("Failed to deserialize value %s to a %s for key %s",
-                                                              v, type.getSimpleName(), key), e);
-            }
-        }).orElse(null);
+    @JsonCreator
+    private Metadata(Map<String, String> entries) {
+        this.entries = entries;
     }
 
     @Override
     public String toString() {
         return entries.toString();
+    }
+
+    /*
+        Add
+     */
+
+    public Metadata with(Map<String, ?> values) {
+        Map<String, String> map = new HashMap<>(entries);
+        values.forEach((key, value) -> with(key, value, map));
+        return new Metadata(map);
+    }
+
+    public Metadata with(Metadata metadata) {
+        Map<String, String> map = new HashMap<>(entries);
+        map.putAll(metadata.entries);
+        return new Metadata(map);
+    }
+
+    public Metadata with(@NonNull Object... keyValues) {
+        if (keyValues.length % 2 == 1) {
+            throw new IllegalArgumentException("Failed to create metadata for keys " + Arrays.toString(keyValues));
+        }
+        Map<String, String> map = new HashMap<>(entries);
+        for (int i = 0; i < keyValues.length; i += 2) {
+            with(keyValues[i].toString(), keyValues[i + 1], map);
+        }
+        return new Metadata(map);
+    }
+
+    @SneakyThrows
+    public Metadata with(String key, Object value) {
+        return new Metadata(with(key, value, new HashMap<>(entries)));
+    }
+
+    public Metadata addIfAbsent(String key, String value) {
+        return containsKey(key) ? this : with(key, value);
+    }
+
+    @SneakyThrows
+    private static Map<String, String> with(String key, Object value, Map<String, String> entries) {
+        if (value instanceof Optional<?>) {
+            Optional<?> optional = (Optional<?>) value;
+            if (!optional.isPresent()) {
+                return entries;
+            }
+            value = optional.get();
+        }
+        entries.put(key, value instanceof String ? (String) value : objectMapper.writeValueAsString(value));
+        return entries;
+    }
+
+    /*
+        Remove
+     */
+
+    public Metadata without(String key) {
+        Map<String, String> map = new HashMap<>(entries);
+        map.remove(key);
+        return new Metadata(map);
+    }
+
+    public Metadata withoutIf(Predicate<String> check) {
+        Map<String, String> map = new HashMap<>(entries);
+        Iterator<String> iterator = map.keySet().iterator();
+        iterator.forEachRemaining(key -> {
+            if (check.test(key)) {
+                iterator.remove();
+            }
+        });
+        return new Metadata(map);
+    }
+
+    /*
+        Query
+     */
+
+    public String get(String key) {
+        return entries.get(key);
+    }
+
+    @SuppressWarnings("unchecked")
+    @SneakyThrows
+    public <T> T get(String key, Class<T> type) {
+        String value = get(key);
+        if (value == null) {
+            return null;
+        }
+        if (String.class.isAssignableFrom(type)) {
+            return (T) value;
+        }
+        try {
+            return objectMapper.readValue(value, type);
+        } catch (IOException e) {
+            throw new IllegalStateException(String.format("Failed to deserialize value %s to a %s for key %s",
+                                                          value, type.getSimpleName(), key), e);
+        }
+    }
+
+    public boolean containsKey(String key) {
+        return entries.containsKey(key);
+    }
+
+    public String getOrDefault(String key, String defaultValue) {
+        return entries.getOrDefault(key, defaultValue);
+    }
+
+    public Set<Map.Entry<String, String>> entrySet() {
+        return entries.entrySet();
     }
 }

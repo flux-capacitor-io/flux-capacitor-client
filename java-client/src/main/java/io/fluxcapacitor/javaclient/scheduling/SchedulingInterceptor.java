@@ -91,7 +91,8 @@ public class SchedulingInterceptor implements DispatchInterceptor, HandlerInterc
                                                                   MessageType messageType) {
         return message -> {
             if (messageType == MessageType.SCHEDULE) {
-                message.getMetadata().put(scheduleIdMetadataKey, ((Schedule) message).getScheduleId());
+                message = message.withMetadata(
+                        message.getMetadata().with(scheduleIdMetadataKey, ((Schedule) message).getScheduleId()));
             }
             return function.apply(message);
         };

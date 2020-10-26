@@ -177,9 +177,9 @@ public class EventSourcingRepository implements AggregateRepository {
                                                                eventMessage));
             }
 
-            Metadata metadata = Metadata.from(eventMessage.getMetadata());
-            metadata.put(Aggregate.AGGREGATE_ID_METADATA_KEY, id);
-            metadata.put(Aggregate.AGGREGATE_TYPE_METADATA_KEY, getAggregateType().getName());
+            Metadata metadata = eventMessage.getMetadata()
+                    .with(Aggregate.AGGREGATE_ID_METADATA_KEY, id,
+                          Aggregate.AGGREGATE_TYPE_METADATA_KEY, getAggregateType().getName());
 
             eventMessage = eventMessage.withMetadata(metadata);
             DeserializingMessage deserializingMessage = new DeserializingMessage(new DeserializingObject<>(

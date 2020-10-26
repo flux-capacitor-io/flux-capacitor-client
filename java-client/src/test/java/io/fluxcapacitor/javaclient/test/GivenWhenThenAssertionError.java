@@ -37,8 +37,7 @@ public class GivenWhenThenAssertionError extends AssertionFailedError {
     private static Object formatForComparison(Object expectedOrActual) {
         if (expectedOrActual instanceof Message) {
             Message message = (Message) expectedOrActual;
-            Metadata metadata = Metadata.from(message.getMetadata());
-            metadata.keySet().removeIf(key -> key.startsWith("$"));
+            Metadata metadata = message.getMetadata().withoutIf(key -> key.startsWith("$"));
             return new PayloadAndMetadata(message.getPayload(), metadata);
         }
         if (expectedOrActual instanceof Collection) {
@@ -50,7 +49,7 @@ public class GivenWhenThenAssertionError extends AssertionFailedError {
         }
         try {
             return expectedOrActual instanceof CharSequence
-                    ? expectedOrActual 
+                    ? expectedOrActual
                     : formatter.writeValueAsString(expectedOrActual).replaceAll("\\\\n", "\n");
         } catch (Exception e) {
             return expectedOrActual;

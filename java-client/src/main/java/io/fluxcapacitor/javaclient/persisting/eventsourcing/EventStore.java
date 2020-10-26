@@ -1,8 +1,6 @@
 package io.fluxcapacitor.javaclient.persisting.eventsourcing;
 
 import io.fluxcapacitor.common.Awaitable;
-import io.fluxcapacitor.common.Registration;
-import io.fluxcapacitor.common.handling.HandlerConfiguration;
 import io.fluxcapacitor.javaclient.common.serialization.DeserializingMessage;
 import io.fluxcapacitor.javaclient.tracking.handling.HasLocalHandlers;
 

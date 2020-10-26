@@ -39,4 +39,14 @@ public class Schedule extends Message {
     public boolean isExpired(Clock clock) {
         return !deadline.isAfter(clock.instant());
     }
+
+    @Override
+    public Schedule withPayload(Object payload) {
+        return new Schedule(payload, getMetadata(), getMessageId(), getTimestamp(), scheduleId, deadline);
+    }
+
+    @Override
+    public Schedule withMetadata(Metadata metadata) {
+        return new Schedule(getPayload(), metadata, getMessageId(), getTimestamp(), scheduleId, deadline);
+    }
 }

@@ -106,7 +106,7 @@ class EventSourcingRepositoryTest {
 
     @Test
     void testApplyEventsWithMetadata() {
-        Metadata metadata = Metadata.from("foo", "bar");
+        Metadata metadata = Metadata.of("foo", "bar");
         Aggregate<TestModel> aggregate = applyAndCommit(new Message(new CreateModelWithMetadata(), metadata));
         assertTrue(aggregate.get().metadata.entrySet().containsAll(metadata.entrySet()));
     }
@@ -301,7 +301,7 @@ class EventSourcingRepositoryTest {
     }
 
     @EventSourced(cached = true, snapshotPeriod = 100)
-    @Value
+    @lombok.Data
     @NoArgsConstructor
     public static class TestModel {
         List<Object> events = new ArrayList<>();
@@ -319,7 +319,7 @@ class EventSourcingRepositoryTest {
 
         @ApplyEvent
         public TestModel(CreateModelWithMetadata event, Metadata metadata) {
-            this.metadata.putAll(metadata);
+            this.metadata = this.metadata.with(metadata);
             events.add(event);
         }
 
