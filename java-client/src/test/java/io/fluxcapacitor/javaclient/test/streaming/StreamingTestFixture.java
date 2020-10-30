@@ -22,8 +22,10 @@ import io.fluxcapacitor.javaclient.configuration.client.Client;
 import io.fluxcapacitor.javaclient.scheduling.Schedule;
 import io.fluxcapacitor.javaclient.test.AbstractTestFixture;
 import io.fluxcapacitor.javaclient.test.Then;
+import lombok.Setter;
 import lombok.SneakyThrows;
 
+import java.time.Duration;
 import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.BlockingQueue;
@@ -38,11 +40,15 @@ import java.util.function.Function;
 import static java.util.concurrent.TimeUnit.SECONDS;
 
 public class StreamingTestFixture extends AbstractTestFixture {
+    public static Duration defaultVerificationTimeout = Duration.ofSeconds(2L);
 
     private final BlockingQueue<Message> events = new LinkedBlockingQueue<>();
     private final BlockingQueue<Message> commands = new LinkedBlockingQueue<>();
     private final BlockingQueue<Schedule> schedules = new LinkedBlockingQueue<>();
     private final ScheduledExecutorService deregistrationService = Executors.newSingleThreadScheduledExecutor();
+
+    @Setter
+    private Duration verificationTimeout = defaultVerificationTimeout;
 
     public static StreamingTestFixture create(Object... handlers) {
         return new StreamingTestFixture(fc -> Arrays.asList(handlers));
@@ -88,7 +94,7 @@ public class StreamingTestFixture extends AbstractTestFixture {
 
     @Override
     protected Then createResultValidator(Object result) {
-        return new AsyncResultValidator(getFluxCapacitor(), result, events, commands, schedules);
+        return new AsyncResultValidator(getFluxCapacitor(), result, events, commands, schedules, verificationTimeout);
     }
 
     @Override
@@ -110,7 +116,7 @@ public class StreamingTestFixture extends AbstractTestFixture {
     @SneakyThrows
     protected Object getDispatchResult(CompletableFuture<?> dispatchResult) {
         try {
-            return dispatchResult.get(1L, TimeUnit.SECONDS);
+            return dispatchResult.get(verificationTimeout.toMillis(), TimeUnit.MILLISECONDS);
         } catch (ExecutionException e) {
             throw e.getCause();
         }

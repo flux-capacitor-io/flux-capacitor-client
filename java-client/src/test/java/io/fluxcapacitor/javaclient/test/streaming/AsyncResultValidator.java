@@ -20,6 +20,7 @@ import io.fluxcapacitor.javaclient.scheduling.Schedule;
 import io.fluxcapacitor.javaclient.test.AbstractResultValidator;
 import io.fluxcapacitor.javaclient.test.Then;
 
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
@@ -32,15 +33,18 @@ public class AsyncResultValidator extends AbstractResultValidator {
     private final BlockingQueue<Message> resultingEvents;
     private final BlockingQueue<Message> resultingCommands;
     private final BlockingQueue<Schedule> resultingSchedules;
+    private final Duration verificationTimeout;
 
     public AsyncResultValidator(FluxCapacitor fluxCapacitor, Object actualResult,
                                 BlockingQueue<Message> resultingEvents,
                                 BlockingQueue<Message> resultingCommands,
-                                BlockingQueue<Schedule> resultingSchedules) {
+                                BlockingQueue<Schedule> resultingSchedules,
+                                Duration verificationTimeout) {
         super(fluxCapacitor, actualResult);
         this.resultingEvents = resultingEvents;
         this.resultingCommands = resultingCommands;
         this.resultingSchedules = resultingSchedules;
+        this.verificationTimeout = verificationTimeout;
     }
 
     @Override
@@ -116,7 +120,7 @@ public class AsyncResultValidator extends AbstractResultValidator {
         Collection<M> result = new ArrayList<>();
         try {
             while ((expected.isEmpty() || !containsAll(expected, result)) && !Thread.interrupted()) {
-                M next = resultingMessages.poll(1L, TimeUnit.SECONDS);
+                M next = resultingMessages.poll(verificationTimeout.toMillis(), TimeUnit.MILLISECONDS);
                 if (next == null) {
                     return result;
                 } else {
