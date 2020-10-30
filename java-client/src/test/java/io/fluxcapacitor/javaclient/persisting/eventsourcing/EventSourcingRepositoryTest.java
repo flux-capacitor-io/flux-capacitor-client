@@ -256,6 +256,33 @@ class EventSourcingRepositoryTest {
         }
     }
 
+    @Test
+    void testUpsertViaEventIfNotExists() {
+        Message message = new Message(new UpsertModelFromEvent());
+        DeserializingMessage.handleBatch(Stream.of(toDeserializingMessage(message)))
+                .forEach(command -> subject.load(aggregateId, TestModelWithoutApplyEvent.class).apply(message));
+        Aggregate<TestModelWithoutApplyEvent> aggregate = subject.load(aggregateId, TestModelWithoutApplyEvent.class);
+        assertNotNull(aggregate.get());
+        assertEquals(aggregate.get().firstEvent, message.getPayload());
+    }
+
+    @Test
+    void testUpsertViaEventIfExists() {
+        {
+            Message message = new Message(new UpsertModelFromEvent());
+            DeserializingMessage.handleBatch(Stream.of(toDeserializingMessage(message)))
+                    .forEach(command -> subject.load(aggregateId, TestModelWithoutApplyEvent.class).apply(message));
+        }
+        {
+            Message message = new Message(new UpsertModelFromEvent());
+            DeserializingMessage.handleBatch(Stream.of(toDeserializingMessage(message)))
+                    .forEach(command -> subject.load(aggregateId, TestModelWithoutApplyEvent.class).apply(message));
+            Aggregate<TestModelWithoutApplyEvent> aggregate = subject.load(aggregateId, TestModelWithoutApplyEvent.class);
+            assertNotNull(aggregate.get());
+            assertEquals(aggregate.get().secondEvent, message.getPayload());
+        }
+    }
+
     private Aggregate<TestModel> applyAndCommit(Message message) {
         DeserializingMessage.handleBatch(Stream.of(toDeserializingMessage(message)))
                 .forEach(command -> subject.load(aggregateId, TestModel.class).apply(message));
@@ -282,6 +309,15 @@ class EventSourcingRepositoryTest {
         @Apply
         public TestModelWithoutApplyEvent apply() {
             return TestModelWithoutApplyEvent.builder().firstEvent(this).build();
+        }
+    }
+
+    @Value
+    public static class UpsertModelFromEvent {
+        @Apply
+        public TestModelWithoutApplyEvent apply(TestModelWithoutApplyEvent aggregate) {
+            return aggregate == null ? TestModelWithoutApplyEvent.builder().firstEvent(this).build()
+                    : aggregate.toBuilder().secondEvent(this).build();
         }
     }
 

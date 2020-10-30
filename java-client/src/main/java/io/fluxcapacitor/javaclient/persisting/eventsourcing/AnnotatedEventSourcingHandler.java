@@ -5,7 +5,6 @@ import io.fluxcapacitor.common.handling.HandlerNotFoundException;
 import io.fluxcapacitor.common.handling.ParameterResolver;
 import io.fluxcapacitor.javaclient.common.serialization.DeserializingMessage;
 
-import java.lang.reflect.Parameter;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.function.Function;
@@ -31,23 +30,8 @@ public class AnnotatedEventSourcingHandler<T> implements EventSourcingHandler<T>
         this.aggregateInvoker = inspect(handlerType, ApplyEvent.class, parameterResolvers, defaultHandlerConfiguration());
         this.eventInvokers = memoize(eventType -> {
             List<ParameterResolver<? super DeserializingMessage>> paramResolvers = new ArrayList<>(parameterResolvers);
-            paramResolvers.add(0, new ParameterResolver<DeserializingMessage>() {
-                @Override
-                public Function<DeserializingMessage, Object> resolve(Parameter p) {
-                    return p.getType().isAssignableFrom(handlerType) && currentAggregate.get() != null
-                            ? event -> currentAggregate.get() : null;
-                }
-
-                @Override
-                public boolean matches(Parameter parameter, DeserializingMessage value) {
-                    Function<DeserializingMessage, Object> function = resolve(parameter);
-                    if (function == null) {
-                        return false;
-                    }
-                    Object parameterValue = function.apply(value);
-                    return parameterValue != null && parameter.getType().isAssignableFrom(parameterValue.getClass());
-                }
-            });
+            paramResolvers.add(0,
+                               p -> p.getType().isAssignableFrom(handlerType) ? event -> currentAggregate.get() : null);
             return inspect(eventType, Apply.class, paramResolvers, defaultHandlerConfiguration());
         });
     }
