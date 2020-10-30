@@ -21,9 +21,16 @@
         </encoder>
     </appender>
 
+    <appender name="FluxCapacitor" class="io.fluxcapacitor.javaclient.common.logging.FluxCapacitorLogbackAppender">
+        <filter class="ch.qos.logback.classic.filter.ThresholdFilter">
+            <level>WARN</level>
+        </filter>
+    </appender>
+
     <logger name="io.fluxcapacitor" level="info"/>
 
     <root level="info">
         <appender-ref ref="STDOUT"/>
+        <appender-ref ref="FluxCapacitor"/>
     </root>
 </configuration>
