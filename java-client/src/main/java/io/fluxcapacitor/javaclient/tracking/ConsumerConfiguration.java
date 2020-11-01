@@ -2,7 +2,6 @@ package io.fluxcapacitor.javaclient.tracking;
 
 import io.fluxcapacitor.common.MessageType;
 import io.fluxcapacitor.common.api.tracking.TrackingStrategy;
-import io.fluxcapacitor.javaclient.configuration.client.Client;
 import lombok.Builder;
 import lombok.Builder.Default;
 import lombok.NonNull;
@@ -48,7 +47,7 @@ public class ConsumerConfiguration {
     @Default
     TrackingStrategy readStrategy = TrackingStrategy.NEW;
     @Default
-    Function<Client, String> trackerIdFactory = client -> String.format("%s_%s", client.id(), UUID.randomUUID());
+    Function<Object, String> trackerIdFactory = client -> String.format("%s_%s", client.toString(), UUID.randomUUID().toString());
     @Default
     Duration purgeDelay = null;
 

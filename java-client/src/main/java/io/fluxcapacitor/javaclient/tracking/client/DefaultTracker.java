@@ -97,9 +97,9 @@ public class DefaultTracker implements Runnable, Registration {
         this.consumerName = configuration.prependApplicationName()
                 ? format("%s_%s", client.name(), configuration.getName()) : configuration.getName();
         this.trackerId = configuration.getTrackerIdFactory().apply(client);
-        this.configuration = configuration;
         this.processor = join(configuration.getBatchInterceptors())
-                .intercept(this::processAll, new Tracker(configuration.getName(), trackerId));
+                .intercept(this::processAll, new Tracker(consumerName, trackerId));
+        this.configuration = configuration;
         this.consumer = consumer;
         this.trackingClient = client.getTrackingClient(configuration.getMessageType());
     }
