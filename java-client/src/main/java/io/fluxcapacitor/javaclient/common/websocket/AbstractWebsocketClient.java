@@ -14,7 +14,6 @@
 
 package io.fluxcapacitor.javaclient.common.websocket;
 
-import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.fluxcapacitor.common.Awaitable;
 import io.fluxcapacitor.common.RetryConfiguration;
@@ -43,6 +42,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicBoolean;
 
+import static com.fasterxml.jackson.databind.DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES;
 import static io.fluxcapacitor.common.TimingUtils.retryOnFailure;
 import static io.fluxcapacitor.javaclient.common.serialization.compression.CompressionUtils.compress;
 import static io.fluxcapacitor.javaclient.common.serialization.compression.CompressionUtils.decompress;
@@ -52,8 +52,8 @@ import static javax.websocket.CloseReason.CloseCodes.NO_STATUS_CODE;
 
 @Slf4j
 public abstract class AbstractWebsocketClient implements AutoCloseable {
-    public static final ObjectMapper defaultObjectMapper = new ObjectMapper()
-            .disable(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES);
+    public static WebSocketContainer defaultWebSocketContainer = ContainerProvider.getWebSocketContainer();
+    public static ObjectMapper defaultObjectMapper = new ObjectMapper().disable(FAIL_ON_UNKNOWN_PROPERTIES);
 
     private final WebSocketContainer container;
     private final URI endpointUri;
@@ -65,8 +65,7 @@ public abstract class AbstractWebsocketClient implements AutoCloseable {
     private volatile Session session;
 
     public AbstractWebsocketClient(URI endpointUri, Properties properties) {
-        this(ContainerProvider.getWebSocketContainer(), endpointUri, properties, Duration.ofSeconds(1),
-             defaultObjectMapper);
+        this(defaultWebSocketContainer, endpointUri, properties, Duration.ofSeconds(1), defaultObjectMapper);
     }
 
     public AbstractWebsocketClient(WebSocketContainer container, URI endpointUri,
@@ -99,6 +98,9 @@ public abstract class AbstractWebsocketClient implements AutoCloseable {
         try (OutputStream outputStream = session.getBasicRemote().getSendStream()) {
             byte[] bytes = objectMapper.writeValueAsBytes(object);
             outputStream.write(compress(bytes, properties.getCompression()));
+        } catch (Exception e) {
+            log.error("Failed to send request {}", object, e);
+            throw e;
         }
         return Awaitable.ready();
     }
@@ -131,7 +133,6 @@ public abstract class AbstractWebsocketClient implements AutoCloseable {
             log.warn("Could not find outstanding read request for id {}", readResult.getRequestId());
         } else {
             webSocketRequest.result.complete(readResult);
-//            ForkJoinPool.commonPool().execute(() -> webSocketRequest.result.complete(readResult));
         }
     }
 
@@ -194,10 +195,8 @@ public abstract class AbstractWebsocketClient implements AutoCloseable {
                     if (closed.get()) {
                         throw new IllegalStateException("Cannot provide session. This client has closed");
                     }
-                    log.info("Getting session for {}", this.getClass());
                     session = retryOnFailure(() -> isClosed(session) ?
                             container.connectToServer(this, endpointUri) : session, retryConfig);
-                    log.info("Got session for {}", this.getClass());
                 }
             }
         }
@@ -228,7 +227,6 @@ public abstract class AbstractWebsocketClient implements AutoCloseable {
                 AbstractWebsocketClient.this.send(request, session);
             } catch (Exception e) {
                 requests.remove(request.getRequestId());
-                log.error("Failed to send request {}", request, e);
                 result.completeExceptionally(e);
             }
         }

@@ -27,7 +27,6 @@ import io.fluxcapacitor.common.api.tracking.StorePosition;
 import io.fluxcapacitor.javaclient.common.websocket.AbstractWebsocketClient;
 import io.fluxcapacitor.javaclient.configuration.client.WebSocketClient.Properties;
 import io.fluxcapacitor.javaclient.tracking.ConsumerConfiguration;
-import lombok.extern.slf4j.Slf4j;
 
 import javax.websocket.ClientEndpoint;
 import java.net.URI;
@@ -37,7 +36,6 @@ import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 
 @ClientEndpoint
-@Slf4j
 public class WebsocketTrackingClient extends AbstractWebsocketClient implements TrackingClient {
 
     public WebsocketTrackingClient(String endPointUrl, Properties properties) {
@@ -51,14 +49,12 @@ public class WebsocketTrackingClient extends AbstractWebsocketClient implements 
     @Override
     public CompletableFuture<MessageBatch> read(String consumer, String trackerId, Long lastIndex,
                                                 ConsumerConfiguration configuration) {
-        Read read = new Read(
+        return this.<ReadResult>sendRequest(new Read(
                 consumer, trackerId, configuration.getMaxFetchBatchSize(),
                 configuration.getMaxWaitDuration().toMillis(), configuration.getTypeFilter(),
                 configuration.ignoreMessageTarget(), configuration.getReadStrategy(), lastIndex,
-                Optional.ofNullable(configuration.getPurgeDelay()).map(Duration::toMillis).orElse(null));
-        log.info("sending read {}", read);
-        CompletableFuture<ReadResult> readResult = sendRequest(read);
-        return readResult.thenApply(ReadResult::getMessageBatch);
+                Optional.ofNullable(configuration.getPurgeDelay()).map(Duration::toMillis).orElse(null)))
+                .thenApply(ReadResult::getMessageBatch);
     }
 
     @Override
