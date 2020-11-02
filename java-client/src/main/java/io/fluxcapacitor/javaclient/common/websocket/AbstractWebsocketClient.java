@@ -14,7 +14,6 @@
 
 package io.fluxcapacitor.javaclient.common.websocket;
 
-import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.fluxcapacitor.common.Awaitable;
 import io.fluxcapacitor.common.RetryConfiguration;
@@ -22,7 +21,6 @@ import io.fluxcapacitor.common.api.JsonType;
 import io.fluxcapacitor.common.api.QueryResult;
 import io.fluxcapacitor.common.api.Request;
 import io.fluxcapacitor.javaclient.configuration.client.WebSocketClient.Properties;
-import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
@@ -30,7 +28,6 @@ import lombok.extern.slf4j.Slf4j;
 import javax.websocket.CloseReason;
 import javax.websocket.ContainerProvider;
 import javax.websocket.DecodeException;
-import javax.websocket.EncodeException;
 import javax.websocket.OnClose;
 import javax.websocket.OnError;
 import javax.websocket.OnMessage;
@@ -43,21 +40,20 @@ import java.time.Duration;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ExecutionException;
 import java.util.concurrent.atomic.AtomicBoolean;
 
+import static com.fasterxml.jackson.databind.DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES;
 import static io.fluxcapacitor.common.TimingUtils.retryOnFailure;
 import static io.fluxcapacitor.javaclient.common.serialization.compression.CompressionUtils.compress;
 import static io.fluxcapacitor.javaclient.common.serialization.compression.CompressionUtils.decompress;
-import static java.lang.String.format;
 import static java.lang.Thread.currentThread;
 import static java.lang.Thread.sleep;
 import static javax.websocket.CloseReason.CloseCodes.NO_STATUS_CODE;
 
 @Slf4j
 public abstract class AbstractWebsocketClient implements AutoCloseable {
-    public static final ObjectMapper defaultObjectMapper = new ObjectMapper()
-            .disable(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES);
+    public static WebSocketContainer defaultWebSocketContainer = ContainerProvider.getWebSocketContainer();
+    public static ObjectMapper defaultObjectMapper = new ObjectMapper().disable(FAIL_ON_UNKNOWN_PROPERTIES);
 
     private final WebSocketContainer container;
     private final URI endpointUri;
@@ -69,8 +65,7 @@ public abstract class AbstractWebsocketClient implements AutoCloseable {
     private volatile Session session;
 
     public AbstractWebsocketClient(URI endpointUri, Properties properties) {
-        this(ContainerProvider.getWebSocketContainer(), endpointUri, properties, Duration.ofSeconds(1),
-             defaultObjectMapper);
+        this(defaultWebSocketContainer, endpointUri, properties, Duration.ofSeconds(1), defaultObjectMapper);
     }
 
     public AbstractWebsocketClient(WebSocketContainer container, URI endpointUri,
@@ -95,11 +90,17 @@ public abstract class AbstractWebsocketClient implements AutoCloseable {
 
     @SneakyThrows
     protected Awaitable send(Object object) {
-        try (OutputStream outputStream = getSession().getBasicRemote().getSendStream()) {
+        return send(object, getSession());
+    }
+
+    @SneakyThrows
+    protected Awaitable send(Object object, Session session) {
+        try (OutputStream outputStream = session.getBasicRemote().getSendStream()) {
             byte[] bytes = objectMapper.writeValueAsBytes(object);
             outputStream.write(compress(bytes, properties.getCompression()));
         } catch (Exception e) {
-            throw new EncodeException(object, format("Could not convert %s to json", object), e);
+            log.error("Failed to send request {}", object, e);
+            throw e;
         }
         return Awaitable.ready();
     }
@@ -113,19 +114,8 @@ public abstract class AbstractWebsocketClient implements AutoCloseable {
     @SuppressWarnings("unchecked")
     protected <R extends QueryResult> CompletableFuture<R> sendRequest(Request request) {
         WebSocketRequest webSocketRequest = new WebSocketRequest(request);
-        requests.put(request.getRequestId(), webSocketRequest);
-        try {
-            webSocketRequest.send(getSession());
-        } catch (Exception e) {
-            requests.remove(request.getRequestId());
-            throw new IllegalStateException("Failed to send request " + request, e);
-        }
-        return ((CompletableFuture<R>) webSocketRequest.result).whenComplete((r, e) -> {
-            if (e != null) {
-                log.error("Failed to handle request {}", request, e);
-            }
-            requests.remove(request.getRequestId());
-        });
+        webSocketRequest.send();
+        return (CompletableFuture<R>) webSocketRequest.result;
     }
 
     @OnMessage
@@ -142,7 +132,7 @@ public abstract class AbstractWebsocketClient implements AutoCloseable {
         if (webSocketRequest == null) {
             log.warn("Could not find outstanding read request for id {}", readResult.getRequestId());
         } else {
-            webSocketRequest.complete(readResult);
+            webSocketRequest.result.complete(readResult);
         }
     }
 
@@ -162,13 +152,7 @@ public abstract class AbstractWebsocketClient implements AutoCloseable {
                 currentThread().interrupt();
                 throw new IllegalStateException("Thread interrupted while trying to retry outstanding requests", e);
             }
-            requests.values().stream().filter(r -> sessionId.equals(r.getSessionId())).forEach(r -> {
-                try {
-                    r.send(getSession());
-                } catch (Exception e) {
-                    r.completeExceptionally(e);
-                }
-            });
+            requests.values().stream().filter(r -> sessionId.equals(r.sessionId)).forEach(WebSocketRequest::send);
         }
     }
 
@@ -227,24 +211,24 @@ public abstract class AbstractWebsocketClient implements AutoCloseable {
     protected class WebSocketRequest {
         private final Request request;
         private final CompletableFuture<QueryResult> result = new CompletableFuture<>();
-        @Getter
         private volatile String sessionId;
 
-        protected void send(Session session) {
+        protected void send() {
+            try {
+                Session session = getSession();
+            } catch (Exception e) {
+                log.error("Failed to get websocket session to send request {}", request, e);
+                result.completeExceptionally(e);
+                return;
+            }
             this.sessionId = session.getId();
-            AbstractWebsocketClient.this.send(request);
-        }
-
-        protected void completeExceptionally(Throwable e) {
-            result.completeExceptionally(e);
-        }
-
-        protected void complete(QueryResult value) {
-            result.complete(value);
-        }
-
-        public QueryResult getResult() throws ExecutionException, InterruptedException {
-            return result.get();
+            requests.put(request.getRequestId(), this);
+            try {
+                AbstractWebsocketClient.this.send(request, session);
+            } catch (Exception e) {
+                requests.remove(request.getRequestId());
+                result.completeExceptionally(e);
+            }
         }
     }
 
