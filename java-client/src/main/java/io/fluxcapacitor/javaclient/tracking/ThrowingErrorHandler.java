@@ -20,14 +20,14 @@ public class ThrowingErrorHandler implements ErrorHandler {
         logError(error, errorMessage);
         throw error;
     }
-    
+
     protected void logError(Exception error, String errorMessage) {
         if (!(error instanceof FunctionalException)) {
             if (logTechnicalErrors) {
                 log.error("{}. Propagating error...", errorMessage, error);
             }
         } else if (logFunctionalErrors) {
-            log.warn("{}. Propagating error...", errorMessage, error);
+            log.error("{}. Propagating error...", errorMessage, error);
         }
     }
 }
