@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016-2018 Flux Capacitor.
+ * Copyright (c) 2016-2020 Flux Capacitor.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -28,9 +28,9 @@ public interface Aggregate<T> {
     String AGGREGATE_TYPE_METADATA_KEY = "$aggregateType";
 
     T get();
-    
+
     String lastEventId();
-    
+
     Instant timestamp();
 
     Aggregate<T> apply(Message eventMessage);

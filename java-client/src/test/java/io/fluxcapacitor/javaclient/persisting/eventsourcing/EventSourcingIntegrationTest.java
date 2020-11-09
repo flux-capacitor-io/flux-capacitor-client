@@ -1,3 +1,17 @@
+/*
+ * Copyright (c) 2016-2020 Flux Capacitor.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package io.fluxcapacitor.javaclient.persisting.eventsourcing;
 
 import io.fluxcapacitor.javaclient.FluxCapacitor;
@@ -33,7 +47,7 @@ class EventSourcingIntegrationTest {
                 .expectOnlyCommands(new SecondOrderCommand());
 
         assertEquals(4, testFixture.getFluxCapacitor().eventStore().getDomainEvents("test").count());
-        
+
         verify(testFixture.getFluxCapacitor().client().getEventStoreClient(), atMost(3))
                 .storeEvents(eq("test"), anyString(), anyLong(), anyList());
     }
@@ -44,7 +58,7 @@ class EventSourcingIntegrationTest {
             loadAggregate(command.id, Aggregate.class).apply(command);
         }
     }
-    
+
     @Slf4j
     static class EventHandler {
         @HandleEvent

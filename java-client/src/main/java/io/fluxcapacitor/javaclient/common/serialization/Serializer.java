@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016-2017 Flux Capacitor.
+ * Copyright (c) 2016-2020 Flux Capacitor.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -80,7 +80,7 @@ public interface Serializer {
      */
     <I extends SerializedObject<byte[], I>> Stream<DeserializingObject<byte[], I>> deserialize(Stream<I> dataStream,
                                                                                                boolean failOnUnknownType);
-    
+
     default Stream<DeserializingMessage> deserializeMessages(Stream<SerializedMessage> dataStream,
                                                      boolean failOnUnknownType, MessageType messageType) {
         return deserialize(dataStream, failOnUnknownType).map(s -> new DeserializingMessage(s, messageType));

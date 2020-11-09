@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016-2017 Flux Capacitor.
+ * Copyright (c) 2016-2020 Flux Capacitor.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -46,14 +46,14 @@ public class ObjectUtils {
     public static <T, U, R> MemoizingBiFunction<T, U, R> memoize(BiFunction<T, U, R> supplier) {
         return new MemoizingBiFunction<>(supplier);
     }
-    
+
     public static Consumer<Runnable> ifTrue(boolean check) {
         if (check) {
             return Runnable::run;
         }
         return r -> {};
     }
-    
+
     public static class MemoizingSupplier<T> implements Supplier<T> {
         private final MemoizingFunction<Object, T> delegate;
         private final Object singleton = new Object();
@@ -66,22 +66,22 @@ public class ObjectUtils {
         public T get() {
             return delegate.apply(singleton);
         }
-        
+
         public boolean isCached() {
             return delegate.isCached(singleton);
         }
     }
-    
+
     @AllArgsConstructor
     public static class MemoizingFunction<K, V> implements Function<K, V> {
         private final Map<K, V> map = new ConcurrentHashMap<>();
         private final Function<K, V> delegate;
-        
+
         @Override
         public V apply(K key) {
             return map.computeIfAbsent(key, delegate);
         }
-        
+
         public boolean isCached(K key) {
             return map.containsKey(key);
         }

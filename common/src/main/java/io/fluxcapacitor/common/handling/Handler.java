@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016-2017 Flux Capacitor.
+ * Copyright (c) 2016-2020 Flux Capacitor.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -23,7 +23,7 @@ public interface Handler<M> {
     Executable getMethod(M message);
 
     boolean isPassive(M message);
-    
+
     Object invoke(M message);
 
     Object getTarget();

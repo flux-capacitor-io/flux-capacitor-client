@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016-2017 Flux Capacitor.
+ * Copyright (c) 2016-2020 Flux Capacitor.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -25,13 +25,13 @@ public interface EventStoreClient extends AutoCloseable {
 
     Awaitable storeEvents(String aggregateId, String domain, long lastSequenceNumber,
                           List<SerializedMessage> events);
-    
+
     default Stream<SerializedMessage> getEvents(String aggregateId) {
         return getEvents(aggregateId, -1L);
     }
 
     Stream<SerializedMessage> getEvents(String aggregateId, long lastSequenceNumber);
-    
+
     CompletableFuture<Boolean> deleteEvents(String aggregateId);
 
     @Override
