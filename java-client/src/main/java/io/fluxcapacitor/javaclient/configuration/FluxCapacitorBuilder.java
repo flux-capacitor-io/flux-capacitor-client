@@ -57,7 +57,7 @@ public interface FluxCapacitorBuilder {
 
     FluxCapacitorBuilder enableTrackingMetrics();
 
-    FluxCapacitorBuilder makeApplicationInstance();
+    FluxCapacitorBuilder makeApplicationInstance(boolean makeApplicationInstance);
 
     FluxCapacitor build(Client client);
 }

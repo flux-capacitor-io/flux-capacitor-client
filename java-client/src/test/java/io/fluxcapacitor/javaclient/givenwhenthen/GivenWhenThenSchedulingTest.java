@@ -199,6 +199,14 @@ class GivenWhenThenSchedulingTest {
     }
 
     @Test
+    void testAlteredPayloadNonPeriodicReturningSchedule() {
+        subject = TestFixture.create(new AlteredPayloadNonPeriodicHandlerReturningSchedule());
+        Instant deadline = subject.getClock().instant().plusSeconds(1);
+        subject.givenSchedules(new Schedule(new YieldsAlteredSchedule(), "test", deadline))
+                .whenTimeAdvancesTo(deadline).expectOnlySchedules(new YieldsAlteredSchedule(1));
+    }
+
+    @Test
     void testInterfacePeriodicHandler() {
         TestFixture.create(new InterfacePeriodicHandler())
                 .givenNoPriorActivity().whenTimeElapses(Duration.ofMillis(1000))
@@ -255,8 +263,16 @@ class GivenWhenThenSchedulingTest {
 
     static class AlteredPayloadNonPeriodicHandler {
         @HandleSchedule
-        YieldsAlteredSchedule handle(YieldsAlteredSchedule schedule) {
-            return new YieldsAlteredSchedule(schedule.getSequence() + 1);
+        YieldsAlteredSchedule handle(YieldsAlteredSchedule payload) {
+            return new YieldsAlteredSchedule(payload.getSequence() + 1);
+        }
+    }
+
+    static class AlteredPayloadNonPeriodicHandlerReturningSchedule {
+        @HandleSchedule
+        Schedule handle(YieldsAlteredSchedule payload, Schedule schedule) {
+            return schedule.withPayload(new YieldsAlteredSchedule(payload.getSequence() + 1))
+                    .reschedule(Duration.ofSeconds(1));
         }
     }
 

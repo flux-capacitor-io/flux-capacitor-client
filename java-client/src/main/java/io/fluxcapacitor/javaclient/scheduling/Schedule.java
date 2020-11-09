@@ -7,12 +7,14 @@ import lombok.NonNull;
 import lombok.Value;
 
 import java.beans.ConstructorProperties;
-import java.time.Clock;
+import java.time.Duration;
 import java.time.Instant;
 
 @Value
 @EqualsAndHashCode(callSuper = true)
 public class Schedule extends Message {
+    public static String scheduleIdMetadataKey = "$scheduleId";
+
     @NonNull String scheduleId;
     @NonNull Instant deadline;
 
@@ -36,17 +38,22 @@ public class Schedule extends Message {
         this.deadline = deadline;
     }
 
-    public boolean isExpired(Clock clock) {
-        return !deadline.isAfter(clock.instant());
-    }
-
     @Override
     public Schedule withPayload(Object payload) {
-        return new Schedule(payload, getMetadata(), getMessageId(), getTimestamp(), scheduleId, deadline);
+        return new Schedule(payload, getMetadata(), identityProvider.nextId(), clock().instant(), scheduleId, deadline);
     }
 
     @Override
     public Schedule withMetadata(Metadata metadata) {
-        return new Schedule(getPayload(), metadata, getMessageId(), getTimestamp(), scheduleId, deadline);
+        return new Schedule(getPayload(), metadata, identityProvider.nextId(), clock().instant(), scheduleId, deadline);
+    }
+
+    public Schedule withDeadline(Instant deadline) {
+        return new Schedule(getPayload(), getMetadata(), identityProvider.nextId(), clock().instant(), scheduleId,
+                            deadline);
+    }
+
+    public Schedule reschedule(Duration duration) {
+        return withDeadline(this.deadline.plus(duration));
     }
 }

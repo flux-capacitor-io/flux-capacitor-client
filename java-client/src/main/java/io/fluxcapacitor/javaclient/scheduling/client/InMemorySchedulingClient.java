@@ -9,7 +9,7 @@ import io.fluxcapacitor.javaclient.common.serialization.Serializer;
 import io.fluxcapacitor.javaclient.scheduling.Schedule;
 import io.fluxcapacitor.javaclient.tracking.ConsumerConfiguration;
 import io.fluxcapacitor.javaclient.tracking.client.InMemoryMessageStore;
-import lombok.Getter;
+import lombok.NonNull;
 import lombok.extern.slf4j.Slf4j;
 
 import java.time.Clock;
@@ -27,9 +27,8 @@ import static java.util.stream.Collectors.toList;
 @Slf4j
 public class InMemorySchedulingClient extends InMemoryMessageStore implements SchedulingClient {
 
-    @Getter
-    private volatile Clock clock = Clock.systemDefaultZone();
     private final ConcurrentSkipListMap<Long, String> times = new ConcurrentSkipListMap<>();
+    private volatile Clock clock = Clock.systemUTC();
 
     @Override
     public MessageBatch readAndWait(String consumer, String trackerId, Long previousLastIndex,
@@ -83,9 +82,9 @@ public class InMemorySchedulingClient extends InMemoryMessageStore implements Sc
         throw new UnsupportedOperationException("Use method #schedule instead");
     }
 
-    public void setClock(Clock clock) {
-        this.clock = clock;
+    public void setClock(@NonNull Clock clock) {
         synchronized (this) {
+            this.clock = clock;
             notifyAll();
         }
     }

@@ -35,8 +35,6 @@ import static java.util.UUID.randomUUID;
 @Slf4j
 public class SchedulingInterceptor implements DispatchInterceptor, HandlerInterceptor {
 
-    public static String scheduleIdMetadataKey = "$scheduleId";
-
     @Override
     public Handler<DeserializingMessage> wrap(Handler<DeserializingMessage> handler, String consumer) {
         Object target = handler.getTarget();
@@ -79,7 +77,7 @@ public class SchedulingInterceptor implements DispatchInterceptor, HandlerInterc
                               payloadType, e);
                     return;
                 }
-                Clock clock = FluxCapacitor.get().client().getSchedulingClient().getClock();
+                Clock clock = FluxCapacitor.get().clock();
                 FluxCapacitor.get().scheduler().schedule(new Schedule(
                         payload, scheduleId, clock.instant().plusMillis(periodic.initialDelay())));
             }
@@ -92,7 +90,7 @@ public class SchedulingInterceptor implements DispatchInterceptor, HandlerInterc
         return message -> {
             if (messageType == MessageType.SCHEDULE) {
                 message = message.withMetadata(
-                        message.getMetadata().with(scheduleIdMetadataKey, ((Schedule) message).getScheduleId()));
+                        message.getMetadata().with(Schedule.scheduleIdMetadataKey, ((Schedule) message).getScheduleId()));
             }
             return function.apply(message);
         };
@@ -122,6 +120,9 @@ public class SchedulingInterceptor implements DispatchInterceptor, HandlerInterc
                     reschedule(m, now.plus((TemporalAmount) result));
                 } else if (result instanceof TemporalAccessor) {
                     reschedule(m, Instant.from((TemporalAccessor) result));
+                } else if (result instanceof Schedule) {
+                    Schedule schedule = (Schedule) result;
+                    reschedule(schedule.getPayload(), schedule.getMetadata(), schedule.getDeadline());
                 } else if (result != null) {
                     Metadata metadata = m.getMetadata();
                     Object nextPayload = result;
@@ -136,7 +137,7 @@ public class SchedulingInterceptor implements DispatchInterceptor, HandlerInterc
                             if (previousDelay.compareTo(Duration.ZERO) > 0) {
                                 reschedule(nextPayload, metadata, now.plus(previousDelay));
                             } else {
-                                log.warn("Delay between the time this schedule was created and scheduled is <= 0, "
+                                log.info("Delay between the time this schedule was created and scheduled is <= 0, "
                                                  + "rescheduling with delay of 1 minute");
                                 reschedule(nextPayload, metadata, now.plus(Duration.of(1, MINUTES)));
                             }
@@ -162,7 +163,7 @@ public class SchedulingInterceptor implements DispatchInterceptor, HandlerInterc
     private void reschedule(Object payload, Metadata metadata, Instant instant) {
         try {
             FluxCapacitor.get().scheduler().schedule(new Schedule(payload, metadata
-                    .getOrDefault(scheduleIdMetadataKey, randomUUID().toString()), instant));
+                    .getOrDefault(Schedule.scheduleIdMetadataKey, randomUUID().toString()), instant));
         } catch (Exception e) {
             log.error("Failed to reschedule a {}", payload.getClass(), e);
         }

@@ -18,6 +18,7 @@ import com.fasterxml.jackson.databind.node.TextNode;
 import io.fluxcapacitor.common.api.Metadata;
 import io.fluxcapacitor.javaclient.FluxCapacitor;
 import io.fluxcapacitor.javaclient.common.serialization.upcasting.Upcast;
+import io.fluxcapacitor.javaclient.configuration.FluxCapacitorBuilder;
 import io.fluxcapacitor.javaclient.tracking.handling.HandleCommand;
 import io.fluxcapacitor.javaclient.tracking.handling.HandleQuery;
 import io.fluxcapacitor.javaclient.tracking.handling.LocalHandler;
@@ -119,6 +120,11 @@ public class FluxCapacitorSpringConfigTest {
     @Import(FluxCapacitorSpringConfig.class)
     @ComponentScan
     public static class Config {
+
+        @Autowired
+        void configure(FluxCapacitorBuilder builder) {
+            builder.makeApplicationInstance(false);
+        }
 
         @Bean
         public UserProvider userProvider() {

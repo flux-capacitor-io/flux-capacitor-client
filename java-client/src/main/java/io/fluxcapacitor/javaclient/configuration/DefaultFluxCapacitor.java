@@ -83,6 +83,7 @@ import lombok.NonNull;
 import lombok.experimental.Accessors;
 import lombok.extern.slf4j.Slf4j;
 
+import java.time.Clock;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -95,6 +96,7 @@ import java.util.concurrent.Callable;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.ForkJoinPool;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.UnaryOperator;
 import java.util.stream.Stream;
 
@@ -135,6 +137,7 @@ public class DefaultFluxCapacitor implements FluxCapacitor {
     private final Scheduler scheduler;
     private final Cache cache;
     private final Serializer serializer;
+    private final AtomicReference<Clock> clock = new AtomicReference<>(Clock.systemUTC());
     private final Client client;
     private final Runnable shutdownHandler;
 
@@ -152,8 +155,12 @@ public class DefaultFluxCapacitor implements FluxCapacitor {
     }
 
     @Override
-    public Serializer serializer() {
-        return serializer;
+    public void withClock(@NonNull Clock clock) {
+        this.clock.set(clock);
+    }
+
+    public Clock clock() {
+        return clock.get();
     }
 
     @Override
@@ -329,8 +336,8 @@ public class DefaultFluxCapacitor implements FluxCapacitor {
         }
 
         @Override
-        public FluxCapacitorBuilder makeApplicationInstance() {
-            makeApplicationInstance = true;
+        public FluxCapacitorBuilder makeApplicationInstance(boolean makeApplicationInstance) {
+            this.makeApplicationInstance = makeApplicationInstance;
             return this;
         }
 
@@ -495,7 +502,8 @@ public class DefaultFluxCapacitor implements FluxCapacitor {
                                         ErrorGateway errorGateway, MetricsGateway metricsGateway,
                                         AggregateRepository aggregateRepository,
                                         EventStore eventStore, KeyValueStore keyValueStore, Scheduler scheduler,
-                                        Cache cache, Serializer serializer, Client client, Runnable shutdownHandler) {
+                                        Cache cache, Serializer serializer, Client client,
+                                        Runnable shutdownHandler) {
             return new DefaultFluxCapacitor(trackingSupplier, commandGateway, queryGateway, eventGateway, resultGateway,
                                             errorGateway, metricsGateway, aggregateRepository, eventStore,
                                             keyValueStore, scheduler, cache, serializer, client, shutdownHandler);

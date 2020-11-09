@@ -58,9 +58,6 @@ public abstract class AbstractTestFixture implements Given, When {
     private final Registration registration;
     private final GivenWhenThenInterceptor interceptor;
 
-    @Getter
-    private Clock clock;
-
     protected AbstractTestFixture(Function<FluxCapacitor, List<?>> handlerFactory) {
         this(DefaultFluxCapacitor.builder(), handlerFactory);
     }
@@ -103,19 +100,25 @@ public abstract class AbstractTestFixture implements Given, When {
     protected abstract Object getDispatchResult(CompletableFuture<?> dispatchResult);
 
     /*
-        init
+        clock
      */
 
     @Override
     public Given withClock(Clock clock) {
-        this.clock = clock;
-        SchedulingClient schedulingClient = getFluxCapacitor().client().getSchedulingClient();
-        if (schedulingClient instanceof InMemorySchedulingClient) {
-            ((InMemorySchedulingClient) schedulingClient).setClock(clock);
-        } else {
-            log.warn("Could not update clock of scheduling client. Timing tests will probably not work.");
-        }
-        return this;
+        return getFluxCapacitor().execute(fc -> {
+            fc.withClock(clock);
+            SchedulingClient schedulingClient = fc.client().getSchedulingClient();
+            if (schedulingClient instanceof InMemorySchedulingClient) {
+                ((InMemorySchedulingClient) schedulingClient).setClock(clock);
+            } else {
+                log.warn("Could not update clock of scheduling client. Timing tests may not work.");
+            }
+            return this;
+        });
+    }
+
+    public Clock getClock() {
+        return getFluxCapacitor().clock();
     }
 
     /*

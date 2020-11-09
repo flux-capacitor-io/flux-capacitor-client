@@ -10,6 +10,7 @@ import io.fluxcapacitor.common.handling.ParameterResolver;
 import io.fluxcapacitor.javaclient.common.Message;
 import io.fluxcapacitor.javaclient.modeling.AggregateIdResolver;
 import io.fluxcapacitor.javaclient.modeling.AggregateTypeResolver;
+import io.fluxcapacitor.javaclient.scheduling.Schedule;
 import io.fluxcapacitor.javaclient.tracking.handling.DeserializingMessageParameterResolver;
 import io.fluxcapacitor.javaclient.tracking.handling.MessageParameterResolver;
 import io.fluxcapacitor.javaclient.tracking.handling.MetadataParameterResolver;
@@ -80,6 +81,12 @@ public class DeserializingMessage {
     }
 
     public Message toMessage() {
+        if (getMetadata().containsKey(Schedule.scheduleIdMetadataKey)) {
+            return new Schedule(delegate.getPayload(), getMetadata(),
+                                delegate.getSerializedObject().getMessageId(),
+                                ofEpochMilli(delegate.getSerializedObject().getTimestamp()),
+                                getMetadata().get(Schedule.scheduleIdMetadataKey), Message.clock().instant());
+        }
         return new Message(delegate.getPayload(), getMetadata(),
                            delegate.getSerializedObject().getMessageId(),
                            ofEpochMilli(delegate.getSerializedObject().getTimestamp()));

@@ -25,6 +25,7 @@ import io.fluxcapacitor.javaclient.tracking.Tracking;
 import io.fluxcapacitor.javaclient.tracking.handling.HandleCommand;
 import io.fluxcapacitor.javaclient.tracking.handling.LocalHandler;
 
+import java.time.Clock;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
@@ -64,13 +65,22 @@ public interface FluxCapacitor extends AutoCloseable {
     ThreadLocal<FluxCapacitor> instance = new ThreadLocal<>();
 
     /**
-     * Returns the FluxCapacitor client bound to the current thread or else set by the current application. Throws an
-     * exception if no client was registered.
+     * Returns the Flux Capacitor instance bound to the current thread or else set by the current application. Throws an
+     * exception if no instance was registered.
      */
     static FluxCapacitor get() {
         return Optional.ofNullable(instance.get())
                 .orElseGet(() -> Optional.ofNullable(applicationInstance.get())
                         .orElseThrow(() -> new IllegalStateException("FluxCapacitor instance not set")));
+    }
+
+    /**
+     * Returns the FluxCapacitor client bound to the current thread or else set by the current application as Optional.
+     * Returns an empty Optional if no instance was registered.
+     */
+    static Optional<FluxCapacitor> getOptionally() {
+        FluxCapacitor result = instance.get();
+        return result == null ? Optional.ofNullable(applicationInstance.get()) : Optional.of(result);
     }
 
     /**
@@ -254,6 +264,11 @@ public interface FluxCapacitor extends AutoCloseable {
     }
 
     /**
+     * Have Flux Capacitor use the given Clock when generating timestamps, e.g. when creating a {@link Message}.
+     */
+    void withClock(Clock clock);
+
+    /**
      * Returns a client to assist with event sourcing.
      */
     AggregateRepository aggregateRepository();
@@ -319,6 +334,11 @@ public interface FluxCapacitor extends AutoCloseable {
      * Returns the default serializer
      */
     Serializer serializer();
+
+    /**
+     * Returns the clock used by Flux Capacitor to generate timestamps.
+     */
+    Clock clock();
 
     /**
      * Returns the low level client used by this FluxCapacitor instance to interface with the Flux Capacitor service. Of
