@@ -25,6 +25,7 @@ import lombok.AllArgsConstructor;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Optional;
 import java.util.function.Function;
 
 import static io.fluxcapacitor.common.reflection.ReflectionUtils.getAnnotatedPropertyValue;
@@ -50,12 +51,10 @@ public class CorrelatingInterceptor implements DispatchInterceptor {
             result.put(clientId, client.id());
             DeserializingMessage currentMessage = DeserializingMessage.getCurrent();
             if (currentMessage != null) {
-                Long index = currentMessage.getSerializedObject().getIndex();
-                if (index != null) {
-                    String correlationId = index.toString();
-                    result.put(this.correlationId, correlationId);
-                    result.put(traceId, currentMessage.getMetadata().getOrDefault(traceId, correlationId));
-                }
+                String correlationId = Optional.ofNullable(currentMessage.getSerializedObject().getIndex())
+                        .map(Object::toString).orElse(currentMessage.getSerializedObject().getMessageId());
+                result.put(this.correlationId, correlationId);
+                result.put(traceId, currentMessage.getMetadata().getOrDefault(traceId, correlationId));
                 result.put(trigger, currentMessage.getSerializedObject().getData().getType());
                 if (currentMessage.isDeserialized()) {
                     getAnnotatedPropertyValue(currentMessage.getPayload(), RoutingKey.class).map(Object::toString)
