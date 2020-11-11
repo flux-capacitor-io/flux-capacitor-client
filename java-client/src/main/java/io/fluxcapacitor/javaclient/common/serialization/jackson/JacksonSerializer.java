@@ -14,6 +14,7 @@
 
 package io.fluxcapacitor.javaclient.common.serialization.jackson;
 
+import com.fasterxml.jackson.databind.JavaType;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.json.JsonMapper;
 import io.fluxcapacitor.common.api.SerializedObject;
@@ -24,13 +25,16 @@ import io.fluxcapacitor.javaclient.common.serialization.SerializationException;
 import io.fluxcapacitor.javaclient.common.serialization.upcasting.Upcaster;
 import io.fluxcapacitor.javaclient.common.serialization.upcasting.UpcasterChain;
 
+import java.lang.reflect.Type;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.function.Function;
 import java.util.stream.Stream;
 
 import static com.fasterxml.jackson.databind.DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES;
 import static com.fasterxml.jackson.databind.SerializationFeature.FAIL_ON_EMPTY_BEANS;
 import static com.fasterxml.jackson.databind.SerializationFeature.WRITE_DATES_AS_TIMESTAMPS;
+import static io.fluxcapacitor.common.ObjectUtils.memoize;
 import static java.lang.String.format;
 
 public class JacksonSerializer extends AbstractSerializer {
@@ -40,6 +44,8 @@ public class JacksonSerializer extends AbstractSerializer {
             .build();
 
     private final ObjectMapper objectMapper;
+    private final Function<String, JavaType> typeCache = memoize(this::getJavaType);
+    private final Function<Type, String> typeStringCache = memoize(this::getCanonicalType);
 
     public JacksonSerializer() {
         this(Collections.emptyList());
@@ -63,26 +69,49 @@ public class JacksonSerializer extends AbstractSerializer {
     }
 
     @Override
+    protected String asString(Type type) {
+        return typeStringCache.apply(type);
+    }
+
+    @Override
     protected byte[] doSerialize(Object object) throws Exception {
         return objectMapper.writeValueAsBytes(object);
     }
 
     @Override
-    protected Object doDeserialize(byte[] bytes, Class<?> type) throws Exception {
-        return objectMapper.readValue(bytes, type);
+    protected Object doDeserialize(byte[] bytes, String type) throws Exception {
+        return objectMapper.readValue(bytes, typeCache.apply(type));
     }
 
-    @SuppressWarnings("unchecked")
+    @Override
+    protected boolean isKnownType(String type) {
+        try {
+            typeCache.apply(type);
+            return true;
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
+    @SuppressWarnings({"unchecked", "rawtypes"})
     @Override
     protected Stream<DeserializingObject<byte[], ?>> handleUnknownType(SerializedObject<byte[], ?> s) {
         return Stream.of(new DeserializingObject(s, () -> {
             try {
-                return doDeserialize(s.data().getValue(), Object.class);
+                return objectMapper.readTree(s.data().getValue());
             } catch (Exception e) {
                 throw new SerializationException(format("Could not deserialize a %s to a Map. Invalid Json?",
                                                         s.data().getType()), e);
             }
         }));
+    }
+
+    protected JavaType getJavaType(String type) {
+        return objectMapper.getTypeFactory().constructFromCanonical(type);
+    }
+
+    protected String getCanonicalType(Type type) {
+        return objectMapper.constructType(type).toCanonical();
     }
 
 }

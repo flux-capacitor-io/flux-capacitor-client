@@ -17,6 +17,7 @@ package io.fluxcapacitor.javaclient.common.serialization.jackson;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
+import com.fasterxml.jackson.databind.node.TextNode;
 import io.fluxcapacitor.common.api.Data;
 import io.fluxcapacitor.common.serialization.Revision;
 import io.fluxcapacitor.javaclient.common.serialization.DeserializingObject;
@@ -25,8 +26,11 @@ import io.fluxcapacitor.javaclient.common.serialization.upcasting.Upcast;
 import lombok.Value;
 import org.junit.jupiter.api.Test;
 
+import java.util.Arrays;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -79,11 +83,33 @@ class JacksonSerializerTest {
     }
 
     @Test
-    void testReturnsMapIfTypeUnknownAndFailFlagIsOff() throws JsonProcessingException {
+    void testReturnsJsonNodeIfTypeUnknownAndFailFlagIsOff() throws JsonProcessingException {
         Data<byte[]> data = new Data<>(objectMapper.writeValueAsBytes(new Foo("bar")), "unknownType", 0);
         List<DeserializingObject<byte[], Data<byte[]>>> result = subject.deserialize(Stream.of(data), false)
                 .collect(Collectors.toList());
-        assertEquals(singletonMap("foo", "bar"), result.get(0).getPayload());
+        assertEquals(new ObjectNode(objectMapper.getNodeFactory(), singletonMap("foo", TextNode.valueOf("bar"))),
+                     result.get(0).getPayload());
+    }
+
+    @Test
+    void testDeserializeTypedCollection() {
+        List<Foo> input = asList(new Foo("bla1"), new Foo("bla2"));
+        assertEquals(input, subject.deserialize(subject.serialize(input)));
+    }
+
+    @Test
+    void testDeserializeTypedMap() {
+        Map<String, Foo> input = new HashMap<>();
+        input.put("key1", new Foo("foo1"));
+        input.put("key2", new Foo("foo2"));
+        Object output = subject.deserialize(subject.serialize(input));
+        assertEquals(input, output);
+    }
+
+    @Test
+    void testDeserializeMixedCollection() {
+        List<?> input = Arrays.asList(new Foo("bla1"), "bla2");
+        assertEquals(objectMapper.convertValue(input, Object.class), subject.deserialize(subject.serialize(input)));
     }
 
     private Data<byte[]> createRev0Data(String name) throws JsonProcessingException {
