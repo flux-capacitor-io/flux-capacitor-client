@@ -79,7 +79,6 @@ public class InMemoryMessageStore implements GatewayClient, TrackingClient {
                     this.wait(deadline - System.currentTimeMillis());
                 } catch (InterruptedException e) {
                     currentThread().interrupt();
-                    return new MessageBatch(new int[]{0, 1}, Collections.emptyList(), null);
                 }
             }
             List<SerializedMessage> messages = new ArrayList<>(tailMap.values());
