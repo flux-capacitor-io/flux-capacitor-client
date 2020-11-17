@@ -34,6 +34,7 @@ import java.util.stream.Stream;
 import static com.fasterxml.jackson.databind.DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES;
 import static com.fasterxml.jackson.databind.SerializationFeature.FAIL_ON_EMPTY_BEANS;
 import static com.fasterxml.jackson.databind.SerializationFeature.WRITE_DATES_AS_TIMESTAMPS;
+import static com.fasterxml.jackson.databind.node.JsonNodeFactory.withExactBigDecimals;
 import static io.fluxcapacitor.common.ObjectUtils.memoize;
 import static java.lang.String.format;
 
@@ -41,6 +42,7 @@ public class JacksonSerializer extends AbstractSerializer {
     public static final JsonMapper defaultObjectMapper = JsonMapper.builder()
             .findAndAddModules().addModule(new NullCollectionsAsEmptyModule())
             .disable(FAIL_ON_EMPTY_BEANS).disable(WRITE_DATES_AS_TIMESTAMPS).disable(FAIL_ON_UNKNOWN_PROPERTIES)
+            .nodeFactory(withExactBigDecimals(true))
             .build();
 
     private final ObjectMapper objectMapper;
