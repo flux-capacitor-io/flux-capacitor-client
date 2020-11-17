@@ -12,7 +12,7 @@
  * limitations under the License.
  */
 
-package io.fluxcapacitor.javaclient.publishing.routing;
+package io.fluxcapacitor.javaclient.modeling;
 
 import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;
@@ -20,16 +20,11 @@ import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
 /**
- * Field or method level annotation that marks a field or method providing the routing key of a message containing the
- * enclosing object as payload. The value of the field or method converted to a string via the value's {@code
- * toString()} method. If placed on a method, that method must contain no parameters.
- * <p>
- * This annotation may also be placed on the payload class. This indicates that the routing key for this payload can be
- * found in the metadata that accompanied the payload. In that case {@link #metadataKey()} is required to define to
- * which metadata key the routing value is mapped.
+ * Field or method level annotation used in entities that marks a field or method as the provider of the entity's id.
+ * The value of the field or method converted to a string via the value's
+ * {@code toString()} method. If placed on a method, that method must contain no parameters.
  */
-@Target({ElementType.METHOD, ElementType.FIELD, ElementType.TYPE})
+@Target({ElementType.METHOD, ElementType.FIELD})
 @Retention(RetentionPolicy.RUNTIME)
-public @interface RoutingKey {
-    String metadataKey() default "";
+public @interface EntityId {
 }
