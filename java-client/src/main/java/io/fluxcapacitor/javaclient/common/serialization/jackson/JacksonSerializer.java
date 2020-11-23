@@ -18,6 +18,7 @@ import com.fasterxml.jackson.databind.JavaType;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.json.JsonMapper;
 import io.fluxcapacitor.common.api.SerializedObject;
+import io.fluxcapacitor.common.serialization.BlankStringsAsNullModule;
 import io.fluxcapacitor.common.serialization.NullCollectionsAsEmptyModule;
 import io.fluxcapacitor.javaclient.common.serialization.AbstractSerializer;
 import io.fluxcapacitor.javaclient.common.serialization.DeserializingObject;
@@ -40,7 +41,7 @@ import static java.lang.String.format;
 
 public class JacksonSerializer extends AbstractSerializer {
     public static final JsonMapper defaultObjectMapper = JsonMapper.builder()
-            .findAndAddModules().addModule(new NullCollectionsAsEmptyModule())
+            .findAndAddModules().addModule(new BlankStringsAsNullModule()).addModule(new NullCollectionsAsEmptyModule())
             .disable(FAIL_ON_EMPTY_BEANS).disable(WRITE_DATES_AS_TIMESTAMPS).disable(FAIL_ON_UNKNOWN_PROPERTIES)
             .nodeFactory(withExactBigDecimals(true))
             .build();
@@ -103,7 +104,7 @@ public class JacksonSerializer extends AbstractSerializer {
                 return objectMapper.readTree(s.data().getValue());
             } catch (Exception e) {
                 throw new SerializationException(format("Could not deserialize a %s to a Map. Invalid Json?",
-                                                        s.data().getType()), e);
+                        s.data().getType()), e);
             }
         }));
     }
