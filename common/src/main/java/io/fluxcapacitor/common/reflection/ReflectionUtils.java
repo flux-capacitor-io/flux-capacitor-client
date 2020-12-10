@@ -17,6 +17,9 @@ package io.fluxcapacitor.common.reflection;
 import lombok.SneakyThrows;
 import org.apache.commons.lang3.reflect.FieldUtils;
 
+import java.beans.BeanInfo;
+import java.beans.Introspector;
+import java.beans.PropertyDescriptor;
 import java.lang.annotation.Annotation;
 import java.lang.invoke.MethodType;
 import java.lang.reflect.AccessibleObject;
@@ -52,6 +55,8 @@ import static org.apache.commons.lang3.reflect.MethodUtils.getMethodsListWithAnn
 public class ReflectionUtils {
 
     private static final Function<Class<?>, List<Method>> methodsCache = memoize(ReflectionUtils::computeAllMethods);
+    private static final Function<Class<?>, Map<String, ? extends AccessibleObject>> propertiesCache =
+            memoize(ReflectionUtils::computeAllProperties);
 
     public static List<Method> getAllMethods(Class<?> type) {
         return methodsCache.apply(type);
@@ -98,6 +103,19 @@ public class ReflectionUtils {
         return new ArrayList<>(methods);
     }
 
+    @SneakyThrows
+    private static Map<String, ? extends AccessibleObject> computeAllProperties(Class<?> target) {
+        Map<String, AccessibleObject> result = new HashMap<>();
+        FieldUtils.getAllFieldsList(target).forEach(f -> result.putIfAbsent(f.getName(), f));
+        BeanInfo info = Introspector.getBeanInfo(target);
+        for (PropertyDescriptor propertyDescriptor : info.getPropertyDescriptors()) {
+            if (propertyDescriptor.getReadMethod() != null) {
+                result.putIfAbsent(propertyDescriptor.getName(), propertyDescriptor.getReadMethod());
+            }
+        }
+        return result;
+    }
+
     private static boolean noPkgOverride(
             Method m, Map<Object, Set<Package>> types, Set<Package> pkgIndependent) {
         Set<Package> pkg = types.computeIfAbsent(methodKey(m), key -> new HashSet<>());
@@ -109,22 +127,24 @@ public class ReflectionUtils {
                              MethodType.methodType(m.getReturnType(), m.getParameterTypes()));
     }
 
-
     public static Optional<?> getAnnotatedPropertyValue(Object target, Class<? extends Annotation> annotation) {
         return getAnnotatedProperties(target, annotation).stream().findFirst().map(m -> getProperty(m, target));
     }
 
-    public static List<? extends AccessibleObject> getAnnotatedProperties(Object target,
+    public static List<? extends AccessibleObject> getAnnotatedProperties(Class<?> target,
                                                                           Class<? extends Annotation> annotation) {
-        if (target == null) {
-            return emptyList();
-        }
         List<AccessibleObject> result =
-                new ArrayList<>(FieldUtils.getFieldsListWithAnnotation(target.getClass(), annotation));
-        result.addAll(getMethodsListWithAnnotation(target.getClass(), annotation, true, true).stream().filter(m -> m.getParameterCount() == 0).collect(toList()));
-        getAllInterfaces(target.getClass())
+                new ArrayList<>(FieldUtils.getFieldsListWithAnnotation(target, annotation));
+        result.addAll(getMethodsListWithAnnotation(target, annotation, true, true).stream()
+                              .filter(m -> m.getParameterCount() == 0).collect(toList()));
+        getAllInterfaces(target)
                 .forEach(i -> result.addAll(FieldUtils.getFieldsListWithAnnotation(i, annotation)));
         return result;
+    }
+
+    public static List<? extends AccessibleObject> getAnnotatedProperties(Object target,
+                                                                          Class<? extends Annotation> annotation) {
+        return target == null ? emptyList() : getAnnotatedProperties(target.getClass(), annotation);
     }
 
     public static List<Method> getAnnotatedMethods(Object target, Class<? extends Annotation> annotation) {
@@ -149,6 +169,18 @@ public class ReflectionUtils {
             }
         }
         return result;
+    }
+
+    public static Object getProperty(String fieldOrMethod, Object target) {
+        if (target == null) {
+            return null;
+        }
+        AccessibleObject accessibleObject = propertiesCache.apply(target.getClass()).get(fieldOrMethod);
+        if (accessibleObject == null) {
+            throw new IllegalStateException(
+                    String.format("Could not find property %s on target %s", fieldOrMethod, target.getClass()));
+        }
+        return getProperty(accessibleObject, target);
     }
 
     @SneakyThrows
