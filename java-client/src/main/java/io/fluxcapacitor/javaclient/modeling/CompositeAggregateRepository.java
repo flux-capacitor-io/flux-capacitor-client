@@ -38,7 +38,8 @@ public class CompositeAggregateRepository implements AggregateRepository {
     public boolean cachingAllowed(Class<?> aggregateType) {
         return getDelegate(aggregateType).map(d -> d.cachingAllowed(aggregateType))
                 .orElseThrow(() -> new UnsupportedOperationException(
-                "Could not a find a suitable aggregate repository for aggregate of type: " + aggregateType));
+                "Could not a find a suitable aggregate repository for aggregate of type: " + aggregateType
+                        + ". Ensure the type is properly annotated using e.g. @EventSourced."));
     }
 
     @Override
@@ -48,7 +49,8 @@ public class CompositeAggregateRepository implements AggregateRepository {
             return delegate.get().load(aggregateId, aggregateType, onlyCached);
         }
         throw new UnsupportedOperationException(
-                "Could not a find a suitable aggregate repository for aggregate of type: " + aggregateType);
+                "Could not a find a suitable aggregate repository for aggregate of type: " + aggregateType
+                        + ". Check if the type is properly annotated using e.g. @EventSourced.");
     }
 
     protected <T> Optional<AggregateRepository> getDelegate(Class<T> aggregateType) {
