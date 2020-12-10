@@ -49,8 +49,13 @@ public class GivenWhenThenEntityTest {
     }
 
     @Test
+    void testCreateChildWithoutParentForbidden() {
+        testFixture.whenCommand(createChild).expectException(IllegalStateException.class);
+    }
+
+    @Test
     void testCreateChildTwiceForbidden() {
-        testFixture.givenCommands(createParent, createChild).whenCommand(createChild).expectException();
+        testFixture.givenCommands(createParent, createChild).whenCommand(createChild).expectException(IllegalStateException.class);
     }
 
     private static class Handler {
