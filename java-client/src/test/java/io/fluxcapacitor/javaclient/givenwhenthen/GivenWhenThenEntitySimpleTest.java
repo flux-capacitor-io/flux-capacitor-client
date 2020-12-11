@@ -30,21 +30,14 @@ import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
-import java.util.Map;
 
-public class GivenWhenThenEntityTest {
-    private static final String parentId = "parent", childId = "child", childId2 = "child2",
+public class GivenWhenThenEntitySimpleTest {
+    private static final String parentId = "parent", childId = "child",
             grandChild1Id = "grandChild1", grandChild2Id = "grandChild2";
     private static final CreateParent createParent = new CreateParent(parentId);
-    private static final CreateParentOfList createParentOfList = new CreateParentOfList(parentId);
-    private static final CreateParentOfMap createParentOfMap = new CreateParentOfMap(parentId);
-    private static final CreateParentOfUnknown createParentOfUnknown = new CreateParentOfUnknown(parentId);
-
     private static final CreateChild createChild = new CreateChild(childId);
     private static final UpdateChild updateChild = new UpdateChild(childId);
     private static final RemoveChild removeChild = new RemoveChild(childId);
-    private static final CreateChild createChild2 = new CreateChild(childId2);
-    private static final CreateChildWithAnyParent createChildWithAnyParent = new CreateChildWithAnyParent(childId);
 
     private final TestFixture testFixture = TestFixture.create(new Handler());
 
@@ -84,24 +77,6 @@ public class GivenWhenThenEntityTest {
         testFixture.givenCommands(createParent, createChild, removeChild).whenCommand(createChild).expectOnlyEvents(createChild);
     }
 
-    @Test
-    @Disabled("disabled while working on this feature")
-    void testParentOfList() {
-        testFixture.givenCommands(createParentOfList, createChildWithAnyParent).whenCommand(createChild2).expectOnlyEvents(createChild2);
-    }
-
-    @Test
-    @Disabled("disabled while working on this feature")
-    void testParentOfMap() {
-        testFixture.givenCommands(createParentOfMap, createChildWithAnyParent).whenCommand(createChild2).expectOnlyEvents(createChild2);
-    }
-
-    @Test
-    @Disabled("disabled while working on this feature")
-    void testParentOfUnknown() {
-        testFixture.givenCommands(createParentOfUnknown, createChildWithAnyParent).whenCommand(createChild2).expectOnlyEvents(createChild2);
-    }
-
 
     private static class Handler {
         @HandleCommand
@@ -124,39 +99,6 @@ public class GivenWhenThenEntityTest {
         }
     }
 
-
-    @EventSourced
-    @Value
-    @Builder(toBuilder = true)
-    private static class ParentOfList {
-        String id;
-
-        @Entity
-        @With
-        List<Child> children;
-    }
-
-    @EventSourced
-    @Value
-    @Builder(toBuilder = true)
-    private static class ParentOfMap {
-        String id;
-
-        @Entity
-        @With
-        Map<String, Child> children;
-    }
-
-    @EventSourced
-    @Value
-    @Builder(toBuilder = true)
-    private static class ParentOfUnknown {
-        String id;
-
-        @Entity
-        @With
-        Object child;
-    }
 
     @Value
     @Builder(toBuilder = true)
@@ -188,36 +130,6 @@ public class GivenWhenThenEntityTest {
         }
     }
 
-    @Value
-    private static class CreateParentOfList {
-        String id;
-
-        @Apply
-        ParentOfList apply() {
-            return ParentOfList.builder().id(id).build();
-        }
-    }
-
-    @Value
-    private static class CreateParentOfMap {
-        String id;
-
-        @Apply
-        ParentOfMap apply() {
-            return ParentOfMap.builder().id(id).build();
-        }
-    }
-
-    @Value
-    private static class CreateParentOfUnknown {
-        String id;
-
-        @Apply
-        ParentOfUnknown apply() {
-            return ParentOfUnknown.builder().id(id).build();
-        }
-    }
-
 
     @Value
     private static class CreateChild {
@@ -229,24 +141,6 @@ public class GivenWhenThenEntityTest {
                 throw new IllegalStateException();
             }
         }
-
-        @AssertLegal
-        void doesNotExist(Child child) {
-            if (child != null) {
-                throw new IllegalStateException();
-            }
-        }
-
-        @Apply
-        Child apply() {
-            return Child.builder().id(id).build();
-        }
-    }
-
-
-    @Value
-    private static class CreateChildWithAnyParent {
-        String id;
 
         @AssertLegal
         void doesNotExist(Child child) {
