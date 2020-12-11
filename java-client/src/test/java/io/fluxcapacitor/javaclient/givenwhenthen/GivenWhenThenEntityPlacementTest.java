@@ -35,15 +35,17 @@ import java.util.Map;
 
 import static java.util.Arrays.asList;
 import static java.util.Collections.singletonList;
+import static java.util.Collections.singletonMap;
 import static java.util.stream.Collectors.toList;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 
-public class GivenWhenThenEntityContainersTest {
-    private static final String parentId = "parent", childId = "child", childId2 = "child2";
+public class GivenWhenThenEntityPlacementTest {
+    private static final String parentId = "parent", childId = "child", childId2 = "child2", grandParentId = "parent";
     private static final CreateParentOfList createParentOfList = new CreateParentOfList(parentId);
     private static final CreateParentOfMap createParentOfMap = new CreateParentOfMap(parentId);
     private static final CreateParentOfUnknown createParentOfUnknown = new CreateParentOfUnknown(parentId);
+    private static final CreateGrandParent createGrandParent = new CreateGrandParent(grandParentId);
     private static final CreateChild createChild = new CreateChild(childId);
     private static final CreateChild createChild2 = new CreateChild(childId2);
     private static final UpdateChild updateChild = new UpdateChild(childId);
@@ -52,7 +54,7 @@ public class GivenWhenThenEntityContainersTest {
     private final TestFixture testFixtureForList = TestFixture.create(new ParentOfListHandler());
     private final TestFixture testFixtureForMap = TestFixture.create(new ParentOfMapHandler());
     private final TestFixture testFixtureForUnknown = TestFixture.create(new ParentOfUnknownHandler());
-
+    private final TestFixture testFixtureForGrandParent = TestFixture.create(new ParentOfListHandler());
 
     @Test
     @Disabled("disabled while working on this feature")
@@ -179,6 +181,47 @@ public class GivenWhenThenEntityContainersTest {
                         ((Child) getRepo(testFixtureForMap).load(parentId, ParentOfUnknown.class).get().getChild()).getId()));
     }
 
+    @Test
+    @Disabled("disabled while working on this feature")
+    void testAddChildToGrandParent() {
+        testFixtureForGrandParent.givenCommands(createGrandParent, createParentOfUnknown).whenCommand(createChild).expectOnlyEvents(createChild)
+                .verify(() -> assertEquals(ParentOfUnknown.builder().id(parentId)
+                                .child(Child.builder().id(childId).build()).build(),
+                        getRepo(testFixtureForGrandParent).load(grandParentId, GrandParent.class).get().getParent()));
+    }
+
+    @Test
+    @Disabled("disabled while working on this feature")
+    void testUpdateChildOfGrandParent() {
+        testFixtureForGrandParent.givenCommands(createGrandParent, createParentOfUnknown, createChild)
+                .whenCommand(updateChild).expectOnlyEvents(updateChild)
+                .verify(() -> assertEquals(ParentOfUnknown.builder().id(parentId)
+                                .child(Child.builder().id(childId).timesUpdated(1).build()).build(),
+                        getRepo(testFixtureForGrandParent).load(grandParentId, GrandParent.class).get().getParent()));
+    }
+
+    @Test
+    @Disabled("disabled while working on this feature")
+    void testUpdateChildListOfGrandParent() {
+        testFixtureForGrandParent.givenCommands(createGrandParent, createParentOfList, createChild)
+                .whenCommand(updateChild).expectOnlyEvents(updateChild)
+                .verify(() -> assertEquals(ParentOfList.builder().id(parentId)
+                                .children(singletonList(Child.builder().id(childId).timesUpdated(1).build())).build(),
+                        getRepo(testFixtureForGrandParent).load(grandParentId, GrandParent.class).get().getParent()));
+    }
+
+
+    @Test
+    @Disabled("disabled while working on this feature")
+    void testUpdateChildMapOfGrandParent() {
+        testFixtureForGrandParent.givenCommands(createGrandParent, createParentOfMap, createChild)
+                .whenCommand(updateChild).expectOnlyEvents(updateChild)
+                .verify(() -> assertEquals(ParentOfMap.builder().id(parentId)
+                                .children(singletonMap(childId, Child.builder().id(childId).timesUpdated(1).build())).build(),
+                        getRepo(testFixtureForGrandParent).load(grandParentId, GrandParent.class).get().getParent()));
+    }
+
+
     AggregateRepository getRepo(TestFixture testFixture) {
         return testFixture.getFluxCapacitor().aggregateRepository();
     }
@@ -203,6 +246,14 @@ public class GivenWhenThenEntityContainersTest {
             FluxCapacitor.loadAggregate(parentId, ParentOfUnknown.class).assertLegal(command).apply(command);
         }
     }
+
+    private static class GrandParentHandler {
+        @HandleCommand
+        void handle(Object command) {
+            FluxCapacitor.loadAggregate(grandParentId, GrandParent.class).assertLegal(command).apply(command);
+        }
+    }
+
 
     @EventSourced
     @Value
@@ -237,6 +288,18 @@ public class GivenWhenThenEntityContainersTest {
         Object child;
     }
 
+
+    @EventSourced
+    @Value
+    @Builder(toBuilder = true)
+    private static class GrandParent {
+        String id;
+
+        @Entity
+        @With
+        Object parent;
+    }
+
     @Value
     private static class CreateParentOfList {
         String id;
@@ -264,6 +327,16 @@ public class GivenWhenThenEntityContainersTest {
         @Apply
         ParentOfUnknown apply() {
             return ParentOfUnknown.builder().id(id).build();
+        }
+    }
+
+    @Value
+    private static class CreateGrandParent {
+        String id;
+
+        @Apply
+        GrandParent apply() {
+            return GrandParent.builder().id(id).build();
         }
     }
 

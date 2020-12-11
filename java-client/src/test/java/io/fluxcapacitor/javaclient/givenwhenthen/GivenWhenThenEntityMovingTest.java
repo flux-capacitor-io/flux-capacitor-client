@@ -31,7 +31,7 @@ import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 
-public class GivenWhenThenEntityHoppingTest {
+public class GivenWhenThenEntityMovingTest {
     private static final String parentId = "parent", parentId2 = "parent2", adoptiveParentId = "adoptiveParent", childId = "child";
     private static final CreateParent createParent = new CreateParent(parentId);
     private static final CreateParent createParent2 = new CreateParent(parentId2);
