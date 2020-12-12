@@ -15,7 +15,6 @@
 package io.fluxcapacitor.javaclient.givenwhenthen;
 
 import io.fluxcapacitor.javaclient.FluxCapacitor;
-import io.fluxcapacitor.javaclient.modeling.AggregateRepository;
 import io.fluxcapacitor.javaclient.modeling.Entity;
 import io.fluxcapacitor.javaclient.modeling.EntityId;
 import io.fluxcapacitor.javaclient.persisting.eventsourcing.Apply;
@@ -32,74 +31,152 @@ import org.junit.jupiter.params.provider.Arguments;
 
 import java.util.stream.Stream;
 
+import static io.fluxcapacitor.javaclient.givenwhenthen.GivenWhenThenTestUtils.getRepo;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 public class GivenWhenThenEntityApplyTest {
     private static final String parentId = "parent", childId = "child";
     private static final CreateParent createParent = new CreateParent(parentId);
-    private static final CreateChild createChild = new CreateChild(childId);
-    private static final UpdateChild updateChild = new UpdateChild(childId);
-    private static final UpsertChild upsertChild = new UpsertChild(childId);
-    private static final CreateChildNoApply createChildNoApply = new CreateChildNoApply(childId);
-    private static final UpdateChildNoApply updateChildNoApply = new UpdateChildNoApply(childId);
 
-    @TestWithParameters
-    @Disabled("disabled while working on this feature")
-    void testCreateChildWithApplyInEvent(AbstractTestFixture testFixture) {
-        testFixture.givenCommands(createParent).whenCommand(createChild).expectOnlyEvents(createChild)
-                .verify(() -> assertEquals(Child.builder().id(childId).build(),
-                        getRepo(testFixture).load(parentId, Parent.class).get().getChild()));
+    public static class WithApplyInEvent {
+        private static final CreateChild createChild = new CreateChild(childId);
+        private static final UpdateChild updateChild = new UpdateChild(childId);
+        private static final UpsertChild upsertChild = new UpsertChild(childId);
+
+        @TestWithParameters
+        @Disabled("disabled while working on this feature")
+        void testCreateChildWithApplyInEvent(AbstractTestFixture testFixture) {
+            testFixture.givenCommands(createParent).whenCommand(createChild).expectOnlyEvents(createChild)
+                    .verify(() -> assertEquals(Child.builder().id(childId).build(),
+                            getRepo(testFixture).load(parentId, Parent.class).get().getChild()));
+        }
+
+        @TestWithParameters
+        @Disabled("disabled while working on this feature")
+        void testUpdateChildWithApplyInEvent(AbstractTestFixture testFixture) {
+            testFixture.givenCommands(createParent, createChild).whenCommand(updateChild).expectOnlyEvents(updateChild)
+                    .verify(() -> assertEquals(Child.builder().id(childId).timesUpdated(1).build(),
+                            getRepo(testFixture).load(parentId, Parent.class).get().getChild()));
+        }
+
+        @TestWithParameters
+        @Disabled("disabled while working on this feature")
+        void testUpsertChildWithApplyInEvent(AbstractTestFixture testFixture) {
+            testFixture.givenCommands(createParent).whenCommand(upsertChild).expectOnlyEvents(upsertChild)
+                    .verify(() -> assertEquals(Child.builder().id(childId).build(),
+                            getRepo(testFixture).load(parentId, Parent.class).get().getChild()));
+        }
+
+        @TestWithParameters
+        @Disabled("disabled while working on this feature")
+        void testUpsertChildTwiceWithApplyInEvent(AbstractTestFixture testFixture) {
+            testFixture.givenCommands(createParent, upsertChild).whenCommand(upsertChild).expectOnlyEvents(upsertChild)
+                    .verify(() -> assertEquals(Child.builder().id(childId).timesUpdated(1).build(),
+                            getRepo(testFixture).load(parentId, Parent.class).get().getChild()));
+        }
+
+        @Value
+        private static class UpdateChild {
+            String id;
+
+            @Apply
+            Child apply(Child child) {
+                return child.toBuilder().timesUpdated(child.getTimesUpdated() + 1).build();
+            }
+        }
+
+        @Value
+        private static class UpsertChild {
+            String id;
+
+            @Apply
+            Child apply(AbstractTestFixture testFixture) {
+                return Child.builder().id(id).build();
+            }
+
+            @Apply
+            Child apply(Child child) {
+                return child.toBuilder().timesUpdated(child.getTimesUpdated() + 1).build();
+            }
+        }
+
+        @Value
+        @Builder(toBuilder = true)
+        private static class Child {
+            @EntityId
+            String id;
+            int timesUpdated;
+        }
+
+
+        @Value
+        private static class CreateChild {
+            String id;
+
+            @Apply
+            Child apply() {
+                return Child.builder().id(id).build();
+            }
+        }
+
+
+        private static Stream<Arguments> getParameters() {
+            return Stream.of(Arguments.of(TestFixture.create(new Handler())),
+                    Arguments.of(StreamingTestFixture.create(new Handler())));
+        }
     }
 
-    @TestWithParameters
-    @Disabled("disabled while working on this feature")
-    void testUpdateChildWithApplyInEvent(AbstractTestFixture testFixture) {
-        testFixture.givenCommands(createParent, createChild).whenCommand(updateChild).expectOnlyEvents(updateChild)
-                .verify(() -> assertEquals(Child.builder().id(childId).timesUpdated(1).build(),
-                        getRepo(testFixture).load(parentId, Parent.class).get().getChild()));
-    }
+    public static class WithApplyInModel {
+        private static final CreateChild createChild = new CreateChild(childId);
+        private static final UpdateChild updateChild = new UpdateChild(childId);
+        @TestWithParameters
+        @Disabled("disabled while working on this feature")
+        void testCreateChildWithApplyInModel(AbstractTestFixture testFixture) {
+            testFixture.givenCommands(createParent).whenCommand(createChild).expectOnlyEvents(createChild)
+                    .verify(() -> assertEquals(Child.builder().id(childId).build(),
+                            getRepo(testFixture).load(parentId, Parent.class).get().getChild()));
+        }
 
-    @TestWithParameters
-    @Disabled("disabled while working on this feature")
-    void testUpsertChildWithApplyInEvent(AbstractTestFixture testFixture) {
-        testFixture.givenCommands(createParent).whenCommand(upsertChild).expectOnlyEvents(upsertChild)
-                .verify(() -> assertEquals(Child.builder().id(childId).build(),
-                        getRepo(testFixture).load(parentId, Parent.class).get().getChild()));
-    }
+        @TestWithParameters
+        @Disabled("disabled while working on this feature")
+        void testUpdateChildWithApplyInModel(AbstractTestFixture testFixture) {
+            testFixture.givenCommands(createParent, createChild).whenCommand(updateChild).expectOnlyEvents(updateChild)
+                    .verify(() -> assertEquals(Child.builder().id(childId).timesUpdated(1).build(),
+                            getRepo(testFixture).load(parentId, Parent.class).get().getChild()));
+        }
 
-    @TestWithParameters
-    @Disabled("disabled while working on this feature")
-    void testUpsertChildTwiceWithApplyInEvent(AbstractTestFixture testFixture) {
-        testFixture.givenCommands(createParent, upsertChild).whenCommand(upsertChild).expectOnlyEvents(upsertChild)
-                .verify(() -> assertEquals(Child.builder().id(childId).timesUpdated(1).build(),
-                        getRepo(testFixture).load(parentId, Parent.class).get().getChild()));
-    }
+        @Value
+        @Builder(toBuilder = true)
+        private static class Child {
+            @EntityId
+            String id;
+            int timesUpdated;
 
-    @TestWithParameters
-    @Disabled("disabled while working on this feature")
-    void testCreateChildWithApplyInModel(AbstractTestFixture testFixture) {
-        testFixture.givenCommands(createParent).whenCommand(createChildNoApply).expectOnlyEvents(createChildNoApply)
-                .verify(() -> assertEquals(ChildWithApply.builder().id(childId).build(),
-                        getRepo(testFixture).load(parentId, Parent.class).get().getChild()));
-    }
+            @Apply
+            Child apply(CreateChild event) {
+                return Child.builder().id(event.getId()).build();
+            }
 
-    @TestWithParameters
-    @Disabled("disabled while working on this feature")
-    void testUpdateChildWithApplyInModel(AbstractTestFixture testFixture) {
-        testFixture.givenCommands(createParent, createChildNoApply).whenCommand(updateChildNoApply).expectOnlyEvents(updateChildNoApply)
-                .verify(() -> assertEquals(ChildWithApply.builder().id(childId).timesUpdated(1).build(),
-                        getRepo(testFixture).load(parentId, Parent.class).get().getChild()));
-    }
+            @Apply
+            Child apply(UpdateChild event) {
+                return this.toBuilder().timesUpdated(getTimesUpdated() + 1).build();
+            }
+        }
 
+        @Value
+        private static class CreateChild {
+            String id;
+        }
 
-    AggregateRepository getRepo(AbstractTestFixture testFixture) {
-        return testFixture.getFluxCapacitor().aggregateRepository();
-    }
+        @Value
+        private static class UpdateChild {
+            String id;
+        }
 
-    private static Stream<Arguments> getParameters() {
-        return Stream.of(
-                Arguments.of(StreamingTestFixture.create(new Handler())),
-                Arguments.of(TestFixture.create(new Handler())));
+        private static Stream<Arguments> getParameters() {
+            return Stream.of(Arguments.of(TestFixture.create(new Handler())),
+                    Arguments.of(StreamingTestFixture.create(new Handler())));
+        }
     }
 
     private static class Handler {
@@ -130,77 +207,4 @@ public class GivenWhenThenEntityApplyTest {
         }
     }
 
-    @Value
-    @Builder(toBuilder = true)
-    private static class Child {
-        @EntityId
-        String id;
-        int timesUpdated;
-    }
-
-
-    @Value
-    @Builder(toBuilder = true)
-    private static class ChildWithApply {
-        @EntityId
-        String id;
-        int timesUpdated;
-
-        @Apply
-        ChildWithApply apply(CreateChildNoApply event) {
-            return ChildWithApply.builder().id(event.getId()).build();
-        }
-
-        @Apply
-        ChildWithApply apply(UpdateChildNoApply event) {
-            return this.toBuilder().timesUpdated(getTimesUpdated() + 1).build();
-        }
-    }
-
-
-    @Value
-    private static class CreateChildNoApply {
-        String id;
-    }
-
-    @Value
-    private static class CreateChild {
-        String id;
-
-        @Apply
-        Child apply() {
-            return Child.builder().id(id).build();
-        }
-    }
-
-
-    @Value
-    private static class UpdateChildNoApply {
-        String id;
-    }
-
-    @Value
-    private static class UpdateChild {
-        String id;
-
-        @Apply
-        Child apply(Child child) {
-            return child.toBuilder().timesUpdated(child.getTimesUpdated() + 1).build();
-        }
-    }
-
-    @Value
-    private static class UpsertChild {
-        String id;
-
-        @Apply
-        Child apply(AbstractTestFixture testFixture) {
-            return Child.builder().id(id).build();
-        }
-
-        @Apply
-        Child apply(Child child) {
-            return child.toBuilder().timesUpdated(child.getTimesUpdated() + 1).build();
-        }
-    }
 }

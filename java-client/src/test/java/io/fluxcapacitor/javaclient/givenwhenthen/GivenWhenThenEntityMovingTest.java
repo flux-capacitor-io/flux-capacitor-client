@@ -15,7 +15,6 @@
 package io.fluxcapacitor.javaclient.givenwhenthen;
 
 import io.fluxcapacitor.javaclient.FluxCapacitor;
-import io.fluxcapacitor.javaclient.modeling.AggregateRepository;
 import io.fluxcapacitor.javaclient.modeling.Entity;
 import io.fluxcapacitor.javaclient.modeling.EntityId;
 import io.fluxcapacitor.javaclient.persisting.eventsourcing.Apply;
@@ -32,6 +31,7 @@ import org.junit.jupiter.params.provider.Arguments;
 
 import java.util.stream.Stream;
 
+import static io.fluxcapacitor.javaclient.givenwhenthen.GivenWhenThenTestUtils.getRepo;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 
@@ -122,15 +122,10 @@ public class GivenWhenThenEntityMovingTest {
                 });
     }
 
-    AggregateRepository getRepo(AbstractTestFixture testFixture) {
-        return testFixture.getFluxCapacitor().aggregateRepository();
-    }
-
 
     private static Stream<Arguments> getParameters() {
-        return Stream.of(
-                Arguments.of(StreamingTestFixture.create(new Handler())),
-                Arguments.of(TestFixture.create(new Handler())));
+        return Stream.of(Arguments.of(TestFixture.create(new Handler())),
+                Arguments.of(StreamingTestFixture.create(new Handler())));
     }
 
     private static class Handler {

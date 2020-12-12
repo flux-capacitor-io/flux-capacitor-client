@@ -15,6 +15,7 @@
 package io.fluxcapacitor.javaclient.givenwhenthen;
 
 import io.fluxcapacitor.javaclient.FluxCapacitor;
+import io.fluxcapacitor.javaclient.MockException;
 import io.fluxcapacitor.javaclient.modeling.AssertLegal;
 import io.fluxcapacitor.javaclient.modeling.Entity;
 import io.fluxcapacitor.javaclient.modeling.EntityId;
@@ -54,13 +55,13 @@ public class GivenWhenThenEntitySimpleTest {
 
     @TestWithParameters
     void testCreateChildWithoutParentForbidden(AbstractTestFixture testFixture) {
-        testFixture.whenCommand(createChild).expectException(IllegalStateException.class);
+        testFixture.whenCommand(createChild).expectException(MockException.class);
     }
 
     @TestWithParameters
     @Disabled("disabled while working on this feature")
     void testCreateChildTwiceForbidden(AbstractTestFixture testFixture) {
-        testFixture.givenCommands(createParent, createChild).whenCommand(createChild).expectException(IllegalStateException.class);
+        testFixture.givenCommands(createParent, createChild).whenCommand(createChild).expectException(MockException.class);
     }
 
     @TestWithParameters
@@ -144,14 +145,14 @@ public class GivenWhenThenEntitySimpleTest {
         @AssertLegal
         void hasParent(Parent parent) {
             if (parent == null) {
-                throw new IllegalStateException();
+                throw new MockException();
             }
         }
 
         @AssertLegal
         void doesNotExist(Child child) {
             if (child != null) {
-                throw new IllegalStateException();
+                throw new MockException();
             }
         }
 
@@ -190,7 +191,7 @@ public class GivenWhenThenEntitySimpleTest {
         @AssertLegal
         void doesNotExists(GrandChild entity) {
             if (entity != null) {
-                throw new IllegalStateException();
+                throw new MockException();
             }
         }
 
@@ -207,7 +208,7 @@ public class GivenWhenThenEntitySimpleTest {
         @AssertLegal
         void exists(GrandChild entity) {
             if (entity == null) {
-                throw new IllegalStateException();
+                throw new MockException();
             }
         }
 
