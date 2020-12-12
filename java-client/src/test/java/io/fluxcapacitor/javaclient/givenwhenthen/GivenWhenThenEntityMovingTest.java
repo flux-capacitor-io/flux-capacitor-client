@@ -20,13 +20,17 @@ import io.fluxcapacitor.javaclient.modeling.Entity;
 import io.fluxcapacitor.javaclient.modeling.EntityId;
 import io.fluxcapacitor.javaclient.persisting.eventsourcing.Apply;
 import io.fluxcapacitor.javaclient.persisting.eventsourcing.EventSourced;
+import io.fluxcapacitor.javaclient.test.AbstractTestFixture;
 import io.fluxcapacitor.javaclient.test.TestFixture;
+import io.fluxcapacitor.javaclient.test.streaming.StreamingTestFixture;
 import io.fluxcapacitor.javaclient.tracking.handling.HandleCommand;
 import lombok.Builder;
 import lombok.Value;
 import lombok.With;
 import org.junit.jupiter.api.Disabled;
-import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.provider.Arguments;
+
+import java.util.stream.Stream;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
@@ -42,13 +46,11 @@ public class GivenWhenThenEntityMovingTest {
     private static final MoveChild moveChildToSecondParent = new MoveChild(parentId2, childId);
     private static final MoveChild moveChildToAdoptiveParent = new MoveChild(adoptiveParentId, childId);
 
-    private final TestFixture testFixture = TestFixture.create(new Handler());
-
     // Advanced entity feature for later
 
-    @Test
+    @TestWithParameters
     @Disabled("disabled while working on this feature")
-    void testMoveChildToSimilarParent() {
+    void testMoveChildToSimilarParent(AbstractTestFixture testFixture) {
         testFixture.givenCommands(createParent, createParent2, createChild)
                 .whenCommand(moveChildToSecondParent).expectOnlyEvents(moveChildToSecondParent)
                 .verify(() -> {
@@ -58,9 +60,9 @@ public class GivenWhenThenEntityMovingTest {
                 });
     }
 
-    @Test
+    @TestWithParameters
     @Disabled("disabled while working on this feature")
-    void testUpdateMovedChild() {
+    void testUpdateMovedChild(AbstractTestFixture testFixture) {
         testFixture.givenCommands(createParent, createParent2, createChild, moveChildToSecondParent)
                 .whenCommand(updateChild).expectOnlyEvents(updateChild)
                 .verify(() -> {
@@ -71,9 +73,9 @@ public class GivenWhenThenEntityMovingTest {
     }
 
 
-    @Test
+    @TestWithParameters
     @Disabled("disabled while working on this feature")
-    void testMoveChildToSimilarParentAndBack() {
+    void testMoveChildToSimilarParentAndBack(AbstractTestFixture testFixture) {
         testFixture.givenCommands(createParent, createParent2, createChild, moveChildToSecondParent, updateChild)
                 .whenCommand(moveChildToFirstParent).expectOnlyEvents(moveChildToFirstParent)
                 .verify(() -> {
@@ -83,9 +85,9 @@ public class GivenWhenThenEntityMovingTest {
                 });
     }
 
-    @Test
+    @TestWithParameters
     @Disabled("disabled while working on this feature")
-    void testMoveChildToDifferentParent() {
+    void testMoveChildToDifferentParent(AbstractTestFixture testFixture) {
         testFixture.givenCommands(createParent, createAdoptiveParent, createChild)
                 .whenCommand(moveChildToAdoptiveParent).expectOnlyEvents(moveChildToAdoptiveParent)
                 .verify(() -> {
@@ -95,9 +97,9 @@ public class GivenWhenThenEntityMovingTest {
                 });
     }
 
-    @Test
+    @TestWithParameters
     @Disabled("disabled while working on this feature")
-    void testUpdateMovedChildOnDifferentParent() {
+    void testUpdateMovedChildOnDifferentParent(AbstractTestFixture testFixture) {
         testFixture.givenCommands(createParent, createAdoptiveParent, createChild, moveChildToAdoptiveParent)
                 .whenCommand(updateChild).expectOnlyEvents(updateChild)
                 .verify(() -> {
@@ -108,9 +110,9 @@ public class GivenWhenThenEntityMovingTest {
     }
 
 
-    @Test
+    @TestWithParameters
     @Disabled("disabled while working on this feature")
-    void testMoveChildToDifferentParentAndBack() {
+    void testMoveChildToDifferentParentAndBack(AbstractTestFixture testFixture) {
         testFixture.givenCommands(createParent, createAdoptiveParent, createChild, moveChildToAdoptiveParent, updateChild)
                 .whenCommand(moveChildToFirstParent).expectOnlyEvents(moveChildToFirstParent)
                 .verify(() -> {
@@ -120,8 +122,15 @@ public class GivenWhenThenEntityMovingTest {
                 });
     }
 
-    AggregateRepository getRepo(TestFixture testFixture) {
+    AggregateRepository getRepo(AbstractTestFixture testFixture) {
         return testFixture.getFluxCapacitor().aggregateRepository();
+    }
+
+
+    private static Stream<Arguments> getParameters() {
+        return Stream.of(
+                Arguments.of(StreamingTestFixture.create(new Handler())),
+                Arguments.of(TestFixture.create(new Handler())));
     }
 
     private static class Handler {

@@ -21,17 +21,22 @@ import io.fluxcapacitor.javaclient.modeling.Entity;
 import io.fluxcapacitor.javaclient.modeling.EntityId;
 import io.fluxcapacitor.javaclient.persisting.eventsourcing.Apply;
 import io.fluxcapacitor.javaclient.persisting.eventsourcing.EventSourced;
+import io.fluxcapacitor.javaclient.test.AbstractTestFixture;
 import io.fluxcapacitor.javaclient.test.TestFixture;
+import io.fluxcapacitor.javaclient.test.streaming.StreamingTestFixture;
 import io.fluxcapacitor.javaclient.tracking.handling.HandleCommand;
 import lombok.Builder;
 import lombok.Value;
 import lombok.With;
 import org.junit.jupiter.api.Disabled;
-import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
 
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Stream;
 
 import static java.util.Arrays.asList;
 import static java.util.Collections.singletonList;
@@ -51,179 +56,218 @@ public class GivenWhenThenEntityPlacementTest {
     private static final UpdateChild updateChild = new UpdateChild(childId);
     private static final RemoveChild removeChild = new RemoveChild(childId);
 
-    private final TestFixture testFixtureForList = TestFixture.create(new ParentOfListHandler());
-    private final TestFixture testFixtureForMap = TestFixture.create(new ParentOfMapHandler());
-    private final TestFixture testFixtureForUnknown = TestFixture.create(new ParentOfUnknownHandler());
-    private final TestFixture testFixtureForGrandParent = TestFixture.create(new ParentOfListHandler());
-
-    @Test
+    @ParameterizedTest
+    @MethodSource("listParams")
     @Disabled("disabled while working on this feature")
-    void testAddChildToParentsList() {
-        testFixtureForList.givenCommands(createParentOfList).whenCommand(createChild).expectOnlyEvents(createChild)
+    void testAddChildToParentsList(AbstractTestFixture testFixture) {
+        testFixture.givenCommands(createParentOfList).whenCommand(createChild).expectOnlyEvents(createChild)
                 .verify(() -> assertEquals(singletonList(childId),
-                        getRepo(testFixtureForList).load(parentId, ParentOfList.class).get()
+                        getRepo(testFixture).load(parentId, ParentOfList.class).get()
                                 .getChildren().stream().map(Child::getId).collect(toList())));
     }
 
-    @Test
+    @ParameterizedTest
+    @MethodSource("listParams")
     @Disabled("disabled while working on this feature")
-    void testAddSecondChildToParentsList() {
-        testFixtureForList.givenCommands(createParentOfList, createChild).whenCommand(createChild2).expectOnlyEvents(createChild2)
+    void testAddSecondChildToParentsList(AbstractTestFixture testFixture) {
+        testFixture.givenCommands(createParentOfList, createChild).whenCommand(createChild2).expectOnlyEvents(createChild2)
                 .verify(() -> assertEquals(asList(childId, childId2),
-                        getRepo(testFixtureForList).load(parentId, ParentOfList.class).get()
+                        getRepo(testFixture).load(parentId, ParentOfList.class).get()
                                 .getChildren().stream().map(Child::getId).collect(toList())));
     }
 
 
-    @Test
+    @ParameterizedTest
+    @MethodSource("listParams")
     @Disabled("disabled while working on this feature")
-    void testUpdateChildInParentsList() {
-        testFixtureForList.givenCommands(createParentOfList, createChild, createChild2).whenCommand(updateChild).expectOnlyEvents(updateChild)
+    void testUpdateChildInParentsList(AbstractTestFixture testFixture) {
+        testFixture.givenCommands(createParentOfList, createChild, createChild2).whenCommand(updateChild).expectOnlyEvents(updateChild)
                 .verify(() -> assertEquals(asList(
                         Child.builder().id(childId).timesUpdated(1).build(),
                         Child.builder().id(childId2).build()),
-                        getRepo(testFixtureForList).load(parentId, ParentOfList.class).get().getChildren()));
+                        getRepo(testFixture).load(parentId, ParentOfList.class).get().getChildren()));
     }
 
-    @Test
+    @ParameterizedTest
+    @MethodSource("listParams")
     @Disabled("disabled while working on this feature")
-    void testRemoveChildFromParentsList() {
-        testFixtureForList.givenCommands(createParentOfList, createChild, createChild2).whenCommand(removeChild).expectOnlyEvents(removeChild)
+    void testRemoveChildFromParentsList(AbstractTestFixture testFixture) {
+        testFixture.givenCommands(createParentOfList, createChild, createChild2).whenCommand(removeChild).expectOnlyEvents(removeChild)
                 .verify(() -> assertEquals(singletonList(childId2),
-                        getRepo(testFixtureForList).load(parentId, ParentOfList.class).get()
+                        getRepo(testFixture).load(parentId, ParentOfList.class).get()
                                 .getChildren().stream().map(Child::getId).collect(toList())));
     }
 
-    @Test
+    @ParameterizedTest
+    @MethodSource("listParams")
     @Disabled("disabled while working on this feature")
-    void testAddChildAgainToParentsList() {
-        testFixtureForList.givenCommands(createParentOfList, createChild, createChild2, removeChild).whenCommand(createChild).expectOnlyEvents(createChild)
+    void testAddChildAgainToParentsList(AbstractTestFixture testFixture) {
+        testFixture.givenCommands(createParentOfList, createChild, createChild2, removeChild).whenCommand(createChild).expectOnlyEvents(createChild)
                 .verify(() -> assertEquals(asList(childId, childId2),
-                        getRepo(testFixtureForList).load(parentId, ParentOfList.class).get()
+                        getRepo(testFixture).load(parentId, ParentOfList.class).get()
                                 .getChildren().stream().map(Child::getId).collect(toList())));
     }
 
-    @Test
+
+    @ParameterizedTest
+    @MethodSource("mapParams")
     @Disabled("disabled while working on this feature")
-    void testAddChildToParentsMap() {
-        testFixtureForMap.givenCommands(createParentOfMap).whenCommand(createChild).expectOnlyEvents(createChild)
+    void testAddChildToParentsMap(AbstractTestFixture testFixture) {
+        testFixture.givenCommands(createParentOfMap).whenCommand(createChild).expectOnlyEvents(createChild)
                 .verify(() -> assertEquals(singletonList(childId),
-                        new ArrayList<>(getRepo(testFixtureForMap).load(parentId, ParentOfMap.class).get()
+                        new ArrayList<>(getRepo(testFixture).load(parentId, ParentOfMap.class).get()
                                 .getChildren().keySet())));
     }
 
-    @Test
+    @ParameterizedTest
+    @MethodSource("mapParams")
     @Disabled("disabled while working on this feature")
-    void testAddSecondChildToParentsMap() {
-        testFixtureForMap.givenCommands(createParentOfMap, createChild).whenCommand(createChild2).expectOnlyEvents(createChild2)
+    void testAddSecondChildToParentsMap(AbstractTestFixture testFixture) {
+        testFixture.givenCommands(createParentOfMap, createChild).whenCommand(createChild2).expectOnlyEvents(createChild2)
                 .verify(() -> assertEquals(asList(childId, childId2),
-                        new ArrayList<>(getRepo(testFixtureForMap).load(parentId, ParentOfMap.class).get()
+                        new ArrayList<>(getRepo(testFixture).load(parentId, ParentOfMap.class).get()
                                 .getChildren().keySet())));
     }
 
-    @Test
+    @ParameterizedTest
+    @MethodSource("mapParams")
     @Disabled("disabled while working on this feature")
-    void testUpdateChildInParentsMap() {
-        testFixtureForMap.givenCommands(createParentOfList, createChild, createChild2).whenCommand(updateChild).expectOnlyEvents(updateChild)
+    void testUpdateChildInParentsMap(AbstractTestFixture testFixture) {
+        testFixture.givenCommands(createParentOfList, createChild, createChild2).whenCommand(updateChild).expectOnlyEvents(updateChild)
                 .verify(() -> assertEquals(asList(
                         Child.builder().id(childId).timesUpdated(1).build(),
                         Child.builder().id(childId2).build()),
-                        new ArrayList<>(getRepo(testFixtureForMap).load(parentId, ParentOfMap.class).get().getChildren().values())));
+                        new ArrayList<>(getRepo(testFixture).load(parentId, ParentOfMap.class).get().getChildren().values())));
     }
 
-    @Test
+    @ParameterizedTest
+    @MethodSource("mapParams")
     @Disabled("disabled while working on this feature")
-    void testRemoveChildFromParentsMap() {
-        testFixtureForMap.givenCommands(createParentOfMap, createChild, createChild2).whenCommand(removeChild).expectOnlyEvents(removeChild)
+    void testRemoveChildFromParentsMap(AbstractTestFixture testFixture) {
+        testFixture.givenCommands(createParentOfMap, createChild, createChild2).whenCommand(removeChild).expectOnlyEvents(removeChild)
                 .verify(() -> assertEquals(singletonList(childId2),
-                        new ArrayList<>(getRepo(testFixtureForMap).load(parentId, ParentOfMap.class).get()
+                        new ArrayList<>(getRepo(testFixture).load(parentId, ParentOfMap.class).get()
                                 .getChildren().keySet())));
     }
 
-    @Test
+    @ParameterizedTest
+    @MethodSource("mapParams")
     @Disabled("disabled while working on this feature")
-    void testAddChildAgainToParentsMap() {
-        testFixtureForMap.givenCommands(createParentOfMap, createChild, createChild2, removeChild).whenCommand(createChild).expectOnlyEvents(createChild)
+    void testAddChildAgainToParentsMap(AbstractTestFixture testFixture) {
+        testFixture.givenCommands(createParentOfMap, createChild, createChild2, removeChild).whenCommand(createChild).expectOnlyEvents(createChild)
                 .verify(() -> assertEquals(asList(childId, childId2),
-                        new ArrayList<>(getRepo(testFixtureForMap).load(parentId, ParentOfMap.class).get()
+                        new ArrayList<>(getRepo(testFixture).load(parentId, ParentOfMap.class).get()
                                 .getChildren().keySet())));
     }
 
-    @Test
+    @ParameterizedTest
+    @MethodSource("unknownParams")
     @Disabled("disabled while working on this feature")
-    void testAddUnknownChildToParent() {
-        testFixtureForUnknown.givenCommands(createParentOfUnknown).whenCommand(createChild).expectOnlyEvents(createChild)
+    void testAddUnknownChildToParent(AbstractTestFixture testFixture) {
+        testFixture.givenCommands(createParentOfUnknown).whenCommand(createChild).expectOnlyEvents(createChild)
                 .verify(() -> assertEquals(childId,
-                        ((Child) getRepo(testFixtureForMap).load(parentId, ParentOfUnknown.class).get().getChild()).getId()));
+                        ((Child) getRepo(testFixture).load(parentId, ParentOfUnknown.class).get().getChild()).getId()));
     }
 
-    @Test
+    @ParameterizedTest
+    @MethodSource("unknownParams")
     @Disabled("disabled while working on this feature")
-    void testUpdateUnknownChildInParent() {
-        testFixtureForUnknown.givenCommands(createParentOfUnknown, createChild).whenCommand(updateChild).expectOnlyEvents(updateChild)
+    void testUpdateUnknownChildInParent(AbstractTestFixture testFixture) {
+        testFixture.givenCommands(createParentOfUnknown, createChild).whenCommand(updateChild).expectOnlyEvents(updateChild)
                 .verify(() -> assertEquals(Child.builder().id(childId).timesUpdated(1).build(),
-                        getRepo(testFixtureForUnknown).load(parentId, ParentOfUnknown.class).get().getChild()));
+                        getRepo(testFixture).load(parentId, ParentOfUnknown.class).get().getChild()));
     }
 
-    @Test
+    @ParameterizedTest
+    @MethodSource("unknownParams")
     @Disabled("disabled while working on this feature")
-    void testRemoveUnknownChildFromParent() {
-        testFixtureForUnknown.givenCommands(createParentOfUnknown, createChild).whenCommand(removeChild).expectOnlyEvents(removeChild)
+    void testRemoveUnknownChildFromParent(AbstractTestFixture testFixture) {
+        testFixture.givenCommands(createParentOfUnknown, createChild).whenCommand(removeChild).expectOnlyEvents(removeChild)
                 .verify(() -> assertNull(
-                        getRepo(testFixtureForMap).load(parentId, ParentOfUnknown.class).get().getChild()));
+                        getRepo(testFixture).load(parentId, ParentOfUnknown.class).get().getChild()));
     }
 
-    @Test
+    @ParameterizedTest
+    @MethodSource("unknownParams")
     @Disabled("disabled while working on this feature")
-    void testAddOtherUnknownChildToParent() {
-        testFixtureForUnknown.givenCommands(createParentOfUnknown, createChild, removeChild).whenCommand(createChild2).expectOnlyEvents(createChild2)
+    void testAddOtherUnknownChildToParent(AbstractTestFixture testFixture) {
+        testFixture.givenCommands(createParentOfUnknown, createChild, removeChild).whenCommand(createChild2).expectOnlyEvents(createChild2)
                 .verify(() -> assertEquals(childId2,
-                        ((Child) getRepo(testFixtureForMap).load(parentId, ParentOfUnknown.class).get().getChild()).getId()));
+                        ((Child) getRepo(testFixture).load(parentId, ParentOfUnknown.class).get().getChild()).getId()));
     }
 
-    @Test
+    @ParameterizedTest
+    @MethodSource("grandParentParams")
     @Disabled("disabled while working on this feature")
-    void testAddChildToGrandParent() {
-        testFixtureForGrandParent.givenCommands(createGrandParent, createParentOfUnknown).whenCommand(createChild).expectOnlyEvents(createChild)
+    void testAddChildToGrandParent(AbstractTestFixture testFixture) {
+        testFixture.givenCommands(createGrandParent, createParentOfUnknown).whenCommand(createChild).expectOnlyEvents(createChild)
                 .verify(() -> assertEquals(ParentOfUnknown.builder().id(parentId)
                                 .child(Child.builder().id(childId).build()).build(),
-                        getRepo(testFixtureForGrandParent).load(grandParentId, GrandParent.class).get().getParent()));
+                        getRepo(testFixture).load(grandParentId, GrandParent.class).get().getParent()));
     }
 
-    @Test
+    @ParameterizedTest
+    @MethodSource("grandParentParams")
     @Disabled("disabled while working on this feature")
-    void testUpdateChildOfGrandParent() {
-        testFixtureForGrandParent.givenCommands(createGrandParent, createParentOfUnknown, createChild)
+    void testUpdateChildOfGrandParent(AbstractTestFixture testFixture) {
+        testFixture.givenCommands(createGrandParent, createParentOfUnknown, createChild)
                 .whenCommand(updateChild).expectOnlyEvents(updateChild)
                 .verify(() -> assertEquals(ParentOfUnknown.builder().id(parentId)
                                 .child(Child.builder().id(childId).timesUpdated(1).build()).build(),
-                        getRepo(testFixtureForGrandParent).load(grandParentId, GrandParent.class).get().getParent()));
+                        getRepo(testFixture).load(grandParentId, GrandParent.class).get().getParent()));
     }
 
-    @Test
+    @ParameterizedTest
+    @MethodSource("grandParentParams")
     @Disabled("disabled while working on this feature")
-    void testUpdateChildListOfGrandParent() {
-        testFixtureForGrandParent.givenCommands(createGrandParent, createParentOfList, createChild)
+    void testUpdateChildListOfGrandParent(AbstractTestFixture testFixture) {
+        testFixture.givenCommands(createGrandParent, createParentOfList, createChild)
                 .whenCommand(updateChild).expectOnlyEvents(updateChild)
                 .verify(() -> assertEquals(ParentOfList.builder().id(parentId)
                                 .children(singletonList(Child.builder().id(childId).timesUpdated(1).build())).build(),
-                        getRepo(testFixtureForGrandParent).load(grandParentId, GrandParent.class).get().getParent()));
+                        getRepo(testFixture).load(grandParentId, GrandParent.class).get().getParent()));
     }
 
 
-    @Test
+    @ParameterizedTest
+    @MethodSource("grandParentParams")
     @Disabled("disabled while working on this feature")
-    void testUpdateChildMapOfGrandParent() {
-        testFixtureForGrandParent.givenCommands(createGrandParent, createParentOfMap, createChild)
+    void testUpdateChildMapOfGrandParent(AbstractTestFixture testFixture) {
+        testFixture.givenCommands(createGrandParent, createParentOfMap, createChild)
                 .whenCommand(updateChild).expectOnlyEvents(updateChild)
                 .verify(() -> assertEquals(ParentOfMap.builder().id(parentId)
                                 .children(singletonMap(childId, Child.builder().id(childId).timesUpdated(1).build())).build(),
-                        getRepo(testFixtureForGrandParent).load(grandParentId, GrandParent.class).get().getParent()));
+                        getRepo(testFixture).load(grandParentId, GrandParent.class).get().getParent()));
     }
 
 
-    AggregateRepository getRepo(TestFixture testFixture) {
+    AggregateRepository getRepo(AbstractTestFixture testFixture) {
         return testFixture.getFluxCapacitor().aggregateRepository();
+    }
+
+
+    private static Stream<Arguments> listParams() {
+        return Stream.of(
+                Arguments.of(StreamingTestFixture.create(new ParentOfListHandler())),
+                Arguments.of(TestFixture.create(new ParentOfListHandler())));
+    }
+
+    private static Stream<Arguments> mapParams() {
+        return Stream.of(
+                Arguments.of(StreamingTestFixture.create(new ParentOfMapHandler())),
+                Arguments.of(TestFixture.create(new ParentOfMapHandler())));
+    }
+
+    private static Stream<Arguments> unknownParams() {
+        return Stream.of(
+                Arguments.of(StreamingTestFixture.create(new ParentOfUnknownHandler())),
+                Arguments.of(TestFixture.create(new ParentOfUnknownHandler())));
+    }
+
+    private static Stream<Arguments> grandParentParams() {
+        return Stream.of(
+                Arguments.of(StreamingTestFixture.create(new GrandParentHandler())),
+                Arguments.of(TestFixture.create(new GrandParentHandler())));
     }
 
     private static class ParentOfListHandler {

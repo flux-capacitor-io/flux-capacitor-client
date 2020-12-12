@@ -20,16 +20,19 @@ import io.fluxcapacitor.javaclient.modeling.Entity;
 import io.fluxcapacitor.javaclient.modeling.EntityId;
 import io.fluxcapacitor.javaclient.persisting.eventsourcing.Apply;
 import io.fluxcapacitor.javaclient.persisting.eventsourcing.EventSourced;
+import io.fluxcapacitor.javaclient.test.AbstractTestFixture;
 import io.fluxcapacitor.javaclient.test.TestFixture;
+import io.fluxcapacitor.javaclient.test.streaming.StreamingTestFixture;
 import io.fluxcapacitor.javaclient.tracking.handling.HandleCommand;
 import lombok.Builder;
 import lombok.Singular;
 import lombok.Value;
 import lombok.With;
 import org.junit.jupiter.api.Disabled;
-import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.provider.Arguments;
 
 import java.util.List;
+import java.util.stream.Stream;
 
 public class GivenWhenThenEntitySimpleTest {
     private static final String parentId = "parent", childId = "child",
@@ -39,44 +42,47 @@ public class GivenWhenThenEntitySimpleTest {
     private static final UpdateChild updateChild = new UpdateChild(childId);
     private static final RemoveChild removeChild = new RemoveChild(childId);
 
-    private final TestFixture testFixture = TestFixture.create(new Handler());
-
-    @Test
-    void testCreateParent() {
+    @TestWithParameters
+    void testCreateParent(AbstractTestFixture testFixture) {
         testFixture.whenCommand(createParent).expectOnlyEvents(createParent);
     }
 
-    @Test
-    void testCreateChild() {
+    @TestWithParameters
+    void testCreateChild(AbstractTestFixture testFixture) {
         testFixture.givenCommands(createParent).whenCommand(createChild).expectOnlyEvents(createChild);
     }
 
-    @Test
-    void testCreateChildWithoutParentForbidden() {
+    @TestWithParameters
+    void testCreateChildWithoutParentForbidden(AbstractTestFixture testFixture) {
         testFixture.whenCommand(createChild).expectException(IllegalStateException.class);
     }
 
-    @Test
+    @TestWithParameters
     @Disabled("disabled while working on this feature")
-    void testCreateChildTwiceForbidden() {
+    void testCreateChildTwiceForbidden(AbstractTestFixture testFixture) {
         testFixture.givenCommands(createParent, createChild).whenCommand(createChild).expectException(IllegalStateException.class);
     }
 
-    @Test
-    void testUpdateChild() {
+    @TestWithParameters
+    void testUpdateChild(AbstractTestFixture testFixture) {
         testFixture.givenCommands(createParent, createChild).whenCommand(updateChild).expectOnlyEvents(updateChild);
     }
 
-    @Test
-    void testRemoveChild() {
+    @TestWithParameters
+    void testRemoveChild(AbstractTestFixture testFixture) {
         testFixture.givenCommands(createParent, createChild, updateChild).whenCommand(removeChild).expectOnlyEvents(removeChild);
     }
 
-    @Test
-    void testCreateChildAfterRemove() {
+    @TestWithParameters
+    void testCreateChildAfterRemove(AbstractTestFixture testFixture) {
         testFixture.givenCommands(createParent, createChild, removeChild).whenCommand(createChild).expectOnlyEvents(createChild);
     }
 
+    private static Stream<Arguments> getParameters() {
+        return Stream.of(
+                Arguments.of(StreamingTestFixture.create(new Handler())),
+                Arguments.of(TestFixture.create(new Handler())));
+    }
 
     private static class Handler {
         @HandleCommand
