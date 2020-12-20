@@ -29,20 +29,13 @@ import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
 
 import java.time.Instant;
-import java.util.ArrayDeque;
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
+import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Function;
 
 import static io.fluxcapacitor.common.MessageType.COMMAND;
 import static io.fluxcapacitor.common.MessageType.EVENT;
-import static io.fluxcapacitor.javaclient.common.serialization.DeserializingMessage.defaultParameterResolvers;
-import static io.fluxcapacitor.javaclient.common.serialization.DeserializingMessage.whenBatchCompletes;
-import static io.fluxcapacitor.javaclient.common.serialization.DeserializingMessage.whenMessageCompletes;
+import static io.fluxcapacitor.javaclient.common.serialization.DeserializingMessage.*;
 import static java.lang.String.format;
 import static java.util.Collections.asLifoQueue;
 import static java.util.Collections.emptyList;
@@ -198,9 +191,13 @@ public class EventSourcingRepository implements AggregateRepository {
             eventMessage = eventMessage.withMetadata(metadata);
             DeserializingMessage deserializingMessage = new DeserializingMessage(new DeserializingObject<>(
                     serializer.serialize(eventMessage), eventMessage::getPayload), EVENT);
-            model = model.toBuilder().sequenceNumber(model.sequenceNumber() + 1)
+
+            T before = model.get();
+            T after = eventSourcingHandler.invoke(before, deserializingMessage);
+
+            model = model.toBuilder().sequenceNumber(model.sequenceNumber() + 1).model(after)
                     .lastEventId(eventMessage.getMessageId()).timestamp(eventMessage.getTimestamp())
-                    .model(eventSourcingHandler.invoke(model.get(), deserializingMessage)).build();
+                    .previous(before == null || before == after ? null : model).build();
 
             unpublishedEvents.add(deserializingMessage);
 
@@ -239,6 +236,11 @@ public class EventSourcingRepository implements AggregateRepository {
         @Override
         public T get() {
             return model.get();
+        }
+
+        @Override
+        public Aggregate<T> previous() {
+            return model.previous();
         }
 
         @Override

@@ -19,6 +19,7 @@ import io.fluxcapacitor.javaclient.common.Message;
 import io.fluxcapacitor.javaclient.tracking.handling.validation.ValidationUtils;
 
 import java.time.Instant;
+import java.util.Objects;
 import java.util.function.Function;
 import java.util.function.Predicate;
 
@@ -33,6 +34,20 @@ public interface Aggregate<T> {
 
     Instant timestamp();
 
+    Aggregate<T> previous();
+
+    default Aggregate<T> playBackToEvent(String eventId) {
+        return playBackToCondition(aggregate -> Objects.equals(eventId, aggregate.lastEventId()));
+    }
+
+    default Aggregate<T> playBackToCondition(Predicate<Aggregate<T>> condition) {
+        Aggregate<T> result = this;
+        while (result != null && !condition.test(result)) {
+            result = result.previous();
+        }
+        return result;
+    }
+
     Aggregate<T> apply(Message eventMessage);
 
     default Aggregate<T> apply(Object event) {
@@ -46,6 +61,7 @@ public interface Aggregate<T> {
     default Aggregate<T> apply(Function<T, Message> eventFunction) {
         return apply(eventFunction.apply(get()));
     }
+
 
     default <E extends Exception> Aggregate<T> assertLegal(Object command) throws E {
         ValidationUtils.assertLegal(command, get());

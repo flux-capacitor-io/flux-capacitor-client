@@ -46,23 +46,11 @@ import static io.fluxcapacitor.common.MessageType.COMMAND;
 import static io.fluxcapacitor.javaclient.modeling.AssertLegal.HIGHEST_PRIORITY;
 import static java.util.Arrays.stream;
 import static java.util.Collections.singletonList;
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.junit.jupiter.api.Assertions.assertTrue;
-import static org.junit.jupiter.api.Assertions.fail;
-import static org.mockito.ArgumentMatchers.anyList;
-import static org.mockito.ArgumentMatchers.anyString;
-import static org.mockito.ArgumentMatchers.argThat;
+import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.anyLong;
 import static org.mockito.Mockito.eq;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.reset;
-import static org.mockito.Mockito.spy;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.verifyNoInteractions;
-import static org.mockito.Mockito.verifyNoMoreInteractions;
-import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.*;
 
 @Slf4j
 class EventSourcingRepositoryTest {
@@ -100,7 +88,7 @@ class EventSourcingRepositoryTest {
     void testModelIsLoadedFromSnapshotWhenPossible() {
         when(snapshotRepository.getSnapshot(aggregateId))
                 .thenReturn(Optional.of(new EventSourcedModel<>(
-                        aggregateId, 0L, null, null, new TestModel(new CreateModel()))));
+                        aggregateId, 0L, null, null, new TestModel(new CreateModel()), null)));
         Aggregate<TestModel> aggregate = subject.load(aggregateId, TestModel.class);
         assertEquals(singletonList(new CreateModel()), aggregate.get().events);
     }
@@ -158,7 +146,7 @@ class EventSourcingRepositoryTest {
             verifyNoInteractions(eventStore);
         });
         verify(eventStore).storeDomainEvents(eq(aggregateId), eq(TestModel.class.getSimpleName()), eq(1L),
-                                             anyList());
+                anyList());
     }
 
     @Test
@@ -193,7 +181,7 @@ class EventSourcingRepositoryTest {
     void testSnapshotStoredAfterThreshold() {
         List<Message> events =
                 Arrays.asList(new Message(new CreateModel()), new Message("foo"),
-                              new Message("foo"));
+                        new Message("foo"));
         DeserializingMessage.handleBatch(Stream.of(toDeserializingMessage("command"))).forEach(m -> {
             Aggregate<TestModelForSnapshotting> aggregate = subject.load(aggregateId, TestModelForSnapshotting.class);
             reset(snapshotRepository);
@@ -297,11 +285,35 @@ class EventSourcingRepositoryTest {
         }
     }
 
+    @Test
+    void testNoAccessToPreviousForMutableModel() {
+        Aggregate<TestModel> oldAggregate = applyAndCommit(new Message(new CreateModel()));
+        Aggregate<TestModel> newAggregate = applyAndCommit(new Message(new UpdateModel()));
+        assertNull(oldAggregate.previous());
+        assertNull(newAggregate.previous());
+    }
+
+    @Test
+    void testAccessToPreviousForImmutableModel() {
+        Aggregate<TestModelWithFactoryMethod> oldAggregate = applyAndCommitImmutable(new Message(new CreateModel()));
+        Aggregate<TestModelWithFactoryMethod> newAggregate = applyAndCommitImmutable(new Message(new UpdateModel()));
+        assertNull(oldAggregate.previous());
+        assertNotNull(newAggregate.previous());
+        assertEquals(oldAggregate.get(), newAggregate.previous().get());
+    }
+
     private Aggregate<TestModel> applyAndCommit(Message message) {
         DeserializingMessage.handleBatch(Stream.of(toDeserializingMessage(message)))
                 .forEach(command -> subject.load(aggregateId, TestModel.class).apply(message));
         return subject.load(aggregateId, TestModel.class);
     }
+
+    private Aggregate<TestModelWithFactoryMethod> applyAndCommitImmutable(Message message) {
+        DeserializingMessage.handleBatch(Stream.of(toDeserializingMessage(message)))
+                .forEach(command -> subject.load(aggregateId, TestModelWithFactoryMethod.class).apply(message));
+        return subject.load(aggregateId, TestModelWithFactoryMethod.class);
+    }
+
 
     private Stream<DeserializingMessage> eventStreamOf(Object... payloads) {
         return stream(payloads).map(this::toDeserializingMessage);
@@ -314,8 +326,8 @@ class EventSourcingRepositoryTest {
     private DeserializingMessage toDeserializingMessage(Message message) {
         return new DeserializingMessage(new DeserializingObject<>(
                 new SerializedMessage(new Data<>(new byte[0], message.getPayload().getClass().getName(), 0),
-                                      message.getMetadata(), message.getMessageId(),
-                                      message.getTimestamp().toEpochMilli()), message::getPayload), COMMAND);
+                        message.getMetadata(), message.getMessageId(),
+                        message.getTimestamp().toEpochMilli()), message::getPayload), COMMAND);
     }
 
     @Value
@@ -383,6 +395,11 @@ class EventSourcingRepositoryTest {
     public static class TestModelWithFactoryMethod {
         @ApplyEvent
         public static TestModelWithFactoryMethod handle(CreateModel event) {
+            return new TestModelWithFactoryMethod();
+        }
+
+        @ApplyEvent
+        public TestModelWithFactoryMethod handle(UpdateModel event) {
             return new TestModelWithFactoryMethod();
         }
     }

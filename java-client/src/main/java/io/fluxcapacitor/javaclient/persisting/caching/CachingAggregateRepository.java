@@ -25,11 +25,7 @@ import io.fluxcapacitor.javaclient.modeling.AggregateRepository;
 import io.fluxcapacitor.javaclient.persisting.eventsourcing.EventSourcingHandler;
 import io.fluxcapacitor.javaclient.persisting.eventsourcing.EventSourcingHandlerFactory;
 import io.fluxcapacitor.javaclient.tracking.ConsumerConfiguration;
-import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.NonNull;
-import lombok.RequiredArgsConstructor;
-import lombok.Value;
+import lombok.*;
 import lombok.experimental.Accessors;
 import lombok.extern.slf4j.Slf4j;
 
@@ -120,8 +116,8 @@ public class CachingAggregateRepository implements AggregateRepository {
             return cache.getIfPresent(aggregateId);
         }
         return cache.get(keyFunction.apply(aggregateId), id -> Optional.ofNullable(delegate.load(aggregateId, type))
-                .map(a -> new RefreshingAggregate<>(a.get(), a.lastEventId(), a.timestamp(),
-                                                    RefreshingAggregate.Status.UNVERIFIED))
+                .map(a -> new RefreshingAggregate<>(a.get(), a.previous(), a.lastEventId(), a.timestamp(),
+                        RefreshingAggregate.Status.UNVERIFIED))
                 .orElse(null));
     }
 
@@ -136,7 +132,7 @@ public class CachingAggregateRepository implements AggregateRepository {
                                 handleEvent(m, aggregateId, aggregateType);
                             } catch (Exception e) {
                                 log.error("Failed to handle event for aggregate with id {} of type {}", aggregateId,
-                                          aggregateType, e);
+                                        aggregateType, e);
                             }
                         }
                     });
@@ -151,35 +147,37 @@ public class CachingAggregateRepository implements AggregateRepository {
         }
     }
 
-    protected void handleEvent(DeserializingMessage event, String aggregateId, Class<?> type) {
-        EventSourcingHandler<Object> handler = handlerFactory.forType(type);
+    protected <T> void handleEvent(DeserializingMessage event, String aggregateId, Class<T> type) {
+        EventSourcingHandler<T> handler = handlerFactory.forType(type);
         String cacheKey = keyFunction.apply(aggregateId);
         String eventId = event.getSerializedObject().getMessageId();
         Instant timestamp = ofEpochMilli(event.getSerializedObject().getTimestamp());
-        RefreshingAggregate<?> aggregate = cache.getIfPresent(cacheKey);
+        RefreshingAggregate<T> aggregate = cache.getIfPresent(cacheKey);
 
         if (aggregate == null || aggregate.status == RefreshingAggregate.Status.UNVERIFIED) {
             if (handler.canHandle(null, event)) { //may be the first event for this aggregate
                 try {
-                    aggregate = new RefreshingAggregate<>(handler.invoke(null, event), eventId,
-                                                          timestamp, RefreshingAggregate.Status.IN_SYNC);
+                    aggregate = new RefreshingAggregate<>(handler.invoke(null, event), null, eventId,
+                            timestamp, RefreshingAggregate.Status.IN_SYNC);
                 } catch (Exception ignored) {
                 }
             } else { //otherwise we just don't have it in the cache
                 aggregate =
                         Optional.ofNullable(delegate.load(aggregateId, type)).map(a -> new RefreshingAggregate<>(
-                                a.get(), a.lastEventId(), a.timestamp(), Objects.equals(a.lastEventId(), eventId)
+                                a.get(), a.previous(), a.lastEventId(), a.timestamp(), Objects.equals(a.lastEventId(), eventId)
                                 ? RefreshingAggregate.Status.IN_SYNC : RefreshingAggregate.Status.AHEAD))
                                 .orElseGet(() -> {
                                     log.warn("Delegate repository did not contain aggregate with id {} of type {}",
-                                             aggregateId, type);
+                                            aggregateId, type);
                                     return null;
                                 });
             }
         } else if (aggregate.status == RefreshingAggregate.Status.IN_SYNC) {
             try {
-                aggregate = new RefreshingAggregate<>(handler.invoke(aggregate.get(), event), eventId,
-                                                      timestamp, RefreshingAggregate.Status.IN_SYNC);
+                T before = aggregate.get();
+                T after = handler.invoke(before, event);
+                aggregate = new RefreshingAggregate<>(after, before == null || before == after ? null : aggregate,
+                        eventId, timestamp, RefreshingAggregate.Status.IN_SYNC);
             } catch (Exception e) {
                 log.error("Failed to update aggregate with id {} of type {}", aggregateId, type, e);
                 aggregate = null;
@@ -211,6 +209,7 @@ public class CachingAggregateRepository implements AggregateRepository {
     @Builder(toBuilder = true)
     private static class RefreshingAggregate<T> implements Aggregate<T> {
         T model;
+        Aggregate<T> previous;
         String lastEventId;
         Instant timestamp;
         Status status;

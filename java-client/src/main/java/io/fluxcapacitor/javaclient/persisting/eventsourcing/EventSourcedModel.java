@@ -33,6 +33,7 @@ public class EventSourcedModel<T> implements Aggregate<T> {
     String lastEventId;
     @Builder.Default Instant timestamp = Instant.now();
     T model;
+    EventSourcedModel<T> previous;
 
     @Override
     public T get() {
