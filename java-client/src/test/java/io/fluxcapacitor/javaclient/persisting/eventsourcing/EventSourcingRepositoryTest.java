@@ -286,20 +286,40 @@ class EventSourcingRepositoryTest {
     }
 
     @Test
-    void testNoAccessToPreviousForMutableModel() {
-        Aggregate<TestModel> oldAggregate = applyAndCommit(new Message(new CreateModel()));
-        Aggregate<TestModel> newAggregate = applyAndCommit(new Message(new UpdateModel()));
-        assertNull(oldAggregate.previous());
-        assertNull(newAggregate.previous());
-    }
-
-    @Test
     void testAccessToPreviousForImmutableModel() {
         Aggregate<TestModelWithFactoryMethod> oldAggregate = applyAndCommitImmutable(new Message(new CreateModel()));
         Aggregate<TestModelWithFactoryMethod> newAggregate = applyAndCommitImmutable(new Message(new UpdateModel()));
         assertNull(oldAggregate.previous());
-        assertNotNull(newAggregate.previous());
+        assertNotEquals(oldAggregate.get(), newAggregate.get());
         assertEquals(oldAggregate.get(), newAggregate.previous().get());
+    }
+
+    @Test
+    void testAccessToPreviousForMutableModel() {
+        Aggregate<TestModel> oldAggregate = applyAndCommit(new Message(new CreateModel()));
+        Aggregate<TestModel> newAggregate = applyAndCommit(new Message(new UpdateModel()));
+        assertNull(oldAggregate.previous());
+        assertNotEquals(oldAggregate, newAggregate);
+        assertEquals(oldAggregate.get(), newAggregate.get());
+        assertEquals(oldAggregate.get(), newAggregate.previous().get());
+    }
+
+    @Test
+    void testCannotApplyOnPreviousAggregates() {
+        applyAndCommitImmutable(new Message(new CreateModel()));
+        applyAndCommitImmutable(new Message(new UpdateModel()));
+        assertThrows(UnsupportedOperationException.class, () -> DeserializingMessage.handleBatch(Stream.of(
+                toDeserializingMessage(new Message(new UpdateModel()))))
+                .forEach(command -> subject.load(aggregateId, TestModelWithFactoryMethod.class)
+                        .previous().apply(command.toMessage())));
+    }
+
+
+    @Test
+    void testPlayBackToConditionEndsWithEmptyOptional() {
+        applyAndCommitImmutable(new Message(new CreateModel()));
+        Aggregate<TestModelWithFactoryMethod> aggregate = applyAndCommitImmutable(new Message(new UpdateModel()));
+        assertEquals(Optional.empty(), aggregate.playBackToCondition(a -> false));
     }
 
     private Aggregate<TestModel> applyAndCommit(Message message) {

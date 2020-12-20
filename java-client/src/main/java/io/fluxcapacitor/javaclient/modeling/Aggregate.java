@@ -20,6 +20,7 @@ import io.fluxcapacitor.javaclient.tracking.handling.validation.ValidationUtils;
 
 import java.time.Instant;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.function.Function;
 import java.util.function.Predicate;
 
@@ -36,16 +37,16 @@ public interface Aggregate<T> {
 
     Aggregate<T> previous();
 
-    default Aggregate<T> playBackToEvent(String eventId) {
+    default Optional<Aggregate<T>> playBackToEvent(String eventId) {
         return playBackToCondition(aggregate -> Objects.equals(eventId, aggregate.lastEventId()));
     }
 
-    default Aggregate<T> playBackToCondition(Predicate<Aggregate<T>> condition) {
+    default Optional<Aggregate<T>> playBackToCondition(Predicate<Aggregate<T>> condition) {
         Aggregate<T> result = this;
         while (result != null && !condition.test(result)) {
             result = result.previous();
         }
-        return result;
+        return Optional.ofNullable(result);
     }
 
     Aggregate<T> apply(Message eventMessage);

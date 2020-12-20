@@ -174,9 +174,7 @@ public class CachingAggregateRepository implements AggregateRepository {
             }
         } else if (aggregate.status == RefreshingAggregate.Status.IN_SYNC) {
             try {
-                T before = aggregate.get();
-                T after = handler.invoke(before, event);
-                aggregate = new RefreshingAggregate<>(after, before == null || before == after ? null : aggregate,
+                aggregate = new RefreshingAggregate<>(handler.invoke(aggregate.get(), event), aggregate,
                         eventId, timestamp, RefreshingAggregate.Status.IN_SYNC);
             } catch (Exception e) {
                 log.error("Failed to update aggregate with id {} of type {}", aggregateId, type, e);
