@@ -46,11 +46,25 @@ import static io.fluxcapacitor.common.MessageType.COMMAND;
 import static io.fluxcapacitor.javaclient.modeling.AssertLegal.HIGHEST_PRIORITY;
 import static java.util.Arrays.stream;
 import static java.util.Collections.singletonList;
-import static org.junit.jupiter.api.Assertions.*;
-import static org.mockito.ArgumentMatchers.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.fail;
+import static org.mockito.ArgumentMatchers.anyList;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.Mockito.anyLong;
 import static org.mockito.Mockito.eq;
-import static org.mockito.Mockito.*;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.reset;
+import static org.mockito.Mockito.spy;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
+import static org.mockito.Mockito.verifyNoMoreInteractions;
+import static org.mockito.Mockito.when;
 
 @Slf4j
 class EventSourcingRepositoryTest {
@@ -84,11 +98,12 @@ class EventSourcingRepositoryTest {
         verifyNoMoreInteractions(eventStore);
     }
 
+    @SuppressWarnings({"unchecked", "rawtypes"})
     @Test
     void testModelIsLoadedFromSnapshotWhenPossible() {
         when(snapshotRepository.getSnapshot(aggregateId))
-                .thenReturn(Optional.of(new EventSourcedModel<>(
-                        aggregateId, 0L, null, null, new TestModel(new CreateModel()), null)));
+                .thenReturn(Optional.of(new EventSourcedModel(
+                        aggregateId, TestModel.class, 0L, null, null, new TestModel(new CreateModel()), null)));
         Aggregate<TestModel> aggregate = subject.load(aggregateId, TestModel.class);
         assertEquals(singletonList(new CreateModel()), aggregate.get().events);
     }
@@ -289,7 +304,8 @@ class EventSourcingRepositoryTest {
     void testAccessToPreviousForImmutableModel() {
         Aggregate<TestModelWithFactoryMethod> oldAggregate = applyAndCommitImmutable(new Message(new CreateModel()));
         Aggregate<TestModelWithFactoryMethod> newAggregate = applyAndCommitImmutable(new Message(new UpdateModel()));
-        assertNull(oldAggregate.previous());
+        assertNull(oldAggregate.previous().get());
+        assertNull(oldAggregate.previous().previous());
         assertNotEquals(oldAggregate.get(), newAggregate.get());
         assertEquals(oldAggregate.get(), newAggregate.previous().get());
     }
@@ -298,7 +314,8 @@ class EventSourcingRepositoryTest {
     void testAccessToPreviousForMutableModel() {
         Aggregate<TestModel> oldAggregate = applyAndCommit(new Message(new CreateModel()));
         Aggregate<TestModel> newAggregate = applyAndCommit(new Message(new UpdateModel()));
-        assertNull(oldAggregate.previous());
+        assertNull(oldAggregate.previous().get());
+        assertNull(oldAggregate.previous().previous());
         assertNotEquals(oldAggregate, newAggregate);
         assertEquals(oldAggregate.get(), newAggregate.get());
         assertEquals(oldAggregate.get(), newAggregate.previous().get());

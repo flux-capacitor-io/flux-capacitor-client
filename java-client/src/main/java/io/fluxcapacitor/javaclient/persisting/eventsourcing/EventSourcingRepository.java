@@ -29,13 +29,20 @@ import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
 
 import java.time.Instant;
-import java.util.*;
+import java.util.ArrayDeque;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Function;
 
 import static io.fluxcapacitor.common.MessageType.COMMAND;
 import static io.fluxcapacitor.common.MessageType.EVENT;
-import static io.fluxcapacitor.javaclient.common.serialization.DeserializingMessage.*;
+import static io.fluxcapacitor.javaclient.common.serialization.DeserializingMessage.defaultParameterResolvers;
+import static io.fluxcapacitor.javaclient.common.serialization.DeserializingMessage.whenBatchCompletes;
+import static io.fluxcapacitor.javaclient.common.serialization.DeserializingMessage.whenMessageCompletes;
 import static java.lang.String.format;
 import static java.util.Collections.asLifoQueue;
 import static java.util.Collections.emptyList;
@@ -163,9 +170,11 @@ public class EventSourcingRepository implements AggregateRepository {
                         for (DeserializingMessage event : eventStore.getDomainEvents(id, model.sequenceNumber())
                                 .collect(toList())) {
                             model = model.toBuilder().sequenceNumber(model.sequenceNumber() + 1)
-                                    .lastEventId(event.getSerializedObject().getMessageId())
+                                    .type(aggregateType).id(id).lastEventId(event.getSerializedObject().getMessageId())
                                     .timestamp(Instant.ofEpochMilli(event.getSerializedObject().getTimestamp()))
-                                    .model(eventSourcingHandler.invoke(model.get(), event)).build();
+                                    .model(eventSourcingHandler.invoke(model.get(), event))
+                                    .previous(model)
+                                    .build();
                         }
                         return model;
                     });
@@ -194,8 +203,8 @@ public class EventSourcingRepository implements AggregateRepository {
 
             model = model.toBuilder().sequenceNumber(model.sequenceNumber() + 1)
                     .model(eventSourcingHandler.invoke(model.get(), deserializingMessage))
-                    .previous(model.get()==null && model.previous()==null ? null : model)
-                    .lastEventId(eventMessage.getMessageId()).timestamp(eventMessage.getTimestamp()).build();
+                    .previous(model).lastEventId(eventMessage.getMessageId()).timestamp(eventMessage.getTimestamp())
+                    .build();
 
             unpublishedEvents.add(deserializingMessage);
 
@@ -249,6 +258,16 @@ public class EventSourcingRepository implements AggregateRepository {
         @Override
         public Instant timestamp() {
             return model.timestamp();
+        }
+
+        @Override
+        public String id() {
+            return id;
+        }
+
+        @Override
+        public Class<T> type() {
+            return aggregateType;
         }
 
         protected Awaitable commit() {

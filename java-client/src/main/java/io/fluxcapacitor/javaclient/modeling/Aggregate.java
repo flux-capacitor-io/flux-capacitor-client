@@ -24,10 +24,16 @@ import java.util.Optional;
 import java.util.function.Function;
 import java.util.function.Predicate;
 
+import static java.lang.String.format;
+
 public interface Aggregate<T> {
 
     String AGGREGATE_ID_METADATA_KEY = "$aggregateId";
     String AGGREGATE_TYPE_METADATA_KEY = "$aggregateType";
+
+    String id();
+
+    Class<T> type();
 
     T get();
 
@@ -37,8 +43,10 @@ public interface Aggregate<T> {
 
     Aggregate<T> previous();
 
-    default Optional<Aggregate<T>> playBackToEvent(String eventId) {
-        return playBackToCondition(aggregate -> Objects.equals(eventId, aggregate.lastEventId()));
+    default Aggregate<T> playBackToEvent(String eventId) {
+        return playBackToCondition(aggregate -> Objects.equals(eventId, aggregate.lastEventId()))
+                .orElseThrow(() -> new IllegalStateException(format(
+                        "Could not load aggregate %s of type %s for event %s", id(), type().getSimpleName(), eventId)));
     }
 
     default Optional<Aggregate<T>> playBackToCondition(Predicate<Aggregate<T>> condition) {

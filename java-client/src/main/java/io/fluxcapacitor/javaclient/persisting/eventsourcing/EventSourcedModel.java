@@ -29,6 +29,7 @@ import static java.lang.String.format;
 @Accessors(fluent = true)
 public class EventSourcedModel<T> implements Aggregate<T> {
     String id;
+    Class<T> type;
     @Builder.Default long sequenceNumber = -1L;
     String lastEventId;
     @Builder.Default Instant timestamp = Instant.now();
