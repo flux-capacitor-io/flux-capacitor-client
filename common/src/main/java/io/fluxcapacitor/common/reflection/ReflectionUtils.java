@@ -49,6 +49,7 @@ import static java.security.AccessController.doPrivileged;
 import static java.util.Collections.emptyList;
 import static java.util.stream.Collectors.toList;
 import static org.apache.commons.lang3.ClassUtils.getAllInterfaces;
+import static org.apache.commons.lang3.StringUtils.isBlank;
 import static org.apache.commons.lang3.StringUtils.isEmpty;
 import static org.apache.commons.lang3.reflect.MethodUtils.getMethodsListWithAnnotation;
 
@@ -172,7 +173,7 @@ public class ReflectionUtils {
     }
 
     public static Object getProperty(String fieldOrMethod, Object target) {
-        if (target == null) {
+        if (target == null || isBlank(fieldOrMethod)) {
             return null;
         }
         AccessibleObject accessibleObject = propertiesCache.apply(target.getClass()).get(fieldOrMethod);
@@ -197,12 +198,26 @@ public class ReflectionUtils {
 
     public static Class<?> getCollectionElementType(Type parameterizedType) {
         if (parameterizedType instanceof ParameterizedType) {
-            Type elementType = ((ParameterizedType) parameterizedType).getActualTypeArguments()[0];
-            if (elementType instanceof WildcardType) {
-                Type[] upperBounds = ((WildcardType) elementType).getUpperBounds();
-                elementType = upperBounds.length > 0 ? upperBounds[0] : null;
+            Type rawType = ((ParameterizedType) parameterizedType).getRawType();
+            if (rawType instanceof Class<?>) {
+                if (Map.class.isAssignableFrom((Class<?>) rawType)) {
+                    Type elementType = ((ParameterizedType) parameterizedType).getActualTypeArguments()[1];
+                    if (elementType instanceof WildcardType) {
+                        Type[] upperBounds = ((WildcardType) elementType).getUpperBounds();
+                        elementType = upperBounds.length > 0 ? upperBounds[0] : null;
+                    }
+                    return elementType instanceof Class<?> ? (Class<?>) elementType : Object.class;
+                } else if (Iterable.class.isAssignableFrom((Class<?>) rawType)) {
+                    Type elementType = ((ParameterizedType) parameterizedType).getActualTypeArguments()[0];
+                    if (elementType instanceof WildcardType) {
+                        Type[] upperBounds = ((WildcardType) elementType).getUpperBounds();
+                        elementType = upperBounds.length > 0 ? upperBounds[0] : null;
+                    }
+                    return elementType instanceof Class<?> ? (Class<?>) elementType : Object.class;
+                }
             }
-            return elementType instanceof Class<?> ? (Class<?>) elementType : Object.class;
+        } else if (parameterizedType instanceof Class<?>) {
+            return (Class<?>) parameterizedType;
         }
         return Object.class;
     }
