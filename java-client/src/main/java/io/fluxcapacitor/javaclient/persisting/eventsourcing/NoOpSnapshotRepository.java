@@ -20,7 +20,7 @@ public enum NoOpSnapshotRepository implements SnapshotRepository {
     INSTANCE;
 
     @Override
-    public void storeSnapshot(EventSourcedModel<?> snapshot) {
+    public <T> void storeSnapshot(EventSourcedModel<T> snapshot) {
         //no op
     }
 
