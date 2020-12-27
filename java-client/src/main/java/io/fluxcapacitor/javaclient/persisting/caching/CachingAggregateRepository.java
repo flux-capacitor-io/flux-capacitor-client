@@ -117,10 +117,10 @@ public class CachingAggregateRepository implements AggregateRepository {
             }
         }
         if (onlyCached) {
-            return cache.getIfPresent(aggregateId);
+            return cache.getIfPresent(keyFunction.apply(aggregateId));
         }
-        return cache.get(keyFunction.apply(aggregateId), id -> Optional.ofNullable(delegate.load(aggregateId, type))
-                .map(a -> new RefreshingAggregate<>(a.get(), id, type, a.previous(), a.lastEventId(), a.timestamp(),
+        return cache.get(keyFunction.apply(aggregateId), cacheKey -> Optional.ofNullable(delegate.load(aggregateId, type))
+                .map(a -> new RefreshingAggregate<>(a.get(), aggregateId, type, a.previous(), a.lastEventId(), a.timestamp(),
                                                     RefreshingAggregate.Status.UNVERIFIED))
                 .orElse(null));
     }

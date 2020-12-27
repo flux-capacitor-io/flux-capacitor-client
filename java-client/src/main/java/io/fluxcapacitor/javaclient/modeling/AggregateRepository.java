@@ -14,13 +14,7 @@
 
 package io.fluxcapacitor.javaclient.modeling;
 
-import io.fluxcapacitor.javaclient.common.serialization.DeserializingMessage;
 import io.fluxcapacitor.javaclient.persisting.eventsourcing.EventSourced;
-
-import static io.fluxcapacitor.common.MessageType.EVENT;
-import static io.fluxcapacitor.common.MessageType.NOTIFICATION;
-import static io.fluxcapacitor.javaclient.modeling.AggregateIdResolver.getAggregateId;
-import static io.fluxcapacitor.javaclient.modeling.AggregateTypeResolver.getAggregateType;
 
 public interface AggregateRepository {
 
@@ -30,20 +24,11 @@ public interface AggregateRepository {
 
     /**
      * Loads the aggregate root of type {@code <T>} with given id.
-     * <p>
-     * If the aggregate is loaded while handling an event of the aggregate, the returned Aggregate will automatically be
-     * replayed back to event currently being handled. Otherwise, the most recent state of the aggregate is loaded.
      *
      * @see EventSourced for more info on how to define an event sourced aggregate root
      */
     default <T> Aggregate<T> load(String aggregateId, Class<T> aggregateType) {
-        Aggregate<T> result = load(aggregateId, aggregateType, false);
-        DeserializingMessage message = DeserializingMessage.getCurrent();
-        if (message != null && (message.getMessageType() == EVENT || message.getMessageType() == NOTIFICATION)
-                && aggregateId.equals(getAggregateId(message)) && aggregateType.equals(getAggregateType(message))) {
-            return result.playBackToEvent(message.getSerializedObject().getMessageId());
-        }
-        return result;
+        return load(aggregateId, aggregateType, false);
     }
 
     <T> Aggregate<T> load(String aggregateId, Class<T> aggregateType, boolean onlyCached);
