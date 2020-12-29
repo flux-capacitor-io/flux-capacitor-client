@@ -14,6 +14,7 @@
 
 package io.fluxcapacitor.javaclient.common.serialization.upcasting;
 
+import com.fasterxml.jackson.databind.JsonNode;
 import io.fluxcapacitor.common.api.Data;
 import io.fluxcapacitor.common.api.SerializedObject;
 import io.fluxcapacitor.javaclient.common.serialization.SerializationException;
@@ -22,11 +23,7 @@ import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.Comparator;
-import java.util.List;
-import java.util.Optional;
+import java.util.*;
 import java.util.function.BiFunction;
 import java.util.function.Function;
 import java.util.function.Supplier;
@@ -45,24 +42,24 @@ public class UpcastInspector {
         return getAllMethods(type).stream().anyMatch(m -> m.isAnnotationPresent(Upcast.class));
     }
 
-    public static <T> List<AnnotatedUpcaster<T>> inspect(Collection<?> upcasters, Class<T> dataType) {
+    public static <T> List<AnnotatedUpcaster<T>> inspect(Collection<?> upcasters, Converter<T> converter) {
         List<AnnotatedUpcaster<T>> result = new ArrayList<>();
         for (Object upcaster : upcasters) {
             getAllMethods(upcaster.getClass()).stream().filter(m -> m.isAnnotationPresent(Upcast.class))
-                    .forEach(m -> result.add(createUpcaster(m, upcaster, dataType)));
+                    .forEach(m -> result.add(createUpcaster(m, upcaster, converter)));
         }
         result.sort(upcasterComparator);
         return result;
     }
 
-    private static <T> AnnotatedUpcaster<T> createUpcaster(Method method, Object target, Class<T> dataType) {
+    private static <T> AnnotatedUpcaster<T> createUpcaster(Method method, Object target, Converter<T> converter) {
         if (method.getReturnType().equals(void.class)) {
             return new AnnotatedUpcaster<>(method, i -> Stream.empty());
         }
         method = ensureAccessible(method);
-        Function<SerializedObject<T, ?>, Object> invokeFunction = invokeFunction(method, target, dataType);
+        Function<SerializedObject<T, ?>, Object> invokeFunction = invokeFunction(method, target, converter.getDataType());
         BiFunction<SerializedObject<T, ?>, Supplier<Object>, Stream<SerializedObject<T, ?>>> resultMapper =
-                mapResult(method, dataType);
+                mapResult(method, converter);
         return new AnnotatedUpcaster<>(method, d -> resultMapper.apply(d, () -> invokeFunction.apply(d)));
     }
 
@@ -72,7 +69,7 @@ public class UpcastInspector {
         if (parameters.length != 1) {
             throw new SerializationException(
                     String.format("Upcaster method '%s' has unexpected number of parameters. Expected 1 or 0.",
-                                  method));
+                            method));
         }
         if (parameters[0] instanceof ParameterizedType) {
             ParameterizedType parameterizedType = (ParameterizedType) parameters[0];
@@ -103,11 +100,18 @@ public class UpcastInspector {
 
     @SuppressWarnings("unchecked")
     private static <T> BiFunction<SerializedObject<T, ?>, Supplier<Object>, Stream<SerializedObject<T, ?>>> mapResult(
-            Method method, Class<T> dataType) {
+            Method method, Converter<T> converter) {
+        Class<T> dataType = converter.getDataType();
         if (dataType.isAssignableFrom(method.getReturnType())) {
             Upcast annotation = method.getAnnotation(Upcast.class);
             return (s, o) -> Stream
                     .of(s.withData(new Data<>((Supplier<T>) o, annotation.type(), annotation.revision() + 1)));
+        }
+        if (converter.canApplyPatch(method.getReturnType())) {
+            Upcast annotation = method.getAnnotation(Upcast.class);
+            return (s, o) -> Stream
+                    .of(s.withData(new Data<>((Supplier<T>) converter.applyPatch(s, o, method.getReturnType()),
+                            annotation.type(), annotation.revision() + 1)));
         }
         if (method.getReturnType().equals(Data.class)) {
             return (s, o) -> Stream.of(s.withData((Data<T>) o.get()));
@@ -136,9 +140,11 @@ public class UpcastInspector {
         if (method.getReturnType().equals(Stream.class)) {
             return (s, o) -> ((Stream<Data<T>>) o.get()).map(s::withData);
         }
+
         throw new SerializationException(String.format(
-                "Unexpected return type of upcaster method '%s'. Expected Data<%s>, %s, Optional<Data<%s>>, Optional<%s>, Stream<Data<%s>> or void",
+                "Unexpected return type of upcaster method '%s'. Expected Data<%s>, %s, Optional<Data<%s>>, Optional<%s>, Stream<Data<%s>>%s or void",
                 method, dataType.getName(), dataType.getName(), dataType.getName(), dataType.getName(),
-                dataType.getName()));
+                dataType.getName(), dataType.isAssignableFrom(JsonNode.class) ? ", JsonPatch" : ""));
     }
+
 }

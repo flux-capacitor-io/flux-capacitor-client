@@ -1,0 +1,4 @@
+{
+  "@class": "io.fluxcapacitor.javaclient.common.serialization.upcasting.GivenWhenThenUpcasterChainTest$WithJsonPatch$CreateModel",
+  "content": "someContent"
+}

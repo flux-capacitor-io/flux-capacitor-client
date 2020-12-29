@@ -94,6 +94,13 @@
             <version>${spring.version}</version>
             <scope>test</scope>
         </dependency>
+
+        <!--json patch-->
+        <dependency>
+            <groupId>com.github.fge</groupId>
+            <artifactId>json-patch</artifactId>
+            <version>1.9</version>
+        </dependency>
     </dependencies>
 
     <build>
