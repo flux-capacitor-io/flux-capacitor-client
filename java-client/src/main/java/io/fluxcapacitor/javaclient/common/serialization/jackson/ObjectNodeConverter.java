@@ -57,10 +57,10 @@ public class ObjectNodeConverter implements Converter<JsonNode> {
 
     @Override
     public Supplier<?> applyPatch(SerializedObject<JsonNode, ?> s, Supplier<?> o, Class<?> type) {
-        if (type.equals(JsonPatch.class)) {
-            return () -> applyJsonPatch(s, o);
+        if(!canApplyPatch(type)){
+            Converter.super.applyPatch(s,o,type);
         }
-        return o;
+        return () -> applyJsonPatch(s, o);
     }
 
     @SneakyThrows

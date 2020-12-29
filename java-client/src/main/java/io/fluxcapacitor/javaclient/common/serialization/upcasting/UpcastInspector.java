@@ -66,10 +66,13 @@ public class UpcastInspector {
     private static <T> Function<SerializedObject<T, ?>, Object> invokeFunction(Method method, Object target,
                                                                                Class<T> dataType) {
         Type[] parameters = method.getGenericParameterTypes();
-        if (parameters.length != 1) {
+        if (parameters.length > 1) {
             throw new SerializationException(
                     String.format("Upcaster method '%s' has unexpected number of parameters. Expected 1 or 0.",
                             method));
+        }
+        if (parameters.length == 0) {
+            return s -> invokeMethod(method, null, target);
         }
         if (parameters[0] instanceof ParameterizedType) {
             ParameterizedType parameterizedType = (ParameterizedType) parameters[0];
@@ -90,7 +93,7 @@ public class UpcastInspector {
 
     private static Object invokeMethod(Method method, Object argument, Object target) {
         try {
-            return method.invoke(target, argument);
+            return argument==null? method.invoke(target) : method.invoke(target, argument);
         } catch (IllegalAccessException e) {
             throw new SerializationException("Not allowed to invoke method: " + method, e);
         } catch (InvocationTargetException e) {
