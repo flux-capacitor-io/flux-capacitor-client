@@ -52,7 +52,6 @@ import java.util.stream.Stream;
 import static io.fluxcapacitor.common.MessageType.EVENT;
 import static io.fluxcapacitor.common.MessageType.NOTIFICATION;
 import static io.fluxcapacitor.javaclient.modeling.AggregateIdResolver.getAggregateId;
-import static io.fluxcapacitor.javaclient.modeling.AggregateTypeResolver.getAggregateType;
 import static java.util.Arrays.stream;
 
 /**
@@ -241,7 +240,7 @@ public interface FluxCapacitor extends AutoCloseable {
         Aggregate<T> result = get().aggregateRepository().load(id, aggregateType);
         DeserializingMessage message = DeserializingMessage.getCurrent();
         if (message != null && (message.getMessageType() == EVENT || message.getMessageType() == NOTIFICATION)
-                && id.equals(getAggregateId(message)) && aggregateType.equals(getAggregateType(message))) {
+                && id.equals(getAggregateId(message))) {
             return result.playBackToEvent(message.getSerializedObject().getMessageId());
         }
         return result;
