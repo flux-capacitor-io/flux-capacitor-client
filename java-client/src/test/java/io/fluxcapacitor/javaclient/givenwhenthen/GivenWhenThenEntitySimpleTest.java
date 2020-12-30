@@ -15,6 +15,7 @@
 package io.fluxcapacitor.javaclient.givenwhenthen;
 
 import io.fluxcapacitor.javaclient.FluxCapacitor;
+import io.fluxcapacitor.javaclient.MockException;
 import io.fluxcapacitor.javaclient.modeling.AssertLegal;
 import io.fluxcapacitor.javaclient.modeling.Entity;
 import io.fluxcapacitor.javaclient.modeling.EntityId;
@@ -26,17 +27,20 @@ import lombok.Builder;
 import lombok.Singular;
 import lombok.Value;
 import lombok.With;
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
 
-public class GivenWhenThenEntityTest {
-    private static final String parentId = "parent", childId = "child", grandChild1Id = "grandChild1",
-            grandChild2Id = "grandChild2";
+@Disabled("disabled while working on this feature")
+public class GivenWhenThenEntitySimpleTest {
+    private static final String parentId = "parent", childId = "child",
+            grandChild1Id = "grandChild1", grandChild2Id = "grandChild2";
     private static final CreateParent createParent = new CreateParent(parentId);
     private static final CreateChild createChild = new CreateChild(childId);
-
-    private final TestFixture testFixture = TestFixture.create(new Handler());
+    private static final UpdateChild updateChild = new UpdateChild(childId);
+    private static final RemoveChild removeChild = new RemoveChild(childId);
+    private static final TestFixture testFixture = TestFixture.create(new Handler());
 
     @Test
     void testCreateParent() {
@@ -49,9 +53,30 @@ public class GivenWhenThenEntityTest {
     }
 
     @Test
-    void testCreateChildTwiceForbidden() {
-        testFixture.givenCommands(createParent, createChild).whenCommand(createChild).expectException();
+    void testCreateChildWithoutParentForbidden() {
+        testFixture.whenCommand(createChild).expectException(MockException.class);
     }
+
+    @Test
+    void testCreateChildTwiceForbidden() {
+        testFixture.givenCommands(createParent, createChild).whenCommand(createChild).expectException(MockException.class);
+    }
+
+    @Test
+    void testUpdateChild() {
+        testFixture.givenCommands(createParent, createChild).whenCommand(updateChild).expectOnlyEvents(updateChild);
+    }
+
+    @Test
+    void testRemoveChild() {
+        testFixture.givenCommands(createParent, createChild, updateChild).whenCommand(removeChild).expectOnlyEvents(removeChild);
+    }
+
+    @Test
+    void testCreateChildAfterRemove() {
+        testFixture.givenCommands(createParent, createChild, removeChild).whenCommand(createChild).expectOnlyEvents(createChild);
+    }
+
 
     private static class Handler {
         @HandleCommand
@@ -73,6 +98,7 @@ public class GivenWhenThenEntityTest {
             return toBuilder().child(child).build();
         }
     }
+
 
     @Value
     @Builder(toBuilder = true)
@@ -104,6 +130,7 @@ public class GivenWhenThenEntityTest {
         }
     }
 
+
     @Value
     private static class CreateChild {
         String id;
@@ -111,14 +138,14 @@ public class GivenWhenThenEntityTest {
         @AssertLegal
         void hasParent(Parent parent) {
             if (parent == null) {
-                throw new IllegalStateException();
+                throw new MockException();
             }
         }
 
         @AssertLegal
         void doesNotExist(Child child) {
             if (child != null) {
-                throw new IllegalStateException();
+                throw new MockException();
             }
         }
 
@@ -129,13 +156,35 @@ public class GivenWhenThenEntityTest {
     }
 
     @Value
+    private static class UpdateChild {
+        String id;
+
+        @Apply
+        Child apply(Child child) {
+            return child.toBuilder().id(id).build();
+        }
+    }
+
+
+    @Value
+    private static class RemoveChild {
+        String id;
+
+        @Apply
+        Child apply(Child child) {
+            return null;
+        }
+    }
+
+
+    @Value
     private static class CreateGrandChild {
         String id;
 
         @AssertLegal
         void doesNotExists(GrandChild entity) {
             if (entity != null) {
-                throw new IllegalStateException();
+                throw new MockException();
             }
         }
 
@@ -152,7 +201,7 @@ public class GivenWhenThenEntityTest {
         @AssertLegal
         void exists(GrandChild entity) {
             if (entity == null) {
-                throw new IllegalStateException();
+                throw new MockException();
             }
         }
 
