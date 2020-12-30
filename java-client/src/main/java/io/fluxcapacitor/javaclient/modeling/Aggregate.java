@@ -19,19 +19,43 @@ import io.fluxcapacitor.javaclient.common.Message;
 import io.fluxcapacitor.javaclient.tracking.handling.validation.ValidationUtils;
 
 import java.time.Instant;
+import java.util.Objects;
+import java.util.Optional;
 import java.util.function.Function;
 import java.util.function.Predicate;
+
+import static java.lang.String.format;
 
 public interface Aggregate<T> {
 
     String AGGREGATE_ID_METADATA_KEY = "$aggregateId";
     String AGGREGATE_TYPE_METADATA_KEY = "$aggregateType";
 
+    String id();
+
+    Class<T> type();
+
     T get();
 
     String lastEventId();
 
     Instant timestamp();
+
+    Aggregate<T> previous();
+
+    default Aggregate<T> playBackToEvent(String eventId) {
+        return playBackToCondition(aggregate -> Objects.equals(eventId, aggregate.lastEventId()))
+                .orElseThrow(() -> new IllegalStateException(format(
+                        "Could not load aggregate %s of type %s for event %s", id(), type().getSimpleName(), eventId)));
+    }
+
+    default Optional<Aggregate<T>> playBackToCondition(Predicate<Aggregate<T>> condition) {
+        Aggregate<T> result = this;
+        while (result != null && !condition.test(result)) {
+            result = result.previous();
+        }
+        return Optional.ofNullable(result);
+    }
 
     Aggregate<T> apply(Message eventMessage);
 
@@ -46,6 +70,7 @@ public interface Aggregate<T> {
     default Aggregate<T> apply(Function<T, Message> eventFunction) {
         return apply(eventFunction.apply(get()));
     }
+
 
     default <E extends Exception> Aggregate<T> assertLegal(Object command) throws E {
         ValidationUtils.assertLegal(command, get());

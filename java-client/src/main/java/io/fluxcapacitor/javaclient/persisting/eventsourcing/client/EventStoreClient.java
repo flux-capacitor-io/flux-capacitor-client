@@ -16,21 +16,20 @@ package io.fluxcapacitor.javaclient.persisting.eventsourcing.client;
 
 import io.fluxcapacitor.common.Awaitable;
 import io.fluxcapacitor.common.api.SerializedMessage;
+import io.fluxcapacitor.javaclient.persisting.eventsourcing.AggregateEventStream;
 
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
-import java.util.stream.Stream;
 
 public interface EventStoreClient extends AutoCloseable {
 
-    Awaitable storeEvents(String aggregateId, String domain, long lastSequenceNumber,
-                          List<SerializedMessage> events);
+    Awaitable storeEvents(String aggregateId, String domain, long lastSequenceNumber, List<SerializedMessage> events);
 
-    default Stream<SerializedMessage> getEvents(String aggregateId) {
+    default AggregateEventStream<SerializedMessage> getEvents(String aggregateId) {
         return getEvents(aggregateId, -1L);
     }
 
-    Stream<SerializedMessage> getEvents(String aggregateId, long lastSequenceNumber);
+    AggregateEventStream<SerializedMessage> getEvents(String aggregateId, long lastSequenceNumber);
 
     CompletableFuture<Boolean> deleteEvents(String aggregateId);
 

@@ -18,7 +18,7 @@ import java.util.Optional;
 
 public interface SnapshotRepository {
 
-    void storeSnapshot(EventSourcedModel<?> snapshot);
+    <T> void storeSnapshot(EventSourcedModel<T> snapshot);
 
     <T> Optional<EventSourcedModel<T>> getSnapshot(String aggregateId);
 

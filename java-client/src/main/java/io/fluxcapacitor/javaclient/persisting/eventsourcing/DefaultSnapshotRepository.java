@@ -33,18 +33,23 @@ public class DefaultSnapshotRepository implements SnapshotRepository {
     private final Serializer serializer;
 
     @Override
-    public void storeSnapshot(EventSourcedModel<?> snapshot) {
+    public <T> void storeSnapshot(EventSourcedModel<T> snapshot) {
         try {
-            keyValueClient.putValue(snapshotKey(snapshot.id()), serializer.serialize(snapshot), Guarantee.SENT);
+            keyValueClient.putValue(snapshotKey(snapshot.id()), Optional.of(snapshot)
+                    .map(s -> new SnapshotModel<>(s.id(), s.type(), s.sequenceNumber(), s.lastEventId(), s.timestamp(), s.model()))
+                    .map(serializer::serialize).orElse(null), Guarantee.SENT);
         } catch (Exception e) {
             throw new EventSourcingException(format("Failed to store a snapshot: %s", snapshot), e);
         }
     }
 
     @Override
+    @SuppressWarnings("unchecked")
     public <T> Optional<EventSourcedModel<T>> getSnapshot(String aggregateId) {
         try {
-            return Optional.ofNullable(keyValueClient.getValue(snapshotKey(aggregateId))).map(serializer::deserialize);
+            return Optional.ofNullable(keyValueClient.getValue(snapshotKey(aggregateId)))
+                    .map(serializer::deserialize).map(s -> (SnapshotModel<T>) s)
+                    .map(s -> new EventSourcedModel<>(s.id(), s.type(), s.sequenceNumber(), s.lastEventId(), s.timestamp(), s.model(), null));
         } catch (SerializationException e) {
             log.warn("Failed to deserialize snapshot for {}. Deleting snapshot.", aggregateId, e);
             deleteSnapshot(aggregateId);

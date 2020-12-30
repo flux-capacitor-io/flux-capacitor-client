@@ -28,22 +28,19 @@ import java.util.stream.Stream;
 import static java.util.Collections.emptyList;
 import static java.util.Collections.singletonList;
 import static java.util.stream.Collectors.toList;
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.*;
 
 class UpcasterChainTest {
 
-    private UpcasterStub upcasterStub = new UpcasterStub();
-    private Upcaster<Data<String>> subject = UpcasterChain.create(Collections.singleton(upcasterStub), String.class);
+    private final UpcasterStub upcasterStub = new UpcasterStub();
+    private Upcaster<Data<String>> subject = UpcasterChain.createChain(Collections.singleton(upcasterStub), new StringConverter());
 
     @Test
     void testMappingPayload() {
         Data<String> input = new Data<>("input", "mapPayload", 0);
         Stream<Data<String>> result = subject.upcast(Stream.of(input));
         assertEquals(singletonList(new Data<>(upcasterStub.mapPayload(input.getValue()), "mapPayload", 1)),
-                     result.collect(toList()));
+                result.collect(toList()));
     }
 
     @Test
@@ -116,7 +113,7 @@ class UpcasterChainTest {
     @Test
     void testChainingWithMultipleClasses() {
         NonConflictingUpcaster nonConflictingUpcaster = new NonConflictingUpcaster();
-        subject = UpcasterChain.create(Arrays.asList(upcasterStub, nonConflictingUpcaster), String.class);
+        subject = UpcasterChain.createChain(Arrays.asList(upcasterStub, nonConflictingUpcaster), new StringConverter());
         Data<String> input = new Data<>("input", "chainStart", 0);
         Stream<Data<String>> result = subject.upcast(Stream.of(input));
         assertEquals(singletonList(nonConflictingUpcaster.chainEnd(input)), result.collect(toList()));
@@ -151,7 +148,7 @@ class UpcasterChainTest {
         Stream<SerializedObject<byte[], ?>> result =
                 subject.upcast(Stream.of(new Data<>("input".getBytes(), "mapPayload", 0)));
         assertEquals(singletonList(new Data<>("mappedPayload".getBytes(), "mapPayload", 1)),
-                     result.map(SerializedObject::data).collect(toList()));
+                result.map(SerializedObject::data).collect(toList()));
     }
 
     /*
@@ -160,12 +157,12 @@ class UpcasterChainTest {
 
     @Test
     void testExceptionForUpcasterWithUnexpectedDataType() {
-        assertThrows(SerializationException.class, () -> UpcasterChain.create(Collections.singleton(upcasterStub), byte[].class));
+        assertThrows(SerializationException.class, () -> UpcasterChain.createChain(Collections.singleton(upcasterStub), new NoConverter()));
     }
 
     @Test
     void testExceptionForConflictingUpcasters() {
-        assertThrows(SerializationException.class, () -> UpcasterChain.create(Arrays.asList(upcasterStub, new ConflictingUpcaster()), String.class));
+        assertThrows(SerializationException.class, () -> UpcasterChain.createChain(Arrays.asList(upcasterStub, new ConflictingUpcaster()), new StringConverter()));
     }
 
     /*
@@ -176,7 +173,7 @@ class UpcasterChainTest {
     void testLazyUpcasting() {
         MonitoringUpcaster upcaster = new MonitoringUpcaster();
         Upcaster<Data<String>> subject =
-                UpcasterChain.create(Collections.singletonList(upcaster), String.class);
+                UpcasterChain.createChain(Collections.singletonList(upcaster), new StringConverter());
         Stream<Data<String>> resultStream = subject.upcast(Stream.of(new Data<>("foo", "upcastLazily", 0)));
         Data<String> result = resultStream.collect(toList()).get(0);
         assertFalse(upcaster.isInvoked());
@@ -218,7 +215,7 @@ class UpcasterChainTest {
         @Upcast(type = "splitData", revision = 0)
         public Stream<Data<String>> splitData(Data<String> input) {
             return Stream.of(new Data<>(input.getValue(), input.getType(), input.getRevision() + 1),
-                             new Data<>("someOtherValue", "someOtherType", 9));
+                    new Data<>("someOtherValue", "someOtherType", 9));
         }
 
         @Upcast(type = "chainStart", revision = 0)
@@ -290,5 +287,25 @@ class UpcasterChainTest {
             return String.class;
         }
     }
+
+
+    private static class NoConverter implements Converter<byte[]> {
+
+        @Override
+        public byte[] convert(byte[] bytes) {
+            return bytes;
+        }
+
+        @Override
+        public byte[] convertBack(byte[] bytes) {
+            return bytes;
+        }
+
+        @Override
+        public Class<byte[]> getDataType() {
+            return byte[].class;
+        }
+    }
+
 
 }

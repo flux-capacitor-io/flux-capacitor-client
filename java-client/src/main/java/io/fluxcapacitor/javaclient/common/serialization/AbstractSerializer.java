@@ -38,10 +38,18 @@ public abstract class AbstractSerializer implements Serializer {
         this.upcasterChain = upcasterChain;
     }
 
+    @SuppressWarnings("unchecked")
     @Override
     public Data<byte[]> serialize(Object object) {
         byte[] bytes;
         try {
+            if (object instanceof Data<?>) {
+                Data<?> data = (Data<?>) object;
+                if (data.getValue() instanceof byte[]) {
+                    return (Data<byte[]>) data;
+                }
+                return new Data<>(serialize(data.getValue()).getValue(), data.getType(), data.getRevision());
+            }
             bytes = doSerialize(object);
         } catch (Exception e) {
             throw new SerializationException("Could not serialize " + object, e);

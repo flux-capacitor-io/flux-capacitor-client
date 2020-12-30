@@ -14,12 +14,19 @@
 
 package io.fluxcapacitor.javaclient.modeling;
 
+import io.fluxcapacitor.javaclient.persisting.eventsourcing.EventSourced;
+
 public interface AggregateRepository {
 
     boolean supports(Class<?> aggregateType);
 
     boolean cachingAllowed(Class<?> aggregateType);
 
+    /**
+     * Loads the aggregate root of type {@code <T>} with given id.
+     *
+     * @see EventSourced for more info on how to define an event sourced aggregate root
+     */
     default <T> Aggregate<T> load(String aggregateId, Class<T> aggregateType) {
         return load(aggregateId, aggregateType, false);
     }

@@ -18,6 +18,7 @@ import io.fluxcapacitor.common.MessageType;
 import io.fluxcapacitor.common.Registration;
 import io.fluxcapacitor.common.api.Metadata;
 import io.fluxcapacitor.javaclient.common.Message;
+import io.fluxcapacitor.javaclient.common.serialization.DeserializingMessage;
 import io.fluxcapacitor.javaclient.common.serialization.Serializer;
 import io.fluxcapacitor.javaclient.configuration.DefaultFluxCapacitor;
 import io.fluxcapacitor.javaclient.configuration.client.Client;
@@ -48,6 +49,10 @@ import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Function;
 import java.util.stream.Stream;
 
+import static io.fluxcapacitor.common.MessageType.EVENT;
+import static io.fluxcapacitor.common.MessageType.NOTIFICATION;
+import static io.fluxcapacitor.javaclient.modeling.AggregateIdResolver.getAggregateId;
+import static io.fluxcapacitor.javaclient.modeling.AggregateTypeResolver.getAggregateType;
 import static java.util.Arrays.stream;
 
 /**
@@ -225,12 +230,21 @@ public interface FluxCapacitor extends AutoCloseable {
     }
 
     /**
-     * Loads the most recent aggregate root of type {@code <T>} with given id.
+     * Loads the aggregate root of type {@code <T>} with given id.
+     * <p>
+     * If the aggregate is loaded while handling an event of the aggregate, the returned Aggregate will automatically be
+     * replayed back to event currently being handled. Otherwise, the most recent state of the aggregate is loaded.
      *
      * @see EventSourced for more info on how to define an event sourced aggregate root
      */
     static <T> Aggregate<T> loadAggregate(String id, Class<T> aggregateType) {
-        return get().aggregateRepository().load(id, aggregateType);
+        Aggregate<T> result = get().aggregateRepository().load(id, aggregateType);
+        DeserializingMessage message = DeserializingMessage.getCurrent();
+        if (message != null && (message.getMessageType() == EVENT || message.getMessageType() == NOTIFICATION)
+                && id.equals(getAggregateId(message)) && aggregateType.equals(getAggregateType(message))) {
+            return result.playBackToEvent(message.getSerializedObject().getMessageId());
+        }
+        return result;
     }
 
     /**

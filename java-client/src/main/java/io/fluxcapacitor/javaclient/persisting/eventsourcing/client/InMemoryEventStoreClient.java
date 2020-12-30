@@ -17,15 +17,16 @@ package io.fluxcapacitor.javaclient.persisting.eventsourcing.client;
 import io.fluxcapacitor.common.Awaitable;
 import io.fluxcapacitor.common.api.SerializedMessage;
 import io.fluxcapacitor.common.api.eventsourcing.EventBatch;
+import io.fluxcapacitor.javaclient.persisting.eventsourcing.AggregateEventStream;
 import io.fluxcapacitor.javaclient.tracking.client.InMemoryMessageStore;
 
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
-import java.util.stream.Stream;
 
 public class InMemoryEventStoreClient extends InMemoryMessageStore implements EventStoreClient {
 
@@ -45,16 +46,20 @@ public class InMemoryEventStoreClient extends InMemoryMessageStore implements Ev
     }
 
     @Override
-    public Stream<SerializedMessage> getEvents(String aggregateId, long lastSequenceNumber) {
-        return domainEvents.getOrDefault(aggregateId, Collections.emptyList()).stream()
-                .filter(batch -> batch.getLastSequenceNumber() > lastSequenceNumber)
-                .flatMap(batch -> {
-                    List<SerializedMessage> events = batch.getEvents();
-                    if (batch.getFirstSequenceNumber() > lastSequenceNumber) {
-                        return events.stream();
-                    }
-                    return events.stream().skip(lastSequenceNumber - batch.getFirstSequenceNumber() + 1);
-                });
+    public AggregateEventStream<SerializedMessage> getEvents(String aggregateId, long lastSequenceNumber) {
+        List<EventBatch> eventBatches = domainEvents.getOrDefault(aggregateId, Collections.emptyList());
+        Optional<EventBatch> lastBatch = eventBatches.stream().reduce((a, b) -> b);
+        return new AggregateEventStream<>(
+                eventBatches.stream()
+                        .filter(batch -> batch.getLastSequenceNumber() > lastSequenceNumber)
+                        .flatMap(batch -> {
+                            List<SerializedMessage> events = batch.getEvents();
+                            if (batch.getFirstSequenceNumber() > lastSequenceNumber) {
+                                return events.stream();
+                            }
+                            return events.stream().skip(lastSequenceNumber - batch.getFirstSequenceNumber() + 1);
+                        }), aggregateId, lastBatch.map(EventBatch::getDomain).orElse(null),
+                () -> lastBatch.map(EventBatch::getLastSequenceNumber).orElse(null));
     }
 
     @Override
