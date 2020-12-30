@@ -32,6 +32,7 @@ import java.time.Instant;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -167,16 +168,24 @@ public class EventSourcingRepository implements AggregateRepository {
                         EventSourcedModel<T> model = snapshotRepository.<T>getSnapshot(id)
                                 .filter(a -> aggregateType.isAssignableFrom(a.get().getClass()))
                                 .orElse(EventSourcedModel.<T>builder().id(id).build());
-                        for (DeserializingMessage event : eventStore.getDomainEvents(id, model.sequenceNumber())
-                                .collect(toList())) {
-                            model = model.toBuilder().sequenceNumber(model.sequenceNumber() + 1)
-                                    .type(aggregateType).id(id).lastEventId(event.getSerializedObject().getMessageId())
+                        AggregateEventStream<DeserializingMessage> eventStream
+                                = eventStore.getEvents(id, model.sequenceNumber());
+                        Iterator<DeserializingMessage> iterator = eventStream.iterator();
+                        while (iterator.hasNext()) {
+                            DeserializingMessage event = iterator.next();
+                            model = model.toBuilder()
+                                    .sequenceNumber(model.sequenceNumber() + 1)
+                                    .type(aggregateType)
+                                    .id(id)
+                                    .lastEventId(event.getSerializedObject().getMessageId())
                                     .timestamp(Instant.ofEpochMilli(event.getSerializedObject().getTimestamp()))
                                     .model(eventSourcingHandler.invoke(model.get(), event))
                                     .previous(model)
                                     .build();
                         }
-                        return model;
+                        return model.toBuilder()
+                                .sequenceNumber(eventStream.getLastSequenceNumber().orElse(model.sequenceNumber()))
+                                .build();
                     });
         }
 
@@ -275,8 +284,8 @@ public class EventSourcingRepository implements AggregateRepository {
             if (!unpublishedEvents.isEmpty()) {
                 try {
                     cache.put(keyFunction.apply(model.id()), model);
-                    result = eventStore.storeDomainEvents(model.id(), domain, model.sequenceNumber(),
-                                                          new ArrayList<>(unpublishedEvents));
+                    result = eventStore.storeEvents(model.id(), domain, model.sequenceNumber(),
+                                                    new ArrayList<>(unpublishedEvents));
                     if (snapshotTrigger.shouldCreateSnapshot(model, unpublishedEvents)) {
                         snapshotRepository.storeSnapshot(model);
                     }

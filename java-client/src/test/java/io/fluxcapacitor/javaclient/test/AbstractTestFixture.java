@@ -138,7 +138,7 @@ public abstract class AbstractTestFixture implements Given, When {
                 Message m = e instanceof Message ? (Message) e : new Message(e);
                 return m.withMetadata(m.getMetadata().with(Aggregate.AGGREGATE_ID_METADATA_KEY, aggregateId));
             }).collect(toList());
-            fluxCapacitor.eventStore().storeDomainEvents(aggregateId, aggregateId, eventList.size() - 1, eventList);
+            fluxCapacitor.eventStore().storeEvents(aggregateId, aggregateId, eventList.size() - 1, eventList);
         });
     }
 

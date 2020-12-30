@@ -25,11 +25,13 @@ import io.fluxcapacitor.common.api.eventsourcing.GetEvents;
 import io.fluxcapacitor.common.api.eventsourcing.GetEventsResult;
 import io.fluxcapacitor.javaclient.common.websocket.AbstractWebsocketClient;
 import io.fluxcapacitor.javaclient.configuration.client.WebSocketClient.Properties;
+import io.fluxcapacitor.javaclient.persisting.eventsourcing.AggregateEventStream;
 
 import javax.websocket.ClientEndpoint;
 import java.net.URI;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Stream;
 
 import static io.fluxcapacitor.common.ObjectUtils.iterate;
@@ -66,11 +68,21 @@ public class WebSocketEventStoreClient extends AbstractWebsocketClient implement
     }
 
     @Override
-    public Stream<SerializedMessage> getEvents(String aggregateId, long lastSequenceNumber) {
-        return iterate((GetEventsResult) sendRequestAndWait(new GetEvents(aggregateId, lastSequenceNumber, fetchBatchSize)),
-                       r -> sendRequestAndWait(new GetEvents(aggregateId, r.getEventBatch().getLastSequenceNumber(), fetchBatchSize)),
-                       r -> r.getEventBatch().getEvents().size() < fetchBatchSize)
-                .flatMap(r -> r.getEventBatch().getEvents().stream());
+    public AggregateEventStream<SerializedMessage> getEvents(String aggregateId, long lastSequenceNumber) {
+        AtomicReference<Long> highestSequenceNumber = new AtomicReference<>();
+        GetEventsResult firstBatch = sendRequestAndWait(new GetEvents(aggregateId, lastSequenceNumber, fetchBatchSize));
+        Stream<SerializedMessage> eventStream = iterate(firstBatch,
+                                              r -> sendRequestAndWait(new GetEvents(aggregateId, r.getEventBatch()
+                                                      .getLastSequenceNumber(), fetchBatchSize)),
+                                              r -> r.getEventBatch().getEvents().size() < fetchBatchSize)
+                .flatMap(r -> {
+                    if (!r.getEventBatch().isEmpty()) {
+                        highestSequenceNumber.set(r.getEventBatch().getLastSequenceNumber());
+                    }
+                    return r.getEventBatch().getEvents().stream();
+                });
+        return new AggregateEventStream<>(eventStream, aggregateId, firstBatch.getEventBatch().getDomain(),
+                                          highestSequenceNumber::get);
     }
 
     @Override

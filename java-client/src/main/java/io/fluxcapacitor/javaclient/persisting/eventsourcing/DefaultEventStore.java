@@ -16,6 +16,7 @@ package io.fluxcapacitor.javaclient.persisting.eventsourcing;
 
 import io.fluxcapacitor.common.Awaitable;
 import io.fluxcapacitor.common.ConsistentHashing;
+import io.fluxcapacitor.common.api.SerializedMessage;
 import io.fluxcapacitor.javaclient.common.Message;
 import io.fluxcapacitor.javaclient.common.serialization.DeserializingMessage;
 import io.fluxcapacitor.javaclient.persisting.eventsourcing.client.EventStoreClient;
@@ -25,7 +26,6 @@ import lombok.experimental.Delegate;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.stream.Stream;
 
 import static io.fluxcapacitor.common.MessageType.EVENT;
 import static java.lang.String.format;
@@ -39,8 +39,8 @@ public class DefaultEventStore implements EventStore {
     private final HandlerRegistry localHandlerRegistry;
 
     @Override
-    public Awaitable storeDomainEvents(String aggregateId, String domain, long lastSequenceNumber,
-                                       List<?> events) {
+    public Awaitable storeEvents(String aggregateId, String domain, long lastSequenceNumber,
+                                 List<?> events) {
         Awaitable result;
         List<DeserializingMessage> messages = new ArrayList<>(events.size());
         try {
@@ -68,9 +68,10 @@ public class DefaultEventStore implements EventStore {
     }
 
     @Override
-    public Stream<DeserializingMessage> getDomainEvents(String aggregateId, long lastSequenceNumber) {
+    public AggregateEventStream<DeserializingMessage> getEvents(String aggregateId, long lastSequenceNumber) {
         try {
-            return serializer.deserializeDomainEvents(client.getEvents(aggregateId, lastSequenceNumber));
+            AggregateEventStream<SerializedMessage> serializedEvents = client.getEvents(aggregateId, lastSequenceNumber);
+            return serializedEvents.convert(serializer::deserializeDomainEvents);
         } catch (Exception e) {
             throw new EventSourcingException(format("Failed to obtain domain events for aggregate %s", aggregateId), e);
         }

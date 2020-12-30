@@ -46,7 +46,7 @@ class EventSourcingIntegrationTest {
                 .expectOnlyEvents(new AggregateCommand("test", "3"))
                 .expectOnlyCommands(new SecondOrderCommand());
 
-        assertEquals(4, testFixture.getFluxCapacitor().eventStore().getDomainEvents("test").count());
+        assertEquals(4, testFixture.getFluxCapacitor().eventStore().getEvents("test").count());
 
         verify(testFixture.getFluxCapacitor().client().getEventStoreClient(), atMost(3))
                 .storeEvents(eq("test"), anyString(), anyLong(), anyList());
