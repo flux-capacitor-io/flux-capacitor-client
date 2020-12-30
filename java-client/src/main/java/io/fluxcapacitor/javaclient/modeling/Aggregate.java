@@ -46,7 +46,8 @@ public interface Aggregate<T> {
     default Aggregate<T> playBackToEvent(String eventId) {
         return playBackToCondition(aggregate -> Objects.equals(eventId, aggregate.lastEventId()))
                 .orElseThrow(() -> new IllegalStateException(format(
-                        "Could not load aggregate %s of type %s for event %s", id(), type().getSimpleName(), eventId)));
+                        "Could not load aggregate %s of type %s for event %s. Aggregate started at event %s",
+                        id(), type().getSimpleName(), eventId, lastEventId())));
     }
 
     default Optional<Aggregate<T>> playBackToCondition(Predicate<Aggregate<T>> condition) {
