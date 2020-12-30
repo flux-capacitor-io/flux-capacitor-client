@@ -16,6 +16,7 @@ package io.fluxcapacitor.javaclient.test;
 
 import io.fluxcapacitor.common.MessageType;
 import io.fluxcapacitor.common.Registration;
+import io.fluxcapacitor.common.api.Data;
 import io.fluxcapacitor.common.api.Metadata;
 import io.fluxcapacitor.common.api.SerializedMessage;
 import io.fluxcapacitor.javaclient.FluxCapacitor;
@@ -48,6 +49,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.function.Function;
 import java.util.stream.Stream;
 
+import static java.util.Collections.singletonList;
 import static java.util.stream.Collectors.toList;
 
 @Slf4j
@@ -138,7 +140,20 @@ public abstract class AbstractTestFixture implements Given, When {
                 Message m = e instanceof Message ? (Message) e : new Message(e);
                 return m.withMetadata(m.getMetadata().with(Aggregate.AGGREGATE_ID_METADATA_KEY, aggregateId));
             }).collect(toList());
-            fluxCapacitor.eventStore().storeEvents(aggregateId, aggregateId, eventList.size() - 1, eventList);
+            for (int i = 0; i < eventList.size(); i++) {
+                Message event = eventList.get(i);
+                if (event.getPayload() instanceof Data<?>) {
+                    Data<?> eventData = event.getPayload();
+                    Data<byte[]> eventBytes = fluxCapacitor.serializer().serialize(eventData);
+                    SerializedMessage message =
+                            new SerializedMessage(eventBytes, event.getMetadata(), event.getMessageId(),
+                                                  event.getTimestamp().toEpochMilli());
+                    fluxCapacitor.client().getEventStoreClient().storeEvents(aggregateId, "test", i,
+                                                                             singletonList(message));
+                } else {
+                    fluxCapacitor.eventStore().storeEvents(aggregateId, aggregateId, i, event);
+                }
+            }
         });
     }
 

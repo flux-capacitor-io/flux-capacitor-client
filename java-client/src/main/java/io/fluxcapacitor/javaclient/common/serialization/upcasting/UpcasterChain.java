@@ -37,7 +37,7 @@ public class UpcasterChain<T> {
         if (upcasters.isEmpty()) {
             return s -> s;
         }
-        Upcaster<ConvertingSerializedObject<T>> upcasterChain = create(upcasters, converter.getDataType());
+        Upcaster<ConvertingSerializedObject<T>> upcasterChain = createChain(upcasters, converter);
         return stream -> {
             Stream<ConvertingSerializedObject<T>> converted = stream.map(s -> new ConvertingSerializedObject<>(s, converter));
             Stream<ConvertingSerializedObject<T>> upcasted = upcasterChain.upcast(converted);
@@ -45,11 +45,11 @@ public class UpcasterChain<T> {
         };
     }
 
-    protected static <T, S extends SerializedObject<T, S>> Upcaster<S> create(Collection<?> upcasters, Class<T> dataType) {
+    protected static <T, S extends SerializedObject<T, S>> Upcaster<S> createChain(Collection<?> upcasters, Converter<T> converter) {
         if (upcasters.isEmpty()) {
             return s -> s;
         }
-        List<AnnotatedUpcaster<T>> upcasterList = UpcastInspector.inspect(upcasters, dataType);
+        List<AnnotatedUpcaster<T>> upcasterList = UpcastInspector.inspect(upcasters, converter);
         UpcasterChain<T> upcasterChain = new UpcasterChain<>(upcasterList);
         return upcasterChain::upcast;
     }
