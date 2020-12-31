@@ -40,7 +40,7 @@ public class DefaultEventStore implements EventStore {
 
     @Override
     public Awaitable storeEvents(String aggregateId, String domain, long lastSequenceNumber,
-                                 List<?> events) {
+                                 List<?> events, boolean storeOnly) {
         Awaitable result;
         List<DeserializingMessage> messages = new ArrayList<>(events.size());
         try {
@@ -58,7 +58,7 @@ public class DefaultEventStore implements EventStore {
             });
             result = client.storeEvents(aggregateId, domain, lastSequenceNumber,
                                         messages.stream().map(m -> m.getSerializedObject().withSegment(segment))
-                                       .collect(toList()), false);
+                                       .collect(toList()), storeOnly);
         } catch (Exception e) {
             throw new EventSourcingException(format("Failed to store events %s for aggregate %s", events, aggregateId),
                                              e);
