@@ -67,12 +67,12 @@ public class Backlog<T> implements Monitored<List<T>> {
     @SafeVarargs
     public final Awaitable add(T... values) {
         Collections.addAll(queue, values);
-        return awaitFlush(insertPosition.updateAndGet(p -> p + values.length));
+        return values.length == 0 ? Awaitable.ready() : awaitFlush(insertPosition.updateAndGet(p -> p + values.length));
     }
 
     public Awaitable add(Collection<? extends T> values) {
         queue.addAll(values);
-        return awaitFlush(insertPosition.updateAndGet(p -> p + values.size()));
+        return values.isEmpty() ? Awaitable.ready() : awaitFlush(insertPosition.updateAndGet(p -> p + values.size()));
     }
 
     private Awaitable awaitFlush(long position) {

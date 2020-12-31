@@ -49,7 +49,7 @@ class EventSourcingIntegrationTest {
         assertEquals(4, testFixture.getFluxCapacitor().eventStore().getEvents("test").count());
 
         verify(testFixture.getFluxCapacitor().client().getEventStoreClient(), atMost(3))
-                .storeEvents(eq("test"), anyString(), anyLong(), anyList());
+                .storeEvents(eq("test"), anyString(), anyLong(), anyList(), eq(false));
     }
 
     static class CommandHandler {

@@ -34,14 +34,17 @@ public class InMemoryEventStoreClient extends InMemoryMessageStore implements Ev
 
     @Override
     public Awaitable storeEvents(String aggregateId, String domain, long lastSequenceNumber,
-                                 List<SerializedMessage> events) {
+                                 List<SerializedMessage> events, boolean storeOnly) {
         domainEvents.compute(aggregateId, (id, list) -> {
             if (list == null) {
                 list = new CopyOnWriteArrayList<>();
             }
-            list.add(new EventBatch(aggregateId, domain, lastSequenceNumber, events));
+            list.add(new EventBatch(aggregateId, domain, lastSequenceNumber, events, storeOnly));
             return list;
         });
+        if (storeOnly) {
+            return Awaitable.ready();
+        }
         return super.send(events.toArray(new SerializedMessage[0]));
     }
 

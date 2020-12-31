@@ -149,7 +149,7 @@ public abstract class AbstractTestFixture implements Given, When {
                             new SerializedMessage(eventBytes, event.getMetadata(), event.getMessageId(),
                                                   event.getTimestamp().toEpochMilli());
                     fluxCapacitor.client().getEventStoreClient().storeEvents(aggregateId, "test", i,
-                                                                             singletonList(message));
+                                                                             singletonList(message), false);
                 } else {
                     fluxCapacitor.eventStore().storeEvents(aggregateId, aggregateId, i, event);
                 }

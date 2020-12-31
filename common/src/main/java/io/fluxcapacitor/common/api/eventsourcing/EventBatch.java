@@ -26,6 +26,7 @@ public class EventBatch {
     String domain;
     long lastSequenceNumber;
     List<SerializedMessage> events;
+    boolean storeOnly;
 
     @JsonIgnore
     public Long getFirstSequenceNumber() {
@@ -49,6 +50,7 @@ public class EventBatch {
                 ", domain='" + domain + '\'' +
                 ", lastSequenceNumber=" + lastSequenceNumber +
                 ", event count=" + events.size() +
+                ", storeOnly=" + storeOnly +
                 '}';
     }
 }

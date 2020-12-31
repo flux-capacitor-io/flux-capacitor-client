@@ -57,8 +57,8 @@ public class DefaultEventStore implements EventStore {
                 messages.add(deserializingMessage);
             });
             result = client.storeEvents(aggregateId, domain, lastSequenceNumber,
-                               messages.stream().map(m -> m.getSerializedObject().withSegment(segment))
-                                       .collect(toList()));
+                                        messages.stream().map(m -> m.getSerializedObject().withSegment(segment))
+                                       .collect(toList()), false);
         } catch (Exception e) {
             throw new EventSourcingException(format("Failed to store events %s for aggregate %s", events, aggregateId),
                                              e);
