@@ -27,6 +27,8 @@ import io.fluxcapacitor.javaclient.persisting.eventsourcing.EventSourced;
 import io.fluxcapacitor.javaclient.test.streaming.StreamingTestFixture;
 import io.fluxcapacitor.javaclient.tracking.handling.HandleCommand;
 import io.fluxcapacitor.javaclient.tracking.handling.HandleQuery;
+import lombok.Builder;
+import lombok.Singular;
 import lombok.SneakyThrows;
 import lombok.Value;
 import org.junit.jupiter.api.Test;
@@ -35,6 +37,7 @@ import java.util.List;
 
 import static io.fluxcapacitor.javaclient.common.serialization.SerializationUtils.deserialize;
 import static io.fluxcapacitor.javaclient.common.serialization.jackson.JacksonSerializer.defaultObjectMapper;
+import static java.util.Arrays.asList;
 import static java.util.Collections.singletonList;
 
 public class GivenWhenThenUpcasterChainTest {
@@ -109,11 +112,64 @@ public class GivenWhenThenUpcasterChainTest {
         }
     }
 
+    static class WithChain {
+        private final StreamingTestFixture testFixture = StreamingTestFixture.create(
+                DefaultFluxCapacitor.builder().replaceSerializer(
+                        new JacksonSerializer(singletonList(new JsonPatchUpcaster()))), new Handler());
+
+        @Test
+        void testUpcastingWithDataInput() {
+            testFixture.givenDomainEvents(aggregateId,
+                    deserialize(this.getClass(), "create-model-revision-0.json"),
+                    deserialize(this.getClass(), "update-model-revision-0.json"))
+                    .whenQuery(new GetModel())
+                    .expectResult(new TestModel(asList(new CreateModel("someContent"),
+                            new UpdateModel("patchedOneAgain", "patchedTwo"))));
+        }
+
+
+        public static class JsonPatchUpcaster {
+
+            @Upcast(type = "io.fluxcapacitor.javaclient.common.serialization.upcasting.GivenWhenThenUpcasterChainTest$UpdateModel",
+                    revision = 0)
+            @SneakyThrows
+            public JsonPatch upcast0() {
+                return JsonPatch.fromJson(defaultObjectMapper.readTree(
+                        "[{\"op\":\"replace\",\"path\":\"/one\",\"value\":\"patchedOne\"}]"));
+            }
+
+            @Upcast(type = "io.fluxcapacitor.javaclient.common.serialization.upcasting.GivenWhenThenUpcasterChainTest$UpdateModel",
+                    revision = 1)
+            @SneakyThrows
+            public JsonPatch upcast1() {
+                return JsonPatch.fromJson(defaultObjectMapper.readTree(
+                        "[{\"op\":\"replace\",\"path\":\"/two\",\"value\":\"patchedTwo\"}]"));
+            }
+
+            @Upcast(type = "io.fluxcapacitor.javaclient.common.serialization.upcasting.GivenWhenThenUpcasterChainTest$UpdateModel",
+                    revision = 2)
+            @SneakyThrows
+            public JsonPatch upcast2() {
+                return JsonPatch.fromJson(defaultObjectMapper.readTree(
+                        "[{\"op\":\"replace\",\"path\":\"/one\",\"value\":\"patchedOneAgain\"}]"));
+            }
+        }
+
+    }
+
+
     @Value
     @Revision(1)
     @JsonTypeInfo(use = JsonTypeInfo.Id.CLASS)
     public static class CreateModel {
         String content;
+    }
+
+    @Value
+    @Revision(3)
+    @JsonTypeInfo(use = JsonTypeInfo.Id.CLASS)
+    public static class UpdateModel {
+        String one, two;
     }
 
     @Value
@@ -135,13 +191,20 @@ public class GivenWhenThenUpcasterChainTest {
 
     @EventSourced
     @Value
+    @Builder(toBuilder = true)
     public static class TestModel {
         @JsonTypeInfo(use = JsonTypeInfo.Id.CLASS)
+        @Singular
         List<Object> events;
 
         @ApplyEvent
         public static TestModel handle(CreateModel event) {
             return new TestModel(singletonList(event));
+        }
+
+        @ApplyEvent
+        public TestModel handle(UpdateModel event) {
+            return toBuilder().event(event).build();
         }
     }
 }
