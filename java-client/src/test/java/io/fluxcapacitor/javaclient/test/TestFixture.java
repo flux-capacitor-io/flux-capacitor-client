@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016-2020 Flux Capacitor.
+ * Copyright (c) 2016-2021 Flux Capacitor.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,24 +17,17 @@ package io.fluxcapacitor.javaclient.test;
 import io.fluxcapacitor.common.Registration;
 import io.fluxcapacitor.common.handling.HandlerConfiguration;
 import io.fluxcapacitor.javaclient.FluxCapacitor;
-import io.fluxcapacitor.javaclient.common.Message;
 import io.fluxcapacitor.javaclient.common.serialization.DeserializingMessage;
 import io.fluxcapacitor.javaclient.configuration.FluxCapacitorBuilder;
 import io.fluxcapacitor.javaclient.scheduling.DefaultScheduler;
 import io.fluxcapacitor.javaclient.scheduling.Schedule;
 import io.fluxcapacitor.javaclient.scheduling.client.InMemorySchedulingClient;
 import io.fluxcapacitor.javaclient.scheduling.client.SchedulingClient;
-import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
 
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.Callable;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
 import java.util.function.Function;
 import java.util.stream.Stream;
 
@@ -42,10 +35,6 @@ import static io.fluxcapacitor.common.handling.HandlerConfiguration.defaultHandl
 
 @Slf4j
 public class TestFixture extends AbstractTestFixture {
-
-    private final List<Message> events = new ArrayList<>();
-    private final List<Message> commands = new ArrayList<>();
-    private final List<Schedule> schedules = new ArrayList<>();
 
     public static TestFixture create(Object... handlers) {
         return new TestFixture(fc -> Arrays.asList(handlers));
@@ -97,46 +86,9 @@ public class TestFixture extends AbstractTestFixture {
     }
 
     @Override
-    public void deregisterHandlers(Registration registration) {
-        registration.cancel();
-    }
-
-    @Override
-    protected Then createResultValidator(Object result) {
-        return new ResultValidator(getFluxCapacitor(), result, events, commands, schedules);
-    }
-
-    @Override
-    protected void registerCommand(Message command) {
-        commands.add(command);
-    }
-
-    @Override
-    protected void registerEvent(Message event) {
-        events.add(event);
-    }
-
-    @Override
-    protected void registerSchedule(Schedule schedule) {
-        schedules.add(schedule);
-    }
-
-    @Override
-    @SneakyThrows
-    protected Object getDispatchResult(CompletableFuture<?> dispatchResult) {
-        try {
-            return dispatchResult.get(1L, TimeUnit.SECONDS);
-        } catch (ExecutionException e) {
-            throw e.getCause();
-        } catch (TimeoutException e) {
-            throw new TimeoutException("Test fixture did not receive a dispatch result in time. "
-                                               + "Perhaps some messages did not have handlers?");
-        }
-    }
-
-    @Override
     protected Then applyWhen(Callable<?> action, boolean catchAll) {
         getFluxCapacitor().execute(fc -> {
+            checkTrackers();
             handleExpiredSchedulesLocally();
             return null;
         });

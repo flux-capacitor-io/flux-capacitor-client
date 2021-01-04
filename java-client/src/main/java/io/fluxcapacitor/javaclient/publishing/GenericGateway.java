@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016-2020 Flux Capacitor.
+ * Copyright (c) 2016-2021 Flux Capacitor.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -26,7 +26,7 @@ import java.util.concurrent.TimeUnit;
 import static java.lang.String.format;
 import static java.lang.Thread.currentThread;
 
-public interface RequestGateway extends HasLocalHandlers {
+public interface GenericGateway extends HasLocalHandlers {
 
     default void sendAndForget(Object payload) {
         sendAndForget(payload instanceof Message ? (Message) payload : new Message(payload));

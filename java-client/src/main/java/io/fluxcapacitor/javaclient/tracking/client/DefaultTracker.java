@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016-2020 Flux Capacitor.
+ * Copyright (c) 2016-2021 Flux Capacitor.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -98,7 +98,7 @@ public class DefaultTracker implements Runnable, Registration {
                 ? format("%s_%s", client.name(), configuration.getName()) : configuration.getName();
         this.trackerId = configuration.getTrackerIdFactory().apply(client);
         this.processor = join(configuration.getBatchInterceptors())
-                .intercept(this::processAll, new Tracker(consumerName, trackerId));
+                .intercept(this::processAll, new Tracker(consumerName, trackerId, configuration));
         this.configuration = configuration;
         this.consumer = consumer;
         this.trackingClient = client.getTrackingClient(configuration.getMessageType());

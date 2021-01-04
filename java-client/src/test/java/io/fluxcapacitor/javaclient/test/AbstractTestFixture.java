@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016-2020 Flux Capacitor.
+ * Copyright (c) 2016-2021 Flux Capacitor.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -19,6 +19,8 @@ import io.fluxcapacitor.common.Registration;
 import io.fluxcapacitor.common.api.Data;
 import io.fluxcapacitor.common.api.Metadata;
 import io.fluxcapacitor.common.api.SerializedMessage;
+import io.fluxcapacitor.common.api.tracking.MessageBatch;
+import io.fluxcapacitor.common.handling.Handler;
 import io.fluxcapacitor.javaclient.FluxCapacitor;
 import io.fluxcapacitor.javaclient.common.Message;
 import io.fluxcapacitor.javaclient.common.serialization.DeserializingMessage;
@@ -30,6 +32,10 @@ import io.fluxcapacitor.javaclient.publishing.DispatchInterceptor;
 import io.fluxcapacitor.javaclient.scheduling.Schedule;
 import io.fluxcapacitor.javaclient.scheduling.client.InMemorySchedulingClient;
 import io.fluxcapacitor.javaclient.scheduling.client.SchedulingClient;
+import io.fluxcapacitor.javaclient.tracking.BatchInterceptor;
+import io.fluxcapacitor.javaclient.tracking.ConsumerConfiguration;
+import io.fluxcapacitor.javaclient.tracking.Tracker;
+import io.fluxcapacitor.javaclient.tracking.handling.HandlerInterceptor;
 import io.fluxcapacitor.javaclient.tracking.handling.authentication.UserProvider;
 import lombok.Getter;
 import lombok.SneakyThrows;
@@ -39,18 +45,30 @@ import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.ZoneId;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
+import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.stream.Stream;
 
+import static io.fluxcapacitor.javaclient.common.ClientUtils.isLocalHandlerMethod;
+import static java.util.Collections.emptyList;
 import static java.util.Collections.singletonList;
+import static java.util.stream.Collectors.toCollection;
 import static java.util.stream.Collectors.toList;
+import static java.util.stream.Collectors.toSet;
 
 @Slf4j
 public abstract class AbstractTestFixture implements Given, When {
@@ -59,6 +77,11 @@ public abstract class AbstractTestFixture implements Given, When {
     private final FluxCapacitor fluxCapacitor;
     private final Registration registration;
     private final GivenWhenThenInterceptor interceptor;
+
+    private final Map<Tracker, List<Message>> trackers = new ConcurrentHashMap<>();
+    private final List<Message> events = new ArrayList<>();
+    private final List<Message> commands = new ArrayList<>();
+    private final List<Schedule> schedules = new ArrayList<>();
 
     protected AbstractTestFixture(Function<FluxCapacitor, List<?>> handlerFactory) {
         this(DefaultFluxCapacitor.builder(), handlerFactory);
@@ -78,7 +101,7 @@ public abstract class AbstractTestFixture implements Given, When {
         }
         this.interceptor = new GivenWhenThenInterceptor();
         this.fluxCapacitor = fluxCapacitorBuilder.disableShutdownHook().addDispatchInterceptor(interceptor)
-                .build(client);
+                .addBatchInterceptor(interceptor).addHandlerInterceptor(interceptor).build(client);
         withClock(Clock.fixed(Instant.now(), ZoneId.systemDefault()));
         this.registration = registerHandlers(handlerFactory.apply(fluxCapacitor));
     }
@@ -88,18 +111,6 @@ public abstract class AbstractTestFixture implements Given, When {
      */
 
     public abstract Registration registerHandlers(List<?> handlers);
-
-    public abstract void deregisterHandlers(Registration registration);
-
-    protected abstract Then createResultValidator(Object result);
-
-    protected abstract void registerCommand(Message command);
-
-    protected abstract void registerEvent(Message event);
-
-    protected abstract void registerSchedule(Schedule schedule);
-
-    protected abstract Object getDispatchResult(CompletableFuture<?> dispatchResult);
 
     /*
         clock
@@ -274,6 +285,37 @@ public abstract class AbstractTestFixture implements Given, When {
         helper
      */
 
+    protected Then applyWhen(Callable<?> action, boolean catchAll) {
+        return fluxCapacitor.execute(fc -> {
+            try {
+                interceptor.startTrace(catchAll);
+                Object result;
+                try {
+                    result = action.call();
+                } catch (Exception e) {
+                    result = e;
+                }
+                return createResultValidator(result);
+            } finally {
+                registration.cancel();
+            }
+        });
+    }
+
+    protected Then createResultValidator(Object result) {
+        ResultValidator validator = new ResultValidator(getFluxCapacitor(), result, events, commands, schedules);
+        synchronized (this) {
+            if (!checkTrackers()) {
+                try {
+                    this.wait();
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                }
+            }
+        }
+        return validator;
+    }
+
     protected void advanceTimeBy(Duration duration) {
         advanceTimeTo(getClock().instant().plus(duration));
     }
@@ -289,23 +331,28 @@ public abstract class AbstractTestFixture implements Given, When {
         }, catchAll);
     }
 
-    protected Then applyWhen(Callable<?> action, boolean catchAll) {
-        return fluxCapacitor.execute(fc -> {
-            try {
-                if (catchAll) {
-                    interceptor.catchAll();
-                }
-                Object result;
-                try {
-                    result = action.call();
-                } catch (Exception e) {
-                    result = e;
-                }
-                return createResultValidator(result);
-            } finally {
-                deregisterHandlers(registration);
-            }
-        });
+    protected void registerCommand(Message command) {
+        commands.add(command);
+    }
+
+    protected void registerEvent(Message event) {
+        events.add(event);
+    }
+
+    protected void registerSchedule(Schedule schedule) {
+        schedules.add(schedule);
+    }
+
+    @SneakyThrows
+    protected Object getDispatchResult(CompletableFuture<?> dispatchResult) {
+        try {
+            return dispatchResult.get(1L, TimeUnit.SECONDS);
+        } catch (ExecutionException e) {
+            throw e.getCause();
+        } catch (TimeoutException e) {
+            throw new TimeoutException("Test fixture did not receive a dispatch result in time. "
+                                               + "Perhaps some messages did not have handlers?");
+        }
     }
 
     protected Stream<Object> flatten(Object... messages) {
@@ -320,15 +367,31 @@ public abstract class AbstractTestFixture implements Given, When {
         });
     }
 
-    protected class GivenWhenThenInterceptor implements DispatchInterceptor {
+    protected boolean checkTrackers() {
+        synchronized (this) {
+            if (trackers.values().stream().allMatch(l -> l.stream().noneMatch(
+                    m -> !(m instanceof Schedule) || !((Schedule) m).getDeadline().isAfter(getClock().instant())))) {
+                notifyAll();
+                return true;
+            }
+        }
+        return false;
+    }
+
+    //todo juist omdraaien: alles wat niet in de when stap gebeurt moet getagged worden zodat je kan zien of t een effect is van de given of niet
+
+    protected class GivenWhenThenInterceptor implements DispatchInterceptor, BatchInterceptor, HandlerInterceptor {
 
         private static final String TAG = "givenWhenThen.tag";
         private static final String TAG_NAME = "$givenWhenThen.tagName";
         private static final String TRACE_NAME = "$givenWhenThen.trace";
+
+        private final Map<MessageType, List<Message>> publishedSchedules = new ConcurrentHashMap<>();
+
         private volatile boolean catchAll;
 
-        protected void catchAll() {
-            this.catchAll = true;
+        public void startTrace(boolean catchAll) {
+            this.catchAll = catchAll;
         }
 
         protected Message trace(Object message) {
@@ -372,8 +435,60 @@ public abstract class AbstractTestFixture implements Given, When {
                             break;
                     }
                 }
+                SerializedMessage result = function.apply(message);
 
-                return function.apply(message);
+                Message interceptedMessage = message;
+                if (messageType == MessageType.SCHEDULE) {
+                    publishedSchedules.computeIfAbsent(MessageType.SCHEDULE, t -> new CopyOnWriteArrayList<>())
+                            .add(interceptedMessage);
+                }
+                trackers.entrySet().stream()
+                        .filter(t -> {
+                            ConsumerConfiguration configuration = t.getKey().getConfiguration();
+                            return (configuration.getMessageType() == messageType && Optional
+                                    .ofNullable(configuration.getTypeFilter())
+                                    .map(f -> interceptedMessage.getPayload().getClass().getName().matches(f))
+                                    .orElse(true));
+                        }).forEach(e -> {
+                    e.getValue().add(interceptedMessage);
+                });
+                return result;
+            };
+        }
+
+        @Override
+        public Consumer<MessageBatch> intercept(Consumer<MessageBatch> consumer, Tracker tracker) {
+            List<Message> messages =
+                    publishedSchedules.getOrDefault(tracker.getConfiguration().getMessageType(), emptyList()).stream()
+                            .filter(m -> Optional.ofNullable(tracker.getConfiguration().getTypeFilter())
+                                    .map(f -> m.getPayload().getClass().getName().matches(f)).orElse(true))
+                            .collect(toCollection(CopyOnWriteArrayList::new));
+            trackers.put(tracker, messages);
+            return b -> {
+                consumer.accept(b);
+                Collection<String> messageIds =
+                        b.getMessages().stream().map(SerializedMessage::getMessageId).collect(toSet());
+                messages.removeIf(m -> messageIds.contains(m.getMessageId()));
+                checkTrackers();
+            };
+        }
+
+        @Override
+        public Function<DeserializingMessage, Object> interceptHandling(Function<DeserializingMessage, Object> function,
+                                                                        Handler<DeserializingMessage> handler,
+                                                                        String consumer) {
+            return m -> {
+                try {
+                    return function.apply(m);
+                } finally {
+                    if (isLocalHandlerMethod(handler.getTarget().getClass(), handler.getMethod(m))) {
+                        trackers.entrySet().stream()
+                                .filter(t -> t.getKey().getConfiguration().getMessageType() == m.getMessageType())
+                                .forEach(e -> e.getValue().removeIf(
+                                        m2 -> m2.getMessageId().equals(m.getSerializedObject().getMessageId())));
+                        checkTrackers();
+                    }
+                }
             };
         }
     }

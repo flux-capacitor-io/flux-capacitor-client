@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016-2020 Flux Capacitor.
+ * Copyright (c) 2016-2021 Flux Capacitor.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -103,7 +103,7 @@ class EventSourcingRepositoryTest {
         void testEventsGetStoredWhenHandlingEnds() {
             testFixture.givenNoPriorActivity().whenCommand(new CreateModel())
                     .verify(() -> verify(eventStoreClient)
-                            .storeEvents(eq(aggregateId), eq(TestModel.class.getSimpleName()), eq(0L), anyList(), false));
+                            .storeEvents(eq(aggregateId), eq(TestModel.class.getSimpleName()), eq(0L), anyList(),  eq(false)));
         }
 
         @Test
@@ -120,7 +120,7 @@ class EventSourcingRepositoryTest {
                     .whenCommand(new ApplyNonsense())
                     .expectNoException()
                     .verify(() -> verify(eventStoreClient)
-                            .storeEvents(eq(aggregateId), eq(TestModel.class.getSimpleName()), eq(1L), anyList(), false));
+                            .storeEvents(eq(aggregateId), eq(TestModel.class.getSimpleName()), eq(1L), anyList(), eq(false)));
         }
 
         @Test
@@ -129,7 +129,7 @@ class EventSourcingRepositoryTest {
                     .whenCommand(new ApplyNonsense())
                     .expectException(HandlerNotFoundException.class)
                     .verify(() -> verify(eventStoreClient, times(0))
-                            .storeEvents(anyString(), anyString(), anyLong(), anyList(), false));
+                            .storeEvents(anyString(), anyString(), anyLong(), anyList(),  eq(false)));
         }
 
         @SuppressWarnings("unchecked")
@@ -145,7 +145,7 @@ class EventSourcingRepositoryTest {
                     }))
                     .whenCommand(new UpdateModel())
                     .verify(() -> verify(eventStoreClient).storeEvents(anyString(), anyString(), eq(11L), anyList(),
-                                                                       false));
+                                                                       eq(false)));
         }
 
 
@@ -265,7 +265,7 @@ class EventSourcingRepositoryTest {
         void testCreateUsingFactoryMethod() {
             testFixture.givenNoPriorActivity().whenCommand(new CreateModel())
                     .verify(() -> verify(testFixture.getFluxCapacitor().client().getEventStoreClient(), times(1))
-                            .storeEvents(anyString(), anyString(), anyLong(), anyList(), false));
+                            .storeEvents(anyString(), anyString(), anyLong(), anyList(),  eq(false)));
         }
 
         @Test
@@ -335,7 +335,7 @@ class EventSourcingRepositoryTest {
 
             testFixture.givenNoPriorActivity().whenCommand(new CreateModel())
                     .verify(() -> verify(testFixture.getFluxCapacitor().client().getEventStoreClient(), times(1))
-                            .storeEvents(anyString(), anyString(), anyLong(), anyList(), false));
+                            .storeEvents(anyString(), anyString(), anyLong(), anyList(),  eq(false)));
         }
 
         @EventSourced

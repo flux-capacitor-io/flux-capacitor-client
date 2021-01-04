@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016-2020 Flux Capacitor.
+ * Copyright (c) 2016-2021 Flux Capacitor.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,8 +15,8 @@
 package io.fluxcapacitor.javaclient.givenwhenthen;
 
 import io.fluxcapacitor.javaclient.FluxCapacitor;
+import io.fluxcapacitor.javaclient.test.StreamingTestFixture;
 import io.fluxcapacitor.javaclient.test.spring.FluxCapacitorTestConfig;
-import io.fluxcapacitor.javaclient.test.streaming.StreamingTestFixture;
 import io.fluxcapacitor.javaclient.tracking.handling.HandleCommand;
 import io.fluxcapacitor.javaclient.tracking.handling.HandleEvent;
 import lombok.SneakyThrows;
@@ -45,12 +45,12 @@ class GivenWhenThenSpringTest {
 
     @Test
     void testFoo() {
-        testFixture.givenNoPriorActivity().whenCommand("command1").expectEvents("event");
+        testFixture.givenNoPriorActivity().whenCommand(new DoSomething()).expectEvents(new DoSomething());
     }
 
     @Test
     void testBar() {
-        testFixture.givenNoPriorActivity().whenCommand("command1").expectCommands("command2");
+        testFixture.givenNoPriorActivity().whenCommand(new DoSomething()).expectCommands(new DoSomethingElse());
     }
 
     @Test
@@ -71,8 +71,8 @@ class GivenWhenThenSpringTest {
 
     private static class FooHandler {
         @HandleCommand
-        public void handle(String command) {
-            FluxCapacitor.publishEvent("event");
+        public void handle(DoSomething command) {
+            FluxCapacitor.publishEvent(command);
         }
 
         @HandleCommand
@@ -96,9 +96,17 @@ class GivenWhenThenSpringTest {
 
     static class BarHandler {
         @HandleEvent
-        public void handle(String event) {
-            FluxCapacitor.sendAndForgetCommand("command2");
+        public void handle(DoSomething event) {
+            FluxCapacitor.sendAndForgetCommand(new DoSomethingElse());
         }
+    }
+
+    @Value
+    private static class DoSomething {
+    }
+
+    @Value
+    private static class DoSomethingElse {
     }
 
     @Value
