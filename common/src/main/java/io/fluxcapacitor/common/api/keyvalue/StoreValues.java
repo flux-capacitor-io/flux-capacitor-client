@@ -20,13 +20,27 @@ import lombok.Value;
 
 import java.util.List;
 
+import static java.util.stream.Collectors.toList;
+
 @Value
 @EqualsAndHashCode(callSuper = true)
 public class StoreValues extends Request {
     List<KeyValuePair> values;
 
     @Override
+    public Object toMetric() {
+        return new Metric(values.stream().map(KeyValuePair::getKey).collect(toList()),
+                values.size());
+    }
+
+    @Override
     public String toString() {
         return "StoreValues of size " + values.size();
+    }
+
+    @Value
+    public static class Metric {
+        List<String> keys;
+        int size;
     }
 }

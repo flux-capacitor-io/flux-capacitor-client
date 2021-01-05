@@ -20,6 +20,8 @@ import lombok.Value;
 
 import java.util.List;
 
+import static java.util.stream.Collectors.toList;
+
 @Value
 @EqualsAndHashCode(callSuper = true)
 public class StoreValuesAndWait extends Request {
@@ -28,5 +30,16 @@ public class StoreValuesAndWait extends Request {
     @Override
     public String toString() {
         return "StoreValuesAndWait of size " + values.size();
+    }
+
+    @Override
+    public Object toMetric() {
+        return new Metric(values.stream().map(KeyValuePair::getKey).collect(toList()), values.size());
+    }
+
+    @Value
+    public static class Metric {
+        List<String> keys;
+        int size;
     }
 }

@@ -17,22 +17,13 @@ package io.fluxcapacitor.javaclient.common.websocket;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.fluxcapacitor.common.Awaitable;
 import io.fluxcapacitor.common.RetryConfiguration;
-import io.fluxcapacitor.common.api.JsonType;
-import io.fluxcapacitor.common.api.QueryResult;
-import io.fluxcapacitor.common.api.Request;
+import io.fluxcapacitor.common.api.*;
 import io.fluxcapacitor.javaclient.configuration.client.WebSocketClient.Properties;
 import lombok.RequiredArgsConstructor;
 import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
 
-import javax.websocket.CloseReason;
-import javax.websocket.ContainerProvider;
-import javax.websocket.DecodeException;
-import javax.websocket.OnClose;
-import javax.websocket.OnError;
-import javax.websocket.OnMessage;
-import javax.websocket.Session;
-import javax.websocket.WebSocketContainer;
+import javax.websocket.*;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.net.URI;
@@ -44,8 +35,10 @@ import java.util.concurrent.atomic.AtomicBoolean;
 
 import static com.fasterxml.jackson.databind.DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES;
 import static io.fluxcapacitor.common.TimingUtils.retryOnFailure;
+import static io.fluxcapacitor.javaclient.FluxCapacitor.publishMetrics;
 import static io.fluxcapacitor.javaclient.common.serialization.compression.CompressionUtils.compress;
 import static io.fluxcapacitor.javaclient.common.serialization.compression.CompressionUtils.decompress;
+import static java.lang.System.currentTimeMillis;
 import static java.lang.Thread.currentThread;
 import static java.lang.Thread.sleep;
 import static javax.websocket.CloseReason.CloseCodes.NO_STATUS_CODE;
@@ -62,6 +55,7 @@ public abstract class AbstractWebsocketClient implements AutoCloseable {
     private final Map<Long, WebSocketRequest> requests = new ConcurrentHashMap<>();
     private final AtomicBoolean closed = new AtomicBoolean();
     private final RetryConfiguration retryConfig;
+    private final Metadata metricsMetadata;
     private volatile Session session;
 
     public AbstractWebsocketClient(URI endpointUri, Properties properties) {
@@ -74,6 +68,7 @@ public abstract class AbstractWebsocketClient implements AutoCloseable {
         this.endpointUri = endpointUri;
         this.properties = properties;
         this.objectMapper = objectMapper;
+        this.metricsMetadata = Metadata.of("clientName", properties.getName()).with("clientId", properties.getId());
         this.retryConfig = RetryConfiguration.builder()
                 .delay(reconnectDelay)
                 .errorTest(e -> !closed.get())
@@ -113,9 +108,28 @@ public abstract class AbstractWebsocketClient implements AutoCloseable {
 
     @SuppressWarnings("unchecked")
     protected <R extends QueryResult> CompletableFuture<R> sendRequest(Request request) {
+        long start = currentTimeMillis();
+        try {
+            publishMetrics(request.toMetric(), metricsMetadata.with("timestamp", start)
+                    .with("requestId", request.getRequestId()));
+        } catch (Exception e) {
+            log.error("Failed to publish request metrics", e);
+        }
         WebSocketRequest webSocketRequest = new WebSocketRequest(request);
         webSocketRequest.send();
-        return (CompletableFuture<R>) webSocketRequest.result;
+        return (CompletableFuture<R>) webSocketRequest.result
+                .whenComplete((r, e) -> {
+                    if (e == null && !(r instanceof VoidResult)) {
+                        try {
+                            long stop = currentTimeMillis();
+                            publishMetrics(r.toMetric(), metricsMetadata.with("timestamp", stop)
+                                    .with("requestId", request.getRequestId())
+                                    .with("msDuration", String.valueOf(stop - start)));
+                        } catch (Exception e1) {
+                            log.error("Failed to publish result metrics", e1);
+                        }
+                    }
+                });
     }
 
     @OnMessage

@@ -22,4 +22,13 @@ import lombok.Value;
 public class GetValueResult implements QueryResult {
     long requestId;
     Data<byte[]> value;
+
+    @Override
+    public Metric toMetric() {
+        return new Metric();
+    }
+
+    @Value
+    public static class Metric {
+    }
 }

@@ -24,4 +24,14 @@ import java.util.List;
 public class ReadFromIndexResult implements QueryResult {
     long requestId;
     List<SerializedMessage> messages;
+
+    @Override
+    public Object toMetric() {
+        return new Metric(messages.size());
+    }
+
+    @Value
+    public static class Metric {
+        int size;
+    }
 }

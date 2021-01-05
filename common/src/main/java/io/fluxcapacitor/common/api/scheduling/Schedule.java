@@ -19,6 +19,8 @@ import lombok.Value;
 
 import java.util.List;
 
+import static java.util.stream.Collectors.toList;
+
 @Value
 public class Schedule implements JsonType {
     List<ScheduledMessage> messages;
@@ -26,5 +28,16 @@ public class Schedule implements JsonType {
     @Override
     public String toString() {
         return "Schedule of size " + messages.size();
+    }
+
+    @Override
+    public Object toMetric() {
+        return new Metric(messages.stream().map(ScheduledMessage::toMetric).collect(toList()), messages.size());
+    }
+
+    @Value
+    public static class Metric {
+        List<ScheduledMessage.Metric> messages;
+        int size;
     }
 }
