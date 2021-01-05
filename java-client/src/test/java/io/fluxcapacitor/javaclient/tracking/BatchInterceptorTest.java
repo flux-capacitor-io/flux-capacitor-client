@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016-2020 Flux Capacitor.
+ * Copyright (c) 2016-2021 Flux Capacitor.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,6 +14,7 @@
 
 package io.fluxcapacitor.javaclient.tracking;
 
+import io.fluxcapacitor.common.MessageType;
 import io.fluxcapacitor.common.api.tracking.MessageBatch;
 import org.junit.jupiter.api.Test;
 
@@ -54,8 +55,11 @@ class BatchInterceptorTest {
                 invokedInstances.add(this);
             }
         };
+        ConsumerConfiguration configuration = ConsumerConfiguration.getDefault(
+                MessageType.COMMAND);
         Consumer<MessageBatch> invocation = BatchInterceptor
-                .join(Arrays.asList(outerInterceptor, innerInterceptor)).intercept(function, new Tracker("test", "0"));
+                .join(Arrays.asList(outerInterceptor, innerInterceptor)).intercept(function, new Tracker("test", "0", configuration)
+                );
         assertEquals(emptyList(), invokedInstances);
         invocation.accept(new MessageBatch(new int[]{0, 1}, emptyList(), 0L));
         assertEquals(Arrays.asList(outerInterceptor, innerInterceptor, function), invokedInstances);

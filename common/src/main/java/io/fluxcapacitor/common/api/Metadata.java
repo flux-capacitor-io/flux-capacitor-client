@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016-2020 Flux Capacitor.
+ * Copyright (c) 2016-2021 Flux Capacitor.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -173,6 +173,10 @@ public class Metadata {
 
     public boolean containsKey(String key) {
         return entries.containsKey(key);
+    }
+
+    public boolean containsAnyKey(String... keys) {
+        return Arrays.stream(keys).anyMatch(entries::containsKey);
     }
 
     public String getOrDefault(String key, String defaultValue) {

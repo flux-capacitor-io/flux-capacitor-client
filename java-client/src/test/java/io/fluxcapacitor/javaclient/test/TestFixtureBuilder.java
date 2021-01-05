@@ -12,13 +12,12 @@
  * limitations under the License.
  */
 
-package io.fluxcapacitor.javaclient.publishing;
+package io.fluxcapacitor.javaclient.test;
 
-import lombok.AllArgsConstructor;
-import lombok.experimental.Delegate;
+import io.fluxcapacitor.javaclient.configuration.FluxCapacitorBuilder;
 
-@AllArgsConstructor
-public class DefaultQueryGateway implements QueryGateway {
-    @Delegate
-    private final GenericGateway delegate;
+public interface TestFixtureBuilder {
+
+    TestFixtureBuilder fluxCapacitorBuilder(FluxCapacitorBuilder fluxCapacitorBuilder);
+
 }

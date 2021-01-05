@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016-2020 Flux Capacitor.
+ * Copyright (c) 2016-2021 Flux Capacitor.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,6 +18,7 @@ import io.fluxcapacitor.common.api.Metadata;
 import io.fluxcapacitor.javaclient.common.Message;
 import lombok.EqualsAndHashCode;
 import lombok.NonNull;
+import lombok.ToString;
 import lombok.Value;
 
 import java.beans.ConstructorProperties;
@@ -26,6 +27,7 @@ import java.time.Instant;
 
 @Value
 @EqualsAndHashCode(callSuper = true)
+@ToString(callSuper = true)
 public class Schedule extends Message {
     public static String scheduleIdMetadataKey = "$scheduleId";
 
@@ -54,20 +56,16 @@ public class Schedule extends Message {
 
     @Override
     public Schedule withPayload(Object payload) {
-        return new Schedule(payload, getMetadata(), identityProvider.nextId(), clock().instant(), scheduleId, deadline);
+        return new Schedule(payload, getMetadata(), getMessageId(), getTimestamp(), scheduleId, deadline);
     }
 
     @Override
     public Schedule withMetadata(Metadata metadata) {
-        return new Schedule(getPayload(), metadata, identityProvider.nextId(), clock().instant(), scheduleId, deadline);
-    }
-
-    public Schedule withDeadline(Instant deadline) {
-        return new Schedule(getPayload(), getMetadata(), identityProvider.nextId(), clock().instant(), scheduleId,
-                            deadline);
+        return new Schedule(getPayload(), metadata, getMessageId(), getTimestamp(), scheduleId, deadline);
     }
 
     public Schedule reschedule(Duration duration) {
-        return withDeadline(this.deadline.plus(duration));
+        return new Schedule(getPayload(), getMetadata(), identityProvider.nextId(), clock().instant(), scheduleId,
+                            deadline.plus(duration));
     }
 }

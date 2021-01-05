@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016-2020 Flux Capacitor.
+ * Copyright (c) 2016-2021 Flux Capacitor.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -50,9 +50,9 @@ import io.fluxcapacitor.javaclient.publishing.DefaultResultGateway;
 import io.fluxcapacitor.javaclient.publishing.DispatchInterceptor;
 import io.fluxcapacitor.javaclient.publishing.ErrorGateway;
 import io.fluxcapacitor.javaclient.publishing.EventGateway;
+import io.fluxcapacitor.javaclient.publishing.GenericGateway;
 import io.fluxcapacitor.javaclient.publishing.MetricsGateway;
 import io.fluxcapacitor.javaclient.publishing.QueryGateway;
-import io.fluxcapacitor.javaclient.publishing.RequestGateway;
 import io.fluxcapacitor.javaclient.publishing.RequestHandler;
 import io.fluxcapacitor.javaclient.publishing.ResultGateway;
 import io.fluxcapacitor.javaclient.publishing.correlation.CorrelatingInterceptor;
@@ -193,6 +193,8 @@ public class DefaultFluxCapacitor implements FluxCapacitor {
                 Arrays.stream(MessageType.values()).collect(toMap(identity(), m -> (f, messageType) -> f));
         private final Map<MessageType, HandlerInterceptor> handlerInterceptors =
                 Arrays.stream(MessageType.values()).collect(toMap(identity(), m -> (f, h, c) -> f));
+        private final Map<MessageType, BatchInterceptor> batchInterceptors =
+                Arrays.stream(MessageType.values()).collect(toMap(identity(), m -> (f, h) -> f));
         private DispatchInterceptor messageRoutingInterceptor = new MessageRoutingInterceptor();
         private SchedulingInterceptor schedulingInterceptor = new SchedulingInterceptor();
         private Cache cache = new DefaultCache();
@@ -262,8 +264,9 @@ public class DefaultFluxCapacitor implements FluxCapacitor {
         }
 
         @Override
-        public Builder addParameterResolver(@NonNull ParameterResolver<DeserializingMessage> parameterResolver) {
-            parameterResolvers.add(parameterResolver);
+        public FluxCapacitorBuilder addBatchInterceptor(BatchInterceptor interceptor, MessageType... forTypes) {
+            Arrays.stream(forTypes.length == 0 ? MessageType.values() : forTypes)
+                    .forEach(type -> batchInterceptors.computeIfPresent(type, (t, i) -> i.merge(interceptor)));
             return this;
         }
 
@@ -290,6 +293,12 @@ public class DefaultFluxCapacitor implements FluxCapacitor {
         @Override
         public FluxCapacitorBuilder replaceCache(@NonNull Cache cache) {
             this.cache = cache;
+            return this;
+        }
+
+        @Override
+        public Builder addParameterResolver(@NonNull ParameterResolver<DeserializingMessage> parameterResolver) {
+            parameterResolvers.add(parameterResolver);
             return this;
         }
 
@@ -345,9 +354,9 @@ public class DefaultFluxCapacitor implements FluxCapacitor {
         public FluxCapacitor build(@NonNull Client client) {
             Map<MessageType, DispatchInterceptor> dispatchInterceptors = new HashMap<>(this.dispatchInterceptors);
             Map<MessageType, HandlerInterceptor> handlerInterceptors = new HashMap<>(this.handlerInterceptors);
+            Map<MessageType, BatchInterceptor> batchInterceptors = new HashMap<>(this.batchInterceptors);
             Map<MessageType, List<ConsumerConfiguration>> consumerConfigurations =
                     new HashMap<>(this.consumerConfigurations);
-
 
             KeyValueStore keyValueStore = new DefaultKeyValueStore(client.getKeyValueClient(), serializer);
 
@@ -457,6 +466,9 @@ public class DefaultFluxCapacitor implements FluxCapacitor {
 
 
             //tracking
+            batchInterceptors.forEach((type, interceptor) -> consumerConfigurations.computeIfPresent(
+                    type, (t, configs) -> configs.stream().map(
+                            c -> c.toBuilder().batchInterceptor(interceptor).build()).collect(toList())));
             Map<MessageType, Tracking> trackingMap = stream(MessageType.values())
                     .collect(toMap(identity(), m -> new DefaultTracking(m, client, resultGateway,
                                                                         consumerConfigurations.get(m), this.serializer,
@@ -509,7 +521,7 @@ public class DefaultFluxCapacitor implements FluxCapacitor {
                                             keyValueStore, scheduler, cache, serializer, client, shutdownHandler);
         }
 
-        protected RequestGateway createRequestGateway(Client client, MessageType messageType,
+        protected GenericGateway createRequestGateway(Client client, MessageType messageType,
                                                       RequestHandler requestHandler,
                                                       Map<MessageType, DispatchInterceptor> dispatchInterceptors,
                                                       Map<MessageType, HandlerInterceptor> handlerInterceptors) {

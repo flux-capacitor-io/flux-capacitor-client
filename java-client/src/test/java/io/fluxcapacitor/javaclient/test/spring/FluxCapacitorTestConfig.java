@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016-2020 Flux Capacitor.
+ * Copyright (c) 2016-2021 Flux Capacitor.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -20,7 +20,7 @@ import io.fluxcapacitor.javaclient.configuration.FluxCapacitorBuilder;
 import io.fluxcapacitor.javaclient.configuration.client.Client;
 import io.fluxcapacitor.javaclient.configuration.client.WebSocketClient;
 import io.fluxcapacitor.javaclient.configuration.spring.FluxCapacitorSpringConfig;
-import io.fluxcapacitor.javaclient.test.streaming.StreamingTestFixture;
+import io.fluxcapacitor.javaclient.test.TestFixture;
 import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.ApplicationContext;
@@ -41,19 +41,19 @@ public class FluxCapacitorTestConfig {
 
     @Bean
     @Primary
-    public FluxCapacitor fluxCapacitor(StreamingTestFixture testFixture) {
+    public FluxCapacitor fluxCapacitor(TestFixture testFixture) {
         return testFixture.getFluxCapacitor();
     }
 
     @Bean
-    public StreamingTestFixture testFixture(FluxCapacitorBuilder fluxCapacitorBuilder) {
+    public TestFixture testFixture(FluxCapacitorBuilder fluxCapacitorBuilder) {
         fluxCapacitorBuilder.makeApplicationInstance(false);
         Client client = getBean(Client.class).orElseGet(() -> getBean(WebSocketClient.Properties.class).<Client>map(
                 WebSocketClient::newInstance).orElse(null));
         if (client == null) {
-            return StreamingTestFixture.create(fluxCapacitorBuilder);
+            return TestFixture.createAsync(fluxCapacitorBuilder);
         }
-        return StreamingTestFixture.create(fluxCapacitorBuilder, client);
+        return TestFixture.createAsync(fluxCapacitorBuilder, client);
     }
 
     protected <T> Optional<T> getBean(Class<T> type) {
