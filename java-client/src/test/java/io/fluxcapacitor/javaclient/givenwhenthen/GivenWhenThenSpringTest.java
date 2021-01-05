@@ -15,7 +15,7 @@
 package io.fluxcapacitor.javaclient.givenwhenthen;
 
 import io.fluxcapacitor.javaclient.FluxCapacitor;
-import io.fluxcapacitor.javaclient.test.StreamingTestFixture;
+import io.fluxcapacitor.javaclient.test.TestFixture;
 import io.fluxcapacitor.javaclient.test.spring.FluxCapacitorTestConfig;
 import io.fluxcapacitor.javaclient.tracking.handling.HandleCommand;
 import io.fluxcapacitor.javaclient.tracking.handling.HandleEvent;
@@ -41,7 +41,7 @@ import static org.springframework.test.annotation.DirtiesContext.ClassMode.AFTER
 class GivenWhenThenSpringTest {
 
     @Autowired
-    private StreamingTestFixture testFixture;
+    private TestFixture testFixture;
 
     @Test
     void testFoo() {

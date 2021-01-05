@@ -20,7 +20,7 @@ import io.fluxcapacitor.javaclient.common.IgnoringErrorHandler;
 import io.fluxcapacitor.javaclient.common.exception.TechnicalException;
 import io.fluxcapacitor.javaclient.configuration.DefaultFluxCapacitor;
 import io.fluxcapacitor.javaclient.scheduling.Schedule;
-import io.fluxcapacitor.javaclient.test.StreamingTestFixture;
+import io.fluxcapacitor.javaclient.test.TestFixture;
 import io.fluxcapacitor.javaclient.tracking.handling.HandleCommand;
 import io.fluxcapacitor.javaclient.tracking.handling.HandleEvent;
 import io.fluxcapacitor.javaclient.tracking.handling.HandleSchedule;
@@ -39,8 +39,8 @@ import static io.fluxcapacitor.common.MessageType.COMMAND;
 
 class GivenWhenThenStreamingTest {
 
-    private final StreamingTestFixture
-            subject = StreamingTestFixture.create(DefaultFluxCapacitor.builder().configureDefaultConsumer(
+    private final TestFixture
+            subject = TestFixture.createAsync(DefaultFluxCapacitor.builder().configureDefaultConsumer(
             COMMAND, config -> config.toBuilder().errorHandler(new IgnoringErrorHandler()).build()),
                                                   new CommandHandler(), new EventHandler(), new AsyncCommandHandler(),
                                                   new ScheduleHandler());

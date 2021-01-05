@@ -24,7 +24,7 @@ import io.fluxcapacitor.javaclient.common.serialization.jackson.JacksonSerialize
 import io.fluxcapacitor.javaclient.configuration.DefaultFluxCapacitor;
 import io.fluxcapacitor.javaclient.persisting.eventsourcing.ApplyEvent;
 import io.fluxcapacitor.javaclient.persisting.eventsourcing.EventSourced;
-import io.fluxcapacitor.javaclient.test.StreamingTestFixture;
+import io.fluxcapacitor.javaclient.test.TestFixture;
 import io.fluxcapacitor.javaclient.tracking.handling.HandleCommand;
 import io.fluxcapacitor.javaclient.tracking.handling.HandleQuery;
 import lombok.SneakyThrows;
@@ -41,7 +41,7 @@ public class GivenWhenThenUpcasterChainTest {
     private static final String aggregateId = "test";
 
     static class WithJsonNode {
-        private final StreamingTestFixture testFixture = StreamingTestFixture.create(
+        private final TestFixture testFixture = TestFixture.createAsync(
                 DefaultFluxCapacitor.builder().replaceSerializer(
                         new JacksonSerializer(singletonList(new JsonNodeUpcaster()))), new Handler());
 
@@ -62,7 +62,7 @@ public class GivenWhenThenUpcasterChainTest {
     }
 
     static class WithJsonPatch {
-        private final StreamingTestFixture testFixture = StreamingTestFixture.create(
+        private final TestFixture testFixture = TestFixture.createAsync(
                 DefaultFluxCapacitor.builder().replaceSerializer(
                         new JacksonSerializer(singletonList(new JsonPatchUpcaster()))), new Handler());
 
@@ -86,7 +86,7 @@ public class GivenWhenThenUpcasterChainTest {
     }
 
     static class WithoutInputParam {
-        private final StreamingTestFixture testFixture = StreamingTestFixture.create(
+        private final TestFixture testFixture = TestFixture.createAsync(
                 DefaultFluxCapacitor.builder().replaceSerializer(
                         new JacksonSerializer(singletonList(new JsonPatchUpcasterWithoutInputParam()))), new Handler());
 

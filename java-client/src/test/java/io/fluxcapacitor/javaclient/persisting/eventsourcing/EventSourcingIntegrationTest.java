@@ -16,8 +16,7 @@ package io.fluxcapacitor.javaclient.persisting.eventsourcing;
 
 import io.fluxcapacitor.javaclient.FluxCapacitor;
 import io.fluxcapacitor.javaclient.publishing.routing.RoutingKey;
-import io.fluxcapacitor.javaclient.test.AbstractTestFixture;
-import io.fluxcapacitor.javaclient.test.StreamingTestFixture;
+import io.fluxcapacitor.javaclient.test.TestFixture;
 import io.fluxcapacitor.javaclient.tracking.handling.HandleCommand;
 import io.fluxcapacitor.javaclient.tracking.handling.HandleEvent;
 import lombok.Builder;
@@ -36,7 +35,7 @@ import static org.mockito.Mockito.verify;
 
 @Slf4j
 class EventSourcingIntegrationTest {
-    private final AbstractTestFixture testFixture = StreamingTestFixture.create(new CommandHandler(), new EventHandler());
+    private final TestFixture testFixture = TestFixture.createAsync(new CommandHandler(), new EventHandler());
 
     @Test
     void testHandleBatch() {

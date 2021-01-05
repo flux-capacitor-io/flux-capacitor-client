@@ -41,8 +41,7 @@ public class ResultValidator implements Then {
     @Getter(AccessLevel.PROTECTED)
     private final FluxCapacitor fluxCapacitor;
     private final Object actualResult;
-    private final List<Message> resultingEvents;
-    private final List<Message> resultingCommands;
+    private final List<Message> resultingEvents, resultingCommands;
     private final List<Schedule> resultingSchedules;
 
     @Override
