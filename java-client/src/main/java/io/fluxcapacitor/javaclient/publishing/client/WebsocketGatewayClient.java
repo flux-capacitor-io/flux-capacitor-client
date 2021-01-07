@@ -16,32 +16,39 @@ package io.fluxcapacitor.javaclient.publishing.client;
 
 import io.fluxcapacitor.common.Awaitable;
 import io.fluxcapacitor.common.Backlog;
+import io.fluxcapacitor.common.MessageType;
 import io.fluxcapacitor.common.Registration;
 import io.fluxcapacitor.common.api.SerializedMessage;
 import io.fluxcapacitor.common.api.publishing.Append;
 import io.fluxcapacitor.javaclient.common.websocket.AbstractWebsocketClient;
 import io.fluxcapacitor.javaclient.configuration.client.WebSocketClient.Properties;
+import lombok.Getter;
 
 import javax.websocket.ClientEndpoint;
 import java.net.URI;
 import java.util.List;
 import java.util.function.Consumer;
 
+import static io.fluxcapacitor.common.MessageType.METRICS;
+
 @ClientEndpoint
 public class WebsocketGatewayClient extends AbstractWebsocketClient implements GatewayClient {
 
     private final Backlog<SerializedMessage> backlog;
+    @Getter
+    private final MessageType type;
 
-    public WebsocketGatewayClient(String endPointUrl, Properties properties) {
-        this(URI.create(endPointUrl), 1024, properties);
+    public WebsocketGatewayClient(String endPointUrl, Properties properties, MessageType type) {
+        this(URI.create(endPointUrl), 1024, properties, type);
     }
 
-    public WebsocketGatewayClient(String endPointUrl, int backlogSize, Properties properties) {
-        this(URI.create(endPointUrl), backlogSize, properties);
+    public WebsocketGatewayClient(String endPointUrl, int backlogSize, Properties properties, MessageType type) {
+        this(URI.create(endPointUrl), backlogSize, properties, type);
     }
 
-    public WebsocketGatewayClient(URI endPointUri, int backlogSize, Properties properties) {
-        super(endPointUri, properties);
+    public WebsocketGatewayClient(URI endPointUri, int backlogSize, Properties properties, MessageType type) {
+        super(endPointUri, properties, type != METRICS);
+        this.type = type;
         this.backlog = new Backlog<>(this::doSend, backlogSize);
     }
 

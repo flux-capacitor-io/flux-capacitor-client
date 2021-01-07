@@ -17,7 +17,11 @@ package io.fluxcapacitor.javaclient.common.websocket;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.fluxcapacitor.common.Awaitable;
 import io.fluxcapacitor.common.RetryConfiguration;
-import io.fluxcapacitor.common.api.*;
+import io.fluxcapacitor.common.api.JsonType;
+import io.fluxcapacitor.common.api.Metadata;
+import io.fluxcapacitor.common.api.QueryResult;
+import io.fluxcapacitor.common.api.Request;
+import io.fluxcapacitor.javaclient.FluxCapacitor;
 import io.fluxcapacitor.javaclient.configuration.client.WebSocketClient.Properties;
 import lombok.RequiredArgsConstructor;
 import lombok.SneakyThrows;
@@ -41,6 +45,7 @@ import static io.fluxcapacitor.javaclient.common.serialization.compression.Compr
 import static java.lang.System.currentTimeMillis;
 import static java.lang.Thread.currentThread;
 import static java.lang.Thread.sleep;
+import static java.util.Optional.ofNullable;
 import static javax.websocket.CloseReason.CloseCodes.NO_STATUS_CODE;
 
 @Slf4j
@@ -55,20 +60,26 @@ public abstract class AbstractWebsocketClient implements AutoCloseable {
     private final Map<Long, WebSocketRequest> requests = new ConcurrentHashMap<>();
     private final AtomicBoolean closed = new AtomicBoolean();
     private final RetryConfiguration retryConfig;
-    private final Metadata metricsMetadata;
+    private final Metadata defaultMetricsMetadata;
+    private final boolean sendMetrics;
     private volatile Session session;
 
     public AbstractWebsocketClient(URI endpointUri, Properties properties) {
-        this(defaultWebSocketContainer, endpointUri, properties, Duration.ofSeconds(1), defaultObjectMapper);
+        this(endpointUri, properties, true);
     }
 
-    public AbstractWebsocketClient(WebSocketContainer container, URI endpointUri,
-                                   Properties properties, Duration reconnectDelay, ObjectMapper objectMapper) {
+    public AbstractWebsocketClient(URI endpointUri, Properties properties, boolean sendMetrics) {
+        this(defaultWebSocketContainer, endpointUri, properties, sendMetrics, Duration.ofSeconds(1), defaultObjectMapper);
+    }
+
+    public AbstractWebsocketClient(WebSocketContainer container, URI endpointUri, Properties properties,
+                                   boolean sendMetrics, Duration reconnectDelay, ObjectMapper objectMapper) {
         this.container = container;
         this.endpointUri = endpointUri;
         this.properties = properties;
         this.objectMapper = objectMapper;
-        this.metricsMetadata = Metadata.of("clientName", properties.getName()).with("clientId", properties.getId());
+        this.defaultMetricsMetadata = Metadata.of("clientName", properties.getName()).with("clientId", properties.getId());
+        this.sendMetrics = sendMetrics;
         this.retryConfig = RetryConfiguration.builder()
                 .delay(reconnectDelay)
                 .errorTest(e -> !closed.get())
@@ -76,8 +87,8 @@ public abstract class AbstractWebsocketClient implements AutoCloseable {
                 .exceptionLogger(status -> {
                     if (status.getNumberOfTimesRetried() == 0) {
                         log.warn("Failed to connect to endpoint {}; reason: {}. Retrying every {} ms...",
-                                 endpointUri, status.getException().getMessage(),
-                                 status.getRetryConfiguration().getDelay().toMillis());
+                                endpointUri, status.getException().getMessage(),
+                                status.getRetryConfiguration().getDelay().toMillis());
                     }
                 })
                 .build();
@@ -108,28 +119,9 @@ public abstract class AbstractWebsocketClient implements AutoCloseable {
 
     @SuppressWarnings("unchecked")
     protected <R extends QueryResult> CompletableFuture<R> sendRequest(Request request) {
-        long start = currentTimeMillis();
-        try {
-            publishMetrics(request.toMetric(), metricsMetadata.with("timestamp", start)
-                    .with("requestId", request.getRequestId()));
-        } catch (Exception e) {
-            log.error("Failed to publish request metrics", e);
-        }
         WebSocketRequest webSocketRequest = new WebSocketRequest(request);
         webSocketRequest.send();
-        return (CompletableFuture<R>) webSocketRequest.result
-                .whenComplete((r, e) -> {
-                    if (e == null && !(r instanceof VoidResult)) {
-                        try {
-                            long stop = currentTimeMillis();
-                            publishMetrics(r.toMetric(), metricsMetadata.with("timestamp", stop)
-                                    .with("requestId", request.getRequestId())
-                                    .with("msDuration", String.valueOf(stop - start)));
-                        } catch (Exception e1) {
-                            log.error("Failed to publish result metrics", e1);
-                        }
-                    }
-                });
+        return (CompletableFuture<R>) webSocketRequest.result;
     }
 
     @OnMessage
@@ -191,12 +183,12 @@ public abstract class AbstractWebsocketClient implements AutoCloseable {
                         session.close();
                     } catch (IOException e) {
                         log.warn("Failed to closed websocket session connected to endpoint {}. Reason: {}",
-                                 session.getRequestURI(), e.getMessage());
+                                session.getRequestURI(), e.getMessage());
                     }
                 }
                 if (session != null && !requests.isEmpty()) {
                     log.warn("Closed websocket session to endpoint {} with {} outstanding requests",
-                             session.getRequestURI(), requests.size());
+                            session.getRequestURI(), requests.size());
                 }
             }
         }
@@ -237,11 +229,39 @@ public abstract class AbstractWebsocketClient implements AutoCloseable {
             }
             this.sessionId = session.getId();
             requests.put(request.getRequestId(), this);
+
             try {
                 AbstractWebsocketClient.this.send(request, session);
+
+                long start = currentTimeMillis();
+                tryPublishMetrics(request.toMetric(), defaultMetricsMetadata.with("timestamp", start)
+                        .with("requestId", request.getRequestId()));
+                result.whenComplete((result, e) -> {
+                    if (e == null) {
+                        ofNullable(result.toMetric()).ifPresent(metric -> {
+                            long stop = currentTimeMillis();
+                            tryPublishMetrics(metric, defaultMetricsMetadata.with("timestamp", stop)
+                                    .with("requestId", request.getRequestId())
+                                    .with("msDuration", stop - start));
+                        });
+                    }
+                });
             } catch (Exception e) {
                 requests.remove(request.getRequestId());
                 result.completeExceptionally(e);
+            }
+        }
+
+
+        protected void tryPublishMetrics(Object metric, Metadata metadata) {
+            if (sendMetrics) {
+                FluxCapacitor.getOptionally().ifPresent(f -> {
+                    try {
+                        publishMetrics(metric, metadata);
+                    } catch (Exception e) {
+                        log.info("Failed to publish metrics", e);
+                    }
+                });
             }
         }
     }
