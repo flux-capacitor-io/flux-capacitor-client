@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016-2020 Flux Capacitor.
+ * Copyright (c) 2016-2021 Flux Capacitor.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -229,7 +229,8 @@ public class EventSourcingRepository implements AggregateRepository {
                             a.await();
                         } catch (Exception e) {
                             List<String> aggregateIds = models.stream().map(m -> m.id).collect(toList());
-                            log.error("Failed to commit new events of aggregates {}", aggregateIds, e);
+                            log.error("Failed to commit events for aggregates {}. Clearing aggregates from the cache.",
+                                      aggregateIds, e);
                             aggregateIds.forEach(id -> cache.invalidate(keyFunction.apply(id)));
                         }
                     });
