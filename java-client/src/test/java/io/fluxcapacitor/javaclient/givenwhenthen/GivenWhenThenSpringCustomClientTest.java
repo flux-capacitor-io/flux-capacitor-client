@@ -16,12 +16,10 @@ package io.fluxcapacitor.javaclient.givenwhenthen;
 
 import io.fluxcapacitor.javaclient.FluxCapacitor;
 import io.fluxcapacitor.javaclient.configuration.client.WebSocketClient;
-import io.fluxcapacitor.javaclient.scheduling.Periodic;
 import io.fluxcapacitor.javaclient.test.TestFixture;
 import io.fluxcapacitor.javaclient.test.spring.FluxCapacitorTestConfig;
 import io.fluxcapacitor.javaclient.tracking.handling.HandleCommand;
 import io.fluxcapacitor.javaclient.tracking.handling.HandleEvent;
-import io.fluxcapacitor.javaclient.tracking.handling.HandleSchedule;
 import lombok.SneakyThrows;
 import lombok.Value;
 import lombok.extern.slf4j.Slf4j;
@@ -35,7 +33,8 @@ import org.springframework.test.annotation.DirtiesContext;
 import org.springframework.test.context.ContextConfiguration;
 import org.springframework.test.context.junit.jupiter.SpringExtension;
 
-import static org.hamcrest.Matchers.isA;
+import java.util.concurrent.CompletableFuture;
+
 import static org.springframework.test.annotation.DirtiesContext.ClassMode.AFTER_EACH_TEST_METHOD;
 
 @Disabled("Leave here to enable tests against real server")
@@ -50,23 +49,12 @@ class GivenWhenThenSpringCustomClientTest {
 
     @Test
     void testFoo() {
-        testFixture.givenNoPriorActivity().whenCommand("command1").expectEvents("event");
+        testFixture.givenNoPriorActivity().whenCommand(new DoSomething()).expectEvents(new DoSomething());
     }
 
     @Test
     void testBar() {
-        testFixture.givenNoPriorActivity().whenCommand("command1").expectCommands("command2");
-    }
-
-    @Test
-    void testAutomaticPeriodicSchedule() {
-        testFixture.givenNoPriorActivity().when(GivenWhenThenSpringCustomClientTest::sleepAWhile)
-                .expectSchedules(isA(PeriodicSchedule.class));
-    }
-
-    @Value
-    @Periodic(value = 200, scheduleId = "test")
-    static class PeriodicSchedule {
+        testFixture.givenNoPriorActivity().whenCommand(new DoSomething()).expectCommands(new DoSomethingElse());
     }
 
     @Configuration
@@ -74,7 +62,8 @@ class GivenWhenThenSpringCustomClientTest {
         @Bean
         public WebSocketClient.Properties webSocketClientProperties() {
             return WebSocketClient.Properties.builder()
-                    .serviceBaseUrl("http://localhost:8081")
+                    .serviceBaseUrl("http://localhost:8080")
+                    .projectId("clienttest")
                     .name("GivenWhenThenSpringCustomClientTest")
                     .build();
         }
@@ -86,17 +75,20 @@ class GivenWhenThenSpringCustomClientTest {
     }
 
     private static class FooHandler {
-
-        @HandleSchedule
-        public void handle(PeriodicSchedule schedule) {
-            FluxCapacitor.publishEvent("triggered");
+        @HandleCommand
+        public void handle(DoSomething command) {
+            FluxCapacitor.publishEvent(command);
         }
 
         @HandleCommand
-        public void handle(String command) {
-            FluxCapacitor.publishEvent("event");
+        public CompletableFuture<?> handle(SlowCommand command) {
+            return CompletableFuture.runAsync(this::sleepAWhile);
         }
 
+        @SneakyThrows
+        private void sleepAWhile() {
+            Thread.sleep(500);
+        }
     }
 
     @Configuration
@@ -109,9 +101,21 @@ class GivenWhenThenSpringCustomClientTest {
 
     static class BarHandler {
         @HandleEvent
-        public void handle(String event) {
-            FluxCapacitor.sendAndForgetCommand("command2");
+        public void handle(DoSomething event) {
+            FluxCapacitor.sendAndForgetCommand(new DoSomethingElse());
         }
+    }
+
+    @Value
+    private static class DoSomething {
+    }
+
+    @Value
+    private static class DoSomethingElse {
+    }
+
+    @Value
+    private static class SlowCommand {
     }
 
     @SneakyThrows
