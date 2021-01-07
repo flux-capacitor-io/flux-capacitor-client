@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016-2020 Flux Capacitor.
+ * Copyright (c) 2016-2021 Flux Capacitor.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -46,6 +46,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.stream.Stream;
 
@@ -278,7 +279,7 @@ public interface FluxCapacitor extends AutoCloseable {
      * @see #registerHandlers(Object...) for more info
      */
     default Registration registerHandlers(List<?> handlers) {
-        return execute(f -> {
+        return apply(f -> {
             Registration tracking = stream(MessageType.values()).map(t -> tracking(t).start(this, handlers))
                     .reduce(Registration::merge).orElse(Registration.noOp());
             Registration local = handlers.stream().flatMap(h -> Stream
@@ -374,13 +375,26 @@ public interface FluxCapacitor extends AutoCloseable {
     Client client();
 
     /**
-     * Executes the given task with this Flux Capacitor set as current threadlocal instance.
+     * Applies the given function with this Flux Capacitor set as current threadlocal instance.
      */
-    default <R> R execute(Function<FluxCapacitor, R> task) {
+    default <R> R apply(Function<FluxCapacitor, R> function) {
         FluxCapacitor current = FluxCapacitor.instance.get();
         try {
             FluxCapacitor.instance.set(this);
-            return task.apply(this);
+            return function.apply(this);
+        } finally {
+            FluxCapacitor.instance.set(current);
+        }
+    }
+
+    /**
+     * Executes the given task with this Flux Capacitor set as current threadlocal instance.
+     */
+    default void execute(Consumer<FluxCapacitor> task) {
+        FluxCapacitor current = FluxCapacitor.instance.get();
+        try {
+            FluxCapacitor.instance.set(this);
+            task.accept(this);
         } finally {
             FluxCapacitor.instance.set(current);
         }

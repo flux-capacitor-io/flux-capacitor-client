@@ -91,7 +91,7 @@ public class ResultValidator implements Then {
 
     @Override
     public ResultValidator expectResult(Object expectedResult) {
-        return fluxCapacitor.execute(fc -> {
+        return fluxCapacitor.apply(fc -> {
             if (actualResult instanceof Throwable) {
                 throw new GivenWhenThenAssertionError("An unexpected exception occurred during handling",
                                                       (Throwable) actualResult);
@@ -112,7 +112,7 @@ public class ResultValidator implements Then {
 
     @Override
     public ResultValidator expectNoResultLike(Object value) {
-        return fluxCapacitor.execute(fc -> {
+        return fluxCapacitor.apply(fc -> {
             if (actualResult instanceof Throwable) {
                 throw new GivenWhenThenAssertionError("An unexpected exception occurred during handling",
                                                       (Throwable) actualResult);
@@ -128,7 +128,7 @@ public class ResultValidator implements Then {
 
     @Override
     public ResultValidator verify(Runnable check) {
-        return fluxCapacitor.execute(fc -> {
+        return fluxCapacitor.apply(fc -> {
             try {
                 check.run();
             } catch (Exception e) {
@@ -140,7 +140,7 @@ public class ResultValidator implements Then {
 
     @Override
     public ResultValidator expectException(Matcher<?> resultMatcher) {
-        return fluxCapacitor.execute(fc -> {
+        return fluxCapacitor.apply(fc -> {
             StringDescription description = new StringDescription();
             resultMatcher.describeTo(description);
             if (!(actualResult instanceof Throwable)) {
@@ -159,7 +159,7 @@ public class ResultValidator implements Then {
 
     protected ResultValidator expectScheduledMessages(Collection<?> expected,
                                                       Collection<? extends Schedule> actual) {
-        return fluxCapacitor.execute(fc -> {
+        return fluxCapacitor.apply(fc -> {
             if (!expected.isEmpty() && actual.isEmpty()) {
                 throw new GivenWhenThenAssertionError("No messages were scheduled");
             }
@@ -178,7 +178,7 @@ public class ResultValidator implements Then {
     }
 
     protected void reportMismatch(Collection<?> expected, Collection<? extends Message> actual) {
-        fluxCapacitor.execute(fc -> {
+        fluxCapacitor.apply(fc -> {
             if (actualResult instanceof Throwable) {
                 throw new GivenWhenThenAssertionError(
                         "Published messages did not match. Probable cause is an exception that occurred during handling:",
@@ -189,7 +189,7 @@ public class ResultValidator implements Then {
     }
 
     protected void reportUnwantedMatch(Collection<?> expected, Collection<? extends Message> actual) {
-        fluxCapacitor.execute(fc -> {
+        fluxCapacitor.apply(fc -> {
             if (actualResult instanceof Throwable) {
                 throw new GivenWhenThenAssertionError("An unexpected exception occurred during handling",
                                                       (Throwable) actualResult);

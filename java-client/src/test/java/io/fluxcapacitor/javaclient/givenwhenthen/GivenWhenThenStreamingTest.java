@@ -43,7 +43,7 @@ class GivenWhenThenStreamingTest {
             subject = TestFixture.createAsync(DefaultFluxCapacitor.builder().configureDefaultConsumer(
             COMMAND, config -> config.toBuilder().errorHandler(new IgnoringErrorHandler()).build()),
                                                   new CommandHandler(), new EventHandler(), new AsyncCommandHandler(),
-                                                  new ScheduleHandler());
+                                                  new ScheduleHandler()).resultTimeout(Duration.ofSeconds(1));
 
     @Test
     void testExpectCommandsAndIndirectEvents() {

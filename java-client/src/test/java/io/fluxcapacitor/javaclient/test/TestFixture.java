@@ -40,7 +40,9 @@ import io.fluxcapacitor.javaclient.tracking.Tracker;
 import io.fluxcapacitor.javaclient.tracking.handling.HandlerInterceptor;
 import io.fluxcapacitor.javaclient.tracking.handling.authentication.UserProvider;
 import lombok.Getter;
+import lombok.Setter;
 import lombok.SneakyThrows;
+import lombok.experimental.Accessors;
 import lombok.extern.slf4j.Slf4j;
 
 import java.time.Clock;
@@ -76,7 +78,6 @@ import static java.util.stream.Collectors.toSet;
 
 @Slf4j
 public class TestFixture implements Given, When {
-
     /*
         Synchronous test fixture: Messages are dispatched and consumed in the same thread (i.e. all handlers are registered as local handlers)
      */
@@ -93,7 +94,8 @@ public class TestFixture implements Given, When {
         return create(DefaultFluxCapacitor.builder(), handlersFactory);
     }
 
-    public static TestFixture create(FluxCapacitorBuilder fluxCapacitorBuilder, Function<FluxCapacitor, List<?>> handlersFactory) {
+    public static TestFixture create(FluxCapacitorBuilder fluxCapacitorBuilder,
+                                     Function<FluxCapacitor, List<?>> handlersFactory) {
         return new TestFixture(fluxCapacitorBuilder, handlersFactory, new TestClient(), true);
     }
 
@@ -113,26 +115,31 @@ public class TestFixture implements Given, When {
         return createAsync(DefaultFluxCapacitor.builder(), handlersFactory);
     }
 
-    public static TestFixture createAsync(FluxCapacitorBuilder fluxCapacitorBuilder, Function<FluxCapacitor, List<?>> handlersFactory) {
+    public static TestFixture createAsync(FluxCapacitorBuilder fluxCapacitorBuilder,
+                                          Function<FluxCapacitor, List<?>> handlersFactory) {
         return new TestFixture(fluxCapacitorBuilder, handlersFactory, new TestClient(), false);
     }
 
-    public static TestFixture createAsync(FluxCapacitorBuilder fluxCapacitorBuilder, Client client, Object... handlers) {
+    public static TestFixture createAsync(FluxCapacitorBuilder fluxCapacitorBuilder, Client client,
+                                          Object... handlers) {
         return new TestFixture(fluxCapacitorBuilder, fc -> Arrays.asList(handlers), client, false);
     }
 
+    public static Duration defaultResultTimeout = Duration.ofSeconds(10L);
+
     @Getter
     private final FluxCapacitor fluxCapacitor;
+    @Getter @Setter @Accessors(chain = true, fluent = true)
+    private Duration resultTimeout = defaultResultTimeout;
     private final boolean synchronous;
     private final Registration registration;
     private final GivenWhenThenInterceptor interceptor;
 
-    private final Map<Tracker, List<Message>> trackers = new ConcurrentHashMap<>();
-    private final List<Message> events = new CopyOnWriteArrayList<>(),
-            commands = new CopyOnWriteArrayList<>();
+    private final Map<Tracker, List<Message>> consumers = new ConcurrentHashMap<>();
+    private final List<Message> commands = new CopyOnWriteArrayList<>(), events = new CopyOnWriteArrayList<>();
     private final List<Schedule> schedules = new CopyOnWriteArrayList<>();
 
-    private volatile boolean whenStarted, whenCompleted;
+    private volatile boolean whenStarted;
 
     protected TestFixture(FluxCapacitorBuilder fluxCapacitorBuilder,
                           Function<FluxCapacitor, List<?>> handlerFactory, Client client, boolean synchronous) {
@@ -162,7 +169,7 @@ public class TestFixture implements Given, When {
         }
         FluxCapacitor fluxCapacitor = getFluxCapacitor();
         HandlerConfiguration<DeserializingMessage> handlerConfiguration = defaultHandlerConfiguration();
-        Registration registration = fluxCapacitor.execute(f -> handlers.stream().flatMap(h -> Stream
+        Registration registration = fluxCapacitor.apply(f -> handlers.stream().flatMap(h -> Stream
                 .of(fluxCapacitor.commandGateway().registerHandler(h, handlerConfiguration),
                     fluxCapacitor.queryGateway().registerHandler(h, handlerConfiguration),
                     fluxCapacitor.eventGateway().registerHandler(h, handlerConfiguration),
@@ -171,7 +178,7 @@ public class TestFixture implements Given, When {
                 .reduce(Registration::merge).orElse(Registration.noOp()));
         if (fluxCapacitor.scheduler() instanceof DefaultScheduler) {
             DefaultScheduler scheduler = (DefaultScheduler) fluxCapacitor.scheduler();
-            registration = registration.merge(fluxCapacitor.execute(fc -> handlers.stream().flatMap(h -> Stream
+            registration = registration.merge(fluxCapacitor.apply(fc -> handlers.stream().flatMap(h -> Stream
                     .of(scheduler.registerHandler(h, handlerConfiguration)))
                     .reduce(Registration::merge).orElse(Registration.noOp())));
         } else {
@@ -186,7 +193,7 @@ public class TestFixture implements Given, When {
 
     @Override
     public Given withClock(Clock clock) {
-        return getFluxCapacitor().execute(fc -> {
+        return getFluxCapacitor().apply(fc -> {
             fc.withClock(clock);
             SchedulingClient schedulingClient = fc.client().getSchedulingClient();
             if (schedulingClient instanceof InMemorySchedulingClient) {
@@ -248,10 +255,14 @@ public class TestFixture implements Given, When {
 
     @Override
     public When given(Runnable condition) {
-        return fluxCapacitor.execute(fc -> {
+        return fluxCapacitor.apply(fc -> {
             try {
                 condition.run();
-                return this;
+                try {
+                    return this;
+                } finally {
+                    waitForConsumers();
+                }
             } catch (Exception e) {
                 throw new IllegalStateException("Failed to execute given", e);
             }
@@ -357,60 +368,63 @@ public class TestFixture implements Given, When {
      */
 
     protected Then applyWhen(Callable<?> action) {
-        if (synchronous) {
-            getFluxCapacitor().execute(fc -> {
-                checkTrackers();
-                handleExpiredSchedulesLocally();
-                return null;
-            });
-        }
-        return fluxCapacitor.execute(fc -> {
+        return fluxCapacitor.apply(fc -> {
             try {
+                handleExpiredSchedulesLocally();
                 whenStarted = true;
+                waitForConsumers();
                 Object result;
                 try {
                     result = action.call();
                 } catch (Exception e) {
                     result = e;
                 }
-                whenCompleted = true;
-                return createResultValidator(result);
+                waitForConsumers();
+                return getResultValidator(result, commands, events, schedules);
             } finally {
-                if (synchronous) {
-                    handleExpiredSchedulesLocally();
-                }
+                handleExpiredSchedulesLocally();
                 registration.cancel();
             }
         });
     }
 
+    protected Then getResultValidator(Object result, List<Message> commands, List<Message> events,
+                                      List<Schedule> schedules) {
+        return new ResultValidator(getFluxCapacitor(), result, events, commands, schedules);
+    }
+
     protected void handleExpiredSchedulesLocally() {
-        SchedulingClient schedulingClient = getFluxCapacitor().client().getSchedulingClient();
-        if (schedulingClient instanceof InMemorySchedulingClient) {
-            List<Schedule> expiredSchedules = ((InMemorySchedulingClient) schedulingClient)
-                    .removeExpiredSchedules(getFluxCapacitor().serializer());
-            if (getFluxCapacitor().scheduler() instanceof DefaultScheduler) {
-                DefaultScheduler scheduler = (DefaultScheduler)  getFluxCapacitor().scheduler();
-                expiredSchedules.forEach(s -> scheduler.handleLocally(
-                        s, s.serialize(getFluxCapacitor().serializer())));
+        if (synchronous) {
+            SchedulingClient schedulingClient = getFluxCapacitor().client().getSchedulingClient();
+            if (schedulingClient instanceof InMemorySchedulingClient) {
+                List<Schedule> expiredSchedules = ((InMemorySchedulingClient) schedulingClient)
+                        .removeExpiredSchedules(getFluxCapacitor().serializer());
+                if (getFluxCapacitor().scheduler() instanceof DefaultScheduler) {
+                    DefaultScheduler scheduler = (DefaultScheduler) getFluxCapacitor().scheduler();
+                    expiredSchedules.forEach(s -> scheduler.handleLocally(
+                            s, s.serialize(getFluxCapacitor().serializer())));
+                }
             }
         }
     }
 
-    protected Then createResultValidator(Object result) {
-        synchronized (trackers) {
-            if (!checkTrackers()) {
+    private void waitForConsumers() {
+        if (synchronous) {
+            return;
+        }
+        synchronized (consumers) {
+            if (!checkConsumers()) {
                 try {
-                    trackers.wait(5000);
+                    consumers.wait();
                 } catch (InterruptedException e) {
                     Thread.currentThread().interrupt();
                 }
             }
-            if (!checkTrackers()) {
-                log.warn("Some consumers in the test fixture did not handle all messages. This may cause your test to fail.");
+            if (!checkConsumers()) {
+                log.warn("Some consumers in the test fixture did not finish processing all messages. "
+                                 + "This may cause your test to fail.");
             }
         }
-        return new ResultValidator(getFluxCapacitor(), result, events, commands, schedules);
     }
 
     protected void advanceTimeBy(Duration duration) {
@@ -436,7 +450,9 @@ public class TestFixture implements Given, When {
     @SneakyThrows
     protected Object getDispatchResult(CompletableFuture<?> dispatchResult) {
         try {
-            return dispatchResult.get(5L, TimeUnit.SECONDS);
+            return synchronous
+                    ? dispatchResult.get(1, TimeUnit.MILLISECONDS)
+                    : dispatchResult.get(resultTimeout.toMillis(), TimeUnit.MILLISECONDS);
         } catch (ExecutionException e) {
             throw e.getCause();
         } catch (TimeoutException e) {
@@ -457,11 +473,14 @@ public class TestFixture implements Given, When {
         });
     }
 
-    protected boolean checkTrackers() {
-        synchronized (trackers) {
-            if (trackers.values().stream().allMatch(l -> l.stream().noneMatch(
+    protected boolean checkConsumers() {
+        if (synchronous) {
+            return true;
+        }
+        synchronized (consumers) {
+            if (consumers.values().stream().allMatch(l -> l.stream().noneMatch(
                     m -> !(m instanceof Schedule) || !((Schedule) m).getDeadline().isAfter(getClock().instant())))) {
-                trackers.notifyAll();
+                consumers.notifyAll();
                 return true;
             }
         }
@@ -500,12 +519,13 @@ public class TestFixture implements Given, When {
                 }
 
                 if (messageType == SCHEDULE) {
-                    addMessage(publishedSchedules.computeIfAbsent(SCHEDULE, t -> new CopyOnWriteArrayList<>()), message);
+                    addMessage(publishedSchedules.computeIfAbsent(SCHEDULE, t -> new CopyOnWriteArrayList<>()),
+                               message);
                 }
 
-                synchronized (trackers) {
+                synchronized (consumers) {
                     Message interceptedMessage = message;
-                    trackers.entrySet().stream()
+                    consumers.entrySet().stream()
                             .filter(t -> {
                                 ConsumerConfiguration configuration = t.getKey().getConfiguration();
                                 return (configuration.getMessageType() == messageType && Optional
@@ -534,7 +554,8 @@ public class TestFixture implements Given, When {
 
         protected void addMessage(List<Message> messages, Message message) {
             if (message instanceof Schedule) {
-                messages.removeIf(m -> m instanceof Schedule && ((Schedule) m).getScheduleId().equals(((Schedule) message).getScheduleId()));
+                messages.removeIf(m -> m instanceof Schedule && ((Schedule) m).getScheduleId()
+                        .equals(((Schedule) message).getScheduleId()));
             }
             messages.add(message);
         }
@@ -546,15 +567,13 @@ public class TestFixture implements Given, When {
                             .filter(m -> Optional.ofNullable(tracker.getConfiguration().getTypeFilter())
                                     .map(f -> m.getPayload().getClass().getName().matches(f)).orElse(true))
                             .collect(toCollection(CopyOnWriteArrayList::new));
-            trackers.put(tracker, messages);
+            consumers.put(tracker, messages);
             return b -> {
                 consumer.accept(b);
                 Collection<String> messageIds =
                         b.getMessages().stream().map(SerializedMessage::getMessageId).collect(toSet());
                 messages.removeIf(m -> messageIds.contains(m.getMessageId()));
-                if (whenCompleted) {
-                    checkTrackers();
-                }
+                checkConsumers();
             };
         }
 
@@ -568,16 +587,14 @@ public class TestFixture implements Given, When {
                 } finally {
                     if ((m.getMessageType() == COMMAND || m.getMessageType() == QUERY)
                             && isLocalHandlerMethod(handler.getTarget().getClass(), handler.getMethod(m))) {
-                        synchronized (trackers) {
-                            trackers.entrySet().stream()
+                        synchronized (consumers) {
+                            consumers.entrySet().stream()
                                     .filter(t -> t.getKey().getConfiguration().getMessageType() == m.getMessageType())
                                     .forEach(e -> e.getValue().removeIf(
                                             m2 -> m2.getMessageId()
                                                     .equals(m.getSerializedObject().getMessageId())));
                         }
-                        if (whenCompleted) {
-                            checkTrackers();
-                        }
+                        checkConsumers();
                     }
                 }
             };
