@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016-2020 Flux Capacitor.
+ * Copyright (c) 2016-2021 Flux Capacitor.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -74,14 +74,16 @@ public class InMemoryMessageStore implements GatewayClient, TrackingClient {
         synchronized (this) {
             Map<Long, SerializedMessage> tailMap = Collections.emptyMap();
             while (System.currentTimeMillis() < deadline
-                    && shouldWait(tailMap = messageLog.tailMap(Optional.ofNullable(previousLastIndex).orElseGet(() -> getLastIndex(consumer)), false))) {
+                    && shouldWait(tailMap = messageLog
+                    .tailMap(Optional.ofNullable(previousLastIndex).orElseGet(() -> getLastIndex(consumer)), false))) {
                 try {
                     this.wait(deadline - System.currentTimeMillis());
                 } catch (InterruptedException e) {
                     currentThread().interrupt();
                 }
             }
-            List<SerializedMessage> messages = new ArrayList<>(tailMap.values());
+            List<SerializedMessage> messages = new ArrayList<>(tailMap.values())
+                    .subList(0, Math.min(tailMap.size(), configuration.getMaxFetchBatchSize()));
             Long lastIndex = messages.isEmpty() ? null : messages.get(messages.size() - 1).getIndex();
             if (configuration.getTypeFilter() != null) {
                 messages = messages.stream().filter(m -> m.getData().getType()
