@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016-2020 Flux Capacitor.
+ * Copyright (c) 2016-2021 Flux Capacitor.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -69,7 +69,7 @@ class GivenWhenThenSchedulingTest {
         Object command = "command";
         Instant deadline = subject.getClock().instant().minusSeconds(10);
         subject.givenSchedules(new Schedule(new YieldsCommand(command), "test", deadline))
-                .when(() -> {})
+                .when(fc -> {})
                 .expectNoCommands();
     }
 
@@ -87,7 +87,7 @@ class GivenWhenThenSchedulingTest {
         Object command = "command";
         subject.givenSchedules(new Schedule(new YieldsCommand(command), "test",
                                             subject.getClock().instant().plusSeconds(10)))
-                .andGiven(() -> subject.getFluxCapacitor().scheduler().cancelSchedule("test"))
+                .given(fc -> fc.scheduler().cancelSchedule("test"))
                 .whenTimeElapses(Duration.ofSeconds(10))
                 .expectNoCommands();
     }
@@ -157,12 +157,12 @@ class GivenWhenThenSchedulingTest {
 
     @Test
     void testNoAutomaticRescheduleBeforeDeadline() {
-        subject.givenNoPriorActivity().andThenTimeElapses(Duration.ofMillis(500)).when(() -> {}).expectNoSchedules();
+        subject.givenNoPriorActivity().givenTimeElapses(Duration.ofMillis(500)).when(fc -> {}).expectNoSchedules();
     }
 
     @Test
     void testAutomaticReschedule() {
-        subject.givenNoPriorActivity().andThenTimeElapses(Duration.ofMillis(500))
+        subject.givenNoPriorActivity().givenTimeElapses(Duration.ofMillis(500))
                 .whenTimeElapses(Duration.ofMillis(1000)).expectOnlySchedules(new PeriodicSchedule());
     }
 

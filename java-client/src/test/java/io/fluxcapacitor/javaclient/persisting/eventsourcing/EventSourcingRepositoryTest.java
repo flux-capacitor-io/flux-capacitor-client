@@ -71,7 +71,7 @@ class EventSourcingRepositoryTest {
         @Test
         void testLoadingFromEventStoreAfterClearingCache() {
             testFixture.givenCommands(new CreateModel(), new UpdateModel())
-                    .andGiven(() -> testFixture.getFluxCapacitor().cache().invalidateAll())
+                    .given(fc -> fc.cache().invalidateAll())
                     .whenQuery(new GetModel())
                     .expectResult(new TestModel(Arrays.asList(new CreateModel(), new UpdateModel()), Metadata.empty()))
                     .verify(() -> verify(eventStoreClient, times(2)).getEvents(anyString(), anyLong()));
@@ -80,7 +80,7 @@ class EventSourcingRepositoryTest {
         @Test
         void testModelIsLoadedFromCacheWhenPossible() {
             testFixture.givenCommands(new CreateModel(), new UpdateModel())
-                    .andGiven(() -> testFixture.getFluxCapacitor().queryGateway().sendAndWait(new GetModel()))
+                    .given(fc -> fc.queryGateway().sendAndWait(new GetModel()))
                     .whenQuery(new GetModel())
                     .expectResult(new TestModel(Arrays.asList(new CreateModel(), new UpdateModel()), Metadata.empty()))
                     .verify(() -> verify(eventStoreClient, times(1)).getEvents(anyString(), anyLong()));
@@ -136,8 +136,8 @@ class EventSourcingRepositoryTest {
         @Test
         void testSkippedSequenceNumbers() {
             testFixture.givenCommands(new CreateModel())
-                    .andGiven(() -> testFixture.getFluxCapacitor().cache().invalidateAll())
-                    .andGiven(() -> when(eventStoreClient.getEvents(anyString(), anyLong())).thenAnswer(invocation -> {
+                    .given(fc -> fc.cache().invalidateAll())
+                    .given(fc -> when(eventStoreClient.getEvents(anyString(), anyLong())).thenAnswer(invocation -> {
                         AggregateEventStream<SerializedMessage> result =
                                 (AggregateEventStream<SerializedMessage>) invocation.callRealMethod();
                         return new AggregateEventStream<>(result.getEventStream(), result.getAggregateId(),
