@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016-2020 Flux Capacitor.
+ * Copyright (c) 2016-2021 Flux Capacitor.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -99,7 +99,7 @@ class GivenWhenThenMultiHandlerTest {
 
     @Test
     void testAndGivenCommands() {
-        subject.givenCommands(new YieldsResult()).andGivenCommands(new YieldsEventAndNoResult()).whenCommand(new YieldsNoResult()).expectNoResult().expectNoEvents();
+        subject.givenCommands(new YieldsResult()).givenCommands(new YieldsEventAndNoResult()).whenCommand(new YieldsNoResult()).expectNoResult().expectNoEvents();
         InOrder inOrder = inOrder(commandHandler);
         inOrder.verify(commandHandler).handle(new YieldsResult());
         inOrder.verify(commandHandler).handle(new YieldsEventAndNoResult());

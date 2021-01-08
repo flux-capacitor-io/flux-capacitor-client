@@ -156,9 +156,9 @@ public class TestFixture implements Given, When {
         this.registration = registerHandlers(handlerFactory.apply(fluxCapacitor));
     }
 
-    /*
-        abstract
-     */
+    public Registration registerHandlers(Object... handlers) {
+        return registerHandlers(Arrays.asList(handlers));
+    }
 
     public Registration registerHandlers(List<?> handlers) {
         if (handlers.isEmpty()) {
@@ -215,13 +215,19 @@ public class TestFixture implements Given, When {
 
     @Override
     public When givenCommands(Object... commands) {
-        return given(() -> getDispatchResult(CompletableFuture.allOf(flatten(commands).map(
-                c -> fluxCapacitor.commandGateway().send(c)).toArray(CompletableFuture[]::new))));
+        return given(fc -> getDispatchResult(CompletableFuture.allOf(flatten(commands).map(
+                c -> fc.commandGateway().send(c)).toArray(CompletableFuture[]::new))));
+    }
+
+    @Override
+    public When givenQueries(Object... queries) {
+        return given(fc -> getDispatchResult(CompletableFuture.allOf(flatten(queries).map(
+                c -> fc.queryGateway().send(c)).toArray(CompletableFuture[]::new))));
     }
 
     @Override
     public When givenDomainEvents(String aggregateId, Object... events) {
-        return given(() -> {
+        return given(fc -> {
             List<Message> eventList = flatten(events).map(e -> {
                 Message m = e instanceof Message ? (Message) e : new Message(e);
                 return m.withMetadata(m.getMetadata().with(Aggregate.AGGREGATE_ID_METADATA_KEY, aggregateId));
@@ -230,14 +236,14 @@ public class TestFixture implements Given, When {
                 Message event = eventList.get(i);
                 if (event.getPayload() instanceof Data<?>) {
                     Data<?> eventData = event.getPayload();
-                    Data<byte[]> eventBytes = fluxCapacitor.serializer().serialize(eventData);
+                    Data<byte[]> eventBytes = fc.serializer().serialize(eventData);
                     SerializedMessage message =
                             new SerializedMessage(eventBytes, event.getMetadata(), event.getMessageId(),
                                                   event.getTimestamp().toEpochMilli());
-                    fluxCapacitor.client().getEventStoreClient().storeEvents(aggregateId, "test", i,
+                    fc.client().getEventStoreClient().storeEvents(aggregateId, "test", i,
                                                                              singletonList(message), false);
                 } else {
-                    fluxCapacitor.eventStore().storeEvents(aggregateId, aggregateId, i, event);
+                    fc.eventStore().storeEvents(aggregateId, aggregateId, i, event);
                 }
             }
         });
@@ -245,19 +251,19 @@ public class TestFixture implements Given, When {
 
     @Override
     public When givenEvents(Object... events) {
-        return given(() -> flatten(events).forEach(c -> fluxCapacitor.eventGateway().publish(c)));
+        return given(fc -> flatten(events).forEach(c -> fc.eventGateway().publish(c)));
     }
 
     @Override
     public When givenSchedules(Schedule... schedules) {
-        return given(() -> Arrays.stream(schedules).forEach(s -> fluxCapacitor.scheduler().schedule(s)));
+        return given(fc -> Arrays.stream(schedules).forEach(s -> fc.scheduler().schedule(s)));
     }
 
     @Override
-    public When given(Runnable condition) {
+    public When given(Consumer<FluxCapacitor> condition) {
         return fluxCapacitor.apply(fc -> {
             try {
-                condition.run();
+                condition.accept(fc);
                 try {
                     return this;
                 } finally {
@@ -270,47 +276,17 @@ public class TestFixture implements Given, When {
     }
 
     /*
-        and given
+        and then time
      */
 
     @Override
-    public When andGiven(Runnable runnable) {
-        return given(runnable);
+    public When givenTimeAdvancesTo(Instant instant) {
+        return given(fc -> advanceTimeTo(instant));
     }
 
     @Override
-    public When andGivenCommands(Object... commands) {
-        return givenCommands(commands);
-    }
-
-    @Override
-    public When andGivenEvents(Object... events) {
-        return givenEvents(events);
-    }
-
-    @Override
-    public When andGivenDomainEvents(String aggregateId, Object... events) {
-        return givenDomainEvents(aggregateId, events);
-    }
-
-    @Override
-    public When andGivenSchedules(Schedule... schedules) {
-        return givenSchedules(schedules);
-    }
-
-    @Override
-    public When andGivenExpiredSchedules(Object... schedules) {
-        return givenExpiredSchedules(schedules);
-    }
-
-    @Override
-    public When andThenTimeAdvancesTo(Instant instant) {
-        return given(() -> advanceTimeTo(instant));
-    }
-
-    @Override
-    public When andThenTimeElapses(Duration duration) {
-        return given(() -> advanceTimeBy(duration));
+    public When givenTimeElapses(Duration duration) {
+        return given(fc -> advanceTimeBy(duration));
     }
 
     /*

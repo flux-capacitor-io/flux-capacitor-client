@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016-2020 Flux Capacitor.
+ * Copyright (c) 2016-2021 Flux Capacitor.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,23 +14,28 @@
 
 package io.fluxcapacitor.javaclient.test;
 
+import io.fluxcapacitor.javaclient.FluxCapacitor;
 import io.fluxcapacitor.javaclient.scheduling.Schedule;
 
 import java.time.Clock;
+import java.time.Duration;
 import java.time.Instant;
 import java.time.ZoneId;
 import java.util.Arrays;
 import java.util.UUID;
+import java.util.function.Consumer;
 
 public interface Given {
 
     When givenCommands(Object... commands);
 
+    When givenQueries(Object... queries);
+
     When givenDomainEvents(String aggregateId, Object... events);
 
     When givenEvents(Object... events);
 
-    When given(Runnable condition);
+    When given(Consumer<FluxCapacitor> condition);
 
     When givenSchedules(Schedule... schedules);
 
@@ -43,6 +48,10 @@ public interface Given {
     default When givenNoPriorActivity() {
         return givenCommands();
     }
+
+    When givenTimeAdvancesTo(Instant instant);
+
+    When givenTimeElapses(Duration duration);
 
     Clock getClock();
 

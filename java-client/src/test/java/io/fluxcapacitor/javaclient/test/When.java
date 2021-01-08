@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016-2020 Flux Capacitor.
+ * Copyright (c) 2016-2021 Flux Capacitor.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,13 +14,11 @@
 
 package io.fluxcapacitor.javaclient.test;
 
-import io.fluxcapacitor.javaclient.scheduling.Schedule;
-
 import java.time.Duration;
 import java.time.Instant;
 import java.util.concurrent.Callable;
 
-public interface When {
+public interface When extends Given {
 
     Then whenCommand(Object command);
 
@@ -37,24 +35,4 @@ public interface When {
     Then when(Runnable task);
 
     Then whenApplying(Callable<?> task);
-
-    /*
-        Continued
-     */
-
-    When andGiven(Runnable runnable);
-
-    When andGivenCommands(Object... commands);
-
-    When andGivenEvents(Object... events);
-
-    When andGivenDomainEvents(String aggregateId, Object... events);
-
-    When andGivenSchedules(Schedule... schedules);
-
-    When andGivenExpiredSchedules(Object... schedules);
-
-    When andThenTimeAdvancesTo(Instant instant);
-
-    When andThenTimeElapses(Duration duration);
 }
