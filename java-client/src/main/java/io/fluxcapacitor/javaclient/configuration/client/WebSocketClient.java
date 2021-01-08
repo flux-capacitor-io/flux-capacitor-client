@@ -43,7 +43,7 @@ public class WebSocketClient extends AbstractClient {
         return new WebSocketClient(
                 properties.getName(), properties.getId(),
                 type -> new WebsocketGatewayClient(producerUrl(type, properties), properties, type),
-                type -> new WebsocketTrackingClient(consumerUrl(type, properties), properties),
+                type -> new WebsocketTrackingClient(consumerUrl(type, properties), properties, type),
                 new WebSocketEventStoreClient(eventSourcingUrl(properties), properties),
                 new WebsocketSchedulingClient(schedulingUrl(properties), properties),
                 new WebsocketKeyValueClient(keyValueUrl(properties), properties));

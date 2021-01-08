@@ -22,7 +22,6 @@ import io.fluxcapacitor.common.api.SerializedMessage;
 import io.fluxcapacitor.common.api.publishing.Append;
 import io.fluxcapacitor.javaclient.common.websocket.AbstractWebsocketClient;
 import io.fluxcapacitor.javaclient.configuration.client.WebSocketClient.Properties;
-import lombok.Getter;
 
 import javax.websocket.ClientEndpoint;
 import java.net.URI;
@@ -35,8 +34,6 @@ import static io.fluxcapacitor.common.MessageType.METRICS;
 public class WebsocketGatewayClient extends AbstractWebsocketClient implements GatewayClient {
 
     private final Backlog<SerializedMessage> backlog;
-    @Getter
-    private final MessageType type;
 
     public WebsocketGatewayClient(String endPointUrl, Properties properties, MessageType type) {
         this(URI.create(endPointUrl), 1024, properties, type);
@@ -48,7 +45,6 @@ public class WebsocketGatewayClient extends AbstractWebsocketClient implements G
 
     public WebsocketGatewayClient(URI endPointUri, int backlogSize, Properties properties, MessageType type) {
         super(endPointUri, properties, type != METRICS);
-        this.type = type;
         this.backlog = new Backlog<>(this::doSend, backlogSize);
     }
 

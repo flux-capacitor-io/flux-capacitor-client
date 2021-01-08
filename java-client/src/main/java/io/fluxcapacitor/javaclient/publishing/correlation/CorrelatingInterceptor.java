@@ -34,13 +34,14 @@ import static io.fluxcapacitor.common.reflection.ReflectionUtils.getAnnotatedPro
 public class CorrelatingInterceptor implements DispatchInterceptor {
     private final Client client;
     private final String clientId;
+    private final String clientName;
     private final String correlationId;
     private final String traceId;
     private final String trigger;
     private final String triggerRoutingKey;
 
     public CorrelatingInterceptor(Client client) {
-        this(client, "$clientId", "$correlationId", "$traceId", "$trigger", "$triggerRoutingKey");
+        this(client, "$clientId", "$clientName", "$correlationId", "$traceId", "$trigger", "$triggerRoutingKey");
     }
 
     @Override
@@ -49,6 +50,7 @@ public class CorrelatingInterceptor implements DispatchInterceptor {
         return message -> {
             Map<String, String> result = new HashMap<>();
             result.put(clientId, client.id());
+            result.put(clientId, client.name());
             DeserializingMessage currentMessage = DeserializingMessage.getCurrent();
             if (currentMessage != null) {
                 String correlationId = Optional.ofNullable(currentMessage.getSerializedObject().getIndex())

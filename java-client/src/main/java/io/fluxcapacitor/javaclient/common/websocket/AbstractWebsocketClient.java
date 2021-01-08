@@ -60,7 +60,6 @@ public abstract class AbstractWebsocketClient implements AutoCloseable {
     private final Map<Long, WebSocketRequest> requests = new ConcurrentHashMap<>();
     private final AtomicBoolean closed = new AtomicBoolean();
     private final RetryConfiguration retryConfig;
-    private final Metadata defaultMetricsMetadata;
     private final boolean sendMetrics;
     private volatile Session session;
 
@@ -78,7 +77,6 @@ public abstract class AbstractWebsocketClient implements AutoCloseable {
         this.endpointUri = endpointUri;
         this.properties = properties;
         this.objectMapper = objectMapper;
-        this.defaultMetricsMetadata = Metadata.of("clientName", properties.getName()).with("clientId", properties.getId());
         this.sendMetrics = sendMetrics;
         this.retryConfig = RetryConfiguration.builder()
                 .delay(reconnectDelay)
@@ -234,16 +232,12 @@ public abstract class AbstractWebsocketClient implements AutoCloseable {
                 AbstractWebsocketClient.this.send(request, session);
 
                 long start = currentTimeMillis();
-                tryPublishMetrics(request.toMetric(), defaultMetricsMetadata.with("timestamp", start)
-                        .with("requestId", request.getRequestId()));
+                tryPublishMetrics(request.toMetric(), Metadata.of("requestId", request.getRequestId()));
                 result.whenComplete((result, e) -> {
                     if (e == null) {
-                        ofNullable(result.toMetric()).ifPresent(metric -> {
-                            long stop = currentTimeMillis();
-                            tryPublishMetrics(metric, defaultMetricsMetadata.with("timestamp", stop)
-                                    .with("requestId", request.getRequestId())
-                                    .with("msDuration", stop - start));
-                        });
+                        ofNullable(result.toMetric()).ifPresent(metric ->
+                                tryPublishMetrics(metric, Metadata.of("requestId", request.getRequestId())
+                                        .with("msDuration", currentTimeMillis() - start)));
                     }
                 });
             } catch (Exception e) {
