@@ -54,7 +54,6 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import java.util.concurrent.Callable;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
@@ -295,46 +294,46 @@ public class TestFixture implements Given, When {
 
     @Override
     public Then whenCommand(Object command) {
-        return applyWhen(() -> getDispatchResult(fluxCapacitor.commandGateway().send(interceptor.trace(command)))
+        return applyWhen(fc -> getDispatchResult(fc.commandGateway().send(interceptor.trace(command)))
         );
     }
 
     @Override
     public Then whenQuery(Object query) {
-        return applyWhen(() -> getDispatchResult(fluxCapacitor.queryGateway().send(interceptor.trace(query))));
+        return applyWhen(fc -> getDispatchResult(fc.queryGateway().send(interceptor.trace(query))));
     }
 
     @Override
     public Then whenEvent(Object event) {
-        return when(() -> fluxCapacitor.eventGateway().publish(interceptor.trace(event)));
+        return when(fc -> fc.eventGateway().publish(interceptor.trace(event)));
     }
 
     @Override
     public Then whenScheduleExpires(Object schedule) {
-        return when(() -> fluxCapacitor.scheduler().schedule(interceptor.trace(schedule), getClock().instant()));
+        return when(fc -> fc.scheduler().schedule(interceptor.trace(schedule), getClock().instant()));
     }
 
     @Override
-    public Then whenApplying(Callable<?> task) {
-        return applyWhen(task);
+    public Then whenApplying(Function<FluxCapacitor, ?> action) {
+        return applyWhen(action);
     }
 
     @Override
     @SneakyThrows
     public Then whenTimeElapses(Duration duration) {
-        return when(() -> advanceTimeBy(duration));
+        return when(fc -> advanceTimeBy(duration));
     }
 
     @Override
     @SneakyThrows
     public Then whenTimeAdvancesTo(Instant instant) {
-        return when(() -> advanceTimeTo(instant));
+        return when(fc -> advanceTimeTo(instant));
     }
 
     @Override
-    public Then when(Runnable task) {
-        return applyWhen(() -> {
-            task.run();
+    public Then when(Consumer<FluxCapacitor> action) {
+        return applyWhen(fc -> {
+            action.accept(fc);
             return null;
         });
     }
@@ -343,7 +342,7 @@ public class TestFixture implements Given, When {
         helper
      */
 
-    protected Then applyWhen(Callable<?> action) {
+    protected Then applyWhen(Function<FluxCapacitor, ?> action) {
         return fluxCapacitor.apply(fc -> {
             try {
                 handleExpiredSchedulesLocally();
@@ -351,7 +350,7 @@ public class TestFixture implements Given, When {
                 waitForConsumers();
                 Object result;
                 try {
-                    result = action.call();
+                    result = action.apply(fc);
                 } catch (Exception e) {
                     result = e;
                 }

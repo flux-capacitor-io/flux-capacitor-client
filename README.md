@@ -297,7 +297,7 @@ void welcomeEmailActuallyGetsSent() {
 
 @Test
 void userEndpointWorks() {
-    testFixture.when(() -> httpClient.put("/user", userProfile)).expectEvents(new UserCreated(...))
+    testFixture.when(fc -> httpClient.put("/user", userProfile)).expectEvents(new UserCreated(...))
 }
 ```
 

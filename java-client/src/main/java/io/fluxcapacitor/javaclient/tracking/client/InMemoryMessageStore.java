@@ -33,6 +33,8 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentSkipListMap;
 import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Consumer;
 
@@ -43,6 +45,7 @@ import static java.util.stream.Collectors.toList;
 @RequiredArgsConstructor
 public class InMemoryMessageStore implements GatewayClient, TrackingClient {
 
+    private final ExecutorService executorService = Executors.newFixedThreadPool(10);
     private final AtomicLong nextIndex = new AtomicLong();
     private final ConcurrentSkipListMap<Long, SerializedMessage> messageLog = new ConcurrentSkipListMap<>();
     private final Map<String, String> trackers = new ConcurrentHashMap<>();
@@ -64,44 +67,41 @@ public class InMemoryMessageStore implements GatewayClient, TrackingClient {
         return Awaitable.ready();
     }
 
-    @Override
-    public MessageBatch readAndWait(String consumer, String trackerId,
-                                    Long previousLastIndex, ConsumerConfiguration configuration) {
-        if (!trackerId.equals(trackers.computeIfAbsent(consumer, c -> trackerId))) {
-            return new MessageBatch(new int[]{0, 1}, Collections.emptyList(), null);
-        }
-        long deadline = System.currentTimeMillis() + configuration.getMaxWaitDuration().toMillis();
-        synchronized (this) {
-            Map<Long, SerializedMessage> tailMap = Collections.emptyMap();
-            while (System.currentTimeMillis() < deadline
-                    && shouldWait(tailMap = messageLog
-                    .tailMap(Optional.ofNullable(previousLastIndex).orElseGet(() -> getLastIndex(consumer)), false))) {
-                try {
-                    this.wait(deadline - System.currentTimeMillis());
-                } catch (InterruptedException e) {
-                    currentThread().interrupt();
-                }
-            }
-            List<SerializedMessage> messages = new ArrayList<>(tailMap.values())
-                    .subList(0, Math.min(tailMap.size(), configuration.getMaxFetchBatchSize()));
-            Long lastIndex = messages.isEmpty() ? null : messages.get(messages.size() - 1).getIndex();
-            if (configuration.getTypeFilter() != null) {
-                messages = messages.stream().filter(m -> m.getData().getType()
-                        .matches(configuration.getTypeFilter())).collect(toList());
-            }
-            return new MessageBatch(new int[]{0, 1}, messages, lastIndex);
-        }
-    }
-
     protected boolean shouldWait(Map<Long, SerializedMessage> tailMap) {
         return tailMap.isEmpty();
     }
 
     @Override
     public CompletableFuture<MessageBatch> read(String consumer, String trackerId,
-                                                Long lastIndex, ConsumerConfiguration trackingConfiguration) {
-        return CompletableFuture.completedFuture(readAndWait(consumer, trackerId,
-                                                             lastIndex, trackingConfiguration));
+                                                Long previousLastIndex, ConsumerConfiguration configuration) {
+        if (!trackerId.equals(trackers.computeIfAbsent(consumer, c -> trackerId))) {
+            return CompletableFuture.completedFuture(new MessageBatch(new int[]{0, 1}, Collections.emptyList(), null));
+        }
+        CompletableFuture<MessageBatch> result = new CompletableFuture<>();
+        executorService.submit(() -> {
+            long deadline = System.currentTimeMillis() + configuration.getMaxWaitDuration().toMillis();
+            synchronized (this) {
+                Map<Long, SerializedMessage> tailMap = Collections.emptyMap();
+                while (System.currentTimeMillis() < deadline
+                        && shouldWait(tailMap = messageLog
+                        .tailMap(Optional.ofNullable(previousLastIndex).orElseGet(() -> getLastIndex(consumer)), false))) {
+                    try {
+                        this.wait(deadline - System.currentTimeMillis());
+                    } catch (InterruptedException e) {
+                        currentThread().interrupt();
+                    }
+                }
+                List<SerializedMessage> messages = new ArrayList<>(tailMap.values())
+                        .subList(0, Math.min(tailMap.size(), configuration.getMaxFetchBatchSize()));
+                Long lastIndex = messages.isEmpty() ? null : messages.get(messages.size() - 1).getIndex();
+                if (configuration.getTypeFilter() != null) {
+                    messages = messages.stream().filter(m -> m.getData().getType()
+                            .matches(configuration.getTypeFilter())).collect(toList());
+                }
+                result.complete(new MessageBatch(new int[]{0, 1}, messages, lastIndex));
+            }
+        });
+        return result;
     }
 
     @Override
@@ -139,7 +139,7 @@ public class InMemoryMessageStore implements GatewayClient, TrackingClient {
 
     @Override
     public void close() {
-        //no op
+        executorService.shutdown();
     }
 
     protected SerializedMessage getMessage(long index) {

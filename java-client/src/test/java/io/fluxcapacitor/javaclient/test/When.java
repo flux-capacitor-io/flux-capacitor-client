@@ -14,9 +14,12 @@
 
 package io.fluxcapacitor.javaclient.test;
 
+import io.fluxcapacitor.javaclient.FluxCapacitor;
+
 import java.time.Duration;
 import java.time.Instant;
-import java.util.concurrent.Callable;
+import java.util.function.Consumer;
+import java.util.function.Function;
 
 public interface When extends Given {
 
@@ -32,7 +35,7 @@ public interface When extends Given {
 
     Then whenTimeElapses(Duration duration);
 
-    Then when(Runnable task);
+    Then when(Consumer<FluxCapacitor> action);
 
-    Then whenApplying(Callable<?> task);
+    Then whenApplying(Function<FluxCapacitor, ?> action);
 }

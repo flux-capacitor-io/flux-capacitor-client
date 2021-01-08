@@ -69,7 +69,7 @@ class GivenWhenThenSchedulingTest {
         Object command = "command";
         Instant deadline = subject.getClock().instant().minusSeconds(10);
         subject.givenSchedules(new Schedule(new YieldsCommand(command), "test", deadline))
-                .when(() -> {})
+                .when(fc -> {})
                 .expectNoCommands();
     }
 
@@ -157,7 +157,7 @@ class GivenWhenThenSchedulingTest {
 
     @Test
     void testNoAutomaticRescheduleBeforeDeadline() {
-        subject.givenNoPriorActivity().givenTimeElapses(Duration.ofMillis(500)).when(() -> {}).expectNoSchedules();
+        subject.givenNoPriorActivity().givenTimeElapses(Duration.ofMillis(500)).when(fc -> {}).expectNoSchedules();
     }
 
     @Test

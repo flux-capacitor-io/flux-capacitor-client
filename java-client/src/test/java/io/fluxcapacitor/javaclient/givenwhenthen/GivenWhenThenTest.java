@@ -150,13 +150,13 @@ class GivenWhenThenTest {
     @Test
     void testWhenCondition() {
         Runnable mockCondition = mock(Runnable.class);
-        subject.givenNoPriorActivity().when(mockCondition).verify(() -> verify(mockCondition).run());
+        subject.givenNoPriorActivity().when(fc -> mockCondition.run()).verify(() -> verify(mockCondition).run());
     }
 
     @Test
     void testGivenDomainEvents() {
         subject.givenDomainEvents("test", new MockDomainEvent())
-                .whenApplying(() -> loadAggregate("test", MockAggregate.class).get())
+                .whenApplying(fc -> loadAggregate("test", MockAggregate.class).get())
                 .expectResult(r -> r instanceof MockAggregate);
     }
 
