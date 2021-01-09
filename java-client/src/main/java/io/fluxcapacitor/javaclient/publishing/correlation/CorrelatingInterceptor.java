@@ -50,7 +50,7 @@ public class CorrelatingInterceptor implements DispatchInterceptor {
         return message -> {
             Map<String, String> result = new HashMap<>();
             result.put(clientId, client.id());
-            result.put(clientId, client.name());
+            result.put(clientName, client.name());
             DeserializingMessage currentMessage = DeserializingMessage.getCurrent();
             if (currentMessage != null) {
                 String correlationId = Optional.ofNullable(currentMessage.getSerializedObject().getIndex())

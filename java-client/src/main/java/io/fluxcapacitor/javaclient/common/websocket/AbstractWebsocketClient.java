@@ -93,12 +93,14 @@ public abstract class AbstractWebsocketClient implements AutoCloseable {
     }
 
     @SneakyThrows
-    protected Awaitable send(Object object) {
-        return send(object, getSession());
+    protected Awaitable send(JsonType object) {
+        Awaitable awaitable = send(object, getSession());
+        tryPublishMetrics(object.toMetric(), Metadata.empty());
+        return awaitable;
     }
 
     @SneakyThrows
-    protected Awaitable send(Object object, Session session) {
+    protected Awaitable send(JsonType object, Session session) {
         try (OutputStream outputStream = session.getBasicRemote().getSendStream()) {
             byte[] bytes = objectMapper.writeValueAsBytes(object);
             outputStream.write(compress(bytes, properties.getCompression()));
@@ -211,6 +213,19 @@ public abstract class AbstractWebsocketClient implements AutoCloseable {
         return session == null || !session.isOpen();
     }
 
+
+    protected void tryPublishMetrics(Object metric, Metadata metadata) {
+        if (sendMetrics) {
+            FluxCapacitor.getOptionally().ifPresent(f -> {
+                try {
+                    publishMetrics(metric, metadata);
+                } catch (Exception e) {
+                    log.info("Failed to publish metrics", e);
+                }
+            });
+        }
+    }
+
     @RequiredArgsConstructor
     protected class WebSocketRequest {
         private final Request request;
@@ -243,19 +258,6 @@ public abstract class AbstractWebsocketClient implements AutoCloseable {
             } catch (Exception e) {
                 requests.remove(request.getRequestId());
                 result.completeExceptionally(e);
-            }
-        }
-
-
-        protected void tryPublishMetrics(Object metric, Metadata metadata) {
-            if (sendMetrics) {
-                FluxCapacitor.getOptionally().ifPresent(f -> {
-                    try {
-                        publishMetrics(metric, metadata);
-                    } catch (Exception e) {
-                        log.info("Failed to publish metrics", e);
-                    }
-                });
             }
         }
     }
