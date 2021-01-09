@@ -19,6 +19,7 @@ import lombok.EqualsAndHashCode;
 import lombok.Value;
 
 import java.util.List;
+import java.util.stream.Collectors;
 
 @EqualsAndHashCode(callSuper = true)
 @Value
@@ -28,5 +29,15 @@ public class AppendEvents extends Request {
     @Override
     public String toString() {
         return "AppendEvents of size " + eventBatches.size();
+    }
+
+    @Override
+    public Metric toMetric() {
+        return new Metric(eventBatches.stream().map(EventBatch::toMetric).collect(Collectors.toList()));
+    }
+
+    @Value
+    public static class Metric {
+        List<EventBatch.Metric> eventBatches;
     }
 }

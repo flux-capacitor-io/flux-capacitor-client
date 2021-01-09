@@ -35,19 +35,15 @@ import java.util.UUID;
 import java.util.function.Function;
 
 import static io.fluxcapacitor.javaclient.common.serialization.compression.CompressionAlgorithm.LZ4;
-import static io.fluxcapacitor.javaclient.common.websocket.ServiceUrlBuilder.consumerUrl;
-import static io.fluxcapacitor.javaclient.common.websocket.ServiceUrlBuilder.eventSourcingUrl;
-import static io.fluxcapacitor.javaclient.common.websocket.ServiceUrlBuilder.keyValueUrl;
-import static io.fluxcapacitor.javaclient.common.websocket.ServiceUrlBuilder.producerUrl;
-import static io.fluxcapacitor.javaclient.common.websocket.ServiceUrlBuilder.schedulingUrl;
+import static io.fluxcapacitor.javaclient.common.websocket.ServiceUrlBuilder.*;
 
 public class WebSocketClient extends AbstractClient {
 
     public static WebSocketClient newInstance(Properties properties) {
         return new WebSocketClient(
                 properties.getName(), properties.getId(),
-                type -> new WebsocketGatewayClient(producerUrl(type, properties), properties),
-                type -> new WebsocketTrackingClient(consumerUrl(type, properties), properties),
+                type -> new WebsocketGatewayClient(producerUrl(type, properties), properties, type),
+                type -> new WebsocketTrackingClient(consumerUrl(type, properties), properties, type),
                 new WebSocketEventStoreClient(eventSourcingUrl(properties), properties),
                 new WebsocketSchedulingClient(schedulingUrl(properties), properties),
                 new WebsocketKeyValueClient(keyValueUrl(properties), properties));

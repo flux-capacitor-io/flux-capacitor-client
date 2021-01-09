@@ -34,4 +34,14 @@ public class Append implements JsonType {
     public String toString() {
         return "Append of length " + messages.size();
     }
+
+    @Override
+    public Metric toMetric() {
+        return new Metric(getSize());
+    }
+
+    @Value
+    public static class Metric {
+        int size;
+    }
 }

@@ -21,4 +21,14 @@ import lombok.Value;
 public class GetEventsResult implements QueryResult {
     long requestId;
     EventBatch eventBatch;
+
+    @Override
+    public Metric toMetric() {
+        return new Metric(eventBatch.toMetric());
+    }
+
+    @Value
+    public static class Metric {
+        EventBatch.Metric eventBatch;
+    }
 }

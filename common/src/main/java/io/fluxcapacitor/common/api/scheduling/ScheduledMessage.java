@@ -14,6 +14,7 @@
 
 package io.fluxcapacitor.common.api.scheduling;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import io.fluxcapacitor.common.api.SerializedMessage;
 import lombok.Value;
 
@@ -22,4 +23,15 @@ public class ScheduledMessage {
     String scheduleId;
     long timestamp;
     SerializedMessage message;
+
+    @JsonIgnore
+    public Metric toMetric(){
+        return new Metric(scheduleId,timestamp);
+    }
+
+    @Value
+    public static class Metric {
+        String scheduleId;
+        long timestamp;
+    }
 }

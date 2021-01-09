@@ -27,4 +27,14 @@ public class StoreValueIfAbsent extends Request {
     public String toString() {
         return "StoreValueIfAbsent for key: " + value.getKey();
     }
+
+    @Override
+    public Metric toMetric() {
+        return new Metric(value.getKey());
+    }
+
+    @Value
+    public static class Metric {
+        String key;
+    }
 }

@@ -21,4 +21,14 @@ import lombok.Value;
 public class ReadResult implements QueryResult {
     long requestId;
     MessageBatch messageBatch;
+
+    @Override
+    public Metric toMetric() {
+        return new Metric(messageBatch.toMetric());
+    }
+
+    @Value
+    public static class Metric {
+        MessageBatch.Metric messageBatch;
+    }
 }

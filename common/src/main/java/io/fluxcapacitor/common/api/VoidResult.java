@@ -19,4 +19,9 @@ import lombok.Value;
 @Value
 public class VoidResult implements QueryResult {
     long requestId;
+
+    @Override
+    public Object toMetric() {
+        return null;
+    }
 }

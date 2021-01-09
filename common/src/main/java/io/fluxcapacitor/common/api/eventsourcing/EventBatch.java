@@ -16,6 +16,7 @@ package io.fluxcapacitor.common.api.eventsourcing;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import io.fluxcapacitor.common.api.SerializedMessage;
+import lombok.Builder;
 import lombok.Value;
 
 import java.util.List;
@@ -52,5 +53,21 @@ public class EventBatch {
                 ", event count=" + events.size() +
                 ", storeOnly=" + storeOnly +
                 '}';
+    }
+
+    @JsonIgnore
+    public Metric toMetric() {
+        return Metric.builder().aggregateId(aggregateId).domain(domain)
+                .lastSequenceNumber(lastSequenceNumber).size(events.size()).storeOnly(storeOnly).build();
+    }
+
+    @Value
+    @Builder
+    public static class Metric {
+        String aggregateId;
+        String domain;
+        long lastSequenceNumber;
+        int size;
+        boolean storeOnly;
     }
 }

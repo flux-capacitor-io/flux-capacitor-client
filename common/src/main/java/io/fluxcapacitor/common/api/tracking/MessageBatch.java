@@ -45,4 +45,16 @@ public class MessageBatch {
                 ", message count=" + messages.size() +
                 '}';
     }
+
+    @JsonIgnore
+    public Metric toMetric() {
+        return new Metric(segment, getSize(), lastIndex);
+    }
+
+    @Value
+    public static class Metric {
+        int[] segment;
+        int size;
+        Long lastIndex;
+    }
 }

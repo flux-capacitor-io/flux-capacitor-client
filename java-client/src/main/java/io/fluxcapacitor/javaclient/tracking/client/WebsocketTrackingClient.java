@@ -15,15 +15,9 @@
 package io.fluxcapacitor.javaclient.tracking.client;
 
 import io.fluxcapacitor.common.Awaitable;
+import io.fluxcapacitor.common.MessageType;
 import io.fluxcapacitor.common.api.SerializedMessage;
-import io.fluxcapacitor.common.api.tracking.DisconnectTracker;
-import io.fluxcapacitor.common.api.tracking.MessageBatch;
-import io.fluxcapacitor.common.api.tracking.Read;
-import io.fluxcapacitor.common.api.tracking.ReadFromIndex;
-import io.fluxcapacitor.common.api.tracking.ReadFromIndexResult;
-import io.fluxcapacitor.common.api.tracking.ReadResult;
-import io.fluxcapacitor.common.api.tracking.ResetPosition;
-import io.fluxcapacitor.common.api.tracking.StorePosition;
+import io.fluxcapacitor.common.api.tracking.*;
 import io.fluxcapacitor.javaclient.common.websocket.AbstractWebsocketClient;
 import io.fluxcapacitor.javaclient.configuration.client.WebSocketClient.Properties;
 import io.fluxcapacitor.javaclient.tracking.ConsumerConfiguration;
@@ -35,15 +29,17 @@ import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 
+import static io.fluxcapacitor.common.MessageType.METRICS;
+
 @ClientEndpoint
 public class WebsocketTrackingClient extends AbstractWebsocketClient implements TrackingClient {
 
-    public WebsocketTrackingClient(String endPointUrl, Properties properties) {
-        this(URI.create(endPointUrl), properties);
+    public WebsocketTrackingClient(String endPointUrl, Properties properties, MessageType type) {
+        this(URI.create(endPointUrl), properties, type);
     }
 
-    public WebsocketTrackingClient(URI endPointUri, Properties properties) {
-        super(endPointUri, properties);
+    public WebsocketTrackingClient(URI endPointUri, Properties properties, MessageType type) {
+        super(endPointUri, properties, type != METRICS);
     }
 
     @Override
