@@ -65,7 +65,7 @@ class EventSourcingRepositoryTest {
             testFixture.givenCommands(new CreateModel(), new UpdateModel())
                     .whenQuery(new GetModel())
                     .expectResult(new TestModel(Arrays.asList(new CreateModel(), new UpdateModel()), Metadata.empty()))
-                    .verify(() -> verify(eventStoreClient, times(1)).getEvents(anyString(), anyLong()));
+                    .expectThat(fc -> verify(eventStoreClient, times(1)).getEvents(anyString(), anyLong()));
         }
 
         @Test
@@ -74,7 +74,7 @@ class EventSourcingRepositoryTest {
                     .given(fc -> fc.cache().invalidateAll())
                     .whenQuery(new GetModel())
                     .expectResult(new TestModel(Arrays.asList(new CreateModel(), new UpdateModel()), Metadata.empty()))
-                    .verify(() -> verify(eventStoreClient, times(2)).getEvents(anyString(), anyLong()));
+                    .expectThat(fc -> verify(eventStoreClient, times(2)).getEvents(anyString(), anyLong()));
         }
 
         @Test
@@ -83,7 +83,7 @@ class EventSourcingRepositoryTest {
                     .given(fc -> fc.queryGateway().sendAndWait(new GetModel()))
                     .whenQuery(new GetModel())
                     .expectResult(new TestModel(Arrays.asList(new CreateModel(), new UpdateModel()), Metadata.empty()))
-                    .verify(() -> verify(eventStoreClient, times(1)).getEvents(anyString(), anyLong()));
+                    .expectThat(fc -> verify(eventStoreClient, times(1)).getEvents(anyString(), anyLong()));
         }
 
         @Test
@@ -102,8 +102,9 @@ class EventSourcingRepositoryTest {
         @Test
         void testEventsGetStoredWhenHandlingEnds() {
             testFixture.givenNoPriorActivity().whenCommand(new CreateModel())
-                    .verify(() -> verify(eventStoreClient)
-                            .storeEvents(eq(aggregateId), eq(TestModel.class.getSimpleName()), eq(0L), anyList(),  eq(false)));
+                    .expectThat(fc -> verify(eventStoreClient)
+                            .storeEvents(eq(aggregateId), eq(TestModel.class.getSimpleName()), eq(0L), anyList(),
+                                         eq(false)));
         }
 
         @Test
@@ -111,7 +112,7 @@ class EventSourcingRepositoryTest {
             testFixture.givenNoPriorActivity()
                     .whenCommand(new FailToCreateModel())
                     .expectException(MockException.class)
-                    .verify(() -> assertEquals(0, eventStoreClient.getEvents(aggregateId, -1L).count()));
+                    .expectThat(fc -> assertEquals(0, eventStoreClient.getEvents(aggregateId, -1L).count()));
         }
 
         @Test
@@ -119,8 +120,9 @@ class EventSourcingRepositoryTest {
             testFixture.givenCommands(new CreateModel())
                     .whenCommand(new ApplyNonsense())
                     .expectNoException()
-                    .verify(() -> verify(eventStoreClient)
-                            .storeEvents(eq(aggregateId), eq(TestModel.class.getSimpleName()), eq(1L), anyList(), eq(false)));
+                    .expectThat(fc -> verify(eventStoreClient)
+                            .storeEvents(eq(aggregateId), eq(TestModel.class.getSimpleName()), eq(1L), anyList(),
+                                         eq(false)));
         }
 
         @Test
@@ -128,8 +130,8 @@ class EventSourcingRepositoryTest {
             testFixture.givenNoPriorActivity()
                     .whenCommand(new ApplyNonsense())
                     .expectException(HandlerNotFoundException.class)
-                    .verify(() -> verify(eventStoreClient, times(0))
-                            .storeEvents(anyString(), anyString(), anyLong(), anyList(),  eq(false)));
+                    .expectThat(fc -> verify(eventStoreClient, times(0))
+                            .storeEvents(anyString(), anyString(), anyLong(), anyList(), eq(false)));
         }
 
         @SuppressWarnings("unchecked")
@@ -144,8 +146,8 @@ class EventSourcingRepositoryTest {
                                                           result.getDomain(), () -> 10L);
                     }))
                     .whenCommand(new UpdateModel())
-                    .verify(() -> verify(eventStoreClient).storeEvents(anyString(), anyString(), eq(11L), anyList(),
-                                                                       eq(false)));
+                    .expectThat(fc -> verify(eventStoreClient).storeEvents(anyString(), anyString(), eq(11L), anyList(),
+                                                                           eq(false)));
         }
 
 
@@ -211,7 +213,7 @@ class EventSourcingRepositoryTest {
         void testNoSnapshotStoredBeforeThreshold() {
             testFixture.givenCommands(new CreateModel())
                     .whenCommand(new UpdateModel())
-                    .verify(() -> verify(testFixture.getFluxCapacitor().client().getKeyValueClient(), times(0))
+                    .expectThat(fc -> verify(testFixture.getFluxCapacitor().client().getKeyValueClient(), times(0))
                             .putValue(anyString(), any(), any()));
         }
 
@@ -219,7 +221,7 @@ class EventSourcingRepositoryTest {
         void testSnapshotStoredAfterThreshold() {
             testFixture.givenCommands(new CreateModel(), new UpdateModel())
                     .whenCommand(new UpdateModel())
-                    .verify(() -> verify(testFixture.getFluxCapacitor().client().getKeyValueClient())
+                    .expectThat(fc -> verify(testFixture.getFluxCapacitor().client().getKeyValueClient())
                             .putValue(anyString(), any(), any()));
         }
 
@@ -227,10 +229,10 @@ class EventSourcingRepositoryTest {
         void testSnapshotRetrieved() {
             testFixture.givenCommands(new CreateModel(), new UpdateModel(), new UpdateModel())
                     .whenCommand(new UpdateModel())
-                    .verify(() -> verify(testFixture.getFluxCapacitor().client().getEventStoreClient(),
-                                         times(3)).getEvents(aggregateId, -1L))
-                    .verify(() -> verify(testFixture.getFluxCapacitor().client().getEventStoreClient(),
-                                         times(1)).getEvents(aggregateId, 2L));
+                    .expectThat(fc -> verify(testFixture.getFluxCapacitor().client().getEventStoreClient(),
+                                             times(3)).getEvents(aggregateId, -1L))
+                    .expectThat(fc -> verify(testFixture.getFluxCapacitor().client().getEventStoreClient(),
+                                             times(1)).getEvents(aggregateId, 2L));
         }
 
         @EventSourced(snapshotPeriod = 3, cached = false)
@@ -264,8 +266,8 @@ class EventSourcingRepositoryTest {
         @Test
         void testCreateUsingFactoryMethod() {
             testFixture.givenNoPriorActivity().whenCommand(new CreateModel())
-                    .verify(() -> verify(testFixture.getFluxCapacitor().client().getEventStoreClient(), times(1))
-                            .storeEvents(anyString(), anyString(), anyLong(), anyList(),  eq(false)));
+                    .expectThat(fc -> verify(testFixture.getFluxCapacitor().client().getEventStoreClient(), times(1))
+                            .storeEvents(anyString(), anyString(), anyLong(), anyList(), eq(false)));
         }
 
         @Test
@@ -289,7 +291,7 @@ class EventSourcingRepositoryTest {
         void testMultipleAssertionMethods() {
             CommandWithMultipleAssertions command = new CommandWithMultipleAssertions();
             testFixture.givenNoPriorActivity().whenCommand(command)
-                    .verify(() -> assertEquals(3, command.getAssertionCount().get()));
+                    .expectThat(fc -> assertEquals(3, command.getAssertionCount().get()));
         }
 
         @Test
@@ -334,8 +336,8 @@ class EventSourcingRepositoryTest {
         void testCreateUsingFactoryMethodIfInstanceMethodForSamePayloadExists() {
 
             testFixture.givenNoPriorActivity().whenCommand(new CreateModel())
-                    .verify(() -> verify(testFixture.getFluxCapacitor().client().getEventStoreClient(), times(1))
-                            .storeEvents(anyString(), anyString(), anyLong(), anyList(),  eq(false)));
+                    .expectThat(fc -> verify(testFixture.getFluxCapacitor().client().getEventStoreClient(), times(1))
+                            .storeEvents(anyString(), anyString(), anyLong(), anyList(), eq(false)));
         }
 
         @EventSourced
@@ -424,7 +426,7 @@ class EventSourcingRepositoryTest {
         @Test
         void testAccessToPrevious() {
             testFixture.givenCommands(new CreateModelFromEvent()).whenCommand(new UpdateModelFromEvent())
-                    .verify(() -> {
+                    .expectThat(fc -> {
                         Aggregate<TestModelWithoutApplyEvent> aggregate =
                                 testFixture.getFluxCapacitor().aggregateRepository()
                                         .load(aggregateId, TestModelWithoutApplyEvent.class);

@@ -292,7 +292,7 @@ In some cases you may want to test if some process was triggered, eg a call was 
 ```java
 @Test
 void welcomeEmailActuallyGetsSent() {
-    testFixture.whenCommand(new CreateUser(userProfile)).expect(() -> Mockito.verify(emailService).sendEmail(...))
+    testFixture.whenCommand(new CreateUser(userProfile)).expect(fc -> Mockito.verify(emailService).sendEmail(...))
 }
 
 @Test

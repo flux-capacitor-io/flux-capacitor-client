@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016-2020 Flux Capacitor.
+ * Copyright (c) 2016-2021 Flux Capacitor.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,11 +14,13 @@
 
 package io.fluxcapacitor.javaclient.test;
 
+import io.fluxcapacitor.javaclient.FluxCapacitor;
 import org.hamcrest.Matcher;
 import org.hamcrest.core.IsNot;
 
 import java.util.Arrays;
 import java.util.List;
+import java.util.function.Consumer;
 import java.util.function.Predicate;
 
 import static io.fluxcapacitor.javaclient.test.GivenWhenThenUtils.toMatcher;
@@ -142,6 +144,6 @@ public interface Then {
         External process
      */
 
-    Then verify(Runnable check);
+    Then expectThat(Consumer<FluxCapacitor> check);
 
 }

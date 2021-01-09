@@ -28,6 +28,7 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 import java.util.Objects;
+import java.util.function.Consumer;
 import java.util.function.Predicate;
 import java.util.stream.Stream;
 
@@ -127,10 +128,10 @@ public class ResultValidator implements Then {
     }
 
     @Override
-    public ResultValidator verify(Runnable check) {
+    public ResultValidator expectThat(Consumer<FluxCapacitor> check) {
         return fluxCapacitor.apply(fc -> {
             try {
-                check.run();
+                check.accept(fc);
             } catch (Exception e) {
                 throw new GivenWhenThenAssertionError("Verify check failed", e);
             }

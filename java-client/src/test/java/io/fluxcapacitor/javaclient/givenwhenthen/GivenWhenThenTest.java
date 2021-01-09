@@ -144,13 +144,13 @@ class GivenWhenThenTest {
     @Test
     void testGivenCondition() {
         Runnable mockCondition = mock(Runnable.class);
-        subject.given(fc -> mockCondition.run()).whenCommand(new YieldsNoResult()).verify(() -> verify(mockCondition).run());
+        subject.given(fc -> mockCondition.run()).whenCommand(new YieldsNoResult()).expectThat(fc -> verify(mockCondition).run());
     }
 
     @Test
     void testWhenCondition() {
         Runnable mockCondition = mock(Runnable.class);
-        subject.givenNoPriorActivity().when(fc -> mockCondition.run()).verify(() -> verify(mockCondition).run());
+        subject.givenNoPriorActivity().when(fc -> mockCondition.run()).expectThat(fc -> verify(mockCondition).run());
     }
 
     @Test
