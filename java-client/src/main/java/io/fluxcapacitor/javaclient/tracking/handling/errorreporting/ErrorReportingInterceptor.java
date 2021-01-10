@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016-2020 Flux Capacitor.
+ * Copyright (c) 2016-2021 Flux Capacitor.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -23,6 +23,7 @@ import io.fluxcapacitor.javaclient.common.serialization.DeserializingMessage;
 import io.fluxcapacitor.javaclient.publishing.ErrorGateway;
 import io.fluxcapacitor.javaclient.tracking.handling.HandlerInterceptor;
 import lombok.AllArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.exception.ExceptionUtils;
 
 import java.util.concurrent.CompletionStage;
@@ -31,6 +32,7 @@ import java.util.function.Function;
 import static java.lang.String.format;
 
 @AllArgsConstructor
+@Slf4j
 public class ErrorReportingInterceptor implements HandlerInterceptor {
 
     private final ErrorGateway errorGateway;

@@ -63,7 +63,8 @@ import static java.util.stream.Collectors.toMap;
 @Slf4j
 public class DefaultTracking implements Tracking {
     private static final HandlerConfiguration<DeserializingMessage> trackingHandlerConfiguration =
-            HandlerConfiguration.<DeserializingMessage>builder().handlerFilter((c, e) -> !ClientUtils.isLocalHandlerMethod(c, e))
+            HandlerConfiguration.<DeserializingMessage>builder()
+                    .handlerFilter((c, e) -> !ClientUtils.isLocalHandlerMethod(c, e))
                     .invokerFactory(defaultInvokerFactory).build();
 
     private final MessageType messageType;
@@ -90,7 +91,8 @@ public class DefaultTracking implements Tracking {
                                 target -> handlerFactory.createHandler(
                                         target, e.getKey().getName(), trackingHandlerConfiguration).map(
                                         Stream::of).orElse(Stream.empty())).collect(toList());
-                        return converted.isEmpty() ? Stream.empty() : Stream.of(new SimpleEntry<>(e.getKey(), converted));
+                        return converted.isEmpty() ? Stream.empty() :
+                                Stream.of(new SimpleEntry<>(e.getKey(), converted));
                     }).collect(toMap(Entry::getKey, Entry::getValue));
 
             if (!Collections.disjoint(consumers.keySet(), startedConfigurations)) {
@@ -107,7 +109,8 @@ public class DefaultTracking implements Tracking {
         });
     }
 
-    protected Registration startTracking(ConsumerConfiguration configuration, List<Handler<DeserializingMessage>> handlers,
+    protected Registration startTracking(ConsumerConfiguration configuration,
+                                         List<Handler<DeserializingMessage>> handlers,
                                          FluxCapacitor fluxCapacitor) {
         Consumer<List<SerializedMessage>> consumer = createConsumer(configuration, handlers);
         List<BatchInterceptor> batchInterceptors = new ArrayList<>(
@@ -134,10 +137,17 @@ public class DefaultTracking implements Tracking {
             if (handler.canHandle(message)) {
                 handle(message, handler, config);
             }
+        } catch (BatchProcessingException e) {
+            throw new BatchProcessingException(format("Handler %s failed to handle a %s", handler, message),
+                                               e.getCause(), e.getMessageIndex());
         } catch (Exception e) {
-            config.getErrorHandler()
-                    .handleError(e, format("Handler %s failed to handle a %s", handler, message),
-                                 () -> handle(message, handler, config));
+            try {
+                config.getErrorHandler()
+                        .handleError(e, format("Handler %s failed to handle a %s", handler, message),
+                                     () -> handle(message, handler, config));
+            } catch (Exception thrown) {
+                throw new BatchProcessingException(message.getSerializedObject().getIndex());
+            }
         }
     }
 

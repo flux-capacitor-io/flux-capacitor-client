@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016-2020 Flux Capacitor.
+ * Copyright (c) 2016-2021 Flux Capacitor.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -24,8 +24,23 @@ public interface BatchInterceptor {
 
     Consumer<MessageBatch> intercept(Consumer<MessageBatch> consumer, Tracker tracker);
 
+    default void shutdown(Tracker tracker) {
+        //no op
+    }
+
     default BatchInterceptor merge(BatchInterceptor nextInterceptor) {
-        return (c, t) -> intercept(nextInterceptor.intercept(c, t), t);
+        return new BatchInterceptor() {
+            @Override
+            public Consumer<MessageBatch> intercept(Consumer<MessageBatch> c, Tracker t) {
+                return BatchInterceptor.this.intercept(nextInterceptor.intercept(c, t), t);
+            }
+
+            @Override
+            public void shutdown(Tracker tracker) {
+                nextInterceptor.shutdown(tracker);
+                BatchInterceptor.this.shutdown(tracker);
+            }
+        };
     }
 
     static BatchInterceptor join(List<BatchInterceptor> interceptors) {

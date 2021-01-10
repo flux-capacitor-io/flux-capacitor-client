@@ -49,11 +49,7 @@ public class ConsumerConfiguration {
     @Default
     int maxFetchBatchSize = 1024;
     @Default
-    int maxConsumerBatchSize = 1024;
-    @Default
     @NonNull Duration maxWaitDuration = Duration.ofSeconds(60);
-    @Default
-    Duration retryDelay = Duration.ofSeconds(1);
     @Singular
     List<BatchInterceptor> batchInterceptors;
     @Default

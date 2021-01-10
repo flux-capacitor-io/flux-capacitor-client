@@ -18,11 +18,14 @@ import io.fluxcapacitor.common.Registration;
 import io.fluxcapacitor.common.api.SerializedMessage;
 import io.fluxcapacitor.common.api.tracking.MessageBatch;
 import io.fluxcapacitor.javaclient.configuration.client.Client;
+import io.fluxcapacitor.javaclient.tracking.BatchProcessingException;
 import io.fluxcapacitor.javaclient.tracking.ConsumerConfiguration;
 import io.fluxcapacitor.javaclient.tracking.Tracker;
 import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
 
+import java.time.Duration;
+import java.util.Comparator;
 import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -61,15 +64,14 @@ import static java.util.stream.Collectors.toList;
 @Slf4j
 public class DefaultTracker implements Runnable, Registration {
 
-    private final String consumerName;
-    private final String trackerId;
-    private final ConsumerConfiguration configuration;
     private final Consumer<MessageBatch> processor;
     private final Consumer<List<SerializedMessage>> consumer;
     private final TrackingClient trackingClient;
 
     private final AtomicBoolean running = new AtomicBoolean();
     private final AtomicReference<Thread> thread = new AtomicReference<>();
+    private final Duration retryDelay;
+    private final Tracker tracker;
     private volatile boolean processing;
 
     /**
@@ -94,14 +96,14 @@ public class DefaultTracker implements Runnable, Registration {
 
     private DefaultTracker(Consumer<List<SerializedMessage>> consumer, ConsumerConfiguration configuration,
                            Client client) {
-        this.consumerName = configuration.prependApplicationName()
-                ? format("%s_%s", client.name(), configuration.getName()) : configuration.getName();
-        this.trackerId = configuration.getTrackerIdFactory().apply(client);
-        this.processor = join(configuration.getBatchInterceptors())
-                .intercept(this::processAll, new Tracker(consumerName, trackerId, configuration));
-        this.configuration = configuration;
+        this.tracker = new Tracker(configuration.prependApplicationName()
+                                           ? format("%s_%s", client.name(), configuration.getName())
+                                           : configuration.getName(),
+                                   configuration.getTrackerIdFactory().apply(client), configuration);
+        this.processor = join(configuration.getBatchInterceptors()).intercept(this::processAll, tracker);
         this.consumer = consumer;
         this.trackingClient = client.getTrackingClient(configuration.getMessageType());
+        this.retryDelay = Duration.ofSeconds(1);
     }
 
     @Override
@@ -138,17 +140,25 @@ public class DefaultTracker implements Runnable, Registration {
                 try {
                     thread.get().interrupt();
                 } catch (Exception e) {
-                    log.warn("Not allowed to cancel tracker {}", consumerName, e);
+                    log.warn("Not allowed to cancel tracker {}", tracker.getName(), e);
                 } finally {
                     thread.set(null);
                 }
             }
+            tracker.getConfiguration().getBatchInterceptors().forEach(i -> {
+                try {
+                    i.shutdown(tracker);
+                } catch (Exception e) {
+                    log.warn("Failed to stop batch interceptor {}", i, e);
+                }
+            });
         }
     }
 
     protected MessageBatch fetch(Long lastIndex) {
-        return retryOnFailure(() -> trackingClient.readAndWait(consumerName, trackerId, lastIndex, configuration),
-                              configuration.getRetryDelay(), e -> running.get());
+        return retryOnFailure(() -> trackingClient.readAndWait(tracker.getName(), tracker.getTrackerId(),
+                                                               lastIndex, tracker.getConfiguration()),
+                              retryDelay, e -> running.get());
     }
 
     protected void processAll(MessageBatch messageBatch) {
@@ -158,36 +168,39 @@ public class DefaultTracker implements Runnable, Registration {
             if (messages.isEmpty() || !running.get()) {
                 return;
             }
-            if (messages.size() > configuration.getMaxConsumerBatchSize()) {
-                for (int i = 0; i < messages.size(); i += configuration.getMaxConsumerBatchSize()) {
-                    List<SerializedMessage> batch =
-                            messages.subList(i, Math.min(i + configuration.getMaxConsumerBatchSize(), messages.size()));
-                    processPart(batch, messageBatch.getSegment());
-                }
-            } else {
-                processPart(messages, messageBatch.getSegment());
+            try {
+                consumer.accept(messages);
+            } catch (BatchProcessingException e) {
+                log.error("Consumer {} failed to handle batch of {} messages at index {} and did not handle exception. "
+                                  + "Consumer will be updated to the last processed index and then stopped.",
+                          tracker.getName(), messages.size(), e.getMessageIndex());
+                Long lastProcessedIndex = messages.stream().map(SerializedMessage::getIndex)
+                        .filter(i -> e.getMessageIndex() != null && i != null && i < e.getMessageIndex()).max(
+                                Comparator.naturalOrder()).orElse(null);
+                retryOnFailure(() -> updatePosition(messageBatch.getSegment(), lastProcessedIndex),
+                               retryDelay, e2 -> running.get());
+                processing = false;
+                cancel();
+                throw e;
+            } catch (Exception e) {
+                log.error("Consumer {} failed to handle batch of {} messages and did not handle exception. "
+                                  + "Tracker will be stopped.", tracker.getName(), messages.size(), e);
+                processing = false;
+                cancel();
+                throw e;
             }
+            retryOnFailure(() -> updatePosition(messageBatch.getSegment(), messageBatch.getLastIndex()),
+                           retryDelay, e -> running.get());
         } finally {
             processing = false;
         }
     }
 
-    protected void processPart(List<SerializedMessage> batch, int[] segment) {
-        try {
-            consumer.accept(batch);
-        } catch (Exception e) {
-            log.error("Consumer {} failed to handle batch of {} messages and did not handle exception. "
-                              + "Tracker will be stopped.", consumerName, batch.size(), e);
-            cancel();
-            throw e;
-        }
-        retryOnFailure(() -> updatePosition(segment, batch.get(batch.size() - 1).getIndex()),
-                       configuration.getRetryDelay(), e -> running.get());
-    }
-
     @SneakyThrows
     private void updatePosition(int[] segment, Long lastIndex) {
-        trackingClient.storePosition(consumerName, segment, lastIndex).await();
+        if (lastIndex != null) {
+            trackingClient.storePosition(tracker.getName(), segment, lastIndex).await();
+        }
     }
 
 

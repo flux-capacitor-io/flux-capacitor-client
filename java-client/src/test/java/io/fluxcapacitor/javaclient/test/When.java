@@ -29,6 +29,8 @@ public interface When extends Given {
 
     Then whenEvent(Object event);
 
+    Then whenDomainEvents(String aggregateId, Object... events);
+
     Then whenScheduleExpires(Object schedule);
 
     Then whenTimeAdvancesTo(Instant instant);

@@ -226,26 +226,7 @@ public class TestFixture implements Given, When {
 
     @Override
     public When givenDomainEvents(String aggregateId, Object... events) {
-        return given(fc -> {
-            List<Message> eventList = flatten(events).map(e -> {
-                Message m = e instanceof Message ? (Message) e : new Message(e);
-                return m.withMetadata(m.getMetadata().with(Aggregate.AGGREGATE_ID_METADATA_KEY, aggregateId));
-            }).collect(toList());
-            for (int i = 0; i < eventList.size(); i++) {
-                Message event = eventList.get(i);
-                if (event.getPayload() instanceof Data<?>) {
-                    Data<?> eventData = event.getPayload();
-                    Data<byte[]> eventBytes = fc.serializer().serialize(eventData);
-                    SerializedMessage message =
-                            new SerializedMessage(eventBytes, event.getMetadata(), event.getMessageId(),
-                                                  event.getTimestamp().toEpochMilli());
-                    fc.client().getEventStoreClient().storeEvents(aggregateId, "test", i,
-                                                                             singletonList(message), false);
-                } else {
-                    fc.eventStore().storeEvents(aggregateId, aggregateId, i, event);
-                }
-            }
-        });
+        return given(fc -> publishDomainEvents(aggregateId, fc, events));
     }
 
     @Override
@@ -309,6 +290,11 @@ public class TestFixture implements Given, When {
     }
 
     @Override
+    public Then whenDomainEvents(String aggregateId, Object... events) {
+        return when(fc -> publishDomainEvents(aggregateId, fc, events));
+    }
+
+    @Override
     public Then whenScheduleExpires(Object schedule) {
         return when(fc -> fc.scheduler().schedule(interceptor.trace(schedule), getClock().instant()));
     }
@@ -366,6 +352,31 @@ public class TestFixture implements Given, When {
     protected Then getResultValidator(Object result, List<Message> commands, List<Message> events,
                                       List<Schedule> schedules) {
         return new ResultValidator(getFluxCapacitor(), result, events, commands, schedules);
+    }
+
+    protected void publishDomainEvents(String aggregateId, FluxCapacitor fc, Object[] events) {
+        List<Message> eventList = flatten(events).map(e -> {
+            Message m = e instanceof Message ? (Message) e : new Message(e);
+            return m.withMetadata(m.getMetadata().with(Aggregate.AGGREGATE_ID_METADATA_KEY, aggregateId));
+        }).collect(toList());
+        if (eventList.stream().anyMatch(e -> e.getPayload() instanceof Data<?>)) {
+            for (int i = 0; i < eventList.size(); i++) {
+                Message event = eventList.get(i);
+                if (event.getPayload() instanceof Data<?>) {
+                    Data<?> eventData = event.getPayload();
+                    Data<byte[]> eventBytes = fc.serializer().serialize(eventData);
+                    SerializedMessage message =
+                            new SerializedMessage(eventBytes, event.getMetadata(), event.getMessageId(),
+                                                  event.getTimestamp().toEpochMilli());
+                    fc.client().getEventStoreClient().storeEvents(aggregateId, "test", i,
+                                                                  singletonList(message), false);
+                } else {
+                    fc.eventStore().storeEvents(aggregateId, aggregateId, i, event);
+                }
+            }
+        } else {
+            fc.eventStore().storeEvents(aggregateId, aggregateId, eventList.size() - 1, eventList);
+        }
     }
 
     protected void handleExpiredSchedulesLocally() {
@@ -573,6 +584,12 @@ public class TestFixture implements Given, When {
                     }
                 }
             };
+        }
+
+        @Override
+        public void shutdown(Tracker tracker) {
+            consumers.remove(tracker);
+            checkConsumers();
         }
     }
 }
