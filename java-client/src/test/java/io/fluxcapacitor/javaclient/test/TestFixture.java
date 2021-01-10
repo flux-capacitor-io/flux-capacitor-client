@@ -125,11 +125,14 @@ public class TestFixture implements Given, When {
     }
 
     public static Duration defaultResultTimeout = Duration.ofSeconds(10L);
+    public static Duration defaultConsumerTimeout = Duration.ofSeconds(30L);
 
     @Getter
     private final FluxCapacitor fluxCapacitor;
     @Getter @Setter @Accessors(chain = true, fluent = true)
     private Duration resultTimeout = defaultResultTimeout;
+    @Getter @Setter @Accessors(chain = true, fluent = true)
+    private Duration consumerTimeout = defaultConsumerTimeout;
     private final boolean synchronous;
     private final Registration registration;
     private final GivenWhenThenInterceptor interceptor;
@@ -401,7 +404,7 @@ public class TestFixture implements Given, When {
         synchronized (consumers) {
             if (!checkConsumers()) {
                 try {
-                    consumers.wait();
+                    consumers.wait(consumerTimeout.toMillis());
                 } catch (InterruptedException e) {
                     Thread.currentThread().interrupt();
                 }

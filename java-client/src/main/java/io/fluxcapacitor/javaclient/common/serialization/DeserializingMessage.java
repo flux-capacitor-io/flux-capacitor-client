@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016-2020 Flux Capacitor.
+ * Copyright (c) 2016-2021 Flux Capacitor.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -51,6 +51,7 @@ import java.util.function.Supplier;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 
+import static io.fluxcapacitor.javaclient.FluxCapacitor.currentClock;
 import static java.time.Instant.ofEpochMilli;
 import static java.util.stream.Collectors.toList;
 
@@ -99,7 +100,7 @@ public class DeserializingMessage {
             return new Schedule(delegate.getPayload(), getMetadata(),
                                 delegate.getSerializedObject().getMessageId(),
                                 ofEpochMilli(delegate.getSerializedObject().getTimestamp()),
-                                getMetadata().get(Schedule.scheduleIdMetadataKey), Message.clock().instant());
+                                getMetadata().get(Schedule.scheduleIdMetadataKey), currentClock().instant());
         }
         return new Message(delegate.getPayload(), getMetadata(),
                            delegate.getSerializedObject().getMessageId(),

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016-2020 Flux Capacitor.
+ * Copyright (c) 2016-2021 Flux Capacitor.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,6 +15,11 @@
 package io.fluxcapacitor.javaclient.tracking;
 
 public class TrackingException extends RuntimeException {
+
+    public TrackingException(String message, Throwable cause) {
+        super(message, cause);
+    }
+
     public TrackingException(String message) {
         super(message);
     }

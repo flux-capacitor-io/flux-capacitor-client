@@ -103,6 +103,14 @@ public interface FluxCapacitor extends AutoCloseable {
     }
 
     /**
+     * Gets the clock of the current FluxCapacitor instance (obtained via {@link #getOptionally()}). If there is no
+     * current instance the system's UTC clock is returned.
+     */
+    static Clock currentClock() {
+        return getOptionally().map(FluxCapacitor::clock).orElse(Clock.systemUTC());
+    }
+
+    /**
      * Publishes the given application event. The event may be an instance of a {@link Message} in which case it will be
      * published as is. Otherwise the event is published using the passed value as payload without additional metadata.
      * <p>

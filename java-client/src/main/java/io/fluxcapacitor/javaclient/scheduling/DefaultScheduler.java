@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016-2020 Flux Capacitor.
+ * Copyright (c) 2016-2021 Flux Capacitor.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,17 +18,16 @@ import io.fluxcapacitor.common.Registration;
 import io.fluxcapacitor.common.api.SerializedMessage;
 import io.fluxcapacitor.common.api.scheduling.ScheduledMessage;
 import io.fluxcapacitor.common.handling.HandlerConfiguration;
-import io.fluxcapacitor.javaclient.FluxCapacitor;
 import io.fluxcapacitor.javaclient.common.serialization.DeserializingMessage;
 import io.fluxcapacitor.javaclient.common.serialization.MessageSerializer;
 import io.fluxcapacitor.javaclient.scheduling.client.SchedulingClient;
 import io.fluxcapacitor.javaclient.tracking.handling.HandlerRegistry;
 import lombok.AllArgsConstructor;
 
-import java.time.Clock;
 import java.time.Duration;
 
 import static io.fluxcapacitor.common.IndexUtils.indexFromTimestamp;
+import static io.fluxcapacitor.javaclient.FluxCapacitor.currentClock;
 
 @AllArgsConstructor
 public class DefaultScheduler implements Scheduler {
@@ -52,7 +51,7 @@ public class DefaultScheduler implements Scheduler {
 
     @Override
     public void schedule(Object schedule, String scheduleId, Duration delay) {
-        schedule(schedule, scheduleId, clock().instant().plus(delay));
+        schedule(schedule, scheduleId, currentClock().instant().plus(delay));
     }
 
     @Override
@@ -75,9 +74,5 @@ public class DefaultScheduler implements Scheduler {
     public void handleLocally(Schedule schedule, SerializedMessage serializedMessage) {
         serializedMessage.setIndex(indexFromTimestamp(schedule.getDeadline()));
         localHandlerRegistry.handle(schedule.getPayload(), serializedMessage);
-    }
-
-    private static Clock clock() {
-        return FluxCapacitor.getOptionally().map(FluxCapacitor::clock).orElse(Clock.systemUTC());
     }
 }

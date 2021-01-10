@@ -193,8 +193,7 @@ public class DefaultFluxCapacitor implements FluxCapacitor {
                 Arrays.stream(MessageType.values()).collect(toMap(identity(), m -> (f, messageType) -> f));
         private final Map<MessageType, HandlerInterceptor> handlerInterceptors =
                 Arrays.stream(MessageType.values()).collect(toMap(identity(), m -> (f, h, c) -> f));
-        private final Map<MessageType, BatchInterceptor> batchInterceptors =
-                Arrays.stream(MessageType.values()).collect(toMap(identity(), m -> (f, h) -> f));
+        private final Map<MessageType, List<BatchInterceptor>> batchInterceptors = new HashMap<>();
         private DispatchInterceptor messageRoutingInterceptor = new MessageRoutingInterceptor();
         private SchedulingInterceptor schedulingInterceptor = new SchedulingInterceptor();
         private Cache cache = new DefaultCache();
@@ -266,7 +265,7 @@ public class DefaultFluxCapacitor implements FluxCapacitor {
         @Override
         public FluxCapacitorBuilder addBatchInterceptor(BatchInterceptor interceptor, MessageType... forTypes) {
             Arrays.stream(forTypes.length == 0 ? MessageType.values() : forTypes)
-                    .forEach(type -> batchInterceptors.computeIfPresent(type, (t, i) -> i.merge(interceptor)));
+                    .forEach(type -> batchInterceptors.computeIfAbsent(type, t -> new ArrayList<>()).add(interceptor));
             return this;
         }
 
@@ -354,7 +353,7 @@ public class DefaultFluxCapacitor implements FluxCapacitor {
         public FluxCapacitor build(@NonNull Client client) {
             Map<MessageType, DispatchInterceptor> dispatchInterceptors = new HashMap<>(this.dispatchInterceptors);
             Map<MessageType, HandlerInterceptor> handlerInterceptors = new HashMap<>(this.handlerInterceptors);
-            Map<MessageType, BatchInterceptor> batchInterceptors = new HashMap<>(this.batchInterceptors);
+            Map<MessageType, List<BatchInterceptor>> batchInterceptors = new HashMap<>(this.batchInterceptors);
             Map<MessageType, List<ConsumerConfiguration>> consumerConfigurations =
                     new HashMap<>(this.consumerConfigurations);
 
@@ -466,9 +465,9 @@ public class DefaultFluxCapacitor implements FluxCapacitor {
 
 
             //tracking
-            batchInterceptors.forEach((type, interceptor) -> consumerConfigurations.computeIfPresent(
+            batchInterceptors.forEach((type, interceptors) -> consumerConfigurations.computeIfPresent(
                     type, (t, configs) -> configs.stream().map(
-                            c -> c.toBuilder().batchInterceptor(interceptor).build()).collect(toList())));
+                            c -> c.toBuilder().batchInterceptors(interceptors).build()).collect(toList())));
             Map<MessageType, Tracking> trackingMap = stream(MessageType.values())
                     .collect(toMap(identity(), m -> new DefaultTracking(m, client, resultGateway,
                                                                         consumerConfigurations.get(m), this.serializer,

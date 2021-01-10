@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016-2020 Flux Capacitor.
+ * Copyright (c) 2016-2021 Flux Capacitor.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,15 +17,15 @@ package io.fluxcapacitor.javaclient.common;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import io.fluxcapacitor.common.api.Metadata;
 import io.fluxcapacitor.common.api.SerializedMessage;
-import io.fluxcapacitor.javaclient.FluxCapacitor;
 import io.fluxcapacitor.javaclient.common.serialization.Serializer;
 import lombok.AllArgsConstructor;
 import lombok.Value;
 import lombok.With;
 import lombok.experimental.NonFinal;
 
-import java.time.Clock;
 import java.time.Instant;
+
+import static io.fluxcapacitor.javaclient.FluxCapacitor.currentClock;
 
 @Value
 @AllArgsConstructor
@@ -33,10 +33,6 @@ import java.time.Instant;
 @NonFinal
 public class Message {
     public static IdentityProvider identityProvider = new UuidFactory();
-
-    public static Clock clock() {
-        return FluxCapacitor.getOptionally().map(FluxCapacitor::clock).orElse(Clock.systemUTC());
-    }
 
     @With
     @JsonTypeInfo(use = JsonTypeInfo.Id.CLASS)
@@ -47,11 +43,11 @@ public class Message {
     Instant timestamp;
 
     public Message(Object payload) {
-        this(payload, Metadata.empty(), identityProvider.nextId(), clock().instant());
+        this(payload, Metadata.empty(), identityProvider.nextId(), currentClock().instant());
     }
 
     public Message(Object payload, Metadata metadata) {
-        this(payload, metadata, identityProvider.nextId(), clock().instant());
+        this(payload, metadata, identityProvider.nextId(), currentClock().instant());
     }
 
     @SuppressWarnings("unchecked")
