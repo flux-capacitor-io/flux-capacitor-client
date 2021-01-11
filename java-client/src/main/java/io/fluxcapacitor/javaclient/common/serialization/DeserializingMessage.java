@@ -24,6 +24,7 @@ import io.fluxcapacitor.common.handling.ParameterResolver;
 import io.fluxcapacitor.javaclient.common.Message;
 import io.fluxcapacitor.javaclient.modeling.AggregateIdResolver;
 import io.fluxcapacitor.javaclient.modeling.AggregateTypeResolver;
+import io.fluxcapacitor.javaclient.publishing.routing.RoutingKey;
 import io.fluxcapacitor.javaclient.scheduling.Schedule;
 import io.fluxcapacitor.javaclient.tracking.handling.DeserializingMessageParameterResolver;
 import io.fluxcapacitor.javaclient.tracking.handling.MessageParameterResolver;
@@ -38,6 +39,7 @@ import lombok.extern.slf4j.Slf4j;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -51,6 +53,7 @@ import java.util.function.Supplier;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 
+import static io.fluxcapacitor.common.reflection.ReflectionUtils.getAnnotatedPropertyValue;
 import static io.fluxcapacitor.javaclient.FluxCapacitor.currentClock;
 import static java.time.Instant.ofEpochMilli;
 import static java.util.stream.Collectors.toList;
@@ -78,6 +81,24 @@ public class DeserializingMessage {
 
     public DeserializingMessage(SerializedMessage message, Supplier<Object> payload, MessageType messageType) {
         this(new DeserializingObject<>(message, payload), messageType);
+    }
+
+    public static Map<String, String> getCorrelationData() {
+        DeserializingMessage currentMessage = current.get();
+        if (currentMessage == null)  {
+            return Collections.emptyMap();
+        }
+        Map<String, String> result = new HashMap<>();
+        String correlationId = Optional.ofNullable(currentMessage.getSerializedObject().getIndex())
+                .map(Object::toString).orElse(currentMessage.getSerializedObject().getMessageId());
+        result.put("$correlationId", correlationId);
+        result.put("$traceId", currentMessage.getMetadata().getOrDefault("$traceId", correlationId));
+        result.put("$trigger", currentMessage.getSerializedObject().getData().getType());
+        if (currentMessage.isDeserialized()) {
+            getAnnotatedPropertyValue(currentMessage.getPayload(), RoutingKey.class).map(Object::toString)
+                    .ifPresent(v -> result.put("$triggerRoutingKey", v));
+        }
+        return result;
     }
 
     public void run(Consumer<DeserializingMessage> task) {

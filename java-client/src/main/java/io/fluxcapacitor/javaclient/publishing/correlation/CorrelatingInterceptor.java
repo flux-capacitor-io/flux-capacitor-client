@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016-2020 Flux Capacitor.
+ * Copyright (c) 2016-2021 Flux Capacitor.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -20,49 +20,24 @@ import io.fluxcapacitor.javaclient.common.Message;
 import io.fluxcapacitor.javaclient.common.serialization.DeserializingMessage;
 import io.fluxcapacitor.javaclient.configuration.client.Client;
 import io.fluxcapacitor.javaclient.publishing.DispatchInterceptor;
-import io.fluxcapacitor.javaclient.publishing.routing.RoutingKey;
 import lombok.AllArgsConstructor;
 
 import java.util.HashMap;
 import java.util.Map;
-import java.util.Optional;
 import java.util.function.Function;
-
-import static io.fluxcapacitor.common.reflection.ReflectionUtils.getAnnotatedPropertyValue;
 
 @AllArgsConstructor
 public class CorrelatingInterceptor implements DispatchInterceptor {
     private final Client client;
-    private final String clientId;
-    private final String clientName;
-    private final String correlationId;
-    private final String traceId;
-    private final String trigger;
-    private final String triggerRoutingKey;
-
-    public CorrelatingInterceptor(Client client) {
-        this(client, "$clientId", "$clientName", "$correlationId", "$traceId", "$trigger", "$triggerRoutingKey");
-    }
 
     @Override
     public Function<Message, SerializedMessage> interceptDispatch(Function<Message, SerializedMessage> function,
                                                                   MessageType messageType) {
         return message -> {
             Map<String, String> result = new HashMap<>();
-            result.put(clientId, client.id());
-            result.put(clientName, client.name());
-            DeserializingMessage currentMessage = DeserializingMessage.getCurrent();
-            if (currentMessage != null) {
-                String correlationId = Optional.ofNullable(currentMessage.getSerializedObject().getIndex())
-                        .map(Object::toString).orElse(currentMessage.getSerializedObject().getMessageId());
-                result.put(this.correlationId, correlationId);
-                result.put(traceId, currentMessage.getMetadata().getOrDefault(traceId, correlationId));
-                result.put(trigger, currentMessage.getSerializedObject().getData().getType());
-                if (currentMessage.isDeserialized()) {
-                    getAnnotatedPropertyValue(currentMessage.getPayload(), RoutingKey.class).map(Object::toString)
-                            .ifPresent(v -> result.put(triggerRoutingKey, v));
-                }
-            }
+            result.put("$clientId", client.id());
+            result.put("$clientName", client.name());
+            result.putAll(DeserializingMessage.getCorrelationData());
             return function.apply(message.withMetadata(message.getMetadata().with(result)));
         };
     }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016-2020 Flux Capacitor.
+ * Copyright (c) 2016-2021 Flux Capacitor.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -22,12 +22,20 @@ import io.fluxcapacitor.common.api.Metadata;
 import io.fluxcapacitor.common.api.QueryResult;
 import io.fluxcapacitor.common.api.Request;
 import io.fluxcapacitor.javaclient.FluxCapacitor;
+import io.fluxcapacitor.javaclient.common.serialization.DeserializingMessage;
 import io.fluxcapacitor.javaclient.configuration.client.WebSocketClient.Properties;
 import lombok.RequiredArgsConstructor;
 import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
 
-import javax.websocket.*;
+import javax.websocket.CloseReason;
+import javax.websocket.ContainerProvider;
+import javax.websocket.DecodeException;
+import javax.websocket.OnClose;
+import javax.websocket.OnError;
+import javax.websocket.OnMessage;
+import javax.websocket.Session;
+import javax.websocket.WebSocketContainer;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.net.URI;
@@ -119,7 +127,7 @@ public abstract class AbstractWebsocketClient implements AutoCloseable {
 
     @SuppressWarnings("unchecked")
     protected <R extends QueryResult> CompletableFuture<R> sendRequest(Request request) {
-        WebSocketRequest webSocketRequest = new WebSocketRequest(request);
+        WebSocketRequest webSocketRequest = new WebSocketRequest(request, DeserializingMessage.getCorrelationData());
         webSocketRequest.send();
         return (CompletableFuture<R>) webSocketRequest.result;
     }
@@ -230,6 +238,7 @@ public abstract class AbstractWebsocketClient implements AutoCloseable {
     protected class WebSocketRequest {
         private final Request request;
         private final CompletableFuture<QueryResult> result = new CompletableFuture<>();
+        private final Map<String, String> correlationData;
         private volatile String sessionId;
 
         protected void send() {
@@ -247,7 +256,7 @@ public abstract class AbstractWebsocketClient implements AutoCloseable {
                 AbstractWebsocketClient.this.send(request, session);
 
                 long start = currentTimeMillis();
-                tryPublishMetrics(request.toMetric(), Metadata.of("requestId", request.getRequestId()));
+                tryPublishMetrics(request.toMetric(), Metadata.of("requestId", request.getRequestId()).with(correlationData));
                 result.whenComplete((result, e) -> {
                     if (e == null) {
                         ofNullable(result.toMetric()).ifPresent(metric ->
