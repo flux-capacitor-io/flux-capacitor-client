@@ -76,7 +76,8 @@ public abstract class AbstractWebsocketClient implements AutoCloseable {
     }
 
     public AbstractWebsocketClient(URI endpointUri, Properties properties, boolean sendMetrics) {
-        this(defaultWebSocketContainer, endpointUri, properties, sendMetrics, Duration.ofSeconds(1), defaultObjectMapper);
+        this(defaultWebSocketContainer, endpointUri, properties, sendMetrics, Duration.ofSeconds(1),
+             defaultObjectMapper);
     }
 
     public AbstractWebsocketClient(WebSocketContainer container, URI endpointUri, Properties properties,
@@ -93,8 +94,8 @@ public abstract class AbstractWebsocketClient implements AutoCloseable {
                 .exceptionLogger(status -> {
                     if (status.getNumberOfTimesRetried() == 0) {
                         log.warn("Failed to connect to endpoint {}; reason: {}. Retrying every {} ms...",
-                                endpointUri, status.getException().getMessage(),
-                                status.getRetryConfiguration().getDelay().toMillis());
+                                 endpointUri, status.getException().getMessage(),
+                                 status.getRetryConfiguration().getDelay().toMillis());
                     }
                 })
                 .build();
@@ -191,12 +192,12 @@ public abstract class AbstractWebsocketClient implements AutoCloseable {
                         session.close();
                     } catch (IOException e) {
                         log.warn("Failed to closed websocket session connected to endpoint {}. Reason: {}",
-                                session.getRequestURI(), e.getMessage());
+                                 session.getRequestURI(), e.getMessage());
                     }
                 }
                 if (session != null && !requests.isEmpty()) {
                     log.warn("Closed websocket session to endpoint {} with {} outstanding requests",
-                            session.getRequestURI(), requests.size());
+                             session.getRequestURI(), requests.size());
                 }
             }
         }
@@ -256,12 +257,14 @@ public abstract class AbstractWebsocketClient implements AutoCloseable {
                 AbstractWebsocketClient.this.send(request, session);
 
                 long start = currentTimeMillis();
-                tryPublishMetrics(request.toMetric(), Metadata.of("requestId", request.getRequestId()).with(correlationData));
+                tryPublishMetrics(request.toMetric(), Metadata.of("requestId", request.getRequestId()));
                 result.whenComplete((result, e) -> {
                     if (e == null) {
-                        ofNullable(result.toMetric()).ifPresent(metric ->
-                                tryPublishMetrics(metric, Metadata.of("requestId", request.getRequestId())
-                                        .with("msDuration", currentTimeMillis() - start)));
+                        ofNullable(result.toMetric())
+                                .ifPresent(metric -> tryPublishMetrics(
+                                        metric, Metadata.of("requestId", request.getRequestId(),
+                                                            "msDuration", currentTimeMillis() - start)
+                                                .with(correlationData)));
                     }
                 });
             } catch (Exception e) {
