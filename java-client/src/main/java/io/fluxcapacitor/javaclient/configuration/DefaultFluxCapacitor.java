@@ -29,6 +29,7 @@ import io.fluxcapacitor.javaclient.modeling.CompositeAggregateRepository;
 import io.fluxcapacitor.javaclient.persisting.caching.Cache;
 import io.fluxcapacitor.javaclient.persisting.caching.CachingAggregateRepository;
 import io.fluxcapacitor.javaclient.persisting.caching.DefaultCache;
+import io.fluxcapacitor.javaclient.persisting.caching.SelectiveCache;
 import io.fluxcapacitor.javaclient.persisting.eventsourcing.DefaultEventSourcingHandlerFactory;
 import io.fluxcapacitor.javaclient.persisting.eventsourcing.DefaultEventStore;
 import io.fluxcapacitor.javaclient.persisting.eventsourcing.DefaultSnapshotRepository;
@@ -292,6 +293,12 @@ public class DefaultFluxCapacitor implements FluxCapacitor {
         @Override
         public FluxCapacitorBuilder replaceCache(@NonNull Cache cache) {
             this.cache = cache;
+            return this;
+        }
+
+        @Override
+        public FluxCapacitorBuilder withAggregateCache(Class<?> aggregateType, Cache cache) {
+            this.cache = new SelectiveCache(cache, SelectiveCache.aggregateSelector(aggregateType), this.cache);
             return this;
         }
 

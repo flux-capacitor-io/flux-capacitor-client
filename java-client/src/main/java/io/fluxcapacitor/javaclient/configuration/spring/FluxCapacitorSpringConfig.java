@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016-2020 Flux Capacitor.
+ * Copyright (c) 2016-2021 Flux Capacitor.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -25,6 +25,7 @@ import io.fluxcapacitor.javaclient.configuration.FluxCapacitorBuilder;
 import io.fluxcapacitor.javaclient.configuration.client.Client;
 import io.fluxcapacitor.javaclient.configuration.client.InMemoryClient;
 import io.fluxcapacitor.javaclient.configuration.client.WebSocketClient;
+import io.fluxcapacitor.javaclient.persisting.caching.Cache;
 import io.fluxcapacitor.javaclient.tracking.handling.authentication.UserProvider;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.BeansException;
@@ -82,10 +83,12 @@ public class FluxCapacitorSpringConfig implements BeanPostProcessor {
     @Bean
     @ConditionalOnMissingBean
     @SuppressWarnings("OptionalUsedAsFieldOrParameterType")
-    public FluxCapacitorBuilder fluxCapacitorBuilder(Serializer serializer, Optional<UserProvider> userProvider) {
+    public FluxCapacitorBuilder fluxCapacitorBuilder(Serializer serializer, Optional<UserProvider> userProvider,
+                                                     Optional<Cache> cache) {
         FluxCapacitorBuilder builder = DefaultFluxCapacitor.builder().disableShutdownHook()
                 .replaceSerializer(serializer).replaceSnapshotSerializer(serializer).makeApplicationInstance(true);
         userProvider.ifPresent(builder::registerUserSupplier);
+        cache.ifPresent(builder::replaceCache);
         return builder;
     }
 

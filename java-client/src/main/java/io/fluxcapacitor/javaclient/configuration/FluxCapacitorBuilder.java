@@ -48,6 +48,12 @@ public interface FluxCapacitorBuilder {
 
     FluxCapacitorBuilder replaceCache(Cache cache);
 
+    /**
+     * Configures a dedicated cache to use for aggregates of the given type. If no dedicated cache is set aggregates
+     * will be stored in the default cache.
+     */
+    FluxCapacitorBuilder withAggregateCache(Class<?> aggregateType, Cache cache);
+
     FluxCapacitorBuilder addParameterResolver(ParameterResolver<DeserializingMessage> parameterResolver);
 
     /**

@@ -167,7 +167,7 @@ public class EventSourcingRepository implements AggregateRepository {
                     .orElseGet(() -> {
                         EventSourcedModel<T> model = snapshotRepository.<T>getSnapshot(id)
                                 .filter(a -> aggregateType.isAssignableFrom(a.get().getClass()))
-                                .orElse(EventSourcedModel.<T>builder().id(id).build());
+                                .orElse(EventSourcedModel.<T>builder().id(id).type(aggregateType).build());
                         AggregateEventStream<DeserializingMessage> eventStream
                                 = eventStore.getEvents(id, model.sequenceNumber());
                         Iterator<DeserializingMessage> iterator = eventStream.iterator();

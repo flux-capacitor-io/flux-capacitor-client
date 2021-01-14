@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016-2020 Flux Capacitor.
+ * Copyright (c) 2016-2021 Flux Capacitor.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -19,6 +19,7 @@ import io.fluxcapacitor.common.api.Metadata;
 import io.fluxcapacitor.javaclient.FluxCapacitor;
 import io.fluxcapacitor.javaclient.common.serialization.upcasting.Upcast;
 import io.fluxcapacitor.javaclient.configuration.FluxCapacitorBuilder;
+import io.fluxcapacitor.javaclient.persisting.caching.DefaultCache;
 import io.fluxcapacitor.javaclient.tracking.handling.HandleCommand;
 import io.fluxcapacitor.javaclient.tracking.handling.HandleQuery;
 import io.fluxcapacitor.javaclient.tracking.handling.LocalHandler;
@@ -43,6 +44,7 @@ import org.springframework.test.context.junit.jupiter.SpringExtension;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
@@ -79,6 +81,11 @@ public class FluxCapacitorSpringConfigTest {
     @Test
     void testUserProviderInjected() {
         assertEquals(mockUser, fluxCapacitor.queryGateway().sendAndWait(new GetUser()));
+    }
+
+    @Test
+    void testDefaultCacheReplaced() {
+        assertTrue(fluxCapacitor.cache() instanceof Config.CustomCache);
     }
 
     @Test
@@ -131,6 +138,13 @@ public class FluxCapacitorSpringConfigTest {
             return mockUserProvider;
         }
 
+        @Bean
+        public CustomCache cache() {
+            return new CustomCache();
+        }
+
+        private static class CustomCache extends DefaultCache {
+        }
     }
 
     @Value
