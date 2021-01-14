@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016-2020 Flux Capacitor.
+ * Copyright (c) 2016-2021 Flux Capacitor.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -43,7 +43,7 @@ public class WebsocketSchedulingClient extends AbstractWebsocketClient implement
     }
 
     protected Awaitable scheduleMessages(List<ScheduledMessage> scheduledMessages) {
-        return send(new Schedule(scheduledMessages));
+        return sendAndForget(new Schedule(scheduledMessages));
     }
 
     @Override
@@ -53,6 +53,6 @@ public class WebsocketSchedulingClient extends AbstractWebsocketClient implement
 
     @Override
     public Awaitable cancelSchedule(String scheduleId) {
-        return send(new CancelSchedule(scheduleId));
+        return sendAndForget(new CancelSchedule(scheduleId));
     }
 }

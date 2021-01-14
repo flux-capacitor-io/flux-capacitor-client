@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016-2020 Flux Capacitor.
+ * Copyright (c) 2016-2021 Flux Capacitor.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -53,7 +53,7 @@ public class WebsocketKeyValueClient extends AbstractWebsocketClient implements 
     }
 
     protected Awaitable storeValues(List<KeyValuePair> keyValuePairs) {
-        return send(new StoreValues(keyValuePairs));
+        return sendAndForget(new StoreValues(keyValuePairs));
     }
 
     @Override
@@ -65,7 +65,7 @@ public class WebsocketKeyValueClient extends AbstractWebsocketClient implements 
             case SENT:
                 return backlog.add(new KeyValuePair(key, value));
             case STORED:
-                sendRequestAndWait(new StoreValuesAndWait(singletonList(new KeyValuePair(key, value))));
+                sendAndWait(new StoreValuesAndWait(singletonList(new KeyValuePair(key, value))));
                 return Awaitable.ready();
             default:
                 throw new UnsupportedOperationException("Unrecognized guarantee: " + guarantee);
@@ -74,18 +74,18 @@ public class WebsocketKeyValueClient extends AbstractWebsocketClient implements 
 
     @Override
     public CompletableFuture<Boolean> putValueIfAbsent(String key, Data<byte[]> value) {
-        return sendRequest(new StoreValueIfAbsent(new KeyValuePair(key, value)))
+        return send(new StoreValueIfAbsent(new KeyValuePair(key, value)))
                 .thenApply(r -> ((BooleanResult) r).isSuccess());
     }
 
     @Override
     public Data<byte[]> getValue(String key) {
-        GetValueResult result = sendRequestAndWait(new GetValue(key));
+        GetValueResult result = sendAndWait(new GetValue(key));
         return result.getValue();
     }
 
     @Override
     public Awaitable deleteValue(String key) {
-        return send(new DeleteValue(key));
+        return sendAndForget(new DeleteValue(key));
     }
 }

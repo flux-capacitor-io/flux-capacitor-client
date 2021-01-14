@@ -53,7 +53,6 @@ import static io.fluxcapacitor.javaclient.common.serialization.compression.Compr
 import static java.lang.System.currentTimeMillis;
 import static java.lang.Thread.currentThread;
 import static java.lang.Thread.sleep;
-import static java.util.Optional.ofNullable;
 import static javax.websocket.CloseReason.CloseCodes.NO_STATUS_CODE;
 
 @Slf4j
@@ -101,15 +100,25 @@ public abstract class AbstractWebsocketClient implements AutoCloseable {
                 .build();
     }
 
+    protected <R extends QueryResult> CompletableFuture<R> send(Request request) {
+        return new WebSocketRequest(request, DeserializingMessage.getCorrelationData()).send();
+    }
+
+    @SuppressWarnings("unchecked")
     @SneakyThrows
-    protected Awaitable send(JsonType object) {
-        Awaitable awaitable = send(object, getSession());
+    protected <R extends QueryResult> R sendAndWait(Request request) {
+        return (R) send(request).get();
+    }
+
+    @SneakyThrows
+    protected Awaitable sendAndForget(JsonType object) {
+        Awaitable awaitable = doSend(object, getSession());
         tryPublishMetrics(object.toMetric(), Metadata.empty());
         return awaitable;
     }
 
     @SneakyThrows
-    protected Awaitable send(JsonType object, Session session) {
+    protected Awaitable doSend(JsonType object, Session session) {
         try (OutputStream outputStream = session.getBasicRemote().getSendStream()) {
             byte[] bytes = objectMapper.writeValueAsBytes(object);
             outputStream.write(compress(bytes, properties.getCompression()));
@@ -118,19 +127,6 @@ public abstract class AbstractWebsocketClient implements AutoCloseable {
             throw e;
         }
         return Awaitable.ready();
-    }
-
-    @SuppressWarnings("unchecked")
-    @SneakyThrows
-    protected <R extends QueryResult> R sendRequestAndWait(Request request) {
-        return (R) sendRequest(request).get();
-    }
-
-    @SuppressWarnings("unchecked")
-    protected <R extends QueryResult> CompletableFuture<R> sendRequest(Request request) {
-        WebSocketRequest webSocketRequest = new WebSocketRequest(request, DeserializingMessage.getCorrelationData());
-        webSocketRequest.send();
-        return (CompletableFuture<R>) webSocketRequest.result;
     }
 
     @OnMessage
@@ -147,7 +143,14 @@ public abstract class AbstractWebsocketClient implements AutoCloseable {
         if (webSocketRequest == null) {
             log.warn("Could not find outstanding read request for id {}", readResult.getRequestId());
         } else {
-            webSocketRequest.result.complete(readResult);
+            try {
+                tryPublishMetrics(readResult.toMetric(),
+                                  Metadata.of("requestId", webSocketRequest.request.getRequestId(),
+                                              "msDuration", currentTimeMillis() - webSocketRequest.sendTimestamp)
+                                          .with(webSocketRequest.correlationData));
+            } finally {
+                webSocketRequest.result.complete(readResult);
+            }
         }
     }
 
@@ -224,14 +227,8 @@ public abstract class AbstractWebsocketClient implements AutoCloseable {
 
 
     protected void tryPublishMetrics(Object metric, Metadata metadata) {
-        if (sendMetrics) {
-            FluxCapacitor.getOptionally().ifPresent(f -> {
-                try {
-                    publishMetrics(metric, metadata);
-                } catch (Exception e) {
-                    log.info("Failed to publish metrics", e);
-                }
-            });
+        if (sendMetrics && metric != null) {
+            FluxCapacitor.getOptionally().ifPresent(f -> publishMetrics(metric, metadata));
         }
     }
 
@@ -241,36 +238,29 @@ public abstract class AbstractWebsocketClient implements AutoCloseable {
         private final CompletableFuture<QueryResult> result = new CompletableFuture<>();
         private final Map<String, String> correlationData;
         private volatile String sessionId;
+        private volatile long sendTimestamp;
 
-        protected void send() {
+        @SuppressWarnings("unchecked")
+        protected <T extends QueryResult> CompletableFuture<T> send() {
             try {
                 Session session = getSession();
             } catch (Exception e) {
                 log.error("Failed to get websocket session to send request {}", request, e);
                 result.completeExceptionally(e);
-                return;
+                return (CompletableFuture<T>) result;
             }
             this.sessionId = session.getId();
             requests.put(request.getRequestId(), this);
 
             try {
-                AbstractWebsocketClient.this.send(request, session);
-
-                long start = currentTimeMillis();
+                sendTimestamp = System.currentTimeMillis();
+                AbstractWebsocketClient.this.doSend(request, session);
                 tryPublishMetrics(request.toMetric(), Metadata.of("requestId", request.getRequestId()));
-                result.whenComplete((result, e) -> {
-                    if (e == null) {
-                        ofNullable(result.toMetric())
-                                .ifPresent(metric -> tryPublishMetrics(
-                                        metric, Metadata.of("requestId", request.getRequestId(),
-                                                            "msDuration", currentTimeMillis() - start)
-                                                .with(correlationData)));
-                    }
-                });
             } catch (Exception e) {
                 requests.remove(request.getRequestId());
                 result.completeExceptionally(e);
             }
+            return (CompletableFuture<T>) result;
         }
     }
 

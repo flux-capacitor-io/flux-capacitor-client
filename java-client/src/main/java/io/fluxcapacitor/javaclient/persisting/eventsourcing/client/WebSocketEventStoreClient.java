@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016-2020 Flux Capacitor.
+ * Copyright (c) 2016-2021 Flux Capacitor.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -63,16 +63,16 @@ public class WebSocketEventStoreClient extends AbstractWebsocketClient implement
     }
 
     private Awaitable doSend(List<EventBatch> batches) {
-        sendRequestAndWait(new AppendEvents(batches));
+        sendAndWait(new AppendEvents(batches));
         return Awaitable.ready();
     }
 
     @Override
     public AggregateEventStream<SerializedMessage> getEvents(String aggregateId, long lastSequenceNumber) {
         AtomicReference<Long> highestSequenceNumber = new AtomicReference<>();
-        GetEventsResult firstBatch = sendRequestAndWait(new GetEvents(aggregateId, lastSequenceNumber, fetchBatchSize));
+        GetEventsResult firstBatch = sendAndWait(new GetEvents(aggregateId, lastSequenceNumber, fetchBatchSize));
         Stream<SerializedMessage> eventStream = iterate(firstBatch,
-                                              r -> sendRequestAndWait(new GetEvents(aggregateId, r.getEventBatch()
+                                              r -> sendAndWait(new GetEvents(aggregateId, r.getEventBatch()
                                                       .getLastSequenceNumber(), fetchBatchSize)),
                                               r -> r.getEventBatch().getEvents().size() < fetchBatchSize)
                 .flatMap(r -> {
@@ -87,7 +87,7 @@ public class WebSocketEventStoreClient extends AbstractWebsocketClient implement
 
     @Override
     public CompletableFuture<Boolean> deleteEvents(String aggregateId) {
-        return sendRequest(new DeleteEvents(aggregateId)).thenApply(r -> ((BooleanResult) r).isSuccess());
+        return send(new DeleteEvents(aggregateId)).thenApply(r -> ((BooleanResult) r).isSuccess());
     }
 
 }

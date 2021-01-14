@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016-2020 Flux Capacitor.
+ * Copyright (c) 2016-2021 Flux Capacitor.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -24,8 +24,6 @@ import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.function.Consumer;
 
-import static io.fluxcapacitor.javaclient.FluxCapacitor.publishMetrics;
-
 @Slf4j
 public class TrackerMonitor implements BatchInterceptor {
     @Override
@@ -38,13 +36,9 @@ public class TrackerMonitor implements BatchInterceptor {
             Instant start = Instant.now();
             consumer.accept(batch);
             long nsDuration = start.until(Instant.now(), ChronoUnit.NANOS);
-            try {
-                publishMetrics(new ProcessBatchEvent(
-                        FluxCapacitor.get().client().name(), FluxCapacitor.get().client().id(), tracker.getName(),
-                        tracker.getTrackerId(), batch.getLastIndex(), batch.getSize(), nsDuration));
-            } catch (Exception e) {
-                log.error("Failed to publish consumer metrics", e);
-            }
+            FluxCapacitor.getOptionally().ifPresent(fc -> fc.metricsGateway().publish(new ProcessBatchEvent(
+                    fc.client().name(), fc.client().id(), tracker.getName(),
+                    tracker.getTrackerId(), batch.getLastIndex(), batch.getSize(), nsDuration)));
         };
     }
 }

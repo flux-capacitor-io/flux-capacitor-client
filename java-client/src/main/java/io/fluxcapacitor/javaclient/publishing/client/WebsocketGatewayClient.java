@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016-2020 Flux Capacitor.
+ * Copyright (c) 2016-2021 Flux Capacitor.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -59,6 +59,6 @@ public class WebsocketGatewayClient extends AbstractWebsocketClient implements G
     }
 
     private Awaitable doSend(List<SerializedMessage> messages) {
-        return send(new Append(messages));
+        return sendAndForget(new Append(messages));
     }
 }
