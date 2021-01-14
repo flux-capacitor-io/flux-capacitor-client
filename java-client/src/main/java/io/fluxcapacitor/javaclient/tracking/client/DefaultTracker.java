@@ -80,8 +80,8 @@ public class DefaultTracker implements Runnable, Registration {
      * Starts one or more trackers. Messages will be passed to the given consumer. Once the consumer is done the
      * position of the tracker is automatically updated.
      * <p>
-     * Each tracker started is using a single thread. To track in parallel configure the number of trackers using {@link
-     * ConsumerConfiguration#getThreads()}.
+     * Each tracker started is using a single thread. To track in parallel configure the number of trackers using
+     * {@link ConsumerConfiguration}.
      */
     public static Registration start(Consumer<List<SerializedMessage>> consumer, ConsumerConfiguration config,
                                      Client client) {
