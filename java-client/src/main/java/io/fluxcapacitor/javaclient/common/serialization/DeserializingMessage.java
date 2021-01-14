@@ -24,7 +24,6 @@ import io.fluxcapacitor.common.handling.ParameterResolver;
 import io.fluxcapacitor.javaclient.common.Message;
 import io.fluxcapacitor.javaclient.modeling.AggregateIdResolver;
 import io.fluxcapacitor.javaclient.modeling.AggregateTypeResolver;
-import io.fluxcapacitor.javaclient.publishing.routing.RoutingKey;
 import io.fluxcapacitor.javaclient.scheduling.Schedule;
 import io.fluxcapacitor.javaclient.tracking.handling.DeserializingMessageParameterResolver;
 import io.fluxcapacitor.javaclient.tracking.handling.MessageParameterResolver;
@@ -53,7 +52,6 @@ import java.util.function.Supplier;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 
-import static io.fluxcapacitor.common.reflection.ReflectionUtils.getAnnotatedPropertyValue;
 import static io.fluxcapacitor.javaclient.FluxCapacitor.currentClock;
 import static java.time.Instant.ofEpochMilli;
 import static java.util.stream.Collectors.toList;
@@ -94,10 +92,6 @@ public class DeserializingMessage {
         result.put("$correlationId", correlationId);
         result.put("$traceId", currentMessage.getMetadata().getOrDefault("$traceId", correlationId));
         result.put("$trigger", currentMessage.getSerializedObject().getData().getType());
-        if (currentMessage.isDeserialized()) {
-            getAnnotatedPropertyValue(currentMessage.getPayload(), RoutingKey.class).map(Object::toString)
-                    .ifPresent(v -> result.put("$triggerRoutingKey", v));
-        }
         return result;
     }
 
