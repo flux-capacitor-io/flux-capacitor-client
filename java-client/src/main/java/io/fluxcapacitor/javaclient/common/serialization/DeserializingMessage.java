@@ -25,6 +25,7 @@ import io.fluxcapacitor.javaclient.common.Message;
 import io.fluxcapacitor.javaclient.modeling.AggregateIdResolver;
 import io.fluxcapacitor.javaclient.modeling.AggregateTypeResolver;
 import io.fluxcapacitor.javaclient.scheduling.Schedule;
+import io.fluxcapacitor.javaclient.tracking.Tracker;
 import io.fluxcapacitor.javaclient.tracking.handling.DeserializingMessageParameterResolver;
 import io.fluxcapacitor.javaclient.tracking.handling.MessageParameterResolver;
 import io.fluxcapacitor.javaclient.tracking.handling.MetadataParameterResolver;
@@ -35,16 +36,7 @@ import lombok.Value;
 import lombok.experimental.Delegate;
 import lombok.extern.slf4j.Slf4j;
 
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
-import java.util.Spliterator;
-import java.util.Spliterators;
+import java.util.*;
 import java.util.function.BiFunction;
 import java.util.function.Consumer;
 import java.util.function.Function;
@@ -54,6 +46,7 @@ import java.util.stream.StreamSupport;
 
 import static io.fluxcapacitor.javaclient.FluxCapacitor.currentClock;
 import static java.time.Instant.ofEpochMilli;
+import static java.util.Optional.ofNullable;
 import static java.util.stream.Collectors.toList;
 
 @Value
@@ -63,9 +56,9 @@ public class DeserializingMessage {
     public static MessageFormatter messageFormatter = MessageFormatter.DEFAULT;
     public static List<ParameterResolver<? super DeserializingMessage>> defaultParameterResolvers =
             Arrays.asList(new DeserializingMessageParameterResolver(),
-                          new PayloadParameterResolver(), new MetadataParameterResolver(),
-                          new MessageParameterResolver(), new AggregateIdResolver(),
-                          new AggregateTypeResolver(), new UserParameterResolver());
+                    new PayloadParameterResolver(), new MetadataParameterResolver(),
+                    new MessageParameterResolver(), new AggregateIdResolver(),
+                    new AggregateTypeResolver(), new UserParameterResolver());
     public static MethodInvokerFactory<DeserializingMessage> defaultInvokerFactory = MethodHandlerInvoker::new;
 
     private static final ThreadLocal<Collection<Runnable>> messageCompletionHandlers = new ThreadLocal<>();
@@ -82,16 +75,15 @@ public class DeserializingMessage {
     }
 
     public static Map<String, String> getCorrelationData() {
-        DeserializingMessage currentMessage = current.get();
-        if (currentMessage == null)  {
-            return Collections.emptyMap();
-        }
         Map<String, String> result = new HashMap<>();
-        String correlationId = Optional.ofNullable(currentMessage.getSerializedObject().getIndex())
-                .map(Object::toString).orElse(currentMessage.getSerializedObject().getMessageId());
-        result.put("$correlationId", correlationId);
-        result.put("$traceId", currentMessage.getMetadata().getOrDefault("$traceId", correlationId));
-        result.put("$trigger", currentMessage.getSerializedObject().getData().getType());
+        ofNullable(current.get()).ifPresent(currentMessage -> {
+            String correlationId = ofNullable(currentMessage.getSerializedObject().getIndex())
+                    .map(Object::toString).orElse(currentMessage.getSerializedObject().getMessageId());
+            result.put("$correlationId", correlationId);
+            result.put("$traceId", currentMessage.getMetadata().getOrDefault("$traceId", correlationId));
+            result.put("$trigger", currentMessage.getSerializedObject().getData().getType());
+        });
+        Tracker.current().ifPresent(t -> result.put("$consumer", t.getName()));
         return result;
     }
 
@@ -113,13 +105,13 @@ public class DeserializingMessage {
     public Message toMessage() {
         if (getMetadata().containsKey(Schedule.scheduleIdMetadataKey)) {
             return new Schedule(delegate.getPayload(), getMetadata(),
-                                delegate.getSerializedObject().getMessageId(),
-                                ofEpochMilli(delegate.getSerializedObject().getTimestamp()),
-                                getMetadata().get(Schedule.scheduleIdMetadataKey), currentClock().instant());
+                    delegate.getSerializedObject().getMessageId(),
+                    ofEpochMilli(delegate.getSerializedObject().getTimestamp()),
+                    getMetadata().get(Schedule.scheduleIdMetadataKey), currentClock().instant());
         }
         return new Message(delegate.getPayload(), getMetadata(),
-                           delegate.getSerializedObject().getMessageId(),
-                           ofEpochMilli(delegate.getSerializedObject().getTimestamp()));
+                delegate.getSerializedObject().getMessageId(),
+                ofEpochMilli(delegate.getSerializedObject().getTimestamp()));
     }
 
     public static DeserializingMessage getCurrent() {
@@ -178,7 +170,7 @@ public class DeserializingMessage {
     private static void setCurrent(DeserializingMessage message) {
         current.set(message);
         if (message == null) {
-            Optional.ofNullable(messageCompletionHandlers.get()).ifPresent(handlers -> {
+            ofNullable(messageCompletionHandlers.get()).ifPresent(handlers -> {
                 messageCompletionHandlers.remove();
                 handlers.forEach(Runnable::run);
             });
@@ -206,7 +198,7 @@ public class DeserializingMessage {
             });
             if (!hadNext && DeserializingMessage.getCurrent() == null) {
                 try {
-                    Optional.ofNullable(batchCompletionHandlers.get()).ifPresent(handlers -> {
+                    ofNullable(batchCompletionHandlers.get()).ifPresent(handlers -> {
                         batchCompletionHandlers.remove();
                         handlers.forEach(Runnable::run);
                     });

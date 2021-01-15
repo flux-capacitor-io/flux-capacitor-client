@@ -98,8 +98,8 @@ public class DefaultTracker implements Runnable, Registration {
 
     private DefaultTracker(Consumer<List<SerializedMessage>> consumer, ConsumerConfiguration config, Client client) {
         this.tracker = new Tracker(config.prependApplicationName()
-                                           ? format("%s_%s", client.name(), config.getName()) : config.getName(),
-                                   config.getTrackerIdFactory().apply(client), config);
+                ? format("%s_%s", client.name(), config.getName()) : config.getName(),
+                config.getTrackerIdFactory().apply(client), config);
         this.processor = join(config.getBatchInterceptors()).intercept(b -> processAll(b, consumer), tracker);
         this.trackingClient = client.getTrackingClient(config.getMessageType());
         this.retryDelay = Duration.ofSeconds(1);
@@ -108,11 +108,13 @@ public class DefaultTracker implements Runnable, Registration {
     @Override
     public void run() {
         if (running.compareAndSet(false, true)) {
+            Tracker.current.set(tracker);
             thread.set(currentThread());
             while (running.get()) {
                 MessageBatch batch = fetch(lastProcessedIndex);
                 processor.accept(batch);
             }
+            Tracker.current.remove();
         }
     }
 
@@ -152,8 +154,8 @@ public class DefaultTracker implements Runnable, Registration {
 
     protected MessageBatch fetch(Long lastIndex) {
         return retryOnFailure(() -> trackingClient.readAndWait(tracker.getName(), tracker.getTrackerId(),
-                                                               lastIndex, tracker.getConfiguration()),
-                              retryDelay, e -> running.get());
+                lastIndex, tracker.getConfiguration()),
+                retryDelay, e -> running.get());
     }
 
     protected void processAll(MessageBatch messageBatch, Consumer<List<SerializedMessage>> consumer) {
@@ -167,17 +169,17 @@ public class DefaultTracker implements Runnable, Registration {
                 consumer.accept(messages);
             } catch (BatchProcessingException e) {
                 log.error("Consumer {} failed to handle batch of {} messages at index {} and did not handle exception. "
-                                  + "Consumer will be updated to the last processed index and then stopped.",
-                          tracker.getName(), messages.size(), e.getMessageIndex());
+                                + "Consumer will be updated to the last processed index and then stopped.",
+                        tracker.getName(), messages.size(), e.getMessageIndex());
                 updatePosition(messages.stream().map(SerializedMessage::getIndex)
-                                       .filter(i -> e.getMessageIndex() != null && i != null && i < e.getMessageIndex())
-                                       .max(naturalOrder()).orElse(null), messageBatch.getSegment());
+                        .filter(i -> e.getMessageIndex() != null && i != null && i < e.getMessageIndex())
+                        .max(naturalOrder()).orElse(null), messageBatch.getSegment());
                 processing = false;
                 cancel();
                 throw e;
             } catch (Exception e) {
                 log.error("Consumer {} failed to handle batch of {} messages and did not handle exception. "
-                                  + "Tracker will be stopped.", tracker.getName(), messages.size(), e);
+                        + "Tracker will be stopped.", tracker.getName(), messages.size(), e);
                 processing = false;
                 cancel();
                 throw e;
@@ -198,7 +200,7 @@ public class DefaultTracker implements Runnable, Registration {
                         } catch (Exception e) {
                             throw new TrackingException(
                                     String.format("Failed to store position of segments %s for tracker %s to index %s",
-                                                  Arrays.toString(segment), tracker, index), e);
+                                            Arrays.toString(segment), tracker, index), e);
                         }
                     }, retryDelay, e2 -> running.get());
         }

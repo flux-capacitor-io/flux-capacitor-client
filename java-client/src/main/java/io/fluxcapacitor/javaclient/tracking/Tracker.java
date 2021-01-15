@@ -16,8 +16,16 @@ package io.fluxcapacitor.javaclient.tracking;
 
 import lombok.Value;
 
+import java.util.Optional;
+
 @Value
 public class Tracker {
+    public static final ThreadLocal<Tracker> current = new ThreadLocal<>();
+
+    public static Optional<Tracker> current() {
+        return Optional.ofNullable(current.get());
+    }
+
     String name;
     String trackerId;
     ConsumerConfiguration configuration;
