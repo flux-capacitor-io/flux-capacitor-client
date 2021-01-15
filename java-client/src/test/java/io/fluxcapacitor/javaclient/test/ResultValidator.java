@@ -276,7 +276,7 @@ public class ResultValidator implements Then {
         if (expected instanceof Matcher<?>) {
             return ((Matcher<?>) expected).matches(actual.getPayload()) || ((Matcher<?>) expected).matches(actual);
         }
-        Message expectedMessage = (Message) expected;
+        Message expectedMessage = expected instanceof Message ? (Message) expected : new Message(expected);
         return expectedMessage.getPayload().equals(actual.getPayload()) && actual.getMetadata().entrySet()
                 .containsAll(expectedMessage.getMetadata().entrySet());
     }
