@@ -48,6 +48,7 @@ import static io.fluxcapacitor.javaclient.FluxCapacitor.currentClock;
 import static java.time.Instant.ofEpochMilli;
 import static java.util.Optional.ofNullable;
 import static java.util.stream.Collectors.toList;
+import static java.util.stream.Collectors.toMap;
 
 @Value
 @AllArgsConstructor
@@ -82,6 +83,9 @@ public class DeserializingMessage {
             result.put("$correlationId", correlationId);
             result.put("$traceId", currentMessage.getMetadata().getOrDefault("$traceId", correlationId));
             result.put("$trigger", currentMessage.getSerializedObject().getData().getType());
+            result.putAll(currentMessage.getMetadata().getEntries().entrySet().stream()
+                    .filter(e -> e.getKey().startsWith("$trace."))
+                    .collect(toMap(Map.Entry::getKey, Map.Entry::getValue)));
         });
         Tracker.current().ifPresent(t -> result.put("$consumer", t.getName()));
         return result;

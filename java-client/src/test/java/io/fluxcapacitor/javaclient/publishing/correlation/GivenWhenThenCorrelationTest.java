@@ -2,11 +2,11 @@ package io.fluxcapacitor.javaclient.publishing.correlation;
 
 import io.fluxcapacitor.common.api.Metadata;
 import io.fluxcapacitor.javaclient.FluxCapacitor;
+import io.fluxcapacitor.javaclient.common.Message;
 import io.fluxcapacitor.javaclient.persisting.eventsourcing.ApplyEvent;
 import io.fluxcapacitor.javaclient.persisting.eventsourcing.EventSourced;
 import io.fluxcapacitor.javaclient.test.TestFixture;
 import io.fluxcapacitor.javaclient.tracking.handling.HandleCommand;
-import io.fluxcapacitor.javaclient.tracking.handling.HandleMetrics;
 import io.fluxcapacitor.javaclient.tracking.handling.HandleQuery;
 import lombok.Value;
 import org.junit.jupiter.api.Test;
@@ -23,7 +23,7 @@ public class GivenWhenThenCorrelationTest {
     private final TestFixture testFixture = TestFixture.createAsync(new Handler());
 
     @Test
-    void testCorrelationDataIsSetOnDispatch() {
+    void testDefaultCorrelationData() {
         testFixture.givenCommands(new CreateModel())
                 .whenQuery(new GetModel())
                 .expectResult((Predicate<TestModel>) r -> r.getEventMetadata().size() == 1 &&
@@ -36,14 +36,34 @@ public class GivenWhenThenCorrelationTest {
     }
 
     @Test
-    void testConsumerIsSetForMetrics() {
-        testFixture.givenCommands(new TriggerMetric())
+    void testDefaultCorrelationDataAfterTwoSteps() {
+        testFixture.givenCommands(new CreateModelInTwoSteps())
                 .whenQuery(new GetModel())
                 .expectResult((Predicate<TestModel>) r -> r.getEventMetadata().size() == 1 &&
                         ofNullable(r.getEventMetadata().get(0))
                                 .map(m -> m.get("$consumer").equals(m.get("$clientName") + "_COMMAND")
-                                        && m.get("$trigger").equals(TriggerMetric.class.getName())
+                                        && m.get("$traceId").equals("0")
+                                        && m.get("$correlationId").equals("1")
+                                        && m.get("$trigger").equals(CreateModel.class.getName())
                                 ).orElse(false));
+    }
+
+    @Test
+    void testCustomTrace() {
+        testFixture.givenCommands(new Message(new CreateModel(), Metadata.empty().withTrace("userName", "myself")))
+                .whenQuery(new GetModel())
+                .expectResult((Predicate<TestModel>) r -> r.getEventMetadata().size() == 1 &&
+                        ofNullable(r.getEventMetadata().get(0))
+                                .map(m -> m.get("$trace.userName").equals("myself")).orElse(false));
+    }
+
+    @Test
+    void testCustomTraceInTwoSteps() {
+        testFixture.givenCommands(new Message(new CreateModelInTwoSteps(), Metadata.empty().withTrace("userName", "myself")))
+                .whenQuery(new GetModel())
+                .expectResult((Predicate<TestModel>) r -> r.getEventMetadata().size() == 1 &&
+                        ofNullable(r.getEventMetadata().get(0))
+                                .map(m -> m.get("$trace.userName").equals("myself")).orElse(false));
     }
 
     private static class Handler {
@@ -52,20 +72,16 @@ public class GivenWhenThenCorrelationTest {
             FluxCapacitor.loadAggregate(aggregateId, TestModel.class).assertLegal(command).apply(command, metadata);
         }
 
+        @HandleCommand
+        void handle(CreateModelInTwoSteps command) {
+            FluxCapacitor.sendAndForgetCommand(new CreateModel());
+        }
+
         @HandleQuery
         TestModel handle(GetModel query) {
             return FluxCapacitor.loadAggregate(aggregateId, TestModel.class).get();
         }
 
-        @HandleCommand
-        void handle(TriggerMetric command, Metadata metadata) {
-            FluxCapacitor.publishMetrics(new TriggerMetric());
-        }
-
-        @HandleMetrics
-        void handleMetrics(TriggerMetric command, Metadata metadata) {
-            FluxCapacitor.sendAndForgetCommand(new SaveMetric(metadata));
-        }
     }
 
     @EventSourced
@@ -78,10 +94,6 @@ public class GivenWhenThenCorrelationTest {
             return new TestModel(new ArrayList<>(singletonList(metadata)));
         }
 
-        @ApplyEvent
-        public static TestModel handle(SaveMetric event, Metadata metadata) {
-            return new TestModel(new ArrayList<>(singletonList(event.getMetadata())));
-        }
 
     }
 
@@ -89,18 +101,13 @@ public class GivenWhenThenCorrelationTest {
     private static class CreateModel {
     }
 
+    @Value
+    private static class CreateModelInTwoSteps {
+    }
+
 
     @Value
     private static class GetModel {
-    }
-
-    @Value
-    private static class TriggerMetric {
-    }
-
-    @Value
-    private static class SaveMetric {
-        Metadata metadata;
     }
 
 }

@@ -23,16 +23,12 @@ import lombok.SneakyThrows;
 import lombok.Value;
 
 import java.io.IOException;
-import java.util.Arrays;
-import java.util.HashMap;
-import java.util.Iterator;
-import java.util.Map;
-import java.util.Optional;
-import java.util.Set;
+import java.util.*;
 import java.util.function.Predicate;
 
 import static com.fasterxml.jackson.databind.DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES;
 import static com.fasterxml.jackson.databind.SerializationFeature.FAIL_ON_EMPTY_BEANS;
+import static java.lang.String.format;
 import static java.util.Collections.emptyMap;
 
 @Value
@@ -107,6 +103,7 @@ public class Metadata {
         return new Metadata(with(key, value, new HashMap<>(entries)));
     }
 
+
     public Metadata addIfAbsent(String key, String value) {
         return containsKey(key) ? this : with(key, value);
     }
@@ -122,6 +119,27 @@ public class Metadata {
         }
         entries.put(key, value instanceof String ? (String) value : objectMapper.writeValueAsString(value));
         return entries;
+    }
+
+
+    /**
+     * Adds your custom trace information to the metadata.
+     * Trace metadata is passed down from message to message, similar to $traceId.
+     * When message A is caused by message B, all trace metadata is copied from B to A.
+     * If message C is caused by B, again all traces are copied.
+     * You end up with a trace of all messages indirectly caused by your message.
+     *
+     * Trace metadata is prefixed with "$trace.", and the CorrelatingInterceptor copies it from message to message.
+     */
+
+    @SneakyThrows
+    private static Map<String, String> withTrace(String key, Object value, Map<String, String> entries) {
+        return with("$trace." + key, value, entries);
+    }
+
+    @SneakyThrows
+    public Metadata withTrace(String key, Object value) {
+        return new Metadata(withTrace(key, value, new HashMap<>(entries)));
     }
 
     /*
@@ -166,8 +184,8 @@ public class Metadata {
         try {
             return objectMapper.readValue(value, type);
         } catch (IOException e) {
-            throw new IllegalStateException(String.format("Failed to deserialize value %s to a %s for key %s",
-                                                          value, type.getSimpleName(), key), e);
+            throw new IllegalStateException(format("Failed to deserialize value %s to a %s for key %s",
+                    value, type.getSimpleName(), key), e);
         }
     }
 
