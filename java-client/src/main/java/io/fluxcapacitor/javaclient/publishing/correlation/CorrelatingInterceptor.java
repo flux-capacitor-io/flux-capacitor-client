@@ -17,28 +17,18 @@ package io.fluxcapacitor.javaclient.publishing.correlation;
 import io.fluxcapacitor.common.MessageType;
 import io.fluxcapacitor.common.api.SerializedMessage;
 import io.fluxcapacitor.javaclient.common.Message;
-import io.fluxcapacitor.javaclient.common.serialization.DeserializingMessage;
-import io.fluxcapacitor.javaclient.configuration.client.Client;
 import io.fluxcapacitor.javaclient.publishing.DispatchInterceptor;
 import lombok.AllArgsConstructor;
 
-import java.util.HashMap;
-import java.util.Map;
 import java.util.function.Function;
+
+import static io.fluxcapacitor.javaclient.FluxCapacitor.currentCorrelationData;
 
 @AllArgsConstructor
 public class CorrelatingInterceptor implements DispatchInterceptor {
-    private final Client client;
-
     @Override
     public Function<Message, SerializedMessage> interceptDispatch(Function<Message, SerializedMessage> function,
                                                                   MessageType messageType) {
-        return message -> {
-            Map<String, String> result = new HashMap<>();
-            result.put("$clientId", client.id());
-            result.put("$clientName", client.name());
-            result.putAll(DeserializingMessage.getCorrelationData());
-            return function.apply(message.withMetadata(message.getMetadata().with(result)));
-        };
+        return message -> function.apply(message.withMetadata(message.getMetadata().with(currentCorrelationData())));
     }
 }

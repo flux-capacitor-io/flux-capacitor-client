@@ -25,7 +25,6 @@ import io.fluxcapacitor.javaclient.common.Message;
 import io.fluxcapacitor.javaclient.modeling.AggregateIdResolver;
 import io.fluxcapacitor.javaclient.modeling.AggregateTypeResolver;
 import io.fluxcapacitor.javaclient.scheduling.Schedule;
-import io.fluxcapacitor.javaclient.tracking.Tracker;
 import io.fluxcapacitor.javaclient.tracking.handling.DeserializingMessageParameterResolver;
 import io.fluxcapacitor.javaclient.tracking.handling.MessageParameterResolver;
 import io.fluxcapacitor.javaclient.tracking.handling.MetadataParameterResolver;
@@ -48,7 +47,6 @@ import static io.fluxcapacitor.javaclient.FluxCapacitor.currentClock;
 import static java.time.Instant.ofEpochMilli;
 import static java.util.Optional.ofNullable;
 import static java.util.stream.Collectors.toList;
-import static java.util.stream.Collectors.toMap;
 
 @Value
 @AllArgsConstructor
@@ -73,22 +71,6 @@ public class DeserializingMessage {
 
     public DeserializingMessage(SerializedMessage message, Supplier<Object> payload, MessageType messageType) {
         this(new DeserializingObject<>(message, payload), messageType);
-    }
-
-    public static Map<String, String> getCorrelationData() {
-        Map<String, String> result = new HashMap<>();
-        ofNullable(current.get()).ifPresent(currentMessage -> {
-            String correlationId = ofNullable(currentMessage.getSerializedObject().getIndex())
-                    .map(Object::toString).orElse(currentMessage.getSerializedObject().getMessageId());
-            result.put("$correlationId", correlationId);
-            result.put("$traceId", currentMessage.getMetadata().getOrDefault("$traceId", correlationId));
-            result.put("$trigger", currentMessage.getSerializedObject().getData().getType());
-            result.putAll(currentMessage.getMetadata().getEntries().entrySet().stream()
-                    .filter(e -> e.getKey().startsWith("$trace."))
-                    .collect(toMap(Map.Entry::getKey, Map.Entry::getValue)));
-        });
-        Tracker.current().ifPresent(t -> result.put("$consumer", t.getName()));
-        return result;
     }
 
     public void run(Consumer<DeserializingMessage> task) {

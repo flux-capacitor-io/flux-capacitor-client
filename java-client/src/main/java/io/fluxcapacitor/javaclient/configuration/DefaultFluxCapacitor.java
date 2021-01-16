@@ -30,43 +30,17 @@ import io.fluxcapacitor.javaclient.persisting.caching.Cache;
 import io.fluxcapacitor.javaclient.persisting.caching.CachingAggregateRepository;
 import io.fluxcapacitor.javaclient.persisting.caching.DefaultCache;
 import io.fluxcapacitor.javaclient.persisting.caching.SelectiveCache;
-import io.fluxcapacitor.javaclient.persisting.eventsourcing.DefaultEventSourcingHandlerFactory;
-import io.fluxcapacitor.javaclient.persisting.eventsourcing.DefaultEventStore;
-import io.fluxcapacitor.javaclient.persisting.eventsourcing.DefaultSnapshotRepository;
-import io.fluxcapacitor.javaclient.persisting.eventsourcing.EventSourcingHandlerFactory;
-import io.fluxcapacitor.javaclient.persisting.eventsourcing.EventSourcingRepository;
-import io.fluxcapacitor.javaclient.persisting.eventsourcing.EventStore;
-import io.fluxcapacitor.javaclient.persisting.eventsourcing.EventStoreSerializer;
+import io.fluxcapacitor.javaclient.persisting.eventsourcing.*;
 import io.fluxcapacitor.javaclient.persisting.keyvalue.DefaultKeyValueStore;
 import io.fluxcapacitor.javaclient.persisting.keyvalue.KeyValueStore;
-import io.fluxcapacitor.javaclient.publishing.CommandGateway;
-import io.fluxcapacitor.javaclient.publishing.DefaultCommandGateway;
-import io.fluxcapacitor.javaclient.publishing.DefaultErrorGateway;
-import io.fluxcapacitor.javaclient.publishing.DefaultEventGateway;
-import io.fluxcapacitor.javaclient.publishing.DefaultGenericGateway;
-import io.fluxcapacitor.javaclient.publishing.DefaultMetricsGateway;
-import io.fluxcapacitor.javaclient.publishing.DefaultQueryGateway;
-import io.fluxcapacitor.javaclient.publishing.DefaultRequestHandler;
-import io.fluxcapacitor.javaclient.publishing.DefaultResultGateway;
-import io.fluxcapacitor.javaclient.publishing.DispatchInterceptor;
-import io.fluxcapacitor.javaclient.publishing.ErrorGateway;
-import io.fluxcapacitor.javaclient.publishing.EventGateway;
-import io.fluxcapacitor.javaclient.publishing.GenericGateway;
-import io.fluxcapacitor.javaclient.publishing.MetricsGateway;
-import io.fluxcapacitor.javaclient.publishing.QueryGateway;
-import io.fluxcapacitor.javaclient.publishing.RequestHandler;
-import io.fluxcapacitor.javaclient.publishing.ResultGateway;
+import io.fluxcapacitor.javaclient.publishing.*;
 import io.fluxcapacitor.javaclient.publishing.correlation.CorrelatingInterceptor;
 import io.fluxcapacitor.javaclient.publishing.dataprotection.DataProtectionInterceptor;
 import io.fluxcapacitor.javaclient.publishing.routing.MessageRoutingInterceptor;
 import io.fluxcapacitor.javaclient.scheduling.DefaultScheduler;
 import io.fluxcapacitor.javaclient.scheduling.Scheduler;
 import io.fluxcapacitor.javaclient.scheduling.SchedulingInterceptor;
-import io.fluxcapacitor.javaclient.tracking.BatchInterceptor;
-import io.fluxcapacitor.javaclient.tracking.ConsumerConfiguration;
-import io.fluxcapacitor.javaclient.tracking.DefaultTracking;
-import io.fluxcapacitor.javaclient.tracking.Tracking;
-import io.fluxcapacitor.javaclient.tracking.TrackingException;
+import io.fluxcapacitor.javaclient.tracking.*;
 import io.fluxcapacitor.javaclient.tracking.handling.DefaultHandlerFactory;
 import io.fluxcapacitor.javaclient.tracking.handling.HandlerInterceptor;
 import io.fluxcapacitor.javaclient.tracking.handling.HandlerRegistry;
@@ -85,14 +59,7 @@ import lombok.experimental.Accessors;
 import lombok.extern.slf4j.Slf4j;
 
 import java.time.Clock;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Objects;
-import java.util.Optional;
+import java.util.*;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.ForkJoinPool;
@@ -101,14 +68,7 @@ import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.UnaryOperator;
 import java.util.stream.Stream;
 
-import static io.fluxcapacitor.common.MessageType.COMMAND;
-import static io.fluxcapacitor.common.MessageType.ERROR;
-import static io.fluxcapacitor.common.MessageType.EVENT;
-import static io.fluxcapacitor.common.MessageType.METRICS;
-import static io.fluxcapacitor.common.MessageType.NOTIFICATION;
-import static io.fluxcapacitor.common.MessageType.QUERY;
-import static io.fluxcapacitor.common.MessageType.RESULT;
-import static io.fluxcapacitor.common.MessageType.SCHEDULE;
+import static io.fluxcapacitor.common.MessageType.*;
 import static io.fluxcapacitor.javaclient.common.serialization.DeserializingMessage.defaultParameterResolvers;
 import static java.lang.Runtime.getRuntime;
 import static java.lang.String.format;
@@ -390,7 +350,7 @@ public class DefaultFluxCapacitor implements FluxCapacitor {
 
             //enable message correlation
             if (!disableMessageCorrelation) {
-                CorrelatingInterceptor correlatingInterceptor = new CorrelatingInterceptor(client);
+                CorrelatingInterceptor correlatingInterceptor = new CorrelatingInterceptor();
                 Arrays.stream(MessageType.values()).forEach(
                         type -> dispatchInterceptors.compute(type, (t, i) -> correlatingInterceptor.merge(i)));
             }

@@ -29,13 +29,11 @@ import io.fluxcapacitor.javaclient.persisting.caching.Cache;
 import io.fluxcapacitor.javaclient.persisting.eventsourcing.EventSourced;
 import io.fluxcapacitor.javaclient.persisting.eventsourcing.EventStore;
 import io.fluxcapacitor.javaclient.persisting.keyvalue.KeyValueStore;
-import io.fluxcapacitor.javaclient.publishing.CommandGateway;
-import io.fluxcapacitor.javaclient.publishing.ErrorGateway;
-import io.fluxcapacitor.javaclient.publishing.EventGateway;
-import io.fluxcapacitor.javaclient.publishing.MetricsGateway;
-import io.fluxcapacitor.javaclient.publishing.QueryGateway;
-import io.fluxcapacitor.javaclient.publishing.ResultGateway;
+import io.fluxcapacitor.javaclient.publishing.*;
+import io.fluxcapacitor.javaclient.publishing.correlation.CorrelationDataProvider;
+import io.fluxcapacitor.javaclient.publishing.correlation.DefaultCorrelationDataProvider;
 import io.fluxcapacitor.javaclient.scheduling.Scheduler;
+import io.fluxcapacitor.javaclient.tracking.Tracker;
 import io.fluxcapacitor.javaclient.tracking.Tracking;
 import io.fluxcapacitor.javaclient.tracking.handling.HandleCommand;
 import io.fluxcapacitor.javaclient.tracking.handling.LocalHandler;
@@ -43,6 +41,7 @@ import io.fluxcapacitor.javaclient.tracking.handling.LocalHandler;
 import java.time.Clock;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicReference;
@@ -84,6 +83,11 @@ public interface FluxCapacitor extends AutoCloseable {
     ThreadLocal<FluxCapacitor> instance = new ThreadLocal<>();
 
     /**
+     * Default correlation data provider can be overridden in client applications or tests
+    */
+    CorrelationDataProvider correlationDataProvider = new DefaultCorrelationDataProvider();
+
+    /**
      * Returns the Flux Capacitor instance bound to the current thread or else set by the current application. Throws an
      * exception if no instance was registered.
      */
@@ -108,6 +112,15 @@ public interface FluxCapacitor extends AutoCloseable {
      */
     static Clock currentClock() {
         return getOptionally().map(FluxCapacitor::clock).orElse(Clock.systemUTC());
+    }
+
+
+    /**
+     * Gets the current correlation data, which by default depends on the current {@link Client},
+     * {@link Tracker} and {@link DeserializingMessage}
+     */
+    static Map<String, String> currentCorrelationData(){
+        return correlationDataProvider.getCorrelationData();
     }
 
     /**

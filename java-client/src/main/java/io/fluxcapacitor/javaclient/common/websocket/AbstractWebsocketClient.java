@@ -22,20 +22,12 @@ import io.fluxcapacitor.common.api.Metadata;
 import io.fluxcapacitor.common.api.QueryResult;
 import io.fluxcapacitor.common.api.Request;
 import io.fluxcapacitor.javaclient.FluxCapacitor;
-import io.fluxcapacitor.javaclient.common.serialization.DeserializingMessage;
 import io.fluxcapacitor.javaclient.configuration.client.WebSocketClient.Properties;
 import lombok.RequiredArgsConstructor;
 import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
 
-import javax.websocket.CloseReason;
-import javax.websocket.ContainerProvider;
-import javax.websocket.DecodeException;
-import javax.websocket.OnClose;
-import javax.websocket.OnError;
-import javax.websocket.OnMessage;
-import javax.websocket.Session;
-import javax.websocket.WebSocketContainer;
+import javax.websocket.*;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.net.URI;
@@ -47,6 +39,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 
 import static com.fasterxml.jackson.databind.DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES;
 import static io.fluxcapacitor.common.TimingUtils.retryOnFailure;
+import static io.fluxcapacitor.javaclient.FluxCapacitor.currentCorrelationData;
 import static io.fluxcapacitor.javaclient.FluxCapacitor.publishMetrics;
 import static io.fluxcapacitor.javaclient.common.serialization.compression.CompressionUtils.compress;
 import static io.fluxcapacitor.javaclient.common.serialization.compression.CompressionUtils.decompress;
@@ -101,7 +94,7 @@ public abstract class AbstractWebsocketClient implements AutoCloseable {
     }
 
     protected <R extends QueryResult> CompletableFuture<R> send(Request request) {
-        return new WebSocketRequest(request, DeserializingMessage.getCorrelationData()).send();
+        return new WebSocketRequest(request, currentCorrelationData()).send();
     }
 
     @SuppressWarnings("unchecked")
