@@ -14,6 +14,7 @@
 
 package io.fluxcapacitor.javaclient.tracking.metrics;
 
+import io.fluxcapacitor.common.api.Metadata;
 import io.fluxcapacitor.common.handling.Handler;
 import io.fluxcapacitor.javaclient.FluxCapacitor;
 import io.fluxcapacitor.javaclient.common.serialization.DeserializingMessage;
@@ -22,6 +23,7 @@ import lombok.extern.slf4j.Slf4j;
 
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
+import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 import java.util.function.Function;
@@ -55,12 +57,14 @@ public class HandlerMonitor implements HandlerInterceptor {
                     message.getPayloadClass().getSimpleName(), exceptionalResult,
                     start.until(Instant.now(), ChronoUnit.NANOS), completed));
             if (!completed) {
+                Map<String, String> correlationData = FluxCapacitor.currentCorrelationData();
                 ((CompletionStage<?>) result).whenComplete((r, e) -> message.run(m -> FluxCapacitor.publishMetrics(
                         new CompleteMessageEvent(
                                 FluxCapacitor.get().client().name(), FluxCapacitor.get().client().id(),
                                 consumer, handler.getTarget().getClass().getSimpleName(),
                                 m.getSerializedObject().getIndex(), m.getPayloadClass().getSimpleName(),
-                                e != null, start.until(Instant.now(), ChronoUnit.NANOS)))));
+                                e != null, start.until(Instant.now(), ChronoUnit.NANOS)),
+                        Metadata.of(correlationData))));
             }
         } catch (Exception e) {
             log.error("Failed to publish handler metrics", e);
