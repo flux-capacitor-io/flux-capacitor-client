@@ -16,6 +16,7 @@ package io.fluxcapacitor.common.api;
 
 import com.fasterxml.jackson.annotation.JsonAnyGetter;
 import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.databind.json.JsonMapper;
 import io.fluxcapacitor.common.serialization.NullCollectionsAsEmptyModule;
 import lombok.NonNull;
@@ -30,6 +31,7 @@ import static com.fasterxml.jackson.databind.DeserializationFeature.FAIL_ON_UNKN
 import static com.fasterxml.jackson.databind.SerializationFeature.FAIL_ON_EMPTY_BEANS;
 import static java.lang.String.format;
 import static java.util.Collections.emptyMap;
+import static java.util.stream.Collectors.toMap;
 
 @Value
 public class Metadata {
@@ -128,7 +130,7 @@ public class Metadata {
      * When message A is caused by message B, all trace metadata is copied from B to A.
      * If message C is caused by B, again all traces are copied.
      * You end up with a trace of all messages indirectly caused by your message.
-     *
+     * <p>
      * Trace metadata is prefixed with "$trace.", and the CorrelatingInterceptor copies it from message to message.
      */
 
@@ -188,6 +190,13 @@ public class Metadata {
                     value, type.getSimpleName(), key), e);
         }
     }
+
+    @JsonIgnore
+    public Map<String, String> getTraceEntries() {
+        return entrySet().stream().filter(e -> e.getKey().startsWith("$trace."))
+                .collect(toMap(Map.Entry::getKey, Map.Entry::getValue));
+    }
+
 
     public boolean containsKey(String key) {
         return entries.containsKey(key);

@@ -8,7 +8,6 @@ import java.util.HashMap;
 import java.util.Map;
 
 import static java.util.Optional.ofNullable;
-import static java.util.stream.Collectors.toMap;
 
 public class DefaultCorrelationDataProvider implements CorrelationDataProvider {
     @Override
@@ -24,9 +23,7 @@ public class DefaultCorrelationDataProvider implements CorrelationDataProvider {
             result.put("$correlationId", correlationId);
             result.put("$traceId", currentMessage.getMetadata().getOrDefault("$traceId", correlationId));
             result.put("$trigger", currentMessage.getSerializedObject().getData().getType());
-            result.putAll(currentMessage.getMetadata().getEntries().entrySet().stream()
-                    .filter(e -> e.getKey().startsWith("$trace."))
-                    .collect(toMap(Map.Entry::getKey, Map.Entry::getValue)));
+            result.putAll(currentMessage.getMetadata().getTraceEntries());
         });
         Tracker.current().ifPresent(t -> result.put("$consumer", t.getName()));
         return result;
