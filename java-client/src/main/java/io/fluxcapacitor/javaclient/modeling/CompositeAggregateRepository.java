@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016-2020 Flux Capacitor.
+ * Copyright (c) 2016-2021 Flux Capacitor.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -42,10 +42,10 @@ public class CompositeAggregateRepository implements AggregateRepository {
     }
 
     @Override
-    public <T> Aggregate<T> load(String aggregateId, Class<T> aggregateType, boolean onlyCached) {
+    public <T> Aggregate<T> load(String aggregateId, Class<T> aggregateType, boolean readOnly, boolean onlyCached) {
         Optional<AggregateRepository> delegate = getDelegate(aggregateType);
         if (delegate.isPresent()) {
-            return delegate.get().load(aggregateId, aggregateType, onlyCached);
+            return delegate.get().load(aggregateId, aggregateType, false, onlyCached);
         }
         throw new UnsupportedOperationException(
                 "Could not a find a suitable aggregate repository for aggregate of type: " + aggregateType);

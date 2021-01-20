@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016-2020 Flux Capacitor.
+ * Copyright (c) 2016-2021 Flux Capacitor.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -28,9 +28,9 @@ public interface AggregateRepository {
      * @see EventSourced for more info on how to define an event sourced aggregate root
      */
     default <T> Aggregate<T> load(String aggregateId, Class<T> aggregateType) {
-        return load(aggregateId, aggregateType, false);
+        return load(aggregateId, aggregateType, false, false);
     }
 
-    <T> Aggregate<T> load(String aggregateId, Class<T> aggregateType, boolean onlyCached);
+    <T> Aggregate<T> load(String aggregateId, Class<T> aggregateType, boolean readOnly, boolean onlyCached);
 
 }

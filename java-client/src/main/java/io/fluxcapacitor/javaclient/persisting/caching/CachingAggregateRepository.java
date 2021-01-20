@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016-2020 Flux Capacitor.
+ * Copyright (c) 2016-2021 Flux Capacitor.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,7 +14,6 @@
 
 package io.fluxcapacitor.javaclient.persisting.caching;
 
-import io.fluxcapacitor.common.MessageType;
 import io.fluxcapacitor.common.api.SerializedMessage;
 import io.fluxcapacitor.javaclient.common.Message;
 import io.fluxcapacitor.javaclient.common.serialization.DeserializingMessage;
@@ -66,20 +65,17 @@ public class CachingAggregateRepository implements AggregateRepository {
     private final AtomicLong lastEventIndex = new AtomicLong();
 
     @Override
-    public <T> Aggregate<T> load(@NonNull String aggregateId, @NonNull Class<T> aggregateType, boolean onlyCached) {
-        if (!delegate.cachingAllowed(aggregateType)) {
-            return delegate.load(aggregateId, aggregateType, onlyCached);
+    public <T> Aggregate<T> load(@NonNull String aggregateId, @NonNull Class<T> aggregateType, boolean readOnly,
+                                 boolean onlyCached) {
+        if (!delegate.cachingAllowed(aggregateType) || !readOnly) {
+            return delegate.load(aggregateId, aggregateType, readOnly, onlyCached);
         }
-        DeserializingMessage current = DeserializingMessage.getCurrent();
-        if (current != null && current.getMessageType() == MessageType.COMMAND) {
-            return delegate.load(aggregateId, aggregateType, onlyCached);
-        }
-        Aggregate<T> result = delegate.load(aggregateId, aggregateType, true);
+        Aggregate<T> result = delegate.load(aggregateId, aggregateType, true, true);
         if (result == null) {
             return Optional.<Aggregate<T>>ofNullable(doLoad(aggregateId, aggregateType, onlyCached))
                     .filter(a -> Optional.ofNullable(a.get()).map(m -> aggregateType.isAssignableFrom(m.getClass()))
                             .orElse(true))
-                    .orElseGet(() -> delegate.load(aggregateId, aggregateType, onlyCached));
+                    .orElseGet(() -> delegate.load(aggregateId, aggregateType, readOnly, onlyCached));
         }
         return result;
     }

@@ -29,7 +29,12 @@ import io.fluxcapacitor.javaclient.persisting.caching.Cache;
 import io.fluxcapacitor.javaclient.persisting.eventsourcing.EventSourced;
 import io.fluxcapacitor.javaclient.persisting.eventsourcing.EventStore;
 import io.fluxcapacitor.javaclient.persisting.keyvalue.KeyValueStore;
-import io.fluxcapacitor.javaclient.publishing.*;
+import io.fluxcapacitor.javaclient.publishing.CommandGateway;
+import io.fluxcapacitor.javaclient.publishing.ErrorGateway;
+import io.fluxcapacitor.javaclient.publishing.EventGateway;
+import io.fluxcapacitor.javaclient.publishing.MetricsGateway;
+import io.fluxcapacitor.javaclient.publishing.QueryGateway;
+import io.fluxcapacitor.javaclient.publishing.ResultGateway;
 import io.fluxcapacitor.javaclient.publishing.correlation.CorrelationDataProvider;
 import io.fluxcapacitor.javaclient.publishing.correlation.DefaultCorrelationDataProvider;
 import io.fluxcapacitor.javaclient.scheduling.Scheduler;
@@ -49,10 +54,12 @@ import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.stream.Stream;
 
+import static io.fluxcapacitor.common.MessageType.COMMAND;
 import static io.fluxcapacitor.common.MessageType.EVENT;
 import static io.fluxcapacitor.common.MessageType.NOTIFICATION;
 import static io.fluxcapacitor.javaclient.modeling.AggregateIdResolver.getAggregateId;
 import static java.util.Arrays.stream;
+import static java.util.Optional.ofNullable;
 
 /**
  * High-level client for Flux Capacitor. If you are using anything other than this to interact with the service at
@@ -259,7 +266,20 @@ public interface FluxCapacitor extends AutoCloseable {
      * @see EventSourced for more info on how to define an event sourced aggregate root
      */
     static <T> Aggregate<T> loadAggregate(String id, Class<T> aggregateType) {
-        Aggregate<T> result = get().aggregateRepository().load(id, aggregateType);
+        return loadAggregate(id, aggregateType, ofNullable(DeserializingMessage.getCurrent()).map(d -> d.getMessageType() != COMMAND).orElse(true));
+    }
+
+    /**
+     * Loads the aggregate root of type {@code <T>} with given id. If {@code readonly} is true the returned
+     * aggregate will not be modifiable.
+     * <p>
+     * If the aggregate is loaded while handling an event of the aggregate, the returned Aggregate will automatically be
+     * replayed back to event currently being handled. Otherwise, the most recent state of the aggregate is loaded.
+     *
+     * @see EventSourced for more info on how to define an event sourced aggregate root
+     */
+    static <T> Aggregate<T> loadAggregate(String id, Class<T> aggregateType, boolean readOnly) {
+        Aggregate<T> result = get().aggregateRepository().load(id, aggregateType, readOnly, false);
         DeserializingMessage message = DeserializingMessage.getCurrent();
         if (message != null && (message.getMessageType() == EVENT || message.getMessageType() == NOTIFICATION)
                 && id.equals(getAggregateId(message))) {

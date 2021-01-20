@@ -37,9 +37,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.function.BiFunction;
 import java.util.function.Function;
 
-import static io.fluxcapacitor.common.MessageType.COMMAND;
 import static io.fluxcapacitor.common.MessageType.EVENT;
 import static io.fluxcapacitor.javaclient.common.serialization.DeserializingMessage.defaultParameterResolvers;
 import static io.fluxcapacitor.javaclient.common.serialization.DeserializingMessage.whenBatchCompletes;
@@ -62,7 +62,7 @@ public class EventSourcingRepository implements AggregateRepository {
     private final EventStoreSerializer serializer;
     private final EventSourcingHandlerFactory handlerFactory;
 
-    private final Map<Class<?>, Function<String, EventSourcedAggregate<?>>> aggregateFactory =
+    private final Map<Class<?>, BiFunction<String, Boolean, EventSourcedAggregate<?>>> aggregateFactory =
             new ConcurrentHashMap<>();
     private final ThreadLocal<Collection<EventSourcedAggregate<?>>> loadedModels = new ThreadLocal<>();
 
@@ -88,7 +88,7 @@ public class EventSourcingRepository implements AggregateRepository {
 
     @SuppressWarnings("unchecked")
     @Override
-    public <T> Aggregate<T> load(String aggregateId, Class<T> aggregateType, boolean onlyCached) {
+    public <T> Aggregate<T> load(String aggregateId, Class<T> aggregateType, boolean readOnly, boolean onlyCached) {
         if (onlyCached) {
             return Optional.<EventSourcedModel<T>>ofNullable(cache.getIfPresent(keyFunction.apply(aggregateId)))
                     .orElse(null);
@@ -97,25 +97,25 @@ public class EventSourcingRepository implements AggregateRepository {
                 .filter(model -> model.id.equals(aggregateId)
                         && aggregateType.isAssignableFrom(model.getAggregateType()))
                 .map(m -> (EventSourcedAggregate<T>) m)
-                .findAny().orElseGet(() -> createAggregate(aggregateType, aggregateId));
+                .findAny().orElseGet(() -> createAggregate(aggregateType, aggregateId, readOnly));
     }
 
     @SuppressWarnings("unchecked")
-    protected <T> EventSourcedAggregate<T> createAggregate(Class<T> aggregateType, String aggregateId) {
+    protected <T> EventSourcedAggregate<T> createAggregate(Class<T> aggregateType, String aggregateId, boolean readOnly) {
         return (EventSourcedAggregate<T>) aggregateFactory.computeIfAbsent(aggregateType, t -> {
             EventSourcingHandler<T> eventSourcingHandler = handlerFactory.forType(aggregateType);
             Cache cache = isCached(aggregateType) ? this.cache : NoOpCache.INSTANCE;
             SnapshotRepository snapshotRepository = snapshotRepository(aggregateType);
             SnapshotTrigger snapshotTrigger = snapshotTrigger(aggregateType);
             String domain = domain(aggregateType);
-            return id -> {
+            return (id, ro) -> {
                 EventSourcedAggregate<T> eventSourcedAggregate = new EventSourcedAggregate<>(
                         aggregateType, eventSourcingHandler, cache, serializer, eventStore, snapshotRepository,
-                        snapshotTrigger, domain, id);
+                        snapshotTrigger, domain, ro, id);
                 eventSourcedAggregate.initialize();
                 return eventSourcedAggregate;
             };
-        }).apply(aggregateId);
+        }).apply(aggregateId, readOnly);
     }
 
     @SneakyThrows
@@ -157,6 +157,7 @@ public class EventSourcingRepository implements AggregateRepository {
         private final SnapshotTrigger snapshotTrigger;
         private final String domain;
         private final List<DeserializingMessage> unpublishedEvents = new ArrayList<>();
+        private final boolean readOnly;
         private final String id;
 
         private EventSourcedModel<T> model;
@@ -197,7 +198,7 @@ public class EventSourcingRepository implements AggregateRepository {
 
         @Override
         public Aggregate<T> apply(Message eventMessage) {
-            if (isReadOnly()) {
+            if (readOnly) {
                 throw new UnsupportedOperationException(format("Not allowed to apply a %s. The model is readonly.",
                                                                eventMessage));
             }
@@ -244,10 +245,6 @@ public class EventSourcingRepository implements AggregateRepository {
                 loadedModels.get().add(this);
             }
             return this;
-        }
-
-        private boolean isReadOnly() {
-            return ofNullable(DeserializingMessage.getCurrent()).map(d -> d.getMessageType() != COMMAND).orElse(true);
         }
 
         @Override
