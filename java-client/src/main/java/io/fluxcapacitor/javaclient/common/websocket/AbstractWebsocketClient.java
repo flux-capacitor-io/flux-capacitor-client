@@ -27,8 +27,14 @@ import lombok.RequiredArgsConstructor;
 import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
 
-import javax.websocket.*;
-import java.io.IOException;
+import javax.websocket.CloseReason;
+import javax.websocket.ContainerProvider;
+import javax.websocket.DecodeException;
+import javax.websocket.OnClose;
+import javax.websocket.OnError;
+import javax.websocket.OnMessage;
+import javax.websocket.Session;
+import javax.websocket.WebSocketContainer;
 import java.io.OutputStream;
 import java.net.URI;
 import java.time.Duration;
@@ -53,44 +59,41 @@ public abstract class AbstractWebsocketClient implements AutoCloseable {
     public static WebSocketContainer defaultWebSocketContainer = ContainerProvider.getWebSocketContainer();
     public static ObjectMapper defaultObjectMapper = new ObjectMapper().disable(FAIL_ON_UNKNOWN_PROPERTIES);
 
-    private final WebSocketContainer container;
-    private final URI endpointUri;
+    private final SessionPool sessionPool;
     private final Properties properties;
     private final ObjectMapper objectMapper;
     private final Map<Long, WebSocketRequest> requests = new ConcurrentHashMap<>();
     private final AtomicBoolean closed = new AtomicBoolean();
-    private final RetryConfiguration retryConfig;
     private final boolean sendMetrics;
-    private volatile Session session;
-
-    public AbstractWebsocketClient(URI endpointUri, Properties properties) {
-        this(endpointUri, properties, true);
-    }
 
     public AbstractWebsocketClient(URI endpointUri, Properties properties, boolean sendMetrics) {
+        this(endpointUri, properties, sendMetrics, 1);
+    }
+
+    public AbstractWebsocketClient(URI endpointUri, Properties properties, boolean sendMetrics, int numberOfSessions) {
         this(defaultWebSocketContainer, endpointUri, properties, sendMetrics, Duration.ofSeconds(1),
-             defaultObjectMapper);
+             defaultObjectMapper, numberOfSessions);
     }
 
     public AbstractWebsocketClient(WebSocketContainer container, URI endpointUri, Properties properties,
-                                   boolean sendMetrics, Duration reconnectDelay, ObjectMapper objectMapper) {
-        this.container = container;
-        this.endpointUri = endpointUri;
+                                   boolean sendMetrics, Duration reconnectDelay, ObjectMapper objectMapper,
+                                   int numberOfSessions) {
         this.properties = properties;
         this.objectMapper = objectMapper;
         this.sendMetrics = sendMetrics;
-        this.retryConfig = RetryConfiguration.builder()
-                .delay(reconnectDelay)
-                .errorTest(e -> !closed.get())
-                .successLogger(s -> log.info("Successfully reconnected to endpoint {}", endpointUri))
-                .exceptionLogger(status -> {
-                    if (status.getNumberOfTimesRetried() == 0) {
-                        log.warn("Failed to connect to endpoint {}; reason: {}. Retrying every {} ms...",
-                                 endpointUri, status.getException().getMessage(),
-                                 status.getRetryConfiguration().getDelay().toMillis());
-                    }
-                })
-                .build();
+        this.sessionPool = new SessionPool(numberOfSessions, () -> retryOnFailure(
+                () -> container.connectToServer(this, endpointUri),
+                RetryConfiguration.builder()
+                        .delay(reconnectDelay)
+                        .errorTest(e -> !closed.get())
+                        .successLogger(s -> log.info("Successfully reconnected to endpoint {}", endpointUri))
+                        .exceptionLogger(status -> {
+                            if (status.getNumberOfTimesRetried() == 0) {
+                                log.warn("Failed to connect to endpoint {}; reason: {}. Retrying every {} ms...",
+                                         endpointUri, status.getException().getMessage(),
+                                         status.getRetryConfiguration().getDelay().toMillis());
+                            }
+                        }).build()));
     }
 
     protected <R extends QueryResult> CompletableFuture<R> send(Request request) {
@@ -105,7 +108,7 @@ public abstract class AbstractWebsocketClient implements AutoCloseable {
 
     @SneakyThrows
     protected Awaitable sendAndForget(JsonType object) {
-        Awaitable awaitable = doSend(object, getSession());
+        Awaitable awaitable = doSend(object, sessionPool.get());
         tryPublishMetrics(object.toMetric(), Metadata.empty());
         return awaitable;
     }
@@ -158,7 +161,7 @@ public abstract class AbstractWebsocketClient implements AutoCloseable {
     protected void retryOutstandingRequests(String sessionId) {
         if (!closed.get() && !requests.isEmpty()) {
             try {
-                sleep(retryConfig.getDelay().toMillis());
+                sleep(1_000);
             } catch (InterruptedException e) {
                 currentThread().interrupt();
                 throw new IllegalStateException("Thread interrupted while trying to retry outstanding requests", e);
@@ -183,41 +186,14 @@ public abstract class AbstractWebsocketClient implements AutoCloseable {
                 if (clearOutstandingRequests) {
                     requests.clear();
                 }
-                if (session != null) {
-                    try {
-                        session.close();
-                    } catch (IOException e) {
-                        log.warn("Failed to closed websocket session connected to endpoint {}. Reason: {}",
-                                 session.getRequestURI(), e.getMessage());
-                    }
-                }
-                if (session != null && !requests.isEmpty()) {
-                    log.warn("Closed websocket session to endpoint {} with {} outstanding requests",
-                             session.getRequestURI(), requests.size());
+                sessionPool.close();
+                if (!requests.isEmpty()) {
+                    log.warn("{}: Closed websocket session to endpoint with {} outstanding requests",
+                             getClass().getSimpleName(), requests.size());
                 }
             }
         }
     }
-
-    protected Session getSession() {
-        if (isClosed(session)) {
-            synchronized (closed) {
-                while (isClosed(session)) {
-                    if (closed.get()) {
-                        throw new IllegalStateException("Cannot provide session. This client has closed");
-                    }
-                    session = retryOnFailure(() -> isClosed(session) ?
-                            container.connectToServer(this, endpointUri) : session, retryConfig);
-                }
-            }
-        }
-        return session;
-    }
-
-    protected boolean isClosed(Session session) {
-        return session == null || !session.isOpen();
-    }
-
 
     protected void tryPublishMetrics(Object metric, Metadata metadata) {
         if (sendMetrics && metric != null) {
@@ -235,8 +211,9 @@ public abstract class AbstractWebsocketClient implements AutoCloseable {
 
         @SuppressWarnings("unchecked")
         protected <T extends QueryResult> CompletableFuture<T> send() {
+            Session session;
             try {
-                Session session = getSession();
+                session = sessionPool.get();
             } catch (Exception e) {
                 log.error("Failed to get websocket session to send request {}", request, e);
                 result.completeExceptionally(e);

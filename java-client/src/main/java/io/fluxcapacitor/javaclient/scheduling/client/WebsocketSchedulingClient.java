@@ -38,7 +38,7 @@ public class WebsocketSchedulingClient extends AbstractWebsocketClient implement
     }
 
     public WebsocketSchedulingClient(URI endpointUri, Properties properties) {
-        super(endpointUri, properties);
+        super(endpointUri, properties, true);
         backlog = new Backlog<>(this::scheduleMessages);
     }
 

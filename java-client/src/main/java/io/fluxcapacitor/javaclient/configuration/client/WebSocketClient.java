@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016-2020 Flux Capacitor.
+ * Copyright (c) 2016-2021 Flux Capacitor.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -35,7 +35,11 @@ import java.util.UUID;
 import java.util.function.Function;
 
 import static io.fluxcapacitor.javaclient.common.serialization.compression.CompressionAlgorithm.LZ4;
-import static io.fluxcapacitor.javaclient.common.websocket.ServiceUrlBuilder.*;
+import static io.fluxcapacitor.javaclient.common.websocket.ServiceUrlBuilder.consumerUrl;
+import static io.fluxcapacitor.javaclient.common.websocket.ServiceUrlBuilder.eventSourcingUrl;
+import static io.fluxcapacitor.javaclient.common.websocket.ServiceUrlBuilder.keyValueUrl;
+import static io.fluxcapacitor.javaclient.common.websocket.ServiceUrlBuilder.producerUrl;
+import static io.fluxcapacitor.javaclient.common.websocket.ServiceUrlBuilder.schedulingUrl;
 
 public class WebSocketClient extends AbstractClient {
 
@@ -52,8 +56,7 @@ public class WebSocketClient extends AbstractClient {
     private WebSocketClient(String name, String id,
                             Function<MessageType, ? extends GatewayClient> gatewayClients,
                             Function<MessageType, ? extends TrackingClient> trackingClients,
-                            EventStoreClient eventStoreClient,
-                            SchedulingClient schedulingClient,
+                            EventStoreClient eventStoreClient, SchedulingClient schedulingClient,
                             KeyValueClient keyValueClient) {
         super(name, id, gatewayClients, trackingClients, eventStoreClient, schedulingClient, keyValueClient);
     }
