@@ -1,0 +1,86 @@
+/*
+ * Copyright (c) 2016-2021 Flux Capacitor.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+package io.fluxcapacitor.javaclient.common.websocket;
+
+import com.google.common.collect.Iterators;
+import lombok.extern.slf4j.Slf4j;
+
+import javax.websocket.ContainerProvider;
+import javax.websocket.Session;
+import javax.websocket.WebSocketContainer;
+import java.util.Iterator;
+import java.util.List;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.Supplier;
+import java.util.stream.IntStream;
+
+import static java.util.stream.Collectors.toList;
+
+@Slf4j
+public class SessionPool implements Supplier<Session>, AutoCloseable {
+    public static WebSocketContainer defaultWebSocketContainer = ContainerProvider.getWebSocketContainer();
+
+    private final List<AtomicReference<Session>> sessions;
+    private final Iterator<AtomicReference<Session>> iterator;
+    private final Supplier<Session> sessionFactory;
+    private final AtomicBoolean shuttingDown = new AtomicBoolean();
+
+    public SessionPool(int size, Supplier<Session> sessionFactory) {
+        this.sessionFactory = sessionFactory;
+        this.sessions = IntStream.range(0, size).mapToObj(i -> new AtomicReference<Session>()).collect(toList());
+        this.iterator = Iterators.cycle(sessions);
+    }
+
+    @Override
+    public Session get() {
+        AtomicReference<Session> reference = iterator.next();
+        return reference.updateAndGet(s -> {
+            if (isClosed(s)) {
+                synchronized (shuttingDown) {
+                    while (isClosed(s)) {
+                        if (shuttingDown.get()) {
+                            throw new IllegalStateException("Cannot provide session. This client has closed");
+                        }
+                        s = sessionFactory.get();
+                    }
+                }
+            }
+            return s;
+        });
+    }
+
+    @Override
+    public void close() {
+        if (shuttingDown.compareAndSet(false, true)) {
+            synchronized (shuttingDown) {
+                sessions.stream().map(AtomicReference::get).forEach(session -> {
+                    if (!isClosed(session)) {
+                        try {
+                            session.close();
+                        } catch (Exception e) {
+                            log.warn("Failed to closed websocket session connected to endpoint {}. Reason: {}",
+                                     session.getRequestURI(), e.getMessage());
+                        }
+                    }
+                });
+            }
+        }
+    }
+
+    protected boolean isClosed(Session session) {
+        return session == null || !session.isOpen();
+    }
+}
