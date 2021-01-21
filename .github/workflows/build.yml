@@ -29,4 +29,4 @@ jobs:
             ${{ runner.os }}-maven-
 
       - name: Run Maven build
-        run: mvn -B install
+        run: mvn -B -T2 install
