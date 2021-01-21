@@ -82,7 +82,6 @@ public class CachingAggregateRepository implements AggregateRepository {
 
     private <T> RefreshingAggregate<T> doLoad(String aggregateId, Class<T> type, boolean onlyCached) {
         if (started.compareAndSet(null, Instant.now())) {
-            log.info("Start tracking notifications");
             start(this::handleEvents, ConsumerConfiguration.builder().messageType(NOTIFICATION)
                     .name(CachingAggregateRepository.class.getSimpleName()).build(), client);
             return null;
