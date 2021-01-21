@@ -20,6 +20,7 @@ import io.fluxcapacitor.common.handling.HandlerNotFoundException;
 import io.fluxcapacitor.javaclient.FluxCapacitor;
 import io.fluxcapacitor.javaclient.MockException;
 import io.fluxcapacitor.javaclient.common.Message;
+import io.fluxcapacitor.javaclient.configuration.DefaultFluxCapacitor;
 import io.fluxcapacitor.javaclient.modeling.Aggregate;
 import io.fluxcapacitor.javaclient.modeling.AssertLegal;
 import io.fluxcapacitor.javaclient.persisting.eventsourcing.client.EventStoreClient;
@@ -49,6 +50,7 @@ import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 @Slf4j
@@ -57,7 +59,8 @@ class EventSourcingRepositoryTest {
     private static final String aggregateId = "test";
 
     static class Normal {
-        private final TestFixture testFixture = TestFixture.create(new Handler());
+        private final TestFixture testFixture =
+                TestFixture.create(DefaultFluxCapacitor.builder().disableAutomaticAggregateCaching(), new Handler());
         private final EventStoreClient eventStoreClient = testFixture.getFluxCapacitor().client().getEventStoreClient();
 
         @Test
@@ -65,7 +68,7 @@ class EventSourcingRepositoryTest {
             testFixture.givenCommands(new CreateModel(), new UpdateModel())
                     .whenQuery(new GetModel())
                     .expectResult(new TestModel(Arrays.asList(new CreateModel(), new UpdateModel()), Metadata.empty()))
-                    .expectThat(fc -> verify(eventStoreClient, times(1)).getEvents(anyString(), anyLong()));
+                    .expectThat(fc -> verifyNoInteractions(eventStoreClient));
         }
 
         @Test
@@ -74,7 +77,7 @@ class EventSourcingRepositoryTest {
                     .given(fc -> fc.cache().invalidateAll())
                     .whenQuery(new GetModel())
                     .expectResult(new TestModel(Arrays.asList(new CreateModel(), new UpdateModel()), Metadata.empty()))
-                    .expectThat(fc -> verify(eventStoreClient, times(2)).getEvents(anyString(), anyLong()));
+                    .expectThat(fc -> verify(eventStoreClient).getEvents(anyString(), anyLong()));
         }
 
         @Test
@@ -83,7 +86,7 @@ class EventSourcingRepositoryTest {
                     .given(fc -> fc.queryGateway().sendAndWait(new GetModel()))
                     .whenQuery(new GetModel())
                     .expectResult(new TestModel(Arrays.asList(new CreateModel(), new UpdateModel()), Metadata.empty()))
-                    .expectThat(fc -> verify(eventStoreClient, times(1)).getEvents(anyString(), anyLong()));
+                    .expectThat(fc -> verifyNoInteractions(eventStoreClient));
         }
 
         @Test
@@ -139,13 +142,15 @@ class EventSourcingRepositoryTest {
         void testSkippedSequenceNumbers() {
             testFixture.givenCommands(new CreateModel())
                     .given(fc -> fc.cache().invalidateAll())
-                    .given(fc -> when(eventStoreClient.getEvents(anyString(), anyLong())).thenAnswer(invocation -> {
-                        AggregateEventStream<SerializedMessage> result =
-                                (AggregateEventStream<SerializedMessage>) invocation.callRealMethod();
-                        return new AggregateEventStream<>(result.getEventStream(), result.getAggregateId(),
-                                                          result.getDomain(), () -> 10L);
-                    }))
-                    .whenCommand(new UpdateModel())
+                    .when(fc -> {
+                        when(eventStoreClient.getEvents(anyString(), anyLong())).thenAnswer(invocation -> {
+                            AggregateEventStream<SerializedMessage> result =
+                                    (AggregateEventStream<SerializedMessage>) invocation.callRealMethod();
+                            return new AggregateEventStream<>(result.getEventStream(), result.getAggregateId(),
+                                                              result.getDomain(), () -> 10L);
+                        });
+                        fc.commandGateway().sendAndForget(new UpdateModel());
+                    })
                     .expectThat(fc -> verify(eventStoreClient).storeEvents(anyString(), anyString(), eq(11L), anyList(),
                                                                            eq(false)));
         }
@@ -229,8 +234,6 @@ class EventSourcingRepositoryTest {
         void testSnapshotRetrieved() {
             testFixture.givenCommands(new CreateModel(), new UpdateModel(), new UpdateModel())
                     .whenCommand(new UpdateModel())
-                    .expectThat(fc -> verify(testFixture.getFluxCapacitor().client().getEventStoreClient(),
-                                             times(3)).getEvents(aggregateId, -1L))
                     .expectThat(fc -> verify(testFixture.getFluxCapacitor().client().getEventStoreClient(),
                                              times(1)).getEvents(aggregateId, 2L));
         }

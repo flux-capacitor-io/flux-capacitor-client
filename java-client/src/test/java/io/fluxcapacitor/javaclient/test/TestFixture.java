@@ -44,6 +44,7 @@ import lombok.Setter;
 import lombok.SneakyThrows;
 import lombok.experimental.Accessors;
 import lombok.extern.slf4j.Slf4j;
+import org.mockito.Mockito;
 
 import java.time.Clock;
 import java.time.Duration;
@@ -53,6 +54,7 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
@@ -129,9 +131,13 @@ public class TestFixture implements Given, When {
 
     @Getter
     private final FluxCapacitor fluxCapacitor;
-    @Getter @Setter @Accessors(chain = true, fluent = true)
+    @Getter
+    @Setter
+    @Accessors(chain = true, fluent = true)
     private Duration resultTimeout = defaultResultTimeout;
-    @Getter @Setter @Accessors(chain = true, fluent = true)
+    @Getter
+    @Setter
+    @Accessors(chain = true, fluent = true)
     private Duration consumerTimeout = defaultConsumerTimeout;
     private final boolean synchronous;
     private final Registration registration;
@@ -337,6 +343,7 @@ public class TestFixture implements Given, When {
                 handleExpiredSchedulesLocally();
                 whenStarted = true;
                 waitForConsumers();
+                resetMocks();
                 Object result;
                 try {
                     result = action.apply(fc);
@@ -397,7 +404,7 @@ public class TestFixture implements Given, When {
         }
     }
 
-    private void waitForConsumers() {
+    protected void waitForConsumers() {
         if (synchronous) {
             return;
         }
@@ -414,6 +421,15 @@ public class TestFixture implements Given, When {
                                  + "This may cause your test to fail.");
             }
         }
+    }
+
+    protected void resetMocks() {
+        Client client = fluxCapacitor.client();
+        Mockito.reset(Stream.concat(
+                Stream.of(client.getEventStoreClient(), client.getSchedulingClient(), client.getKeyValueClient()),
+                Arrays.stream(MessageType.values())
+                        .flatMap(t -> Stream.of(client.getGatewayClient(t), client.getTrackingClient(t)).filter(
+                                Objects::nonNull))).distinct().toArray());
     }
 
     protected void advanceTimeBy(Duration duration) {

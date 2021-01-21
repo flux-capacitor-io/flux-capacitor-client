@@ -155,27 +155,16 @@ public class CachingAggregateRepository implements AggregateRepository {
         RefreshingAggregate<T> aggregate = cache.getIfPresent(cacheKey);
 
         if (aggregate == null || aggregate.status == RefreshingAggregate.Status.UNVERIFIED) {
-            if (handler.canHandle(null, event)) { //may be the first event for this aggregate
-                try {
-                    aggregate = new RefreshingAggregate<>(
-                            handler.invoke(null, event), aggregateId, type,
-                            new RefreshingAggregate<>(null, aggregateId, type, null, null, null,
-                                                      RefreshingAggregate.Status.IN_SYNC), eventId, timestamp,
-                            RefreshingAggregate.Status.IN_SYNC);
-                } catch (Exception ignored) {
-                }
-            } else { //otherwise we just don't have it in the cache
-                aggregate =
-                        Optional.ofNullable(delegate.load(aggregateId, type)).map(a -> new RefreshingAggregate<>(
-                                a.get(), a.id(), a.type(),
-                                a.previous(), a.lastEventId(), a.timestamp(), Objects.equals(a.lastEventId(), eventId)
-                                        ? RefreshingAggregate.Status.IN_SYNC : RefreshingAggregate.Status.AHEAD))
-                                .orElseGet(() -> {
-                                    log.warn("Delegate repository did not contain aggregate with id {} of type {}",
-                                             aggregateId, type);
-                                    return null;
-                                });
-            }
+            aggregate =
+                    Optional.ofNullable(delegate.load(aggregateId, type)).map(a -> new RefreshingAggregate<>(
+                            a.get(), a.id(), a.type(),
+                            a.previous(), a.lastEventId(), a.timestamp(), Objects.equals(a.lastEventId(), eventId)
+                                    ? RefreshingAggregate.Status.IN_SYNC : RefreshingAggregate.Status.AHEAD))
+                            .orElseGet(() -> {
+                                log.warn("Delegate repository did not contain aggregate with id {} of type {}",
+                                         aggregateId, type);
+                                return null;
+                            });
         } else if (aggregate.status == RefreshingAggregate.Status.IN_SYNC) {
             try {
                 aggregate = new RefreshingAggregate<>(handler.invoke(aggregate.get(), event), aggregate.id(),

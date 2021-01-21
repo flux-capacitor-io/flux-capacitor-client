@@ -45,7 +45,7 @@ public class CompositeAggregateRepository implements AggregateRepository {
     public <T> Aggregate<T> load(String aggregateId, Class<T> aggregateType, boolean readOnly, boolean onlyCached) {
         Optional<AggregateRepository> delegate = getDelegate(aggregateType);
         if (delegate.isPresent()) {
-            return delegate.get().load(aggregateId, aggregateType, false, onlyCached);
+            return delegate.get().load(aggregateId, aggregateType, readOnly, onlyCached);
         }
         throw new UnsupportedOperationException(
                 "Could not a find a suitable aggregate repository for aggregate of type: " + aggregateType);
