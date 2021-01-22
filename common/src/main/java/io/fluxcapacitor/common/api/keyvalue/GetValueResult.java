@@ -22,13 +22,15 @@ import lombok.Value;
 public class GetValueResult implements QueryResult {
     long requestId;
     Data<byte[]> value;
+    long timestamp = System.currentTimeMillis();
 
     @Override
     public Metric toMetric() {
-        return new Metric();
+        return new Metric(timestamp);
     }
 
     @Value
     public static class Metric {
+        long timestamp;
     }
 }

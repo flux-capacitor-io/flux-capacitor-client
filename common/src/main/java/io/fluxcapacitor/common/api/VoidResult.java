@@ -19,6 +19,7 @@ import lombok.Value;
 @Value
 public class VoidResult implements QueryResult {
     long requestId;
+    long timestamp = System.currentTimeMillis();
 
     @Override
     public Object toMetric() {

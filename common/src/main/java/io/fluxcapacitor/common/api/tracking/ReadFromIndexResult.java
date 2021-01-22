@@ -24,14 +24,16 @@ import java.util.List;
 public class ReadFromIndexResult implements QueryResult {
     long requestId;
     List<SerializedMessage> messages;
+    long timestamp = System.currentTimeMillis();
 
     @Override
-    public Object toMetric() {
-        return new Metric(messages.size());
+    public Metric toMetric() {
+        return new Metric(messages.size(), timestamp);
     }
 
     @Value
     public static class Metric {
         int size;
+        long timestamp;
     }
 }

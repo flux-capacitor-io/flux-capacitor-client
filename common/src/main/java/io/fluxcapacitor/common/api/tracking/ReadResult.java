@@ -21,14 +21,16 @@ import lombok.Value;
 public class ReadResult implements QueryResult {
     long requestId;
     MessageBatch messageBatch;
+    long timestamp = System.currentTimeMillis();
 
     @Override
     public Metric toMetric() {
-        return new Metric(messageBatch.toMetric());
+        return new Metric(messageBatch.toMetric(), timestamp);
     }
 
     @Value
     public static class Metric {
         MessageBatch.Metric messageBatch;
+        long timestamp;
     }
 }

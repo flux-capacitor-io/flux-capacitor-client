@@ -51,8 +51,7 @@ public class HandlerMonitor implements HandlerInterceptor {
                                   boolean exceptionalResult, Instant start, Object result) {
         try {
             boolean completed = !(result instanceof CompletableFuture<?>) || ((CompletableFuture<?>) result).isDone();
-            FluxCapacitor.publishMetrics(new HandleMessageEvent(
-                    FluxCapacitor.get().client().name(), FluxCapacitor.get().client().id(), consumer,
+            FluxCapacitor.publishMetrics(new HandleMessageEvent(consumer,
                     handler.getTarget().getClass().getSimpleName(), message.getSerializedObject().getIndex(),
                     message.getPayloadClass().getSimpleName(), exceptionalResult,
                     start.until(Instant.now(), ChronoUnit.NANOS), completed));
@@ -60,7 +59,6 @@ public class HandlerMonitor implements HandlerInterceptor {
                 Map<String, String> correlationData = FluxCapacitor.currentCorrelationData();
                 ((CompletionStage<?>) result).whenComplete((r, e) -> message.run(m -> FluxCapacitor.publishMetrics(
                         new CompleteMessageEvent(
-                                FluxCapacitor.get().client().name(), FluxCapacitor.get().client().id(),
                                 consumer, handler.getTarget().getClass().getSimpleName(),
                                 m.getSerializedObject().getIndex(), m.getPayloadClass().getSimpleName(),
                                 e != null, start.until(Instant.now(), ChronoUnit.NANOS)),

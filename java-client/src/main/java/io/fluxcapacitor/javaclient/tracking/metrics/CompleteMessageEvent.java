@@ -14,20 +14,15 @@
 
 package io.fluxcapacitor.javaclient.tracking.metrics;
 
-import io.fluxcapacitor.common.api.ClientEvent;
+import io.fluxcapacitor.common.api.JsonType;
 import lombok.Value;
 
 @Value
-public class CompleteMessageEvent implements ClientEvent {
-    String client;
-    String clientId;
-    long timestamp = System.currentTimeMillis();
-
+public class CompleteMessageEvent implements JsonType {
     String consumer;
     String handler;
     Long messageIndex;
     String payloadType;
     boolean exceptionalResult;
     long nanosecondDuration;
-
 }
