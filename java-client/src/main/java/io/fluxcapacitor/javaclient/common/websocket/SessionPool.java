@@ -14,39 +14,41 @@
 
 package io.fluxcapacitor.javaclient.common.websocket;
 
-import com.google.common.collect.Iterators;
 import lombok.extern.slf4j.Slf4j;
 
 import javax.websocket.ContainerProvider;
 import javax.websocket.Session;
 import javax.websocket.WebSocketContainer;
-import java.util.Iterator;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Supplier;
 import java.util.stream.IntStream;
 
-import static java.util.stream.Collectors.toList;
+import static java.util.stream.Collectors.toCollection;
 
 @Slf4j
 public class SessionPool implements Supplier<Session>, AutoCloseable {
     public static WebSocketContainer defaultWebSocketContainer = ContainerProvider.getWebSocketContainer();
 
     private final List<AtomicReference<Session>> sessions;
-    private final Iterator<AtomicReference<Session>> iterator;
+    private final int size;
+    private final AtomicInteger counter = new AtomicInteger();
     private final Supplier<Session> sessionFactory;
     private final AtomicBoolean shuttingDown = new AtomicBoolean();
 
     public SessionPool(int size, Supplier<Session> sessionFactory) {
         this.sessionFactory = sessionFactory;
-        this.sessions = IntStream.range(0, size).mapToObj(i -> new AtomicReference<Session>()).collect(toList());
-        this.iterator = Iterators.cycle(sessions);
+        this.sessions = IntStream.range(0, this.size = size).mapToObj(i -> new AtomicReference<Session>()).collect(
+                toCollection(ArrayList::new));
     }
 
     @Override
     public Session get() {
-        AtomicReference<Session> reference = iterator.next();
+        AtomicReference<Session> reference =
+                sessions.get(counter.getAndAccumulate(1, (index, inc) -> index + inc >= size ? 0 : index));
         return reference.updateAndGet(s -> {
             if (isClosed(s)) {
                 synchronized (shuttingDown) {
@@ -80,7 +82,7 @@ public class SessionPool implements Supplier<Session>, AutoCloseable {
         }
     }
 
-    protected boolean isClosed(Session session) {
+    private static boolean isClosed(Session session) {
         return session == null || !session.isOpen();
     }
 }
