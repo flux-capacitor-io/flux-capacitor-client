@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016-2020 Flux Capacitor.
+ * Copyright (c) 2016-2021 Flux Capacitor.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,29 +14,24 @@
 
 package io.fluxcapacitor.javaclient.persisting.caching;
 
+import com.google.common.cache.CacheBuilder;
 import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
 
-import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.function.Function;
 
 @Slf4j
 public class DefaultCache implements Cache {
 
-    private final LinkedHashMap<String, Object> cache;
+    private final Map<String, Object> cache;
 
     public DefaultCache() {
         this(1_000);
     }
 
     public DefaultCache(int maxSize) {
-        cache = new LinkedHashMap<String, Object>() {
-            @Override
-            protected boolean removeEldestEntry(Map.Entry eldest) {
-                return size() > maxSize;
-            }
-        };
+        cache = CacheBuilder.newBuilder().maximumSize(maxSize).<String, Object>build().asMap();
     }
 
     @Override

@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!--
-  ~ Copyright (c) 2016-2020 Flux Capacitor.
+  ~ Copyright (c) 2016-2021 Flux Capacitor.
   ~
   ~ Licensed under the Apache License, Version 2.0 (the "License");
   ~ you may not use this file except in compliance with the License.
@@ -95,11 +95,18 @@
             <scope>test</scope>
         </dependency>
 
-        <!--json patch-->
+        <!--upcasting-->
         <dependency>
-            <groupId>com.github.fge</groupId>
+            <groupId>com.github.java-json-tools</groupId>
             <artifactId>json-patch</artifactId>
-            <version>1.9</version>
+            <version>1.13</version>
+        </dependency>
+
+        <!--caching-->
+        <dependency>
+            <groupId>com.google.guava</groupId>
+            <artifactId>guava</artifactId>
+            <version>30.1-jre</version>
         </dependency>
     </dependencies>
 
