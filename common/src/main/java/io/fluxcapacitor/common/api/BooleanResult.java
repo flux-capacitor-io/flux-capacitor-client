@@ -20,4 +20,5 @@ import lombok.Value;
 public class BooleanResult implements QueryResult {
     long requestId;
     boolean success;
+    long timestamp = System.currentTimeMillis();
 }

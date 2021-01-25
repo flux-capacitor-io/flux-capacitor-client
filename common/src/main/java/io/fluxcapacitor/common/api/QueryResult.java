@@ -16,4 +16,5 @@ package io.fluxcapacitor.common.api;
 
 public interface QueryResult extends JsonType {
     long getRequestId();
+    long getTimestamp();
 }

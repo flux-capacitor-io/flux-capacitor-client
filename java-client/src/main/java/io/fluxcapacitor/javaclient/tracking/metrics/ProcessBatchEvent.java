@@ -14,19 +14,14 @@
 
 package io.fluxcapacitor.javaclient.tracking.metrics;
 
-import io.fluxcapacitor.common.api.ClientEvent;
+import io.fluxcapacitor.common.api.JsonType;
 import lombok.Value;
 
 @Value
-public class ProcessBatchEvent implements ClientEvent {
-    String client;
-    String clientId;
-    long timestamp = System.currentTimeMillis();
-
+public class ProcessBatchEvent implements JsonType {
     String consumer;
     String trackerId;
     Long lastIndex;
     int batchSize;
     long nanosecondDuration;
-
 }
