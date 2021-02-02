@@ -14,24 +14,24 @@
 
 package io.fluxcapacitor.javaclient.persisting.caching;
 
-import com.google.common.cache.CacheBuilder;
-import lombok.SneakyThrows;
+import com.github.benmanes.caffeine.cache.Caffeine;
+import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
-import java.util.Map;
 import java.util.function.Function;
 
 @Slf4j
+@AllArgsConstructor
 public class DefaultCache implements Cache {
 
-    private final Map<String, Object> cache;
+    private final com.github.benmanes.caffeine.cache.Cache<String, Object> cache;
 
     public DefaultCache() {
         this(1_000);
     }
 
     public DefaultCache(int maxSize) {
-        cache = CacheBuilder.newBuilder().maximumSize(maxSize).<String, Object>build().asMap();
+        this.cache = Caffeine.newBuilder().maximumSize(maxSize).build();
     }
 
     @Override
@@ -39,30 +39,25 @@ public class DefaultCache implements Cache {
         cache.put(id, value);
     }
 
+    @SuppressWarnings("unchecked")
     @Override
-    @SneakyThrows
     public <T> T get(String id, Function<? super String, T> mappingFunction) {
-        T result = getIfPresent(id);
-        if (result == null) {
-            result = mappingFunction.apply(id);
-            cache.putIfAbsent(id, result);
-        }
-        return result;
+        return (T) cache.get(id, mappingFunction);
     }
 
-    @Override
     @SuppressWarnings("unchecked")
+    @Override
     public <T> T getIfPresent(String id) {
-        return (T) cache.get(id);
+        return (T) cache.getIfPresent(id);
     }
 
     @Override
     public void invalidate(String id) {
-        cache.remove(id);
+        cache.invalidate(id);
     }
 
     @Override
     public void invalidateAll() {
-        cache.clear();
+        cache.invalidateAll();
     }
 }
