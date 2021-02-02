@@ -32,6 +32,7 @@ import lombok.Value;
 import lombok.experimental.Accessors;
 import lombok.extern.slf4j.Slf4j;
 
+import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
 import java.util.Objects;
@@ -53,6 +54,7 @@ import static java.time.Instant.ofEpochMilli;
 public class CachingAggregateRepository implements AggregateRepository {
     private static final Function<String, String> keyFunction = aggregateId ->
             CachingAggregateRepository.class.getSimpleName() + ":" + aggregateId;
+    public static final Duration slowTrackingThreshold = Duration.ofSeconds(5L);
 
     private final AggregateRepository delegate;
     private final EventSourcingHandlerFactory handlerFactory;
@@ -97,6 +99,7 @@ public class CachingAggregateRepository implements AggregateRepository {
                     Long eventIndex = current.getSerializedObject().getIndex();
                     if (eventIndex != null && lastEventIndex.get() < eventIndex) {
                         synchronized (cache) {
+                            Instant start = Instant.now();
                             while (lastEventIndex.get() < eventIndex) {
                                 try {
                                     cache.wait(5_000);
@@ -106,6 +109,11 @@ public class CachingAggregateRepository implements AggregateRepository {
                                     return null;
                                 }
                             }
+                            Duration fetchDuration = Duration.between(start, Instant.now());
+                            if (fetchDuration.compareTo(slowTrackingThreshold) > 0) {
+                                log.warn("It took over {} to load aggregate {} of type {}. This indicates that the tracker in the caching aggregate repo has trouble keeping up.",
+                                         fetchDuration, aggregateId, type);
+                            }
                         }
                     }
                     break;
@@ -114,10 +122,12 @@ public class CachingAggregateRepository implements AggregateRepository {
         if (onlyCached) {
             return cache.getIfPresent(keyFunction.apply(aggregateId));
         }
-        return cache.get(keyFunction.apply(aggregateId), cacheKey -> Optional.ofNullable(delegate.load(aggregateId, type))
-                .map(a -> new RefreshingAggregate<>(a.get(), aggregateId, type, a.previous(), a.lastEventId(), a.timestamp(),
-                                                    RefreshingAggregate.Status.UNVERIFIED))
-                .orElse(null));
+        return cache
+                .get(keyFunction.apply(aggregateId), cacheKey -> Optional.ofNullable(delegate.load(aggregateId, type))
+                        .map(a -> new RefreshingAggregate<>(a.get(), aggregateId, type, a.previous(), a.lastEventId(),
+                                                            a.timestamp(),
+                                                            RefreshingAggregate.Status.UNVERIFIED))
+                        .orElse(null));
     }
 
     protected void handleEvents(List<SerializedMessage> messages) {
