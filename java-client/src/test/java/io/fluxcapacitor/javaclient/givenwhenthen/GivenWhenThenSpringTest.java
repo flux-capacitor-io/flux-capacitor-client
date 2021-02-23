@@ -82,7 +82,7 @@ class GivenWhenThenSpringTest {
 
         @SneakyThrows
         private void sleepAWhile() {
-            Thread.sleep(500);
+            Thread.sleep(200);
         }
     }
 
