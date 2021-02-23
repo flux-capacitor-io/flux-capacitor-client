@@ -22,6 +22,7 @@ import io.fluxcapacitor.javaclient.publishing.client.GatewayClient;
 import io.fluxcapacitor.javaclient.scheduling.client.SchedulingClient;
 import io.fluxcapacitor.javaclient.tracking.client.TrackingClient;
 import lombok.AllArgsConstructor;
+import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import org.mockito.Mockito;
 
@@ -33,6 +34,7 @@ import java.util.WeakHashMap;
 public class TestClient implements Client {
     private final Map<Object, Object> spiedComponents = new WeakHashMap<>();
 
+    @Getter
     private final Client delegate;
 
     @SuppressWarnings("unchecked")
