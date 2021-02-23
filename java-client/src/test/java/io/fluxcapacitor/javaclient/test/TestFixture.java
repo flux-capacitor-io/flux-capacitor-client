@@ -28,6 +28,7 @@ import io.fluxcapacitor.javaclient.common.serialization.DeserializingMessage;
 import io.fluxcapacitor.javaclient.configuration.DefaultFluxCapacitor;
 import io.fluxcapacitor.javaclient.configuration.FluxCapacitorBuilder;
 import io.fluxcapacitor.javaclient.configuration.client.Client;
+import io.fluxcapacitor.javaclient.configuration.client.InMemoryClient;
 import io.fluxcapacitor.javaclient.modeling.Aggregate;
 import io.fluxcapacitor.javaclient.publishing.DispatchInterceptor;
 import io.fluxcapacitor.javaclient.scheduling.DefaultScheduler;
@@ -97,7 +98,7 @@ public class TestFixture implements Given, When {
 
     public static TestFixture create(FluxCapacitorBuilder fluxCapacitorBuilder,
                                      Function<FluxCapacitor, List<?>> handlersFactory) {
-        return new TestFixture(fluxCapacitorBuilder, handlersFactory, new TestClient(), true);
+        return new TestFixture(fluxCapacitorBuilder, handlersFactory, InMemoryClient.newInstance(), true);
     }
 
     /*
@@ -118,7 +119,7 @@ public class TestFixture implements Given, When {
 
     public static TestFixture createAsync(FluxCapacitorBuilder fluxCapacitorBuilder,
                                           Function<FluxCapacitor, List<?>> handlersFactory) {
-        return new TestFixture(fluxCapacitorBuilder, handlersFactory, new TestClient(), false);
+        return new TestFixture(fluxCapacitorBuilder, handlersFactory, InMemoryClient.newInstance(), false);
     }
 
     public static TestFixture createAsync(FluxCapacitorBuilder fluxCapacitorBuilder, Client client,
@@ -159,7 +160,7 @@ public class TestFixture implements Given, When {
         }
         this.interceptor = new GivenWhenThenInterceptor();
         this.fluxCapacitor = fluxCapacitorBuilder.disableShutdownHook().addDispatchInterceptor(interceptor)
-                .addBatchInterceptor(interceptor).addHandlerInterceptor(interceptor).build(client);
+                .addBatchInterceptor(interceptor).addHandlerInterceptor(interceptor).build(new TestClient(client));
         withClock(Clock.fixed(Instant.now(), ZoneId.systemDefault()));
         this.registration = registerHandlers(handlerFactory.apply(fluxCapacitor));
     }

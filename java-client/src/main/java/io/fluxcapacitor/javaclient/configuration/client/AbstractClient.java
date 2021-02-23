@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016-2020 Flux Capacitor.
+ * Copyright (c) 2016-2021 Flux Capacitor.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -43,15 +43,11 @@ public abstract class AbstractClient implements Client {
                           KeyValueClient keyValueClient) {
         this.name = name;
         this.id = id;
-        this.gatewayClients = memoize(m -> decorate(gatewayClients.apply(m)));
-        this.trackingClients = memoize(m -> decorate(trackingClients.apply(m)));
-        this.eventStoreClient = decorate(eventStoreClient);
-        this.schedulingClient = decorate(schedulingClient);
-        this.keyValueClient = decorate(keyValueClient);
-    }
-
-    protected <T> T decorate(T component) {
-        return component;
+        this.gatewayClients = memoize(gatewayClients);
+        this.trackingClients = memoize(trackingClients);
+        this.eventStoreClient = eventStoreClient;
+        this.schedulingClient = schedulingClient;
+        this.keyValueClient = keyValueClient;
     }
 
     @Override
