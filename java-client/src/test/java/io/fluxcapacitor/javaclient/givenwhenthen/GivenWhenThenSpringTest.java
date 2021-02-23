@@ -57,8 +57,14 @@ class GivenWhenThenSpringTest {
     @SneakyThrows
     void testWaitForSlowResultAfterTerminate() {
         CompletableFuture<Object> result = testFixture.getFluxCapacitor().commandGateway().send(new SlowCommand());
+        sleepAWhile(100);
         testFixture.getFluxCapacitor().close();
         assertTrue(result.isDone());
+    }
+
+    @SneakyThrows
+    private static void sleepAWhile(int millis) {
+        Thread.sleep(millis);
     }
 
     @Configuration
@@ -77,12 +83,7 @@ class GivenWhenThenSpringTest {
 
         @HandleCommand
         public CompletableFuture<?> handle(SlowCommand command) {
-           return CompletableFuture.runAsync(this::sleepAWhile);
-        }
-
-        @SneakyThrows
-        private void sleepAWhile() {
-            Thread.sleep(200);
+           return CompletableFuture.runAsync(() -> sleepAWhile(500));
         }
     }
 
