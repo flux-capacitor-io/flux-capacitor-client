@@ -14,6 +14,7 @@
 
 package io.fluxcapacitor.javaclient.common.serialization.jackson;
 
+import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.databind.JavaType;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.json.JsonMapper;
@@ -40,10 +41,10 @@ import static io.fluxcapacitor.common.ObjectUtils.memoize;
 import static java.lang.String.format;
 
 public class JacksonSerializer extends AbstractSerializer {
-    public static final JsonMapper defaultObjectMapper = JsonMapper.builder()
+    public static JsonMapper defaultObjectMapper = JsonMapper.builder()
             .findAndAddModules().addModule(new BlankStringsAsNullModule()).addModule(new NullCollectionsAsEmptyModule())
             .disable(FAIL_ON_EMPTY_BEANS).disable(WRITE_DATES_AS_TIMESTAMPS).disable(FAIL_ON_UNKNOWN_PROPERTIES)
-            .nodeFactory(withExactBigDecimals(true))
+            .nodeFactory(withExactBigDecimals(true)).serializationInclusion(JsonInclude.Include.NON_NULL)
             .build();
 
     private final ObjectMapper objectMapper;
