@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016-2020 Flux Capacitor.
+ * Copyright (c) 2016-2021 Flux Capacitor.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -80,8 +80,8 @@ public class SchedulingInterceptor implements DispatchInterceptor, HandlerInterc
         }
         if (periodic.autoStart()) {
             String scheduleId = periodic.scheduleId().isEmpty() ? payloadType.getName() : periodic.scheduleId();
-            if (FluxCapacitor.get().keyValueStore()
-                    .storeIfAbsent("SchedulingInterceptor:initialized:" + scheduleId, true)) {
+            FluxCapacitor fluxCapacitor = FluxCapacitor.get();
+            if (fluxCapacitor.keyValueStore().storeIfAbsent("SchedulingInterceptor:initialized:" + scheduleId, true)) {
                 Object payload;
                 try {
                     payload = ensureAccessible(payloadType.getConstructor()).newInstance();
@@ -91,9 +91,12 @@ public class SchedulingInterceptor implements DispatchInterceptor, HandlerInterc
                               payloadType, e);
                     return;
                 }
-                Clock clock = FluxCapacitor.get().clock();
-                FluxCapacitor.get().scheduler().schedule(new Schedule(
-                        payload, scheduleId, clock.instant().plusMillis(periodic.initialDelay())));
+                Clock clock = fluxCapacitor.clock();
+                Metadata metadata = Optional.ofNullable(fluxCapacitor.userProvider()).flatMap(
+                        p -> Optional.ofNullable(p.getSystemUser()).map(u -> p.addToMetadata(Metadata.empty(), u)))
+                        .orElse(Metadata.empty());
+                fluxCapacitor.scheduler().schedule(new Schedule(
+                        payload, metadata, scheduleId, clock.instant().plusMillis(periodic.initialDelay())));
             }
         }
     }
@@ -104,7 +107,8 @@ public class SchedulingInterceptor implements DispatchInterceptor, HandlerInterc
         return message -> {
             if (messageType == MessageType.SCHEDULE) {
                 message = message.withMetadata(
-                        message.getMetadata().with(Schedule.scheduleIdMetadataKey, ((Schedule) message).getScheduleId()));
+                        message.getMetadata()
+                                .with(Schedule.scheduleIdMetadataKey, ((Schedule) message).getScheduleId()));
             }
             return function.apply(message);
         };

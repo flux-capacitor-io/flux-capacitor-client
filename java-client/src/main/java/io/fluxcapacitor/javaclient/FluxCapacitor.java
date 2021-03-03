@@ -42,6 +42,7 @@ import io.fluxcapacitor.javaclient.tracking.Tracker;
 import io.fluxcapacitor.javaclient.tracking.Tracking;
 import io.fluxcapacitor.javaclient.tracking.handling.HandleCommand;
 import io.fluxcapacitor.javaclient.tracking.handling.LocalHandler;
+import io.fluxcapacitor.javaclient.tracking.handling.authentication.UserProvider;
 
 import java.time.Clock;
 import java.util.Arrays;
@@ -393,6 +394,12 @@ public interface FluxCapacitor extends AutoCloseable {
      * Returns a client to assist with the tracking of a given message type.
      */
     Tracking tracking(MessageType messageType);
+
+    /**
+     * Returns the UserProvider used by Flux Capacitor to authenticate users. May be {@code null} if user
+     * authentication is disabled.
+     */
+    UserProvider userProvider();
 
     /**
      * Returns the cache used by the client to cache aggregates etc.
