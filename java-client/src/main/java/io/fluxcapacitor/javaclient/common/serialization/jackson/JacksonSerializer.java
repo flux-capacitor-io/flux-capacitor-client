@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016-2020 Flux Capacitor.
+ * Copyright (c) 2016-2021 Flux Capacitor.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -68,7 +68,7 @@ public class JacksonSerializer extends AbstractSerializer {
     }
 
     public JacksonSerializer(ObjectMapper objectMapper, Upcaster<SerializedObject<byte[], ?>> upcasterChain) {
-        super(upcasterChain);
+        super(upcasterChain, "json");
         this.objectMapper = objectMapper;
     }
 

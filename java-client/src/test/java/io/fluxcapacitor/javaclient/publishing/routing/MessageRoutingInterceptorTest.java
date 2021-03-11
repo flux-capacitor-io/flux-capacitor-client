@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016-2020 Flux Capacitor.
+ * Copyright (c) 2016-2021 Flux Capacitor.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -34,7 +34,7 @@ class MessageRoutingInterceptorTest {
 
     private MessageRoutingInterceptor subject = new MessageRoutingInterceptor();
     private Function<Message, SerializedMessage> invocation = m -> new SerializedMessage(
-            new Data<>("test".getBytes(), "test", 0), Metadata.empty(), "someId",
+            new Data<>("test".getBytes(), "test", 0, null), Metadata.empty(), "someId",
             Clock.systemUTC().millis());
     private int expectedHash = ConsistentHashing.computeSegment("bar");
 

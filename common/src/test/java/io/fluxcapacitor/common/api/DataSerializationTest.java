@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016-2020 Flux Capacitor.
+ * Copyright (c) 2016-2021 Flux Capacitor.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -25,7 +25,7 @@ public class DataSerializationTest {
     @Test
     public void testSerializationIfValueIsSupplied() throws Exception {
         ObjectMapper objectMapper = new ObjectMapper();
-        TestData testData = new TestData(new Data<>(() -> "foo", "test", 1));
+        TestData testData = new TestData(new Data<>(() -> "foo", "test", 1, "json"));
         String serializedObject = objectMapper.writeValueAsString(testData);
         assertEquals(objectMapper.readValue(serializedObject, TestData.class), testData);
     }

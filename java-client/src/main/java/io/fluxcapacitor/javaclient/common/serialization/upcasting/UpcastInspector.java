@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016-2020 Flux Capacitor.
+ * Copyright (c) 2016-2021 Flux Capacitor.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -23,7 +23,11 @@ import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Comparator;
+import java.util.List;
+import java.util.Optional;
 import java.util.function.BiFunction;
 import java.util.function.Function;
 import java.util.function.Supplier;
@@ -108,13 +112,15 @@ public class UpcastInspector {
         if (dataType.isAssignableFrom(method.getReturnType())) {
             Upcast annotation = method.getAnnotation(Upcast.class);
             return (s, o) -> Stream
-                    .of(s.withData(new Data<>((Supplier<T>) o, annotation.type(), annotation.revision() + 1)));
+                    .of(s.withData(new Data<>((Supplier<T>) o, annotation.type(), annotation.revision() + 1,
+                                              s.data().getFormat())));
         }
         if (converter.canApplyPatch(method.getReturnType())) {
             Upcast annotation = method.getAnnotation(Upcast.class);
             return (s, o) -> Stream
                     .of(s.withData(new Data<>((Supplier<T>) converter.applyPatch(s, o, method.getReturnType()),
-                            annotation.type(), annotation.revision() + 1)));
+                                              annotation.type(), annotation.revision() + 1,
+                                              s.data().getFormat())));
         }
         if (method.getReturnType().equals(Data.class)) {
             return (s, o) -> Stream.of(s.withData((Data<T>) o.get()));
@@ -128,7 +134,8 @@ public class UpcastInspector {
                     return (s, o) -> {
                         Optional<T> result = (Optional<T>) o.get();
                         return result.<Stream<SerializedObject<T, ?>>>map(
-                                t -> Stream.of(s.withData(new Data<>(t, annotation.type(), annotation.revision() + 1))))
+                                t -> Stream.of(s.withData(new Data<>(t, annotation.type(), annotation.revision() + 1,
+                                                                     s.data().getFormat()))))
                                 .orElseGet(Stream::empty);
                     };
                 }

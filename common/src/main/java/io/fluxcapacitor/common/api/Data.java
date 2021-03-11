@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016-2020 Flux Capacitor.
+ * Copyright (c) 2016-2021 Flux Capacitor.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -27,22 +27,29 @@ public class Data<T> implements SerializedObject<T, Data<T>> {
     Supplier<T> value;
     String type;
     int revision;
+    String format;
 
-    @ConstructorProperties({"value", "type", "revision"})
-    public Data(T value, String type, int revision) {
+    @ConstructorProperties({"value", "type", "revision", "format"})
+    public Data(T value, String type, int revision, String format) {
         this.value = () -> value;
         this.type = type;
         this.revision = revision;
+        this.format = format;
     }
 
-    public Data(Supplier<T> value, String type, int revision) {
+    public Data(Supplier<T> value, String type, int revision, String format) {
         this.value = value;
         this.type = type;
         this.revision = revision;
+        this.format = format;
     }
 
     public T getValue() {
         return value.get();
+    }
+
+    public String getFormat() {
+        return format == null ? "json" : format;
     }
 
     @Override
@@ -56,12 +63,13 @@ public class Data<T> implements SerializedObject<T, Data<T>> {
         Data<?> data = (Data<?>) o;
         return revision == data.revision &&
                 Objects.deepEquals(getValue(), data.getValue()) &&
-                Objects.equals(type, data.type);
+                Objects.equals(type, data.type)
+                && Objects.equals(getFormat(), data.getFormat());
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(getValue(), type, revision);
+        return Objects.hash(getValue(), type, revision, format);
     }
 
     @Override

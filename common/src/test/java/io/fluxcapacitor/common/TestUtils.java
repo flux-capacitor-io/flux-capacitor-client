@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016-2020 Flux Capacitor.
+ * Copyright (c) 2016-2021 Flux Capacitor.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -42,7 +42,7 @@ public class TestUtils {
             byte[] randomBytes = new byte[16];
             random.nextBytes(randomBytes);
             return byteBuffer.put(randomBytes).array();
-        }).map(bytes -> new SerializedMessage(new Data<>(bytes, "test", 0), Metadata.empty(), "someId", Clock.systemUTC().millis()))
+        }).map(bytes -> new SerializedMessage(new Data<>(bytes, "test", 0, null), Metadata.empty(), "someId", Clock.systemUTC().millis()))
                 .collect(Collectors.toList());
     }
 

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016-2020 Flux Capacitor.
+ * Copyright (c) 2016-2021 Flux Capacitor.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -78,13 +78,14 @@ class JacksonSerializerTest {
     @Test
     @SuppressWarnings("ResultOfMethodCallIgnored")
     void testFailOnUnknownType() {
-        assertThrows(SerializationException.class, () -> subject.deserialize(Stream.of(new Data<>("bla".getBytes(), "unknownType", 0)), true)
+        assertThrows(SerializationException.class, () -> subject.deserialize(Stream.of(new Data<>("bla".getBytes(), "unknownType", 0,
+                                                                                                  "json")), true)
                 .collect(Collectors.toList()));
     }
 
     @Test
     void testReturnsJsonNodeIfTypeUnknownAndFailFlagIsOff() throws JsonProcessingException {
-        Data<byte[]> data = new Data<>(objectMapper.writeValueAsBytes(new Foo("bar")), "unknownType", 0);
+        Data<byte[]> data = new Data<>(objectMapper.writeValueAsBytes(new Foo("bar")), "unknownType", 0, "json");
         List<DeserializingObject<byte[], Data<byte[]>>> result = subject.deserialize(Stream.of(data), false)
                 .collect(Collectors.toList());
         assertEquals(new ObjectNode(objectMapper.getNodeFactory(), singletonMap("foo", TextNode.valueOf("bar"))),
@@ -115,7 +116,7 @@ class JacksonSerializerTest {
     private Data<byte[]> createRev0Data(String name) throws JsonProcessingException {
         ObjectNode rev0Payload = new ObjectNode(objectMapper.getNodeFactory());
         rev0Payload.put("n", name);
-        return new Data<>(objectMapper.writeValueAsBytes(rev0Payload), TYPE, 0);
+        return new Data<>(objectMapper.writeValueAsBytes(rev0Payload), TYPE, 0, "json");
     }
 
     @Revision(3)
@@ -138,7 +139,7 @@ class JacksonSerializerTest {
 
         @Upcast(type = TYPE, revision = 2)
         public Data<ObjectNode> upcastFrom2(Data<ObjectNode> input) {
-            return new Data<>(input.getValue(), input.getType(), 3);
+            return new Data<>(input.getValue(), input.getType(), 3, "json");
         }
     }
 

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016-2020 Flux Capacitor.
+ * Copyright (c) 2016-2021 Flux Capacitor.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -24,7 +24,7 @@ import static java.lang.String.format;
 public interface Converter<T> {
 
     default Data<T> convert(Data<byte[]> data) {
-        return new Data<>(() -> convert(data.getValue()), data.getType(), data.getRevision());
+        return new Data<>(() -> convert(data.getValue()), data.getType(), data.getRevision(), data.getFormat());
     }
 
     T convert(byte[] bytes);
@@ -32,7 +32,7 @@ public interface Converter<T> {
     byte[] convertBack(T value);
 
     default Data<byte[]> convertBack(Data<T> data) {
-        return new Data<>(() -> convertBack(data.getValue()), data.getType(), data.getRevision());
+        return new Data<>(() -> convertBack(data.getValue()), data.getType(), data.getRevision(), data.getFormat());
     }
 
     default boolean canApplyPatch(Class<?> type) {

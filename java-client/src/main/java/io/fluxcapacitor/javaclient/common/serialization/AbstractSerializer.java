@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016-2020 Flux Capacitor.
+ * Copyright (c) 2016-2021 Flux Capacitor.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -33,9 +33,11 @@ import static java.lang.String.format;
 @Slf4j
 public abstract class AbstractSerializer implements Serializer {
     private final Upcaster<SerializedObject<byte[], ?>> upcasterChain;
+    private final String format;
 
-    protected AbstractSerializer(Upcaster<SerializedObject<byte[], ?>> upcasterChain) {
+    protected AbstractSerializer(Upcaster<SerializedObject<byte[], ?>> upcasterChain, String format) {
         this.upcasterChain = upcasterChain;
+        this.format = format;
     }
 
     @SuppressWarnings("unchecked")
@@ -48,7 +50,7 @@ public abstract class AbstractSerializer implements Serializer {
                 if (data.getValue() instanceof byte[]) {
                     return (Data<byte[]>) data;
                 }
-                return new Data<>(serialize(data.getValue()).getValue(), data.getType(), data.getRevision());
+                return new Data<>(serialize(data.getValue()).getValue(), data.getType(), data.getRevision(), format);
             }
             bytes = doSerialize(object);
         } catch (Exception e) {
@@ -56,7 +58,7 @@ public abstract class AbstractSerializer implements Serializer {
         }
         Revision revision = getRevision(object);
         Type type = getType(object);
-        return new Data<>(bytes, asString(type), revision == null ? 0 : revision.value());
+        return new Data<>(bytes, asString(type), revision == null ? 0 : revision.value(), format);
     }
 
     protected Type getType(Object object) {

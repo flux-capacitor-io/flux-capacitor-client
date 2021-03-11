@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016-2020 Flux Capacitor.
+ * Copyright (c) 2016-2021 Flux Capacitor.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -34,7 +34,7 @@ class ValidatingInterceptorTest {
     private ValidatingInterceptor subject = new ValidatingInterceptor();
     private Function<Object, DeserializingMessage> messageFactory = payload -> new DeserializingMessage(
             new DeserializingObject<>(new SerializedMessage(new Data<>(
-                    "test".getBytes(), "test", 0), Metadata.empty(), "someId",
+                    "test".getBytes(), "test", 0, null), Metadata.empty(), "someId",
                                                             Clock.systemUTC().millis()), () -> payload), EVENT);
 
     @Test
