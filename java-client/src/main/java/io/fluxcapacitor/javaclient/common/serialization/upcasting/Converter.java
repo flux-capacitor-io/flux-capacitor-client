@@ -15,13 +15,8 @@
 package io.fluxcapacitor.javaclient.common.serialization.upcasting;
 
 import io.fluxcapacitor.common.api.Data;
-import io.fluxcapacitor.common.api.SerializedObject;
 
-import java.util.function.Supplier;
-
-import static java.lang.String.format;
-
-public interface Converter<T> {
+public interface Converter<T> extends Patcher<T> {
 
     default Data<T> convert(Data<byte[]> data) {
         return new Data<>(() -> convert(data.getValue()), data.getType(), data.getRevision(), data.getFormat());
@@ -34,16 +29,5 @@ public interface Converter<T> {
     default Data<byte[]> convertBack(Data<T> data) {
         return new Data<>(() -> convertBack(data.getValue()), data.getType(), data.getRevision(), data.getFormat());
     }
-
-    default boolean canApplyPatch(Class<?> type) {
-        return false;
-    }
-
-    default Supplier<?> applyPatch(SerializedObject<T, ?> s, Supplier<?> o, Class<?> type) {
-        throw new UnsupportedOperationException(format("Unable to apply type %s as patch using %s converter",
-                type.getSimpleName(), getDataType().getSimpleName()));
-    }
-
-    Class<T> getDataType();
 
 }

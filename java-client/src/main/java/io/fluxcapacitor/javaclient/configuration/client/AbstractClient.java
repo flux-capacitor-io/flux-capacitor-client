@@ -18,9 +18,11 @@ import io.fluxcapacitor.common.MessageType;
 import io.fluxcapacitor.common.ObjectUtils.MemoizingFunction;
 import io.fluxcapacitor.javaclient.persisting.eventsourcing.client.EventStoreClient;
 import io.fluxcapacitor.javaclient.persisting.keyvalue.client.KeyValueClient;
+import io.fluxcapacitor.javaclient.persisting.search.client.SearchClient;
 import io.fluxcapacitor.javaclient.publishing.client.GatewayClient;
 import io.fluxcapacitor.javaclient.scheduling.client.SchedulingClient;
 import io.fluxcapacitor.javaclient.tracking.client.TrackingClient;
+import lombok.Getter;
 
 import java.util.function.Function;
 
@@ -33,14 +35,16 @@ public abstract class AbstractClient implements Client {
     private final String id;
     private final MemoizingFunction<MessageType, ? extends GatewayClient> gatewayClients;
     private final MemoizingFunction<MessageType, ? extends TrackingClient> trackingClients;
-    private final EventStoreClient eventStoreClient;
-    private final SchedulingClient schedulingClient;
-    private final KeyValueClient keyValueClient;
+    @Getter private final EventStoreClient eventStoreClient;
+    @Getter private final SchedulingClient schedulingClient;
+    @Getter private final KeyValueClient keyValueClient;
+    @Getter private final SearchClient searchClient;
 
     public AbstractClient(String name, String id, Function<MessageType, ? extends GatewayClient> gatewayClients,
                           Function<MessageType, ? extends TrackingClient> trackingClients,
                           EventStoreClient eventStoreClient, SchedulingClient schedulingClient,
-                          KeyValueClient keyValueClient) {
+                          KeyValueClient keyValueClient,
+                          SearchClient searchClient) {
         this.name = name;
         this.id = id;
         this.gatewayClients = memoize(gatewayClients);
@@ -48,6 +52,7 @@ public abstract class AbstractClient implements Client {
         this.eventStoreClient = eventStoreClient;
         this.schedulingClient = schedulingClient;
         this.keyValueClient = keyValueClient;
+        this.searchClient = searchClient;
     }
 
     @Override
@@ -71,21 +76,6 @@ public abstract class AbstractClient implements Client {
     }
 
     @Override
-    public EventStoreClient getEventStoreClient() {
-        return eventStoreClient;
-    }
-
-    @Override
-    public SchedulingClient getSchedulingClient() {
-        return schedulingClient;
-    }
-
-    @Override
-    public KeyValueClient getKeyValueClient() {
-        return keyValueClient;
-    }
-
-    @Override
     public void shutDown() {
         MessageType[] types = MessageType.values();
         stream(types).filter(trackingClients::isCached).map(trackingClients).forEach(TrackingClient::close);
@@ -93,5 +83,6 @@ public abstract class AbstractClient implements Client {
         eventStoreClient.close();
         schedulingClient.close();
         keyValueClient.close();
+        searchClient.close();
     }
 }

@@ -46,24 +46,23 @@ public class UpcastInspector {
         return getAllMethods(type).stream().anyMatch(m -> m.isAnnotationPresent(Upcast.class));
     }
 
-    public static <T> List<AnnotatedUpcaster<T>> inspect(Collection<?> upcasters, Converter<T> converter) {
+    public static <T> List<AnnotatedUpcaster<T>> inspect(Collection<?> upcasters, Patcher<T> patcher) {
         List<AnnotatedUpcaster<T>> result = new ArrayList<>();
         for (Object upcaster : upcasters) {
             getAllMethods(upcaster.getClass()).stream().filter(m -> m.isAnnotationPresent(Upcast.class))
-                    .forEach(m -> result.add(createUpcaster(m, upcaster, converter)));
+                    .forEach(m -> result.add(createUpcaster(ensureAccessible(m), upcaster, patcher)));
         }
         result.sort(upcasterComparator);
         return result;
     }
 
-    private static <T> AnnotatedUpcaster<T> createUpcaster(Method method, Object target, Converter<T> converter) {
+    private static <T> AnnotatedUpcaster<T> createUpcaster(Method method, Object target, Patcher<T> patcher) {
         if (method.getReturnType().equals(void.class)) {
             return new AnnotatedUpcaster<>(method, i -> Stream.empty());
         }
-        method = ensureAccessible(method);
-        Function<SerializedObject<T, ?>, Object> invokeFunction = invokeFunction(method, target, converter.getDataType());
+        Function<SerializedObject<T, ?>, Object> invokeFunction = invokeFunction(method, target, patcher.getDataType());
         BiFunction<SerializedObject<T, ?>, Supplier<Object>, Stream<SerializedObject<T, ?>>> resultMapper =
-                mapResult(method, converter);
+                mapResult(method, patcher);
         return new AnnotatedUpcaster<>(method, d -> resultMapper.apply(d, () -> invokeFunction.apply(d)));
     }
 
@@ -107,18 +106,18 @@ public class UpcastInspector {
 
     @SuppressWarnings("unchecked")
     private static <T> BiFunction<SerializedObject<T, ?>, Supplier<Object>, Stream<SerializedObject<T, ?>>> mapResult(
-            Method method, Converter<T> converter) {
-        Class<T> dataType = converter.getDataType();
+            Method method, Patcher<T> patcher) {
+        Class<T> dataType = patcher.getDataType();
         if (dataType.isAssignableFrom(method.getReturnType())) {
             Upcast annotation = method.getAnnotation(Upcast.class);
             return (s, o) -> Stream
                     .of(s.withData(new Data<>((Supplier<T>) o, annotation.type(), annotation.revision() + 1,
                                               s.data().getFormat())));
         }
-        if (converter.canApplyPatch(method.getReturnType())) {
+        if (patcher.canApplyPatch(method.getReturnType())) {
             Upcast annotation = method.getAnnotation(Upcast.class);
             return (s, o) -> Stream
-                    .of(s.withData(new Data<>((Supplier<T>) converter.applyPatch(s, o, method.getReturnType()),
+                    .of(s.withData(new Data<>((Supplier<T>) patcher.applyPatch(s, o, method.getReturnType()),
                                               annotation.type(), annotation.revision() + 1,
                                               s.data().getFormat())));
         }

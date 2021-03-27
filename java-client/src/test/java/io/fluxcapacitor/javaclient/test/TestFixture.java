@@ -30,6 +30,8 @@ import io.fluxcapacitor.javaclient.configuration.FluxCapacitorBuilder;
 import io.fluxcapacitor.javaclient.configuration.client.Client;
 import io.fluxcapacitor.javaclient.configuration.client.InMemoryClient;
 import io.fluxcapacitor.javaclient.modeling.Aggregate;
+import io.fluxcapacitor.javaclient.persisting.search.Search;
+import io.fluxcapacitor.javaclient.persisting.search.SearchHit;
 import io.fluxcapacitor.javaclient.publishing.DispatchInterceptor;
 import io.fluxcapacitor.javaclient.scheduling.DefaultScheduler;
 import io.fluxcapacitor.javaclient.scheduling.Schedule;
@@ -65,6 +67,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.function.Consumer;
 import java.util.function.Function;
+import java.util.function.UnaryOperator;
 import java.util.stream.Stream;
 
 import static io.fluxcapacitor.common.MessageType.COMMAND;
@@ -74,6 +77,7 @@ import static io.fluxcapacitor.common.handling.HandlerConfiguration.defaultHandl
 import static io.fluxcapacitor.javaclient.common.ClientUtils.isLocalHandlerMethod;
 import static java.util.Collections.emptyList;
 import static java.util.Collections.singletonList;
+import static java.util.UUID.randomUUID;
 import static java.util.stream.Collectors.toCollection;
 import static java.util.stream.Collectors.toList;
 import static java.util.stream.Collectors.toSet;
@@ -148,7 +152,7 @@ public class TestFixture implements Given, When {
     private final List<Message> commands = new CopyOnWriteArrayList<>(), events = new CopyOnWriteArrayList<>();
     private final List<Schedule> schedules = new CopyOnWriteArrayList<>();
 
-    private volatile boolean whenStarted;
+    private volatile boolean collectingResults;
 
     protected TestFixture(FluxCapacitorBuilder fluxCapacitorBuilder,
                           Function<FluxCapacitor, List<?>> handlerFactory, Client client, boolean synchronous) {
@@ -250,6 +254,22 @@ public class TestFixture implements Given, When {
     }
 
     @Override
+    public When givenDocuments(String collection, Object... documents) {
+        return given(fc -> Arrays.stream(documents)
+                .forEach(d -> fc.documentStore().index(d, randomUUID().toString(), collection)));
+    }
+
+    @Override
+    public When givenTimeAdvancesTo(Instant instant) {
+        return given(fc -> advanceTimeTo(instant));
+    }
+
+    @Override
+    public When givenTimeElapses(Duration duration) {
+        return given(fc -> advanceTimeBy(duration));
+    }
+
+    @Override
     public When given(Consumer<FluxCapacitor> condition) {
         return fluxCapacitor.apply(fc -> {
             try {
@@ -266,32 +286,17 @@ public class TestFixture implements Given, When {
     }
 
     /*
-        and then time
-     */
-
-    @Override
-    public When givenTimeAdvancesTo(Instant instant) {
-        return given(fc -> advanceTimeTo(instant));
-    }
-
-    @Override
-    public When givenTimeElapses(Duration duration) {
-        return given(fc -> advanceTimeBy(duration));
-    }
-
-    /*
         when
      */
 
     @Override
     public Then whenCommand(Object command) {
-        return applyWhen(fc -> getDispatchResult(fc.commandGateway().send(interceptor.trace(command)))
-        );
+        return whenApplying(fc -> getDispatchResult(fc.commandGateway().send(interceptor.trace(command))));
     }
 
     @Override
     public Then whenQuery(Object query) {
-        return applyWhen(fc -> getDispatchResult(fc.queryGateway().send(interceptor.trace(query))));
+        return whenApplying(fc -> getDispatchResult(fc.queryGateway().send(interceptor.trace(query))));
     }
 
     @Override
@@ -305,13 +310,14 @@ public class TestFixture implements Given, When {
     }
 
     @Override
-    public Then whenScheduleExpires(Object schedule) {
-        return when(fc -> fc.scheduler().schedule(interceptor.trace(schedule), getClock().instant()));
+    public Then whenSearching(String collection, UnaryOperator<Search> searchQuery) {
+        return whenApplying(fc -> searchQuery.apply(fc.documentStore().search(collection)).stream()
+                .map(SearchHit::getValue).collect(toList()));
     }
 
     @Override
-    public Then whenApplying(Function<FluxCapacitor, ?> action) {
-        return applyWhen(action);
+    public Then whenScheduleExpires(Object schedule) {
+        return when(fc -> fc.scheduler().schedule(interceptor.trace(schedule), getClock().instant()));
     }
 
     @Override
@@ -328,23 +334,20 @@ public class TestFixture implements Given, When {
 
     @Override
     public Then when(Consumer<FluxCapacitor> action) {
-        return applyWhen(fc -> {
+        return whenApplying(fc -> {
             action.accept(fc);
             return null;
         });
     }
 
-    /*
-        helper
-     */
-
-    protected Then applyWhen(Function<FluxCapacitor, ?> action) {
+    @Override
+    public Then whenApplying(Function<FluxCapacitor, ?> action) {
         return fluxCapacitor.apply(fc -> {
             try {
                 handleExpiredSchedulesLocally();
-                whenStarted = true;
                 waitForConsumers();
                 resetMocks();
+                collectingResults = true;
                 Object result;
                 try {
                     result = action.apply(fc);
@@ -359,6 +362,10 @@ public class TestFixture implements Given, When {
             }
         });
     }
+
+    /*
+        helper
+     */
 
     protected Then getResultValidator(Object result, List<Message> commands, List<Message> events,
                                       List<Schedule> schedules) {
@@ -509,7 +516,7 @@ public class TestFixture implements Given, When {
         public Function<Message, SerializedMessage> interceptDispatch(Function<Message, SerializedMessage> function,
                                                                       MessageType messageType) {
             return message -> {
-                if (!whenStarted) {
+                if (!collectingResults) {
                     message = message.withMetadata(message.getMetadata().with(IGNORE_TAG, "true"));
                 }
 

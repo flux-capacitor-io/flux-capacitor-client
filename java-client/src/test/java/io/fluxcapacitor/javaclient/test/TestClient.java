@@ -18,6 +18,7 @@ import io.fluxcapacitor.common.MessageType;
 import io.fluxcapacitor.javaclient.configuration.client.Client;
 import io.fluxcapacitor.javaclient.persisting.eventsourcing.client.EventStoreClient;
 import io.fluxcapacitor.javaclient.persisting.keyvalue.client.KeyValueClient;
+import io.fluxcapacitor.javaclient.persisting.search.client.SearchClient;
 import io.fluxcapacitor.javaclient.publishing.client.GatewayClient;
 import io.fluxcapacitor.javaclient.scheduling.client.SchedulingClient;
 import io.fluxcapacitor.javaclient.tracking.client.TrackingClient;
@@ -75,6 +76,11 @@ public class TestClient implements Client {
     @Override
     public KeyValueClient getKeyValueClient() {
         return decorate(delegate.getKeyValueClient());
+    }
+
+    @Override
+    public SearchClient getSearchClient() {
+        return decorate(delegate.getSearchClient());
     }
 
     @Override

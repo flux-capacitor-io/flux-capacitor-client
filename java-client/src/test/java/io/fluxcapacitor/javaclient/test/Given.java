@@ -39,6 +39,8 @@ public interface Given {
 
     When givenSchedules(Schedule... schedules);
 
+    When givenDocuments(String collection, Object... documents);
+
     default When givenExpiredSchedules(Object... schedules) {
         return givenSchedules(
                 Arrays.stream(schedules).map(p -> new Schedule(p, UUID.randomUUID().toString(), getClock().instant()))

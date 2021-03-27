@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016-2020 Flux Capacitor.
+ * Copyright (c) 2016-2021 Flux Capacitor.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -12,8 +12,14 @@
  * limitations under the License.
  */
 
-package io.fluxcapacitor.javaclient.common.serialization.compression;
+package io.fluxcapacitor.common.search;
 
-public enum CompressionAlgorithm {
-    LZ4
+import io.fluxcapacitor.common.api.Data;
+
+import java.time.Instant;
+
+public interface Inverter<T> {
+    Document toDocument(Data<byte[]> data, String id, String collection, Instant timestamp);
+
+    T fromDocument(Document document);
 }

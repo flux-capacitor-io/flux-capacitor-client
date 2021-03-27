@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016-2020 Flux Capacitor.
+ * Copyright (c) 2016-2021 Flux Capacitor.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -33,11 +33,11 @@ import static java.util.stream.Collectors.toMap;
 
 public class UpcasterChain<T> {
 
-    public static <T> Upcaster<SerializedObject<byte[], ?>> create(Collection<?> upcasters, Converter<T> converter) {
+    public static <T> Upcaster<SerializedObject<byte[], ?>> createConverting(Collection<?> upcasters, Converter<T> converter) {
         if (upcasters.isEmpty()) {
             return s -> s;
         }
-        Upcaster<ConvertingSerializedObject<T>> upcasterChain = createChain(upcasters, converter);
+        Upcaster<ConvertingSerializedObject<T>> upcasterChain = create(upcasters, converter);
         return stream -> {
             Stream<ConvertingSerializedObject<T>> converted = stream.map(s -> new ConvertingSerializedObject<>(s, converter));
             Stream<ConvertingSerializedObject<T>> upcasted = upcasterChain.upcast(converted);
@@ -45,13 +45,17 @@ public class UpcasterChain<T> {
         };
     }
 
-    protected static <T, S extends SerializedObject<T, S>> Upcaster<S> createChain(Collection<?> upcasters, Converter<T> converter) {
+    public static <T, S extends SerializedObject<T, S>> Upcaster<S> create(Collection<?> upcasters, Patcher<T> patcher) {
         if (upcasters.isEmpty()) {
             return s -> s;
         }
-        List<AnnotatedUpcaster<T>> upcasterList = UpcastInspector.inspect(upcasters, converter);
+        List<AnnotatedUpcaster<T>> upcasterList = UpcastInspector.inspect(upcasters, patcher);
         UpcasterChain<T> upcasterChain = new UpcasterChain<>(upcasterList);
         return upcasterChain::upcast;
+    }
+
+    public static <T, S extends SerializedObject<T, S>> Upcaster<S> create(Collection<?> upcasters, Class<T> dataType) {
+        return create(upcasters, new NoOpPatcher<>(dataType));
     }
 
     private final Map<DataRevision, AnnotatedUpcaster<T>> upcasters;

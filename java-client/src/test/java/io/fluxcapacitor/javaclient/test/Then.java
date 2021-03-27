@@ -107,6 +107,16 @@ public interface Then {
     Then expectNoSchedulesLike(List<?> schedules);
 
     /*
+        Documents
+     */
+
+    Then expectOnlyDocuments(List<?> documents);
+
+    Then expectDocuments(List<?> documents);
+
+    Then expectNoDocumentsLike(List<?> documents);
+
+    /*
         Result
      */
 

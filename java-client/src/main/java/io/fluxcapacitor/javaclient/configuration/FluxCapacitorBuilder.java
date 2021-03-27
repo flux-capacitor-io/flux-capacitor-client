@@ -21,6 +21,7 @@ import io.fluxcapacitor.javaclient.common.serialization.DeserializingMessage;
 import io.fluxcapacitor.javaclient.common.serialization.Serializer;
 import io.fluxcapacitor.javaclient.configuration.client.Client;
 import io.fluxcapacitor.javaclient.persisting.caching.Cache;
+import io.fluxcapacitor.javaclient.persisting.search.DocumentSerializer;
 import io.fluxcapacitor.javaclient.publishing.DispatchInterceptor;
 import io.fluxcapacitor.javaclient.tracking.BatchInterceptor;
 import io.fluxcapacitor.javaclient.tracking.ConsumerConfiguration;
@@ -58,11 +59,15 @@ public interface FluxCapacitorBuilder {
 
     /**
      * Register a custom serializer. This serializer will also be used for aggregate snapshots unless a custom snapshot
-     * serializer is registered using {@link #replaceSnapshotSerializer(Serializer)}.
+     * serializer is registered using {@link #replaceSnapshotSerializer(Serializer)}. This serializer will also be used
+     * as {@link DocumentSerializer} if supported unless a custom document serializer is registered using
+     * {@link #replaceDocumentSerializer(DocumentSerializer)}.
      */
     FluxCapacitorBuilder replaceSerializer(Serializer serializer);
 
     FluxCapacitorBuilder replaceSnapshotSerializer(Serializer serializer);
+
+    FluxCapacitorBuilder replaceDocumentSerializer(DocumentSerializer documentSerializer);
 
     FluxCapacitorBuilder registerUserSupplier(UserProvider userProvider);
 

@@ -36,7 +36,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 class UpcasterChainTest {
 
     private final UpcasterStub upcasterStub = new UpcasterStub();
-    private Upcaster<Data<String>> subject = UpcasterChain.createChain(Collections.singleton(upcasterStub), new StringConverter());
+    private Upcaster<Data<String>> subject = UpcasterChain.create(Collections.singleton(upcasterStub), String.class);
 
     @Test
     void testMappingPayload() {
@@ -116,7 +116,7 @@ class UpcasterChainTest {
     @Test
     void testChainingWithMultipleClasses() {
         NonConflictingUpcaster nonConflictingUpcaster = new NonConflictingUpcaster();
-        subject = UpcasterChain.createChain(Arrays.asList(upcasterStub, nonConflictingUpcaster), new StringConverter());
+        subject = UpcasterChain.create(Arrays.asList(upcasterStub, nonConflictingUpcaster), String.class);
         Data<String> input = new Data<>("input", "chainStart", 0, null);
         Stream<Data<String>> result = subject.upcast(Stream.of(input));
         assertEquals(singletonList(nonConflictingUpcaster.chainEnd(input)), result.collect(toList()));
@@ -147,7 +147,7 @@ class UpcasterChainTest {
     @Test
     void testUpcastingWithTypeConversion() {
         Upcaster<SerializedObject<byte[], ?>> subject
-                = UpcasterChain.create(Collections.singleton(upcasterStub), new StringConverter());
+                = UpcasterChain.createConverting(Collections.singleton(upcasterStub), new StringConverter());
         Stream<SerializedObject<byte[], ?>> result =
                 subject.upcast(Stream.of(new Data<>("input".getBytes(), "mapPayload", 0, null)));
         assertEquals(singletonList(new Data<>("mappedPayload".getBytes(), "mapPayload", 1, null)),
@@ -160,12 +160,12 @@ class UpcasterChainTest {
 
     @Test
     void testExceptionForUpcasterWithUnexpectedDataType() {
-        assertThrows(SerializationException.class, () -> UpcasterChain.createChain(Collections.singleton(upcasterStub), new NoConverter()));
+        assertThrows(SerializationException.class, () -> UpcasterChain.createConverting(Collections.singleton(upcasterStub), new NoConverter()));
     }
 
     @Test
     void testExceptionForConflictingUpcasters() {
-        assertThrows(SerializationException.class, () -> UpcasterChain.createChain(Arrays.asList(upcasterStub, new ConflictingUpcaster()), new StringConverter()));
+        assertThrows(SerializationException.class, () -> UpcasterChain.createConverting(Arrays.asList(upcasterStub, new ConflictingUpcaster()), new StringConverter()));
     }
 
     /*
@@ -175,8 +175,7 @@ class UpcasterChainTest {
     @Test
     void testLazyUpcasting() {
         MonitoringUpcaster upcaster = new MonitoringUpcaster();
-        Upcaster<Data<String>> subject =
-                UpcasterChain.createChain(Collections.singletonList(upcaster), new StringConverter());
+        Upcaster<Data<String>> subject = UpcasterChain.create(Collections.singletonList(upcaster), String.class);
         Stream<Data<String>> resultStream = subject.upcast(Stream.of(new Data<>("foo", "upcastLazily", 0, null)));
         Data<String> result = resultStream.collect(toList()).get(0);
         assertFalse(upcaster.isInvoked());

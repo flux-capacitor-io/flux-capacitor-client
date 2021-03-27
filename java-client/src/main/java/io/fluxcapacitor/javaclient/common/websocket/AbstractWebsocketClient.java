@@ -45,10 +45,10 @@ import java.util.concurrent.atomic.AtomicBoolean;
 
 import static com.fasterxml.jackson.databind.DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES;
 import static io.fluxcapacitor.common.TimingUtils.retryOnFailure;
+import static io.fluxcapacitor.common.serialization.compression.CompressionUtils.compress;
+import static io.fluxcapacitor.common.serialization.compression.CompressionUtils.decompress;
 import static io.fluxcapacitor.javaclient.FluxCapacitor.currentCorrelationData;
 import static io.fluxcapacitor.javaclient.FluxCapacitor.publishMetrics;
-import static io.fluxcapacitor.javaclient.common.serialization.compression.CompressionUtils.compress;
-import static io.fluxcapacitor.javaclient.common.serialization.compression.CompressionUtils.decompress;
 import static java.lang.System.currentTimeMillis;
 import static java.lang.Thread.currentThread;
 import static java.lang.Thread.sleep;
