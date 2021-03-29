@@ -15,19 +15,26 @@
 package io.fluxcapacitor.common.api.search;
 
 import com.fasterxml.jackson.annotation.JsonSubTypes;
+import com.fasterxml.jackson.annotation.JsonSubTypes.Type;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import io.fluxcapacitor.common.api.search.constraints.AllConstraint;
 import io.fluxcapacitor.common.api.search.constraints.AnyConstraint;
+import io.fluxcapacitor.common.api.search.constraints.BetweenConstraint;
+import io.fluxcapacitor.common.api.search.constraints.ExistsConstraint;
+import io.fluxcapacitor.common.api.search.constraints.FindConstraint;
 import io.fluxcapacitor.common.api.search.constraints.MatchConstraint;
+import io.fluxcapacitor.common.api.search.constraints.NotConstraint;
 import io.fluxcapacitor.common.search.Document;
 
 import java.util.ArrayList;
 import java.util.List;
 
 @JsonTypeInfo(use = JsonTypeInfo.Id.DEDUCTION)
-@JsonSubTypes(@JsonSubTypes.Type(MatchConstraint.class))
+@JsonSubTypes({@Type(AllConstraint.class), @Type(AnyConstraint.class),
+        @Type(BetweenConstraint.class), @Type(ExistsConstraint.class), @Type(FindConstraint.class),
+        @Type(MatchConstraint.class), @Type(NoOpConstraint.class), @Type(NotConstraint.class)})
 public interface Constraint {
-    Constraint noOp = doc -> true;
+    Constraint noOp = NoOpConstraint.instance;
 
     boolean matches(Document document);
 

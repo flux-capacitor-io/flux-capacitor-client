@@ -12,23 +12,10 @@
  * limitations under the License.
  */
 
-package io.fluxcapacitor.common.api.search;
+package io.fluxcapacitor.javaclient.persisting.search;
 
-import lombok.AllArgsConstructor;
-import lombok.Value;
-
-@Value
-@AllArgsConstructor
-public class MatchedDocument {
-    String id;
-    String collection;
-    long timestamp;
-    SerializedDocument document;
-
-    public MatchedDocument(SerializedDocument document) {
-        this.id = document.getId();
-        this.collection = document.getCollection();
-        this.timestamp = document.getTimestamp();
-        this.document = document;
+public class DocumentStoreException extends RuntimeException {
+    public DocumentStoreException(String message, Throwable cause) {
+        super(message, cause);
     }
 }

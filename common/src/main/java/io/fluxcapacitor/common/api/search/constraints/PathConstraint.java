@@ -14,6 +14,7 @@
 
 package io.fluxcapacitor.common.api.search.constraints;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import io.fluxcapacitor.common.SearchUtils;
 import io.fluxcapacitor.common.api.search.Constraint;
 import io.fluxcapacitor.common.search.Document;
@@ -23,6 +24,7 @@ import java.util.function.Predicate;
 
 public abstract class PathConstraint implements Constraint {
 
+    @JsonIgnore
     @Getter(lazy = true)
     private final Predicate<String> pathPredicate = SearchUtils.convertGlobToRegex(getPath()).asPredicate();
 

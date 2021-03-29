@@ -25,6 +25,10 @@ public interface DocumentStore {
         index(object, id, FluxCapacitor.currentClock().instant(), collection, Guarantee.SENT);
     }
 
+    default void index(Object object, String id, String collection, Guarantee guarantee) {
+        index(object, id, FluxCapacitor.currentClock().instant(), collection, guarantee);
+    }
+
     void index(Object object, String id, Instant timestamp, String collection, Guarantee guarantee);
 
     Search search(String collection);

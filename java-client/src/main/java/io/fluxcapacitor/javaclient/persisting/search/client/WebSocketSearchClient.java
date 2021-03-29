@@ -31,7 +31,9 @@ import io.fluxcapacitor.common.search.Document;
 import io.fluxcapacitor.javaclient.common.websocket.AbstractWebsocketClient;
 import io.fluxcapacitor.javaclient.configuration.client.WebSocketClient;
 import io.fluxcapacitor.javaclient.persisting.search.SearchHit;
+import lombok.extern.slf4j.Slf4j;
 
+import javax.websocket.ClientEndpoint;
 import java.net.URI;
 import java.time.Instant;
 import java.util.List;
@@ -40,6 +42,8 @@ import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
+@Slf4j
+@ClientEndpoint
 public class WebSocketSearchClient extends AbstractWebsocketClient implements SearchClient {
     private final Backlog<Document> backlog;
 
@@ -53,8 +57,8 @@ public class WebSocketSearchClient extends AbstractWebsocketClient implements Se
     }
 
     protected Awaitable storeValues(List<Document> documents) {
-        return sendAndForget(
-                new IndexDocuments(documents.stream().map(SerializedDocument::new).collect(Collectors.toList())));
+        return sendAndForget(new IndexDocuments(
+                documents.stream().map(SerializedDocument::new).collect(Collectors.toList()), Guarantee.SENT));
     }
 
     @Override
@@ -71,9 +75,8 @@ public class WebSocketSearchClient extends AbstractWebsocketClient implements Se
             case SENT:
                 return backlog.add(documents);
             case STORED:
-                CompletableFuture<QueryResult> future =
-                        send(new IndexDocuments(
-                                documents.stream().map(SerializedDocument::new).collect(Collectors.toList())));
+                CompletableFuture<QueryResult> future = send(new IndexDocuments(
+                        documents.stream().map(SerializedDocument::new).collect(Collectors.toList()), guarantee));
                 return future::get;
             default:
                 throw new UnsupportedOperationException("Unrecognized guarantee: " + guarantee);
@@ -85,7 +88,7 @@ public class WebSocketSearchClient extends AbstractWebsocketClient implements Se
         SearchDocumentsResult result = sendAndWait(new SearchDocuments(query, sorting));
         return result.getMatches().stream().map(d -> new SearchHit<>(
                 d.getId(), d.getCollection(), Instant.ofEpochMilli(d.getTimestamp()), () -> Optional.ofNullable(
-                        d.getDocument()).map(SerializedDocument::deserializeDocument).orElse(null)));
+                d.getDocument()).map(SerializedDocument::deserializeDocument).orElse(null)));
     }
 
     @Override

@@ -14,6 +14,7 @@
 
 package io.fluxcapacitor.javaclient.test;
 
+import io.fluxcapacitor.common.Guarantee;
 import io.fluxcapacitor.common.MessageType;
 import io.fluxcapacitor.common.Registration;
 import io.fluxcapacitor.common.api.Data;
@@ -256,7 +257,7 @@ public class TestFixture implements Given, When {
     @Override
     public When givenDocuments(String collection, Object... documents) {
         return given(fc -> Arrays.stream(documents)
-                .forEach(d -> fc.documentStore().index(d, randomUUID().toString(), collection)));
+                .forEach(d -> fc.documentStore().index(d, randomUUID().toString(), collection, Guarantee.STORED)));
     }
 
     @Override

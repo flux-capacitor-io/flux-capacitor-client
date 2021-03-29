@@ -14,37 +14,17 @@
 
 package io.fluxcapacitor.common.api.search;
 
-import com.fasterxml.jackson.annotation.JsonIgnore;
-import io.fluxcapacitor.common.Guarantee;
-import io.fluxcapacitor.common.api.Request;
-import lombok.EqualsAndHashCode;
+import io.fluxcapacitor.common.search.Document;
+import lombok.AccessLevel;
+import lombok.AllArgsConstructor;
 import lombok.Value;
 
-import java.util.List;
-
-@EqualsAndHashCode(callSuper = true)
 @Value
-public class IndexDocuments extends Request {
-    List<SerializedDocument> documents;
-    Guarantee guarantee;
-
-    @JsonIgnore
-    public int getSize() {
-        return documents.size();
-    }
-
+@AllArgsConstructor(access = AccessLevel.PRIVATE)
+public class NoOpConstraint implements Constraint {
+    public static final NoOpConstraint instance = new NoOpConstraint();
     @Override
-    public String toString() {
-        return "IndexDocuments of length " + documents.size();
-    }
-
-    @Override
-    public Metric toMetric() {
-        return new Metric(getSize());
-    }
-
-    @Value
-    public static class Metric {
-        int size;
+    public boolean matches(Document document) {
+        return true;
     }
 }

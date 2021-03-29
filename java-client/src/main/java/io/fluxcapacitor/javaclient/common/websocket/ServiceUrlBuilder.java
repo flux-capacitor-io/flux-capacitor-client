@@ -41,7 +41,7 @@ public class ServiceUrlBuilder {
     }
 
     public static String searchUrl(WebSocketClient.Properties clientProperties) {
-        return buildUrl(clientProperties, ServicePathBuilder.keyValuePath());
+        return buildUrl(clientProperties, ServicePathBuilder.searchPath());
     }
 
     public static String schedulingUrl(WebSocketClient.Properties clientProperties) {

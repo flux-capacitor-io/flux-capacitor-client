@@ -37,7 +37,7 @@ public class Document {
     Map<Entry, List<String>> entries;
 
     public String summarize() {
-        return Stream.concat(Stream.of(type, id), entries.keySet().stream().map(Entry::toString)).collect(Collectors.joining(" "));
+        return Stream.concat(Stream.of(type, id), entries.keySet().stream().map(Entry::asPhrase)).collect(Collectors.joining(" "));
     }
 
     public Optional<Entry> getEntryAtPath(String path) {
@@ -51,10 +51,9 @@ public class Document {
         EntryType type;
         String value;
 
-        @Override
-        public String toString() {
+        public String asPhrase() {
             if (type == EntryType.TEXT) {
-                return StringUtils.stripAccents(value.toLowerCase());
+                return StringUtils.stripAccents(StringUtils.strip(value.toLowerCase()));
             }
             return value;
         }

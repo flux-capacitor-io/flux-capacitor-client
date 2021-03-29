@@ -18,12 +18,11 @@ import io.fluxcapacitor.common.Guarantee;
 import io.fluxcapacitor.common.api.search.Constraint;
 import io.fluxcapacitor.common.api.search.DocumentStats;
 import io.fluxcapacitor.common.api.search.SearchQuery;
-import io.fluxcapacitor.common.search.Document;
+import io.fluxcapacitor.javaclient.persisting.keyvalue.KeyValueStoreException;
 import io.fluxcapacitor.javaclient.persisting.search.client.SearchClient;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NonNull;
-import lombok.Value;
 
 import java.time.Instant;
 import java.util.ArrayList;
@@ -44,8 +43,11 @@ public class DefaultDocumentStore implements DocumentStore {
 
     @Override
     public void index(Object object, String id, Instant timestamp, String collection, Guarantee guarantee) {
-        Document document = serializer.toDocument(object, id, collection, timestamp);
-        client.index(singletonList(document), guarantee);
+        try {
+            client.index(singletonList(serializer.toDocument(object, id, collection, timestamp)), guarantee).await();
+        } catch (Exception e) {
+            throw new KeyValueStoreException(String.format("Could not store a document %s for id %s", object, id), e);
+        }
     }
 
     @Override
@@ -134,11 +136,5 @@ public class DefaultDocumentStore implements DocumentStore {
         public void delete(Guarantee guarantee) {
             client.delete(queryBuilder.build(), guarantee);
         }
-
-    }
-
-    @Value
-    private static class Between {
-        Object min, max;
     }
 }

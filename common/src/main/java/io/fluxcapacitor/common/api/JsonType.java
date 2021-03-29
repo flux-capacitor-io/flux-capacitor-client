@@ -37,6 +37,7 @@ import io.fluxcapacitor.common.api.search.GetDocuments;
 import io.fluxcapacitor.common.api.search.GetDocumentsResult;
 import io.fluxcapacitor.common.api.search.IndexDocuments;
 import io.fluxcapacitor.common.api.search.SearchDocuments;
+import io.fluxcapacitor.common.api.search.SearchDocumentsResult;
 import io.fluxcapacitor.common.api.tracking.DisconnectTracker;
 import io.fluxcapacitor.common.api.tracking.Read;
 import io.fluxcapacitor.common.api.tracking.ReadFromIndex;
@@ -89,6 +90,7 @@ import io.fluxcapacitor.common.api.tracking.StorePosition;
         @JsonSubTypes.Type(value = GetDocuments.class, name = "getDocuments"),
         @JsonSubTypes.Type(value = DeleteDocuments.class, name = "deleteDocuments"),
         @JsonSubTypes.Type(value = GetDocumentStats.class, name = "getDocumentStats"),
+        @JsonSubTypes.Type(value = SearchDocumentsResult.class, name = "searchDocumentsResult"),
         @JsonSubTypes.Type(value = GetDocumentsResult.class, name = "getDocumentsResult"),
         @JsonSubTypes.Type(value = GetDocumentStatsResult.class, name = "getDocumentStatsResult"),
 })

@@ -52,12 +52,12 @@ public class GivenWhenThenSearchTest {
 
     @Test
     void testFieldMatching() {
-        expectMatch(s -> s.match(SomeDocument.ID,"someId"));
+        expectMatch(s -> s.match(SomeDocument.ID, "someId"));
         expectMatch(s -> s.match(SomeDocument.ID));
-        expectMatch(s -> s.match(SomeDocument.ID,"someOtherField", "someId"));
-        expectMatch(s -> s.match("Let's see what we can find","foo"));
-        expectNoMatch(s -> s.match(SomeDocument.ID.toLowerCase(),"someId"));
-        expectNoMatch(s -> s.match(SomeDocument.ID,"wrongField"));
+        expectMatch(s -> s.match(SomeDocument.ID, "someOtherField", "someId"));
+        expectMatch(s -> s.match("Let's see what we can find", "foo"));
+        expectNoMatch(s -> s.match(SomeDocument.ID.toLowerCase(), "someId"));
+        expectNoMatch(s -> s.match(SomeDocument.ID, "wrongField"));
     }
 
     @Test
@@ -112,6 +112,31 @@ public class GivenWhenThenSearchTest {
         expectMatch(s -> s.match(true, "booleans/*/inner"));
         expectMatch(s -> s.match(true, "booleans/**/inner"));
         expectMatch(s -> s.match(true, "**/inner"));
+    }
+
+    @Test
+    void testExpectedDocuments() {
+        SomeDocument someDocument = new SomeDocument();
+        TestFixture.create().when(fc -> {
+            fc.documentStore().index(someDocument, "test", "test");
+            fc.documentStore().index("bla", "test2", "test");
+        }).expectDocuments(singletonList("bla"));
+    }
+
+    @Test
+    void testOnlyExpectedDocuments() {
+        SomeDocument someDocument = new SomeDocument();
+        TestFixture.create().when(fc -> fc.documentStore().index(someDocument, "test", "test"))
+                .expectOnlyDocuments(singletonList(someDocument));
+    }
+
+    @Test
+    void testNoExpectedDocumentsLike() {
+        SomeDocument someDocument = new SomeDocument();
+        TestFixture.create().when(fc -> {
+            fc.documentStore().index(someDocument, "test", "test");
+            fc.documentStore().index("bla", "test2", "test");
+        }).expectNoDocumentsLike(singletonList("bla2"));
     }
 
     private void expectMatch(UnaryOperator<Search> searchQuery) {

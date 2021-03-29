@@ -15,6 +15,7 @@
 package io.fluxcapacitor.common.search;
 
 import io.fluxcapacitor.common.api.Data;
+import io.fluxcapacitor.common.api.search.SerializedDocument;
 import io.fluxcapacitor.common.search.Document.Entry;
 import org.msgpack.core.MessageBufferPacker;
 import org.msgpack.core.MessagePack;
@@ -50,7 +51,7 @@ public enum DefaultDocumentSerializer {
                     packer.packString(key);
                 }
             }
-            return new Data<>(compress(packer.toByteArray()), document.getType(), document.getRevision(), "doc");
+            return new Data<>(compress(packer.toByteArray()), document.getType(), document.getRevision(), "document");
         } catch (Exception e) {
             throw new IllegalArgumentException("Could not serialize document", e);
         }
@@ -58,15 +59,12 @@ public enum DefaultDocumentSerializer {
 
     public Document deserialize(Data<byte[]> document) {
         if (!document.getFormat().equals("document")) {
-            throw new UnsupportedOperationException("Unsupported data format: " + document.getFormat());
-        }
-        if (document.getRevision() != 0) {
-            throw new UnsupportedOperationException("Unsupported document revision: " + document.getRevision());
+            throw new IllegalArgumentException("Unsupported data format: " + document.getFormat());
         }
         try (MessageUnpacker unpacker = MessagePack.newDefaultUnpacker(decompress(document.getValue()))) {
             int version = unpacker.unpackInt();
-            if (version != currentVersion) {
-                throw new IllegalArgumentException();
+            if (version != 0) {
+                throw new IllegalArgumentException("Unsupported document revision: " + version);
             }
             String id = unpacker.unpackString();
             Instant timestamp = Instant.ofEpochMilli(unpacker.unpackLong());
@@ -85,6 +83,21 @@ public enum DefaultDocumentSerializer {
             return new Document(id, document.getType(), document.getRevision(), collection, timestamp, map);
         } catch (Exception e) {
             throw new IllegalArgumentException("Could not deserialize document", e);
+        }
+    }
+
+    public SerializedDocument asSerializedDocument(Data<byte[]> document) {
+        try (MessageUnpacker unpacker = MessagePack.newDefaultUnpacker(decompress(document.getValue()))) {
+            int version = unpacker.unpackInt();
+            if (version != currentVersion) {
+                throw new IllegalArgumentException();
+            }
+            String id = unpacker.unpackString();
+            long timestamp = unpacker.unpackLong();
+            String collection = unpacker.unpackString();
+            return new SerializedDocument(id, timestamp, collection, document, null);
+        } catch (Exception e) {
+            throw new IllegalArgumentException("Could not convert bytes to SerializedDocument", e);
         }
     }
 

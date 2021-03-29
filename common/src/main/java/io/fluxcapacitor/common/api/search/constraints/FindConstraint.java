@@ -16,6 +16,7 @@ package io.fluxcapacitor.common.api.search.constraints;
 
 import io.fluxcapacitor.common.api.search.Constraint;
 import io.fluxcapacitor.common.search.Document;
+import lombok.AllArgsConstructor;
 import lombok.NonNull;
 import lombok.Value;
 import org.apache.commons.lang3.StringUtils;
@@ -26,6 +27,7 @@ import java.util.stream.Collectors;
 import static java.lang.Character.isWhitespace;
 
 @Value
+@AllArgsConstructor
 public class FindConstraint extends PathConstraint {
     public static Constraint find(@NonNull String phrase, String... paths) {
         switch (paths.length) {
@@ -38,7 +40,7 @@ public class FindConstraint extends PathConstraint {
 
     String phrase;
     String path;
-    boolean postfixMatch; //i.e. phrase was *foo
+    boolean prefixSearch; //i.e. phrase was *foo
 
     public FindConstraint(@NonNull String phrase, String path) {
         phrase = StringUtils.stripAccents(StringUtils.strip(phrase.toLowerCase()));
@@ -47,9 +49,9 @@ public class FindConstraint extends PathConstraint {
         }
         if (phrase.startsWith("*")) {
             phrase = phrase.substring(1);
-            postfixMatch = true;
+            prefixSearch = true;
         } else {
-            postfixMatch = false;
+            prefixSearch = false;
         }
         this.phrase = phrase;
         this.path = path;
@@ -57,8 +59,8 @@ public class FindConstraint extends PathConstraint {
 
     @Override
     protected boolean matches(Document.Entry entry) {
-        String value = StringUtils.stripAccents(StringUtils.strip(entry.getValue()));
+        String value = entry.asPhrase();
         int index = value.indexOf(phrase);
-        return index >= 0 && (postfixMatch || index == 0 || isWhitespace(value.charAt(index - 1)));
+        return index >= 0 && (prefixSearch || index == 0 || isWhitespace(value.charAt(index - 1)));
     }
 }
