@@ -114,11 +114,11 @@ public class JacksonSerializer extends AbstractSerializer implements DocumentSer
     @SuppressWarnings({"unchecked", "rawtypes"})
     @Override
     protected Stream<DeserializingObject<byte[], ?>> handleUnknownType(SerializedObject<byte[], ?> s) {
-        return Stream.of(new DeserializingObject(s, () -> {
+        return Stream.of(new DeserializingObject(s, (Function<Class<?>, Object>) type -> {
             try {
-                return objectMapper.readTree(s.data().getValue());
+                return convert(objectMapper.readTree(s.data().getValue()), type);
             } catch (Exception e) {
-                throw new SerializationException(format("Could not deserialize a %s to a Map. Invalid Json?",
+                throw new SerializationException(format("Could not deserialize a %s to a JsonNode. Invalid Json?",
                         s.data().getType()), e);
             }
         }));
@@ -151,5 +151,9 @@ public class JacksonSerializer extends AbstractSerializer implements DocumentSer
         return jsonNodeUpcaster.upcast(Stream.of(new Data<>(
                 jsonNode, document.getType(), document.getRevision(), "json"))).findFirst()
                 .map(d ->  objectMapper.convertValue(d.getValue(), type)).orElse(null);
+    }
+    @Override
+    public <V> V doConvert(Object value, Class<V> type) {
+        return objectMapper.convertValue(value, type);
     }
 }

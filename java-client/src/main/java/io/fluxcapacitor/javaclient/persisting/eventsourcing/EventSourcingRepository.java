@@ -197,19 +197,19 @@ public class EventSourcingRepository implements AggregateRepository {
         }
 
         @Override
-        public Aggregate<T> apply(Message eventMessage) {
+        public Aggregate<T> apply(Message message) {
             if (readOnly) {
                 throw new UnsupportedOperationException(format("Not allowed to apply a %s. The model is readonly.",
-                                                               eventMessage));
+                                                               message));
             }
 
-            Metadata metadata = eventMessage.getMetadata()
+            Metadata metadata = message.getMetadata()
                     .with(Aggregate.AGGREGATE_ID_METADATA_KEY, id,
                           Aggregate.AGGREGATE_TYPE_METADATA_KEY, getAggregateType().getName());
 
-            eventMessage = eventMessage.withMetadata(metadata);
+            Message eventMessage = message.withMetadata(metadata);
             DeserializingMessage deserializingMessage = new DeserializingMessage(new DeserializingObject<>(
-                    serializer.serialize(eventMessage), eventMessage::getPayload), EVENT);
+                    serializer.serialize(eventMessage), type -> serializer.convert(eventMessage.getPayload(), type)), EVENT);
 
             model = model.toBuilder().sequenceNumber(model.sequenceNumber() + 1)
                     .model(eventSourcingHandler.invoke(model.get(), deserializingMessage))

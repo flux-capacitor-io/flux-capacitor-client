@@ -35,11 +35,17 @@ import lombok.Value;
 import lombok.experimental.Delegate;
 import lombok.extern.slf4j.Slf4j;
 
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Spliterator;
+import java.util.Spliterators;
 import java.util.function.BiFunction;
 import java.util.function.Consumer;
 import java.util.function.Function;
-import java.util.function.Supplier;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 
@@ -69,7 +75,7 @@ public class DeserializingMessage {
     DeserializingObject<byte[], SerializedMessage> delegate;
     MessageType messageType;
 
-    public DeserializingMessage(SerializedMessage message, Supplier<Object> payload, MessageType messageType) {
+    public DeserializingMessage(SerializedMessage message, Function<Class<?>, Object> payload, MessageType messageType) {
         this(new DeserializingObject<>(message, payload), messageType);
     }
 
