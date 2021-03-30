@@ -33,11 +33,11 @@ public class MatchConstraint extends PathConstraint {
         }
     }
 
-    String value;
+    @NonNull String match;
     String path;
 
     @Override
     protected boolean matches(Document.Entry entry) {
-        return entry.getValue().equals(value);
+        return entry.getValue().equals(match);
     }
 }

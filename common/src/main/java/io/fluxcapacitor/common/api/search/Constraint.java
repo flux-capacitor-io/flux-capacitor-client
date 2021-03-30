@@ -29,7 +29,7 @@ import io.fluxcapacitor.common.search.Document;
 import java.util.ArrayList;
 import java.util.List;
 
-@JsonTypeInfo(use = JsonTypeInfo.Id.DEDUCTION)
+@JsonTypeInfo(use = JsonTypeInfo.Id.DEDUCTION, defaultImpl = NoOpConstraint.class)
 @JsonSubTypes({@Type(AllConstraint.class), @Type(AnyConstraint.class),
         @Type(BetweenConstraint.class), @Type(ExistsConstraint.class), @Type(FindConstraint.class),
         @Type(MatchConstraint.class), @Type(NoOpConstraint.class), @Type(NotConstraint.class)})

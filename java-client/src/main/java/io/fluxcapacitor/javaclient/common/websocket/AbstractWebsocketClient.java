@@ -15,6 +15,7 @@
 package io.fluxcapacitor.javaclient.common.websocket;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.json.JsonMapper;
 import io.fluxcapacitor.common.Awaitable;
 import io.fluxcapacitor.common.RetryConfiguration;
 import io.fluxcapacitor.common.api.JsonType;
@@ -44,6 +45,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import static com.fasterxml.jackson.databind.DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES;
+import static com.fasterxml.jackson.databind.SerializationFeature.WRITE_DATES_AS_TIMESTAMPS;
 import static io.fluxcapacitor.common.TimingUtils.retryOnFailure;
 import static io.fluxcapacitor.common.serialization.compression.CompressionUtils.compress;
 import static io.fluxcapacitor.common.serialization.compression.CompressionUtils.decompress;
@@ -57,7 +59,8 @@ import static javax.websocket.CloseReason.CloseCodes.NO_STATUS_CODE;
 @Slf4j
 public abstract class AbstractWebsocketClient implements AutoCloseable {
     public static WebSocketContainer defaultWebSocketContainer = ContainerProvider.getWebSocketContainer();
-    public static ObjectMapper defaultObjectMapper = new ObjectMapper().disable(FAIL_ON_UNKNOWN_PROPERTIES);
+    public static ObjectMapper defaultObjectMapper = JsonMapper.builder().disable(FAIL_ON_UNKNOWN_PROPERTIES)
+            .findAndAddModules().disable(WRITE_DATES_AS_TIMESTAMPS).build();
 
     private final SessionPool sessionPool;
     private final Properties properties;

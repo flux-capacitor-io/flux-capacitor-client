@@ -39,12 +39,7 @@ public class IndexDocuments extends Request {
     }
 
     @Override
-    public Metric toMetric() {
-        return new Metric(getSize());
-    }
-
-    @Value
-    public static class Metric {
-        int size;
+    public Object toMetric() {
+        return null;
     }
 }

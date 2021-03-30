@@ -80,7 +80,7 @@ public class JacksonSerializer extends AbstractSerializer implements DocumentSer
     }
 
     public JacksonSerializer(ObjectMapper objectMapper, Collection<?> upcasters, Converter<JsonNode> converter) {
-        super(UpcasterChain.createConverting(upcasters, converter), "json");
+        super(UpcasterChain.createConverting(upcasters, converter), "application/json");
         this.objectMapper = objectMapper;
         this.jsonNodeUpcaster = UpcasterChain.create(upcasters, converter);
         this.inverter = new JacksonInverter(objectMapper);
@@ -141,7 +141,7 @@ public class JacksonSerializer extends AbstractSerializer implements DocumentSer
     public <T> T fromDocument(Document document) {
         JsonNode jsonNode = inverter.fromDocument(document);
         return jsonNodeUpcaster.upcast(Stream.of(new Data<>(
-                jsonNode, document.getType(), document.getRevision(), "json"))).findFirst()
+                jsonNode, document.getType(), document.getRevision(), "application/json"))).findFirst()
                 .<T>map(d -> objectMapper.convertValue(d.getValue(), typeCache.apply(d.getType()))).orElse(null);
     }
 
@@ -149,7 +149,7 @@ public class JacksonSerializer extends AbstractSerializer implements DocumentSer
     public <T> T fromDocument(Document document, Class<T> type) {
         JsonNode jsonNode = inverter.fromDocument(document);
         return jsonNodeUpcaster.upcast(Stream.of(new Data<>(
-                jsonNode, document.getType(), document.getRevision(), "json"))).findFirst()
+                jsonNode, document.getType(), document.getRevision(), "application/json"))).findFirst()
                 .map(d ->  objectMapper.convertValue(d.getValue(), type)).orElse(null);
     }
     @Override

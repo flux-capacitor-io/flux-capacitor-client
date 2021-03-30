@@ -14,7 +14,6 @@
 
 package io.fluxcapacitor.common.api.search;
 
-import io.fluxcapacitor.common.api.search.constraints.AllConstraint;
 import io.fluxcapacitor.common.search.Document;
 import lombok.Builder;
 import lombok.Singular;
@@ -23,41 +22,24 @@ import lombok.Value;
 import java.time.Instant;
 import java.util.List;
 
-import static io.fluxcapacitor.common.api.search.constraints.AllConstraint.all;
-import static io.fluxcapacitor.common.api.search.constraints.AnyConstraint.any;
-
 @Value
 @Builder(toBuilder = true, builderClassName = "Builder")
-public class SearchQuery implements Constraint {
+public class SearchQuery {
     String collection;
-    Instant from, until;
+    Instant since, before;
     @Singular List<Constraint> constraints;
 
     @SuppressWarnings("RedundantIfStatement")
-    @Override
     public boolean matches(Document d) {
         if (!constraints.stream().allMatch(c -> c.matches(d))) {
             return false;
         }
-        if (from != null && d.getTimestamp().compareTo(from) >= 0) {
+        if (since != null && d.getTimestamp().compareTo(since) < 0) {
             return false;
         }
-        if (until != null && d.getTimestamp().compareTo(until) <= 0) {
+        if (before != null && d.getTimestamp().compareTo(before) >= 0) {
             return false;
         }
         return true;
-    }
-
-    @Override
-    public SearchQuery and(Constraint other) {
-        return (other instanceof AllConstraint
-                ? toBuilder().constraints(((AllConstraint) other).getAll()) : toBuilder().constraint(other)).build();
-    }
-
-    @Override
-    public SearchQuery or(Constraint other) {
-        Constraint[] constraints = this.constraints.toArray(new Constraint[0]);
-        return this.constraints.isEmpty() ? toBuilder().constraint(other).build() :
-                toBuilder().clearConstraints().constraint(any(all(constraints), other)).build();
     }
 }

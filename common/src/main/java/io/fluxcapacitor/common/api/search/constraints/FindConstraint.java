@@ -16,18 +16,17 @@ package io.fluxcapacitor.common.api.search.constraints;
 
 import io.fluxcapacitor.common.api.search.Constraint;
 import io.fluxcapacitor.common.search.Document;
-import lombok.AllArgsConstructor;
 import lombok.NonNull;
 import lombok.Value;
 import org.apache.commons.lang3.StringUtils;
 
+import java.beans.ConstructorProperties;
 import java.util.Arrays;
 import java.util.stream.Collectors;
 
 import static java.lang.Character.isWhitespace;
 
 @Value
-@AllArgsConstructor
 public class FindConstraint extends PathConstraint {
     public static Constraint find(@NonNull String phrase, String... paths) {
         switch (paths.length) {
@@ -38,29 +37,30 @@ public class FindConstraint extends PathConstraint {
         }
     }
 
-    String phrase;
+    String find;
     String path;
     boolean prefixSearch; //i.e. phrase was *foo
 
-    public FindConstraint(@NonNull String phrase, String path) {
-        phrase = StringUtils.stripAccents(StringUtils.strip(phrase.toLowerCase()));
-        if (phrase.endsWith("*") && !phrase.endsWith("\\*")) {
-            phrase = phrase.substring(0, phrase.length() - 1);
+    @ConstructorProperties({"find", "path"})
+    public FindConstraint(@NonNull String find, String path) {
+        find = StringUtils.stripAccents(StringUtils.strip(find.toLowerCase()));
+        if (find.endsWith("*") && !find.endsWith("\\*")) {
+            find = find.substring(0, find.length() - 1);
         }
-        if (phrase.startsWith("*")) {
-            phrase = phrase.substring(1);
+        if (find.startsWith("*")) {
+            find = find.substring(1);
             prefixSearch = true;
         } else {
             prefixSearch = false;
         }
-        this.phrase = phrase;
+        this.find = find;
         this.path = path;
     }
 
     @Override
     protected boolean matches(Document.Entry entry) {
         String value = entry.asPhrase();
-        int index = value.indexOf(phrase);
+        int index = value.indexOf(find);
         return index >= 0 && (prefixSearch || index == 0 || isWhitespace(value.charAt(index - 1)));
     }
 }

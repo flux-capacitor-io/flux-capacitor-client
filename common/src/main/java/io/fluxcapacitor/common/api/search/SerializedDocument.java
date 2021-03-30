@@ -18,9 +18,11 @@ import io.fluxcapacitor.common.api.Data;
 import io.fluxcapacitor.common.search.DefaultDocumentSerializer;
 import io.fluxcapacitor.common.search.Document;
 import lombok.AllArgsConstructor;
+import lombok.Builder;
 import lombok.Value;
 
 @Value
+@Builder(toBuilder = true)
 @AllArgsConstructor
 public class SerializedDocument {
     String id;

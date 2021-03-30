@@ -99,14 +99,15 @@ public class WebSocketSearchClient extends AbstractWebsocketClient implements Se
 
     @Override
     public Awaitable delete(SearchQuery query, Guarantee guarantee) {
+        DeleteDocuments request = new DeleteDocuments(query, guarantee);
         switch (guarantee) {
             case NONE:
-                sendAndForget(new DeleteDocuments(query));
+                sendAndForget(request);
                 return Awaitable.ready();
             case SENT:
-                return sendAndForget(new DeleteDocuments(query));
+                return sendAndForget(request);
             case STORED:
-                CompletableFuture<QueryResult> future = send(new DeleteDocuments(query));
+                CompletableFuture<QueryResult> future = send(request);
                 return future::get;
             default:
                 throw new UnsupportedOperationException("Unrecognized guarantee: " + guarantee);

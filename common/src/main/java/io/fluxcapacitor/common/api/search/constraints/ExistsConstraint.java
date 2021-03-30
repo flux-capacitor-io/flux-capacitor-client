@@ -14,6 +14,7 @@
 
 package io.fluxcapacitor.common.api.search.constraints;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import io.fluxcapacitor.common.search.Document;
 import lombok.NonNull;
 import lombok.Value;
@@ -24,10 +25,16 @@ public class ExistsConstraint extends PathConstraint {
         return new ExistsConstraint(path);
     }
 
-    @NonNull String path;
+    @NonNull String exists;
 
     @Override
     protected boolean matches(Document.Entry entry) {
         return entry.getType() != Document.EntryType.NULL;
+    }
+
+    @Override
+    @JsonIgnore
+    public String getPath() {
+        return exists;
     }
 }

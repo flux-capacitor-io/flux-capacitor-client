@@ -16,6 +16,7 @@ package io.fluxcapacitor.common.api.search.constraints;
 
 import io.fluxcapacitor.common.api.search.Constraint;
 import io.fluxcapacitor.common.search.Document;
+import lombok.NonNull;
 import lombok.Value;
 
 @Value
@@ -24,7 +25,7 @@ public class NotConstraint implements Constraint {
         return new NotConstraint(constraint);
     }
 
-    Constraint not;
+    @NonNull Constraint not;
 
     @Override
     public boolean matches(Document document) {

@@ -45,15 +45,19 @@ public interface Search {
         return inPeriod(start, null);
     }
 
-    default Search until(Instant end) {
-        return inPeriod(null, end);
+    default Search before(Instant endExclusive) {
+        return inPeriod(null, endExclusive);
     }
 
-    default Search inLast(Duration duration) {
-        return since(FluxCapacitor.currentClock().instant().minus(duration));
+    default Search beforeLast(Duration period) {
+        return before(FluxCapacitor.currentClock().instant().minus(period));
     }
 
-    Search inPeriod(Instant start, Instant end);
+    default Search inLast(Duration period) {
+        return since(FluxCapacitor.currentClock().instant().minus(period));
+    }
+
+    Search inPeriod(Instant start, Instant endExclusive);
 
     /*
         Other constraints

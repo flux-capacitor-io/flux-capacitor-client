@@ -51,8 +51,8 @@ public class DefaultDocumentStore implements DocumentStore {
     }
 
     @Override
-    public Search search(String collection) {
-        return new DefaultSearch(SearchQuery.builder().collection(collection));
+    public Search search(SearchQuery.Builder searchBuilder) {
+        return new DefaultSearch(searchBuilder);
     }
 
     @AllArgsConstructor
@@ -65,12 +65,12 @@ public class DefaultDocumentStore implements DocumentStore {
         }
 
         @Override
-        public Search inPeriod(Instant start, Instant end) {
+        public Search inPeriod(Instant start, Instant endExclusive) {
             if (start != null) {
-                queryBuilder.from(start);
+                queryBuilder.since(start);
             }
-            if (end != null) {
-                queryBuilder.until(end);
+            if (endExclusive != null) {
+                queryBuilder.before(endExclusive);
             }
             return this;
         }

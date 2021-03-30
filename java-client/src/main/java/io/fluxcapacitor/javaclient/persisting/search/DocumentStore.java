@@ -15,6 +15,7 @@
 package io.fluxcapacitor.javaclient.persisting.search;
 
 import io.fluxcapacitor.common.Guarantee;
+import io.fluxcapacitor.common.api.search.SearchQuery;
 import io.fluxcapacitor.javaclient.FluxCapacitor;
 
 import java.time.Instant;
@@ -31,7 +32,11 @@ public interface DocumentStore {
 
     void index(Object object, String id, Instant timestamp, String collection, Guarantee guarantee);
 
-    Search search(String collection);
+    default Search search(String collection) {
+        return search(SearchQuery.builder().collection(collection));
+    }
+
+    Search search(SearchQuery.Builder queryBuilder);
 
     DocumentSerializer getSerializer();
 

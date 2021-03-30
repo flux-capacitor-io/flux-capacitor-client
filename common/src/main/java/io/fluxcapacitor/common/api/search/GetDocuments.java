@@ -24,4 +24,9 @@ import java.util.List;
 @Value
 public class GetDocuments extends Request {
     List<MatchedDocument> documents;
+
+    @Override
+    public Object toMetric() {
+        return null;
+    }
 }
