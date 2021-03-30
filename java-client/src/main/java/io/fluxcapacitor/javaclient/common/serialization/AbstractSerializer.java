@@ -25,6 +25,7 @@ import java.lang.reflect.Type;
 import java.util.Collection;
 import java.util.Map;
 import java.util.Set;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -109,15 +110,28 @@ public abstract class AbstractSerializer implements Serializer {
                         }
                         return (Stream) handleUnknownType(s);
                     }
-                    return (Stream) Stream.of(new DeserializingObject(s, () -> {
+                    return (Stream) Stream.of(new DeserializingObject(s, (Function<Class<?>, Object>) type -> {
                         try {
-                            return doDeserialize(s.data().getValue(), s.data().getType());
+                            return Object.class.equals(type)
+                                    ? doDeserialize(s.data().getValue(), s.data().getType())
+                                    : doDeserialize(s.data().getValue(), asString(type));
                         } catch (Exception e) {
                             throw new SerializationException("Could not deserialize a " + s.data().getType(), e);
                         }
                     }));
                 });
     }
+
+    @SuppressWarnings("unchecked")
+    @Override
+    public <V> V convert(Object value, Class<V> type) {
+        if (type == null || Object.class.equals(type)) {
+            return (V) value;
+        }
+        return doConvert(value, type);
+    }
+
+    protected abstract <V> V doConvert(Object value, Class<V> type);
 
     protected boolean isKnownType(String type) {
         try {

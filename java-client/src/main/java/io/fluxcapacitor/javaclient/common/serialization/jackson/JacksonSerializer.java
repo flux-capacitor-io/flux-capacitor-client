@@ -100,11 +100,11 @@ public class JacksonSerializer extends AbstractSerializer {
     @SuppressWarnings({"unchecked", "rawtypes"})
     @Override
     protected Stream<DeserializingObject<byte[], ?>> handleUnknownType(SerializedObject<byte[], ?> s) {
-        return Stream.of(new DeserializingObject(s, () -> {
+        return Stream.of(new DeserializingObject(s, (Function<Class<?>, Object>) type -> {
             try {
-                return objectMapper.readTree(s.data().getValue());
+                return convert(objectMapper.readTree(s.data().getValue()), type);
             } catch (Exception e) {
-                throw new SerializationException(format("Could not deserialize a %s to a Map. Invalid Json?",
+                throw new SerializationException(format("Could not deserialize a %s to a JsonNode. Invalid Json?",
                         s.data().getType()), e);
             }
         }));
@@ -118,4 +118,8 @@ public class JacksonSerializer extends AbstractSerializer {
         return objectMapper.constructType(type).toCanonical();
     }
 
+    @Override
+    public <V> V doConvert(Object value, Class<V> type) {
+        return objectMapper.convertValue(value, type);
+    }
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016-2020 Flux Capacitor.
+ * Copyright (c) 2016-2021 Flux Capacitor.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,32 +14,37 @@
 
 package io.fluxcapacitor.javaclient.common.serialization;
 
-import io.fluxcapacitor.common.ObjectUtils.MemoizingSupplier;
+import io.fluxcapacitor.common.ObjectUtils;
 import io.fluxcapacitor.common.api.SerializedObject;
 import lombok.SneakyThrows;
 import lombok.ToString;
 
-import java.util.function.Supplier;
+import java.util.function.Function;
 
 import static io.fluxcapacitor.common.ObjectUtils.memoize;
 
 @ToString(exclude = "object")
 public class DeserializingObject<T, S extends SerializedObject<T, S>> {
     private final S serializedObject;
-    private final MemoizingSupplier<Object> object;
+    private final ObjectUtils.MemoizingFunction<Class<?>, Object> object;
 
-    public DeserializingObject(S serializedObject, Supplier<Object> payload) {
+    public DeserializingObject(S serializedObject, Function<Class<?>, Object> payload) {
         this.serializedObject = serializedObject;
         this.object = memoize(payload);
     }
 
     @SuppressWarnings("unchecked")
     public <V> V getPayload() {
-        return (V) object.get();
+        return (V) object.apply(Object.class);
+    }
+
+    @SuppressWarnings("unchecked")
+    public <V> V getPayloadAs(Class<V> type) {
+        return (V) object.apply(type);
     }
 
     public boolean isDeserialized() {
-        return object.isCached();
+        return object.isCached(Object.class);
     }
 
     public String getType() {

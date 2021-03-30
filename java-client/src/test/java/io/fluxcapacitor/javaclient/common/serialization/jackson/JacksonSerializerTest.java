@@ -93,6 +93,15 @@ class JacksonSerializerTest {
     }
 
     @Test
+    void testConvertGetPayloadAs() throws JsonProcessingException {
+        Foo foo = new Foo("bar");
+        Data<byte[]> data = new Data<>(objectMapper.writeValueAsBytes(foo), "unknownType", 0, "json");
+        List<DeserializingObject<byte[], Data<byte[]>>> result = subject.deserialize(Stream.of(data), false)
+                .collect(Collectors.toList());
+        assertEquals(foo, result.get(0).getPayloadAs(Foo.class));
+    }
+
+    @Test
     void testDeserializeTypedCollection() {
         List<Foo> input = asList(new Foo("bla1"), new Foo("bla2"));
         assertEquals(input, subject.deserialize(subject.serialize(input)));

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016-2020 Flux Capacitor.
+ * Copyright (c) 2016-2021 Flux Capacitor.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -51,14 +51,14 @@ public class DefaultEventStore implements EventStore {
                     deserializingMessage = (DeserializingMessage) e;
                 } else {
                     Message message = e instanceof Message ? (Message) e : new Message(e);
-                    deserializingMessage = new DeserializingMessage(serializer.serialize(message),
-                                                                    message::getPayload, EVENT);
+                    deserializingMessage = new DeserializingMessage(serializer.serialize(message), type -> serializer
+                            .convert(message.getPayload(), type), EVENT);
                 }
                 messages.add(deserializingMessage);
             });
             result = client.storeEvents(aggregateId, domain, lastSequenceNumber,
                                         messages.stream().map(m -> m.getSerializedObject().withSegment(segment))
-                                       .collect(toList()), storeOnly);
+                                                .collect(toList()), storeOnly);
         } catch (Exception e) {
             throw new EventSourcingException(format("Failed to store events %s for aggregate %s", events, aggregateId),
                                              e);
@@ -70,7 +70,8 @@ public class DefaultEventStore implements EventStore {
     @Override
     public AggregateEventStream<DeserializingMessage> getEvents(String aggregateId, long lastSequenceNumber) {
         try {
-            AggregateEventStream<SerializedMessage> serializedEvents = client.getEvents(aggregateId, lastSequenceNumber);
+            AggregateEventStream<SerializedMessage> serializedEvents =
+                    client.getEvents(aggregateId, lastSequenceNumber);
             return serializedEvents.convert(serializer::deserializeDomainEvents);
         } catch (Exception e) {
             throw new EventSourcingException(format("Failed to obtain domain events for aggregate %s", aggregateId), e);

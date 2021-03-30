@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016-2020 Flux Capacitor.
+ * Copyright (c) 2016-2021 Flux Capacitor.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -22,6 +22,7 @@ import io.fluxcapacitor.common.handling.HandlerConfiguration;
 import io.fluxcapacitor.javaclient.common.ClientUtils;
 import io.fluxcapacitor.javaclient.common.Message;
 import io.fluxcapacitor.javaclient.common.serialization.DeserializingMessage;
+import io.fluxcapacitor.javaclient.common.serialization.Serializer;
 import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
@@ -41,6 +42,7 @@ public class LocalHandlerRegistry implements HandlerRegistry {
 
     private final MessageType messageType;
     private final HandlerFactory handlerFactory;
+    private final Serializer serializer;
     private final List<Handler<DeserializingMessage>> localHandlers = new CopyOnWriteArrayList<>();
 
     @Override
@@ -60,7 +62,8 @@ public class LocalHandlerRegistry implements HandlerRegistry {
     @Override
     public Optional<CompletableFuture<Message>> handle(Object payload, SerializedMessage serializedMessage) {
         if (!localHandlers.isEmpty()) {
-            return new DeserializingMessage(serializedMessage, () -> payload, messageType).apply(m -> {
+            return new DeserializingMessage(serializedMessage, type -> serializer.convert(payload, type),
+                                            messageType).apply(m -> {
                 boolean handled = false;
                 CompletableFuture<Message> future = new CompletableFuture<>();
                 for (Handler<DeserializingMessage> handler : localHandlers) {

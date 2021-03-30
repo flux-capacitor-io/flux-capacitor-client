@@ -35,7 +35,7 @@ class ValidatingInterceptorTest {
     private Function<Object, DeserializingMessage> messageFactory = payload -> new DeserializingMessage(
             new DeserializingObject<>(new SerializedMessage(new Data<>(
                     "test".getBytes(), "test", 0, null), Metadata.empty(), "someId",
-                                                            Clock.systemUTC().millis()), () -> payload), EVENT);
+                                                            Clock.systemUTC().millis()), type -> payload), EVENT);
 
     @Test
     void testWithConstraintViolations() {
