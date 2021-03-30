@@ -87,6 +87,7 @@ public class JacksonSerializer extends AbstractSerializer {
         return objectMapper.readValue(bytes, typeCache.apply(type));
     }
 
+
     @Override
     protected boolean isKnownType(String type) {
         try {

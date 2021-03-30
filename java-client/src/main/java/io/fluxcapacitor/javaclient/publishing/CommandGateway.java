@@ -30,7 +30,7 @@ public interface CommandGateway extends HasLocalHandlers {
 
     <R> CompletableFuture<R> send(Object payload, Metadata metadata);
 
-    CompletableFuture<Message> sendForMessage(Message message);
+    <R extends Message> CompletableFuture<R> sendForMessage(Message message);
 
     <R> R sendAndWait(Object command);
 

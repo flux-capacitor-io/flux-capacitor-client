@@ -21,6 +21,7 @@ import io.fluxcapacitor.common.handling.Handler;
 import io.fluxcapacitor.common.handling.HandlerConfiguration;
 import io.fluxcapacitor.javaclient.FluxCapacitor;
 import io.fluxcapacitor.javaclient.common.ClientUtils;
+import io.fluxcapacitor.javaclient.common.Message;
 import io.fluxcapacitor.javaclient.common.exception.FunctionalException;
 import io.fluxcapacitor.javaclient.common.exception.TechnicalException;
 import io.fluxcapacitor.javaclient.common.serialization.DeserializingMessage;
@@ -37,17 +38,12 @@ import lombok.extern.slf4j.Slf4j;
 
 import java.time.Duration;
 import java.util.AbstractMap.SimpleEntry;
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.Map.Entry;
-import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.BiFunction;
 import java.util.function.Consumer;
 import java.util.stream.Stream;
 
@@ -55,9 +51,7 @@ import static io.fluxcapacitor.javaclient.common.ClientUtils.waitForResults;
 import static io.fluxcapacitor.javaclient.common.serialization.DeserializingMessage.defaultInvokerFactory;
 import static io.fluxcapacitor.javaclient.common.serialization.DeserializingMessage.handleBatch;
 import static java.lang.String.format;
-import static java.util.stream.Collectors.groupingBy;
-import static java.util.stream.Collectors.toList;
-import static java.util.stream.Collectors.toMap;
+import static java.util.stream.Collectors.*;
 
 @AllArgsConstructor
 @Slf4j
@@ -73,6 +67,7 @@ public class DefaultTracking implements Tracking {
     private final List<ConsumerConfiguration> configurations;
     private final Serializer serializer;
     private final HandlerFactory handlerFactory;
+    private final BiFunction<Object, Throwable, Message> customResultFormatter;
 
     private final Set<ConsumerConfiguration> startedConfigurations = new HashSet<>();
     private final Collection<CompletableFuture<?>> outstandingRequests = new CopyOnWriteArrayList<>();
@@ -97,7 +92,7 @@ public class DefaultTracking implements Tracking {
 
             if (!Collections.disjoint(consumers.keySet(), startedConfigurations)) {
                 throw new TrackingException("Failed to start tracking. "
-                                                    + "Consumers for some handlers have already started tracking.");
+                        + "Consumers for some handlers have already started tracking.");
             }
 
             startedConfigurations.addAll(consumers.keySet());
@@ -139,12 +134,12 @@ public class DefaultTracking implements Tracking {
             }
         } catch (BatchProcessingException e) {
             throw new BatchProcessingException(format("Handler %s failed to handle a %s", handler, message),
-                                               e.getCause(), e.getMessageIndex());
+                    e.getCause(), e.getMessageIndex());
         } catch (Exception e) {
             try {
                 config.getErrorHandler()
                         .handleError(e, format("Handler %s failed to handle a %s", handler, message),
-                                     () -> handle(message, handler, config));
+                                () -> handle(message, handler, config));
             } catch (Exception thrown) {
                 throw new BatchProcessingException(message.getSerializedObject().getIndex());
             }
@@ -158,45 +153,43 @@ public class DefaultTracking implements Tracking {
         Object result;
         try {
             result = handler.invoke(message);
-        } catch (FunctionalException e) {
-            result = e;
-            exception = e;
         } catch (Exception e) {
-            result = new TechnicalException(format("Handler %s failed to handle a %s", handler, message), e);
+            result = null;
             exception = e;
         }
         SerializedMessage serializedMessage = message.getSerializedObject();
         boolean shouldSendResponse = shouldSendResponse(handler, message);
         if (result instanceof CompletableFuture<?>) {
-            CompletableFuture<?> future = ((CompletableFuture<?>) result).whenComplete((r, e) -> {
-                Object asyncResult = e == null ? r : e instanceof FunctionalException ? e : new TechnicalException(
-                        format("Handler %s failed to handle a %s", handler, message), e);
-                message.run(m -> {
-                    try {
-                        if (shouldSendResponse) {
-                            resultGateway.respond(
-                                    asyncResult, serializedMessage.getSource(), serializedMessage.getRequestId());
-                        }
-                        if (e != null) {
-                            config.getErrorHandler().handleError((Exception) e, format(
-                                    "Handler %s failed to handle a %s", handler, message),
-                                                                 () -> handle(message, handler, config));
-                        }
-                    } catch (Exception exc) {
-                        log.warn("Did not stop consumer {} after async handler {} failed to handle a {}",
-                                 config.getName(), handler, message, exc);
+            CompletableFuture<?> future = ((CompletableFuture<?>) result).whenComplete((r, e) -> message.run(m -> {
+                try {
+                    if (shouldSendResponse) {
+                        resultGateway.respond(formatResult(r, e, message, handler),
+                                serializedMessage.getSource(), serializedMessage.getRequestId());
                     }
-                });
-            });
+                    if (e != null) {
+                        config.getErrorHandler().handleError((Exception) e, format(
+                                "Handler %s failed to handle a %s", handler, message),
+                                () -> handle(message, handler, config));
+                    }
+                } catch (Exception exc) {
+                    log.warn("Did not stop consumer {} after async handler {} failed to handle a {}",
+                            config.getName(), handler, message, exc);
+                }
+            }));
             outstandingRequests.add(future);
             future.whenComplete((r, e) -> outstandingRequests.remove(future));
         } else if (shouldSendResponse) {
-            resultGateway.respond(result, serializedMessage.getSource(), serializedMessage.getRequestId());
+            resultGateway.respond(formatResult(result, exception, message, handler), serializedMessage.getSource(), serializedMessage.getRequestId());
         }
 
         if (exception != null) {
             throw exception;
         }
+    }
+
+    private Object formatResult(Object r, Throwable e, DeserializingMessage message, Handler<DeserializingMessage> handler) {
+        return customResultFormatter != null ? customResultFormatter.apply(r, e) :
+                e == null ? r : e instanceof FunctionalException ? e : new TechnicalException(format("Handler %s failed to handle a %s", handler, message), e);
     }
 
     @SneakyThrows

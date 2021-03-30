@@ -24,9 +24,13 @@ import io.fluxcapacitor.javaclient.persisting.caching.Cache;
 import io.fluxcapacitor.javaclient.publishing.DispatchInterceptor;
 import io.fluxcapacitor.javaclient.tracking.BatchInterceptor;
 import io.fluxcapacitor.javaclient.tracking.ConsumerConfiguration;
+import io.fluxcapacitor.javaclient.tracking.handling.HandleWebRequest;
 import io.fluxcapacitor.javaclient.tracking.handling.HandlerInterceptor;
 import io.fluxcapacitor.javaclient.tracking.handling.authentication.UserProvider;
+import io.fluxcapacitor.javaclient.web.WebResponse;
+import io.fluxcapacitor.javaclient.web.WebUtils;
 
+import java.util.function.BiFunction;
 import java.util.function.UnaryOperator;
 
 /**
@@ -49,10 +53,18 @@ public interface FluxCapacitorBuilder {
     FluxCapacitorBuilder replaceCache(Cache cache);
 
     /**
+     * Configures how a result or error from {@link HandleWebRequest} handlers is formatted to a {@link WebResponse}.
+     * It replaces the default formatter in {@link WebUtils}.
+     */
+    FluxCapacitorBuilder replaceWebResponseFormatter(BiFunction<Object, Throwable, WebResponse> webResponseFormatter);
+
+    /**
      * Configures a dedicated cache to use for aggregates of the given type. If no dedicated cache is set aggregates
      * will be stored in the default cache.
      */
     FluxCapacitorBuilder withAggregateCache(Class<?> aggregateType, Cache cache);
+
+    FluxCapacitorBuilder registerWebServer(String port, ConsumerConfiguration consumerConfiguration);
 
     FluxCapacitorBuilder addParameterResolver(ParameterResolver<DeserializingMessage> parameterResolver);
 

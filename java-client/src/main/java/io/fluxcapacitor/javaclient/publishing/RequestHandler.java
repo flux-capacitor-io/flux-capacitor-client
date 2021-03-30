@@ -22,7 +22,7 @@ import java.util.function.Consumer;
 
 public interface RequestHandler extends AutoCloseable {
 
-   CompletableFuture<Message> sendRequest(SerializedMessage request, Consumer<SerializedMessage> requestSender);
+   <R extends Message> CompletableFuture<R> sendRequest(SerializedMessage request, Consumer<SerializedMessage> requestSender);
 
    @Override
    void close();

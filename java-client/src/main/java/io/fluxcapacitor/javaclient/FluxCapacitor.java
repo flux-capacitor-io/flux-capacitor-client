@@ -29,12 +29,7 @@ import io.fluxcapacitor.javaclient.persisting.caching.Cache;
 import io.fluxcapacitor.javaclient.persisting.eventsourcing.EventSourced;
 import io.fluxcapacitor.javaclient.persisting.eventsourcing.EventStore;
 import io.fluxcapacitor.javaclient.persisting.keyvalue.KeyValueStore;
-import io.fluxcapacitor.javaclient.publishing.CommandGateway;
-import io.fluxcapacitor.javaclient.publishing.ErrorGateway;
-import io.fluxcapacitor.javaclient.publishing.EventGateway;
-import io.fluxcapacitor.javaclient.publishing.MetricsGateway;
-import io.fluxcapacitor.javaclient.publishing.QueryGateway;
-import io.fluxcapacitor.javaclient.publishing.ResultGateway;
+import io.fluxcapacitor.javaclient.publishing.*;
 import io.fluxcapacitor.javaclient.publishing.correlation.CorrelationDataProvider;
 import io.fluxcapacitor.javaclient.publishing.correlation.DefaultCorrelationDataProvider;
 import io.fluxcapacitor.javaclient.scheduling.Scheduler;
@@ -43,6 +38,7 @@ import io.fluxcapacitor.javaclient.tracking.Tracking;
 import io.fluxcapacitor.javaclient.tracking.handling.HandleCommand;
 import io.fluxcapacitor.javaclient.tracking.handling.LocalHandler;
 import io.fluxcapacitor.javaclient.tracking.handling.authentication.UserProvider;
+import io.fluxcapacitor.javaclient.web.WebResponse;
 
 import java.time.Clock;
 import java.util.Arrays;
@@ -51,13 +47,12 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.BiFunction;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.stream.Stream;
 
-import static io.fluxcapacitor.common.MessageType.COMMAND;
-import static io.fluxcapacitor.common.MessageType.EVENT;
-import static io.fluxcapacitor.common.MessageType.NOTIFICATION;
+import static io.fluxcapacitor.common.MessageType.*;
 import static io.fluxcapacitor.javaclient.modeling.AggregateIdResolver.getAggregateId;
 import static java.util.Arrays.stream;
 import static java.util.Optional.ofNullable;
@@ -389,6 +384,22 @@ public interface FluxCapacitor extends AutoCloseable {
      * metrics about an application.
      */
     MetricsGateway metricsGateway();
+
+    /**
+     * Returns the gateway for web requests. Normally web requests are only published by the flux proxies. There are
+     * however situations where you might want to trigger your own endpoints, for instance in tests or when dealing with legacy.
+     */
+    WebRequestGateway webRequestGateway();
+
+    /**
+     * Returns the gateway for web response messages sent by handlers of web requests.
+     */
+    ResultGateway webResponseGateway();
+
+    /**
+     * Returns the configured formatter for web response messages.
+     */
+    BiFunction<Object, Throwable, WebResponse> webResponseFormatter();
 
     /**
      * Returns a client to assist with the tracking of a given message type.

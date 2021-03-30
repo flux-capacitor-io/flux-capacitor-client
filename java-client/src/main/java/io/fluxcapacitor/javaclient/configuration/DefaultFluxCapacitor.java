@@ -30,53 +30,26 @@ import io.fluxcapacitor.javaclient.persisting.caching.Cache;
 import io.fluxcapacitor.javaclient.persisting.caching.CachingAggregateRepository;
 import io.fluxcapacitor.javaclient.persisting.caching.DefaultCache;
 import io.fluxcapacitor.javaclient.persisting.caching.SelectiveCache;
-import io.fluxcapacitor.javaclient.persisting.eventsourcing.DefaultEventSourcingHandlerFactory;
-import io.fluxcapacitor.javaclient.persisting.eventsourcing.DefaultEventStore;
-import io.fluxcapacitor.javaclient.persisting.eventsourcing.DefaultSnapshotRepository;
-import io.fluxcapacitor.javaclient.persisting.eventsourcing.EventSourcingHandlerFactory;
-import io.fluxcapacitor.javaclient.persisting.eventsourcing.EventSourcingRepository;
-import io.fluxcapacitor.javaclient.persisting.eventsourcing.EventStore;
-import io.fluxcapacitor.javaclient.persisting.eventsourcing.EventStoreSerializer;
+import io.fluxcapacitor.javaclient.persisting.eventsourcing.*;
 import io.fluxcapacitor.javaclient.persisting.keyvalue.DefaultKeyValueStore;
 import io.fluxcapacitor.javaclient.persisting.keyvalue.KeyValueStore;
-import io.fluxcapacitor.javaclient.publishing.CommandGateway;
-import io.fluxcapacitor.javaclient.publishing.DefaultCommandGateway;
-import io.fluxcapacitor.javaclient.publishing.DefaultErrorGateway;
-import io.fluxcapacitor.javaclient.publishing.DefaultEventGateway;
-import io.fluxcapacitor.javaclient.publishing.DefaultGenericGateway;
-import io.fluxcapacitor.javaclient.publishing.DefaultMetricsGateway;
-import io.fluxcapacitor.javaclient.publishing.DefaultQueryGateway;
-import io.fluxcapacitor.javaclient.publishing.DefaultRequestHandler;
-import io.fluxcapacitor.javaclient.publishing.DefaultResultGateway;
-import io.fluxcapacitor.javaclient.publishing.DispatchInterceptor;
-import io.fluxcapacitor.javaclient.publishing.ErrorGateway;
-import io.fluxcapacitor.javaclient.publishing.EventGateway;
-import io.fluxcapacitor.javaclient.publishing.GenericGateway;
-import io.fluxcapacitor.javaclient.publishing.MetricsGateway;
-import io.fluxcapacitor.javaclient.publishing.QueryGateway;
-import io.fluxcapacitor.javaclient.publishing.RequestHandler;
-import io.fluxcapacitor.javaclient.publishing.ResultGateway;
+import io.fluxcapacitor.javaclient.publishing.*;
 import io.fluxcapacitor.javaclient.publishing.correlation.CorrelatingInterceptor;
 import io.fluxcapacitor.javaclient.publishing.dataprotection.DataProtectionInterceptor;
 import io.fluxcapacitor.javaclient.publishing.routing.MessageRoutingInterceptor;
 import io.fluxcapacitor.javaclient.scheduling.DefaultScheduler;
 import io.fluxcapacitor.javaclient.scheduling.Scheduler;
 import io.fluxcapacitor.javaclient.scheduling.SchedulingInterceptor;
-import io.fluxcapacitor.javaclient.tracking.BatchInterceptor;
-import io.fluxcapacitor.javaclient.tracking.ConsumerConfiguration;
-import io.fluxcapacitor.javaclient.tracking.DefaultTracking;
-import io.fluxcapacitor.javaclient.tracking.Tracking;
-import io.fluxcapacitor.javaclient.tracking.TrackingException;
-import io.fluxcapacitor.javaclient.tracking.handling.DefaultHandlerFactory;
-import io.fluxcapacitor.javaclient.tracking.handling.HandlerInterceptor;
-import io.fluxcapacitor.javaclient.tracking.handling.HandlerRegistry;
-import io.fluxcapacitor.javaclient.tracking.handling.LocalHandlerRegistry;
+import io.fluxcapacitor.javaclient.tracking.*;
+import io.fluxcapacitor.javaclient.tracking.handling.*;
 import io.fluxcapacitor.javaclient.tracking.handling.authentication.AuthenticatingInterceptor;
 import io.fluxcapacitor.javaclient.tracking.handling.authentication.UserProvider;
 import io.fluxcapacitor.javaclient.tracking.handling.errorreporting.ErrorReportingInterceptor;
 import io.fluxcapacitor.javaclient.tracking.handling.validation.ValidatingInterceptor;
 import io.fluxcapacitor.javaclient.tracking.metrics.HandlerMonitor;
 import io.fluxcapacitor.javaclient.tracking.metrics.TrackerMonitor;
+import io.fluxcapacitor.javaclient.web.DefaultWebClient;
+import io.fluxcapacitor.javaclient.web.WebResponse;
 import lombok.AccessLevel;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
@@ -85,39 +58,29 @@ import lombok.experimental.Accessors;
 import lombok.extern.slf4j.Slf4j;
 
 import java.time.Clock;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Objects;
-import java.util.Optional;
+import java.util.*;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.ForkJoinPool;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.BiFunction;
 import java.util.function.UnaryOperator;
 import java.util.stream.Stream;
 
-import static io.fluxcapacitor.common.MessageType.COMMAND;
-import static io.fluxcapacitor.common.MessageType.ERROR;
-import static io.fluxcapacitor.common.MessageType.EVENT;
-import static io.fluxcapacitor.common.MessageType.METRICS;
-import static io.fluxcapacitor.common.MessageType.NOTIFICATION;
-import static io.fluxcapacitor.common.MessageType.QUERY;
-import static io.fluxcapacitor.common.MessageType.RESULT;
-import static io.fluxcapacitor.common.MessageType.SCHEDULE;
+import static io.fluxcapacitor.common.MessageType.*;
 import static io.fluxcapacitor.javaclient.common.serialization.DeserializingMessage.defaultParameterResolvers;
+import static io.fluxcapacitor.javaclient.web.WebUtils.defaultWebResponseFormatter;
 import static java.lang.Runtime.getRuntime;
 import static java.lang.String.format;
 import static java.util.Arrays.stream;
 import static java.util.Collections.singletonList;
 import static java.util.Collections.unmodifiableMap;
+import static java.util.Optional.ofNullable;
 import static java.util.function.Function.identity;
 import static java.util.stream.Collectors.toList;
 import static java.util.stream.Collectors.toMap;
+import static java.util.stream.Stream.concat;
 
 @Slf4j
 @AllArgsConstructor(access = AccessLevel.PROTECTED)
@@ -130,17 +93,21 @@ public class DefaultFluxCapacitor implements FluxCapacitor {
     private final QueryGateway queryGateway;
     private final EventGateway eventGateway;
     private final ResultGateway resultGateway;
+    private final ResultGateway webResponseGateway;
     private final ErrorGateway errorGateway;
     private final MetricsGateway metricsGateway;
+    private final WebRequestGateway webRequestGateway;
     private final AggregateRepository aggregateRepository;
     private final EventStore eventStore;
     private final KeyValueStore keyValueStore;
     private final Scheduler scheduler;
+    private final List<DefaultWebClient> webClients;
     private final UserProvider userProvider;
     private final Cache cache;
     private final Serializer serializer;
     private final AtomicReference<Clock> clock = new AtomicReference<>(Clock.systemUTC());
     private final Client client;
+    private final BiFunction<Object, Throwable, WebResponse> webResponseFormatter;
     private final Runnable shutdownHandler;
 
     private final AtomicBoolean closed = new AtomicBoolean();
@@ -152,7 +119,7 @@ public class DefaultFluxCapacitor implements FluxCapacitor {
 
     @Override
     public Tracking tracking(MessageType messageType) {
-        return Optional.ofNullable(trackingSupplier.get(messageType)).orElseThrow(
+        return ofNullable(trackingSupplier.get(messageType)).orElseThrow(
                 () -> new TrackingException(String.format("Tracking is not supported for type %s", messageType)));
     }
 
@@ -198,7 +165,9 @@ public class DefaultFluxCapacitor implements FluxCapacitor {
         private final Map<MessageType, List<BatchInterceptor>> batchInterceptors = new HashMap<>();
         private DispatchInterceptor messageRoutingInterceptor = new MessageRoutingInterceptor();
         private SchedulingInterceptor schedulingInterceptor = new SchedulingInterceptor();
+        private BiFunction<Object, Throwable, WebResponse> webResponseFormatter = defaultWebResponseFormatter();
         private Cache cache = new DefaultCache();
+        private final Map<String, ConsumerConfiguration> webServers = new HashMap<>();
         private boolean disableErrorReporting;
         private boolean disableMessageCorrelation;
         private boolean disablePayloadValidation;
@@ -298,8 +267,21 @@ public class DefaultFluxCapacitor implements FluxCapacitor {
         }
 
         @Override
+        public FluxCapacitorBuilder replaceWebResponseFormatter(BiFunction<Object, Throwable, WebResponse> webResponseFormatter) {
+            this.webResponseFormatter = webResponseFormatter;
+            return this;
+        }
+
+
+        @Override
         public FluxCapacitorBuilder withAggregateCache(Class<?> aggregateType, Cache cache) {
             this.cache = new SelectiveCache(cache, SelectiveCache.aggregateSelector(aggregateType), this.cache);
+            return this;
+        }
+
+        @Override
+        public FluxCapacitorBuilder registerWebServer(String port, ConsumerConfiguration consumerConfiguration) {
+            this.webServers.put(ofNullable(port).orElse("8080"), consumerConfiguration);
             return this;
         }
 
@@ -356,6 +338,8 @@ public class DefaultFluxCapacitor implements FluxCapacitor {
             this.makeApplicationInstance = makeApplicationInstance;
             return this;
         }
+
+
 
         @Override
         public FluxCapacitor build(@NonNull Client client) {
@@ -471,17 +455,36 @@ public class DefaultFluxCapacitor implements FluxCapacitor {
                     new DefaultMetricsGateway(client.getGatewayClient(METRICS),
                                               messageSerializer(METRICS, dispatchInterceptors));
 
+            RequestHandler webRequestHandler = new WebRequestHandler(this.serializer, client);
+            WebRequestGateway webRequestGateway =
+                    new DefaultWebRequestGateway(createRequestGateway(client, WEBREQUEST, webRequestHandler,
+                            dispatchInterceptors, handlerInterceptors));
+
+            ResultGateway webResponseGateway =
+                    new DefaultWebResponseGateway(client.getGatewayClient(WEBRESPONSE),
+                            messageSerializer(WEBRESPONSE, dispatchInterceptors));
+
 
             //tracking
             batchInterceptors.forEach((type, interceptors) -> consumerConfigurations.computeIfPresent(
                     type, (t, configs) -> configs.stream().map(
                             c -> c.toBuilder().batchInterceptors(interceptors).build()).collect(toList())));
-            Map<MessageType, Tracking> trackingMap = stream(MessageType.values())
+            Map<MessageType, Tracking> trackingMap = stream(MessageType.values()).filter(t -> WEBREQUEST != t)
                     .collect(toMap(identity(), m -> new DefaultTracking(m, client, resultGateway,
-                                                                        consumerConfigurations.get(m), this.serializer,
-                                                                        new DefaultHandlerFactory(m, handlerInterceptors
-                                                                                .get(m == NOTIFICATION ? EVENT : m),
-                                                                                                  parameterResolvers))));
+                            consumerConfigurations.get(m), this.serializer,
+                            new DefaultHandlerFactory(m, handlerInterceptors
+                                    .get(m == NOTIFICATION ? EVENT : m),
+                                    parameterResolvers), null)));
+
+            Optional.of(WEBREQUEST).ifPresent(m -> trackingMap.put(m,
+                    new DefaultTracking(m, client, webResponseGateway, consumerConfigurations.get(m), this.serializer,
+                            new DefaultHandlerFactory(m, handlerInterceptors.get(m),
+                                    withUntypedPayloadResolver(parameterResolvers)),
+                            webResponseFormatter.andThen(w -> w))));
+
+            List<DefaultWebClient> webClients = new ArrayList<>();
+            webServers.forEach((port, consumerConfiguration) ->
+                    webClients.add(new DefaultWebClient(port, consumerConfiguration, client, webResponseGateway, this.serializer)));
 
             //misc
             Scheduler scheduler = new DefaultScheduler(client.getSchedulingClient(),
@@ -494,14 +497,15 @@ public class DefaultFluxCapacitor implements FluxCapacitor {
                     return null;
                 }).collect(toList()));
                 requestHandler.close();
+                webRequestHandler.close();
                 client.shutDown();
             };
 
             //and finally...
-            FluxCapacitor fluxCapacitor = doBuild(trackingMap, commandGateway, queryGateway, eventGateway,
-                                                  resultGateway, errorGateway, metricsGateway, aggregateRepository,
-                                                  eventStore, keyValueStore, scheduler, userProvider,
-                                                  cache, serializer, client, shutdownHandler);
+            FluxCapacitor fluxCapacitor = doBuild(trackingMap, commandGateway, queryGateway, eventGateway, resultGateway,
+                    webResponseGateway, errorGateway, metricsGateway, webRequestGateway,
+                    aggregateRepository, eventStore, keyValueStore, scheduler, webClients,
+                    userProvider, cache, serializer, client, webResponseFormatter, shutdownHandler);
 
             if (makeApplicationInstance) {
                 FluxCapacitor.applicationInstance.set(fluxCapacitor);
@@ -518,14 +522,17 @@ public class DefaultFluxCapacitor implements FluxCapacitor {
         protected FluxCapacitor doBuild(Map<MessageType, ? extends Tracking> trackingSupplier,
                                         CommandGateway commandGateway, QueryGateway queryGateway,
                                         EventGateway eventGateway, ResultGateway resultGateway,
+                                        ResultGateway webResponseGateway,
                                         ErrorGateway errorGateway, MetricsGateway metricsGateway,
-                                        AggregateRepository aggregateRepository,
+                                        WebRequestGateway webRequestGateway, AggregateRepository aggregateRepository,
                                         EventStore eventStore, KeyValueStore keyValueStore, Scheduler scheduler,
+                                        List<DefaultWebClient> webClients,
                                         UserProvider userProvider, Cache cache, Serializer serializer, Client client,
+                                        BiFunction<Object, Throwable, WebResponse> webResponseFormatter,
                                         Runnable shutdownHandler) {
             return new DefaultFluxCapacitor(trackingSupplier, commandGateway, queryGateway, eventGateway, resultGateway,
-                                            errorGateway, metricsGateway, aggregateRepository, eventStore,
-                                            keyValueStore, scheduler, userProvider, cache, serializer, client, shutdownHandler);
+                                            webResponseGateway, errorGateway, metricsGateway, webRequestGateway, aggregateRepository, eventStore,
+                                            keyValueStore, scheduler, webClients, userProvider, cache, serializer, client, webResponseFormatter, shutdownHandler);
         }
 
         protected GenericGateway createRequestGateway(Client client, MessageType messageType,
@@ -545,8 +552,15 @@ public class DefaultFluxCapacitor implements FluxCapacitor {
         protected HandlerRegistry localHandlerRegistry(MessageType messageType,
                                                        Map<MessageType, HandlerInterceptor> handlerInterceptors) {
             return new LocalHandlerRegistry(messageType,
-                                            new DefaultHandlerFactory(messageType, handlerInterceptors.get(messageType),
-                                                                      parameterResolvers), serializer);
+                    new DefaultHandlerFactory(messageType, handlerInterceptors.get(messageType),
+                            messageType == WEBREQUEST ? withUntypedPayloadResolver(parameterResolvers)
+                                    : parameterResolvers), serializer);
+        }
+
+        private List<ParameterResolver<? super DeserializingMessage>> withUntypedPayloadResolver(
+                List<ParameterResolver<? super DeserializingMessage>> parameterResolvers) {
+            return concat(parameterResolvers.stream().filter(r -> !(r instanceof PayloadParameterResolver)),
+                    Stream.of(new UntypedPayloadParameterResolver())).collect(toList());
         }
     }
 

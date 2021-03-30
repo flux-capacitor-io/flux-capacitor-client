@@ -40,6 +40,7 @@ import io.fluxcapacitor.javaclient.tracking.ConsumerConfiguration;
 import io.fluxcapacitor.javaclient.tracking.Tracker;
 import io.fluxcapacitor.javaclient.tracking.handling.HandlerInterceptor;
 import io.fluxcapacitor.javaclient.tracking.handling.authentication.UserProvider;
+import io.fluxcapacitor.javaclient.web.WebRequest;
 import lombok.Getter;
 import lombok.Setter;
 import lombok.SneakyThrows;
@@ -51,32 +52,18 @@ import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.ZoneId;
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.List;
-import java.util.Map;
-import java.util.Objects;
-import java.util.Optional;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.CopyOnWriteArrayList;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
+import java.util.*;
+import java.util.concurrent.*;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.stream.Stream;
 
-import static io.fluxcapacitor.common.MessageType.COMMAND;
-import static io.fluxcapacitor.common.MessageType.QUERY;
-import static io.fluxcapacitor.common.MessageType.SCHEDULE;
+import static io.fluxcapacitor.common.MessageType.*;
 import static io.fluxcapacitor.common.handling.HandlerConfiguration.defaultHandlerConfiguration;
 import static io.fluxcapacitor.javaclient.common.ClientUtils.isLocalHandlerMethod;
 import static java.util.Collections.emptyList;
 import static java.util.Collections.singletonList;
-import static java.util.stream.Collectors.toCollection;
-import static java.util.stream.Collectors.toList;
-import static java.util.stream.Collectors.toSet;
+import static java.util.stream.Collectors.*;
 
 @Slf4j
 public class TestFixture implements Given, When {
@@ -180,10 +167,11 @@ public class TestFixture implements Given, When {
         HandlerConfiguration<DeserializingMessage> handlerConfiguration = defaultHandlerConfiguration();
         Registration registration = fluxCapacitor.apply(f -> handlers.stream().flatMap(h -> Stream
                 .of(fluxCapacitor.commandGateway().registerHandler(h, handlerConfiguration),
-                    fluxCapacitor.queryGateway().registerHandler(h, handlerConfiguration),
-                    fluxCapacitor.eventGateway().registerHandler(h, handlerConfiguration),
-                    fluxCapacitor.eventStore().registerHandler(h, handlerConfiguration),
-                    fluxCapacitor.errorGateway().registerHandler(h, handlerConfiguration)))
+                        fluxCapacitor.queryGateway().registerHandler(h, handlerConfiguration),
+                        fluxCapacitor.eventGateway().registerHandler(h, handlerConfiguration),
+                        fluxCapacitor.eventStore().registerHandler(h, handlerConfiguration),
+                        fluxCapacitor.errorGateway().registerHandler(h, handlerConfiguration),
+                        fluxCapacitor.webRequestGateway().registerHandler(h, handlerConfiguration)))
                 .reduce(Registration::merge).orElse(Registration.noOp()));
         if (fluxCapacitor.scheduler() instanceof DefaultScheduler) {
             DefaultScheduler scheduler = (DefaultScheduler) fluxCapacitor.scheduler();
@@ -235,6 +223,12 @@ public class TestFixture implements Given, When {
     }
 
     @Override
+    public When givenWebRequests(WebRequest... webRequests) {
+        return given(fc -> getDispatchResult(CompletableFuture.allOf((flatten((Object[]) webRequests)).map(
+                c -> fc.webRequestGateway().send((WebRequest) c)).toArray(CompletableFuture[]::new))));
+    }
+
+    @Override
     public When givenDomainEvents(String aggregateId, Object... events) {
         return given(fc -> publishDomainEvents(aggregateId, fc, events));
     }
@@ -251,6 +245,9 @@ public class TestFixture implements Given, When {
 
     @Override
     public When given(Consumer<FluxCapacitor> condition) {
+        if(whenStarted){
+            throw new IllegalStateException("Create a new fixture, don't re-use used fixtures.");
+        }
         return fluxCapacitor.apply(fc -> {
             try {
                 condition.accept(fc);
@@ -292,6 +289,11 @@ public class TestFixture implements Given, When {
     @Override
     public Then whenQuery(Object query) {
         return applyWhen(fc -> getDispatchResult(fc.queryGateway().send(interceptor.trace(query))));
+    }
+
+    @Override
+    public Then whenWebRequest(WebRequest webRequest) {
+        return applyWhen(fc -> getDispatchResult(fc.webRequestGateway().send(interceptor.trace(webRequest))));
     }
 
     @Override
@@ -378,9 +380,9 @@ public class TestFixture implements Given, When {
                     Data<byte[]> eventBytes = fc.serializer().serialize(eventData);
                     SerializedMessage message =
                             new SerializedMessage(eventBytes, event.getMetadata(), event.getMessageId(),
-                                                  event.getTimestamp().toEpochMilli());
+                                    event.getTimestamp().toEpochMilli());
                     fc.client().getEventStoreClient().storeEvents(aggregateId, "test", i,
-                                                                  singletonList(message), false);
+                            singletonList(message), false);
                 } else {
                     fc.eventStore().storeEvents(aggregateId, aggregateId, i, event);
                 }
@@ -419,7 +421,7 @@ public class TestFixture implements Given, When {
             }
             if (!checkConsumers()) {
                 log.warn("Some consumers in the test fixture did not finish processing all messages. "
-                                 + "This may cause your test to fail.");
+                        + "This may cause your test to fail.");
             }
         }
     }
@@ -463,7 +465,7 @@ public class TestFixture implements Given, When {
             throw e.getCause();
         } catch (TimeoutException e) {
             throw new TimeoutException("Test fixture did not receive a dispatch result in time. "
-                                               + "Perhaps some messages did not have handlers?");
+                    + "Perhaps some messages did not have handlers?");
         }
     }
 
@@ -493,6 +495,11 @@ public class TestFixture implements Given, When {
         return false;
     }
 
+    @Override
+    public String toString() {
+        return super.toString() + (synchronous ? "-synchronous" : "-asynchronous");
+    }
+
     protected class GivenWhenThenInterceptor implements DispatchInterceptor, BatchInterceptor, HandlerInterceptor {
 
         private static final String TRACE_TAG = "$givenWhenThen.trace", IGNORE_TAG = "$givenWhenThen.ignore";
@@ -500,9 +507,12 @@ public class TestFixture implements Given, When {
         private final Map<MessageType, List<Message>> publishedSchedules = new ConcurrentHashMap<>();
 
         protected Message trace(Object message) {
-            Message result =
-                    message instanceof Message ? (Message) message : new Message(message, Metadata.empty());
-            return result.withMetadata(result.getMetadata().with(TRACE_TAG, "true"));
+            return trace(message instanceof Message ? (Message) message : new Message(message, Metadata.empty()));
+        }
+
+        @SuppressWarnings("unchecked")
+        protected <T extends Message> T trace(Message message) {
+            return (T) message.withMetadata(message.getMetadata().with(TRACE_TAG, "true"));
         }
 
         @Override
@@ -526,7 +536,7 @@ public class TestFixture implements Given, When {
 
                 if (messageType == SCHEDULE) {
                     addMessage(publishedSchedules.computeIfAbsent(SCHEDULE, t -> new CopyOnWriteArrayList<>()),
-                               message);
+                            message);
                 }
 
                 synchronized (consumers) {

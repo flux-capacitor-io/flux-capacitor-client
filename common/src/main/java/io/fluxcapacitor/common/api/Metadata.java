@@ -17,6 +17,7 @@ package io.fluxcapacitor.common.api;
 import com.fasterxml.jackson.annotation.JsonAnyGetter;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.databind.JavaType;
 import com.fasterxml.jackson.databind.json.JsonMapper;
 import io.fluxcapacitor.common.serialization.NullCollectionsAsEmptyModule;
 import lombok.NonNull;
@@ -188,6 +189,20 @@ public class Metadata {
         } catch (IOException e) {
             throw new IllegalStateException(format("Failed to deserialize value %s to a %s for key %s",
                     value, type.getSimpleName(), key), e);
+        }
+    }
+
+    @SneakyThrows
+    public <T> T get(String key, JavaType type) {
+        String value = get(key);
+        if (value == null) {
+            return null;
+        }
+        try {
+            return objectMapper.readValue(value, type);
+        } catch (IOException e) {
+            throw new IllegalStateException(format("Failed to deserialize value %s to a %s for key %s",
+                    value, type.toCanonical(), key), e);
         }
     }
 

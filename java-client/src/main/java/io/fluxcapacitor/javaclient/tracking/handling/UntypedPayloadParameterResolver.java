@@ -16,30 +16,36 @@ package io.fluxcapacitor.javaclient.tracking.handling;
 
 import io.fluxcapacitor.common.handling.ParameterResolver;
 import io.fluxcapacitor.javaclient.common.serialization.DeserializingMessage;
+import lombok.Value;
 
 import java.lang.reflect.Parameter;
 import java.util.function.Function;
 
-public class PayloadParameterResolver implements ParameterResolver<DeserializingMessage> {
+/*
+    Should always be the last parameter resolver, since it matches everything in the first parameter
+ */
+@Value
+public class UntypedPayloadParameterResolver implements ParameterResolver<DeserializingMessage> {
+
     @Override
     public Function<DeserializingMessage, Object> resolve(Parameter p) {
         if (p.getDeclaringExecutable().getParameters()[0] == p) {
-            return DeserializingMessage::getPayload;
+            if(byte[].class.equals(p.getType())){
+                return m -> m.getSerializedObject().getData().getValue();
+            }
+            if(String.class.equals(p.getType())){
+                return m -> {
+                    String s = new String(m.getSerializedObject().getData().getValue());
+                    return s;
+                };
+            }
+            return m -> m.getPayloadAs(p.getType());
         }
         return null;
     }
 
     @Override
     public boolean matches(Parameter parameter, DeserializingMessage value) {
-        if (parameter.getDeclaringExecutable().getParameters()[0] == parameter) {
-            Class<?> payloadClass;
-            try {
-                payloadClass = value.getPayloadClass();
-            } catch (Exception e) {
-                return false; //class may be unknown, in that case we simply want to ignore the message
-            }
-            return parameter.getType().isAssignableFrom(payloadClass);
-        }
-        return false;
+        return parameter.getDeclaringExecutable().getParameters()[0] == parameter;
     }
 }

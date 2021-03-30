@@ -15,6 +15,7 @@
 package io.fluxcapacitor.javaclient.test;
 
 import io.fluxcapacitor.javaclient.FluxCapacitor;
+import io.fluxcapacitor.javaclient.web.WebResponse;
 import org.hamcrest.Matcher;
 import org.hamcrest.core.IsNot;
 
@@ -105,6 +106,20 @@ public interface Then {
     Then expectSchedules(List<?> schedules);
 
     Then expectNoSchedulesLike(List<?> schedules);
+
+    /*
+        WebResponses
+     */
+
+    Then expectWebResponse(Object webResponse);
+
+    default Then expectWebResponse(WebResponse webResponse) {
+        return expectWebResponse((Object) webResponse);
+    }
+
+    default <T> Then expectWebResponse(Predicate<T> predicate) {
+        return predicate == null ? expectWebResponse((Object) null) : expectWebResponse(toMatcher(predicate));
+    }
 
     /*
         Result

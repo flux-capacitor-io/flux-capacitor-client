@@ -17,6 +17,7 @@ package io.fluxcapacitor.javaclient.test;
 import io.fluxcapacitor.javaclient.FluxCapacitor;
 import io.fluxcapacitor.javaclient.common.Message;
 import io.fluxcapacitor.javaclient.scheduling.Schedule;
+import io.fluxcapacitor.javaclient.web.WebResponse;
 import lombok.AccessLevel;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
@@ -91,11 +92,31 @@ public class ResultValidator implements Then {
     }
 
     @Override
+    public Then expectWebResponse(Object expectedWebResponse) {
+        return fluxCapacitor.apply(fc -> {
+            WebResponse actualWebResponse = actualResult instanceof Throwable ? fc.webResponseFormatter()
+                    .apply(null, (Throwable) actualResult) : fc.webResponseFormatter().apply(actualResult, null);
+            if (!matches(expectedWebResponse, actualWebResponse)) {
+                if (!(expectedWebResponse instanceof Matcher<?>) && actualWebResponse != null && expectedWebResponse != null
+                        && !Objects.equals(expectedWebResponse.getClass(), actualWebResponse.getClass())) {
+                    throw new GivenWhenThenAssertionError(format(
+                            "Handler returned a result of unexpected type.\nExpected: %s\nGot: %s",
+                            expectedWebResponse.getClass(), actualWebResponse.getClass()));
+                }
+                throw new GivenWhenThenAssertionError("Handler returned an unexpected result",
+                        expectedWebResponse, actualWebResponse);
+            }
+            return this;
+        });
+    }
+
+
+    @Override
     public ResultValidator expectResult(Object expectedResult) {
         return fluxCapacitor.apply(fc -> {
             if (actualResult instanceof Throwable) {
                 throw new GivenWhenThenAssertionError("An unexpected exception occurred during handling",
-                                                      (Throwable) actualResult);
+                        (Throwable) actualResult);
             }
             if (!matches(expectedResult, actualResult)) {
                 if (!(expectedResult instanceof Matcher<?>) && actualResult != null && expectedResult != null
@@ -105,7 +126,7 @@ public class ResultValidator implements Then {
                             expectedResult.getClass(), actualResult.getClass()));
                 }
                 throw new GivenWhenThenAssertionError("Handler returned an unexpected result",
-                                                      expectedResult, actualResult);
+                        expectedResult, actualResult);
             }
             return this;
         });
@@ -116,12 +137,12 @@ public class ResultValidator implements Then {
         return fluxCapacitor.apply(fc -> {
             if (actualResult instanceof Throwable) {
                 throw new GivenWhenThenAssertionError("An unexpected exception occurred during handling",
-                                                      (Throwable) actualResult);
+                        (Throwable) actualResult);
             }
             if (matches(value, actualResult)) {
                 throw new GivenWhenThenAssertionError(
                         format("Handler returned the unwanted result.\nExpected not to get: %s\nGot: %s",
-                               value, actualResult));
+                                value, actualResult));
             }
             return this;
         });
@@ -151,7 +172,7 @@ public class ResultValidator implements Then {
             }
             if (!resultMatcher.matches(actualResult)) {
                 throw new GivenWhenThenAssertionError("Handler threw unexpected exception",
-                                                      description, actualResult);
+                        description, actualResult);
             }
             return this;
         });
@@ -169,8 +190,8 @@ public class ResultValidator implements Then {
                     if (actual.stream().noneMatch(s -> Objects.equals(s.getDeadline(), ((Schedule) e).getDeadline()))) {
                         throw new GivenWhenThenAssertionError(
                                 format("Found no schedules with matching deadline. Expected %s. Got %s",
-                                       ((Schedule) e).getDeadline(),
-                                       actual.stream().map(Schedule::getDeadline).collect(toList())));
+                                        ((Schedule) e).getDeadline(),
+                                        actual.stream().map(Schedule::getDeadline).collect(toList())));
                     }
                 }
             });
@@ -193,11 +214,11 @@ public class ResultValidator implements Then {
         fluxCapacitor.apply(fc -> {
             if (actualResult instanceof Throwable) {
                 throw new GivenWhenThenAssertionError("An unexpected exception occurred during handling",
-                                                      (Throwable) actualResult);
+                        (Throwable) actualResult);
             }
             throw new GivenWhenThenAssertionError(
                     format("Unwanted match found in published messages.\nExpected not to get: %s\nGot: %s\n\n",
-                           expected, actual));
+                            expected, actual));
         });
     }
 
@@ -277,7 +298,7 @@ public class ResultValidator implements Then {
             return ((Matcher<?>) expected).matches(actual.getPayload()) || ((Matcher<?>) expected).matches(actual);
         }
         Message expectedMessage = expected instanceof Message ? (Message) expected : new Message(expected);
-        return expectedMessage.getPayload().equals(actual.getPayload()) && actual.getMetadata().entrySet()
+        return Objects.equals(expectedMessage.getPayload(), actual.getPayload()) && actual.getMetadata().entrySet()
                 .containsAll(expectedMessage.getMetadata().entrySet());
     }
 

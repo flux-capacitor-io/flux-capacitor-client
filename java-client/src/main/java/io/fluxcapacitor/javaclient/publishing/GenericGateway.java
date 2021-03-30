@@ -50,7 +50,7 @@ public interface GenericGateway extends HasLocalHandlers {
         return send(new Message(payload, metadata));
     }
 
-    CompletableFuture<Message> sendForMessage(Message message);
+    <R extends Message> CompletableFuture<R> sendForMessage(Message message);
 
     default <R> R sendAndWait(Object payload) {
         return sendAndWait(payload instanceof Message ? (Message) payload : new Message(payload));
@@ -63,7 +63,12 @@ public interface GenericGateway extends HasLocalHandlers {
 
     @SneakyThrows
     default <R> R sendAndWait(Message message) {
-        CompletableFuture<R> future = send(message);
+        return sendAndWaitForMessage(message).getPayload();
+    }
+
+    @SneakyThrows
+    default <R extends Message> R sendAndWaitForMessage(Message message) {
+        CompletableFuture<R> future = sendForMessage(message);
         try {
             Timeout timeout = message.getPayload().getClass().getAnnotation(Timeout.class);
             if (timeout != null) {

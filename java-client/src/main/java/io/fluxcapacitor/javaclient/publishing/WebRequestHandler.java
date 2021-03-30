@@ -16,10 +16,13 @@ package io.fluxcapacitor.javaclient.publishing;
 
 import io.fluxcapacitor.common.api.SerializedMessage;
 import io.fluxcapacitor.javaclient.common.Message;
+import io.fluxcapacitor.javaclient.common.serialization.DeserializingMessage;
 import io.fluxcapacitor.javaclient.common.serialization.Serializer;
 import io.fluxcapacitor.javaclient.configuration.client.Client;
 import io.fluxcapacitor.javaclient.tracking.ConsumerConfiguration;
 import io.fluxcapacitor.javaclient.tracking.client.DefaultTracker;
+import io.fluxcapacitor.javaclient.web.WebResponse;
+import io.fluxcapacitor.javaclient.web.WebUtils;
 import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
@@ -31,28 +34,29 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Consumer;
+import java.util.stream.Stream;
 
-import static io.fluxcapacitor.common.MessageType.RESULT;
+import static io.fluxcapacitor.common.MessageType.WEBRESPONSE;
 import static io.fluxcapacitor.javaclient.common.ClientUtils.waitForResults;
 
 @AllArgsConstructor
 @Slf4j
-public class DefaultRequestHandler implements RequestHandler {
+public class WebRequestHandler implements RequestHandler {
 
     private final Serializer serializer;
     private final Client client;
-    private final Map<Integer, CompletableFuture<Message>> callbacks = new ConcurrentHashMap<>();
+    private final Map<Integer, CompletableFuture<WebResponse>> callbacks = new ConcurrentHashMap<>();
     private final AtomicInteger nextId = new AtomicInteger();
     private final AtomicBoolean started = new AtomicBoolean();
 
     @Override
     @SuppressWarnings("unchecked")
     public <R extends Message> CompletableFuture<R> sendRequest(SerializedMessage request,
-                                                                Consumer<SerializedMessage> requestSender) {
+                                                  Consumer<SerializedMessage> requestSender) {
         if (started.compareAndSet(false, true)) {
-            DefaultTracker.start(this::handleMessages, ConsumerConfiguration.getDefault(RESULT), client);
+            DefaultTracker.start(this::handleMessages, ConsumerConfiguration.getDefault(WEBRESPONSE), client);
         }
-        CompletableFuture<Message> result = new CompletableFuture<>();
+        CompletableFuture<WebResponse> result = new CompletableFuture<>();
         int requestId = nextId.getAndIncrement();
         callbacks.put(requestId, result);
         request.setRequestId(requestId);
@@ -66,28 +70,26 @@ public class DefaultRequestHandler implements RequestHandler {
         waitForResults(Duration.ofSeconds(2), callbacks.values());
     }
 
+    @SuppressWarnings("OptionalGetWithoutIsPresent")
     protected void handleMessages(List<SerializedMessage> messages) {
         messages.forEach(m -> {
             try {
-                CompletableFuture<Message> future = callbacks.get(m.getRequestId());
+                CompletableFuture<WebResponse> future = callbacks.get(m.getRequestId());
                 if (future == null) {
                     log.warn("Received response with index {} for unknown request {}", m.getIndex(), m.getRequestId());
                     return;
                 }
-                Object result;
+                WebResponse webResponse;
                 try {
-                    result = serializer.deserialize(m.getData());
+                    webResponse = (WebResponse) serializer.deserializeMessages(Stream.of(m), false, WEBRESPONSE)
+                            .map(DeserializingMessage::toMessage).findFirst().get();
                 } catch (Exception e) {
                     log.error("Failed to deserialize result with id {}. Continuing with next result", m.getRequestId(), e);
-                    future.completeExceptionally(e);
+                    future.complete(WebUtils.unexpectedError());
                     return;
                 }
                 try {
-                    if (result instanceof Throwable) {
-                        future.completeExceptionally((Exception) result);
-                    } else {
-                        future.complete(new Message(result, m.getMetadata()));
-                    }
+                    future.complete(webResponse);
                 } catch (Exception e) {
                     log.error("Failed to complete request with id {}", m.getRequestId(), e);
                 }

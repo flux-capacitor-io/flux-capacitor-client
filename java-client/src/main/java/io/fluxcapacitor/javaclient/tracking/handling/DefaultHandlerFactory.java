@@ -26,8 +26,12 @@ import lombok.RequiredArgsConstructor;
 import java.lang.annotation.Annotation;
 import java.util.List;
 import java.util.Optional;
+import java.util.function.Predicate;
+import java.util.regex.Pattern;
 
 import static io.fluxcapacitor.common.handling.HandlerInspector.hasHandlerMethods;
+import static java.util.Optional.ofNullable;
+import static org.apache.commons.lang3.StringUtils.isBlank;
 
 @RequiredArgsConstructor
 public class DefaultHandlerFactory implements HandlerFactory {
@@ -41,7 +45,9 @@ public class DefaultHandlerFactory implements HandlerFactory {
         Class<? extends Annotation> methodAnnotation = getHandlerAnnotation(messageType);
         if (hasHandlerMethods(target.getClass(), methodAnnotation, handlerConfiguration)) {
             return Optional.of(handlerInterceptor.wrap(
-                    HandlerInspector.createHandler(target, methodAnnotation, parameterResolvers, handlerConfiguration),
+                    HandlerInspector.createHandler(target, methodAnnotation, parameterResolvers,
+                            handlerConfiguration.toBuilder().annotationFilter(
+                                    DefaultHandlerFactory::getHandlerAnnotationFilter).build()),
                     consumer));
         }
         return Optional.empty();
@@ -65,8 +71,23 @@ public class DefaultHandlerFactory implements HandlerFactory {
                 return HandleSchedule.class;
             case METRICS:
                 return HandleMetrics.class;
+            case WEBREQUEST:
+                return HandleWebRequest.class;
+            case WEBRESPONSE:
+                return HandleWebResponse.class;
             default:
                 throw new ConfigurationException(String.format("Unrecognized type: %s", messageType));
         }
+    }
+
+    private static Predicate<DeserializingMessage> getHandlerAnnotationFilter(Annotation annotation) {
+        if (HandleWebRequest.class.equals(annotation.annotationType())) {
+            HandleWebRequest requestAnnotation = (HandleWebRequest) annotation;
+            Pattern pathPattern = Pattern.compile(requestAnnotation.path());
+            return m -> (isBlank(requestAnnotation.method()) || requestAnnotation.method().equalsIgnoreCase(m.getMetadata().get("method")))
+                    && ofNullable(m.getMetadata().get("path")).map(p -> p.split("\\?")[0])
+                    .map(p -> pathPattern.matcher(p).matches()).orElse(false);
+        }
+        return m -> true;
     }
 }

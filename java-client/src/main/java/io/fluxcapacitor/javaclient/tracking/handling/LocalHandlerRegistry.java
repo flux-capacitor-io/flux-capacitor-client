@@ -60,12 +60,13 @@ public class LocalHandlerRegistry implements HandlerRegistry {
     }
 
     @Override
-    public Optional<CompletableFuture<Message>> handle(Object payload, SerializedMessage serializedMessage) {
+    @SuppressWarnings("unchecked")
+    public <R extends Message> Optional<CompletableFuture<R>> handle(Object payload, SerializedMessage serializedMessage) {
         if (!localHandlers.isEmpty()) {
             return new DeserializingMessage(serializedMessage, type -> serializer.convert(payload, type),
                                             messageType).apply(m -> {
                 boolean handled = false;
-                CompletableFuture<Message> future = new CompletableFuture<>();
+                CompletableFuture<R> future = new CompletableFuture<>();
                 for (Handler<DeserializingMessage> handler : localHandlers) {
                     if (handler.canHandle(m)) {
                         boolean passive = handler.isPassive(m);
@@ -73,15 +74,16 @@ public class LocalHandlerRegistry implements HandlerRegistry {
                             Object result = handler.invoke(m);
                             if (!passive && !future.isDone()) {
                                 if (result instanceof CompletableFuture<?>) {
-                                    future = ((CompletableFuture<?>) result).thenApply(Message::new);
+                                    future = ((CompletableFuture<?>) result)
+                                            .thenApply(r -> r != null && Message.class.isAssignableFrom(r.getClass()) ? (R) r : (R) new Message(r));
                                 } else {
-                                    future.complete(new Message(result));
+                                    future.complete(result != null && Message.class.isAssignableFrom(result.getClass()) ? (R) result : (R) new Message(result));
                                 }
                             }
                         } catch (Exception e) {
                             if (passive) {
                                 log.error("Passive local handler {} failed to handle a {}", handler,
-                                          m.getPayloadClass(), e);
+                                        m.getPayloadClass(), e);
                             } else {
                                 future.completeExceptionally(e);
                             }

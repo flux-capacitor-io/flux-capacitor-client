@@ -75,6 +75,14 @@
                 </exclusion>
             </exclusions>
         </dependency>
+
+        <!--Optional web client for calling webserver of flux clients-->
+        <dependency>
+            <groupId>org.jboss.resteasy</groupId>
+            <artifactId>resteasy-client</artifactId>
+            <version>4.2.0.Final</version>
+            <optional>true</optional>
+        </dependency>
     </dependencies>
 
     <build>
@@ -284,6 +292,24 @@
                                 <goals>
                                     <goal>display-dependency-updates</goal>
                                     <goal>display-plugin-updates</goal>
+                                </goals>
+                            </execution>
+                        </executions>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+        <profile>
+            <id>sources</id>
+            <build>
+                <plugins>
+                    <plugin>
+                        <artifactId>maven-source-plugin</artifactId>
+                        <executions>
+                            <execution>
+                                <id>attach-sources</id>
+                                <goals>
+                                    <goal>jar-no-fork</goal>
                                 </goals>
                             </execution>
                         </executions>

@@ -30,19 +30,14 @@ import io.fluxcapacitor.javaclient.tracking.handling.MessageParameterResolver;
 import io.fluxcapacitor.javaclient.tracking.handling.MetadataParameterResolver;
 import io.fluxcapacitor.javaclient.tracking.handling.PayloadParameterResolver;
 import io.fluxcapacitor.javaclient.tracking.handling.authentication.UserParameterResolver;
+import io.fluxcapacitor.javaclient.web.WebRequest;
+import io.fluxcapacitor.javaclient.web.WebResponse;
 import lombok.AllArgsConstructor;
 import lombok.Value;
 import lombok.experimental.Delegate;
 import lombok.extern.slf4j.Slf4j;
 
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Spliterator;
-import java.util.Spliterators;
+import java.util.*;
 import java.util.function.BiFunction;
 import java.util.function.Consumer;
 import java.util.function.Function;
@@ -60,10 +55,10 @@ import static java.util.stream.Collectors.toList;
 public class DeserializingMessage {
     public static MessageFormatter messageFormatter = MessageFormatter.DEFAULT;
     public static List<ParameterResolver<? super DeserializingMessage>> defaultParameterResolvers =
-            Arrays.asList(new DeserializingMessageParameterResolver(),
-                    new PayloadParameterResolver(), new MetadataParameterResolver(),
+            Arrays.asList(new DeserializingMessageParameterResolver(), new MetadataParameterResolver(),
                     new MessageParameterResolver(), new AggregateIdResolver(),
-                    new AggregateTypeResolver(), new UserParameterResolver());
+                    new AggregateTypeResolver(), new UserParameterResolver(),
+                    new PayloadParameterResolver());
     public static MethodInvokerFactory<DeserializingMessage> defaultInvokerFactory = MethodHandlerInvoker::new;
 
     private static final ThreadLocal<Collection<Runnable>> messageCompletionHandlers = new ThreadLocal<>();
@@ -101,9 +96,20 @@ public class DeserializingMessage {
                     ofEpochMilli(delegate.getSerializedObject().getTimestamp()),
                     getMetadata().get(Schedule.scheduleIdMetadataKey), currentClock().instant());
         }
-        return new Message(delegate.getPayload(), getMetadata(),
-                delegate.getSerializedObject().getMessageId(),
-                ofEpochMilli(delegate.getSerializedObject().getTimestamp()));
+        switch (messageType) {
+            case WEBREQUEST:
+                return new WebRequest(delegate.getPayload(), getMetadata(),
+                        delegate.getSerializedObject().getMessageId(),
+                        ofEpochMilli(delegate.getSerializedObject().getTimestamp()));
+            case WEBRESPONSE:
+                return new WebResponse(delegate.getPayload(), getMetadata(),
+                        delegate.getSerializedObject().getMessageId(),
+                        ofEpochMilli(delegate.getSerializedObject().getTimestamp()));
+            default:
+                return new Message(delegate.getPayload(), getMetadata(),
+                        delegate.getSerializedObject().getMessageId(),
+                        ofEpochMilli(delegate.getSerializedObject().getTimestamp()));
+        }
     }
 
     public static DeserializingMessage getCurrent() {

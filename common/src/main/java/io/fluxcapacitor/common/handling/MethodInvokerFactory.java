@@ -22,5 +22,6 @@ import java.util.List;
 public interface MethodInvokerFactory<T> {
     HandlerInspector.MethodHandlerInvoker<T> create(Executable executable, Class<?> enclosingType,
                                                     List<ParameterResolver<? super T>> parameterResolvers,
-                                                    Class<? extends Annotation> annotation);
+                                                    Class<? extends Annotation> annotation,
+                                                    HandlerConfiguration<T> handlerConfiguration);
 }

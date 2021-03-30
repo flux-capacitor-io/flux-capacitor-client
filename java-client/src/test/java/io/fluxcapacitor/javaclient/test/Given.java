@@ -16,6 +16,7 @@ package io.fluxcapacitor.javaclient.test;
 
 import io.fluxcapacitor.javaclient.FluxCapacitor;
 import io.fluxcapacitor.javaclient.scheduling.Schedule;
+import io.fluxcapacitor.javaclient.web.WebRequest;
 
 import java.time.Clock;
 import java.time.Duration;
@@ -34,6 +35,8 @@ public interface Given {
     When givenDomainEvents(String aggregateId, Object... events);
 
     When givenEvents(Object... events);
+
+    When givenWebRequests(WebRequest... webRequests);
 
     When given(Consumer<FluxCapacitor> condition);
 

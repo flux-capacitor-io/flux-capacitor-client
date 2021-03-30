@@ -53,6 +53,9 @@ public abstract class AbstractSerializer implements Serializer {
                 }
                 return new Data<>(serialize(data.getValue()).getValue(), data.getType(), data.getRevision(), format);
             }
+            if (object instanceof byte[]) {
+                return new Data<>((byte[]) object, asString(byte[].class), 0, format);
+            }
             bytes = doSerialize(object);
         } catch (Exception e) {
             throw new SerializationException("Could not serialize " + object, e);
@@ -102,19 +105,19 @@ public abstract class AbstractSerializer implements Serializer {
             Stream<S> dataStream, boolean failOnUnknownType) {
         return upcasterChain.upcast((Stream<SerializedObject<byte[], ?>>) dataStream)
                 .flatMap(s -> {
-                    if (!isKnownType(s.data().getType())) {
+                    if (s.data().getType() != null && !isKnownType(s.data().getType())) {
                         if (failOnUnknownType) {
                             throw new SerializationException(
                                     format("Could not deserialize object. The serialized type is unknown: %s (rev. %d)",
-                                           s.data().getType(), s.data().getRevision()));
+                                            s.data().getType(), s.data().getRevision()));
                         }
                         return (Stream) handleUnknownType(s);
                     }
                     return (Stream) Stream.of(new DeserializingObject(s, (Function<Class<?>, Object>) type -> {
                         try {
-                            return Object.class.equals(type)
-                                    ? doDeserialize(s.data().getValue(), s.data().getType())
-                                    : doDeserialize(s.data().getValue(), asString(type));
+                            return doDeserialize(s.data().getValue(),
+                                    Object.class.equals(type) && s.data().getType() != null ?
+                                            s.data().getType() : asString(type));
                         } catch (Exception e) {
                             throw new SerializationException("Could not deserialize a " + s.data().getType(), e);
                         }
@@ -122,10 +125,12 @@ public abstract class AbstractSerializer implements Serializer {
                 });
     }
 
+    protected abstract Object doDeserialize(byte[] bytes, String type) throws Exception;
+
     @SuppressWarnings("unchecked")
     @Override
     public <V> V convert(Object value, Class<V> type) {
-        if (type == null || Object.class.equals(type)) {
+        if (type == null || Object.class.equals(type) || value == null || type.isAssignableFrom(value.getClass())) {
             return (V) value;
         }
         return doConvert(value, type);
@@ -145,8 +150,6 @@ public abstract class AbstractSerializer implements Serializer {
     protected Stream<DeserializingObject<byte[], ?>> handleUnknownType(SerializedObject<byte[], ?> serializedObject) {
         return Stream.empty();
     }
-
-    protected abstract Object doDeserialize(byte[] bytes, String type) throws Exception;
 
     protected enum NullValue {
         INSTANCE;

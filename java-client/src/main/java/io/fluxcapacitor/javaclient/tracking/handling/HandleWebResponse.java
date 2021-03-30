@@ -14,12 +14,10 @@
 
 package io.fluxcapacitor.javaclient.tracking.handling;
 
-import io.fluxcapacitor.common.api.SerializedMessage;
-import io.fluxcapacitor.javaclient.common.Message;
+import java.lang.annotation.*;
 
-import java.util.Optional;
-import java.util.concurrent.CompletableFuture;
-
-public interface HandlerRegistry extends HasLocalHandlers {
-    <R extends Message> Optional<CompletableFuture<R>> handle(Object payload, SerializedMessage serializedMessage);
+@Documented
+@Retention(RetentionPolicy.RUNTIME)
+@Target(ElementType.METHOD)
+public @interface HandleWebResponse {
 }

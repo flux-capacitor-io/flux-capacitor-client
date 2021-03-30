@@ -20,8 +20,11 @@ import lombok.Builder.Default;
 import lombok.Value;
 import lombok.experimental.Accessors;
 
+import java.lang.annotation.Annotation;
 import java.lang.reflect.Executable;
 import java.util.function.BiPredicate;
+import java.util.function.Function;
+import java.util.function.Predicate;
 
 @Value
 @Builder(toBuilder = true)
@@ -30,6 +33,7 @@ public class HandlerConfiguration<T> {
 
     @Default boolean invokeMultipleMethods = false;
     @Default BiPredicate<Class<?>, Executable> handlerFilter = (c, e) -> true;
+    @Default Function<Annotation, Predicate<T>> annotationFilter = a -> t -> true;
     @Default MethodInvokerFactory<T> invokerFactory = MethodHandlerInvoker::new;
 
     @SuppressWarnings("unchecked")

@@ -26,11 +26,7 @@ import io.fluxcapacitor.javaclient.common.serialization.upcasting.Upcast;
 import lombok.Value;
 import org.junit.jupiter.api.Test;
 
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 

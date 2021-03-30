@@ -20,17 +20,8 @@ import lombok.Getter;
 import lombok.SneakyThrows;
 
 import java.lang.annotation.Annotation;
-import java.lang.reflect.Constructor;
-import java.lang.reflect.Executable;
-import java.lang.reflect.InvocationTargetException;
-import java.lang.reflect.Method;
-import java.lang.reflect.Modifier;
-import java.lang.reflect.Parameter;
-import java.util.Arrays;
-import java.util.Comparator;
-import java.util.List;
-import java.util.Objects;
-import java.util.Optional;
+import java.lang.reflect.*;
+import java.util.*;
 import java.util.function.Function;
 import java.util.function.Predicate;
 import java.util.stream.Stream;
@@ -75,7 +66,8 @@ public class HandlerInspector {
                                                   .filter(m -> m.isAnnotationPresent(methodAnnotation)
                                                           && handlerConfiguration.handlerFilter().test(type, m))
                                                   .map(m -> handlerConfiguration.invokerFactory()
-                                                          .create(m, type, parameterResolvers, methodAnnotation))
+                                                          .create(m, type, parameterResolvers, methodAnnotation,
+                                                                  handlerConfiguration))
                                                   .sorted(comparator).collect(toList()),
                                           handlerConfiguration.invokeMultipleMethods());
     }
@@ -102,14 +94,15 @@ public class HandlerInspector {
 
         public MethodHandlerInvoker(Executable executable, Class<?> enclosingType,
                                     List<ParameterResolver<? super M>> parameterResolvers,
-                                    Class<? extends Annotation> methodAnnotation) {
+                                    Class<? extends Annotation> methodAnnotation,
+                                    HandlerConfiguration<M> handlerConfiguration) {
             this.methodAnnotation = methodAnnotation;
             this.methodIndex = executable instanceof Method ? methodIndex((Method) executable, enclosingType) : 0;
             this.executable = ensureAccessible(executable);
             this.hasReturnValue =
                     !(executable instanceof Method) || !(((Method) executable).getReturnType()).equals(void.class);
             this.parameterSuppliers = getParameterSuppliers(executable, parameterResolvers);
-            this.matcher = getMatcher(executable, parameterResolvers);
+            this.matcher = getMatcher(executable, parameterResolvers, methodAnnotation, handlerConfiguration);
             this.priority = getPriority(executable, methodAnnotation);
         }
 
@@ -180,12 +173,19 @@ public class HandlerInspector {
         }
 
         protected Class<?> getPayloadType() {
-            return executable.getParameterTypes()[0];
+            return Optional.ofNullable(executable.getParameterTypes()).filter(p -> p.length != 0).<Class<?>>map(p -> p[0]).orElse(Object.class);
         }
 
         protected Predicate<M> getMatcher(Executable executable,
-                                          List<ParameterResolver<? super M>> parameterResolvers) {
+                                          List<ParameterResolver<? super M>> parameterResolvers,
+                                          Class<? extends Annotation> methodAnnotation,
+                                          HandlerConfiguration<M> handlerConfiguration) {
+            Annotation annotation = executable.getAnnotation(methodAnnotation);
+            Predicate<M> annotationFilter = handlerConfiguration.annotationFilter().apply(annotation);
             return m -> {
+                if(!annotationFilter.test(m)){
+                    return false;
+                }
                 if (executable.getParameters().length == 0) {
                     return true;
                 }

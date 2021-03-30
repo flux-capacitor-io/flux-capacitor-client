@@ -59,9 +59,9 @@ public class DefaultGenericGateway implements GenericGateway {
     }
 
     @Override
-    public CompletableFuture<Message> sendForMessage(Message message) {
+    public <R extends Message> CompletableFuture<R> sendForMessage(Message message) {
         SerializedMessage serializedMessage = serializer.serialize(message);
-        Optional<CompletableFuture<Message>> localResult
+        Optional<CompletableFuture<R>> localResult
                 = localHandlerRegistry.handle(message.getPayload(), serializedMessage);
         if (localResult.isPresent()) {
             return localResult.get();
