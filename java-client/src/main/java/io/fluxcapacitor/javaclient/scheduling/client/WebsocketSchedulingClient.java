@@ -16,6 +16,7 @@ package io.fluxcapacitor.javaclient.scheduling.client;
 
 import io.fluxcapacitor.common.Awaitable;
 import io.fluxcapacitor.common.Backlog;
+import io.fluxcapacitor.common.MessageType;
 import io.fluxcapacitor.common.api.scheduling.CancelSchedule;
 import io.fluxcapacitor.common.api.scheduling.Schedule;
 import io.fluxcapacitor.common.api.scheduling.ScheduledMessage;
@@ -38,7 +39,7 @@ public class WebsocketSchedulingClient extends AbstractWebsocketClient implement
     }
 
     public WebsocketSchedulingClient(URI endpointUri, Properties properties) {
-        super(endpointUri, properties, true);
+        super(endpointUri, properties, true, properties.getGatewaySessions().get(MessageType.SCHEDULE));
         backlog = new Backlog<>(this::scheduleMessages);
     }
 

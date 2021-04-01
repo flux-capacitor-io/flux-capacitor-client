@@ -44,7 +44,7 @@ public class WebsocketGatewayClient extends AbstractWebsocketClient implements G
     }
 
     public WebsocketGatewayClient(URI endPointUri, int backlogSize, Properties properties, MessageType type) {
-        super(endPointUri, properties, type != METRICS);
+        super(endPointUri, properties, type != METRICS, properties.getGatewaySessions().get(type));
         this.backlog = new Backlog<>(this::doSend, backlogSize);
     }
 
