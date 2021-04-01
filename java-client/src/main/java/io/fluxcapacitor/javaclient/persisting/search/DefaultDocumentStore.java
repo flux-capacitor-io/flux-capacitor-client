@@ -17,6 +17,7 @@ package io.fluxcapacitor.javaclient.persisting.search;
 import io.fluxcapacitor.common.Guarantee;
 import io.fluxcapacitor.common.api.search.Constraint;
 import io.fluxcapacitor.common.api.search.DocumentStats;
+import io.fluxcapacitor.common.api.search.SearchHistogram;
 import io.fluxcapacitor.common.api.search.SearchQuery;
 import io.fluxcapacitor.javaclient.persisting.keyvalue.KeyValueStoreException;
 import io.fluxcapacitor.javaclient.persisting.search.client.SearchClient;
@@ -117,6 +118,11 @@ public class DefaultDocumentStore implements DocumentStore {
         public <T> Stream<SearchHit<T>> stream(Class<T> type) {
             return client.search(queryBuilder.build(), sorting).map(hit -> hit.map(document -> serializer
                     .fromDocument(document, type)));
+        }
+
+        @Override
+        public SearchHistogram getHistogram(int resolution) {
+            return client.getHistogram(queryBuilder.build(), resolution);
         }
 
         @Override

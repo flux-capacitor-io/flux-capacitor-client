@@ -22,9 +22,12 @@ import io.fluxcapacitor.common.api.search.DeleteDocuments;
 import io.fluxcapacitor.common.api.search.DocumentStats;
 import io.fluxcapacitor.common.api.search.GetDocumentStats;
 import io.fluxcapacitor.common.api.search.GetDocumentStatsResult;
+import io.fluxcapacitor.common.api.search.GetSearchHistogram;
+import io.fluxcapacitor.common.api.search.GetSearchHistogramResult;
 import io.fluxcapacitor.common.api.search.IndexDocuments;
 import io.fluxcapacitor.common.api.search.SearchDocuments;
 import io.fluxcapacitor.common.api.search.SearchDocumentsResult;
+import io.fluxcapacitor.common.api.search.SearchHistogram;
 import io.fluxcapacitor.common.api.search.SearchQuery;
 import io.fluxcapacitor.common.api.search.SerializedDocument;
 import io.fluxcapacitor.common.search.Document;
@@ -52,7 +55,7 @@ public class WebSocketSearchClient extends AbstractWebsocketClient implements Se
     }
 
     public WebSocketSearchClient(URI endpointUri, WebSocketClient.Properties properties) {
-        super(endpointUri, properties, true, 2);
+        super(endpointUri, properties, true, properties.getSearchSessions());
         backlog = new Backlog<>(this::storeValues);
     }
 
@@ -85,7 +88,7 @@ public class WebSocketSearchClient extends AbstractWebsocketClient implements Se
 
     @Override
     public Stream<SearchHit<Document>> search(SearchQuery query, List<String> sorting) {
-        SearchDocumentsResult result = sendAndWait(new SearchDocuments(query, sorting));
+        SearchDocumentsResult result = sendAndWait(new SearchDocuments(query, sorting, 100));
         return result.getMatches().stream().map(d -> new SearchHit<>(
                 d.getId(), d.getCollection(), Instant.ofEpochMilli(d.getTimestamp()), () -> Optional.ofNullable(
                 d.getDocument()).map(SerializedDocument::deserializeDocument).orElse(null)));
@@ -95,6 +98,12 @@ public class WebSocketSearchClient extends AbstractWebsocketClient implements Se
     public List<DocumentStats> getStatistics(SearchQuery query, List<String> fields, List<String> groupBy) {
         GetDocumentStatsResult result = sendAndWait(new GetDocumentStats(query, fields, groupBy));
         return result.getDocumentStats();
+    }
+
+    @Override
+    public SearchHistogram getHistogram(SearchQuery query, int resolution) {
+        GetSearchHistogramResult result = sendAndWait(new GetSearchHistogram(query, resolution));
+        return result.getHistogram();
     }
 
     @Override

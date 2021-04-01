@@ -18,12 +18,9 @@ import io.fluxcapacitor.common.api.Request;
 import lombok.EqualsAndHashCode;
 import lombok.Value;
 
-import java.util.List;
-
 @EqualsAndHashCode(callSuper = true)
 @Value
-public class SearchDocuments extends Request {
+public class GetSearchHistogram extends Request {
     SearchQuery query;
-    List<String> sorting;
-    int count;
+    int resolution;
 }

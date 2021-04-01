@@ -14,16 +14,12 @@
 
 package io.fluxcapacitor.common.api.search;
 
-import io.fluxcapacitor.common.api.Request;
-import lombok.EqualsAndHashCode;
+import io.fluxcapacitor.common.api.QueryResult;
 import lombok.Value;
 
-import java.util.List;
-
-@EqualsAndHashCode(callSuper = true)
 @Value
-public class SearchDocuments extends Request {
-    SearchQuery query;
-    List<String> sorting;
-    int count;
+public class GetSearchHistogramResult implements QueryResult {
+    long requestId;
+    SearchHistogram histogram;
+    long timestamp = System.currentTimeMillis();
 }

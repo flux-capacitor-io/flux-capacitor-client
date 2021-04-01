@@ -82,6 +82,7 @@ public class WebSocketClient extends AbstractClient {
         @Default CompressionAlgorithm compression = LZ4;
         @Default int eventSourcingSessions = 2;
         @Default int keyValueSessions = 2;
+        @Default int searchSessions = 2;
         @Default Map<MessageType, Integer> gatewaySessions = computeGatewaySessions();
         @Default Map<MessageType, Integer> trackingSessions = computeTrackingSessions();
         String projectId;

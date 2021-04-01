@@ -14,38 +14,47 @@
 
 package io.fluxcapacitor.common.api.search.constraints;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import io.fluxcapacitor.common.api.search.Constraint;
 import io.fluxcapacitor.common.search.Document;
+import lombok.Getter;
 import lombok.NonNull;
 import lombok.Value;
 import org.apache.commons.lang3.StringUtils;
 
 import java.beans.ConstructorProperties;
 import java.util.Arrays;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
-
-import static java.lang.Character.isWhitespace;
 
 @Value
 public class FindConstraint extends PathConstraint {
-    public static Constraint find(@NonNull String phrase, String... paths) {
+    public static Constraint find(@NonNull String find, String... paths) {
         switch (paths.length) {
-            case 0: return new FindConstraint(phrase, null);
-            case 1: return new FindConstraint(phrase, paths[0]);
-            default: return new AnyConstraint(Arrays.stream(paths).map(p -> new FindConstraint(phrase, p)).collect(
+            case 0: return new FindConstraint(find, null);
+            case 1: return new FindConstraint(find, paths[0]);
+            default: return new AnyConstraint(Arrays.stream(paths).map(p -> new FindConstraint(find, p)).collect(
                     Collectors.toList()));
         }
     }
 
     String find;
     String path;
+    boolean postfixSearch; //i.e. phrase was foo*
     boolean prefixSearch; //i.e. phrase was *foo
+
+    @JsonIgnore
+    @Getter(lazy = true)
+    Pattern pattern = Pattern.compile((prefixSearch ? "" : "\\b") + find + (postfixSearch ? "" : "\\b"));
 
     @ConstructorProperties({"find", "path"})
     public FindConstraint(@NonNull String find, String path) {
         find = StringUtils.stripAccents(StringUtils.strip(find.toLowerCase()));
-        if (find.endsWith("*") && !find.endsWith("\\*")) {
+        if (find.endsWith("*")) {
             find = find.substring(0, find.length() - 1);
+            postfixSearch = true;
+        } else {
+            postfixSearch = false;
         }
         if (find.startsWith("*")) {
             find = find.substring(1);
@@ -59,8 +68,6 @@ public class FindConstraint extends PathConstraint {
 
     @Override
     protected boolean matches(Document.Entry entry) {
-        String value = entry.asPhrase();
-        int index = value.indexOf(find);
-        return index >= 0 && (prefixSearch || index == 0 || isWhitespace(value.charAt(index - 1)));
+        return getPattern().matcher(entry.asPhrase()).find();
     }
 }

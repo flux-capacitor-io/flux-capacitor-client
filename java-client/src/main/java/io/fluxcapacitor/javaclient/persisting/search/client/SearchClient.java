@@ -17,6 +17,7 @@ package io.fluxcapacitor.javaclient.persisting.search.client;
 import io.fluxcapacitor.common.Awaitable;
 import io.fluxcapacitor.common.Guarantee;
 import io.fluxcapacitor.common.api.search.DocumentStats;
+import io.fluxcapacitor.common.api.search.SearchHistogram;
 import io.fluxcapacitor.common.api.search.SearchQuery;
 import io.fluxcapacitor.common.search.Document;
 import io.fluxcapacitor.javaclient.persisting.search.SearchHit;
@@ -38,6 +39,8 @@ public interface SearchClient extends AutoCloseable {
     Awaitable delete(SearchQuery query, Guarantee guarantee);
 
     List<DocumentStats> getStatistics(SearchQuery query, List<String> fields, List<String> groupBy);
+
+    SearchHistogram getHistogram(SearchQuery query, int resolution);
 
     @Override
     void close();

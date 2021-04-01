@@ -17,11 +17,13 @@ package io.fluxcapacitor.javaclient.persisting.search.client;
 import io.fluxcapacitor.common.Awaitable;
 import io.fluxcapacitor.common.Guarantee;
 import io.fluxcapacitor.common.api.search.DocumentStats;
+import io.fluxcapacitor.common.api.search.SearchHistogram;
 import io.fluxcapacitor.common.api.search.SearchQuery;
 import io.fluxcapacitor.common.search.Document;
 import io.fluxcapacitor.javaclient.persisting.search.SearchHit;
 
 import java.math.BigDecimal;
+import java.time.Instant;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -29,6 +31,7 @@ import java.util.Map;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.function.Function;
 import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
 import static io.fluxcapacitor.common.search.Document.EntryType.NUMERIC;
@@ -71,6 +74,25 @@ public class InMemorySearchClient implements SearchClient {
         return groups.entrySet().stream().map(e -> new DocumentStats(
                 fields.stream().collect(toMap(Function.identity(), f -> getFieldStats(f, e.getValue()), (a, b) -> b)),
                 asMap(groupBy, e.getKey()))).collect(toList());
+    }
+
+    @Override
+    public SearchHistogram getHistogram(SearchQuery query, int resolution) {
+        List<Long> results = IntStream.range(0, resolution).mapToLong(i -> 0L).boxed().collect(toList());
+        if (query.getSince() == null) {
+            return new SearchHistogram(query.getSince(), query.getBefore(), results);
+        }
+        if (query.getBefore() == null) {
+            query = query.toBuilder().before(Instant.now()).build();
+        }
+        long min = query.getSince().toEpochMilli();
+        long delta = query.getBefore().toEpochMilli() - min;
+        long step = Math.min(1, delta / resolution);
+
+        this.search(query, singletonList("timestamp"))
+                .collect(groupingBy(d -> (d.getTimestamp().toEpochMilli() - min) / step))
+                .forEach((bucket, hits) -> results.set(bucket.intValue(), (long) hits.size()));
+        return new SearchHistogram(query.getSince(), query.getBefore(), results);
     }
 
     private DocumentStats.FieldStats getFieldStats(String path, List<Document> documents) {

@@ -15,6 +15,7 @@
 package io.fluxcapacitor.common.search;
 
 import lombok.AllArgsConstructor;
+import lombok.Builder;
 import lombok.NonNull;
 import lombok.Value;
 import org.apache.commons.lang3.StringUtils;
@@ -28,6 +29,8 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 @Value
+@Builder(toBuilder = true)
+@AllArgsConstructor
 public class Document {
     String id;
     String type;
