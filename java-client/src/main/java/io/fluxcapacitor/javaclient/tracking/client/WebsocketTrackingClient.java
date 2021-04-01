@@ -46,7 +46,7 @@ public class WebsocketTrackingClient extends AbstractWebsocketClient implements 
     }
 
     public WebsocketTrackingClient(URI endPointUri, Properties properties, MessageType type) {
-        super(endPointUri, properties, type != METRICS);
+        super(endPointUri, properties, type != METRICS, properties.getTrackingSessions().get(type));
     }
 
     @Override
