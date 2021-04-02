@@ -25,10 +25,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.hamcrest.Matcher;
 import org.hamcrest.StringDescription;
 
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.List;
-import java.util.Objects;
+import java.util.*;
 import java.util.function.Consumer;
 import java.util.function.Predicate;
 import java.util.stream.Stream;
@@ -287,7 +284,7 @@ public class ResultValidator implements Then {
         if (expected instanceof Matcher<?>) {
             return ((Matcher<?>) expected).matches(actual);
         }
-        return Objects.equals(expected, actual);
+        return equals(expected, actual);
     }
 
     protected boolean matches(Object expected, Message actual) {
@@ -298,8 +295,15 @@ public class ResultValidator implements Then {
             return ((Matcher<?>) expected).matches(actual.getPayload()) || ((Matcher<?>) expected).matches(actual);
         }
         Message expectedMessage = expected instanceof Message ? (Message) expected : new Message(expected);
-        return Objects.equals(expectedMessage.getPayload(), actual.getPayload()) && actual.getMetadata().entrySet()
+        return equals(expectedMessage.getPayload(), actual.getPayload()) && actual.getMetadata().entrySet()
                 .containsAll(expectedMessage.getMetadata().entrySet());
+    }
+
+    protected boolean equals(Object expected, Object actual) {
+        return Objects.equals(expected, actual)
+                || (expected != null && byte[].class.equals(expected.getClass())
+                && actual != null && byte[].class.equals(actual.getClass())
+                && Arrays.equals((byte[]) expected, (byte[]) actual));
     }
 
     protected Collection<?> asMessages(Collection<?> expectedMessages) {
@@ -307,4 +311,6 @@ public class ResultValidator implements Then {
                 ? GivenWhenThenUtils.toMatcher((Predicate<?>) e) : e instanceof Matcher<?> ? (Matcher<?>) e :
                 e instanceof Message ? (Message) e : new Message(e)).collect(toList());
     }
+
+
 }

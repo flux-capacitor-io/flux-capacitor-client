@@ -10,6 +10,7 @@ import java.util.List;
 import java.util.Map;
 
 import static io.fluxcapacitor.javaclient.web.WebUtils.headersJavaType;
+import static java.util.Collections.emptyMap;
 
 public class WebRequest extends Message {
 
@@ -41,17 +42,29 @@ public class WebRequest extends Message {
 
     @JsonIgnore
     public String getPath() {
-        return getMetadata().get("path");
+        return getPath(getMetadata());
     }
 
     @JsonIgnore
     public String getMethod() {
-        return getMetadata().get("method");
+        return getMethod(getMetadata());
     }
 
     @JsonIgnore
     public Map<String, List<String>> getHeaders() {
-        return getMetadata().get("headers", headersJavaType);
+        return getHeaders(getMetadata());
+    }
+
+    public static String getPath(Metadata metadata) {
+        return metadata.get("path");
+    }
+
+    public static String getMethod(Metadata metadata) {
+        return metadata.get("method");
+    }
+
+    public static Map<String, List<String>> getHeaders(Metadata metadata) {
+        return metadata.containsKey("headers") ? metadata.get("headers", headersJavaType) : emptyMap();
     }
 
 }

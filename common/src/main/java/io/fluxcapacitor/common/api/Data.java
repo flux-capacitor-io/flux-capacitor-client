@@ -49,7 +49,7 @@ public class Data<T> implements SerializedObject<T, Data<T>> {
     }
 
     public String getFormat() {
-        return format == null ? "json" : format;
+        return format == null ? "application/json" : format;
     }
 
     @Override

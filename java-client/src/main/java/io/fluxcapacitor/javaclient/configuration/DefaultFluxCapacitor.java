@@ -167,7 +167,7 @@ public class DefaultFluxCapacitor implements FluxCapacitor {
         private SchedulingInterceptor schedulingInterceptor = new SchedulingInterceptor();
         private BiFunction<Object, Throwable, WebResponse> webResponseFormatter = defaultWebResponseFormatter();
         private Cache cache = new DefaultCache();
-        private final Map<String, ConsumerConfiguration> webServers = new HashMap<>();
+        private final Map<Integer, ConsumerConfiguration> webServers = new HashMap<>();
         private boolean disableErrorReporting;
         private boolean disableMessageCorrelation;
         private boolean disablePayloadValidation;
@@ -181,6 +181,11 @@ public class DefaultFluxCapacitor implements FluxCapacitor {
         protected Map<MessageType, List<ConsumerConfiguration>> defaultConfigurations() {
             return unmodifiableMap(stream(MessageType.values()).collect(toMap(identity(), messageType ->
                     new ArrayList<>(singletonList(ConsumerConfiguration.getDefault(messageType))))));
+        }
+
+        protected ConsumerConfiguration defaultWebServerConfiguration(Integer port) {
+            return ConsumerConfiguration.getDefault(WEBREQUEST).toBuilder()
+                    .name(format("%s_localhost:%s", WEBREQUEST, port)).build();
         }
 
         @Override
@@ -272,7 +277,6 @@ public class DefaultFluxCapacitor implements FluxCapacitor {
             return this;
         }
 
-
         @Override
         public FluxCapacitorBuilder withAggregateCache(Class<?> aggregateType, Cache cache) {
             this.cache = new SelectiveCache(cache, SelectiveCache.aggregateSelector(aggregateType), this.cache);
@@ -280,8 +284,16 @@ public class DefaultFluxCapacitor implements FluxCapacitor {
         }
 
         @Override
-        public FluxCapacitorBuilder registerWebServer(String port, ConsumerConfiguration consumerConfiguration) {
-            this.webServers.put(ofNullable(port).orElse("8080"), consumerConfiguration);
+        public FluxCapacitorBuilder registerWebServer(Integer port) {
+            Integer p = ofNullable(port).orElse(8080);
+            this.webServers.put(p, defaultWebServerConfiguration(p));
+            return this;
+        }
+
+        @Override
+        public FluxCapacitorBuilder registerWebServer(Integer port, @NonNull UnaryOperator<ConsumerConfiguration> updateConsumerConfiguration) {
+            Integer p = ofNullable(port).orElse(8080);
+            this.webServers.put(p, updateConsumerConfiguration.apply(defaultWebServerConfiguration(p)));
             return this;
         }
 
@@ -476,15 +488,20 @@ public class DefaultFluxCapacitor implements FluxCapacitor {
                                     .get(m == NOTIFICATION ? EVENT : m),
                                     parameterResolvers), null)));
 
+            //webserver
+            batchInterceptors.forEach((type, interceptors) -> {
+                if (WEBREQUEST == type) webServers.forEach((port, config) ->
+                        config.toBuilder().batchInterceptors(interceptors).build());
+            });
             Optional.of(WEBREQUEST).ifPresent(m -> trackingMap.put(m,
                     new DefaultTracking(m, client, webResponseGateway, consumerConfigurations.get(m), this.serializer,
                             new DefaultHandlerFactory(m, handlerInterceptors.get(m),
-                                    withUntypedPayloadResolver(parameterResolvers)),
+                                    toWebRequestResolvers(parameterResolvers)),
                             webResponseFormatter.andThen(w -> w))));
 
             List<DefaultWebClient> webClients = new ArrayList<>();
             webServers.forEach((port, consumerConfiguration) ->
-                    webClients.add(new DefaultWebClient(port, consumerConfiguration, client, webResponseGateway, this.serializer)));
+                    webClients.add(new DefaultWebClient(port, consumerConfiguration, client, webResponseGateway)));
 
             //misc
             Scheduler scheduler = new DefaultScheduler(client.getSchedulingClient(),
@@ -553,11 +570,11 @@ public class DefaultFluxCapacitor implements FluxCapacitor {
                                                        Map<MessageType, HandlerInterceptor> handlerInterceptors) {
             return new LocalHandlerRegistry(messageType,
                     new DefaultHandlerFactory(messageType, handlerInterceptors.get(messageType),
-                            messageType == WEBREQUEST ? withUntypedPayloadResolver(parameterResolvers)
+                            messageType == WEBREQUEST ? toWebRequestResolvers(parameterResolvers)
                                     : parameterResolvers), serializer);
         }
 
-        private List<ParameterResolver<? super DeserializingMessage>> withUntypedPayloadResolver(
+        private List<ParameterResolver<? super DeserializingMessage>> toWebRequestResolvers(
                 List<ParameterResolver<? super DeserializingMessage>> parameterResolvers) {
             return concat(parameterResolvers.stream().filter(r -> !(r instanceof PayloadParameterResolver)),
                     Stream.of(new UntypedPayloadParameterResolver())).collect(toList());

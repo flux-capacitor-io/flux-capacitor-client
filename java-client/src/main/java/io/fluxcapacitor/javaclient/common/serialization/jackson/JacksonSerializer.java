@@ -68,7 +68,7 @@ public class JacksonSerializer extends AbstractSerializer {
     }
 
     public JacksonSerializer(ObjectMapper objectMapper, Upcaster<SerializedObject<byte[], ?>> upcasterChain) {
-        super(upcasterChain, "json");
+        super(upcasterChain, "application/json");
         this.objectMapper = objectMapper;
     }
 
@@ -84,7 +84,7 @@ public class JacksonSerializer extends AbstractSerializer {
 
     @Override
     protected Object doDeserialize(byte[] bytes, String type) throws Exception {
-        return objectMapper.readValue(bytes, typeCache.apply(type));
+        return typeStringCache.apply(byte[].class).equals(type) ? bytes : objectMapper.readValue(bytes, typeCache.apply(type));
     }
 
 

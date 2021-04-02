@@ -2,7 +2,6 @@ package io.fluxcapacitor.javaclient.web;
 
 import io.fluxcapacitor.common.Registration;
 import io.fluxcapacitor.common.api.SerializedMessage;
-import io.fluxcapacitor.javaclient.common.serialization.Serializer;
 import io.fluxcapacitor.javaclient.configuration.client.Client;
 import io.fluxcapacitor.javaclient.publishing.ResultGateway;
 import io.fluxcapacitor.javaclient.tracking.ConsumerConfiguration;
@@ -17,17 +16,19 @@ import org.jboss.resteasy.plugins.interceptors.GZIPEncodingInterceptor;
 
 import javax.ws.rs.client.ClientBuilder;
 import javax.ws.rs.client.Entity;
-import javax.ws.rs.client.Invocation;
 import javax.ws.rs.client.WebTarget;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.MultivaluedHashMap;
 import javax.ws.rs.core.MultivaluedMap;
 import javax.ws.rs.core.Response;
+import java.util.Arrays;
 import java.util.List;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 import java.util.function.Consumer;
 import java.util.function.UnaryOperator;
 
-import static io.fluxcapacitor.common.MessageType.WEBREQUEST;
 import static java.lang.String.format;
 import static javax.ws.rs.client.ClientBuilder.newBuilder;
 
@@ -36,31 +37,54 @@ public class DefaultWebClient implements AutoCloseable {
 
     ResteasyClient httpClient = httpClient();
     Registration registration;
+    private final ExecutorService executorService = Executors.newWorkStealingPool(8);
 
-    public DefaultWebClient(String port, ConsumerConfiguration consumerConfiguration, Client client, ResultGateway resultGateway, Serializer serializer) {
-        Consumer<List<SerializedMessage>> consumer = messages ->
-                serializer.deserializeMessages(messages.stream(), false, WEBREQUEST).forEach(m -> {
+    //TODO remove
+    static byte[] NULL = "null".getBytes();
+
+    public DefaultWebClient(Integer port, ConsumerConfiguration consumerConfiguration, Client client, ResultGateway resultGateway) {
+        Consumer<List<SerializedMessage>> consumer = messages -> messages.forEach(m -> {
+            try {
+                MultivaluedMap<String, Object> headers = new MultivaluedHashMap<>();
+                WebRequest.getHeaders(m.getMetadata()).forEach(headers::addAll);
+                WebTarget target = httpClient.target(format("http://localhost:%s", port));
+                MediaType mediaType = determineMediaType(m.getData().getFormat(), (String) headers.getFirst("Content-Type"));
+
+                Future<Response> future = target.path(WebRequest.getPath(m.getMetadata()))
+                        .request().headers(headers).async().method(WebRequest.getMethod(m.getMetadata()), Entity.entity(
+                                Arrays.equals(NULL, m.getData().getValue()) ? null : m.getData().getValue(), mediaType));
+
+                executorService.submit(() -> {
                     try {
-                        WebRequest webRequest = (WebRequest) m.toMessage();
-                        MultivaluedMap<String, Object> headers = new MultivaluedHashMap<>();
-                        webRequest.getHeaders().forEach(headers::addAll);
-                        WebTarget target = httpClient.target(format("http://localhost:%s", port));
-                        Invocation.Builder requestBuilder = target.path(webRequest.getPath()).request().headers(headers);
-
-                        try (Response response = requestBuilder.build(webRequest.getMethod(),
-                                Entity.entity(webRequest.getPayload(), MediaType.valueOf((String) headers.getFirst("Content-Type")))).invoke()) {
-
+                        try (Response response = future.get()){
                             resultGateway.respond(new WebResponse(response.readEntity(byte[].class),
-                                            response.getStatus(), response.getStringHeaders()),
-                                    m.getSerializedObject().getSource(), m.getSerializedObject().getRequestId());
+                                    response.getStatus(), response.getStringHeaders()), m.getSource(), m.getRequestId());
                         }
                     } catch (Exception e) {
                         log.error(format("Could not deliver webrequest to webserver on port %s. %s", port, e.getMessage()), e);
-                        resultGateway.respond(WebUtils.unexpectedError(),
-                                m.getSerializedObject().getSource(), m.getSerializedObject().getRequestId());
+                        resultGateway.respond(WebUtils.unexpectedError(), m.getSource(), m.getRequestId());
                     }
                 });
+
+            } catch (Exception e) {
+                log.error(format("Could not create webrequest to webserver on port %s. %s", port, e.getMessage()), e);
+                resultGateway.respond(WebUtils.unexpectedError(), m.getSource(), m.getRequestId());
+            }
+        });
         registration = DefaultTracker.start(consumer, consumerConfiguration, client);
+    }
+
+    protected MediaType determineMediaType(String format, String contentType) {
+        try {
+            return MediaType.valueOf(format);
+        } catch (Exception e) {
+            try {
+                return MediaType.valueOf(contentType);
+            } catch (Exception e1) {
+                log.warn(format("Could not determine webrequest mediatype from format %s or contentType %s. Defaulting to text/plain", format, contentType));
+                return MediaType.TEXT_PLAIN_TYPE;
+            }
+        }
     }
 
     @Override
@@ -69,6 +93,7 @@ public class DefaultWebClient implements AutoCloseable {
             registration.cancel();
         }
         httpClient.close();
+        executorService.shutdown();
     }
 
 

@@ -27,10 +27,11 @@ public class WebRequestTest {
 
     private static final String aggregateId = "test";
     private final List<TestFixture> fixtures = Arrays.asList(TestFixture.create(new Handler()), TestFixture.createAsync(new Handler()));
+    private static final UpsertModel upsertModel = new UpsertModel("something");
 
     @Test
     void handleGetReturnObject() {
-        fixtures.forEach(f -> f.givenCommands(new UpsertModel("something"))
+        fixtures.forEach(f -> f.givenCommands(upsertModel)
                 .whenWebRequest(new WebRequest(null, "/get", "GET"))
                 .expectResult(TestModel.builder().payload("something").build())
                 .expectWebResponse(new WebResponse(TestModel.builder().payload("something").build(), 200)));
@@ -38,7 +39,7 @@ public class WebRequestTest {
 
     @Test
     void handleGetReturnWebResponse() {
-        fixtures.forEach(f -> f.givenCommands(new UpsertModel("something"))
+        fixtures.forEach(f -> f.givenCommands(upsertModel)
                 .whenWebRequest(new WebRequest(null, "/webResponse", "GET"))
                 .expectResult(TestModel.builder().payload("something").build())
                 .expectWebResponse(new WebResponse(TestModel.builder().payload("something").build(), 201,
@@ -62,41 +63,52 @@ public class WebRequestTest {
     @Test
     void handleSpecificPost() {
         fixtures.forEach(f -> f.givenNoPriorActivity()
-                .whenWebRequest(new WebRequest(new UpsertModel("something"), "/specific", "POST"))
-                .expectResult(null)
-                .expectWebResponse(new WebResponse(null, 204)));
+                .whenWebRequest(new WebRequest(upsertModel, "/specific", "POST"))
+                .expectResult(upsertModel)
+                .expectCommands(upsertModel)
+                .expectWebResponse(new WebResponse(upsertModel, 200)));
     }
 
     @Test
     void handleObjectPost() {
         fixtures.forEach(f -> f.givenNoPriorActivity()
-                .whenWebRequest(new WebRequest(new UpsertModel("something"), "/object", "POST"))
-                .expectResult(null)
-                .expectWebResponse(new WebResponse(null, 204)));
+                .whenWebRequest(new WebRequest(upsertModel, "/object", "POST"))
+                .expectResult(upsertModel)
+                .expectCommands(upsertModel)
+                .expectWebResponse(new WebResponse(upsertModel, 200)));
     }
 
     @Test
+    @SneakyThrows
     void handleStringPost() {
+        String expectedResult = jsonMapper.writeValueAsString(upsertModel);
         fixtures.forEach(f -> f.givenNoPriorActivity()
-                .whenWebRequest(new WebRequest(new UpsertModel("something"), "/string", "POST"))
-                .expectResult(null)
-                .expectWebResponse(new WebResponse(null, 204)));
+                .whenWebRequest(new WebRequest(upsertModel, "/string", "POST"))
+                .expectResult(expectedResult)
+                .expectCommands(upsertModel)
+                .expectWebResponse(new WebResponse(expectedResult, 200)));
     }
 
     @Test
+    @SneakyThrows
     void handleBytesPost() {
-        fixtures.forEach(f -> f.givenNoPriorActivity()
-                .whenWebRequest(new WebRequest(new UpsertModel("something"), "/bytes", "POST"))
-                .expectResult(null)
-                .expectWebResponse(new WebResponse(null, 204)));
+        byte[] expectedResult = jsonMapper.writeValueAsBytes(upsertModel);
+        TestFixture.createAsync(new Handler()).givenNoPriorActivity()
+                .whenWebRequest(new WebRequest(upsertModel, "/bytes", "POST"))
+                .expectResult(expectedResult)
+                .expectCommands(upsertModel)
+                .expectWebResponse(new WebResponse(expectedResult, 200));
     }
 
     @Test
+    @SneakyThrows
     void handleJsonPost() {
+        JsonNode expectedResult = jsonMapper.convertValue(upsertModel, JsonNode.class);
         fixtures.forEach(f -> f.givenNoPriorActivity()
-                .whenWebRequest(new WebRequest(new UpsertModel("something"), "/json", "POST"))
-                .expectResult(null)
-                .expectWebResponse(new WebResponse(null, 204)));
+                .whenWebRequest(new WebRequest(upsertModel, "/json", "POST"))
+                .expectResult(expectedResult)
+                .expectCommands(upsertModel)
+                .expectWebResponse(new WebResponse(expectedResult, 200)));
     }
 
 
@@ -110,51 +122,54 @@ public class WebRequestTest {
 
         @HandleWebRequest(path = "/webResponse", method = "GET")
         @SneakyThrows
-        Object handleGetWebRequest(WebRequest webRequest, Metadata metadata) {
+        Object handleGetWebRequest(WebRequest webRequest) {
             return new WebResponse(queryAndWait(new GetModel()), 201, singletonMap("webResponse", singletonList("someValue")));
-        }
-
-
-        @HandleWebRequest(path = "/bytes", method = "POST")
-        @SneakyThrows
-        void handleBytePost(byte[] payload, Metadata metadata) {
-            sendAndForgetCommand(jsonMapper.readValue(payload, UpsertModel.class));
         }
 
         @HandleWebRequest(path = "/technicalException", method = "GET")
         @SneakyThrows
-        void handleTechnicalException(Metadata metadata) {
+        void handleTechnicalException() {
             throw new RuntimeException("Do you see me?");
         }
 
         @HandleWebRequest(path = "/functionalException", method = "GET")
         @SneakyThrows
-        void handleFunctionalException(Metadata metadata) {
+        void handleFunctionalException() {
             throw new UnauthenticatedException("Do you see me?");
+        }
+
+        @HandleWebRequest(path = "/bytes", method = "POST")
+        @SneakyThrows
+        byte[]  handleBytePost(byte[] payload) {
+            sendCommandAndWait(jsonMapper.readValue(payload, UpsertModel.class));
+            return payload;
         }
 
         @HandleWebRequest(path = "/object", method = "POST")
         @SneakyThrows
-        void handleObjectPost(Object payload, Metadata metadata) {
-            sendAndForgetCommand(jsonMapper.convertValue(payload, UpsertModel.class));
+        Object handleObjectPost(Object payload) {
+            sendCommandAndWait(jsonMapper.convertValue(payload, UpsertModel.class));
+            return payload;
         }
 
         @HandleWebRequest(path = "/string", method = "POST")
         @SneakyThrows
-        void handleStringPost(String payload, Metadata metadata) {
-            sendAndForgetCommand(jsonMapper.readValue(payload, UpsertModel.class));
+        String handleStringPost(String payload) {
+            sendCommandAndWait(jsonMapper.readValue(payload, UpsertModel.class));
+            return payload;
         }
 
         @HandleWebRequest(path = "/specific", method = "POST")
-        @SneakyThrows
-        void handleSpecificPost(UpsertModel payload, Metadata metadata) {
-            sendAndForgetCommand(payload);
+        UpsertModel handleSpecificPost(UpsertModel payload, Metadata metadata) {
+            sendCommandAndWait(payload);
+            return payload;
         }
 
         @HandleWebRequest(path = "/json", method = "POST")
         @SneakyThrows
-        void handleJsonPost(JsonNode payload, Metadata metadata) {
+        JsonNode handleJsonPost(JsonNode payload, Metadata metadata) {
             sendAndForgetCommand(jsonMapper.convertValue(payload, UpsertModel.class));
+            return payload;
         }
 
         @HandleCommand

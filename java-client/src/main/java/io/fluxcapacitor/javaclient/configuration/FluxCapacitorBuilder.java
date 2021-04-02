@@ -64,7 +64,10 @@ public interface FluxCapacitorBuilder {
      */
     FluxCapacitorBuilder withAggregateCache(Class<?> aggregateType, Cache cache);
 
-    FluxCapacitorBuilder registerWebServer(String port, ConsumerConfiguration consumerConfiguration);
+    FluxCapacitorBuilder registerWebServer(Integer port);
+
+    FluxCapacitorBuilder registerWebServer(Integer port, UnaryOperator<ConsumerConfiguration> updateConsumerConfiguration);
+
 
     FluxCapacitorBuilder addParameterResolver(ParameterResolver<DeserializingMessage> parameterResolver);
 
