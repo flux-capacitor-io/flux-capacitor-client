@@ -56,6 +56,7 @@ import lombok.Getter;
 import lombok.NonNull;
 import lombok.experimental.Accessors;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang3.tuple.Pair;
 
 import java.time.Clock;
 import java.util.*;
@@ -167,7 +168,7 @@ public class DefaultFluxCapacitor implements FluxCapacitor {
         private SchedulingInterceptor schedulingInterceptor = new SchedulingInterceptor();
         private BiFunction<Object, Throwable, WebResponse> webResponseFormatter = defaultWebResponseFormatter();
         private Cache cache = new DefaultCache();
-        private final Map<Integer, ConsumerConfiguration> webServers = new HashMap<>();
+        private Pair<Integer, ConsumerConfiguration> webServerConfig = null;
         private boolean disableErrorReporting;
         private boolean disableMessageCorrelation;
         private boolean disablePayloadValidation;
@@ -286,14 +287,14 @@ public class DefaultFluxCapacitor implements FluxCapacitor {
         @Override
         public FluxCapacitorBuilder registerWebServer(Integer port) {
             Integer p = ofNullable(port).orElse(8080);
-            this.webServers.put(p, defaultWebServerConfiguration(p));
+            this.webServerConfig = Pair.of(p, defaultWebServerConfiguration(p));
             return this;
         }
 
         @Override
         public FluxCapacitorBuilder registerWebServer(Integer port, @NonNull UnaryOperator<ConsumerConfiguration> updateConsumerConfiguration) {
             Integer p = ofNullable(port).orElse(8080);
-            this.webServers.put(p, updateConsumerConfiguration.apply(defaultWebServerConfiguration(p)));
+            this.webServerConfig = Pair.of(p, updateConsumerConfiguration.apply(defaultWebServerConfiguration(p)));
             return this;
         }
 
@@ -488,20 +489,20 @@ public class DefaultFluxCapacitor implements FluxCapacitor {
                                     .get(m == NOTIFICATION ? EVENT : m),
                                     parameterResolvers), null)));
 
-            //webserver
-            batchInterceptors.forEach((type, interceptors) -> {
-                if (WEBREQUEST == type) webServers.forEach((port, config) ->
-                        config.toBuilder().batchInterceptors(interceptors).build());
-            });
             Optional.of(WEBREQUEST).ifPresent(m -> trackingMap.put(m,
                     new DefaultTracking(m, client, webResponseGateway, consumerConfigurations.get(m), this.serializer,
                             new DefaultHandlerFactory(m, handlerInterceptors.get(m),
                                     toWebRequestResolvers(parameterResolvers)),
                             webResponseFormatter.andThen(w -> w))));
 
+            //webserver
             List<DefaultWebClient> webClients = new ArrayList<>();
-            webServers.forEach((port, consumerConfiguration) ->
-                    webClients.add(new DefaultWebClient(port, consumerConfiguration, client, webResponseGateway)));
+            if (webServerConfig != null) {
+                batchInterceptors.forEach((type, interceptors) -> {
+                    if (WEBREQUEST == type) webServerConfig.getValue().toBuilder().batchInterceptors(interceptors).build();
+                });
+                webClients.add(new DefaultWebClient(webServerConfig.getKey(), webServerConfig.getValue(), client, webResponseGateway));
+            }
 
             //misc
             Scheduler scheduler = new DefaultScheduler(client.getSchedulingClient(),

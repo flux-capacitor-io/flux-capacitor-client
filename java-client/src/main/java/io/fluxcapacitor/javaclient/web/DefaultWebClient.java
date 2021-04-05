@@ -92,8 +92,8 @@ public class DefaultWebClient implements AutoCloseable {
         if (registration != null) {
             registration.cancel();
         }
-        httpClient.close();
         executorService.shutdown();
+        httpClient.close();
     }
 
 
