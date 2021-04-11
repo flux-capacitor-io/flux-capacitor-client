@@ -25,5 +25,5 @@ import java.util.List;
 public class SearchDocuments extends Request {
     SearchQuery query;
     List<String> sorting;
-    int count;
+    int maxSize;
 }
