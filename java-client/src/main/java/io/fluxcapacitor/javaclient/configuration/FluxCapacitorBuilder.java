@@ -24,11 +24,11 @@ import io.fluxcapacitor.javaclient.persisting.caching.Cache;
 import io.fluxcapacitor.javaclient.publishing.DispatchInterceptor;
 import io.fluxcapacitor.javaclient.tracking.BatchInterceptor;
 import io.fluxcapacitor.javaclient.tracking.ConsumerConfiguration;
-import io.fluxcapacitor.javaclient.tracking.handling.HandleWebRequest;
 import io.fluxcapacitor.javaclient.tracking.handling.HandlerInterceptor;
 import io.fluxcapacitor.javaclient.tracking.handling.authentication.UserProvider;
 import io.fluxcapacitor.javaclient.web.WebResponse;
 import io.fluxcapacitor.javaclient.web.WebUtils;
+import io.fluxcapacitor.javaclient.web.handling.HandleWebRequest;
 
 import java.util.function.BiFunction;
 import java.util.function.UnaryOperator;

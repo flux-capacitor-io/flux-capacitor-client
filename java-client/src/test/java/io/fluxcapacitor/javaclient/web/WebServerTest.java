@@ -19,6 +19,8 @@ import java.util.List;
 
 import static io.fluxcapacitor.javaclient.FluxCapacitor.loadAggregate;
 import static io.fluxcapacitor.javaclient.common.serialization.SerializationUtils.jsonMapper;
+import static io.fluxcapacitor.javaclient.web.WebMethod.GET;
+import static io.fluxcapacitor.javaclient.web.WebMethod.POST;
 import static io.fluxcapacitor.javaclient.web.WebTestUtils.createWebServerTestFixture;
 import static io.undertow.Handlers.path;
 import static io.undertow.util.Headers.CONTENT_TYPE;
@@ -54,7 +56,7 @@ public class WebServerTest {
     void testGetJsonFromServer() {
         byte[] expectedResult = jsonMapper.writeValueAsBytes(upsertModel);
         testFixture.givenNoPriorActivity()
-                .whenWebRequest(new WebRequest(null, "/getJson", "GET"))
+                .whenWebRequest(new WebRequest(null, "/getJson", GET))
                 .expectResult(expectedResult)
                 .expectWebResponse(new WebResponse(expectedResult, 200));
     }
@@ -63,7 +65,7 @@ public class WebServerTest {
     @SneakyThrows
     void testGetVoidFromServer() {
         testFixture.givenNoPriorActivity()
-                .whenWebRequest(new WebRequest(null, "/getVoid", "GET"))
+                .whenWebRequest(new WebRequest(null, "/getVoid", GET))
                 .expectResult(null)
                 .expectWebResponse(new WebResponse(null, 204));
     }
@@ -72,7 +74,7 @@ public class WebServerTest {
     @SneakyThrows
     void testGetTextFromServer() {
         testFixture.givenNoPriorActivity()
-                .whenWebRequest(new WebRequest(null, "/getText", "GET"))
+                .whenWebRequest(new WebRequest(null, "/getText", GET))
                 .expectResult("Do you see me?".getBytes(StandardCharsets.UTF_8))
                 .expectWebResponse(new WebResponse("Do you see me?".getBytes(StandardCharsets.UTF_8), 200));
     }
@@ -82,7 +84,7 @@ public class WebServerTest {
     void testGetInputBackFromServer() {
         byte[] expectedResult = jsonMapper.writeValueAsBytes(upsertModel);
         testFixture.givenNoPriorActivity()
-                .whenWebRequest(new WebRequest(upsertModel, "/getPostedPayloadBack", "POST"))
+                .whenWebRequest(new WebRequest(upsertModel, "/getPostedPayloadBack", POST))
                 .expectResult(expectedResult)
                 .expectWebResponse(new WebResponse(expectedResult, 200));
     }

@@ -2,13 +2,16 @@ package io.fluxcapacitor.javaclient.web;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import io.fluxcapacitor.common.api.Metadata;
+import io.fluxcapacitor.javaclient.common.Message;
 import io.fluxcapacitor.javaclient.persisting.eventsourcing.ApplyEvent;
 import io.fluxcapacitor.javaclient.persisting.eventsourcing.EventSourced;
 import io.fluxcapacitor.javaclient.test.TestFixture;
 import io.fluxcapacitor.javaclient.tracking.handling.HandleCommand;
 import io.fluxcapacitor.javaclient.tracking.handling.HandleQuery;
-import io.fluxcapacitor.javaclient.tracking.handling.HandleWebRequest;
 import io.fluxcapacitor.javaclient.tracking.handling.authentication.UnauthenticatedException;
+import io.fluxcapacitor.javaclient.web.handling.HandleGet;
+import io.fluxcapacitor.javaclient.web.handling.HandlePost;
+import io.fluxcapacitor.javaclient.web.handling.HandleWebRequest;
 import lombok.Builder;
 import lombok.Singular;
 import lombok.SneakyThrows;
@@ -20,6 +23,8 @@ import java.util.List;
 
 import static io.fluxcapacitor.javaclient.FluxCapacitor.*;
 import static io.fluxcapacitor.javaclient.common.serialization.SerializationUtils.jsonMapper;
+import static io.fluxcapacitor.javaclient.web.WebMethod.GET;
+import static io.fluxcapacitor.javaclient.web.WebMethod.POST;
 import static java.util.Collections.singletonList;
 import static java.util.Collections.singletonMap;
 
@@ -32,7 +37,7 @@ public class WebRequestTest {
     @Test
     void handleGetReturnObject() {
         fixtures.forEach(f -> f.givenCommands(upsertModel)
-                .whenWebRequest(new WebRequest(null, "/get", "GET"))
+                .whenWebRequest(new WebRequest(null, "/get", GET))
                 .expectResult(TestModel.builder().payload("something").build())
                 .expectWebResponse(new WebResponse(TestModel.builder().payload("something").build(), 200)));
     }
@@ -40,7 +45,7 @@ public class WebRequestTest {
     @Test
     void handleGetReturnWebResponse() {
         fixtures.forEach(f -> f.givenCommands(upsertModel)
-                .whenWebRequest(new WebRequest(null, "/webResponse", "GET"))
+                .whenWebRequest(new WebRequest(null, "/webResponse", GET))
                 .expectResult(TestModel.builder().payload("something").build())
                 .expectWebResponse(new WebResponse(TestModel.builder().payload("something").build(), 201,
                         singletonMap("webResponse", singletonList("someValue")))));
@@ -49,21 +54,21 @@ public class WebRequestTest {
     @Test
     void handleTechnicalException() {
         fixtures.forEach(f -> f.givenNoPriorActivity()
-                .whenWebRequest(new WebRequest(null, "/technicalException", "GET"))
+                .whenWebRequest(new WebRequest(null, "/technicalException", GET))
                 .expectWebResponse(new WebResponse(singletonMap("error", "An unexpected error occurred"), 500)));
     }
 
     @Test
     void handleFunctionalException() {
         fixtures.forEach(f -> f.givenNoPriorActivity()
-                .whenWebRequest(new WebRequest(null, "/functionalException", "GET"))
+                .whenWebRequest(new WebRequest(null, "/functionalException", GET))
                 .expectWebResponse(new WebResponse(singletonMap("error", "Do you see me?"), 401)));
     }
 
     @Test
     void handleSpecificPost() {
         fixtures.forEach(f -> f.givenNoPriorActivity()
-                .whenWebRequest(new WebRequest(upsertModel, "/specific", "POST"))
+                .whenWebRequest(new WebRequest(upsertModel, "/specific", POST))
                 .expectResult(upsertModel)
                 .expectCommands(upsertModel)
                 .expectWebResponse(new WebResponse(upsertModel, 200)));
@@ -72,7 +77,7 @@ public class WebRequestTest {
     @Test
     void handleObjectPost() {
         fixtures.forEach(f -> f.givenNoPriorActivity()
-                .whenWebRequest(new WebRequest(upsertModel, "/object", "POST"))
+                .whenWebRequest(new WebRequest(upsertModel, "/object", POST))
                 .expectResult(upsertModel)
                 .expectCommands(upsertModel)
                 .expectWebResponse(new WebResponse(upsertModel, 200)));
@@ -83,7 +88,7 @@ public class WebRequestTest {
     void handleStringPost() {
         String expectedResult = jsonMapper.writeValueAsString(upsertModel);
         fixtures.forEach(f -> f.givenNoPriorActivity()
-                .whenWebRequest(new WebRequest(upsertModel, "/string", "POST"))
+                .whenWebRequest(new WebRequest(upsertModel, "/string", POST))
                 .expectResult(expectedResult)
                 .expectCommands(upsertModel)
                 .expectWebResponse(new WebResponse(expectedResult, 200)));
@@ -94,7 +99,7 @@ public class WebRequestTest {
     void handleBytesPost() {
         byte[] expectedResult = jsonMapper.writeValueAsBytes(upsertModel);
         TestFixture.createAsync(new Handler()).givenNoPriorActivity()
-                .whenWebRequest(new WebRequest(upsertModel, "/bytes", "POST"))
+                .whenWebRequest(new WebRequest(upsertModel, "/bytes", POST))
                 .expectResult(expectedResult)
                 .expectCommands(upsertModel)
                 .expectWebResponse(new WebResponse(expectedResult, 200));
@@ -105,67 +110,75 @@ public class WebRequestTest {
     void handleJsonPost() {
         JsonNode expectedResult = jsonMapper.convertValue(upsertModel, JsonNode.class);
         fixtures.forEach(f -> f.givenNoPriorActivity()
-                .whenWebRequest(new WebRequest(upsertModel, "/json", "POST"))
+                .whenWebRequest(new WebRequest(upsertModel, "/json", POST))
                 .expectResult(expectedResult)
                 .expectCommands(upsertModel)
                 .expectWebResponse(new WebResponse(expectedResult, 200)));
     }
 
+    @Test
+    void handleUnknownHttpMethod() {
+        fixtures.forEach(f -> f.givenCommands(upsertModel)
+                .whenWebRequest(new Message(upsertModel, Metadata.of("path", "/connect", "method", "CONNECT")))
+//                .expectResult(TestModel.builder().payload("something").build())
+//                .expectWebResponse(new WebResponse(TestModel.builder().payload("something").build(), 200)));
+    }
+
 
     private static class Handler {
 
-        @HandleWebRequest(path = "/get", method = "GET")
+        @HandleGet("/get")
         @SneakyThrows
-        Object handleGet() {
+        public Object handleGet() {
             return queryAndWait(new GetModel());
         }
 
-        @HandleWebRequest(path = "/webResponse", method = "GET")
+        @HandleWebRequest(value = "/webResponse", method = GET)
         @SneakyThrows
         Object handleGetWebRequest(WebRequest webRequest) {
             return new WebResponse(queryAndWait(new GetModel()), 201, singletonMap("webResponse", singletonList("someValue")));
         }
 
-        @HandleWebRequest(path = "/technicalException", method = "GET")
+        @HandleGet("/technicalException")
         @SneakyThrows
         void handleTechnicalException() {
             throw new RuntimeException("Do you see me?");
         }
 
-        @HandleWebRequest(path = "/functionalException", method = "GET")
+        @HandleGet("/functionalException")
         @SneakyThrows
         void handleFunctionalException() {
             throw new UnauthenticatedException("Do you see me?");
         }
 
-        @HandleWebRequest(path = "/bytes", method = "POST")
+        @HandlePost("/bytes")
         @SneakyThrows
-        byte[]  handleBytePost(byte[] payload) {
+        byte[] handleBytePost(byte[] payload) {
             sendCommandAndWait(jsonMapper.readValue(payload, UpsertModel.class));
             return payload;
         }
 
-        @HandleWebRequest(path = "/object", method = "POST")
+        @HandlePost("/object")
         @SneakyThrows
         Object handleObjectPost(Object payload) {
             sendCommandAndWait(jsonMapper.convertValue(payload, UpsertModel.class));
             return payload;
         }
 
-        @HandleWebRequest(path = "/string", method = "POST")
+        @HandlePost("/string")
         @SneakyThrows
         String handleStringPost(String payload) {
             sendCommandAndWait(jsonMapper.readValue(payload, UpsertModel.class));
             return payload;
         }
 
-        @HandleWebRequest(path = "/specific", method = "POST")
+        @HandlePost("/specific")
         UpsertModel handleSpecificPost(UpsertModel payload, Metadata metadata) {
             sendCommandAndWait(payload);
             return payload;
         }
 
-        @HandleWebRequest(path = "/json", method = "POST")
+        @HandlePost("/json")
         @SneakyThrows
         JsonNode handleJsonPost(JsonNode payload, Metadata metadata) {
             sendAndForgetCommand(jsonMapper.convertValue(payload, UpsertModel.class));

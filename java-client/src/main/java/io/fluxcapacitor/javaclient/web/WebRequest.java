@@ -14,15 +14,15 @@ import static java.util.Collections.emptyMap;
 
 public class WebRequest extends Message {
 
-    public WebRequest(Object payload, String path, String method) {
+    public WebRequest(Object payload, String path, WebMethod method) {
         super(payload, Metadata.of("path", path, "method", method));
     }
 
-    public WebRequest(Object payload, String path, String method, Map<String, List<String>> headers) {
+    public WebRequest(Object payload, String path, WebMethod method, Map<String, List<String>> headers) {
         super(payload, Metadata.of("path", path, "method", method, "headers", headers));
     }
 
-    public WebRequest(Object payload, Metadata metadata, String path, String method, Map<String, List<String>> headers) {
+    public WebRequest(Object payload, Metadata metadata, String path, WebMethod method, Map<String, List<String>> headers) {
         super(payload, metadata.with("path", path, "method", method, "headers", headers));
     }
 
@@ -46,7 +46,7 @@ public class WebRequest extends Message {
     }
 
     @JsonIgnore
-    public String getMethod() {
+    public WebMethod getMethod() {
         return getMethod(getMetadata());
     }
 
@@ -59,8 +59,12 @@ public class WebRequest extends Message {
         return metadata.get("path");
     }
 
-    public static String getMethod(Metadata metadata) {
-        return metadata.get("method");
+    public static WebMethod getMethod(Metadata metadata) {
+        try {
+            return WebMethod.valueOf(metadata.get("method"));
+        } catch (Exception e){
+            return WebMethod.UNKNOWN;
+        }
     }
 
     public static Map<String, List<String>> getHeaders(Metadata metadata) {

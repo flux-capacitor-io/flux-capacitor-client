@@ -12,7 +12,7 @@
  * limitations under the License.
  */
 
-package io.fluxcapacitor.javaclient.tracking.handling;
+package io.fluxcapacitor.javaclient.web.handling;
 
 import java.lang.annotation.*;
 

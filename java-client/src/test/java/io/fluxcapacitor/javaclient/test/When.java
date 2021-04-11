@@ -15,7 +15,7 @@
 package io.fluxcapacitor.javaclient.test;
 
 import io.fluxcapacitor.javaclient.FluxCapacitor;
-import io.fluxcapacitor.javaclient.web.WebRequest;
+import io.fluxcapacitor.javaclient.common.Message;
 
 import java.time.Duration;
 import java.time.Instant;
@@ -30,7 +30,7 @@ public interface When extends Given {
 
     Then whenEvent(Object event);
 
-    Then whenWebRequest(WebRequest webRequest);
+    Then whenWebRequest(Message webRequest);
 
     Then whenDomainEvents(String aggregateId, Object... events);
 

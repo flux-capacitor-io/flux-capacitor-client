@@ -30,6 +30,7 @@ import java.util.function.Consumer;
 import java.util.function.UnaryOperator;
 
 import static java.lang.String.format;
+import static java.util.Optional.ofNullable;
 import static javax.ws.rs.client.ClientBuilder.newBuilder;
 
 @Slf4j
@@ -47,16 +48,21 @@ public class DefaultWebClient implements AutoCloseable {
             try {
                 MultivaluedMap<String, Object> headers = new MultivaluedHashMap<>();
                 WebRequest.getHeaders(m.getMetadata()).forEach(headers::addAll);
+                String method = ofNullable(WebRequest.getMethod(m.getMetadata())).filter(WebMethod::isHttp)
+                        .map(h -> h == WebMethod.UNKNOWN ? m.getMetadata().get("method") : h.name()).orElse(null);
+                if (method == null) {
+                    return;
+                }
                 WebTarget target = httpClient.target(format("http://localhost:%s", port));
                 MediaType mediaType = determineMediaType(m.getData().getFormat(), (String) headers.getFirst("Content-Type"));
 
                 Future<Response> future = target.path(WebRequest.getPath(m.getMetadata()))
-                        .request().headers(headers).async().method(WebRequest.getMethod(m.getMetadata()), Entity.entity(
+                        .request().headers(headers).async().method(method, Entity.entity(
                                 Arrays.equals(NULL, m.getData().getValue()) ? null : m.getData().getValue(), mediaType));
 
                 executorService.submit(() -> {
                     try {
-                        try (Response response = future.get()){
+                        try (Response response = future.get()) {
                             resultGateway.respond(new WebResponse(response.readEntity(byte[].class),
                                     response.getStatus(), response.getStringHeaders()), m.getSource(), m.getRequestId());
                         }

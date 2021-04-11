@@ -14,6 +14,7 @@
 
 package io.fluxcapacitor.common.handling;
 
+import io.fluxcapacitor.common.AnnotationUtils;
 import io.fluxcapacitor.common.reflection.ReflectionUtils;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
@@ -21,7 +22,10 @@ import lombok.SneakyThrows;
 
 import java.lang.annotation.Annotation;
 import java.lang.reflect.*;
-import java.util.*;
+import java.util.Comparator;
+import java.util.List;
+import java.util.Objects;
+import java.util.Optional;
 import java.util.function.Function;
 import java.util.function.Predicate;
 import java.util.stream.Stream;
@@ -34,6 +38,7 @@ import static java.lang.String.format;
 import static java.util.Arrays.stream;
 import static java.util.Comparator.comparing;
 import static java.util.Comparator.reverseOrder;
+import static java.util.Optional.ofNullable;
 import static java.util.stream.Collectors.toList;
 import static java.util.stream.Stream.concat;
 
@@ -42,7 +47,7 @@ public class HandlerInspector {
     public static boolean hasHandlerMethods(Class<?> targetClass, Class<? extends Annotation> methodAnnotation,
                                             HandlerConfiguration<?> handlerConfiguration) {
         return concat(getAllMethods(targetClass).stream(), stream(targetClass.getConstructors()))
-                .anyMatch(m -> m.isAnnotationPresent(methodAnnotation) && handlerConfiguration.handlerFilter()
+                .anyMatch(m -> AnnotationUtils.isAnnotationPresent(m,methodAnnotation) && handlerConfiguration.handlerFilter()
                         .test(targetClass, m));
     }
 
@@ -63,7 +68,7 @@ public class HandlerInspector {
                                                 HandlerConfiguration<M> handlerConfiguration) {
         return new ObjectHandlerInvoker<>(type,
                                           concat(getAllMethods(type).stream(), stream(type.getDeclaredConstructors()))
-                                                  .filter(m -> m.isAnnotationPresent(methodAnnotation)
+                                                  .filter(m -> AnnotationUtils.isAnnotationPresent(m, methodAnnotation)
                                                           && handlerConfiguration.handlerFilter().test(type, m))
                                                   .map(m -> handlerConfiguration.invokerFactory()
                                                           .create(m, type, parameterResolvers, methodAnnotation,
@@ -89,21 +94,21 @@ public class HandlerInspector {
         private final boolean hasReturnValue;
         private final List<Function<? super M, Object>> parameterSuppliers;
         private final Predicate<? super M> matcher;
-        private final Class<? extends Annotation> methodAnnotation;
+        private final Class<? extends Annotation> exactMethodAnnotation;
         private final int priority;
 
         public MethodHandlerInvoker(Executable executable, Class<?> enclosingType,
                                     List<ParameterResolver<? super M>> parameterResolvers,
                                     Class<? extends Annotation> methodAnnotation,
                                     HandlerConfiguration<M> handlerConfiguration) {
-            this.methodAnnotation = methodAnnotation;
             this.methodIndex = executable instanceof Method ? methodIndex((Method) executable, enclosingType) : 0;
             this.executable = ensureAccessible(executable);
+            this.exactMethodAnnotation = AnnotationUtils.getSpecificAnnotationType(this.executable, methodAnnotation);
             this.hasReturnValue =
                     !(executable instanceof Method) || !(((Method) executable).getReturnType()).equals(void.class);
             this.parameterSuppliers = getParameterSuppliers(executable, parameterResolvers);
-            this.matcher = getMatcher(executable, parameterResolvers, methodAnnotation, handlerConfiguration);
-            this.priority = getPriority(executable, methodAnnotation);
+            this.matcher = getMatcher(executable, parameterResolvers, this.exactMethodAnnotation, handlerConfiguration);
+            this.priority = getPriority(executable, this.exactMethodAnnotation);
         }
 
         @Override
@@ -155,13 +160,8 @@ public class HandlerInspector {
             if (!canHandle(target, message)) {
                 return true;
             }
-            Annotation annotation = executable.getAnnotation(methodAnnotation);
-            Optional<Method> isPassive = Arrays.stream(methodAnnotation.getMethods())
-                    .filter(m -> m.getName().equals("passive")).findFirst();
-            if (isPassive.isPresent()) {
-                return (boolean) isPassive.get().invoke(annotation);
-            }
-            return false;
+            Annotation annotation = executable.getAnnotation(exactMethodAnnotation);
+            return (boolean) ofNullable(AnnotationUtils.invokeAnnotationMethod(annotation, "passive")).orElse(false);
         }
 
         protected List<Function<? super M, Object>> getParameterSuppliers(Executable method,
@@ -173,14 +173,14 @@ public class HandlerInspector {
         }
 
         protected Class<?> getPayloadType() {
-            return Optional.ofNullable(executable.getParameterTypes()).filter(p -> p.length != 0).<Class<?>>map(p -> p[0]).orElse(Object.class);
+            return ofNullable(executable.getParameterTypes()).filter(p -> p.length != 0).<Class<?>>map(p -> p[0]).orElse(Object.class);
         }
 
         protected Predicate<M> getMatcher(Executable executable,
                                           List<ParameterResolver<? super M>> parameterResolvers,
-                                          Class<? extends Annotation> methodAnnotation,
+                                          Class<? extends Annotation> exactMethodAnnotation,
                                           HandlerConfiguration<M> handlerConfiguration) {
-            Annotation annotation = executable.getAnnotation(methodAnnotation);
+            Annotation annotation = executable.getAnnotation(exactMethodAnnotation);
             Predicate<M> annotationFilter = handlerConfiguration.annotationFilter().apply(annotation);
             return m -> {
                 if(!annotationFilter.test(m)){
@@ -221,10 +221,10 @@ public class HandlerInspector {
         }
 
         @SneakyThrows
-        private static int getPriority(Executable executable, Class<? extends Annotation> methodAnnotation) {
-            for (Method method : ReflectionUtils.getAllMethods(methodAnnotation)) {
+        private static int getPriority(Executable executable, Class<? extends Annotation> exactMethodAnnotation) {
+            for (Method method : ReflectionUtils.getAllMethods(exactMethodAnnotation)) {
                 if (method.getName().equalsIgnoreCase("priority")) {
-                    return (int) method.invoke(executable.getAnnotation(methodAnnotation));
+                    return (int) method.invoke(executable.getAnnotation(exactMethodAnnotation));
                 }
             }
             return 0;
@@ -306,7 +306,7 @@ public class HandlerInspector {
 
         @Override
         public String toString() {
-            return Optional.ofNullable(target).map(o -> String.format("\"%s\"", o.getClass().getSimpleName()))
+            return ofNullable(target).map(o -> String.format("\"%s\"", o.getClass().getSimpleName()))
                     .orElse("DefaultHandler");
         }
     }

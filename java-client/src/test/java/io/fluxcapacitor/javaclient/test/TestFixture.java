@@ -292,7 +292,7 @@ public class TestFixture implements Given, When {
     }
 
     @Override
-    public Then whenWebRequest(WebRequest webRequest) {
+    public Then whenWebRequest(Message webRequest) {
         return applyWhen(fc -> getDispatchResult(fc.webRequestGateway().send(interceptor.trace(webRequest))));
     }
 

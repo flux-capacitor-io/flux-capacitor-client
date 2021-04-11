@@ -12,15 +12,23 @@
  * limitations under the License.
  */
 
-package io.fluxcapacitor.javaclient.tracking.handling;
+package io.fluxcapacitor.javaclient.web.handling;
+
+import io.fluxcapacitor.javaclient.web.WebMethod;
 
 import java.lang.annotation.*;
+
+import static io.fluxcapacitor.javaclient.web.WebMethod.DELETE;
 
 @Documented
 @Retention(RetentionPolicy.RUNTIME)
 @Target(ElementType.METHOD)
-public @interface HandleWebRequest {
-    String path();
-    String method();
+@Inherited
+@HandleWebRequest
+public @interface HandleDelete {
+    String value() default "";
+
+    WebMethod method() default DELETE;
+
     boolean passive() default false;
 }
