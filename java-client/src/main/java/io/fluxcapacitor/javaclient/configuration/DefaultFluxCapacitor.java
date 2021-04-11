@@ -39,6 +39,9 @@ import io.fluxcapacitor.javaclient.persisting.eventsourcing.EventStore;
 import io.fluxcapacitor.javaclient.persisting.eventsourcing.EventStoreSerializer;
 import io.fluxcapacitor.javaclient.persisting.keyvalue.DefaultKeyValueStore;
 import io.fluxcapacitor.javaclient.persisting.keyvalue.KeyValueStore;
+import io.fluxcapacitor.javaclient.persisting.search.DefaultDocumentStore;
+import io.fluxcapacitor.javaclient.persisting.search.DocumentSerializer;
+import io.fluxcapacitor.javaclient.persisting.search.DocumentStore;
 import io.fluxcapacitor.javaclient.publishing.CommandGateway;
 import io.fluxcapacitor.javaclient.publishing.DefaultCommandGateway;
 import io.fluxcapacitor.javaclient.publishing.DefaultErrorGateway;
@@ -135,6 +138,7 @@ public class DefaultFluxCapacitor implements FluxCapacitor {
     private final AggregateRepository aggregateRepository;
     private final EventStore eventStore;
     private final KeyValueStore keyValueStore;
+    private final DocumentStore documentStore;
     private final Scheduler scheduler;
     private final UserProvider userProvider;
     private final Cache cache;
@@ -188,6 +192,7 @@ public class DefaultFluxCapacitor implements FluxCapacitor {
 
         private Serializer serializer = new JacksonSerializer();
         private Serializer snapshotSerializer = serializer;
+        private DocumentSerializer documentSerializer = (JacksonSerializer) serializer;
         private final Map<MessageType, List<ConsumerConfiguration>> consumerConfigurations = defaultConfigurations();
         private final List<ParameterResolver<? super DeserializingMessage>> parameterResolvers =
                 new ArrayList<>(defaultParameterResolvers);
@@ -219,6 +224,9 @@ public class DefaultFluxCapacitor implements FluxCapacitor {
             if (snapshotSerializer == this.serializer) {
                 snapshotSerializer = serializer;
             }
+            if (documentSerializer == this.serializer && serializer instanceof DocumentSerializer) {
+                documentSerializer = (DocumentSerializer) serializer;
+            }
             this.serializer = serializer;
             return this;
         }
@@ -230,7 +238,13 @@ public class DefaultFluxCapacitor implements FluxCapacitor {
         }
 
         @Override
-        public FluxCapacitorBuilder registerUserSupplier(UserProvider userProvider) {
+        public FluxCapacitorBuilder replaceDocumentSerializer(@NonNull DocumentSerializer documentSerializer) {
+            this.documentSerializer = documentSerializer;
+            return this;
+        }
+
+        @Override
+        public FluxCapacitorBuilder registerUserSupplier(@NonNull UserProvider userProvider) {
             this.userProvider = userProvider;
             return this;
         }
@@ -366,6 +380,7 @@ public class DefaultFluxCapacitor implements FluxCapacitor {
                     new HashMap<>(this.consumerConfigurations);
 
             KeyValueStore keyValueStore = new DefaultKeyValueStore(client.getKeyValueClient(), serializer);
+            DocumentStore documentStore = new DefaultDocumentStore(client.getSearchClient(), documentSerializer);
 
             //enable message routing
             Arrays.stream(MessageType.values()).forEach(
@@ -500,7 +515,7 @@ public class DefaultFluxCapacitor implements FluxCapacitor {
             //and finally...
             FluxCapacitor fluxCapacitor = doBuild(trackingMap, commandGateway, queryGateway, eventGateway,
                                                   resultGateway, errorGateway, metricsGateway, aggregateRepository,
-                                                  eventStore, keyValueStore, scheduler, userProvider,
+                                                  eventStore, keyValueStore, documentStore, scheduler, userProvider,
                                                   cache, serializer, client, shutdownHandler);
 
             if (makeApplicationInstance) {
@@ -520,12 +535,13 @@ public class DefaultFluxCapacitor implements FluxCapacitor {
                                         EventGateway eventGateway, ResultGateway resultGateway,
                                         ErrorGateway errorGateway, MetricsGateway metricsGateway,
                                         AggregateRepository aggregateRepository,
-                                        EventStore eventStore, KeyValueStore keyValueStore, Scheduler scheduler,
-                                        UserProvider userProvider, Cache cache, Serializer serializer, Client client,
-                                        Runnable shutdownHandler) {
+                                        EventStore eventStore, KeyValueStore keyValueStore, DocumentStore documentStore,
+                                        Scheduler scheduler, UserProvider userProvider, Cache cache,
+                                        Serializer serializer, Client client, Runnable shutdownHandler) {
             return new DefaultFluxCapacitor(trackingSupplier, commandGateway, queryGateway, eventGateway, resultGateway,
                                             errorGateway, metricsGateway, aggregateRepository, eventStore,
-                                            keyValueStore, scheduler, userProvider, cache, serializer, client, shutdownHandler);
+                                            keyValueStore, documentStore,
+                                            scheduler, userProvider, cache, serializer, client, shutdownHandler);
         }
 
         protected GenericGateway createRequestGateway(Client client, MessageType messageType,

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016-2020 Flux Capacitor.
+ * Copyright (c) 2016-2021 Flux Capacitor.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -19,6 +19,8 @@ import io.fluxcapacitor.javaclient.persisting.eventsourcing.client.EventStoreCli
 import io.fluxcapacitor.javaclient.persisting.eventsourcing.client.InMemoryEventStoreClient;
 import io.fluxcapacitor.javaclient.persisting.keyvalue.client.InMemoryKeyValueClient;
 import io.fluxcapacitor.javaclient.persisting.keyvalue.client.KeyValueClient;
+import io.fluxcapacitor.javaclient.persisting.search.client.InMemorySearchClient;
+import io.fluxcapacitor.javaclient.persisting.search.client.SearchClient;
 import io.fluxcapacitor.javaclient.publishing.client.GatewayClient;
 import io.fluxcapacitor.javaclient.scheduling.client.InMemorySchedulingClient;
 import io.fluxcapacitor.javaclient.scheduling.client.SchedulingClient;
@@ -58,14 +60,15 @@ public class InMemoryClient extends AbstractClient {
 
     protected InMemoryClient() {
         this("inMemory", ManagementFactory.getRuntimeMXBean().getName(), messageStoreFactory(),
-             new InMemoryKeyValueClient());
+             new InMemoryKeyValueClient(), new InMemorySearchClient());
     }
 
     protected <T extends GatewayClient & TrackingClient> InMemoryClient(String name, String id,
                                                                         Function<MessageType, T> messageStoreClients,
-                                                                        KeyValueClient keyValueClient) {
+                                                                        KeyValueClient keyValueClient,
+                                                                        SearchClient searchClient) {
         super(name, id, messageStoreClients, messageStoreClients,
               (EventStoreClient) messageStoreClients.apply(MessageType.EVENT),
-              (SchedulingClient) messageStoreClients.apply(MessageType.SCHEDULE), keyValueClient);
+              (SchedulingClient) messageStoreClients.apply(MessageType.SCHEDULE), keyValueClient, searchClient);
     }
 }

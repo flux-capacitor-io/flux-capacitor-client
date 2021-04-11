@@ -14,6 +14,7 @@
 
 package io.fluxcapacitor.javaclient;
 
+import io.fluxcapacitor.common.Guarantee;
 import io.fluxcapacitor.common.MessageType;
 import io.fluxcapacitor.common.Registration;
 import io.fluxcapacitor.common.api.Metadata;
@@ -29,6 +30,8 @@ import io.fluxcapacitor.javaclient.persisting.caching.Cache;
 import io.fluxcapacitor.javaclient.persisting.eventsourcing.EventSourced;
 import io.fluxcapacitor.javaclient.persisting.eventsourcing.EventStore;
 import io.fluxcapacitor.javaclient.persisting.keyvalue.KeyValueStore;
+import io.fluxcapacitor.javaclient.persisting.search.DocumentStore;
+import io.fluxcapacitor.javaclient.persisting.search.Search;
 import io.fluxcapacitor.javaclient.publishing.CommandGateway;
 import io.fluxcapacitor.javaclient.publishing.ErrorGateway;
 import io.fluxcapacitor.javaclient.publishing.EventGateway;
@@ -45,6 +48,7 @@ import io.fluxcapacitor.javaclient.tracking.handling.LocalHandler;
 import io.fluxcapacitor.javaclient.tracking.handling.authentication.UserProvider;
 
 import java.time.Clock;
+import java.time.Instant;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
@@ -289,6 +293,18 @@ public interface FluxCapacitor extends AutoCloseable {
         return result;
     }
 
+    static void index(Object object, String id, String collection) {
+        index(object, id, FluxCapacitor.currentClock().instant(), collection, Guarantee.SENT);
+    }
+
+    static void index(Object object, String id, Instant timestamp, String collection, Guarantee guarantee) {
+        get().documentStore().index(object, id, timestamp, collection, guarantee);
+    }
+
+    static Search search(String collection) {
+        return get().documentStore().search(collection);
+    }
+
     /**
      * Registers given handlers and initiates message tracking (i.e. listening for messages).
      * <p>
@@ -354,11 +370,6 @@ public interface FluxCapacitor extends AutoCloseable {
     Scheduler scheduler();
 
     /**
-     * Returns a client for the key value service offered by Flux Capacitor.
-     */
-    KeyValueStore keyValueStore();
-
-    /**
      * Returns the gateway for command messages.
      */
     CommandGateway commandGateway();
@@ -394,6 +405,16 @@ public interface FluxCapacitor extends AutoCloseable {
      * Returns a client to assist with the tracking of a given message type.
      */
     Tracking tracking(MessageType messageType);
+
+    /**
+     * Returns a client for the key value service offered by Flux Capacitor.
+     */
+    KeyValueStore keyValueStore();
+
+    /**
+     * Returns a client for the document search service offered by Flux Capacitor.
+     */
+    DocumentStore documentStore();
 
     /**
      * Returns the UserProvider used by Flux Capacitor to authenticate users. May be {@code null} if user

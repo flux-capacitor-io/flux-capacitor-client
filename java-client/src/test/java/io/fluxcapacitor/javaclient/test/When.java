@@ -15,11 +15,13 @@
 package io.fluxcapacitor.javaclient.test;
 
 import io.fluxcapacitor.javaclient.FluxCapacitor;
+import io.fluxcapacitor.javaclient.persisting.search.Search;
 
 import java.time.Duration;
 import java.time.Instant;
 import java.util.function.Consumer;
 import java.util.function.Function;
+import java.util.function.UnaryOperator;
 
 public interface When extends Given {
 
@@ -30,6 +32,8 @@ public interface When extends Given {
     Then whenEvent(Object event);
 
     Then whenDomainEvents(String aggregateId, Object... events);
+
+    Then whenSearching(String collection, UnaryOperator<Search> searchQuery);
 
     Then whenScheduleExpires(Object schedule);
 

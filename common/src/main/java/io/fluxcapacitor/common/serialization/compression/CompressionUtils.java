@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016-2020 Flux Capacitor.
+ * Copyright (c) 2016-2021 Flux Capacitor.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -12,7 +12,7 @@
  * limitations under the License.
  */
 
-package io.fluxcapacitor.javaclient.common.serialization.compression;
+package io.fluxcapacitor.common.serialization.compression;
 
 import net.jpountz.lz4.LZ4Compressor;
 import net.jpountz.lz4.LZ4Factory;
@@ -25,28 +25,34 @@ public class CompressionUtils {
     private static final LZ4Compressor lz4Compressor = LZ4Factory.fastestInstance().fastCompressor();
     private static final LZ4FastDecompressor lz4Decompressor = LZ4Factory.fastestInstance().fastDecompressor();
 
+    public static byte[] compress(byte[] uncompressed) {
+        return compress(uncompressed, CompressionAlgorithm.LZ4);
+    }
+
     public static byte[] compress(byte[] uncompressed, CompressionAlgorithm algorithm) {
         if (algorithm == null) {
             return uncompressed;
         }
-        switch (algorithm) {
-            case LZ4:
-                byte[] compressed = lz4Compressor.compress(uncompressed);
-                return ByteBuffer.allocate(compressed.length + 4).putInt(uncompressed.length).put(compressed).array();
+        if (algorithm == CompressionAlgorithm.LZ4) {
+            byte[] compressed = lz4Compressor.compress(uncompressed);
+            return ByteBuffer.allocate(compressed.length + 4).putInt(uncompressed.length).put(compressed).array();
         }
         throw new UnsupportedOperationException("Unsupported compression algorithm: " + algorithm);
+    }
+
+    public static byte[] decompress(byte[] compressed) {
+        return decompress(compressed, CompressionAlgorithm.LZ4);
     }
 
     public static byte[] decompress(byte[] compressed, CompressionAlgorithm algorithm) {
         if (algorithm == null) {
             return compressed;
         }
-        switch (algorithm) {
-            case LZ4:
-                ByteBuffer buffer = ByteBuffer.wrap(compressed);
-                ByteBuffer result = ByteBuffer.allocate(buffer.getInt());
-                lz4Decompressor.decompress(buffer, result);
-                return result.array();
+        if (algorithm == CompressionAlgorithm.LZ4) {
+            ByteBuffer buffer = ByteBuffer.wrap(compressed);
+            ByteBuffer result = ByteBuffer.allocate(buffer.getInt());
+            lz4Decompressor.decompress(buffer, result);
+            return result.array();
         }
         throw new UnsupportedOperationException("Unsupported compression algorithm: " + algorithm);
     }

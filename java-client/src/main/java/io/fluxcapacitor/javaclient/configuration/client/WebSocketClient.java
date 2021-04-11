@@ -15,9 +15,10 @@
 package io.fluxcapacitor.javaclient.configuration.client;
 
 import io.fluxcapacitor.common.MessageType;
-import io.fluxcapacitor.javaclient.common.serialization.compression.CompressionAlgorithm;
+import io.fluxcapacitor.common.serialization.compression.CompressionAlgorithm;
 import io.fluxcapacitor.javaclient.persisting.eventsourcing.client.WebSocketEventStoreClient;
 import io.fluxcapacitor.javaclient.persisting.keyvalue.client.WebsocketKeyValueClient;
+import io.fluxcapacitor.javaclient.persisting.search.client.WebSocketSearchClient;
 import io.fluxcapacitor.javaclient.publishing.client.WebsocketGatewayClient;
 import io.fluxcapacitor.javaclient.scheduling.client.WebsocketSchedulingClient;
 import io.fluxcapacitor.javaclient.tracking.client.WebsocketTrackingClient;
@@ -32,12 +33,13 @@ import java.util.Map;
 import java.util.UUID;
 import java.util.function.Function;
 
-import static io.fluxcapacitor.javaclient.common.serialization.compression.CompressionAlgorithm.LZ4;
+import static io.fluxcapacitor.common.serialization.compression.CompressionAlgorithm.LZ4;
 import static io.fluxcapacitor.javaclient.common.websocket.ServiceUrlBuilder.consumerUrl;
 import static io.fluxcapacitor.javaclient.common.websocket.ServiceUrlBuilder.eventSourcingUrl;
 import static io.fluxcapacitor.javaclient.common.websocket.ServiceUrlBuilder.keyValueUrl;
 import static io.fluxcapacitor.javaclient.common.websocket.ServiceUrlBuilder.producerUrl;
 import static io.fluxcapacitor.javaclient.common.websocket.ServiceUrlBuilder.schedulingUrl;
+import static io.fluxcapacitor.javaclient.common.websocket.ServiceUrlBuilder.searchUrl;
 import static java.util.stream.Collectors.toMap;
 
 public class WebSocketClient extends AbstractClient {
@@ -53,9 +55,11 @@ public class WebSocketClient extends AbstractClient {
         super(properties.getName(), properties.getId(),
              type -> new WebsocketGatewayClient(producerUrl(type, properties), properties, type),
              type -> new WebsocketTrackingClient(consumerUrl(type, properties), properties, type),
-             new WebSocketEventStoreClient(eventSourcingUrl(properties), properties),
-             new WebsocketSchedulingClient(schedulingUrl(properties), properties),
-             new WebsocketKeyValueClient(keyValueUrl(properties), properties));
+              new WebSocketEventStoreClient(eventSourcingUrl(properties), properties),
+              new WebsocketSchedulingClient(schedulingUrl(properties), properties),
+              new WebsocketKeyValueClient(keyValueUrl(properties), properties),
+              new WebSocketSearchClient(searchUrl(properties), properties)
+        );
         this.properties = properties;
     }
 
@@ -78,6 +82,7 @@ public class WebSocketClient extends AbstractClient {
         @Default CompressionAlgorithm compression = LZ4;
         @Default int eventSourcingSessions = 2;
         @Default int keyValueSessions = 2;
+        @Default int searchSessions = 2;
         @Default Map<MessageType, Integer> gatewaySessions = computeGatewaySessions();
         @Default Map<MessageType, Integer> trackingSessions = computeTrackingSessions();
         String projectId;

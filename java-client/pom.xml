@@ -73,13 +73,6 @@
             <version>3.0.3</version>
         </dependency>
 
-        <!--compression-->
-        <dependency>
-            <groupId>org.lz4</groupId>
-            <artifactId>lz4-java</artifactId>
-            <version>1.7.1</version>
-        </dependency>
-
         <!--spring-->
         <dependency>
             <groupId>org.springframework</groupId>

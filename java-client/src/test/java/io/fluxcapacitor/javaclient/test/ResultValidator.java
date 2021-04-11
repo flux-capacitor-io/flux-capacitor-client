@@ -14,6 +14,7 @@
 
 package io.fluxcapacitor.javaclient.test;
 
+import io.fluxcapacitor.common.search.Document;
 import io.fluxcapacitor.javaclient.FluxCapacitor;
 import io.fluxcapacitor.javaclient.common.Message;
 import io.fluxcapacitor.javaclient.scheduling.Schedule;
@@ -23,10 +24,13 @@ import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import org.hamcrest.Matcher;
 import org.hamcrest.StringDescription;
+import org.mockito.Mockito;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.function.Consumer;
 import java.util.function.Predicate;
@@ -47,32 +51,32 @@ public class ResultValidator implements Then {
 
     @Override
     public Then expectOnlyEvents(List<?> events) {
-        return expectOnlyMessages(asMessages(events), resultingEvents);
+        return expectOnly(asMessages(events), resultingEvents);
     }
 
     @Override
     public Then expectEvents(List<?> events) {
-        return expectMessages(asMessages(events), resultingEvents);
+        return expect(asMessages(events), resultingEvents);
     }
 
     @Override
     public Then expectNoEventsLike(List<?> events) {
-        return expectNoMessagesLike(asMessages(events), resultingEvents);
+        return expectNothingLike(asMessages(events), resultingEvents);
     }
 
     @Override
     public Then expectOnlyCommands(List<?> commands) {
-        return expectOnlyMessages(asMessages(commands), resultingCommands);
+        return expectOnly(asMessages(commands), resultingCommands);
     }
 
     @Override
     public Then expectCommands(List<?> commands) {
-        return expectMessages(asMessages(commands), resultingCommands);
+        return expect(asMessages(commands), resultingCommands);
     }
 
     @Override
     public Then expectNoCommandsLike(List<?> commands) {
-        return expectNoMessagesLike(asMessages(commands), resultingCommands);
+        return expectNothingLike(asMessages(commands), resultingCommands);
     }
 
     @Override
@@ -87,7 +91,37 @@ public class ResultValidator implements Then {
 
     @Override
     public Then expectNoSchedulesLike(List<?> schedules) {
-        return expectNoMessagesLike(asMessages(schedules), resultingSchedules);
+        return expectNothingLike(asMessages(schedules), resultingSchedules);
+    }
+
+    @Override
+    public Then expectOnlyDocuments(List<?> documents) {
+        return expectOnly(documents, getResultingDocuments());
+    }
+
+    @Override
+    public Then expectDocuments(List<?> documents) {
+        return expect(documents, getResultingDocuments());
+    }
+
+    @Override
+    public Then expectNoDocumentsLike(List<?> documents) {
+        return expectNothingLike(documents, getResultingDocuments());
+    }
+
+    @SuppressWarnings("unchecked")
+    protected List<Object> getResultingDocuments() {
+        return Mockito.mockingDetails(fluxCapacitor.client().getSearchClient()).getInvocations().stream()
+                .filter(i -> i.getMethod().getName().equals("index"))
+                .flatMap(i -> Arrays.stream(i.getArguments()).flatMap(a -> {
+                    if (a instanceof Document[]) {
+                        return Arrays.stream((Document[]) a);
+                    }
+                    if (a instanceof List<?>) {
+                        return ((List<Document>) a).stream();
+                    }
+                    return Stream.empty();
+                })).map(d -> fluxCapacitor.documentStore().getSerializer().fromDocument(d)).collect(toList());
     }
 
     @Override
@@ -99,6 +133,8 @@ public class ResultValidator implements Then {
             }
             if (!matches(expectedResult, actualResult)) {
                 if (!(expectedResult instanceof Matcher<?>) && actualResult != null && expectedResult != null
+                        && !(expectedResult instanceof Collection<?> && actualResult instanceof Collection<?>)
+                        && !(expectedResult instanceof Map<?, ?> && actualResult instanceof Map<?, ?>)
                         && !Objects.equals(expectedResult.getClass(), actualResult.getClass())) {
                     throw new GivenWhenThenAssertionError(format(
                             "Handler returned a result of unexpected type.\nExpected: %s\nGot: %s",
@@ -158,8 +194,7 @@ public class ResultValidator implements Then {
 
     }
 
-    protected ResultValidator expectScheduledMessages(Collection<?> expected,
-                                                      Collection<? extends Schedule> actual) {
+    protected ResultValidator expectScheduledMessages(Collection<?> expected, Collection<? extends Schedule> actual) {
         return fluxCapacitor.apply(fc -> {
             if (!expected.isEmpty() && actual.isEmpty()) {
                 throw new GivenWhenThenAssertionError("No messages were scheduled");
@@ -174,11 +209,11 @@ public class ResultValidator implements Then {
                     }
                 }
             });
-            return expectMessages(asMessages(expected), actual);
+            return expect(asMessages(expected), actual);
         });
     }
 
-    protected void reportMismatch(Collection<?> expected, Collection<? extends Message> actual) {
+    protected void reportMismatch(Collection<?> expected, Collection<?> actual) {
         fluxCapacitor.apply(fc -> {
             if (actualResult instanceof Throwable) {
                 throw new GivenWhenThenAssertionError(
@@ -189,7 +224,7 @@ public class ResultValidator implements Then {
         });
     }
 
-    protected void reportUnwantedMatch(Collection<?> expected, Collection<? extends Message> actual) {
+    protected void reportUnwantedMatch(Collection<?> expected, Collection<?> actual) {
         fluxCapacitor.apply(fc -> {
             if (actualResult instanceof Throwable) {
                 throw new GivenWhenThenAssertionError("An unexpected exception occurred during handling",
@@ -202,15 +237,16 @@ public class ResultValidator implements Then {
     }
 
 
-    protected ResultValidator expectMessages(Collection<?> expected, Collection<? extends Message> actual) {
+    protected ResultValidator expect(Collection<?> expected, Collection<?> actual) {
         if (!containsAll(expected, actual)) {
-            List<Message> remaining = new ArrayList<>(actual);
-            List<Message> filtered = expected.stream().flatMap(e -> {
+            List<?> remaining = new ArrayList<>(actual);
+            List<?> filtered = expected.stream().flatMap(e -> {
                 if (e != null && !(expected instanceof Matcher<?>) && !(expected instanceof Predicate<?>)) {
                     Class<?> payloadType =
                             e instanceof Message ? ((Message) e).getPayload().getClass() : expected.getClass();
-                    Message match = remaining.stream()
-                            .filter(a -> payloadType.equals(a.getPayload().getClass())).findFirst().orElse(null);
+                    Object match = remaining.stream().filter(a -> payloadType
+                            .equals(a instanceof Message ? ((Message) a).getPayload().getClass() : a.getClass()))
+                            .findFirst().orElse(null);
                     if (match != null) {
                         remaining.remove(match);
                         return Stream.of(match);
@@ -223,7 +259,7 @@ public class ResultValidator implements Then {
         return this;
     }
 
-    protected ResultValidator expectOnlyMessages(Collection<?> expected, Collection<? extends Message> actual) {
+    protected ResultValidator expectOnly(Collection<?> expected, Collection<?> actual) {
         if (expected.size() != actual.size()) {
             reportMismatch(expected, actual);
         } else {
@@ -234,8 +270,7 @@ public class ResultValidator implements Then {
         return this;
     }
 
-    protected ResultValidator expectNoMessagesLike(Collection<?> expectedNotToGet,
-                                                   Collection<? extends Message> actual) {
+    protected ResultValidator expectNothingLike(Collection<?> expectedNotToGet, Collection<?> actual) {
         if (containsAny(expectedNotToGet, actual)) {
             reportUnwantedMatch(expectedNotToGet, actual);
         }
@@ -245,14 +280,14 @@ public class ResultValidator implements Then {
     protected ResultValidator expectOnlyScheduledMessages(Collection<?> expected,
                                                           Collection<? extends Schedule> actual) {
         ResultValidator result = expectScheduledMessages(expected, actual);
-        return result.expectOnlyMessages(expected, actual);
+        return result.expectOnly(expected, actual);
     }
 
-    protected boolean containsAll(Collection<?> expected, Collection<? extends Message> actual) {
+    protected boolean containsAll(Collection<?> expected, Collection<?> actual) {
         return expected.stream().allMatch(e -> actual.stream().anyMatch(a -> matches(e, a)));
     }
 
-    protected boolean containsAny(Collection<?> expected, Collection<? extends Message> actual) {
+    protected boolean containsAny(Collection<?> expected, Collection<?> actual) {
         return expected.stream().anyMatch(e -> actual.stream().anyMatch(a -> matches(e, a)));
     }
 
