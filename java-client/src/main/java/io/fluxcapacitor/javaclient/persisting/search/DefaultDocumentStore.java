@@ -19,7 +19,6 @@ import io.fluxcapacitor.common.api.search.Constraint;
 import io.fluxcapacitor.common.api.search.DocumentStats;
 import io.fluxcapacitor.common.api.search.SearchHistogram;
 import io.fluxcapacitor.common.api.search.SearchQuery;
-import io.fluxcapacitor.javaclient.persisting.keyvalue.KeyValueStoreException;
 import io.fluxcapacitor.javaclient.persisting.search.client.SearchClient;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
@@ -47,7 +46,7 @@ public class DefaultDocumentStore implements DocumentStore {
         try {
             client.index(singletonList(serializer.toDocument(object, id, collection, timestamp)), guarantee).await();
         } catch (Exception e) {
-            throw new KeyValueStoreException(String.format("Could not store a document %s for id %s", object, id), e);
+            throw new DocumentStoreException(String.format("Could not store a document %s for id %s", object, id), e);
         }
     }
 
