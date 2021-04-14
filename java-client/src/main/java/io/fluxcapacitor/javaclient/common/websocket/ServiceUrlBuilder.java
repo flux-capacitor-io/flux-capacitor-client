@@ -48,7 +48,7 @@ public class ServiceUrlBuilder {
         return buildUrl(clientProperties, ServicePathBuilder.schedulingPath());
     }
 
-    private static String buildUrl(WebSocketClient.Properties clientProperties, String path) {
+    public static String buildUrl(WebSocketClient.Properties clientProperties, String path) {
         String result = String.format("%s/%s?clientId=%s&clientName=%s",
                              clientProperties.getServiceBaseUrl(), path,
                              clientProperties.getId(), clientProperties.getName());

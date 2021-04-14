@@ -58,6 +58,7 @@ import io.fluxcapacitor.common.api.tracking.StorePosition;
         //common
         @JsonSubTypes.Type(value = VoidResult.class, name = "void"),
         @JsonSubTypes.Type(value = BooleanResult.class, name = "boolean"),
+        @JsonSubTypes.Type(value = StringResult.class, name = "string"),
         @JsonSubTypes.Type(value = ConnectEvent.class, name = "connectEvent"),
         @JsonSubTypes.Type(value = DisconnectEvent.class, name = "disconnectEvent"),
 
