@@ -17,13 +17,9 @@ package io.fluxcapacitor.javaclient.tracking.handling.validation;
 import io.fluxcapacitor.common.handling.HandlerConfiguration;
 import io.fluxcapacitor.common.handling.HandlerInvoker;
 import io.fluxcapacitor.common.reflection.ReflectionUtils;
-import io.fluxcapacitor.javaclient.modeling.Aggregate;
+import io.fluxcapacitor.javaclient.modeling.AggregateRoot;
 import io.fluxcapacitor.javaclient.modeling.AssertLegal;
-import io.fluxcapacitor.javaclient.tracking.handling.authentication.RequiresRole;
-import io.fluxcapacitor.javaclient.tracking.handling.authentication.UnauthenticatedException;
-import io.fluxcapacitor.javaclient.tracking.handling.authentication.UnauthorizedException;
-import io.fluxcapacitor.javaclient.tracking.handling.authentication.User;
-import io.fluxcapacitor.javaclient.tracking.handling.authentication.UserParameterResolver;
+import io.fluxcapacitor.javaclient.tracking.handling.authentication.*;
 import lombok.SneakyThrows;
 
 import java.lang.annotation.Annotation;
@@ -68,7 +64,7 @@ public class ValidationUtils {
     private static final Function<Class<?>, HandlerInvoker<Object>> assertLegalInvokerCache = memoize(type -> inspect(
             type, AssertLegal.class,
             Arrays.asList(p -> p.getDeclaringExecutable().getParameters()[0].equals(p)
-                                  ? (v -> v instanceof Aggregate<?> ? ((Aggregate<?>) v).get() : v) : null,
+                                  ? (v -> v instanceof AggregateRoot<?> ? ((AggregateRoot<?>) v).get() : v) : null,
                           new UserParameterResolver()),
             HandlerConfiguration.builder().invokeMultipleMethods(true).build()));
 

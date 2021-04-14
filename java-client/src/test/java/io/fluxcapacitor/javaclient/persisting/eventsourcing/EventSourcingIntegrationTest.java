@@ -26,10 +26,7 @@ import org.junit.jupiter.api.Test;
 
 import static io.fluxcapacitor.javaclient.FluxCapacitor.loadAggregate;
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.mockito.ArgumentMatchers.anyList;
-import static org.mockito.ArgumentMatchers.anyLong;
-import static org.mockito.ArgumentMatchers.anyString;
-import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.atMost;
 import static org.mockito.Mockito.verify;
 
@@ -54,7 +51,7 @@ class EventSourcingIntegrationTest {
     static class CommandHandler {
         @HandleCommand
         void handle(AggregateCommand command) {
-            loadAggregate(command.id, Aggregate.class).apply(command);
+            loadAggregate(command.id, AggregateRoot.class).apply(command);
         }
     }
 
@@ -66,20 +63,20 @@ class EventSourcingIntegrationTest {
         }
     }
 
-    @EventSourced
+    @Aggregate
     @Value
     @Builder(toBuilder = true)
-    static class Aggregate {
+    static class AggregateRoot {
         String id;
         String value;
 
         @ApplyEvent
-        static Aggregate create(AggregateCommand event) {
-            return Aggregate.builder().id(event.id).value(event.value).build();
+        static AggregateRoot create(AggregateCommand event) {
+            return AggregateRoot.builder().id(event.id).value(event.value).build();
         }
 
         @ApplyEvent
-        Aggregate update(AggregateCommand event) {
+        AggregateRoot update(AggregateCommand event) {
             return toBuilder().value(event.value).build();
         }
     }

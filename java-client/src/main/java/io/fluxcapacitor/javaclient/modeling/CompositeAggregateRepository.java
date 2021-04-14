@@ -42,7 +42,7 @@ public class CompositeAggregateRepository implements AggregateRepository {
     }
 
     @Override
-    public <T> Aggregate<T> load(String aggregateId, Class<T> aggregateType, boolean readOnly, boolean onlyCached) {
+    public <T> AggregateRoot<T> load(String aggregateId, Class<T> aggregateType, boolean readOnly, boolean onlyCached) {
         Optional<AggregateRepository> delegate = getDelegate(aggregateType);
         if (delegate.isPresent()) {
             return delegate.get().load(aggregateId, aggregateType, readOnly, onlyCached);

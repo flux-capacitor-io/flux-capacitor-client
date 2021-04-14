@@ -19,8 +19,8 @@ import io.fluxcapacitor.common.api.Metadata;
 import io.fluxcapacitor.javaclient.common.Message;
 import io.fluxcapacitor.javaclient.common.serialization.DeserializingMessage;
 import io.fluxcapacitor.javaclient.common.serialization.DeserializingObject;
-import io.fluxcapacitor.javaclient.modeling.Aggregate;
 import io.fluxcapacitor.javaclient.modeling.AggregateRepository;
+import io.fluxcapacitor.javaclient.modeling.AggregateRoot;
 import io.fluxcapacitor.javaclient.persisting.caching.Cache;
 import io.fluxcapacitor.javaclient.persisting.caching.NoOpCache;
 import lombok.AllArgsConstructor;
@@ -29,21 +29,13 @@ import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
 
 import java.time.Instant;
-import java.util.ArrayDeque;
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.Iterator;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
+import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.BiFunction;
 import java.util.function.Function;
 
 import static io.fluxcapacitor.common.MessageType.EVENT;
-import static io.fluxcapacitor.javaclient.common.serialization.DeserializingMessage.defaultParameterResolvers;
-import static io.fluxcapacitor.javaclient.common.serialization.DeserializingMessage.whenBatchCompletes;
-import static io.fluxcapacitor.javaclient.common.serialization.DeserializingMessage.whenMessageCompletes;
+import static io.fluxcapacitor.javaclient.common.serialization.DeserializingMessage.*;
 import static java.lang.String.format;
 import static java.util.Collections.asLifoQueue;
 import static java.util.Collections.emptyList;
@@ -74,21 +66,21 @@ public class EventSourcingRepository implements AggregateRepository {
 
     @Override
     public boolean supports(Class<?> aggregateType) {
-        return aggregateType.isAnnotationPresent(EventSourced.class);
+        return aggregateType.isAnnotationPresent(Aggregate.class);
     }
 
     @Override
     public boolean cachingAllowed(Class<?> aggregateType) {
-        EventSourced eventSourced = aggregateType.getAnnotation(EventSourced.class);
-        if (eventSourced == null) {
+        Aggregate aggregate = aggregateType.getAnnotation(Aggregate.class);
+        if (aggregate == null) {
             throw new UnsupportedOperationException("Unsupported aggregate type: " + aggregateType);
         }
-        return eventSourced.cached();
+        return aggregate.cached();
     }
 
     @SuppressWarnings("unchecked")
     @Override
-    public <T> Aggregate<T> load(String aggregateId, Class<T> aggregateType, boolean readOnly, boolean onlyCached) {
+    public <T> AggregateRoot<T> load(String aggregateId, Class<T> aggregateType, boolean readOnly, boolean onlyCached) {
         if (onlyCached) {
             return Optional.<EventSourcedModel<T>>ofNullable(cache.getIfPresent(keyFunction.apply(aggregateId)))
                     .orElse(null);
@@ -108,10 +100,11 @@ public class EventSourcingRepository implements AggregateRepository {
             SnapshotRepository snapshotRepository = snapshotRepository(aggregateType);
             SnapshotTrigger snapshotTrigger = snapshotTrigger(aggregateType);
             String domain = domain(aggregateType);
+            boolean eventSourced = eventSourced(aggregateType);
             return (id, ro) -> {
                 EventSourcedAggregate<T> eventSourcedAggregate = new EventSourcedAggregate<>(
                         aggregateType, eventSourcingHandler, cache, serializer, eventStore, snapshotRepository,
-                        snapshotTrigger, domain, ro, id);
+                        snapshotTrigger, domain, eventSourced, ro, id);
                 eventSourcedAggregate.initialize();
                 return eventSourcedAggregate;
             };
@@ -120,33 +113,41 @@ public class EventSourcingRepository implements AggregateRepository {
 
     @SneakyThrows
     protected SnapshotRepository snapshotRepository(Class<?> aggregateType) {
-        int frequency =
-                ofNullable(aggregateType.getAnnotation(EventSourced.class)).map(EventSourced::snapshotPeriod)
-                        .orElse((int) EventSourced.class.getMethod("snapshotPeriod").getDefaultValue());
+        int frequency = snapshotPeriod(aggregateType);
         return frequency > 0 ? this.snapshotRepository : NoOpSnapshotRepository.INSTANCE;
     }
 
     @SneakyThrows
     protected SnapshotTrigger snapshotTrigger(Class<?> aggregateType) {
-        int frequency =
-                ofNullable(aggregateType.getAnnotation(EventSourced.class)).map(EventSourced::snapshotPeriod)
-                        .orElse((int) EventSourced.class.getMethod("snapshotPeriod").getDefaultValue());
+        int frequency = snapshotPeriod(aggregateType);
         return frequency > 0 ? new PeriodicSnapshotTrigger(frequency) : NoSnapshotTrigger.INSTANCE;
     }
 
     @SneakyThrows
+    protected int snapshotPeriod(Class<?> aggregateType) {
+        return ofNullable(aggregateType.getAnnotation(Aggregate.class)).map(a -> a.eventSourced() ? a.snapshotPeriod() : 1)
+                .orElse((int) Aggregate.class.getMethod("snapshotPeriod").getDefaultValue());
+    }
+
+    @SneakyThrows
     protected boolean isCached(Class<?> aggregateType) {
-        return ofNullable(aggregateType.getAnnotation(EventSourced.class)).map(EventSourced::cached)
-                .orElse((boolean) EventSourced.class.getMethod("cached").getDefaultValue());
+        return ofNullable(aggregateType.getAnnotation(Aggregate.class)).map(Aggregate::cached)
+                .orElse((boolean) Aggregate.class.getMethod("cached").getDefaultValue());
     }
 
     protected String domain(Class<?> aggregateType) {
-        return ofNullable(aggregateType.getAnnotation(EventSourced.class)).map(EventSourced::domain)
+        return ofNullable(aggregateType.getAnnotation(Aggregate.class)).map(Aggregate::domain)
                 .filter(s -> !s.isEmpty()).orElse(aggregateType.getSimpleName());
     }
 
+    @SneakyThrows
+    protected boolean eventSourced(Class<?> aggregateType) {
+        return ofNullable(aggregateType.getAnnotation(Aggregate.class)).map(Aggregate::eventSourced)
+                .orElse((boolean) Aggregate.class.getMethod("eventSourced").getDefaultValue());
+    }
+
     @RequiredArgsConstructor
-    protected class EventSourcedAggregate<T> implements Aggregate<T> {
+    protected class EventSourcedAggregate<T> implements AggregateRoot<T> {
 
         private final Class<T> aggregateType;
         private final EventSourcingHandler<T> eventSourcingHandler;
@@ -156,6 +157,7 @@ public class EventSourcingRepository implements AggregateRepository {
         private final SnapshotRepository snapshotRepository;
         private final SnapshotTrigger snapshotTrigger;
         private final String domain;
+        private final boolean eventSourced;
         private final List<DeserializingMessage> unpublishedEvents = new ArrayList<>();
         private final boolean readOnly;
         private final String id;
@@ -169,6 +171,9 @@ public class EventSourcingRepository implements AggregateRepository {
                         EventSourcedModel<T> model = snapshotRepository.<T>getSnapshot(id)
                                 .filter(a -> aggregateType.isAssignableFrom(a.get().getClass()))
                                 .orElse(EventSourcedModel.<T>builder().id(id).type(aggregateType).build());
+                        if (!eventSourced) {
+                            return model.toBuilder().sequenceNumber(model.sequenceNumber()).build();
+                        }
                         AggregateEventStream<DeserializingMessage> eventStream
                                 = eventStore.getEvents(id, model.sequenceNumber());
                         Iterator<DeserializingMessage> iterator = eventStream.iterator();
@@ -197,15 +202,15 @@ public class EventSourcingRepository implements AggregateRepository {
         }
 
         @Override
-        public Aggregate<T> apply(Message message) {
+        public AggregateRoot<T> apply(Message message) {
             if (readOnly) {
                 throw new UnsupportedOperationException(format("Not allowed to apply a %s. The model is readonly.",
                                                                message));
             }
 
             Metadata metadata = message.getMetadata()
-                    .with(Aggregate.AGGREGATE_ID_METADATA_KEY, id,
-                          Aggregate.AGGREGATE_TYPE_METADATA_KEY, getAggregateType().getName());
+                    .with(AggregateRoot.AGGREGATE_ID_METADATA_KEY, id,
+                          AggregateRoot.AGGREGATE_TYPE_METADATA_KEY, getAggregateType().getName());
 
             Message eventMessage = message.withMetadata(metadata);
             DeserializingMessage deserializingMessage = new DeserializingMessage(new DeserializingObject<>(
@@ -236,7 +241,7 @@ public class EventSourcingRepository implements AggregateRepository {
                         }
                     });
                 };
-                if (aggregateType.getAnnotation(EventSourced.class).commitInBatch()) {
+                if (aggregateType.getAnnotation(Aggregate.class).commitInBatch()) {
                     whenBatchCompletes(commit);
                 } else {
                     whenMessageCompletes(commit);
@@ -253,7 +258,7 @@ public class EventSourcingRepository implements AggregateRepository {
         }
 
         @Override
-        public Aggregate<T> previous() {
+        public AggregateRoot<T> previous() {
             return model.previous();
         }
 

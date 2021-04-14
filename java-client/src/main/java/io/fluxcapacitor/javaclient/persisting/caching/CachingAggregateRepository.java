@@ -19,16 +19,12 @@ import io.fluxcapacitor.javaclient.common.Message;
 import io.fluxcapacitor.javaclient.common.serialization.DeserializingMessage;
 import io.fluxcapacitor.javaclient.common.serialization.Serializer;
 import io.fluxcapacitor.javaclient.configuration.client.Client;
-import io.fluxcapacitor.javaclient.modeling.Aggregate;
 import io.fluxcapacitor.javaclient.modeling.AggregateRepository;
+import io.fluxcapacitor.javaclient.modeling.AggregateRoot;
 import io.fluxcapacitor.javaclient.persisting.eventsourcing.EventSourcingHandler;
 import io.fluxcapacitor.javaclient.persisting.eventsourcing.EventSourcingHandlerFactory;
 import io.fluxcapacitor.javaclient.tracking.ConsumerConfiguration;
-import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.NonNull;
-import lombok.RequiredArgsConstructor;
-import lombok.Value;
+import lombok.*;
 import lombok.experimental.Accessors;
 import lombok.extern.slf4j.Slf4j;
 
@@ -67,14 +63,14 @@ public class CachingAggregateRepository implements AggregateRepository {
     private final AtomicLong lastEventIndex = new AtomicLong();
 
     @Override
-    public <T> Aggregate<T> load(@NonNull String aggregateId, @NonNull Class<T> aggregateType, boolean readOnly,
-                                 boolean onlyCached) {
+    public <T> AggregateRoot<T> load(@NonNull String aggregateId, @NonNull Class<T> aggregateType, boolean readOnly,
+                                     boolean onlyCached) {
         if (!delegate.cachingAllowed(aggregateType) || !readOnly) {
             return delegate.load(aggregateId, aggregateType, readOnly, onlyCached);
         }
-        Aggregate<T> result = delegate.load(aggregateId, aggregateType, true, true);
+        AggregateRoot<T> result = delegate.load(aggregateId, aggregateType, true, true);
         if (result == null) {
-            return Optional.<Aggregate<T>>ofNullable(doLoad(aggregateId, aggregateType, onlyCached))
+            return Optional.<AggregateRoot<T>>ofNullable(doLoad(aggregateId, aggregateType, onlyCached))
                     .filter(a -> Optional.ofNullable(a.get()).map(m -> aggregateType.isAssignableFrom(m.getClass()))
                             .orElse(true))
                     .orElseGet(() -> delegate.load(aggregateId, aggregateType, readOnly, onlyCached));
@@ -82,7 +78,7 @@ public class CachingAggregateRepository implements AggregateRepository {
         return result;
     }
 
-    private <T> RefreshingAggregate<T> doLoad(String aggregateId, Class<T> type, boolean onlyCached) {
+    private <T> RefreshingAggregateRoot<T> doLoad(String aggregateId, Class<T> type, boolean onlyCached) {
         if (started.compareAndSet(null, Instant.now())) {
             start(this::handleEvents, ConsumerConfiguration.builder().messageType(NOTIFICATION)
                     .name(CachingAggregateRepository.class.getSimpleName()).build(), client);
@@ -124,9 +120,9 @@ public class CachingAggregateRepository implements AggregateRepository {
         }
         return cache
                 .get(keyFunction.apply(aggregateId), cacheKey -> Optional.ofNullable(delegate.load(aggregateId, type))
-                        .map(a -> new RefreshingAggregate<>(a.get(), aggregateId, type, a.previous(), a.lastEventId(),
+                        .map(a -> new RefreshingAggregateRoot<>(a.get(), aggregateId, type, a.previous(), a.lastEventId(),
                                                             a.timestamp(),
-                                                            RefreshingAggregate.Status.UNVERIFIED))
+                                                            RefreshingAggregateRoot.Status.UNVERIFIED))
                         .orElse(null));
     }
 
@@ -161,30 +157,30 @@ public class CachingAggregateRepository implements AggregateRepository {
         String cacheKey = keyFunction.apply(aggregateId);
         String eventId = event.getSerializedObject().getMessageId();
         Instant timestamp = ofEpochMilli(event.getSerializedObject().getTimestamp());
-        RefreshingAggregate<T> aggregate = cache.getIfPresent(cacheKey);
+        RefreshingAggregateRoot<T> aggregate = cache.getIfPresent(cacheKey);
 
-        if (aggregate == null || aggregate.status == RefreshingAggregate.Status.UNVERIFIED) {
+        if (aggregate == null || aggregate.status == RefreshingAggregateRoot.Status.UNVERIFIED) {
             aggregate =
-                    Optional.ofNullable(delegate.load(aggregateId, type)).map(a -> new RefreshingAggregate<>(
+                    Optional.ofNullable(delegate.load(aggregateId, type)).map(a -> new RefreshingAggregateRoot<>(
                             a.get(), a.id(), a.type(),
                             a.previous(), a.lastEventId(), a.timestamp(), Objects.equals(a.lastEventId(), eventId)
-                                    ? RefreshingAggregate.Status.IN_SYNC : RefreshingAggregate.Status.AHEAD))
+                                    ? RefreshingAggregateRoot.Status.IN_SYNC : RefreshingAggregateRoot.Status.AHEAD))
                             .orElseGet(() -> {
                                 log.warn("Delegate repository did not contain aggregate with id {} of type {}",
                                          aggregateId, type);
                                 return null;
                             });
-        } else if (aggregate.status == RefreshingAggregate.Status.IN_SYNC) {
+        } else if (aggregate.status == RefreshingAggregateRoot.Status.IN_SYNC) {
             try {
-                aggregate = new RefreshingAggregate<>(handler.invoke(aggregate.get(), event), aggregate.id(),
+                aggregate = new RefreshingAggregateRoot<>(handler.invoke(aggregate.get(), event), aggregate.id(),
                                                       aggregate.type(), aggregate, eventId, timestamp,
-                                                      RefreshingAggregate.Status.IN_SYNC);
+                                                      RefreshingAggregateRoot.Status.IN_SYNC);
             } catch (Exception e) {
                 log.error("Failed to update aggregate with id {} of type {}", aggregateId, type, e);
                 aggregate = null;
             }
         } else if (eventId.equals(aggregate.lastEventId)) {
-            aggregate = aggregate.toBuilder().status(RefreshingAggregate.Status.IN_SYNC).build();
+            aggregate = aggregate.toBuilder().status(RefreshingAggregateRoot.Status.IN_SYNC).build();
         }
 
         if (aggregate == null) {
@@ -208,11 +204,11 @@ public class CachingAggregateRepository implements AggregateRepository {
     @Value
     @Accessors(fluent = true)
     @Builder(toBuilder = true)
-    private static class RefreshingAggregate<T> implements Aggregate<T> {
+    private static class RefreshingAggregateRoot<T> implements AggregateRoot<T> {
         T model;
         String id;
         Class<T> type;
-        Aggregate<T> previous;
+        AggregateRoot<T> previous;
         String lastEventId;
         Instant timestamp;
         Status status;
@@ -223,7 +219,7 @@ public class CachingAggregateRepository implements AggregateRepository {
         }
 
         @Override
-        public Aggregate<T> apply(Message eventMessage) {
+        public AggregateRoot<T> apply(Message eventMessage) {
             throw new UnsupportedOperationException(
                     format("Not allowed to apply a %s. The aggregate is readonly.", eventMessage));
         }

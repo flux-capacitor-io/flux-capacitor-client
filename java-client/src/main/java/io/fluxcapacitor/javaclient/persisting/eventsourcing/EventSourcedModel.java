@@ -15,7 +15,7 @@
 package io.fluxcapacitor.javaclient.persisting.eventsourcing;
 
 import io.fluxcapacitor.javaclient.common.Message;
-import io.fluxcapacitor.javaclient.modeling.Aggregate;
+import io.fluxcapacitor.javaclient.modeling.AggregateRoot;
 import lombok.Builder;
 import lombok.Value;
 import lombok.experimental.Accessors;
@@ -27,7 +27,7 @@ import static java.lang.String.format;
 @Value
 @Builder(toBuilder = true)
 @Accessors(fluent = true)
-public class EventSourcedModel<T> implements Aggregate<T> {
+public class EventSourcedModel<T> implements AggregateRoot<T> {
     String id;
     Class<T> type;
     @Builder.Default long sequenceNumber = -1L;
@@ -42,7 +42,7 @@ public class EventSourcedModel<T> implements Aggregate<T> {
     }
 
     @Override
-    public Aggregate<T> apply(Message eventMessage) {
+    public AggregateRoot<T> apply(Message eventMessage) {
         throw new UnsupportedOperationException(format("Not allowed to apply a %s. The model is readonly.",
                                                        eventMessage));
     }

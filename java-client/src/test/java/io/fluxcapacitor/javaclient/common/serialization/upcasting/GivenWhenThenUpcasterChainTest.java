@@ -22,8 +22,8 @@ import io.fluxcapacitor.common.serialization.Revision;
 import io.fluxcapacitor.javaclient.FluxCapacitor;
 import io.fluxcapacitor.javaclient.common.serialization.jackson.JacksonSerializer;
 import io.fluxcapacitor.javaclient.configuration.DefaultFluxCapacitor;
+import io.fluxcapacitor.javaclient.persisting.eventsourcing.Aggregate;
 import io.fluxcapacitor.javaclient.persisting.eventsourcing.ApplyEvent;
-import io.fluxcapacitor.javaclient.persisting.eventsourcing.EventSourced;
 import io.fluxcapacitor.javaclient.test.TestFixture;
 import io.fluxcapacitor.javaclient.tracking.handling.HandleCommand;
 import io.fluxcapacitor.javaclient.tracking.handling.HandleQuery;
@@ -189,7 +189,7 @@ public class GivenWhenThenUpcasterChainTest {
 
     }
 
-    @EventSourced
+    @Aggregate
     @Value
     @Builder(toBuilder = true)
     public static class TestModel {

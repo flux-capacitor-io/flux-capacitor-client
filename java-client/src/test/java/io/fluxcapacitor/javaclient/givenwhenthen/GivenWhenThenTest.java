@@ -16,8 +16,8 @@ package io.fluxcapacitor.javaclient.givenwhenthen;
 
 import io.fluxcapacitor.javaclient.FluxCapacitor;
 import io.fluxcapacitor.javaclient.MockException;
+import io.fluxcapacitor.javaclient.persisting.eventsourcing.Aggregate;
 import io.fluxcapacitor.javaclient.persisting.eventsourcing.ApplyEvent;
-import io.fluxcapacitor.javaclient.persisting.eventsourcing.EventSourced;
 import io.fluxcapacitor.javaclient.test.TestFixture;
 import io.fluxcapacitor.javaclient.tracking.handling.HandleCommand;
 import io.fluxcapacitor.javaclient.tracking.handling.HandleEvent;
@@ -27,10 +27,7 @@ import org.mockito.InOrder;
 
 import static io.fluxcapacitor.javaclient.FluxCapacitor.loadAggregate;
 import static org.hamcrest.CoreMatchers.isA;
-import static org.mockito.Mockito.inOrder;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.spy;
-import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.*;
 
 class GivenWhenThenTest {
 
@@ -208,7 +205,7 @@ class GivenWhenThenTest {
         }
     }
 
-    @EventSourced
+    @Aggregate
     private static class MockAggregate {
         @ApplyEvent
         MockAggregate(MockDomainEvent event) {

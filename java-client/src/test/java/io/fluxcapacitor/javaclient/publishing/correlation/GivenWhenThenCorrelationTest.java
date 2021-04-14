@@ -3,8 +3,8 @@ package io.fluxcapacitor.javaclient.publishing.correlation;
 import io.fluxcapacitor.common.api.Metadata;
 import io.fluxcapacitor.javaclient.FluxCapacitor;
 import io.fluxcapacitor.javaclient.common.Message;
+import io.fluxcapacitor.javaclient.persisting.eventsourcing.Aggregate;
 import io.fluxcapacitor.javaclient.persisting.eventsourcing.ApplyEvent;
-import io.fluxcapacitor.javaclient.persisting.eventsourcing.EventSourced;
 import io.fluxcapacitor.javaclient.test.TestFixture;
 import io.fluxcapacitor.javaclient.tracking.handling.HandleCommand;
 import io.fluxcapacitor.javaclient.tracking.handling.HandleQuery;
@@ -84,7 +84,7 @@ public class GivenWhenThenCorrelationTest {
 
     }
 
-    @EventSourced
+    @Aggregate
     @Value
     public static class TestModel {
         List<Metadata> eventMetadata;

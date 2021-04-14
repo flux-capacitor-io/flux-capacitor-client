@@ -33,7 +33,7 @@ public class AggregateTypeResolver implements ParameterResolver<DeserializingMes
     }
 
     public static Class<?> getAggregateType(DeserializingMessage message) {
-        return Optional.ofNullable(message.getMetadata().get(Aggregate.AGGREGATE_TYPE_METADATA_KEY)).map(c -> {
+        return Optional.ofNullable(message.getMetadata().get(AggregateRoot.AGGREGATE_TYPE_METADATA_KEY)).map(c -> {
             try {
                 return Class.forName(c);
             } catch (ClassNotFoundException e) {

@@ -15,17 +15,15 @@
 package io.fluxcapacitor.javaclient.persisting.caching;
 
 import io.fluxcapacitor.javaclient.configuration.DefaultFluxCapacitor;
+import io.fluxcapacitor.javaclient.persisting.eventsourcing.Aggregate;
 import io.fluxcapacitor.javaclient.persisting.eventsourcing.ApplyEvent;
-import io.fluxcapacitor.javaclient.persisting.eventsourcing.EventSourced;
 import io.fluxcapacitor.javaclient.test.TestFixture;
 import io.fluxcapacitor.javaclient.tracking.handling.HandleCommand;
 import org.junit.jupiter.api.Test;
 
 import static io.fluxcapacitor.javaclient.FluxCapacitor.loadAggregate;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.never;
-import static org.mockito.Mockito.spy;
-import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.*;
 
 class SelectiveCacheTest {
     private final Cache defaultCache = spy(new DefaultCache()), customCache = spy(new DefaultCache());
@@ -62,14 +60,14 @@ class SelectiveCacheTest {
         }
     }
 
-    @EventSourced
+    @Aggregate
     static class MockModel {
         @ApplyEvent
         MockModel(String event) {
         }
     }
 
-    @EventSourced
+    @Aggregate
     static class OtherModel {
         @ApplyEvent
         OtherModel(Integer event) {

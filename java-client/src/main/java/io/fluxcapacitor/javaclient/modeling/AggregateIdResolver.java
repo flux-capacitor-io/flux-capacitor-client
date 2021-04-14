@@ -30,6 +30,6 @@ public class AggregateIdResolver implements ParameterResolver<DeserializingMessa
     }
 
     public static String getAggregateId(DeserializingMessage message) {
-        return message.getMetadata().get(Aggregate.AGGREGATE_ID_METADATA_KEY);
+        return message.getMetadata().get(AggregateRoot.AGGREGATE_ID_METADATA_KEY);
     }
 }

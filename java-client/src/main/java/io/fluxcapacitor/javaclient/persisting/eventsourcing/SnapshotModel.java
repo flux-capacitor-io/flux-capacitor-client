@@ -17,7 +17,7 @@ package io.fluxcapacitor.javaclient.persisting.eventsourcing;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import io.fluxcapacitor.javaclient.common.Message;
-import io.fluxcapacitor.javaclient.modeling.Aggregate;
+import io.fluxcapacitor.javaclient.modeling.AggregateRoot;
 import lombok.Builder;
 import lombok.Value;
 import lombok.experimental.Accessors;
@@ -29,7 +29,7 @@ import static java.lang.String.format;
 @Value
 @Builder(toBuilder = true)
 @Accessors(fluent = true)
-public class SnapshotModel<T> implements Aggregate<T> {
+public class SnapshotModel<T> implements AggregateRoot<T> {
     @JsonProperty
     String id;
     @JsonProperty
@@ -47,7 +47,7 @@ public class SnapshotModel<T> implements Aggregate<T> {
     T model;
 
     @Override
-    public Aggregate<T> previous() {
+    public AggregateRoot<T> previous() {
         return null;
     }
 
@@ -57,7 +57,7 @@ public class SnapshotModel<T> implements Aggregate<T> {
     }
 
     @Override
-    public Aggregate<T> apply(Message eventMessage) {
+    public AggregateRoot<T> apply(Message eventMessage) {
         throw new UnsupportedOperationException(format("Not allowed to apply a %s. The model is readonly.",
                 eventMessage));
     }

@@ -26,7 +26,7 @@ import java.util.function.Predicate;
 
 import static java.lang.String.format;
 
-public interface Aggregate<T> {
+public interface AggregateRoot<T> {
 
     String AGGREGATE_ID_METADATA_KEY = "$aggregateId";
     String AGGREGATE_TYPE_METADATA_KEY = "$aggregateType";
@@ -41,49 +41,49 @@ public interface Aggregate<T> {
 
     Instant timestamp();
 
-    Aggregate<T> previous();
+    AggregateRoot<T> previous();
 
-    default Aggregate<T> playBackToEvent(String eventId) {
+    default AggregateRoot<T> playBackToEvent(String eventId) {
         return playBackToCondition(aggregate -> Objects.equals(eventId, aggregate.lastEventId()))
                 .orElseThrow(() -> new IllegalStateException(format(
                         "Could not load aggregate %s of type %s for event %s. Aggregate started at event %s",
                         id(), type().getSimpleName(), eventId, lastEventId())));
     }
 
-    default Optional<Aggregate<T>> playBackToCondition(Predicate<Aggregate<T>> condition) {
-        Aggregate<T> result = this;
+    default Optional<AggregateRoot<T>> playBackToCondition(Predicate<AggregateRoot<T>> condition) {
+        AggregateRoot<T> result = this;
         while (result != null && !condition.test(result)) {
             result = result.previous();
         }
         return Optional.ofNullable(result);
     }
 
-    Aggregate<T> apply(Message eventMessage);
+    AggregateRoot<T> apply(Message eventMessage);
 
-    default Aggregate<T> apply(Object event) {
+    default AggregateRoot<T> apply(Object event) {
         return apply(new Message(event));
     }
 
-    default Aggregate<T> apply(Object event, Metadata metadata) {
+    default AggregateRoot<T> apply(Object event, Metadata metadata) {
         return apply(new Message(event, metadata));
     }
 
-    default Aggregate<T> apply(Function<T, Message> eventFunction) {
+    default AggregateRoot<T> apply(Function<T, Message> eventFunction) {
         return apply(eventFunction.apply(get()));
     }
 
 
-    default <E extends Exception> Aggregate<T> assertLegal(Object command) throws E {
+    default <E extends Exception> AggregateRoot<T> assertLegal(Object command) throws E {
         ValidationUtils.assertLegal(command, get());
         return this;
     }
 
-    default <E extends Exception> Aggregate<T> assertThat(Validator<T, E> validator) throws E {
+    default <E extends Exception> AggregateRoot<T> assertThat(Validator<T, E> validator) throws E {
         validator.validate(this.get());
         return this;
     }
 
-    default <E extends Exception> Aggregate<T> ensure(Predicate<T> check, Function<T, E> errorProvider) throws E {
+    default <E extends Exception> AggregateRoot<T> ensure(Predicate<T> check, Function<T, E> errorProvider) throws E {
         if (!check.test(get())) {
             throw errorProvider.apply(get());
         }

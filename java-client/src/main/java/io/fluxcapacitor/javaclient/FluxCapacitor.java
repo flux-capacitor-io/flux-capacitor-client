@@ -24,20 +24,15 @@ import io.fluxcapacitor.javaclient.common.serialization.Serializer;
 import io.fluxcapacitor.javaclient.configuration.DefaultFluxCapacitor;
 import io.fluxcapacitor.javaclient.configuration.client.Client;
 import io.fluxcapacitor.javaclient.configuration.spring.FluxCapacitorSpringConfig;
-import io.fluxcapacitor.javaclient.modeling.Aggregate;
 import io.fluxcapacitor.javaclient.modeling.AggregateRepository;
+import io.fluxcapacitor.javaclient.modeling.AggregateRoot;
 import io.fluxcapacitor.javaclient.persisting.caching.Cache;
-import io.fluxcapacitor.javaclient.persisting.eventsourcing.EventSourced;
+import io.fluxcapacitor.javaclient.persisting.eventsourcing.Aggregate;
 import io.fluxcapacitor.javaclient.persisting.eventsourcing.EventStore;
 import io.fluxcapacitor.javaclient.persisting.keyvalue.KeyValueStore;
 import io.fluxcapacitor.javaclient.persisting.search.DocumentStore;
 import io.fluxcapacitor.javaclient.persisting.search.Search;
-import io.fluxcapacitor.javaclient.publishing.CommandGateway;
-import io.fluxcapacitor.javaclient.publishing.ErrorGateway;
-import io.fluxcapacitor.javaclient.publishing.EventGateway;
-import io.fluxcapacitor.javaclient.publishing.MetricsGateway;
-import io.fluxcapacitor.javaclient.publishing.QueryGateway;
-import io.fluxcapacitor.javaclient.publishing.ResultGateway;
+import io.fluxcapacitor.javaclient.publishing.*;
 import io.fluxcapacitor.javaclient.publishing.correlation.CorrelationDataProvider;
 import io.fluxcapacitor.javaclient.publishing.correlation.DefaultCorrelationDataProvider;
 import io.fluxcapacitor.javaclient.scheduling.Scheduler;
@@ -59,9 +54,7 @@ import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.stream.Stream;
 
-import static io.fluxcapacitor.common.MessageType.COMMAND;
-import static io.fluxcapacitor.common.MessageType.EVENT;
-import static io.fluxcapacitor.common.MessageType.NOTIFICATION;
+import static io.fluxcapacitor.common.MessageType.*;
 import static io.fluxcapacitor.javaclient.modeling.AggregateIdResolver.getAggregateId;
 import static java.util.Arrays.stream;
 import static java.util.Optional.ofNullable;
@@ -268,9 +261,9 @@ public interface FluxCapacitor extends AutoCloseable {
      * If the aggregate is loaded while handling an event of the aggregate, the returned Aggregate will automatically be
      * replayed back to event currently being handled. Otherwise, the most recent state of the aggregate is loaded.
      *
-     * @see EventSourced for more info on how to define an event sourced aggregate root
+     * @see Aggregate for more info on how to define an event sourced aggregate root
      */
-    static <T> Aggregate<T> loadAggregate(String id, Class<T> aggregateType) {
+    static <T> AggregateRoot<T> loadAggregate(String id, Class<T> aggregateType) {
         return loadAggregate(id, aggregateType, ofNullable(DeserializingMessage.getCurrent()).map(d -> d.getMessageType() != COMMAND).orElse(true));
     }
 
@@ -281,10 +274,10 @@ public interface FluxCapacitor extends AutoCloseable {
      * If the aggregate is loaded while handling an event of the aggregate, the returned Aggregate will automatically be
      * replayed back to event currently being handled. Otherwise, the most recent state of the aggregate is loaded.
      *
-     * @see EventSourced for more info on how to define an event sourced aggregate root
+     * @see Aggregate for more info on how to define an event sourced aggregate root
      */
-    static <T> Aggregate<T> loadAggregate(String id, Class<T> aggregateType, boolean readOnly) {
-        Aggregate<T> result = get().aggregateRepository().load(id, aggregateType, readOnly, false);
+    static <T> AggregateRoot<T> loadAggregate(String id, Class<T> aggregateType, boolean readOnly) {
+        AggregateRoot<T> result = get().aggregateRepository().load(id, aggregateType, readOnly, false);
         DeserializingMessage message = DeserializingMessage.getCurrent();
         if (message != null && (message.getMessageType() == EVENT || message.getMessageType() == NOTIFICATION)
                 && id.equals(getAggregateId(message))) {

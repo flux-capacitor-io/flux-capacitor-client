@@ -17,11 +17,10 @@ package io.fluxcapacitor.javaclient.persisting.eventsourcing;
 import io.fluxcapacitor.common.api.Metadata;
 import io.fluxcapacitor.common.api.SerializedMessage;
 import io.fluxcapacitor.common.handling.HandlerNotFoundException;
-import io.fluxcapacitor.javaclient.FluxCapacitor;
 import io.fluxcapacitor.javaclient.MockException;
 import io.fluxcapacitor.javaclient.common.Message;
 import io.fluxcapacitor.javaclient.configuration.DefaultFluxCapacitor;
-import io.fluxcapacitor.javaclient.modeling.Aggregate;
+import io.fluxcapacitor.javaclient.modeling.AggregateRoot;
 import io.fluxcapacitor.javaclient.modeling.AssertLegal;
 import io.fluxcapacitor.javaclient.persisting.eventsourcing.client.EventStoreClient;
 import io.fluxcapacitor.javaclient.test.TestFixture;
@@ -40,18 +39,11 @@ import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.atomic.AtomicInteger;
 
+import static io.fluxcapacitor.javaclient.FluxCapacitor.loadAggregate;
 import static io.fluxcapacitor.javaclient.modeling.AssertLegal.HIGHEST_PRIORITY;
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNull;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyList;
-import static org.mockito.ArgumentMatchers.anyLong;
-import static org.mockito.ArgumentMatchers.anyString;
-import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.Mockito.times;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.verifyNoInteractions;
-import static org.mockito.Mockito.when;
+import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.ArgumentMatchers.*;
+import static org.mockito.Mockito.*;
 
 @Slf4j
 class EventSourcingRepositoryTest {
@@ -159,27 +151,27 @@ class EventSourcingRepositoryTest {
         private static class Handler {
             @HandleCommand
             void handle(Object command, Metadata metadata) {
-                FluxCapacitor.loadAggregate(aggregateId, TestModel.class).assertLegal(command).apply(command, metadata);
+                loadAggregate(aggregateId, TestModel.class).assertLegal(command).apply(command, metadata);
             }
 
             @HandleQuery
             TestModel handle(GetModel query) {
-                return FluxCapacitor.loadAggregate(aggregateId, TestModel.class).get();
+                return loadAggregate(aggregateId, TestModel.class).get();
             }
 
             @HandleQuery
             TestModel handle(ApplyInQuery query) {
-                return FluxCapacitor.loadAggregate(aggregateId, TestModel.class).apply(query).get();
+                return loadAggregate(aggregateId, TestModel.class).apply(query).get();
             }
 
             @HandleCommand
             void handle(ApplyNonsense command) {
-                FluxCapacitor.loadAggregate(aggregateId, TestModel.class).apply("nonsense");
+                loadAggregate(aggregateId, TestModel.class).apply("nonsense");
             }
 
         }
 
-        @EventSourced(cached = true, snapshotPeriod = 100)
+        @Aggregate(cached = true, snapshotPeriod = 100)
         @lombok.Data
         @NoArgsConstructor
         @AllArgsConstructor
@@ -238,7 +230,7 @@ class EventSourcingRepositoryTest {
                                              times(1)).getEvents(aggregateId, 2L));
         }
 
-        @EventSourced(snapshotPeriod = 3, cached = false)
+        @Aggregate(snapshotPeriod = 3, cached = false)
         @NoArgsConstructor
         @Value
         public static class TestModelForSnapshotting {
@@ -253,12 +245,59 @@ class EventSourcingRepositoryTest {
         private static class Handler {
             @HandleCommand
             void handle(Object command) {
-                FluxCapacitor.loadAggregate(aggregateId, TestModelForSnapshotting.class).assertLegal(command)
+                loadAggregate(aggregateId, TestModelForSnapshotting.class).assertLegal(command)
                         .apply(command);
             }
 
         }
 
+    }
+
+    static class NotEventSourced {
+        private final TestFixture testFixture = TestFixture.create(new Handler());
+
+        @Test
+        void testIgnoreSnapshotPeriodWhenNotEventSourced() {
+            testFixture.givenCommands(new CreateModel())
+                    .whenCommand(new UpdateModel())
+                    .expectThat(fc -> {
+                        verify(testFixture.getFluxCapacitor().client().getEventStoreClient(),
+                                times(0)).getEvents(anyString(), anyLong());
+                        verify(testFixture.getFluxCapacitor().client().getKeyValueClient(), times(1))
+                                .putValue(anyString(), any(), any());
+                        TestModelNotEventSourced result = loadAggregate(aggregateId, TestModelNotEventSourced.class).get();
+                        assertTrue(result.getNames().size()==2
+                                && result.getNames().get(1).equals(UpdateModel.class.getSimpleName()));
+                    });
+        }
+
+        @Aggregate(eventSourced = false, snapshotPeriod = 3, cached = false)
+        @NoArgsConstructor
+        @Value
+        @Builder
+        public static class TestModelNotEventSourced {
+            List<String> names = new ArrayList<>();
+
+            @ApplyEvent
+            public TestModelNotEventSourced(CreateModel event) {
+                names.add(event.getClass().getSimpleName());
+            }
+
+            @ApplyEvent
+            public TestModelNotEventSourced apply(UpdateModel event) {
+                names.add(event.getClass().getSimpleName());
+                return this;
+            }
+        }
+
+
+        private static class Handler {
+            @HandleCommand
+            void handle(Object command) {
+                loadAggregate(aggregateId, TestModelNotEventSourced.class).assertLegal(command)
+                        .apply(command);
+            }
+        }
     }
 
 
@@ -303,7 +342,7 @@ class EventSourcingRepositoryTest {
         }
 
 
-        @EventSourced
+        @Aggregate
         public static class TestModelWithFactoryMethod {
             @ApplyEvent
             public static TestModelWithFactoryMethod handle(CreateModel event) {
@@ -317,13 +356,13 @@ class EventSourcingRepositoryTest {
 
             @HandleCommand
             void handle(CreateModel command) {
-                FluxCapacitor.loadAggregate(aggregateId, TestModelWithFactoryMethod.class).assertLegal(command)
+                loadAggregate(aggregateId, TestModelWithFactoryMethod.class).assertLegal(command)
                         .apply(command);
             }
 
             @HandleCommand
             void handle(Object command) {
-                FluxCapacitor.loadAggregate(aggregateId, TestModelWithFactoryMethod.class).assertLegal(command);
+                loadAggregate(aggregateId, TestModelWithFactoryMethod.class).assertLegal(command);
             }
 
         }
@@ -343,7 +382,7 @@ class EventSourcingRepositoryTest {
                             .storeEvents(anyString(), anyString(), anyLong(), anyList(), eq(false)));
         }
 
-        @EventSourced
+        @Aggregate
         public static class TestModelWithFactoryMethodAndSameInstanceMethod {
             @ApplyEvent
             public static TestModelWithFactoryMethodAndSameInstanceMethod handleStatic(CreateModel event) {
@@ -359,7 +398,7 @@ class EventSourcingRepositoryTest {
         private static class Handler {
             @HandleCommand
             void handle(Object command) {
-                FluxCapacitor.loadAggregate(aggregateId, TestModelWithFactoryMethodAndSameInstanceMethod.class)
+                loadAggregate(aggregateId, TestModelWithFactoryMethodAndSameInstanceMethod.class)
                         .assertLegal(command).apply(command);
             }
 
@@ -377,7 +416,7 @@ class EventSourcingRepositoryTest {
                     .expectException(HandlerNotFoundException.class);
         }
 
-        @EventSourced
+        @Aggregate
         public static class TestModelWithoutFactoryMethodOrConstructor {
             @ApplyEvent
             public TestModelWithoutFactoryMethodOrConstructor handle(CreateModel event) {
@@ -388,7 +427,7 @@ class EventSourcingRepositoryTest {
         private static class Handler {
             @HandleCommand
             void handle(CreateModel command) {
-                FluxCapacitor.loadAggregate(aggregateId, TestModelWithoutFactoryMethodOrConstructor.class)
+                loadAggregate(aggregateId, TestModelWithoutFactoryMethodOrConstructor.class)
                         .assertLegal(command).apply(command);
             }
 
@@ -430,12 +469,12 @@ class EventSourcingRepositoryTest {
         void testAccessToPrevious() {
             testFixture.givenCommands(new CreateModelFromEvent()).whenCommand(new UpdateModelFromEvent())
                     .expectThat(fc -> {
-                        Aggregate<TestModelWithoutApplyEvent> aggregate =
+                        AggregateRoot<TestModelWithoutApplyEvent> aggregateRoot =
                                 testFixture.getFluxCapacitor().aggregateRepository()
                                         .load(aggregateId, TestModelWithoutApplyEvent.class);
-                        assertEquals(aggregate.get().firstEvent, aggregate.previous().get().firstEvent);
-                        assertEquals(aggregate.get().secondEvent, new UpdateModelFromEvent());
-                        assertNull(aggregate.previous().get().secondEvent);
+                        assertEquals(aggregateRoot.get().firstEvent, aggregateRoot.previous().get().firstEvent);
+                        assertEquals(aggregateRoot.get().secondEvent, new UpdateModelFromEvent());
+                        assertNull(aggregateRoot.previous().get().secondEvent);
                     });
         }
 
@@ -489,7 +528,7 @@ class EventSourcingRepositoryTest {
         public static class GetPlayBackedAggregate {
         }
 
-        @EventSourced
+        @Aggregate
         @Value
         @Builder(toBuilder = true)
         public static class TestModelWithoutApplyEvent {
@@ -500,24 +539,24 @@ class EventSourcingRepositoryTest {
         private static class Handler {
             @HandleCommand
             void handle(Object command) {
-                FluxCapacitor.loadAggregate(aggregateId, TestModelWithoutApplyEvent.class).assertLegal(command)
+                loadAggregate(aggregateId, TestModelWithoutApplyEvent.class).assertLegal(command)
                         .apply(command);
             }
 
             @HandleQuery
             TestModelWithoutApplyEvent handle(GetModel query) {
-                return FluxCapacitor.loadAggregate(aggregateId, TestModelWithoutApplyEvent.class).get();
+                return loadAggregate(aggregateId, TestModelWithoutApplyEvent.class).get();
             }
 
             @HandleCommand
             void handle(ApplyOnPrevious command) {
-                FluxCapacitor.loadAggregate(aggregateId, TestModelWithoutApplyEvent.class).assertLegal(command)
+                loadAggregate(aggregateId, TestModelWithoutApplyEvent.class).assertLegal(command)
                         .previous().apply(command);
             }
 
             @HandleQuery
-            Optional<Aggregate<TestModelWithoutApplyEvent>> handle(GetPlayBackedAggregate query) {
-                return FluxCapacitor.loadAggregate(aggregateId, TestModelWithoutApplyEvent.class)
+            Optional<AggregateRoot<TestModelWithoutApplyEvent>> handle(GetPlayBackedAggregate query) {
+                return loadAggregate(aggregateId, TestModelWithoutApplyEvent.class)
                         .playBackToCondition(a -> false);
             }
         }
