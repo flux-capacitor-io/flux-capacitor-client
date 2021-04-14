@@ -14,8 +14,8 @@
 
 package io.fluxcapacitor.common.api.search.constraints;
 
-import io.fluxcapacitor.common.SerializationUtils;
 import io.fluxcapacitor.common.api.search.Constraint;
+import io.fluxcapacitor.common.serialization.JsonUtils;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -27,7 +27,7 @@ class FindConstraintTest {
         String query =
                 " A OR (B ORfoo$ \n*bar* OR(-notThis* (\"cheese (is) OR very tasty\") OR -(chick=fox)) mouse dog OR cat hare ) ";
         Constraint constraint = AllConstraint.all(new FindConstraint(query, null).decompose());
-        Object expected = SerializationUtils.deserialize(FindConstraintTest.class, "findConstraintDecomposed.json");
+        Object expected = JsonUtils.fromFile(FindConstraintTest.class, "findConstraintDecomposed.json");
         assertEquals(expected, constraint);
     }
 

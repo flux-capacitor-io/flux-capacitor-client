@@ -12,20 +12,20 @@
  * limitations under the License.
  */
 
-package io.fluxcapacitor.common;
+package io.fluxcapacitor.common.serialization;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.databind.JavaType;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.json.JsonMapper;
 import com.fasterxml.jackson.databind.jsontype.impl.LaissezFaireSubTypeValidator;
-import io.fluxcapacitor.common.serialization.NullCollectionsAsEmptyModule;
-import io.fluxcapacitor.common.serialization.StripStringsModule;
+import io.fluxcapacitor.common.FileUtils;
 import lombok.SneakyThrows;
 
 import java.io.InputStream;
 import java.util.Arrays;
 import java.util.List;
+import java.util.stream.Collectors;
 
 import static com.fasterxml.jackson.annotation.JsonTypeInfo.As.PROPERTY;
 import static com.fasterxml.jackson.databind.DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES;
@@ -34,81 +34,95 @@ import static com.fasterxml.jackson.databind.SerializationFeature.FAIL_ON_EMPTY_
 import static com.fasterxml.jackson.databind.SerializationFeature.WRITE_DATES_AS_TIMESTAMPS;
 import static com.fasterxml.jackson.databind.node.JsonNodeFactory.withExactBigDecimals;
 
-public class SerializationUtils {
-    public static final JsonMapper jsonMapper = JsonMapper.builder()
+public class JsonUtils {
+    public static final JsonMapper reader = JsonMapper.builder()
             .findAndAddModules().addModule(new StripStringsModule()).addModule(new NullCollectionsAsEmptyModule())
             .disable(FAIL_ON_EMPTY_BEANS).disable(WRITE_DATES_AS_TIMESTAMPS).disable(FAIL_ON_UNKNOWN_PROPERTIES)
             .nodeFactory(withExactBigDecimals(true)).serializationInclusion(JsonInclude.Include.NON_NULL)
             .activateDefaultTyping(LaissezFaireSubTypeValidator.instance, JAVA_LANG_OBJECT, PROPERTY)
             .build();
 
+    public static final JsonMapper writer = reader.rebuild().deactivateDefaultTyping().build();
+
+    @SuppressWarnings("unchecked")
     @SneakyThrows
-    public static Object deserialize(String fileName) {
-        return jsonMapper.readValue(FileUtils.loadFile(fileName), Object.class);
+    public static <T> T fromFile(String fileName) {
+        return (T) reader.readValue(FileUtils.loadFile(fileName), Object.class);
     }
 
     @SneakyThrows
-    public static Object deserialize(Class<?> referencePoint, String fileName) {
-        return jsonMapper.readValue(FileUtils.loadFile(referencePoint, fileName), Object.class);
+    public static <T> T fromFile(String fileName, JavaType javaType) {
+        return reader.readValue(FileUtils.loadFile(fileName), javaType);
     }
 
     @SuppressWarnings("unchecked")
     @SneakyThrows
-    public static <T> T deserializeRaw(String json) {
-        return (T) deserializeRaw(json, Object.class);
+    public static <T> T fromFile(Class<?> referencePoint, String fileName) {
+        return (T) reader.readValue(FileUtils.loadFile(referencePoint, fileName), Object.class);
     }
 
     @SneakyThrows
-    public static <T> T deserializeRaw(String json, Class<T> type) {
-        return jsonMapper.readValue(json, type);
+    public static <T> T fromFile(Class<?> referencePoint, String fileName, JavaType javaType) {
+        return reader.readValue(FileUtils.loadFile(referencePoint, fileName), javaType);
     }
 
     @SneakyThrows
-    public static <T> T deserializeRaw(String json, JavaType type) {
-        return jsonMapper.readValue(json, type);
+    public static <T> T fromFile(Class<?> referencePoint, String fileName, Class<T> type) {
+        return reader.readValue(FileUtils.loadFile(referencePoint, fileName), type);
     }
 
-    @SneakyThrows
-    public static <T> T deserializeRaw(byte[] json, Class<T> type) {
-        return jsonMapper.readValue(json, type);
+    public static List<?> fromFile(String... fileNames) {
+        return Arrays.stream(fileNames).map(JsonUtils::fromFile).collect(Collectors.toList());
     }
 
     @SuppressWarnings("unchecked")
     @SneakyThrows
-    public static <T> List<T> deserializeList(String fileName) {
-        return jsonMapper.readValue(FileUtils.loadFile(fileName), List.class);
-    }
-
-    public static Object[] deserialize(String... fileNames) {
-        return Arrays.stream(fileNames).map(SerializationUtils::deserialize).toArray();
+    public static <T> T fromJson(String json) {
+        return (T) fromJson(json, Object.class);
     }
 
     @SneakyThrows
-    public static String asString(Object object) {
-        return jsonMapper.writeValueAsString(object);
+    public static <T> T fromJson(String json, Class<T> type) {
+        return reader.readValue(json, type);
     }
 
     @SneakyThrows
-    public static String asPrettyString(Object object) {
-        return jsonMapper.writerWithDefaultPrettyPrinter().writeValueAsString(object);
+    public static <T> T fromJson(String json, JavaType type) {
+        return reader.readValue(json, type);
+    }
+
+    @SneakyThrows
+    public static <T> T fromJson(byte[] json, Class<T> type) {
+        return reader.readValue(json, type);
+    }
+
+    @SneakyThrows
+    public static String asJson(Object object) {
+        return writer.writeValueAsString(object);
+    }
+
+    @SneakyThrows
+    public static String asPrettyJson(Object object) {
+        return writer.writerWithDefaultPrettyPrinter().writeValueAsString(object);
     }
 
     @SneakyThrows
     public static byte[] asBytes(Object object) {
-        return jsonMapper.writeValueAsBytes(object);
+        return writer.writeValueAsBytes(object);
     }
 
     public static <T> T convertValue(Object fromValue, Class<? extends T> toValueType) {
-        return jsonMapper.convertValue(fromValue, toValueType);
+        return (JsonNode.class.isAssignableFrom(toValueType) ? writer : reader)
+                .convertValue(fromValue, toValueType);
     }
 
     @SneakyThrows
     public static JsonNode readTree(InputStream readEntity) {
-        return jsonMapper.readTree(readEntity);
+        return writer.readTree(readEntity);
     }
 
     @SneakyThrows
     public static <T extends JsonNode> T valueToTree(Object object) {
-        return jsonMapper.valueToTree(object);
+        return writer.valueToTree(object);
     }
 }

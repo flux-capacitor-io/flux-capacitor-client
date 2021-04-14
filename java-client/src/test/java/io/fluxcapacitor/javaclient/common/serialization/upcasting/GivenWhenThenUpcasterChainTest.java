@@ -18,6 +18,7 @@ import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.github.fge.jsonpatch.JsonPatch;
 import io.fluxcapacitor.common.api.Metadata;
+import io.fluxcapacitor.common.serialization.JsonUtils;
 import io.fluxcapacitor.common.serialization.Revision;
 import io.fluxcapacitor.javaclient.FluxCapacitor;
 import io.fluxcapacitor.javaclient.common.serialization.jackson.JacksonSerializer;
@@ -35,7 +36,6 @@ import org.junit.jupiter.api.Test;
 
 import java.util.List;
 
-import static io.fluxcapacitor.common.SerializationUtils.deserialize;
 import static io.fluxcapacitor.javaclient.common.serialization.jackson.JacksonSerializer.defaultObjectMapper;
 import static java.util.Arrays.asList;
 import static java.util.Collections.singletonList;
@@ -50,7 +50,8 @@ public class GivenWhenThenUpcasterChainTest {
 
         @Test
         void testUpcastingWithDataInput() {
-            testFixture.givenDomainEvents(aggregateId, deserialize(this.getClass(), "create-model-revision-0.json"))
+            testFixture.givenDomainEvents(aggregateId, JsonUtils
+                    .fromFile(this.getClass(), "create-model-revision-0.json", Object.class))
                     .whenQuery(new GetModel())
                     .expectResult(new TestModel(singletonList(new CreateModel("patchedContent"))));
         }
@@ -71,7 +72,8 @@ public class GivenWhenThenUpcasterChainTest {
 
         @Test
         void testUpcastingWithDataInput() {
-            testFixture.givenDomainEvents(aggregateId, deserialize(this.getClass(), "create-model-revision-0.json"))
+            testFixture.givenDomainEvents(aggregateId, JsonUtils
+                    .fromFile(this.getClass(), "create-model-revision-0.json", Object.class))
                     .whenQuery(new GetModel())
                     .expectResult(new TestModel(singletonList(new CreateModel("patchedContent"))));
         }
@@ -95,7 +97,8 @@ public class GivenWhenThenUpcasterChainTest {
 
         @Test
         void testUpcastingWithDataInput() {
-            testFixture.givenDomainEvents(aggregateId, deserialize(this.getClass(), "create-model-revision-0.json"))
+            testFixture.givenDomainEvents(aggregateId, JsonUtils
+                    .fromFile(this.getClass(), "create-model-revision-0.json", Object.class))
                     .whenQuery(new GetModel())
                     .expectResult(new TestModel(singletonList(new CreateModel("patchedContent"))));
         }
@@ -120,8 +123,8 @@ public class GivenWhenThenUpcasterChainTest {
         @Test
         void testUpcastingWithDataInput() {
             testFixture.givenDomainEvents(aggregateId,
-                    deserialize(this.getClass(), "create-model-revision-0.json"),
-                    deserialize(this.getClass(), "update-model-revision-0.json"))
+                                          JsonUtils.fromFile(this.getClass(), "create-model-revision-0.json"),
+                                          JsonUtils.fromFile(this.getClass(), "update-model-revision-0.json"))
                     .whenQuery(new GetModel())
                     .expectResult(new TestModel(asList(new CreateModel("someContent"),
                             new UpdateModel("patchedOneAgain", "patchedTwo"))));
