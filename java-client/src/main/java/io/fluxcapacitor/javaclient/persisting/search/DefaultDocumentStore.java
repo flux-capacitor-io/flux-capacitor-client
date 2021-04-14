@@ -55,6 +55,24 @@ public class DefaultDocumentStore implements DocumentStore {
         return new DefaultSearch(searchBuilder);
     }
 
+    @Override
+    public void deleteDocument(String collection, String id) {
+        try {
+            client.delete(collection, id, Guarantee.SENT).await();
+        } catch (Exception e) {
+            throw new DocumentStoreException(String.format("Could not delete document %s", collection), e);
+        }
+    }
+
+    @Override
+    public void deleteCollection(String collection) {
+        try {
+            client.deleteCollection(collection).await();
+        } catch (Exception e) {
+            throw new DocumentStoreException(String.format("Could not delete collection %s", collection), e);
+        }
+    }
+
     @AllArgsConstructor
     private class DefaultSearch implements Search {
         private final SearchQuery.Builder queryBuilder;

@@ -30,6 +30,8 @@ import io.fluxcapacitor.common.api.keyvalue.StoreValuesAndWait;
 import io.fluxcapacitor.common.api.publishing.Append;
 import io.fluxcapacitor.common.api.scheduling.CancelSchedule;
 import io.fluxcapacitor.common.api.scheduling.Schedule;
+import io.fluxcapacitor.common.api.search.DeleteCollection;
+import io.fluxcapacitor.common.api.search.DeleteDocumentById;
 import io.fluxcapacitor.common.api.search.DeleteDocuments;
 import io.fluxcapacitor.common.api.search.GetDocumentStats;
 import io.fluxcapacitor.common.api.search.GetDocumentStatsResult;
@@ -47,6 +49,9 @@ import io.fluxcapacitor.common.api.tracking.ReadFromIndexResult;
 import io.fluxcapacitor.common.api.tracking.ReadResult;
 import io.fluxcapacitor.common.api.tracking.ResetPosition;
 import io.fluxcapacitor.common.api.tracking.StorePosition;
+
+
+
 
 @JsonTypeInfo(use = JsonTypeInfo.Id.NAME)
 @JsonSubTypes({
@@ -92,7 +97,9 @@ import io.fluxcapacitor.common.api.tracking.StorePosition;
         @JsonSubTypes.Type(value = GetSearchHistogram.class, name = "getSearchHistogram"),
         @JsonSubTypes.Type(value = GetSearchHistogramResult.class, name = "getSearchHistogramResult"),
         @JsonSubTypes.Type(value = GetDocuments.class, name = "getDocuments"),
+        @JsonSubTypes.Type(value = DeleteCollection.class, name = "deleteCollection"),
         @JsonSubTypes.Type(value = DeleteDocuments.class, name = "deleteDocuments"),
+        @JsonSubTypes.Type(value = DeleteDocumentById.class, name = "deleteDocumentById"),
         @JsonSubTypes.Type(value = GetDocumentStats.class, name = "getDocumentStats"),
         @JsonSubTypes.Type(value = SearchDocumentsResult.class, name = "searchDocumentsResult"),
         @JsonSubTypes.Type(value = GetDocumentsResult.class, name = "getDocumentsResult"),
