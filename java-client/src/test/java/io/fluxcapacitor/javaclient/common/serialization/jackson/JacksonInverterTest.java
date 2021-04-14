@@ -15,8 +15,8 @@
 package io.fluxcapacitor.javaclient.common.serialization.jackson;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import io.fluxcapacitor.common.FileUtils;
 import io.fluxcapacitor.common.search.Document;
-import io.fluxcapacitor.javaclient.common.FileUtils;
 import lombok.Value;
 import org.junit.jupiter.api.Test;
 

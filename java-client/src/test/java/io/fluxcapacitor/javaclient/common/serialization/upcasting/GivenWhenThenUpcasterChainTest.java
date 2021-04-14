@@ -35,7 +35,7 @@ import org.junit.jupiter.api.Test;
 
 import java.util.List;
 
-import static io.fluxcapacitor.javaclient.common.serialization.SerializationUtils.deserialize;
+import static io.fluxcapacitor.common.SerializationUtils.deserialize;
 import static io.fluxcapacitor.javaclient.common.serialization.jackson.JacksonSerializer.defaultObjectMapper;
 import static java.util.Arrays.asList;
 import static java.util.Collections.singletonList;

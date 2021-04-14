@@ -14,32 +14,21 @@
 
 package io.fluxcapacitor.common.api.search.constraints;
 
+import io.fluxcapacitor.common.SerializationUtils;
 import io.fluxcapacitor.common.api.search.Constraint;
-import io.fluxcapacitor.common.search.Document;
-import lombok.Value;
+import org.junit.jupiter.api.Test;
 
-import java.util.Arrays;
-import java.util.List;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
-@Value
-public class AllConstraint implements Constraint {
+class FindConstraintTest {
 
-    public static Constraint all(Constraint... constraints) {
-        return all(Arrays.asList(constraints));
+    @Test
+    void testDecompose() {
+        String query =
+                " A OR (B ORfoo$ \n*bar* OR(-notThis* (\"cheese (is) OR very tasty\") OR -(chick=fox)) mouse dog OR cat hare ) ";
+        Constraint constraint = AllConstraint.all(new FindConstraint(query, null).decompose());
+        Object expected = SerializationUtils.deserialize(FindConstraintTest.class, "findConstraintDecomposed.json");
+        assertEquals(expected, constraint);
     }
 
-    public static Constraint all(List<Constraint> constraints) {
-        switch (constraints.size()) {
-            case 0: return Constraint.noOp;
-            case 1: return constraints.get(0);
-            default: return new AllConstraint(constraints);
-        }
-    }
-
-    List<Constraint> all;
-
-    @Override
-    public boolean matches(Document document) {
-        return all.stream().allMatch(c -> c.matches(document));
-    }
 }
