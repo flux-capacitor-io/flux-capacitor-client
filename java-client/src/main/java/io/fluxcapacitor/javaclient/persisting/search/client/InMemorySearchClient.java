@@ -28,6 +28,7 @@ import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.function.Function;
 import java.util.stream.Collectors;
@@ -60,6 +61,18 @@ public class InMemorySearchClient implements SearchClient {
     @Override
     public Awaitable delete(SearchQuery query, Guarantee guarantee) {
         documents.removeAll(documents.stream().filter(query::matches).collect(Collectors.toList()));
+        return Awaitable.ready();
+    }
+
+    @Override
+    public Awaitable delete(String collection, String documentId, Guarantee guarantee) {
+        documents.removeIf(d -> Objects.equals(documentId, d.getId()) && Objects.equals(collection, d.getCollection()));
+        return Awaitable.ready();
+    }
+
+    @Override
+    public Awaitable deleteCollection(String collection) {
+        documents.removeIf(d -> Objects.equals(collection, d.getCollection()));
         return Awaitable.ready();
     }
 

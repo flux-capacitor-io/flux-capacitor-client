@@ -18,6 +18,8 @@ import io.fluxcapacitor.common.Awaitable;
 import io.fluxcapacitor.common.Backlog;
 import io.fluxcapacitor.common.Guarantee;
 import io.fluxcapacitor.common.api.QueryResult;
+import io.fluxcapacitor.common.api.search.DeleteCollection;
+import io.fluxcapacitor.common.api.search.DeleteDocumentById;
 import io.fluxcapacitor.common.api.search.DeleteDocuments;
 import io.fluxcapacitor.common.api.search.DocumentStats;
 import io.fluxcapacitor.common.api.search.GetDocumentStats;
@@ -114,12 +116,37 @@ public class WebSocketSearchClient extends AbstractWebsocketClient implements Se
                 sendAndForget(request);
                 return Awaitable.ready();
             case SENT:
-                return sendAndForget(request);
+                send(request);
+                return Awaitable.ready();
             case STORED:
                 CompletableFuture<QueryResult> future = send(request);
                 return future::get;
             default:
                 throw new UnsupportedOperationException("Unrecognized guarantee: " + guarantee);
         }
+    }
+
+    @Override
+    public Awaitable delete(String collection, String documentId, Guarantee guarantee) {
+        DeleteDocumentById request = new DeleteDocumentById(collection, documentId, guarantee);
+        switch (guarantee) {
+            case NONE:
+                sendAndForget(request);
+                return Awaitable.ready();
+            case SENT:
+                send(request);
+                return Awaitable.ready();
+            case STORED:
+                CompletableFuture<QueryResult> future = send(request);
+                return future::get;
+            default:
+                throw new UnsupportedOperationException("Unrecognized guarantee: " + guarantee);
+        }
+    }
+
+    @Override
+    public Awaitable deleteCollection(String collection) {
+        CompletableFuture<QueryResult> future = send(new DeleteCollection(collection));
+        return future::get;
     }
 }

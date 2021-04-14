@@ -14,12 +14,14 @@
 
 package io.fluxcapacitor.common.api.search.constraints;
 
-import com.fasterxml.jackson.annotation.JsonIgnore;
 import io.fluxcapacitor.common.search.Document;
+import lombok.AccessLevel;
+import lombok.EqualsAndHashCode;
+import lombok.Getter;
 import lombok.NonNull;
 import lombok.Value;
+import lombok.experimental.Accessors;
 
-import java.beans.ConstructorProperties;
 import java.util.function.Predicate;
 
 import static io.fluxcapacitor.common.search.Document.EntryType.NUMERIC;
@@ -42,20 +44,17 @@ public class BetweenConstraint extends PathConstraint {
     String min;
     String max;
     String path;
-    @JsonIgnore
-    Predicate<String> valuePredicate;
-
-    @ConstructorProperties({"min", "max", "path"})
-    public BetweenConstraint(String min, String max, @NonNull String path) {
-        this.min = min;
-        this.max = max;
-        this.path = path;
-        this.valuePredicate = min == null ? max == null ? s -> true : s -> s.compareTo(max) < 0 : max == null
-                ? s -> s.compareTo(min) >= 0 : s -> s.compareTo(min) >= 0 && s.compareTo(max) < 0;
-    }
 
     @Override
     protected boolean matches(Document.Entry entry) {
-        return entry.getType() == NUMERIC && getValuePredicate().test(entry.getValue());
+        return entry.getType() == NUMERIC && matcher().test(entry.getValue());
     }
+
+    @Getter(value = AccessLevel.PROTECTED, lazy = true)
+    @Accessors(fluent = true)
+    @EqualsAndHashCode.Exclude
+    Predicate<String> matcher =
+            min == null ? max == null ? s -> true : s -> s.compareTo(max) < 0 : max == null
+                    ? s -> s.compareTo(min) >= 0 : s -> s.compareTo(min) >= 0 && s.compareTo(max) < 0;
+
 }

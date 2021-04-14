@@ -14,21 +14,23 @@
 
 package io.fluxcapacitor.common.api.search.constraints;
 
-import com.fasterxml.jackson.annotation.JsonIgnore;
 import io.fluxcapacitor.common.api.search.Constraint;
 import io.fluxcapacitor.common.search.Document;
 import lombok.Getter;
 import lombok.NonNull;
 import lombok.Value;
-import org.apache.commons.lang3.StringUtils;
+import lombok.experimental.Accessors;
 
-import java.beans.ConstructorProperties;
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.List;
+import java.util.ListIterator;
+import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 @Value
-public class FindConstraint extends PathConstraint {
+public class FindConstraint implements Constraint {
     public static Constraint find(@NonNull String find, String... paths) {
         switch (paths.length) {
             case 0: return new FindConstraint(find, null);
@@ -38,36 +40,89 @@ public class FindConstraint extends PathConstraint {
         }
     }
 
+    private static final String operator = "&|()!\\-";
+    private static final Pattern matcherPattern =
+            Pattern.compile(String.format("\"[^\"]*\"|[%1$s]|[^\\s%1$s]+", operator), Pattern.MULTILINE);
+
     String find;
     String path;
-    boolean postfixSearch; //i.e. phrase was foo*
-    boolean prefixSearch; //i.e. phrase was *foo
-
-    @JsonIgnore
-    @Getter(lazy = true)
-    Pattern pattern = Pattern.compile((prefixSearch ? "" : "\\b") + find + (postfixSearch ? "" : "\\b"));
-
-    @ConstructorProperties({"find", "path"})
-    public FindConstraint(@NonNull String find, String path) {
-        find = StringUtils.stripAccents(StringUtils.strip(find.toLowerCase()));
-        if (find.endsWith("*")) {
-            find = find.substring(0, find.length() - 1);
-            postfixSearch = true;
-        } else {
-            postfixSearch = false;
-        }
-        if (find.startsWith("*")) {
-            find = find.substring(1);
-            prefixSearch = true;
-        } else {
-            prefixSearch = false;
-        }
-        this.find = find;
-        this.path = path;
-    }
 
     @Override
-    protected boolean matches(Document.Entry entry) {
-        return getPattern().matcher(entry.asPhrase()).find();
+    public boolean matches(Document document) {
+        return decompose().stream().allMatch(c -> c.matches(document));
+    }
+
+    @Getter(lazy = true) @Accessors(fluent = true)
+    List<Constraint> decompose = createConstraints(splitInTermsAndOperators(find));
+
+    private List<Constraint> createConstraints(List<String> parts) {
+        List<Constraint> result = new ArrayList<>();
+        ListIterator<String> iterator = parts.listIterator();
+        while (iterator.hasNext()) {
+            parsePart(iterator.next(), iterator, result);
+        }
+        return result;
+    }
+
+    private void parsePart(String part, ListIterator<String> iterator, List<Constraint> constraints) {
+        switch (part) {
+            case "(": handleGroupStart(iterator, constraints); break;
+            case "|": handleOr(iterator, constraints); break;
+            case "!": handleNot(iterator, constraints); break;
+            default: handleTerm(part, constraints); break;
+        }
+    }
+
+    private void handleGroupStart(ListIterator<String> iterator, List<Constraint> constraints) {
+        List<Constraint> subList = new ArrayList<>();
+        while (iterator.hasNext()) {
+            String part = iterator.next();
+            if (part.equals(")")) {
+                break;
+            }
+            parsePart(part, iterator, subList);
+        }
+        constraints.add(AllConstraint.all(subList));
+    }
+
+    private void handleOr(ListIterator<String> iterator, List<Constraint> constraints) {
+        if (iterator.hasNext() && !constraints.isEmpty()) {
+            Constraint leftHandConstraint = constraints.remove(constraints.size() - 1);
+            List<Constraint> rightHandPart = new ArrayList<>();
+            parsePart(iterator.next(), iterator, rightHandPart);
+            constraints.add(leftHandConstraint.or(AllConstraint.all(rightHandPart)));
+        } else {
+            parsePart("OR", iterator, constraints);
+        }
+    }
+
+    private void handleNot(ListIterator<String> iterator, List<Constraint> constraints) {
+        List<Constraint> subList = new ArrayList<>();
+        if (iterator.hasNext()) {
+            parsePart(iterator.next(), iterator, subList);
+        }
+        constraints.add(NotConstraint.not(AllConstraint.all(subList)));
+    }
+
+    private void handleTerm(String term, List<Constraint> constraints) {
+        constraints.add(ContainsConstraint.contains(term, path));
+    }
+
+    private List<String> splitInTermsAndOperators(String query) {
+        List<String> parts = new ArrayList<>();
+
+        Matcher matcher = matcherPattern.matcher(query.trim());
+        while (matcher.find()) {
+            String group = matcher.group().trim();
+            if (!group.isEmpty() && !group.equals("\"") && !group.equals("AND") && !group.equals("&")) {
+                group = group.equals("OR") ? "|" : group;
+                group = group.equals("-") ? "!" : group;
+                if (group.startsWith("\"") && group.endsWith("\"")) {
+                    group = group.substring(1, group.length() - 1);
+                }
+                parts.add(group);
+            }
+        }
+        return parts;
     }
 }

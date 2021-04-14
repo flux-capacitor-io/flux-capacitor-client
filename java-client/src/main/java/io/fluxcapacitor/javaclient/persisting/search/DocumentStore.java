@@ -38,6 +38,10 @@ public interface DocumentStore {
 
     Search search(SearchQuery.Builder queryBuilder);
 
+    void deleteDocument(String collection, String id);
+
+    void deleteCollection(String collection);
+
     DocumentSerializer getSerializer();
 
 }

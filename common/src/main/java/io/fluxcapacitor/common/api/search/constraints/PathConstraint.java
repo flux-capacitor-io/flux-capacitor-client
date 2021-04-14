@@ -14,19 +14,17 @@
 
 package io.fluxcapacitor.common.api.search.constraints;
 
-import com.fasterxml.jackson.annotation.JsonIgnore;
 import io.fluxcapacitor.common.SearchUtils;
 import io.fluxcapacitor.common.api.search.Constraint;
 import io.fluxcapacitor.common.search.Document;
+import lombok.AccessLevel;
+import lombok.EqualsAndHashCode;
 import lombok.Getter;
+import lombok.experimental.Accessors;
 
 import java.util.function.Predicate;
 
 public abstract class PathConstraint implements Constraint {
-
-    @JsonIgnore
-    @Getter(lazy = true)
-    private final Predicate<String> pathPredicate = SearchUtils.convertGlobToRegex(getPath()).asPredicate();
 
     public abstract String getPath();
 
@@ -36,6 +34,11 @@ public abstract class PathConstraint implements Constraint {
     public boolean matches(Document document) {
         return document.getEntries().entrySet().stream()
                 .anyMatch(e -> matches(e.getKey())
-                        && (getPath() == null || e.getValue().stream().anyMatch(getPathPredicate())));
+                        && (getPath() == null || e.getValue().stream().anyMatch(pathPredicate())));
     }
+
+    @Getter(value = AccessLevel.PROTECTED, lazy = true)
+    @Accessors(fluent = true)
+    @EqualsAndHashCode.Exclude
+    private final Predicate<String> pathPredicate = SearchUtils.convertGlobToRegex(getPath()).asPredicate();
 }

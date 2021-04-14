@@ -84,7 +84,7 @@ public class JacksonInverter implements Inverter<JsonNode> {
 
     @Override
     public Document toDocument(Data<byte[]> data, String id, String collection, Instant timestamp) {
-        if (!"application/json".equals(data.getFormat())) {
+        if (!"application/json" .equals(data.getFormat())) {
             throw new IllegalArgumentException("Only json inversion is supported");
         }
         return new Document(id, data.getType(), data.getRevision(), collection,
@@ -104,7 +104,7 @@ public class JacksonInverter implements Inverter<JsonNode> {
 
     @SneakyThrows
     protected JsonToken processToken(JsonToken token, Map<Entry, List<String>> valueMap, String path,
-                                          JsonParser parser) {
+                                     JsonParser parser) {
         switch (token) {
             case START_ARRAY:
                 parseArray(parser, valueMap, path);

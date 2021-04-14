@@ -14,6 +14,7 @@
 
 package io.fluxcapacitor.javaclient.test;
 
+import io.fluxcapacitor.common.api.search.Constraint;
 import io.fluxcapacitor.javaclient.FluxCapacitor;
 import io.fluxcapacitor.javaclient.persisting.search.Search;
 
@@ -34,6 +35,10 @@ public interface When extends Given {
     Then whenDomainEvents(String aggregateId, Object... events);
 
     Then whenSearching(String collection, UnaryOperator<Search> searchQuery);
+
+    default Then whenSearching(String collection, Constraint... constraints) {
+        return whenSearching(collection, s -> s.constraint(constraints));
+    }
 
     Then whenScheduleExpires(Object schedule);
 

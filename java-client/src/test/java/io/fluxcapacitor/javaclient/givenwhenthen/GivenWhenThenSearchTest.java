@@ -14,20 +14,27 @@
 
 package io.fluxcapacitor.javaclient.givenwhenthen;
 
-import io.fluxcapacitor.javaclient.persisting.search.Search;
+import io.fluxcapacitor.common.api.search.Constraint;
+import io.fluxcapacitor.common.api.search.constraints.FindConstraint;
 import io.fluxcapacitor.javaclient.test.TestFixture;
 import lombok.Value;
 import org.junit.jupiter.api.Test;
 
 import java.math.BigDecimal;
+import java.util.ArrayList;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
-import java.util.function.UnaryOperator;
 import java.util.stream.Stream;
 
+import static io.fluxcapacitor.common.api.search.constraints.AllConstraint.all;
+import static io.fluxcapacitor.common.api.search.constraints.AnyConstraint.any;
+import static io.fluxcapacitor.common.api.search.constraints.BetweenConstraint.atLeast;
 import static io.fluxcapacitor.common.api.search.constraints.BetweenConstraint.below;
+import static io.fluxcapacitor.common.api.search.constraints.BetweenConstraint.between;
 import static io.fluxcapacitor.common.api.search.constraints.ExistsConstraint.exists;
 import static io.fluxcapacitor.common.api.search.constraints.FindConstraint.find;
+import static io.fluxcapacitor.common.api.search.constraints.MatchConstraint.match;
 import static io.fluxcapacitor.common.api.search.constraints.NotConstraint.not;
 import static java.util.Collections.emptyList;
 import static java.util.Collections.singletonList;
@@ -40,78 +47,78 @@ public class GivenWhenThenSearchTest {
 
     @Test
     void testPhraseMatching() {
-        expectMatch(s -> s.find("see what"));
-        expectMatch(s -> s.find("see wh*"));
-        expectMatch(s -> s.find("* what"));
-        expectMatch(s -> s.find("*e what"));
-        expectNoMatch(s -> s.find("*a what"));
-        expectMatch(s -> s.find("see what", "foo"));
-        expectNoMatch(s -> s.find("bla bla"));
-        expectNoMatch(s -> s.find("see what", "wrongField"));
+        expectMatch(find("see what"));
+        expectMatch(find("see wh*"));
+        expectMatch(find("* what"));
+        expectMatch(find("*e what"));
+        expectNoMatch(find("*a what"));
+        expectMatch(find("see what", "foo"));
+        expectNoMatch(find("bla bla"));
+        expectNoMatch(find("see what", "wrongField"));
     }
 
     @Test
     void testFieldMatching() {
-        expectMatch(s -> s.match(SomeDocument.ID, "someId"));
-        expectMatch(s -> s.match(SomeDocument.ID));
-        expectMatch(s -> s.match(SomeDocument.ID, "someOtherField", "someId"));
-        expectMatch(s -> s.match("Let's see what we can find", "foo"));
-        expectNoMatch(s -> s.match(SomeDocument.ID.toLowerCase(), "someId"));
-        expectNoMatch(s -> s.match(SomeDocument.ID, "wrongField"));
+        expectMatch(match(SomeDocument.ID, "someId"));
+        expectMatch(match(SomeDocument.ID));
+        expectMatch(match(SomeDocument.ID, "someOtherField", "someId"));
+        expectMatch(match("Let's see what we can find", "foo"));
+        expectNoMatch(match(SomeDocument.ID.toLowerCase(), "someId"));
+        expectNoMatch(match(SomeDocument.ID, "wrongField"));
     }
 
     @Test
     void testNumberMatching() {
         //at least
-        expectMatch(s -> s.atLeast(18.5, "someNumber"));
-        expectMatch(s -> s.atLeast(20.5, "someNumber"));
-        expectMatch(s -> s.atLeast(20.50, "someNumber"));
-        expectNoMatch(s -> s.atLeast(18.5, "wrongField"));
-        expectNoMatch(s -> s.atLeast(21, "someNumber"));
+        expectMatch(atLeast(18.5, "someNumber"));
+        expectMatch(atLeast(20.5, "someNumber"));
+        expectMatch(atLeast(20.50, "someNumber"));
+        expectNoMatch(atLeast(18.5, "wrongField"));
+        expectNoMatch(atLeast(21, "someNumber"));
 
         //below
-        expectMatch(s -> s.below(21.5, "someNumber"));
-        expectNoMatch(s -> s.below(20, "someNumber"));
-        expectNoMatch(s -> s.below(20.5, "someNumber"));
+        expectMatch(below(21.5, "someNumber"));
+        expectNoMatch(below(20, "someNumber"));
+        expectNoMatch(below(20.5, "someNumber"));
 
         //between
-        expectMatch(s -> s.between(20, 30, "someNumber"));
-        expectMatch(s -> s.between(20.5, 30, "someNumber"));
-        expectNoMatch(s -> s.between(21, 30, "someNumber"));
-        expectNoMatch(s -> s.between(20, 20.5, "someNumber"));
+        expectMatch(between(20, 30, "someNumber"));
+        expectMatch(between(20.5, 30, "someNumber"));
+        expectNoMatch(between(21, 30, "someNumber"));
+        expectNoMatch(between(20, 20.5, "someNumber"));
 
-        assertThrows(Throwable.class, () -> expectNoMatch(s -> s.atLeast(18.5, null)), "Path should be required");
+        assertThrows(Throwable.class, () -> expectNoMatch(atLeast(18.5, null)), "Path should be required");
     }
 
     @Test
     void testExistsConstraint() {
-        expectMatch(s -> s.constraint(exists("someId")));
+        expectMatch(exists("someId"));
     }
 
     @Test
     void testCombineConstraints() {
-        expectMatch(s -> s.find("see wh*").below(21.5, "someNumber"));
-        expectNoMatch(s -> s.not(find("see wh*").and(below(21.5, "someNumber"))));
-        expectNoMatch(s -> s.find("see wh*", "wrongField").below(21.5, "someNumber"));
-        expectMatch(s -> s.not(find("see wh*", "wrongField").and(below(21.5, "someNumber"))));
-        expectMatch(s -> s.any(find("see wh*", "wrongField").or(below(21.5, "someNumber"))));
-        expectNoMatch(s -> s.constraint(not(exists("someId"))));
+        expectMatch(find("see wh*"), below(21.5, "someNumber"));
+        expectNoMatch(not(find("see wh*").and(below(21.5, "someNumber"))));
+        expectNoMatch(find("see wh*", "wrongField"), below(21.5, "someNumber"));
+        expectMatch(not(find("see wh*", "wrongField").and(below(21.5, "someNumber"))));
+        expectMatch(any(find("see wh*", "wrongField").or(below(21.5, "someNumber"))));
+        expectNoMatch(not(exists("someId")));
     }
 
     @Test
     void testPathMatching() {
-        expectMatch(s -> s.match(true, "booleans/first"));
-        expectMatch(s -> s.match(true, "booleans/second"));
-        expectMatch(s -> s.match(true, "*/second"));
-        expectMatch(s -> s.match(true, "booleans/*"));
-        expectMatch(s -> s.match(true, "booleans/**"));
-        expectMatch(s -> s.match(true, "**"));
-        expectNoMatch(s -> s.match(false, "**"));
-        expectNoMatch(s -> s.match(false, "booleans/first"));
-        expectMatch(s -> s.match(true, "booleans/third/inner"));
-        expectMatch(s -> s.match(true, "booleans/*/inner"));
-        expectMatch(s -> s.match(true, "booleans/**/inner"));
-        expectMatch(s -> s.match(true, "**/inner"));
+        expectMatch(match(true, "booleans/first"));
+        expectMatch(match(true, "booleans/second"));
+        expectMatch(match(true, "*/second"));
+        expectMatch(match(true, "booleans/*"));
+        expectMatch(match(true, "booleans/**"));
+        expectMatch(match(true, "**"));
+        expectNoMatch(match(false, "**"));
+        expectNoMatch(match(false, "booleans/first"));
+        expectMatch(match(true, "booleans/third/inner"));
+        expectMatch(match(true, "booleans/*/inner"));
+        expectMatch(match(true, "booleans/**/inner"));
+        expectMatch(match(true, "**/inner"));
     }
 
     @Test
@@ -139,16 +146,32 @@ public class GivenWhenThenSearchTest {
         }).expectNoDocumentsLike(singletonList("bla2"));
     }
 
-    private void expectMatch(UnaryOperator<Search> searchQuery) {
+    private void expectMatch(Constraint... constraints) {
         SomeDocument document = new SomeDocument();
-        TestFixture.create().givenDocuments("test", document).whenSearching("test", searchQuery)
+        TestFixture.create().givenDocuments("test", document).whenSearching("test", constraints)
+                .expectResult(singletonList(document));
+        TestFixture.create().givenDocuments("test", document).whenSearching("test", decompose(constraints))
                 .expectResult(singletonList(document));
     }
 
-    private void expectNoMatch(UnaryOperator<Search> searchQuery) {
+    private void expectNoMatch(Constraint... constraints) {
         SomeDocument document = new SomeDocument();
-        TestFixture.create().givenDocuments("test", document).whenSearching("test", searchQuery)
+        TestFixture.create().givenDocuments("test", document).whenSearching("test", constraints)
                 .expectResult(emptyList());
+        TestFixture.create().givenDocuments("test", document).whenSearching("test", decompose(constraints))
+                .expectResult(emptyList());
+    }
+
+    private Constraint decompose(Constraint... constraints) {
+        List<Constraint> result = new ArrayList<>();
+        for (Constraint constraint : constraints) {
+            if (constraint instanceof FindConstraint) {
+                result.addAll(((FindConstraint) constraint).decompose());
+            } else {
+                result.add(constraint);
+            }
+        }
+        return all(result);
     }
 
     @Value

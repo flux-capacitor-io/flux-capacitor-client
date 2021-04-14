@@ -38,6 +38,10 @@ public interface SearchClient extends AutoCloseable {
 
     Awaitable delete(SearchQuery query, Guarantee guarantee);
 
+    Awaitable delete(String collection, String documentId, Guarantee guarantee);
+
+    Awaitable deleteCollection(String collection);
+
     List<DocumentStats> getStatistics(SearchQuery query, List<String> fields, List<String> groupBy);
 
     SearchHistogram getHistogram(SearchQuery query, int resolution);

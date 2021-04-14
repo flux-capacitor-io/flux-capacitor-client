@@ -14,10 +14,13 @@
 
 package io.fluxcapacitor.common.search;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
+import lombok.Getter;
 import lombok.NonNull;
 import lombok.Value;
+import lombok.experimental.Accessors;
 import org.apache.commons.lang3.StringUtils;
 
 import java.time.Instant;
@@ -54,11 +57,14 @@ public class Document {
         EntryType type;
         String value;
 
-        public String asPhrase() {
-            if (type == EntryType.TEXT) {
-                return StringUtils.stripAccents(StringUtils.strip(value.toLowerCase()));
-            }
-            return value;
+        @JsonIgnore
+        @Getter(lazy = true)
+        @Accessors(fluent = true)
+        String asPhrase = computePhrase();
+
+        @SuppressWarnings("ConstantConditions")
+        private String computePhrase() {
+            return type == EntryType.TEXT ? StringUtils.stripAccents(StringUtils.strip(value.toLowerCase())) : value;
         }
 
         @Override
