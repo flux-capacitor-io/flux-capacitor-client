@@ -40,7 +40,7 @@ public class FindConstraint implements Constraint {
         }
     }
 
-    private static final String operator = "&|()!\\-";
+    private static final String operator = "&|()!";
     private static final Pattern matcherPattern =
             Pattern.compile(String.format("\"[^\"]*\"|[%1$s]|[^\\s%1$s]+", operator), Pattern.MULTILINE);
 
@@ -116,7 +116,6 @@ public class FindConstraint implements Constraint {
             String group = matcher.group().trim();
             if (!group.isEmpty() && !group.equals("\"") && !group.equals("AND") && !group.equals("&")) {
                 group = group.equals("OR") ? "|" : group;
-                group = group.equals("-") ? "!" : group;
                 if (group.startsWith("\"") && group.endsWith("\"")) {
                     group = group.substring(1, group.length() - 1);
                 }
