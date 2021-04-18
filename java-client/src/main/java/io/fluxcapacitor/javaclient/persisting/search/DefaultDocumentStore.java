@@ -16,6 +16,7 @@ package io.fluxcapacitor.javaclient.persisting.search;
 
 import io.fluxcapacitor.common.Guarantee;
 import io.fluxcapacitor.common.api.search.Constraint;
+import io.fluxcapacitor.common.api.search.CreateAuditTrail;
 import io.fluxcapacitor.common.api.search.DocumentStats;
 import io.fluxcapacitor.common.api.search.SearchHistogram;
 import io.fluxcapacitor.common.api.search.SearchQuery;
@@ -24,12 +25,14 @@ import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NonNull;
 
+import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -70,6 +73,16 @@ public class DefaultDocumentStore implements DocumentStore {
             client.deleteCollection(collection).await();
         } catch (Exception e) {
             throw new DocumentStoreException(String.format("Could not delete collection %s", collection), e);
+        }
+    }
+
+    @Override
+    public void createAuditTrail(String collection, Duration retentionTime) {
+        try {
+            client.createAuditTrail(new CreateAuditTrail(collection, Optional.ofNullable(
+                    retentionTime).map(Duration::getSeconds).orElse(null))).await();
+        } catch (Exception e) {
+            throw new DocumentStoreException(String.format("Could not create audit trail %s", collection), e);
         }
     }
 

@@ -18,6 +18,7 @@ import io.fluxcapacitor.common.Guarantee;
 import io.fluxcapacitor.common.api.search.SearchQuery;
 import io.fluxcapacitor.javaclient.FluxCapacitor;
 
+import java.time.Duration;
 import java.time.Instant;
 
 public interface DocumentStore {
@@ -41,6 +42,8 @@ public interface DocumentStore {
     void deleteDocument(String collection, String id);
 
     void deleteCollection(String collection);
+
+    void createAuditTrail(String collection, Duration retentionTime);
 
     DocumentSerializer getSerializer();
 
