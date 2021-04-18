@@ -18,6 +18,7 @@ import io.fluxcapacitor.common.Awaitable;
 import io.fluxcapacitor.common.Backlog;
 import io.fluxcapacitor.common.Guarantee;
 import io.fluxcapacitor.common.api.QueryResult;
+import io.fluxcapacitor.common.api.search.CreateAuditTrail;
 import io.fluxcapacitor.common.api.search.DeleteCollection;
 import io.fluxcapacitor.common.api.search.DeleteDocumentById;
 import io.fluxcapacitor.common.api.search.DeleteDocuments;
@@ -147,6 +148,12 @@ public class WebSocketSearchClient extends AbstractWebsocketClient implements Se
     @Override
     public Awaitable deleteCollection(String collection) {
         CompletableFuture<QueryResult> future = send(new DeleteCollection(collection));
+        return future::get;
+    }
+
+    @Override
+    public Awaitable createAuditTrail(CreateAuditTrail request) {
+        CompletableFuture<QueryResult> future = send(request);
         return future::get;
     }
 }

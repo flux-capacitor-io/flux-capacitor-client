@@ -16,6 +16,7 @@ package io.fluxcapacitor.javaclient.persisting.search.client;
 
 import io.fluxcapacitor.common.Awaitable;
 import io.fluxcapacitor.common.Guarantee;
+import io.fluxcapacitor.common.api.search.CreateAuditTrail;
 import io.fluxcapacitor.common.api.search.DocumentStats;
 import io.fluxcapacitor.common.api.search.SearchHistogram;
 import io.fluxcapacitor.common.api.search.SearchQuery;
@@ -39,6 +40,8 @@ public interface SearchClient extends AutoCloseable {
     Awaitable delete(SearchQuery query, Guarantee guarantee);
 
     Awaitable delete(String collection, String documentId, Guarantee guarantee);
+
+    Awaitable createAuditTrail(CreateAuditTrail request);
 
     Awaitable deleteCollection(String collection);
 
