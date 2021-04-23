@@ -16,8 +16,12 @@ package io.fluxcapacitor.common.api.search.constraints;
 
 import io.fluxcapacitor.common.api.search.Constraint;
 import io.fluxcapacitor.common.search.Document;
+import lombok.EqualsAndHashCode;
+import lombok.Getter;
 import lombok.NonNull;
+import lombok.ToString;
 import lombok.Value;
+import lombok.experimental.Accessors;
 
 @Value
 public class NotConstraint implements Constraint {
@@ -27,8 +31,18 @@ public class NotConstraint implements Constraint {
 
     @NonNull Constraint not;
 
+    @ToString.Exclude
+    @EqualsAndHashCode.Exclude
+    @Getter(lazy = true) @Accessors(fluent = true)
+    Constraint decompose = new NotConstraint(not.decompose());
+
     @Override
     public boolean matches(Document document) {
         return !not.matches(document);
+    }
+
+    @Override
+    public boolean hasPathConstraint() {
+        return not.hasPathConstraint();
     }
 }

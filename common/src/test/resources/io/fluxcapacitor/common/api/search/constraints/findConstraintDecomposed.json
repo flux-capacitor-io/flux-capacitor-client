@@ -1,62 +1,102 @@
 {
-  "@class": "io.fluxcapacitor.common.api.search.constraints.AnyConstraint",
-  "any" : [ {
-    "contains" : "a",
-    "prefixSearch" : false,
-    "postfixSearch" : false
-  }, {
-    "all" : [ {
-      "contains" : "b",
-      "prefixSearch" : false,
-      "postfixSearch" : false
-    }, {
-      "contains" : "orfoo$",
-      "prefixSearch" : false,
-      "postfixSearch" : false
-    }, {
-      "any" : [ {
-        "contains" : "bar",
-        "prefixSearch" : true,
-        "postfixSearch" : true
-      }, {
-        "all" : [ {
-          "not" : {
-            "contains" : "notthis",
-            "prefixSearch" : false,
-            "postfixSearch" : true
-          }
-        }, {
-          "any" : [ {
-            "contains" : "cheese (is) or very tasty",
-            "prefixSearch" : false,
-            "postfixSearch" : false
-          }, {
-            "not" : {
-              "contains" : "chick=fox",
-              "prefixSearch" : false,
-              "postfixSearch" : false
+  "@class": "io.fluxcapacitor.common.api.search.constraints.AllConstraint",
+  "all": [
+    {
+      "all": [
+        {
+          "contains": "k",
+          "prefixSearch": false,
+          "postfixSearch": true
+        },
+        {
+          "contains": "aas",
+          "prefixSearch": true,
+          "postfixSearch": true
+        }
+      ]
+    },
+    {
+      "any": [
+        {
+          "contains": "a",
+          "prefixSearch": false,
+          "postfixSearch": false
+        },
+        {
+          "all": [
+            {
+              "contains": "b",
+              "prefixSearch": false,
+              "postfixSearch": false
+            },
+            {
+              "contains": "orfoo$",
+              "prefixSearch": false,
+              "postfixSearch": false
+            },
+            {
+              "any": [
+                {
+                  "contains": "bar",
+                  "prefixSearch": true,
+                  "postfixSearch": true
+                },
+                {
+                  "all": [
+                    {
+                      "not": {
+                        "contains": "notthis",
+                        "prefixSearch": false,
+                        "postfixSearch": true
+                      }
+                    },
+                    {
+                      "any": [
+                        {
+                          "contains": "cheese (is) or very tasty",
+                          "prefixSearch": false,
+                          "postfixSearch": false
+                        },
+                        {
+                          "not": {
+                            "contains": "chick=fox",
+                            "prefixSearch": false,
+                            "postfixSearch": false
+                          }
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "contains": "mouse",
+              "prefixSearch": false,
+              "postfixSearch": false
+            },
+            {
+              "any": [
+                {
+                  "contains": "dog",
+                  "prefixSearch": false,
+                  "postfixSearch": false
+                },
+                {
+                  "contains": "cat",
+                  "prefixSearch": false,
+                  "postfixSearch": false
+                }
+              ]
+            },
+            {
+              "contains": "hare",
+              "prefixSearch": false,
+              "postfixSearch": false
             }
-          } ]
-        } ]
-      } ]
-    }, {
-      "contains" : "mouse",
-      "prefixSearch" : false,
-      "postfixSearch" : false
-    }, {
-      "any" : [ {
-        "contains" : "dog",
-        "prefixSearch" : false,
-        "postfixSearch" : false
-      }, {
-        "contains" : "cat",
-        "prefixSearch" : false,
-        "postfixSearch" : false
-      } ]
-    }, {
-      "contains" : "hare",
-      "prefixSearch" : false,
-      "postfixSearch" : false
-    } ]
-  } ]
+          ]
+        }
+      ]
+    }
+  ]
 }

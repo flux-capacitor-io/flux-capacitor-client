@@ -26,6 +26,7 @@ import java.time.Duration;
 import java.time.Instant;
 
 import static io.fluxcapacitor.javaclient.FluxCapacitor.currentClock;
+import static io.fluxcapacitor.javaclient.FluxCapacitor.currentIdentityProvider;
 
 @Value
 @EqualsAndHashCode(callSuper = true)
@@ -67,7 +68,7 @@ public class Schedule extends Message {
     }
 
     public Schedule reschedule(Duration duration) {
-        return new Schedule(getPayload(), getMetadata(), identityProvider.nextId(), currentClock().instant(), scheduleId,
-                            deadline.plus(duration));
+        return new Schedule(getPayload(), getMetadata(), currentIdentityProvider().nextId(), currentClock().instant(),
+                            scheduleId, deadline.plus(duration));
     }
 }

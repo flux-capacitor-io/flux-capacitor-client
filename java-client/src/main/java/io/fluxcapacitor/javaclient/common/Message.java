@@ -26,14 +26,13 @@ import lombok.experimental.NonFinal;
 import java.time.Instant;
 
 import static io.fluxcapacitor.javaclient.FluxCapacitor.currentClock;
+import static io.fluxcapacitor.javaclient.FluxCapacitor.currentIdentityProvider;
 
 @Value
 @AllArgsConstructor
 @JsonTypeInfo(use = JsonTypeInfo.Id.CLASS)
 @NonFinal
 public class Message {
-    public static IdentityProvider identityProvider = new UuidFactory();
-
     @With
     @JsonTypeInfo(use = JsonTypeInfo.Id.CLASS)
     Object payload;
@@ -43,11 +42,11 @@ public class Message {
     Instant timestamp;
 
     public Message(Object payload) {
-        this(payload, Metadata.empty(), identityProvider.nextId(), currentClock().instant());
+        this(payload, Metadata.empty(), currentIdentityProvider().nextId(), currentClock().instant());
     }
 
     public Message(Object payload, Metadata metadata) {
-        this(payload, metadata, identityProvider.nextId(), currentClock().instant());
+        this(payload, metadata, currentIdentityProvider().nextId(), currentClock().instant());
     }
 
     @SuppressWarnings("unchecked")

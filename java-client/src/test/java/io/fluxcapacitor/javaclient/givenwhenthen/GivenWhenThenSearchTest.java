@@ -15,19 +15,15 @@
 package io.fluxcapacitor.javaclient.givenwhenthen;
 
 import io.fluxcapacitor.common.api.search.Constraint;
-import io.fluxcapacitor.common.api.search.constraints.FindConstraint;
 import io.fluxcapacitor.javaclient.test.TestFixture;
 import lombok.Value;
 import org.junit.jupiter.api.Test;
 
 import java.math.BigDecimal;
-import java.util.ArrayList;
 import java.util.LinkedHashMap;
-import java.util.List;
 import java.util.Map;
 import java.util.stream.Stream;
 
-import static io.fluxcapacitor.common.api.search.constraints.AllConstraint.all;
 import static io.fluxcapacitor.common.api.search.constraints.AnyConstraint.any;
 import static io.fluxcapacitor.common.api.search.constraints.BetweenConstraint.atLeast;
 import static io.fluxcapacitor.common.api.search.constraints.BetweenConstraint.below;
@@ -150,28 +146,12 @@ public class GivenWhenThenSearchTest {
         SomeDocument document = new SomeDocument();
         TestFixture.create().givenDocuments("test", document).whenSearching("test", constraints)
                 .expectResult(singletonList(document));
-        TestFixture.create().givenDocuments("test", document).whenSearching("test", decompose(constraints))
-                .expectResult(singletonList(document));
     }
 
     private void expectNoMatch(Constraint... constraints) {
         SomeDocument document = new SomeDocument();
         TestFixture.create().givenDocuments("test", document).whenSearching("test", constraints)
                 .expectResult(emptyList());
-        TestFixture.create().givenDocuments("test", document).whenSearching("test", decompose(constraints))
-                .expectResult(emptyList());
-    }
-
-    private Constraint decompose(Constraint... constraints) {
-        List<Constraint> result = new ArrayList<>();
-        for (Constraint constraint : constraints) {
-            if (constraint instanceof FindConstraint) {
-                result.addAll(((FindConstraint) constraint).decompose());
-            } else {
-                result.add(constraint);
-            }
-        }
-        return all(result);
     }
 
     @Value

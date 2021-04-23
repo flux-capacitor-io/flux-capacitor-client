@@ -47,7 +47,7 @@ public interface SearchClient extends AutoCloseable {
 
     List<DocumentStats> getStatistics(SearchQuery query, List<String> fields, List<String> groupBy);
 
-    SearchHistogram getHistogram(SearchQuery query, int resolution);
+    SearchHistogram getHistogram(SearchQuery query, int resolution, Integer maxSize);
 
     @Override
     void close();

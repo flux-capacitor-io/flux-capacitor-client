@@ -19,6 +19,8 @@ import io.fluxcapacitor.common.Registration;
 import io.fluxcapacitor.common.handling.ParameterResolver;
 import io.fluxcapacitor.javaclient.FluxCapacitor;
 import io.fluxcapacitor.javaclient.common.ClientUtils;
+import io.fluxcapacitor.javaclient.common.IdentityProvider;
+import io.fluxcapacitor.javaclient.common.UuidFactory;
 import io.fluxcapacitor.javaclient.common.serialization.DeserializingMessage;
 import io.fluxcapacitor.javaclient.common.serialization.MessageSerializer;
 import io.fluxcapacitor.javaclient.common.serialization.Serializer;
@@ -144,6 +146,7 @@ public class DefaultFluxCapacitor implements FluxCapacitor {
     private final Cache cache;
     private final Serializer serializer;
     private final AtomicReference<Clock> clock = new AtomicReference<>(Clock.systemUTC());
+    private final AtomicReference<IdentityProvider> identityProvider = new AtomicReference<>(new UuidFactory());
     private final Client client;
     private final Runnable shutdownHandler;
 
@@ -167,6 +170,16 @@ public class DefaultFluxCapacitor implements FluxCapacitor {
 
     public Clock clock() {
         return clock.get();
+    }
+
+    @Override
+    public void withIdentityProvider(@NonNull IdentityProvider identityProvider) {
+        this.identityProvider.set(identityProvider);
+    }
+
+    @Override
+    public IdentityProvider identityProvider() {
+        return identityProvider.get();
     }
 
     @Override

@@ -25,10 +25,10 @@ class FindConstraintTest {
     @Test
     void testDecompose() {
         String query =
-                " A OR (B ORfoo$ \n*bar* OR(!notThis* (\"cheese (is) OR very tasty\") OR !(chick=fox)) mouse dog OR cat hare ) ";
+                " k*aas* A OR (B ORfoo$ \n*bar* OR(!notThis* (\"cheese (is) OR very tasty\") OR !(chick=fox)) mouse dog OR cat hare ) ";
         Constraint constraint = AllConstraint.all(new FindConstraint(query, null).decompose());
         Object expected = JsonUtils.fromFile(FindConstraintTest.class, "findConstraintDecomposed.json");
-        assertEquals(expected, constraint);
+        assertEquals(JsonUtils.asPrettyJson(expected), JsonUtils.asPrettyJson(constraint));
     }
 
 }

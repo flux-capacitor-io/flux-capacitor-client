@@ -16,8 +16,10 @@ package io.fluxcapacitor.common.api.search.constraints;
 
 import io.fluxcapacitor.common.api.search.Constraint;
 import io.fluxcapacitor.common.search.Document;
+import lombok.EqualsAndHashCode;
 import lombok.Getter;
 import lombok.NonNull;
+import lombok.ToString;
 import lombok.Value;
 import lombok.experimental.Accessors;
 
@@ -30,7 +32,7 @@ import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 @Value
-public class FindConstraint implements Constraint {
+public class FindConstraint extends PathConstraint {
     public static Constraint find(@NonNull String find, String... paths) {
         switch (paths.length) {
             case 0: return new FindConstraint(find, null);
@@ -49,11 +51,18 @@ public class FindConstraint implements Constraint {
 
     @Override
     public boolean matches(Document document) {
-        return decompose().stream().allMatch(c -> c.matches(document));
+        return decompose().matches(document);
     }
 
+    @Override
+    protected boolean matches(Document.Entry entry) {
+        throw new UnsupportedOperationException();
+    }
+
+    @ToString.Exclude
+    @EqualsAndHashCode.Exclude
     @Getter(lazy = true) @Accessors(fluent = true)
-    List<Constraint> decompose = createConstraints(splitInTermsAndOperators(find));
+    Constraint decompose = AllConstraint.all(createConstraints(splitInTermsAndOperators(find)));
 
     private List<Constraint> createConstraints(List<String> parts) {
         List<Constraint> result = new ArrayList<>();

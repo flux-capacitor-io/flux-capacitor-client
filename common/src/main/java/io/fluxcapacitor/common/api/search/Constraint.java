@@ -39,6 +39,12 @@ public interface Constraint {
 
     boolean matches(Document document);
 
+    boolean hasPathConstraint();
+
+    default Constraint decompose() {
+        return this;
+    }
+
     default Constraint and(Constraint other) {
         List<Constraint> constraints = new ArrayList<>();
         if (this instanceof AllConstraint) {

@@ -35,7 +35,7 @@ import java.util.stream.Stream;
 @Builder(toBuilder = true)
 @AllArgsConstructor
 public class Document {
-    String id;
+    @NonNull String id;
     String type;
     int revision;
     String collection;

@@ -133,7 +133,7 @@ public interface Search {
                 .limit(maxSize).collect(Collectors.toList());
     }
 
-    SearchHistogram getHistogram(int resolution);
+    SearchHistogram getHistogram(int resolution, Integer maxSize);
 
     List<DocumentStats> getStatistics(Object field, String... groupBy);
 

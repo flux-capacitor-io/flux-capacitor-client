@@ -37,6 +37,11 @@ public abstract class PathConstraint implements Constraint {
                         && (getPath() == null || e.getValue().stream().anyMatch(pathPredicate())));
     }
 
+    @Override
+    public boolean hasPathConstraint() {
+        return getPath() != null;
+    }
+
     @Getter(value = AccessLevel.PROTECTED, lazy = true)
     @Accessors(fluent = true)
     @EqualsAndHashCode.Exclude

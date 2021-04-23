@@ -14,13 +14,19 @@
 
 package io.fluxcapacitor.common.api.search;
 
+import io.fluxcapacitor.common.api.search.constraints.AllConstraint;
 import io.fluxcapacitor.common.search.Document;
 import lombok.Builder;
+import lombok.EqualsAndHashCode;
+import lombok.Getter;
 import lombok.Singular;
+import lombok.ToString;
 import lombok.Value;
+import lombok.experimental.Accessors;
 
 import java.time.Instant;
 import java.util.List;
+import java.util.stream.Collectors;
 
 @Value
 @Builder(toBuilder = true, builderClassName = "Builder")
@@ -29,9 +35,15 @@ public class SearchQuery {
     Instant since, before;
     @Singular List<Constraint> constraints;
 
+    @ToString.Exclude
+    @EqualsAndHashCode.Exclude
+    @Getter(lazy = true) @Accessors(fluent = true)
+    Constraint decomposeConstraints = AllConstraint.all(constraints.stream().map(Constraint::decompose).collect(
+            Collectors.toList()));
+
     @SuppressWarnings("RedundantIfStatement")
     public boolean matches(Document d) {
-        if (!constraints.stream().allMatch(c -> c.matches(d))) {
+        if (!decomposeConstraints().matches(d)) {
             return false;
         }
         if (since != null && d.getTimestamp().compareTo(since) < 0) {

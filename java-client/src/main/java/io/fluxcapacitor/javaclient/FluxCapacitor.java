@@ -14,11 +14,12 @@
 
 package io.fluxcapacitor.javaclient;
 
-import io.fluxcapacitor.common.Guarantee;
 import io.fluxcapacitor.common.MessageType;
 import io.fluxcapacitor.common.Registration;
 import io.fluxcapacitor.common.api.Metadata;
+import io.fluxcapacitor.javaclient.common.IdentityProvider;
 import io.fluxcapacitor.javaclient.common.Message;
+import io.fluxcapacitor.javaclient.common.UuidFactory;
 import io.fluxcapacitor.javaclient.common.serialization.DeserializingMessage;
 import io.fluxcapacitor.javaclient.common.serialization.Serializer;
 import io.fluxcapacitor.javaclient.configuration.DefaultFluxCapacitor;
@@ -32,7 +33,12 @@ import io.fluxcapacitor.javaclient.persisting.eventsourcing.EventStore;
 import io.fluxcapacitor.javaclient.persisting.keyvalue.KeyValueStore;
 import io.fluxcapacitor.javaclient.persisting.search.DocumentStore;
 import io.fluxcapacitor.javaclient.persisting.search.Search;
-import io.fluxcapacitor.javaclient.publishing.*;
+import io.fluxcapacitor.javaclient.publishing.CommandGateway;
+import io.fluxcapacitor.javaclient.publishing.ErrorGateway;
+import io.fluxcapacitor.javaclient.publishing.EventGateway;
+import io.fluxcapacitor.javaclient.publishing.MetricsGateway;
+import io.fluxcapacitor.javaclient.publishing.QueryGateway;
+import io.fluxcapacitor.javaclient.publishing.ResultGateway;
 import io.fluxcapacitor.javaclient.publishing.correlation.CorrelationDataProvider;
 import io.fluxcapacitor.javaclient.publishing.correlation.DefaultCorrelationDataProvider;
 import io.fluxcapacitor.javaclient.scheduling.Scheduler;
@@ -45,6 +51,7 @@ import io.fluxcapacitor.javaclient.tracking.handling.authentication.UserProvider
 import java.time.Clock;
 import java.time.Instant;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -54,7 +61,9 @@ import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.stream.Stream;
 
-import static io.fluxcapacitor.common.MessageType.*;
+import static io.fluxcapacitor.common.MessageType.COMMAND;
+import static io.fluxcapacitor.common.MessageType.EVENT;
+import static io.fluxcapacitor.common.MessageType.NOTIFICATION;
 import static io.fluxcapacitor.javaclient.modeling.AggregateIdResolver.getAggregateId;
 import static java.util.Arrays.stream;
 import static java.util.Optional.ofNullable;
@@ -89,7 +98,7 @@ public interface FluxCapacitor extends AutoCloseable {
 
     /**
      * Default correlation data provider can be overridden in client applications or tests
-    */
+     */
     CorrelationDataProvider correlationDataProvider = new DefaultCorrelationDataProvider();
 
     /**
@@ -116,15 +125,23 @@ public interface FluxCapacitor extends AutoCloseable {
      * current instance the system's UTC clock is returned.
      */
     static Clock currentClock() {
-        return getOptionally().map(FluxCapacitor::clock).orElse(Clock.systemUTC());
+        return getOptionally().map(FluxCapacitor::clock).orElseGet(Clock::systemUTC);
+    }
+
+    /**
+     * Gets the clock of the current FluxCapacitor instance (obtained via {@link #getOptionally()}). If there is no
+     * current instance the system's UTC clock is returned.
+     */
+    static IdentityProvider currentIdentityProvider() {
+        return getOptionally().map(FluxCapacitor::identityProvider).orElseGet(UuidFactory::new);
     }
 
 
     /**
-     * Gets the current correlation data, which by default depends on the current {@link Client},
-     * {@link Tracker} and {@link DeserializingMessage}
+     * Gets the current correlation data, which by default depends on the current {@link Client}, {@link Tracker} and
+     * {@link DeserializingMessage}
      */
-    static Map<String, String> currentCorrelationData(){
+    static Map<String, String> currentCorrelationData() {
         return correlationDataProvider.getCorrelationData();
     }
 
@@ -264,12 +281,14 @@ public interface FluxCapacitor extends AutoCloseable {
      * @see Aggregate for more info on how to define an event sourced aggregate root
      */
     static <T> AggregateRoot<T> loadAggregate(String id, Class<T> aggregateType) {
-        return loadAggregate(id, aggregateType, ofNullable(DeserializingMessage.getCurrent()).map(d -> d.getMessageType() != COMMAND).orElse(true));
+        return loadAggregate(id, aggregateType,
+                             ofNullable(DeserializingMessage.getCurrent()).map(d -> d.getMessageType() != COMMAND)
+                                     .orElse(true));
     }
 
     /**
-     * Loads the aggregate root of type {@code <T>} with given id. If {@code readonly} is true the returned
-     * aggregate will not be modifiable.
+     * Loads the aggregate root of type {@code <T>} with given id. If {@code readonly} is true the returned aggregate
+     * will not be modifiable.
      * <p>
      * If the aggregate is loaded while handling an event of the aggregate, the returned Aggregate will automatically be
      * replayed back to event currently being handled. Otherwise, the most recent state of the aggregate is loaded.
@@ -286,14 +305,32 @@ public interface FluxCapacitor extends AutoCloseable {
         return result;
     }
 
-    static void index(Object object, String id, String collection) {
-        index(object, id, FluxCapacitor.currentClock().instant(), collection, Guarantee.SENT);
+    /**
+     * Index given object for search. This method returns once the object is stored.
+     *
+     * @see DocumentStore for more advanced uses.
+     */
+    static void index(Object object, String id, String collection, Instant timestamp) {
+        get().documentStore().index(object, id, collection, timestamp);
     }
 
-    static void index(Object object, String id, Instant timestamp, String collection, Guarantee guarantee) {
-        get().documentStore().index(object, id, timestamp, collection, guarantee);
+    /**
+     * Index given objects for search. Use {@code idFunction} to provide the document's required id.
+     * Use {@code timestampFunction} to provide the object's timestamp. If none is supplied the current time is used.
+     * This method returns once all objects are stored.
+     *
+     * @see DocumentStore for more advanced uses.
+     */
+    static <T> void index(Collection<? extends T> objects, String collection, Function<? super T, String> idFunction,
+                          Function<? super T, Instant> timestampFunction) {
+        get().documentStore().index(objects, collection, idFunction, timestampFunction);
     }
 
+    /**
+     * Search the given collection for documents.
+     *
+     * Example usage: FluxCapacitor.search("myCollection").find("foo !bar").get(100);
+     */
     static Search search(String collection) {
         return get().documentStore().search(collection);
     }
@@ -346,6 +383,11 @@ public interface FluxCapacitor extends AutoCloseable {
      * Have Flux Capacitor use the given Clock when generating timestamps, e.g. when creating a {@link Message}.
      */
     void withClock(Clock clock);
+
+    /**
+     * Have Flux Capacitor use the given IdentityProvider when generating ids, e.g. when creating a {@link Message}.
+     */
+    void withIdentityProvider(IdentityProvider identityProvider);
 
     /**
      * Returns a client to assist with event sourcing.
@@ -410,8 +452,8 @@ public interface FluxCapacitor extends AutoCloseable {
     DocumentStore documentStore();
 
     /**
-     * Returns the UserProvider used by Flux Capacitor to authenticate users. May be {@code null} if user
-     * authentication is disabled.
+     * Returns the UserProvider used by Flux Capacitor to authenticate users. May be {@code null} if user authentication
+     * is disabled.
      */
     UserProvider userProvider();
 
@@ -429,6 +471,11 @@ public interface FluxCapacitor extends AutoCloseable {
      * Returns the clock used by Flux Capacitor to generate timestamps.
      */
     Clock clock();
+
+    /**
+     * Returns the factory used by Flux Capacitor to generate identifiers.
+     */
+    IdentityProvider identityProvider();
 
     /**
      * Returns the low level client used by this FluxCapacitor instance to interface with the Flux Capacitor service. Of

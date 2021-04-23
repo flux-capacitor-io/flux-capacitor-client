@@ -27,4 +27,9 @@ public class NoOpConstraint implements Constraint {
     public boolean matches(Document document) {
         return true;
     }
+
+    @Override
+    public boolean hasPathConstraint() {
+        return false;
+    }
 }

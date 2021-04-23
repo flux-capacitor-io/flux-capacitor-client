@@ -23,4 +23,5 @@ import lombok.Value;
 public class GetSearchHistogram extends Request {
     SearchQuery query;
     int resolution;
+    Integer maxSize;
 }

@@ -14,17 +14,23 @@
 
 package io.fluxcapacitor.javaclient.persisting.search;
 
+import io.fluxcapacitor.common.Awaitable;
 import io.fluxcapacitor.common.Guarantee;
 import io.fluxcapacitor.common.api.search.Constraint;
 import io.fluxcapacitor.common.api.search.CreateAuditTrail;
 import io.fluxcapacitor.common.api.search.DocumentStats;
 import io.fluxcapacitor.common.api.search.SearchHistogram;
 import io.fluxcapacitor.common.api.search.SearchQuery;
+import io.fluxcapacitor.common.search.Document;
+import io.fluxcapacitor.javaclient.common.IdentityProvider;
 import io.fluxcapacitor.javaclient.persisting.search.client.SearchClient;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NonNull;
+import lombok.extern.slf4j.Slf4j;
 
+import javax.annotation.Nullable;
+import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
@@ -33,23 +39,78 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
+import static io.fluxcapacitor.javaclient.FluxCapacitor.currentClock;
+import static io.fluxcapacitor.javaclient.FluxCapacitor.currentIdentityProvider;
 import static java.util.Collections.singletonList;
 
 @AllArgsConstructor
+@Slf4j
 public class DefaultDocumentStore implements DocumentStore {
     private final SearchClient client;
     @Getter
     private final DocumentSerializer serializer;
 
+
     @Override
-    public void index(Object object, String id, Instant timestamp, String collection, Guarantee guarantee) {
+    public CompletableFuture<Void> index(Object object, String id, String collection, Instant timestamp,
+                                         Guarantee guarantee) {
         try {
-            client.index(singletonList(serializer.toDocument(object, id, collection, timestamp)), guarantee).await();
+            Awaitable awaitable =
+                    client.index(singletonList(serializer.toDocument(object, id, collection, timestamp)), guarantee);
+            return CompletableFuture.runAsync(awaitable::awaitSilently);
         } catch (Exception e) {
             throw new DocumentStoreException(String.format("Could not store a document %s for id %s", object, id), e);
+        }
+    }
+
+    @Override
+    public <T> CompletableFuture<Void> index(Collection<? extends T> objects, String collection,
+                                             @Nullable String idPath,
+                                             @Nullable String timestampPath, Guarantee guarantee) {
+        IdentityProvider identityProvider = currentIdentityProvider();
+        Clock clock = currentClock();
+        List<Document> documents = objects.stream().map(v -> serializer.toDocument(
+                v, identityProvider.nextId(), collection, clock.instant())).map(d -> {
+            Document.DocumentBuilder builder = d.toBuilder();
+            if (idPath != null) {
+                builder.id(d.getEntryAtPath(idPath).map(Document.Entry::getValue).orElseThrow(
+                        () -> new IllegalArgumentException(
+                                "Could not determine the document id. Path does not exist on document: " + d)));
+            }
+            if (timestampPath != null) {
+                builder.timestamp(d.getEntryAtPath(timestampPath).map(Document.Entry::getValue).map(Instant::parse)
+                                          .orElse(d.getTimestamp()));
+            }
+            return builder.build();
+        }).collect(Collectors.toList());
+        try {
+            Awaitable awaitable = client.index(documents, guarantee);
+            return CompletableFuture.runAsync(awaitable::awaitSilently);
+        } catch (Exception e) {
+            throw new DocumentStoreException(
+                    String.format("Could not store a list of documents for collection %s", collection), e);
+        }
+    }
+
+    @Override
+    public <T> CompletableFuture<Void> index(Collection<? extends T> objects, String collection,
+                                             Function<? super T, String> idFunction,
+                                             Function<? super T, Instant> timestampFunction,
+                                             Guarantee guarantee) {
+        List<Document> documents = objects.stream().map(v -> serializer.toDocument(
+                v, idFunction.apply(v), collection, Optional.ofNullable(timestampFunction.apply(v))
+                        .orElseGet(() -> currentClock().instant()))).collect(Collectors.toList());
+        try {
+            Awaitable awaitable = client.index(documents, guarantee);
+            return CompletableFuture.runAsync(awaitable::awaitSilently);
+        } catch (Exception e) {
+            throw new DocumentStoreException(
+                    String.format("Could not store a list of documents for collection %s", collection), e);
         }
     }
 
@@ -151,8 +212,8 @@ public class DefaultDocumentStore implements DocumentStore {
         }
 
         @Override
-        public SearchHistogram getHistogram(int resolution) {
-            return client.getHistogram(queryBuilder.build(), resolution);
+        public SearchHistogram getHistogram(int resolution, Integer maxSize) {
+            return client.getHistogram(queryBuilder.build(), resolution, maxSize);
         }
 
         @Override
@@ -163,7 +224,8 @@ public class DefaultDocumentStore implements DocumentStore {
             } else if (field instanceof Collection<?>) {
                 fields = ((Collection<?>) field).stream().map(Objects::toString).collect(Collectors.toList());
             } else {
-                throw new IllegalArgumentException("Failed to parse field. Expected Collection or String. Got: " + field);
+                throw new IllegalArgumentException(
+                        "Failed to parse field. Expected Collection or String. Got: " + field);
             }
             return client.getStatistics(queryBuilder.build(), fields, Arrays.<String>asList(groupBy));
         }

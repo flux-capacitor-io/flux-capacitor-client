@@ -14,7 +14,6 @@
 
 package io.fluxcapacitor.javaclient.test;
 
-import io.fluxcapacitor.common.Guarantee;
 import io.fluxcapacitor.common.MessageType;
 import io.fluxcapacitor.common.Registration;
 import io.fluxcapacitor.common.api.Data;
@@ -54,20 +53,33 @@ import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.ZoneId;
-import java.util.*;
-import java.util.concurrent.*;
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.UnaryOperator;
 import java.util.stream.Stream;
 
-import static io.fluxcapacitor.common.MessageType.*;
+import static io.fluxcapacitor.common.MessageType.COMMAND;
+import static io.fluxcapacitor.common.MessageType.QUERY;
+import static io.fluxcapacitor.common.MessageType.SCHEDULE;
 import static io.fluxcapacitor.common.handling.HandlerConfiguration.defaultHandlerConfiguration;
 import static io.fluxcapacitor.javaclient.common.ClientUtils.isLocalHandlerMethod;
 import static java.util.Collections.emptyList;
 import static java.util.Collections.singletonList;
-import static java.util.UUID.randomUUID;
-import static java.util.stream.Collectors.*;
+import static java.util.stream.Collectors.toCollection;
+import static java.util.stream.Collectors.toList;
+import static java.util.stream.Collectors.toSet;
 
 @Slf4j
 public class TestFixture implements Given, When {
@@ -242,8 +254,8 @@ public class TestFixture implements Given, When {
 
     @Override
     public When givenDocuments(String collection, Object... documents) {
-        return given(fc -> Arrays.stream(documents)
-                .forEach(d -> fc.documentStore().index(d, randomUUID().toString(), collection, Guarantee.STORED)));
+        return given(fc -> Arrays.stream(documents).forEach(
+                d -> fc.documentStore().index(Arrays.asList(documents), collection)));
     }
 
     @Override

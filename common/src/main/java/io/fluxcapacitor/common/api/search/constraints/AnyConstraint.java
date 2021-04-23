@@ -16,25 +16,44 @@ package io.fluxcapacitor.common.api.search.constraints;
 
 import io.fluxcapacitor.common.api.search.Constraint;
 import io.fluxcapacitor.common.search.Document;
+import lombok.EqualsAndHashCode;
+import lombok.Getter;
+import lombok.ToString;
 import lombok.Value;
+import lombok.experimental.Accessors;
 
 import java.util.Arrays;
 import java.util.List;
+import java.util.stream.Collectors;
 
 @Value
 public class AnyConstraint implements Constraint {
     public static Constraint any(Constraint... constraints) {
-        switch (constraints.length) {
+        return any(Arrays.asList(constraints));
+    }
+
+    public static Constraint any(List<Constraint> constraints) {
+        switch (constraints.size()) {
             case 0: return Constraint.noOp;
-            case 1: return constraints[0];
-            default: return new AnyConstraint(Arrays.asList(constraints));
+            case 1: return constraints.get(0);
+            default: return new AnyConstraint(constraints);
         }
     }
 
     List<Constraint> any;
 
+    @ToString.Exclude
+    @EqualsAndHashCode.Exclude
+    @Getter(lazy = true) @Accessors(fluent = true)
+    Constraint decompose = new AnyConstraint(any.stream().map(Constraint::decompose).collect(Collectors.toList()));
+
     @Override
     public boolean matches(Document document) {
         return any.stream().anyMatch(c -> c.matches(document));
+    }
+
+    @Override
+    public boolean hasPathConstraint() {
+        return any.stream().anyMatch(Constraint::hasPathConstraint);
     }
 }

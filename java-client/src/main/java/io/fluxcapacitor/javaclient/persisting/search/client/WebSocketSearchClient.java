@@ -104,8 +104,8 @@ public class WebSocketSearchClient extends AbstractWebsocketClient implements Se
     }
 
     @Override
-    public SearchHistogram getHistogram(SearchQuery query, int resolution) {
-        GetSearchHistogramResult result = sendAndWait(new GetSearchHistogram(query, resolution));
+    public SearchHistogram getHistogram(SearchQuery query, int resolution, Integer maxSize) {
+        GetSearchHistogramResult result = sendAndWait(new GetSearchHistogram(query, resolution, maxSize));
         return result.getHistogram();
     }
 

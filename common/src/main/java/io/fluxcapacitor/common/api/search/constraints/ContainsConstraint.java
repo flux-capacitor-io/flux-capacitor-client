@@ -25,20 +25,38 @@ import lombok.experimental.Accessors;
 import org.apache.commons.lang3.StringUtils;
 
 import java.beans.ConstructorProperties;
-import java.util.Arrays;
 import java.util.regex.Pattern;
-import java.util.stream.Collectors;
 
+import static io.fluxcapacitor.common.api.search.constraints.AllConstraint.all;
+import static io.fluxcapacitor.common.api.search.constraints.AnyConstraint.any;
+import static java.util.Arrays.stream;
 import static java.util.Objects.requireNonNull;
+import static java.util.stream.Collectors.toList;
 
 @Value
 public class ContainsConstraint extends PathConstraint {
+    private static final Pattern splitPattern = Pattern.compile("(?<=\\p{Alnum})\\*(?=\\p{Alnum})");
+
     public static Constraint contains(@NonNull String phrase, String... paths) {
-        switch (paths.length) {
-            case 0: return new ContainsConstraint(phrase, null);
-            case 1: return new ContainsConstraint(phrase, paths[0]);
-            default: return new AnyConstraint(Arrays.stream(paths).map(p -> new ContainsConstraint(phrase, p)).collect(
-                    Collectors.toList()));
+        String[] parts = splitPattern.split(phrase);
+        if (parts.length < 2) {
+            switch (paths.length) {
+                case 0:
+                    return new ContainsConstraint(phrase, null);
+                case 1:
+                    return new ContainsConstraint(phrase, paths[0]);
+                default:
+                    return new AnyConstraint(stream(paths).map(p -> new ContainsConstraint(phrase, p)).collect(
+                            toList()));
+            }
+        } else {
+            for (int i = 0; i < parts.length; i++) {
+                parts[i] = parts[i] + "*";
+                i++;
+                parts[i] = "*" + parts[i];
+            }
+            return any(stream(paths).map(p -> all(
+                    stream(parts).map(part -> new ContainsConstraint(part, p)).collect(toList()))).collect(toList()));
         }
     }
 

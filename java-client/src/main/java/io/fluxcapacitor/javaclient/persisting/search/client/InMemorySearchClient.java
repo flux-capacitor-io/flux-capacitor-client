@@ -96,7 +96,7 @@ public class InMemorySearchClient implements SearchClient {
     }
 
     @Override
-    public SearchHistogram getHistogram(SearchQuery query, int resolution) {
+    public SearchHistogram getHistogram(SearchQuery query, int resolution, Integer maxSize) {
         List<Long> results = IntStream.range(0, resolution).mapToLong(i -> 0L).boxed().collect(toList());
         if (query.getSince() == null) {
             return new SearchHistogram(query.getSince(), query.getBefore(), results);
