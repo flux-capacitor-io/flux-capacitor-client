@@ -15,6 +15,7 @@
 package io.fluxcapacitor.javaclient.test;
 
 import io.fluxcapacitor.javaclient.FluxCapacitor;
+import io.fluxcapacitor.javaclient.common.IdentityProvider;
 import io.fluxcapacitor.javaclient.scheduling.Schedule;
 
 import java.time.Clock;
@@ -58,6 +59,10 @@ public interface Given {
     Clock getClock();
 
     Given withClock(Clock clock);
+
+    IdentityProvider getIdentityProvider();
+
+    Given withIdentityProvider(IdentityProvider identityProvider);
 
     default Given withFixedTime(Instant time) {
         return withClock(Clock.fixed(time, ZoneId.systemDefault()));

@@ -23,6 +23,7 @@ import io.fluxcapacitor.common.api.tracking.MessageBatch;
 import io.fluxcapacitor.common.handling.Handler;
 import io.fluxcapacitor.common.handling.HandlerConfiguration;
 import io.fluxcapacitor.javaclient.FluxCapacitor;
+import io.fluxcapacitor.javaclient.common.IdentityProvider;
 import io.fluxcapacitor.javaclient.common.Message;
 import io.fluxcapacitor.javaclient.common.serialization.DeserializingMessage;
 import io.fluxcapacitor.javaclient.configuration.DefaultFluxCapacitor;
@@ -200,7 +201,7 @@ public class TestFixture implements Given, When {
     }
 
     /*
-        clock
+        clock & identityProvider
      */
 
     @Override
@@ -219,6 +220,19 @@ public class TestFixture implements Given, When {
 
     public Clock getClock() {
         return getFluxCapacitor().clock();
+    }
+
+    @Override
+    public IdentityProvider getIdentityProvider() {
+        return getFluxCapacitor().identityProvider();
+    }
+
+    @Override
+    public Given withIdentityProvider(IdentityProvider identityProvider) {
+        return getFluxCapacitor().apply(fc -> {
+            fc.withIdentityProvider(identityProvider);
+            return this;
+        });
     }
 
     /*
