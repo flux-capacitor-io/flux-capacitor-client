@@ -39,8 +39,12 @@ public class Document {
     String type;
     int revision;
     String collection;
-    Instant timestamp;
+    Instant timestamp, end;
     Map<Entry, List<String>> entries;
+
+    public Instant getEnd() {
+        return end == null ? timestamp : end;
+    }
 
     public String summarize() {
         return Stream.concat(Stream.of(type, id), entries.keySet().stream().map(Entry::asPhrase)).collect(Collectors.joining(" "));

@@ -25,7 +25,6 @@ import java.util.Collection;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Function;
 
-import static io.fluxcapacitor.javaclient.FluxCapacitor.currentClock;
 import static io.fluxcapacitor.javaclient.FluxCapacitor.currentIdentityProvider;
 
 public interface DocumentStore {
@@ -35,7 +34,7 @@ public interface DocumentStore {
     }
 
     default void index(Object object, String id, String collection) {
-        index(object, id, collection, currentClock().instant());
+        index(object, id, collection, null);
     }
 
     @SneakyThrows
@@ -50,7 +49,7 @@ public interface DocumentStore {
     }
 
     default <T> void index(Collection<? extends T> objects, String collection, Function<? super T, String> idFunction) {
-        index(objects, collection, idFunction, v -> currentClock().instant());
+        index(objects, collection, idFunction, v -> null);
     }
 
     @SneakyThrows

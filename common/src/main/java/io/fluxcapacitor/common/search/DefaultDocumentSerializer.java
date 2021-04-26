@@ -17,8 +17,10 @@ package io.fluxcapacitor.common.search;
 import io.fluxcapacitor.common.api.Data;
 import io.fluxcapacitor.common.api.search.SerializedDocument;
 import io.fluxcapacitor.common.search.Document.Entry;
+import lombok.SneakyThrows;
 import org.msgpack.core.MessageBufferPacker;
 import org.msgpack.core.MessagePack;
+import org.msgpack.core.MessagePacker;
 import org.msgpack.core.MessageUnpacker;
 
 import java.time.Instant;
@@ -39,9 +41,10 @@ public enum DefaultDocumentSerializer {
     public Data<byte[]> serialize(Document document) {
         try (MessageBufferPacker packer = MessagePack.newDefaultBufferPacker()) {
             Map<Entry, List<String>> map = document.getEntries();
-            packer.packInt(currentVersion).packString(document.getId())
-                    .packLong(document.getTimestamp().toEpochMilli()).packString(document.getCollection())
-                    .packArrayHeader(map.size());
+            packer.packInt(currentVersion).packString(document.getId());
+            packTimestamp(document.getTimestamp(), packer);
+            packTimestamp(document.getEnd(), packer);
+            packer.packString(document.getCollection()).packArrayHeader(map.size());
             for (Map.Entry<Entry, List<String>> e : map.entrySet()) {
                 packer.packByte(e.getKey().getType().serialize());
                 packer.packString(e.getKey().getValue());
@@ -67,7 +70,8 @@ public enum DefaultDocumentSerializer {
                 throw new IllegalArgumentException("Unsupported document revision: " + version);
             }
             String id = unpacker.unpackString();
-            Instant timestamp = Instant.ofEpochMilli(unpacker.unpackLong());
+            Instant timestamp = unpackTimestamp(unpacker);
+            Instant end = unpackTimestamp(unpacker);
             String collection = unpacker.unpackString();
             Map<Entry, List<String>> map = new LinkedHashMap<>();
             int size = unpacker.unpackArrayHeader();
@@ -80,7 +84,7 @@ public enum DefaultDocumentSerializer {
                     keys.add(unpacker.unpackString());
                 }
             }
-            return new Document(id, document.getType(), document.getRevision(), collection, timestamp, map);
+            return new Document(id, document.getType(), document.getRevision(), collection, timestamp, end, map);
         } catch (Exception e) {
             throw new IllegalArgumentException("Could not deserialize document", e);
         }
@@ -93,11 +97,41 @@ public enum DefaultDocumentSerializer {
                 throw new IllegalArgumentException();
             }
             String id = unpacker.unpackString();
-            long timestamp = unpacker.unpackLong();
+            Long timestamp = unpackLong(unpacker);
+            Long end = unpackLong(unpacker);
             String collection = unpacker.unpackString();
-            return new SerializedDocument(id, timestamp, collection, document, null);
+            return new SerializedDocument(id, timestamp, end, collection, document, null);
         } catch (Exception e) {
             throw new IllegalArgumentException("Could not convert bytes to SerializedDocument", e);
+        }
+    }
+
+    @SneakyThrows
+    private static void packTimestamp(Instant value, MessagePacker packer) {
+        if (value == null) {
+            packer.packNil();
+        } else {
+            packer.packLong(value.toEpochMilli());
+        }
+    }
+
+    @SneakyThrows
+    private static Instant unpackTimestamp(MessageUnpacker unpacker) {
+        if (unpacker.getNextFormat().getValueType().isNilType()) {
+            unpacker.unpackNil();
+            return null;
+        } else {
+            return Instant.ofEpochMilli(unpacker.unpackLong());
+        }
+    }
+
+    @SneakyThrows
+    private static Long unpackLong(MessageUnpacker unpacker) {
+        if (unpacker.getNextFormat().getValueType().isNilType()) {
+            unpacker.unpackNil();
+            return null;
+        } else {
+            return unpacker.unpackLong();
         }
     }
 

@@ -19,7 +19,15 @@ import io.fluxcapacitor.common.api.Data;
 import java.time.Instant;
 
 public interface Inverter<T> {
-    Document toDocument(Data<byte[]> data, String id, String collection, Instant timestamp);
+    default Document toDocument(Data<byte[]> data, String id, String collection) {
+        return toDocument(data, id, collection, null, null);
+    }
+
+    default Document toDocument(Data<byte[]> data, String id, String collection, Instant timestamp) {
+        return toDocument(data, id, collection, timestamp, timestamp);
+    }
+
+    Document toDocument(Data<byte[]> data, String id, String collection, Instant timestamp, Instant end);
 
     T fromDocument(Document document);
 }

@@ -21,19 +21,23 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Value;
 
+import java.time.Instant;
+import java.util.Optional;
+
 @Value
 @Builder(toBuilder = true)
 @AllArgsConstructor
 public class SerializedDocument {
     String id;
-    long timestamp;
+    Long timestamp, end;
     String collection;
     Data<byte[]> document;
     String summary;
 
     public SerializedDocument(Document document) {
         id = document.getId();
-        timestamp = document.getTimestamp().toEpochMilli();
+        timestamp = Optional.ofNullable(document.getTimestamp()).map(Instant::toEpochMilli).orElse(null);
+        end = Optional.ofNullable(document.getEnd()).map(Instant::toEpochMilli).orElse(null);
         collection = document.getCollection();
         this.document = DefaultDocumentSerializer.INSTANCE.serialize(document);
         summary = document.summarize();

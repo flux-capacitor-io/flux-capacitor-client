@@ -83,12 +83,12 @@ public class JacksonInverter implements Inverter<JsonNode> {
      */
 
     @Override
-    public Document toDocument(Data<byte[]> data, String id, String collection, Instant timestamp) {
+    public Document toDocument(Data<byte[]> data, String id, String collection, Instant timestamp, Instant end) {
         if (!"application/json".equals(data.getFormat())) {
             throw new IllegalArgumentException("Only json inversion is supported");
         }
         return new Document(id, data.getType(), data.getRevision(), collection,
-                            timestamp, invert(data.getValue(), "", new LinkedHashMap<>()));
+                            timestamp, end, invert(data.getValue(), "", new LinkedHashMap<>()));
     }
 
     @SneakyThrows

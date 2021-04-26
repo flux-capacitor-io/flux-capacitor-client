@@ -58,7 +58,11 @@ public interface Search {
         return since(FluxCapacitor.currentClock().instant().minus(period));
     }
 
-    Search inPeriod(Instant start, Instant endExclusive);
+    default Search inPeriod(Instant start, Instant endExclusive) {
+        return inPeriod(start, endExclusive, false);
+    }
+
+    Search inPeriod(Instant start, Instant endExclusive, boolean requireTimestamp);
 
     /*
         Other constraints

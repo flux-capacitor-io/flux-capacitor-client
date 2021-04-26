@@ -26,6 +26,7 @@ import lombok.experimental.Accessors;
 
 import java.time.Instant;
 import java.util.List;
+import java.util.Objects;
 import java.util.stream.Collectors;
 
 @Value
@@ -33,6 +34,7 @@ import java.util.stream.Collectors;
 public class SearchQuery {
     String collection;
     Instant since, before;
+    boolean requireTimestamp;
     @Singular List<Constraint> constraints;
 
     @ToString.Exclude
@@ -46,10 +48,16 @@ public class SearchQuery {
         if (!decomposeConstraints().matches(d)) {
             return false;
         }
+        if (!Objects.equals(collection, d.getCollection())) {
+            return false;
+        }
+        if (d.getTimestamp() == null) {
+            return !requireTimestamp;
+        }
         if (since != null && d.getTimestamp().compareTo(since) < 0) {
             return false;
         }
-        if (before != null && d.getTimestamp().compareTo(before) >= 0) {
+        if (before != null && d.getEnd().compareTo(before) >= 0) {
             return false;
         }
         return true;
