@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016-2020 Flux Capacitor.
+ * Copyright (c) 2016-2021 Flux Capacitor.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -19,7 +19,11 @@ import io.fluxcapacitor.common.handling.HandlerInvoker;
 import io.fluxcapacitor.common.reflection.ReflectionUtils;
 import io.fluxcapacitor.javaclient.modeling.AggregateRoot;
 import io.fluxcapacitor.javaclient.modeling.AssertLegal;
-import io.fluxcapacitor.javaclient.tracking.handling.authentication.*;
+import io.fluxcapacitor.javaclient.tracking.handling.authentication.RequiresRole;
+import io.fluxcapacitor.javaclient.tracking.handling.authentication.UnauthenticatedException;
+import io.fluxcapacitor.javaclient.tracking.handling.authentication.UnauthorizedException;
+import io.fluxcapacitor.javaclient.tracking.handling.authentication.User;
+import io.fluxcapacitor.javaclient.tracking.handling.authentication.UserParameterResolver;
 import lombok.SneakyThrows;
 
 import java.lang.annotation.Annotation;
@@ -124,7 +128,7 @@ public class ValidationUtils {
 
     @SneakyThrows
     protected static String[] getRequiredRoles(Class<?> payloadClass) {
-        for (Annotation annotation : payloadClass.getAnnotations()) {
+        for (Annotation annotation : ReflectionUtils.getAnnotations(payloadClass)) {
             if (annotation instanceof RequiresRole) {
                 return ((RequiresRole) annotation).value();
             }

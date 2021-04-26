@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016-2020 Flux Capacitor.
+ * Copyright (c) 2016-2021 Flux Capacitor.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -20,6 +20,7 @@ import org.apache.commons.lang3.reflect.FieldUtils;
 import java.lang.annotation.Annotation;
 import java.lang.invoke.MethodType;
 import java.lang.reflect.AccessibleObject;
+import java.lang.reflect.AnnotatedType;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
@@ -29,6 +30,7 @@ import java.lang.reflect.WildcardType;
 import java.security.PrivilegedAction;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -44,6 +46,7 @@ import java.util.stream.Stream;
 import static io.fluxcapacitor.common.ObjectUtils.memoize;
 import static java.security.AccessController.doPrivileged;
 import static java.util.Collections.emptyList;
+import static java.util.stream.Collectors.toCollection;
 import static java.util.stream.Collectors.toList;
 import static org.apache.commons.lang3.ClassUtils.getAllInterfaces;
 import static org.apache.commons.lang3.StringUtils.isEmpty;
@@ -121,7 +124,8 @@ public class ReflectionUtils {
         }
         List<AccessibleObject> result =
                 new ArrayList<>(FieldUtils.getFieldsListWithAnnotation(target.getClass(), annotation));
-        result.addAll(getMethodsListWithAnnotation(target.getClass(), annotation, true, true).stream().filter(m -> m.getParameterCount() == 0).collect(toList()));
+        result.addAll(getMethodsListWithAnnotation(target.getClass(), annotation, true, true).stream()
+                              .filter(m -> m.getParameterCount() == 0).collect(toList()));
         getAllInterfaces(target.getClass())
                 .forEach(i -> result.addAll(FieldUtils.getFieldsListWithAnnotation(i, annotation)));
         return result;
@@ -197,4 +201,9 @@ public class ReflectionUtils {
         return member;
     }
 
+    public static Collection<? extends Annotation> getAnnotations(Class<?> type) {
+        return Stream.concat(Arrays.stream(type.getAnnotations()), Arrays.stream(type.getAnnotatedInterfaces())
+                .map(AnnotatedType::getType).filter(t ->  t instanceof Class<?>).map(t -> (Class<?>) t)
+                .flatMap(i -> Arrays.stream(i.getAnnotations()))).collect(toCollection(LinkedHashSet::new));
+    }
 }
