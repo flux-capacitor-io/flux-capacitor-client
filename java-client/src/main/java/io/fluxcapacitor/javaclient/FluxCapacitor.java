@@ -48,6 +48,7 @@ import io.fluxcapacitor.javaclient.tracking.handling.HandleCommand;
 import io.fluxcapacitor.javaclient.tracking.handling.LocalHandler;
 import io.fluxcapacitor.javaclient.tracking.handling.authentication.UserProvider;
 
+import javax.annotation.Nullable;
 import java.time.Clock;
 import java.time.Instant;
 import java.util.Arrays;
@@ -310,25 +311,45 @@ public interface FluxCapacitor extends AutoCloseable {
      *
      * @see DocumentStore for more advanced uses.
      */
-    static void index(Object object, String id, String collection, Instant timestamp) {
+    static void index(Object object, String id, String collection) {
+        get().documentStore().index(object, id, collection);
+    }
+
+    /**
+     * Index given object for search. This method returns once the object is stored.
+     *
+     * @see DocumentStore for more advanced uses.
+     */
+    static void index(Object object, String id, String collection, @Nullable Instant timestamp) {
         get().documentStore().index(object, id, collection, timestamp);
     }
 
     /**
-     * Index given objects for search. Use {@code idFunction} to provide the document's required id.
-     * Use {@code timestampFunction} to provide the object's timestamp. If none is supplied the current time is used.
+     * Index given object for search. This method returns once the object is stored.
+     *
+     * @see DocumentStore for more advanced uses.
+     */
+    static void index(Object object, String id, String collection, @Nullable Instant timestamp, @Nullable Instant end) {
+        get().documentStore().index(object, id, collection, timestamp, end);
+    }
+
+    /**
+     * Index given objects for search. Use {@code idFunction} to provide the document's required id. Use {@code
+     * timestampFunction} and {@code endFunction} to provide the object's timestamp. If none are supplied the document
+     * will not be timestamped.
+     * <p>
      * This method returns once all objects are stored.
      *
      * @see DocumentStore for more advanced uses.
      */
     static <T> void index(Collection<? extends T> objects, String collection, Function<? super T, String> idFunction,
-                          Function<? super T, Instant> timestampFunction) {
-        get().documentStore().index(objects, collection, idFunction, timestampFunction);
+                          Function<? super T, Instant> timestampFunction, Function<? super T, Instant> endFunction) {
+        get().documentStore().index(objects, collection, idFunction, timestampFunction, endFunction);
     }
 
     /**
      * Search the given collection for documents.
-     *
+     * <p>
      * Example usage: FluxCapacitor.search("myCollection").find("foo !bar").get(100);
      */
     static Search search(String collection) {

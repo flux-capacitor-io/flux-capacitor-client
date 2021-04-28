@@ -117,10 +117,8 @@ class JacksonInverterTest {
         testReversion(Collections.emptyList());
     }
 
-    //todo slashes en quotes in object keys
-
     private void testReversion(Object value) {
-        Document document = subject.toDocument(value, "test", "test", Instant.now());
+        Document document = subject.toDocument(value, "test", "test", Instant.now(), Instant.now());
         Object result = subject.fromDocument(document);
         if (value != null && value.getClass().isArray()) {
             if (!Objects.deepEquals(value, result)) {

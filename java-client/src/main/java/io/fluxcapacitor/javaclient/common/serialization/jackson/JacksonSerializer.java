@@ -133,8 +133,8 @@ public class JacksonSerializer extends AbstractSerializer implements DocumentSer
     }
 
     @Override
-    public Document toDocument(Object value, String id, String collection, Instant timestamp) {
-        return inverter.toDocument(serialize(value), id, collection, timestamp);
+    public Document toDocument(Object value, String id, String collection, Instant timestamp, Instant end) {
+        return inverter.toDocument(serialize(value), id, collection, timestamp, end);
     }
 
     @Override

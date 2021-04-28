@@ -43,7 +43,6 @@ import javax.websocket.ClientEndpoint;
 import java.net.URI;
 import java.time.Instant;
 import java.util.List;
-import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -93,8 +92,8 @@ public class WebSocketSearchClient extends AbstractWebsocketClient implements Se
     public Stream<SearchHit<Document>> search(SearchQuery query, List<String> sorting) {
         SearchDocumentsResult result = sendAndWait(new SearchDocuments(query, sorting, 100));
         return result.getMatches().stream().map(d -> new SearchHit<>(
-                d.getId(), d.getCollection(), Instant.ofEpochMilli(d.getTimestamp()), () -> Optional.ofNullable(
-                d.getDocument()).map(SerializedDocument::deserializeDocument).orElse(null)));
+                d.getId(), d.getCollection(), d.getTimestamp() == null ? null : Instant.ofEpochMilli(d.getTimestamp()),
+                d::deserializeDocument));
     }
 
     @Override

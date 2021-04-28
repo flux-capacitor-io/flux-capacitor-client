@@ -19,7 +19,7 @@ import io.fluxcapacitor.common.search.Document;
 import java.time.Instant;
 
 public interface DocumentSerializer {
-    Document toDocument(Object value, String id, String collection, Instant timestamp);
+    Document toDocument(Object value, String id, String collection, Instant timestamp, Instant end);
 
     <T> T fromDocument(Document document);
 

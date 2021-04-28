@@ -30,7 +30,6 @@ import lombok.NonNull;
 import lombok.extern.slf4j.Slf4j;
 
 import javax.annotation.Nullable;
-import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
@@ -44,7 +43,6 @@ import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
-import static io.fluxcapacitor.javaclient.FluxCapacitor.currentClock;
 import static io.fluxcapacitor.javaclient.FluxCapacitor.currentIdentityProvider;
 import static java.util.Collections.singletonList;
 
@@ -58,10 +56,10 @@ public class DefaultDocumentStore implements DocumentStore {
 
     @Override
     public CompletableFuture<Void> index(Object object, String id, String collection, Instant timestamp,
-                                         Guarantee guarantee) {
+                                         Instant end, Guarantee guarantee) {
         try {
             Awaitable awaitable =
-                    client.index(singletonList(serializer.toDocument(object, id, collection, timestamp)), guarantee);
+                    client.index(singletonList(serializer.toDocument(object, id, collection, timestamp, end)), guarantee);
             return CompletableFuture.runAsync(awaitable::awaitSilently);
         } catch (Exception e) {
             throw new DocumentStoreException(String.format("Could not store a document %s for id %s", object, id), e);
@@ -70,12 +68,11 @@ public class DefaultDocumentStore implements DocumentStore {
 
     @Override
     public <T> CompletableFuture<Void> index(Collection<? extends T> objects, String collection,
-                                             @Nullable String idPath,
-                                             @Nullable String timestampPath, Guarantee guarantee) {
+                                             @Nullable String idPath, @Nullable String timestampPath,
+                                             @Nullable String endPath, Guarantee guarantee) {
         IdentityProvider identityProvider = currentIdentityProvider();
-        Clock clock = currentClock();
         List<Document> documents = objects.stream().map(v -> serializer.toDocument(
-                v, identityProvider.nextId(), collection, clock.instant())).map(d -> {
+                v, identityProvider.nextId(), collection, null, null)).map(d -> {
             Document.DocumentBuilder builder = d.toBuilder();
             if (idPath != null) {
                 builder.id(d.getEntryAtPath(idPath).map(Document.Entry::getValue).orElseThrow(
@@ -84,7 +81,11 @@ public class DefaultDocumentStore implements DocumentStore {
             }
             if (timestampPath != null) {
                 builder.timestamp(d.getEntryAtPath(timestampPath).map(Document.Entry::getValue).map(Instant::parse)
-                                          .orElse(d.getTimestamp()));
+                                          .orElse(null));
+            }
+            if (endPath != null) {
+                builder.end(d.getEntryAtPath(endPath).map(Document.Entry::getValue).map(Instant::parse)
+                                          .orElse(null));
             }
             return builder.build();
         }).collect(Collectors.toList());
@@ -101,10 +102,10 @@ public class DefaultDocumentStore implements DocumentStore {
     public <T> CompletableFuture<Void> index(Collection<? extends T> objects, String collection,
                                              Function<? super T, String> idFunction,
                                              Function<? super T, Instant> timestampFunction,
-                                             Guarantee guarantee) {
+                                             Function<? super T, Instant> endFunction, Guarantee guarantee) {
         List<Document> documents = objects.stream().map(v -> serializer.toDocument(
-                v, idFunction.apply(v), collection, Optional.ofNullable(timestampFunction.apply(v))
-                        .orElseGet(() -> currentClock().instant()))).collect(Collectors.toList());
+                v, idFunction.apply(v), collection, timestampFunction.apply(v),
+                endFunction.apply(v))).collect(Collectors.toList());
         try {
             Awaitable awaitable = client.index(documents, guarantee);
             return CompletableFuture.runAsync(awaitable::awaitSilently);

@@ -22,7 +22,7 @@ import java.util.List;
 @Value
 public class SearchDocumentsResult implements QueryResult {
     long requestId;
-    List<MatchedDocument> matches;
+    List<SerializedDocument> matches;
     long timestamp = System.currentTimeMillis();
 
     @Override

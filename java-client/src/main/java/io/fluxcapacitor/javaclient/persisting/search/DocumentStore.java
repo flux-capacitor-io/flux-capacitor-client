@@ -39,10 +39,16 @@ public interface DocumentStore {
 
     @SneakyThrows
     default void index(Object object, String id, String collection, Instant timestamp) {
-        index(object, id, collection, timestamp, Guarantee.STORED).get();
+        index(object, id, collection, timestamp, null, Guarantee.STORED).get();
     }
 
-    CompletableFuture<Void> index(Object object, String id, String collection, Instant timestamp, Guarantee guarantee);
+    @SneakyThrows
+    default void index(Object object, String id, String collection, Instant timestamp, Instant end) {
+        index(object, id, collection, timestamp, end, Guarantee.STORED).get();
+    }
+
+    CompletableFuture<Void> index(Object object, String id, String collection, Instant timestamp, Instant end,
+                                  Guarantee guarantee);
 
     default <T> void index(Collection<? extends T> objects, String collection) {
         index(objects, collection, v -> currentIdentityProvider().nextId());
@@ -55,21 +61,34 @@ public interface DocumentStore {
     @SneakyThrows
     default <T> void index(Collection<? extends T> objects, String collection, @Nullable String idPath,
                            @Nullable String timestampPath) {
-        index(objects, collection, idPath, timestampPath, Guarantee.STORED).get();
+        index(objects, collection, idPath, timestampPath, null, Guarantee.STORED).get();
+    }
+
+    @SneakyThrows
+    default <T> void index(Collection<? extends T> objects, String collection, @Nullable String idPath,
+                           @Nullable String timestampPath, @Nullable String endPath) {
+        index(objects, collection, idPath, timestampPath, endPath, Guarantee.STORED).get();
     }
 
     <T> CompletableFuture<Void> index(Collection<? extends T> objects, String collection, @Nullable String idPath,
-                                      @Nullable String timestampPath, Guarantee guarantee);
+                                      @Nullable String timestampPath, @Nullable String endPath, Guarantee guarantee);
 
     @SneakyThrows
     default <T> void index(Collection<? extends T> objects, String collection, Function<? super T, String> idFunction,
                            Function<? super T, Instant> timestampFunction) {
-        index(objects, collection, idFunction, timestampFunction, Guarantee.STORED).get();
+        index(objects, collection, idFunction, timestampFunction, t -> null, Guarantee.STORED).get();
+    }
+
+    @SneakyThrows
+    default <T> void index(Collection<? extends T> objects, String collection, Function<? super T, String> idFunction,
+                           Function<? super T, Instant> timestampFunction, Function<? super T, Instant> endFunction) {
+        index(objects, collection, idFunction, timestampFunction, endFunction, Guarantee.STORED).get();
     }
 
     <T> CompletableFuture<Void> index(Collection<? extends T> objects, String collection,
                                       Function<? super T, String> idFunction,
-                                      Function<? super T, Instant> timestampFunction, Guarantee guarantee);
+                                      Function<? super T, Instant> timestampFunction,
+                                      Function<? super T, Instant> endFunction, Guarantee guarantee);
 
     default Search search(String collection) {
         return search(SearchQuery.builder().collection(collection));
