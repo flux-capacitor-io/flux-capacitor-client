@@ -40,6 +40,8 @@ public class SnapshotModel<T> implements AggregateRoot<T> {
     @JsonProperty
     String lastEventId;
     @JsonProperty
+    Long lastEventIndex;
+    @JsonProperty
     @Builder.Default
     Instant timestamp = Instant.now();
     @JsonProperty

@@ -121,7 +121,7 @@ public class CachingAggregateRepository implements AggregateRepository {
         return cache
                 .get(keyFunction.apply(aggregateId), cacheKey -> Optional.ofNullable(delegate.load(aggregateId, type))
                         .map(a -> new RefreshingAggregateRoot<>(a.get(), aggregateId, type, a.previous(), a.lastEventId(),
-                                                            a.timestamp(),
+                                                            a.lastEventIndex(), a.timestamp(),
                                                             RefreshingAggregateRoot.Status.UNVERIFIED))
                         .orElse(null));
     }
@@ -156,6 +156,7 @@ public class CachingAggregateRepository implements AggregateRepository {
         EventSourcingHandler<T> handler = handlerFactory.forType(type);
         String cacheKey = keyFunction.apply(aggregateId);
         String eventId = event.getSerializedObject().getMessageId();
+        Long eventIndex = event.getSerializedObject().getIndex();
         Instant timestamp = ofEpochMilli(event.getSerializedObject().getTimestamp());
         RefreshingAggregateRoot<T> aggregate = cache.getIfPresent(cacheKey);
 
@@ -163,7 +164,7 @@ public class CachingAggregateRepository implements AggregateRepository {
             aggregate =
                     Optional.ofNullable(delegate.load(aggregateId, type)).map(a -> new RefreshingAggregateRoot<>(
                             a.get(), a.id(), a.type(),
-                            a.previous(), a.lastEventId(), a.timestamp(), Objects.equals(a.lastEventId(), eventId)
+                            a.previous(), a.lastEventId(), a.lastEventIndex(), a.timestamp(), Objects.equals(a.lastEventId(), eventId)
                                     ? RefreshingAggregateRoot.Status.IN_SYNC : RefreshingAggregateRoot.Status.AHEAD))
                             .orElseGet(() -> {
                                 log.warn("Delegate repository did not contain aggregate with id {} of type {}",
@@ -173,7 +174,7 @@ public class CachingAggregateRepository implements AggregateRepository {
         } else if (aggregate.status == RefreshingAggregateRoot.Status.IN_SYNC) {
             try {
                 aggregate = new RefreshingAggregateRoot<>(handler.invoke(aggregate.get(), event), aggregate.id(),
-                                                      aggregate.type(), aggregate, eventId, timestamp,
+                                                      aggregate.type(), aggregate, eventId, eventIndex, timestamp,
                                                       RefreshingAggregateRoot.Status.IN_SYNC);
             } catch (Exception e) {
                 log.error("Failed to update aggregate with id {} of type {}", aggregateId, type, e);
@@ -210,6 +211,7 @@ public class CachingAggregateRepository implements AggregateRepository {
         Class<T> type;
         AggregateRoot<T> previous;
         String lastEventId;
+        Long lastEventIndex;
         Instant timestamp;
         Status status;
 
