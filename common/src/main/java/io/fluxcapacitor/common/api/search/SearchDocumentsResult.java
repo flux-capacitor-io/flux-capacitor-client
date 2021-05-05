@@ -30,6 +30,14 @@ public class SearchDocumentsResult implements QueryResult {
         return new Metric(matches.size(), timestamp);
     }
 
+    public int size() {
+        return matches.size();
+    }
+
+    public SerializedDocument lastMatch() {
+        return matches.isEmpty() ? null : matches.get(matches.size() - 1);
+    }
+
     @Value
     public static class Metric {
         int size;

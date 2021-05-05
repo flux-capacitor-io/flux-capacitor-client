@@ -19,7 +19,11 @@ import io.fluxcapacitor.common.search.DefaultDocumentSerializer;
 import io.fluxcapacitor.common.search.Document;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
+import lombok.EqualsAndHashCode;
+import lombok.Getter;
+import lombok.ToString;
 import lombok.Value;
+import lombok.experimental.Accessors;
 
 import java.time.Instant;
 import java.util.Optional;
@@ -43,7 +47,9 @@ public class SerializedDocument {
         summary = document.summarize();
     }
 
-    public Document deserializeDocument() {
-        return DefaultDocumentSerializer.INSTANCE.deserialize(document);
-    }
+    @Getter(lazy = true)
+    @Accessors(fluent = true)
+    @EqualsAndHashCode.Exclude
+    @ToString.Exclude
+    Document deserializeDocument = DefaultDocumentSerializer.INSTANCE.deserialize(document);
 }

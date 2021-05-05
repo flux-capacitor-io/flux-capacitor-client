@@ -17,6 +17,7 @@ package io.fluxcapacitor.javaclient.persisting.search.client;
 import io.fluxcapacitor.common.Awaitable;
 import io.fluxcapacitor.common.Backlog;
 import io.fluxcapacitor.common.Guarantee;
+import io.fluxcapacitor.common.ObjectUtils;
 import io.fluxcapacitor.common.api.QueryResult;
 import io.fluxcapacitor.common.api.search.CreateAuditTrail;
 import io.fluxcapacitor.common.api.search.DeleteCollection;
@@ -44,6 +45,7 @@ import java.net.URI;
 import java.time.Instant;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -89,11 +91,24 @@ public class WebSocketSearchClient extends AbstractWebsocketClient implements Se
     }
 
     @Override
-    public Stream<SearchHit<Document>> search(SearchQuery query, List<String> sorting) {
-        SearchDocumentsResult result = sendAndWait(new SearchDocuments(query, sorting, 100));
-        return result.getMatches().stream().map(d -> new SearchHit<>(
-                d.getId(), d.getCollection(), d.getTimestamp() == null ? null : Instant.ofEpochMilli(d.getTimestamp()),
-                d::deserializeDocument));
+    public Stream<SearchHit<Document>> search(SearchQuery query, List<String> sorting, Integer maxSize) {
+        AtomicInteger count = new AtomicInteger();
+        int fetchBatchSize = maxSize == null ? 10_000 : Math.min(maxSize, 10_000);
+        SearchDocuments request =
+                SearchDocuments.builder().query(query).sorting(sorting).maxSize(fetchBatchSize).build();
+        Stream<SerializedDocument> documentStream = ObjectUtils.<SearchDocumentsResult>iterate(
+                sendAndWait(request),
+                result -> sendAndWait(request.toBuilder().maxSize(
+                        maxSize == null ? fetchBatchSize : Math.min(maxSize - count.get(), fetchBatchSize))
+                                              .lastHit(result.lastMatch()).build()),
+                result -> result.size() < fetchBatchSize
+                        || (maxSize != null && count.addAndGet(result.size()) >= maxSize))
+                .flatMap(r -> r.getMatches().stream());
+        if (maxSize != null) {
+            documentStream = documentStream.limit(maxSize);
+        }
+        return documentStream.map(d -> new SearchHit<>(d.getId(), d.getCollection(), d.getTimestamp() == null
+                ? null : Instant.ofEpochMilli(d.getTimestamp()), d::deserializeDocument));
     }
 
     @Override
@@ -103,8 +118,8 @@ public class WebSocketSearchClient extends AbstractWebsocketClient implements Se
     }
 
     @Override
-    public SearchHistogram getHistogram(SearchQuery query, int resolution, Integer maxSize) {
-        GetSearchHistogramResult result = sendAndWait(new GetSearchHistogram(query, resolution, maxSize));
+    public SearchHistogram getHistogram(GetSearchHistogram request) {
+        GetSearchHistogramResult result = sendAndWait(request);
         return result.getHistogram();
     }
 

@@ -18,6 +18,7 @@ import io.fluxcapacitor.common.Awaitable;
 import io.fluxcapacitor.common.Guarantee;
 import io.fluxcapacitor.common.api.search.CreateAuditTrail;
 import io.fluxcapacitor.common.api.search.DocumentStats;
+import io.fluxcapacitor.common.api.search.GetSearchHistogram;
 import io.fluxcapacitor.common.api.search.SearchHistogram;
 import io.fluxcapacitor.common.api.search.SearchQuery;
 import io.fluxcapacitor.common.search.Document;
@@ -35,7 +36,7 @@ public interface SearchClient extends AutoCloseable {
 
     Awaitable index(List<Document> documents, Guarantee guarantee);
 
-    Stream<SearchHit<Document>> search(SearchQuery query, List<String> sorting);
+    Stream<SearchHit<Document>> search(SearchQuery query, List<String> sorting, Integer maxSize);
 
     Awaitable delete(SearchQuery query, Guarantee guarantee);
 
@@ -47,7 +48,7 @@ public interface SearchClient extends AutoCloseable {
 
     List<DocumentStats> getStatistics(SearchQuery query, List<String> fields, List<String> groupBy);
 
-    SearchHistogram getHistogram(SearchQuery query, int resolution, Integer maxSize);
+    SearchHistogram getHistogram(GetSearchHistogram request);
 
     @Override
     void close();

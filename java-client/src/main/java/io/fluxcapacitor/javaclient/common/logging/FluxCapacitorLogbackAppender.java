@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016-2020 Flux Capacitor.
+ * Copyright (c) 2016-2021 Flux Capacitor.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,14 +15,22 @@
 package io.fluxcapacitor.javaclient.common.logging;
 
 import ch.qos.logback.classic.Level;
+import ch.qos.logback.classic.Logger;
+import ch.qos.logback.classic.filter.LevelFilter;
 import ch.qos.logback.classic.spi.ILoggingEvent;
 import ch.qos.logback.classic.spi.ThrowableProxy;
+import ch.qos.logback.core.Appender;
 import ch.qos.logback.core.AppenderBase;
+import ch.qos.logback.core.Context;
 import io.fluxcapacitor.common.api.Metadata;
 import io.fluxcapacitor.javaclient.FluxCapacitor;
 import io.fluxcapacitor.javaclient.common.serialization.DeserializingMessage;
 import lombok.extern.slf4j.Slf4j;
+import org.slf4j.LoggerFactory;
 
+import java.util.ArrayList;
+import java.util.Iterator;
+import java.util.List;
 import java.util.Optional;
 
 import static java.lang.String.format;
@@ -32,6 +40,32 @@ import static org.apache.commons.lang3.exception.ExceptionUtils.getStackTrace;
 
 @Slf4j
 public class FluxCapacitorLogbackAppender extends AppenderBase<ILoggingEvent> {
+
+    public static void attach() {
+        Context loggerContext = (Context) LoggerFactory.getILoggerFactory();
+        FluxCapacitorLogbackAppender appender = new FluxCapacitorLogbackAppender();
+        LevelFilter filter = new LevelFilter();
+        filter.setLevel(Level.WARN);
+        appender.addFilter(filter);
+        appender.setContext(loggerContext);
+        appender.start();
+        Logger rootLogger = getRootLogger();
+        rootLogger.addAppender(appender);
+    }
+
+    public static void detach() {
+        Logger rootLogger = getRootLogger();
+        Iterator<Appender<ILoggingEvent>> iterator = rootLogger.iteratorForAppenders();
+        List<Appender<ILoggingEvent>> appenders = new ArrayList<>();
+        while (iterator.hasNext()) {
+            Appender<ILoggingEvent> appender = iterator.next();
+            if (appender instanceof FluxCapacitorLogbackAppender) {
+                appenders.add(appender);
+            }
+        }
+        appenders.forEach(rootLogger::detachAppender);
+    }
+
     @Override
     protected void append(ILoggingEvent event) {
         try {
@@ -65,6 +99,10 @@ public class FluxCapacitorLogbackAppender extends AppenderBase<ILoggingEvent> {
         } catch (Throwable e) {
             log.info("Failed to publish console error", e);
         }
+    }
+
+    private static Logger getRootLogger() {
+        return (Logger) LoggerFactory.getLogger(Logger.ROOT_LOGGER_NAME);
     }
 
 }

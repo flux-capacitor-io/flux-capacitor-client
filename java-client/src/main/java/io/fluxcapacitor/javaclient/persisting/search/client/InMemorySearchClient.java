@@ -18,6 +18,7 @@ import io.fluxcapacitor.common.Awaitable;
 import io.fluxcapacitor.common.Guarantee;
 import io.fluxcapacitor.common.api.search.CreateAuditTrail;
 import io.fluxcapacitor.common.api.search.DocumentStats;
+import io.fluxcapacitor.common.api.search.GetSearchHistogram;
 import io.fluxcapacitor.common.api.search.SearchHistogram;
 import io.fluxcapacitor.common.api.search.SearchQuery;
 import io.fluxcapacitor.common.search.Document;
@@ -53,8 +54,11 @@ public class InMemorySearchClient implements SearchClient {
     }
 
     @Override
-    public Stream<SearchHit<Document>> search(SearchQuery query, List<String> sorting) {
+    public Stream<SearchHit<Document>> search(SearchQuery query, List<String> sorting, Integer maxSize) {
         Stream<Document> documentStream = documents.stream().filter(query::matches);
+        if (maxSize != null) {
+            documentStream = documentStream.limit(maxSize);
+        }
         return documentStream.sorted(createComparator(sorting.isEmpty() ? singletonList("-timestamp") : sorting))
                 .map(d -> new SearchHit<>(d.getId(), d.getCollection(), d.getTimestamp(), () -> d));
     }
@@ -96,8 +100,9 @@ public class InMemorySearchClient implements SearchClient {
     }
 
     @Override
-    public SearchHistogram getHistogram(SearchQuery query, int resolution, Integer maxSize) {
-        List<Long> results = IntStream.range(0, resolution).mapToLong(i -> 0L).boxed().collect(toList());
+    public SearchHistogram getHistogram(GetSearchHistogram request) {
+        SearchQuery query = request.getQuery();
+        List<Long> results = IntStream.range(0, request.getResolution()).mapToLong(i -> 0L).boxed().collect(toList());
         if (query.getSince() == null) {
             return new SearchHistogram(query.getSince(), query.getBefore(), results);
         }
@@ -106,9 +111,9 @@ public class InMemorySearchClient implements SearchClient {
         }
         long min = query.getSince().toEpochMilli();
         long delta = query.getBefore().toEpochMilli() - min;
-        long step = Math.min(1, delta / resolution);
+        long step = Math.min(1, delta / request.getResolution());
 
-        this.search(query, singletonList("timestamp"))
+        this.search(query, singletonList("timestamp"), null)
                 .collect(groupingBy(d -> (d.getTimestamp().toEpochMilli() - min) / step))
                 .forEach((bucket, hits) -> results.set(bucket.intValue(), (long) hits.size()));
         return new SearchHistogram(query.getSince(), query.getBefore(), results);

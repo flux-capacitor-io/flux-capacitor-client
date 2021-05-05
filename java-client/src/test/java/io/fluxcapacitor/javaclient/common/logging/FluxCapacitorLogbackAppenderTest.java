@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016-2020 Flux Capacitor.
+ * Copyright (c) 2016-2021 Flux Capacitor.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -35,10 +35,12 @@ class FluxCapacitorLogbackAppenderTest {
     @BeforeEach
     void setUp() {
         FluxCapacitor.instance.set(fluxCapacitor);
+        FluxCapacitorLogbackAppender.attach();
     }
 
     @AfterEach
     void tearDown() {
+        FluxCapacitorLogbackAppender.detach();
         FluxCapacitor.instance.remove();
     }
 

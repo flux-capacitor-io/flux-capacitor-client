@@ -19,6 +19,7 @@ import io.fluxcapacitor.common.Guarantee;
 import io.fluxcapacitor.common.api.search.Constraint;
 import io.fluxcapacitor.common.api.search.CreateAuditTrail;
 import io.fluxcapacitor.common.api.search.DocumentStats;
+import io.fluxcapacitor.common.api.search.GetSearchHistogram;
 import io.fluxcapacitor.common.api.search.SearchHistogram;
 import io.fluxcapacitor.common.api.search.SearchQuery;
 import io.fluxcapacitor.common.search.Document;
@@ -40,11 +41,11 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Function;
-import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import static io.fluxcapacitor.javaclient.FluxCapacitor.currentIdentityProvider;
 import static java.util.Collections.singletonList;
+import static java.util.stream.Collectors.toList;
 
 @AllArgsConstructor
 @Slf4j
@@ -88,7 +89,7 @@ public class DefaultDocumentStore implements DocumentStore {
                                           .orElse(null));
             }
             return builder.build();
-        }).collect(Collectors.toList());
+        }).collect(toList());
         try {
             Awaitable awaitable = client.index(documents, guarantee);
             return CompletableFuture.runAsync(awaitable::awaitSilently);
@@ -105,7 +106,7 @@ public class DefaultDocumentStore implements DocumentStore {
                                              Function<? super T, Instant> endFunction, Guarantee guarantee) {
         List<Document> documents = objects.stream().map(v -> serializer.toDocument(
                 v, idFunction.apply(v), collection, timestampFunction.apply(v),
-                endFunction.apply(v))).collect(Collectors.toList());
+                endFunction.apply(v))).collect(toList());
         try {
             Awaitable awaitable = client.index(documents, guarantee);
             return CompletableFuture.runAsync(awaitable::awaitSilently);
@@ -186,13 +187,13 @@ public class DefaultDocumentStore implements DocumentStore {
 
         @Override
         public Search sortByTimestamp(boolean descending) {
-            sorting.add(descending ? "-" : "" + "_timestamp");
+            sorting.add(descending ? "-" : "" + "timestamp");
             return this;
         }
 
         @Override
         public Search sortByScore() {
-            sorting.add("-_score");
+            sorting.add("-score");
             return this;
         }
 
@@ -204,18 +205,33 @@ public class DefaultDocumentStore implements DocumentStore {
 
         @Override
         public <T> Stream<SearchHit<T>> stream() {
-            return client.search(queryBuilder.build(), sorting).map(hit -> hit.map(serializer::fromDocument));
+            return getHitStream(null, null);
         }
 
         @Override
         public <T> Stream<SearchHit<T>> stream(Class<T> type) {
-            return client.search(queryBuilder.build(), sorting).map(hit -> hit.map(document -> serializer
-                    .fromDocument(document, type)));
+            return getHitStream(null, type);
         }
 
         @Override
-        public SearchHistogram getHistogram(int resolution, Integer maxSize) {
-            return client.getHistogram(queryBuilder.build(), resolution, maxSize);
+        public <T> List<T> get(int maxSize) {
+            return this.<T>getHitStream(maxSize, null).map(SearchHit::getValue).collect(toList());
+        }
+
+        @Override
+        public <T> List<T> get(int maxSize, Class<T> type) {
+            return getHitStream(maxSize, type).map(SearchHit::getValue).collect(toList());
+        }
+
+        protected <T> Stream<SearchHit<T>> getHitStream(Integer maxSize, Class<T> type) {
+            Function<Document, T> convertFunction = type == null
+                    ? serializer::fromDocument : document -> serializer.fromDocument(document, type);
+            return client.search(queryBuilder.build(), sorting, maxSize).map(hit -> hit.map(convertFunction));
+        }
+
+        @Override
+        public SearchHistogram getHistogram(int resolution, int maxSize) {
+            return client.getHistogram(new GetSearchHistogram(queryBuilder.build(), resolution, maxSize));
         }
 
         @Override
@@ -224,7 +240,7 @@ public class DefaultDocumentStore implements DocumentStore {
             if (field instanceof String) {
                 fields = singletonList((String) field);
             } else if (field instanceof Collection<?>) {
-                fields = ((Collection<?>) field).stream().map(Objects::toString).collect(Collectors.toList());
+                fields = ((Collection<?>) field).stream().map(Objects::toString).collect(toList());
             } else {
                 throw new IllegalArgumentException(
                         "Failed to parse field. Expected Collection or String. Got: " + field);

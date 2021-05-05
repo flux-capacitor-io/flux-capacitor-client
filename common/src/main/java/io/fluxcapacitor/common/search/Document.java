@@ -17,8 +17,10 @@ package io.fluxcapacitor.common.search;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
+import lombok.EqualsAndHashCode;
 import lombok.Getter;
 import lombok.NonNull;
+import lombok.ToString;
 import lombok.Value;
 import lombok.experimental.Accessors;
 import org.apache.commons.lang3.StringUtils;
@@ -47,7 +49,8 @@ public class Document {
     }
 
     public String summarize() {
-        return Stream.concat(Stream.of(type, id), entries.keySet().stream().map(Entry::asPhrase)).collect(Collectors.joining(" "));
+        return Stream.concat(Stream.of(type, id), entries.keySet().stream().map(Entry::asPhrase))
+                .collect(Collectors.joining(" "));
     }
 
     public Optional<Entry> getEntryAtPath(String path) {
@@ -64,6 +67,8 @@ public class Document {
         @JsonIgnore
         @Getter(lazy = true)
         @Accessors(fluent = true)
+        @EqualsAndHashCode.Exclude
+        @ToString.Exclude
         String asPhrase = computePhrase();
 
         @SuppressWarnings("ConstantConditions")
@@ -92,12 +97,18 @@ public class Document {
 
         public static EntryType deserialize(byte b) {
             switch (b) {
-                case 0 : return TEXT;
-                case 1 : return NUMERIC;
-                case 2 : return BOOLEAN;
-                case 3 : return NULL;
-                case 4 : return EMPTY_ARRAY;
-                case 5 : return EMPTY_OBJECT;
+                case 0:
+                    return TEXT;
+                case 1:
+                    return NUMERIC;
+                case 2:
+                    return BOOLEAN;
+                case 3:
+                    return NULL;
+                case 4:
+                    return EMPTY_ARRAY;
+                case 5:
+                    return EMPTY_OBJECT;
             }
             throw new IllegalArgumentException("Cannot convert to EntryType: " + b);
         }

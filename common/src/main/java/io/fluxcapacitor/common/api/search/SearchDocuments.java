@@ -15,15 +15,19 @@
 package io.fluxcapacitor.common.api.search;
 
 import io.fluxcapacitor.common.api.Request;
+import lombok.Builder;
 import lombok.EqualsAndHashCode;
 import lombok.Value;
 
+import java.util.Collections;
 import java.util.List;
 
 @EqualsAndHashCode(callSuper = true)
 @Value
+@Builder(toBuilder = true)
 public class SearchDocuments extends Request {
     SearchQuery query;
-    List<String> sorting;
+    @Builder.Default List<String> sorting = Collections.emptyList();
     int maxSize;
+    SerializedDocument lastHit;
 }

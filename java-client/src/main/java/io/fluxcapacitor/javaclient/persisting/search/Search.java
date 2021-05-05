@@ -30,8 +30,6 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.Arrays;
 import java.util.List;
-import java.util.Objects;
-import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import static java.util.stream.Collectors.toList;
@@ -127,17 +125,11 @@ public interface Search {
 
     <T> Stream<SearchHit<T>> stream(Class<T> type);
 
-    default <T> List<T> get(int maxSize) {
-        return this.<T>stream().map(SearchHit::getValue).filter(Objects::nonNull)
-                .limit(maxSize).collect(Collectors.toList());
-    }
+    <T> List<T> get(int maxSize);
 
-    default <T> List<T> get(int maxSize, Class<T> type) {
-        return this.stream(type).map(SearchHit::getValue).filter(Objects::nonNull)
-                .limit(maxSize).collect(Collectors.toList());
-    }
+    <T> List<T> get(int maxSize, Class<T> type);
 
-    SearchHistogram getHistogram(int resolution, Integer maxSize);
+    SearchHistogram getHistogram(int resolution, int maxSize);
 
     List<DocumentStats> getStatistics(Object field, String... groupBy);
 
