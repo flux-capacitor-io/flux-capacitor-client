@@ -14,6 +14,7 @@
 
 package io.fluxcapacitor.common.api.search;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
 import io.fluxcapacitor.common.api.search.constraints.AllConstraint;
 import io.fluxcapacitor.common.search.Document;
 import lombok.Builder;
@@ -26,13 +27,13 @@ import lombok.experimental.Accessors;
 
 import java.time.Instant;
 import java.util.List;
-import java.util.Objects;
 import java.util.stream.Collectors;
 
 @Value
 @Builder(toBuilder = true, builderClassName = "Builder")
 public class SearchQuery {
-    String collection;
+    @JsonProperty("collection")
+    @Singular List<String> collections;
     Instant since, before;
     boolean requireTimestamp;
     @Singular List<Constraint> constraints;
@@ -48,9 +49,6 @@ public class SearchQuery {
         if (!decomposeConstraints().matches(d)) {
             return false;
         }
-        if (!Objects.equals(collection, d.getCollection())) {
-            return false;
-        }
         if (d.getTimestamp() == null) {
             return !requireTimestamp;
         }
@@ -58,6 +56,9 @@ public class SearchQuery {
             return false;
         }
         if (before != null && d.getEnd().compareTo(before) >= 0) {
+            return false;
+        }
+        if (!collections.isEmpty() && !collections.contains(d.getCollection())) {
             return false;
         }
         return true;

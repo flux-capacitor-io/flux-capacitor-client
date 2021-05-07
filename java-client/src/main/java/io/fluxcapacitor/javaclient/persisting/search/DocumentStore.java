@@ -21,6 +21,7 @@ import lombok.SneakyThrows;
 import javax.annotation.Nullable;
 import java.time.Duration;
 import java.time.Instant;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Function;
@@ -90,8 +91,8 @@ public interface DocumentStore {
                                       Function<? super T, Instant> timestampFunction,
                                       Function<? super T, Instant> endFunction, Guarantee guarantee);
 
-    default Search search(String collection) {
-        return search(SearchQuery.builder().collection(collection));
+    default Search search(String... collections) {
+        return search(SearchQuery.builder().collections(Arrays.asList(collections)));
     }
 
     Search search(SearchQuery.Builder queryBuilder);

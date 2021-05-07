@@ -34,9 +34,7 @@ public abstract class PathConstraint implements Constraint {
 
     @Override
     public boolean matches(Document document) {
-        return document.getEntries().entrySet().stream()
-                .anyMatch(e -> matches(e.getKey())
-                        && (getPath() == null || e.getValue().stream().anyMatch(pathPredicate())));
+        return documentPredicate().test(document);
     }
 
     @Override
@@ -44,12 +42,27 @@ public abstract class PathConstraint implements Constraint {
         return getPath() != null;
     }
 
+    protected boolean checkPathBeforeEntry() {
+        return false;
+    }
+
     @Getter(value = AccessLevel.PROTECTED, lazy = true)
     @Accessors(fluent = true)
     @EqualsAndHashCode.Exclude
-    private final Predicate<Path> pathPredicate = computePathPredicate();
+    private final Predicate<Document> documentPredicate = computeDocumentPredicate();
 
-    private Predicate<Path> computePathPredicate() {
+    private Predicate<Document> computeDocumentPredicate() {
+        Predicate<Path> pathPredicate = computePathPredicate();
+        return checkPathBeforeEntry() ? d -> d.getEntries().entrySet().stream()
+                .anyMatch(e -> e.getValue().stream().anyMatch(pathPredicate) && matches(e.getKey())) :
+                d -> d.getEntries().entrySet().stream()
+                        .anyMatch(e -> matches(e.getKey()) && e.getValue().stream().anyMatch(pathPredicate));
+    }
+
+    protected Predicate<Path> computePathPredicate() {
+        if (getPath() == null) {
+            return p -> true;
+        }
         Predicate<String> predicate = SearchUtils.convertGlobToRegex(getPath()).asPredicate();
         return Arrays.stream(getPath().split("/")).anyMatch(SearchUtils::isInteger)
                 ? p -> predicate.test(p.getValue()) : p -> predicate.test(p.getShortValue());

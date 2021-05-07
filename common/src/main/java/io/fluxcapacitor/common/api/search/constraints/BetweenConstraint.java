@@ -24,8 +24,6 @@ import lombok.experimental.Accessors;
 
 import java.util.function.Predicate;
 
-import static io.fluxcapacitor.common.search.Document.EntryType.NUMERIC;
-
 @Value
 public class BetweenConstraint extends PathConstraint {
     public static BetweenConstraint between(Object min, Object maxExclusive, @NonNull String path) {
@@ -47,7 +45,12 @@ public class BetweenConstraint extends PathConstraint {
 
     @Override
     protected boolean matches(Document.Entry entry) {
-        return entry.getType() == NUMERIC && matcher().test(entry.getValue());
+        return matcher().test(entry.getValue());
+    }
+
+    @Override
+    protected boolean checkPathBeforeEntry() {
+        return true;
     }
 
     @Getter(value = AccessLevel.PROTECTED, lazy = true)
