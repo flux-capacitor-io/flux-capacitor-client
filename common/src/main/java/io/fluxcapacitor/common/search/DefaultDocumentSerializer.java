@@ -17,6 +17,7 @@ package io.fluxcapacitor.common.search;
 import io.fluxcapacitor.common.api.Data;
 import io.fluxcapacitor.common.api.search.SerializedDocument;
 import io.fluxcapacitor.common.search.Document.Entry;
+import io.fluxcapacitor.common.search.Document.Path;
 import lombok.SneakyThrows;
 import org.msgpack.core.MessageBufferPacker;
 import org.msgpack.core.MessagePack;
@@ -40,18 +41,18 @@ public enum DefaultDocumentSerializer {
 
     public Data<byte[]> serialize(Document document) {
         try (MessageBufferPacker packer = MessagePack.newDefaultBufferPacker()) {
-            Map<Entry, List<String>> map = document.getEntries();
+            Map<Entry, List<Path>> map = document.getEntries();
             packer.packInt(currentVersion).packString(document.getId());
             packTimestamp(document.getTimestamp(), packer);
             packTimestamp(document.getEnd(), packer);
             packer.packString(document.getCollection()).packArrayHeader(map.size());
-            for (Map.Entry<Entry, List<String>> e : map.entrySet()) {
+            for (Map.Entry<Entry, List<Path>> e : map.entrySet()) {
                 packer.packByte(e.getKey().getType().serialize());
                 packer.packString(e.getKey().getValue());
-                List<String> keys = e.getValue();
+                List<Path> keys = e.getValue();
                 packer.packArrayHeader(keys.size());
-                for (String key : keys) {
-                    packer.packString(key);
+                for (Path key : keys) {
+                    packer.packString(key.getValue());
                 }
             }
             return new Data<>(compress(packer.toByteArray()), document.getType(), document.getRevision(), "document");
@@ -73,15 +74,15 @@ public enum DefaultDocumentSerializer {
             Instant timestamp = unpackTimestamp(unpacker);
             Instant end = unpackTimestamp(unpacker);
             String collection = unpacker.unpackString();
-            Map<Entry, List<String>> map = new LinkedHashMap<>();
+            Map<Entry, List<Path>> map = new LinkedHashMap<>();
             int size = unpacker.unpackArrayHeader();
             for (int i = 0; i < size; i++) {
                 Entry value = new Entry(Document.EntryType.deserialize(unpacker.unpackByte()), unpacker.unpackString());
                 int keysCount = unpacker.unpackArrayHeader();
-                List<String> keys = new ArrayList<>(keysCount);
+                List<Path> keys = new ArrayList<>(keysCount);
                 map.put(value, keys);
                 for (int j = 0; j < keysCount; j++) {
-                    keys.add(unpacker.unpackString());
+                    keys.add(new Path(unpacker.unpackString()));
                 }
             }
             return new Document(id, document.getType(), document.getRevision(), collection, timestamp, end, map);

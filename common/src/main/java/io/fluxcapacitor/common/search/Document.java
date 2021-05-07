@@ -15,6 +15,7 @@
 package io.fluxcapacitor.common.search;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
+import io.fluxcapacitor.common.SearchUtils;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.EqualsAndHashCode;
@@ -26,6 +27,7 @@ import lombok.experimental.Accessors;
 import org.apache.commons.lang3.StringUtils;
 
 import java.time.Instant;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -42,7 +44,7 @@ public class Document {
     int revision;
     String collection;
     Instant timestamp, end;
-    Map<Entry, List<String>> entries;
+    Map<Entry, List<Path>> entries;
 
     public Instant getEnd() {
         return end == null ? timestamp : end;
@@ -54,7 +56,9 @@ public class Document {
     }
 
     public Optional<Entry> getEntryAtPath(String path) {
-        return entries.entrySet().stream().filter(e -> e.getValue().stream().anyMatch(p -> Objects.equals(p, path)))
+        Path pathObject = new Path(path);
+        return entries.entrySet().stream()
+                .filter(e -> e.getValue().stream().anyMatch(p -> Objects.equals(p, pathObject)))
                 .findFirst().map(Map.Entry::getKey);
     }
 
@@ -79,6 +83,22 @@ public class Document {
         @Override
         public int compareTo(@NonNull Entry o) {
             return getValue().compareTo(o.getValue());
+        }
+    }
+
+    @Value
+    public static class Path {
+        String value;
+
+        @JsonIgnore
+        @Getter(lazy = true)
+        @EqualsAndHashCode.Exclude
+        @ToString.Exclude
+        String shortValue = computeShortValue();
+
+        private String computeShortValue() {
+            return Arrays.stream(getValue().split("/"))
+                    .filter(p -> !SearchUtils.isInteger(p)).collect(Collectors.joining("/"));
         }
     }
 

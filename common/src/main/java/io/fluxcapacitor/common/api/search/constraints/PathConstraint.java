@@ -17,11 +17,13 @@ package io.fluxcapacitor.common.api.search.constraints;
 import io.fluxcapacitor.common.SearchUtils;
 import io.fluxcapacitor.common.api.search.Constraint;
 import io.fluxcapacitor.common.search.Document;
+import io.fluxcapacitor.common.search.Document.Path;
 import lombok.AccessLevel;
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
 import lombok.experimental.Accessors;
 
+import java.util.Arrays;
 import java.util.function.Predicate;
 
 public abstract class PathConstraint implements Constraint {
@@ -45,5 +47,11 @@ public abstract class PathConstraint implements Constraint {
     @Getter(value = AccessLevel.PROTECTED, lazy = true)
     @Accessors(fluent = true)
     @EqualsAndHashCode.Exclude
-    private final Predicate<String> pathPredicate = SearchUtils.convertGlobToRegex(getPath()).asPredicate();
+    private final Predicate<Path> pathPredicate = computePathPredicate();
+
+    private Predicate<Path> computePathPredicate() {
+        Predicate<String> predicate = SearchUtils.convertGlobToRegex(getPath()).asPredicate();
+        return Arrays.stream(getPath().split("/")).anyMatch(SearchUtils::isInteger)
+                ? p -> predicate.test(p.getValue()) : p -> predicate.test(p.getShortValue());
+    }
 }

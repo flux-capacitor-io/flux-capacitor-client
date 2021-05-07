@@ -14,13 +14,17 @@
 
 package io.fluxcapacitor.javaclient.givenwhenthen;
 
+import com.fasterxml.jackson.databind.JsonNode;
 import io.fluxcapacitor.common.api.search.Constraint;
+import io.fluxcapacitor.common.serialization.JsonUtils;
 import io.fluxcapacitor.javaclient.test.TestFixture;
 import lombok.Value;
 import org.junit.jupiter.api.Test;
 
 import java.math.BigDecimal;
+import java.util.Arrays;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.stream.Stream;
 
@@ -142,6 +146,28 @@ public class GivenWhenThenSearchTest {
         }).expectNoDocumentsLike(singletonList("bla2"));
     }
 
+    @Test
+    void testSearchInArray() {
+        expectMatch(find("10", "mapList/key1"));
+        expectMatch(find("10", "mapList/0/key1"));
+        expectNoMatch(find("10", "mapList/1/key1"));
+        expectMatch(find("value2", "mapList/key2"));
+        expectMatch(find("value2", "mapList/1/key2"));
+    }
+
+    @Test
+    void testLongNumber() {
+        expectMatch(find("106193501828612100"));
+    }
+
+    @Test
+    void testMetricsMessageExample() {
+        JsonNode jsonNode = JsonUtils.fromFile(getClass(), "metrics-message.json", JsonNode.class);
+        TestFixture.create().givenDocuments("test", jsonNode)
+                .whenSearching("test", find("106193501828612100", "messageIndex"))
+                .expectResult(r -> !((List<?>) r).isEmpty());
+    }
+
     private void expectMatch(Constraint... constraints) {
         SomeDocument document = new SomeDocument();
         TestFixture.create().givenDocuments("test", document).whenSearching("test", constraints)
@@ -158,9 +184,12 @@ public class GivenWhenThenSearchTest {
     private static class SomeDocument {
         private static final String ID = "123A45B67c";
         String someId = ID;
+        BigDecimal longNumber = new BigDecimal("106193501828612100");
         String foo = "Let's see what we can find";
         BigDecimal someNumber = new BigDecimal("20.5");
         Map<String, Object> booleans = Stream.of("first", "second", "third", "third").collect(
                 toMap(identity(), s -> true, (a, b) -> singletonMap("inner", true), LinkedHashMap::new));
+        List<Map<String, Object>> mapList = Arrays.asList(singletonMap(
+                "key1", new BigDecimal(10)), singletonMap("key2", "value2"));
     }
 }

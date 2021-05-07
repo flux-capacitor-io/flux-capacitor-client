@@ -31,6 +31,7 @@ import io.fluxcapacitor.common.SearchUtils;
 import io.fluxcapacitor.common.api.Data;
 import io.fluxcapacitor.common.search.Document.Entry;
 import io.fluxcapacitor.common.search.Document.EntryType;
+import io.fluxcapacitor.common.search.Document.Path;
 import io.fluxcapacitor.common.serialization.NullCollectionsAsEmptyModule;
 import lombok.Getter;
 import lombok.SneakyThrows;
@@ -92,7 +93,7 @@ public class JacksonInverter implements Inverter<JsonNode> {
     }
 
     @SneakyThrows
-    protected Map<Entry, List<String>> invert(byte[] json, String path, Map<Entry, List<String>> valueMap) {
+    protected Map<Entry, List<Path>> invert(byte[] json, String path, Map<Entry, List<Path>> valueMap) {
         try (JsonParser parser = jsonFactory.createParser(json)) {
             JsonToken token = parser.nextToken();
             if (token != null) {
@@ -103,7 +104,7 @@ public class JacksonInverter implements Inverter<JsonNode> {
     }
 
     @SneakyThrows
-    protected JsonToken processToken(JsonToken token, Map<Entry, List<String>> valueMap, String path,
+    protected JsonToken processToken(JsonToken token, Map<Entry, List<Path>> valueMap, String path,
                                      JsonParser parser) {
         switch (token) {
             case START_ARRAY:
@@ -135,15 +136,15 @@ public class JacksonInverter implements Inverter<JsonNode> {
         throw new IllegalArgumentException("Unsupported value token: " + token);
     }
 
-    protected void registerValue(EntryType type, String value, String path, Map<Entry, List<String>> valueMap) {
-        List<String> locations = valueMap.computeIfAbsent(new Entry(type, value), key -> new ArrayList<>());
+    protected void registerValue(EntryType type, String value, String path, Map<Entry, List<Path>> valueMap) {
+        List<Path> locations = valueMap.computeIfAbsent(new Entry(type, value), key -> new ArrayList<>());
         if (!isBlank(path)) {
-            locations.add(path);
+            locations.add(new Path(path));
         }
     }
 
     @SneakyThrows
-    private void parseArray(JsonParser parser, Map<Entry, List<String>> valueMap, String root) {
+    private void parseArray(JsonParser parser, Map<Entry, List<Path>> valueMap, String root) {
         JsonToken token = parser.nextToken();
         if (token.isStructEnd()) {
             registerValue(EntryType.EMPTY_ARRAY, "[]", root, valueMap);
@@ -156,7 +157,7 @@ public class JacksonInverter implements Inverter<JsonNode> {
     }
 
     @SneakyThrows
-    protected void parseObject(JsonParser parser, Map<Entry, List<String>> valueMap, String root) {
+    protected void parseObject(JsonParser parser, Map<Entry, List<Path>> valueMap, String root) {
         JsonToken token = parser.nextToken();
         if (token.isStructEnd()) {
             registerValue(EntryType.EMPTY_OBJECT, "{}", root, valueMap);
@@ -197,20 +198,20 @@ public class JacksonInverter implements Inverter<JsonNode> {
     @Override
     @SuppressWarnings("unchecked")
     public JsonNode fromDocument(Document document) {
-        Map<Entry, List<String>> entries = document.getEntries();
+        Map<Entry, List<Path>> entries = document.getEntries();
         if (entries.isEmpty()) {
             return NullNode.getInstance();
         }
         Map<String, Object> tree = new TreeMap<>();
-        for (Map.Entry<Entry, List<String>> entry : entries.entrySet()) {
+        for (Map.Entry<Entry, List<Path>> entry : entries.entrySet()) {
             JsonNode valueNode = toJsonNode(entry.getKey());
-            List<String> paths = entry.getValue();
+            List<Path> paths = entry.getValue();
             if (paths.isEmpty()) {
                 return valueNode;
             }
             paths.forEach(path -> {
                 Map<String, Object> parent = tree;
-                Iterator<String> iterator = Arrays.stream(path.split("/")).iterator();
+                Iterator<String> iterator = Arrays.stream(path.getValue().split("/")).iterator();
                 while (iterator.hasNext()) {
                     String segment = iterator.next();
                     if (iterator.hasNext()) {
