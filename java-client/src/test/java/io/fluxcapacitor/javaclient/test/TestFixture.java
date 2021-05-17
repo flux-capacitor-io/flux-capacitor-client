@@ -32,7 +32,6 @@ import io.fluxcapacitor.javaclient.configuration.client.Client;
 import io.fluxcapacitor.javaclient.configuration.client.InMemoryClient;
 import io.fluxcapacitor.javaclient.modeling.AggregateRoot;
 import io.fluxcapacitor.javaclient.persisting.search.Search;
-import io.fluxcapacitor.javaclient.persisting.search.SearchHit;
 import io.fluxcapacitor.javaclient.publishing.DispatchInterceptor;
 import io.fluxcapacitor.javaclient.scheduling.DefaultScheduler;
 import io.fluxcapacitor.javaclient.scheduling.Schedule;
@@ -324,8 +323,7 @@ public class TestFixture implements Given, When {
 
     @Override
     public Then whenSearching(String collection, UnaryOperator<Search> searchQuery) {
-        return whenApplying(fc -> searchQuery.apply(fc.documentStore().search(collection)).stream()
-                .map(SearchHit::getValue).collect(toList()));
+        return whenApplying(fc -> searchQuery.apply(fc.documentStore().search(collection)).getAll());
     }
 
     @Override

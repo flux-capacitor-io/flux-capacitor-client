@@ -133,13 +133,29 @@ public interface Search {
         Execution
      */
 
-    <T> Stream<SearchHit<T>> stream();
-
-    <T> Stream<SearchHit<T>> stream(Class<T> type);
-
     <T> List<T> get(int maxSize);
 
     <T> List<T> get(int maxSize, Class<T> type);
+
+    default <T> List<T> getAll() {
+        return this.<T>stream().collect(toList());
+    }
+
+    default <T> List<T> getAll(Class<T> type) {
+        return this.stream(type).collect(toList());
+    }
+
+    default <T> Stream<T> stream() {
+        return this.<T>streamHits().map(SearchHit::getValue);
+    }
+
+    default <T> Stream<T> stream(Class<T> type) {
+        return this.streamHits(type).map(SearchHit::getValue);
+    }
+
+    <T> Stream<SearchHit<T>> streamHits();
+
+    <T> Stream<SearchHit<T>> streamHits(Class<T> type);
 
     SearchHistogram getHistogram(int resolution, int maxSize);
 

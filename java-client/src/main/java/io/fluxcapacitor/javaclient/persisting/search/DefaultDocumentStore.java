@@ -219,12 +219,12 @@ public class DefaultDocumentStore implements DocumentStore {
         }
 
         @Override
-        public <T> Stream<SearchHit<T>> stream() {
+        public <T> Stream<SearchHit<T>> streamHits() {
             return getHitStream(null, null);
         }
 
         @Override
-        public <T> Stream<SearchHit<T>> stream(Class<T> type) {
+        public <T> Stream<SearchHit<T>> streamHits(Class<T> type) {
             return getHitStream(null, type);
         }
 
