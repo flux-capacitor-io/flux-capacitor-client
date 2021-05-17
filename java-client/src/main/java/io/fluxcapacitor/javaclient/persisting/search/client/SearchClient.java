@@ -25,15 +25,10 @@ import io.fluxcapacitor.common.api.search.SearchQuery;
 import io.fluxcapacitor.common.search.Document;
 import io.fluxcapacitor.javaclient.persisting.search.SearchHit;
 
-import java.util.Arrays;
 import java.util.List;
 import java.util.stream.Stream;
 
 public interface SearchClient extends AutoCloseable {
-
-    default Awaitable index(Document... documents) {
-        return index(Arrays.asList(documents), Guarantee.SENT);
-    }
 
     Awaitable index(List<Document> documents, Guarantee guarantee);
 

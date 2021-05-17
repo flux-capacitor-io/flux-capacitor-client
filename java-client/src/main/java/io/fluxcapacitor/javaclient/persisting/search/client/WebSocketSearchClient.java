@@ -69,11 +69,6 @@ public class WebSocketSearchClient extends AbstractWebsocketClient implements Se
     }
 
     @Override
-    public Awaitable index(Document... documents) {
-        return backlog.add(documents);
-    }
-
-    @Override
     public Awaitable index(List<Document> documents, Guarantee guarantee) {
         switch (guarantee) {
             case NONE:

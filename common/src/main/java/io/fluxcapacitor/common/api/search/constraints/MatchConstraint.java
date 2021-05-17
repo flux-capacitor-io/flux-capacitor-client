@@ -15,21 +15,39 @@
 package io.fluxcapacitor.common.api.search.constraints;
 
 import io.fluxcapacitor.common.api.search.Constraint;
+import io.fluxcapacitor.common.api.search.NoOpConstraint;
 import io.fluxcapacitor.common.search.Document;
 import lombok.NonNull;
 import lombok.Value;
 
 import java.util.Arrays;
-import java.util.stream.Collectors;
+import java.util.Collection;
+import java.util.List;
+
+import static java.util.stream.Collectors.toList;
 
 @Value
 public class MatchConstraint extends PathConstraint {
     public static Constraint match(@NonNull Object value, String... paths) {
         switch (paths.length) {
-            case 0: return new MatchConstraint(value.toString(), null);
-            case 1: return new MatchConstraint(value.toString(), paths[0]);
-            default: return new AnyConstraint(Arrays.stream(paths).map(
-                    p -> new MatchConstraint(value.toString(), p)).collect(Collectors.toList()));
+            case 0: return matchForPath(value, null);
+            case 1: return matchForPath(value, paths[0]);
+            default: return new AnyConstraint(Arrays.stream(paths).map(p -> matchForPath(value, p)).collect(toList()));
+        }
+    }
+
+    protected static Constraint matchForPath(@NonNull Object value, String path) {
+        if (value instanceof Collection<?>) {
+            List<Constraint> constraints =
+                    ((Collection<?>) value).stream().map(v -> new MatchConstraint(v.toString(), path))
+                            .collect(toList());
+            switch (constraints.size()) {
+                case 0: return NoOpConstraint.instance;
+                case 1: return constraints.get(0);
+                default: return new AnyConstraint(constraints);
+            }
+        } else {
+            return new MatchConstraint(value.toString(), path);
         }
     }
 
