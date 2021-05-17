@@ -14,13 +14,16 @@
 
 package io.fluxcapacitor.common.api.search;
 
+import io.fluxcapacitor.common.SearchUtils;
 import io.fluxcapacitor.common.api.Request;
+import io.fluxcapacitor.common.search.Document.Path;
 import lombok.Builder;
 import lombok.EqualsAndHashCode;
 import lombok.Value;
 
 import java.util.Collections;
 import java.util.List;
+import java.util.function.Predicate;
 
 @EqualsAndHashCode(callSuper = true)
 @Value
@@ -28,6 +31,18 @@ import java.util.List;
 public class SearchDocuments extends Request {
     SearchQuery query;
     @Builder.Default List<String> sorting = Collections.emptyList();
-    int maxSize;
+    Integer maxSize;
+    @Builder.Default List<String> pathFilters = Collections.emptyList();
     SerializedDocument lastHit;
+
+    public Predicate<Path> computePathFilter() {
+        return pathFilters.stream()
+                .map(p -> {
+                    boolean negate = p.startsWith("-");
+                    p = negate ? p.substring(1) : p;
+                    Predicate<String> predicate = SearchUtils.convertGlobToRegex(p + "/**").asPredicate()
+                            .or(SearchUtils.convertGlobToRegex(p).asPredicate());
+                    return negate ? predicate.negate() : predicate;
+                }).reduce(Predicate::or).<Predicate<Path>>map(s -> p -> s.test(p.getValue())).orElse(p -> true);
+    }
 }

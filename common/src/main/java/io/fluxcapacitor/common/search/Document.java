@@ -27,13 +27,17 @@ import lombok.experimental.Accessors;
 import org.apache.commons.lang3.StringUtils;
 
 import java.time.Instant;
+import java.util.AbstractMap;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.function.Predicate;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
+
+import static java.util.stream.Collectors.toMap;
 
 @Value
 @Builder(toBuilder = true)
@@ -60,6 +64,18 @@ public class Document {
         return entries.entrySet().stream()
                 .filter(e -> e.getValue().stream().anyMatch(p -> Objects.equals(p, pathObject)))
                 .findFirst().map(Map.Entry::getKey);
+    }
+
+    public Document filterPaths(Predicate<Path> pathFilter) {
+        Map<Entry, List<Path>> filteredEntries = entries.entrySet().stream().flatMap(e -> {
+            List<Path> filtered = e.getValue().stream().filter(pathFilter).collect(Collectors.toList());
+            if (filtered.isEmpty()) {
+                return Stream.empty();
+            }
+            return Stream.of(e.getValue().size() == filtered.size()
+                                     ? e : new AbstractMap.SimpleEntry<>(e.getKey(), filtered));
+        }).collect(toMap(Map.Entry::getKey, Map.Entry::getValue));
+        return toBuilder().entries(filteredEntries).build();
     }
 
     @Value

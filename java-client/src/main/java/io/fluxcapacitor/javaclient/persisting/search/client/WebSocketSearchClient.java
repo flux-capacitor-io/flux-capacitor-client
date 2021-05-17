@@ -91,11 +91,11 @@ public class WebSocketSearchClient extends AbstractWebsocketClient implements Se
     }
 
     @Override
-    public Stream<SearchHit<Document>> search(SearchQuery query, List<String> sorting, Integer maxSize) {
+    public Stream<SearchHit<Document>> search(SearchDocuments searchDocuments) {
         AtomicInteger count = new AtomicInteger();
+        Integer maxSize = searchDocuments.getMaxSize();
         int fetchBatchSize = maxSize == null ? 10_000 : Math.min(maxSize, 10_000);
-        SearchDocuments request =
-                SearchDocuments.builder().query(query).sorting(sorting).maxSize(fetchBatchSize).build();
+        SearchDocuments request = searchDocuments.toBuilder().maxSize(fetchBatchSize).build();
         Stream<SerializedDocument> documentStream = ObjectUtils.<SearchDocumentsResult>iterate(
                 sendAndWait(request),
                 result -> sendAndWait(request.toBuilder().maxSize(

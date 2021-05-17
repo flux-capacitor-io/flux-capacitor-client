@@ -19,6 +19,7 @@ import io.fluxcapacitor.common.Guarantee;
 import io.fluxcapacitor.common.api.search.CreateAuditTrail;
 import io.fluxcapacitor.common.api.search.DocumentStats;
 import io.fluxcapacitor.common.api.search.GetSearchHistogram;
+import io.fluxcapacitor.common.api.search.SearchDocuments;
 import io.fluxcapacitor.common.api.search.SearchHistogram;
 import io.fluxcapacitor.common.api.search.SearchQuery;
 import io.fluxcapacitor.common.search.Document;
@@ -33,13 +34,13 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.function.Function;
+import java.util.function.Predicate;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
 import static io.fluxcapacitor.common.search.Document.EntryType.NUMERIC;
 import static java.util.Collections.emptyList;
-import static java.util.Collections.singletonList;
 import static java.util.stream.Collectors.groupingBy;
 import static java.util.stream.Collectors.toList;
 import static java.util.stream.Collectors.toMap;
@@ -54,12 +55,18 @@ public class InMemorySearchClient implements SearchClient {
     }
 
     @Override
-    public Stream<SearchHit<Document>> search(SearchQuery query, List<String> sorting, Integer maxSize) {
+    public Stream<SearchHit<Document>> search(SearchDocuments searchDocuments) {
+        SearchQuery query = searchDocuments.getQuery();
         Stream<Document> documentStream = documents.stream().filter(query::matches);
-        if (maxSize != null) {
-            documentStream = documentStream.limit(maxSize);
+        if (searchDocuments.getMaxSize() != null) {
+            documentStream = documentStream.limit(searchDocuments.getMaxSize());
         }
-        return documentStream.sorted(createComparator(sorting.isEmpty() ? singletonList("-timestamp") : sorting))
+        documentStream = documentStream.sorted(createComparator(searchDocuments.getSorting()));
+        if (!searchDocuments.getPathFilters().isEmpty()) {
+            Predicate<Document.Path> pathFilter = searchDocuments.computePathFilter();
+            documentStream = documentStream.map(d -> d.filterPaths(pathFilter));
+        }
+        return documentStream
                 .map(d -> new SearchHit<>(d.getId(), d.getCollection(), d.getTimestamp(), () -> d));
     }
 
@@ -113,7 +120,7 @@ public class InMemorySearchClient implements SearchClient {
         long delta = query.getBefore().toEpochMilli() - min;
         long step = Math.min(1, delta / request.getResolution());
 
-        this.search(query, singletonList("timestamp"), null)
+        this.search(SearchDocuments.builder().query(query).build())
                 .collect(groupingBy(d -> (d.getTimestamp().toEpochMilli() - min) / step))
                 .forEach((bucket, hits) -> results.set(bucket.intValue(), (long) hits.size()));
         return new SearchHistogram(query.getSince(), query.getBefore(), results);
@@ -155,7 +162,7 @@ public class InMemorySearchClient implements SearchClient {
                             Comparator.nullsLast(Comparator.comparing(d -> d.getEntryAtPath(path).orElse(null)));
                     return reversed ? valueComparator.reversed() : valueComparator;
             }
-        }).reduce(Comparator::thenComparing).orElse((a, b) -> 0);
+        }).reduce(Comparator::thenComparing).orElse(Comparator.comparing(Document::getTimestamp).reversed());
     }
 
     @Override

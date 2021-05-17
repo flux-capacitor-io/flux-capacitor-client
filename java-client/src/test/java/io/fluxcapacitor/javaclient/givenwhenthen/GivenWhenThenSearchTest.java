@@ -18,6 +18,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import io.fluxcapacitor.common.api.search.Constraint;
 import io.fluxcapacitor.common.serialization.JsonUtils;
 import io.fluxcapacitor.javaclient.test.TestFixture;
+import lombok.AllArgsConstructor;
 import lombok.Value;
 import org.junit.jupiter.api.Test;
 
@@ -165,7 +166,51 @@ public class GivenWhenThenSearchTest {
         JsonNode jsonNode = JsonUtils.fromFile(getClass(), "metrics-message.json", JsonNode.class);
         TestFixture.create().givenDocuments("test", jsonNode)
                 .whenSearching("test", find("106193501828612100", "messageIndex"))
-                .expectResult(r -> !((List<?>) r).isEmpty());
+                .<List<JsonNode>>expectResult(r -> !r.isEmpty() && r.get(0).get("payload") != null);
+    }
+
+    @Test
+    void testExcludePaths() {
+        JsonNode jsonNode = JsonUtils.fromFile(getClass(), "metrics-message.json", JsonNode.class);
+        TestFixture.create().givenDocuments("test", jsonNode)
+                .whenSearching("test", search -> search.exclude("payload"))
+                .<List<JsonNode>>expectResult(r -> !r.isEmpty() && r.get(0).get("payload") == null
+                        && r.get(0).get("segment") != null
+                        && r.get(0).get("metadata") != null
+                        && r.get(0).get("metadata").get("requestId") != null);
+
+        TestFixture.create().givenDocuments("test", jsonNode)
+                .whenSearching("test", search -> search.exclude("segment"))
+                .<List<JsonNode>>expectResult(r -> r.get(0).get("segment") == null);
+
+        TestFixture.create().givenDocuments("test", jsonNode)
+                .whenSearching("test", search -> search.exclude("metadata/requestId"))
+                .<List<JsonNode>>expectResult(r -> r.get(0).get("metadata") != null
+                        && r.get(0).get("metadata").get("$consumer") != null
+                        && r.get(0).get("metadata").get("requestId") == null);
+
+        TestFixture.create().givenDocuments("test", jsonNode)
+                .whenSearching("test", search -> search.exclude("metadata/**"))
+                .<List<JsonNode>>expectResult(r -> r.get(0).get("metadata") == null);
+    }
+
+    @Test
+    void testIncludePaths() {
+        JsonNode jsonNode = JsonUtils.fromFile(getClass(), "metrics-message.json", JsonNode.class);
+        TestFixture.create().givenDocuments("test", jsonNode)
+                .whenSearching("test", search -> search.includeOnly("payload"))
+                .<List<JsonNode>>expectResult(r -> !r.isEmpty()
+                        && r.get(0).get("payload") != null && r.get(0).get("payload").get("requestId") != null
+                        && r.get(0).get("segment") == null
+                        && r.get(0).get("metadata") == null);
+
+        TestFixture.create().givenDocuments("test", jsonNode)
+                .whenSearching("test", search -> search.includeOnly("payload/requestId"))
+                .<List<JsonNode>>expectResult(r -> !r.isEmpty()
+                        && r.get(0).get("payload") != null && r.get(0).get("payload").get("requestId") != null
+                        && r.get(0).get("payload").get("strategy") == null
+                        && r.get(0).get("segment") == null
+                        && r.get(0).get("metadata") == null);
     }
 
     private void expectMatch(Constraint... constraints) {
@@ -181,15 +226,26 @@ public class GivenWhenThenSearchTest {
     }
 
     @Value
+    @AllArgsConstructor
     private static class SomeDocument {
         private static final String ID = "123A45B67c";
-        String someId = ID;
-        BigDecimal longNumber = new BigDecimal("106193501828612100");
-        String foo = "Let's see what we can find";
-        BigDecimal someNumber = new BigDecimal("20.5");
-        Map<String, Object> booleans = Stream.of("first", "second", "third", "third").collect(
-                toMap(identity(), s -> true, (a, b) -> singletonMap("inner", true), LinkedHashMap::new));
-        List<Map<String, Object>> mapList = Arrays.asList(singletonMap(
-                "key1", new BigDecimal(10)), singletonMap("key2", "value2"));
+
+        String someId;
+        BigDecimal longNumber;
+        String foo;
+        BigDecimal someNumber;
+        Map<String, Object> booleans;
+        List<Map<String, Object>> mapList;
+
+        public SomeDocument() {
+            this.someId = ID;
+            this.longNumber = new BigDecimal("106193501828612100");
+            this.foo = "Let's see what we can find";
+            this.someNumber = new BigDecimal("20.5");
+            this.booleans = Stream.of("first", "second", "third", "third").collect(
+                    toMap(identity(), s -> true, (a, b) -> singletonMap("inner", true), LinkedHashMap::new));
+            this.mapList = Arrays.asList(singletonMap(
+                    "key1", new BigDecimal(10)), singletonMap("key2", "value2"));
+        }
     }
 }

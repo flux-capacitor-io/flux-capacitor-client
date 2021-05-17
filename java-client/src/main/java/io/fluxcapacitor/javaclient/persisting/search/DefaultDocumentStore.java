@@ -20,6 +20,7 @@ import io.fluxcapacitor.common.api.search.Constraint;
 import io.fluxcapacitor.common.api.search.CreateAuditTrail;
 import io.fluxcapacitor.common.api.search.DocumentStats;
 import io.fluxcapacitor.common.api.search.GetSearchHistogram;
+import io.fluxcapacitor.common.api.search.SearchDocuments;
 import io.fluxcapacitor.common.api.search.SearchHistogram;
 import io.fluxcapacitor.common.api.search.SearchQuery;
 import io.fluxcapacitor.common.search.Document;
@@ -60,7 +61,8 @@ public class DefaultDocumentStore implements DocumentStore {
                                          Instant end, Guarantee guarantee) {
         try {
             Awaitable awaitable =
-                    client.index(singletonList(serializer.toDocument(object, id, collection, timestamp, end)), guarantee);
+                    client.index(singletonList(serializer.toDocument(object, id, collection, timestamp, end)),
+                                 guarantee);
             return CompletableFuture.runAsync(awaitable::awaitSilently);
         } catch (Exception e) {
             throw new DocumentStoreException(String.format("Could not store a document %s for id %s", object, id), e);
@@ -86,7 +88,7 @@ public class DefaultDocumentStore implements DocumentStore {
             }
             if (endPath != null) {
                 builder.end(d.getEntryAtPath(endPath).map(Document.Entry::getValue).map(Instant::parse)
-                                          .orElse(null));
+                                    .orElse(null));
             }
             return builder.build();
         }).collect(toList());
@@ -153,6 +155,7 @@ public class DefaultDocumentStore implements DocumentStore {
     private class DefaultSearch implements Search {
         private final SearchQuery.Builder queryBuilder;
         private final List<String> sorting = new ArrayList<>();
+        private final List<String> pathFilters = new ArrayList<>();
 
         protected DefaultSearch() {
             this(SearchQuery.builder());
@@ -204,6 +207,18 @@ public class DefaultDocumentStore implements DocumentStore {
         }
 
         @Override
+        public Search exclude(String... paths) {
+            pathFilters.addAll(Arrays.stream(paths).map(p -> "-" + p).collect(toList()));
+            return this;
+        }
+
+        @Override
+        public Search includeOnly(String... paths) {
+            pathFilters.addAll(Arrays.asList(paths));
+            return this;
+        }
+
+        @Override
         public <T> Stream<SearchHit<T>> stream() {
             return getHitStream(null, null);
         }
@@ -226,7 +241,8 @@ public class DefaultDocumentStore implements DocumentStore {
         protected <T> Stream<SearchHit<T>> getHitStream(Integer maxSize, Class<T> type) {
             Function<Document, T> convertFunction = type == null
                     ? serializer::fromDocument : document -> serializer.fromDocument(document, type);
-            return client.search(queryBuilder.build(), sorting, maxSize).map(hit -> hit.map(convertFunction));
+            return client.search(SearchDocuments.builder().query(queryBuilder.build()).maxSize(maxSize).sorting(sorting)
+                    .pathFilters(pathFilters).build()).map(hit -> hit.map(convertFunction));
         }
 
         @Override

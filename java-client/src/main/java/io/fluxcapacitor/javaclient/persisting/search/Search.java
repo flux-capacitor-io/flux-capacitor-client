@@ -66,6 +66,10 @@ public interface Search {
         Other constraints
      */
 
+    default Search lookAhead(String phrase, String... paths) {
+        return find(phrase + "*", paths);
+    }
+
     default Search find(String phrase, String... paths) {
         return constraint(FindConstraint.find(phrase, paths));
     }
@@ -116,6 +120,14 @@ public interface Search {
     Search sortByScore();
 
     Search sortBy(String path, boolean descending);
+
+    /*
+        Content filtering
+     */
+
+    Search exclude(String... paths);
+
+    Search includeOnly(String... paths);
 
     /*
         Execution
