@@ -18,12 +18,7 @@ import io.fluxcapacitor.common.Guarantee;
 import io.fluxcapacitor.common.api.search.Constraint;
 import io.fluxcapacitor.common.api.search.DocumentStats;
 import io.fluxcapacitor.common.api.search.SearchHistogram;
-import io.fluxcapacitor.common.api.search.constraints.AnyConstraint;
-import io.fluxcapacitor.common.api.search.constraints.BetweenConstraint;
-import io.fluxcapacitor.common.api.search.constraints.ExistsConstraint;
-import io.fluxcapacitor.common.api.search.constraints.FindConstraint;
-import io.fluxcapacitor.common.api.search.constraints.MatchConstraint;
-import io.fluxcapacitor.common.api.search.constraints.NotConstraint;
+import io.fluxcapacitor.common.api.search.constraints.*;
 import io.fluxcapacitor.javaclient.FluxCapacitor;
 
 import java.time.Duration;
@@ -115,9 +110,13 @@ public interface Search {
         Sorting
      */
 
+    Search sortByTimestamp();
+
     Search sortByTimestamp(boolean descending);
 
     Search sortByScore();
+
+    Search sortBy(String path);
 
     Search sortBy(String path, boolean descending);
 
