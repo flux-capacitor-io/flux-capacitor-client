@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016-2020 Flux Capacitor.
+ * Copyright (c) 2016-2021 Flux Capacitor.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -20,7 +20,9 @@ import io.fluxcapacitor.common.api.Metadata;
 import io.fluxcapacitor.javaclient.common.Message;
 import lombok.SneakyThrows;
 import lombok.Value;
+import org.hamcrest.Description;
 import org.hamcrest.Matcher;
+import org.junit.platform.commons.util.ExceptionUtils;
 import org.opentest4j.AssertionFailedError;
 
 import java.util.Collection;
@@ -60,6 +62,12 @@ public class GivenWhenThenAssertionError extends AssertionFailedError {
         }
         if (expectedOrActual instanceof Matcher<?>) {
             return expectedOrActual;
+        }
+        if (expectedOrActual instanceof Throwable) {
+            return ExceptionUtils.readStackTrace((Throwable) expectedOrActual);
+        }
+        if (expectedOrActual instanceof Description) {
+            return expectedOrActual.toString();
         }
         try {
             return expectedOrActual instanceof CharSequence

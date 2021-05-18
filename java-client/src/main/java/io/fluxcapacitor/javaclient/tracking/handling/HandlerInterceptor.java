@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016-2020 Flux Capacitor.
+ * Copyright (c) 2016-2021 Flux Capacitor.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -70,10 +70,7 @@ public interface HandlerInterceptor {
 
         @Override
         public Handler<DeserializingMessage> wrap(Handler<DeserializingMessage> handler, String consumer) {
-            //this allows the delegate interceptors to initialize themselves
-            second.wrap(handler, consumer);
-            first.wrap(handler, consumer);
-            return HandlerInterceptor.super.wrap(handler, consumer);
+            return first.wrap(second.wrap(handler, consumer), consumer);
         }
     }
 }

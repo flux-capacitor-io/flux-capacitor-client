@@ -19,6 +19,7 @@ import io.fluxcapacitor.javaclient.test.TestFixture;
 import io.fluxcapacitor.javaclient.tracking.handling.HandleCommand;
 import io.fluxcapacitor.javaclient.tracking.handling.HandleQuery;
 import io.fluxcapacitor.javaclient.tracking.handling.authentication.AbstractUserProvider;
+import io.fluxcapacitor.javaclient.tracking.handling.authentication.ForbidsRole;
 import io.fluxcapacitor.javaclient.tracking.handling.authentication.RequiresRole;
 import io.fluxcapacitor.javaclient.tracking.handling.authentication.UnauthorizedException;
 import io.fluxcapacitor.javaclient.tracking.handling.authentication.User;
@@ -42,11 +43,17 @@ public class GivenWhenThenAuthenticationTest {
     private MockUser user = new MockUser("get", "create");
     private final UserProvider userProvider = new MockUserProvider();
     private final TestFixture testFixture = TestFixture.create(
-            DefaultFluxCapacitor.builder().registerUserSupplier(new MockUserProvider()), new MockHandler());
+            DefaultFluxCapacitor.builder().registerUserSupplier(new MockUserProvider()), new MockHandler(), new MockSystemHandler());
 
     @Test
     void testAuthorizedQuery() {
         testFixture.whenQuery(new Get()).expectResult("succes");
+    }
+
+    @Test
+    void testAuthorizedQueryAsSystem() {
+        user = new MockUser("get", "system");
+        testFixture.whenQuery(new Get()).expectResult("hi system");
     }
 
     @Test
@@ -78,6 +85,18 @@ public class GivenWhenThenAuthenticationTest {
     }
 
     @Test
+    void testAuthorizedModifyAsSystem() {
+        user = new MockUser("modify", "system");
+        testFixture.whenCommand(new Update()).expectNoException();
+    }
+
+    @Test
+    void testUnauthorizedModifyAsSystemAdmin() {
+        user = new MockUser("modify", "system", "admin");
+        testFixture.whenCommand(new Update()).expectException(Exception.class);
+    }
+
+    @Test
     void testAuthorizedDelete() {
         user = new MockUser("delete");
         testFixture.whenCommand(new Delete()).expectNoException();
@@ -94,6 +113,13 @@ public class GivenWhenThenAuthenticationTest {
         testFixture.whenCommand(new Delete()).expectException(UnauthorizedException.class);
     }
 
+    @Test
+    void testUnauthorizedIfForbiddenRoleIsPresent() {
+        user = new MockUser("create", "admin");
+        testFixture.whenCommand(new Create()).expectException(UnauthorizedException.class);
+    }
+
+    @ForbidsRole("system")
     private static class MockHandler {
         @HandleQuery
         String handle(Get query) {
@@ -113,6 +139,19 @@ public class GivenWhenThenAuthenticationTest {
         }
     }
 
+    @RequiresRole("system")
+    private static class MockSystemHandler {
+        @HandleQuery
+        String handle(Get query) {
+            return "hi system";
+        }
+
+        @RequiresRole("!admin")
+        @HandleCommand
+        void handle(Update command) {
+        }
+    }
+
     @Value
     @RequiresRole("get")
     private static class Get {
@@ -120,7 +159,7 @@ public class GivenWhenThenAuthenticationTest {
     }
 
     @Value
-    @RequiresRole("create")
+    @RequiresRole({"create", "!admin"})
     private static class Create {
 
     }

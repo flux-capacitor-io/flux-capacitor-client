@@ -25,6 +25,6 @@ import java.lang.annotation.Target;
 @Target({ElementType.TYPE, ElementType.CONSTRUCTOR, ElementType.METHOD, ElementType.ANNOTATION_TYPE})
 @Retention(RetentionPolicy.RUNTIME)
 @Inherited
-public @interface RequiresRole {
+public @interface ForbidsRole {
     String[] value() default {};
 }

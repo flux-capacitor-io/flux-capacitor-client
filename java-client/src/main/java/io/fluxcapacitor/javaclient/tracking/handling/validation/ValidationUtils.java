@@ -19,6 +19,7 @@ import io.fluxcapacitor.common.handling.HandlerInvoker;
 import io.fluxcapacitor.common.reflection.ReflectionUtils;
 import io.fluxcapacitor.javaclient.modeling.AggregateRoot;
 import io.fluxcapacitor.javaclient.modeling.AssertLegal;
+import io.fluxcapacitor.javaclient.tracking.handling.authentication.ForbidsRole;
 import io.fluxcapacitor.javaclient.tracking.handling.authentication.RequiresRole;
 import io.fluxcapacitor.javaclient.tracking.handling.authentication.UnauthenticatedException;
 import io.fluxcapacitor.javaclient.tracking.handling.authentication.UnauthorizedException;
@@ -27,15 +28,20 @@ import io.fluxcapacitor.javaclient.tracking.handling.authentication.UserParamete
 import lombok.SneakyThrows;
 
 import java.lang.annotation.Annotation;
+import java.lang.reflect.Executable;
 import java.lang.reflect.Method;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Iterator;
+import java.util.List;
 import java.util.Optional;
 import java.util.ServiceLoader;
+import java.util.function.BiFunction;
 import java.util.function.Function;
 
 import static io.fluxcapacitor.common.ObjectUtils.memoize;
 import static io.fluxcapacitor.common.handling.HandlerInspector.inspect;
+import static io.fluxcapacitor.common.reflection.ReflectionUtils.getAnnotations;
 import static java.lang.String.format;
 import static java.util.Optional.empty;
 
@@ -98,19 +104,17 @@ public class ValidationUtils {
         Check command / query authorization
      */
 
-    private static final Function<Class<?>, String[]> requiredRolesCache = memoize(ValidationUtils::getRequiredRoles);
+    private static final Function<Class<?>, String[]> requiredRolesCache = memoize(
+            payloadClass -> getRequiredRoles(getAnnotations(payloadClass)));
 
-    public static void assertAuthorized(Class<?> payloadType, User user) throws UnauthenticatedException, UnauthorizedException {
+    private static final BiFunction<Class<?>, Executable, String[]> requiredRolesForMethodCache = memoize(
+            (target, executable) -> Optional.ofNullable(getRequiredRoles(Arrays.asList(executable.getAnnotations())))
+                    .orElseGet(() -> getRequiredRoles(getAnnotations(target))));
+
+    public static void assertAuthorized(Class<?> payloadType,
+                                        User user) throws UnauthenticatedException, UnauthorizedException {
         String[] requiredRoles = requiredRolesCache.apply(payloadType);
-        if (requiredRoles != null) {
-            if (user == null) {
-                throw new UnauthenticatedException(format("Message %s requires authentication", payloadType));
-            }
-            if (requiredRoles.length > 0 && Arrays.stream(requiredRoles).noneMatch(user::hasRole)) {
-                throw new UnauthorizedException(
-                        format("User %s is unauthorized to issue %s", user.getName(), payloadType));
-            }
-        }
+        assertAuthorized(payloadType.getSimpleName(), user, requiredRoles);
     }
 
     public static Optional<Exception> checkAuthorization(Class<?> payloadType, User user) {
@@ -126,9 +130,41 @@ public class ValidationUtils {
         return !checkAuthorization(payloadType, user).isPresent();
     }
 
+    public static boolean isAuthorized(Class<?> target, Executable method, User user) {
+        try {
+            assertAuthorized(method.getName(), user, requiredRolesForMethodCache.apply(target, method));
+        } catch (Exception e) {
+            return false;
+        }
+        return true;
+    }
+
+    protected static void assertAuthorized(String action, User user, String[] requiredRoles) {
+        if (requiredRoles != null) {
+            if (user == null) {
+                throw new UnauthenticatedException(format("%s requires authentication", action));
+            }
+            List<String> remainingRoles = new ArrayList<>();
+            if (Arrays.stream(requiredRoles).filter(r -> {
+                if (r.startsWith("!")) {
+                    return true;
+                }
+                remainingRoles.add(r);
+                return false;
+            }).anyMatch(r -> user.hasRole(r.substring(1)))) {
+                throw new UnauthorizedException(
+                        format("User %s is unauthorized to execute %s", user.getName(), action));
+            }
+            if (!remainingRoles.isEmpty() && remainingRoles.stream().noneMatch(user::hasRole)) {
+                throw new UnauthorizedException(
+                        format("User %s is unauthorized to execute %s", user.getName(), action));
+            }
+        }
+    }
+
     @SneakyThrows
-    protected static String[] getRequiredRoles(Class<?> payloadClass) {
-        for (Annotation annotation : ReflectionUtils.getAnnotations(payloadClass)) {
+    protected static String[] getRequiredRoles(Iterable<? extends Annotation> annotations) {
+        for (Annotation annotation : annotations) {
             if (annotation instanceof RequiresRole) {
                 return ((RequiresRole) annotation).value();
             }
@@ -137,6 +173,17 @@ public class ValidationUtils {
                     if (method.getName().equalsIgnoreCase("value")) {
                         Object[] result = (Object[]) method.invoke(annotation);
                         return Arrays.stream(result).map(Object::toString).toArray(String[]::new);
+                    }
+                }
+            }
+            if (annotation instanceof ForbidsRole) {
+                return Arrays.stream(((ForbidsRole) annotation).value()).map(s -> "!" + s).toArray(String[]::new);
+            }
+            if (annotation.annotationType().isAnnotationPresent(ForbidsRole.class)) {
+                for (Method method : ReflectionUtils.getAllMethods(annotation.annotationType())) {
+                    if (method.getName().equalsIgnoreCase("value")) {
+                        Object[] result = (Object[]) method.invoke(annotation);
+                        return Arrays.stream(result).map(Object::toString).map(s -> "!" + s).toArray(String[]::new);
                     }
                 }
             }
