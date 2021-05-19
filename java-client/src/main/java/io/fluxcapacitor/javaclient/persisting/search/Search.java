@@ -18,14 +18,10 @@ import io.fluxcapacitor.common.Guarantee;
 import io.fluxcapacitor.common.api.search.Constraint;
 import io.fluxcapacitor.common.api.search.DocumentStats;
 import io.fluxcapacitor.common.api.search.SearchHistogram;
-import io.fluxcapacitor.common.api.search.constraints.AnyConstraint;
-import io.fluxcapacitor.common.api.search.constraints.BetweenConstraint;
-import io.fluxcapacitor.common.api.search.constraints.ExistsConstraint;
-import io.fluxcapacitor.common.api.search.constraints.FindConstraint;
-import io.fluxcapacitor.common.api.search.constraints.MatchConstraint;
-import io.fluxcapacitor.common.api.search.constraints.NotConstraint;
+import io.fluxcapacitor.common.api.search.constraints.*;
 import io.fluxcapacitor.javaclient.FluxCapacitor;
 
+import javax.validation.constraints.NotNull;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.Arrays;
@@ -66,15 +62,15 @@ public interface Search {
         Other constraints
      */
 
-    default Search lookAhead(String phrase, String... paths) {
+    default Search lookAhead(@NotNull String phrase, String... paths) {
         return find(phrase + "*", paths);
     }
 
-    default Search find(String phrase, String... paths) {
+    default Search find(@NotNull String phrase, String... paths) {
         return constraint(FindConstraint.find(phrase, paths));
     }
 
-    default Search match(Object constraint, String... paths) {
+    default Search match(@NotNull Object constraint, String... paths) {
         return constraint(MatchConstraint.match(constraint, paths));
     }
 
