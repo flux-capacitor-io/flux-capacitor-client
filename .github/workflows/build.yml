@@ -9,7 +9,7 @@ on:
     branches: [ master ]
 
 jobs:
-  deploy:
+  build:
     runs-on: ubuntu-latest
     steps:
       - name: Check out Git repository
@@ -18,7 +18,7 @@ jobs:
       - name: Install Java and Maven
         uses: actions/setup-java@v1
         with:
-          java-version: 15
+          java-version: 16
 
       - name: Cache local Maven repository
         uses: actions/cache@v2
