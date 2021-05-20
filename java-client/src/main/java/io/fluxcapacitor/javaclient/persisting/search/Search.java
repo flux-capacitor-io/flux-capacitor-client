@@ -31,6 +31,7 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Optional;
 import java.util.stream.Stream;
 
 import static java.util.stream.Collectors.toList;
@@ -162,6 +163,14 @@ public interface Search {
 
     default <T> Stream<T> stream(Class<T> type) {
         return this.streamHits(type).map(SearchHit::getValue);
+    }
+
+    default <T> Optional<T> getFirst() {
+        return this.<T>stream().findFirst();
+    }
+
+    default <T> Optional<T> getFirst(Class<T> type) {
+        return this.stream(type).findFirst();
     }
 
     <T> Stream<SearchHit<T>> streamHits();
