@@ -33,12 +33,12 @@ import java.util.Arrays;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 import java.util.Optional;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
+import static java.util.Comparator.naturalOrder;
 import static java.util.stream.Collectors.toMap;
 
 @Value
@@ -68,10 +68,13 @@ public class Document {
     }
 
     public Optional<Entry> getEntryAtPath(String path) {
-        Path pathObject = new Path(path);
+        return getMatchingEntries(Path.pathPredicate(path)).findFirst();
+    }
+
+    public Stream<Entry> getMatchingEntries(Predicate<Path> pathPredicate) {
         return entries.entrySet().stream()
-                .filter(e -> e.getValue().stream().anyMatch(p -> Objects.equals(p, pathObject)))
-                .findFirst().map(Map.Entry::getKey);
+                .filter(e -> e.getValue().stream().anyMatch(pathPredicate))
+                .map(Map.Entry::getKey);
     }
 
     public Document filterPaths(Predicate<Path> pathFilter) {
@@ -96,8 +99,13 @@ public class Document {
                 default:
                     boolean reversed = s.startsWith("-");
                     String path = reversed ? s.substring(1) : s;
+                    Predicate<Path> pathPredicate = Path.pathPredicate(path);
                     Comparator<Document> valueComparator =
-                            Comparator.nullsLast(Comparator.comparing(d -> d.getEntryAtPath(path).orElse(null)));
+                            Comparator.nullsLast(Comparator.comparing(d -> {
+                                Stream<Entry> matchingEntries = d.getMatchingEntries(pathPredicate);
+                                return (reversed ? matchingEntries.max(naturalOrder()) :
+                                        matchingEntries.min(naturalOrder())).orElse(null);
+                            }));
                     return reversed ? valueComparator.reversed() : valueComparator;
             }
         }).reduce(Comparator::thenComparing).orElse(Comparator.comparing(Document::getTimestamp).reversed());
@@ -129,6 +137,15 @@ public class Document {
 
     @Value
     public static class Path {
+        public static Predicate<Path> pathPredicate(String path) {
+            if (path == null) {
+                return p -> true;
+            }
+            Predicate<String> predicate = SearchUtils.convertGlobToRegex(path).asPredicate();
+            return Arrays.stream(path.split("/")).anyMatch(SearchUtils::isInteger)
+                    ? p -> predicate.test(p.getValue()) : p -> predicate.test(p.getShortValue());
+        }
+
         String value;
 
         @JsonIgnore

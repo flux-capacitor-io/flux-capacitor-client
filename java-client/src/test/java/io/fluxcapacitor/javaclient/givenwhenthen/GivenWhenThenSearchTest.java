@@ -19,6 +19,7 @@ import io.fluxcapacitor.common.api.search.Constraint;
 import io.fluxcapacitor.common.serialization.JsonUtils;
 import io.fluxcapacitor.javaclient.test.TestFixture;
 import lombok.AllArgsConstructor;
+import lombok.Builder;
 import lombok.Value;
 import org.junit.jupiter.api.Test;
 
@@ -227,6 +228,7 @@ public class GivenWhenThenSearchTest {
 
     @Value
     @AllArgsConstructor
+    @Builder(toBuilder = true)
     private static class SomeDocument {
         private static final String ID = "123A45B67c";
 

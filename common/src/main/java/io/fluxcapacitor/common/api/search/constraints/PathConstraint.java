@@ -14,7 +14,6 @@
 
 package io.fluxcapacitor.common.api.search.constraints;
 
-import io.fluxcapacitor.common.SearchUtils;
 import io.fluxcapacitor.common.api.search.Constraint;
 import io.fluxcapacitor.common.search.Document;
 import io.fluxcapacitor.common.search.Document.Path;
@@ -23,7 +22,6 @@ import lombok.EqualsAndHashCode;
 import lombok.Getter;
 import lombok.experimental.Accessors;
 
-import java.util.Arrays;
 import java.util.function.Predicate;
 
 public abstract class PathConstraint implements Constraint {
@@ -52,19 +50,10 @@ public abstract class PathConstraint implements Constraint {
     private final Predicate<Document> documentPredicate = computeDocumentPredicate();
 
     private Predicate<Document> computeDocumentPredicate() {
-        Predicate<Path> pathPredicate = computePathPredicate();
+        Predicate<Path> pathPredicate = Path.pathPredicate(getPath());
         return checkPathBeforeEntry() ? d -> d.getEntries().entrySet().stream()
                 .anyMatch(e -> e.getValue().stream().anyMatch(pathPredicate) && matches(e.getKey())) :
                 d -> d.getEntries().entrySet().stream()
                         .anyMatch(e -> matches(e.getKey()) && e.getValue().stream().anyMatch(pathPredicate));
-    }
-
-    protected Predicate<Path> computePathPredicate() {
-        if (getPath() == null) {
-            return p -> true;
-        }
-        Predicate<String> predicate = SearchUtils.convertGlobToRegex(getPath()).asPredicate();
-        return Arrays.stream(getPath().split("/")).anyMatch(SearchUtils::isInteger)
-                ? p -> predicate.test(p.getValue()) : p -> predicate.test(p.getShortValue());
     }
 }
