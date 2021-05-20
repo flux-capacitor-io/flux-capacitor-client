@@ -200,7 +200,7 @@ public class DefaultDocumentStore implements DocumentStore {
 
         @Override
         public Search sortBy(String path, boolean descending) {
-            sorting.add(descending ? "-" : "" + path);
+            sorting.add((descending ? "-" : "") + path);
             return this;
         }
 
