@@ -149,7 +149,7 @@ public interface DocumentStore {
 
     Search search(SearchQuery.Builder queryBuilder);
 
-    void deleteDocument(String collection, String id);
+    void deleteDocument(String id, String collection);
 
     void deleteCollection(String collection);
 
