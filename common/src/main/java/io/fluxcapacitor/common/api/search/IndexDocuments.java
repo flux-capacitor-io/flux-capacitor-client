@@ -26,6 +26,7 @@ import java.util.List;
 @Value
 public class IndexDocuments extends Request {
     List<SerializedDocument> documents;
+    boolean ifNotExists;
     Guarantee guarantee;
 
     @JsonIgnore

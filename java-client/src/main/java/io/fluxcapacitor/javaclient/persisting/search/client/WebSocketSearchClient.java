@@ -53,6 +53,7 @@ import java.util.stream.Stream;
 @ClientEndpoint
 public class WebSocketSearchClient extends AbstractWebsocketClient implements SearchClient {
     private final Backlog<Document> backlog;
+    private final Backlog<Document> ifNotExistsBacklog;
 
     public WebSocketSearchClient(String endPointUrl, WebSocketClient.Properties properties) {
         this(URI.create(endPointUrl), properties);
@@ -60,25 +61,32 @@ public class WebSocketSearchClient extends AbstractWebsocketClient implements Se
 
     public WebSocketSearchClient(URI endpointUri, WebSocketClient.Properties properties) {
         super(endpointUri, properties, true, properties.getSearchSessions());
-        backlog = new Backlog<>(this::storeValues);
+        backlog = new Backlog<>(documents -> storeValues(documents, false));
+        ifNotExistsBacklog = new Backlog<>(documents -> storeValues(documents, true));
     }
 
-    protected Awaitable storeValues(List<Document> documents) {
+    protected Awaitable storeValues(List<Document> documents, boolean ifNotExists) {
         return sendAndForget(new IndexDocuments(
-                documents.stream().map(SerializedDocument::new).collect(Collectors.toList()), Guarantee.SENT));
+                documents.stream().map(SerializedDocument::new).collect(Collectors.toList()), ifNotExists,
+                Guarantee.SENT));
     }
 
     @Override
-    public Awaitable index(List<Document> documents, Guarantee guarantee) {
+    public Awaitable index(List<Document> documents, Guarantee guarantee, boolean ifNotExists) {
         switch (guarantee) {
             case NONE:
-                backlog.add(documents);
+                if (ifNotExists) {
+                    ifNotExistsBacklog.add(documents);
+                } else {
+                    backlog.add(documents);
+                }
                 return Awaitable.ready();
             case SENT:
-                return backlog.add(documents);
+                return ifNotExists ? ifNotExistsBacklog.add(documents) : backlog.add(documents);
             case STORED:
                 CompletableFuture<QueryResult> future = send(new IndexDocuments(
-                        documents.stream().map(SerializedDocument::new).collect(Collectors.toList()), guarantee));
+                        documents.stream().map(SerializedDocument::new).collect(Collectors.toList()), ifNotExists,
+                        guarantee));
                 return future::get;
             default:
                 throw new UnsupportedOperationException("Unrecognized guarantee: " + guarantee);

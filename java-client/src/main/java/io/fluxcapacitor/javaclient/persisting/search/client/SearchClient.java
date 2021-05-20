@@ -30,7 +30,7 @@ import java.util.stream.Stream;
 
 public interface SearchClient extends AutoCloseable {
 
-    Awaitable index(List<Document> documents, Guarantee guarantee);
+    Awaitable index(List<Document> documents, Guarantee guarantee, boolean ifNotExists);
 
     Stream<SearchHit<Document>> search(SearchDocuments searchDocuments);
 

@@ -58,11 +58,11 @@ public class DefaultDocumentStore implements DocumentStore {
 
     @Override
     public CompletableFuture<Void> index(Object object, String id, String collection, Instant timestamp,
-                                         Instant end, Guarantee guarantee) {
+                                         Instant end, Guarantee guarantee, boolean ifNotExists) {
         try {
             Awaitable awaitable =
                     client.index(singletonList(serializer.toDocument(object, id, collection, timestamp, end)),
-                                 guarantee);
+                                 guarantee, ifNotExists);
             return CompletableFuture.runAsync(awaitable::awaitSilently);
         } catch (Exception e) {
             throw new DocumentStoreException(String.format("Could not store a document %s for id %s", object, id), e);
@@ -72,7 +72,7 @@ public class DefaultDocumentStore implements DocumentStore {
     @Override
     public <T> CompletableFuture<Void> index(Collection<? extends T> objects, String collection,
                                              @Nullable String idPath, @Nullable String timestampPath,
-                                             @Nullable String endPath, Guarantee guarantee) {
+                                             @Nullable String endPath, Guarantee guarantee, boolean ifNotExists) {
         IdentityProvider identityProvider = currentIdentityProvider();
         List<Document> documents = objects.stream().map(v -> serializer.toDocument(
                 v, identityProvider.nextId(), collection, null, null)).map(d -> {
@@ -93,7 +93,7 @@ public class DefaultDocumentStore implements DocumentStore {
             return builder.build();
         }).collect(toList());
         try {
-            Awaitable awaitable = client.index(documents, guarantee);
+            Awaitable awaitable = client.index(documents, guarantee, ifNotExists);
             return CompletableFuture.runAsync(awaitable::awaitSilently);
         } catch (Exception e) {
             throw new DocumentStoreException(
@@ -105,12 +105,13 @@ public class DefaultDocumentStore implements DocumentStore {
     public <T> CompletableFuture<Void> index(Collection<? extends T> objects, String collection,
                                              Function<? super T, String> idFunction,
                                              Function<? super T, Instant> timestampFunction,
-                                             Function<? super T, Instant> endFunction, Guarantee guarantee) {
+                                             Function<? super T, Instant> endFunction, Guarantee guarantee,
+                                             boolean ifNotExists) {
         List<Document> documents = objects.stream().map(v -> serializer.toDocument(
                 v, idFunction.apply(v), collection, timestampFunction.apply(v),
                 endFunction.apply(v))).collect(toList());
         try {
-            Awaitable awaitable = client.index(documents, guarantee);
+            Awaitable awaitable = client.index(documents, guarantee, ifNotExists);
             return CompletableFuture.runAsync(awaitable::awaitSilently);
         } catch (Exception e) {
             throw new DocumentStoreException(

@@ -33,7 +33,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.CopyOnWriteArrayList;
-import java.util.function.Function;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
@@ -41,6 +40,7 @@ import java.util.stream.Stream;
 
 import static io.fluxcapacitor.common.search.Document.EntryType.NUMERIC;
 import static java.util.Collections.emptyList;
+import static java.util.function.Function.identity;
 import static java.util.stream.Collectors.groupingBy;
 import static java.util.stream.Collectors.toList;
 import static java.util.stream.Collectors.toMap;
@@ -49,8 +49,13 @@ public class InMemorySearchClient implements SearchClient {
     private final List<Document> documents = new CopyOnWriteArrayList<>();
 
     @Override
-    public Awaitable index(List<Document> documents, Guarantee guarantee) {
-        this.documents.addAll(documents);
+    public Awaitable index(List<Document> documents, Guarantee guarantee, boolean ifNotExists) {
+        if (ifNotExists) {
+            Map<String, Document> existing = this.documents.stream().collect(toMap(Document::getId, identity()));
+            documents.stream().filter(d -> !existing.containsKey(d.getId())).forEach(this.documents::add);
+        } else {
+            this.documents.addAll(documents);
+        }
         return Awaitable.ready();
     }
 
@@ -102,7 +107,7 @@ public class InMemorySearchClient implements SearchClient {
                 groupingBy(d -> groupBy.stream().map(
                         g -> d.getEntryAtPath(g).map(Document.Entry::getValue).orElse(null)).collect(toList())));
         return groups.entrySet().stream().map(e -> new DocumentStats(
-                fields.stream().collect(toMap(Function.identity(), f -> getFieldStats(f, e.getValue()), (a, b) -> b)),
+                fields.stream().collect(toMap(identity(), f -> getFieldStats(f, e.getValue()), (a, b) -> b)),
                 asMap(groupBy, e.getKey()))).collect(toList());
     }
 
