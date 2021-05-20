@@ -27,7 +27,6 @@ import io.fluxcapacitor.javaclient.persisting.search.SearchHit;
 
 import java.math.BigDecimal;
 import java.time.Instant;
-import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -63,7 +62,7 @@ public class InMemorySearchClient implements SearchClient {
     public Stream<SearchHit<Document>> search(SearchDocuments searchDocuments) {
         SearchQuery query = searchDocuments.getQuery();
         Stream<Document> documentStream = documents.stream().filter(query::matches);
-        documentStream = documentStream.sorted(createComparator(searchDocuments.getSorting()));
+        documentStream = documentStream.sorted(Document.createComparator(searchDocuments));
         if (!searchDocuments.getPathFilters().isEmpty()) {
             Predicate<Document.Path> pathFilter = searchDocuments.computePathFilter();
             documentStream = documentStream.map(d -> d.filterPaths(pathFilter));
@@ -154,23 +153,6 @@ public class InMemorySearchClient implements SearchClient {
             result.put(groupBy.get(i), values.get(i));
         }
         return result;
-    }
-
-    private Comparator<Document> createComparator(List<String> sorting) {
-        return sorting.stream().map(s -> {
-            switch (s) {
-                case "-timestamp":
-                    return Comparator.comparing(Document::getTimestamp).reversed();
-                case "timestamp":
-                    return Comparator.comparing(Document::getTimestamp);
-                default:
-                    boolean reversed = s.startsWith("-");
-                    String path = reversed ? s.substring(1) : s;
-                    Comparator<Document> valueComparator =
-                            Comparator.nullsLast(Comparator.comparing(d -> d.getEntryAtPath(path).orElse(null)));
-                    return reversed ? valueComparator.reversed() : valueComparator;
-            }
-        }).reduce(Comparator::thenComparing).orElse(Comparator.comparing(Document::getTimestamp).reversed());
     }
 
     @Override

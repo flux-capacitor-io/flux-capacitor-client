@@ -16,6 +16,8 @@ package io.fluxcapacitor.common;
 
 import lombok.SneakyThrows;
 
+import java.util.concurrent.CompletableFuture;
+
 @FunctionalInterface
 public interface Awaitable {
 
@@ -24,6 +26,10 @@ public interface Awaitable {
     @SneakyThrows
     default void awaitSilently() {
         await();
+    }
+
+    default CompletableFuture<Void> asCompletableFuture() {
+        return CompletableFuture.runAsync(this::awaitSilently);
     }
 
     default Awaitable join(Awaitable other) {

@@ -14,7 +14,6 @@
 
 package io.fluxcapacitor.javaclient.persisting.search;
 
-import io.fluxcapacitor.common.Awaitable;
 import io.fluxcapacitor.common.Guarantee;
 import io.fluxcapacitor.common.api.search.Constraint;
 import io.fluxcapacitor.common.api.search.CreateAuditTrail;
@@ -61,10 +60,8 @@ public class DefaultDocumentStore implements DocumentStore {
     public CompletableFuture<Void> index(Object object, String id, String collection, Instant timestamp,
                                          Instant end, Guarantee guarantee, boolean ifNotExists) {
         try {
-            Awaitable awaitable =
-                    client.index(singletonList(serializer.toDocument(object, id, collection, timestamp, end)),
-                                 guarantee, ifNotExists);
-            return CompletableFuture.runAsync(awaitable::awaitSilently);
+            return client.index(singletonList(serializer.toDocument(object, id, collection, timestamp, end)),
+                         guarantee, ifNotExists).asCompletableFuture();
         } catch (Exception e) {
             throw new DocumentStoreException(String.format("Could not store a document %s for id %s", object, id), e);
         }
@@ -94,8 +91,7 @@ public class DefaultDocumentStore implements DocumentStore {
             return builder.build();
         }).collect(toList());
         try {
-            Awaitable awaitable = client.index(documents, guarantee, ifNotExists);
-            return CompletableFuture.runAsync(awaitable::awaitSilently);
+            return client.index(documents, guarantee, ifNotExists).asCompletableFuture();
         } catch (Exception e) {
             throw new DocumentStoreException(
                     String.format("Could not store a list of documents for collection %s", collection), e);
@@ -112,8 +108,7 @@ public class DefaultDocumentStore implements DocumentStore {
                 v, idFunction.apply(v), collection, timestampFunction.apply(v),
                 endFunction.apply(v))).collect(toList());
         try {
-            Awaitable awaitable = client.index(documents, guarantee, ifNotExists);
-            return CompletableFuture.runAsync(awaitable::awaitSilently);
+            return client.index(documents, guarantee, ifNotExists).asCompletableFuture();
         } catch (Exception e) {
             throw new DocumentStoreException(
                     String.format("Could not store a list of documents for collection %s", collection), e);
@@ -274,8 +269,8 @@ public class DefaultDocumentStore implements DocumentStore {
         }
 
         @Override
-        public void delete(Guarantee guarantee) {
-            client.delete(queryBuilder.build(), guarantee);
+        public CompletableFuture<Void> delete() {
+            return client.delete(queryBuilder.build(), Guarantee.STORED).asCompletableFuture();
         }
     }
 }

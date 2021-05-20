@@ -16,6 +16,7 @@ package io.fluxcapacitor.common.search;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import io.fluxcapacitor.common.SearchUtils;
+import io.fluxcapacitor.common.api.search.SearchDocuments;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.EqualsAndHashCode;
@@ -29,6 +30,7 @@ import org.apache.commons.lang3.StringUtils;
 import java.time.Instant;
 import java.util.AbstractMap;
 import java.util.Arrays;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -49,14 +51,20 @@ public class Document {
     String collection;
     Instant timestamp, end;
     Map<Entry, List<Path>> entries;
+    @JsonIgnore
+    @Getter(lazy = true)
+    @Accessors(fluent = true)
+    @EqualsAndHashCode.Exclude
+    @ToString.Exclude
+    String summarize = doSummarize();
+
+    private String doSummarize() {
+        return Stream.concat(Stream.of(type, id), getEntries().keySet().stream().map(Entry::asPhrase))
+                .collect(Collectors.joining(" "));
+    }
 
     public Instant getEnd() {
         return end == null ? timestamp : end;
-    }
-
-    public String summarize() {
-        return Stream.concat(Stream.of(type, id), entries.keySet().stream().map(Entry::asPhrase))
-                .collect(Collectors.joining(" "));
     }
 
     public Optional<Entry> getEntryAtPath(String path) {
@@ -76,6 +84,23 @@ public class Document {
                                      ? e : new AbstractMap.SimpleEntry<>(e.getKey(), filtered));
         }).collect(toMap(Map.Entry::getKey, Map.Entry::getValue));
         return toBuilder().entries(filteredEntries).build();
+    }
+
+    public static Comparator<Document> createComparator(SearchDocuments searchDocuments) {
+        return searchDocuments.getSorting().stream().map(s -> {
+            switch (s) {
+                case "-timestamp":
+                    return Comparator.comparing(Document::getTimestamp).reversed();
+                case "timestamp":
+                    return Comparator.comparing(Document::getTimestamp);
+                default:
+                    boolean reversed = s.startsWith("-");
+                    String path = reversed ? s.substring(1) : s;
+                    Comparator<Document> valueComparator =
+                            Comparator.nullsLast(Comparator.comparing(d -> d.getEntryAtPath(path).orElse(null)));
+                    return reversed ? valueComparator.reversed() : valueComparator;
+            }
+        }).reduce(Comparator::thenComparing).orElse(Comparator.comparing(Document::getTimestamp).reversed());
     }
 
     @Value

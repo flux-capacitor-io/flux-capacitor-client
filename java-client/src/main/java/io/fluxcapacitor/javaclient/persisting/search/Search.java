@@ -14,7 +14,6 @@
 
 package io.fluxcapacitor.javaclient.persisting.search;
 
-import io.fluxcapacitor.common.Guarantee;
 import io.fluxcapacitor.common.api.search.Constraint;
 import io.fluxcapacitor.common.api.search.DocumentStats;
 import io.fluxcapacitor.common.api.search.SearchHistogram;
@@ -32,6 +31,7 @@ import java.time.Instant;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
 import java.util.stream.Stream;
 
 import static java.util.stream.Collectors.toList;
@@ -181,9 +181,5 @@ public interface Search {
 
     List<DocumentStats> getStatistics(Object field, String... groupBy);
 
-    default void delete() {
-        delete(Guarantee.SENT);
-    }
-
-    void delete(Guarantee guarantee);
+    CompletableFuture<Void> delete();
 }
