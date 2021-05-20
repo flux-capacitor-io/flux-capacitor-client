@@ -17,6 +17,7 @@ package io.fluxcapacitor.javaclient.test;
 import io.fluxcapacitor.common.api.search.Constraint;
 import io.fluxcapacitor.javaclient.FluxCapacitor;
 import io.fluxcapacitor.javaclient.persisting.search.Search;
+import io.fluxcapacitor.javaclient.tracking.handling.authentication.User;
 
 import java.time.Duration;
 import java.time.Instant;
@@ -28,7 +29,11 @@ public interface When extends Given {
 
     Then whenCommand(Object command);
 
+    Then whenCommandByUser(Object command, User user);
+
     Then whenQuery(Object query);
+
+    Then whenQueryByUser(Object command, User user);
 
     Then whenEvent(Object event);
 

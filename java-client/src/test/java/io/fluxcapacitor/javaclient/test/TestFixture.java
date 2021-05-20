@@ -41,6 +41,7 @@ import io.fluxcapacitor.javaclient.tracking.BatchInterceptor;
 import io.fluxcapacitor.javaclient.tracking.ConsumerConfiguration;
 import io.fluxcapacitor.javaclient.tracking.Tracker;
 import io.fluxcapacitor.javaclient.tracking.handling.HandlerInterceptor;
+import io.fluxcapacitor.javaclient.tracking.handling.authentication.User;
 import io.fluxcapacitor.javaclient.tracking.handling.authentication.UserProvider;
 import lombok.Getter;
 import lombok.Setter;
@@ -245,9 +246,8 @@ public class TestFixture implements Given, When {
     }
 
     @Override
-    public When givenQueries(Object... queries) {
-        return given(fc -> getDispatchResult(CompletableFuture.allOf(flatten(queries).map(
-                c -> fc.queryGateway().send(c)).toArray(CompletableFuture[]::new))));
+    public When givenCommandsByUser(User user, Object... commands) {
+        return givenCommands(addUser(user, commands));
     }
 
     @Override
@@ -311,8 +311,18 @@ public class TestFixture implements Given, When {
     }
 
     @Override
+    public Then whenCommandByUser(Object command, User user) {
+        return whenCommand(addUser(user, command)[0]);
+    }
+
+    @Override
     public Then whenQuery(Object query) {
         return whenApplying(fc -> getDispatchResult(fc.queryGateway().send(interceptor.trace(query))));
+    }
+
+    @Override
+    public Then whenQueryByUser(Object query, User user) {
+        return whenQuery(addUser(user, query)[0]);
     }
 
     @Override
@@ -499,6 +509,15 @@ public class TestFixture implements Given, When {
             }
             return Stream.of(c);
         });
+    }
+
+    protected Object[] addUser(User user, Object... messages) {
+        UserProvider userProvider = fluxCapacitor.userProvider();
+        if (userProvider == null) {
+            throw new IllegalStateException("UserProvider has not been configured");
+        }
+        return flatten(messages).map(o -> o instanceof Message ? (Message) o : new Message(o))
+                .map(m -> m.withMetadata(userProvider.addToMetadata(m.getMetadata(), user))).toArray();
     }
 
     protected boolean checkConsumers() {

@@ -17,6 +17,7 @@ package io.fluxcapacitor.javaclient.test;
 import io.fluxcapacitor.javaclient.FluxCapacitor;
 import io.fluxcapacitor.javaclient.common.IdentityProvider;
 import io.fluxcapacitor.javaclient.scheduling.Schedule;
+import io.fluxcapacitor.javaclient.tracking.handling.authentication.User;
 
 import java.time.Clock;
 import java.time.Duration;
@@ -30,7 +31,7 @@ public interface Given {
 
     When givenCommands(Object... commands);
 
-    When givenQueries(Object... queries);
+    When givenCommandsByUser(User user, Object... commands);
 
     When givenDomainEvents(String aggregateId, Object... events);
 
