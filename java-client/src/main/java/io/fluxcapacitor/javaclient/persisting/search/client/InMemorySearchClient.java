@@ -63,13 +63,16 @@ public class InMemorySearchClient implements SearchClient {
     public Stream<SearchHit<Document>> search(SearchDocuments searchDocuments) {
         SearchQuery query = searchDocuments.getQuery();
         Stream<Document> documentStream = documents.stream().filter(query::matches);
-        if (searchDocuments.getMaxSize() != null) {
-            documentStream = documentStream.limit(searchDocuments.getMaxSize());
-        }
         documentStream = documentStream.sorted(createComparator(searchDocuments.getSorting()));
         if (!searchDocuments.getPathFilters().isEmpty()) {
             Predicate<Document.Path> pathFilter = searchDocuments.computePathFilter();
             documentStream = documentStream.map(d -> d.filterPaths(pathFilter));
+        }
+        if (searchDocuments.getSkip() > 0) {
+            documentStream = documentStream.skip(searchDocuments.getSkip());
+        }
+        if (searchDocuments.getMaxSize() != null) {
+            documentStream = documentStream.limit(searchDocuments.getMaxSize());
         }
         return documentStream
                 .map(d -> new SearchHit<>(d.getId(), d.getCollection(), d.getTimestamp(), () -> d));

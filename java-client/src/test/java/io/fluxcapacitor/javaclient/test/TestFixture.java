@@ -266,6 +266,11 @@ public class TestFixture implements Given, When {
     }
 
     @Override
+    public When givenDocument(Object document, String id, String collection, Instant timestamp) {
+        return given(fc -> fc.documentStore().index(document, id, collection, timestamp));
+    }
+
+    @Override
     public When givenDocuments(String collection, Object... documents) {
         return given(fc -> Arrays.stream(documents).forEach(
                 d -> fc.documentStore().index(Arrays.asList(documents), collection)));

@@ -33,6 +33,7 @@ public class SearchDocuments extends Request {
     @Builder.Default List<String> sorting = Collections.emptyList();
     Integer maxSize;
     @Builder.Default List<String> pathFilters = Collections.emptyList();
+    int skip;
     SerializedDocument lastHit;
 
     public Predicate<Path> computePathFilter() {

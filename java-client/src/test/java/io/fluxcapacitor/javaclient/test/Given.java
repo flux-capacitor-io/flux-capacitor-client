@@ -40,6 +40,12 @@ public interface Given {
 
     When givenSchedules(Schedule... schedules);
 
+    default When givenDocument(Object document, String id, String collection) {
+        return givenDocument(document, id, collection, null);
+    }
+
+    When givenDocument(Object document, String id, String collection, Instant timestamp);
+
     When givenDocuments(String collection, Object... documents);
 
     default When givenExpiredSchedules(Object... schedules) {

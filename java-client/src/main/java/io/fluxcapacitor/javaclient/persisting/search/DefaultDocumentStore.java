@@ -29,6 +29,7 @@ import io.fluxcapacitor.javaclient.persisting.search.client.SearchClient;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NonNull;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
 import javax.annotation.Nullable;
@@ -152,11 +153,12 @@ public class DefaultDocumentStore implements DocumentStore {
         }
     }
 
-    @AllArgsConstructor
+    @RequiredArgsConstructor
     private class DefaultSearch implements Search {
         private final SearchQuery.Builder queryBuilder;
         private final List<String> sorting = new ArrayList<>();
         private final List<String> pathFilters = new ArrayList<>();
+        private volatile int skip;
 
         protected DefaultSearch() {
             this(SearchQuery.builder());
@@ -220,6 +222,12 @@ public class DefaultDocumentStore implements DocumentStore {
         }
 
         @Override
+        public Search skip(int n) {
+            this.skip = n;
+            return this;
+        }
+
+        @Override
         public <T> Stream<SearchHit<T>> streamHits() {
             return getHitStream(null, null);
         }
@@ -243,7 +251,7 @@ public class DefaultDocumentStore implements DocumentStore {
             Function<Document, T> convertFunction = type == null
                     ? serializer::fromDocument : document -> serializer.fromDocument(document, type);
             return client.search(SearchDocuments.builder().query(queryBuilder.build()).maxSize(maxSize).sorting(sorting)
-                    .pathFilters(pathFilters).build()).map(hit -> hit.map(convertFunction));
+                    .pathFilters(pathFilters).skip(skip).build()).map(hit -> hit.map(convertFunction));
         }
 
         @Override
