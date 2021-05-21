@@ -39,6 +39,8 @@ public interface AggregateRoot<T> {
 
     String lastEventId();
 
+    Long lastEventIndex();
+
     Instant timestamp();
 
     AggregateRoot<T> previous();

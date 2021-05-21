@@ -184,6 +184,7 @@ public class EventSourcingRepository implements AggregateRepository {
                                     .type(aggregateType)
                                     .id(id)
                                     .lastEventId(event.getSerializedObject().getMessageId())
+                                    .lastEventIndex(event.getSerializedObject().getIndex())
                                     .timestamp(Instant.ofEpochMilli(event.getSerializedObject().getTimestamp()))
                                     .model(eventSourcingHandler.invoke(model.get(), event))
                                     .previous(model)
@@ -219,6 +220,7 @@ public class EventSourcingRepository implements AggregateRepository {
             model = model.toBuilder().sequenceNumber(model.sequenceNumber() + 1)
                     .model(eventSourcingHandler.invoke(model.get(), deserializingMessage))
                     .previous(model).lastEventId(eventMessage.getMessageId()).timestamp(eventMessage.getTimestamp())
+                    .lastEventIndex(deserializingMessage.getSerializedObject().getIndex())
                     .build();
 
             unpublishedEvents.add(deserializingMessage);
@@ -266,6 +268,12 @@ public class EventSourcingRepository implements AggregateRepository {
         public String lastEventId() {
             return model.lastEventId();
         }
+
+        @Override
+        public Long lastEventIndex() {
+            return model.lastEventIndex();
+        }
+
 
         @Override
         public Instant timestamp() {

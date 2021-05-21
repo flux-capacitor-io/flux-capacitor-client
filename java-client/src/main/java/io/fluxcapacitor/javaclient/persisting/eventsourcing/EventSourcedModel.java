@@ -32,6 +32,7 @@ public class EventSourcedModel<T> implements AggregateRoot<T> {
     Class<T> type;
     @Builder.Default long sequenceNumber = -1L;
     String lastEventId;
+    Long lastEventIndex;
     @Builder.Default Instant timestamp = Instant.now();
     T model;
     EventSourcedModel<T> previous;
