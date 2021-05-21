@@ -31,7 +31,7 @@
 
     <properties>
         <hibernate-validator.version>6.2.0.Final</hibernate-validator.version>
-        <spring.version>5.3.6</spring.version>
+        <spring.version>5.3.7</spring.version>
     </properties>
 
     <dependencies>
@@ -98,7 +98,7 @@
         <dependency>
             <groupId>com.github.ben-manes.caffeine</groupId>
             <artifactId>caffeine</artifactId>
-            <version>3.0.1</version>
+            <version>3.0.2</version>
         </dependency>
     </dependencies>
 

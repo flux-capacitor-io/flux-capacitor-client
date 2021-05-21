@@ -100,9 +100,10 @@ public class DefaultTracker implements Runnable, Registration {
         this.tracker = new Tracker(config.prependApplicationName()
                 ? format("%s_%s", client.name(), config.getName()) : config.getName(),
                 config.getTrackerIdFactory().apply(client), config);
-        this.processor = join(config.getBatchInterceptors()).intercept(b -> processAll(b, consumer), tracker);
+        this.processor = join(config.getBatchInterceptors()).intercept(b -> process(b, consumer), tracker);
         this.trackingClient = client.getTrackingClient(config.getMessageType());
         this.retryDelay = Duration.ofSeconds(1);
+        this.lastProcessedIndex = config.getLastIndex();
     }
 
     @Override
@@ -118,47 +119,13 @@ public class DefaultTracker implements Runnable, Registration {
         }
     }
 
-    @SuppressWarnings("BusyWait")
-    @Override
-    public void cancel() {
-        if (running.compareAndSet(true, false)) {
-            //wait for processing to complete
-            if (processing) {
-                while (processing) {
-                    try {
-                        Thread.sleep(1);
-                    } catch (InterruptedException e) {
-                        currentThread().interrupt();
-                        return;
-                    }
-                }
-            } else {
-                //interrupt message fetching
-                try {
-                    thread.get().interrupt();
-                } catch (Exception e) {
-                    log.warn("Not allowed to cancel tracker {}", tracker.getName(), e);
-                } finally {
-                    thread.set(null);
-                }
-            }
-            tracker.getConfiguration().getBatchInterceptors().forEach(i -> {
-                try {
-                    i.shutdown(tracker);
-                } catch (Exception e) {
-                    log.warn("Failed to stop batch interceptor {}", i, e);
-                }
-            });
-        }
-    }
-
     protected MessageBatch fetch(Long lastIndex) {
         return retryOnFailure(() -> trackingClient.readAndWait(tracker.getName(), tracker.getTrackerId(),
                 lastIndex, tracker.getConfiguration()),
                 retryDelay, e -> running.get());
     }
 
-    protected void processAll(MessageBatch messageBatch, Consumer<List<SerializedMessage>> consumer) {
+    protected void process(MessageBatch messageBatch, Consumer<List<SerializedMessage>> consumer) {
         try {
             processing = true;
             List<SerializedMessage> messages = messageBatch.getMessages();
@@ -203,6 +170,40 @@ public class DefaultTracker implements Runnable, Registration {
                                             Arrays.toString(segment), tracker, index), e);
                         }
                     }, retryDelay, e2 -> running.get());
+        }
+    }
+
+    @SuppressWarnings("BusyWait")
+    @Override
+    public void cancel() {
+        if (running.compareAndSet(true, false)) {
+            //wait for processing to complete
+            if (processing) {
+                while (processing) {
+                    try {
+                        Thread.sleep(1);
+                    } catch (InterruptedException e) {
+                        currentThread().interrupt();
+                        return;
+                    }
+                }
+            } else {
+                //interrupt message fetching
+                try {
+                    thread.get().interrupt();
+                } catch (Exception e) {
+                    log.warn("Not allowed to cancel tracker {}", tracker.getName(), e);
+                } finally {
+                    thread.set(null);
+                }
+            }
+            tracker.getConfiguration().getBatchInterceptors().forEach(i -> {
+                try {
+                    i.shutdown(tracker);
+                } catch (Exception e) {
+                    log.warn("Failed to stop batch interceptor {}", i, e);
+                }
+            });
         }
     }
 

@@ -14,6 +14,7 @@
 
 package io.fluxcapacitor.javaclient.persisting.caching;
 
+import io.fluxcapacitor.common.IndexUtils;
 import io.fluxcapacitor.common.api.SerializedMessage;
 import io.fluxcapacitor.javaclient.common.Message;
 import io.fluxcapacitor.javaclient.common.serialization.DeserializingMessage;
@@ -24,7 +25,11 @@ import io.fluxcapacitor.javaclient.modeling.AggregateRoot;
 import io.fluxcapacitor.javaclient.persisting.eventsourcing.EventSourcingHandler;
 import io.fluxcapacitor.javaclient.persisting.eventsourcing.EventSourcingHandlerFactory;
 import io.fluxcapacitor.javaclient.tracking.ConsumerConfiguration;
-import lombok.*;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.NonNull;
+import lombok.RequiredArgsConstructor;
+import lombok.Value;
 import lombok.experimental.Accessors;
 import lombok.extern.slf4j.Slf4j;
 
@@ -33,8 +38,7 @@ import java.time.Instant;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
-import java.util.concurrent.atomic.AtomicLong;
-import java.util.concurrent.atomic.AtomicReference;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Function;
 
 import static io.fluxcapacitor.common.MessageType.EVENT;
@@ -59,8 +63,8 @@ public class CachingAggregateRepository implements AggregateRepository {
     private final Client client;
     private final Serializer serializer;
 
-    private final AtomicReference<Instant> started = new AtomicReference<>();
-    private final AtomicLong lastEventIndex = new AtomicLong();
+    private final AtomicBoolean started = new AtomicBoolean();
+    private volatile Long lastEventIndex;
 
     @Override
     public <T> AggregateRoot<T> load(@NonNull String aggregateId, @NonNull Class<T> aggregateType, boolean readOnly,
@@ -73,30 +77,27 @@ public class CachingAggregateRepository implements AggregateRepository {
             return Optional.<AggregateRoot<T>>ofNullable(doLoad(aggregateId, aggregateType, onlyCached))
                     .filter(a -> Optional.ofNullable(a.get()).map(m -> aggregateType.isAssignableFrom(m.getClass()))
                             .orElse(true))
-                    .orElseGet(() -> delegate.load(aggregateId, aggregateType, readOnly, onlyCached));
+                    .orElseGet(() -> delegate.load(aggregateId, aggregateType, true, onlyCached));
         }
         return result;
     }
 
     private <T> RefreshingAggregateRoot<T> doLoad(String aggregateId, Class<T> type, boolean onlyCached) {
-        if (started.compareAndSet(null, Instant.now())) {
+        if (started.compareAndSet(false, true)) {
             start(this::handleEvents, ConsumerConfiguration.builder().messageType(NOTIFICATION)
+                    .lastIndex(lastEventIndex = IndexUtils.indexForCurrentTime())
                     .name(CachingAggregateRepository.class.getSimpleName()).build(), client);
-            return null;
-        }
-        if (lastEventIndex.get() <= 0 && started.get().isAfter(Instant.now().minusSeconds(5))) {
-            return null; //make sure we don't miss any events before placing anything into the cache
         }
         DeserializingMessage current = DeserializingMessage.getCurrent();
-        if (current != null && lastEventIndex.get() > 0) {
+        if (current != null && lastEventIndex > 0) {
             switch (current.getMessageType()) {
                 case EVENT:
                 case NOTIFICATION:
                     Long eventIndex = current.getSerializedObject().getIndex();
-                    if (eventIndex != null && lastEventIndex.get() < eventIndex) {
+                    if (eventIndex != null && lastEventIndex < eventIndex) {
                         synchronized (cache) {
                             Instant start = Instant.now();
-                            while (lastEventIndex.get() < eventIndex) {
+                            while (lastEventIndex < eventIndex) {
                                 try {
                                     cache.wait(5_000);
                                 } catch (InterruptedException e) {
@@ -142,13 +143,12 @@ public class CachingAggregateRepository implements AggregateRepository {
                         }
                     });
         } finally {
-            if (!messages.isEmpty()) {
-                this.lastEventIndex.updateAndGet(
-                        i -> Optional.ofNullable(messages.get(messages.size() - 1).getIndex()).orElse(i));
+            messages.stream().reduce((a, b) -> b).map(SerializedMessage::getIndex).ifPresent(index -> {
+                lastEventIndex = index;
                 synchronized (cache) {
                     cache.notifyAll();
                 }
-            }
+            });
         }
     }
 
@@ -162,7 +162,7 @@ public class CachingAggregateRepository implements AggregateRepository {
 
         if (aggregate == null || aggregate.status == RefreshingAggregateRoot.Status.UNVERIFIED) {
             aggregate =
-                    Optional.ofNullable(delegate.load(aggregateId, type)).map(a -> new RefreshingAggregateRoot<>(
+                    Optional.ofNullable(delegate.load(aggregateId, type, true, false)).map(a -> new RefreshingAggregateRoot<>(
                             a.get(), a.id(), a.type(),
                             a.previous(), a.lastEventId(), a.lastEventIndex(), a.timestamp(), Objects.equals(a.lastEventId(), eventId)
                                     ? RefreshingAggregateRoot.Status.IN_SYNC : RefreshingAggregateRoot.Status.AHEAD))

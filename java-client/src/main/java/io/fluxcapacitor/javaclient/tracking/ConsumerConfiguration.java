@@ -58,6 +58,8 @@ public class ConsumerConfiguration {
     @Default
     TrackingStrategy readStrategy = TrackingStrategy.NEW;
     @Default
+    Long lastIndex = null;
+    @Default
     Function<Client, String> trackerIdFactory = client -> String.format("%s_%s", client.id(), UUID.randomUUID());
     @Default
     Duration purgeDelay = null;
