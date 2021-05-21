@@ -85,6 +85,11 @@ public class GivenWhenThenAuthenticationTest {
     }
 
     @Test
+    void testWhenCommandByUser() {
+        testFixture.whenCommandByUser(new Update(), new MockUser("modify")).expectNoException();
+    }
+
+    @Test
     void testAuthorizedModifyAsSystem() {
         user = new MockUser("modify", "system");
         testFixture.whenCommand(new Update()).expectNoException();
