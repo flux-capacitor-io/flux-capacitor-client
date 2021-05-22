@@ -48,8 +48,8 @@ public interface AggregateRoot<T> {
     default AggregateRoot<T> playBackToEvent(String eventId) {
         return playBackToCondition(aggregate -> Objects.equals(eventId, aggregate.lastEventId()))
                 .orElseThrow(() -> new IllegalStateException(format(
-                        "Could not load aggregate %s of type %s for event %s. Aggregate started at event %s",
-                        id(), type().getSimpleName(), eventId, lastEventId())));
+                        "Could not load aggregate %s of type %s for event %s. Aggregate (implementation %s) started at event %s",
+                        id(), type().getSimpleName(), eventId, getClass().getSimpleName(), lastEventId())));
     }
 
     default Optional<AggregateRoot<T>> playBackToCondition(Predicate<AggregateRoot<T>> condition) {
