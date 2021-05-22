@@ -16,7 +16,12 @@ package io.fluxcapacitor.javaclient.persisting.search.client;
 
 import io.fluxcapacitor.common.Awaitable;
 import io.fluxcapacitor.common.Guarantee;
-import io.fluxcapacitor.common.api.search.*;
+import io.fluxcapacitor.common.api.search.CreateAuditTrail;
+import io.fluxcapacitor.common.api.search.DocumentStats;
+import io.fluxcapacitor.common.api.search.GetSearchHistogram;
+import io.fluxcapacitor.common.api.search.SearchDocuments;
+import io.fluxcapacitor.common.api.search.SearchHistogram;
+import io.fluxcapacitor.common.api.search.SearchQuery;
 import io.fluxcapacitor.common.search.Document;
 import io.fluxcapacitor.javaclient.persisting.search.SearchHit;
 
@@ -26,7 +31,9 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.function.Function;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
@@ -35,18 +42,26 @@ import java.util.stream.Stream;
 import static io.fluxcapacitor.common.search.Document.EntryType.NUMERIC;
 import static java.util.Collections.emptyList;
 import static java.util.function.Function.identity;
-import static java.util.stream.Collectors.*;
+import static java.util.stream.Collectors.groupingBy;
+import static java.util.stream.Collectors.toList;
+import static java.util.stream.Collectors.toMap;
 
 public class InMemorySearchClient implements SearchClient {
     private final List<Document> documents = new CopyOnWriteArrayList<>();
 
     @Override
-    public Awaitable index(List<Document> documents, Guarantee guarantee, boolean ifNotExists) {
+    public synchronized Awaitable index(List<Document> documents, Guarantee guarantee, boolean ifNotExists) {
+        Function<Document, String> identify = d -> d.getCollection() + "/" + d.getId();
+        Map<String, Document> existing = this.documents.stream().collect(toMap(identify, identity()));
+        Map<String, Document> updates = documents.stream().collect(toMap(identify, identity(), (a, b) -> b, LinkedHashMap::new));
         if (ifNotExists) {
-            Map<String, Document> existing = this.documents.stream().collect(toMap(Document::getId, identity()));
-            documents.stream().filter(d -> !existing.containsKey(d.getId())).forEach(this.documents::add);
+            updates.entrySet().stream().filter(e -> !existing.containsKey(e.getKey()))
+                    .forEach(e -> this.documents.add(e.getValue()));
         } else {
-            this.documents.addAll(documents);
+            updates.forEach((key, value) -> {
+                Optional.ofNullable(existing.get(key)).ifPresent(this.documents::remove);
+                this.documents.add(value);
+            });
         }
         return Awaitable.ready();
     }
