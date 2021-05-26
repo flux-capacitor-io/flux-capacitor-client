@@ -29,6 +29,7 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
+import lombok.ToString;
 import lombok.Value;
 import lombok.experimental.Accessors;
 import lombok.extern.slf4j.Slf4j;
@@ -206,9 +207,11 @@ public class CachingAggregateRepository implements AggregateRepository {
     @Accessors(fluent = true)
     @Builder(toBuilder = true)
     private static class RefreshingAggregateRoot<T> implements AggregateRoot<T> {
+        @ToString.Exclude
         T model;
         String id;
         Class<T> type;
+        @ToString.Exclude
         AggregateRoot<T> previous;
         String lastEventId;
         Long lastEventIndex;

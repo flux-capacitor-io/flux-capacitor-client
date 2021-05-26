@@ -15,6 +15,7 @@
 package io.fluxcapacitor.javaclient.tracking.client;
 
 import io.fluxcapacitor.common.Awaitable;
+import io.fluxcapacitor.common.IndexUtils;
 import io.fluxcapacitor.common.Registration;
 import io.fluxcapacitor.common.api.SerializedMessage;
 import io.fluxcapacitor.common.api.tracking.MessageBatch;
@@ -38,6 +39,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Consumer;
 
+import static io.fluxcapacitor.javaclient.FluxCapacitor.currentClock;
 import static java.lang.Thread.currentThread;
 import static java.util.stream.Collectors.toList;
 
@@ -46,7 +48,7 @@ import static java.util.stream.Collectors.toList;
 public class InMemoryMessageStore implements GatewayClient, TrackingClient {
 
     private final ExecutorService executorService = Executors.newFixedThreadPool(10);
-    private final AtomicLong nextIndex = new AtomicLong();
+    private final AtomicLong nextIndex = new AtomicLong(IndexUtils.indexFromMillis(currentClock().millis()));
     private final ConcurrentSkipListMap<Long, SerializedMessage> messageLog = new ConcurrentSkipListMap<>();
     private final Map<String, String> trackers = new ConcurrentHashMap<>();
     private final Map<String, Long> consumerTokens = new ConcurrentHashMap<>();

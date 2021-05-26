@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016-2020 Flux Capacitor.
+ * Copyright (c) 2016-2021 Flux Capacitor.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,6 +17,7 @@ package io.fluxcapacitor.javaclient.persisting.eventsourcing;
 import io.fluxcapacitor.javaclient.common.Message;
 import io.fluxcapacitor.javaclient.modeling.AggregateRoot;
 import lombok.Builder;
+import lombok.ToString;
 import lombok.Value;
 import lombok.experimental.Accessors;
 
@@ -34,7 +35,9 @@ public class EventSourcedModel<T> implements AggregateRoot<T> {
     String lastEventId;
     Long lastEventIndex;
     @Builder.Default Instant timestamp = Instant.now();
+    @ToString.Exclude
     T model;
+    @ToString.Exclude
     EventSourcedModel<T> previous;
 
     @Override

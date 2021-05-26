@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016-2020 Flux Capacitor.
+ * Copyright (c) 2016-2021 Flux Capacitor.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -19,6 +19,7 @@ import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import io.fluxcapacitor.javaclient.common.Message;
 import io.fluxcapacitor.javaclient.modeling.AggregateRoot;
 import lombok.Builder;
+import lombok.ToString;
 import lombok.Value;
 import lombok.experimental.Accessors;
 
@@ -46,6 +47,7 @@ public class SnapshotModel<T> implements AggregateRoot<T> {
     Instant timestamp = Instant.now();
     @JsonProperty
     @JsonTypeInfo(use = JsonTypeInfo.Id.CLASS)
+    @ToString.Exclude
     T model;
 
     @Override
