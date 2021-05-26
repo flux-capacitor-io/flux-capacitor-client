@@ -15,7 +15,6 @@
 package io.fluxcapacitor.javaclient.tracking.client;
 
 import io.fluxcapacitor.common.Awaitable;
-import io.fluxcapacitor.common.IndexUtils;
 import io.fluxcapacitor.common.Registration;
 import io.fluxcapacitor.common.api.SerializedMessage;
 import io.fluxcapacitor.common.api.tracking.MessageBatch;
@@ -39,6 +38,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Consumer;
 
+import static io.fluxcapacitor.common.IndexUtils.indexFromMillis;
 import static io.fluxcapacitor.javaclient.FluxCapacitor.currentClock;
 import static java.lang.Thread.currentThread;
 import static java.util.stream.Collectors.toList;
@@ -48,7 +48,7 @@ import static java.util.stream.Collectors.toList;
 public class InMemoryMessageStore implements GatewayClient, TrackingClient {
 
     private final ExecutorService executorService = Executors.newFixedThreadPool(10);
-    private final AtomicLong nextIndex = new AtomicLong(IndexUtils.indexFromMillis(currentClock().millis()));
+    private final AtomicLong nextIndex = new AtomicLong();
     private final ConcurrentSkipListMap<Long, SerializedMessage> messageLog = new ConcurrentSkipListMap<>();
     private final Map<String, String> trackers = new ConcurrentHashMap<>();
     private final Map<String, Long> consumerTokens = new ConcurrentHashMap<>();
@@ -58,7 +58,7 @@ public class InMemoryMessageStore implements GatewayClient, TrackingClient {
     public Awaitable send(SerializedMessage... messages) {
         Arrays.stream(messages).forEach(m -> {
             if (m.getIndex() == null) {
-                m.setIndex(nextIndex.getAndIncrement());
+                m.setIndex(nextIndex.updateAndGet(i -> i <= 0 ? indexFromMillis(currentClock().millis()) : i + 1));
             }
             messageLog.put(m.getIndex(), m);
             monitors.forEach(monitor -> monitor.accept(m));
