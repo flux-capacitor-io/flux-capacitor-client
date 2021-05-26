@@ -25,6 +25,7 @@ public class SearchHit<T> {
     String id;
     String collection;
     Instant timestamp;
+    Instant end;
     Supplier<T> valueSupplier;
 
     public T getValue() {
@@ -32,6 +33,6 @@ public class SearchHit<T> {
     }
 
     public <V> SearchHit<V> map(Function<T, V> mapper) {
-        return new SearchHit<>(id, collection, timestamp, () -> mapper.apply(getValue()));
+        return new SearchHit<>(id, collection, timestamp, end, () -> mapper.apply(getValue()));
     }
 }

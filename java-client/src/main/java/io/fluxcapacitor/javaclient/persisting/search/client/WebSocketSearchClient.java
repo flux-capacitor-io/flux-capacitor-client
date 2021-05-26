@@ -96,8 +96,9 @@ public class WebSocketSearchClient extends AbstractWebsocketClient implements Se
         if (maxSize != null) {
             documentStream = documentStream.limit(maxSize);
         }
-        return documentStream.map(d -> new SearchHit<>(d.getId(), d.getCollection(), d.getTimestamp() == null
-                ? null : Instant.ofEpochMilli(d.getTimestamp()), d::deserializeDocument));
+        return documentStream.map(d -> new SearchHit<>(d.getId(), d.getCollection(),
+                d.getTimestamp() == null ? null : Instant.ofEpochMilli(d.getTimestamp()),
+                d.getEnd() == null ? null : Instant.ofEpochMilli(d.getEnd()), d::deserializeDocument));
     }
 
     @Override
