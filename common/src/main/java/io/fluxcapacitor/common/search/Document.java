@@ -141,7 +141,7 @@ public class Document {
             if (path == null) {
                 return p -> true;
             }
-            Predicate<String> predicate = SearchUtils.convertGlobToRegex(path).asPredicate();
+            Predicate<String> predicate = SearchUtils.convertGlobToRegex(path).asMatchPredicate();
             return Arrays.stream(path.split("/")).anyMatch(SearchUtils::isInteger)
                     ? p -> predicate.test(p.getValue()) : p -> predicate.test(p.getShortValue());
         }

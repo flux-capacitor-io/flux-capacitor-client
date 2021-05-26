@@ -41,8 +41,8 @@ public class SearchDocuments extends Request {
                 .map(p -> {
                     boolean negate = p.startsWith("-");
                     p = negate ? p.substring(1) : p;
-                    Predicate<String> predicate = SearchUtils.convertGlobToRegex(p + "/**").asPredicate()
-                            .or(SearchUtils.convertGlobToRegex(p).asPredicate());
+                    Predicate<String> predicate = SearchUtils.convertGlobToRegex(p + "/**").asMatchPredicate()
+                            .or(SearchUtils.convertGlobToRegex(p).asMatchPredicate());
                     return negate ? predicate.negate() : predicate;
                 }).reduce(Predicate::or).<Predicate<Path>>map(s -> p -> s.test(p.getValue())).orElse(p -> true);
     }
