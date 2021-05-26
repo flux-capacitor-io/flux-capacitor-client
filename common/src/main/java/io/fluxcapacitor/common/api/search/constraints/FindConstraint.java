@@ -16,11 +16,7 @@ package io.fluxcapacitor.common.api.search.constraints;
 
 import io.fluxcapacitor.common.api.search.Constraint;
 import io.fluxcapacitor.common.search.Document;
-import lombok.EqualsAndHashCode;
-import lombok.Getter;
-import lombok.NonNull;
-import lombok.ToString;
-import lombok.Value;
+import lombok.*;
 import lombok.experimental.Accessors;
 
 import java.util.ArrayList;
@@ -31,9 +27,12 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
+import static org.apache.commons.lang3.StringUtils.isBlank;
+
 @Value
 public class FindConstraint extends PathConstraint {
-    public static Constraint find(@NonNull String find, String... paths) {
+    public static Constraint find(String find, String... paths) {
+        if(isBlank(find)) return noOp;
         switch (paths.length) {
             case 0: return new FindConstraint(find, null);
             case 1: return new FindConstraint(find, paths[0]);
@@ -46,7 +45,7 @@ public class FindConstraint extends PathConstraint {
     private static final Pattern matcherPattern =
             Pattern.compile(String.format("\"[^\"]*\"|[%1$s]|[^\\s%1$s]+", operator), Pattern.MULTILINE);
 
-    String find;
+    @NonNull String find;
     String path;
 
     @Override

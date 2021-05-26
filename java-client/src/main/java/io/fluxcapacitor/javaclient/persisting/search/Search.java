@@ -19,7 +19,6 @@ import io.fluxcapacitor.common.api.search.DocumentStats;
 import io.fluxcapacitor.common.api.search.SearchHistogram;
 import io.fluxcapacitor.common.api.search.constraints.*;
 import io.fluxcapacitor.javaclient.FluxCapacitor;
-import lombok.NonNull;
 
 import java.time.Duration;
 import java.time.Instant;
@@ -63,15 +62,15 @@ public interface Search {
         Other constraints
      */
 
-    default Search lookAhead(@NonNull String phrase, String... paths) {
-        return find(phrase + "*", paths);
+    default Search lookAhead(String phrase, String... paths) {
+        return find(phrase == null ? null : phrase + "*", paths);
     }
 
-    default Search find(@NonNull String phrase, String... paths) {
+    default Search find(String phrase, String... paths) {
         return constraint(FindConstraint.find(phrase, paths));
     }
 
-    default Search match(@NonNull Object constraint, String... paths) {
+    default Search match(Object constraint, String... paths) {
         return constraint(MatchConstraint.match(constraint, paths));
     }
 
