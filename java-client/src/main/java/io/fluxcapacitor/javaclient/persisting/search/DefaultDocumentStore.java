@@ -16,6 +16,9 @@ package io.fluxcapacitor.javaclient.persisting.search;
 
 import io.fluxcapacitor.common.Guarantee;
 import io.fluxcapacitor.common.api.search.*;
+import io.fluxcapacitor.common.api.search.actions.DeleteAction;
+import io.fluxcapacitor.common.api.search.actions.IndexAction;
+import io.fluxcapacitor.common.api.search.actions.IndexIfNotExistsAction;
 import io.fluxcapacitor.common.search.Document;
 import io.fluxcapacitor.javaclient.common.IdentityProvider;
 import io.fluxcapacitor.javaclient.persisting.search.client.SearchClient;
@@ -33,9 +36,12 @@ import java.util.concurrent.CompletableFuture;
 import java.util.function.Function;
 import java.util.stream.Stream;
 
+import static io.fluxcapacitor.common.api.search.Action.Type.*;
 import static io.fluxcapacitor.javaclient.FluxCapacitor.currentIdentityProvider;
 import static java.util.Collections.singletonList;
+import static java.util.function.UnaryOperator.identity;
 import static java.util.stream.Collectors.toList;
+import static java.util.stream.Collectors.toMap;
 
 @AllArgsConstructor
 @Slf4j
@@ -44,13 +50,12 @@ public class DefaultDocumentStore implements DocumentStore {
     @Getter
     private final DocumentSerializer serializer;
 
-
     @Override
     public CompletableFuture<Void> index(Object object, String id, String collection, Instant timestamp,
                                          Instant end, Guarantee guarantee, boolean ifNotExists) {
         try {
             return client.index(singletonList(serializer.toDocument(object, id, collection, timestamp, end)),
-                         guarantee, ifNotExists).asCompletableFuture();
+                    guarantee, ifNotExists).asCompletableFuture();
         } catch (Exception e) {
             throw new DocumentStoreException(String.format("Could not store a document %s for id %s", object, id), e);
         }
@@ -71,11 +76,11 @@ public class DefaultDocumentStore implements DocumentStore {
             }
             if (timestampPath != null) {
                 builder.timestamp(d.getEntryAtPath(timestampPath).map(Document.Entry::getValue).map(Instant::parse)
-                                          .orElse(null));
+                        .orElse(null));
             }
             if (endPath != null) {
                 builder.end(d.getEntryAtPath(endPath).map(Document.Entry::getValue).map(Instant::parse)
-                                    .orElse(null));
+                        .orElse(null));
             }
             return builder.build();
         }).collect(toList());
@@ -103,6 +108,32 @@ public class DefaultDocumentStore implements DocumentStore {
                     String.format("Could not store a list of documents for collection %s", collection), e);
         }
     }
+
+    @Override
+    public CompletableFuture<Void> applyBatch(Collection<Action> batch, Guarantee guarantee) {
+        try {
+            return client.applyBatch(batch.stream().map(this::serializeAction).filter(Objects::nonNull)
+                            .collect(toMap(SerializedAction::getId, identity(), (a, b) -> b)).values(),
+                    guarantee).asCompletableFuture();
+        } catch (Exception e) {
+            throw new DocumentStoreException("Could not apply batch of search actions", e);
+        }
+    }
+
+    public SerializedAction serializeAction(Action action) {
+        SerializedAction.Builder builder = SerializedAction.builder().collection(action.getCollection()).id(action.getId());
+        if (action instanceof DeleteAction) {
+            return builder.type(delete).build();
+        } else if (action instanceof IndexAction) {
+            return builder.type(index)
+                    .object(new SerializedDocument(serializer.toDocument((IndexAction) action))).build();
+        } else if (action instanceof IndexIfNotExistsAction) {
+            return builder.type(indexIfNotExists)
+                    .object(new SerializedDocument(serializer.toDocument((IndexIfNotExistsAction) action))).build();
+        }
+        return null;
+    }
+
 
     @Override
     public Search search(SearchQuery.Builder searchBuilder) {

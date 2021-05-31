@@ -14,12 +14,22 @@
 
 package io.fluxcapacitor.javaclient.persisting.search;
 
+import io.fluxcapacitor.common.api.search.actions.IndexAction;
+import io.fluxcapacitor.common.api.search.actions.IndexIfNotExistsAction;
 import io.fluxcapacitor.common.search.Document;
 
 import java.time.Instant;
 
 public interface DocumentSerializer {
     Document toDocument(Object value, String id, String collection, Instant timestamp, Instant end);
+
+    default Document toDocument(IndexAction action){
+        return toDocument(action.getObject(), action.getId(), action.getCollection(), action.getTimestamp(), action.getEnd());
+    }
+    default Document toDocument(IndexIfNotExistsAction action){
+        return toDocument(action.getObject(), action.getId(), action.getCollection(), action.getTimestamp(), action.getEnd());
+    }
+
 
     <T> T fromDocument(Document document);
 

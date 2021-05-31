@@ -20,6 +20,7 @@ import io.fluxcapacitor.common.api.search.*;
 import io.fluxcapacitor.common.search.Document;
 import io.fluxcapacitor.javaclient.persisting.search.SearchHit;
 
+import java.util.Collection;
 import java.util.List;
 import java.util.stream.Stream;
 
@@ -40,6 +41,8 @@ public interface SearchClient extends AutoCloseable {
     List<DocumentStats> getStatistics(SearchQuery query, List<String> fields, List<String> groupBy);
 
     SearchHistogram getHistogram(GetSearchHistogram request);
+
+    Awaitable applyBatch(Collection<SerializedAction> batch, Guarantee guarantee);
 
     @Override
     void close();

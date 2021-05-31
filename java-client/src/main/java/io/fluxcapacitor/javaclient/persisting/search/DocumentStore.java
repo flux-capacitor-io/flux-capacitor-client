@@ -15,6 +15,7 @@
 package io.fluxcapacitor.javaclient.persisting.search;
 
 import io.fluxcapacitor.common.Guarantee;
+import io.fluxcapacitor.common.api.search.Action;
 import io.fluxcapacitor.common.api.search.SearchQuery;
 import lombok.SneakyThrows;
 
@@ -143,6 +144,8 @@ public interface DocumentStore {
         index(objects, collection, idFunction, timestampFunction, endFunction, Guarantee.STORED, true).get();
     }
 
+    CompletableFuture<Void> applyBatch(Collection<Action> batch, Guarantee guarantee);
+
     default Search search(String... collections) {
         return search(SearchQuery.builder().collections(Arrays.asList(collections)));
     }
@@ -154,6 +157,7 @@ public interface DocumentStore {
     void deleteCollection(String collection);
 
     void createAuditTrail(String collection, Duration retentionTime);
+
 
     DocumentSerializer getSerializer();
 

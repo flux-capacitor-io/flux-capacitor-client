@@ -29,6 +29,7 @@ import lombok.extern.slf4j.Slf4j;
 import javax.websocket.ClientEndpoint;
 import java.net.URI;
 import java.time.Instant;
+import java.util.Collection;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -40,6 +41,7 @@ import java.util.stream.Stream;
 public class WebSocketSearchClient extends AbstractWebsocketClient implements SearchClient {
     private final Backlog<Document> backlog;
     private final Backlog<Document> ifNotExistsBacklog;
+    private final Backlog<SerializedAction> batchBacklog;
 
     public WebSocketSearchClient(String endPointUrl, WebSocketClient.Properties properties) {
         this(URI.create(endPointUrl), properties);
@@ -49,6 +51,7 @@ public class WebSocketSearchClient extends AbstractWebsocketClient implements Se
         super(endpointUri, properties, true, properties.getSearchSessions());
         backlog = new Backlog<>(documents -> storeValues(documents, false));
         ifNotExistsBacklog = new Backlog<>(documents -> storeValues(documents, true));
+        batchBacklog = new Backlog<>(actions -> sendAndForget(new ApplyDocumentUpdates(actions, Guarantee.SENT)));
     }
 
     protected Awaitable storeValues(List<Document> documents, boolean ifNotExists) {
@@ -56,6 +59,7 @@ public class WebSocketSearchClient extends AbstractWebsocketClient implements Se
                 documents.stream().map(SerializedDocument::new).collect(Collectors.toList()), ifNotExists,
                 Guarantee.SENT));
     }
+
 
     @Override
     public Awaitable index(List<Document> documents, Guarantee guarantee, boolean ifNotExists) {
@@ -80,6 +84,22 @@ public class WebSocketSearchClient extends AbstractWebsocketClient implements Se
     }
 
     @Override
+    public Awaitable applyBatch(Collection<SerializedAction> batch, Guarantee guarantee) {
+        switch (guarantee) {
+            case NONE:
+                batchBacklog.add(batch);
+                return Awaitable.ready();
+            case SENT:
+                return batchBacklog.add(batch);
+            case STORED:
+                CompletableFuture<QueryResult> future = send(new ApplyDocumentUpdates(batch, guarantee));
+                return future::get;
+            default:
+                throw new UnsupportedOperationException("Unrecognized guarantee: " + guarantee);
+        }
+    }
+
+    @Override
     public Stream<SearchHit<Document>> search(SearchDocuments searchDocuments) {
         AtomicInteger count = new AtomicInteger();
         Integer maxSize = searchDocuments.getMaxSize();
@@ -89,7 +109,7 @@ public class WebSocketSearchClient extends AbstractWebsocketClient implements Se
                 sendAndWait(request),
                 result -> sendAndWait(request.toBuilder().maxSize(
                         maxSize == null ? fetchBatchSize : Math.min(maxSize - count.get(), fetchBatchSize))
-                                              .lastHit(result.lastMatch()).build()),
+                        .lastHit(result.lastMatch()).build()),
                 result -> result.size() < fetchBatchSize
                         || (maxSize != null && count.addAndGet(result.size()) >= maxSize))
                 .flatMap(r -> r.getMatches().stream());

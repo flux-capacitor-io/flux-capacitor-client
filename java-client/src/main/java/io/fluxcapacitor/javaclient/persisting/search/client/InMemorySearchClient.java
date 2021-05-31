@@ -30,8 +30,10 @@ import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
+import static io.fluxcapacitor.common.api.search.Action.Type.indexIfNotExists;
 import static io.fluxcapacitor.common.search.Document.EntryType.NUMERIC;
 import static java.util.Collections.emptyList;
+import static java.util.Collections.singletonList;
 import static java.util.function.Function.identity;
 import static java.util.stream.Collectors.*;
 
@@ -128,6 +130,22 @@ public class InMemorySearchClient implements SearchClient {
                 .collect(groupingBy(d -> (d.getTimestamp().toEpochMilli() - min) / step))
                 .forEach((bucket, hits) -> results.set(bucket.intValue(), (long) hits.size()));
         return new SearchHistogram(query.getSince(), query.getBefore(), results);
+    }
+
+    @Override
+    public Awaitable applyBatch(Collection<SerializedAction> batch, Guarantee guarantee) {
+        batch.stream().collect(toMap(SerializedAction::getId, identity(), (a, b)-> b)).values().forEach(action -> {
+            switch (action.getType()) {
+                case delete:
+                    delete(action.getId(), action.getCollection(), guarantee);
+                    break;
+                case index:
+                case indexIfNotExists:
+                    index(singletonList(action.getObject().deserializeDocument()), guarantee,
+                            action.getType().equals(indexIfNotExists));
+            }
+        });
+        return Awaitable.ready();
     }
 
     private DocumentStats.FieldStats getFieldStats(String path, List<Document> documents) {

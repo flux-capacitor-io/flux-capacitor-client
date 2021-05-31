@@ -14,6 +14,8 @@
 
 package io.fluxcapacitor.javaclient.test;
 
+import io.fluxcapacitor.common.api.search.SerializedAction;
+import io.fluxcapacitor.common.api.search.SerializedDocument;
 import io.fluxcapacitor.common.search.Document;
 import io.fluxcapacitor.javaclient.FluxCapacitor;
 import io.fluxcapacitor.javaclient.common.Message;
@@ -26,12 +28,7 @@ import org.hamcrest.Matcher;
 import org.hamcrest.StringDescription;
 import org.mockito.Mockito;
 
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.List;
-import java.util.Map;
-import java.util.Objects;
+import java.util.*;
 import java.util.function.Consumer;
 import java.util.function.Predicate;
 import java.util.stream.Stream;
@@ -39,6 +36,7 @@ import java.util.stream.Stream;
 import static io.fluxcapacitor.javaclient.test.GivenWhenThenUtils.toMatcher;
 import static java.lang.String.format;
 import static java.util.stream.Collectors.toList;
+import static java.util.stream.Stream.concat;
 
 @AllArgsConstructor
 @Slf4j
@@ -111,7 +109,7 @@ public class ResultValidator implements Then {
 
     @SuppressWarnings("unchecked")
     protected List<Object> getResultingDocuments() {
-        return Mockito.mockingDetails(fluxCapacitor.client().getSearchClient()).getInvocations().stream()
+        return concat(Mockito.mockingDetails(fluxCapacitor.client().getSearchClient()).getInvocations().stream()
                 .filter(i -> i.getMethod().getName().equals("index"))
                 .flatMap(i -> Arrays.stream(i.getArguments()).flatMap(a -> {
                     if (a instanceof Document[]) {
@@ -121,7 +119,17 @@ public class ResultValidator implements Then {
                         return ((List<Document>) a).stream();
                     }
                     return Stream.empty();
-                })).map(d -> fluxCapacitor.documentStore().getSerializer().fromDocument(d)).collect(toList());
+                })).map(d -> fluxCapacitor.documentStore().getSerializer().fromDocument(d)),
+        Mockito.mockingDetails(fluxCapacitor.client().getSearchClient()).getInvocations().stream()
+                .filter(i -> i.getMethod().getName().equals("applyBatch"))
+                .flatMap(i -> Arrays.stream(i.getArguments()).flatMap(a -> {
+                    if (a instanceof Collection<?>) {
+                        return ((Collection<SerializedAction>) a).stream().map(SerializedAction::getObject)
+                                .filter(Objects::nonNull).map(SerializedDocument::deserializeDocument);
+                    }
+                    return Stream.empty();
+                })).map(d -> fluxCapacitor.documentStore().getSerializer().fromDocument(d)))
+                .collect(toList());
     }
 
     @Override
