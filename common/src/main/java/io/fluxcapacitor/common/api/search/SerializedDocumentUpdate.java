@@ -5,8 +5,8 @@ import lombok.Value;
 
 @Value
 @Builder(builderClassName = "Builder")
-public class SerializedAction {
-    Action.Type type;
+public class SerializedDocumentUpdate {
+    BulkUpdate.Type type;
     String id;
     String collection;
     SerializedDocument object;

@@ -30,7 +30,7 @@ import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
-import static io.fluxcapacitor.common.api.search.Action.Type.indexIfNotExists;
+import static io.fluxcapacitor.common.api.search.BulkUpdate.Type.indexIfNotExists;
 import static io.fluxcapacitor.common.search.Document.EntryType.NUMERIC;
 import static java.util.Collections.emptyList;
 import static java.util.Collections.singletonList;
@@ -133,8 +133,8 @@ public class InMemorySearchClient implements SearchClient {
     }
 
     @Override
-    public Awaitable applyBatch(Collection<SerializedAction> batch, Guarantee guarantee) {
-        batch.stream().collect(toMap(SerializedAction::getId, identity(), (a, b)-> b)).values().forEach(action -> {
+    public Awaitable bulkUpdate(Collection<SerializedDocumentUpdate> updates, Guarantee guarantee) {
+        updates.forEach(action -> {
             switch (action.getType()) {
                 case delete:
                     delete(action.getId(), action.getCollection(), guarantee);

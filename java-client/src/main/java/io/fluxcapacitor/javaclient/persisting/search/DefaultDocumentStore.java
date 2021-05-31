@@ -16,9 +16,8 @@ package io.fluxcapacitor.javaclient.persisting.search;
 
 import io.fluxcapacitor.common.Guarantee;
 import io.fluxcapacitor.common.api.search.*;
-import io.fluxcapacitor.common.api.search.actions.DeleteAction;
-import io.fluxcapacitor.common.api.search.actions.IndexAction;
-import io.fluxcapacitor.common.api.search.actions.IndexIfNotExistsAction;
+import io.fluxcapacitor.common.api.search.bulkupdate.IndexDocument;
+import io.fluxcapacitor.common.api.search.bulkupdate.IndexDocumentIfNotExists;
 import io.fluxcapacitor.common.search.Document;
 import io.fluxcapacitor.javaclient.common.IdentityProvider;
 import io.fluxcapacitor.javaclient.persisting.search.client.SearchClient;
@@ -36,8 +35,8 @@ import java.util.concurrent.CompletableFuture;
 import java.util.function.Function;
 import java.util.stream.Stream;
 
-import static io.fluxcapacitor.common.api.search.Action.Type.*;
 import static io.fluxcapacitor.javaclient.FluxCapacitor.currentIdentityProvider;
+import static java.lang.String.format;
 import static java.util.Collections.singletonList;
 import static java.util.function.UnaryOperator.identity;
 import static java.util.stream.Collectors.toList;
@@ -57,7 +56,7 @@ public class DefaultDocumentStore implements DocumentStore {
             return client.index(singletonList(serializer.toDocument(object, id, collection, timestamp, end)),
                     guarantee, ifNotExists).asCompletableFuture();
         } catch (Exception e) {
-            throw new DocumentStoreException(String.format("Could not store a document %s for id %s", object, id), e);
+            throw new DocumentStoreException(format("Could not store a document %s for id %s", object, id), e);
         }
     }
 
@@ -88,7 +87,7 @@ public class DefaultDocumentStore implements DocumentStore {
             return client.index(documents, guarantee, ifNotExists).asCompletableFuture();
         } catch (Exception e) {
             throw new DocumentStoreException(
-                    String.format("Could not store a list of documents for collection %s", collection), e);
+                    format("Could not store a list of documents for collection %s", collection), e);
         }
     }
 
@@ -105,33 +104,30 @@ public class DefaultDocumentStore implements DocumentStore {
             return client.index(documents, guarantee, ifNotExists).asCompletableFuture();
         } catch (Exception e) {
             throw new DocumentStoreException(
-                    String.format("Could not store a list of documents for collection %s", collection), e);
+                    format("Could not store a list of documents for collection %s", collection), e);
         }
     }
 
     @Override
-    public CompletableFuture<Void> applyBatch(Collection<Action> batch, Guarantee guarantee) {
+    public CompletableFuture<Void> bulkUpdate(Collection<BulkUpdate> updates, Guarantee guarantee) {
         try {
-            return client.applyBatch(batch.stream().map(this::serializeAction).filter(Objects::nonNull)
-                            .collect(toMap(SerializedAction::getId, identity(), (a, b) -> b)).values(),
+            return client.bulkUpdate(updates.stream().map(this::serializeAction).filter(Objects::nonNull)
+                            .collect(toMap(a -> format("%s_%s", a.getCollection(), a.getId()), identity(), (a, b) -> b)).values(),
                     guarantee).asCompletableFuture();
         } catch (Exception e) {
             throw new DocumentStoreException("Could not apply batch of search actions", e);
         }
     }
 
-    public SerializedAction serializeAction(Action action) {
-        SerializedAction.Builder builder = SerializedAction.builder().collection(action.getCollection()).id(action.getId());
-        if (action instanceof DeleteAction) {
-            return builder.type(delete).build();
-        } else if (action instanceof IndexAction) {
-            return builder.type(index)
-                    .object(new SerializedDocument(serializer.toDocument((IndexAction) action))).build();
-        } else if (action instanceof IndexIfNotExistsAction) {
-            return builder.type(indexIfNotExists)
-                    .object(new SerializedDocument(serializer.toDocument((IndexIfNotExistsAction) action))).build();
+    public SerializedDocumentUpdate serializeAction(BulkUpdate update) {
+        SerializedDocumentUpdate.Builder builder = SerializedDocumentUpdate.builder()
+                .collection(update.getCollection()).id(update.getId()).type(update.getType());
+        if (update instanceof IndexDocument) {
+            return builder.object(new SerializedDocument(serializer.toDocument((IndexDocument) update))).build();
+        } else if (update instanceof IndexDocumentIfNotExists) {
+            return builder.object(new SerializedDocument(serializer.toDocument((IndexDocumentIfNotExists) update))).build();
         }
-        return null;
+        return builder.build();
     }
 
 
@@ -145,7 +141,7 @@ public class DefaultDocumentStore implements DocumentStore {
         try {
             client.delete(id, collection, Guarantee.SENT).await();
         } catch (Exception e) {
-            throw new DocumentStoreException(String.format("Could not delete document %s", collection), e);
+            throw new DocumentStoreException(format("Could not delete document %s", collection), e);
         }
     }
 
@@ -154,7 +150,7 @@ public class DefaultDocumentStore implements DocumentStore {
         try {
             client.deleteCollection(collection).await();
         } catch (Exception e) {
-            throw new DocumentStoreException(String.format("Could not delete collection %s", collection), e);
+            throw new DocumentStoreException(format("Could not delete collection %s", collection), e);
         }
     }
 
@@ -164,7 +160,7 @@ public class DefaultDocumentStore implements DocumentStore {
             client.createAuditTrail(new CreateAuditTrail(collection, Optional.ofNullable(
                     retentionTime).map(Duration::getSeconds).orElse(null))).await();
         } catch (Exception e) {
-            throw new DocumentStoreException(String.format("Could not create audit trail %s", collection), e);
+            throw new DocumentStoreException(format("Could not create audit trail %s", collection), e);
         }
     }
 

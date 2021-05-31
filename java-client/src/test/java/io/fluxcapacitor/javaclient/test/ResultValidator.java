@@ -14,8 +14,8 @@
 
 package io.fluxcapacitor.javaclient.test;
 
-import io.fluxcapacitor.common.api.search.SerializedAction;
 import io.fluxcapacitor.common.api.search.SerializedDocument;
+import io.fluxcapacitor.common.api.search.SerializedDocumentUpdate;
 import io.fluxcapacitor.common.search.Document;
 import io.fluxcapacitor.javaclient.FluxCapacitor;
 import io.fluxcapacitor.javaclient.common.Message;
@@ -121,10 +121,10 @@ public class ResultValidator implements Then {
                     return Stream.empty();
                 })).map(d -> fluxCapacitor.documentStore().getSerializer().fromDocument(d)),
         Mockito.mockingDetails(fluxCapacitor.client().getSearchClient()).getInvocations().stream()
-                .filter(i -> i.getMethod().getName().equals("applyBatch"))
+                .filter(i -> i.getMethod().getName().equals("bulkUpdate"))
                 .flatMap(i -> Arrays.stream(i.getArguments()).flatMap(a -> {
                     if (a instanceof Collection<?>) {
-                        return ((Collection<SerializedAction>) a).stream().map(SerializedAction::getObject)
+                        return ((Collection<SerializedDocumentUpdate>) a).stream().map(SerializedDocumentUpdate::getObject)
                                 .filter(Objects::nonNull).map(SerializedDocument::deserializeDocument);
                     }
                     return Stream.empty();

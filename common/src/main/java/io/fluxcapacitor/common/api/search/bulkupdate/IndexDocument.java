@@ -12,17 +12,25 @@
  * limitations under the License.
  */
 
-package io.fluxcapacitor.common.api.search.actions;
+package io.fluxcapacitor.common.api.search.bulkupdate;
 
-import io.fluxcapacitor.common.api.search.Action;
+import io.fluxcapacitor.common.api.search.BulkUpdate;
 import lombok.Value;
 
+import java.time.Instant;
+
+import static io.fluxcapacitor.common.api.search.BulkUpdate.Type.index;
+
 @Value
-public class DeleteAction implements Action {
+public class IndexDocument implements BulkUpdate {
+    Object object;
     String id;
     String collection;
+    Instant timestamp;
+    Instant end;
 
-    public static DeleteAction delete(String id, String collection) {
-        return new DeleteAction(id, collection);
+    @Override
+    public BulkUpdate.Type getType() {
+        return index;
     }
 }

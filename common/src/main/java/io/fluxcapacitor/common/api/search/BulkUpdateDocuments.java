@@ -24,8 +24,8 @@ import java.util.Collection;
 
 @EqualsAndHashCode(callSuper = true)
 @Value
-public class ApplyDocumentUpdates extends Request {
-    Collection<SerializedAction> updates;
+public class BulkUpdateDocuments extends Request {
+    Collection<SerializedDocumentUpdate> updates;
     Guarantee guarantee;
 
     @JsonIgnore
@@ -35,7 +35,7 @@ public class ApplyDocumentUpdates extends Request {
 
     @Override
     public String toString() {
-        return "ApplyDocumentUpdates of length " + updates.size();
+        return "BulkUpdateDocuments of length " + updates.size();
     }
 
     @Override

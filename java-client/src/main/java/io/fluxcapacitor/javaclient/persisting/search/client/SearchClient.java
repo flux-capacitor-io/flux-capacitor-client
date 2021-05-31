@@ -42,7 +42,7 @@ public interface SearchClient extends AutoCloseable {
 
     SearchHistogram getHistogram(GetSearchHistogram request);
 
-    Awaitable applyBatch(Collection<SerializedAction> batch, Guarantee guarantee);
+    Awaitable bulkUpdate(Collection<SerializedDocumentUpdate> updates, Guarantee guarantee);
 
     @Override
     void close();

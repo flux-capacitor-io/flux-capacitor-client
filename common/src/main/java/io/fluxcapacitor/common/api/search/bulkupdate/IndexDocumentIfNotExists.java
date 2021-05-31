@@ -12,23 +12,25 @@
  * limitations under the License.
  */
 
-package io.fluxcapacitor.common.api.search.actions;
+package io.fluxcapacitor.common.api.search.bulkupdate;
 
-import io.fluxcapacitor.common.api.search.Action;
+import io.fluxcapacitor.common.api.search.BulkUpdate;
 import lombok.Value;
 
 import java.time.Instant;
 
+import static io.fluxcapacitor.common.api.search.BulkUpdate.Type.indexIfNotExists;
+
 @Value
-public class IndexIfNotExistsAction implements Action {
+public class IndexDocumentIfNotExists implements BulkUpdate {
     Object object;
     String id;
     String collection;
     Instant timestamp;
     Instant end;
 
-    public static IndexIfNotExistsAction index(Object object, String id, String collection, Instant timestamp, Instant end) {
-        return new IndexIfNotExistsAction(object, id, collection, timestamp, end);
+    @Override
+    public BulkUpdate.Type getType() {
+        return indexIfNotExists;
     }
-
 }

@@ -41,7 +41,7 @@ import java.util.stream.Stream;
 public class WebSocketSearchClient extends AbstractWebsocketClient implements SearchClient {
     private final Backlog<Document> backlog;
     private final Backlog<Document> ifNotExistsBacklog;
-    private final Backlog<SerializedAction> batchBacklog;
+    private final Backlog<SerializedDocumentUpdate> batchBacklog;
 
     public WebSocketSearchClient(String endPointUrl, WebSocketClient.Properties properties) {
         this(URI.create(endPointUrl), properties);
@@ -51,7 +51,7 @@ public class WebSocketSearchClient extends AbstractWebsocketClient implements Se
         super(endpointUri, properties, true, properties.getSearchSessions());
         backlog = new Backlog<>(documents -> storeValues(documents, false));
         ifNotExistsBacklog = new Backlog<>(documents -> storeValues(documents, true));
-        batchBacklog = new Backlog<>(actions -> sendAndForget(new ApplyDocumentUpdates(actions, Guarantee.SENT)));
+        batchBacklog = new Backlog<>(actions -> sendAndForget(new BulkUpdateDocuments(actions, Guarantee.SENT)));
     }
 
     protected Awaitable storeValues(List<Document> documents, boolean ifNotExists) {
@@ -84,7 +84,7 @@ public class WebSocketSearchClient extends AbstractWebsocketClient implements Se
     }
 
     @Override
-    public Awaitable applyBatch(Collection<SerializedAction> batch, Guarantee guarantee) {
+    public Awaitable bulkUpdate(Collection<SerializedDocumentUpdate> batch, Guarantee guarantee) {
         switch (guarantee) {
             case NONE:
                 batchBacklog.add(batch);
@@ -92,7 +92,7 @@ public class WebSocketSearchClient extends AbstractWebsocketClient implements Se
             case SENT:
                 return batchBacklog.add(batch);
             case STORED:
-                CompletableFuture<QueryResult> future = send(new ApplyDocumentUpdates(batch, guarantee));
+                CompletableFuture<QueryResult> future = send(new BulkUpdateDocuments(batch, guarantee));
                 return future::get;
             default:
                 throw new UnsupportedOperationException("Unrecognized guarantee: " + guarantee);

@@ -78,7 +78,7 @@ import io.fluxcapacitor.common.api.tracking.*;
         @JsonSubTypes.Type(value = DeleteCollection.class, name = "deleteCollection"),
         @JsonSubTypes.Type(value = DeleteDocuments.class, name = "deleteDocuments"),
         @JsonSubTypes.Type(value = DeleteDocumentById.class, name = "deleteDocumentById"),
-        @JsonSubTypes.Type(value = ApplyDocumentUpdates.class, name = "applyDocumentUpdates"),
+        @JsonSubTypes.Type(value = BulkUpdateDocuments.class, name = "bulkUpdateDocuments"),
         @JsonSubTypes.Type(value = GetDocumentStats.class, name = "getDocumentStats"),
         @JsonSubTypes.Type(value = SearchDocumentsResult.class, name = "searchDocumentsResult"),
         @JsonSubTypes.Type(value = GetDocumentsResult.class, name = "getDocumentsResult"),
