@@ -14,28 +14,22 @@
 
 package io.fluxcapacitor.common.api.search;
 
+import com.fasterxml.jackson.annotation.JsonSubTypes;
+import com.fasterxml.jackson.annotation.JsonSubTypes.Type;
+import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import io.fluxcapacitor.common.api.search.bulkupdate.DeleteDocument;
 import io.fluxcapacitor.common.api.search.bulkupdate.IndexDocument;
 import io.fluxcapacitor.common.api.search.bulkupdate.IndexDocumentIfNotExists;
+import lombok.NonNull;
 
-import java.time.Instant;
-
+@JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")
+@JsonSubTypes({@Type(IndexDocument.class), @Type(IndexDocumentIfNotExists.class), @Type(DeleteDocument.class)})
 public interface BulkUpdate {
-    String getId();
-    String getCollection();
+    @NonNull String getId();
+
+    @NonNull String getCollection();
+
     Type getType();
-
-    static IndexDocument index(Object object, String id, String collection, Instant timestamp, Instant end) {
-        return new IndexDocument(object, id, collection, timestamp, end);
-    }
-
-    static IndexDocumentIfNotExists indexIfNotExists(Object object, String id, String collection, Instant timestamp, Instant end) {
-        return new IndexDocumentIfNotExists(object, id, collection, timestamp, end);
-    }
-    static DeleteDocument delete(String id, String collection) {
-        return new DeleteDocument(id, collection);
-    }
-
 
     enum Type {
         index, indexIfNotExists, delete;

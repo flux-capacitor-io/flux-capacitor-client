@@ -15,11 +15,15 @@
 package io.fluxcapacitor.common.api.search.bulkupdate;
 
 import io.fluxcapacitor.common.api.search.BulkUpdate;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
 import lombok.Value;
 
 import static io.fluxcapacitor.common.api.search.BulkUpdate.Type.delete;
 
 @Value
+@AllArgsConstructor
+@Builder(toBuilder = true)
 public class DeleteDocument implements BulkUpdate {
     String id;
     String collection;

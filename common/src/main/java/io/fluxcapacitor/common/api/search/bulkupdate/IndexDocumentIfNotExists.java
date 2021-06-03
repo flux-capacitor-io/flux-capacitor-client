@@ -14,7 +14,11 @@
 
 package io.fluxcapacitor.common.api.search.bulkupdate;
 
+import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import io.fluxcapacitor.common.api.search.BulkUpdate;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.NonNull;
 import lombok.Value;
 
 import java.time.Instant;
@@ -22,8 +26,11 @@ import java.time.Instant;
 import static io.fluxcapacitor.common.api.search.BulkUpdate.Type.indexIfNotExists;
 
 @Value
+@AllArgsConstructor
+@Builder(toBuilder = true)
 public class IndexDocumentIfNotExists implements BulkUpdate {
-    Object object;
+    @JsonTypeInfo(use = JsonTypeInfo.Id.CLASS)
+    @NonNull Object object;
     String id;
     String collection;
     Instant timestamp;

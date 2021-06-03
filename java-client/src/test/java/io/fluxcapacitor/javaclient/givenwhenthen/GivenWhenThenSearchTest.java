@@ -15,15 +15,21 @@
 package io.fluxcapacitor.javaclient.givenwhenthen;
 
 import com.fasterxml.jackson.databind.JsonNode;
+import io.fluxcapacitor.common.api.search.BulkUpdate;
 import io.fluxcapacitor.common.api.search.Constraint;
+import io.fluxcapacitor.common.api.search.bulkupdate.DeleteDocument;
+import io.fluxcapacitor.common.api.search.bulkupdate.IndexDocument;
 import io.fluxcapacitor.common.serialization.JsonUtils;
+import io.fluxcapacitor.javaclient.common.serialization.jackson.JacksonSerializer;
 import io.fluxcapacitor.javaclient.test.TestFixture;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
+import lombok.Singular;
 import lombok.Value;
 import org.junit.jupiter.api.Test;
 
 import java.math.BigDecimal;
+import java.time.Instant;
 import java.util.Arrays;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -43,6 +49,7 @@ import static java.util.Collections.singletonList;
 import static java.util.Collections.singletonMap;
 import static java.util.function.Function.identity;
 import static java.util.stream.Collectors.toMap;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
 public class GivenWhenThenSearchTest {
@@ -212,6 +219,24 @@ public class GivenWhenThenSearchTest {
                         && r.get(0).get("payload").get("strategy") == null
                         && r.get(0).get("segment") == null
                         && r.get(0).get("metadata") == null);
+    }
+
+    @Test
+    void testBulkUpdateSerialization() {
+        JacksonSerializer serializer = new JacksonSerializer();
+        var object = MockObjectWithBulkUpdates.builder()
+                .update(new DeleteDocument("id", "test"))
+                .update(IndexDocument.builder().id("id2").collection("test").timestamp(Instant.now())
+                                .object(new SomeDocument().toBuilder().mapList(emptyList()).build()).build()).build();
+        MockObjectWithBulkUpdates serialized = serializer.deserialize(serializer.serialize(object));
+        assertEquals(object, serialized);
+    }
+
+    @Value
+    @Builder
+    private static class MockObjectWithBulkUpdates {
+        @Singular
+        List<BulkUpdate> updates;
     }
 
     private void expectMatch(Constraint... constraints) {
