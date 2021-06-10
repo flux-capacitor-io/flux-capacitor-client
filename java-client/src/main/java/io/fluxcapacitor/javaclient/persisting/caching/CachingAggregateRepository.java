@@ -65,7 +65,7 @@ public class CachingAggregateRepository implements AggregateRepository {
     private final Serializer serializer;
 
     private final AtomicBoolean started = new AtomicBoolean();
-    private volatile Long lastEventIndex;
+    private volatile long lastEventIndex = -1L;
 
     @Override
     public <T> AggregateRoot<T> load(@NonNull String aggregateId, @NonNull Class<T> aggregateType, boolean readOnly,
@@ -88,9 +88,12 @@ public class CachingAggregateRepository implements AggregateRepository {
             start(this::handleEvents, ConsumerConfiguration.builder().messageType(NOTIFICATION)
                     .lastIndex(lastEventIndex = IndexUtils.indexForCurrentTime())
                     .name(CachingAggregateRepository.class.getSimpleName()).build(), client);
+            synchronized (cache) {
+                cache.notifyAll();
+            }
         }
         DeserializingMessage current = DeserializingMessage.getCurrent();
-        if (current != null && lastEventIndex > 0) {
+        if (current != null) {
             switch (current.getMessageType()) {
                 case EVENT:
                 case NOTIFICATION:
