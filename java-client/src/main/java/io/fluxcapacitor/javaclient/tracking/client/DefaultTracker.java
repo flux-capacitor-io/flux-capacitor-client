@@ -99,7 +99,7 @@ public class DefaultTracker implements Runnable, Registration {
     private DefaultTracker(Consumer<List<SerializedMessage>> consumer, ConsumerConfiguration config, Client client) {
         this.tracker = new Tracker(config.prependApplicationName()
                 ? format("%s_%s", client.name(), config.getName()) : config.getName(),
-                config.getTrackerIdFactory().apply(client), config);
+                config.getTrackerIdFactory().apply(client), config, null);
         this.processor = join(config.getBatchInterceptors()).intercept(b -> process(b, consumer), tracker);
         this.trackingClient = client.getTrackingClient(config.getMessageType());
         this.retryDelay = Duration.ofSeconds(1);
@@ -113,6 +113,7 @@ public class DefaultTracker implements Runnable, Registration {
             thread.set(currentThread());
             while (running.get()) {
                 MessageBatch batch = fetch(lastProcessedIndex);
+                Tracker.current.set(tracker.withMessageBatch(batch));
                 processor.accept(batch);
             }
             Tracker.current.remove();

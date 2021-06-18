@@ -14,7 +14,9 @@
 
 package io.fluxcapacitor.javaclient.tracking;
 
+import io.fluxcapacitor.common.api.tracking.MessageBatch;
 import lombok.Value;
+import lombok.With;
 
 import java.util.Optional;
 
@@ -29,4 +31,6 @@ public class Tracker {
     String name;
     String trackerId;
     ConsumerConfiguration configuration;
+    @With
+    MessageBatch messageBatch;
 }
