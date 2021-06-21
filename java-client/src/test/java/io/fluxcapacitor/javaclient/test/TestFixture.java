@@ -80,6 +80,7 @@ import static java.util.Collections.emptyList;
 import static java.util.Collections.singletonList;
 import static java.util.stream.Collectors.toCollection;
 import static java.util.stream.Collectors.toList;
+import static java.util.stream.Collectors.toMap;
 import static java.util.stream.Collectors.toSet;
 
 @Slf4j
@@ -173,10 +174,15 @@ public class TestFixture implements Given, When {
         return registerHandlers(Arrays.asList(handlers));
     }
 
+    @SuppressWarnings("ResultOfMethodCallIgnored")
     public Registration registerHandlers(List<?> handlers) {
         if (handlers.isEmpty()) {
             return Registration.noOp();
         }
+        handlers.stream().collect(toMap(Object::getClass, Function.identity(), (a, b) -> {
+            log.warn("Handler of type {} is registered more than once. Please make sure this is intentional.", a.getClass());
+            return a;
+        }));
         if (!synchronous) {
             return getFluxCapacitor().registerHandlers(handlers);
         }
