@@ -77,7 +77,7 @@ public class InMemoryMessageStore implements GatewayClient, TrackingClient {
     public CompletableFuture<MessageBatch> read(String consumer, String trackerId,
                                                 Long previousLastIndex, ConsumerConfiguration configuration) {
         if (!trackerId.equals(trackers.computeIfAbsent(consumer, c -> trackerId))) {
-            return CompletableFuture.completedFuture(new MessageBatch(new int[]{0, 1}, Collections.emptyList(), null));
+            return CompletableFuture.completedFuture(new MessageBatch(new int[]{0, 128}, Collections.emptyList(), null));
         }
         CompletableFuture<MessageBatch> result = new CompletableFuture<>();
         executorService.submit(() -> {
@@ -100,7 +100,7 @@ public class InMemoryMessageStore implements GatewayClient, TrackingClient {
                     messages = messages.stream().filter(m -> m.getData().getType()
                             .matches(configuration.getTypeFilter())).collect(toList());
                 }
-                result.complete(new MessageBatch(new int[]{0, 1}, messages, lastIndex));
+                result.complete(new MessageBatch(new int[]{0, 128}, messages, lastIndex));
             }
         });
         return result;
