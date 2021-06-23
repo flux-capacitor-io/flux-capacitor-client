@@ -32,13 +32,16 @@ jobs:
           echo ${GITHUB_REF#refs/*/}
           mvn -B versions:set -DnewVersion=${GITHUB_REF#refs/*/}
 
-      - name: Deploy to Maven Central
-        uses: samuelmeuli/action-maven-publish@v1
-        with:
-          gpg_private_key: ${{ secrets.gpg_private_key }}
-          gpg_passphrase: ${{ secrets.gpg_passphrase }}
-          nexus_username: ${{ secrets.nexus_username }}
-          nexus_password: ${{ secrets.nexus_password }}
+#      - name: Deploy to Maven Central
+#        uses: samuelmeuli/action-maven-publish@v1
+#        with:
+#          gpg_private_key: ${{ secrets.gpg_private_key }}
+#          gpg_passphrase: ${{ secrets.gpg_passphrase }}
+#          nexus_username: ${{ secrets.nexus_username }}
+#          nexus_password: ${{ secrets.nexus_password }}
+
+      - name: Run Maven build
+        run: mvn -B install -P deploy
 
       - name: Login to docker hub
         uses: actions-hub/docker/login@master
