@@ -7,6 +7,8 @@ on:
 
 jobs:
   deploy:
+    env:
+      TESTSERVER_DOCKER_REPO: fluxcapacitorio/flux-capacitor-test
     runs-on: ubuntu-latest
     steps:
       - name: Check out Git repository
@@ -37,3 +39,20 @@ jobs:
           gpg_passphrase: ${{ secrets.gpg_passphrase }}
           nexus_username: ${{ secrets.nexus_username }}
           nexus_password: ${{ secrets.nexus_password }}
+
+      - name: Login to docker hub
+        uses: actions-hub/docker/login@master
+        env:
+          DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
+          DOCKER_PASSWORD: ${{ secrets.DOCKER_PASSWORD }}
+
+      - name: Docker build
+        run: |
+          cd test-server
+          docker build -t TESTSERVER_DOCKER_REPO:$GITHUB_SHA -t TESTSERVER_DOCKER_REPO:latest .
+          cd ..
+
+      - name: Push to docker hub
+        uses: actions-hub/docker@master
+        with:
+          args: push TESTSERVER_DOCKER_REPO
