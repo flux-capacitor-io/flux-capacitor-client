@@ -41,6 +41,7 @@ import java.util.function.Consumer;
 import static io.fluxcapacitor.common.IndexUtils.indexFromMillis;
 import static io.fluxcapacitor.javaclient.FluxCapacitor.currentClock;
 import static java.lang.Thread.currentThread;
+import static java.util.concurrent.TimeUnit.MILLISECONDS;
 import static java.util.stream.Collectors.toList;
 
 @Slf4j
@@ -77,7 +78,9 @@ public class InMemoryMessageStore implements GatewayClient, TrackingClient {
     public CompletableFuture<MessageBatch> read(String consumer, String trackerId,
                                                 Long previousLastIndex, ConsumerConfiguration configuration) {
         if (!trackerId.equals(trackers.computeIfAbsent(consumer, c -> trackerId))) {
-            return CompletableFuture.completedFuture(new MessageBatch(new int[]{0, 128}, Collections.emptyList(), null));
+            return CompletableFuture.supplyAsync(
+                    () -> new MessageBatch(new int[]{0, 0}, Collections.emptyList(), null),
+                    CompletableFuture.delayedExecutor(configuration.getMaxWaitDuration().toMillis(), MILLISECONDS));
         }
         CompletableFuture<MessageBatch> result = new CompletableFuture<>();
         executorService.submit(() -> {
