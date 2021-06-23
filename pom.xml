@@ -25,6 +25,7 @@
     <modules>
         <module>common</module>
         <module>java-client</module>
+        <module>test-server</module>
     </modules>
 
     <name>Flux Capacitor</name>
@@ -34,6 +35,7 @@
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <java.version>11</java.version>
+        <spring.version>5.3.8</spring.version>
     </properties>
 
     <dependencies>

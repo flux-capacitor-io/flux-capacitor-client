@@ -1,0 +1,9 @@
+version: '3'
+services:
+  flux-capacitor-test-server:
+    image: flux-capacitor-test-server:latest
+    build:
+      context: .
+    ports:
+      - "5005:5005"
+      - "8888:8888"

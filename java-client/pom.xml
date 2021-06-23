@@ -31,7 +31,6 @@
 
     <properties>
         <hibernate-validator.version>6.2.0.Final</hibernate-validator.version>
-        <spring.version>5.3.8</spring.version>
     </properties>
 
     <dependencies>
