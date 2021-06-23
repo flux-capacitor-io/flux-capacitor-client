@@ -16,6 +16,7 @@ package io.fluxcapacitor.testserver;
 
 import io.fluxcapacitor.common.MessageType;
 import io.fluxcapacitor.javaclient.configuration.client.InMemoryClient;
+import io.fluxcapacitor.javaclient.scheduling.client.InMemorySchedulingClient;
 import io.fluxcapacitor.javaclient.tracking.client.InMemoryMessageStore;
 import io.fluxcapacitor.testserver.endpoints.ConsumerEndpoint;
 import io.fluxcapacitor.testserver.endpoints.EventSourcingEndpoint;
@@ -74,7 +75,7 @@ public class TestServer {
         pathHandler = deploy(projectId -> new KeyValueEndPoint(clients.apply(projectId).getKeyValueClient()), format("/%s/", keyValuePath()), pathHandler);
         pathHandler = deploy(projectId -> new SearchEndpoint(clients.apply(projectId).getSearchClient()), format("/%s/", searchPath()), pathHandler);
         pathHandler = deploy(projectId -> new SchedulingEndpoint(clients.apply(projectId).getSchedulingClient()), format("/%s/", schedulingPath()), pathHandler);
-        pathHandler = deploy(projectId -> new ConsumerEndpoint(getMessageStore(projectId, SCHEDULE), SCHEDULE),
+        pathHandler = deploy(projectId -> new ConsumerEndpoint((InMemorySchedulingClient) clients.apply(projectId).getSchedulingClient(), SCHEDULE),
                              format("/%s/", consumerPath(SCHEDULE)), pathHandler);
         pathHandler = pathHandler.addPrefixPath("/health", exchange -> {
             exchange.getResponseHeaders().put(CONTENT_TYPE, "text/plain");
