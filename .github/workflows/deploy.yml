@@ -41,7 +41,7 @@ jobs:
 #          nexus_password: ${{ secrets.nexus_password }}
 
       - name: Run Maven build
-        run: mvn -B install -P deploy
+        run: mvn -B install
 
       - name: Login to docker hub
         uses: actions-hub/docker/login@master
