@@ -7,8 +7,6 @@ on:
 
 jobs:
   deploy:
-    env:
-      TESTSERVER_DOCKER_REPO: fluxcapacitorio/flux-capacitor-test
     runs-on: ubuntu-latest
     steps:
       - name: Check out Git repository
@@ -52,10 +50,10 @@ jobs:
       - name: Docker build
         run: |
           cd test-server
-          docker build -t TESTSERVER_DOCKER_REPO:${GITHUB_REF#refs/*/} -t TESTSERVER_DOCKER_REPO:latest .
+          docker build -t fluxcapacitorio/flux-capacitor-test:${GITHUB_REF#refs/*/} -t fluxcapacitorio/flux-capacitor-test:latest .
           cd ..
 
       - name: Push to docker hub
         uses: actions-hub/docker@master
         with:
-          args: push TESTSERVER_DOCKER_REPO
+          args: push fluxcapacitorio/flux-capacitor-test
