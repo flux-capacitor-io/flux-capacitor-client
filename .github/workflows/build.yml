@@ -30,3 +30,20 @@ jobs:
 
       - name: Run Maven build
         run: mvn -B install
+
+      - name: Login to docker hub
+        uses: actions-hub/docker/login@master
+        env:
+          DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
+          DOCKER_PASSWORD: ${{ secrets.DOCKER_PASSWORD }}
+
+      - name: Docker build
+        run: |
+          cd test-server
+          docker build -t fluxcapacitorio/flux-capacitor-test:0.001 -t fluxcapacitorio/flux-capacitor-test:latest .
+          cd ..
+
+      - name: Push to docker hub
+        uses: actions-hub/docker@master
+        with:
+          args: push fluxcapacitorio/flux-capacitor-test
