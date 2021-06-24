@@ -23,7 +23,6 @@ import io.fluxcapacitor.common.api.tracking.ReadFromIndexResult;
 import io.fluxcapacitor.common.api.tracking.ReadResult;
 import io.fluxcapacitor.common.api.tracking.ResetPosition;
 import io.fluxcapacitor.common.api.tracking.StorePosition;
-import io.fluxcapacitor.javaclient.tracking.ConsumerConfiguration;
 import io.fluxcapacitor.javaclient.tracking.client.InMemoryMessageStore;
 import io.fluxcapacitor.testserver.Handle;
 import io.fluxcapacitor.testserver.WebsocketEndpoint;
@@ -32,8 +31,8 @@ import lombok.extern.slf4j.Slf4j;
 
 import javax.websocket.CloseReason;
 import javax.websocket.Session;
-import java.time.Duration;
 import java.util.List;
+import java.util.Objects;
 
 @Slf4j
 @AllArgsConstructor
@@ -44,11 +43,7 @@ public class ConsumerEndpoint extends WebsocketEndpoint {
 
     @Handle
     public void handle(Read read, Session session) {
-        store.read(read.getConsumer(), read.getTrackerId(), read.getLastIndex(),
-                   ConsumerConfiguration.builder().readStrategy(read.getStrategy()).messageType(messageType)
-                           .name(read.getConsumer()).typeFilter(
-                                   read.getTypeFilter()).maxFetchBatchSize(read.getMaxSize())
-                           .maxWaitDuration(Duration.ofMillis(read.getMaxTimeout())).build()).whenComplete(
+        store.read(new WebSocketTrackerRead(read, getClientId(session), session.getId(), messageType)).whenComplete(
                 (b, e) -> {
                     if (e != null) {
                         log.error("Failed to complete read", e);
@@ -60,8 +55,7 @@ public class ConsumerEndpoint extends WebsocketEndpoint {
 
     @Handle
     public void handle(StorePosition storePosition) {
-        store
-                .storePosition(storePosition.getConsumer(), storePosition.getSegment(), storePosition.getLastIndex());
+        store.storePosition(storePosition.getConsumer(), storePosition.getSegment(), storePosition.getLastIndex());
     }
 
     @Handle
@@ -84,6 +78,6 @@ public class ConsumerEndpoint extends WebsocketEndpoint {
     @Override
     public void onClose(Session session, CloseReason closeReason) {
         super.onClose(session, closeReason);
-        store.close();
+        store.<WebSocketTrackerRead>disconnectTrackersMatching(t -> Objects.equals(t.getSessionId(), session.getId()));
     }
 }
