@@ -40,7 +40,7 @@ jobs:
       - name: Docker build
         run: |
           cd test-server
-          docker build -t fluxcapacitorio/flux-capacitor-test:0.001 -t fluxcapacitorio/flux-capacitor-test:latest .
+          docker build -t fluxcapacitorio/flux-capacitor-test:0.002 -t fluxcapacitorio/flux-capacitor-test:latest .
           cd ..
 
       - name: Push to docker hub
