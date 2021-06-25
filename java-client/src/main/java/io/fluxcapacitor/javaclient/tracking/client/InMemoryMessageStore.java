@@ -26,6 +26,7 @@ import lombok.extern.slf4j.Slf4j;
 
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -75,10 +76,6 @@ public class InMemoryMessageStore implements GatewayClient, TrackingClient {
         return Awaitable.ready();
     }
 
-    protected boolean shouldWait(Map<Long, SerializedMessage> tailMap) {
-        return tailMap.isEmpty();
-    }
-
     @Override
     public CompletableFuture<MessageBatch> read(String consumer, String trackerId,
                                                 Long previousLastIndex, ConsumerConfiguration configuration) {
@@ -107,14 +104,25 @@ public class InMemoryMessageStore implements GatewayClient, TrackingClient {
                         currentThread().interrupt();
                     }
                 }
-                List<SerializedMessage> messages = new ArrayList<>(tailMap.values())
-                        .subList(0, Math.min(tailMap.size(), trackerRead.getMaxSize()));
+                List<SerializedMessage> messages = filterMessages(new ArrayList<>(tailMap.values()));
+                messages = messages.subList(0, Math.min(messages.size(), trackerRead.getMaxSize()));
                 Long lastIndex = messages.isEmpty() ? null : messages.get(messages.size() - 1).getIndex();
                 messages = messages.stream().filter(trackerRead::canHandle).collect(toList());
                 result.complete(new MessageBatch(new int[]{0, 128}, messages, lastIndex));
             }
         });
         return result;
+    }
+
+    protected boolean shouldWait(Map<Long, SerializedMessage> tailMap) {
+        return filterMessages(tailMap.values()).isEmpty();
+    }
+
+    protected List<SerializedMessage> filterMessages(Collection<SerializedMessage> messages) {
+        if (messages.isEmpty()) {
+            return Collections.emptyList();
+        }
+        return messages instanceof List<?> ? (List<SerializedMessage>) messages : new ArrayList<>(messages);
     }
 
     @Override
