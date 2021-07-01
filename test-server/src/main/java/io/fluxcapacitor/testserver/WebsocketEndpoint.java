@@ -151,12 +151,14 @@ public abstract class WebsocketEndpoint extends Endpoint {
 
     protected void sendResult(Session session, Object result) {
         responseExecutor.execute(() -> {
-            try (OutputStream outputStream = session.getBasicRemote().getSendStream()) {
-                byte[] bytes = objectMapper.writeValueAsBytes(result);
-                outputStream.write(compress(bytes, getCompressionAlgorithm(session)));
-            } catch (Exception e) {
-                log.error("Failed to send websocket result to client {}, id {}",
-                          getClientName(session), getClientId(session), e);
+            if (session.isOpen()) {
+                try (OutputStream outputStream = session.getBasicRemote().getSendStream()) {
+                    byte[] bytes = objectMapper.writeValueAsBytes(result);
+                    outputStream.write(compress(bytes, getCompressionAlgorithm(session)));
+                } catch (Exception e) {
+                    log.error("Failed to send websocket result to client {}, id {}",
+                              getClientName(session), getClientId(session), e);
+                }
             }
         });
     }

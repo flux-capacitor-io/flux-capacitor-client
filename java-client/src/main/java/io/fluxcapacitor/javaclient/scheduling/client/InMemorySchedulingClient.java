@@ -39,14 +39,14 @@ import static java.util.stream.Collectors.toList;
 @Slf4j
 public class InMemorySchedulingClient extends InMemoryMessageStore implements SchedulingClient {
 
-    private final ConcurrentSkipListMap<Long, String> times = new ConcurrentSkipListMap<>();
+    private final ConcurrentSkipListMap<Long, String> scheduleIdsByIndex = new ConcurrentSkipListMap<>();
     private volatile Clock clock = Clock.systemUTC();
 
     @Override
     protected List<SerializedMessage> filterMessages(Collection<SerializedMessage> messages) {
         long maximumIndex = indexFromMillis(clock.millis());
         return super.filterMessages(messages).stream()
-                .filter(m -> m.getIndex() <= maximumIndex && times.containsKey(m.getIndex()))
+                .filter(m -> m.getIndex() <= maximumIndex && scheduleIdsByIndex.containsKey(m.getIndex()))
                 .collect(toList());
     }
 
@@ -55,7 +55,7 @@ public class InMemorySchedulingClient extends InMemoryMessageStore implements Sc
         for (ScheduledMessage schedule : schedules) {
             cancelSchedule(schedule.getScheduleId());
             long index = indexFromMillis(schedule.getTimestamp());
-            while (times.putIfAbsent(index, schedule.getScheduleId()) != null) {
+            while (scheduleIdsByIndex.putIfAbsent(index, schedule.getScheduleId()) != null) {
                 index++;
             }
             schedule.getMessage().setIndex(index);
@@ -66,7 +66,7 @@ public class InMemorySchedulingClient extends InMemoryMessageStore implements Sc
 
     @Override
     public Awaitable cancelSchedule(String scheduleId) {
-        times.values().removeIf(s -> s.equals(scheduleId));
+        scheduleIdsByIndex.values().removeIf(s -> s.equals(scheduleId));
         return Awaitable.ready();
     }
 
@@ -84,7 +84,7 @@ public class InMemorySchedulingClient extends InMemoryMessageStore implements Sc
 
     @SuppressWarnings("OptionalGetWithoutIsPresent")
     public List<Schedule> removeExpiredSchedules(Serializer serializer) {
-        Map<Long, String> expiredEntries = times.headMap(indexFromMillis(clock.millis()), true);
+        Map<Long, String> expiredEntries = scheduleIdsByIndex.headMap(indexFromMillis(clock.millis()), true);
         List<Schedule> result = expiredEntries.entrySet().stream().map(e -> {
             SerializedMessage m = getMessage(e.getKey());
             return new Schedule(
