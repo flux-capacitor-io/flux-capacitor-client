@@ -23,6 +23,7 @@ import io.fluxcapacitor.javaclient.modeling.AggregateRepository;
 import io.fluxcapacitor.javaclient.modeling.AggregateRoot;
 import io.fluxcapacitor.javaclient.persisting.caching.Cache;
 import io.fluxcapacitor.javaclient.persisting.caching.NoOpCache;
+import io.fluxcapacitor.javaclient.tracking.handling.validation.ValidationUtils;
 import lombok.AllArgsConstructor;
 import lombok.RequiredArgsConstructor;
 import lombok.SneakyThrows;
@@ -31,13 +32,13 @@ import lombok.extern.slf4j.Slf4j;
 import java.time.Instant;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.function.BiFunction;
 import java.util.function.Function;
 
 import static io.fluxcapacitor.common.MessageType.EVENT;
@@ -62,8 +63,7 @@ public class EventSourcingRepository implements AggregateRepository {
     private final EventStoreSerializer serializer;
     private final EventSourcingHandlerFactory handlerFactory;
 
-    private final Map<Class<?>, BiFunction<String, Boolean, EventSourcedAggregate<?>>> aggregateFactory =
-            new ConcurrentHashMap<>();
+    private final Map<Class<?>, AggregateFactoryFunction> aggregateFactory = new ConcurrentHashMap<>();
     private final ThreadLocal<Collection<EventSourcedAggregate<?>>> loadedModels = new ThreadLocal<>();
 
     public EventSourcingRepository(EventStore eventStore, SnapshotRepository snapshotRepository, Cache cache,
@@ -91,17 +91,23 @@ public class EventSourcingRepository implements AggregateRepository {
     public <T> AggregateRoot<T> load(String aggregateId, Class<T> aggregateType, boolean readOnly, boolean onlyCached) {
         if (onlyCached) {
             return Optional.<EventSourcedModel<T>>ofNullable(cache.getIfPresent(keyFunction.apply(aggregateId)))
-                    .orElse(null);
+                    .map(m -> {
+                        EventSourcedAggregate<T> aggregate =
+                                createAggregate(aggregateType, aggregateId, readOnly, false);
+                        aggregate.model = m;
+                        return aggregate;
+                    }).orElse(null);
         }
         return ofNullable(loadedModels.get()).orElse(emptyList()).stream()
                 .filter(model -> model.id.equals(aggregateId)
                         && aggregateType.isAssignableFrom(model.getAggregateType()))
                 .map(m -> (EventSourcedAggregate<T>) m)
-                .findAny().orElseGet(() -> createAggregate(aggregateType, aggregateId, readOnly));
+                .findAny().orElseGet(() -> createAggregate(aggregateType, aggregateId, readOnly, true));
     }
 
     @SuppressWarnings("unchecked")
-    protected <T> EventSourcedAggregate<T> createAggregate(Class<T> aggregateType, String aggregateId, boolean readOnly) {
+    protected <T> EventSourcedAggregate<T> createAggregate(Class<T> aggregateType, String aggregateId, boolean readOnly,
+                                                           boolean initialize) {
         return (EventSourcedAggregate<T>) aggregateFactory.computeIfAbsent(aggregateType, t -> {
             EventSourcingHandler<T> eventSourcingHandler = handlerFactory.forType(aggregateType);
             Cache cache = isCached(aggregateType) ? this.cache : NoOpCache.INSTANCE;
@@ -109,14 +115,16 @@ public class EventSourcingRepository implements AggregateRepository {
             SnapshotTrigger snapshotTrigger = snapshotTrigger(aggregateType);
             String domain = domain(aggregateType);
             boolean eventSourced = eventSourced(aggregateType);
-            return (id, ro) -> {
+            return (id, ro, init) -> {
                 EventSourcedAggregate<T> eventSourcedAggregate = new EventSourcedAggregate<>(
                         aggregateType, eventSourcingHandler, cache, serializer, eventStore, snapshotRepository,
                         snapshotTrigger, domain, eventSourced, ro, id);
-                eventSourcedAggregate.initialize();
+                if (init) {
+                    eventSourcedAggregate.initialize();
+                }
                 return eventSourcedAggregate;
             };
-        }).apply(aggregateId, readOnly);
+        }).create(aggregateId, readOnly, initialize);
     }
 
     @SneakyThrows
@@ -263,6 +271,42 @@ public class EventSourcingRepository implements AggregateRepository {
         }
 
         @Override
+        public <E extends Exception> AggregateRoot<T> assertLegal(Object... commands) throws E {
+            switch (commands.length) {
+                case 0:
+                    return this;
+                case 1:
+                    ValidationUtils.assertLegal(commands[0], model);
+                    return this;
+                default:
+                    EventSourcedModel<T> result = model;
+                    Iterator<Object> iterator = Arrays.stream(commands).iterator();
+                    while (iterator.hasNext()) {
+                        Object c = iterator.next();
+                        ValidationUtils.assertLegal(c, result.get());
+                        if (iterator.hasNext()) {
+                            result = forceApply(model, c instanceof Message ? (Message) c : new Message(c));
+                        }
+                    }
+                    return this;
+            }
+        }
+
+        protected EventSourcedModel<T> forceApply(EventSourcedModel<T> model, Message message) {
+            Message eventMessage = message.withMetadata(
+                    message.getMetadata().with(AggregateRoot.AGGREGATE_ID_METADATA_KEY, id,
+                                               AggregateRoot.AGGREGATE_TYPE_METADATA_KEY, getAggregateType().getName()));
+            DeserializingMessage deserializingMessage = new DeserializingMessage(new DeserializingObject<>(
+                    serializer.serialize(message), type -> serializer.convert(eventMessage.getPayload(), type)),
+                                                                                 EVENT);
+            return model.toBuilder().sequenceNumber(model.sequenceNumber() + 1)
+                    .model(eventSourcingHandler.invoke(model.get(), deserializingMessage))
+                    .previous(model).lastEventId(eventMessage.getMessageId()).timestamp(eventMessage.getTimestamp())
+                    .lastEventIndex(deserializingMessage.getSerializedObject().getIndex())
+                    .build();
+        }
+
+        @Override
         public T get() {
             return model.get();
         }
@@ -327,5 +371,10 @@ public class EventSourcingRepository implements AggregateRepository {
             }
             return result;
         }
+    }
+
+    @FunctionalInterface
+    protected interface AggregateFactoryFunction {
+        EventSourcedAggregate<?> create(String aggregateId, boolean readOnly, boolean initialize);
     }
 }

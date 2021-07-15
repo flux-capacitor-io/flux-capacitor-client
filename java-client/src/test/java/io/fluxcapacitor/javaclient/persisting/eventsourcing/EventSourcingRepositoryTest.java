@@ -41,9 +41,18 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 import static io.fluxcapacitor.javaclient.FluxCapacitor.loadAggregate;
 import static io.fluxcapacitor.javaclient.modeling.AssertLegal.HIGHEST_PRIORITY;
-import static org.junit.jupiter.api.Assertions.*;
-import static org.mockito.ArgumentMatchers.*;
-import static org.mockito.Mockito.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyList;
+import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
+import static org.mockito.Mockito.when;
 
 @Slf4j
 class EventSourcingRepositoryTest {
@@ -262,12 +271,13 @@ class EventSourcingRepositoryTest {
                     .whenCommand(new UpdateModel())
                     .expectThat(fc -> {
                         verify(testFixture.getFluxCapacitor().client().getEventStoreClient(),
-                                times(0)).getEvents(anyString(), anyLong());
+                               times(0)).getEvents(anyString(), anyLong());
                         verify(testFixture.getFluxCapacitor().client().getKeyValueClient(), times(1))
                                 .putValue(anyString(), any(), any());
-                        TestModelNotEventSourced result = loadAggregate(aggregateId, TestModelNotEventSourced.class).get();
-                        assertTrue(result.getNames().size()==2
-                                && result.getNames().get(1).equals(UpdateModel.class.getSimpleName()));
+                        TestModelNotEventSourced result =
+                                loadAggregate(aggregateId, TestModelNotEventSourced.class).get();
+                        assertTrue(result.getNames().size() == 2
+                                           && result.getNames().get(1).equals(UpdateModel.class.getSimpleName()));
                     });
         }
 
@@ -320,6 +330,14 @@ class EventSourcingRepositoryTest {
         @Test
         void testUpdateWithLegalCheckOnNonExistingModelFails() {
             testFixture.givenNoPriorActivity().whenCommand(new UpdateModelWithAssertion())
+                    .expectException(MockException.class);
+        }
+
+        @Test
+        void testMultiAssert() {
+            testFixture.givenNoPriorActivity().whenApplying(
+                    fc -> fc.aggregateRepository().load(aggregateId, Normal.TestModel.class)
+                            .assertLegal(new CreateModel(), new CommandWithAssertionInInterface()))
                     .expectException(MockException.class);
         }
 

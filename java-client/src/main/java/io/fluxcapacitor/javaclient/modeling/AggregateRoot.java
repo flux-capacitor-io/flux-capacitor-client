@@ -80,6 +80,8 @@ public interface AggregateRoot<T> {
         return this;
     }
 
+    <E extends Exception> AggregateRoot<T> assertLegal(Object... commands) throws E;
+
     default <E extends Exception> AggregateRoot<T> assertThat(Validator<T, E> validator) throws E {
         validator.validate(this.get());
         return this;

@@ -54,18 +54,25 @@ public class ValidationUtils {
         Check object validity
      */
 
-    public static Optional<ValidationException> checkValidity(Object object, Class<?>... group) {
-        return defaultValidator.checkValidity(object, group);
+    public static Optional<ValidationException> checkValidity(Object object, Class<?>... groups) {
+        return defaultValidator.checkValidity(object, groups);
     }
 
-    public static boolean isValid(Object object, Class<?>... group) {
-        return defaultValidator.isValid(object, group);
+    public static boolean isValid(Object object, Class<?>... groups) {
+        return defaultValidator.isValid(object, groups);
     }
 
-    public static void assertValid(Object object, Class<?>... group) {
-        defaultValidator.assertValid(object, group);
+    public static void assertValid(Object object, Class<?>... groups) {
+        defaultValidator.assertValid(object, groups);
     }
 
+    public static void assertValid(Object[] objects, Class<?>... groups) {
+        Arrays.stream(objects).forEach(o -> assertValid(o, groups));
+    }
+
+    public static void assertValid(List<Object> objects, Class<?>... groups) {
+        objects.forEach(o -> assertValid(o, groups));
+    }
 
     /*
         Check command / query legality

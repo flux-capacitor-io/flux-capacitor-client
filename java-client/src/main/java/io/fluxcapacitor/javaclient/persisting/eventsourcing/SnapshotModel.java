@@ -65,4 +65,9 @@ public class SnapshotModel<T> implements AggregateRoot<T> {
         throw new UnsupportedOperationException(format("Not allowed to apply a %s. The model is readonly.",
                 eventMessage));
     }
+
+    @Override
+    public <E extends Exception> AggregateRoot<T> assertLegal(Object... commands) throws E {
+        throw new UnsupportedOperationException();
+    }
 }

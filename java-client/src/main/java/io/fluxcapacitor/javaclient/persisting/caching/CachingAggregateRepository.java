@@ -18,6 +18,7 @@ import io.fluxcapacitor.common.IndexUtils;
 import io.fluxcapacitor.common.api.SerializedMessage;
 import io.fluxcapacitor.javaclient.common.Message;
 import io.fluxcapacitor.javaclient.common.serialization.DeserializingMessage;
+import io.fluxcapacitor.javaclient.common.serialization.DeserializingObject;
 import io.fluxcapacitor.javaclient.common.serialization.Serializer;
 import io.fluxcapacitor.javaclient.configuration.client.Client;
 import io.fluxcapacitor.javaclient.modeling.AggregateRepository;
@@ -25,6 +26,7 @@ import io.fluxcapacitor.javaclient.modeling.AggregateRoot;
 import io.fluxcapacitor.javaclient.persisting.eventsourcing.EventSourcingHandler;
 import io.fluxcapacitor.javaclient.persisting.eventsourcing.EventSourcingHandlerFactory;
 import io.fluxcapacitor.javaclient.tracking.ConsumerConfiguration;
+import io.fluxcapacitor.javaclient.tracking.handling.validation.ValidationUtils;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.NonNull;
@@ -36,6 +38,8 @@ import lombok.extern.slf4j.Slf4j;
 
 import java.time.Duration;
 import java.time.Instant;
+import java.util.Arrays;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
@@ -112,8 +116,9 @@ public class CachingAggregateRepository implements AggregateRepository {
                             }
                             Duration fetchDuration = Duration.between(start, Instant.now());
                             if (fetchDuration.compareTo(slowTrackingThreshold) > 0) {
-                                log.warn("It took over {} to load aggregate {} of type {}. This indicates that the tracker in the caching aggregate repo has trouble keeping up.",
-                                         fetchDuration, aggregateId, type);
+                                log.warn(
+                                        "It took over {} to load aggregate {} of type {}. This indicates that the tracker in the caching aggregate repo has trouble keeping up.",
+                                        fetchDuration, aggregateId, type);
                             }
                         }
                     }
@@ -125,9 +130,14 @@ public class CachingAggregateRepository implements AggregateRepository {
         }
         return cache
                 .get(keyFunction.apply(aggregateId), cacheKey -> Optional.ofNullable(delegate.load(aggregateId, type))
-                        .map(a -> new RefreshingAggregateRoot<>(a.get(), aggregateId, type, a.previous(), a.lastEventId(),
-                                                            a.lastEventIndex(), a.timestamp(),
-                                                            RefreshingAggregateRoot.Status.UNVERIFIED))
+                        .map(a -> {
+                            EventSourcingHandler<T> handler = handlerFactory.forType(type);
+                            return new RefreshingAggregateRoot<>(a.get(), handler, serializer,
+                                                                 aggregateId, type, a.previous(),
+                                                                 a.lastEventId(),
+                                                                 a.lastEventIndex(), a.timestamp(),
+                                                                 Status.UNVERIFIED);
+                        })
                         .orElse(null));
     }
 
@@ -164,28 +174,32 @@ public class CachingAggregateRepository implements AggregateRepository {
         Instant timestamp = ofEpochMilli(event.getSerializedObject().getTimestamp());
         RefreshingAggregateRoot<T> aggregate = cache.getIfPresent(cacheKey);
 
-        if (aggregate == null || aggregate.status == RefreshingAggregateRoot.Status.UNVERIFIED) {
+        if (aggregate == null || aggregate.status == Status.UNVERIFIED) {
             aggregate =
-                    Optional.ofNullable(delegate.load(aggregateId, type, true, false)).map(a -> new RefreshingAggregateRoot<>(
-                            a.get(), a.id(), a.type(),
-                            a.previous(), a.lastEventId(), a.lastEventIndex(), a.timestamp(), Objects.equals(a.lastEventId(), eventId)
-                                    ? RefreshingAggregateRoot.Status.IN_SYNC : RefreshingAggregateRoot.Status.AHEAD))
+                    Optional.ofNullable(delegate.load(aggregateId, type, true, false))
+                            .map(a -> new RefreshingAggregateRoot<>(
+                                    a.get(), handler, serializer, a.id(), a.type(),
+                                    a.previous(), a.lastEventId(), a.lastEventIndex(), a.timestamp(),
+                                    Objects.equals(a.lastEventId(), eventId)
+                                            ? Status.IN_SYNC :
+                                            Status.AHEAD))
                             .orElseGet(() -> {
                                 log.warn("Delegate repository did not contain aggregate with id {} of type {}",
                                          aggregateId, type);
                                 return null;
                             });
-        } else if (aggregate.status == RefreshingAggregateRoot.Status.IN_SYNC) {
+        } else if (aggregate.status == Status.IN_SYNC) {
             try {
-                aggregate = new RefreshingAggregateRoot<>(handler.invoke(aggregate.get(), event), aggregate.id(),
-                                                      aggregate.type(), aggregate, eventId, eventIndex, timestamp,
-                                                      RefreshingAggregateRoot.Status.IN_SYNC);
+                aggregate =
+                        new RefreshingAggregateRoot<>(handler.invoke(aggregate.get(), event), handler, serializer,
+                                                      aggregate.id(), aggregate.type(), aggregate, eventId,
+                                                      eventIndex, timestamp, Status.IN_SYNC);
             } catch (Exception e) {
                 log.error("Failed to update aggregate with id {} of type {}", aggregateId, type, e);
                 aggregate = null;
             }
         } else if (eventId.equals(aggregate.lastEventId)) {
-            aggregate = aggregate.toBuilder().status(RefreshingAggregateRoot.Status.IN_SYNC).build();
+            aggregate = aggregate.toBuilder().status(Status.IN_SYNC).build();
         }
 
         if (aggregate == null) {
@@ -212,6 +226,8 @@ public class CachingAggregateRepository implements AggregateRepository {
     private static class RefreshingAggregateRoot<T> implements AggregateRoot<T> {
         @ToString.Exclude
         T model;
+        EventSourcingHandler<T> handler;
+        Serializer serializer;
         String id;
         Class<T> type;
         @ToString.Exclude
@@ -232,8 +248,43 @@ public class CachingAggregateRepository implements AggregateRepository {
                     format("Not allowed to apply a %s. The aggregate is readonly.", eventMessage));
         }
 
-        private enum Status {
-            IN_SYNC, AHEAD, UNVERIFIED
+        @Override
+        public <E extends Exception> AggregateRoot<T> assertLegal(Object... commands) throws E {
+            switch (commands.length) {
+                case 0:
+                    return this;
+                case 1:
+                    ValidationUtils.assertLegal(commands[0], model);
+                    return this;
+                default:
+                    RefreshingAggregateRoot<T> result = this;
+                    Iterator<Object> iterator = Arrays.stream(commands).iterator();
+                    while (iterator.hasNext()) {
+                        Object c = iterator.next();
+                        ValidationUtils.assertLegal(c, result.get());
+                        if (iterator.hasNext()) {
+                            result = result.forceApply(c);
+                        }
+                    }
+                    return this;
+            }
         }
+
+        private RefreshingAggregateRoot<T> forceApply(Object event) {
+            Message message = event instanceof Message ? (Message) event : new Message(event);
+            Message eventMessage = message.withMetadata(
+                    message.getMetadata().with(AggregateRoot.AGGREGATE_ID_METADATA_KEY, id,
+                                               AggregateRoot.AGGREGATE_TYPE_METADATA_KEY, type.getName()));
+            DeserializingMessage deserializingMessage = new DeserializingMessage(new DeserializingObject<>(
+                    eventMessage.serialize(serializer), type -> serializer.convert(eventMessage.getPayload(), type)),
+                                                                                 EVENT);
+            return new RefreshingAggregateRoot<>(handler.invoke(model, deserializingMessage), handler, serializer,
+                                                 id, type, this, eventMessage.getMessageId(),
+                                                 null, timestamp, status);
+        }
+    }
+
+    private enum Status {
+        IN_SYNC, AHEAD, UNVERIFIED
     }
 }
