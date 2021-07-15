@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016-2020 Flux Capacitor.
+ * Copyright (c) 2016-2021 Flux Capacitor.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -32,7 +32,6 @@ public class CacheInvalidatingInterceptor implements BatchInterceptor {
     public Consumer<MessageBatch> intercept(Consumer<MessageBatch> consumer, Tracker tracker) {
         return batch -> {
             if (shouldInvalidateCache(batch.getSegment())) {
-                log.info("Consumer segment changed (tracker {}). Invalidating event model caches.", tracker);
                 try {
                     cache.invalidateAll();
                 } catch (Exception e) {

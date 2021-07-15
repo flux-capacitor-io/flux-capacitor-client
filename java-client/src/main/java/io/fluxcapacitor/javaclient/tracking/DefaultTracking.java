@@ -115,8 +115,11 @@ public class DefaultTracking implements Tracking {
         Consumer<List<SerializedMessage>> consumer = createConsumer(configuration, handlers);
         List<BatchInterceptor> batchInterceptors = new ArrayList<>(
                 Collections.singletonList(new FluxCapacitorInterceptor(fluxCapacitor)));
-        if (configuration.getMessageType() == MessageType.COMMAND) {
-            batchInterceptors.add(new CacheInvalidatingInterceptor(fluxCapacitor.cache()));
+        switch (configuration.getMessageType()) {
+            case COMMAND:
+            case EVENT:
+                batchInterceptors.add(new CacheInvalidatingInterceptor(fluxCapacitor.cache()));
+                break;
         }
         batchInterceptors.addAll(configuration.getBatchInterceptors());
         configuration = configuration.toBuilder().clearBatchInterceptors().batchInterceptors(batchInterceptors).build();
