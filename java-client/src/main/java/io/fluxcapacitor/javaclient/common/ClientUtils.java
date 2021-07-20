@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016-2020 Flux Capacitor.
+ * Copyright (c) 2016-2021 Flux Capacitor.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -21,17 +21,17 @@ import java.lang.reflect.Executable;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.Collection;
-import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
 @Slf4j
 public class ClientUtils {
 
-    public static void waitForResults(Duration maxDuration, Collection<? extends CompletableFuture<?>> futures) {
+    public static void waitForResults(Duration maxDuration, Collection<? extends Future<?>> futures) {
         Instant deadline = Instant.now().plus(maxDuration);
-        for (CompletableFuture<?> f : futures) {
+        for (Future<?> f : futures) {
             try {
                 f.get(Math.max(0, Duration.between(Instant.now(), deadline).toMillis()), TimeUnit.MILLISECONDS);
             } catch (InterruptedException e) {

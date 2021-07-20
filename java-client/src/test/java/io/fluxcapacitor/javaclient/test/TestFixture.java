@@ -149,7 +149,7 @@ public class TestFixture implements Given, When {
     private final Registration registration;
     private final GivenWhenThenInterceptor interceptor;
 
-    private final Map<Tracker, List<Message>> consumers = new ConcurrentHashMap<>();
+    private final Map<ConsumerConfiguration, List<Message>> consumers = new ConcurrentHashMap<>();
     private final List<Message> commands = new CopyOnWriteArrayList<>(), events = new CopyOnWriteArrayList<>();
     private final List<Schedule> schedules = new CopyOnWriteArrayList<>();
 
@@ -580,7 +580,7 @@ public class TestFixture implements Given, When {
                     Message interceptedMessage = message;
                     consumers.entrySet().stream()
                             .filter(t -> {
-                                ConsumerConfiguration configuration = t.getKey().getConfiguration();
+                                ConsumerConfiguration configuration = t.getKey();
                                 return (configuration.getMessageType() == messageType && Optional
                                         .ofNullable(configuration.getTypeFilter())
                                         .map(f -> interceptedMessage.getPayload().getClass().getName().matches(f))
@@ -615,12 +615,11 @@ public class TestFixture implements Given, When {
 
         @Override
         public Consumer<MessageBatch> intercept(Consumer<MessageBatch> consumer, Tracker tracker) {
-            List<Message> messages =
-                    publishedSchedules.getOrDefault(tracker.getConfiguration().getMessageType(), emptyList()).stream()
-                            .filter(m -> Optional.ofNullable(tracker.getConfiguration().getTypeFilter())
-                                    .map(f -> m.getPayload().getClass().getName().matches(f)).orElse(true))
-                            .collect(toCollection(CopyOnWriteArrayList::new));
-            consumers.put(tracker, messages);
+            List<Message> messages = consumers.computeIfAbsent(
+                    tracker.getConfiguration(), c -> publishedSchedules.getOrDefault(
+                            c.getMessageType(), emptyList()).stream().filter(m -> Optional.ofNullable(c.getTypeFilter())
+                            .map(f -> m.getPayload().getClass().getName().matches(f)).orElse(true))
+                    .collect(toCollection(CopyOnWriteArrayList::new)));
             return b -> {
                 consumer.accept(b);
                 Collection<String> messageIds =
@@ -642,7 +641,7 @@ public class TestFixture implements Given, When {
                             && isLocalHandlerMethod(handler.getTarget().getClass(), handler.getMethod(m))) {
                         synchronized (consumers) {
                             consumers.entrySet().stream()
-                                    .filter(t -> t.getKey().getConfiguration().getMessageType() == m.getMessageType())
+                                    .filter(t -> t.getKey().getMessageType() == m.getMessageType())
                                     .forEach(e -> e.getValue().removeIf(
                                             m2 -> m2.getMessageId()
                                                     .equals(m.getSerializedObject().getMessageId())));
@@ -655,7 +654,7 @@ public class TestFixture implements Given, When {
 
         @Override
         public void shutdown(Tracker tracker) {
-            consumers.remove(tracker);
+            consumers.remove(tracker.getConfiguration());
             checkConsumers();
         }
     }

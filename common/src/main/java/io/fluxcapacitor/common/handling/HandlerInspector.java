@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016-2020 Flux Capacitor.
+ * Copyright (c) 2016-2021 Flux Capacitor.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -261,7 +261,7 @@ public class HandlerInspector {
                         .reduce((a, b) -> b).orElse(null);
             }
             Optional<HandlerInvoker<M>> delegate = handlerStream.findFirst();
-            if (!delegate.isPresent()) {
+            if (delegate.isEmpty()) {
                 throw new HandlerNotFoundException(format("No method found on %s that could handle %s", type, message));
             }
             return delegate.get().invoke(target, message);
