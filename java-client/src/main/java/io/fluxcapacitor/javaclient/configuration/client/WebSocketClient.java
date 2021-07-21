@@ -29,6 +29,7 @@ import lombok.NonNull;
 import lombok.Value;
 
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
 import java.util.function.Function;
@@ -83,17 +84,30 @@ public class WebSocketClient extends AbstractClient {
         @Default int eventSourcingSessions = 2;
         @Default int keyValueSessions = 2;
         @Default int searchSessions = 2;
-        @Default Map<MessageType, Integer> gatewaySessions = computeGatewaySessions();
-        @Default Map<MessageType, Integer> trackingSessions = computeTrackingSessions();
+        @Default Map<MessageType, Integer> gatewaySessions = defaultGatewaySessions();
+        @Default Map<MessageType, Integer> trackingSessions = defaultTrackingSessions();
         String projectId;
         String typeFilter;
 
-        private static Map<MessageType, Integer> computeGatewaySessions() {
+        Properties withGatewaySessions(MessageType messageType, int count) {
+            HashMap<MessageType, Integer> config = new HashMap<>(gatewaySessions);
+            config.put(messageType, count);
+            return toBuilder().gatewaySessions(config).build();
+        }
+
+        Properties withTrackingSessions(MessageType messageType, int count) {
+            HashMap<MessageType, Integer> config = new HashMap<>(trackingSessions);
+            config.put(messageType, count);
+            return toBuilder().trackingSessions(config).build();
+        }
+
+        private static Map<MessageType, Integer> defaultGatewaySessions() {
             return Arrays.stream(MessageType.values()).collect(toMap(Function.identity(), t -> 1));
         }
 
-        private static Map<MessageType, Integer> computeTrackingSessions() {
+        private static Map<MessageType, Integer> defaultTrackingSessions() {
             return Arrays.stream(MessageType.values()).collect(toMap(Function.identity(), t -> 1));
         }
+
     }
 }

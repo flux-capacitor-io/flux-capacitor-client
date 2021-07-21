@@ -48,7 +48,10 @@ public class SessionPool implements Supplier<Session>, AutoCloseable {
     @Override
     public Session get() {
         AtomicReference<Session> reference =
-                sessions.get(counter.getAndAccumulate(1, (index, inc) -> index + inc >= size ? 0 : index));
+                sessions.get(counter.getAndAccumulate(1, (i, inc) -> {
+                    int newIndex = i + inc;
+                    return newIndex >= size ? 0 : newIndex;
+                }));
         return reference.updateAndGet(s -> {
             if (isClosed(s)) {
                 synchronized (shuttingDown) {
@@ -83,6 +86,11 @@ public class SessionPool implements Supplier<Session>, AutoCloseable {
     }
 
     private static boolean isClosed(Session session) {
-        return session == null || !session.isOpen();
+        try {
+            return session == null || !session.isOpen();
+        } catch (Exception e) {
+            log.error("Failed to check if session is open", e);
+            return true;
+        }
     }
 }
