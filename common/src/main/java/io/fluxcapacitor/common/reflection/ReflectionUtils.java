@@ -55,6 +55,7 @@ import static org.apache.commons.lang3.reflect.MethodUtils.getMethodsListWithAnn
 public class ReflectionUtils {
 
     private static final Function<Class<?>, List<Method>> methodsCache = memoize(ReflectionUtils::computeAllMethods);
+    private static final Function<String, Class<?>> classForNameCache = memoize(ReflectionUtils::computeClass);
 
     public static List<Method> getAllMethods(Class<?> type) {
         return methodsCache.apply(type);
@@ -205,5 +206,14 @@ public class ReflectionUtils {
         return Stream.concat(Arrays.stream(type.getAnnotations()), Arrays.stream(type.getAnnotatedInterfaces())
                 .map(AnnotatedType::getType).filter(t ->  t instanceof Class<?>).map(t -> (Class<?>) t)
                 .flatMap(i -> Arrays.stream(i.getAnnotations()))).collect(toCollection(LinkedHashSet::new));
+    }
+
+    public static Class<?> classForName(String type) {
+        return classForNameCache.apply(type);
+    }
+
+    @SneakyThrows
+    private static Class<?> computeClass(String type) {
+        return Class.forName(type);
     }
 }

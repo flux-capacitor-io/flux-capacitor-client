@@ -14,6 +14,7 @@
 
 package io.fluxcapacitor.common;
 
+import io.fluxcapacitor.common.reflection.ReflectionUtils;
 import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
 
@@ -78,16 +79,11 @@ public class FileUtils {
                 .map(StackTraceElement::getClassName)
                 .filter(callerClassFilter())
                 .findFirst()
-                .map(FileUtils::forName)
+                .map(ReflectionUtils::classForName)
                 .orElseThrow(() -> new IllegalStateException("Could not find caller class"));
     }
 
     public static Predicate<String> callerClassFilter() {
         return c -> !c.startsWith("io.fluxcapacitor");
-    }
-
-    @SneakyThrows
-    private static Class<?> forName(String name) {
-        return Class.forName(name);
     }
 }

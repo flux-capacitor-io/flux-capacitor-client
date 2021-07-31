@@ -16,6 +16,7 @@ package io.fluxcapacitor.javaclient.common.serialization;
 
 import io.fluxcapacitor.common.api.Data;
 import io.fluxcapacitor.common.api.SerializedObject;
+import io.fluxcapacitor.common.reflection.ReflectionUtils;
 import io.fluxcapacitor.common.serialization.Revision;
 import io.fluxcapacitor.javaclient.common.serialization.upcasting.Upcaster;
 import lombok.extern.slf4j.Slf4j;
@@ -135,7 +136,7 @@ public abstract class AbstractSerializer implements Serializer {
 
     protected boolean isKnownType(String type) {
         try {
-            Class.forName(type);
+            ReflectionUtils.classForName(type);
             return true;
         } catch (Exception e) {
             return false;

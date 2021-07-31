@@ -99,6 +99,7 @@ public class HandlerInspector {
         private final Predicate<? super M> matcher;
         private final Class<? extends Annotation> methodAnnotation;
         private final int priority;
+        private final boolean passive;
 
         public MethodHandlerInvoker(Executable executable, Class<?> enclosingType,
                                     List<ParameterResolver<? super M>> parameterResolvers,
@@ -111,6 +112,7 @@ public class HandlerInspector {
             this.parameterSuppliers = getParameterSuppliers(executable, parameterResolvers);
             this.matcher = getMatcher(executable, parameterResolvers);
             this.priority = getPriority(executable, methodAnnotation);
+            this.passive = isExecutablePassive(executable, methodAnnotation);
         }
 
         @Override
@@ -159,9 +161,11 @@ public class HandlerInspector {
         @Override
         @SneakyThrows
         public boolean isPassive(Object target, M message) {
-            if (!canHandle(target, message)) {
-                return true;
-            }
+            return !canHandle(target, message) || passive;
+        }
+
+        @SneakyThrows
+        protected boolean isExecutablePassive(Executable method, Class<? extends Annotation> methodAnnotation) {
             Annotation annotation = executable.getAnnotation(methodAnnotation);
             Optional<Method> isPassive = Arrays.stream(methodAnnotation.getMethods())
                     .filter(m -> m.getName().equals("passive")).findFirst();

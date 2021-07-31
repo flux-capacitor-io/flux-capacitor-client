@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016-2020 Flux Capacitor.
+ * Copyright (c) 2016-2021 Flux Capacitor.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,6 +15,7 @@
 package io.fluxcapacitor.javaclient.modeling;
 
 import io.fluxcapacitor.common.handling.ParameterResolver;
+import io.fluxcapacitor.common.reflection.ReflectionUtils;
 import io.fluxcapacitor.javaclient.common.serialization.DeserializingMessage;
 import lombok.extern.slf4j.Slf4j;
 
@@ -35,8 +36,9 @@ public class AggregateTypeResolver implements ParameterResolver<DeserializingMes
     public static Class<?> getAggregateType(DeserializingMessage message) {
         return Optional.ofNullable(message.getMetadata().get(AggregateRoot.AGGREGATE_TYPE_METADATA_KEY)).map(c -> {
             try {
-                return Class.forName(c);
-            } catch (ClassNotFoundException e) {
+                return ReflectionUtils.classForName(c);
+            } catch (Exception e) {
+                log.warn("Could not instantiate Aggregate class from message", e);
                 return null;
             }
         }).orElse(null);

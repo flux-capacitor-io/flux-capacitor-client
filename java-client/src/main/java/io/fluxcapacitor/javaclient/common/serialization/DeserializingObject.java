@@ -16,6 +16,7 @@ package io.fluxcapacitor.javaclient.common.serialization;
 
 import io.fluxcapacitor.common.ObjectUtils;
 import io.fluxcapacitor.common.api.SerializedObject;
+import io.fluxcapacitor.common.reflection.ReflectionUtils;
 import lombok.SneakyThrows;
 import lombok.ToString;
 
@@ -62,6 +63,6 @@ public class DeserializingObject<T, S extends SerializedObject<T, S>> {
     @SneakyThrows
     @SuppressWarnings("unused")
     public Class<?> getPayloadClass() {
-        return Class.forName(getType());
+        return ReflectionUtils.classForName(getType());
     }
 }
