@@ -24,10 +24,7 @@ import io.fluxcapacitor.javaclient.scheduling.client.SchedulingClient;
 import io.fluxcapacitor.javaclient.tracking.handling.HandlerRegistry;
 import lombok.AllArgsConstructor;
 
-import java.time.Duration;
-
 import static io.fluxcapacitor.common.IndexUtils.indexFromTimestamp;
-import static io.fluxcapacitor.javaclient.FluxCapacitor.currentClock;
 
 @AllArgsConstructor
 public class DefaultScheduler implements Scheduler {
@@ -47,11 +44,6 @@ public class DefaultScheduler implements Scheduler {
             throw new SchedulerException(String.format("Failed to schedule message %s for %s", message.getPayload(),
                                                        message.getDeadline()), e);
         }
-    }
-
-    @Override
-    public void schedule(Object schedule, String scheduleId, Duration delay) {
-        schedule(schedule, scheduleId, currentClock().instant().plus(delay));
     }
 
     @Override

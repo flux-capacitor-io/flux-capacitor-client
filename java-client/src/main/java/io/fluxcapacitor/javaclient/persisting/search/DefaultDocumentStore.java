@@ -15,11 +15,19 @@
 package io.fluxcapacitor.javaclient.persisting.search;
 
 import io.fluxcapacitor.common.Guarantee;
-import io.fluxcapacitor.common.api.search.*;
+import io.fluxcapacitor.common.api.search.BulkUpdate;
+import io.fluxcapacitor.common.api.search.Constraint;
+import io.fluxcapacitor.common.api.search.CreateAuditTrail;
+import io.fluxcapacitor.common.api.search.DocumentStats;
+import io.fluxcapacitor.common.api.search.GetSearchHistogram;
+import io.fluxcapacitor.common.api.search.SearchDocuments;
+import io.fluxcapacitor.common.api.search.SearchHistogram;
+import io.fluxcapacitor.common.api.search.SearchQuery;
+import io.fluxcapacitor.common.api.search.SerializedDocument;
+import io.fluxcapacitor.common.api.search.SerializedDocumentUpdate;
 import io.fluxcapacitor.common.api.search.bulkupdate.IndexDocument;
 import io.fluxcapacitor.common.api.search.bulkupdate.IndexDocumentIfNotExists;
 import io.fluxcapacitor.common.search.Document;
-import io.fluxcapacitor.javaclient.common.IdentityProvider;
 import io.fluxcapacitor.javaclient.persisting.search.client.SearchClient;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
@@ -30,12 +38,17 @@ import lombok.extern.slf4j.Slf4j;
 import javax.annotation.Nullable;
 import java.time.Duration;
 import java.time.Instant;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.List;
+import java.util.Objects;
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Function;
 import java.util.stream.Stream;
 
-import static io.fluxcapacitor.javaclient.FluxCapacitor.currentIdentityProvider;
+import static io.fluxcapacitor.javaclient.FluxCapacitor.generateId;
 import static java.lang.String.format;
 import static java.util.Collections.singletonList;
 import static java.util.function.UnaryOperator.identity;
@@ -64,9 +77,8 @@ public class DefaultDocumentStore implements DocumentStore {
     public <T> CompletableFuture<Void> index(Collection<? extends T> objects, String collection,
                                              @Nullable String idPath, @Nullable String timestampPath,
                                              @Nullable String endPath, Guarantee guarantee, boolean ifNotExists) {
-        IdentityProvider identityProvider = currentIdentityProvider();
         List<Document> documents = objects.stream().map(v -> serializer.toDocument(
-                v, identityProvider.nextId(), collection, null, null)).map(d -> {
+                v, generateId(), collection, null, null)).map(d -> {
             Document.DocumentBuilder builder = d.toBuilder();
             if (idPath != null) {
                 builder.id(d.getEntryAtPath(idPath).map(Document.Entry::getValue).orElseThrow(

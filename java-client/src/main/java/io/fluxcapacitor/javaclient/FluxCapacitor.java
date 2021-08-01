@@ -130,13 +130,12 @@ public interface FluxCapacitor extends AutoCloseable {
     }
 
     /**
-     * Gets the clock of the current FluxCapacitor instance (obtained via {@link #getOptionally()}). If there is no
-     * current instance the system's UTC clock is returned.
+     * Gets the {@link IdentityProvider} of the current FluxCapacitor to generate a unique identifier.
+     * If there is no current FluxCapacitor instance a new UUID is generated.
      */
-    static IdentityProvider currentIdentityProvider() {
-        return getOptionally().map(FluxCapacitor::identityProvider).orElseGet(UuidFactory::new);
+    static String generateId() {
+        return getOptionally().map(FluxCapacitor::identityProvider).orElseGet(UuidFactory::new).nextId();
     }
-
 
     /**
      * Gets the current correlation data, which by default depends on the current {@link Client}, {@link Tracker} and
@@ -253,6 +252,15 @@ public interface FluxCapacitor extends AutoCloseable {
      */
     static <R> R queryAndWait(Object payload, Metadata metadata) {
         return get().queryGateway().sendAndWait(payload, metadata);
+    }
+
+    /**
+     * Schedules a message with given {@code scheduleId} for the given timestamp. The {@code schedule} parameter may
+     * be an instance of a {@link Message} in which case it will be scheduled as is. Otherwise the schedule is published
+     * using the passed value as payload without additional metadata.
+     */
+    static void schedule(Object schedule, String scheduleId, Instant deadline) {
+        get().scheduler().schedule(schedule, scheduleId, deadline);
     }
 
     /**

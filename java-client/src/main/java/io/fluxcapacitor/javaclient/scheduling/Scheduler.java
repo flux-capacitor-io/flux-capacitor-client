@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016-2020 Flux Capacitor.
+ * Copyright (c) 2016-2021 Flux Capacitor.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,23 +14,38 @@
 
 package io.fluxcapacitor.javaclient.scheduling;
 
+import io.fluxcapacitor.common.api.Metadata;
 import io.fluxcapacitor.javaclient.common.Message;
 
 import java.time.Duration;
 import java.time.Instant;
-import java.util.UUID;
+
+import static io.fluxcapacitor.javaclient.FluxCapacitor.currentClock;
+import static io.fluxcapacitor.javaclient.FluxCapacitor.generateId;
 
 public interface Scheduler {
 
-    default void schedule(Object schedule, Instant deadline) {
-        schedule(schedule, UUID.randomUUID().toString(), deadline);
+    default String schedule(Object schedule, Instant deadline) {
+        String scheduleId = generateId();
+        schedule(schedule, scheduleId, deadline);
+        return scheduleId;
     }
 
-    default void schedule(Object schedule, Duration delay) {
-        schedule(schedule, UUID.randomUUID().toString(), delay);
+    default String schedule(Object schedule, Duration delay) {
+        return schedule(schedule, currentClock().instant().plus(delay));
     }
 
-    void schedule(Object schedule, String scheduleId, Duration delay);
+    default void schedule(Object schedule, String scheduleId, Duration delay) {
+        schedule(schedule, scheduleId, currentClock().instant().plus(delay));
+    }
+
+    default void schedule(Object schedulePayload, Metadata metadata, String scheduleId, Instant deadline) {
+        schedule(new Message(schedulePayload, metadata), scheduleId, deadline);
+    }
+
+    default void schedule(Object schedulePayload, Metadata metadata, String scheduleId, Duration delay) {
+        schedule(new Message(schedulePayload, metadata), scheduleId, delay);
+    }
 
     default void schedule(Object schedule, String scheduleId, Instant deadline) {
         if (schedule instanceof Message) {
