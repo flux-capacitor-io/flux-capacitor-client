@@ -49,6 +49,10 @@ public class GivenWhenThenAssertionError extends AssertionFailedError {
         super(message, formatForComparison(expected), formatForComparison(actual));
     }
 
+    public GivenWhenThenAssertionError(String message, Object expected, Object actual, Throwable cause) {
+        super(message, formatForComparison(expected), formatForComparison(actual), cause);
+    }
+
     @SneakyThrows
     private static Object formatForComparison(Object expectedOrActual) {
         if (expectedOrActual instanceof Message) {

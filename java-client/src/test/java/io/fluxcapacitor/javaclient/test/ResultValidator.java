@@ -28,7 +28,12 @@ import org.hamcrest.Matcher;
 import org.hamcrest.StringDescription;
 import org.mockito.Mockito;
 
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
 import java.util.function.Consumer;
 import java.util.function.Predicate;
 import java.util.stream.Stream;
@@ -46,6 +51,7 @@ public class ResultValidator implements Then {
     private final Object actualResult;
     private final List<Message> resultingEvents, resultingCommands;
     private final List<Schedule> resultingSchedules;
+    private final List<Throwable> exceptions;
 
     @Override
     public Then expectOnlyEvents(List<?> events) {
@@ -223,10 +229,10 @@ public class ResultValidator implements Then {
 
     protected void reportMismatch(Collection<?> expected, Collection<?> actual) {
         fluxCapacitor.apply(fc -> {
-            if (actualResult instanceof Throwable) {
+            if (!exceptions.isEmpty()) {
                 throw new GivenWhenThenAssertionError(
-                        "Published messages did not match. Probable cause is an exception that occurred during handling:",
-                        (Throwable) actualResult);
+                        "Published messages did not match. Probable cause is an exception that occurred during handling",
+                        expected, actual, exceptions.get(0));
             }
             throw new GivenWhenThenAssertionError("Published messages did not match", expected, actual);
         });
@@ -234,9 +240,9 @@ public class ResultValidator implements Then {
 
     protected void reportUnwantedMatch(Collection<?> expected, Collection<?> actual) {
         fluxCapacitor.apply(fc -> {
-            if (actualResult instanceof Throwable) {
+            if (!exceptions.isEmpty()) {
                 throw new GivenWhenThenAssertionError("An unexpected exception occurred during handling",
-                                                      (Throwable) actualResult);
+                                                      (exceptions.get(0)));
             }
             throw new GivenWhenThenAssertionError(
                     format("Unwanted match found in published messages.\nExpected not to get: %s\nGot: %s\n\n",

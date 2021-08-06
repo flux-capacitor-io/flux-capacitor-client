@@ -152,6 +152,7 @@ public class TestFixture implements Given, When {
     private final Map<ConsumerConfiguration, List<Message>> consumers = new ConcurrentHashMap<>();
     private final List<Message> commands = new CopyOnWriteArrayList<>(), events = new CopyOnWriteArrayList<>();
     private final List<Schedule> schedules = new CopyOnWriteArrayList<>();
+    private final List<Throwable> exceptions = new CopyOnWriteArrayList<>();
 
     private volatile boolean collectingResults;
 
@@ -180,7 +181,8 @@ public class TestFixture implements Given, When {
             return Registration.noOp();
         }
         handlers.stream().collect(toMap(Object::getClass, Function.identity(), (a, b) -> {
-            log.warn("Handler of type {} is registered more than once. Please make sure this is intentional.", a.getClass());
+            log.warn("Handler of type {} is registered more than once. Please make sure this is intentional.",
+                     a.getClass());
             return a;
         }));
         if (!synchronous) {
@@ -189,16 +191,16 @@ public class TestFixture implements Given, When {
         FluxCapacitor fluxCapacitor = getFluxCapacitor();
         HandlerConfiguration handlerConfiguration = defaultHandlerConfiguration();
         Registration registration = fluxCapacitor.apply(f -> handlers.stream().flatMap(h -> Stream
-                .of(fluxCapacitor.commandGateway().registerHandler(h, handlerConfiguration),
-                    fluxCapacitor.queryGateway().registerHandler(h, handlerConfiguration),
-                    fluxCapacitor.eventGateway().registerHandler(h, handlerConfiguration),
-                    fluxCapacitor.eventStore().registerHandler(h, handlerConfiguration),
-                    fluxCapacitor.errorGateway().registerHandler(h, handlerConfiguration)))
+                        .of(fluxCapacitor.commandGateway().registerHandler(h, handlerConfiguration),
+                            fluxCapacitor.queryGateway().registerHandler(h, handlerConfiguration),
+                            fluxCapacitor.eventGateway().registerHandler(h, handlerConfiguration),
+                            fluxCapacitor.eventStore().registerHandler(h, handlerConfiguration),
+                            fluxCapacitor.errorGateway().registerHandler(h, handlerConfiguration)))
                 .reduce(Registration::merge).orElse(Registration.noOp()));
         if (fluxCapacitor.scheduler() instanceof DefaultScheduler) {
             DefaultScheduler scheduler = (DefaultScheduler) fluxCapacitor.scheduler();
             registration = registration.merge(fluxCapacitor.apply(fc -> handlers.stream().flatMap(h -> Stream
-                    .of(scheduler.registerHandler(h, handlerConfiguration)))
+                            .of(scheduler.registerHandler(h, handlerConfiguration)))
                     .reduce(Registration::merge).orElse(Registration.noOp())));
         } else {
             log.warn("Could not register local schedule handlers");
@@ -386,7 +388,7 @@ public class TestFixture implements Given, When {
                     result = e;
                 }
                 waitForConsumers();
-                return getResultValidator(result, commands, events, schedules);
+                return getResultValidator(result, commands, events, schedules, exceptions);
             } finally {
                 handleExpiredSchedulesLocally();
                 registration.cancel();
@@ -399,8 +401,8 @@ public class TestFixture implements Given, When {
      */
 
     protected Then getResultValidator(Object result, List<Message> commands, List<Message> events,
-                                      List<Schedule> schedules) {
-        return new ResultValidator(getFluxCapacitor(), result, events, commands, schedules);
+                                      List<Schedule> schedules, List<Throwable> exceptions) {
+        return new ResultValidator(getFluxCapacitor(), result, events, commands, schedules, exceptions);
     }
 
     protected void publishDomainEvents(String aggregateId, FluxCapacitor fc, Object[] events) {
@@ -489,6 +491,10 @@ public class TestFixture implements Given, When {
 
     protected void registerSchedule(Schedule schedule) {
         schedules.add(schedule);
+    }
+
+    protected void registerException(Throwable e) {
+        exceptions.add(e);
     }
 
     @SneakyThrows
@@ -617,9 +623,9 @@ public class TestFixture implements Given, When {
         public Consumer<MessageBatch> intercept(Consumer<MessageBatch> consumer, Tracker tracker) {
             List<Message> messages = consumers.computeIfAbsent(
                     tracker.getConfiguration(), c -> publishedSchedules.getOrDefault(
-                            c.getMessageType(), emptyList()).stream().filter(m -> Optional.ofNullable(c.getTypeFilter())
-                            .map(f -> m.getPayload().getClass().getName().matches(f)).orElse(true))
-                    .collect(toCollection(CopyOnWriteArrayList::new)));
+                                    c.getMessageType(), emptyList()).stream().filter(m -> Optional.ofNullable(c.getTypeFilter())
+                                    .map(f -> m.getPayload().getClass().getName().matches(f)).orElse(true))
+                            .collect(toCollection(CopyOnWriteArrayList::new)));
             return b -> {
                 consumer.accept(b);
                 Collection<String> messageIds =
@@ -636,6 +642,9 @@ public class TestFixture implements Given, When {
             return m -> {
                 try {
                     return function.apply(m);
+                } catch (Exception e) {
+                    registerException(e);
+                    throw e;
                 } finally {
                     if ((m.getMessageType() == COMMAND || m.getMessageType() == QUERY)
                             && isLocalHandlerMethod(handler.getTarget().getClass(), handler.getMethod(m))) {
