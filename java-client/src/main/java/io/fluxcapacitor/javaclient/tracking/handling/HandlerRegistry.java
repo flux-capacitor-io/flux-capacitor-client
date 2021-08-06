@@ -18,7 +18,6 @@ import io.fluxcapacitor.common.Registration;
 import io.fluxcapacitor.common.api.SerializedMessage;
 import io.fluxcapacitor.common.handling.HandlerConfiguration;
 import io.fluxcapacitor.javaclient.common.Message;
-import io.fluxcapacitor.javaclient.common.serialization.DeserializingMessage;
 import lombok.AllArgsConstructor;
 
 import java.util.Optional;
@@ -50,7 +49,7 @@ public interface HandlerRegistry extends HasLocalHandlers {
 
         @Override
         public Registration registerHandler(Object target,
-                                            HandlerConfiguration<DeserializingMessage> handlerConfiguration) {
+                                            HandlerConfiguration handlerConfiguration) {
             return first.registerHandler(target, handlerConfiguration).merge(second.registerHandler(target, handlerConfiguration));
         }
     }

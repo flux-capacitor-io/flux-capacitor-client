@@ -41,6 +41,7 @@ import org.springframework.stereotype.Component;
 import org.springframework.test.context.ContextConfiguration;
 import org.springframework.test.context.junit.jupiter.SpringExtension;
 
+import static java.util.Objects.requireNonNull;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -102,7 +103,7 @@ public class FluxCapacitorSpringConfigTest {
     public static class SomeHandler {
         @HandleCommand
         public Object handleCommand(String command, User user) {
-            assertNotNull(user);
+            requireNonNull(user, "User is null");
             return "result";
         }
     }

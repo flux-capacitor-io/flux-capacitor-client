@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016-2020 Flux Capacitor.
+ * Copyright (c) 2016-2021 Flux Capacitor.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,10 +15,11 @@
 package io.fluxcapacitor.javaclient.persisting.eventsourcing;
 
 import io.fluxcapacitor.javaclient.common.serialization.DeserializingMessage;
+import io.fluxcapacitor.javaclient.modeling.AggregateRoot;
 
 public interface EventSourcingHandler<T> {
 
-    T invoke(T target, DeserializingMessage message);
+    T invoke(AggregateRoot<T> aggregate, DeserializingMessage message);
 
-    boolean canHandle(T model, DeserializingMessage message);
+    boolean canHandle(AggregateRoot<T> aggregate, DeserializingMessage message);
 }

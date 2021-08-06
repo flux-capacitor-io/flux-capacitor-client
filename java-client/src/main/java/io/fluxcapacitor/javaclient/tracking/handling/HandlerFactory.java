@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016-2020 Flux Capacitor.
+ * Copyright (c) 2016-2021 Flux Capacitor.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -23,5 +23,5 @@ import java.util.Optional;
 public interface HandlerFactory {
 
     Optional<Handler<DeserializingMessage>> createHandler(Object target, String consumer,
-                                                          HandlerConfiguration<DeserializingMessage> handlerConfiguration);
+                                                          HandlerConfiguration handlerConfiguration);
 }

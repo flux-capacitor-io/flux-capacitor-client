@@ -18,8 +18,6 @@ import io.fluxcapacitor.common.MessageType;
 import io.fluxcapacitor.common.Registration;
 import io.fluxcapacitor.common.api.Metadata;
 import io.fluxcapacitor.common.api.SerializedMessage;
-import io.fluxcapacitor.common.handling.HandlerInspector.MethodHandlerInvoker;
-import io.fluxcapacitor.common.handling.MethodInvokerFactory;
 import io.fluxcapacitor.common.handling.ParameterResolver;
 import io.fluxcapacitor.javaclient.common.Message;
 import io.fluxcapacitor.javaclient.modeling.AggregateIdResolver;
@@ -61,10 +59,10 @@ public class DeserializingMessage {
     public static MessageFormatter messageFormatter = MessageFormatter.DEFAULT;
     public static List<ParameterResolver<? super DeserializingMessage>> defaultParameterResolvers =
             Arrays.asList(new DeserializingMessageParameterResolver(),
-                    new PayloadParameterResolver(), new MetadataParameterResolver(),
-                    new MessageParameterResolver(), new AggregateIdResolver(),
-                    new AggregateTypeResolver(), new UserParameterResolver());
-    public static MethodInvokerFactory<DeserializingMessage> defaultInvokerFactory = MethodHandlerInvoker::new;
+                          new MetadataParameterResolver(),
+                          new MessageParameterResolver(), new AggregateIdResolver(),
+                          new AggregateTypeResolver(), new UserParameterResolver(),
+                          new PayloadParameterResolver());
 
     private static final ThreadLocal<Collection<Runnable>> messageCompletionHandlers = new ThreadLocal<>();
     private static final ThreadLocal<Collection<Runnable>> batchCompletionHandlers = new ThreadLocal<>();
@@ -75,7 +73,8 @@ public class DeserializingMessage {
     DeserializingObject<byte[], SerializedMessage> delegate;
     MessageType messageType;
 
-    public DeserializingMessage(SerializedMessage message, Function<Class<?>, Object> payload, MessageType messageType) {
+    public DeserializingMessage(SerializedMessage message, Function<Class<?>, Object> payload,
+                                MessageType messageType) {
         this(new DeserializingObject<>(message, payload), messageType);
     }
 
@@ -97,13 +96,13 @@ public class DeserializingMessage {
     public Message toMessage() {
         if (getMetadata().containsKey(Schedule.scheduleIdMetadataKey)) {
             return new Schedule(delegate.getPayload(), getMetadata(),
-                    delegate.getSerializedObject().getMessageId(),
-                    ofEpochMilli(delegate.getSerializedObject().getTimestamp()),
-                    getMetadata().get(Schedule.scheduleIdMetadataKey), currentClock().instant());
+                                delegate.getSerializedObject().getMessageId(),
+                                ofEpochMilli(delegate.getSerializedObject().getTimestamp()),
+                                getMetadata().get(Schedule.scheduleIdMetadataKey), currentClock().instant());
         }
         return new Message(delegate.getPayload(), getMetadata(),
-                delegate.getSerializedObject().getMessageId(),
-                ofEpochMilli(delegate.getSerializedObject().getTimestamp()));
+                           delegate.getSerializedObject().getMessageId(),
+                           ofEpochMilli(delegate.getSerializedObject().getTimestamp()));
     }
 
     public static DeserializingMessage getCurrent() {
@@ -111,6 +110,7 @@ public class DeserializingMessage {
     }
 
     public static Registration whenBatchCompletes(Runnable handler) {
+
         if (batchCompletionHandlers.get() == null) {
             batchCompletionHandlers.set(new ArrayList<>());
         }

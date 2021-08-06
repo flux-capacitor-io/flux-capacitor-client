@@ -187,7 +187,7 @@ public class TestFixture implements Given, When {
             return getFluxCapacitor().registerHandlers(handlers);
         }
         FluxCapacitor fluxCapacitor = getFluxCapacitor();
-        HandlerConfiguration<DeserializingMessage> handlerConfiguration = defaultHandlerConfiguration();
+        HandlerConfiguration handlerConfiguration = defaultHandlerConfiguration();
         Registration registration = fluxCapacitor.apply(f -> handlers.stream().flatMap(h -> Stream
                 .of(fluxCapacitor.commandGateway().registerHandler(h, handlerConfiguration),
                     fluxCapacitor.queryGateway().registerHandler(h, handlerConfiguration),

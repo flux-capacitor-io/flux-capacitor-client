@@ -81,7 +81,7 @@ public class GivenWhenThenCorrelationTest {
 
     private static class Handler {
         @HandleCommand
-        void handle(Object command, Metadata metadata) {
+        void handle(Metadata metadata, Object command) {
             FluxCapacitor.loadAggregate(aggregateId, TestModel.class).assertLegal(command).apply(command, metadata);
         }
 

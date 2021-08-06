@@ -76,7 +76,7 @@ public interface AggregateRoot<T> {
 
 
     default <E extends Exception> AggregateRoot<T> assertLegal(Object command) throws E {
-        ValidationUtils.assertLegal(command, get());
+        ValidationUtils.assertLegal(command, this);
         return this;
     }
 

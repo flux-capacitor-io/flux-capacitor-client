@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016-2020 Flux Capacitor.
+ * Copyright (c) 2016-2021 Flux Capacitor.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,7 +18,10 @@ import io.fluxcapacitor.common.handling.HandlerInvoker;
 import io.fluxcapacitor.common.handling.HandlerNotFoundException;
 import io.fluxcapacitor.common.handling.ParameterResolver;
 import io.fluxcapacitor.javaclient.common.serialization.DeserializingMessage;
+import io.fluxcapacitor.javaclient.modeling.AggregateRoot;
 
+import java.lang.reflect.Method;
+import java.lang.reflect.Parameter;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.function.Function;
@@ -29,9 +32,9 @@ import static io.fluxcapacitor.common.handling.HandlerInspector.inspect;
 
 public class AnnotatedEventSourcingHandler<T> implements EventSourcingHandler<T> {
 
-    private final ThreadLocal<T> currentAggregate = new ThreadLocal<>();
     private final Class<T> handlerType;
     private final HandlerInvoker<DeserializingMessage> aggregateInvoker;
+    private final LocalAggregateParameterResolver<T> aggregateResolver = new LocalAggregateParameterResolver<>();
     private final Function<Class<?>, HandlerInvoker<DeserializingMessage>> eventInvokers;
 
     public AnnotatedEventSourcingHandler(Class<T> handlerType) {
@@ -41,53 +44,84 @@ public class AnnotatedEventSourcingHandler<T> implements EventSourcingHandler<T>
     public AnnotatedEventSourcingHandler(Class<T> handlerType,
                                          List<ParameterResolver<? super DeserializingMessage>> parameterResolvers) {
         this.handlerType = handlerType;
-        this.aggregateInvoker = inspect(handlerType, ApplyEvent.class, parameterResolvers, defaultHandlerConfiguration());
+        this.aggregateInvoker =
+                inspect(handlerType, ApplyEvent.class, parameterResolvers, defaultHandlerConfiguration());
         this.eventInvokers = memoize(eventType -> {
             List<ParameterResolver<? super DeserializingMessage>> paramResolvers = new ArrayList<>(parameterResolvers);
-            paramResolvers.add(0,
-                               p -> p.getType().isAssignableFrom(handlerType) ? event -> currentAggregate.get() : null);
-            return inspect(eventType, Apply.class, paramResolvers, defaultHandlerConfiguration());
+            paramResolvers.add(0, aggregateResolver);
+            return inspect(eventType, Apply.class, paramResolvers,
+                           defaultHandlerConfiguration().toBuilder().handlerFilter((type, executable) -> {
+                               if (executable instanceof Method) {
+                                   Class<?> returnType = ((Method) executable).getReturnType();
+                                   return handlerType.isAssignableFrom(returnType) || returnType.isAssignableFrom(
+                                           handlerType) || returnType.equals(void.class);
+                               }
+                               return false;
+                           }).build());
         });
     }
 
     @Override
-    public T invoke(T target, DeserializingMessage message) {
+    public T invoke(AggregateRoot<T> aggregate, DeserializingMessage message) {
         return message.apply(m -> {
             Object result;
             HandlerInvoker<DeserializingMessage> invoker;
+            T model = aggregate.get();
             try {
-                currentAggregate.set(target);
-                boolean handledByAggregate = aggregateInvoker.canHandle(target, m);
+                aggregateResolver.setAggregate(aggregate);
+                boolean handledByAggregate = aggregateInvoker.canHandle(model, m);
                 invoker = handledByAggregate ? aggregateInvoker : eventInvokers.apply(message.getPayloadClass());
-                result = invoker.invoke(handledByAggregate ? target : m.getPayload(), m);
+                result = invoker.invoke(handledByAggregate ? model : m.getPayload(), m);
             } catch (HandlerNotFoundException e) {
-                if (target == null) {
+                if (model == null) {
                     throw e;
                 }
-                return target;
+                return model;
             } finally {
-                currentAggregate.remove();
+                aggregateResolver.removeAggregate();
             }
-            if (target == null) {
+            if (model == null) {
                 return handlerType.cast(result);
             }
             if (handlerType.isInstance(result)) {
                 return handlerType.cast(result);
             }
-            if (result == null && invoker.expectResult(target, m)) {
+            if (result == null && invoker.expectResult(model, m)) {
                 return null; //this handler has deleted the model on purpose
             }
-            return target; //Annotated method returned void - apparently the model is mutable
+            return model; //Annotated method returned void - apparently the model is mutable
         });
     }
 
     @Override
-    public boolean canHandle(T target, DeserializingMessage message) {
+    public boolean canHandle(AggregateRoot<T> aggregate, DeserializingMessage message) {
         try {
-            currentAggregate.set(target);
-            return aggregateInvoker.canHandle(target, message)
+            aggregateResolver.setAggregate(aggregate);
+            return aggregateInvoker.canHandle(aggregate, message)
                     || eventInvokers.apply(message.getPayloadClass()).canHandle(message.getPayload(), message);
         } finally {
+            aggregateResolver.removeAggregate();
+        }
+    }
+
+    public static class LocalAggregateParameterResolver<T> implements ParameterResolver<Object> {
+        private final ThreadLocal<AggregateRoot<T>> currentAggregate = new ThreadLocal<>();
+
+        @Override
+        public Function<Object, Object> resolve(Parameter parameter) {
+            if (currentAggregate.get() == null) {
+                return null;
+            }
+            Class<T> aggregateType = currentAggregate.get().type();
+            return parameter.getType().isAssignableFrom(aggregateType)
+                    || aggregateType.isAssignableFrom(parameter.getType()) ? m -> currentAggregate.get().get() : null;
+        }
+
+        public void setAggregate(AggregateRoot<T> aggregate) {
+            currentAggregate.set(aggregate);
+        }
+
+        public void removeAggregate() {
             currentAggregate.remove();
         }
     }

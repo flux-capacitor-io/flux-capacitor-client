@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016-2020 Flux Capacitor.
+ * Copyright (c) 2016-2021 Flux Capacitor.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -23,23 +23,17 @@ import java.util.function.Function;
 public class PayloadParameterResolver implements ParameterResolver<DeserializingMessage> {
     @Override
     public Function<DeserializingMessage, Object> resolve(Parameter p) {
-        if (p.getDeclaringExecutable().getParameters()[0] == p) {
-            return DeserializingMessage::getPayload;
-        }
-        return null;
+        return DeserializingMessage::getPayload;
     }
 
     @Override
     public boolean matches(Parameter p, DeserializingMessage value) {
-        if (p.getDeclaringExecutable().getParameters()[0] == p) {
-            Class<?> payloadClass;
-            try {
-                payloadClass = value.getPayloadClass();
-            } catch (Exception e) {
-                return false; //class may be unknown, in that case we simply want to ignore the message
-            }
-            return p.getType().isAssignableFrom(payloadClass);
+        Class<?> payloadClass;
+        try {
+            payloadClass = value.getPayloadClass();
+        } catch (Exception e) {
+            return false; //class may be unknown, in that case we simply want to ignore the message
         }
-        return false;
+        return p.getType().isAssignableFrom(payloadClass);
     }
 }

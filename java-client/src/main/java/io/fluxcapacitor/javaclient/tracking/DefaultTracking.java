@@ -52,7 +52,6 @@ import java.util.function.Consumer;
 import java.util.stream.Stream;
 
 import static io.fluxcapacitor.javaclient.common.ClientUtils.waitForResults;
-import static io.fluxcapacitor.javaclient.common.serialization.DeserializingMessage.defaultInvokerFactory;
 import static io.fluxcapacitor.javaclient.common.serialization.DeserializingMessage.handleBatch;
 import static java.lang.String.format;
 import static java.util.stream.Collectors.groupingBy;
@@ -62,10 +61,9 @@ import static java.util.stream.Collectors.toMap;
 @AllArgsConstructor
 @Slf4j
 public class DefaultTracking implements Tracking {
-    private static final HandlerConfiguration<DeserializingMessage> trackingHandlerConfiguration =
+    private static final HandlerConfiguration trackingHandlerConfiguration =
             HandlerConfiguration.<DeserializingMessage>builder()
-                    .handlerFilter((c, e) -> !ClientUtils.isLocalHandlerMethod(c, e))
-                    .invokerFactory(defaultInvokerFactory).build();
+                    .handlerFilter((c, e) -> !ClientUtils.isLocalHandlerMethod(c, e)).build();
 
     private final MessageType messageType;
     private final Client client;

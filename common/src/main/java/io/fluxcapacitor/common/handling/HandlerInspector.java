@@ -25,7 +25,6 @@ import java.lang.reflect.Executable;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
-import java.lang.reflect.Parameter;
 import java.util.Arrays;
 import java.util.Comparator;
 import java.util.List;
@@ -49,7 +48,7 @@ import static java.util.stream.Stream.concat;
 public class HandlerInspector {
 
     public static boolean hasHandlerMethods(Class<?> targetClass, Class<? extends Annotation> methodAnnotation,
-                                            HandlerConfiguration<?> handlerConfiguration) {
+                                            HandlerConfiguration handlerConfiguration) {
         return concat(getAllMethods(targetClass).stream(), stream(targetClass.getConstructors()))
                 .anyMatch(m -> m.isAnnotationPresent(methodAnnotation) && handlerConfiguration.handlerFilter()
                         .test(targetClass, m));
@@ -62,20 +61,20 @@ public class HandlerInspector {
 
     public static <M> Handler<M> createHandler(Object target, Class<? extends Annotation> methodAnnotation,
                                                List<ParameterResolver<? super M>> parameterResolvers,
-                                               HandlerConfiguration<M> handlerConfiguration) {
+                                               HandlerConfiguration handlerConfiguration) {
         return new DefaultHandler<>(target, inspect(target.getClass(), methodAnnotation, parameterResolvers,
                                                     handlerConfiguration));
     }
 
     public static <M> HandlerInvoker<M> inspect(Class<?> type, Class<? extends Annotation> methodAnnotation,
                                                 List<ParameterResolver<? super M>> parameterResolvers,
-                                                HandlerConfiguration<M> handlerConfiguration) {
+                                                HandlerConfiguration handlerConfiguration) {
         return new ObjectHandlerInvoker<>(type,
                                           concat(getAllMethods(type).stream(), stream(type.getDeclaredConstructors()))
                                                   .filter(m -> m.isAnnotationPresent(methodAnnotation)
                                                           && handlerConfiguration.handlerFilter().test(type, m))
-                                                  .map(m -> handlerConfiguration.invokerFactory()
-                                                          .create(m, type, parameterResolvers, methodAnnotation))
+                                                  .map(m -> new MethodHandlerInvoker<>(m, type, parameterResolvers,
+                                                                                       methodAnnotation))
                                                   .sorted(comparator).collect(toList()),
                                           handlerConfiguration.invokeMultipleMethods());
     }
@@ -189,18 +188,8 @@ public class HandlerInspector {
 
         protected Predicate<M> getMatcher(Executable executable,
                                           List<ParameterResolver<? super M>> parameterResolvers) {
-            return m -> {
-                if (executable.getParameters().length == 0) {
-                    return true;
-                }
-                Parameter parameter = executable.getParameters()[0];
-                for (ParameterResolver<? super M> resolver : parameterResolvers) {
-                    if (resolver.matches(parameter, m)) {
-                        return true;
-                    }
-                }
-                return false;
-            };
+            return m -> stream(executable.getParameters()).allMatch(
+                    p -> parameterResolvers.stream().anyMatch(r -> r.matches(p, m)));
         }
 
         protected static int specificity(Class<?> type) {

@@ -191,7 +191,7 @@ public class CachingAggregateRepository implements AggregateRepository {
         } else if (aggregate.status == Status.IN_SYNC) {
             try {
                 aggregate =
-                        new RefreshingAggregateRoot<>(handler.invoke(aggregate.get(), event), handler, serializer,
+                        new RefreshingAggregateRoot<>(handler.invoke(aggregate, event), handler, serializer,
                                                       aggregate.id(), aggregate.type(), aggregate, eventId,
                                                       eventIndex, timestamp, Status.IN_SYNC);
             } catch (Exception e) {
@@ -254,14 +254,14 @@ public class CachingAggregateRepository implements AggregateRepository {
                 case 0:
                     return this;
                 case 1:
-                    ValidationUtils.assertLegal(commands[0], model);
+                    ValidationUtils.assertLegal(commands[0], this);
                     return this;
                 default:
                     RefreshingAggregateRoot<T> result = this;
                     Iterator<Object> iterator = Arrays.stream(commands).iterator();
                     while (iterator.hasNext()) {
                         Object c = iterator.next();
-                        ValidationUtils.assertLegal(c, result.get());
+                        ValidationUtils.assertLegal(c, result);
                         if (iterator.hasNext()) {
                             result = result.forceApply(c);
                         }
@@ -278,7 +278,7 @@ public class CachingAggregateRepository implements AggregateRepository {
             DeserializingMessage deserializingMessage = new DeserializingMessage(new DeserializingObject<>(
                     eventMessage.serialize(serializer), type -> serializer.convert(eventMessage.getPayload(), type)),
                                                                                  EVENT);
-            return new RefreshingAggregateRoot<>(handler.invoke(model, deserializingMessage), handler, serializer,
+            return new RefreshingAggregateRoot<>(handler.invoke(this, deserializingMessage), handler, serializer,
                                                  id, type, this, eventMessage.getMessageId(),
                                                  null, timestamp, status);
         }

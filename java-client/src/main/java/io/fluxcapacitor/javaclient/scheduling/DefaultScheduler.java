@@ -18,7 +18,6 @@ import io.fluxcapacitor.common.Registration;
 import io.fluxcapacitor.common.api.SerializedMessage;
 import io.fluxcapacitor.common.api.scheduling.ScheduledMessage;
 import io.fluxcapacitor.common.handling.HandlerConfiguration;
-import io.fluxcapacitor.javaclient.common.serialization.DeserializingMessage;
 import io.fluxcapacitor.javaclient.common.serialization.MessageSerializer;
 import io.fluxcapacitor.javaclient.scheduling.client.SchedulingClient;
 import io.fluxcapacitor.javaclient.tracking.handling.HandlerRegistry;
@@ -59,7 +58,7 @@ public class DefaultScheduler implements Scheduler {
         Only used by the TestFixture to simulate scheduling in a single thread
      */
 
-    public Registration registerHandler(Object target, HandlerConfiguration<DeserializingMessage> handlerConfiguration) {
+    public Registration registerHandler(Object target, HandlerConfiguration handlerConfiguration) {
         return localHandlerRegistry.registerHandler(target, handlerConfiguration);
     }
 

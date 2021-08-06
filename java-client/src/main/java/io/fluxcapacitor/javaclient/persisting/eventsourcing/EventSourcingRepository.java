@@ -202,7 +202,7 @@ public class EventSourcingRepository implements AggregateRepository {
                                     .lastEventId(event.getSerializedObject().getMessageId())
                                     .lastEventIndex(event.getSerializedObject().getIndex())
                                     .timestamp(Instant.ofEpochMilli(event.getSerializedObject().getTimestamp()))
-                                    .model(eventSourcingHandler.invoke(model.get(), event))
+                                    .model(eventSourcingHandler.invoke(model, event))
                                     .previous(model)
                                     .build();
                         }
@@ -234,7 +234,7 @@ public class EventSourcingRepository implements AggregateRepository {
                     serializer.serialize(eventMessage), type -> serializer.convert(eventMessage.getPayload(), type)), EVENT);
 
             model = model.toBuilder().sequenceNumber(model.sequenceNumber() + 1)
-                    .model(eventSourcingHandler.invoke(model.get(), deserializingMessage))
+                    .model(eventSourcingHandler.invoke(model, deserializingMessage))
                     .previous(model).lastEventId(eventMessage.getMessageId()).timestamp(eventMessage.getTimestamp())
                     .lastEventIndex(deserializingMessage.getSerializedObject().getIndex())
                     .build();
@@ -283,7 +283,7 @@ public class EventSourcingRepository implements AggregateRepository {
                     Iterator<Object> iterator = Arrays.stream(commands).iterator();
                     while (iterator.hasNext()) {
                         Object c = iterator.next();
-                        ValidationUtils.assertLegal(c, result.get());
+                        ValidationUtils.assertLegal(c, result);
                         if (iterator.hasNext()) {
                             result = forceApply(model, c instanceof Message ? (Message) c : new Message(c));
                         }
@@ -300,7 +300,7 @@ public class EventSourcingRepository implements AggregateRepository {
                     serializer.serialize(message), type -> serializer.convert(eventMessage.getPayload(), type)),
                                                                                  EVENT);
             return model.toBuilder().sequenceNumber(model.sequenceNumber() + 1)
-                    .model(eventSourcingHandler.invoke(model.get(), deserializingMessage))
+                    .model(eventSourcingHandler.invoke(model, deserializingMessage))
                     .previous(model).lastEventId(eventMessage.getMessageId()).timestamp(eventMessage.getTimestamp())
                     .lastEventIndex(deserializingMessage.getSerializedObject().getIndex())
                     .build();

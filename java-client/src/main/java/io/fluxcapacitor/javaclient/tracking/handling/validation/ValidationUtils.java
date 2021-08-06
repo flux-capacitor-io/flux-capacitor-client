@@ -15,7 +15,9 @@
 package io.fluxcapacitor.javaclient.tracking.handling.validation;
 
 import io.fluxcapacitor.common.handling.HandlerConfiguration;
+import io.fluxcapacitor.common.handling.HandlerInspector;
 import io.fluxcapacitor.common.handling.HandlerInvoker;
+import io.fluxcapacitor.common.handling.ParameterResolver;
 import io.fluxcapacitor.common.reflection.ReflectionUtils;
 import io.fluxcapacitor.javaclient.modeling.AggregateRoot;
 import io.fluxcapacitor.javaclient.modeling.AssertLegal;
@@ -30,6 +32,7 @@ import lombok.SneakyThrows;
 import java.lang.annotation.Annotation;
 import java.lang.reflect.Executable;
 import java.lang.reflect.Method;
+import java.lang.reflect.Parameter;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Iterator;
@@ -40,7 +43,6 @@ import java.util.function.BiFunction;
 import java.util.function.Function;
 
 import static io.fluxcapacitor.common.ObjectUtils.memoize;
-import static io.fluxcapacitor.common.handling.HandlerInspector.inspect;
 import static io.fluxcapacitor.common.reflection.ReflectionUtils.getAnnotations;
 import static java.lang.String.format;
 import static java.util.Optional.empty;
@@ -78,22 +80,34 @@ public class ValidationUtils {
         Check command / query legality
      */
 
-    private static final Function<Class<?>, HandlerInvoker<Object>> assertLegalInvokerCache = memoize(type -> inspect(
-            type, AssertLegal.class,
-            Arrays.asList(p -> p.getDeclaringExecutable().getParameters()[0].equals(p)
-                                  ? (v -> v instanceof AggregateRoot<?> ? ((AggregateRoot<?>) v).get() : v) : null,
-                          new UserParameterResolver()),
-            HandlerConfiguration.builder().invokeMultipleMethods(true).build()));
+    protected static class AssertLegalAggregateParameterResolver implements ParameterResolver<AggregateRoot<?>> {
+        @Override
+        public Function<AggregateRoot<?>, Object> resolve(Parameter parameter) {
+            return AggregateRoot::get;
+        }
 
-    public static <E extends Exception> void assertLegal(Object commandOrQuery, Object aggregate) throws E {
-        HandlerInvoker<Object> invoker = assertLegalInvokerCache.apply(commandOrQuery.getClass());
+        @Override
+        public boolean matches(Parameter parameter, AggregateRoot<?> aggregate) {
+            return parameter.getType().isAssignableFrom(aggregate.type()) || aggregate.type()
+                    .isAssignableFrom(parameter.getType());
+        }
+    }
+
+    protected static final Function<Class<?>, HandlerInvoker<AggregateRoot<?>>> assertLegalInvokerCache =
+            memoize(type -> HandlerInspector.inspect(
+                    type, AssertLegal.class,
+                    Arrays.asList(new UserParameterResolver(), new AssertLegalAggregateParameterResolver()),
+                    HandlerConfiguration.builder().invokeMultipleMethods(true).build()));
+
+    public static <E extends Exception> void assertLegal(Object commandOrQuery, AggregateRoot<?> aggregate) throws E {
+        HandlerInvoker<AggregateRoot<?>> invoker = assertLegalInvokerCache.apply(commandOrQuery.getClass());
         if (invoker.canHandle(commandOrQuery, aggregate)) {
             invoker.invoke(commandOrQuery, aggregate);
         }
     }
 
     @SuppressWarnings("unchecked")
-    public static <E extends Exception> Optional<E> checkLegality(Object commandOrQuery, Object aggregate) {
+    public static <E extends Exception> Optional<E> checkLegality(Object commandOrQuery, AggregateRoot<?> aggregate) {
         try {
             assertLegal(commandOrQuery, aggregate);
         } catch (Exception e) {
@@ -102,8 +116,8 @@ public class ValidationUtils {
         return empty();
     }
 
-    public static boolean isLegal(Object commandOrQuery, Object aggregate) {
-        return !checkLegality(commandOrQuery, aggregate).isPresent();
+    public static boolean isLegal(Object commandOrQuery, AggregateRoot<?> aggregate) {
+        return checkLegality(commandOrQuery, aggregate).isEmpty();
     }
 
 

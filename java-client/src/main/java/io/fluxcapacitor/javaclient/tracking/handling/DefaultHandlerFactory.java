@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016-2020 Flux Capacitor.
+ * Copyright (c) 2016-2021 Flux Capacitor.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -37,7 +37,7 @@ public class DefaultHandlerFactory implements HandlerFactory {
 
     @Override
     public Optional<Handler<DeserializingMessage>> createHandler(
-            Object target, String consumer, HandlerConfiguration<DeserializingMessage> handlerConfiguration) {
+            Object target, String consumer, HandlerConfiguration handlerConfiguration) {
         Class<? extends Annotation> methodAnnotation = getHandlerAnnotation(messageType);
         if (hasHandlerMethods(target.getClass(), methodAnnotation, handlerConfiguration)) {
             return Optional.of(handlerInterceptor.wrap(

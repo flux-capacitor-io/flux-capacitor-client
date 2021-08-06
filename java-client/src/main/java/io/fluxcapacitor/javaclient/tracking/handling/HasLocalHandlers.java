@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016-2020 Flux Capacitor.
+ * Copyright (c) 2016-2021 Flux Capacitor.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,10 +16,9 @@ package io.fluxcapacitor.javaclient.tracking.handling;
 
 import io.fluxcapacitor.common.Registration;
 import io.fluxcapacitor.common.handling.HandlerConfiguration;
-import io.fluxcapacitor.javaclient.common.serialization.DeserializingMessage;
 
 public interface HasLocalHandlers {
     Registration registerHandler(Object target);
 
-    Registration registerHandler(Object target, HandlerConfiguration<DeserializingMessage> handlerConfiguration);
+    Registration registerHandler(Object target, HandlerConfiguration handlerConfiguration);
 }

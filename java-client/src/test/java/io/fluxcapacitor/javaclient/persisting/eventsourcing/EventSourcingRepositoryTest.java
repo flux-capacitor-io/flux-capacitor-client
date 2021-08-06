@@ -355,6 +355,18 @@ class EventSourcingRepositoryTest {
         }
 
         @Test
+        void testAssertionsForDifferentModels() {
+            CommandWithAssertionsForDifferentModels command = new CommandWithAssertionsForDifferentModels();
+            TestFixture.create()
+                    .when(fc -> loadAggregate("1", Model1.class, false).assertLegal(command))
+                    .expectThat(fc -> assertEquals(1, command.getAssertionCount().get()));
+
+            TestFixture.create()
+                    .when(fc -> loadAggregate("2", Model2.class, false).assertLegal(command))
+                    .expectThat(fc -> assertEquals(3, command.getAssertionCount().get()));
+        }
+
+        @Test
         void testOverriddenAssertion() {
             testFixture.givenNoPriorActivity().whenCommand(new CommandWithOverriddenAssertion()).expectNoException();
         }
@@ -656,6 +668,37 @@ class EventSourcingRepositoryTest {
                 throw new IllegalStateException("Expected to come first");
             }
             assertionCount.addAndGet(2);
+        }
+    }
+
+    @Value
+    private static class CommandWithAssertionsForDifferentModels {
+        AtomicInteger assertionCount = new AtomicInteger();
+
+        @AssertLegal
+        private void assert1(Model1 model) {
+            assertionCount.addAndGet(1);
+        }
+
+        @AssertLegal
+        private void assert2(Model2 model) {
+            assertionCount.addAndGet(2);
+        }
+    }
+
+    @Aggregate
+    @Value
+    private static class Model1 {
+    }
+
+    @Aggregate
+    @Value
+    private static class Model2 {
+        String event;
+
+        @ApplyEvent
+        static Model2 apply(String event) {
+            return new Model2(event);
         }
     }
 
