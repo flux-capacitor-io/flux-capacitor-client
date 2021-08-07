@@ -38,6 +38,7 @@ import static io.fluxcapacitor.common.handling.HandlerConfiguration.defaultHandl
 import static io.fluxcapacitor.common.handling.HandlerInspector.MethodHandlerInvoker.comparator;
 import static io.fluxcapacitor.common.reflection.ReflectionUtils.ensureAccessible;
 import static io.fluxcapacitor.common.reflection.ReflectionUtils.getAllMethods;
+import static io.fluxcapacitor.common.reflection.ReflectionUtils.getAnnotation;
 import static java.lang.String.format;
 import static java.util.Arrays.stream;
 import static java.util.Comparator.comparing;
@@ -71,10 +72,11 @@ public class HandlerInspector {
                                                 HandlerConfiguration handlerConfiguration) {
         return new ObjectHandlerInvoker<>(type,
                                           concat(getAllMethods(type).stream(), stream(type.getDeclaredConstructors()))
-                                                  .filter(m -> m.isAnnotationPresent(methodAnnotation)
-                                                          && handlerConfiguration.handlerFilter().test(type, m))
-                                                  .map(m -> new MethodHandlerInvoker<>(m, type, parameterResolvers,
-                                                                                       methodAnnotation))
+                                                  .filter(m -> handlerConfiguration.handlerFilter().test(type, m))
+                                                  .flatMap(m -> Optional.ofNullable(getAnnotation(m, methodAnnotation))
+                                                          .map(a -> new MethodHandlerInvoker<>(m, type,
+                                                                                               parameterResolvers,
+                                                                                               a)).stream())
                                                   .sorted(comparator).collect(toList()),
                                           handlerConfiguration.invokeMultipleMethods());
     }
@@ -96,13 +98,13 @@ public class HandlerInspector {
         private final boolean hasReturnValue;
         private final List<Function<? super M, Object>> parameterSuppliers;
         private final Predicate<? super M> matcher;
-        private final Class<? extends Annotation> methodAnnotation;
+        private final Annotation methodAnnotation;
         private final int priority;
         private final boolean passive;
 
         public MethodHandlerInvoker(Executable executable, Class<?> enclosingType,
                                     List<ParameterResolver<? super M>> parameterResolvers,
-                                    Class<? extends Annotation> methodAnnotation) {
+                                    Annotation methodAnnotation) {
             this.methodAnnotation = methodAnnotation;
             this.methodIndex = executable instanceof Method ? methodIndex((Method) executable, enclosingType) : 0;
             this.executable = ensureAccessible(executable);
@@ -110,8 +112,8 @@ public class HandlerInspector {
                     !(executable instanceof Method) || !(((Method) executable).getReturnType()).equals(void.class);
             this.parameterSuppliers = getParameterSuppliers(executable, parameterResolvers);
             this.matcher = getMatcher(executable, parameterResolvers);
-            this.priority = getPriority(executable, methodAnnotation);
-            this.passive = isExecutablePassive(executable, methodAnnotation);
+            this.priority = getPriority(methodAnnotation);
+            this.passive = isPassive(methodAnnotation);
         }
 
         @Override
@@ -163,17 +165,6 @@ public class HandlerInspector {
             return !canHandle(target, message) || passive;
         }
 
-        @SneakyThrows
-        protected boolean isExecutablePassive(Executable method, Class<? extends Annotation> methodAnnotation) {
-            Annotation annotation = executable.getAnnotation(methodAnnotation);
-            Optional<Method> isPassive = Arrays.stream(methodAnnotation.getMethods())
-                    .filter(m -> m.getName().equals("passive")).findFirst();
-            if (isPassive.isPresent()) {
-                return (boolean) isPassive.get().invoke(annotation);
-            }
-            return false;
-        }
-
         protected List<Function<? super M, Object>> getParameterSuppliers(Executable method,
                                                                           List<ParameterResolver<? super M>> resolvers) {
             return stream(method.getParameters())
@@ -214,13 +205,23 @@ public class HandlerInspector {
         }
 
         @SneakyThrows
-        private static int getPriority(Executable executable, Class<? extends Annotation> methodAnnotation) {
-            for (Method method : ReflectionUtils.getAllMethods(methodAnnotation)) {
-                if (method.getName().equalsIgnoreCase("priority")) {
-                    return (int) method.invoke(executable.getAnnotation(methodAnnotation));
-                }
+        private static int getPriority(Annotation annotation) {
+            Optional<Method> match = Arrays.stream(annotation.annotationType().getMethods())
+                    .filter(m -> m.getName().equals("priority")).findFirst();
+            if (match.isPresent()) {
+                return (int) match.get().invoke(annotation);
             }
             return 0;
+        }
+
+        @SneakyThrows
+        protected boolean isPassive(Annotation annotation) {
+            Optional<Method> match = Arrays.stream(annotation.annotationType().getMethods())
+                    .filter(m -> m.getName().equals("passive")).findFirst();
+            if (match.isPresent()) {
+                return (boolean) match.get().invoke(annotation);
+            }
+            return false;
         }
     }
 

@@ -21,6 +21,7 @@ import java.lang.annotation.Annotation;
 import java.lang.invoke.MethodType;
 import java.lang.reflect.AccessibleObject;
 import java.lang.reflect.AnnotatedType;
+import java.lang.reflect.Executable;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
@@ -44,6 +45,7 @@ import java.util.function.Predicate;
 import java.util.stream.Stream;
 
 import static io.fluxcapacitor.common.ObjectUtils.memoize;
+import static java.lang.Integer.compare;
 import static java.security.AccessController.doPrivileged;
 import static java.util.Collections.emptyList;
 import static java.util.stream.Collectors.toCollection;
@@ -53,6 +55,8 @@ import static org.apache.commons.lang3.StringUtils.isEmpty;
 import static org.apache.commons.lang3.reflect.MethodUtils.getMethodsListWithAnnotation;
 
 public class ReflectionUtils {
+    private static final int ACCESS_MODIFIERS = Modifier.PUBLIC | Modifier.PROTECTED | Modifier.PRIVATE;
+    private static final List<Integer> ACCESS_ORDER = List.of(Modifier.PRIVATE, 0, Modifier.PROTECTED, Modifier.PUBLIC);
 
     private static final Function<Class<?>, List<Method>> methodsCache = memoize(ReflectionUtils::computeAllMethods);
     private static final Function<String, Class<?>> classForNameCache = memoize(ReflectionUtils::computeClass);
@@ -204,12 +208,70 @@ public class ReflectionUtils {
 
     public static Collection<? extends Annotation> getAnnotations(Class<?> type) {
         return Stream.concat(Arrays.stream(type.getAnnotations()), Arrays.stream(type.getAnnotatedInterfaces())
-                .map(AnnotatedType::getType).filter(t ->  t instanceof Class<?>).map(t -> (Class<?>) t)
+                .map(AnnotatedType::getType).filter(t -> t instanceof Class<?>).map(t -> (Class<?>) t)
                 .flatMap(i -> Arrays.stream(i.getAnnotations()))).collect(toCollection(LinkedHashSet::new));
     }
 
     public static Class<?> classForName(String type) {
         return classForNameCache.apply(type);
+    }
+
+    /*
+       Adopted from https://stackoverflow.com/questions/49105303/how-to-get-annotation-from-overridden-method-in-java/49164791
+    */
+    public static <A extends Annotation> A getAnnotation(Executable m, Class<A> a) {
+        A result = m.getAnnotation(a);
+        Class<?> c = m.getDeclaringClass();
+
+        if (result == null) {
+            for (Class<?> s = c; result == null && (s = s.getSuperclass()) != null; ) {
+                result = getAnnotationOnSuper(m, s, a);
+            }
+            if (result == null && m instanceof Method) {
+                for (Class<?> s : getAllInterfaces(c)) {
+                    result = getAnnotationOnSuper(m, s, a);
+                    if (result != null) {
+                        break;
+                    }
+                }
+            }
+        }
+        return result;
+    }
+
+    private static <A extends Annotation> A getAnnotationOnSuper(Executable m, Class<?> s, Class<A> a) {
+        try {
+            Method n = s.getDeclaredMethod(m.getName(), m.getParameterTypes());
+            return overrides(m, n) ? n.getAnnotation(a) : null;
+        } catch (NoSuchMethodException ignored) {
+            return null;
+        }
+    }
+
+    private static boolean overrides(Executable a, Executable b) {
+        int modsA = a.getModifiers(), modsB = b.getModifiers();
+        if (Modifier.isPrivate(modsA) || Modifier.isPrivate(modsB)) {
+            return false;
+        }
+        if (Modifier.isStatic(modsA) || Modifier.isStatic(modsB)) {
+            return false;
+        }
+        if (Modifier.isFinal(modsB)) {
+            return false;
+        }
+        if (compareAccess(modsA, modsB) < 0) {
+            return false;
+        }
+        return (notPackageAccess(modsA) && notPackageAccess(modsB))
+                || a.getDeclaringClass().getPackage().equals(b.getDeclaringClass().getPackage());
+    }
+
+    private static boolean notPackageAccess(int mods) {
+        return (mods & ACCESS_MODIFIERS) != 0;
+    }
+
+    private static int compareAccess(int lhs, int rhs) {
+        return compare(ACCESS_ORDER.indexOf(lhs & ACCESS_MODIFIERS), ACCESS_ORDER.indexOf(rhs & ACCESS_MODIFIERS));
     }
 
     @SneakyThrows

@@ -87,8 +87,8 @@ public class DefaultTracking implements Tracking {
                     .entrySet().stream().flatMap(e -> {
                         List<Handler<DeserializingMessage>> converted = e.getValue().stream().flatMap(
                                 target -> handlerFactory.createHandler(
-                                        target, e.getKey().getName(), trackingHandlerConfiguration).map(
-                                        Stream::of).orElse(Stream.empty())).collect(toList());
+                                                target, e.getKey().getName(), trackingHandlerConfiguration)
+                                        .stream()).collect(toList());
                         return converted.isEmpty() ? Stream.empty() :
                                 Stream.of(new SimpleEntry<>(e.getKey(), converted));
                     }).collect(toMap(Entry::getKey, Entry::getValue));
