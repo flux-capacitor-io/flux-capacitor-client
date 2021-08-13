@@ -74,7 +74,9 @@ public class AnnotatedEventSourcingHandler<T> implements EventSourcingHandler<T>
                 result = invoker.invoke(handledByAggregate ? model : m.getPayload(), m);
             } catch (HandlerNotFoundException e) {
                 if (model == null) {
-                    throw e;
+                    throw new HandlerNotFoundException(String.format(
+                            "Aggregate '%2$s' of type %1$s does not exist and no applicable method exists in %1$s or %3$s that would instantiate a new %1$s.",
+                            aggregate.type().getSimpleName(), aggregate.id(), message.getPayloadClass().getSimpleName()));
                 }
                 return model;
             } finally {

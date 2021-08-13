@@ -65,6 +65,11 @@ class EventSourcingRepositoryTest {
         private final EventStoreClient eventStoreClient = testFixture.getFluxCapacitor().client().getEventStoreClient();
 
         @Test
+        void testUpdateBeforeCreate() {
+            testFixture.whenCommand(new UpdateModel()).expectException(HandlerNotFoundException.class);
+        }
+
+        @Test
         void testLoadingFromEventStore() {
             testFixture.givenCommands(new CreateModel(), new UpdateModel())
                     .whenQuery(new GetModel())
