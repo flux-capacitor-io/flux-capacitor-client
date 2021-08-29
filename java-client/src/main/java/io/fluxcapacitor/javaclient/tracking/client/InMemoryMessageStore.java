@@ -53,7 +53,7 @@ import static java.util.stream.Collectors.toList;
 @RequiredArgsConstructor
 public class InMemoryMessageStore implements GatewayClient, TrackingClient {
 
-    private final ExecutorService executorService = Executors.newFixedThreadPool(10);
+    private final ExecutorService executorService = Executors.newCachedThreadPool();
     private final AtomicLong nextIndex = new AtomicLong();
     private final Map<String, TrackerRead> trackers = new ConcurrentHashMap<>();
     private final List<Consumer<SerializedMessage>> monitors = new CopyOnWriteArrayList<>();

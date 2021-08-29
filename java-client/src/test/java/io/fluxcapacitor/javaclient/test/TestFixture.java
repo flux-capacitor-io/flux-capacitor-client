@@ -69,6 +69,7 @@ import java.util.concurrent.TimeoutException;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.UnaryOperator;
+import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import static io.fluxcapacitor.common.MessageType.COMMAND;
@@ -459,7 +460,13 @@ public class TestFixture implements Given, When {
             }
             if (!checkConsumers()) {
                 log.warn("Some consumers in the test fixture did not finish processing all messages. "
-                                 + "This may cause your test to fail.");
+                                 + "This may cause your test to fail. Waiting consumers: {}",
+                         consumers.entrySet().stream()
+                                 .filter(e -> !e.getValue().isEmpty())
+                                 .map(e -> e.getKey().getName() + " : " + e.getValue().stream()
+                                 .map(m -> m.getPayload() == null
+                                         ? "Void" : m.getPayload().getClass().getSimpleName()).collect(
+                                         Collectors.joining(", "))).collect(toList()));
             }
         }
     }

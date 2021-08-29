@@ -35,7 +35,7 @@
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <java.version>11</java.version>
-        <spring.version>5.3.8</spring.version>
+        <spring.version>5.3.9</spring.version>
     </properties>
 
     <dependencies>
@@ -63,13 +63,13 @@
         <dependency>
             <groupId>org.mockito</groupId>
             <artifactId>mockito-core</artifactId>
-            <version>3.11.2</version>
+            <version>3.12.4</version>
             <scope>test</scope>
         </dependency>
         <dependency>
             <groupId>ch.qos.logback</groupId>
             <artifactId>logback-classic</artifactId>
-            <version>1.2.3</version>
+            <version>1.2.5</version>
             <optional>true</optional>
             <exclusions>
                 <exclusion>
