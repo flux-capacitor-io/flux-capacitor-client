@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016-2020 Flux Capacitor.
+ * Copyright (c) 2016-2021 Flux Capacitor.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,12 +14,12 @@
 
 package io.fluxcapacitor.javaclient.tracking.handling.validation;
 
+import jakarta.validation.ConstraintViolation;
+import jakarta.validation.Path;
+import jakarta.validation.TraversableResolver;
+import jakarta.validation.Validation;
 import lombok.AllArgsConstructor;
 
-import javax.validation.ConstraintViolation;
-import javax.validation.Path;
-import javax.validation.TraversableResolver;
-import javax.validation.Validation;
 import java.lang.annotation.ElementType;
 import java.util.Collection;
 import java.util.LinkedHashSet;
@@ -36,8 +36,8 @@ import static java.lang.annotation.ElementType.TYPE_USE;
  */
 @AllArgsConstructor
 public class Jsr380Validator implements Validator {
-    private final javax.validation.Validator fieldValidator;
-    private final javax.validation.Validator defaultValidator;
+    private final jakarta.validation.Validator fieldValidator;
+    private final jakarta.validation.Validator defaultValidator;
 
     public static Jsr380Validator createDefault() {
         return new Jsr380Validator(

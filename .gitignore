@@ -1,5 +1,5 @@
 *.iml
-*/target/*
+**/target/*
 .idea/
 js-client/dist
 node_modules/

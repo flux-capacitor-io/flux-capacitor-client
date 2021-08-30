@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016-2020 Flux Capacitor.
+ * Copyright (c) 2016-2021 Flux Capacitor.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,11 +15,11 @@
 package io.fluxcapacitor.javaclient.tracking.handling.validation;
 
 import io.fluxcapacitor.javaclient.common.exception.FunctionalException;
+import jakarta.validation.ConstraintViolation;
+import jakarta.validation.Path;
 import lombok.Getter;
 import org.hibernate.validator.internal.metadata.descriptor.ConstraintDescriptorImpl;
 
-import javax.validation.ConstraintViolation;
-import javax.validation.Path;
 import java.beans.ConstructorProperties;
 import java.lang.reflect.Method;
 import java.util.Collection;
@@ -31,12 +31,12 @@ import java.util.TreeSet;
 import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
 
+import static jakarta.validation.ElementKind.CONTAINER_ELEMENT;
 import static java.lang.String.CASE_INSENSITIVE_ORDER;
 import static java.lang.System.lineSeparator;
 import static java.util.stream.Collectors.joining;
 import static java.util.stream.Collectors.toCollection;
 import static java.util.stream.Collectors.toList;
-import static javax.validation.ElementKind.CONTAINER_ELEMENT;
 
 @Getter
 public class ValidationException extends FunctionalException {
