@@ -16,6 +16,7 @@ package io.fluxcapacitor.javaclient.test;
 
 import io.fluxcapacitor.common.api.search.SerializedDocument;
 import io.fluxcapacitor.common.api.search.SerializedDocumentUpdate;
+import io.fluxcapacitor.common.reflection.ReflectionUtils;
 import io.fluxcapacitor.common.search.Document;
 import io.fluxcapacitor.javaclient.FluxCapacitor;
 import io.fluxcapacitor.javaclient.common.Message;
@@ -23,9 +24,9 @@ import io.fluxcapacitor.javaclient.scheduling.Schedule;
 import lombok.AccessLevel;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
+import lombok.NonNull;
 import lombok.extern.slf4j.Slf4j;
 import org.hamcrest.Matcher;
-import org.hamcrest.StringDescription;
 import org.mockito.Mockito;
 
 import java.util.ArrayList;
@@ -38,7 +39,6 @@ import java.util.function.Consumer;
 import java.util.function.Predicate;
 import java.util.stream.Stream;
 
-import static io.fluxcapacitor.javaclient.test.GivenWhenThenUtils.toMatcher;
 import static java.lang.String.format;
 import static java.util.stream.Collectors.toList;
 import static java.util.stream.Stream.concat;
@@ -46,6 +46,8 @@ import static java.util.stream.Stream.concat;
 @AllArgsConstructor
 @Slf4j
 public class ResultValidator implements Then {
+    private static final boolean matchersSupported = ReflectionUtils.classExists("org.hamcrest.Matcher");
+
     @Getter(AccessLevel.PROTECTED)
     private final FluxCapacitor fluxCapacitor;
     private final Object actualResult;
@@ -116,25 +118,26 @@ public class ResultValidator implements Then {
     @SuppressWarnings("unchecked")
     protected List<Object> getResultingDocuments() {
         return concat(Mockito.mockingDetails(fluxCapacitor.client().getSearchClient()).getInvocations().stream()
-                .filter(i -> i.getMethod().getName().equals("index"))
-                .flatMap(i -> Arrays.stream(i.getArguments()).flatMap(a -> {
-                    if (a instanceof Document[]) {
-                        return Arrays.stream((Document[]) a);
-                    }
-                    if (a instanceof List<?>) {
-                        return ((List<Document>) a).stream();
-                    }
-                    return Stream.empty();
-                })).map(d -> fluxCapacitor.documentStore().getSerializer().fromDocument(d)),
-        Mockito.mockingDetails(fluxCapacitor.client().getSearchClient()).getInvocations().stream()
-                .filter(i -> i.getMethod().getName().equals("bulkUpdate"))
-                .flatMap(i -> Arrays.stream(i.getArguments()).flatMap(a -> {
-                    if (a instanceof Collection<?>) {
-                        return ((Collection<SerializedDocumentUpdate>) a).stream().map(SerializedDocumentUpdate::getObject)
-                                .filter(Objects::nonNull).map(SerializedDocument::deserializeDocument);
-                    }
-                    return Stream.empty();
-                })).map(d -> fluxCapacitor.documentStore().getSerializer().fromDocument(d)))
+                              .filter(i -> i.getMethod().getName().equals("index"))
+                              .flatMap(i -> Arrays.stream(i.getArguments()).flatMap(a -> {
+                                  if (a instanceof Document[]) {
+                                      return Arrays.stream((Document[]) a);
+                                  }
+                                  if (a instanceof List<?>) {
+                                      return ((List<Document>) a).stream();
+                                  }
+                                  return Stream.empty();
+                              })).map(d -> fluxCapacitor.documentStore().getSerializer().fromDocument(d)),
+                      Mockito.mockingDetails(fluxCapacitor.client().getSearchClient()).getInvocations().stream()
+                              .filter(i -> i.getMethod().getName().equals("bulkUpdate"))
+                              .flatMap(i -> Arrays.stream(i.getArguments()).flatMap(a -> {
+                                  if (a instanceof Collection<?>) {
+                                      return ((Collection<SerializedDocumentUpdate>) a).stream()
+                                              .map(SerializedDocumentUpdate::getObject)
+                                              .filter(Objects::nonNull).map(SerializedDocument::deserializeDocument);
+                                  }
+                                  return Stream.empty();
+                              })).map(d -> fluxCapacitor.documentStore().getSerializer().fromDocument(d)))
                 .collect(toList());
     }
 
@@ -146,16 +149,28 @@ public class ResultValidator implements Then {
                                                       (Throwable) actualResult);
             }
             if (!matches(expectedResult, actualResult)) {
-                if (!(expectedResult instanceof Matcher<?>) && actualResult != null && expectedResult != null
-                        && !(expectedResult instanceof Collection<?> && actualResult instanceof Collection<?>)
-                        && !(expectedResult instanceof Map<?, ?> && actualResult instanceof Map<?, ?>)
-                        && !Objects.equals(expectedResult.getClass(), actualResult.getClass())) {
+                if (isComparableToActual(expectedResult)) {
                     throw new GivenWhenThenAssertionError(format(
                             "Handler returned a result of unexpected type.\nExpected: %s\nGot: %s",
                             expectedResult.getClass(), actualResult.getClass()));
                 }
                 throw new GivenWhenThenAssertionError("Handler returned an unexpected result",
                                                       expectedResult, actualResult);
+            }
+            return this;
+        });
+    }
+
+    @Override
+    public <T> Then expectResult(Predicate<T> predicate, String description) {
+        return fluxCapacitor.apply(fc -> {
+            if (actualResult instanceof Throwable) {
+                throw new GivenWhenThenAssertionError("An unexpected exception occurred during handling",
+                                                      (Throwable) actualResult);
+            }
+            if (!testSafely(predicate, actualResult)) {
+                throw new GivenWhenThenAssertionError("Handler returned an unexpected result",
+                                                      description, actualResult);
             }
             return this;
         });
@@ -178,6 +193,44 @@ public class ResultValidator implements Then {
     }
 
     @Override
+    public ResultValidator expectException(@NonNull Object expectedException) {
+        return fluxCapacitor.apply(fc -> {
+            if (!(actualResult instanceof Throwable)) {
+                throw new GivenWhenThenAssertionError(
+                        "Handler returned normally but an exception was expected",
+                        expectedException, actualResult);
+            }
+            if (!matches(expectedException, actualResult)) {
+                if (isComparableToActual(expectedException)) {
+                    throw new GivenWhenThenAssertionError(format(
+                            "Handler threw unexpected exception.\nExpected: %s\nGot: %s",
+                            expectedException.getClass(), actualResult.getClass()));
+                }
+                throw new GivenWhenThenAssertionError("Handler threw unexpected exception",
+                                                      expectedException, actualResult);
+            }
+            return this;
+        });
+    }
+
+    @SuppressWarnings("unchecked")
+    @Override
+    public <T extends Throwable> Then expectException(Predicate<T> predicate, String description) {
+        return fluxCapacitor.apply(fc -> {
+            if (!(actualResult instanceof Throwable)) {
+                throw new GivenWhenThenAssertionError(
+                        "Handler returned normally but an exception was expected",
+                        description, actualResult);
+            }
+            if (!predicate.test((T) actualResult)) {
+                throw new GivenWhenThenAssertionError("Handler threw unexpected exception",
+                                                      description, actualResult);
+            }
+            return this;
+        });
+    }
+
+    @Override
     public ResultValidator expectThat(Consumer<FluxCapacitor> check) {
         return fluxCapacitor.apply(fc -> {
             try {
@@ -189,23 +242,11 @@ public class ResultValidator implements Then {
         });
     }
 
-    @Override
-    public ResultValidator expectException(Matcher<?> resultMatcher) {
-        return fluxCapacitor.apply(fc -> {
-            StringDescription description = new StringDescription();
-            resultMatcher.describeTo(description);
-            if (!(actualResult instanceof Throwable)) {
-                throw new GivenWhenThenAssertionError(
-                        "Handler returned normally but an exception was expected",
-                        description, actualResult);
-            }
-            if (!resultMatcher.matches(actualResult)) {
-                throw new GivenWhenThenAssertionError("Handler threw unexpected exception",
-                                                      description, actualResult);
-            }
-            return this;
-        });
-
+    protected boolean isComparableToActual(Object expected) {
+        return actualResult != null && expected != null && !isMatcher(expected)
+                && !(expected instanceof Collection<?> && actualResult instanceof Collection<?>)
+                && !(expected instanceof Map<?, ?> && actualResult instanceof Map<?, ?>)
+                && !Objects.equals(expected.getClass(), actualResult.getClass());
     }
 
     protected ResultValidator expectScheduledMessages(Collection<?> expected, Collection<? extends Schedule> actual) {
@@ -255,11 +296,11 @@ public class ResultValidator implements Then {
         if (!containsAll(expected, actual)) {
             List<?> remaining = new ArrayList<>(actual);
             List<?> filtered = expected.stream().flatMap(e -> {
-                if (e != null && !(expected instanceof Matcher<?>) && !(expected instanceof Predicate<?>)) {
+                if (e != null && !isMatcher(expected) && !(expected instanceof Predicate<?>)) {
                     Class<?> payloadType =
                             e instanceof Message ? ((Message) e).getPayload().getClass() : expected.getClass();
                     Object match = remaining.stream().filter(a -> payloadType
-                            .equals(a instanceof Message ? ((Message) a).getPayload().getClass() : a.getClass()))
+                                    .equals(a instanceof Message ? ((Message) a).getPayload().getClass() : a.getClass()))
                             .findFirst().orElse(null);
                     if (match != null) {
                         remaining.remove(match);
@@ -310,20 +351,27 @@ public class ResultValidator implements Then {
             return matches(expected, (Message) actual);
         }
         if (expected instanceof Predicate<?>) {
-            expected = toMatcher((Predicate<?>) expected);
+            return testSafely((Predicate<?>) expected, actual);
         }
-        if (expected instanceof Matcher<?>) {
+        if (isMatcher(expected)) {
             return ((Matcher<?>) expected).matches(actual);
+        }
+        if (expected instanceof Class<?>) {
+            return actual instanceof Class<?> ? expected.equals(actual) : ((Class<?>) expected).isInstance(actual);
         }
         return Objects.equals(expected, actual);
     }
 
     protected boolean matches(Object expected, Message actual) {
         if (expected instanceof Predicate<?>) {
-            expected = toMatcher((Predicate<?>) expected);
+            return testSafely((Predicate<?>) expected, actual.getPayload()) || testSafely((Predicate<?>) expected,
+                                                                                          actual);
         }
-        if (expected instanceof Matcher<?>) {
+        if (isMatcher(expected)) {
             return ((Matcher<?>) expected).matches(actual.getPayload()) || ((Matcher<?>) expected).matches(actual);
+        }
+        if (expected instanceof Class<?>) {
+            return ((Class<?>) expected).isInstance(actual.getPayload());
         }
         Message expectedMessage = expected instanceof Message ? (Message) expected : new Message(expected);
         return expectedMessage.getPayload().equals(actual.getPayload()) && actual.getMetadata().entrySet()
@@ -331,8 +379,22 @@ public class ResultValidator implements Then {
     }
 
     protected Collection<?> asMessages(Collection<?> expectedMessages) {
-        return expectedMessages.stream().map(e -> e instanceof Predicate<?>
-                ? GivenWhenThenUtils.toMatcher((Predicate<?>) e) : e instanceof Matcher<?> ? (Matcher<?>) e :
-                e instanceof Message ? (Message) e : new Message(e)).collect(toList());
+        return expectedMessages.stream()
+                .map(e -> e instanceof Message || e instanceof Predicate<?> || isMatcher(e) ? e :
+                        new Message(e)).collect(toList());
     }
+
+    @SuppressWarnings("unchecked")
+    protected boolean testSafely(Predicate<?> predicate, Object actual) {
+        try {
+            return ((Predicate<Object>) predicate).test(actual);
+        } catch (ClassCastException e) {
+            return false;
+        }
+    }
+
+    protected boolean isMatcher(Object expected) {
+        return matchersSupported && expected instanceof Matcher<?>;
+    }
+
 }

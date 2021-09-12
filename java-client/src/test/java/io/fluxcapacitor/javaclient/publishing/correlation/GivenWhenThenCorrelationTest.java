@@ -27,7 +27,6 @@ import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.function.Predicate;
 
 import static java.lang.Long.parseLong;
 import static java.util.Collections.singletonList;
@@ -41,7 +40,7 @@ public class GivenWhenThenCorrelationTest {
     void testDefaultCorrelationData() {
         testFixture.givenCommands(new CreateModel())
                 .whenQuery(new GetModel())
-                .expectResult((Predicate<TestModel>) r -> r.getEventMetadata().size() == 1 &&
+                .<TestModel>expectResult(r -> r.getEventMetadata().size() == 1 &&
                         ofNullable(r.getEventMetadata().get(0))
                                 .map(m -> m.get("$consumer").equals(m.get("$clientName") + "_COMMAND")
                                         && parseLong(m.get("$correlationId")) == parseLong(m.get("$traceId"))
@@ -53,7 +52,7 @@ public class GivenWhenThenCorrelationTest {
     void testDefaultCorrelationDataAfterTwoSteps() {
         testFixture.givenCommands(new CreateModelInTwoSteps())
                 .whenQuery(new GetModel())
-                .expectResult((Predicate<TestModel>) r -> r.getEventMetadata().size() == 1 &&
+                .<TestModel>expectResult(r -> r.getEventMetadata().size() == 1 &&
                         ofNullable(r.getEventMetadata().get(0))
                                 .map(m -> m.get("$consumer").equals(m.get("$clientName") + "_COMMAND")
                                         && parseLong(m.get("$correlationId")) > parseLong(m.get("$traceId"))
@@ -65,7 +64,7 @@ public class GivenWhenThenCorrelationTest {
     void testCustomTrace() {
         testFixture.givenCommands(new Message(new CreateModel(), Metadata.empty().withTrace("userName", "myself")))
                 .whenQuery(new GetModel())
-                .expectResult((Predicate<TestModel>) r -> r.getEventMetadata().size() == 1 &&
+                .<TestModel>expectResult(r -> r.getEventMetadata().size() == 1 &&
                         ofNullable(r.getEventMetadata().get(0))
                                 .map(m -> m.get("$trace.userName").equals("myself")).orElse(false));
     }
@@ -74,7 +73,7 @@ public class GivenWhenThenCorrelationTest {
     void testCustomTraceInTwoSteps() {
         testFixture.givenCommands(new Message(new CreateModelInTwoSteps(), Metadata.empty().withTrace("userName", "myself")))
                 .whenQuery(new GetModel())
-                .expectResult((Predicate<TestModel>) r -> r.getEventMetadata().size() == 1 &&
+                .<TestModel>expectResult(r -> r.getEventMetadata().size() == 1 &&
                         ofNullable(r.getEventMetadata().get(0))
                                 .map(m -> m.get("$trace.userName").equals("myself")).orElse(false));
     }

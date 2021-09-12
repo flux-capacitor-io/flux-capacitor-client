@@ -274,6 +274,15 @@ public class ReflectionUtils {
         return compare(ACCESS_ORDER.indexOf(lhs & ACCESS_MODIFIERS), ACCESS_ORDER.indexOf(rhs & ACCESS_MODIFIERS));
     }
 
+    public static boolean classExists(String className) {
+        try {
+            ReflectionUtils.classForName(className);
+            return true;
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
     @SneakyThrows
     private static Class<?> computeClass(String type) {
         return Class.forName(type);

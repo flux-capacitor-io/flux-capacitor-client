@@ -15,16 +15,13 @@
 package io.fluxcapacitor.javaclient.test;
 
 import io.fluxcapacitor.javaclient.FluxCapacitor;
-import org.hamcrest.Matcher;
-import org.hamcrest.core.IsNot;
+import lombok.NonNull;
 
 import java.util.Arrays;
 import java.util.List;
+import java.util.Objects;
 import java.util.function.Consumer;
 import java.util.function.Predicate;
-
-import static io.fluxcapacitor.javaclient.test.GivenWhenThenUtils.toMatcher;
-import static org.hamcrest.CoreMatchers.isA;
 
 public interface Then {
 
@@ -117,38 +114,51 @@ public interface Then {
     Then expectNoDocumentsLike(List<?> documents);
 
     /*
-        Result
+        Normal result
      */
 
     Then expectResult(Object result);
 
+    default Then expectResult(@NonNull Class<?> resultClass) {
+        return this.expectResult(r -> r instanceof Class<?> ? r.equals(resultClass) : resultClass.isInstance(r),
+                                 "an instance of " + resultClass.getSimpleName());
+    }
+
     default <T> Then expectResult(Predicate<T> predicate) {
-        return predicate == null ? expectResult((Object) null) : expectResult(toMatcher(predicate));
+        return expectResult(predicate, "Predicate matcher");
     }
 
-    default Then expectException() {
-        return expectException(isA(Throwable.class));
-    }
-
-    default Then expectException(Class<? extends Throwable> exceptionClass) {
-        return expectException(isA(exceptionClass));
-    }
-
-    default <T extends Throwable> Then expectException(Predicate<T> predicate) {
-        return expectException(toMatcher(predicate));
-    }
-
-    Then expectException(Matcher<?> resultMatcher);
+    <T> Then expectResult(Predicate<T> predicate, String description);
 
     default Then expectNoResult() {
         return expectResult((Object) null);
     }
 
-    default Then expectNoException() {
-        return expectResult(new IsNot<>(isA(Throwable.class)));
+    Then expectNoResultLike(Object result);
+
+    /*
+        Exceptional result
+     */
+
+    Then expectException(Object expectedException);
+
+    default Then expectException() {
+        return expectException(Objects::nonNull);
     }
 
-    Then expectNoResultLike(Object result);
+    default Then expectException(@NonNull Class<? extends Throwable> exceptionClass) {
+        return expectException(exceptionClass::isInstance, "an instance of " + exceptionClass.getSimpleName());
+    }
+
+    default <T extends Throwable> Then expectException(Predicate<T> predicate) {
+        return expectException(predicate, "Predicate matcher");
+    }
+
+    <T extends Throwable> Then expectException(Predicate<T> predicate, String errorMessage);
+
+    default Then expectNoException() {
+        return expectResult(r -> !(r instanceof Throwable));
+    }
 
     /*
         External process

@@ -105,7 +105,7 @@ class EventSourcingRepositoryTest {
         void testApplyEventsWithMetadata() {
             Metadata metaData = Metadata.of("foo", "bar");
             testFixture.givenCommands(new Message(new CreateModelWithMetadata(), metaData)).whenQuery(new GetModel())
-                    .expectResult(r -> ((TestModel) r).metadata.entrySet().containsAll(metaData.entrySet()));
+                    .<TestModel>expectResult(r -> r.metadata.entrySet().containsAll(metaData.entrySet()));
         }
 
         @Test
@@ -478,25 +478,25 @@ class EventSourcingRepositoryTest {
         @Test
         void testCreateViaEvent() {
             testFixture.givenCommands(new CreateModelFromEvent()).whenQuery(new GetModel())
-                    .expectResult(r -> ((TestModelWithoutApplyEvent) r).firstEvent.equals(new CreateModelFromEvent()));
+                    .<TestModelWithoutApplyEvent>expectResult(r -> r.firstEvent.equals(new CreateModelFromEvent()));
         }
 
         @Test
         void testUpdateViaEvent() {
             testFixture.givenCommands(new CreateModelFromEvent(), new UpdateModelFromEvent()).whenQuery(new GetModel())
-                    .expectResult(r -> ((TestModelWithoutApplyEvent) r).secondEvent.equals(new UpdateModelFromEvent()));
+                    .<TestModelWithoutApplyEvent>expectResult(r -> r.secondEvent.equals(new UpdateModelFromEvent()));
         }
 
         @Test
         void testUpsertViaEventIfNotExists() {
             testFixture.givenCommands(new UpsertModelFromEvent()).whenQuery(new GetModel())
-                    .expectResult(r -> ((TestModelWithoutApplyEvent) r).firstEvent.equals(new UpsertModelFromEvent()));
+                    .<TestModelWithoutApplyEvent>expectResult(r -> r.firstEvent.equals(new UpsertModelFromEvent()));
         }
 
         @Test
         void testUpsertViaEventIfExists() {
             testFixture.givenCommands(new UpsertModelFromEvent(), new UpsertModelFromEvent()).whenQuery(new GetModel())
-                    .expectResult(r -> ((TestModelWithoutApplyEvent) r).secondEvent.equals(new UpsertModelFromEvent()));
+                    .<TestModelWithoutApplyEvent>expectResult(r -> r.secondEvent.equals(new UpsertModelFromEvent()));
         }
 
 

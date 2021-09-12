@@ -11,7 +11,7 @@ Installation
 ======================
 ### Maven users
 
-Add this dependency to your project's POM:
+Add these dependencies to your project's POM:
 
 ```xml
 <dependency>
@@ -19,14 +19,22 @@ Add this dependency to your project's POM:
     <artifactId>java-client</artifactId>
     <version>${flux-capacitor.version}</version>
 </dependency>
+<dependency>
+    <groupId>io.flux-capacitor</groupId>
+    <artifactId>java-client</artifactId>
+    <version>${flux-capacitor.version}</version>
+    <classifier>tests</classifier>
+    <scope>test</scope>
+</dependency>
 ``` 
 
 ### Gradle users
 
-Add the following dependency:
+Add the following dependencies:
 
 ```
-compile 'io.flux-capacitor:java-client:${flux-capacitor.version}'
+compile(group: 'io.flux-capacitor', name: 'java-client', version: '${flux-capacitor.version}')
+testCompile(group: 'io.flux-capacitor', name: 'java-client', version: '${flux-capacitor.version}', classifier: 'tests')
 ```
 
 ### Others
