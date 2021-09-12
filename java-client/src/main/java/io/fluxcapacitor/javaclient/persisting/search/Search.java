@@ -17,18 +17,26 @@ package io.fluxcapacitor.javaclient.persisting.search;
 import io.fluxcapacitor.common.api.search.Constraint;
 import io.fluxcapacitor.common.api.search.DocumentStats;
 import io.fluxcapacitor.common.api.search.SearchHistogram;
-import io.fluxcapacitor.common.api.search.constraints.*;
+import io.fluxcapacitor.common.api.search.constraints.AnyConstraint;
+import io.fluxcapacitor.common.api.search.constraints.BetweenConstraint;
+import io.fluxcapacitor.common.api.search.constraints.ExistsConstraint;
+import io.fluxcapacitor.common.api.search.constraints.FindConstraint;
+import io.fluxcapacitor.common.api.search.constraints.MatchConstraint;
+import io.fluxcapacitor.common.api.search.constraints.NotConstraint;
 import io.fluxcapacitor.javaclient.FluxCapacitor;
+import lombok.NonNull;
 
 import java.time.Duration;
 import java.time.Instant;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.stream.Stream;
 
 import static java.util.stream.Collectors.toList;
+import static java.util.stream.Collectors.toMap;
 
 public interface Search {
 
@@ -173,7 +181,16 @@ public interface Search {
 
     SearchHistogram getHistogram(int resolution, int maxSize);
 
-    List<DocumentStats> getStatistics(Object field, String... groupBy);
+    default List<DocumentStats> getStatistics(@NonNull String field, String... groupBy) {
+        return getStatistics(List.of(field), groupBy);
+    }
+
+    List<DocumentStats> getStatistics(List<String> fields, String... groupBy);
+
+    default Map<Map<String, String>, Long> getDocumentStatistics(String... groupBy) {
+        return getStatistics(List.of(), groupBy).stream().collect(toMap(DocumentStats::getGroup, s ->
+                s.getFieldStats().values().stream().map(DocumentStats.FieldStats::getCount).findFirst().orElse(0L)));
+    }
 
     CompletableFuture<Void> delete();
 }

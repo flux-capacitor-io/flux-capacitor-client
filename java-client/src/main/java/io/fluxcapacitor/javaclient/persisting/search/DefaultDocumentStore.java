@@ -31,7 +31,6 @@ import io.fluxcapacitor.common.search.Document;
 import io.fluxcapacitor.javaclient.persisting.search.client.SearchClient;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
-import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
@@ -283,16 +282,7 @@ public class DefaultDocumentStore implements DocumentStore {
         }
 
         @Override
-        public List<DocumentStats> getStatistics(@NonNull Object field, String... groupBy) {
-            List<String> fields;
-            if (field instanceof String) {
-                fields = singletonList((String) field);
-            } else if (field instanceof Collection<?>) {
-                fields = ((Collection<?>) field).stream().map(Objects::toString).collect(toList());
-            } else {
-                throw new IllegalArgumentException(
-                        "Failed to parse field. Expected Collection or String. Got: " + field);
-            }
+        public List<DocumentStats> getStatistics(List<String> fields, String... groupBy) {
             return client.getStatistics(queryBuilder.build(), fields, Arrays.<String>asList(groupBy));
         }
 

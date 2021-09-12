@@ -16,13 +16,25 @@ package io.fluxcapacitor.javaclient.persisting.search.client;
 
 import io.fluxcapacitor.common.Awaitable;
 import io.fluxcapacitor.common.Guarantee;
-import io.fluxcapacitor.common.api.search.*;
+import io.fluxcapacitor.common.api.search.CreateAuditTrail;
+import io.fluxcapacitor.common.api.search.DocumentStats;
+import io.fluxcapacitor.common.api.search.DocumentStats.FieldStats;
+import io.fluxcapacitor.common.api.search.GetSearchHistogram;
+import io.fluxcapacitor.common.api.search.SearchDocuments;
+import io.fluxcapacitor.common.api.search.SearchHistogram;
+import io.fluxcapacitor.common.api.search.SearchQuery;
+import io.fluxcapacitor.common.api.search.SerializedDocumentUpdate;
 import io.fluxcapacitor.common.search.Document;
 import io.fluxcapacitor.javaclient.persisting.search.SearchHit;
 
 import java.math.BigDecimal;
 import java.time.Instant;
-import java.util.*;
+import java.util.Collection;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+import java.util.Optional;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.function.Function;
 import java.util.function.Predicate;
@@ -32,10 +44,11 @@ import java.util.stream.Stream;
 
 import static io.fluxcapacitor.common.api.search.BulkUpdate.Type.indexIfNotExists;
 import static io.fluxcapacitor.common.search.Document.EntryType.NUMERIC;
-import static java.util.Collections.emptyList;
 import static java.util.Collections.singletonList;
 import static java.util.function.Function.identity;
-import static java.util.stream.Collectors.*;
+import static java.util.stream.Collectors.groupingBy;
+import static java.util.stream.Collectors.toList;
+import static java.util.stream.Collectors.toMap;
 
 public class InMemorySearchClient implements SearchClient {
     private final List<Document> documents = new CopyOnWriteArrayList<>();
@@ -44,7 +57,8 @@ public class InMemorySearchClient implements SearchClient {
     public synchronized Awaitable index(List<Document> documents, Guarantee guarantee, boolean ifNotExists) {
         Function<Document, String> identify = d -> d.getCollection() + "/" + d.getId();
         Map<String, Document> existing = this.documents.stream().collect(toMap(identify, identity()));
-        Map<String, Document> updates = documents.stream().collect(toMap(identify, identity(), (a, b) -> b, LinkedHashMap::new));
+        Map<String, Document> updates =
+                documents.stream().collect(toMap(identify, identity(), (a, b) -> b, LinkedHashMap::new));
         if (ifNotExists) {
             updates.entrySet().stream().filter(e -> !existing.containsKey(e.getKey()))
                     .forEach(e -> this.documents.add(e.getValue()));
@@ -101,12 +115,13 @@ public class InMemorySearchClient implements SearchClient {
 
     @Override
     public List<DocumentStats> getStatistics(SearchQuery query, List<String> fields, List<String> groupBy) {
-        if (fields.isEmpty()) {
-            return emptyList();
-        }
         Map<List<String>, List<Document>> groups = documents.stream().filter(query::matches).collect(
                 groupingBy(d -> groupBy.stream().map(
                         g -> d.getEntryAtPath(g).map(Document.Entry::getValue).orElse(null)).collect(toList())));
+        if (fields.isEmpty()) {
+            return groups.entrySet().stream().map(e -> new DocumentStats(Map.of("", FieldStats.builder().count(
+                    e.getValue().size()).build()), asMap(groupBy, e.getKey()))).collect(toList());
+        }
         return groups.entrySet().stream().map(e -> new DocumentStats(
                 fields.stream().collect(toMap(identity(), f -> getFieldStats(f, e.getValue()), (a, b) -> b)),
                 asMap(groupBy, e.getKey()))).collect(toList());
@@ -142,22 +157,22 @@ public class InMemorySearchClient implements SearchClient {
                 case index:
                 case indexIfNotExists:
                     index(singletonList(action.getObject().deserializeDocument()), guarantee,
-                            action.getType().equals(indexIfNotExists));
+                          action.getType().equals(indexIfNotExists));
             }
         });
         return Awaitable.ready();
     }
 
-    private DocumentStats.FieldStats getFieldStats(String path, List<Document> documents) {
-        DocumentStats.FieldStats.FieldStatsBuilder builder = DocumentStats.FieldStats.builder().count(documents.size());
+    private FieldStats getFieldStats(String path, List<Document> documents) {
+        FieldStats.FieldStatsBuilder builder = FieldStats.builder().count(documents.size());
         List<BigDecimal> values =
-                documents.stream().flatMap(d -> d.getEntryAtPath(path).map(Stream::of).orElseGet(Stream::empty))
+                documents.stream().flatMap(d -> d.getEntryAtPath(path).stream())
                         .filter(e -> e.getType() == NUMERIC).map(e -> new BigDecimal(e.getValue())).sorted()
                         .collect(toList());
         if (!values.isEmpty()) {
             builder.min(values.get(0));
             builder.max(values.get(values.size() - 1));
-            builder.average(DocumentStats.FieldStats.getAverage(values));
+            builder.average(FieldStats.getAverage(values));
         }
         return builder.build();
     }
