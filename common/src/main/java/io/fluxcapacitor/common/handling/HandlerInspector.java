@@ -18,6 +18,7 @@ import io.fluxcapacitor.common.reflection.ReflectionUtils;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.SneakyThrows;
+import lombok.experimental.Delegate;
 
 import java.lang.annotation.Annotation;
 import java.lang.reflect.Constructor;
@@ -41,7 +42,6 @@ import static io.fluxcapacitor.common.reflection.ReflectionUtils.getAllMethods;
 import static io.fluxcapacitor.common.reflection.ReflectionUtils.getAnnotation;
 import static java.lang.String.format;
 import static java.util.Arrays.stream;
-import static java.util.Comparator.comparing;
 import static java.util.Comparator.reverseOrder;
 import static java.util.stream.Collectors.toList;
 import static java.util.stream.Stream.concat;
@@ -83,20 +83,24 @@ public class HandlerInspector {
 
     @Getter
     public static class MethodHandlerInvoker<M> implements HandlerInvoker<M> {
-        protected static final Comparator<MethodHandlerInvoker<?>> comparator = comparing(
-                (Function<MethodHandlerInvoker<?>, Integer>) MethodHandlerInvoker::getPriority, reverseOrder())
-                .thenComparing((Function<MethodHandlerInvoker<?>, Class<?>>) MethodHandlerInvoker::getPayloadType,
-                               (o1, o2)
-                                       -> Objects.equals(o1, o2) ? 0
-                                       : o1.isAssignableFrom(o2) || (o1.isInterface() && !o2.isInterface()) ? 1
-                                       : o2.isAssignableFrom(o1) || (!o1.isInterface() && o2.isInterface()) ? -1
-                                       : specificity(o2) - specificity(o1))
-                .thenComparing(MethodHandlerInvoker::getMethodIndex);
+        protected static final Comparator<MethodHandlerInvoker<?>> comparator = Comparator.comparing(
+                        (Function<MethodHandlerInvoker<?>, Integer>) MethodHandlerInvoker::getPriority, reverseOrder())
+                .thenComparing(
+                        (Function<MethodHandlerInvoker<?>, Class<?>>) MethodHandlerInvoker::getClassForSpecificity,
+                        (o1, o2)
+                                -> Objects.equals(o1, o2) ? 0
+                                : o1 == null ? 1 : o2 == null ? -1
+                                : o1.isAssignableFrom(o2) || (o1.isInterface() && !o2.isInterface()) ? 1
+                                : o2.isAssignableFrom(o1) || (!o1.isInterface() && o2.isInterface()) ? -1
+                                : specificity(o2) - specificity(o1))
+                .thenComparingInt(a -> -a.getParameterSuppliers().size())
+                .thenComparingInt(MethodHandlerInvoker::getMethodIndex);
 
         private final int methodIndex;
         private final Executable executable;
         private final boolean hasReturnValue;
-        private final List<Function<? super M, Object>> parameterSuppliers;
+        private final List<ParameterSupplier<? super M>> parameterSuppliers;
+        private final Class<?> classForSpecificity;
         private final Predicate<? super M> matcher;
         private final Annotation methodAnnotation;
         private final int priority;
@@ -111,6 +115,8 @@ public class HandlerInspector {
             this.hasReturnValue =
                     !(executable instanceof Method) || !(((Method) executable).getReturnType()).equals(void.class);
             this.parameterSuppliers = getParameterSuppliers(executable, parameterResolvers);
+            this.classForSpecificity = parameterSuppliers.stream().filter(ParameterSupplier::determinesSpecificity)
+                    .map(ParameterSupplier::getSpecificityClass).findFirst().orElse(null);
             this.matcher = getMatcher(executable, parameterResolvers);
             this.priority = getPriority(methodAnnotation);
             this.passive = isPassive(methodAnnotation);
@@ -165,16 +171,14 @@ public class HandlerInspector {
             return !canHandle(target, message) || passive;
         }
 
-        protected List<Function<? super M, Object>> getParameterSuppliers(Executable method,
-                                                                          List<ParameterResolver<? super M>> resolvers) {
+        protected List<ParameterSupplier<? super M>> getParameterSuppliers(
+                Executable method, List<ParameterResolver<? super M>> resolvers) {
             return stream(method.getParameters())
-                    .map(p -> resolvers.stream().map(r -> r.resolve(p)).filter(Objects::nonNull).findFirst()
+                    .map(p -> resolvers.stream().map(r -> Optional.ofNullable(r.resolve(p))
+                                    .map(f -> new ParameterSupplier<>(f, r.determinesSpecificity() ? p.getType() : null))
+                                    .orElse(null)).filter(Objects::nonNull).findFirst()
                             .orElseThrow(() -> new HandlerException(format("Could not resolve parameter %s", p))))
                     .collect(toList());
-        }
-
-        protected Class<?> getPayloadType() {
-            return executable.getParameterTypes()[0];
         }
 
         protected Predicate<M> getMatcher(Executable executable,
@@ -302,6 +306,18 @@ public class HandlerInspector {
         public String toString() {
             return Optional.ofNullable(target).map(o -> String.format("\"%s\"", o.getClass().getSimpleName()))
                     .orElse("DefaultHandler");
+        }
+    }
+
+    @Getter
+    @AllArgsConstructor
+    protected static class ParameterSupplier<M> implements Function<M, Object> {
+        @Delegate
+        private final Function<M, Object> function;
+        private final Class<?> specificityClass;
+
+        public boolean determinesSpecificity() {
+            return specificityClass != null;
         }
     }
 }

@@ -537,9 +537,13 @@ class EventSourcingRepositoryTest {
         @Value
         public static class UpsertModelFromEvent {
             @Apply
+            public TestModelWithoutApplyEvent apply() {
+                return TestModelWithoutApplyEvent.builder().firstEvent(this).build();
+            }
+
+            @Apply
             public TestModelWithoutApplyEvent apply(TestModelWithoutApplyEvent aggregate) {
-                return aggregate == null ? TestModelWithoutApplyEvent.builder().firstEvent(this).build()
-                        : aggregate.toBuilder().secondEvent(this).build();
+                return aggregate.toBuilder().secondEvent(this).build();
             }
         }
 

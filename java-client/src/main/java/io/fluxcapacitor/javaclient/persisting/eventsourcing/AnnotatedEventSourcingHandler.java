@@ -34,7 +34,8 @@ public class AnnotatedEventSourcingHandler<T> implements EventSourcingHandler<T>
 
     private final Class<T> handlerType;
     private final HandlerInvoker<DeserializingMessage> aggregateInvoker;
-    private final LocalAggregateParameterResolver<T> aggregateResolver = new LocalAggregateParameterResolver<>();
+    private final EventSourcingAggregateParameterResolver<T>
+            aggregateResolver = new EventSourcingAggregateParameterResolver<>();
     private final Function<Class<?>, HandlerInvoker<DeserializingMessage>> eventInvokers;
 
     public AnnotatedEventSourcingHandler(Class<T> handlerType) {
@@ -106,17 +107,25 @@ public class AnnotatedEventSourcingHandler<T> implements EventSourcingHandler<T>
         }
     }
 
-    public static class LocalAggregateParameterResolver<T> implements ParameterResolver<Object> {
+    public static class EventSourcingAggregateParameterResolver<T> implements ParameterResolver<Object> {
         private final ThreadLocal<AggregateRoot<T>> currentAggregate = new ThreadLocal<>();
 
         @Override
         public Function<Object, Object> resolve(Parameter parameter) {
-            if (currentAggregate.get() == null) {
-                return null;
-            }
             Class<T> aggregateType = currentAggregate.get().type();
             return parameter.getType().isAssignableFrom(aggregateType)
                     || aggregateType.isAssignableFrom(parameter.getType()) ? m -> currentAggregate.get().get() : null;
+        }
+
+        @Override
+        public boolean matches(Parameter parameter, Object value) {
+            return currentAggregate.get() != null
+                    && currentAggregate.get().get() != null && ParameterResolver.super.matches(parameter, value);
+        }
+
+        @Override
+        public boolean determinesSpecificity() {
+            return true;
         }
 
         public void setAggregate(AggregateRoot<T> aggregate) {

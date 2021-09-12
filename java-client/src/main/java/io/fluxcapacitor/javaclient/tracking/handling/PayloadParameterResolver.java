@@ -36,4 +36,9 @@ public class PayloadParameterResolver implements ParameterResolver<Deserializing
         }
         return p.getType().isAssignableFrom(payloadClass);
     }
+
+    @Override
+    public boolean determinesSpecificity() {
+        return true;
+    }
 }
