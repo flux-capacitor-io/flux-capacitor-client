@@ -148,28 +148,28 @@ public class DefaultDocumentStore implements DocumentStore {
     }
 
     @Override
-    public void deleteDocument(String id, String collection) {
+    public CompletableFuture<Void> deleteDocument(String id, String collection) {
         try {
-            client.delete(id, collection, Guarantee.SENT).await();
+            return client.delete(id, collection, Guarantee.STORED).asCompletableFuture();
         } catch (Exception e) {
             throw new DocumentStoreException(format("Could not delete document %s", collection), e);
         }
     }
 
     @Override
-    public void deleteCollection(String collection) {
+    public CompletableFuture<Void> deleteCollection(String collection) {
         try {
-            client.deleteCollection(collection).await();
+            return client.deleteCollection(collection).asCompletableFuture();
         } catch (Exception e) {
             throw new DocumentStoreException(format("Could not delete collection %s", collection), e);
         }
     }
 
     @Override
-    public void createAuditTrail(String collection, Duration retentionTime) {
+    public CompletableFuture<Void> createAuditTrail(String collection, Duration retentionTime) {
         try {
-            client.createAuditTrail(new CreateAuditTrail(collection, Optional.ofNullable(
-                    retentionTime).map(Duration::getSeconds).orElse(null))).await();
+            return client.createAuditTrail(new CreateAuditTrail(collection, Optional.ofNullable(
+                    retentionTime).map(Duration::getSeconds).orElse(null))).asCompletableFuture();
         } catch (Exception e) {
             throw new DocumentStoreException(format("Could not create audit trail %s", collection), e);
         }

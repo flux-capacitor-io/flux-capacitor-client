@@ -116,31 +116,35 @@ public interface DocumentStore {
         indexIfNotExists(objects, collection, v -> generateId());
     }
 
-    default <T> void indexIfNotExists(Collection<? extends T> objects, String collection, Function<? super T, String> idFunction) {
+    default <T> void indexIfNotExists(Collection<? extends T> objects, String collection,
+                                      Function<? super T, String> idFunction) {
         indexIfNotExists(objects, collection, idFunction, v -> null);
     }
 
     @SneakyThrows
     default <T> void indexIfNotExists(Collection<? extends T> objects, String collection, @Nullable String idPath,
-                           @Nullable String timestampPath) {
+                                      @Nullable String timestampPath) {
         index(objects, collection, idPath, timestampPath, null, Guarantee.STORED, true).get();
     }
 
     @SneakyThrows
     default <T> void indexIfNotExists(Collection<? extends T> objects, String collection, @Nullable String idPath,
-                           @Nullable String timestampPath, @Nullable String endPath) {
+                                      @Nullable String timestampPath, @Nullable String endPath) {
         index(objects, collection, idPath, timestampPath, endPath, Guarantee.STORED, true).get();
     }
 
     @SneakyThrows
-    default <T> void indexIfNotExists(Collection<? extends T> objects, String collection, Function<? super T, String> idFunction,
-                           Function<? super T, Instant> timestampFunction) {
+    default <T> void indexIfNotExists(Collection<? extends T> objects, String collection,
+                                      Function<? super T, String> idFunction,
+                                      Function<? super T, Instant> timestampFunction) {
         index(objects, collection, idFunction, timestampFunction, t -> null, Guarantee.STORED, true).get();
     }
 
     @SneakyThrows
-    default <T> void indexIfNotExists(Collection<? extends T> objects, String collection, Function<? super T, String> idFunction,
-                           Function<? super T, Instant> timestampFunction, Function<? super T, Instant> endFunction) {
+    default <T> void indexIfNotExists(Collection<? extends T> objects, String collection,
+                                      Function<? super T, String> idFunction,
+                                      Function<? super T, Instant> timestampFunction,
+                                      Function<? super T, Instant> endFunction) {
         index(objects, collection, idFunction, timestampFunction, endFunction, Guarantee.STORED, true).get();
     }
 
@@ -157,12 +161,11 @@ public interface DocumentStore {
 
     Search search(SearchQuery.Builder queryBuilder);
 
-    void deleteDocument(String id, String collection);
+    CompletableFuture<Void> deleteDocument(String id, String collection);
 
-    void deleteCollection(String collection);
+    CompletableFuture<Void> deleteCollection(String collection);
 
-    void createAuditTrail(String collection, Duration retentionTime);
-
+    CompletableFuture<Void> createAuditTrail(String collection, Duration retentionTime);
 
     DocumentSerializer getSerializer();
 

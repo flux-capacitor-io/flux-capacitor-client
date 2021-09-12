@@ -118,13 +118,10 @@ public class InMemorySearchClient implements SearchClient {
         Map<List<String>, List<Document>> groups = documents.stream().filter(query::matches).collect(
                 groupingBy(d -> groupBy.stream().map(
                         g -> d.getEntryAtPath(g).map(Document.Entry::getValue).orElse(null)).collect(toList())));
-        if (fields.isEmpty()) {
-            return groups.entrySet().stream().map(e -> new DocumentStats(Map.of("", FieldStats.builder().count(
-                    e.getValue().size()).build()), asMap(groupBy, e.getKey()))).collect(toList());
-        }
-        return groups.entrySet().stream().map(e -> new DocumentStats(
+        Stream<DocumentStats> statsStream = groups.entrySet().stream().map(e -> new DocumentStats(
                 fields.stream().collect(toMap(identity(), f -> getFieldStats(f, e.getValue()), (a, b) -> b)),
-                asMap(groupBy, e.getKey()))).collect(toList());
+                asMap(groupBy, e.getKey())));
+        return statsStream.sorted(DocumentStats.getComparator(groupBy)).collect(toList());
     }
 
     @Override
@@ -165,6 +162,9 @@ public class InMemorySearchClient implements SearchClient {
 
     private FieldStats getFieldStats(String path, List<Document> documents) {
         FieldStats.FieldStatsBuilder builder = FieldStats.builder().count(documents.size());
+        if (path.isBlank()) {
+            return builder.build();
+        }
         List<BigDecimal> values =
                 documents.stream().flatMap(d -> d.getEntryAtPath(path).stream())
                         .filter(e -> e.getType() == NUMERIC).map(e -> new BigDecimal(e.getValue())).sorted()

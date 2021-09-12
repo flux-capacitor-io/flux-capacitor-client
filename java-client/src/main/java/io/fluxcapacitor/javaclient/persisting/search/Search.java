@@ -188,7 +188,7 @@ public interface Search {
     List<DocumentStats> getStatistics(List<String> fields, String... groupBy);
 
     default Map<Map<String, String>, Long> getDocumentStatistics(String... groupBy) {
-        return getStatistics(List.of(), groupBy).stream().collect(toMap(DocumentStats::getGroup, s ->
+        return getStatistics(List.of(""), groupBy).stream().collect(toMap(DocumentStats::getGroup, s ->
                 s.getFieldStats().values().stream().map(DocumentStats.FieldStats::getCount).findFirst().orElse(0L)));
     }
 

@@ -21,13 +21,23 @@ import lombok.Value;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
+
+import static java.util.Comparator.comparing;
+import static java.util.Comparator.naturalOrder;
 
 @Value
 @Builder
 @AllArgsConstructor
 public class DocumentStats {
+    public static Comparator<DocumentStats> getComparator(List<String> groupBy) {
+        return groupBy.stream().map(g -> Comparator.<DocumentStats>nullsLast(
+                        comparing(d -> d.getGroup().get(g), Comparator.nullsLast(naturalOrder()))))
+                .reduce(Comparator::thenComparing).orElse((a, b) -> 0);
+    }
+
     Map<String, FieldStats> fieldStats;
     Map<String, String> group;
 
