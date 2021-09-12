@@ -15,6 +15,9 @@
 package io.fluxcapacitor.javaclient.test;
 
 import io.fluxcapacitor.javaclient.FluxCapacitor;
+import io.fluxcapacitor.javaclient.tracking.handling.authentication.UnauthenticatedException;
+import io.fluxcapacitor.javaclient.tracking.handling.authentication.UnauthorizedException;
+import io.fluxcapacitor.javaclient.tracking.handling.validation.ValidationException;
 import lombok.NonNull;
 
 import java.util.Arrays;
@@ -22,6 +25,8 @@ import java.util.List;
 import java.util.Objects;
 import java.util.function.Consumer;
 import java.util.function.Predicate;
+
+import static java.lang.String.format;
 
 public interface Then {
 
@@ -121,7 +126,7 @@ public interface Then {
 
     default Then expectResult(@NonNull Class<?> resultClass) {
         return this.expectResult(r -> r instanceof Class<?> ? r.equals(resultClass) : resultClass.isInstance(r),
-                                 "an instance of " + resultClass.getSimpleName());
+                                 format("an instance of %s", resultClass.getSimpleName()));
     }
 
     default <T> Then expectResult(Predicate<T> predicate) {
@@ -146,8 +151,23 @@ public interface Then {
         return expectException(Objects::nonNull);
     }
 
+    default Then expectIllegalCommandException() {
+        return expectException(e -> e.getClass().getSimpleName().equals("IllegalCommandException"),
+                               "an instance of IllegalCommandException");
+    }
+
+    default Then expectValidationException() {
+        return expectException(ValidationException.class);
+    }
+
+    default Then expectAuthenticationException() {
+        return expectException(e -> e instanceof UnauthenticatedException || e instanceof UnauthorizedException,
+                               format("an instance of %s or %s", UnauthenticatedException.class.getSimpleName(),
+                                      UnauthorizedException.class.getSimpleName()));
+    }
+
     default Then expectException(@NonNull Class<? extends Throwable> exceptionClass) {
-        return expectException(exceptionClass::isInstance, "an instance of " + exceptionClass.getSimpleName());
+        return expectException(exceptionClass::isInstance, format("an instance of %s", exceptionClass.getSimpleName()));
     }
 
     default <T extends Throwable> Then expectException(Predicate<T> predicate) {
