@@ -248,8 +248,10 @@ public class DefaultDocumentStore implements DocumentStore {
         }
 
         @Override
-        public Search skip(int n) {
-            this.skip = n;
+        public Search skip(Integer n) {
+            if (n != null) {
+                this.skip = n;
+            }
             return this;
         }
 

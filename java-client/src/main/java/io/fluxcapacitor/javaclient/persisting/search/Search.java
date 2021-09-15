@@ -141,7 +141,7 @@ public interface Search {
 
     Search includeOnly(String... paths);
 
-    Search skip(int n);
+    Search skip(Integer n);
 
     /*
         Execution
