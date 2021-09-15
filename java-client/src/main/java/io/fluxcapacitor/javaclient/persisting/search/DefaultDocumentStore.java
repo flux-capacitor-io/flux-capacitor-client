@@ -80,16 +80,20 @@ public class DefaultDocumentStore implements DocumentStore {
                 v, generateId(), collection, null, null)).map(d -> {
             Document.DocumentBuilder builder = d.toBuilder();
             if (idPath != null) {
-                builder.id(d.getEntryAtPath(idPath).map(Document.Entry::getValue).orElseThrow(
+                builder.id(d.getEntryAtPath(idPath).filter(
+                        e -> e.getType() == Document.EntryType.TEXT || e.getType() == Document.EntryType.NUMERIC)
+                                   .map(Document.Entry::getValue).orElseThrow(
                         () -> new IllegalArgumentException(
                                 "Could not determine the document id. Path does not exist on document: " + d)));
             }
             if (timestampPath != null) {
-                builder.timestamp(d.getEntryAtPath(timestampPath).map(Document.Entry::getValue).map(Instant::parse)
+                builder.timestamp(d.getEntryAtPath(timestampPath).filter(e -> e.getType() == Document.EntryType.TEXT)
+                                          .map(Document.Entry::getValue).map(Instant::parse)
                         .orElse(null));
             }
             if (endPath != null) {
-                builder.end(d.getEntryAtPath(endPath).map(Document.Entry::getValue).map(Instant::parse)
+                builder.end(d.getEntryAtPath(endPath).filter(e -> e.getType() == Document.EntryType.TEXT)
+                                    .map(Document.Entry::getValue).map(Instant::parse)
                         .orElse(null));
             }
             return builder.build();
