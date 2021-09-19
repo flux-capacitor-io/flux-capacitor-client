@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016-2020 Flux Capacitor.
+ * Copyright (c) 2016-2021 Flux Capacitor.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,16 +14,29 @@
 
 package io.fluxcapacitor.javaclient.persisting.eventsourcing;
 
-import java.lang.annotation.*;
+import java.lang.annotation.Documented;
+import java.lang.annotation.ElementType;
+import java.lang.annotation.Inherited;
+import java.lang.annotation.Retention;
+import java.lang.annotation.RetentionPolicy;
+import java.lang.annotation.Target;
 
 @Documented
 @Target(ElementType.TYPE)
 @Retention(RetentionPolicy.RUNTIME)
 @Inherited
 public @interface Aggregate {
-    String domain() default "";
     boolean eventSourced() default true;
+
     int snapshotPeriod() default 0;
+
     boolean cached() default true;
+
     boolean commitInBatch() default true;
+
+    boolean searchable() default false;
+
+    String collection() default "";
+
+    String timestampPath() default "";
 }

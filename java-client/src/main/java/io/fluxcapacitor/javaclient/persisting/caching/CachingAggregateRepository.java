@@ -45,6 +45,7 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Function;
+import java.util.function.UnaryOperator;
 
 import static io.fluxcapacitor.common.MessageType.EVENT;
 import static io.fluxcapacitor.common.MessageType.NOTIFICATION;
@@ -246,6 +247,12 @@ public class CachingAggregateRepository implements AggregateRepository {
         public AggregateRoot<T> apply(Message eventMessage) {
             throw new UnsupportedOperationException(
                     format("Not allowed to apply a %s. The aggregate is readonly.", eventMessage));
+        }
+
+        @Override
+        public AggregateRoot<T> update(UnaryOperator<T> function) {
+            throw new UnsupportedOperationException(
+                    "Not allowed to apply the given function. The aggregate is readonly.");
         }
 
         @Override

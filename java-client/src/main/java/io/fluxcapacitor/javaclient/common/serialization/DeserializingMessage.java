@@ -110,6 +110,13 @@ public class DeserializingMessage {
     }
 
     public static Registration whenBatchCompletes(Runnable handler) {
+        if (current.get() == null) {
+            try {
+                return Registration.noOp();
+            } finally {
+                handler.run();
+            }
+        }
 
         if (batchCompletionHandlers.get() == null) {
             batchCompletionHandlers.set(new ArrayList<>());
@@ -120,6 +127,13 @@ public class DeserializingMessage {
     }
 
     public static void whenMessageCompletes(Runnable handler) {
+        if (current.get() == null) {
+            try {
+                return;
+            } finally {
+                handler.run();
+            }
+        }
         if (messageCompletionHandlers.get() == null) {
             messageCompletionHandlers.set(new ArrayList<>());
         }

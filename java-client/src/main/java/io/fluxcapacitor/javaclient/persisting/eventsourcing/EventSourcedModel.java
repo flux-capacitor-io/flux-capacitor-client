@@ -22,6 +22,7 @@ import lombok.Value;
 import lombok.experimental.Accessors;
 
 import java.time.Instant;
+import java.util.function.UnaryOperator;
 
 import static java.lang.String.format;
 
@@ -49,6 +50,11 @@ public class EventSourcedModel<T> implements AggregateRoot<T> {
     public AggregateRoot<T> apply(Message eventMessage) {
         throw new UnsupportedOperationException(format("Not allowed to apply a %s. The model is readonly.",
                                                        eventMessage));
+    }
+
+    @Override
+    public EventSourcedModel<T> update(UnaryOperator<T> function) {
+        return toBuilder().model(function.apply(model)).build();
     }
 
     @Override

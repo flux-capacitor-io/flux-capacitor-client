@@ -32,11 +32,11 @@ import io.fluxcapacitor.javaclient.persisting.caching.Cache;
 import io.fluxcapacitor.javaclient.persisting.caching.CachingAggregateRepository;
 import io.fluxcapacitor.javaclient.persisting.caching.DefaultCache;
 import io.fluxcapacitor.javaclient.persisting.caching.SelectiveCache;
+import io.fluxcapacitor.javaclient.persisting.eventsourcing.DefaultAggregateRepository;
 import io.fluxcapacitor.javaclient.persisting.eventsourcing.DefaultEventSourcingHandlerFactory;
 import io.fluxcapacitor.javaclient.persisting.eventsourcing.DefaultEventStore;
 import io.fluxcapacitor.javaclient.persisting.eventsourcing.DefaultSnapshotRepository;
 import io.fluxcapacitor.javaclient.persisting.eventsourcing.EventSourcingHandlerFactory;
-import io.fluxcapacitor.javaclient.persisting.eventsourcing.EventSourcingRepository;
 import io.fluxcapacitor.javaclient.persisting.eventsourcing.EventStore;
 import io.fluxcapacitor.javaclient.persisting.eventsourcing.EventStoreSerializer;
 import io.fluxcapacitor.javaclient.persisting.keyvalue.DefaultKeyValueStore;
@@ -459,8 +459,8 @@ public class DefaultFluxCapacitor implements FluxCapacitor {
                     new DefaultSnapshotRepository(client.getKeyValueClient(), snapshotSerializer);
 
             AggregateRepository aggregateRepository = new CompositeAggregateRepository(
-                    new EventSourcingRepository(eventStore, snapshotRepository, cache, eventStoreSerializer,
-                                                eventSourcingHandlerFactory));
+                    new DefaultAggregateRepository(eventStore, snapshotRepository, cache, documentStore,
+                                                   eventStoreSerializer, eventSourcingHandlerFactory));
 
             if (!disableAutomaticAggregateCaching) {
                 aggregateRepository =

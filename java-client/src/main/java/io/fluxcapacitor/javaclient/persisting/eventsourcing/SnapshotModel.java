@@ -24,6 +24,7 @@ import lombok.Value;
 import lombok.experimental.Accessors;
 
 import java.time.Instant;
+import java.util.function.UnaryOperator;
 
 import static java.lang.String.format;
 
@@ -64,6 +65,11 @@ public class SnapshotModel<T> implements AggregateRoot<T> {
     public AggregateRoot<T> apply(Message eventMessage) {
         throw new UnsupportedOperationException(format("Not allowed to apply a %s. The model is readonly.",
                 eventMessage));
+    }
+
+    @Override
+    public AggregateRoot<T> update(UnaryOperator<T> function) {
+        throw new UnsupportedOperationException("Not allowed to apply the given function. The model is readonly.");
     }
 
     @Override

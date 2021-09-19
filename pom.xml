@@ -35,7 +35,7 @@
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <java.version>11</java.version>
-        <spring.version>5.3.9</spring.version>
+        <spring.version>5.3.10</spring.version>
     </properties>
 
     <dependencies>
@@ -51,7 +51,7 @@
         <dependency>
             <groupId>org.junit.jupiter</groupId>
             <artifactId>junit-jupiter-engine</artifactId>
-            <version>5.7.2</version>
+            <version>5.8.0</version>
             <scope>test</scope>
         </dependency>
         <dependency>

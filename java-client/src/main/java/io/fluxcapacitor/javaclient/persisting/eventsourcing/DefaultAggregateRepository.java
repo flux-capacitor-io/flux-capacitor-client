@@ -16,6 +16,7 @@ package io.fluxcapacitor.javaclient.persisting.eventsourcing;
 
 import io.fluxcapacitor.common.Awaitable;
 import io.fluxcapacitor.common.api.Metadata;
+import io.fluxcapacitor.common.reflection.ReflectionUtils;
 import io.fluxcapacitor.javaclient.common.Message;
 import io.fluxcapacitor.javaclient.common.serialization.DeserializingMessage;
 import io.fluxcapacitor.javaclient.common.serialization.DeserializingObject;
@@ -23,6 +24,7 @@ import io.fluxcapacitor.javaclient.modeling.AggregateRepository;
 import io.fluxcapacitor.javaclient.modeling.AggregateRoot;
 import io.fluxcapacitor.javaclient.persisting.caching.Cache;
 import io.fluxcapacitor.javaclient.persisting.caching.NoOpCache;
+import io.fluxcapacitor.javaclient.persisting.search.DocumentStore;
 import io.fluxcapacitor.javaclient.tracking.handling.validation.ValidationUtils;
 import lombok.AllArgsConstructor;
 import lombok.RequiredArgsConstructor;
@@ -30,6 +32,7 @@ import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
 
 import java.time.Instant;
+import java.time.temporal.TemporalAccessor;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -39,7 +42,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Function;
+import java.util.function.UnaryOperator;
 
 import static io.fluxcapacitor.common.MessageType.EVENT;
 import static io.fluxcapacitor.javaclient.common.serialization.DeserializingMessage.defaultParameterResolvers;
@@ -53,22 +58,23 @@ import static java.util.stream.Collectors.toList;
 
 @Slf4j
 @AllArgsConstructor
-public class EventSourcingRepository implements AggregateRepository {
+public class DefaultAggregateRepository implements AggregateRepository {
     private static final Function<String, String> keyFunction = aggregateId ->
-            EventSourcingRepository.class.getSimpleName() + ":" + aggregateId;
+            DefaultAggregateRepository.class.getSimpleName() + ":" + aggregateId;
 
     private final EventStore eventStore;
     private final SnapshotRepository snapshotRepository;
     private final Cache cache;
+    private final DocumentStore documentStore;
     private final EventStoreSerializer serializer;
     private final EventSourcingHandlerFactory handlerFactory;
 
     private final Map<Class<?>, AggregateFactoryFunction> aggregateFactory = new ConcurrentHashMap<>();
     private final ThreadLocal<Collection<EventSourcedAggregate<?>>> loadedModels = new ThreadLocal<>();
 
-    public EventSourcingRepository(EventStore eventStore, SnapshotRepository snapshotRepository, Cache cache,
-                                   EventStoreSerializer serializer) {
-        this(eventStore, snapshotRepository, cache, serializer,
+    public DefaultAggregateRepository(EventStore eventStore, SnapshotRepository snapshotRepository, Cache cache,
+                                      DocumentStore documentStore, EventStoreSerializer serializer) {
+        this(eventStore, snapshotRepository, cache, documentStore, serializer,
              new DefaultEventSourcingHandlerFactory(defaultParameterResolvers));
     }
 
@@ -113,12 +119,15 @@ public class EventSourcingRepository implements AggregateRepository {
             Cache cache = isCached(aggregateType) ? this.cache : NoOpCache.INSTANCE;
             SnapshotRepository snapshotRepository = snapshotRepository(aggregateType);
             SnapshotTrigger snapshotTrigger = snapshotTrigger(aggregateType);
-            String domain = domain(aggregateType);
             boolean eventSourced = eventSourced(aggregateType);
+            boolean searchable = searchable(aggregateType);
+            String collection = collection(aggregateType);
+            Function<AggregateRoot<?>, Instant> timestampFunction = timestampFunction(aggregateType);
             return (id, ro, init) -> {
                 EventSourcedAggregate<T> eventSourcedAggregate = new EventSourcedAggregate<>(
                         aggregateType, eventSourcingHandler, cache, serializer, eventStore, snapshotRepository,
-                        snapshotTrigger, domain, eventSourced, ro, id);
+                        snapshotTrigger, documentStore, eventSourced, searchable, collection, timestampFunction,
+                        ro, id);
                 if (init) {
                     eventSourcedAggregate.initialize();
                 }
@@ -151,8 +160,8 @@ public class EventSourcingRepository implements AggregateRepository {
                 .orElse((boolean) Aggregate.class.getMethod("cached").getDefaultValue());
     }
 
-    protected String domain(Class<?> aggregateType) {
-        return ofNullable(aggregateType.getAnnotation(Aggregate.class)).map(Aggregate::domain)
+    protected String collection(Class<?> aggregateType) {
+        return ofNullable(aggregateType.getAnnotation(Aggregate.class)).map(Aggregate::collection)
                 .filter(s -> !s.isEmpty()).orElse(aggregateType.getSimpleName());
     }
 
@@ -160,6 +169,28 @@ public class EventSourcingRepository implements AggregateRepository {
     protected boolean eventSourced(Class<?> aggregateType) {
         return ofNullable(aggregateType.getAnnotation(Aggregate.class)).map(Aggregate::eventSourced)
                 .orElse((boolean) Aggregate.class.getMethod("eventSourced").getDefaultValue());
+    }
+
+    @SneakyThrows
+    protected boolean searchable(Class<?> aggregateType) {
+        return ofNullable(aggregateType.getAnnotation(Aggregate.class)).map(Aggregate::searchable)
+                .orElse((boolean) Aggregate.class.getMethod("searchable").getDefaultValue());
+    }
+
+    @SneakyThrows
+    protected Function<AggregateRoot<?>, Instant> timestampFunction(Class<?> aggregateType) {
+        AtomicBoolean warnedAboutMissingProperty = new AtomicBoolean();
+        return ofNullable(aggregateType.getAnnotation(Aggregate.class)).map(Aggregate::timestampPath)
+                .filter(s -> !s.isBlank()).<Function<AggregateRoot<?>, Instant>>map(
+                        s -> aggregateRoot -> ReflectionUtils.readProperty(s, aggregateRoot.get())
+                                .map(t -> Instant.from((TemporalAccessor) t)).orElseGet(() -> {
+                                    if (warnedAboutMissingProperty.compareAndSet(false, true)) {
+                                        log.warn("Aggregate type {} does not declare the timestamp path property '{}'",
+                                                 aggregateRoot.get().getClass().getSimpleName(), s);
+                                    }
+                                    return aggregateRoot.timestamp();
+                                }))
+                .orElse(AggregateRoot::timestamp);
     }
 
     @RequiredArgsConstructor
@@ -172,13 +203,17 @@ public class EventSourcingRepository implements AggregateRepository {
         private final EventStore eventStore;
         private final SnapshotRepository snapshotRepository;
         private final SnapshotTrigger snapshotTrigger;
-        private final String domain;
+        private final DocumentStore documentStore;
         private final boolean eventSourced;
+        private final boolean searchable;
+        private final String collection;
+        private final Function<AggregateRoot<?>, Instant> timestampFunction;
         private final List<DeserializingMessage> unpublishedEvents = new ArrayList<>();
         private final boolean readOnly;
         private final String id;
 
         private EventSourcedModel<T> model;
+        private boolean updated;
 
         protected void initialize() {
             model = Optional.<EventSourcedModel<T>>ofNullable(cache.getIfPresent(keyFunction.apply(id)))
@@ -233,14 +268,28 @@ public class EventSourcingRepository implements AggregateRepository {
             DeserializingMessage deserializingMessage = new DeserializingMessage(new DeserializingObject<>(
                     serializer.serialize(eventMessage), type -> serializer.convert(eventMessage.getPayload(), type)), EVENT);
 
-            model = model.toBuilder().sequenceNumber(model.sequenceNumber() + 1)
-                    .model(eventSourcingHandler.invoke(model, deserializingMessage))
-                    .previous(model).lastEventId(eventMessage.getMessageId()).timestamp(eventMessage.getTimestamp())
-                    .lastEventIndex(deserializingMessage.getSerializedObject().getIndex())
-                    .build();
-
             unpublishedEvents.add(deserializingMessage);
+            updateModel(model.toBuilder().sequenceNumber(model.sequenceNumber() + 1)
+                                .model(eventSourcingHandler.invoke(model, deserializingMessage))
+                                .previous(model).lastEventId(eventMessage.getMessageId()).timestamp(eventMessage.getTimestamp())
+                                .lastEventIndex(deserializingMessage.getSerializedObject().getIndex())
+                                .build());
+            return this;
+        }
 
+        @Override
+        public AggregateRoot<T> update(UnaryOperator<T> function) {
+            if (eventSourced) {
+                log.warn("An event sourced aggregate is updated without applying an event. This is usually a mistake. "
+                                 + "On aggregate: {}", this);
+            }
+            updateModel(model.update(function));
+            return this;
+        }
+
+        protected void updateModel(EventSourcedModel<T> model) {
+            this.model = model;
+            updated = true;
             if (loadedModels.get() == null) {
                 loadedModels.set(asLifoQueue(new ArrayDeque<>()));
                 loadedModels.get().add(this);
@@ -267,7 +316,6 @@ public class EventSourcingRepository implements AggregateRepository {
             } else if (loadedModels.get().stream().noneMatch(e -> e == this)) {
                 loadedModels.get().add(this);
             }
-            return this;
         }
 
         @Override
@@ -345,8 +393,9 @@ public class EventSourcingRepository implements AggregateRepository {
         @Override
         public String toString() {
             return "EventSourcedAggregate{" +
-                    "domain='" + domain + '\'' +
+                    "collection='" + collection + '\'' +
                     ", eventSourced=" + eventSourced +
+                    ", searchable=" + searchable +
                     ", readOnly=" + readOnly +
                     ", model=" + model +
                     '}';
@@ -354,19 +403,30 @@ public class EventSourcingRepository implements AggregateRepository {
 
         protected Awaitable commit() {
             Awaitable result = Awaitable.ready();
-            if (!unpublishedEvents.isEmpty()) {
+            if (updated) {
                 try {
                     cache.put(keyFunction.apply(model.id()), model);
-                    result = eventStore.storeEvents(model.id(), domain, model.sequenceNumber(),
-                                                    new ArrayList<>(unpublishedEvents));
-                    if (snapshotTrigger.shouldCreateSnapshot(model, unpublishedEvents)) {
-                        snapshotRepository.storeSnapshot(model);
+                    if (!unpublishedEvents.isEmpty()) {
+                        result = eventStore.storeEvents(model.id(), collection, model.sequenceNumber(),
+                                                        new ArrayList<>(unpublishedEvents));
+                        if (snapshotTrigger.shouldCreateSnapshot(model, unpublishedEvents)) {
+                            snapshotRepository.storeSnapshot(model);
+                        }
+                    }
+                    if (searchable) {
+                        T value = model.get();
+                        if (value == null) {
+                            documentStore.deleteDocument(model.id(), collection);
+                        } else {
+                            documentStore.index(value, model.id(), collection, timestampFunction.apply(model));
+                        }
                     }
                 } catch (Exception e) {
                     log.error("Failed to commit new events of aggregate {}", model.id(), e);
                     cache.invalidate(keyFunction.apply(model.id()));
                 } finally {
                     unpublishedEvents.clear();
+                    updated = false;
                 }
             }
             return result;

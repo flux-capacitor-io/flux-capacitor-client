@@ -61,7 +61,7 @@ public interface Search {
     }
 
     default Search inPeriod(Instant start, Instant endExclusive) {
-        return inPeriod(start, endExclusive, false);
+        return inPeriod(start, endExclusive, true);
     }
 
     Search inPeriod(Instant start, Instant endExclusive, boolean requireTimestamp);

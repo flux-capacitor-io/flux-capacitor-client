@@ -23,6 +23,7 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.function.Function;
 import java.util.function.Predicate;
+import java.util.function.UnaryOperator;
 
 import static java.lang.String.format;
 
@@ -70,10 +71,7 @@ public interface AggregateRoot<T> {
         return apply(new Message(event, metadata));
     }
 
-    default AggregateRoot<T> apply(Function<T, Message> eventFunction) {
-        return apply(eventFunction.apply(get()));
-    }
-
+    AggregateRoot<T> update(UnaryOperator<T> function);
 
     default <E extends Exception> AggregateRoot<T> assertLegal(Object command) throws E {
         ValidationUtils.assertLegal(command, this);

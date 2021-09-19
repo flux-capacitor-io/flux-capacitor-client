@@ -44,7 +44,6 @@ import static java.lang.String.format;
 import static java.time.Duration.between;
 import static java.time.Instant.ofEpochMilli;
 import static java.time.temporal.ChronoUnit.MINUTES;
-import static java.util.UUID.randomUUID;
 
 @Slf4j
 public class SchedulingInterceptor implements DispatchInterceptor, HandlerInterceptor {
@@ -181,7 +180,7 @@ public class SchedulingInterceptor implements DispatchInterceptor, HandlerInterc
     private void reschedule(Object payload, Metadata metadata, Instant instant) {
         try {
             FluxCapacitor.get().scheduler().schedule(new Schedule(payload, metadata
-                    .getOrDefault(Schedule.scheduleIdMetadataKey, randomUUID().toString()), instant));
+                    .getOrDefault(Schedule.scheduleIdMetadataKey, FluxCapacitor.generateId()), instant));
         } catch (Exception e) {
             log.error("Failed to reschedule a {}", payload.getClass(), e);
         }

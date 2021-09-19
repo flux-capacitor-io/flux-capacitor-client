@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016-2020 Flux Capacitor.
+ * Copyright (c) 2016-2021 Flux Capacitor.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,7 +18,7 @@ import io.fluxcapacitor.common.Guarantee;
 import io.fluxcapacitor.common.MessageType;
 import io.fluxcapacitor.common.api.SerializedMessage;
 import io.fluxcapacitor.common.handling.Handler;
-import io.fluxcapacitor.common.reflection.ReflectionUtils;
+import io.fluxcapacitor.javaclient.FluxCapacitor;
 import io.fluxcapacitor.javaclient.common.Message;
 import io.fluxcapacitor.javaclient.common.serialization.DeserializingMessage;
 import io.fluxcapacitor.javaclient.common.serialization.Serializer;
@@ -33,9 +33,8 @@ import java.util.Map;
 import java.util.function.Function;
 
 import static io.fluxcapacitor.common.reflection.ReflectionUtils.getAnnotatedFields;
-import static io.fluxcapacitor.common.reflection.ReflectionUtils.getProperty;
-import static io.fluxcapacitor.common.reflection.ReflectionUtils.setField;
-import static java.util.UUID.randomUUID;
+import static io.fluxcapacitor.common.reflection.ReflectionUtils.readProperty;
+import static io.fluxcapacitor.common.reflection.ReflectionUtils.writeProperty;
 
 @AllArgsConstructor
 @Slf4j
@@ -56,21 +55,19 @@ public class DataProtectionInterceptor implements DispatchInterceptor, HandlerIn
                 protectedFields.putAll(m.getMetadata().get(METADATA_KEY, Map.class));
             } else {
                 Object payload = m.getPayload();
-                getAnnotatedFields(m.getPayload(), ProtectData.class).forEach(field -> {
-                    Object value = getProperty(field, payload);
-                    if (value != null) {
-                        String key = randomUUID().toString();
-                        keyValueStore.store(key, value, Guarantee.STORED);
-                        protectedFields.put(field.getName(), key);
-                    }
-                });
+                getAnnotatedFields(m.getPayload(), ProtectData.class).forEach(
+                        field -> readProperty(field.getName(), payload).ifPresent(value -> {
+                            String key = FluxCapacitor.generateId();
+                            keyValueStore.store(key, value, Guarantee.STORED);
+                            protectedFields.put(field.getName(), key);
+                        }));
                 if (!protectedFields.isEmpty()) {
                     m = m.withMetadata(m.getMetadata().with(METADATA_KEY, protectedFields));
                 }
             }
             if (!protectedFields.isEmpty()) {
                 Object payloadCopy = serializer.deserialize(serializer.serialize(m.getPayload()));
-                protectedFields.forEach((name, key) -> setField(name, payloadCopy, null));
+                protectedFields.forEach((name, key) -> writeProperty(name, payloadCopy, null));
                 m = m.withPayload(payloadCopy);
             }
             return function.apply(m);
@@ -89,7 +86,7 @@ public class DataProtectionInterceptor implements DispatchInterceptor, HandlerIn
                 boolean dropProtectedData = handler.getMethod(m).isAnnotationPresent(DropProtectedData.class);
                 protectedFields.forEach((fieldName, key) -> {
                     try {
-                        ReflectionUtils.setField(fieldName, payload, keyValueStore.get(key));
+                        writeProperty(fieldName, payload, keyValueStore.get(key));
                     } catch (Exception e) {
                         log.warn("Failed to set field {}", fieldName, e);
                     }

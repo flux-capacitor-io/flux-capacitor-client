@@ -186,4 +186,10 @@ public interface Then {
 
     Then expectThat(Consumer<FluxCapacitor> check);
 
+    Then expectTrue(Predicate<FluxCapacitor> check);
+
+    default Then expectFalse(Predicate<FluxCapacitor> check) {
+        return expectTrue(check.negate());
+    }
+
 }

@@ -242,6 +242,16 @@ public class ResultValidator implements Then {
         });
     }
 
+    @Override
+    public Then expectTrue(Predicate<FluxCapacitor> check) {
+        return fluxCapacitor.apply(fc -> {
+            if (!check.test(fc)) {
+                throw new GivenWhenThenAssertionError("Predicate test failed");
+            }
+            return this;
+        });
+    }
+
     protected boolean isComparableToActual(Object expected) {
         return actualResult != null && expected != null && !isMatcher(expected)
                 && !(expected instanceof Collection<?> && actualResult instanceof Collection<?>)

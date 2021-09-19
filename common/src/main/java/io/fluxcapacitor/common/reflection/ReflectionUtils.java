@@ -14,9 +14,13 @@
 
 package io.fluxcapacitor.common.reflection;
 
+import lombok.NonNull;
 import lombok.SneakyThrows;
+import lombok.Value;
 import org.apache.commons.lang3.reflect.FieldUtils;
+import org.apache.commons.lang3.reflect.MethodUtils;
 
+import java.beans.PropertyDescriptor;
 import java.lang.annotation.Annotation;
 import java.lang.invoke.MethodType;
 import java.lang.reflect.AccessibleObject;
@@ -38,13 +42,18 @@ import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
+import java.util.function.BiConsumer;
+import java.util.function.BiFunction;
 import java.util.function.Function;
 import java.util.function.Predicate;
+import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import static io.fluxcapacitor.common.ObjectUtils.memoize;
+import static java.beans.Introspector.getBeanInfo;
 import static java.lang.Integer.compare;
 import static java.security.AccessController.doPrivileged;
 import static java.util.Collections.emptyList;
@@ -60,6 +69,8 @@ public class ReflectionUtils {
 
     private static final Function<Class<?>, List<Method>> methodsCache = memoize(ReflectionUtils::computeAllMethods);
     private static final Function<String, Class<?>> classForNameCache = memoize(ReflectionUtils::computeClass);
+    private static final BiFunction<String, Class<?>, Function<Object, Object>> gettersCache = memoize(ReflectionUtils::computeNestedGetter);
+    private static final BiFunction<String, Class<?>, BiConsumer<Object, Object>> settersCache = memoize(ReflectionUtils::computeNestedSetter);
 
     public static List<Method> getAllMethods(Class<?> type) {
         return methodsCache.apply(type);
@@ -119,7 +130,7 @@ public class ReflectionUtils {
 
 
     public static Optional<?> getAnnotatedPropertyValue(Object target, Class<? extends Annotation> annotation) {
-        return getAnnotatedProperties(target, annotation).stream().findFirst().map(m -> getProperty(m, target));
+        return getAnnotatedProperties(target, annotation).stream().findFirst().map(m -> getValue(m, target));
     }
 
     public static List<? extends AccessibleObject> getAnnotatedProperties(Object target,
@@ -160,8 +171,65 @@ public class ReflectionUtils {
         return result;
     }
 
+    /*
+        Read a property
+     */
+
+    @SuppressWarnings("unchecked")
+    public static <T> Optional<T> readProperty(String propertyPath, Object target) {
+        if (target == null) {
+            return Optional.empty();
+        }
+        try {
+            return Optional.ofNullable(gettersCache.apply(propertyPath, target.getClass()).apply(target))
+                    .map(v -> (T) v);
+        } catch (PropertyNotFoundException ignored) {
+            return Optional.empty();
+        }
+    }
+
+    public static boolean hasProperty(String propertyPath, Object target) {
+        if (target == null) {
+            return false;
+        }
+        try {
+            gettersCache.apply(propertyPath, target.getClass()).apply(target);
+            return true;
+        } catch (PropertyNotFoundException ignored) {
+            return false;
+        }
+    }
+
+    private static Function<Object, Object> computeNestedGetter(String propertyPath, Class<?> type) {
+        String[] parts = Arrays.stream(propertyPath.replace('.', '/').split("/"))
+                .filter(s -> !s.isBlank()).toArray(String[]::new);
+        if (parts.length == 1) {
+            return computeGetter(parts[0], type);
+        }
+        return object -> {
+            for (String part : parts) {
+                if (object == null) {
+                    return null;
+                }
+                object = gettersCache.apply(part, object.getClass()).apply(object);
+            }
+            return object;
+        };
+    }
+
     @SneakyThrows
-    public static Object getProperty(AccessibleObject fieldOrMethod, Object target) {
+    private static Function<Object, Object> computeGetter(@NonNull String propertyName, @NonNull Class<?> type) {
+        return Arrays.stream(getBeanInfo(type, Object.class).getPropertyDescriptors())
+                .filter(d -> propertyName.equals(d.getName()))
+                .<AccessibleObject>map(PropertyDescriptor::getReadMethod).filter(Objects::nonNull).findFirst()
+                .or(() -> Optional.ofNullable(MethodUtils.getMatchingMethod(type, propertyName)))
+                .or(() -> Optional.ofNullable(FieldUtils.getField(type, propertyName, true)))
+                .<Function<Object, Object>>map(a -> target -> getValue(a, target))
+                .orElseThrow(() -> new PropertyNotFoundException(propertyName, type));
+    }
+
+    @SneakyThrows
+    private static Object getValue(AccessibleObject fieldOrMethod, Object target) {
         ensureAccessible(fieldOrMethod);
         if (fieldOrMethod instanceof Method) {
             return ((Method) fieldOrMethod).invoke(target);
@@ -170,6 +238,65 @@ public class ReflectionUtils {
             return ((Field) fieldOrMethod).get(target);
         }
         throw new IllegalStateException("Object property should be field or method: " + fieldOrMethod);
+    }
+
+    /*
+        Write a property
+     */
+
+    public static void writeProperty(String propertyPath, Object target, Object value) {
+        if (target != null) {
+            try {
+                settersCache.apply(propertyPath, target.getClass()).accept(target, value);
+            } catch (PropertyNotFoundException ignored) {
+            }
+        }
+    }
+
+    @SneakyThrows
+    private static BiConsumer<Object, Object> computeNestedSetter(@NonNull String propertyPath, @NonNull Class<?> type) {
+        String[] parts = Arrays.stream(propertyPath.replace('.', '/').split("/"))
+                .filter(s -> !s.isBlank()).toArray(String[]::new);
+        if (parts.length == 1) {
+            return computeSetter(parts[0], type);
+        }
+        Function<Object, Object> parentSupplier = gettersCache.apply(
+                Arrays.stream(parts).limit(parts.length - 1).collect(Collectors.joining("/")), type);
+        return (object, value) -> {
+            Object parent = parentSupplier.apply(object);
+            if (parent != null) {
+                BiConsumer<Object, Object> setter = settersCache.apply(parts[parts.length - 1], parent.getClass());
+                setter.accept(parent, value);
+            }
+        };
+    }
+
+    @SneakyThrows
+    private static BiConsumer<Object, Object> computeSetter(@NonNull String propertyName, @NonNull Class<?> type) {
+        return Arrays.stream(getBeanInfo(type, Object.class).getPropertyDescriptors())
+                .filter(d -> propertyName.equals(d.getName()))
+                .<AccessibleObject>map(PropertyDescriptor::getWriteMethod).filter(Objects::nonNull).findFirst()
+                .or(() -> Optional.ofNullable(FieldUtils.getField(type, propertyName, true)))
+                .<BiConsumer<Object, Object>>map(a -> (target, value) -> setValue(a, target, value))
+                .orElseThrow(() -> new PropertyNotFoundException(propertyName, type));
+    }
+
+    @SneakyThrows
+    private static void setValue(AccessibleObject fieldOrMethod, Object target, Object value) {
+        ensureAccessible(fieldOrMethod);
+        if (fieldOrMethod instanceof Method) {
+            ((Method) fieldOrMethod).invoke(target, value);
+        } else if (fieldOrMethod instanceof Field) {
+            ((Field) fieldOrMethod).set(target, value);
+        } else {
+            throw new IllegalStateException("Object property should be field or method: " + fieldOrMethod);
+        }
+    }
+
+    @Value
+    private static class PropertyNotFoundException extends RuntimeException {
+        @NonNull String propertyName;
+        @NonNull Class<?> type;
     }
 
     public static Class<?> getCollectionElementType(Type parameterizedType) {
