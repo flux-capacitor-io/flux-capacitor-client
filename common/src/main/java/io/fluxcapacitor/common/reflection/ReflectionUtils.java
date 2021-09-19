@@ -335,7 +335,15 @@ public class ReflectionUtils {
 
     public static Collection<? extends Annotation> getAnnotations(Class<?> type) {
         return Stream.concat(Arrays.stream(type.getAnnotations()), Arrays.stream(type.getAnnotatedInterfaces())
-                .map(AnnotatedType::getType).filter(t -> t instanceof Class<?>).map(t -> (Class<?>) t)
+                .map(AnnotatedType::getType).flatMap(t -> {
+                    if (t instanceof ParameterizedType) {
+                        t = ((ParameterizedType) t).getRawType();
+                    }
+                    if (t instanceof Class<?>) {
+                        return Stream.of((Class<?>) t);
+                    }
+                    return Stream.empty();
+                }).map(t -> (Class<?>) t)
                 .flatMap(i -> Arrays.stream(i.getAnnotations()))).collect(toCollection(LinkedHashSet::new));
     }
 
