@@ -68,31 +68,34 @@ public class AnnotatedEventSourcingHandler<T> implements EventSourcingHandler<T>
             Object result;
             HandlerInvoker<DeserializingMessage> invoker;
             T model = aggregate.get();
+            boolean handledByAggregate;
             try {
-                aggregateResolver.setAggregate(aggregate);
-                boolean handledByAggregate = aggregateInvoker.canHandle(model, m);
-                invoker = handledByAggregate ? aggregateInvoker : eventInvokers.apply(message.getPayloadClass());
-                result = invoker.invoke(handledByAggregate ? model : m.getPayload(), m);
-            } catch (HandlerNotFoundException e) {
-                if (model == null) {
-                    throw new HandlerNotFoundException(String.format(
-                            "Aggregate '%2$s' of type %1$s does not exist and no applicable method exists in %1$s or %3$s that would instantiate a new %1$s.",
-                            aggregate.type().getSimpleName(), aggregate.id(), message.getPayloadClass().getSimpleName()));
+                try {
+                    aggregateResolver.setAggregate(aggregate);
+                    handledByAggregate = aggregateInvoker.canHandle(model, m);
+                    invoker = handledByAggregate ? aggregateInvoker : eventInvokers.apply(message.getPayloadClass());
+                    result = invoker.invoke(handledByAggregate ? model : m.getPayload(), m);
+                } catch (HandlerNotFoundException e) {
+                    if (model == null) {
+                        throw new HandlerNotFoundException(String.format(
+                                "Aggregate '%2$s' of type %1$s does not exist and no applicable method exists in %1$s or %3$s that would instantiate a new %1$s.",
+                                aggregate.type().getSimpleName(), aggregate.id(), message.getPayloadClass().getSimpleName()));
+                    }
+                    return model;
                 }
-                return model;
+                if (model == null) {
+                    return handlerType.cast(result);
+                }
+                if (handlerType.isInstance(result)) {
+                    return handlerType.cast(result);
+                }
+                if (result == null && invoker.expectResult(handledByAggregate ? model : m.getPayload(), m)) {
+                    return null; //this handler has deleted the model on purpose
+                }
+                return model; //Annotated method returned void - apparently the model is mutable
             } finally {
                 aggregateResolver.removeAggregate();
             }
-            if (model == null) {
-                return handlerType.cast(result);
-            }
-            if (handlerType.isInstance(result)) {
-                return handlerType.cast(result);
-            }
-            if (result == null && invoker.expectResult(model, m)) {
-                return null; //this handler has deleted the model on purpose
-            }
-            return model; //Annotated method returned void - apparently the model is mutable
         });
     }
 
