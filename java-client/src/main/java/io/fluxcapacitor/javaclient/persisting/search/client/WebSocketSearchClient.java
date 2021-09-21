@@ -19,7 +19,25 @@ import io.fluxcapacitor.common.Backlog;
 import io.fluxcapacitor.common.Guarantee;
 import io.fluxcapacitor.common.ObjectUtils;
 import io.fluxcapacitor.common.api.QueryResult;
-import io.fluxcapacitor.common.api.search.*;
+import io.fluxcapacitor.common.api.search.BulkUpdateDocuments;
+import io.fluxcapacitor.common.api.search.CreateAuditTrail;
+import io.fluxcapacitor.common.api.search.DeleteCollection;
+import io.fluxcapacitor.common.api.search.DeleteDocumentById;
+import io.fluxcapacitor.common.api.search.DeleteDocuments;
+import io.fluxcapacitor.common.api.search.DocumentStats;
+import io.fluxcapacitor.common.api.search.GetDocument;
+import io.fluxcapacitor.common.api.search.GetDocumentResult;
+import io.fluxcapacitor.common.api.search.GetDocumentStats;
+import io.fluxcapacitor.common.api.search.GetDocumentStatsResult;
+import io.fluxcapacitor.common.api.search.GetSearchHistogram;
+import io.fluxcapacitor.common.api.search.GetSearchHistogramResult;
+import io.fluxcapacitor.common.api.search.IndexDocuments;
+import io.fluxcapacitor.common.api.search.SearchDocuments;
+import io.fluxcapacitor.common.api.search.SearchDocumentsResult;
+import io.fluxcapacitor.common.api.search.SearchHistogram;
+import io.fluxcapacitor.common.api.search.SearchQuery;
+import io.fluxcapacitor.common.api.search.SerializedDocument;
+import io.fluxcapacitor.common.api.search.SerializedDocumentUpdate;
 import io.fluxcapacitor.common.search.Document;
 import io.fluxcapacitor.javaclient.common.websocket.AbstractWebsocketClient;
 import io.fluxcapacitor.javaclient.configuration.client.WebSocketClient;
@@ -31,6 +49,7 @@ import java.net.URI;
 import java.time.Instant;
 import java.util.Collection;
 import java.util.List;
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
@@ -106,19 +125,27 @@ public class WebSocketSearchClient extends AbstractWebsocketClient implements Se
         int fetchBatchSize = maxSize == null ? 10_000 : Math.min(maxSize, 10_000);
         SearchDocuments request = searchDocuments.toBuilder().maxSize(fetchBatchSize).build();
         Stream<SerializedDocument> documentStream = ObjectUtils.<SearchDocumentsResult>iterate(
-                sendAndWait(request),
-                result -> sendAndWait(request.toBuilder().maxSize(
-                        maxSize == null ? fetchBatchSize : Math.min(maxSize - count.get(), fetchBatchSize))
-                        .lastHit(result.lastMatch()).build()),
-                result -> result.size() < fetchBatchSize
-                        || (maxSize != null && count.addAndGet(result.size()) >= maxSize))
+                        sendAndWait(request),
+                        result -> sendAndWait(request.toBuilder().maxSize(
+                                        maxSize == null ? fetchBatchSize : Math.min(maxSize - count.get(), fetchBatchSize))
+                                                      .lastHit(result.lastMatch()).build()),
+                        result -> result.size() < fetchBatchSize
+                                || (maxSize != null && count.addAndGet(result.size()) >= maxSize))
                 .flatMap(r -> r.getMatches().stream());
         if (maxSize != null) {
             documentStream = documentStream.limit(maxSize);
         }
         return documentStream.map(d -> new SearchHit<>(d.getId(), d.getCollection(),
-                d.getTimestamp() == null ? null : Instant.ofEpochMilli(d.getTimestamp()),
-                d.getEnd() == null ? null : Instant.ofEpochMilli(d.getEnd()), d::deserializeDocument));
+                                                       d.getTimestamp() == null ? null :
+                                                               Instant.ofEpochMilli(d.getTimestamp()),
+                                                       d.getEnd() == null ? null : Instant.ofEpochMilli(d.getEnd()),
+                                                       d::deserializeDocument));
+    }
+
+    @Override
+    public Optional<Document> get(GetDocument request) {
+        return Optional.ofNullable(this.<GetDocumentResult>sendAndWait(request).getDocument())
+                .map(SerializedDocument::deserializeDocument);
     }
 
     @Override

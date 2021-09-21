@@ -14,25 +14,13 @@
 
 package io.fluxcapacitor.common.api.search;
 
-import io.fluxcapacitor.common.api.QueryResult;
+import io.fluxcapacitor.common.api.Request;
+import lombok.EqualsAndHashCode;
 import lombok.Value;
 
-import java.util.List;
-
+@EqualsAndHashCode(callSuper = true)
 @Value
-public class GetDocumentsResult implements QueryResult {
-    long requestId;
-    List<SerializedDocument> documents;
-    long timestamp = System.currentTimeMillis();
-
-    @Override
-    public Metric toMetric() {
-        return new Metric(documents.size(), timestamp);
-    }
-
-    @Value
-    public static class Metric {
-        int size;
-        long timestamp;
-    }
+public class GetDocument extends Request {
+    String id;
+    String collection;
 }

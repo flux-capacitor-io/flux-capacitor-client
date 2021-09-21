@@ -24,6 +24,7 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Function;
 
@@ -160,6 +161,10 @@ public interface DocumentStore {
     }
 
     Search search(SearchQuery.Builder queryBuilder);
+
+    <T> Optional<T> getDocument(String id, String collection);
+
+    <T> Optional<T> getDocument(String id, String collection, Class<T> type);
 
     CompletableFuture<Void> deleteDocument(String id, String collection);
 

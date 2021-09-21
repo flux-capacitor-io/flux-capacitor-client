@@ -35,9 +35,10 @@ import io.fluxcapacitor.common.api.search.CreateAuditTrail;
 import io.fluxcapacitor.common.api.search.DeleteCollection;
 import io.fluxcapacitor.common.api.search.DeleteDocumentById;
 import io.fluxcapacitor.common.api.search.DeleteDocuments;
+import io.fluxcapacitor.common.api.search.GetDocument;
+import io.fluxcapacitor.common.api.search.GetDocumentResult;
 import io.fluxcapacitor.common.api.search.GetDocumentStats;
 import io.fluxcapacitor.common.api.search.GetDocumentStatsResult;
-import io.fluxcapacitor.common.api.search.GetDocumentsResult;
 import io.fluxcapacitor.common.api.search.GetSearchHistogram;
 import io.fluxcapacitor.common.api.search.GetSearchHistogramResult;
 import io.fluxcapacitor.common.api.search.IndexDocuments;
@@ -100,13 +101,14 @@ import io.fluxcapacitor.common.api.tracking.StorePosition;
         @JsonSubTypes.Type(value = SearchDocuments.class, name = "searchDocuments"),
         @JsonSubTypes.Type(value = GetSearchHistogram.class, name = "getSearchHistogram"),
         @JsonSubTypes.Type(value = GetSearchHistogramResult.class, name = "getSearchHistogramResult"),
+        @JsonSubTypes.Type(value = GetDocument.class, name = "getDocument"),
+        @JsonSubTypes.Type(value = GetDocumentResult.class, name = "getDocumentResult"),
         @JsonSubTypes.Type(value = DeleteCollection.class, name = "deleteCollection"),
         @JsonSubTypes.Type(value = DeleteDocuments.class, name = "deleteDocuments"),
         @JsonSubTypes.Type(value = DeleteDocumentById.class, name = "deleteDocumentById"),
         @JsonSubTypes.Type(value = BulkUpdateDocuments.class, name = "bulkUpdateDocuments"),
         @JsonSubTypes.Type(value = GetDocumentStats.class, name = "getDocumentStats"),
         @JsonSubTypes.Type(value = SearchDocumentsResult.class, name = "searchDocumentsResult"),
-        @JsonSubTypes.Type(value = GetDocumentsResult.class, name = "getDocumentsResult"),
         @JsonSubTypes.Type(value = GetDocumentStatsResult.class, name = "getDocumentStatsResult"),
         @JsonSubTypes.Type(value = CreateAuditTrail.class, name = "createAuditTrail"),
 })

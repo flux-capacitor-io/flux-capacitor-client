@@ -280,8 +280,8 @@ public class DefaultAggregateRepository implements AggregateRepository {
         @Override
         public AggregateRoot<T> update(UnaryOperator<T> function) {
             if (eventSourced) {
-                log.warn("An event sourced aggregate is updated without applying an event. This is usually a mistake. "
-                                 + "On aggregate: {}", this);
+                log.warn("An event sourced aggregate is updated without applying an event. This is typically a mistake."
+                                 + " On aggregate: {}", this);
             }
             updateModel(model.update(function));
             return this;

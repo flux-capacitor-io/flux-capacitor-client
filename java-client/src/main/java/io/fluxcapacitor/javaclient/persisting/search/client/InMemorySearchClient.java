@@ -19,6 +19,7 @@ import io.fluxcapacitor.common.Guarantee;
 import io.fluxcapacitor.common.api.search.CreateAuditTrail;
 import io.fluxcapacitor.common.api.search.DocumentStats;
 import io.fluxcapacitor.common.api.search.DocumentStats.FieldStats;
+import io.fluxcapacitor.common.api.search.GetDocument;
 import io.fluxcapacitor.common.api.search.GetSearchHistogram;
 import io.fluxcapacitor.common.api.search.SearchDocuments;
 import io.fluxcapacitor.common.api.search.SearchHistogram;
@@ -88,6 +89,13 @@ public class InMemorySearchClient implements SearchClient {
         }
         return documentStream
                 .map(d -> new SearchHit<>(d.getId(), d.getCollection(), d.getTimestamp(), d.getEnd(), () -> d));
+    }
+
+    @Override
+    public Optional<Document> get(GetDocument r) {
+        return documents.stream().filter(
+                d -> Objects.equals(r.getId(), d.getId()) && Objects.equals(r.getCollection(), d.getCollection()))
+                .findFirst();
     }
 
     @Override

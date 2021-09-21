@@ -53,7 +53,7 @@ import static java.util.stream.Collectors.toList;
 @RequiredArgsConstructor
 public class InMemoryMessageStore implements GatewayClient, TrackingClient {
 
-    private final ExecutorService executorService = Executors.newCachedThreadPool();
+    private final ExecutorService executor = Executors.newCachedThreadPool();
     private final AtomicLong nextIndex = new AtomicLong();
     private final Map<String, TrackerRead> trackers = new ConcurrentHashMap<>();
     private final List<Consumer<SerializedMessage>> monitors = new CopyOnWriteArrayList<>();
@@ -91,7 +91,7 @@ public class InMemoryMessageStore implements GatewayClient, TrackingClient {
                     CompletableFuture.delayedExecutor(trackerRead.getDeadline() - currentTimeMillis(), MILLISECONDS));
         }
         CompletableFuture<MessageBatch> result = new CompletableFuture<>();
-        executorService.submit(() -> {
+        executor.execute(() -> {
             synchronized (this) {
                 Map<Long, SerializedMessage> tailMap = Collections.emptyMap();
                 while (currentTimeMillis() < trackerRead.getDeadline()
@@ -165,7 +165,7 @@ public class InMemoryMessageStore implements GatewayClient, TrackingClient {
 
     @Override
     public void close() {
-        executorService.shutdown();
+        executor.shutdown();
     }
 
     protected SerializedMessage getMessage(long index) {

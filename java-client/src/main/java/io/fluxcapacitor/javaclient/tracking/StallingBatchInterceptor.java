@@ -17,7 +17,7 @@ package io.fluxcapacitor.javaclient.tracking;
 import io.fluxcapacitor.common.api.tracking.MessageBatch;
 import lombok.Builder;
 import lombok.NonNull;
-import lombok.SneakyThrows;
+import lombok.extern.slf4j.Slf4j;
 
 import java.time.Duration;
 import java.time.Instant;
@@ -28,6 +28,7 @@ import java.util.function.Consumer;
 import static io.fluxcapacitor.javaclient.FluxCapacitor.currentClock;
 
 @Builder
+@Slf4j
 public class StallingBatchInterceptor implements BatchInterceptor {
     @Builder.Default
     private final int desiredBatchSize = 512;
@@ -57,10 +58,13 @@ public class StallingBatchInterceptor implements BatchInterceptor {
                 .filter(f -> !currentClock().instant().isBefore(f.plus(maximumStallingDuration))).isPresent();
     }
 
-    @SneakyThrows
     protected void stall() {
         firstRefusal.updateAndGet(f -> f == null ? currentClock().instant() : f);
-        Thread.sleep(retryFrequency.toMillis());
+        try {
+            Thread.sleep(retryFrequency.toMillis());
+        } catch (InterruptedException ignored) {
+            Thread.currentThread().interrupt();
+        }
     }
 
 }

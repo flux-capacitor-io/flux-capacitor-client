@@ -134,7 +134,7 @@ public abstract class AbstractWebsocketClient implements AutoCloseable {
     @OnMessage
     @SneakyThrows
     public void onMessage(byte[] bytes) {
-        resultExecutor.submit(() -> {
+        resultExecutor.execute(() -> {
             JsonType value;
             try {
                 value = objectMapper.readValue(decompress(bytes, properties.getCompression()), JsonType.class);
@@ -142,32 +142,32 @@ public abstract class AbstractWebsocketClient implements AutoCloseable {
                 log.error("Could not parse input. Expected a Json message.", e);
                 return;
             }
-            try {
-                if (value instanceof ResultBatch) {
-                    ((ResultBatch) value).getResults().forEach(this::handleResult);
-                } else {
-                    handleResult((QueryResult) value);
-                }
-            } catch (Exception e) {
-                log.error("Failed to handle result {}", value, e);
+            if (value instanceof ResultBatch) {
+                ((ResultBatch) value).getResults().forEach(r -> resultExecutor.execute(() -> handleResult(r)));
+            } else {
+                handleResult((QueryResult) value);
             }
         });
 
     }
 
     protected void handleResult(QueryResult result) {
-        WebSocketRequest webSocketRequest = requests.remove(result.getRequestId());
-        if (webSocketRequest == null) {
-            log.warn("Could not find outstanding read request for id {}", result.getRequestId());
-        } else {
-            try {
-                tryPublishMetrics(result.toMetric(),
-                                  Metadata.of("requestId", webSocketRequest.request.getRequestId(),
-                                              "msDuration", currentTimeMillis() - webSocketRequest.sendTimestamp)
-                                          .with(webSocketRequest.correlationData));
-            } finally {
-                webSocketRequest.result.complete(result);
+        try {
+            WebSocketRequest webSocketRequest = requests.remove(result.getRequestId());
+            if (webSocketRequest == null) {
+                log.warn("Could not find outstanding read request for id {}", result.getRequestId());
+            } else {
+                try {
+                    tryPublishMetrics(result.toMetric(),
+                                      Metadata.of("requestId", webSocketRequest.request.getRequestId(),
+                                                  "msDuration", currentTimeMillis() - webSocketRequest.sendTimestamp)
+                                              .with(webSocketRequest.correlationData));
+                } finally {
+                    webSocketRequest.result.complete(result);
+                }
             }
+        } catch (Throwable e) {
+            log.error("Failed to handle result {}", result, e);
         }
     }
 

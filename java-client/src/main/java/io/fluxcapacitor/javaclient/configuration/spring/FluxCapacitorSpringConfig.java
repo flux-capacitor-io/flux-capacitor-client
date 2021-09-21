@@ -66,6 +66,9 @@ public class FluxCapacitorSpringConfig implements BeanPostProcessor {
     public void handle(ContextRefreshedEvent event) {
         FluxCapacitor fluxCapacitor = context.getBean(FluxCapacitor.class);
         handlerRegistration.updateAndGet(r -> r == null ? fluxCapacitor.registerHandlers(springBeans) : r);
+        if (Thread.getDefaultUncaughtExceptionHandler() == null) {
+            Thread.setDefaultUncaughtExceptionHandler((t, e) -> log.error("Uncaught exception", e));
+        }
     }
 
     @Bean

@@ -22,6 +22,7 @@ import io.fluxcapacitor.common.api.JsonType;
 import io.fluxcapacitor.common.handling.Handler;
 import io.fluxcapacitor.common.handling.HandlerInspector;
 import io.fluxcapacitor.common.serialization.compression.CompressionAlgorithm;
+import io.undertow.util.SameThreadExecutor;
 import lombok.Value;
 import lombok.extern.slf4j.Slf4j;
 
@@ -37,7 +38,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executor;
 import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicBoolean;
 
@@ -57,8 +58,8 @@ public abstract class WebsocketEndpoint extends Endpoint {
             .findAndAddModules().disable(WRITE_DATES_AS_TIMESTAMPS).build();
 
     private final ObjectMapper objectMapper;
-    private final ExecutorService requestExecutor;
-    private final ExecutorService responseExecutor;
+    private final Executor requestExecutor;
+    private final Executor responseExecutor;
 
     private final Map<String, Session> openSessions = new ConcurrentHashMap<>();
     protected final AtomicBoolean shuttingDown = new AtomicBoolean();
@@ -69,15 +70,15 @@ public abstract class WebsocketEndpoint extends Endpoint {
              Executors.newWorkStealingPool(8));
     }
 
-    protected WebsocketEndpoint(ExecutorService requestExecutor) {
+    protected WebsocketEndpoint(Executor requestExecutor) {
         this(defaultObjectMapper, requestExecutor, Executors.newWorkStealingPool(8));
     }
 
-    protected WebsocketEndpoint(ObjectMapper objectMapper, ExecutorService requestExecutor,
-                                ExecutorService responseExecutor) {
+    protected WebsocketEndpoint(ObjectMapper objectMapper, Executor requestExecutor,
+                                Executor responseExecutor) {
         this.objectMapper = objectMapper;
-        this.requestExecutor = requestExecutor;
-        this.responseExecutor = responseExecutor;
+        this.requestExecutor = Optional.ofNullable(requestExecutor).orElse(SameThreadExecutor.INSTANCE);
+        this.responseExecutor = Optional.ofNullable(responseExecutor).orElse(SameThreadExecutor.INSTANCE);
         Runtime.getRuntime().addShutdownHook(new Thread(this::shutDown));
     }
 

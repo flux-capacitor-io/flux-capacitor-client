@@ -89,7 +89,7 @@ public class DefaultTracker implements Runnable, Registration {
                 .mapToObj(i -> new DefaultTracker(consumer, config, client))
                 .collect(toList());
         ExecutorService executor = newFixedThreadPool(config.getThreads());
-        instances.forEach(executor::submit);
+        instances.forEach(executor::execute);
         return () -> {
             instances.forEach(DefaultTracker::cancel);
             executor.shutdownNow();
@@ -113,8 +113,10 @@ public class DefaultTracker implements Runnable, Registration {
             thread.set(currentThread());
             while (running.get()) {
                 MessageBatch batch = fetch(lastProcessedIndex);
-                Tracker.current.set(tracker.withMessageBatch(batch));
-                processor.accept(batch);
+                if (batch != null) {
+                    Tracker.current.set(tracker.withMessageBatch(batch));
+                    processor.accept(batch);
+                }
             }
             Tracker.current.remove();
         }
@@ -144,13 +146,13 @@ public class DefaultTracker implements Runnable, Registration {
                         .max(naturalOrder()).orElse(null), messageBatch.getSegment());
                 processing = false;
                 cancel();
-                throw e;
+                return;
             } catch (Exception e) {
                 log.error("Consumer {} failed to handle batch of {} messages and did not handle exception. "
                         + "Tracker will be stopped.", tracker.getName(), messages.size(), e);
                 processing = false;
                 cancel();
-                throw e;
+                return;
             }
             updatePosition(messageBatch.getLastIndex(), messageBatch.getSegment());
         } finally {

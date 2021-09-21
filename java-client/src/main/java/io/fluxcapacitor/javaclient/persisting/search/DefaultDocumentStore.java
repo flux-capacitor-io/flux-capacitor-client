@@ -19,6 +19,7 @@ import io.fluxcapacitor.common.api.search.BulkUpdate;
 import io.fluxcapacitor.common.api.search.Constraint;
 import io.fluxcapacitor.common.api.search.CreateAuditTrail;
 import io.fluxcapacitor.common.api.search.DocumentStats;
+import io.fluxcapacitor.common.api.search.GetDocument;
 import io.fluxcapacitor.common.api.search.GetSearchHistogram;
 import io.fluxcapacitor.common.api.search.SearchDocuments;
 import io.fluxcapacitor.common.api.search.SearchHistogram;
@@ -149,6 +150,24 @@ public class DefaultDocumentStore implements DocumentStore {
     @Override
     public Search search(SearchQuery.Builder searchBuilder) {
         return new DefaultSearch(searchBuilder);
+    }
+
+    @Override
+    public <T> Optional<T> getDocument(String id, String collection) {
+        try {
+            return client.get(new GetDocument(id, collection)).map(serializer::fromDocument);
+        } catch (Exception e) {
+            throw new DocumentStoreException(format("Could not get document %s from collection %s", id, collection), e);
+        }
+    }
+
+    @Override
+    public <T> Optional<T> getDocument(String id, String collection, Class<T> type) {
+        try {
+            return client.get(new GetDocument(id, collection)).map(d -> serializer.fromDocument(d, type));
+        } catch (Exception e) {
+            throw new DocumentStoreException(format("Could not get document %s from collection %s", id, collection), e);
+        }
     }
 
     @Override
