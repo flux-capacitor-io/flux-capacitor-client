@@ -22,6 +22,7 @@ import io.fluxcapacitor.common.api.JsonType;
 import io.fluxcapacitor.common.api.Metadata;
 import io.fluxcapacitor.common.api.QueryResult;
 import io.fluxcapacitor.common.api.Request;
+import io.fluxcapacitor.common.api.ResultBatch;
 import io.fluxcapacitor.javaclient.FluxCapacitor;
 import io.fluxcapacitor.javaclient.configuration.client.WebSocketClient.Properties;
 import lombok.RequiredArgsConstructor;
@@ -30,7 +31,6 @@ import lombok.extern.slf4j.Slf4j;
 
 import javax.websocket.CloseReason;
 import javax.websocket.ContainerProvider;
-import javax.websocket.DecodeException;
 import javax.websocket.OnClose;
 import javax.websocket.OnError;
 import javax.websocket.OnMessage;
@@ -42,6 +42,8 @@ import java.time.Duration;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import static com.fasterxml.jackson.databind.DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES;
@@ -67,6 +69,7 @@ public abstract class AbstractWebsocketClient implements AutoCloseable {
     private final ObjectMapper objectMapper;
     private final Map<Long, WebSocketRequest> requests = new ConcurrentHashMap<>();
     private final AtomicBoolean closed = new AtomicBoolean();
+    private final ExecutorService resultExecutor = Executors.newFixedThreadPool(8);
     private final boolean sendMetrics;
 
     public AbstractWebsocketClient(URI endpointUri, Properties properties, boolean sendMetrics) {
@@ -131,24 +134,39 @@ public abstract class AbstractWebsocketClient implements AutoCloseable {
     @OnMessage
     @SneakyThrows
     public void onMessage(byte[] bytes) {
-        JsonType value;
-        try {
-            value = objectMapper.readValue(decompress(bytes, properties.getCompression()), JsonType.class);
-        } catch (Exception e) {
-            throw new DecodeException("", "Could not parse input. Expected a Json message.", e);
-        }
-        QueryResult readResult = (QueryResult) value;
-        WebSocketRequest webSocketRequest = requests.remove(readResult.getRequestId());
+        resultExecutor.submit(() -> {
+            JsonType value;
+            try {
+                value = objectMapper.readValue(decompress(bytes, properties.getCompression()), JsonType.class);
+            } catch (Exception e) {
+                log.error("Could not parse input. Expected a Json message.", e);
+                return;
+            }
+            try {
+                if (value instanceof ResultBatch) {
+                    ((ResultBatch) value).getResults().forEach(this::handleResult);
+                } else {
+                    handleResult((QueryResult) value);
+                }
+            } catch (Exception e) {
+                log.error("Failed to handle result {}", value, e);
+            }
+        });
+
+    }
+
+    protected void handleResult(QueryResult result) {
+        WebSocketRequest webSocketRequest = requests.remove(result.getRequestId());
         if (webSocketRequest == null) {
-            log.warn("Could not find outstanding read request for id {}", readResult.getRequestId());
+            log.warn("Could not find outstanding read request for id {}", result.getRequestId());
         } else {
             try {
-                tryPublishMetrics(readResult.toMetric(),
+                tryPublishMetrics(result.toMetric(),
                                   Metadata.of("requestId", webSocketRequest.request.getRequestId(),
                                               "msDuration", currentTimeMillis() - webSocketRequest.sendTimestamp)
                                           .with(webSocketRequest.correlationData));
             } finally {
-                webSocketRequest.result.complete(readResult);
+                webSocketRequest.result.complete(result);
             }
         }
     }
