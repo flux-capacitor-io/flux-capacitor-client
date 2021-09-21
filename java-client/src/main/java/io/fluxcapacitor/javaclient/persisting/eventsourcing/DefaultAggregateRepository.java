@@ -150,7 +150,8 @@ public class DefaultAggregateRepository implements AggregateRepository {
 
     @SneakyThrows
     protected int snapshotPeriod(Class<?> aggregateType) {
-        return ofNullable(aggregateType.getAnnotation(Aggregate.class)).map(a -> a.eventSourced() ? a.snapshotPeriod() : 1)
+        return ofNullable(aggregateType.getAnnotation(Aggregate.class))
+                .map(a -> a.eventSourced() || a.searchable() ? a.snapshotPeriod() : 1)
                 .orElse((int) Aggregate.class.getMethod("snapshotPeriod").getDefaultValue());
     }
 
@@ -220,10 +221,13 @@ public class DefaultAggregateRepository implements AggregateRepository {
                     .filter(a -> aggregateType.isAssignableFrom(a.get().getClass()))
                     .orElseGet(() -> {
                         EventSourcedModel<T> model = snapshotRepository.<T>getSnapshot(id)
+                                .or(() -> searchable && !eventSourced ? documentStore.<T>getDocument(id, collection)
+                                        .map(d -> EventSourcedModel.<T>builder().id(id).type(aggregateType).model(
+                                                d).build()) : Optional.empty())
                                 .filter(a -> aggregateType.isAssignableFrom(a.get().getClass()))
-                                .orElse(EventSourcedModel.<T>builder().id(id).type(aggregateType).build());
+                                .orElseGet(() -> EventSourcedModel.<T>builder().id(id).type(aggregateType).build());
                         if (!eventSourced) {
-                            return model.toBuilder().sequenceNumber(model.sequenceNumber()).build();
+                            return model;
                         }
                         AggregateEventStream<DeserializingMessage> eventStream
                                 = eventStore.getEvents(id, model.sequenceNumber());

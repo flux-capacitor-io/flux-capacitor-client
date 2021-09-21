@@ -77,7 +77,7 @@ public class SearchableAggregateTest {
                 .expectFalse(fc -> search("searchables").getAll().isEmpty());
     }
 
-    @Aggregate(eventSourced = false, searchable = true)
+    @Aggregate(eventSourced = false, searchable = true, cached = false)
     @Value
     static class SearchableAggregate {
         String foo;
