@@ -19,6 +19,6 @@ import lombok.Value;
 import java.util.List;
 
 @Value
-public class RequestBatch implements JsonType {
-    List<Request> requests;
+public class RequestBatch<T extends JsonType> implements JsonType {
+    List<T> requests;
 }
