@@ -37,16 +37,12 @@ import java.util.Map;
 import java.util.stream.Stream;
 
 import static io.fluxcapacitor.common.api.search.constraints.AnyConstraint.any;
-import static io.fluxcapacitor.common.api.search.constraints.BetweenConstraint.atLeast;
-import static io.fluxcapacitor.common.api.search.constraints.BetweenConstraint.below;
-import static io.fluxcapacitor.common.api.search.constraints.BetweenConstraint.between;
+import static io.fluxcapacitor.common.api.search.constraints.BetweenConstraint.*;
 import static io.fluxcapacitor.common.api.search.constraints.ExistsConstraint.exists;
 import static io.fluxcapacitor.common.api.search.constraints.FindConstraint.find;
 import static io.fluxcapacitor.common.api.search.constraints.MatchConstraint.match;
 import static io.fluxcapacitor.common.api.search.constraints.NotConstraint.not;
-import static java.util.Collections.emptyList;
-import static java.util.Collections.singletonList;
-import static java.util.Collections.singletonMap;
+import static java.util.Collections.*;
 import static java.util.function.Function.identity;
 import static java.util.stream.Collectors.toMap;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -57,13 +53,43 @@ public class GivenWhenThenSearchTest {
     @Test
     void testPhraseMatching() {
         expectMatch(find("see what"));
+        expectMatch(find("see what", "foo"));
         expectMatch(find("see wh*"));
         expectMatch(find("* what"));
-        expectMatch(find("*e what"));
-        expectNoMatch(find("*a what"));
-        expectMatch(find("see what", "foo"));
+        expectMatch(find("*e what", "foo"));
+        expectNoMatch(find("*a what", "foo"));
         expectNoMatch(find("bla bla"));
         expectNoMatch(find("see what", "wrongField"));
+    }
+
+    @Test
+    void testSymbols() {
+        expectNoMatch(find("see wh\\*", "symbols"));
+
+        expectMatch(find("or front*", "symbols"));
+        expectMatch(find("or front  *", "symbols"));
+        expectMatch(find("or \\front*", "symbols"));
+        expectMatch(find("or \\*", "symbols"));
+        expectMatch(find("or xml*", "symbols"));
+        expectMatch(find("or <xml>*", "symbols"));
+
+        expectMatch(find("or mid\\dle*", "symbols"));
+        expectMatch(find("or mid\\*", "symbols"));
+        expectMatch(find("or mid\\*", "symbols"));
+        expectNoMatch(find("or middle*", "symbols"));
+        expectNoMatch(find("or mid-dle*", "symbols"));
+        expectNoMatch(find("or mid-*", "symbols"));
+        expectMatch(find("or (mid)*", "symbols")); //operators are treated differently
+    }
+
+    @Test
+    void testWeirdChars() {
+        expectMatch(find("ẏṏṳṙ ẇḕḭṙḊ ṮḕẌ*", "weirdChars"));
+        expectNoMatch(find("ẏṏṳṙ ẇḕḭṙḊo ṮḕẌ*", "weirdChars"));
+        expectMatch(find("ÄäǞǟĄ̈ą̈B̈b̈C̈c̈ËëḦḧÏïḮḯJ̈j̈K̈k̈L̈l̈M̈m̈N̈n̈ÖöȪȫǪ̈ǫ̈ṎṏP̈p̈Q̈q̈Q̣̈q̣̈R̈r̈S̈s̈T̈ẗÜüǕǖǗǘǙǚǛǜṲṳṺṻṲ̄ṳ̄ᴞV̈v̈ẄẅẌẍŸÿZ̈z̈ΪϊῒΐῗΫϋῢΰῧϔӒӓЁёӚӛӜӝӞӟӤӥЇїӦӧӪӫӰӱӴӵӸӹ*", "weirdChars"));
+        expectNoMatch(find("XXÄäǞǟĄ̈ą̈B̈b̈C̈c̈ËëḦḧÏïḮḯJ̈j̈K̈k̈L̈l̈M̈m̈N̈n̈ÖöȪȫǪ̈ǫ̈ṎṏP̈p̈Q̈q̈Q̣̈q̣̈R̈r̈S̈s̈T̈ẗÜüǕǖǗǘǙǚǛǜṲṳṺṻṲ̄ṳ̄ᴞV̈v̈ẄẅẌẍŸÿZ̈z̈ΪϊῒΐῗΫϋῢΰῧϔӒӓЁёӚӛӜӝӞӟӤӥЇїӦӧӪӫӰӱӴӵӸӹӬ*", "weirdChars"));
+        expectMatch(match("ẏṏṳṙ ẇḕḭṙḊ ṮḕẌṮ ÄäǞǟĄ̈ą̈B̈b̈C̈c̈ËëḦḧÏïḮḯJ̈j̈K̈k̈L̈l̈M̈m̈N̈n̈ÖöȪȫǪ̈ǫ̈ṎṏP̈p̈Q̈q̈Q̣̈q̣̈R̈r̈S̈s̈T̈ẗÜüǕǖǗǘǙǚǛǜṲṳṺṻṲ̄ṳ̄ᴞV̈v̈ẄẅẌẍŸÿZ̈z̈ΪϊῒΐῗΫϋῢΰῧϔӒӓЁёӚӛӜӝӞӟӤӥЇїӦӧӪӫӰӱӴӵӸӹӬӭ", "weirdChars"));
+        expectNoMatch(match("ẏṏṳṙ ẇḕḭṙḊo ṮḕẌṮ ÄäǞǟĄ̈ą̈B̈b̈C̈c̈ËëḦḧÏïḮḯJ̈j̈K̈k̈L̈l̈M̈m̈N̈n̈ÖöȪȫǪ̈ǫ̈ṎṏP̈p̈Q̈q̈Q̣̈q̣̈R̈r̈S̈s̈T̈ẗÜüǕǖǗǘǙǚǛǜṲṳṺṻṲ̄ṳ̄ᴞV̈v̈ẄẅẌẍŸÿZ̈z̈ΪϊῒΐῗΫϋῢΰῧϔӒӓЁёӚӛӜӝӞӟӤӥЇїӦӧӪӫӰӱӴӵӸӹӬӭ", "weirdChars"));
     }
 
     @Test
@@ -271,6 +297,7 @@ public class GivenWhenThenSearchTest {
         BigDecimal someNumber;
         Map<String, Object> booleans;
         List<Map<String, Object>> mapList;
+        String symbols, weirdChars;
 
         public SomeDocument() {
             this.someId = ID;
@@ -281,6 +308,8 @@ public class GivenWhenThenSearchTest {
                     toMap(identity(), s -> true, (a, b) -> singletonMap("inner", true), LinkedHashMap::new));
             this.mapList = Arrays.asList(singletonMap(
                     "key1", new BigDecimal(10)), singletonMap("key2", "value2"));
+            this.symbols = "Can you find slash in mid\\dle or \\front, or find <xml>?";
+            this.weirdChars = "ẏṏṳṙ ẇḕḭṙḊ ṮḕẌṮ ÄäǞǟĄ̈ą̈B̈b̈C̈c̈ËëḦḧÏïḮḯJ̈j̈K̈k̈L̈l̈M̈m̈N̈n̈ÖöȪȫǪ̈ǫ̈ṎṏP̈p̈Q̈q̈Q̣̈q̣̈R̈r̈S̈s̈T̈ẗÜüǕǖǗǘǙǚǛǜṲṳṺṻṲ̄ṳ̄ᴞV̈v̈ẄẅẌẍŸÿZ̈z̈ΪϊῒΐῗΫϋῢΰῧϔӒӓЁёӚӛӜӝӞӟӤӥЇїӦӧӪӫӰӱӴӵӸӹӬӭ";
         }
     }
 }

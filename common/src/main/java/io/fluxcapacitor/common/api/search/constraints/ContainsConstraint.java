@@ -16,11 +16,7 @@ package io.fluxcapacitor.common.api.search.constraints;
 
 import io.fluxcapacitor.common.api.search.Constraint;
 import io.fluxcapacitor.common.search.Document;
-import lombok.AccessLevel;
-import lombok.EqualsAndHashCode;
-import lombok.Getter;
-import lombok.NonNull;
-import lombok.Value;
+import lombok.*;
 import lombok.experimental.Accessors;
 import org.apache.commons.lang3.StringUtils;
 
@@ -35,7 +31,8 @@ import static java.util.stream.Collectors.toList;
 
 @Value
 public class ContainsConstraint extends PathConstraint {
-    private static final Pattern splitPattern = Pattern.compile("(?<=\\p{Alnum})\\*(?=\\p{Alnum})");
+    static final String letterOrNumber = "\\p{L}0-9";
+    private static final Pattern splitPattern = Pattern.compile(String.format("(?<=[%1$s])\\*(?=[%1$s])", letterOrNumber));
 
     public static Constraint contains(@NonNull String phrase, String... paths) {
         String[] parts = splitPattern.split(phrase);
@@ -93,5 +90,5 @@ public class ContainsConstraint extends PathConstraint {
     @Getter(value = AccessLevel.PROTECTED, lazy = true)
     @Accessors(fluent = true)
     @EqualsAndHashCode.Exclude
-    Pattern pattern = Pattern.compile((prefixSearch ? "" : "\\b") + contains + (postfixSearch ? "" : "\\b"));
+    Pattern pattern = Pattern.compile((prefixSearch ? "" :  String.format("(?<=[^%s]|\\A)", letterOrNumber)) + Pattern.quote(contains) + (postfixSearch ? "" : String.format("(?=[^%s]|\\Z)", letterOrNumber)));
 }

@@ -27,6 +27,7 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
+import static io.fluxcapacitor.common.api.search.constraints.ContainsConstraint.letterOrNumber;
 import static org.apache.commons.lang3.StringUtils.isBlank;
 
 @Value
@@ -43,7 +44,7 @@ public class FindConstraint extends PathConstraint {
 
     private static final String operator = "&|()!";
     private static final Pattern matcherPattern =
-            Pattern.compile(String.format("\"[^\"]*\"|[%1$s]|[^\\s%1$s]+", operator), Pattern.MULTILINE);
+            Pattern.compile(String.format("\"[^\"]*\"|[%1$s]|[*%2$s][^\\s%1$s]+[*%2$s]|[*%2$s]+", operator, letterOrNumber), Pattern.MULTILINE);
 
     @NonNull String find;
     String path;

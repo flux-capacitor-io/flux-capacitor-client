@@ -30,7 +30,7 @@
               "postfixSearch": false
             },
             {
-              "contains": "orfoo$",
+              "contains": "orfoo",
               "prefixSearch": false,
               "postfixSearch": false
             },
