@@ -19,6 +19,7 @@ import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.json.JsonMapper;
 import io.fluxcapacitor.common.api.JsonType;
+import io.fluxcapacitor.common.api.RequestBatch;
 import io.fluxcapacitor.common.handling.Handler;
 import io.fluxcapacitor.common.handling.HandlerInspector;
 import io.fluxcapacitor.common.serialization.compression.CompressionAlgorithm;
@@ -133,6 +134,14 @@ public abstract class WebsocketEndpoint extends Endpoint {
         if (shuttingDown.get()) {
             log.info("Silently ignoring request {} from client {} with id {} because the service is shutting down",
                      value, getClientName(session), getClientId(session));
+            return;
+        }
+        handleRequest(session, value);
+    }
+
+    private void handleRequest(Session session, JsonType value) {
+        if (value instanceof RequestBatch<?>) {
+            ((RequestBatch<?>) value).getRequests().forEach(r -> handleRequest(session, r));
             return;
         }
         Object result;

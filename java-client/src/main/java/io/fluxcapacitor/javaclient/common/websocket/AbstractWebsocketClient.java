@@ -17,11 +17,13 @@ package io.fluxcapacitor.javaclient.common.websocket;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.json.JsonMapper;
 import io.fluxcapacitor.common.Awaitable;
+import io.fluxcapacitor.common.Backlog;
 import io.fluxcapacitor.common.RetryConfiguration;
 import io.fluxcapacitor.common.api.JsonType;
 import io.fluxcapacitor.common.api.Metadata;
 import io.fluxcapacitor.common.api.QueryResult;
 import io.fluxcapacitor.common.api.Request;
+import io.fluxcapacitor.common.api.RequestBatch;
 import io.fluxcapacitor.common.api.ResultBatch;
 import io.fluxcapacitor.javaclient.FluxCapacitor;
 import io.fluxcapacitor.javaclient.configuration.client.WebSocketClient.Properties;
@@ -39,6 +41,7 @@ import javax.websocket.WebSocketContainer;
 import java.io.OutputStream;
 import java.net.URI;
 import java.time.Duration;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
@@ -68,6 +71,7 @@ public abstract class AbstractWebsocketClient implements AutoCloseable {
     private final Properties properties;
     private final ObjectMapper objectMapper;
     private final Map<Long, WebSocketRequest> requests = new ConcurrentHashMap<>();
+    private final Map<String, Backlog<JsonType>> sessionBacklogs = new ConcurrentHashMap<>();
     private final AtomicBoolean closed = new AtomicBoolean();
     private final ExecutorService resultExecutor = Executors.newFixedThreadPool(8);
     private final boolean sendMetrics;
@@ -114,13 +118,20 @@ public abstract class AbstractWebsocketClient implements AutoCloseable {
 
     @SneakyThrows
     protected Awaitable sendAndForget(JsonType object) {
-        Awaitable awaitable = doSend(object, sessionPool.get());
+        Awaitable awaitable = send(object, sessionPool.get());
         tryPublishMetrics(object.toMetric(), Metadata.empty());
         return awaitable;
     }
 
     @SneakyThrows
-    protected Awaitable doSend(JsonType object, Session session) {
+    protected Awaitable send(JsonType object, Session session) {
+        return sessionBacklogs.computeIfAbsent(
+                session.getId(), id -> new Backlog<>(batch -> sendBatch(batch, session))).add(object);
+    }
+
+    @SneakyThrows
+    protected Awaitable sendBatch(List<JsonType> requests, Session session) {
+        JsonType object = requests.size() == 1  ? requests.get(0) : new RequestBatch<>(requests);
         try (OutputStream outputStream = session.getBasicRemote().getSendStream()) {
             byte[] bytes = objectMapper.writeValueAsBytes(object);
             outputStream.write(compress(bytes, properties.getCompression()));
@@ -173,6 +184,7 @@ public abstract class AbstractWebsocketClient implements AutoCloseable {
 
     @OnClose
     public void onClose(Session session, CloseReason closeReason) {
+        sessionBacklogs.remove(session.getId());
         if (closeReason.getCloseCode().getCode() > NO_STATUS_CODE.getCode()) {
             log.warn("Connection to endpoint {} closed with reason {}", session.getRequestURI(), closeReason);
         }
@@ -245,7 +257,7 @@ public abstract class AbstractWebsocketClient implements AutoCloseable {
 
             try {
                 sendTimestamp = System.currentTimeMillis();
-                AbstractWebsocketClient.this.doSend(request, session);
+                AbstractWebsocketClient.this.send(request, session);
                 tryPublishMetrics(request.toMetric(), Metadata.of("requestId", request.getRequestId()));
             } catch (Exception e) {
                 requests.remove(request.getRequestId());
