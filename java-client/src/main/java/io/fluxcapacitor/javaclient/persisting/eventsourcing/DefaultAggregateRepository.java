@@ -220,12 +220,22 @@ public class DefaultAggregateRepository implements AggregateRepository {
             model = Optional.<EventSourcedModel<T>>ofNullable(cache.getIfPresent(keyFunction.apply(id)))
                     .filter(a -> aggregateType.isAssignableFrom(a.get().getClass()))
                     .orElseGet(() -> {
-                        EventSourcedModel<T> model = snapshotRepository.<T>getSnapshot(id)
-                                .or(() -> searchable && !eventSourced ? documentStore.<T>getDocument(id, collection)
+                        EventSourcedModel<T> model =
+                                (searchable && !eventSourced ? documentStore.<T>getDocument(id, collection)
                                         .map(d -> EventSourcedModel.<T>builder().id(id).type(aggregateType).model(
-                                                d).build()) : Optional.empty())
-                                .filter(a -> aggregateType.isAssignableFrom(a.get().getClass()))
-                                .orElseGet(() -> EventSourcedModel.<T>builder().id(id).type(aggregateType).build());
+                                                d).build()) : snapshotRepository.<T>getSnapshot(id))
+                                        .filter(a -> {
+                                            boolean assignable = a.get() == null
+                                                    || aggregateType.isAssignableFrom(a.get().getClass());
+                                            if (!assignable) {
+                                                log.warn("Could not load aggregate {} because the requested"
+                                                                 + " type {} is not assignable to the stored type {}",
+                                                         id, aggregateType, a.get().getClass());
+                                            }
+                                            return assignable;
+                                        })
+                                        .orElseGet(() -> EventSourcedModel.<T>builder().id(id).type(aggregateType)
+                                                .build());
                         if (!eventSourced) {
                             return model;
                         }
@@ -270,12 +280,14 @@ public class DefaultAggregateRepository implements AggregateRepository {
 
             Message eventMessage = message.withMetadata(metadata);
             DeserializingMessage deserializingMessage = new DeserializingMessage(new DeserializingObject<>(
-                    serializer.serialize(eventMessage), type -> serializer.convert(eventMessage.getPayload(), type)), EVENT);
+                    serializer.serialize(eventMessage), type -> serializer.convert(eventMessage.getPayload(), type)),
+                                                                                 EVENT);
 
             unpublishedEvents.add(deserializingMessage);
             updateModel(model.toBuilder().sequenceNumber(model.sequenceNumber() + 1)
                                 .model(eventSourcingHandler.invoke(model, deserializingMessage))
-                                .previous(model).lastEventId(eventMessage.getMessageId()).timestamp(eventMessage.getTimestamp())
+                                .previous(model).lastEventId(eventMessage.getMessageId())
+                                .timestamp(eventMessage.getTimestamp())
                                 .lastEventIndex(deserializingMessage.getSerializedObject().getIndex())
                                 .build());
             return this;
@@ -347,7 +359,8 @@ public class DefaultAggregateRepository implements AggregateRepository {
         protected EventSourcedModel<T> forceApply(EventSourcedModel<T> model, Message message) {
             Message eventMessage = message.withMetadata(
                     message.getMetadata().with(AggregateRoot.AGGREGATE_ID_METADATA_KEY, id,
-                                               AggregateRoot.AGGREGATE_TYPE_METADATA_KEY, getAggregateType().getName()));
+                                               AggregateRoot.AGGREGATE_TYPE_METADATA_KEY,
+                                               getAggregateType().getName()));
             DeserializingMessage deserializingMessage = new DeserializingMessage(new DeserializingObject<>(
                     serializer.serialize(message), type -> serializer.convert(eventMessage.getPayload(), type)),
                                                                                  EVENT);
