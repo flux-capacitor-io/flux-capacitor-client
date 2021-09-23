@@ -93,9 +93,9 @@ public class Document {
         return searchDocuments.getSorting().stream().map(s -> {
             switch (s) {
                 case "-timestamp":
-                    return Comparator.comparing(Document::getTimestamp).reversed();
+                    return Comparator.comparing(Document::getTimestamp, Comparator.nullsLast(naturalOrder())).reversed();
                 case "timestamp":
-                    return Comparator.comparing(Document::getTimestamp);
+                    return Comparator.comparing(Document::getTimestamp, Comparator.nullsFirst(naturalOrder()));
                 default:
                     boolean reversed = s.startsWith("-");
                     String path = reversed ? s.substring(1) : s;
@@ -108,7 +108,8 @@ public class Document {
                             }));
                     return reversed ? valueComparator.reversed() : valueComparator;
             }
-        }).reduce(Comparator::thenComparing).orElse(Comparator.comparing(Document::getTimestamp).reversed());
+        }).reduce(Comparator::thenComparing)
+                .orElseGet(() -> Comparator.comparing(Document::getTimestamp, Comparator.nullsLast(naturalOrder())).reversed());
     }
 
     @Value
