@@ -21,6 +21,7 @@ import lombok.EqualsAndHashCode;
 import lombok.Value;
 
 import java.util.List;
+import java.util.stream.Collectors;
 
 @EqualsAndHashCode(callSuper = true)
 @Value
@@ -40,7 +41,16 @@ public class IndexDocuments extends Request {
     }
 
     @Override
-    public Object toMetric() {
-        return null;
+    public Metric toMetric() {
+        return new Metric(getSize(), ifNotExists, guarantee,
+                documents.stream().map(SerializedDocument::getId).collect(Collectors.toList()));
+    }
+
+    @Value
+    public static class Metric {
+        int size;
+        boolean ifNotExists;
+        Guarantee guarantee;
+        List<String> ids;
     }
 }
