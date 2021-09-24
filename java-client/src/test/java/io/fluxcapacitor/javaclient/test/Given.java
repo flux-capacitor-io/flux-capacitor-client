@@ -39,7 +39,13 @@ public interface Given {
 
     When given(Consumer<FluxCapacitor> condition);
 
-    When givenSchedules(Schedule... schedules);
+    default When givenSchedules(Schedule... schedules) {
+        return given(fc -> Arrays.stream(schedules).forEach(s -> fc.scheduler().schedule(s)));
+    }
+
+    default When givenScheduleIfAbsent(Schedule schedule) {
+        return given(fc -> fc.scheduler().schedule(schedule, true));
+    }
 
     default When givenDocument(Object document, String id, String collection) {
         return givenDocument(document, id, collection, null);

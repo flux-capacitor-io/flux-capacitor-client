@@ -52,7 +52,10 @@ public class InMemorySchedulingClient extends InMemoryMessageStore implements Sc
 
     @Override
     public Awaitable schedule(ScheduledMessage... schedules) {
-        for (ScheduledMessage schedule : schedules) {
+        List<ScheduledMessage> filtered = Arrays.stream(schedules)
+                .filter(s -> !s.isIfAbsent() || !scheduleIdsByIndex.containsValue(s.getScheduleId()))
+                .collect(toList());
+        for (ScheduledMessage schedule : filtered) {
             cancelSchedule(schedule.getScheduleId());
             long index = indexFromMillis(schedule.getTimestamp());
             while (scheduleIdsByIndex.putIfAbsent(index, schedule.getScheduleId()) != null) {
@@ -60,7 +63,7 @@ public class InMemorySchedulingClient extends InMemoryMessageStore implements Sc
             }
             schedule.getMessage().setIndex(index);
         }
-        super.send(Arrays.stream(schedules).map(ScheduledMessage::getMessage).toArray(SerializedMessage[]::new));
+        super.send(filtered.stream().map(ScheduledMessage::getMessage).toArray(SerializedMessage[]::new));
         return Awaitable.ready();
     }
 

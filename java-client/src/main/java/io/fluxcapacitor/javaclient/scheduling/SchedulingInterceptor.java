@@ -80,23 +80,21 @@ public class SchedulingInterceptor implements DispatchInterceptor, HandlerInterc
         if (periodic.autoStart()) {
             String scheduleId = periodic.scheduleId().isEmpty() ? payloadType.getName() : periodic.scheduleId();
             FluxCapacitor fluxCapacitor = FluxCapacitor.get();
-            if (fluxCapacitor.keyValueStore().storeIfAbsent("SchedulingInterceptor:initialized:" + scheduleId, true)) {
-                Object payload;
-                try {
-                    payload = ensureAccessible(payloadType.getConstructor()).newInstance();
-                } catch (Exception e) {
-                    log.error("No default constructor found on @Periodic type: {}. "
-                                      + "Add a public default constructor or initialize this periodic schedule by hand",
-                              payloadType, e);
-                    return;
-                }
-                Clock clock = fluxCapacitor.clock();
-                Metadata metadata = Optional.ofNullable(fluxCapacitor.userProvider()).flatMap(
-                        p -> Optional.ofNullable(p.getSystemUser()).map(u -> p.addToMetadata(Metadata.empty(), u)))
-                        .orElse(Metadata.empty());
-                fluxCapacitor.scheduler().schedule(new Schedule(
-                        payload, metadata, scheduleId, clock.instant().plusMillis(periodic.initialDelay())));
+            Object payload;
+            try {
+                payload = ensureAccessible(payloadType.getConstructor()).newInstance();
+            } catch (Exception e) {
+                log.error("No default constructor found on @Periodic type: {}. "
+                                  + "Add a public default constructor or initialize this periodic schedule by hand",
+                          payloadType, e);
+                return;
             }
+            Clock clock = fluxCapacitor.clock();
+            Metadata metadata = Optional.ofNullable(fluxCapacitor.userProvider()).flatMap(
+                            p -> Optional.ofNullable(p.getSystemUser()).map(u -> p.addToMetadata(Metadata.empty(), u)))
+                    .orElse(Metadata.empty());
+            fluxCapacitor.scheduler().schedule(new Schedule(
+                    payload, metadata, scheduleId, clock.instant().plusMillis(periodic.initialDelay())), true);
         }
     }
 

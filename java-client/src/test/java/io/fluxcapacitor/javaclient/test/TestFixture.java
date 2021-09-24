@@ -270,11 +270,6 @@ public class TestFixture implements Given, When {
     }
 
     @Override
-    public When givenSchedules(Schedule... schedules) {
-        return given(fc -> Arrays.stream(schedules).forEach(s -> fc.scheduler().schedule(s)));
-    }
-
-    @Override
     public When givenDocument(Object document, String id, String collection, Instant timestamp) {
         return given(fc -> fc.documentStore().index(document, id, collection, timestamp));
     }

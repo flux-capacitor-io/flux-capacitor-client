@@ -156,6 +156,26 @@ class GivenWhenThenSchedulingTest {
     }
 
     @Test
+    void testScheduleOverride() {
+        Duration delay = Duration.ofSeconds(10);
+        Object expected = new YieldsCommand("original");
+        Object notExpected = new YieldsCommand("override");
+        subject.givenSchedules(new Schedule(expected, "test", subject.getClock().instant().plus(delay)))
+                .givenSchedules(new Schedule(notExpected, "test", subject.getClock().instant().plus(delay).minusSeconds(1)))
+                .whenTimeElapses(delay).expectOnlyCommands("override");
+    }
+
+    @Test
+    void testNoOverrideWithAbsentCheck() {
+        Duration delay = Duration.ofSeconds(10);
+        Object expected = new YieldsCommand("original");
+        Object notExpected = new YieldsCommand("override");
+        subject.givenSchedules(new Schedule(expected, "test", subject.getClock().instant().plus(delay)))
+                .givenScheduleIfAbsent(new Schedule(notExpected, "test", subject.getClock().instant().plus(delay).minusSeconds(1)))
+                .whenTimeElapses(delay).expectOnlyCommands("original");
+    }
+
+    @Test
     void testNoAutomaticRescheduleBeforeDeadline() {
         subject.givenNoPriorActivity().givenTimeElapses(Duration.ofMillis(500)).when(fc -> {}).expectNoSchedules();
     }

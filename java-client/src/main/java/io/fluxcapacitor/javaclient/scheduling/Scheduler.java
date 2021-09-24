@@ -57,7 +57,11 @@ public interface Scheduler {
         }
     }
 
-    void schedule(Schedule message);
+    default void schedule(Schedule message) {
+        schedule(message, false);
+    }
+
+    void schedule(Schedule message, boolean ifAbsent);
 
     void cancelSchedule(String scheduleId);
 

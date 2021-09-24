@@ -33,12 +33,12 @@ public class DefaultScheduler implements Scheduler {
     private final HandlerRegistry localHandlerRegistry;
 
     @Override
-    public void schedule(Schedule message) {
+    public void schedule(Schedule message, boolean ifAbsent) {
         try {
             SerializedMessage serializedMessage = serializer.serialize(message);
             client.schedule(new ScheduledMessage(message.getScheduleId(),
                                                  message.getDeadline().toEpochMilli(),
-                                                 serializedMessage)).await();
+                                                 serializedMessage, ifAbsent)).await();
         } catch (Exception e) {
             throw new SchedulerException(String.format("Failed to schedule message %s for %s", message.getPayload(),
                                                        message.getDeadline()), e);
