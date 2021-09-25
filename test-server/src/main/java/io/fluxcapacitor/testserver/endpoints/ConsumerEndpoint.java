@@ -16,6 +16,7 @@ package io.fluxcapacitor.testserver.endpoints;
 
 import io.fluxcapacitor.common.MessageType;
 import io.fluxcapacitor.common.api.SerializedMessage;
+import io.fluxcapacitor.common.api.VoidResult;
 import io.fluxcapacitor.common.api.tracking.DisconnectTracker;
 import io.fluxcapacitor.common.api.tracking.Read;
 import io.fluxcapacitor.common.api.tracking.ReadFromIndex;
@@ -54,13 +55,15 @@ public class ConsumerEndpoint extends WebsocketEndpoint {
     }
 
     @Handle
-    public void handle(StorePosition storePosition) {
+    public VoidResult handle(StorePosition storePosition) {
         store.storePosition(storePosition.getConsumer(), storePosition.getSegment(), storePosition.getLastIndex());
+        return new VoidResult(storePosition.getRequestId());
     }
 
     @Handle
-    public void handle(ResetPosition resetPosition) {
+    public VoidResult handle(ResetPosition resetPosition) {
         store.resetPosition(resetPosition.getConsumer(), resetPosition.getLastIndex());
+        return new VoidResult(resetPosition.getRequestId());
     }
 
     @Handle

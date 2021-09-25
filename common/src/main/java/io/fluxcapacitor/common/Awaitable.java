@@ -17,6 +17,8 @@ package io.fluxcapacitor.common;
 import lombok.SneakyThrows;
 
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
 
 @FunctionalInterface
 public interface Awaitable {
@@ -47,6 +49,10 @@ public interface Awaitable {
         return () -> {
             throw e;
         };
+    }
+
+    static Awaitable fromFuture(Future<?> future) {
+        return () -> future.get(1, TimeUnit.SECONDS);
     }
 
 }

@@ -36,6 +36,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 
+import static io.fluxcapacitor.common.Awaitable.fromFuture;
 import static io.fluxcapacitor.common.MessageType.METRICS;
 
 @ClientEndpoint
@@ -68,12 +69,12 @@ public class WebsocketTrackingClient extends AbstractWebsocketClient implements 
 
     @Override
     public Awaitable storePosition(String consumer, int[] segment, long lastIndex) {
-        return sendAndForget(new StorePosition(consumer, segment, lastIndex));
+        return fromFuture(send(new StorePosition(consumer, segment, lastIndex)));
     }
 
     @Override
     public Awaitable resetPosition(String consumer, long lastIndex) {
-        return sendAndForget(new ResetPosition(consumer, lastIndex));
+        return fromFuture(send(new ResetPosition(consumer, lastIndex)));
     }
 
     @Override
