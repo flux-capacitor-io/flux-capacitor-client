@@ -49,13 +49,13 @@ public class SearchQuery {
         if (!decomposeConstraints().matches(d)) {
             return false;
         }
-        if (d.getTimestamp() == null) {
-            return !requireTimestamp;
-        }
-        if (since != null && d.getTimestamp().compareTo(since) < 0) {
+        if (requireTimestamp && d.getTimestamp() == null) {
             return false;
         }
-        if (before != null && d.getEnd().compareTo(before) >= 0) {
+        if (since != null && d.getTimestamp() != null && d.getTimestamp().compareTo(since) < 0) {
+            return false;
+        }
+        if (before != null && d.getEnd() != null && d.getEnd().compareTo(before) >= 0) {
             return false;
         }
         if (!collections.isEmpty() && !collections.contains(d.getCollection())) {
