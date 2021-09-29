@@ -24,7 +24,12 @@ import lombok.SneakyThrows;
 import lombok.Value;
 
 import java.io.IOException;
-import java.util.*;
+import java.util.Arrays;
+import java.util.HashMap;
+import java.util.Iterator;
+import java.util.Map;
+import java.util.Optional;
+import java.util.Set;
 import java.util.function.Predicate;
 
 import static com.fasterxml.jackson.databind.DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES;
@@ -114,7 +119,7 @@ public class Metadata {
     private static Map<String, String> with(String key, Object value, Map<String, String> entries) {
         if (value instanceof Optional<?>) {
             Optional<?> optional = (Optional<?>) value;
-            if (!optional.isPresent()) {
+            if (optional.isEmpty()) {
                 return entries;
             }
             value = optional.get();

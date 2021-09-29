@@ -118,9 +118,7 @@ public abstract class AbstractWebsocketClient implements AutoCloseable {
 
     @SneakyThrows
     protected Awaitable sendAndForget(JsonType object) {
-        Awaitable awaitable = send(object, sessionPool.get());
-        tryPublishMetrics(object.toMetric(), Metadata.empty());
-        return awaitable;
+        return send(object, sessionPool.get());
     }
 
     @SneakyThrows
@@ -131,7 +129,10 @@ public abstract class AbstractWebsocketClient implements AutoCloseable {
 
     @SneakyThrows
     protected Awaitable sendBatch(List<JsonType> requests, Session session) {
-        JsonType object = requests.size() == 1  ? requests.get(0) : new RequestBatch<>(requests);
+        Metadata metadata = requests.size() > 1 ? Metadata.of("batchId", FluxCapacitor.generateId()) : Metadata.empty();
+        requests.forEach(r -> tryPublishMetrics(r, r instanceof Request
+                ? metadata.with("requestId", ((Request) r).getRequestId()) : metadata));
+        JsonType object = requests.size() == 1 ? requests.get(0) : new RequestBatch<>(requests);
         try (OutputStream outputStream = session.getBasicRemote().getSendStream()) {
             byte[] bytes = objectMapper.writeValueAsBytes(object);
             outputStream.write(compress(bytes, properties.getCompression()));
@@ -154,25 +155,27 @@ public abstract class AbstractWebsocketClient implements AutoCloseable {
                 return;
             }
             if (value instanceof ResultBatch) {
-                ((ResultBatch) value).getResults().forEach(r -> resultExecutor.execute(() -> handleResult(r)));
+                String batchId = FluxCapacitor.generateId();
+                ((ResultBatch) value).getResults().forEach(r -> resultExecutor.execute(() -> handleResult(r, batchId)));
             } else {
-                handleResult((QueryResult) value);
+                handleResult((QueryResult) value, null);
             }
         });
 
     }
 
-    protected void handleResult(QueryResult result) {
+    protected void handleResult(QueryResult result, String batchId) {
         try {
             WebSocketRequest webSocketRequest = requests.remove(result.getRequestId());
             if (webSocketRequest == null) {
                 log.warn("Could not find outstanding read request for id {}", result.getRequestId());
             } else {
                 try {
+                    Metadata metadata = Metadata.of("requestId", webSocketRequest.request.getRequestId(),
+                                                    "msDuration", currentTimeMillis() - webSocketRequest.sendTimestamp)
+                            .with(webSocketRequest.correlationData);
                     tryPublishMetrics(result.toMetric(),
-                                      Metadata.of("requestId", webSocketRequest.request.getRequestId(),
-                                                  "msDuration", currentTimeMillis() - webSocketRequest.sendTimestamp)
-                                              .with(webSocketRequest.correlationData));
+                                      batchId == null ? metadata : metadata.with("batchId", batchId));
                 } finally {
                     webSocketRequest.result.complete(result);
                 }
@@ -258,7 +261,6 @@ public abstract class AbstractWebsocketClient implements AutoCloseable {
             try {
                 sendTimestamp = System.currentTimeMillis();
                 AbstractWebsocketClient.this.send(request, session);
-                tryPublishMetrics(request.toMetric(), Metadata.of("requestId", request.getRequestId()));
             } catch (Exception e) {
                 requests.remove(request.getRequestId());
                 result.completeExceptionally(e);
