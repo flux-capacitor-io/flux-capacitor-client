@@ -32,21 +32,38 @@ import static org.apache.commons.lang3.StringUtils.isBlank;
 
 @Value
 public class FindConstraint extends PathConstraint {
+    private static final String operator = "&|()!";
+    static final Pattern matcherPattern =
+            Pattern.compile(String.format("\"[^\"]*\"|[%1$s]|[*%2$s][^\\s%1$s]+[*%2$s]|[*%2$s]+", operator, letterOrNumber), Pattern.MULTILINE);
+
     public static Constraint find(String find, String... paths) {
-        if(isBlank(find)) return noOp;
+        if (isBlank(find)) return noOp;
         switch (paths.length) {
-            case 0: return new FindConstraint(find, null);
-            case 1: return new FindConstraint(find, paths[0]);
-            default: return new AnyConstraint(Arrays.stream(paths).map(p -> new FindConstraint(find, p)).collect(
-                    Collectors.toList()));
+            case 0:
+                return new FindConstraint(find, false, null);
+            case 1:
+                return new FindConstraint(find, false, paths[0]);
+            default:
+                return new AnyConstraint(Arrays.stream(paths).map(p -> new FindConstraint(find, false, p)).collect(
+                        Collectors.toList()));
         }
     }
 
-    private static final String operator = "&|()!";
-    private static final Pattern matcherPattern =
-            Pattern.compile(String.format("\"[^\"]*\"|[%1$s]|[*%2$s][^\\s%1$s]+[*%2$s]|[*%2$s]+", operator, letterOrNumber), Pattern.MULTILINE);
+    public static Constraint lookAhead(String find, String... paths) {
+        if (isBlank(find)) return noOp;
+        switch (paths.length) {
+            case 0:
+                return new FindConstraint(find, true, null);
+            case 1:
+                return new FindConstraint(find, true, paths[0]);
+            default:
+                return new AnyConstraint(Arrays.stream(paths).map(p -> new FindConstraint(find, true, p)).collect(
+                        Collectors.toList()));
+        }
+    }
 
     @NonNull String find;
+    boolean lookAhead;
     String path;
 
     @Override
@@ -114,7 +131,9 @@ public class FindConstraint extends PathConstraint {
     }
 
     private void handleTerm(String term, List<Constraint> constraints) {
-        constraints.add(ContainsConstraint.contains(term, path));
+        constraints.add(ContainsConstraint.contains(!lookAhead ? term :
+                term.replaceAll("\\A[*]+", "")
+                        .replaceAll("[*]+\\Z", "") + "*", path));
     }
 
     private List<String> splitInTermsAndOperators(String query) {

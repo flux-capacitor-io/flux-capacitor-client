@@ -26,9 +26,17 @@ class FindConstraintTest {
     void testDecompose() {
         String query =
                 " k*aas* A OR (B ORfoo$ \n*bar* OR(!notThis* (\"cheese (is) OR very tasty\") OR !(chick=fox)) mouse dog OR cat hare ) ";
-        Constraint constraint = AllConstraint.all(new FindConstraint(query, null).decompose());
+        Constraint constraint = AllConstraint.all(new FindConstraint(query, false, null).decompose());
         Object expected = JsonUtils.fromFile(FindConstraintTest.class, "findConstraintDecomposed.json");
         assertEquals(JsonUtils.asPrettyJson(expected), JsonUtils.asPrettyJson(constraint));
     }
 
+    @Test
+    void testLookAheadWithOperators() {
+        String query =
+                " k*aas* **A OR (B ORfoo$ \n*bar* OR(!notThis* (\"*cheese (is) OR very tasty*\") OR !(chick=fox)) mouse dog OR cat** hare ) ";
+        Constraint constraint = AllConstraint.all(new FindConstraint(query, true, null).decompose());
+        Object expected = JsonUtils.fromFile(FindConstraintTest.class, "lookAheadConstraintDecomposed.json");
+        assertEquals(JsonUtils.asPrettyJson(expected), JsonUtils.asPrettyJson(constraint));
+    }
 }

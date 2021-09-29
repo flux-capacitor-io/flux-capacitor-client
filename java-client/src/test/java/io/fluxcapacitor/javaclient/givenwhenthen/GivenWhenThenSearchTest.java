@@ -55,6 +55,8 @@ public class GivenWhenThenSearchTest {
         expectMatch(find("see what"));
         expectMatch(find("see what", "foo"));
         expectMatch(find("see wh*"));
+        expectMatch(find("se* wh*"));
+        expectMatch(find("fin* wh*"));
         expectMatch(find("* what"));
         expectMatch(find("*e what", "foo"));
         expectNoMatch(find("*a what", "foo"));
@@ -80,6 +82,10 @@ public class GivenWhenThenSearchTest {
         expectNoMatch(find("or mid-dle*", "symbols"));
         expectNoMatch(find("or mid-*", "symbols"));
         expectMatch(find("or (mid)*", "symbols")); //operators are treated differently
+
+        expectMatch(find("Anne*", "symbols"));
+        expectMatch(find("Anne-*", "symbols"));
+        expectMatch(find("Anne-gre*", "symbols"));
     }
 
     @Test
@@ -308,7 +314,7 @@ public class GivenWhenThenSearchTest {
                     toMap(identity(), s -> true, (a, b) -> singletonMap("inner", true), LinkedHashMap::new));
             this.mapList = Arrays.asList(singletonMap(
                     "key1", new BigDecimal(10)), singletonMap("key2", "value2"));
-            this.symbols = "Can you find slash in mid\\dle or \\front, or find <xml>?";
+            this.symbols = "Can you find slash in mid\\dle or \\front, or find <xml>? Anne-gre";
             this.weirdChars = "ẏṏṳṙ ẇḕḭṙḊ ṮḕẌṮ ÄäǞǟĄ̈ą̈B̈b̈C̈c̈ËëḦḧÏïḮḯJ̈j̈K̈k̈L̈l̈M̈m̈N̈n̈ÖöȪȫǪ̈ǫ̈ṎṏP̈p̈Q̈q̈Q̣̈q̣̈R̈r̈S̈s̈T̈ẗÜüǕǖǗǘǙǚǛǜṲṳṺṻṲ̄ṳ̄ᴞV̈v̈ẄẅẌẍŸÿZ̈z̈ΪϊῒΐῗΫϋῢΰῧϔӒӓЁёӚӛӜӝӞӟӤӥЇїӦӧӪӫӰӱӴӵӸӹӬӭ";
         }
     }
