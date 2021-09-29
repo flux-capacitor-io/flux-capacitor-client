@@ -2,8 +2,9 @@ name: Deploy
 
 on:
   push:
-    tags:
-      - "[0-9]+.[0-9]+"
+    branches: [ master ]
+    tags-ignore:
+      - "[0-9.]+"
 
 jobs:
   deploy:
@@ -25,10 +26,28 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-maven-
 
+      - name: Bump version and push tag
+        uses: mathieudutour/github-tag-action@v5.6
+        id: tag_version
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          release_branches: master
+          default_bump: minor
+          tag_prefix:
+
       - name: Set maven version
         run: |
-          echo ${GITHUB_REF#refs/*/}
-          mvn -B versions:set -DnewVersion=${GITHUB_REF#refs/*/}
+          mvn -B versions:set -DnewVersion=${{ steps.tag_version.outputs.new_tag }}
+
+      - name: Call Github Release API
+        uses: softprops/action-gh-release@v1
+        with:
+          body: |
+            - ${{ github.event.head_commit.message }}
+          draft: true
+          prerelease: true
+          tag_name: ${{ steps.tag_version.outputs.new_version }}
+          name: Flux Capacitor ${{ steps.tag_version.outputs.new_version }}
 
       - name: Deploy to Maven Central
         uses: samuelmeuli/action-maven-publish@v1
@@ -47,7 +66,7 @@ jobs:
       - name: Docker build
         run: |
           cd test-server
-          docker build -t fluxcapacitorio/flux-capacitor-test:${GITHUB_REF#refs/*/} -t fluxcapacitorio/flux-capacitor-test:latest .
+          docker build -t fluxcapacitorio/flux-capacitor-test:${{ steps.tag_version.outputs.new_version }} -t fluxcapacitorio/flux-capacitor-test:latest .
           cd ..
 
       - name: Push to docker hub
