@@ -36,10 +36,10 @@ class EventSourcingIntegrationTest {
 
     @Test
     void testHandleBatch() {
-        testFixture.givenCommands(new AggregateCommand("test", "0"), new AggregateCommand("test", "1"),
-                                  new AggregateCommand("test", "2"))
-                .whenCommand(new AggregateCommand("test", "3"))
-                .expectOnlyEvents(new AggregateCommand("test", "3"))
+        testFixture.givenCommands(new UpdateCommand("test", "0"), new UpdateCommand("test", "1"),
+                                  new UpdateCommand("test", "2"))
+                .whenCommand(new UpdateCommand("test", "3"))
+                .expectOnlyEvents(new UpdateCommand("test", "3"))
                 .expectOnlyCommands(new SecondOrderCommand());
 
         assertEquals(4, testFixture.getFluxCapacitor().eventStore().getEvents("test").count());
@@ -48,10 +48,19 @@ class EventSourcingIntegrationTest {
                 .storeEvents(eq("test"), anyString(), anyLong(), anyList(), eq(false));
     }
 
+    @Test
+    void testHandleUpdateAfterDelete(){
+        testFixture.givenCommands(new UpdateCommand("test", "0"), new DeleteCommand("test"))
+                .whenCommand(new UpdateCommand("test", "1"))
+                .expectOnlyEvents(new UpdateCommand("test", "1"))
+                .expectOnlyCommands(new SecondOrderCommand())
+                .expectThat(fc -> assertEquals("create", loadAggregate("test", AggregateRoot.class).get().event));
+    }
+
     static class CommandHandler {
         @HandleCommand
         void handle(AggregateCommand command) {
-            loadAggregate(command.id, AggregateRoot.class).apply(command);
+            loadAggregate(command.getId(), AggregateRoot.class).apply(command);
         }
     }
 
@@ -67,26 +76,40 @@ class EventSourcingIntegrationTest {
     @Value
     @Builder(toBuilder = true)
     static class AggregateRoot {
-        String id;
-        String value;
+        String id, value, event;
+    }
 
-        @ApplyEvent
-        static AggregateRoot create(AggregateCommand event) {
-            return AggregateRoot.builder().id(event.id).value(event.value).build();
+    interface AggregateCommand{
+        @RoutingKey
+        String getId();
+    }
+
+    @Value
+    static class UpdateCommand implements AggregateCommand{
+        String id, value;
+
+
+        @Apply
+        AggregateRoot create() {
+            return AggregateRoot.builder().id(id).value(value).event("create").build();
         }
 
-        @ApplyEvent
-        AggregateRoot update(AggregateCommand event) {
-            return toBuilder().value(event.value).build();
+        @Apply
+        AggregateRoot update(AggregateRoot model) {
+            return model.toBuilder().value(value).event("update").build();
         }
     }
 
     @Value
-    static class AggregateCommand {
-        @RoutingKey
+    static class DeleteCommand implements AggregateCommand{
         String id;
-        String value;
+
+        @Apply
+        AggregateRoot apply(AggregateRoot model) {
+            return null;
+        }
     }
+
 
     @Value
     static class SecondOrderCommand {

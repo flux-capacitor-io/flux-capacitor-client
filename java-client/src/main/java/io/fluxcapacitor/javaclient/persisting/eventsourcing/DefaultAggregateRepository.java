@@ -33,23 +33,14 @@ import lombok.extern.slf4j.Slf4j;
 
 import java.time.Instant;
 import java.time.temporal.TemporalAccessor;
-import java.util.ArrayDeque;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.Iterator;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
+import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Function;
 import java.util.function.UnaryOperator;
 
 import static io.fluxcapacitor.common.MessageType.EVENT;
-import static io.fluxcapacitor.javaclient.common.serialization.DeserializingMessage.defaultParameterResolvers;
-import static io.fluxcapacitor.javaclient.common.serialization.DeserializingMessage.whenBatchCompletes;
-import static io.fluxcapacitor.javaclient.common.serialization.DeserializingMessage.whenMessageCompletes;
+import static io.fluxcapacitor.javaclient.common.serialization.DeserializingMessage.*;
 import static java.lang.String.format;
 import static java.util.Collections.asLifoQueue;
 import static java.util.Collections.emptyList;
@@ -218,7 +209,7 @@ public class DefaultAggregateRepository implements AggregateRepository {
 
         protected void initialize() {
             model = Optional.<EventSourcedModel<T>>ofNullable(cache.getIfPresent(keyFunction.apply(id)))
-                    .filter(a -> aggregateType.isAssignableFrom(a.get().getClass()))
+                    .filter(a -> a.get() == null || aggregateType.isAssignableFrom(a.get().getClass()))
                     .orElseGet(() -> {
                         EventSourcedModel<T> model =
                                 (searchable && !eventSourced ? documentStore.<T>getDocument(id, collection)
