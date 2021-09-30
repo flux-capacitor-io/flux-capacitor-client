@@ -33,7 +33,7 @@ jobs:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           release_branches: master
           default_bump: minor
-          tag_prefix:
+          tag_prefix: ""
 
       - name: Set maven version
         run: |
@@ -42,11 +42,10 @@ jobs:
       - name: Call Github Release API
         uses: softprops/action-gh-release@v1
         with:
-          body: |
-            - ${{ github.event.head_commit.message }}
-          prerelease: true
           tag_name: ${{ steps.tag_version.outputs.new_version }}
           name: Flux Capacitor ${{ steps.tag_version.outputs.new_version }}
+          body: ${{ steps.tag_version.outputs.changelog }}
+          prerelease: true
 
       - name: Deploy to Maven Central
         uses: samuelmeuli/action-maven-publish@v1
