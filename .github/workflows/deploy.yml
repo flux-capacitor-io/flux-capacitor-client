@@ -53,7 +53,6 @@ jobs:
           tag_name: ${{ steps.tag_version.outputs.new_version }}
           name: Flux Capacitor ${{ steps.tag_version.outputs.new_version }}
           body: ${{ steps.tag_version.outputs.changelog }}
-          prerelease: true
 
       - name: Login to docker hub
         uses: actions-hub/docker/login@master
