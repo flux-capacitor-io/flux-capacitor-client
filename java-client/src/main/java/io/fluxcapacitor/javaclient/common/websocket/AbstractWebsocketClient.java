@@ -174,8 +174,7 @@ public abstract class AbstractWebsocketClient implements AutoCloseable {
                     Metadata metadata = Metadata.of("requestId", webSocketRequest.request.getRequestId(),
                                                     "msDuration", currentTimeMillis() - webSocketRequest.sendTimestamp)
                             .with(webSocketRequest.correlationData);
-                    tryPublishMetrics(result.toMetric(),
-                                      batchId == null ? metadata : metadata.with("batchId", batchId));
+                    tryPublishMetrics(result, batchId == null ? metadata : metadata.with("batchId", batchId));
                 } finally {
                     webSocketRequest.result.complete(result);
                 }
@@ -231,7 +230,8 @@ public abstract class AbstractWebsocketClient implements AutoCloseable {
         }
     }
 
-    protected void tryPublishMetrics(Object metric, Metadata metadata) {
+    protected void tryPublishMetrics(JsonType message, Metadata metadata) {
+        Object metric = message.toMetric();
         if (sendMetrics && metric != null) {
             FluxCapacitor.getOptionally().ifPresent(f -> publishMetrics(metric, metadata));
         }
