@@ -2,9 +2,8 @@ name: Deploy
 
 on:
   push:
-    branches: [ master ]
-    tags-ignore:
-      - "[0-9]+.[0-9]+.[0-9]+"
+    tags:
+      - "[0-9]+.[0-9]+"
 
 jobs:
   deploy:
@@ -26,48 +25,25 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-maven-
 
-      - name: Bump version and push tag
-        uses: mathieudutour/github-tag-action@v5.6
-        id: tag_version
-        with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          release_branches: master
-          default_bump: minor
-          tag_prefix: ""
-
       - name: Set maven version
         run: |
-          mvn -B versions:set -DnewVersion=${{ steps.tag_version.outputs.new_tag }}
+          echo ${{ github.ref }}
+          mvn -B versions:set -DnewVersion=${{ github.ref }}
 
-      - name: Call Github Release API
-        uses: softprops/action-gh-release@v1
+      - name: Build Changelog
+        id: changelog
+        uses: mikepenz/release-changelog-builder-action@v1
         with:
-          tag_name: ${{ steps.tag_version.outputs.new_version }}
-          name: Flux Capacitor ${{ steps.tag_version.outputs.new_version }}
-          body: ${{ steps.tag_version.outputs.changelog }}
-          prerelease: true
-
-      - name: Deploy to Maven Central
-        uses: samuelmeuli/action-maven-publish@v1
-        with:
-          gpg_private_key: ${{ secrets.gpg_private_key }}
-          gpg_passphrase: ${{ secrets.gpg_passphrase }}
-          nexus_username: ${{ secrets.nexus_username }}
-          nexus_password: ${{ secrets.nexus_password }}
-
-      - name: Login to docker hub
-        uses: actions-hub/docker/login@master
+          toTag: ${{ github.ref }}
         env:
-          DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
-          DOCKER_PASSWORD: ${{ secrets.DOCKER_PASSWORD }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Docker build
-        run: |
-          cd test-server
-          docker build -t fluxcapacitorio/flux-capacitor-test:${{ steps.tag_version.outputs.new_version }} -t fluxcapacitorio/flux-capacitor-test:latest .
-          cd ..
-
-      - name: Push to docker hub
-        uses: actions-hub/docker@master
+      - name: Create Github Release
+        uses: actions/create-release@v1
         with:
-          args: push fluxcapacitorio/flux-capacitor-test
+          tag_name: ${{ github.ref }}
+          release_name: Flux Capacitor ${{ github.ref }}
+          body: ${{steps.changelog.outputs.changelog}}
+          prerelease: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
