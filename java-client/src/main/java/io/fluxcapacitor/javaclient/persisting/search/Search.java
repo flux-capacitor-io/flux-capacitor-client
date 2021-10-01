@@ -163,11 +163,11 @@ public interface Search {
     }
 
     default <T> Optional<T> fetchFirst() {
-        return this.<T>stream().findFirst();
+        return this.<T>fetch(1).stream().findFirst();
     }
 
     default <T> Optional<T> fetchFirst(Class<T> type) {
-        return this.stream(type).findFirst();
+        return this.fetch(1, type).stream().findFirst();
     }
 
     <T> Stream<SearchHit<T>> streamHits();
