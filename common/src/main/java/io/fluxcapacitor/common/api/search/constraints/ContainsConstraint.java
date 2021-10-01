@@ -20,11 +20,8 @@ import lombok.*;
 import lombok.experimental.Accessors;
 import org.apache.commons.lang3.StringUtils;
 
-import java.beans.ConstructorProperties;
 import java.util.regex.Pattern;
 
-import static io.fluxcapacitor.common.api.search.constraints.AllConstraint.all;
-import static io.fluxcapacitor.common.api.search.constraints.AnyConstraint.any;
 import static java.util.Arrays.stream;
 import static java.util.Objects.requireNonNull;
 import static java.util.stream.Collectors.toList;
@@ -32,55 +29,28 @@ import static java.util.stream.Collectors.toList;
 @Value
 public class ContainsConstraint extends PathConstraint {
     static final String letterOrNumber = "\\p{L}0-9";
-    private static final Pattern splitPattern = Pattern.compile(String.format("(?<=[%1$s])\\*(?=[%1$s])", letterOrNumber));
 
-    public static Constraint contains(@NonNull String phrase, String... paths) {
-        String[] parts = splitPattern.split(phrase);
-        if (parts.length < 2) {
-            switch (paths.length) {
-                case 0:
-                    return new ContainsConstraint(phrase, null);
-                case 1:
-                    return new ContainsConstraint(phrase, paths[0]);
-                default:
-                    return new AnyConstraint(stream(paths).map(p -> new ContainsConstraint(phrase, p)).collect(
-                            toList()));
-            }
-        } else {
-            for (int i = 0; i < parts.length; i++) {
-                parts[i] = parts[i] + "*";
-                i++;
-                parts[i] = "*" + parts[i];
-            }
-            return any(stream(paths).map(p -> all(
-                    stream(parts).map(part -> new ContainsConstraint(part, p)).collect(toList()))).collect(toList()));
+    public static Constraint contains(@NonNull String phrase, boolean prefixSearch, boolean postfixSearch, String... paths) {
+        String normalized = normalize(phrase);
+        switch (paths.length) {
+            case 0:
+                return new ContainsConstraint(normalized, null, prefixSearch, postfixSearch);
+            case 1:
+                return new ContainsConstraint(normalized, paths[0], prefixSearch, postfixSearch);
+            default:
+                return new AnyConstraint(stream(paths).map(p -> new ContainsConstraint(normalized, p, prefixSearch, postfixSearch)).collect(
+                        toList()));
         }
+    }
+
+    public static String normalize(String phrase) {
+        return StringUtils.stripAccents(StringUtils.strip(requireNonNull(phrase).toLowerCase()));
     }
 
     @NonNull String contains;
     String path;
     boolean prefixSearch;
     boolean postfixSearch;
-
-    @ConstructorProperties({"contains", "path"})
-    public ContainsConstraint(String contains, String path) {
-        contains = StringUtils.stripAccents(StringUtils.strip(requireNonNull(contains).toLowerCase()));
-        boolean prefixSearch, postfixSearch;
-        if (contains.endsWith("*")) {
-            contains = contains.substring(0, contains.length() - 1);
-            this.postfixSearch = true;
-        } else {
-            this.postfixSearch = false;
-        }
-        if (contains.startsWith("*")) {
-            contains = contains.substring(1);
-            this.prefixSearch = true;
-        } else {
-            this.prefixSearch = false;
-        }
-        this.contains = contains;
-        this.path = path;
-    }
 
     @Override
     protected boolean matches(Document.Entry entry) {
@@ -90,5 +60,5 @@ public class ContainsConstraint extends PathConstraint {
     @Getter(value = AccessLevel.PROTECTED, lazy = true)
     @Accessors(fluent = true)
     @EqualsAndHashCode.Exclude
-    Pattern pattern = Pattern.compile((prefixSearch ? "" :  String.format("(?<=[^%s]|\\A)", letterOrNumber)) + Pattern.quote(contains) + (postfixSearch ? "" : String.format("(?=[^%s]|\\Z)", letterOrNumber)));
+    Pattern pattern = Pattern.compile((prefixSearch ? "" : String.format("(?<=[^%s]|\\A)", letterOrNumber)) + Pattern.quote(contains) + (postfixSearch ? "" : String.format("(?=[^%s]|\\Z)", letterOrNumber)));
 }

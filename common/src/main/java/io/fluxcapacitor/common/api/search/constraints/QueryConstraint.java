@@ -27,43 +27,32 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
+import static io.fluxcapacitor.common.api.search.constraints.AllConstraint.all;
 import static io.fluxcapacitor.common.api.search.constraints.ContainsConstraint.letterOrNumber;
 import static org.apache.commons.lang3.StringUtils.isBlank;
 
 @Value
-public class FindConstraint extends PathConstraint {
+public class QueryConstraint extends PathConstraint {
     private static final String operator = "&|()!";
-    static final Pattern matcherPattern =
+    private static final Pattern termPattern =
             Pattern.compile(String.format("\"[^\"]*\"|[%1$s]|[*%2$s][^\\s%1$s]+[*%2$s]|[*%2$s]+", operator, letterOrNumber), Pattern.MULTILINE);
+    private static final Pattern splitOnInnerAsterisk = Pattern.compile(String.format("(?<=[%1$s])\\*(?=[%1$s])", letterOrNumber));
 
-    public static Constraint find(String find, String... paths) {
-        if (isBlank(find)) return noOp;
+    public static Constraint query(String query, String... paths) {
+        if (isBlank(query)) return noOp;
         switch (paths.length) {
             case 0:
-                return new FindConstraint(find, false, null);
+                return new QueryConstraint(query, null);
             case 1:
-                return new FindConstraint(find, false, paths[0]);
+                return new QueryConstraint(query, paths[0]);
             default:
-                return new AnyConstraint(Arrays.stream(paths).map(p -> new FindConstraint(find, false, p)).collect(
+                return new AnyConstraint(Arrays.stream(paths).map(p -> new QueryConstraint(query, p)).collect(
                         Collectors.toList()));
         }
     }
 
-    public static Constraint lookAhead(String find, String... paths) {
-        if (isBlank(find)) return noOp;
-        switch (paths.length) {
-            case 0:
-                return new FindConstraint(find, true, null);
-            case 1:
-                return new FindConstraint(find, true, paths[0]);
-            default:
-                return new AnyConstraint(Arrays.stream(paths).map(p -> new FindConstraint(find, true, p)).collect(
-                        Collectors.toList()));
-        }
-    }
 
-    @NonNull String find;
-    boolean lookAhead;
+    @NonNull String query;
     String path;
 
     @Override
@@ -78,8 +67,9 @@ public class FindConstraint extends PathConstraint {
 
     @ToString.Exclude
     @EqualsAndHashCode.Exclude
-    @Getter(lazy = true) @Accessors(fluent = true)
-    Constraint decompose = AllConstraint.all(createConstraints(splitInTermsAndOperators(find)));
+    @Getter(lazy = true)
+    @Accessors(fluent = true)
+    Constraint decompose = AllConstraint.all(createConstraints(splitInTermsAndOperators(query)));
 
     private List<Constraint> createConstraints(List<String> parts) {
         List<Constraint> result = new ArrayList<>();
@@ -92,10 +82,20 @@ public class FindConstraint extends PathConstraint {
 
     private void parsePart(String part, ListIterator<String> iterator, List<Constraint> constraints) {
         switch (part) {
-            case "(": handleGroupStart(iterator, constraints); break;
-            case "|": handleOr(iterator, constraints); break;
-            case "!": handleNot(iterator, constraints); break;
-            default: handleTerm(part, constraints); break;
+            case "(":
+                handleGroupStart(iterator, constraints);
+                break;
+            case "|":
+                handleOr(iterator, constraints);
+                break;
+            case "!":
+                handleNot(iterator, constraints);
+                break;
+            case "":
+                break;
+            default:
+                handleTerm(part, constraints);
+                break;
         }
     }
 
@@ -131,23 +131,39 @@ public class FindConstraint extends PathConstraint {
     }
 
     private void handleTerm(String term, List<Constraint> constraints) {
-        constraints.add(ContainsConstraint.contains(!lookAhead ? term :
-                term.replaceAll("\\A[*]+", "")
-                        .replaceAll("[*]+\\Z", "") + "*", path));
+        if (term.startsWith("\"") && term.endsWith("\"")) {
+            constraints.add(ContainsConstraint.contains(term.substring(1, term.length() - 1),
+                    false, false, path));
+            return;
+        }
+
+        List<Constraint> result = new ArrayList<>();
+        String[] parts = splitOnInnerAsterisk.split(term);
+        for (int i = 0; i < parts.length; i++) {
+            boolean prefixSearch = i != 0;
+            boolean postfixSearch = i != parts.length - 1;
+            String part = parts[i];
+            if (part.endsWith("*")) {
+                part = part.substring(0, part.length() - 1);
+                postfixSearch = true;
+            }
+            if (part.startsWith("*")) {
+                part = part.substring(1);
+                prefixSearch = true;
+            }
+            result.add(ContainsConstraint.contains(part, prefixSearch, postfixSearch, path));
+        }
+        constraints.add(all(result));
     }
 
     private List<String> splitInTermsAndOperators(String query) {
         List<String> parts = new ArrayList<>();
 
-        Matcher matcher = matcherPattern.matcher(query.trim());
+        Matcher matcher = termPattern.matcher(query.trim());
         while (matcher.find()) {
             String group = matcher.group().trim();
             if (!group.isEmpty() && !group.equals("\"") && !group.equals("AND") && !group.equals("&")) {
-                group = group.equals("OR") ? "|" : group;
-                if (group.startsWith("\"") && group.endsWith("\"")) {
-                    group = group.substring(1, group.length() - 1);
-                }
-                parts.add(group);
+                parts.add(group.equals("OR") ? "|" : group);
             }
         }
         return parts;

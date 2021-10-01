@@ -1,74 +1,64 @@
 {
   "@class": "io.fluxcapacitor.common.api.search.constraints.AllConstraint",
-  "all" : [ {
     "all" : [ {
-      "contains" : "k",
+      "contains" : "k*aas",
       "prefixSearch" : false,
       "postfixSearch" : true
     }, {
-      "contains" : "aas",
-      "prefixSearch" : true,
-      "postfixSearch" : true
-    } ]
-  }, {
-    "any" : [ {
       "contains" : "a",
       "prefixSearch" : false,
       "postfixSearch" : true
     }, {
-      "all" : [ {
-        "contains" : "b",
-        "prefixSearch" : false,
-        "postfixSearch" : true
-      }, {
-        "contains" : "orfoo",
-        "prefixSearch" : false,
-        "postfixSearch" : true
-      }, {
-        "any" : [ {
-          "contains" : "bar",
-          "prefixSearch" : false,
-          "postfixSearch" : true
-        }, {
-          "all" : [ {
-            "not" : {
-              "contains" : "notthis",
-              "prefixSearch" : false,
-              "postfixSearch" : true
-            }
-          }, {
-            "any" : [ {
-              "contains" : "cheese (is) or very tasty",
-              "prefixSearch" : false,
-              "postfixSearch" : true
-            }, {
-              "not" : {
-                "contains" : "chick=fox",
-                "prefixSearch" : false,
-                "postfixSearch" : true
-              }
-            } ]
-          } ]
-        } ]
-      }, {
-        "contains" : "mouse",
-        "prefixSearch" : false,
-        "postfixSearch" : true
-      }, {
-        "any" : [ {
-          "contains" : "dog",
-          "prefixSearch" : false,
-          "postfixSearch" : true
-        }, {
-          "contains" : "cat",
-          "prefixSearch" : false,
-          "postfixSearch" : true
-        } ]
-      }, {
-        "contains" : "hare",
-        "prefixSearch" : false,
-        "postfixSearch" : true
-      } ]
+      "contains" : "or",
+      "prefixSearch" : false,
+      "postfixSearch" : true
+    }, {
+      "contains" : "b",
+      "prefixSearch" : false,
+      "postfixSearch" : true
+    }, {
+      "contains" : "orfoo",
+      "prefixSearch" : false,
+      "postfixSearch" : true
+    }, {
+      "contains" : "bar",
+      "prefixSearch" : false,
+      "postfixSearch" : true
+    }, {
+      "contains" : "or(!notthis",
+      "prefixSearch" : false,
+      "postfixSearch" : true
+    }, {
+      "contains" : "*cheese (is) or very tasty&",
+      "prefixSearch" : false,
+      "postfixSearch" : true
+    }, {
+      "contains" : "or",
+      "prefixSearch" : false,
+      "postfixSearch" : true
+    }, {
+      "contains" : "chick=fox",
+      "prefixSearch" : false,
+      "postfixSearch" : true
+    }, {
+      "contains" : "mouse",
+      "prefixSearch" : false,
+      "postfixSearch" : true
+    }, {
+      "contains" : "dog",
+      "prefixSearch" : false,
+      "postfixSearch" : true
+    }, {
+      "contains" : "or",
+      "prefixSearch" : false,
+      "postfixSearch" : true
+    }, {
+      "contains" : "cat",
+      "prefixSearch" : false,
+      "postfixSearch" : true
+    }, {
+      "contains" : "hare",
+      "prefixSearch" : false,
+      "postfixSearch" : true
     } ]
-  } ]
-}
+  }

@@ -53,7 +53,7 @@
                     {
                       "any": [
                         {
-                          "contains": "cheese (is) or very tasty",
+                          "contains" : "*cheese (is) or very tasty&",
                           "prefixSearch": false,
                           "postfixSearch": false
                         },

@@ -39,9 +39,9 @@ import java.util.stream.Stream;
 import static io.fluxcapacitor.common.api.search.constraints.AnyConstraint.any;
 import static io.fluxcapacitor.common.api.search.constraints.BetweenConstraint.*;
 import static io.fluxcapacitor.common.api.search.constraints.ExistsConstraint.exists;
-import static io.fluxcapacitor.common.api.search.constraints.FindConstraint.find;
 import static io.fluxcapacitor.common.api.search.constraints.MatchConstraint.match;
 import static io.fluxcapacitor.common.api.search.constraints.NotConstraint.not;
+import static io.fluxcapacitor.common.api.search.constraints.QueryConstraint.query;
 import static java.util.Collections.*;
 import static java.util.function.Function.identity;
 import static java.util.stream.Collectors.toMap;
@@ -52,48 +52,48 @@ public class GivenWhenThenSearchTest {
 
     @Test
     void testPhraseMatching() {
-        expectMatch(find("see what"));
-        expectMatch(find("see what", "foo"));
-        expectMatch(find("see wh*"));
-        expectMatch(find("se* wh*"));
-        expectMatch(find("fin* wh*"));
-        expectMatch(find("* what"));
-        expectMatch(find("*e what", "foo"));
-        expectNoMatch(find("*a what", "foo"));
-        expectNoMatch(find("bla bla"));
-        expectNoMatch(find("see what", "wrongField"));
+        expectMatch(query("see what"));
+        expectMatch(query("see what", "foo"));
+        expectMatch(query("see wh*"));
+        expectMatch(query("se* wh*"));
+        expectMatch(query("fin* wh*"));
+        expectMatch(query("* what"));
+        expectMatch(query("*e what", "foo"));
+        expectNoMatch(query("*a what", "foo"));
+        expectNoMatch(query("bla bla"));
+        expectNoMatch(query("see what", "wrongField"));
     }
 
     @Test
     void testSymbols() {
-        expectNoMatch(find("see wh\\*", "symbols"));
+        expectNoMatch(query("see wh\\*", "symbols"));
 
-        expectMatch(find("or front*", "symbols"));
-        expectMatch(find("or front  *", "symbols"));
-        expectMatch(find("or \\front*", "symbols"));
-        expectMatch(find("or \\*", "symbols"));
-        expectMatch(find("or xml*", "symbols"));
-        expectMatch(find("or <xml>*", "symbols"));
+        expectMatch(query("or front*", "symbols"));
+        expectMatch(query("or front  *", "symbols"));
+        expectMatch(query("or \\front*", "symbols"));
+        expectMatch(query("or \\*", "symbols"));
+        expectMatch(query("or xml*", "symbols"));
+        expectMatch(query("or <xml>*", "symbols"));
 
-        expectMatch(find("or mid\\dle*", "symbols"));
-        expectMatch(find("or mid\\*", "symbols"));
-        expectMatch(find("or mid\\*", "symbols"));
-        expectNoMatch(find("or middle*", "symbols"));
-        expectNoMatch(find("or mid-dle*", "symbols"));
-        expectNoMatch(find("or mid-*", "symbols"));
-        expectMatch(find("or (mid)*", "symbols")); //operators are treated differently
+        expectMatch(query("or mid\\dle*", "symbols"));
+        expectMatch(query("or mid\\*", "symbols"));
+        expectMatch(query("or mid\\*", "symbols"));
+        expectNoMatch(query("or middle*", "symbols"));
+        expectNoMatch(query("or mid-dle*", "symbols"));
+        expectNoMatch(query("or mid-*", "symbols"));
+        expectMatch(query("or (mid)*", "symbols")); //operators are treated differently
 
-        expectMatch(find("Anne*", "symbols"));
-        expectMatch(find("Anne-*", "symbols"));
-        expectMatch(find("Anne-gre*", "symbols"));
+        expectMatch(query("Anne*", "symbols"));
+        expectMatch(query("Anne-*", "symbols"));
+        expectMatch(query("Anne-gre*", "symbols"));
     }
 
     @Test
     void testWeirdChars() {
-        expectMatch(find("ẏṏṳṙ ẇḕḭṙḊ ṮḕẌ*", "weirdChars"));
-        expectNoMatch(find("ẏṏṳṙ ẇḕḭṙḊo ṮḕẌ*", "weirdChars"));
-        expectMatch(find("ÄäǞǟĄ̈ą̈B̈b̈C̈c̈ËëḦḧÏïḮḯJ̈j̈K̈k̈L̈l̈M̈m̈N̈n̈ÖöȪȫǪ̈ǫ̈ṎṏP̈p̈Q̈q̈Q̣̈q̣̈R̈r̈S̈s̈T̈ẗÜüǕǖǗǘǙǚǛǜṲṳṺṻṲ̄ṳ̄ᴞV̈v̈ẄẅẌẍŸÿZ̈z̈ΪϊῒΐῗΫϋῢΰῧϔӒӓЁёӚӛӜӝӞӟӤӥЇїӦӧӪӫӰӱӴӵӸӹ*", "weirdChars"));
-        expectNoMatch(find("XXÄäǞǟĄ̈ą̈B̈b̈C̈c̈ËëḦḧÏïḮḯJ̈j̈K̈k̈L̈l̈M̈m̈N̈n̈ÖöȪȫǪ̈ǫ̈ṎṏP̈p̈Q̈q̈Q̣̈q̣̈R̈r̈S̈s̈T̈ẗÜüǕǖǗǘǙǚǛǜṲṳṺṻṲ̄ṳ̄ᴞV̈v̈ẄẅẌẍŸÿZ̈z̈ΪϊῒΐῗΫϋῢΰῧϔӒӓЁёӚӛӜӝӞӟӤӥЇїӦӧӪӫӰӱӴӵӸӹӬ*", "weirdChars"));
+        expectMatch(query("ẏṏṳṙ ẇḕḭṙḊ ṮḕẌ*", "weirdChars"));
+        expectNoMatch(query("ẏṏṳṙ ẇḕḭṙḊo ṮḕẌ*", "weirdChars"));
+        expectMatch(query("ÄäǞǟĄ̈ą̈B̈b̈C̈c̈ËëḦḧÏïḮḯJ̈j̈K̈k̈L̈l̈M̈m̈N̈n̈ÖöȪȫǪ̈ǫ̈ṎṏP̈p̈Q̈q̈Q̣̈q̣̈R̈r̈S̈s̈T̈ẗÜüǕǖǗǘǙǚǛǜṲṳṺṻṲ̄ṳ̄ᴞV̈v̈ẄẅẌẍŸÿZ̈z̈ΪϊῒΐῗΫϋῢΰῧϔӒӓЁёӚӛӜӝӞӟӤӥЇїӦӧӪӫӰӱӴӵӸӹ*", "weirdChars"));
+        expectNoMatch(query("XXÄäǞǟĄ̈ą̈B̈b̈C̈c̈ËëḦḧÏïḮḯJ̈j̈K̈k̈L̈l̈M̈m̈N̈n̈ÖöȪȫǪ̈ǫ̈ṎṏP̈p̈Q̈q̈Q̣̈q̣̈R̈r̈S̈s̈T̈ẗÜüǕǖǗǘǙǚǛǜṲṳṺṻṲ̄ṳ̄ᴞV̈v̈ẄẅẌẍŸÿZ̈z̈ΪϊῒΐῗΫϋῢΰῧϔӒӓЁёӚӛӜӝӞӟӤӥЇїӦӧӪӫӰӱӴӵӸӹӬ*", "weirdChars"));
         expectMatch(match("ẏṏṳṙ ẇḕḭṙḊ ṮḕẌṮ ÄäǞǟĄ̈ą̈B̈b̈C̈c̈ËëḦḧÏïḮḯJ̈j̈K̈k̈L̈l̈M̈m̈N̈n̈ÖöȪȫǪ̈ǫ̈ṎṏP̈p̈Q̈q̈Q̣̈q̣̈R̈r̈S̈s̈T̈ẗÜüǕǖǗǘǙǚǛǜṲṳṺṻṲ̄ṳ̄ᴞV̈v̈ẄẅẌẍŸÿZ̈z̈ΪϊῒΐῗΫϋῢΰῧϔӒӓЁёӚӛӜӝӞӟӤӥЇїӦӧӪӫӰӱӴӵӸӹӬӭ", "weirdChars"));
         expectNoMatch(match("ẏṏṳṙ ẇḕḭṙḊo ṮḕẌṮ ÄäǞǟĄ̈ą̈B̈b̈C̈c̈ËëḦḧÏïḮḯJ̈j̈K̈k̈L̈l̈M̈m̈N̈n̈ÖöȪȫǪ̈ǫ̈ṎṏP̈p̈Q̈q̈Q̣̈q̣̈R̈r̈S̈s̈T̈ẗÜüǕǖǗǘǙǚǛǜṲṳṺṻṲ̄ṳ̄ᴞV̈v̈ẄẅẌẍŸÿZ̈z̈ΪϊῒΐῗΫϋῢΰῧϔӒӓЁёӚӛӜӝӞӟӤӥЇїӦӧӪӫӰӱӴӵӸӹӬӭ", "weirdChars"));
     }
@@ -138,11 +138,11 @@ public class GivenWhenThenSearchTest {
 
     @Test
     void testCombineConstraints() {
-        expectMatch(find("see wh*"), below(21.5, "someNumber"));
-        expectNoMatch(not(find("see wh*").and(below(21.5, "someNumber"))));
-        expectNoMatch(find("see wh*", "wrongField"), below(21.5, "someNumber"));
-        expectMatch(not(find("see wh*", "wrongField").and(below(21.5, "someNumber"))));
-        expectMatch(any(find("see wh*", "wrongField").or(below(21.5, "someNumber"))));
+        expectMatch(query("see wh*"), below(21.5, "someNumber"));
+        expectNoMatch(not(query("see wh*").and(below(21.5, "someNumber"))));
+        expectNoMatch(query("see wh*", "wrongField"), below(21.5, "someNumber"));
+        expectMatch(not(query("see wh*", "wrongField").and(below(21.5, "someNumber"))));
+        expectMatch(any(query("see wh*", "wrongField").or(below(21.5, "someNumber"))));
         expectNoMatch(not(exists("someId")));
     }
 
@@ -189,23 +189,23 @@ public class GivenWhenThenSearchTest {
 
     @Test
     void testSearchInArray() {
-        expectMatch(find("10", "mapList/key1"));
-        expectMatch(find("10", "mapList/0/key1"));
-        expectNoMatch(find("10", "mapList/1/key1"));
-        expectMatch(find("value2", "mapList/key2"));
-        expectMatch(find("value2", "mapList/1/key2"));
+        expectMatch(query("10", "mapList/key1"));
+        expectMatch(query("10", "mapList/0/key1"));
+        expectNoMatch(query("10", "mapList/1/key1"));
+        expectMatch(query("value2", "mapList/key2"));
+        expectMatch(query("value2", "mapList/1/key2"));
     }
 
     @Test
     void testLongNumber() {
-        expectMatch(find("106193501828612100"));
+        expectMatch(query("106193501828612100"));
     }
 
     @Test
     void testMetricsMessageExample() {
         JsonNode jsonNode = JsonUtils.fromFile(getClass(), "metrics-message.json", JsonNode.class);
         TestFixture.create().givenDocuments("test", jsonNode)
-                .whenSearching("test", find("106193501828612100", "messageIndex"))
+                .whenSearching("test", query("106193501828612100", "messageIndex"))
                 .<List<JsonNode>>expectResult(r -> !r.isEmpty() && r.get(0).get("payload") != null);
     }
 

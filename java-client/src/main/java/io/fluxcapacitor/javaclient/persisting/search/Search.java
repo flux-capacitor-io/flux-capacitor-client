@@ -66,11 +66,11 @@ public interface Search {
      */
 
     default Search lookAhead(String phrase, String... paths) {
-        return constraint(FindConstraint.lookAhead(phrase, paths));
+        return constraint(LookAheadConstraint.lookAhead(phrase, paths));
     }
 
-    default Search find(String phrase, String... paths) {
-        return constraint(FindConstraint.find(phrase, paths));
+    default Search query(String phrase, String... paths) {
+        return constraint(QueryConstraint.query(phrase, paths));
     }
 
     default Search match(Object constraint, String... paths) {
