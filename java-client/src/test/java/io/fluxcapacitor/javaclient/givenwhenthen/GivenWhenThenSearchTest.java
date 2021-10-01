@@ -39,6 +39,7 @@ import java.util.stream.Stream;
 import static io.fluxcapacitor.common.api.search.constraints.AnyConstraint.any;
 import static io.fluxcapacitor.common.api.search.constraints.BetweenConstraint.*;
 import static io.fluxcapacitor.common.api.search.constraints.ExistsConstraint.exists;
+import static io.fluxcapacitor.common.api.search.constraints.LookAheadConstraint.lookAhead;
 import static io.fluxcapacitor.common.api.search.constraints.MatchConstraint.match;
 import static io.fluxcapacitor.common.api.search.constraints.NotConstraint.not;
 import static io.fluxcapacitor.common.api.search.constraints.QueryConstraint.query;
@@ -62,6 +63,11 @@ public class GivenWhenThenSearchTest {
         expectNoMatch(query("*a what", "foo"));
         expectNoMatch(query("bla bla"));
         expectNoMatch(query("see what", "wrongField"));
+
+        expectMatch(lookAhead("see what"));
+        expectMatch(lookAhead("se wha"));
+        expectNoMatch(lookAhead("ee hat"));
+        expectMatch(lookAhead("se wha", "foo", "wrongField"));
     }
 
     @Test

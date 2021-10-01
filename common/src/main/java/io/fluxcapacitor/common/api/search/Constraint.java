@@ -26,7 +26,7 @@ import java.util.List;
 @JsonTypeInfo(use = JsonTypeInfo.Id.DEDUCTION, defaultImpl = NoOpConstraint.class)
 @JsonSubTypes({@Type(AllConstraint.class), @Type(AnyConstraint.class), @Type(ContainsConstraint.class),
         @Type(BetweenConstraint.class), @Type(ExistsConstraint.class), @Type(QueryConstraint.class),
-        @Type(MatchConstraint.class), @Type(NotConstraint.class)})
+        @Type(MatchConstraint.class), @Type(NotConstraint.class), @Type(LookAheadConstraint.class)})
 public interface Constraint {
     Constraint noOp = NoOpConstraint.instance;
 
