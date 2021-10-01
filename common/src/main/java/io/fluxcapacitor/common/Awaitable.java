@@ -16,6 +16,7 @@ package io.fluxcapacitor.common;
 
 import lombok.SneakyThrows;
 
+import java.time.Duration;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
@@ -51,8 +52,12 @@ public interface Awaitable {
         };
     }
 
+    static Awaitable fromFuture(Future<?> future, Duration timeout) {
+        return () -> future.get(timeout.toMillis(), TimeUnit.MILLISECONDS);
+    }
+
     static Awaitable fromFuture(Future<?> future) {
-        return () -> future.get(1, TimeUnit.SECONDS);
+        return future::get;
     }
 
 }

@@ -69,12 +69,12 @@ public class WebsocketTrackingClient extends AbstractWebsocketClient implements 
 
     @Override
     public Awaitable storePosition(String consumer, int[] segment, long lastIndex) {
-        return fromFuture(send(new StorePosition(consumer, segment, lastIndex)));
+        return fromFuture(send(new StorePosition(consumer, segment, lastIndex)), Duration.ofSeconds(60));
     }
 
     @Override
     public Awaitable resetPosition(String consumer, long lastIndex) {
-        return fromFuture(send(new ResetPosition(consumer, lastIndex)));
+        return fromFuture(send(new ResetPosition(consumer, lastIndex)), Duration.ofSeconds(60));
     }
 
     @Override
