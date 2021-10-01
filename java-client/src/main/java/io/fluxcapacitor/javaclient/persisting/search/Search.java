@@ -142,15 +142,15 @@ public interface Search {
         Execution
      */
 
-    <T> List<T> get(int maxSize);
+    <T> List<T> fetch(int maxSize);
 
-    <T> List<T> get(int maxSize, Class<T> type);
+    <T> List<T> fetch(int maxSize, Class<T> type);
 
-    default <T> List<T> getAll() {
+    default <T> List<T> fetchAll() {
         return this.<T>stream().collect(toList());
     }
 
-    default <T> List<T> getAll(Class<T> type) {
+    default <T> List<T> fetchAll(Class<T> type) {
         return this.stream(type).collect(toList());
     }
 
@@ -162,11 +162,11 @@ public interface Search {
         return this.streamHits(type).map(SearchHit::getValue);
     }
 
-    default <T> Optional<T> getFirst() {
+    default <T> Optional<T> fetchFirst() {
         return this.<T>stream().findFirst();
     }
 
-    default <T> Optional<T> getFirst(Class<T> type) {
+    default <T> Optional<T> fetchFirst(Class<T> type) {
         return this.stream(type).findFirst();
     }
 
@@ -174,16 +174,16 @@ public interface Search {
 
     <T> Stream<SearchHit<T>> streamHits(Class<T> type);
 
-    SearchHistogram getHistogram(int resolution, int maxSize);
+    SearchHistogram fetchHistogram(int resolution, int maxSize);
 
-    default List<DocumentStats> getStatistics(@NonNull String field, String... groupBy) {
-        return getStatistics(List.of(field), groupBy);
+    default List<DocumentStats> fetchStatistics(@NonNull String field, String... groupBy) {
+        return fetchStatistics(List.of(field), groupBy);
     }
 
-    List<DocumentStats> getStatistics(List<String> fields, String... groupBy);
+    List<DocumentStats> fetchStatistics(List<String> fields, String... groupBy);
 
     default Map<Map<String, String>, Long> getDocumentStatistics(String... groupBy) {
-        return getStatistics(List.of(""), groupBy).stream().collect(toMap(DocumentStats::getGroup, s ->
+        return fetchStatistics(List.of(""), groupBy).stream().collect(toMap(DocumentStats::getGroup, s ->
                 s.getFieldStats().values().stream().map(DocumentStats.FieldStats::getCount).findFirst().orElse(0L)));
     }
 

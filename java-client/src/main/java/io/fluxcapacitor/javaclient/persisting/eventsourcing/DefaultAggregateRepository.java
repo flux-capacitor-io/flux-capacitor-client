@@ -212,7 +212,7 @@ public class DefaultAggregateRepository implements AggregateRepository {
                     .filter(a -> a.get() == null || aggregateType.isAssignableFrom(a.get().getClass()))
                     .orElseGet(() -> {
                         EventSourcedModel<T> model =
-                                (searchable && !eventSourced ? documentStore.<T>getDocument(id, collection)
+                                (searchable && !eventSourced ? documentStore.<T>fetchDocument(id, collection)
                                         .map(d -> EventSourcedModel.<T>builder().id(id).type(aggregateType).model(
                                                 d).build()) : snapshotRepository.<T>getSnapshot(id))
                                         .filter(a -> {

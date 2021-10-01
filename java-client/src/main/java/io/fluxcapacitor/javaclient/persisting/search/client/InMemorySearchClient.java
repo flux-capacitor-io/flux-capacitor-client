@@ -16,26 +16,14 @@ package io.fluxcapacitor.javaclient.persisting.search.client;
 
 import io.fluxcapacitor.common.Awaitable;
 import io.fluxcapacitor.common.Guarantee;
-import io.fluxcapacitor.common.api.search.CreateAuditTrail;
-import io.fluxcapacitor.common.api.search.DocumentStats;
+import io.fluxcapacitor.common.api.search.*;
 import io.fluxcapacitor.common.api.search.DocumentStats.FieldStats;
-import io.fluxcapacitor.common.api.search.GetDocument;
-import io.fluxcapacitor.common.api.search.GetSearchHistogram;
-import io.fluxcapacitor.common.api.search.SearchDocuments;
-import io.fluxcapacitor.common.api.search.SearchHistogram;
-import io.fluxcapacitor.common.api.search.SearchQuery;
-import io.fluxcapacitor.common.api.search.SerializedDocumentUpdate;
 import io.fluxcapacitor.common.search.Document;
 import io.fluxcapacitor.javaclient.persisting.search.SearchHit;
 
 import java.math.BigDecimal;
 import java.time.Instant;
-import java.util.Collection;
-import java.util.LinkedHashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Objects;
-import java.util.Optional;
+import java.util.*;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.function.Function;
 import java.util.function.Predicate;
@@ -47,9 +35,7 @@ import static io.fluxcapacitor.common.api.search.BulkUpdate.Type.indexIfNotExist
 import static io.fluxcapacitor.common.search.Document.EntryType.NUMERIC;
 import static java.util.Collections.singletonList;
 import static java.util.function.Function.identity;
-import static java.util.stream.Collectors.groupingBy;
-import static java.util.stream.Collectors.toList;
-import static java.util.stream.Collectors.toMap;
+import static java.util.stream.Collectors.*;
 
 public class InMemorySearchClient implements SearchClient {
     private final List<Document> documents = new CopyOnWriteArrayList<>();
@@ -92,7 +78,7 @@ public class InMemorySearchClient implements SearchClient {
     }
 
     @Override
-    public Optional<Document> get(GetDocument r) {
+    public Optional<Document> fetch(GetDocument r) {
         return documents.stream().filter(
                 d -> Objects.equals(r.getId(), d.getId()) && Objects.equals(r.getCollection(), d.getCollection()))
                 .findFirst();
@@ -122,7 +108,7 @@ public class InMemorySearchClient implements SearchClient {
     }
 
     @Override
-    public List<DocumentStats> getStatistics(SearchQuery query, List<String> fields, List<String> groupBy) {
+    public List<DocumentStats> fetchStatistics(SearchQuery query, List<String> fields, List<String> groupBy) {
         Map<List<String>, List<Document>> groups = documents.stream().filter(query::matches).collect(
                 groupingBy(d -> groupBy.stream().map(
                         g -> d.getEntryAtPath(g).map(Document.Entry::getValue).orElse(null)).collect(toList())));
@@ -133,7 +119,7 @@ public class InMemorySearchClient implements SearchClient {
     }
 
     @Override
-    public SearchHistogram getHistogram(GetSearchHistogram request) {
+    public SearchHistogram fetchHistogram(GetSearchHistogram request) {
         SearchQuery query = request.getQuery();
         List<Long> results = IntStream.range(0, request.getResolution()).mapToLong(i -> 0L).boxed().collect(toList());
         if (query.getSince() == null) {

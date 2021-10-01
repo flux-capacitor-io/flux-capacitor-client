@@ -268,7 +268,7 @@ public class GivenWhenThenSearchTest {
     void testGetById() {
         SomeDocument document = new SomeDocument();
         TestFixture.create().givenDocument(document, "testId", "test")
-                .whenApplying(fc -> fc.documentStore().getDocument("testId", "test").orElse(null))
+                .whenApplying(fc -> fc.documentStore().fetchDocument("testId", "test").orElse(null))
                 .expectResult(document);
     }
 

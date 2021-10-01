@@ -54,35 +54,20 @@ import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.ZoneId;
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.List;
-import java.util.Map;
-import java.util.Objects;
-import java.util.Optional;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.CopyOnWriteArrayList;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
+import java.util.*;
+import java.util.concurrent.*;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.UnaryOperator;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
-import static io.fluxcapacitor.common.MessageType.COMMAND;
-import static io.fluxcapacitor.common.MessageType.QUERY;
-import static io.fluxcapacitor.common.MessageType.SCHEDULE;
+import static io.fluxcapacitor.common.MessageType.*;
 import static io.fluxcapacitor.common.handling.HandlerConfiguration.defaultHandlerConfiguration;
 import static io.fluxcapacitor.javaclient.common.ClientUtils.isLocalHandlerMethod;
 import static java.util.Collections.emptyList;
 import static java.util.Collections.singletonList;
-import static java.util.stream.Collectors.toCollection;
-import static java.util.stream.Collectors.toList;
-import static java.util.stream.Collectors.toMap;
-import static java.util.stream.Collectors.toSet;
+import static java.util.stream.Collectors.*;
 
 @Slf4j
 public class TestFixture implements Given, When {
@@ -341,7 +326,7 @@ public class TestFixture implements Given, When {
 
     @Override
     public Then whenSearching(String collection, UnaryOperator<Search> searchQuery) {
-        return whenApplying(fc -> searchQuery.apply(fc.documentStore().search(collection)).getAll());
+        return whenApplying(fc -> searchQuery.apply(fc.documentStore().search(collection)).fetchAll());
     }
 
     @Override

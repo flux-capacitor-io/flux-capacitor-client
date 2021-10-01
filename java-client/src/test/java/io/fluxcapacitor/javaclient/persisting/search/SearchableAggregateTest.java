@@ -34,8 +34,8 @@ public class SearchableAggregateTest {
         testFixture.when(fc -> loadAggregate("123", SearchableAggregate.class, false)
                         .update(a -> new SearchableAggregate("bar")))
                 .expectDocuments(List.of(new SearchableAggregate("bar")))
-                .expectFalse(fc -> search(SearchableAggregate.class.getSimpleName()).getAll().isEmpty())
-                .expectTrue(fc -> search("searchables").getAll().isEmpty());
+                .expectFalse(fc -> search(SearchableAggregate.class.getSimpleName()).fetchAll().isEmpty())
+                .expectTrue(fc -> search("searchables").fetchAll().isEmpty());
     }
 
     @Test
@@ -43,7 +43,7 @@ public class SearchableAggregateTest {
         testFixture.given(fc -> loadAggregate("123", SearchableAggregate.class, false)
                         .update(a -> new SearchableAggregate("bar")))
                 .when(fc -> loadAggregate("123", SearchableAggregate.class, false).update(a -> null))
-                .expectTrue(fc -> search(SearchableAggregate.class.getSimpleName()).getAll().isEmpty());
+                .expectTrue(fc -> search(SearchableAggregate.class.getSimpleName()).fetchAll().isEmpty());
     }
 
     @Test
@@ -53,9 +53,9 @@ public class SearchableAggregateTest {
                         .update(a -> new SearchableAggregateWithTimePath(timestamp)))
                 .expectDocuments(List.of(new SearchableAggregateWithTimePath(timestamp)))
                 .expectFalse(fc -> search(SearchableAggregateWithTimePath.class.getSimpleName())
-                        .before(timestamp.plusSeconds(1)).getAll().isEmpty())
+                        .before(timestamp.plusSeconds(1)).fetchAll().isEmpty())
                 .expectTrue(fc -> search(SearchableAggregateWithTimePath.class.getSimpleName())
-                        .since(timestamp.plusSeconds(1)).getAll().isEmpty());
+                        .since(timestamp.plusSeconds(1)).fetchAll().isEmpty());
     }
 
     @Test
@@ -64,9 +64,9 @@ public class SearchableAggregateTest {
         testFixture.when(fc -> loadAggregate("123", SearchableAggregateWithMissingTimePath.class, false)
                         .update(a -> new SearchableAggregateWithMissingTimePath(timestamp)))
                 .expectTrue(fc -> search(SearchableAggregateWithMissingTimePath.class.getSimpleName())
-                        .before(timestamp.plusSeconds(1)).getAll().isEmpty())
+                        .before(timestamp.plusSeconds(1)).fetchAll().isEmpty())
                 .expectFalse(fc -> search(SearchableAggregateWithMissingTimePath.class.getSimpleName())
-                        .since(timestamp.plusSeconds(1)).getAll().isEmpty());
+                        .since(timestamp.plusSeconds(1)).fetchAll().isEmpty());
     }
 
     @Test
@@ -74,7 +74,7 @@ public class SearchableAggregateTest {
         testFixture.when(fc -> loadAggregate("123", SearchableAggregateWithCustomCollection.class, false)
                         .update(a -> new SearchableAggregateWithCustomCollection("bar")))
                 .expectDocuments(List.of(new SearchableAggregateWithCustomCollection("bar")))
-                .expectFalse(fc -> search("searchables").getAll().isEmpty());
+                .expectFalse(fc -> search("searchables").fetchAll().isEmpty());
     }
 
     @Aggregate(eventSourced = false, searchable = true, cached = false)

@@ -162,9 +162,9 @@ public interface DocumentStore {
 
     Search search(SearchQuery.Builder queryBuilder);
 
-    <T> Optional<T> getDocument(String id, String collection);
+    <T> Optional<T> fetchDocument(String id, String collection);
 
-    <T> Optional<T> getDocument(String id, String collection, Class<T> type);
+    <T> Optional<T> fetchDocument(String id, String collection, Class<T> type);
 
     CompletableFuture<Void> deleteDocument(String id, String collection);
 

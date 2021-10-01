@@ -15,17 +15,7 @@
 package io.fluxcapacitor.javaclient.persisting.search;
 
 import io.fluxcapacitor.common.Guarantee;
-import io.fluxcapacitor.common.api.search.BulkUpdate;
-import io.fluxcapacitor.common.api.search.Constraint;
-import io.fluxcapacitor.common.api.search.CreateAuditTrail;
-import io.fluxcapacitor.common.api.search.DocumentStats;
-import io.fluxcapacitor.common.api.search.GetDocument;
-import io.fluxcapacitor.common.api.search.GetSearchHistogram;
-import io.fluxcapacitor.common.api.search.SearchDocuments;
-import io.fluxcapacitor.common.api.search.SearchHistogram;
-import io.fluxcapacitor.common.api.search.SearchQuery;
-import io.fluxcapacitor.common.api.search.SerializedDocument;
-import io.fluxcapacitor.common.api.search.SerializedDocumentUpdate;
+import io.fluxcapacitor.common.api.search.*;
 import io.fluxcapacitor.common.api.search.bulkupdate.IndexDocument;
 import io.fluxcapacitor.common.api.search.bulkupdate.IndexDocumentIfNotExists;
 import io.fluxcapacitor.common.search.Document;
@@ -38,12 +28,7 @@ import lombok.extern.slf4j.Slf4j;
 import javax.annotation.Nullable;
 import java.time.Duration;
 import java.time.Instant;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.List;
-import java.util.Objects;
-import java.util.Optional;
+import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Function;
 import java.util.stream.Stream;
@@ -153,18 +138,18 @@ public class DefaultDocumentStore implements DocumentStore {
     }
 
     @Override
-    public <T> Optional<T> getDocument(String id, String collection) {
+    public <T> Optional<T> fetchDocument(String id, String collection) {
         try {
-            return client.get(new GetDocument(id, collection)).map(serializer::fromDocument);
+            return client.fetch(new GetDocument(id, collection)).map(serializer::fromDocument);
         } catch (Exception e) {
             throw new DocumentStoreException(format("Could not get document %s from collection %s", id, collection), e);
         }
     }
 
     @Override
-    public <T> Optional<T> getDocument(String id, String collection, Class<T> type) {
+    public <T> Optional<T> fetchDocument(String id, String collection, Class<T> type) {
         try {
-            return client.get(new GetDocument(id, collection)).map(d -> serializer.fromDocument(d, type));
+            return client.fetch(new GetDocument(id, collection)).map(d -> serializer.fromDocument(d, type));
         } catch (Exception e) {
             throw new DocumentStoreException(format("Could not get document %s from collection %s", id, collection), e);
         }
@@ -276,25 +261,25 @@ public class DefaultDocumentStore implements DocumentStore {
 
         @Override
         public <T> Stream<SearchHit<T>> streamHits() {
-            return getHitStream(null, null);
+            return fetchHitStream(null, null);
         }
 
         @Override
         public <T> Stream<SearchHit<T>> streamHits(Class<T> type) {
-            return getHitStream(null, type);
+            return fetchHitStream(null, type);
         }
 
         @Override
-        public <T> List<T> get(int maxSize) {
-            return this.<T>getHitStream(maxSize, null).map(SearchHit::getValue).collect(toList());
+        public <T> List<T> fetch(int maxSize) {
+            return this.<T>fetchHitStream(maxSize, null).map(SearchHit::getValue).collect(toList());
         }
 
         @Override
-        public <T> List<T> get(int maxSize, Class<T> type) {
-            return getHitStream(maxSize, type).map(SearchHit::getValue).collect(toList());
+        public <T> List<T> fetch(int maxSize, Class<T> type) {
+            return fetchHitStream(maxSize, type).map(SearchHit::getValue).collect(toList());
         }
 
-        protected <T> Stream<SearchHit<T>> getHitStream(Integer maxSize, Class<T> type) {
+        protected <T> Stream<SearchHit<T>> fetchHitStream(Integer maxSize, Class<T> type) {
             Function<Document, T> convertFunction = type == null
                     ? serializer::fromDocument : document -> serializer.fromDocument(document, type);
             return client.search(SearchDocuments.builder().query(queryBuilder.build()).maxSize(maxSize).sorting(sorting)
@@ -302,13 +287,13 @@ public class DefaultDocumentStore implements DocumentStore {
         }
 
         @Override
-        public SearchHistogram getHistogram(int resolution, int maxSize) {
-            return client.getHistogram(new GetSearchHistogram(queryBuilder.build(), resolution, maxSize));
+        public SearchHistogram fetchHistogram(int resolution, int maxSize) {
+            return client.fetchHistogram(new GetSearchHistogram(queryBuilder.build(), resolution, maxSize));
         }
 
         @Override
-        public List<DocumentStats> getStatistics(List<String> fields, String... groupBy) {
-            return client.getStatistics(queryBuilder.build(), fields, Arrays.<String>asList(groupBy));
+        public List<DocumentStats> fetchStatistics(List<String> fields, String... groupBy) {
+            return client.fetchStatistics(queryBuilder.build(), fields, Arrays.<String>asList(groupBy));
         }
 
         @Override
