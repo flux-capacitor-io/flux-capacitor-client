@@ -63,10 +63,10 @@ public class DefaultDocumentStore implements DocumentStore {
     private final DocumentSerializer serializer;
 
     @Override
-    public CompletableFuture<Void> index(Object object, String id, String collection, Instant timestamp,
+    public CompletableFuture<Void> index(Object object, String id, String collection, Instant begin,
                                          Instant end, Guarantee guarantee, boolean ifNotExists) {
         try {
-            return client.index(singletonList(serializer.toDocument(object, id, collection, timestamp, end)),
+            return client.index(singletonList(serializer.toDocument(object, id, collection, begin, end)),
                     guarantee, ifNotExists).asCompletableFuture();
         } catch (Exception e) {
             throw new DocumentStoreException(format("Could not store a document %s for id %s", object, id), e);
@@ -75,7 +75,7 @@ public class DefaultDocumentStore implements DocumentStore {
 
     @Override
     public <T> CompletableFuture<Void> index(Collection<? extends T> objects, String collection,
-                                             @Nullable String idPath, @Nullable String timestampPath,
+                                             @Nullable String idPath, @Nullable String beginPath,
                                              @Nullable String endPath, Guarantee guarantee, boolean ifNotExists) {
         List<Document> documents = objects.stream().map(v -> serializer.toDocument(
                 v, generateId(), collection, null, null)).map(d -> {
@@ -87,8 +87,8 @@ public class DefaultDocumentStore implements DocumentStore {
                         () -> new IllegalArgumentException(
                                 "Could not determine the document id. Path does not exist on document: " + d)));
             }
-            if (timestampPath != null) {
-                builder.timestamp(d.getEntryAtPath(timestampPath).filter(e -> e.getType() == Document.EntryType.TEXT)
+            if (beginPath != null) {
+                builder.timestamp(d.getEntryAtPath(beginPath).filter(e -> e.getType() == Document.EntryType.TEXT)
                                           .map(Document.Entry::getValue).map(Instant::parse)
                         .orElse(null));
             }
@@ -110,11 +110,11 @@ public class DefaultDocumentStore implements DocumentStore {
     @Override
     public <T> CompletableFuture<Void> index(Collection<? extends T> objects, String collection,
                                              Function<? super T, String> idFunction,
-                                             Function<? super T, Instant> timestampFunction,
+                                             Function<? super T, Instant> beginFunction,
                                              Function<? super T, Instant> endFunction, Guarantee guarantee,
                                              boolean ifNotExists) {
         List<Document> documents = objects.stream().map(v -> serializer.toDocument(
-                v, idFunction.apply(v), collection, timestampFunction.apply(v),
+                v, idFunction.apply(v), collection, beginFunction.apply(v),
                 endFunction.apply(v))).collect(toList());
         try {
             return client.index(documents, guarantee, ifNotExists).asCompletableFuture();
