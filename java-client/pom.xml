@@ -52,7 +52,7 @@
         <dependency>
             <groupId>io.undertow</groupId>
             <artifactId>undertow-websockets-jsr</artifactId>
-            <version>2.2.10.Final</version>
+            <version>2.2.12.Final</version>
         </dependency>
 
         <!--validating interceptor-->
@@ -97,7 +97,7 @@
         <dependency>
             <groupId>com.google.guava</groupId>
             <artifactId>guava</artifactId>
-            <version>30.1.1-jre</version>
+            <version>31.0.1-jre</version>
         </dependency>
 
         <!--optional hamcrest matchers-->

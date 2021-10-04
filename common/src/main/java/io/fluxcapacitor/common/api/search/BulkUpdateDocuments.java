@@ -40,6 +40,12 @@ public class BulkUpdateDocuments extends Request {
 
     @Override
     public Object toMetric() {
-        return null;
+        return new Metric(updates.size(), guarantee);
+    }
+
+    @Value
+    public static class Metric {
+        int size;
+        Guarantee guarantee;
     }
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016-2020 Flux Capacitor.
+ * Copyright (c) 2016-2021 Flux Capacitor.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,8 +16,13 @@ package io.fluxcapacitor.common;
 
 import lombok.AllArgsConstructor;
 
+import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.Iterator;
+import java.util.List;
+import java.util.ListIterator;
 import java.util.Map;
+import java.util.Set;
 import java.util.Spliterators;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.BiFunction;
@@ -29,10 +34,36 @@ import java.util.function.UnaryOperator;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 
+import static java.util.function.UnaryOperator.identity;
+
 public class ObjectUtils {
 
     public static <T> Stream<T> iterate(T seed, UnaryOperator<T> f, Predicate<T> breakCondition) {
         return StreamSupport.stream(new BreakingSpliterator<>(Stream.iterate(seed, f), breakCondition), false);
+    }
+
+    public static <T> List<T> deduplicate(List<T> list) {
+        return deduplicate(list, identity());
+    }
+
+    public static <T> List<T> deduplicate(List<T> list, Function<T, ?> idFunction) {
+        return deduplicate(list, idFunction, false);
+    }
+
+    public static <T> List<T> deduplicate(List<T> list, Function<T, ?> idFunction, boolean keepFirst) {
+        list = new ArrayList<>(list);
+        Set<Object> ids = new HashSet<>();
+        if (keepFirst) {
+            list.removeIf(t -> !ids.add(idFunction.apply(t)));
+        } else {
+            ListIterator<T> iterator = list.listIterator(list.size());
+            while (iterator.hasPrevious()) {
+                if (!ids.add(idFunction.apply(iterator.previous()))) {
+                    iterator.remove();
+                }
+            }
+        }
+        return list;
     }
 
     public static <T> MemoizingSupplier<T> memoize(Supplier<T> supplier) {

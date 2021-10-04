@@ -19,7 +19,25 @@ import io.fluxcapacitor.common.Backlog;
 import io.fluxcapacitor.common.Guarantee;
 import io.fluxcapacitor.common.ObjectUtils;
 import io.fluxcapacitor.common.api.QueryResult;
-import io.fluxcapacitor.common.api.search.*;
+import io.fluxcapacitor.common.api.search.BulkUpdateDocuments;
+import io.fluxcapacitor.common.api.search.CreateAuditTrail;
+import io.fluxcapacitor.common.api.search.DeleteCollection;
+import io.fluxcapacitor.common.api.search.DeleteDocumentById;
+import io.fluxcapacitor.common.api.search.DeleteDocuments;
+import io.fluxcapacitor.common.api.search.DocumentStats;
+import io.fluxcapacitor.common.api.search.GetDocument;
+import io.fluxcapacitor.common.api.search.GetDocumentResult;
+import io.fluxcapacitor.common.api.search.GetDocumentStats;
+import io.fluxcapacitor.common.api.search.GetDocumentStatsResult;
+import io.fluxcapacitor.common.api.search.GetSearchHistogram;
+import io.fluxcapacitor.common.api.search.GetSearchHistogramResult;
+import io.fluxcapacitor.common.api.search.IndexDocuments;
+import io.fluxcapacitor.common.api.search.SearchDocuments;
+import io.fluxcapacitor.common.api.search.SearchDocumentsResult;
+import io.fluxcapacitor.common.api.search.SearchHistogram;
+import io.fluxcapacitor.common.api.search.SearchQuery;
+import io.fluxcapacitor.common.api.search.SerializedDocument;
+import io.fluxcapacitor.common.api.search.SerializedDocumentUpdate;
 import io.fluxcapacitor.common.search.Document;
 import io.fluxcapacitor.javaclient.common.websocket.AbstractWebsocketClient;
 import io.fluxcapacitor.javaclient.configuration.client.WebSocketClient;
@@ -37,6 +55,8 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
+import static io.fluxcapacitor.common.ObjectUtils.deduplicate;
+
 @Slf4j
 @ClientEndpoint
 public class WebSocketSearchClient extends AbstractWebsocketClient implements SearchClient {
@@ -44,7 +64,8 @@ public class WebSocketSearchClient extends AbstractWebsocketClient implements Se
     private final Backlog<Document> sendIfNotExistsBacklog;
     private final Backlog<Document> storeBacklog;
     private final Backlog<Document> storeIfNotExistsBacklog;
-    private final Backlog<SerializedDocumentUpdate> batchBacklog;
+    private final Backlog<SerializedDocumentUpdate> sendBatchBacklog;
+    private final Backlog<SerializedDocumentUpdate> storeBatchBacklog;
 
     public WebSocketSearchClient(String endPointUrl, WebSocketClient.Properties properties) {
         this(URI.create(endPointUrl), properties);
@@ -56,19 +77,24 @@ public class WebSocketSearchClient extends AbstractWebsocketClient implements Se
         sendIfNotExistsBacklog = new Backlog<>(documents -> sendValues(documents, true));
         storeBacklog = new Backlog<>(documents -> storeValues(documents, false));
         storeIfNotExistsBacklog = new Backlog<>(documents -> storeValues(documents, true));
-        batchBacklog = new Backlog<>(actions -> sendAndForget(new BulkUpdateDocuments(actions, Guarantee.SENT)));
+        sendBatchBacklog = new Backlog<>(actions -> sendAndForget(new BulkUpdateDocuments(actions, Guarantee.SENT)));
+        storeBatchBacklog = new Backlog<>(actions -> {
+            sendAndWait(new BulkUpdateDocuments(actions, Guarantee.STORED));
+            return Awaitable.ready();
+        });
     }
 
     protected Awaitable sendValues(List<Document> documents, boolean ifNotExists) {
         return sendAndForget(new IndexDocuments(
-                documents.stream().map(SerializedDocument::new).collect(Collectors.toList()), ifNotExists,
-                Guarantee.SENT));
+                deduplicate(documents, Document.identityFunction).stream().map(SerializedDocument::new)
+                        .collect(Collectors.toList()), ifNotExists, Guarantee.SENT));
     }
 
     protected Awaitable storeValues(List<Document> documents, boolean ifNotExists) {
-        return send(new IndexDocuments(
-                documents.stream().map(SerializedDocument::new).collect(Collectors.toList()), ifNotExists,
-                Guarantee.STORED))::get;
+        sendAndWait(new IndexDocuments(
+                deduplicate(documents, Document.identityFunction).stream().map(SerializedDocument::new)
+                        .collect(Collectors.toList()), ifNotExists, Guarantee.STORED));
+        return Awaitable.ready();
     }
 
     @Override
@@ -90,13 +116,12 @@ public class WebSocketSearchClient extends AbstractWebsocketClient implements Se
     public Awaitable bulkUpdate(Collection<SerializedDocumentUpdate> batch, Guarantee guarantee) {
         switch (guarantee) {
             case NONE:
-                batchBacklog.add(batch);
+                sendBatchBacklog.add(batch);
                 return Awaitable.ready();
             case SENT:
-                return batchBacklog.add(batch);
+                return sendBatchBacklog.add(batch);
             case STORED:
-                CompletableFuture<QueryResult> future = send(new BulkUpdateDocuments(batch, guarantee));
-                return future::get;
+                return storeBatchBacklog.add(batch);
             default:
                 throw new UnsupportedOperationException("Unrecognized guarantee: " + guarantee);
         }
