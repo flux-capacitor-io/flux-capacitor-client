@@ -14,33 +14,43 @@
 
 package io.fluxcapacitor.common.api.search.constraints;
 
+import io.fluxcapacitor.common.SearchUtils;
 import io.fluxcapacitor.common.api.search.Constraint;
 import io.fluxcapacitor.common.search.Document;
+import lombok.AccessLevel;
+import lombok.EqualsAndHashCode;
+import lombok.Getter;
 import lombok.NonNull;
 import lombok.Value;
+import lombok.experimental.Accessors;
 
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
 import java.util.Objects;
+import java.util.function.Predicate;
 
 import static java.util.stream.Collectors.toList;
 
 @Value
 public class MatchConstraint extends PathConstraint {
     public static Constraint match(Object value, String... paths) {
+        return match(value, true, paths);
+    }
+
+    public static Constraint match(Object value, boolean ignoreCaseAndAccents, String... paths) {
         switch (paths.length) {
-            case 0: return matchForPath(value, null);
-            case 1: return matchForPath(value, paths[0]);
-            default: return new AnyConstraint(Arrays.stream(paths).map(p -> matchForPath(value, p)).collect(toList()));
+            case 0: return matchForPath(value, null, ignoreCaseAndAccents);
+            case 1: return matchForPath(value, paths[0], ignoreCaseAndAccents);
+            default: return new AnyConstraint(Arrays.stream(paths).map(p -> matchForPath(value, p, ignoreCaseAndAccents)).collect(toList()));
         }
     }
 
-    protected static Constraint matchForPath(Object value, String path) {
+    protected static Constraint matchForPath(Object value, String path, boolean ignoreCaseAndAccents) {
         if (value instanceof Collection<?>) {
             List<Constraint> constraints =
                     ((Collection<?>) value).stream().filter(Objects::nonNull)
-                            .map(v -> new MatchConstraint(v.toString(), path))
+                            .map(v -> new MatchConstraint(v.toString(), path, ignoreCaseAndAccents))
                             .collect(toList());
             switch (constraints.size()) {
                 case 0: return noOp;
@@ -48,15 +58,29 @@ public class MatchConstraint extends PathConstraint {
                 default: return new AnyConstraint(constraints);
             }
         } else {
-            return value==null? noOp: new MatchConstraint(value.toString(), path);
+            return value == null ? noOp : new MatchConstraint(value.toString(), path, ignoreCaseAndAccents);
         }
     }
 
     @NonNull String match;
     String path;
+    boolean ignoreCaseAndAccents;
+
+    @Getter(value = AccessLevel.PROTECTED, lazy = true)
+    @Accessors(fluent = true)
+    @EqualsAndHashCode.Exclude
+    Predicate<Document.Entry> entryMatcher = computeEntryMatcher();
 
     @Override
     protected boolean matches(Document.Entry entry) {
-        return entry.getValue().equals(match);
+        return entryMatcher().test(entry);
+    }
+
+    protected Predicate<Document.Entry> computeEntryMatcher() {
+        if (ignoreCaseAndAccents) {
+            String pattern = SearchUtils.normalize(getMatch());
+            return entry -> entry.asPhrase().equals(pattern);
+        }
+        return entry -> entry.getValue().equals(match);
     }
 }

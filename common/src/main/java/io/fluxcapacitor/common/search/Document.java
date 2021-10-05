@@ -25,7 +25,6 @@ import lombok.NonNull;
 import lombok.ToString;
 import lombok.Value;
 import lombok.experimental.Accessors;
-import org.apache.commons.lang3.StringUtils;
 
 import java.time.Instant;
 import java.util.AbstractMap;
@@ -130,7 +129,7 @@ public class Document {
 
         @SuppressWarnings("ConstantConditions")
         private String computePhrase() {
-            return type == EntryType.TEXT ? StringUtils.stripAccents(StringUtils.strip(value.toLowerCase())) : value;
+            return type == EntryType.TEXT ? SearchUtils.normalize(value) : value;
         }
 
         @Override

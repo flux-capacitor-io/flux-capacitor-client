@@ -16,35 +16,32 @@ package io.fluxcapacitor.common.api.search.constraints;
 
 import io.fluxcapacitor.common.api.search.Constraint;
 import io.fluxcapacitor.common.search.Document;
-import lombok.*;
+import lombok.AccessLevel;
+import lombok.EqualsAndHashCode;
+import lombok.Getter;
+import lombok.NonNull;
+import lombok.Value;
 import lombok.experimental.Accessors;
-import org.apache.commons.lang3.StringUtils;
 
 import java.util.regex.Pattern;
 
+import static io.fluxcapacitor.common.SearchUtils.normalize;
 import static java.util.Arrays.stream;
-import static java.util.Objects.requireNonNull;
 import static java.util.stream.Collectors.toList;
 
 @Value
 public class ContainsConstraint extends PathConstraint {
-    static final String letterOrNumber = "\\p{L}0-9";
+    protected static final String letterOrNumber = "\\p{L}0-9";
 
-    public static Constraint contains(@NonNull String phrase, boolean prefixSearch, boolean postfixSearch, String... paths) {
+    public static Constraint contains(@NonNull String phrase, boolean prefixSearch, boolean postfixSearch,
+                                      String... paths) {
         String normalized = normalize(phrase);
         switch (paths.length) {
-            case 0:
-                return new ContainsConstraint(normalized, null, prefixSearch, postfixSearch);
-            case 1:
-                return new ContainsConstraint(normalized, paths[0], prefixSearch, postfixSearch);
-            default:
-                return new AnyConstraint(stream(paths).map(p -> new ContainsConstraint(normalized, p, prefixSearch, postfixSearch)).collect(
-                        toList()));
+            case 0: return new ContainsConstraint(normalized, null, prefixSearch, postfixSearch);
+            case 1: return new ContainsConstraint(normalized, paths[0], prefixSearch, postfixSearch);
+            default: return new AnyConstraint(stream(paths).map(
+                    p -> new ContainsConstraint(normalized, p, prefixSearch, postfixSearch)).collect(toList()));
         }
-    }
-
-    public static String normalize(String phrase) {
-        return StringUtils.stripAccents(StringUtils.strip(requireNonNull(phrase).toLowerCase()));
     }
 
     @NonNull String contains;
@@ -60,5 +57,8 @@ public class ContainsConstraint extends PathConstraint {
     @Getter(value = AccessLevel.PROTECTED, lazy = true)
     @Accessors(fluent = true)
     @EqualsAndHashCode.Exclude
-    Pattern pattern = Pattern.compile((prefixSearch ? "" : String.format("(?<=[^%s]|\\A)", letterOrNumber)) + Pattern.quote(contains) + (postfixSearch ? "" : String.format("(?=[^%s]|\\Z)", letterOrNumber)));
+    Pattern pattern = Pattern.compile(
+            (prefixSearch ? "" : String.format("(?<=[^%s]|\\A)", letterOrNumber)) + Pattern.quote(
+                    normalize(contains)) + (postfixSearch ? "" :
+                    String.format("(?=[^%s]|\\Z)", letterOrNumber)));
 }

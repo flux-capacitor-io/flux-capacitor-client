@@ -14,12 +14,17 @@
 
 package io.fluxcapacitor.common;
 
+import lombok.NonNull;
 import org.apache.commons.lang3.StringUtils;
 
 import java.util.Optional;
 import java.util.regex.Pattern;
 
 public class SearchUtils {
+
+    public static String normalize(@NonNull String text) {
+        return StringUtils.stripAccents(text.trim().toLowerCase());
+    }
 
     /**
      * Converts a standard POSIX Shell globbing pattern into a regular expression pattern. The result can be used with
