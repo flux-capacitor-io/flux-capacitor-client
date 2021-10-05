@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016-2020 Flux Capacitor.
+ * Copyright (c) 2016-2021 Flux Capacitor.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,6 +17,7 @@ package io.fluxcapacitor.javaclient.tracking.client;
 import io.fluxcapacitor.common.Awaitable;
 import io.fluxcapacitor.common.api.SerializedMessage;
 import io.fluxcapacitor.common.api.tracking.MessageBatch;
+import io.fluxcapacitor.common.api.tracking.Position;
 import io.fluxcapacitor.javaclient.tracking.ConsumerConfiguration;
 import lombok.SneakyThrows;
 
@@ -39,6 +40,8 @@ public interface TrackingClient extends AutoCloseable {
     Awaitable storePosition(String consumer, int[] segment, long lastIndex);
 
     Awaitable resetPosition(String consumer, long lastIndex);
+
+    Position getPosition(String consumer);
 
     Awaitable disconnectTracker(String consumer, String trackerId, boolean sendFinalEmptyBatch);
 

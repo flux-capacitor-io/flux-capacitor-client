@@ -14,22 +14,26 @@
 
 package io.fluxcapacitor.common.api.tracking;
 
-import io.fluxcapacitor.common.api.Request;
-import lombok.EqualsAndHashCode;
+import io.fluxcapacitor.common.api.QueryResult;
 import lombok.Value;
-import lombok.experimental.NonFinal;
 
 @Value
-@EqualsAndHashCode(callSuper = true)
-@NonFinal
-public class Read extends Request {
-    String consumer;
-    String trackerId;
-    int maxSize;
-    long maxTimeout;
-    String typeFilter;
-    boolean ignoreMessageTarget;
-    TrackingStrategy strategy;
-    Long lastIndex;
-    Long purgeTimeout;
+public class ClaimSegmentResult implements QueryResult {
+    long requestId;
+    Position position;
+    int[] segment;
+    long timestamp = System.currentTimeMillis();
+
+    @Override
+    public Object toMetric() {
+        return new Metric(requestId, position.lowestIndexForSegment(segment).orElse(null), segment, timestamp);
+    }
+
+    @Value
+    public static class Metric {
+        long requestId;
+        Long lastIndex;
+        int[] segment;
+        long timestamp;
+    }
 }

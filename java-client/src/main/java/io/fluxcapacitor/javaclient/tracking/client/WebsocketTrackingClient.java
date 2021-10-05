@@ -18,7 +18,10 @@ import io.fluxcapacitor.common.Awaitable;
 import io.fluxcapacitor.common.MessageType;
 import io.fluxcapacitor.common.api.SerializedMessage;
 import io.fluxcapacitor.common.api.tracking.DisconnectTracker;
+import io.fluxcapacitor.common.api.tracking.GetPosition;
+import io.fluxcapacitor.common.api.tracking.GetPositionResult;
 import io.fluxcapacitor.common.api.tracking.MessageBatch;
+import io.fluxcapacitor.common.api.tracking.Position;
 import io.fluxcapacitor.common.api.tracking.Read;
 import io.fluxcapacitor.common.api.tracking.ReadFromIndex;
 import io.fluxcapacitor.common.api.tracking.ReadFromIndexResult;
@@ -75,6 +78,11 @@ public class WebsocketTrackingClient extends AbstractWebsocketClient implements 
     @Override
     public Awaitable resetPosition(String consumer, long lastIndex) {
         return fromFuture(send(new ResetPosition(consumer, lastIndex)), Duration.ofSeconds(60));
+    }
+
+    @Override
+    public Position getPosition(String consumer) {
+        return this.<GetPositionResult>sendAndWait(new GetPosition(consumer)).getPosition();
     }
 
     @Override

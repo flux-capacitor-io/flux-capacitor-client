@@ -14,22 +14,18 @@
 
 package io.fluxcapacitor.common.api.tracking;
 
-import io.fluxcapacitor.common.api.Request;
 import lombok.EqualsAndHashCode;
 import lombok.Value;
-import lombok.experimental.NonFinal;
+
+import java.beans.ConstructorProperties;
 
 @Value
 @EqualsAndHashCode(callSuper = true)
-@NonFinal
-public class Read extends Request {
-    String consumer;
-    String trackerId;
-    int maxSize;
-    long maxTimeout;
-    String typeFilter;
-    boolean ignoreMessageTarget;
-    TrackingStrategy strategy;
-    Long lastIndex;
-    Long purgeTimeout;
+public class ClaimSegment extends Read {
+    @ConstructorProperties({"consumer", "trackerId", "maxTimeout", "typeFilter", "ignoreMessageTarget", "strategy", "lastIndex", "purgeTimeout"})
+    public ClaimSegment(String consumer, String trackerId, long maxTimeout, String typeFilter,
+                        boolean ignoreMessageTarget, TrackingStrategy strategy, Long lastIndex, Long purgeTimeout) {
+        super(consumer, trackerId, 0, maxTimeout, typeFilter, ignoreMessageTarget, strategy, lastIndex,
+              purgeTimeout);
+    }
 }

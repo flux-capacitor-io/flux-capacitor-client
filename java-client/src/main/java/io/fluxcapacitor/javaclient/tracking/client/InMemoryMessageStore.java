@@ -19,6 +19,7 @@ import io.fluxcapacitor.common.MessageType;
 import io.fluxcapacitor.common.Registration;
 import io.fluxcapacitor.common.api.SerializedMessage;
 import io.fluxcapacitor.common.api.tracking.MessageBatch;
+import io.fluxcapacitor.common.api.tracking.Position;
 import io.fluxcapacitor.javaclient.publishing.client.GatewayClient;
 import io.fluxcapacitor.javaclient.tracking.ConsumerConfiguration;
 import lombok.RequiredArgsConstructor;
@@ -144,6 +145,11 @@ public class InMemoryMessageStore implements GatewayClient, TrackingClient {
     public Awaitable resetPosition(String consumer, long lastIndex) {
         consumerTokens.put(consumer, lastIndex);
         return Awaitable.ready();
+    }
+
+    @Override
+    public Position getPosition(String consumer) {
+        return Optional.ofNullable(consumerTokens.get(consumer)).map(Position::new).orElse(null);
     }
 
     @Override

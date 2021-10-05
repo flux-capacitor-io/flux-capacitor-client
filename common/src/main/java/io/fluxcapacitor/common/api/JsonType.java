@@ -44,16 +44,17 @@ import io.fluxcapacitor.common.api.search.GetSearchHistogramResult;
 import io.fluxcapacitor.common.api.search.IndexDocuments;
 import io.fluxcapacitor.common.api.search.SearchDocuments;
 import io.fluxcapacitor.common.api.search.SearchDocumentsResult;
+import io.fluxcapacitor.common.api.tracking.ClaimSegment;
+import io.fluxcapacitor.common.api.tracking.ClaimSegmentResult;
 import io.fluxcapacitor.common.api.tracking.DisconnectTracker;
+import io.fluxcapacitor.common.api.tracking.GetPosition;
+import io.fluxcapacitor.common.api.tracking.GetPositionResult;
 import io.fluxcapacitor.common.api.tracking.Read;
 import io.fluxcapacitor.common.api.tracking.ReadFromIndex;
 import io.fluxcapacitor.common.api.tracking.ReadFromIndexResult;
 import io.fluxcapacitor.common.api.tracking.ReadResult;
 import io.fluxcapacitor.common.api.tracking.ResetPosition;
 import io.fluxcapacitor.common.api.tracking.StorePosition;
-
-
-
 
 @JsonTypeInfo(use = JsonTypeInfo.Id.NAME)
 @JsonSubTypes({
@@ -77,6 +78,10 @@ import io.fluxcapacitor.common.api.tracking.StorePosition;
         @JsonSubTypes.Type(value = DisconnectTracker.class, name = "disconnectTracker"),
         @JsonSubTypes.Type(value = ReadFromIndex.class, name = "readFromIndex"),
         @JsonSubTypes.Type(value = ReadFromIndexResult.class, name = "readFromIndexResult"),
+        @JsonSubTypes.Type(value = GetPosition.class, name = "getPosition"),
+        @JsonSubTypes.Type(value = GetPositionResult.class, name = "getPositionResult"),
+        @JsonSubTypes.Type(value = ClaimSegment.class, name = "claimSegment"),
+        @JsonSubTypes.Type(value = ClaimSegmentResult.class, name = "claimSegmentResult"),
 
         //event sourcing
         @JsonSubTypes.Type(value = AppendEvents.class, name = "appendEvents"),

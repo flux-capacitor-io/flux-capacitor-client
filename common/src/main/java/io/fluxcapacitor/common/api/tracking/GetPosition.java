@@ -15,21 +15,9 @@
 package io.fluxcapacitor.common.api.tracking;
 
 import io.fluxcapacitor.common.api.Request;
-import lombok.EqualsAndHashCode;
 import lombok.Value;
-import lombok.experimental.NonFinal;
 
 @Value
-@EqualsAndHashCode(callSuper = true)
-@NonFinal
-public class Read extends Request {
+public class GetPosition extends Request {
     String consumer;
-    String trackerId;
-    int maxSize;
-    long maxTimeout;
-    String typeFilter;
-    boolean ignoreMessageTarget;
-    TrackingStrategy strategy;
-    Long lastIndex;
-    Long purgeTimeout;
 }
