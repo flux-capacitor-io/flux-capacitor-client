@@ -56,6 +56,9 @@ public class ConsumerConfiguration {
     @Accessors(fluent = true)
     boolean ignoreMessageTarget = false;
     @Default
+    @Accessors(fluent = true)
+    boolean ignoreSegment = false;
+    @Default
     TrackingStrategy readStrategy = TrackingStrategy.NEW;
     @Default
     Long lastIndex = null;

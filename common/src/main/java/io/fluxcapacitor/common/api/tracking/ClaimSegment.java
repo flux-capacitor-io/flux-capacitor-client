@@ -25,7 +25,7 @@ public class ClaimSegment extends Read {
     @ConstructorProperties({"consumer", "trackerId", "maxTimeout", "typeFilter", "ignoreMessageTarget", "strategy", "lastIndex", "purgeTimeout"})
     public ClaimSegment(String consumer, String trackerId, long maxTimeout, String typeFilter,
                         boolean ignoreMessageTarget, TrackingStrategy strategy, Long lastIndex, Long purgeTimeout) {
-        super(consumer, trackerId, 0, maxTimeout, typeFilter, ignoreMessageTarget, strategy, lastIndex,
-              purgeTimeout);
+        super(consumer, trackerId, 0, maxTimeout, typeFilter, ignoreMessageTarget, false,
+              strategy, lastIndex, purgeTimeout);
     }
 }

@@ -29,6 +29,7 @@ public class Read extends Request {
     long maxTimeout;
     String typeFilter;
     boolean ignoreMessageTarget;
+    boolean ignoreSegment;
     TrackingStrategy strategy;
     Long lastIndex;
     Long purgeTimeout;
