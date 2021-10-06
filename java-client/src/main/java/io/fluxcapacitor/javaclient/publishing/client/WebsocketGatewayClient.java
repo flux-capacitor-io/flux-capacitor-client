@@ -14,10 +14,7 @@
 
 package io.fluxcapacitor.javaclient.publishing.client;
 
-import io.fluxcapacitor.common.Awaitable;
-import io.fluxcapacitor.common.Backlog;
-import io.fluxcapacitor.common.MessageType;
-import io.fluxcapacitor.common.Registration;
+import io.fluxcapacitor.common.*;
 import io.fluxcapacitor.common.api.SerializedMessage;
 import io.fluxcapacitor.common.api.publishing.Append;
 import io.fluxcapacitor.javaclient.common.websocket.AbstractWebsocketClient;
@@ -59,6 +56,6 @@ public class WebsocketGatewayClient extends AbstractWebsocketClient implements G
     }
 
     private Awaitable doSend(List<SerializedMessage> messages) {
-        return sendAndForget(new Append(messages));
+        return sendAndForget(new Append(messages, Guarantee.SENT));
     }
 }

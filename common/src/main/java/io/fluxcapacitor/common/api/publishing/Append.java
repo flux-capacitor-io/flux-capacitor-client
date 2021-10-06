@@ -15,19 +15,27 @@
 package io.fluxcapacitor.common.api.publishing;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
+import io.fluxcapacitor.common.Guarantee;
 import io.fluxcapacitor.common.api.JsonType;
 import io.fluxcapacitor.common.api.SerializedMessage;
 import lombok.Value;
 
 import java.util.List;
 
+import static java.util.Optional.ofNullable;
+
 @Value
 public class Append implements JsonType {
     List<SerializedMessage> messages;
+    Guarantee guarantee;
 
     @JsonIgnore
     public int getSize() {
         return messages.size();
+    }
+
+    public Guarantee getGuarantee() {
+        return ofNullable(guarantee).orElse(Guarantee.NONE);
     }
 
     @Override
