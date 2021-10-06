@@ -17,7 +17,13 @@ package io.fluxcapacitor.javaclient.persisting.search;
 import io.fluxcapacitor.common.api.search.Constraint;
 import io.fluxcapacitor.common.api.search.DocumentStats;
 import io.fluxcapacitor.common.api.search.SearchHistogram;
-import io.fluxcapacitor.common.api.search.constraints.*;
+import io.fluxcapacitor.common.api.search.constraints.AnyConstraint;
+import io.fluxcapacitor.common.api.search.constraints.BetweenConstraint;
+import io.fluxcapacitor.common.api.search.constraints.ExistsConstraint;
+import io.fluxcapacitor.common.api.search.constraints.LookAheadConstraint;
+import io.fluxcapacitor.common.api.search.constraints.MatchConstraint;
+import io.fluxcapacitor.common.api.search.constraints.NotConstraint;
+import io.fluxcapacitor.common.api.search.constraints.QueryConstraint;
 import io.fluxcapacitor.javaclient.FluxCapacitor;
 import lombok.NonNull;
 
@@ -74,7 +80,11 @@ public interface Search {
     }
 
     default Search match(Object constraint, String... paths) {
-        return constraint(MatchConstraint.match(constraint, paths));
+        return match(constraint, false, paths);
+    }
+
+    default Search match(Object constraint, boolean strict, String... paths) {
+        return constraint(MatchConstraint.match(constraint, strict, paths));
     }
 
     default Search anyExist(String... paths) {
