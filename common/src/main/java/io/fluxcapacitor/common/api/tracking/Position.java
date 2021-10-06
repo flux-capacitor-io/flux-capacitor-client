@@ -15,6 +15,7 @@
 package io.fluxcapacitor.common.api.tracking;
 
 import io.fluxcapacitor.common.api.SerializedMessage;
+import lombok.AllArgsConstructor;
 import lombok.Value;
 
 import java.util.HashMap;
@@ -25,9 +26,15 @@ import java.util.TreeMap;
 import java.util.stream.IntStream;
 
 @Value
+@AllArgsConstructor
 public class Position {
 
     public static int MAX_SEGMENT = 128;
+    public static int[] FULL_SEGMENT = new int[]{0, MAX_SEGMENT};
+
+    public static Position newPosition() {
+        return new Position(new HashMap<>());
+    }
 
     Map<Integer, Long> indexBySegment;
 
@@ -39,14 +46,6 @@ public class Position {
         Map<Integer, Long> indexBySegment = new HashMap<>();
         IntStream.range(segment[0], segment[1]).forEach(i -> indexBySegment.put(i, index));
         this.indexBySegment = indexBySegment;
-    }
-
-    public Position(Map<Integer, Long> indexBySegment) {
-        this.indexBySegment = indexBySegment;
-    }
-
-    public static Position newPosition() {
-        return new Position(new HashMap<>());
     }
 
     public Optional<Long> getIndex(int segment) {
