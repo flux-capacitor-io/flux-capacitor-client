@@ -14,6 +14,7 @@
 
 package io.fluxcapacitor.javaclient.publishing;
 
+import io.fluxcapacitor.common.Guarantee;
 import io.fluxcapacitor.common.api.SerializedMessage;
 import io.fluxcapacitor.javaclient.common.Message;
 import io.fluxcapacitor.javaclient.common.serialization.MessageSerializer;
@@ -38,7 +39,7 @@ public class DefaultEventGateway implements EventGateway {
 
     @Override
     @SneakyThrows
-    public void publish(Message message) {
+    public CompletableFuture<Void> publish(Message message, Guarantee guarantee) {
         SerializedMessage serializedMessage = serializer.serialize(message);
         Optional<CompletableFuture<Message>> result =
                 localHandlerRegistry.handle(message.getPayload(), serializedMessage);
@@ -50,7 +51,7 @@ public class DefaultEventGateway implements EventGateway {
             }
         }
         try {
-            gatewayClient.send(serializedMessage);
+            return gatewayClient.send(guarantee, serializedMessage).asCompletableFuture();
         } catch (Exception e) {
             throw new GatewayException(format("Failed to send and forget %s", message.getPayload().toString()), e);
         }

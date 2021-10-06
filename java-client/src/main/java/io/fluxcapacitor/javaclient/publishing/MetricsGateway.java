@@ -14,19 +14,24 @@
 
 package io.fluxcapacitor.javaclient.publishing;
 
+import io.fluxcapacitor.common.Guarantee;
 import io.fluxcapacitor.common.api.Metadata;
 import io.fluxcapacitor.javaclient.common.Message;
+import lombok.SneakyThrows;
+
+import java.util.concurrent.CompletableFuture;
 
 public interface MetricsGateway {
 
+    @SneakyThrows
     default void publish(Object metrics) {
         if (metrics instanceof Message) {
-            publish(((Message) metrics).getPayload(), ((Message) metrics).getMetadata());
+            publish(((Message) metrics).getPayload(), ((Message) metrics).getMetadata(), Guarantee.NONE).get();
         } else {
-            publish(metrics, Metadata.empty());
+            publish(metrics, Metadata.empty(), Guarantee.NONE).get();
         }
     }
 
-    void publish(Object payload, Metadata metadata);
+    CompletableFuture<Void> publish(Object payload, Metadata metadata, Guarantee guarantee);
 
 }

@@ -14,6 +14,8 @@
 
 package io.fluxcapacitor.testserver.endpoints;
 
+import io.fluxcapacitor.common.Awaitable;
+import io.fluxcapacitor.common.Guarantee;
 import io.fluxcapacitor.common.api.SerializedMessage;
 import io.fluxcapacitor.common.api.publishing.Append;
 import io.fluxcapacitor.javaclient.tracking.client.InMemoryMessageStore;
@@ -29,7 +31,13 @@ public class ProducerEndpoint extends WebsocketEndpoint {
     private final InMemoryMessageStore store;
 
     @Handle
-    public void handle(Append append) {
-        store.send(append.getMessages().toArray(SerializedMessage[]::new));
+    public Awaitable handle(Append request) {
+        Awaitable awaitable = Awaitable.ready();
+        try {
+            awaitable = store.send(Guarantee.SENT, request.getMessages().toArray(SerializedMessage[]::new));
+        } catch (Exception e) {
+            log.error("Failed to handle {}", request, e);
+        }
+        return request.getGuarantee().compareTo(Guarantee.STORED) >= 0 ? awaitable : null;
     }
 }

@@ -14,6 +14,7 @@
 
 package io.fluxcapacitor.javaclient.test;
 
+import io.fluxcapacitor.common.Guarantee;
 import io.fluxcapacitor.common.MessageType;
 import io.fluxcapacitor.common.Registration;
 import io.fluxcapacitor.common.api.Data;
@@ -316,7 +317,7 @@ public class TestFixture implements Given, When {
 
     @Override
     public Then whenEvent(Object event) {
-        return when(fc -> fc.eventGateway().publish(interceptor.trace(event)));
+        return when(fc -> fc.eventGateway().publish(interceptor.trace(event), Guarantee.NONE));
     }
 
     @Override

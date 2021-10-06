@@ -14,19 +14,22 @@
 
 package io.fluxcapacitor.javaclient.publishing;
 
+import io.fluxcapacitor.common.Guarantee;
 import io.fluxcapacitor.common.api.Metadata;
 import io.fluxcapacitor.javaclient.common.Message;
+
+import java.util.concurrent.CompletableFuture;
 
 public interface ResultGateway {
 
     default void respond(Object response, String target, int requestId) {
         if (response instanceof Message) {
-            respond(((Message) response).getPayload(), ((Message) response).getMetadata(), target, requestId);
+            respond(((Message) response).getPayload(), ((Message) response).getMetadata(), target, requestId, Guarantee.NONE);
         } else {
-            respond(response, Metadata.empty(), target, requestId);
+            respond(response, Metadata.empty(), target, requestId, Guarantee.NONE);
         }
     }
 
-    void respond(Object payload, Metadata metadata, String target, int requestId);
+    CompletableFuture<Void> respond(Object payload, Metadata metadata, String target, int requestId, Guarantee guarantee);
 
 }

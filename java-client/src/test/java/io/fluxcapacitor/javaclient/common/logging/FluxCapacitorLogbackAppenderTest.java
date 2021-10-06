@@ -14,6 +14,7 @@
 
 package io.fluxcapacitor.javaclient.common.logging;
 
+import io.fluxcapacitor.common.Guarantee;
 import io.fluxcapacitor.common.MessageType;
 import io.fluxcapacitor.common.api.SerializedMessage;
 import io.fluxcapacitor.javaclient.FluxCapacitor;
@@ -24,6 +25,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentMatcher;
 
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.Mockito.verify;
 
@@ -48,7 +50,7 @@ class FluxCapacitorLogbackAppenderTest {
     void testConsoleError() {
         log.error("mock error");
         verify(fluxCapacitor.client().getGatewayClient(MessageType.ERROR)).send(
-                argThat((ArgumentMatcher<SerializedMessage>) message ->
+                any(Guarantee.class), argThat((ArgumentMatcher<SerializedMessage>) message ->
                         ConsoleError.class.getName().equals(message.getData().getType())));
     }
 
@@ -56,7 +58,7 @@ class FluxCapacitorLogbackAppenderTest {
     void testConsoleWarning() {
         log.warn("mock warning");
         verify(fluxCapacitor.client().getGatewayClient(MessageType.ERROR)).send(
-                argThat((ArgumentMatcher<SerializedMessage>) message ->
+                any(Guarantee.class), argThat((ArgumentMatcher<SerializedMessage>) message ->
                         ConsoleWarning.class.getName().equals(message.getData().getType())));
     }
 }

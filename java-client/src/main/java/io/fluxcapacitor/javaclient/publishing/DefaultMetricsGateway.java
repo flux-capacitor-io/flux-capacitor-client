@@ -14,12 +14,15 @@
 
 package io.fluxcapacitor.javaclient.publishing;
 
+import io.fluxcapacitor.common.Guarantee;
 import io.fluxcapacitor.common.api.Metadata;
 import io.fluxcapacitor.javaclient.common.Message;
 import io.fluxcapacitor.javaclient.common.serialization.MessageSerializer;
 import io.fluxcapacitor.javaclient.publishing.client.GatewayClient;
 import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+
+import java.util.concurrent.CompletableFuture;
 
 @AllArgsConstructor
 @Slf4j
@@ -29,11 +32,12 @@ public class DefaultMetricsGateway implements MetricsGateway {
     private final MessageSerializer serializer;
 
     @Override
-    public void publish(Object payload, Metadata metadata) {
+    public CompletableFuture<Void> publish(Object payload, Metadata metadata, Guarantee guarantee) {
         try {
-            metricsGateway.send(serializer.serialize(new Message(payload, metadata)));
+            return metricsGateway.send(Guarantee.SENT, serializer.serialize(new Message(payload, metadata))).asCompletableFuture();
         } catch (Exception e) {
             log.error("Failed to publish metrics {}", payload, e);
+            return CompletableFuture.allOf();
         }
     }
 }

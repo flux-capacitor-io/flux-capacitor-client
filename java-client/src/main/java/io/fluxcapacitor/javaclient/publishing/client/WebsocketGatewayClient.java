@@ -30,7 +30,8 @@ import static io.fluxcapacitor.common.MessageType.METRICS;
 @ClientEndpoint
 public class WebsocketGatewayClient extends AbstractWebsocketClient implements GatewayClient {
 
-    private final Backlog<SerializedMessage> backlog;
+    private final Backlog<SerializedMessage> sendBacklog;
+    private final Backlog<SerializedMessage> storeBacklog;
 
     public WebsocketGatewayClient(String endPointUrl, Properties properties, MessageType type) {
         this(URI.create(endPointUrl), 1024, properties, type);
@@ -42,20 +43,36 @@ public class WebsocketGatewayClient extends AbstractWebsocketClient implements G
 
     public WebsocketGatewayClient(URI endPointUri, int backlogSize, Properties properties, MessageType type) {
         super(endPointUri, properties, type != METRICS, properties.getGatewaySessions().get(type));
-        this.backlog = new Backlog<>(this::doSend, backlogSize);
+        this.sendBacklog = new Backlog<>(this::doSend, backlogSize);
+        this.storeBacklog = new Backlog<>(this::doStore, backlogSize);
     }
 
     @Override
-    public Awaitable send(SerializedMessage... messages) {
-        return backlog.add(messages);
+    public Awaitable send(Guarantee guarantee, SerializedMessage... messages) {
+        switch (guarantee) {
+            case NONE:
+                Awaitable ignored = sendBacklog.add(messages);
+                return Awaitable.ready();
+            case SENT:
+                return sendBacklog.add(messages);
+            case STORED:
+                return storeBacklog.add(messages);
+            default:
+                throw new UnsupportedOperationException("Unrecognized guarantee: " + guarantee);
+        }
     }
 
     @Override
     public Registration registerMonitor(Consumer<SerializedMessage> monitor) {
-        return backlog.registerMonitor(messages -> messages.forEach(monitor));
+        return sendBacklog.registerMonitor(messages -> messages.forEach(monitor));
     }
 
     private Awaitable doSend(List<SerializedMessage> messages) {
         return sendAndForget(new Append(messages, Guarantee.SENT));
+    }
+
+    protected Awaitable doStore(List<SerializedMessage> messages) {
+        sendAndWait(new Append(messages, Guarantee.STORED));
+        return Awaitable.ready();
     }
 }

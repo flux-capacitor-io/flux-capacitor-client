@@ -14,12 +14,15 @@
 
 package io.fluxcapacitor.javaclient.publishing;
 
+import io.fluxcapacitor.common.Guarantee;
 import io.fluxcapacitor.common.api.Metadata;
 import io.fluxcapacitor.javaclient.common.Message;
 import io.fluxcapacitor.javaclient.tracking.handling.HasLocalHandlers;
+import lombok.SneakyThrows;
+
+import java.util.concurrent.CompletableFuture;
 
 public interface ErrorGateway extends HasLocalHandlers {
-
     default void report(Object error) {
         if (error instanceof Message) {
             report(((Message) error).getPayload(), ((Message) error).getMetadata());
@@ -28,18 +31,20 @@ public interface ErrorGateway extends HasLocalHandlers {
         }
     }
 
+    @SneakyThrows
     default void report(Object error, String target) {
         if (error instanceof Message) {
-            report(((Message) error).getPayload(), ((Message) error).getMetadata(), target);
+            report(((Message) error).getPayload(), ((Message) error).getMetadata(), target, Guarantee.NONE).get();
         } else {
-            report(error, Metadata.empty(), target);
+            report(error, Metadata.empty(), target, Guarantee.NONE).get();
         }
     }
 
+    @SneakyThrows
     default void report(Object payload, Metadata metadata) {
-        report(payload, metadata, null);
+        report(payload, metadata, null, Guarantee.NONE).get();
     }
 
-    void report(Object payload, Metadata metadata, String target);
+    CompletableFuture<Void> report(Object payload, Metadata metadata, String target, Guarantee guarantee);
 
 }

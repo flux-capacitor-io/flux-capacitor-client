@@ -15,6 +15,7 @@
 package io.fluxcapacitor.javaclient.persisting.eventsourcing.client;
 
 import io.fluxcapacitor.common.Awaitable;
+import io.fluxcapacitor.common.Guarantee;
 import io.fluxcapacitor.common.api.SerializedMessage;
 import io.fluxcapacitor.common.api.eventsourcing.EventBatch;
 import io.fluxcapacitor.javaclient.persisting.eventsourcing.AggregateEventStream;
@@ -45,7 +46,7 @@ public class InMemoryEventStoreClient extends InMemoryMessageStore implements Ev
         if (storeOnly) {
             return Awaitable.ready();
         }
-        return super.send(events.toArray(new SerializedMessage[0]));
+        return super.send(Guarantee.SENT, events.toArray(new SerializedMessage[0]));
     }
 
     @Override

@@ -14,6 +14,7 @@
 
 package io.fluxcapacitor.javaclient.publishing;
 
+import io.fluxcapacitor.common.Guarantee;
 import io.fluxcapacitor.common.api.Metadata;
 import io.fluxcapacitor.javaclient.common.Message;
 import io.fluxcapacitor.javaclient.tracking.handling.HasLocalHandlers;
@@ -25,6 +26,8 @@ public interface CommandGateway extends HasLocalHandlers {
     void sendAndForget(Object command);
 
     void sendAndForget(Object payload, Metadata metadata);
+
+    void sendAndForget(Object payload, Metadata metadata, Guarantee guarantee);
 
     <R> CompletableFuture<R> send(Object command);
 

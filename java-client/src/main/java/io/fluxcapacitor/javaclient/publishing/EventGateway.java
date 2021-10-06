@@ -14,20 +14,26 @@
 
 package io.fluxcapacitor.javaclient.publishing;
 
+import io.fluxcapacitor.common.Guarantee;
 import io.fluxcapacitor.common.api.Metadata;
 import io.fluxcapacitor.javaclient.common.Message;
 import io.fluxcapacitor.javaclient.tracking.handling.HasLocalHandlers;
+import lombok.SneakyThrows;
+
+import java.util.concurrent.CompletableFuture;
 
 public interface EventGateway extends HasLocalHandlers {
 
+    @SneakyThrows
     default void publish(Object event) {
         Message message = event instanceof Message ? (Message) event : new Message(event, Metadata.empty());
-        publish(message);
+        publish(message, Guarantee.NONE).get();
     }
 
+    @SneakyThrows
     default void publish(Object payload, Metadata metadata) {
-        publish(new Message(payload, metadata));
+        publish(new Message(payload, metadata), Guarantee.NONE).get();
     }
 
-    void publish(Message message);
+    CompletableFuture<Void> publish(Message message, Guarantee guarantee);
 }

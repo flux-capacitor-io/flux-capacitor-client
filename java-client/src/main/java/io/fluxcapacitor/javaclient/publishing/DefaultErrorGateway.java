@@ -14,6 +14,7 @@
 
 package io.fluxcapacitor.javaclient.publishing;
 
+import io.fluxcapacitor.common.Guarantee;
 import io.fluxcapacitor.common.api.Metadata;
 import io.fluxcapacitor.common.api.SerializedMessage;
 import io.fluxcapacitor.javaclient.common.Message;
@@ -39,7 +40,7 @@ public class DefaultErrorGateway implements ErrorGateway {
     private final HandlerRegistry localHandlerRegistry;
 
     @Override
-    public void report(Object payload, Metadata metadata, String target) {
+    public CompletableFuture<Void> report(Object payload, Metadata metadata, String target, Guarantee guarantee) {
         try {
             SerializedMessage message = serializer.serialize(new Message(payload, metadata));
             message.setTarget(target);
@@ -51,9 +52,10 @@ public class DefaultErrorGateway implements ErrorGateway {
                     log.error("Failed to handle error locally", e);
                 }
             }
-            errorGateway.send(message);
+            return errorGateway.send(guarantee, message).asCompletableFuture();
         } catch (Exception e) {
             log.error("Failed to report error {}", payload, e);
+            return CompletableFuture.allOf();
         }
     }
 }

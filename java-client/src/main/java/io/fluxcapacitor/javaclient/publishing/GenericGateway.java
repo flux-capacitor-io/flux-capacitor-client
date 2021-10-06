@@ -14,6 +14,7 @@
 
 package io.fluxcapacitor.javaclient.publishing;
 
+import io.fluxcapacitor.common.Guarantee;
 import io.fluxcapacitor.common.api.Metadata;
 import io.fluxcapacitor.javaclient.common.Message;
 import io.fluxcapacitor.javaclient.tracking.handling.HasLocalHandlers;
@@ -28,15 +29,22 @@ import static java.lang.Thread.currentThread;
 
 public interface GenericGateway extends HasLocalHandlers {
 
+    @SneakyThrows
     default void sendAndForget(Object payload) {
-        sendAndForget(payload instanceof Message ? (Message) payload : new Message(payload));
+        sendAndForget(payload instanceof Message ? (Message) payload : new Message(payload), Guarantee.NONE).get();
     }
 
+    @SneakyThrows
     default void sendAndForget(Object payload, Metadata metadata) {
-        sendAndForget(new Message(payload, metadata));
+        sendAndForget(new Message(payload, metadata), Guarantee.NONE).get();
     }
 
-    void sendAndForget(Message message);
+    @SneakyThrows
+    default void sendAndForget(Object payload, Metadata metadata, Guarantee guarantee) {
+        sendAndForget(new Message(payload, metadata), guarantee).get();
+    }
+
+    CompletableFuture<Void> sendAndForget(Message message, Guarantee guarantee);
 
     default <R> CompletableFuture<R> send(Message message) {
         return sendForMessage(message).thenApply(Message::getPayload);

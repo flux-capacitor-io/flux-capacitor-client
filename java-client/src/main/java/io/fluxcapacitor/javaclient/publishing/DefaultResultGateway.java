@@ -14,6 +14,7 @@
 
 package io.fluxcapacitor.javaclient.publishing;
 
+import io.fluxcapacitor.common.Guarantee;
 import io.fluxcapacitor.common.api.Metadata;
 import io.fluxcapacitor.common.api.SerializedMessage;
 import io.fluxcapacitor.javaclient.common.Message;
@@ -23,6 +24,8 @@ import io.fluxcapacitor.javaclient.publishing.client.GatewayClient;
 import lombok.AllArgsConstructor;
 import org.apache.commons.lang3.exception.ExceptionUtils;
 
+import java.util.concurrent.CompletableFuture;
+
 @AllArgsConstructor
 public class DefaultResultGateway implements ResultGateway {
 
@@ -30,7 +33,7 @@ public class DefaultResultGateway implements ResultGateway {
     private final MessageSerializer serializer;
 
     @Override
-    public void respond(Object payload, Metadata metadata, String target, int requestId) {
+    public CompletableFuture<Void> respond(Object payload, Metadata metadata, String target, int requestId, Guarantee guarantee) {
         try {
             if (payload instanceof TechnicalException) {
                 metadata = metadata.with("stackTrace", ExceptionUtils.getStackTrace((TechnicalException) payload));
@@ -38,7 +41,7 @@ public class DefaultResultGateway implements ResultGateway {
             SerializedMessage message = serializer.serialize(new Message(payload, metadata));
             message.setTarget(target);
             message.setRequestId(requestId);
-            client.send(message);
+            return client.send(guarantee, message).asCompletableFuture();
         } catch (Exception e) {
             throw new GatewayException(String.format("Failed to send response %s", payload), e);
         }

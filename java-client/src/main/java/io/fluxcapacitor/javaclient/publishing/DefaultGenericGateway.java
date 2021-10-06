@@ -14,6 +14,7 @@
 
 package io.fluxcapacitor.javaclient.publishing;
 
+import io.fluxcapacitor.common.Guarantee;
 import io.fluxcapacitor.common.api.SerializedMessage;
 import io.fluxcapacitor.javaclient.common.Message;
 import io.fluxcapacitor.javaclient.common.serialization.MessageSerializer;
@@ -39,13 +40,13 @@ public class DefaultGenericGateway implements GenericGateway {
 
     @Override
     @SneakyThrows
-    public void sendAndForget(Message message) {
+    public CompletableFuture<Void> sendAndForget(Message message, Guarantee guarantee) {
         SerializedMessage serializedMessage = serializer.serialize(message);
         Optional<CompletableFuture<Message>> localResult
                 = localHandlerRegistry.handle(message.getPayload(), serializedMessage);
-        if (!localResult.isPresent()) {
+        if (localResult.isEmpty()) {
             try {
-                gatewayClient.send(serializedMessage);
+                return gatewayClient.send(guarantee, serializedMessage).asCompletableFuture();
             } catch (Exception e) {
                 throw new GatewayException(format("Failed to send and forget %s", message.getPayload().toString()), e);
             }
@@ -56,6 +57,7 @@ public class DefaultGenericGateway implements GenericGateway {
                 throw e.getCause();
             }
         }
+        return CompletableFuture.allOf();
     }
 
     @Override
@@ -67,7 +69,7 @@ public class DefaultGenericGateway implements GenericGateway {
             return localResult.get();
         } else {
             try {
-                return requestHandler.sendRequest(serializedMessage, gatewayClient::send);
+                return requestHandler.sendRequest(serializedMessage, messages -> gatewayClient.send(Guarantee.SENT, messages));
             } catch (Exception e) {
                 throw new GatewayException(format("Failed to send %s", message.getPayload().toString()), e);
             }

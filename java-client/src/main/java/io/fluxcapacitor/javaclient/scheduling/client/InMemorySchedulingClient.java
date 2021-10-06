@@ -15,6 +15,7 @@
 package io.fluxcapacitor.javaclient.scheduling.client;
 
 import io.fluxcapacitor.common.Awaitable;
+import io.fluxcapacitor.common.Guarantee;
 import io.fluxcapacitor.common.MessageType;
 import io.fluxcapacitor.common.api.SerializedMessage;
 import io.fluxcapacitor.common.api.scheduling.ScheduledMessage;
@@ -63,7 +64,7 @@ public class InMemorySchedulingClient extends InMemoryMessageStore implements Sc
             }
             schedule.getMessage().setIndex(index);
         }
-        super.send(filtered.stream().map(ScheduledMessage::getMessage).toArray(SerializedMessage[]::new));
+        super.send(Guarantee.SENT, filtered.stream().map(ScheduledMessage::getMessage).toArray(SerializedMessage[]::new));
         return Awaitable.ready();
     }
 
@@ -74,7 +75,7 @@ public class InMemorySchedulingClient extends InMemoryMessageStore implements Sc
     }
 
     @Override
-    public Awaitable send(SerializedMessage... messages) {
+    public Awaitable send(Guarantee guarantee, SerializedMessage... messages) {
         throw new UnsupportedOperationException("Use method #schedule instead");
     }
 

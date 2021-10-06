@@ -14,6 +14,7 @@
 
 package io.fluxcapacitor.javaclient.benchmark;
 
+import io.fluxcapacitor.common.Guarantee;
 import io.fluxcapacitor.common.MessageType;
 import io.fluxcapacitor.common.api.Data;
 import io.fluxcapacitor.common.api.Metadata;
@@ -60,7 +61,7 @@ public class LowLevelJavaClientRunner extends AbstractClientBenchmark {
 
     @Override
     protected void doSendCommand(String payload) {
-        commandGateway().send(new SerializedMessage(
+        commandGateway().send(Guarantee.NONE, new SerializedMessage(
                 new Data<>(payload.getBytes(), String.class.getName(), 0, "string"), Metadata.empty(),
                 UUID.randomUUID().toString(), Clock.systemUTC().millis()));
     }
