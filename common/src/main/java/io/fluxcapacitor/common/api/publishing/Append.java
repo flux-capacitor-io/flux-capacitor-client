@@ -16,7 +16,7 @@ package io.fluxcapacitor.common.api.publishing;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import io.fluxcapacitor.common.Guarantee;
-import io.fluxcapacitor.common.api.JsonType;
+import io.fluxcapacitor.common.api.Request;
 import io.fluxcapacitor.common.api.SerializedMessage;
 import lombok.Value;
 
@@ -25,7 +25,7 @@ import java.util.List;
 import static java.util.Optional.ofNullable;
 
 @Value
-public class Append implements JsonType {
+public class Append extends Request {
     List<SerializedMessage> messages;
     Guarantee guarantee;
 
@@ -45,11 +45,12 @@ public class Append implements JsonType {
 
     @Override
     public Metric toMetric() {
-        return new Metric(getSize());
+        return new Metric(getSize(), getGuarantee());
     }
 
     @Value
     public static class Metric {
         int size;
+        Guarantee guarantee;
     }
 }
