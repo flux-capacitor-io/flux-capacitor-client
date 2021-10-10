@@ -21,6 +21,7 @@ import io.fluxcapacitor.javaclient.persisting.keyvalue.client.WebsocketKeyValueC
 import io.fluxcapacitor.javaclient.persisting.search.client.WebSocketSearchClient;
 import io.fluxcapacitor.javaclient.publishing.client.WebsocketGatewayClient;
 import io.fluxcapacitor.javaclient.scheduling.client.WebsocketSchedulingClient;
+import io.fluxcapacitor.javaclient.tracking.client.CachingTrackingClient;
 import io.fluxcapacitor.javaclient.tracking.client.WebsocketTrackingClient;
 import lombok.Builder;
 import lombok.Builder.Default;
@@ -46,22 +47,28 @@ import static java.util.stream.Collectors.toMap;
 public class WebSocketClient extends AbstractClient {
 
     @Getter
-    private final Properties properties;
+    private final ClientConfig clientConfig;
 
-    public static WebSocketClient newInstance(Properties properties) {
-        return new WebSocketClient(properties);
+    public static WebSocketClient newInstance(ClientConfig clientConfig) {
+        return new WebSocketClient(clientConfig);
     }
 
-    protected WebSocketClient(Properties properties) {
-        super(properties.getName(), properties.getId(),
-             type -> new WebsocketGatewayClient(producerUrl(type, properties), properties, type),
-             type -> new WebsocketTrackingClient(consumerUrl(type, properties), properties, type),
-              new WebSocketEventStoreClient(eventSourcingUrl(properties), properties),
-              new WebsocketSchedulingClient(schedulingUrl(properties), properties),
-              new WebsocketKeyValueClient(keyValueUrl(properties), properties),
-              new WebSocketSearchClient(searchUrl(properties), properties)
+    protected WebSocketClient(ClientConfig clientConfig) {
+        super(clientConfig.getName(), clientConfig.getId(),
+             type -> new WebsocketGatewayClient(producerUrl(type, clientConfig), clientConfig, type),
+             type -> {
+                 TrackingClientConfig trackingConfig = clientConfig.getTrackingConfigs().get(type);
+                 WebsocketTrackingClient wsClient =
+                         new WebsocketTrackingClient(consumerUrl(type, clientConfig), clientConfig, type);
+                 return trackingConfig.getCacheSize() > 0
+                         ? new CachingTrackingClient(wsClient, trackingConfig.getCacheSize()) : wsClient;
+             },
+              new WebSocketEventStoreClient(eventSourcingUrl(clientConfig), clientConfig),
+              new WebsocketSchedulingClient(schedulingUrl(clientConfig), clientConfig),
+              new WebsocketKeyValueClient(keyValueUrl(clientConfig), clientConfig),
+              new WebSocketSearchClient(searchUrl(clientConfig), clientConfig)
         );
-        this.properties = properties;
+        this.clientConfig = clientConfig;
     }
 
     @Override
@@ -76,7 +83,7 @@ public class WebSocketClient extends AbstractClient {
 
     @Value
     @Builder(toBuilder = true)
-    public static class Properties {
+    public static class ClientConfig {
         @NonNull String serviceBaseUrl;
         @NonNull String name;
         @NonNull @Default String id = UUID.randomUUID().toString();
@@ -85,29 +92,37 @@ public class WebSocketClient extends AbstractClient {
         @Default int keyValueSessions = 2;
         @Default int searchSessions = 2;
         @Default Map<MessageType, Integer> gatewaySessions = defaultGatewaySessions();
-        @Default Map<MessageType, Integer> trackingSessions = defaultTrackingSessions();
+        @Default Map<MessageType, TrackingClientConfig> trackingConfigs = defaultTrackingSessions();
         String projectId;
         String typeFilter;
 
-        Properties withGatewaySessions(MessageType messageType, int count) {
+        public ClientConfig withGatewaySessions(MessageType messageType, int count) {
             HashMap<MessageType, Integer> config = new HashMap<>(gatewaySessions);
             config.put(messageType, count);
             return toBuilder().gatewaySessions(config).build();
         }
 
-        Properties withTrackingSessions(MessageType messageType, int count) {
-            HashMap<MessageType, Integer> config = new HashMap<>(trackingSessions);
-            config.put(messageType, count);
-            return toBuilder().trackingSessions(config).build();
+        public ClientConfig withTrackingConfig(MessageType messageType, TrackingClientConfig trackingConfig) {
+            HashMap<MessageType, TrackingClientConfig> config = new HashMap<>(trackingConfigs);
+            config.put(messageType, trackingConfig);
+            return toBuilder().trackingConfigs(config).build();
         }
 
         private static Map<MessageType, Integer> defaultGatewaySessions() {
             return Arrays.stream(MessageType.values()).collect(toMap(Function.identity(), t -> 1));
         }
 
-        private static Map<MessageType, Integer> defaultTrackingSessions() {
-            return Arrays.stream(MessageType.values()).collect(toMap(Function.identity(), t -> 1));
+        private static Map<MessageType, TrackingClientConfig> defaultTrackingSessions() {
+            return Arrays.stream(MessageType.values()).collect(toMap(Function.identity(), t -> t == MessageType.RESULT
+                    ? TrackingClientConfig.builder().cacheSize(0).build() : TrackingClientConfig.builder().build()));
         }
 
+    }
+
+    @Value
+    @Builder(toBuilder = true)
+    public static class TrackingClientConfig {
+        @Default int sessions = 1;
+        @Default int cacheSize = 0;
     }
 }

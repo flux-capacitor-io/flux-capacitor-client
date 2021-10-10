@@ -26,8 +26,20 @@ import io.fluxcapacitor.javaclient.tracking.ConsumerConfiguration;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
-import java.util.*;
-import java.util.concurrent.*;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentSkipListMap;
+import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Consumer;
 import java.util.function.Predicate;
@@ -68,8 +80,19 @@ public class InMemoryMessageStore implements GatewayClient, TrackingClient {
 
     @Override
     public CompletableFuture<MessageBatch> read(String consumer, String trackerId,
-                                                Long previousLastIndex, ConsumerConfiguration configuration) {
-        return read(new SimpleTrackerRead(consumer, trackerId, previousLastIndex, configuration));
+                                                Long lastIndex, ConsumerConfiguration configuration) {
+        return read(new SimpleTrackerRead(consumer, trackerId, lastIndex, configuration));
+    }
+
+    public CompletableFuture<int[]> claimSegment(TrackerRead trackerRead) {
+        if (trackerRead.getMessageType() != MessageType.RESULT && !Objects.equals(
+                trackerRead.getTrackerId(), trackers.computeIfAbsent(
+                        trackerRead.getConsumerName(), c -> trackerRead).getTrackerId())) {
+            return CompletableFuture.supplyAsync(
+                    () -> new int[]{0, 0},
+                    CompletableFuture.delayedExecutor(trackerRead.getDeadline() - currentTimeMillis(), MILLISECONDS));
+        }
+        return CompletableFuture.completedFuture(new int[]{0, Position.MAX_SEGMENT});
     }
 
     public CompletableFuture<MessageBatch> read(TrackerRead trackerRead) {

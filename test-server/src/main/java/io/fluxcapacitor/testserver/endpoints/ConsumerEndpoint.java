@@ -17,7 +17,11 @@ package io.fluxcapacitor.testserver.endpoints;
 import io.fluxcapacitor.common.MessageType;
 import io.fluxcapacitor.common.api.SerializedMessage;
 import io.fluxcapacitor.common.api.VoidResult;
+import io.fluxcapacitor.common.api.tracking.ClaimSegment;
+import io.fluxcapacitor.common.api.tracking.ClaimSegmentResult;
 import io.fluxcapacitor.common.api.tracking.DisconnectTracker;
+import io.fluxcapacitor.common.api.tracking.GetPosition;
+import io.fluxcapacitor.common.api.tracking.GetPositionResult;
 import io.fluxcapacitor.common.api.tracking.Read;
 import io.fluxcapacitor.common.api.tracking.ReadFromIndex;
 import io.fluxcapacitor.common.api.tracking.ReadFromIndexResult;
@@ -55,9 +59,27 @@ public class ConsumerEndpoint extends WebsocketEndpoint {
     }
 
     @Handle
+    public void handle(ClaimSegment read, Session session) {
+        store.claimSegment(new WebSocketTrackerRead(read, getClientId(session), session.getId(), messageType))
+                .whenComplete((b, e) -> {
+                    if (e != null) {
+                        log.error("Failed to complete claim segment", e);
+                    } else {
+                        sendResult(session, new ClaimSegmentResult(read.getRequestId(),
+                                                                   store.getPosition(read.getConsumer()), b));
+                    }
+                });
+    }
+
+    @Handle
     public VoidResult handle(StorePosition storePosition) {
         store.storePosition(storePosition.getConsumer(), storePosition.getSegment(), storePosition.getLastIndex());
         return new VoidResult(storePosition.getRequestId());
+    }
+
+    @Handle
+    public GetPositionResult handle(GetPosition getPosition) {
+        return new GetPositionResult(getPosition.getRequestId(), store.getPosition(getPosition.getConsumer()));
     }
 
     @Handle

@@ -24,7 +24,8 @@ import io.fluxcapacitor.common.api.eventsourcing.EventBatch;
 import io.fluxcapacitor.common.api.eventsourcing.GetEvents;
 import io.fluxcapacitor.common.api.eventsourcing.GetEventsResult;
 import io.fluxcapacitor.javaclient.common.websocket.AbstractWebsocketClient;
-import io.fluxcapacitor.javaclient.configuration.client.WebSocketClient.Properties;
+import io.fluxcapacitor.javaclient.configuration.client.WebSocketClient;
+import io.fluxcapacitor.javaclient.configuration.client.WebSocketClient.ClientConfig;
 import io.fluxcapacitor.javaclient.persisting.eventsourcing.AggregateEventStream;
 
 import javax.websocket.ClientEndpoint;
@@ -42,16 +43,16 @@ public class WebSocketEventStoreClient extends AbstractWebsocketClient implement
     private final Backlog<EventBatch> backlog;
     private final int fetchBatchSize;
 
-    public WebSocketEventStoreClient(String endPointUrl, Properties properties) {
-        this(URI.create(endPointUrl), 1024, 8192, properties);
+    public WebSocketEventStoreClient(String endPointUrl, ClientConfig clientConfig) {
+        this(URI.create(endPointUrl), 1024, 8192, clientConfig);
     }
 
-    public WebSocketEventStoreClient(String endPointUrl, int backlogSize, Properties properties) {
-        this(URI.create(endPointUrl), backlogSize, 1024, properties);
+    public WebSocketEventStoreClient(String endPointUrl, int backlogSize, ClientConfig clientConfig) {
+        this(URI.create(endPointUrl), backlogSize, 1024, clientConfig);
     }
 
-    public WebSocketEventStoreClient(URI endPointUri, int backlogSize, int fetchBatchSize, Properties properties) {
-        super(endPointUri, properties, true, properties.getEventSourcingSessions());
+    public WebSocketEventStoreClient(URI endPointUri, int backlogSize, int fetchBatchSize, WebSocketClient.ClientConfig clientConfig) {
+        super(endPointUri, clientConfig, true, clientConfig.getEventSourcingSessions());
         this.backlog = new Backlog<>(this::doSend, backlogSize);
         this.fetchBatchSize = fetchBatchSize;
     }

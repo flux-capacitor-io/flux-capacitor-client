@@ -22,6 +22,7 @@ import io.fluxcapacitor.common.api.JsonType;
 import io.fluxcapacitor.common.api.RequestBatch;
 import io.fluxcapacitor.common.handling.Handler;
 import io.fluxcapacitor.common.handling.HandlerInspector;
+import io.fluxcapacitor.common.handling.ParameterResolver;
 import io.fluxcapacitor.common.serialization.compression.CompressionAlgorithm;
 import io.undertow.util.SameThreadExecutor;
 import lombok.Value;
@@ -33,6 +34,7 @@ import javax.websocket.EndpointConfig;
 import javax.websocket.Session;
 import java.io.IOException;
 import java.io.OutputStream;
+import java.lang.reflect.Parameter;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
@@ -42,6 +44,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executor;
 import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.function.Function;
 
 import static com.fasterxml.jackson.databind.SerializationFeature.WRITE_DATES_AS_TIMESTAMPS;
 import static io.fluxcapacitor.common.serialization.compression.CompressionUtils.compress;
@@ -84,11 +87,19 @@ public abstract class WebsocketEndpoint extends Endpoint {
     }
 
     private final Handler<Request> handler =
-            HandlerInspector.createHandler(this, Handle.class, Arrays.asList(p -> {
-                if (Objects.equals(p.getDeclaringExecutable().getParameters()[0], p)) {
-                    return Request::getPayload;
+            HandlerInspector.createHandler(this, Handle.class, Arrays.asList(new ParameterResolver<>() {
+                @Override
+                public Function<Request, Object> resolve(Parameter p) {
+                    if (Objects.equals(p.getDeclaringExecutable().getParameters()[0], p)) {
+                        return Request::getPayload;
+                    }
+                    return null;
                 }
-                return null;
+
+                @Override
+                public boolean determinesSpecificity() {
+                    return true;
+                }
             }, p -> {
                 if (p.getType().equals(Session.class)) {
                     return Request::getSession;

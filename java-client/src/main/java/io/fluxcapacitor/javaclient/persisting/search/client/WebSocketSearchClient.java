@@ -67,12 +67,12 @@ public class WebSocketSearchClient extends AbstractWebsocketClient implements Se
     private final Backlog<SerializedDocumentUpdate> sendBatchBacklog;
     private final Backlog<SerializedDocumentUpdate> storeBatchBacklog;
 
-    public WebSocketSearchClient(String endPointUrl, WebSocketClient.Properties properties) {
-        this(URI.create(endPointUrl), properties);
+    public WebSocketSearchClient(String endPointUrl, WebSocketClient.ClientConfig clientConfig) {
+        this(URI.create(endPointUrl), clientConfig);
     }
 
-    public WebSocketSearchClient(URI endpointUri, WebSocketClient.Properties properties) {
-        super(endpointUri, properties, true, properties.getSearchSessions());
+    public WebSocketSearchClient(URI endpointUri, WebSocketClient.ClientConfig clientConfig) {
+        super(endpointUri, clientConfig, true, clientConfig.getSearchSessions());
         sendBacklog = new Backlog<>(documents -> sendValues(documents, false));
         sendIfNotExistsBacklog = new Backlog<>(documents -> sendValues(documents, true));
         storeBacklog = new Backlog<>(documents -> storeValues(documents, false));

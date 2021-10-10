@@ -27,6 +27,7 @@ import lombok.extern.slf4j.Slf4j;
 import java.time.Duration;
 import java.util.Arrays;
 import java.util.List;
+import java.util.UUID;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
@@ -80,13 +81,16 @@ public class DefaultTracker implements Runnable, Registration {
      * Starts one or more trackers. Messages will be passed to the given consumer. Once the consumer is done the
      * position of the tracker is automatically updated.
      * <p>
-     * Each tracker started is using a single thread. To track in parallel configure the number of trackers using
-     * {@link ConsumerConfiguration}.
+     * Each tracker started is using a single thread. To track in parallel configure the number of trackers using {@link
+     * ConsumerConfiguration}.
      */
     public static Registration start(Consumer<List<SerializedMessage>> consumer, ConsumerConfiguration config,
                                      Client client) {
         List<DefaultTracker> instances = IntStream.range(0, config.getThreads())
-                .mapToObj(i -> new DefaultTracker(consumer, config, client))
+                .mapToObj(i -> new DefaultTracker(consumer, config, new Tracker(
+                        config.prependApplicationName() ? format("%s_%s", client.name(), config.getName()) :
+                                config.getName(), config.getTrackerIdFactory().apply(client), config, null),
+                                                  client.getTrackingClient(config.getMessageType())))
                 .collect(toList());
         ExecutorService executor = newFixedThreadPool(config.getThreads());
         instances.forEach(executor::execute);
@@ -96,12 +100,25 @@ public class DefaultTracker implements Runnable, Registration {
         };
     }
 
-    private DefaultTracker(Consumer<List<SerializedMessage>> consumer, ConsumerConfiguration config, Client client) {
-        this.tracker = new Tracker(config.prependApplicationName()
-                ? format("%s_%s", client.name(), config.getName()) : config.getName(),
-                config.getTrackerIdFactory().apply(client), config, null);
+    public static Registration start(Consumer<List<SerializedMessage>> consumer, ConsumerConfiguration config,
+                                     TrackingClient trackingClient) {
+        List<DefaultTracker> instances = IntStream.range(0, config.getThreads())
+                .mapToObj(i -> new DefaultTracker(consumer, config, new Tracker(
+                        config.getName(), UUID.randomUUID().toString(), config, null), trackingClient))
+                .collect(toList());
+        ExecutorService executor = newFixedThreadPool(config.getThreads());
+        instances.forEach(executor::execute);
+        return () -> {
+            instances.forEach(DefaultTracker::cancel);
+            executor.shutdownNow();
+        };
+    }
+
+    private DefaultTracker(Consumer<List<SerializedMessage>> consumer, ConsumerConfiguration config, Tracker tracker,
+                           TrackingClient trackingClient) {
+        this.tracker = tracker;
         this.processor = join(config.getBatchInterceptors()).intercept(b -> process(b, consumer), tracker);
-        this.trackingClient = client.getTrackingClient(config.getMessageType());
+        this.trackingClient = trackingClient;
         this.retryDelay = Duration.ofSeconds(1);
         this.lastProcessedIndex = config.getLastIndex();
     }
@@ -124,8 +141,8 @@ public class DefaultTracker implements Runnable, Registration {
 
     protected MessageBatch fetch(Long lastIndex) {
         return retryOnFailure(() -> trackingClient.readAndWait(tracker.getName(), tracker.getTrackerId(),
-                lastIndex, tracker.getConfiguration()),
-                retryDelay, e -> running.get());
+                                                               lastIndex, tracker.getConfiguration()),
+                              retryDelay, e -> running.get());
     }
 
     protected void process(MessageBatch messageBatch, Consumer<List<SerializedMessage>> consumer) {
@@ -139,17 +156,17 @@ public class DefaultTracker implements Runnable, Registration {
                 consumer.accept(messages);
             } catch (BatchProcessingException e) {
                 log.error("Consumer {} failed to handle batch of {} messages at index {} and did not handle exception. "
-                                + "Consumer will be updated to the last processed index and then stopped.",
-                        tracker.getName(), messages.size(), e.getMessageIndex());
+                                  + "Consumer will be updated to the last processed index and then stopped.",
+                          tracker.getName(), messages.size(), e.getMessageIndex());
                 updatePosition(messages.stream().map(SerializedMessage::getIndex)
-                        .filter(i -> e.getMessageIndex() != null && i != null && i < e.getMessageIndex())
-                        .max(naturalOrder()).orElse(null), messageBatch.getSegment());
+                                       .filter(i -> e.getMessageIndex() != null && i != null && i < e.getMessageIndex())
+                                       .max(naturalOrder()).orElse(null), messageBatch.getSegment());
                 processing = false;
                 cancel();
                 return;
             } catch (Exception e) {
                 log.error("Consumer {} failed to handle batch of {} messages and did not handle exception. "
-                        + "Tracker will be stopped.", tracker.getName(), messages.size(), e);
+                                  + "Tracker will be stopped.", tracker.getName(), messages.size(), e);
                 processing = false;
                 cancel();
                 return;
@@ -170,7 +187,7 @@ public class DefaultTracker implements Runnable, Registration {
                         } catch (Exception e) {
                             throw new TrackingException(
                                     String.format("Failed to store position of segments %s for tracker %s to index %s",
-                                            Arrays.toString(segment), tracker, index), e);
+                                                  Arrays.toString(segment), tracker, index), e);
                         }
                     }, retryDelay, e2 -> running.get());
         }

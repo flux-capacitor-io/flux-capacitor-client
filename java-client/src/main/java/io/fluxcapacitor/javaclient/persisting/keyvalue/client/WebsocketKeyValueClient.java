@@ -27,7 +27,7 @@ import io.fluxcapacitor.common.api.keyvalue.StoreValueIfAbsent;
 import io.fluxcapacitor.common.api.keyvalue.StoreValues;
 import io.fluxcapacitor.common.api.keyvalue.StoreValuesAndWait;
 import io.fluxcapacitor.javaclient.common.websocket.AbstractWebsocketClient;
-import io.fluxcapacitor.javaclient.configuration.client.WebSocketClient.Properties;
+import io.fluxcapacitor.javaclient.configuration.client.WebSocketClient;
 import lombok.extern.slf4j.Slf4j;
 
 import javax.websocket.ClientEndpoint;
@@ -43,12 +43,12 @@ public class WebsocketKeyValueClient extends AbstractWebsocketClient implements 
 
     private final Backlog<KeyValuePair> backlog;
 
-    public WebsocketKeyValueClient(String endPointUrl, Properties properties) {
-        this(URI.create(endPointUrl), properties);
+    public WebsocketKeyValueClient(String endPointUrl, WebSocketClient.ClientConfig clientConfig) {
+        this(URI.create(endPointUrl), clientConfig);
     }
 
-    public WebsocketKeyValueClient(URI endpointUri, Properties properties) {
-        super(endpointUri, properties, true, properties.getKeyValueSessions());
+    public WebsocketKeyValueClient(URI endpointUri, WebSocketClient.ClientConfig clientConfig) {
+        super(endpointUri, clientConfig, true, clientConfig.getKeyValueSessions());
         backlog = new Backlog<>(this::storeValues);
     }
 

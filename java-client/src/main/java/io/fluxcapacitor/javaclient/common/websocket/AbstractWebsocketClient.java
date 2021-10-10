@@ -26,7 +26,8 @@ import io.fluxcapacitor.common.api.Request;
 import io.fluxcapacitor.common.api.RequestBatch;
 import io.fluxcapacitor.common.api.ResultBatch;
 import io.fluxcapacitor.javaclient.FluxCapacitor;
-import io.fluxcapacitor.javaclient.configuration.client.WebSocketClient.Properties;
+import io.fluxcapacitor.javaclient.configuration.client.WebSocketClient;
+import io.fluxcapacitor.javaclient.configuration.client.WebSocketClient.ClientConfig;
 import lombok.RequiredArgsConstructor;
 import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
@@ -68,7 +69,7 @@ public abstract class AbstractWebsocketClient implements AutoCloseable {
             .findAndAddModules().disable(WRITE_DATES_AS_TIMESTAMPS).build();
 
     private final SessionPool sessionPool;
-    private final Properties properties;
+    private final WebSocketClient.ClientConfig clientConfig;
     private final ObjectMapper objectMapper;
     private final Map<Long, WebSocketRequest> requests = new ConcurrentHashMap<>();
     private final Map<String, Backlog<JsonType>> sessionBacklogs = new ConcurrentHashMap<>();
@@ -76,19 +77,19 @@ public abstract class AbstractWebsocketClient implements AutoCloseable {
     private final ExecutorService resultExecutor = Executors.newFixedThreadPool(8);
     private final boolean sendMetrics;
 
-    public AbstractWebsocketClient(URI endpointUri, Properties properties, boolean sendMetrics) {
-        this(endpointUri, properties, sendMetrics, 1);
+    public AbstractWebsocketClient(URI endpointUri, ClientConfig clientConfig, boolean sendMetrics) {
+        this(endpointUri, clientConfig, sendMetrics, 1);
     }
 
-    public AbstractWebsocketClient(URI endpointUri, Properties properties, boolean sendMetrics, int numberOfSessions) {
-        this(defaultWebSocketContainer, endpointUri, properties, sendMetrics, Duration.ofSeconds(1),
+    public AbstractWebsocketClient(URI endpointUri, WebSocketClient.ClientConfig clientConfig, boolean sendMetrics, int numberOfSessions) {
+        this(defaultWebSocketContainer, endpointUri, clientConfig, sendMetrics, Duration.ofSeconds(1),
              defaultObjectMapper, numberOfSessions);
     }
 
-    public AbstractWebsocketClient(WebSocketContainer container, URI endpointUri, Properties properties,
+    public AbstractWebsocketClient(WebSocketContainer container, URI endpointUri, ClientConfig clientConfig,
                                    boolean sendMetrics, Duration reconnectDelay, ObjectMapper objectMapper,
                                    int numberOfSessions) {
-        this.properties = properties;
+        this.clientConfig = clientConfig;
         this.objectMapper = objectMapper;
         this.sendMetrics = sendMetrics;
         this.sessionPool = new SessionPool(numberOfSessions, () -> retryOnFailure(
@@ -135,7 +136,7 @@ public abstract class AbstractWebsocketClient implements AutoCloseable {
         JsonType object = requests.size() == 1 ? requests.get(0) : new RequestBatch<>(requests);
         try (OutputStream outputStream = session.getBasicRemote().getSendStream()) {
             byte[] bytes = objectMapper.writeValueAsBytes(object);
-            outputStream.write(compress(bytes, properties.getCompression()));
+            outputStream.write(compress(bytes, clientConfig.getCompression()));
         } catch (Exception e) {
             log.error("Failed to send request {}", object, e);
             throw e;
@@ -149,7 +150,7 @@ public abstract class AbstractWebsocketClient implements AutoCloseable {
         resultExecutor.execute(() -> {
             JsonType value;
             try {
-                value = objectMapper.readValue(decompress(bytes, properties.getCompression()), JsonType.class);
+                value = objectMapper.readValue(decompress(bytes, clientConfig.getCompression()), JsonType.class);
             } catch (Exception e) {
                 log.error("Could not parse input. Expected a Json message.", e);
                 return;

@@ -48,7 +48,7 @@ public class FluxCapacitorTestConfig {
     @Bean
     public TestFixture testFixture(FluxCapacitorBuilder fluxCapacitorBuilder) {
         fluxCapacitorBuilder.makeApplicationInstance(false);
-        Client client = getBean(Client.class).orElseGet(() -> getBean(WebSocketClient.Properties.class).<Client>map(
+        Client client = getBean(Client.class).orElseGet(() -> getBean(WebSocketClient.ClientConfig.class).<Client>map(
                 WebSocketClient::newInstance).orElse(null));
         if (client == null) {
             return TestFixture.createAsync(fluxCapacitorBuilder);

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016-2020 Flux Capacitor.
+ * Copyright (c) 2016-2021 Flux Capacitor.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -27,7 +27,7 @@ public class HighLevelJavaClientRunner extends AbstractClientBenchmark {
 
     public static void main(final String[] args) {
         HighLevelJavaClientRunner runner = new HighLevelJavaClientRunner(
-                1_000, WebSocketClient.Properties.builder()
+                1_000, WebSocketClient.ClientConfig.builder()
                 .name("benchmark-" + UUID.randomUUID())
                 .projectId("benchmark")
                 .serviceBaseUrl("https://flux-capacitor.sloppy.zone")
@@ -40,13 +40,13 @@ public class HighLevelJavaClientRunner extends AbstractClientBenchmark {
 
     public HighLevelJavaClientRunner(int commandCount) {
         super(commandCount);
-        fluxCapacitor = DefaultFluxCapacitor.builder().build(WebSocketClient.newInstance(getClientProperties()));
+        fluxCapacitor = DefaultFluxCapacitor.builder().build(WebSocketClient.newInstance(getClientConfig()));
         fluxCapacitor.registerHandlers(this);
     }
 
-    public HighLevelJavaClientRunner(int commandCount, WebSocketClient.Properties clientProperties) {
-        super(commandCount, clientProperties);
-        fluxCapacitor = DefaultFluxCapacitor.builder().build(WebSocketClient.newInstance(clientProperties));
+    public HighLevelJavaClientRunner(int commandCount, WebSocketClient.ClientConfig clientConfig) {
+        super(commandCount, clientConfig);
+        fluxCapacitor = DefaultFluxCapacitor.builder().build(WebSocketClient.newInstance(clientConfig));
         fluxCapacitor.registerHandlers(this);
     }
 

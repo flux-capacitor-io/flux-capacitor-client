@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016-2020 Flux Capacitor.
+ * Copyright (c) 2016-2021 Flux Capacitor.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -30,17 +30,17 @@ import static java.lang.Thread.currentThread;
 public abstract class AbstractClientBenchmark {
 
     private final CountDownLatch commandCountDownLatch;
-    private final WebSocketClient.Properties clientProperties;
+    private final WebSocketClient.ClientConfig clientConfig;
     private final int commandCount;
 
-    public AbstractClientBenchmark(int commandCount, WebSocketClient.Properties clientProperties) {
+    public AbstractClientBenchmark(int commandCount, WebSocketClient.ClientConfig clientConfig) {
         this.commandCount = commandCount;
         this.commandCountDownLatch = new CountDownLatch(commandCount);
-        this.clientProperties = clientProperties;
+        this.clientConfig = clientConfig;
     }
 
     public AbstractClientBenchmark(int commandCount) {
-        this(commandCount, WebSocketClient.Properties.builder().name("benchmark-" + UUID.randomUUID())
+        this(commandCount, WebSocketClient.ClientConfig.builder().name("benchmark-" + UUID.randomUUID())
                      .serviceBaseUrl("ws://localhost:8081").build());
     }
 

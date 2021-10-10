@@ -36,7 +36,7 @@ import org.springframework.test.context.junit.jupiter.SpringExtension;
 import java.util.concurrent.CompletableFuture;
 
 @ExtendWith(SpringExtension.class)
-@DirtiesContext(methodMode = DirtiesContext.MethodMode.AFTER_METHOD)
+@DirtiesContext
 @ContextConfiguration(classes = {FluxCapacitorTestConfig.class, TestServerTest.FooConfig.class, TestServerTest.BarConfig.class})
 @Slf4j
 class TestServerTest {
@@ -62,8 +62,8 @@ class TestServerTest {
     @Configuration
     static class FooConfig {
         @Bean
-        public WebSocketClient.Properties webSocketClientProperties() {
-            return WebSocketClient.Properties.builder()
+        public WebSocketClient.ClientConfig webSocketClientProperties() {
+            return WebSocketClient.ClientConfig.builder()
                     .serviceBaseUrl("http://localhost:8888")
                     .projectId("clienttest")
                     .name("GivenWhenThenSpringCustomClientTest")

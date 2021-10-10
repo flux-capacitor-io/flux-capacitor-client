@@ -28,4 +28,9 @@ public class ClaimSegment extends Read {
         super(consumer, trackerId, 0, maxTimeout, typeFilter, ignoreMessageTarget, false,
               strategy, lastIndex, purgeTimeout);
     }
+
+    public ClaimSegment(Read read) {
+        this(read.getConsumer(), read.getTrackerId(), read.getMaxTimeout(), read.getTypeFilter(),
+             read.isIgnoreMessageTarget(), read.getStrategy(), read.getLastIndex(), read.getPurgeTimeout());
+    }
 }

@@ -14,11 +14,16 @@
 
 package io.fluxcapacitor.javaclient.publishing.client;
 
-import io.fluxcapacitor.common.*;
+import io.fluxcapacitor.common.Awaitable;
+import io.fluxcapacitor.common.Backlog;
+import io.fluxcapacitor.common.Guarantee;
+import io.fluxcapacitor.common.MessageType;
+import io.fluxcapacitor.common.Registration;
 import io.fluxcapacitor.common.api.SerializedMessage;
 import io.fluxcapacitor.common.api.publishing.Append;
 import io.fluxcapacitor.javaclient.common.websocket.AbstractWebsocketClient;
-import io.fluxcapacitor.javaclient.configuration.client.WebSocketClient.Properties;
+import io.fluxcapacitor.javaclient.configuration.client.WebSocketClient;
+import io.fluxcapacitor.javaclient.configuration.client.WebSocketClient.ClientConfig;
 
 import javax.websocket.ClientEndpoint;
 import java.net.URI;
@@ -33,16 +38,16 @@ public class WebsocketGatewayClient extends AbstractWebsocketClient implements G
     private final Backlog<SerializedMessage> sendBacklog;
     private final Backlog<SerializedMessage> storeBacklog;
 
-    public WebsocketGatewayClient(String endPointUrl, Properties properties, MessageType type) {
-        this(URI.create(endPointUrl), 1024, properties, type);
+    public WebsocketGatewayClient(String endPointUrl, ClientConfig clientConfig, MessageType type) {
+        this(URI.create(endPointUrl), 1024, clientConfig, type);
     }
 
-    public WebsocketGatewayClient(String endPointUrl, int backlogSize, Properties properties, MessageType type) {
-        this(URI.create(endPointUrl), backlogSize, properties, type);
+    public WebsocketGatewayClient(String endPointUrl, int backlogSize, WebSocketClient.ClientConfig clientConfig, MessageType type) {
+        this(URI.create(endPointUrl), backlogSize, clientConfig, type);
     }
 
-    public WebsocketGatewayClient(URI endPointUri, int backlogSize, Properties properties, MessageType type) {
-        super(endPointUri, properties, type != METRICS, properties.getGatewaySessions().get(type));
+    public WebsocketGatewayClient(URI endPointUri, int backlogSize, WebSocketClient.ClientConfig clientConfig, MessageType type) {
+        super(endPointUri, clientConfig, type != METRICS, clientConfig.getGatewaySessions().get(type));
         this.sendBacklog = new Backlog<>(this::doSend, backlogSize);
         this.storeBacklog = new Backlog<>(this::doStore, backlogSize);
     }

@@ -17,6 +17,8 @@ package io.fluxcapacitor.javaclient.tracking.client;
 import io.fluxcapacitor.common.Awaitable;
 import io.fluxcapacitor.common.MessageType;
 import io.fluxcapacitor.common.api.SerializedMessage;
+import io.fluxcapacitor.common.api.tracking.ClaimSegment;
+import io.fluxcapacitor.common.api.tracking.ClaimSegmentResult;
 import io.fluxcapacitor.common.api.tracking.DisconnectTracker;
 import io.fluxcapacitor.common.api.tracking.GetPosition;
 import io.fluxcapacitor.common.api.tracking.GetPositionResult;
@@ -29,7 +31,7 @@ import io.fluxcapacitor.common.api.tracking.ReadResult;
 import io.fluxcapacitor.common.api.tracking.ResetPosition;
 import io.fluxcapacitor.common.api.tracking.StorePosition;
 import io.fluxcapacitor.javaclient.common.websocket.AbstractWebsocketClient;
-import io.fluxcapacitor.javaclient.configuration.client.WebSocketClient.Properties;
+import io.fluxcapacitor.javaclient.configuration.client.WebSocketClient.ClientConfig;
 import io.fluxcapacitor.javaclient.tracking.ConsumerConfiguration;
 
 import javax.websocket.ClientEndpoint;
@@ -45,24 +47,32 @@ import static io.fluxcapacitor.common.MessageType.METRICS;
 @ClientEndpoint
 public class WebsocketTrackingClient extends AbstractWebsocketClient implements TrackingClient {
 
-    public WebsocketTrackingClient(String endPointUrl, Properties properties, MessageType type) {
-        this(URI.create(endPointUrl), properties, type);
+    public WebsocketTrackingClient(String endPointUrl, ClientConfig clientConfig, MessageType type) {
+        this(URI.create(endPointUrl), clientConfig, type);
     }
 
-    public WebsocketTrackingClient(URI endPointUri, Properties properties, MessageType type) {
-        super(endPointUri, properties, type != METRICS, properties.getTrackingSessions().get(type));
+    public WebsocketTrackingClient(URI endPointUri, ClientConfig clientConfig, MessageType type) {
+        super(endPointUri, clientConfig, type != METRICS, clientConfig.getTrackingConfigs().get(type).getSessions());
     }
 
     @Override
     public CompletableFuture<MessageBatch> read(String consumer, String trackerId, Long lastIndex,
                                                 ConsumerConfiguration configuration) {
         return this.<ReadResult>send(new Read(
-                consumer, trackerId, configuration.getMaxFetchBatchSize(),
-                configuration.getMaxWaitDuration().toMillis(), configuration.getTypeFilter(),
-                configuration.ignoreMessageTarget(), configuration.ignoreSegment(),
-                configuration.getReadStrategy(), lastIndex,
-                Optional.ofNullable(configuration.getPurgeDelay()).map(Duration::toMillis).orElse(null)))
+                        consumer, trackerId, configuration.getMaxFetchBatchSize(),
+                        configuration.getMaxWaitDuration().toMillis(), configuration.getTypeFilter(),
+                        configuration.ignoreMessageTarget(), configuration.ignoreSegment(),
+                        configuration.getReadStrategy(), lastIndex,
+                        Optional.ofNullable(configuration.getPurgeDelay()).map(Duration::toMillis).orElse(null)))
                 .thenApply(ReadResult::getMessageBatch);
+    }
+
+    public CompletableFuture<ClaimSegmentResult> claimSegment(String consumer, String trackerId, Long lastIndex,
+                                           ConsumerConfiguration config) {
+        return send(new ClaimSegment(
+                consumer, trackerId, config.getMaxWaitDuration().toMillis(), config.getTypeFilter(),
+                config.ignoreMessageTarget(), config.getReadStrategy(), lastIndex,
+                Optional.ofNullable(config.getPurgeDelay()).map(Duration::toMillis).orElse(null)));
     }
 
     @Override

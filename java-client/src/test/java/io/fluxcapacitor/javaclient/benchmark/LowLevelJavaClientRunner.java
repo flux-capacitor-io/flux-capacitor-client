@@ -45,7 +45,7 @@ public class LowLevelJavaClientRunner extends AbstractClientBenchmark {
     public LowLevelJavaClientRunner(int commandCount) {
         super(commandCount);
 
-        client = WebSocketClient.newInstance(getClientProperties());
+        client = WebSocketClient.newInstance(getClientConfig());
         DefaultTracker.start(this::handleCommands, ConsumerConfiguration.getDefault(MessageType.COMMAND).toBuilder()
                 .prependApplicationName(false).name("javaClientRunner/command").build(), client
         );

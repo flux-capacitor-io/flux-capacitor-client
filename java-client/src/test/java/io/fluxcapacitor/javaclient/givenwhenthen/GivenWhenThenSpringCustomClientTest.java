@@ -60,8 +60,8 @@ class GivenWhenThenSpringCustomClientTest {
     @Configuration
     static class FooConfig {
         @Bean
-        public WebSocketClient.Properties webSocketClientProperties() {
-            return WebSocketClient.Properties.builder()
+        public WebSocketClient.ClientConfig webSocketClientProperties() {
+            return WebSocketClient.ClientConfig.builder()
                     .serviceBaseUrl("http://localhost:8080")
                     .projectId("clienttest")
                     .name("GivenWhenThenSpringCustomClientTest")

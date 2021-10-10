@@ -21,7 +21,7 @@ import io.fluxcapacitor.common.api.scheduling.CancelSchedule;
 import io.fluxcapacitor.common.api.scheduling.Schedule;
 import io.fluxcapacitor.common.api.scheduling.ScheduledMessage;
 import io.fluxcapacitor.javaclient.common.websocket.AbstractWebsocketClient;
-import io.fluxcapacitor.javaclient.configuration.client.WebSocketClient.Properties;
+import io.fluxcapacitor.javaclient.configuration.client.WebSocketClient.ClientConfig;
 import lombok.extern.slf4j.Slf4j;
 
 import javax.websocket.ClientEndpoint;
@@ -34,12 +34,12 @@ public class WebsocketSchedulingClient extends AbstractWebsocketClient implement
 
     private final Backlog<ScheduledMessage> backlog;
 
-    public WebsocketSchedulingClient(String endPointUrl, Properties properties) {
-        this(URI.create(endPointUrl), properties);
+    public WebsocketSchedulingClient(String endPointUrl, ClientConfig clientConfig) {
+        this(URI.create(endPointUrl), clientConfig);
     }
 
-    public WebsocketSchedulingClient(URI endpointUri, Properties properties) {
-        super(endpointUri, properties, true, properties.getGatewaySessions().get(MessageType.SCHEDULE));
+    public WebsocketSchedulingClient(URI endpointUri, ClientConfig clientConfig) {
+        super(endpointUri, clientConfig, true, clientConfig.getGatewaySessions().get(MessageType.SCHEDULE));
         backlog = new Backlog<>(this::scheduleMessages);
     }
 

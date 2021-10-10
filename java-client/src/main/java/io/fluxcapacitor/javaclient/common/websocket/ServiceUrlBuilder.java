@@ -20,43 +20,43 @@ import io.fluxcapacitor.javaclient.configuration.client.WebSocketClient;
 
 public class ServiceUrlBuilder {
 
-    public static String producerUrl(MessageType messageType, WebSocketClient.Properties clientProperties) {
-        return buildUrl(clientProperties, ServicePathBuilder.producerPath(messageType));
+    public static String producerUrl(MessageType messageType, WebSocketClient.ClientConfig clientConfig) {
+        return buildUrl(clientConfig, ServicePathBuilder.producerPath(messageType));
     }
 
-    public static String consumerUrl(MessageType messageType, WebSocketClient.Properties clientProperties) {
-        String url = buildUrl(clientProperties, ServicePathBuilder.consumerPath(messageType));
-        if (clientProperties.getTypeFilter() != null) {
-            url += "&typeFilter=" + clientProperties.getTypeFilter();
+    public static String consumerUrl(MessageType messageType, WebSocketClient.ClientConfig clientConfig) {
+        String url = buildUrl(clientConfig, ServicePathBuilder.consumerPath(messageType));
+        if (clientConfig.getTypeFilter() != null) {
+            url += "&typeFilter=" + clientConfig.getTypeFilter();
         }
         return url;
     }
 
-    public static String eventSourcingUrl(WebSocketClient.Properties clientProperties) {
-        return buildUrl(clientProperties, ServicePathBuilder.eventSourcingPath());
+    public static String eventSourcingUrl(WebSocketClient.ClientConfig clientConfig) {
+        return buildUrl(clientConfig, ServicePathBuilder.eventSourcingPath());
     }
 
-    public static String keyValueUrl(WebSocketClient.Properties clientProperties) {
-        return buildUrl(clientProperties, ServicePathBuilder.keyValuePath());
+    public static String keyValueUrl(WebSocketClient.ClientConfig clientConfig) {
+        return buildUrl(clientConfig, ServicePathBuilder.keyValuePath());
     }
 
-    public static String searchUrl(WebSocketClient.Properties clientProperties) {
-        return buildUrl(clientProperties, ServicePathBuilder.searchPath());
+    public static String searchUrl(WebSocketClient.ClientConfig clientConfig) {
+        return buildUrl(clientConfig, ServicePathBuilder.searchPath());
     }
 
-    public static String schedulingUrl(WebSocketClient.Properties clientProperties) {
-        return buildUrl(clientProperties, ServicePathBuilder.schedulingPath());
+    public static String schedulingUrl(WebSocketClient.ClientConfig clientConfig) {
+        return buildUrl(clientConfig, ServicePathBuilder.schedulingPath());
     }
 
-    public static String buildUrl(WebSocketClient.Properties clientProperties, String path) {
+    public static String buildUrl(WebSocketClient.ClientConfig clientConfig, String path) {
         String result = String.format("%s/%s?clientId=%s&clientName=%s",
-                             clientProperties.getServiceBaseUrl(), path,
-                             clientProperties.getId(), clientProperties.getName());
-        if (clientProperties.getProjectId() != null) {
-            result = String.format("%s&projectId=%s", result, clientProperties.getProjectId());
+                                      clientConfig.getServiceBaseUrl(), path,
+                                      clientConfig.getId(), clientConfig.getName());
+        if (clientConfig.getProjectId() != null) {
+            result = String.format("%s&projectId=%s", result, clientConfig.getProjectId());
         }
-        if (clientProperties.getCompression() != null) {
-            result = String.format("%s&compression=%s", result, clientProperties.getCompression());
+        if (clientConfig.getCompression() != null) {
+            result = String.format("%s&compression=%s", result, clientConfig.getCompression());
         }
         return result;
     }
