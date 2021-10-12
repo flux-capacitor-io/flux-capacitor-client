@@ -55,20 +55,35 @@ import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.ZoneId;
-import java.util.*;
-import java.util.concurrent.*;
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.UnaryOperator;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
-import static io.fluxcapacitor.common.MessageType.*;
+import static io.fluxcapacitor.common.MessageType.COMMAND;
+import static io.fluxcapacitor.common.MessageType.QUERY;
+import static io.fluxcapacitor.common.MessageType.SCHEDULE;
 import static io.fluxcapacitor.common.handling.HandlerConfiguration.defaultHandlerConfiguration;
 import static io.fluxcapacitor.javaclient.common.ClientUtils.isLocalHandlerMethod;
 import static java.util.Collections.emptyList;
 import static java.util.Collections.singletonList;
-import static java.util.stream.Collectors.*;
+import static java.util.stream.Collectors.toCollection;
+import static java.util.stream.Collectors.toList;
+import static java.util.stream.Collectors.toMap;
+import static java.util.stream.Collectors.toSet;
 
 @Slf4j
 public class TestFixture implements Given, When {
@@ -152,8 +167,8 @@ public class TestFixture implements Given, When {
             fluxCapacitorBuilder = fluxCapacitorBuilder.registerUserSupplier(userProvider.get());
         }
         this.interceptor = new GivenWhenThenInterceptor();
-        this.fluxCapacitor = fluxCapacitorBuilder.disableShutdownHook().addDispatchInterceptor(interceptor)
-                .addBatchInterceptor(interceptor).addHandlerInterceptor(interceptor).build(new TestClient(client));
+        this.fluxCapacitor = new TestFluxCapacitor(fluxCapacitorBuilder.disableShutdownHook().addDispatchInterceptor(interceptor)
+                .addBatchInterceptor(interceptor).addHandlerInterceptor(interceptor).build(new TestClient(client)));
         withClock(Clock.fixed(Instant.now(), ZoneId.systemDefault()));
         this.registration = registerHandlers(handlerFactory.apply(fluxCapacitor));
     }

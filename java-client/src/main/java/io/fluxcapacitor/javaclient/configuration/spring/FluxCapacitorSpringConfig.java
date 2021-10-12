@@ -25,7 +25,17 @@ import io.fluxcapacitor.javaclient.configuration.FluxCapacitorBuilder;
 import io.fluxcapacitor.javaclient.configuration.client.Client;
 import io.fluxcapacitor.javaclient.configuration.client.InMemoryClient;
 import io.fluxcapacitor.javaclient.configuration.client.WebSocketClient;
+import io.fluxcapacitor.javaclient.modeling.AggregateRepository;
 import io.fluxcapacitor.javaclient.persisting.caching.Cache;
+import io.fluxcapacitor.javaclient.persisting.keyvalue.KeyValueStore;
+import io.fluxcapacitor.javaclient.persisting.search.DocumentStore;
+import io.fluxcapacitor.javaclient.publishing.CommandGateway;
+import io.fluxcapacitor.javaclient.publishing.ErrorGateway;
+import io.fluxcapacitor.javaclient.publishing.EventGateway;
+import io.fluxcapacitor.javaclient.publishing.MetricsGateway;
+import io.fluxcapacitor.javaclient.publishing.QueryGateway;
+import io.fluxcapacitor.javaclient.publishing.ResultGateway;
+import io.fluxcapacitor.javaclient.scheduling.Scheduler;
 import io.fluxcapacitor.javaclient.tracking.handling.authentication.UserProvider;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.BeansException;
@@ -104,6 +114,66 @@ public class FluxCapacitorSpringConfig implements BeanPostProcessor {
             return InMemoryClient.newInstance();
         }));
         return builder.build(client);
+    }
+
+    @Bean
+    @ConditionalOnMissingBean
+    public AggregateRepository aggregateRepository(FluxCapacitor fluxCapacitor) {
+        return fluxCapacitor.aggregateRepository();
+    }
+
+    @Bean
+    @ConditionalOnMissingBean
+    public Scheduler scheduler(FluxCapacitor fluxCapacitor) {
+        return fluxCapacitor.scheduler();
+    }
+
+    @Bean
+    @ConditionalOnMissingBean
+    public CommandGateway commandGateway(FluxCapacitor fluxCapacitor) {
+        return fluxCapacitor.commandGateway();
+    }
+
+    @Bean
+    @ConditionalOnMissingBean
+    public EventGateway eventGateway(FluxCapacitor fluxCapacitor) {
+        return fluxCapacitor.eventGateway();
+    }
+
+    @Bean
+    @ConditionalOnMissingBean
+    public QueryGateway queryGateway(FluxCapacitor fluxCapacitor) {
+        return fluxCapacitor.queryGateway();
+    }
+
+    @Bean
+    @ConditionalOnMissingBean
+    public ErrorGateway errorGateway(FluxCapacitor fluxCapacitor) {
+        return fluxCapacitor.errorGateway();
+    }
+
+    @Bean
+    @ConditionalOnMissingBean
+    public MetricsGateway metricsGateway(FluxCapacitor fluxCapacitor) {
+        return fluxCapacitor.metricsGateway();
+    }
+
+    @Bean
+    @ConditionalOnMissingBean
+    public ResultGateway resultGateway(FluxCapacitor fluxCapacitor) {
+        return fluxCapacitor.resultGateway();
+    }
+
+    @Bean
+    @ConditionalOnMissingBean
+    public KeyValueStore keyValueStore(FluxCapacitor fluxCapacitor) {
+        return fluxCapacitor.keyValueStore();
+    }
+
+    @Bean
+    @ConditionalOnMissingBean
+    public DocumentStore documentStore(FluxCapacitor fluxCapacitor) {
+        return fluxCapacitor.documentStore();
     }
 
     protected <T> Optional<T> getBean(Class<T> type) {
