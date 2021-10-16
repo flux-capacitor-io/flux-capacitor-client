@@ -86,17 +86,27 @@ public class FluxCapacitorSpringConfigTest {
 
     @Test
     void testDefaultCacheReplaced() {
-        assertTrue(fluxCapacitor.cache() instanceof Config.CustomCache);
+        assertTrue(fluxCapacitor.cache() instanceof CustomCache);
+    }
+
+    @Test
+    void testConditionalPropertyMissing() {
+        assertThrows(NoSuchBeanDefinitionException.class, () -> beanFactory.getBean(ConditionalPropertyMissing.class));
+    }
+
+    @Test
+    void testConditionalPropertyPresent() {
+        assertNotNull(beanFactory.getBean(ConditionalPropertyPresent.class));
     }
 
     @Test
     void testConditionalComponentMissing() {
-        assertThrows(NoSuchBeanDefinitionException.class, () -> beanFactory.getBean(ConditionalComponentMissing.class));
+        assertThrows(NoSuchBeanDefinitionException.class, () -> beanFactory.getBean(ConditionalBeanMissing.class));
     }
 
     @Test
-    void testConditionalComponentPresentIfPropertyExists() {
-        assertNotNull(beanFactory.getBean(ConditionalComponentPresent.class));
+    void testConditionalComponentPresent() {
+        assertNotNull(beanFactory.getBean(ConditionalBeanPresent.class));
     }
 
     @Component
@@ -135,17 +145,16 @@ public class FluxCapacitorSpringConfigTest {
         }
 
         @Bean
+        @ConditionalOnMissingBean
         public UserProvider userProvider() {
             return mockUserProvider;
         }
 
-        @Bean
-        public CustomCache cache() {
-            return new CustomCache();
-        }
+    }
 
-        private static class CustomCache extends DefaultCache {
-        }
+    @Component
+    @ConditionalOnMissingBean
+    private static class CustomCache extends DefaultCache {
     }
 
     @Value
@@ -155,13 +164,25 @@ public class FluxCapacitorSpringConfigTest {
     @Value
     @ConditionalOnProperty("missingProperty")
     @Component
-    public static class ConditionalComponentMissing {
+    public static class ConditionalPropertyMissing {
     }
 
     @Value
     @ConditionalOnProperty("existingProperty")
     @Component
-    public static class ConditionalComponentPresent {
+    public static class ConditionalPropertyPresent {
+    }
+
+    @Value
+    @ConditionalOnBean(ConditionalPropertyPresent.class)
+    @Component
+    public static class ConditionalBeanPresent {
+    }
+
+    @Value
+    @ConditionalOnBean(ConditionalPropertyMissing.class)
+    @Component
+    public static class ConditionalBeanMissing {
     }
 
 }

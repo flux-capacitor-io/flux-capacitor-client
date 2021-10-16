@@ -14,10 +14,10 @@
 
 package io.fluxcapacitor.javaclient.configuration.spring;
 
-import lombok.SneakyThrows;
+import org.springframework.beans.factory.BeanFactoryUtils;
 import org.springframework.context.annotation.ConditionContext;
 import org.springframework.context.annotation.Conditional;
-import org.springframework.core.Ordered;
+import org.springframework.context.annotation.ConfigurationCondition;
 import org.springframework.core.annotation.Order;
 import org.springframework.core.type.AnnotatedTypeMetadata;
 
@@ -28,21 +28,23 @@ import java.lang.annotation.Target;
 
 @Target({ElementType.METHOD, ElementType.TYPE})
 @Retention(RetentionPolicy.RUNTIME)
-@Conditional(ConditionalOnProperty.Condition.class)
-public @interface ConditionalOnProperty {
+@Conditional(ConditionalOnBean.Condition.class)
+public @interface ConditionalOnBean {
 
-    String value();
-    String pattern() default ".*";
+    Class<?> value();
 
-    @Order(Ordered.HIGHEST_PRECEDENCE)
+    @Order
     @SuppressWarnings({"NullableProblems", "ConstantConditions"})
-    class Condition implements org.springframework.context.annotation.Condition {
+    class Condition implements ConfigurationCondition {
         @Override
-        @SneakyThrows
         public boolean matches(ConditionContext context, AnnotatedTypeMetadata metadata) {
-            String value = System.getProperty(metadata.getAllAnnotationAttributes(ConditionalOnProperty.class.getName()).getFirst("value").toString());
-            String pattern = metadata.getAllAnnotationAttributes(ConditionalOnProperty.class.getName()).getFirst("pattern").toString();
-            return value != null && value.matches(pattern);
+            Class<?> type = (Class<?>) metadata.getAllAnnotationAttributes(ConditionalOnBean.class.getName()).getFirst("value");
+            return BeanFactoryUtils.beanNamesForTypeIncludingAncestors(context.getBeanFactory(), type).length != 0;
+        }
+
+        @Override
+        public ConfigurationPhase getConfigurationPhase() {
+            return ConfigurationPhase.REGISTER_BEAN;
         }
     }
 

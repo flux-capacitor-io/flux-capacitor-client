@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016-2020 Flux Capacitor.
+ * Copyright (c) 2016-2021 Flux Capacitor.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -27,18 +27,25 @@ import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
-@Target(ElementType.METHOD)
+@Target({ElementType.METHOD, ElementType.TYPE})
 @Retention(RetentionPolicy.RUNTIME)
 @Conditional(ConditionalOnMissingBean.Condition.class)
 public @interface ConditionalOnMissingBean {
 
+    @SuppressWarnings({"NullableProblems", "ConstantConditions"})
     class Condition implements org.springframework.context.annotation.Condition {
         @Override
         @SneakyThrows
         public boolean matches(ConditionContext context, AnnotatedTypeMetadata metadata) {
+            if (metadata instanceof MethodMetadata) {
+                Class<?> type =
+                        ClassUtils.forName(((MethodMetadata) metadata).getReturnTypeName(), context.getClassLoader());
+                return BeanFactoryUtils.beanNamesForTypeIncludingAncestors(context.getBeanFactory(), type).length == 0;
+            }
             Class<?> type =
-                    ClassUtils.forName(((MethodMetadata) metadata).getReturnTypeName(), context.getClassLoader());
-            return BeanFactoryUtils.beanNamesForTypeIncludingAncestors(context.getBeanFactory(), type).length == 0;
+                    ClassUtils.forName(metadata.getAnnotations().get(ConditionalOnMissingBean.class).getSource().toString(), context.getClassLoader());
+            String[] beanNames = BeanFactoryUtils.beanNamesForTypeIncludingAncestors(context.getBeanFactory(), type);
+            return beanNames.length == 0;
         }
     }
 
