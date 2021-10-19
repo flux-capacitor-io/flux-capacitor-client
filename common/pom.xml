@@ -63,14 +63,6 @@
             <version>1.8.0</version>
         </dependency>
 
-        <!--websocket api-->
-        <dependency>
-            <groupId>javax.websocket</groupId>
-            <artifactId>javax.websocket-api</artifactId>
-            <version>1.1</version>
-            <scope>provided</scope>
-        </dependency>
-
         <!--for their reflection utils-->
         <dependency>
             <groupId>org.apache.commons</groupId>
