@@ -64,7 +64,7 @@ class TestServerTest {
         @Bean
         public WebSocketClient.ClientConfig webSocketClientProperties() {
             return WebSocketClient.ClientConfig.builder()
-                    .serviceBaseUrl("http://localhost:8888")
+                    .serviceBaseUrl("ws://localhost:8888")
                     .projectId("clienttest")
                     .name("GivenWhenThenSpringCustomClientTest")
                     .build();

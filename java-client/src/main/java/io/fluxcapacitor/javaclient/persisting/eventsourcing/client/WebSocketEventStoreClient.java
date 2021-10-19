@@ -28,7 +28,6 @@ import io.fluxcapacitor.javaclient.configuration.client.WebSocketClient;
 import io.fluxcapacitor.javaclient.configuration.client.WebSocketClient.ClientConfig;
 import io.fluxcapacitor.javaclient.persisting.eventsourcing.AggregateEventStream;
 
-import javax.websocket.ClientEndpoint;
 import java.net.URI;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
@@ -37,7 +36,6 @@ import java.util.stream.Stream;
 
 import static io.fluxcapacitor.common.ObjectUtils.iterate;
 
-@ClientEndpoint
 public class WebSocketEventStoreClient extends AbstractWebsocketClient implements EventStoreClient {
 
     private final Backlog<EventBatch> backlog;

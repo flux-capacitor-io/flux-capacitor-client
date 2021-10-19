@@ -192,10 +192,15 @@ public class DefaultFluxCapacitor implements FluxCapacitor {
     public void close() {
         if (closed.compareAndSet(false, true)) {
             log.info("Initiating controlled shutdown");
-            cleanupTasks.forEach(ClientUtils::tryRun);
-            shutdownHandler.run();
-            if (FluxCapacitor.applicationInstance.get() == this) {
-                FluxCapacitor.applicationInstance.set(null);
+            try {
+                cleanupTasks.forEach(ClientUtils::tryRun);
+                shutdownHandler.run();
+            } catch (Exception e) {
+                log.error("Encountered an error during shutdown", e);
+            } finally {
+                if (FluxCapacitor.applicationInstance.get() == this) {
+                    FluxCapacitor.applicationInstance.set(null);
+                }
             }
             log.info("Completed shutdown");
         }

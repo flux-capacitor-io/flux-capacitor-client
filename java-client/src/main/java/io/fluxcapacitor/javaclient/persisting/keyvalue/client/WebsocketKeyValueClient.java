@@ -30,7 +30,6 @@ import io.fluxcapacitor.javaclient.common.websocket.AbstractWebsocketClient;
 import io.fluxcapacitor.javaclient.configuration.client.WebSocketClient;
 import lombok.extern.slf4j.Slf4j;
 
-import javax.websocket.ClientEndpoint;
 import java.net.URI;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
@@ -38,7 +37,6 @@ import java.util.concurrent.CompletableFuture;
 import static java.util.Collections.singletonList;
 
 @Slf4j
-@ClientEndpoint
 public class WebsocketKeyValueClient extends AbstractWebsocketClient implements KeyValueClient {
 
     private final Backlog<KeyValuePair> backlog;

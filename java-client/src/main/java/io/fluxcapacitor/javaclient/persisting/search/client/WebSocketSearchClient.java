@@ -44,7 +44,6 @@ import io.fluxcapacitor.javaclient.configuration.client.WebSocketClient;
 import io.fluxcapacitor.javaclient.persisting.search.SearchHit;
 import lombok.extern.slf4j.Slf4j;
 
-import javax.websocket.ClientEndpoint;
 import java.net.URI;
 import java.time.Instant;
 import java.util.Collection;
@@ -58,7 +57,6 @@ import java.util.stream.Stream;
 import static io.fluxcapacitor.common.ObjectUtils.deduplicate;
 
 @Slf4j
-@ClientEndpoint
 public class WebSocketSearchClient extends AbstractWebsocketClient implements SearchClient {
     private final Backlog<Document> sendBacklog;
     private final Backlog<Document> sendIfNotExistsBacklog;

@@ -34,7 +34,6 @@ import io.fluxcapacitor.javaclient.common.websocket.AbstractWebsocketClient;
 import io.fluxcapacitor.javaclient.configuration.client.WebSocketClient.ClientConfig;
 import io.fluxcapacitor.javaclient.tracking.ConsumerConfiguration;
 
-import javax.websocket.ClientEndpoint;
 import java.net.URI;
 import java.time.Duration;
 import java.util.List;
@@ -44,7 +43,6 @@ import java.util.concurrent.CompletableFuture;
 import static io.fluxcapacitor.common.Awaitable.fromFuture;
 import static io.fluxcapacitor.common.MessageType.METRICS;
 
-@ClientEndpoint
 public class WebsocketTrackingClient extends AbstractWebsocketClient implements TrackingClient {
 
     public WebsocketTrackingClient(String endPointUrl, ClientConfig clientConfig, MessageType type) {

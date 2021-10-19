@@ -24,12 +24,10 @@ import io.fluxcapacitor.javaclient.common.websocket.AbstractWebsocketClient;
 import io.fluxcapacitor.javaclient.configuration.client.WebSocketClient.ClientConfig;
 import lombok.extern.slf4j.Slf4j;
 
-import javax.websocket.ClientEndpoint;
 import java.net.URI;
 import java.util.List;
 
 @Slf4j
-@ClientEndpoint
 public class WebsocketSchedulingClient extends AbstractWebsocketClient implements SchedulingClient {
 
     private final Backlog<ScheduledMessage> backlog;
