@@ -59,6 +59,7 @@ import static java.lang.Thread.currentThread;
 import static java.lang.Thread.sleep;
 import static java.net.http.HttpClient.newHttpClient;
 import static java.nio.ByteBuffer.wrap;
+import static java.util.Optional.ofNullable;
 
 @Slf4j
 public abstract class AbstractWebsocketClient implements Listener, AutoCloseable {
@@ -83,14 +84,16 @@ public abstract class AbstractWebsocketClient implements Listener, AutoCloseable
 
     public AbstractWebsocketClient(URI endpointUri, ClientConfig clientConfig, boolean sendMetrics,
                                    int numberOfSessions) {
-        this(endpointUri, clientConfig, sendMetrics, Duration.ofSeconds(1), defaultObjectMapper, numberOfSessions);
+        this(endpointUri, clientConfig, sendMetrics, Duration.ofSeconds(5), Duration.ofSeconds(1),
+             defaultObjectMapper, numberOfSessions);
     }
 
-    public AbstractWebsocketClient(URI endpointUri, ClientConfig clientConfig,
-                                   boolean sendMetrics, Duration reconnectDelay, ObjectMapper objectMapper,
+    public AbstractWebsocketClient(URI endpointUri, ClientConfig clientConfig, boolean sendMetrics,
+                                   Duration connectTimeout, Duration reconnectDelay, ObjectMapper objectMapper,
                                    int numberOfSessions) {
         this(endpointUri, clientConfig, sendMetrics, objectMapper, WebSocketPool.builder(
-                httpClient.newWebSocketBuilder()).reconnectDelay(reconnectDelay).sessionCount(numberOfSessions));
+                        httpClient.newWebSocketBuilder()).connectTimeout(connectTimeout)
+                .reconnectDelay(reconnectDelay).sessionCount(numberOfSessions));
     }
 
     @SneakyThrows
@@ -133,14 +136,11 @@ public abstract class AbstractWebsocketClient implements Listener, AutoCloseable
                     ? metadata.with("requestId", ((Request) r).getRequestId()) : metadata);
         });
         JsonType object = requests.size() == 1 ? requests.get(0) : new RequestBatch<>(requests);
-        try {
-            CompletableFuture<WebSocket> sender = webSocket.sendBinary(
-                    wrap(compress(objectMapper.writeValueAsBytes(object), clientConfig.getCompression())), true);
-            webSocketRequests.forEach(r -> r.sender = sender);
-        } catch (Exception e) {
-            log.error("Failed to send request {}", object, e);
-            throw e;
-        }
+        CompletableFuture<WebSocket> sender = webSocket.sendBinary(
+                        wrap(compress(objectMapper.writeValueAsBytes(object), clientConfig.getCompression())), true)
+                .whenComplete((s, error) -> ofNullable(error).ifPresent(
+                        e -> log.error("Failed to send request {}", object, e)));
+        webSocketRequests.forEach(r -> r.sender = sender);
         return Awaitable.ready();
     }
 

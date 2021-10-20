@@ -16,10 +16,8 @@ package io.fluxcapacitor.javaclient.common.websocket;
 
 import io.fluxcapacitor.common.RetryConfiguration;
 import lombok.AllArgsConstructor;
-import lombok.RequiredArgsConstructor;
 import lombok.Setter;
 import lombok.experimental.Accessors;
-import lombok.experimental.Delegate;
 import lombok.extern.slf4j.Slf4j;
 
 import java.io.ByteArrayOutputStream;
@@ -222,15 +220,35 @@ public class WebSocketPool implements WebSocket, AutoCloseable {
         }
     }
 
-    @RequiredArgsConstructor
     @Setter
     @Accessors(chain = true, fluent = true)
     protected static class Builder implements WebSocket.Builder {
 
-        @Delegate(excludes = ExcludedMethods.class)
-        private final WebSocket.Builder delegate;
+        private WebSocket.Builder delegate;
         private int sessionCount = 1;
         private Duration reconnectDelay = Duration.ofSeconds(1);
+
+        public Builder(WebSocket.Builder delegate) {
+            this.delegate = delegate;
+        }
+
+        @Override
+        public Builder header(String name, String value) {
+            delegate.header(name, value);
+            return this;
+        }
+
+        @Override
+        public Builder connectTimeout(Duration timeout) {
+            delegate.connectTimeout(timeout);
+            return this;
+        }
+
+        @Override
+        public Builder subprotocols(String mostPreferred, String... lesserPreferred) {
+            delegate.subprotocols(mostPreferred, lesserPreferred);
+            return this;
+        }
 
         @Override
         public CompletableFuture<WebSocket> buildAsync(URI uri, Listener listener) {
@@ -239,10 +257,6 @@ public class WebSocketPool implements WebSocket, AutoCloseable {
 
         public WebSocket build(URI uri, Listener listener) {
             return new WebSocketPool(this, uri, listener);
-        }
-
-        private interface ExcludedMethods {
-            CompletableFuture<WebSocket> buildAsync(URI uri, Listener listener);
         }
     }
 }
