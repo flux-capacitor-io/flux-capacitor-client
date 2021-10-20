@@ -47,6 +47,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.stream.Collectors;
 
 import static com.fasterxml.jackson.databind.DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES;
 import static com.fasterxml.jackson.databind.SerializationFeature.WRITE_DATES_AS_TIMESTAMPS;
@@ -139,7 +140,10 @@ public abstract class AbstractWebsocketClient implements Listener, AutoCloseable
         CompletableFuture<WebSocket> sender = webSocket.sendBinary(
                         wrap(compress(objectMapper.writeValueAsBytes(object), clientConfig.getCompression())), true)
                 .whenComplete((s, error) -> ofNullable(error).ifPresent(
-                        e -> log.error("Failed to send request {}", object, e)));
+                        e -> {
+                            log.error("Failed to send request {}", object, e);
+                            webSocketRequests.forEach(r -> r.result.completeExceptionally(e));
+                        }));
         webSocketRequests.forEach(r -> r.sender = sender);
         return Awaitable.ready();
     }
@@ -211,6 +215,11 @@ public abstract class AbstractWebsocketClient implements Listener, AutoCloseable
     }
 
     protected void retryOutstandingRequests(WebSocket webSocket) {
+        retryRequests(requests.values().stream().filter(r -> webSocket.equals(r.sender.getNow(null)))
+                              .collect(Collectors.toList()));
+    }
+
+    protected void retryRequests(Collection<WebSocketRequest> requests) {
         if (!closed.get() && !requests.isEmpty()) {
             try {
                 sleep(1_000);
@@ -218,8 +227,7 @@ public abstract class AbstractWebsocketClient implements Listener, AutoCloseable
                 currentThread().interrupt();
                 throw new IllegalStateException("Thread interrupted while trying to retry outstanding requests", e);
             }
-            requests.values().stream().filter(r -> webSocket.equals(r.sender.getNow(null))).forEach(
-                    AbstractWebsocketClient.WebSocketRequest::send);
+            requests.forEach(AbstractWebsocketClient.WebSocketRequest::send);
         }
     }
 
