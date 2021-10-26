@@ -210,7 +210,6 @@ public class RetryingWebSocket implements WebSocket, WebSocketSupplier {
     protected static class Builder implements WebSocket.Builder {
 
         private WebSocket.Builder delegate;
-        private int sessionCount = 1;
         private Duration reconnectDelay = Duration.ofSeconds(1);
 
         public Builder(WebSocket.Builder delegate) {
