@@ -14,7 +14,6 @@
 
 package io.fluxcapacitor.javaclient.common.websocket;
 
-import io.fluxcapacitor.common.RetryConfiguration;
 import lombok.AllArgsConstructor;
 import lombok.Setter;
 import lombok.experimental.Accessors;
@@ -25,7 +24,6 @@ import java.net.URI;
 import java.net.http.WebSocket;
 import java.nio.ByteBuffer;
 import java.time.Duration;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
@@ -34,13 +32,13 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Supplier;
-import java.util.stream.IntStream;
 
-import static io.fluxcapacitor.common.TimingUtils.retryOnFailure;
-import static java.util.stream.Collectors.toCollection;
+import static io.fluxcapacitor.common.ObjectUtils.asSupplier;
+import static java.util.stream.Collectors.toList;
+import static java.util.stream.IntStream.range;
 
 @Slf4j
-public class WebSocketPool implements WebSocket, AutoCloseable {
+public class WebSocketPool implements WebSocket, WebSocketSupplier {
 
     public static Builder builder(WebSocket.Builder delegate) {
         return new Builder(delegate);
@@ -49,52 +47,37 @@ public class WebSocketPool implements WebSocket, AutoCloseable {
     private final AtomicBoolean closed = new AtomicBoolean();
     private final AtomicInteger counter = new AtomicInteger();
 
-    private final Listener listener;
     private final Supplier<WebSocket> socketFactory;
     private final List<AtomicReference<WebSocket>> sockets;
 
-    protected WebSocketPool(Builder builder, URI uri, Listener listener) {
-        this.listener = listener;
-        this.socketFactory = () -> retryOnFailure(
-                () -> builder.delegate.buildAsync(uri, new SocketListener()).get(),
-                RetryConfiguration.builder()
-                        .delay(builder.reconnectDelay)
-                        .errorTest(e -> !closed.get())
-                        .successLogger(s -> log.info("Successfully reconnected to endpoint {}", uri))
-                        .exceptionLogger(status -> {
-                            if (status.getNumberOfTimesRetried() == 0) {
-                                log.warn("Failed to connect to endpoint {}; reason: {}. Retrying every {} ms...",
-                                         uri, status.getException().getMessage(),
-                                         status.getRetryConfiguration().getDelay().toMillis());
-                            }
-                        }).build());
-        this.sockets = IntStream.range(0, builder.sessionCount).mapToObj(i -> new AtomicReference<WebSocket>()).collect(
-                toCollection(ArrayList::new));
+    protected WebSocketPool(WebSocket.Builder builder, int sessionCount, URI uri, Listener listener) {
+        this.socketFactory = asSupplier(() -> builder.buildAsync(uri, new SocketListener(listener)).get());
+        this.sockets = range(0, sessionCount).mapToObj(i -> new AtomicReference<WebSocket>()).collect(toList());
     }
 
     @Override
     public CompletableFuture<WebSocket> sendText(CharSequence data, boolean last) {
-        return getSocket().sendText(data, last);
+        return get().sendText(data, last);
     }
 
     @Override
     public CompletableFuture<WebSocket> sendBinary(ByteBuffer data, boolean last) {
-        return getSocket().sendBinary(data, last);
+        return get().sendBinary(data, last);
     }
 
     @Override
     public CompletableFuture<WebSocket> sendPing(ByteBuffer message) {
-        return getSocket().sendPing(message);
+        return get().sendPing(message);
     }
 
     @Override
     public CompletableFuture<WebSocket> sendPong(ByteBuffer message) {
-        return getSocket().sendPong(message);
+        return get().sendPong(message);
     }
 
     @Override
     public void request(long n) {
-        getSocket().request(n);
+        get().request(n);
     }
 
     @Override
@@ -119,46 +102,38 @@ public class WebSocketPool implements WebSocket, AutoCloseable {
 
     @Override
     public boolean isOutputClosed() {
-        return closed.get();
+        return isClosed();
     }
 
     @Override
     public boolean isInputClosed() {
-        return closed.get();
+        return isClosed();
     }
 
     @Override
     public String getSubprotocol() {
-        return getSocket().getSubprotocol();
+        return get().getSubprotocol();
     }
 
-    protected WebSocket getSocket() {
+    @Override
+    public boolean isClosed() {
+        return closed.get();
+    }
+
+    @Override
+    public WebSocket get() {
         AtomicReference<WebSocket> socket =
                 sockets.get(counter.getAndAccumulate(1, (i, inc) -> {
                     int newIndex = i + inc;
                     return newIndex >= sockets.size() ? 0 : newIndex;
                 }));
-        return socket.updateAndGet(s -> {
-            if (isClosed(s)) {
-                synchronized (closed) {
-                    while (isClosed(s)) {
-                        if (closed.get()) {
-                            throw new IllegalStateException("Cannot provide session. This client has closed");
-                        }
-                        s = socketFactory.get();
-                    }
-                }
-            }
-            return s;
-        });
-    }
-
-    protected boolean isClosed(WebSocket socket) {
-        return socket == null || socket.isInputClosed();
+        return socket.updateAndGet(s -> s == null ? socketFactory.get() : s);
     }
 
     @AllArgsConstructor
-    protected class SocketListener implements Listener {
+    protected static class SocketListener implements Listener {
+        private final Listener delegate;
+
         private final ByteArrayOutputStream messageByteStream = new ByteArrayOutputStream();
         private final StringBuilder stringBuilder = new StringBuilder();
 
@@ -168,8 +143,8 @@ public class WebSocketPool implements WebSocket, AutoCloseable {
             if (last) {
                 String string = stringBuilder.toString();
                 stringBuilder.setLength(0);
-                synchronized (listener) {
-                    return listener.onText(webSocket, string, true);
+                synchronized (delegate) {
+                    return delegate.onText(webSocket, string, true);
                 }
             } else {
                 webSocket.request(1);
@@ -185,8 +160,8 @@ public class WebSocketPool implements WebSocket, AutoCloseable {
             if (last) {
                 ByteBuffer byteBuffer = ByteBuffer.wrap(messageByteStream.toByteArray());
                 messageByteStream.reset();
-                synchronized (listener) {
-                    return listener.onBinary(webSocket, byteBuffer, true);
+                synchronized (delegate) {
+                    return delegate.onBinary(webSocket, byteBuffer, true);
                 }
             } else {
                 webSocket.request(1);
@@ -196,29 +171,30 @@ public class WebSocketPool implements WebSocket, AutoCloseable {
 
         @Override
         public void onOpen(WebSocket webSocket) {
-            listener.onOpen(webSocket);
+            delegate.onOpen(webSocket);
         }
 
         @Override
         public CompletionStage<?> onPing(WebSocket webSocket, ByteBuffer message) {
-            return listener.onPing(webSocket, message);
+            return delegate.onPing(webSocket, message);
         }
 
         @Override
         public CompletionStage<?> onPong(WebSocket webSocket, ByteBuffer message) {
-            return listener.onPong(webSocket, message);
+            return delegate.onPong(webSocket, message);
         }
 
         @Override
         public CompletionStage<?> onClose(WebSocket webSocket, int statusCode, String reason) {
-            return listener.onClose(webSocket, statusCode, reason);
+            return delegate.onClose(webSocket, statusCode, reason);
         }
 
         @Override
         public void onError(WebSocket webSocket, Throwable error) {
-            listener.onError(webSocket, error);
+            delegate.onError(webSocket, error);
         }
     }
+
 
     @Setter
     @Accessors(chain = true, fluent = true)
@@ -226,7 +202,6 @@ public class WebSocketPool implements WebSocket, AutoCloseable {
 
         private WebSocket.Builder delegate;
         private int sessionCount = 1;
-        private Duration reconnectDelay = Duration.ofSeconds(1);
 
         public Builder(WebSocket.Builder delegate) {
             this.delegate = delegate;
@@ -256,7 +231,7 @@ public class WebSocketPool implements WebSocket, AutoCloseable {
         }
 
         public WebSocket build(URI uri, Listener listener) {
-            return new WebSocketPool(this, uri, listener);
+            return new WebSocketPool(delegate, sessionCount, uri, listener);
         }
     }
 }

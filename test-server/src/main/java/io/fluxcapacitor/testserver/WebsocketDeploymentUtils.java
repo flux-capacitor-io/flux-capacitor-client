@@ -44,8 +44,7 @@ public class WebsocketDeploymentUtils {
                 .create(MultiClientEndpoint.class, "/")
                 .configurator(
                         new ServerEndpointConfig.Configurator() {
-                            private final MultiClientEndpoint endpoint = new MultiClientEndpoint(
-                                    path, endpointSupplier);
+                            final MultiClientEndpoint endpoint = new MultiClientEndpoint(endpointSupplier);
 
                             @Override
                             public <T> T getEndpointInstance(Class<T> endpointClass) {

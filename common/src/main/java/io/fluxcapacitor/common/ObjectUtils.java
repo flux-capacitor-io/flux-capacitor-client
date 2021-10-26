@@ -15,6 +15,7 @@
 package io.fluxcapacitor.common;
 
 import lombok.AllArgsConstructor;
+import lombok.SneakyThrows;
 
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -24,6 +25,7 @@ import java.util.ListIterator;
 import java.util.Map;
 import java.util.Set;
 import java.util.Spliterators;
+import java.util.concurrent.Callable;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.BiFunction;
 import java.util.function.Consumer;
@@ -85,6 +87,24 @@ public class ObjectUtils {
         return r -> {};
     }
 
+    @SneakyThrows
+    public static void forceThrow(Throwable error) {
+        throw error;
+    }
+
+    @SneakyThrows
+    public static <T> T safelyCall(Callable<T> callable) {
+        return callable.call();
+    }
+
+    public static <T> Supplier<T> asSupplier(Callable<T> callable) {
+        return () -> safelyCall(callable);
+    }
+
+    public static Runnable asRunnable(Callable<?> callable) {
+        return () -> safelyCall(callable);
+    }
+
     public static class MemoizingSupplier<T> implements Supplier<T> {
         private final MemoizingFunction<Object, T> delegate;
         private final Object singleton = new Object();
@@ -110,7 +130,16 @@ public class ObjectUtils {
 
         @Override
         public V apply(K key) {
-            return map.computeIfAbsent(key, delegate);
+            V v = map.get(key);
+            if (v == null) {
+                synchronized (delegate) {
+                    v = map.get(key);
+                    if (v == null) {
+                        return map.computeIfAbsent(key, delegate);
+                    }
+                }
+            }
+            return v;
         }
 
         public boolean isCached(K key) {
@@ -125,7 +154,16 @@ public class ObjectUtils {
 
         @Override
         public R apply(T t, U u) {
-            return map.computeIfAbsent(t, t2 -> new MemoizingFunction<>(u2 -> delegate.apply(t2, u2))).apply(u);
+            MemoizingFunction<U, R> f = map.get(t);
+            if (f == null) {
+                synchronized (delegate) {
+                    f = map.get(t);
+                    if (f == null) {
+                        f = map.computeIfAbsent(t, t2 -> new MemoizingFunction<>(u2 -> delegate.apply(t2, u2)));
+                    }
+                }
+            }
+            return f.apply(u);
         }
 
         public boolean isCached(T t, U u) {

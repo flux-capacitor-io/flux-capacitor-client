@@ -31,7 +31,7 @@ public class MultiClientEndpoint extends Endpoint {
 
     private final ObjectUtils.MemoizingFunction<String, Endpoint> endpointSupplier;
 
-    public MultiClientEndpoint(String id, Function<String, Endpoint> endpointSupplier) {
+    public MultiClientEndpoint(Function<String, Endpoint> endpointSupplier) {
         this.endpointSupplier = memoize(endpointSupplier);
     }
 

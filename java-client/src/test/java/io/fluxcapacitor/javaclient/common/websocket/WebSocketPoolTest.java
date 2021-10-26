@@ -35,10 +35,10 @@ class WebSocketPoolTest {
 
     @Test
     void testPoolCyclesSessions() {
-        WebSocket first = subject.getSocket();
-        WebSocket second = subject.getSocket();
-        WebSocket third = subject.getSocket();
-        WebSocket fourth = subject.getSocket();
+        WebSocket first = subject.get();
+        WebSocket second = subject.get();
+        WebSocket third = subject.get();
+        WebSocket fourth = subject.get();
 
         assertNotSame(first, second);
         assertNotSame(first, third);
