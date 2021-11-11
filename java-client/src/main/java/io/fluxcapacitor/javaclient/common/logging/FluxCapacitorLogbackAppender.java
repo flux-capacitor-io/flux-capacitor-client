@@ -83,6 +83,7 @@ public class FluxCapacitorLogbackAppender extends AppenderBase<ILoggingEvent> {
                 Throwable e = throwable.get();
                 metadata = metadata.with(
                         "error", e.getClass().getSimpleName(),
+                        "message", event.getFormattedMessage(),
                         "errorMessage", isBlank(e.getMessage()) ? event.getFormattedMessage() : e.getMessage());
                 StackTraceElement[] stackTraceElements =
                         ofNullable(e.getStackTrace()).filter(s -> s.length > 0).orElse(null);
@@ -92,7 +93,7 @@ public class FluxCapacitorLogbackAppender extends AppenderBase<ILoggingEvent> {
                 }
             } else {
                 metadata = metadata.with(
-                        "errorMessage", event.getFormattedMessage());
+                        "message", event.getFormattedMessage(), "errorMessage", event.getFormattedMessage());
             }
             FluxCapacitor.get().errorGateway().report(
                     event.getLevel() == Level.WARN ? new ConsoleWarning() : new ConsoleError(), metadata);
