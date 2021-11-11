@@ -51,7 +51,7 @@ public class WebSocketPool implements WebSocket, WebSocketSupplier {
     private final List<AtomicReference<WebSocket>> sockets;
 
     protected WebSocketPool(WebSocket.Builder builder, int sessionCount, URI uri, Listener listener) {
-        this.socketFactory = asSupplier(() -> builder.buildAsync(uri, new SocketListener(listener)).get());
+        this.socketFactory = asSupplier(() -> builder.buildAsync(uri, new PoolListener(listener)).get());
         this.sockets = range(0, sessionCount).mapToObj(i -> new AtomicReference<WebSocket>()).collect(toList());
     }
 
@@ -131,7 +131,7 @@ public class WebSocketPool implements WebSocket, WebSocketSupplier {
     }
 
     @AllArgsConstructor
-    protected static class SocketListener implements Listener {
+    protected static class PoolListener implements Listener {
         private final Listener delegate;
 
         private final ByteArrayOutputStream messageByteStream = new ByteArrayOutputStream();

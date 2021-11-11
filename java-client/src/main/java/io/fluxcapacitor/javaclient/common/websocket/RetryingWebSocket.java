@@ -15,6 +15,8 @@
 package io.fluxcapacitor.javaclient.common.websocket;
 
 import io.fluxcapacitor.common.RetryConfiguration;
+import lombok.AllArgsConstructor;
+import lombok.Getter;
 import lombok.Setter;
 import lombok.experimental.Accessors;
 import lombok.extern.slf4j.Slf4j;
@@ -25,6 +27,7 @@ import java.net.http.WebSocket;
 import java.nio.ByteBuffer;
 import java.time.Duration;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionStage;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -66,10 +69,11 @@ public class RetryingWebSocket implements WebSocket, WebSocketSupplier {
     private final AtomicBoolean closed = new AtomicBoolean();
 
     protected RetryingWebSocket(WebSocket.Builder socketBuilder, Duration reconnectDelay, URI uri, Listener listener) {
+        //listener is a PoolListener
         this.reconnectDelay = reconnectDelay;
         this.uri = uri;
         this.socketFactory = () -> retryOnFailure(
-                () -> socketBuilder.buildAsync(uri, listener).get(),
+                () -> socketBuilder.buildAsync(uri, new RetryListener(listener)).get(),
                 RetryConfiguration.builder()
                         .delay(reconnectDelay)
                         .errorTest(e -> !closed.get())
@@ -79,7 +83,7 @@ public class RetryingWebSocket implements WebSocket, WebSocketSupplier {
                                 log.warn("Failed to connect to endpoint {}; reason: {}. Retrying every {} ms...",
                                          uri, status.getException().getMessage(),
                                          status.getRetryConfiguration().getDelay().toMillis());
-                            }
+            }
                         }).build());
     }
 
@@ -113,7 +117,10 @@ public class RetryingWebSocket implements WebSocket, WebSocketSupplier {
 
     @Override
     public void request(long n) {
-        getSocket().request(n);
+        WebSocket webSocket = delegate.get();
+        if (!isClosed(webSocket)) {
+            webSocket.request(n);
+        }
     }
 
     @Override
@@ -185,9 +192,10 @@ public class RetryingWebSocket implements WebSocket, WebSocketSupplier {
     }
 
     protected WebSocket getSocket() {
-        return delegate.updateAndGet(s -> {
-            if (isClosed(s)) {
-                synchronized (closed) {
+        WebSocket webSocket = delegate.get();
+        if (isClosed(webSocket)) {
+            synchronized (closed) {
+                return delegate.updateAndGet(s -> {
                     while (isClosed(s)) {
                         if (closed.get()) {
                             throw new IllegalStateException(
@@ -195,10 +203,11 @@ public class RetryingWebSocket implements WebSocket, WebSocketSupplier {
                         }
                         s = socketFactory.get();
                     }
-                }
+                    return s;
+                });
             }
-            return s;
-        });
+        }
+        return webSocket;
     }
 
     protected boolean isClosed(WebSocket socket) {
@@ -241,6 +250,48 @@ public class RetryingWebSocket implements WebSocket, WebSocketSupplier {
 
         public WebSocket build(URI uri, Listener listener) {
             return new RetryingWebSocket(delegate, reconnectDelay, uri, listener);
+        }
+    }
+
+    @AllArgsConstructor
+    @Getter
+    protected class RetryListener implements Listener {
+        private final Listener delegate;
+
+        @Override
+        public void onOpen(WebSocket webSocket) {
+            delegate.onOpen(RetryingWebSocket.this);
+            Listener.super.onOpen(webSocket); //needed to prevent a deadlock
+        }
+
+        @Override
+        public CompletionStage<?> onText(WebSocket webSocket, CharSequence data, boolean last) {
+            return delegate.onText(RetryingWebSocket.this, data, last);
+        }
+
+        @Override
+        public CompletionStage<?> onBinary(WebSocket webSocket, ByteBuffer data, boolean last) {
+            return delegate.onBinary(RetryingWebSocket.this, data, last);
+        }
+
+        @Override
+        public CompletionStage<?> onPing(WebSocket webSocket, ByteBuffer message) {
+            return delegate.onPing(RetryingWebSocket.this, message);
+        }
+
+        @Override
+        public CompletionStage<?> onPong(WebSocket webSocket, ByteBuffer message) {
+            return delegate.onPong(RetryingWebSocket.this, message);
+        }
+
+        @Override
+        public CompletionStage<?> onClose(WebSocket webSocket, int statusCode, String reason) {
+            return delegate.onClose(RetryingWebSocket.this, statusCode, reason);
+        }
+
+        @Override
+        public void onError(WebSocket webSocket, Throwable error) {
+            delegate.onError(RetryingWebSocket.this, error);
         }
     }
 }
