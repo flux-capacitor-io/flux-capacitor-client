@@ -41,9 +41,11 @@ import java.util.concurrent.CompletableFuture;
 @Slf4j
 class TestServerTest {
 
+    private static final int port = 9123;
+
     @BeforeAll
     static void beforeAll() {
-        TestServer.start(8888);
+        TestServer.start(port);
     }
 
     @Autowired
@@ -64,7 +66,7 @@ class TestServerTest {
         @Bean
         public WebSocketClient.ClientConfig webSocketClientProperties() {
             return WebSocketClient.ClientConfig.builder()
-                    .serviceBaseUrl("ws://localhost:8888")
+                    .serviceBaseUrl("ws://localhost:" + port)
                     .projectId("clienttest")
                     .name("GivenWhenThenSpringCustomClientTest")
                     .build();

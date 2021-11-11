@@ -32,16 +32,21 @@ import java.lang.annotation.Target;
 public @interface ConditionalOnProperty {
 
     String value();
+
     String pattern() default ".*";
 
     @Order(Ordered.HIGHEST_PRECEDENCE)
-    @SuppressWarnings({"NullableProblems", "ConstantConditions"})
+    @SuppressWarnings("ConstantConditions")
     class Condition implements org.springframework.context.annotation.Condition {
         @Override
         @SneakyThrows
         public boolean matches(ConditionContext context, AnnotatedTypeMetadata metadata) {
-            String value = System.getProperty(metadata.getAllAnnotationAttributes(ConditionalOnProperty.class.getName()).getFirst("value").toString());
-            String pattern = metadata.getAllAnnotationAttributes(ConditionalOnProperty.class.getName()).getFirst("pattern").toString();
+            String value = context.getEnvironment().getProperty(
+                    metadata.getAllAnnotationAttributes(ConditionalOnProperty.class.getName()).getFirst("value")
+                            .toString());
+            String pattern =
+                    metadata.getAllAnnotationAttributes(ConditionalOnProperty.class.getName()).getFirst("pattern")
+                            .toString();
             return value != null && value.matches(pattern);
         }
     }
