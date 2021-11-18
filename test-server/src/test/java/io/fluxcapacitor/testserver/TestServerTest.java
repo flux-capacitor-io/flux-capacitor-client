@@ -16,6 +16,8 @@ package io.fluxcapacitor.testserver;
 
 import io.fluxcapacitor.javaclient.FluxCapacitor;
 import io.fluxcapacitor.javaclient.configuration.client.WebSocketClient;
+import io.fluxcapacitor.javaclient.persisting.search.DocumentStore;
+import io.fluxcapacitor.javaclient.persisting.search.client.WebSocketSearchClient;
 import io.fluxcapacitor.javaclient.test.TestFixture;
 import io.fluxcapacitor.javaclient.test.spring.FluxCapacitorTestConfig;
 import io.fluxcapacitor.javaclient.tracking.handling.HandleCommand;
@@ -33,7 +35,10 @@ import org.springframework.test.annotation.DirtiesContext;
 import org.springframework.test.context.ContextConfiguration;
 import org.springframework.test.context.junit.jupiter.SpringExtension;
 
+import java.util.List;
 import java.util.concurrent.CompletableFuture;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
 @ExtendWith(SpringExtension.class)
 @DirtiesContext
@@ -59,6 +64,22 @@ class TestServerTest {
     @Test
     void testSecondOrderEffect() {
         testFixture.givenNoPriorActivity().whenCommand(new DoSomething()).expectCommands(new DoSomethingElse());
+    }
+
+    @Test
+    void testFetchLotsOfDocuments() {
+        int fetchSize = WebSocketSearchClient.maxFetchSize;
+        try {
+            WebSocketSearchClient.maxFetchSize = 2;
+            DocumentStore documentStore = testFixture.getFluxCapacitor().documentStore();
+            documentStore.index("bla1", "test");
+            documentStore.index("bla2", "test");
+            documentStore.index("bla3", "test");
+            List<Object> results = documentStore.search("test").fetchAll();
+            assertEquals(3, results.size());
+        } finally {
+            WebSocketSearchClient.maxFetchSize = fetchSize;
+        }
     }
 
     @Configuration
