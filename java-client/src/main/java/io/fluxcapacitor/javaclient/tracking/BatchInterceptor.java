@@ -22,13 +22,17 @@ import java.util.function.Consumer;
 @FunctionalInterface
 public interface BatchInterceptor {
 
+    static BatchInterceptor noOp() {
+        return (c, t) -> c;
+    }
+
     Consumer<MessageBatch> intercept(Consumer<MessageBatch> consumer, Tracker tracker);
 
     default void shutdown(Tracker tracker) {
         //no op
     }
 
-    default BatchInterceptor merge(BatchInterceptor nextInterceptor) {
+    default BatchInterceptor andThen(BatchInterceptor nextInterceptor) {
         return new BatchInterceptor() {
             @Override
             public Consumer<MessageBatch> intercept(Consumer<MessageBatch> c, Tracker t) {
@@ -44,7 +48,7 @@ public interface BatchInterceptor {
     }
 
     static BatchInterceptor join(List<BatchInterceptor> interceptors) {
-        return interceptors.stream().reduce(BatchInterceptor::merge).orElse((c, t) -> c);
+        return interceptors.stream().reduce(BatchInterceptor::andThen).orElse((c, t) -> c);
     }
 
 }

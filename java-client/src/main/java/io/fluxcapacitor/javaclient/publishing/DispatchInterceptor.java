@@ -22,10 +22,14 @@ import java.util.function.Function;
 
 @FunctionalInterface
 public interface DispatchInterceptor {
+    static DispatchInterceptor noOp() {
+        return (m, messageType) -> m;
+    }
+
     Function<Message, SerializedMessage> interceptDispatch(Function<Message, SerializedMessage> function,
                                                            MessageType messageType);
 
-    default DispatchInterceptor merge(DispatchInterceptor nextInterceptor) {
+    default DispatchInterceptor andThen(DispatchInterceptor nextInterceptor) {
         return (f, messageType) -> interceptDispatch(nextInterceptor.interceptDispatch(f, messageType), messageType);
     }
 }

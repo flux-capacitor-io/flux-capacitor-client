@@ -214,11 +214,11 @@ public class DefaultFluxCapacitor implements FluxCapacitor {
         private final Map<MessageType, List<ConsumerConfiguration>> consumerConfigurations = defaultConfigurations();
         private final List<ParameterResolver<? super DeserializingMessage>> parameterResolvers =
                 new ArrayList<>(defaultParameterResolvers);
-        private final Map<MessageType, DispatchInterceptor> dispatchInterceptors =
-                Arrays.stream(MessageType.values()).collect(toMap(identity(), m -> (f, messageType) -> f));
-        private final Map<MessageType, HandlerInterceptor> handlerInterceptors =
-                Arrays.stream(MessageType.values()).collect(toMap(identity(), m -> (f, h, c) -> f));
-        private final Map<MessageType, List<BatchInterceptor>> batchInterceptors = new HashMap<>();
+        private final Map<MessageType, List<DispatchInterceptor>> lowPrioDispatchInterceptors = new HashMap<>();
+        private final Map<MessageType, List<DispatchInterceptor>> highPrioDispatchInterceptors = new HashMap<>();
+        private final Map<MessageType, List<HandlerInterceptor>> lowPrioHandlerInterceptors = new HashMap<>();
+        private final Map<MessageType, List<HandlerInterceptor>> highPrioHandlerInterceptors = new HashMap<>();
+        private final Map<MessageType, List<BatchInterceptor>> customBatchInterceptors = new HashMap<>();
         private DispatchInterceptor messageRoutingInterceptor = new MessageRoutingInterceptor();
         private SchedulingInterceptor schedulingInterceptor = new SchedulingInterceptor();
         private Cache cache = new DefaultCache();
@@ -299,21 +299,23 @@ public class DefaultFluxCapacitor implements FluxCapacitor {
         @Override
         public FluxCapacitorBuilder addBatchInterceptor(BatchInterceptor interceptor, MessageType... forTypes) {
             Arrays.stream(forTypes.length == 0 ? MessageType.values() : forTypes)
-                    .forEach(type -> batchInterceptors.computeIfAbsent(type, t -> new ArrayList<>()).add(interceptor));
+                    .forEach(type -> customBatchInterceptors.computeIfAbsent(type, t -> new ArrayList<>()).add(interceptor));
             return this;
         }
 
         @Override
-        public Builder addDispatchInterceptor(@NonNull DispatchInterceptor interceptor, MessageType... forTypes) {
+        public Builder addDispatchInterceptor(@NonNull DispatchInterceptor interceptor, boolean highPriority, MessageType... forTypes) {
             Arrays.stream(forTypes.length == 0 ? MessageType.values() : forTypes)
-                    .forEach(type -> dispatchInterceptors.computeIfPresent(type, (t, i) -> i.merge(interceptor)));
+                    .forEach(type -> (highPriority ? highPrioDispatchInterceptors : lowPrioDispatchInterceptors)
+                            .computeIfAbsent(type, t -> new ArrayList<>()).add(interceptor));
             return this;
         }
 
         @Override
-        public Builder addHandlerInterceptor(@NonNull HandlerInterceptor interceptor, MessageType... forTypes) {
+        public Builder addHandlerInterceptor(@NonNull HandlerInterceptor interceptor, boolean highPriority, MessageType... forTypes) {
             Arrays.stream(forTypes.length == 0 ? MessageType.values() : forTypes)
-                    .forEach(type -> handlerInterceptors.computeIfPresent(type, (t, i) -> i.merge(interceptor)));
+                    .forEach(type -> (highPriority ? highPrioHandlerInterceptors : lowPrioHandlerInterceptors)
+                            .computeIfAbsent(type, t -> new ArrayList<>()).add(interceptor));
             return this;
         }
 
@@ -391,9 +393,11 @@ public class DefaultFluxCapacitor implements FluxCapacitor {
 
         @Override
         public FluxCapacitor build(@NonNull Client client) {
-            Map<MessageType, DispatchInterceptor> dispatchInterceptors = new HashMap<>(this.dispatchInterceptors);
-            Map<MessageType, HandlerInterceptor> handlerInterceptors = new HashMap<>(this.handlerInterceptors);
-            Map<MessageType, List<BatchInterceptor>> batchInterceptors = new HashMap<>(this.batchInterceptors);
+            Map<MessageType, DispatchInterceptor> dispatchInterceptors =
+                    Arrays.stream(MessageType.values()).collect(toMap(identity(), m -> DispatchInterceptor.noOp()));
+            Map<MessageType, HandlerInterceptor> handlerInterceptors =
+                    Arrays.stream(MessageType.values()).collect(toMap(identity(), m -> HandlerInterceptor.noOp()));
+            Map<MessageType, List<BatchInterceptor>> batchInterceptors = new HashMap<>(this.customBatchInterceptors);
             Map<MessageType, List<ConsumerConfiguration>> consumerConfigurations =
                     new HashMap<>(this.consumerConfigurations);
 
@@ -402,14 +406,14 @@ public class DefaultFluxCapacitor implements FluxCapacitor {
 
             //enable message routing
             Arrays.stream(MessageType.values()).forEach(
-                    type -> dispatchInterceptors.computeIfPresent(type, (t, i) -> i.merge(messageRoutingInterceptor)));
+                    type -> dispatchInterceptors.computeIfPresent(type, (t, i) -> i.andThen(messageRoutingInterceptor)));
 
             //enable authentication
             if (userProvider != null) {
                 AuthenticatingInterceptor interceptor = new AuthenticatingInterceptor(userProvider);
                 Stream.of(COMMAND, QUERY, SCHEDULE).forEach(type -> {
-                    dispatchInterceptors.computeIfPresent(type, (t, i) -> i.merge(interceptor));
-                    handlerInterceptors.computeIfPresent(type, (t, i) -> i.merge(interceptor));
+                    dispatchInterceptors.computeIfPresent(type, (t, i) -> i.andThen(interceptor));
+                    handlerInterceptors.computeIfPresent(type, (t, i) -> i.andThen(interceptor));
                 });
             }
 
@@ -417,8 +421,8 @@ public class DefaultFluxCapacitor implements FluxCapacitor {
             if (!disableDataProtection) {
                 DataProtectionInterceptor interceptor = new DataProtectionInterceptor(keyValueStore, serializer);
                 Stream.of(COMMAND, EVENT, QUERY, RESULT, SCHEDULE).forEach(type -> {
-                    dispatchInterceptors.computeIfPresent(type, (t, i) -> i.merge(interceptor));
-                    handlerInterceptors.computeIfPresent(type, (t, i) -> i.merge(interceptor));
+                    dispatchInterceptors.computeIfPresent(type, (t, i) -> i.andThen(interceptor));
+                    handlerInterceptors.computeIfPresent(type, (t, i) -> i.andThen(interceptor));
                 });
             }
 
@@ -426,18 +430,18 @@ public class DefaultFluxCapacitor implements FluxCapacitor {
             if (!disableMessageCorrelation) {
                 CorrelatingInterceptor correlatingInterceptor = new CorrelatingInterceptor();
                 Arrays.stream(MessageType.values()).forEach(
-                        type -> dispatchInterceptors.compute(type, (t, i) -> correlatingInterceptor.merge(i)));
+                        type -> dispatchInterceptors.compute(type, (t, i) -> correlatingInterceptor.andThen(i)));
             }
 
             //enable command and query validation
             if (!disablePayloadValidation) {
                 Stream.of(COMMAND, QUERY).forEach(type -> handlerInterceptors
-                        .computeIfPresent(type, (t, i) -> i.merge(new ValidatingInterceptor())));
+                        .computeIfPresent(type, (t, i) -> i.andThen(new ValidatingInterceptor())));
             }
 
             //enable scheduling interceptor
-            dispatchInterceptors.computeIfPresent(SCHEDULE, (t, i) -> i.merge(schedulingInterceptor));
-            handlerInterceptors.computeIfPresent(SCHEDULE, (t, i) -> i.merge(schedulingInterceptor));
+            dispatchInterceptors.computeIfPresent(SCHEDULE, (t, i) -> i.andThen(schedulingInterceptor));
+            handlerInterceptors.computeIfPresent(SCHEDULE, (t, i) -> i.andThen(schedulingInterceptor));
 
             //collect metrics about consumers and handlers
             if (collectTrackingMetrics) {
@@ -448,9 +452,23 @@ public class DefaultFluxCapacitor implements FluxCapacitor {
                             t == METRICS ? list :
                                     list.stream().map(c -> c.toBuilder().batchInterceptor(batchInterceptor).build())
                                             .collect(toList()));
-                    handlerInterceptors.compute(type, (t, i) -> t == METRICS ? i : handlerMonitor.merge(i));
+                    handlerInterceptors.compute(type, (t, i) -> t == METRICS ? i : handlerMonitor.andThen(i));
                 });
             }
+
+            //add customer interceptors
+            lowPrioDispatchInterceptors.forEach((messageType, interceptors) -> interceptors.forEach(
+                    interceptor -> dispatchInterceptors.computeIfPresent(messageType, (t, i) -> i.andThen(interceptor))));
+            highPrioDispatchInterceptors.forEach((messageType, interceptors) -> interceptors.forEach(
+                    interceptor -> dispatchInterceptors.computeIfPresent(messageType, (t, i) -> interceptor.andThen(i))));
+            lowPrioHandlerInterceptors.forEach((messageType, interceptors) -> interceptors.forEach(
+                    interceptor -> handlerInterceptors.computeIfPresent(messageType, (t, i) -> i.andThen(interceptor))));
+            highPrioHandlerInterceptors.forEach((messageType, interceptors) -> interceptors.forEach(
+                    interceptor -> handlerInterceptors.computeIfPresent(messageType, (t, i) -> interceptor.andThen(i))));
+
+            /*
+                Create components
+             */
 
             //event sourcing
             EventSourcingHandlerFactory eventSourcingHandlerFactory =
@@ -481,7 +499,7 @@ public class DefaultFluxCapacitor implements FluxCapacitor {
             if (!disableErrorReporting) {
                 ErrorReportingInterceptor interceptor = new ErrorReportingInterceptor(errorGateway);
                 Arrays.stream(MessageType.values())
-                        .forEach(type -> handlerInterceptors.compute(type, (t, i) -> interceptor.merge(i)));
+                        .forEach(type -> handlerInterceptors.compute(type, (t, i) -> interceptor.andThen(i)));
             }
 
             //create gateways

@@ -41,9 +41,17 @@ public interface FluxCapacitorBuilder {
 
     FluxCapacitorBuilder addBatchInterceptor(BatchInterceptor interceptor, MessageType... forTypes);
 
-    FluxCapacitorBuilder addDispatchInterceptor(DispatchInterceptor interceptor, MessageType... forTypes);
+    default FluxCapacitorBuilder addDispatchInterceptor(DispatchInterceptor interceptor, MessageType... forTypes) {
+        return addDispatchInterceptor(interceptor, false, forTypes);
+    }
 
-    FluxCapacitorBuilder addHandlerInterceptor(HandlerInterceptor interceptor, MessageType... forTypes);
+    FluxCapacitorBuilder addDispatchInterceptor(DispatchInterceptor interceptor, boolean highPriority, MessageType... forTypes);
+
+    default FluxCapacitorBuilder addHandlerInterceptor(HandlerInterceptor interceptor, MessageType... forTypes) {
+        return addHandlerInterceptor(interceptor, false, forTypes);
+    }
+
+    FluxCapacitorBuilder addHandlerInterceptor(HandlerInterceptor interceptor, boolean highPriority, MessageType... forTypes);
 
     FluxCapacitorBuilder replaceMessageRoutingInterceptor(DispatchInterceptor messageRoutingInterceptor);
 

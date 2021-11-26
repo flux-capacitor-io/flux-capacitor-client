@@ -23,6 +23,10 @@ import java.util.function.Function;
 
 @FunctionalInterface
 public interface HandlerInterceptor {
+    static HandlerInterceptor noOp() {
+        return (f, h, c) -> f;
+    }
+
     Function<DeserializingMessage, Object> interceptHandling(Function<DeserializingMessage, Object> function,
                                                              Handler<DeserializingMessage> handler, String consumer);
 
@@ -30,7 +34,7 @@ public interface HandlerInterceptor {
         return new InterceptedHandler(handler, this, consumer);
     }
 
-    default HandlerInterceptor merge(HandlerInterceptor nextInterceptor) {
+    default HandlerInterceptor andThen(HandlerInterceptor nextInterceptor) {
         return new MergedInterceptor(this, nextInterceptor);
     }
 
