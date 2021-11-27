@@ -179,7 +179,7 @@ public class RetryingWebSocket implements WebSocket, WebSocketSupplier {
                            RetryConfiguration.builder()
                                    .delay(reconnectDelay)
                                    .errorTest(e -> !isClosed())
-                                   .successLogger(s -> log.info("Successfully send data to endpoint {} on retry", uri))
+                                   .successLogger(s -> log.info("Successfully sent data to endpoint {} on retry", uri))
                                    .exceptionLogger(status -> {
                                        if (status.getNumberOfTimesRetried() == 0) {
                                            log.error("Failed to send data to endpoint {}. Retrying every {} ms...",

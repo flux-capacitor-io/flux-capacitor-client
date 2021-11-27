@@ -211,7 +211,7 @@ public abstract class AbstractWebsocketClient implements Listener, AutoCloseable
 
     @Override
     public CompletionStage<?> onClose(WebSocket webSocket, int statusCode, String reason) {
-        if (statusCode > 1005) {
+        if (!closed.get()) {
             log.warn("Connection to endpoint {} closed with reason {} (status {})", uri, reason, statusCode);
         }
         messageByteStream.reset();
