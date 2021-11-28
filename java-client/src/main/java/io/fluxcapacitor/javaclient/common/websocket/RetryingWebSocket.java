@@ -31,6 +31,8 @@ import java.util.concurrent.CompletionStage;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Function;
@@ -53,7 +55,7 @@ public class RetryingWebSocket implements WebSocket, WebSocketSupplier {
     public static HttpClient httpClient = newHttpClient();
 
     public static Builder builder() {
-        return new RetryingWebSocket.Builder(httpClient.newWebSocketBuilder());
+        return builder(httpClient.newWebSocketBuilder());
     }
 
     public static Builder builder(WebSocket.Builder delegate) {
@@ -61,6 +63,7 @@ public class RetryingWebSocket implements WebSocket, WebSocketSupplier {
     }
 
     private final Supplier<WebSocket> socketFactory;
+    private final Duration connectTimeout;
     private final Duration reconnectDelay;
     private final URI uri;
     private final ExecutorService executor = Executors.newSingleThreadExecutor();
@@ -68,12 +71,14 @@ public class RetryingWebSocket implements WebSocket, WebSocketSupplier {
     private final AtomicReference<WebSocket> delegate = new AtomicReference<>();
     private final AtomicBoolean closed = new AtomicBoolean();
 
-    protected RetryingWebSocket(WebSocket.Builder socketBuilder, Duration reconnectDelay, URI uri, Listener listener) {
-        //listener is a PoolListener
+    protected RetryingWebSocket(WebSocket.Builder socketBuilder, Duration connectTimeout,
+                                Duration reconnectDelay, URI uri, Listener listener) {
+        this.connectTimeout = connectTimeout;
         this.reconnectDelay = reconnectDelay;
         this.uri = uri;
         this.socketFactory = () -> retryOnFailure(
-                () -> socketBuilder.buildAsync(uri, new RetryListener(listener)).get(),
+                () -> socketBuilder.buildAsync(uri, new RetryListener(listener))
+                        .get(connectTimeout.plusSeconds(1).toMillis(), TimeUnit.MILLISECONDS),
                 RetryConfiguration.builder()
                         .delay(reconnectDelay)
                         .errorTest(e -> !closed.get())
@@ -161,10 +166,12 @@ public class RetryingWebSocket implements WebSocket, WebSocketSupplier {
     protected CompletableFuture<WebSocket> sendSafely(Function<WebSocket, CompletableFuture<?>> action) {
         return trySend(s -> {
             try {
-                return action.apply(s).get();
+                return action.apply(s).get(connectTimeout.toMillis(), TimeUnit.MILLISECONDS);
             } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();
                 log.warn("Got interrupted while sending websocket message. Endpoint: {}", uri);
+            } catch (TimeoutException e) {
+                forceThrow(e);
             } catch (ExecutionException e) {
                 forceThrow(e.getCause());
             }
@@ -174,8 +181,7 @@ public class RetryingWebSocket implements WebSocket, WebSocketSupplier {
 
     protected CompletableFuture<WebSocket> trySend(Function<WebSocket, ?> action) {
         return CompletableFuture.supplyAsync(() -> {
-            WebSocket socket = getSocket(); // if this fails it means the client is going away (and that's ok)
-            retryOnFailure(() -> action.apply(socket),
+            retryOnFailure(() -> action.apply(getSocket()),
                            RetryConfiguration.builder()
                                    .delay(reconnectDelay)
                                    .errorTest(e -> !isClosed())
@@ -212,45 +218,6 @@ public class RetryingWebSocket implements WebSocket, WebSocketSupplier {
 
     protected boolean isClosed(WebSocket socket) {
         return socket == null || socket.isInputClosed();
-    }
-
-    @Setter
-    @Accessors(chain = true, fluent = true)
-    protected static class Builder implements WebSocket.Builder {
-
-        private WebSocket.Builder delegate;
-        private Duration reconnectDelay = Duration.ofSeconds(1);
-
-        public Builder(WebSocket.Builder delegate) {
-            this.delegate = delegate;
-        }
-
-        @Override
-        public Builder header(String name, String value) {
-            delegate.header(name, value);
-            return this;
-        }
-
-        @Override
-        public Builder connectTimeout(Duration timeout) {
-            delegate.connectTimeout(timeout);
-            return this;
-        }
-
-        @Override
-        public Builder subprotocols(String mostPreferred, String... lesserPreferred) {
-            delegate.subprotocols(mostPreferred, lesserPreferred);
-            return this;
-        }
-
-        @Override
-        public CompletableFuture<WebSocket> buildAsync(URI uri, Listener listener) {
-            return CompletableFuture.completedFuture(build(uri, listener));
-        }
-
-        public WebSocket build(URI uri, Listener listener) {
-            return new RetryingWebSocket(delegate, reconnectDelay, uri, listener);
-        }
     }
 
     @AllArgsConstructor
@@ -292,6 +259,47 @@ public class RetryingWebSocket implements WebSocket, WebSocketSupplier {
         @Override
         public void onError(WebSocket webSocket, Throwable error) {
             delegate.onError(RetryingWebSocket.this, error);
+        }
+    }
+
+    @Setter
+    @Accessors(chain = true, fluent = true)
+    protected static class Builder implements WebSocket.Builder {
+
+        private WebSocket.Builder delegate;
+        private Duration reconnectDelay = Duration.ofSeconds(1);
+        private Duration connectTimeout = Duration.ofSeconds(5);
+
+        public Builder(WebSocket.Builder delegate) {
+            this.delegate = delegate;
+        }
+
+        @Override
+        public Builder header(String name, String value) {
+            delegate.header(name, value);
+            return this;
+        }
+
+        @Override
+        public Builder connectTimeout(Duration timeout) {
+            connectTimeout = timeout;
+            return this;
+        }
+
+        @Override
+        public Builder subprotocols(String mostPreferred, String... lesserPreferred) {
+            delegate.subprotocols(mostPreferred, lesserPreferred);
+            return this;
+        }
+
+        @Override
+        public CompletableFuture<WebSocket> buildAsync(URI uri, Listener listener) {
+            return CompletableFuture.completedFuture(build(uri, listener));
+        }
+
+        public WebSocket build(URI uri, Listener listener) {
+            return new RetryingWebSocket(
+                    delegate.connectTimeout(connectTimeout), connectTimeout, reconnectDelay, uri, listener);
         }
     }
 }

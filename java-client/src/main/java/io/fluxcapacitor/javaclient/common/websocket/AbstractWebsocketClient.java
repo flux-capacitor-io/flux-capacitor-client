@@ -78,6 +78,7 @@ public abstract class AbstractWebsocketClient implements Listener, AutoCloseable
     private final ExecutorService resultExecutor = Executors.newFixedThreadPool(8);
     private final ByteArrayOutputStream messageByteStream = new ByteArrayOutputStream();
     private final boolean sendMetrics;
+    private final Duration reconnectDelay;
 
     public AbstractWebsocketClient(URI uri, ClientConfig clientConfig, boolean sendMetrics) {
         this(uri, clientConfig, sendMetrics, 1);
@@ -98,6 +99,7 @@ public abstract class AbstractWebsocketClient implements Listener, AutoCloseable
         this.clientConfig = clientConfig;
         this.objectMapper = objectMapper;
         this.sendMetrics = sendMetrics;
+        this.reconnectDelay = reconnectDelay;
         this.webSocketSupplier = (WebSocketSupplier) Optional.of(
                         RetryingWebSocket.builder().reconnectDelay(reconnectDelay).connectTimeout(connectTimeout))
                 .map(b -> numberOfSessions == 1 ? b : WebSocketPool.builder(b).sessionCount(numberOfSessions))
@@ -224,11 +226,13 @@ public abstract class AbstractWebsocketClient implements Listener, AutoCloseable
                 this.requests.values().stream().filter(r -> webSocket.equals(r.sender)).collect(toList());
         if (!closed.get() && !requests.isEmpty()) {
             try {
-                sleep(1_000);
+                sleep(reconnectDelay.toMillis());
             } catch (InterruptedException e) {
                 currentThread().interrupt();
-                throw new IllegalStateException("Thread interrupted while trying to retry outstanding requests", e);
+                log.warn("Thread interrupted while trying to retry outstanding requests to endpoint {}", uri, e);
+                return;
             }
+            log.warn("Resending {} request{} to endpoint {}", requests.size(), requests.size() == 1 ? "" : "s", uri);
             requests.forEach(WebSocketRequest::send);
         }
     }
