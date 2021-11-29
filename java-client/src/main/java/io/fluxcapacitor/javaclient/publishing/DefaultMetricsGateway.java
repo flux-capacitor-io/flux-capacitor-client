@@ -34,7 +34,7 @@ public class DefaultMetricsGateway implements MetricsGateway {
     @Override
     public CompletableFuture<Void> publish(Object payload, Metadata metadata, Guarantee guarantee) {
         try {
-            return metricsGateway.send(Guarantee.SENT, serializer.serialize(new Message(payload, metadata))).asCompletableFuture();
+            return metricsGateway.send(guarantee, serializer.serialize(new Message(payload, metadata))).asCompletableFuture();
         } catch (Exception e) {
             log.error("Failed to publish metrics {}", payload, e);
             return CompletableFuture.allOf();
