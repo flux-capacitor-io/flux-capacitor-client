@@ -202,7 +202,7 @@ public class RetryingWebSocket implements WebSocket, WebSocketSupplier {
         if (isClosed(webSocket)) {
             synchronized (closed) {
                 return delegate.updateAndGet(s -> {
-                    while (isClosed(s)) {
+                    if (isClosed(s)) {
                         if (closed.get()) {
                             throw new IllegalStateException(
                                     "Cannot provide session because client has closed. Endpoint: " + uri);
@@ -253,6 +253,7 @@ public class RetryingWebSocket implements WebSocket, WebSocketSupplier {
 
         @Override
         public CompletionStage<?> onClose(WebSocket webSocket, int statusCode, String reason) {
+            RetryingWebSocket.this.delegate.set(null);
             return delegate.onClose(RetryingWebSocket.this, statusCode, reason);
         }
 
