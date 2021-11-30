@@ -46,6 +46,7 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.event.ContextRefreshedEvent;
 import org.springframework.context.event.EventListener;
+import org.springframework.context.support.GenericApplicationContext;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -78,6 +79,9 @@ public class FluxCapacitorSpringConfig implements BeanPostProcessor {
         handlerRegistration.updateAndGet(r -> r == null ? fluxCapacitor.registerHandlers(springBeans) : r);
         if (Thread.getDefaultUncaughtExceptionHandler() == null) {
             Thread.setDefaultUncaughtExceptionHandler((t, e) -> log.error("Uncaught exception", e));
+        }
+        if (event.getApplicationContext() instanceof GenericApplicationContext) {
+            ((GenericApplicationContext) event.getApplicationContext()).start();
         }
     }
 
