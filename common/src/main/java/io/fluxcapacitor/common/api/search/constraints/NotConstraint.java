@@ -34,7 +34,7 @@ public class NotConstraint implements Constraint {
     @ToString.Exclude
     @EqualsAndHashCode.Exclude
     @Getter(lazy = true) @Accessors(fluent = true)
-    Constraint decompose = new NotConstraint(not.decompose());
+    Constraint decompose = new NotConstraint(getNot().decompose());
 
     @Override
     public boolean matches(Document document) {

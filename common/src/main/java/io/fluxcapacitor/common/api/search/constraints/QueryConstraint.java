@@ -16,7 +16,11 @@ package io.fluxcapacitor.common.api.search.constraints;
 
 import io.fluxcapacitor.common.api.search.Constraint;
 import io.fluxcapacitor.common.search.Document;
-import lombok.*;
+import lombok.EqualsAndHashCode;
+import lombok.Getter;
+import lombok.NonNull;
+import lombok.ToString;
+import lombok.Value;
 import lombok.experimental.Accessors;
 
 import java.util.ArrayList;
@@ -69,7 +73,7 @@ public class QueryConstraint extends PathConstraint {
     @EqualsAndHashCode.Exclude
     @Getter(lazy = true)
     @Accessors(fluent = true)
-    Constraint decompose = AllConstraint.all(createConstraints(splitInTermsAndOperators(query)));
+    Constraint decompose = AllConstraint.all(createConstraints(splitInTermsAndOperators(getQuery())));
 
     private List<Constraint> createConstraints(List<String> parts) {
         List<Constraint> result = new ArrayList<>();

@@ -51,5 +51,5 @@ public class SerializedDocument {
     @Accessors(fluent = true)
     @EqualsAndHashCode.Exclude
     @ToString.Exclude
-    Document deserializeDocument = DefaultDocumentSerializer.INSTANCE.deserialize(document);
+    Document deserializeDocument = DefaultDocumentSerializer.INSTANCE.deserialize(getDocument());
 }

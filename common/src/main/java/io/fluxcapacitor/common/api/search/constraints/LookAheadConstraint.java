@@ -16,7 +16,11 @@ package io.fluxcapacitor.common.api.search.constraints;
 
 import io.fluxcapacitor.common.api.search.Constraint;
 import io.fluxcapacitor.common.search.Document;
-import lombok.*;
+import lombok.EqualsAndHashCode;
+import lombok.Getter;
+import lombok.NonNull;
+import lombok.ToString;
+import lombok.Value;
 import lombok.experimental.Accessors;
 import org.apache.commons.lang3.StringUtils;
 
@@ -64,7 +68,7 @@ public class LookAheadConstraint extends PathConstraint {
     @ToString.Exclude
     @EqualsAndHashCode.Exclude
     @Getter(lazy = true) @Accessors(fluent = true)
-    Constraint decompose = AllConstraint.all(createConstraints(splitInTerms(lookAhead)));
+    Constraint decompose = AllConstraint.all(createConstraints(splitInTerms(getLookAhead())));
 
     private List<Constraint> createConstraints(List<String> parts) {
         return parts.stream().filter(StringUtils::isNotBlank)

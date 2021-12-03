@@ -46,7 +46,7 @@ public class AllConstraint implements Constraint {
     @ToString.Exclude
     @EqualsAndHashCode.Exclude
     @Getter(lazy = true) @Accessors(fluent = true)
-    Constraint decompose = new AllConstraint(all.stream().map(Constraint::decompose).collect(Collectors.toList()));
+    Constraint decompose = new AllConstraint(getAll().stream().map(Constraint::decompose).collect(Collectors.toList()));
 
     @Override
     public boolean matches(Document document) {

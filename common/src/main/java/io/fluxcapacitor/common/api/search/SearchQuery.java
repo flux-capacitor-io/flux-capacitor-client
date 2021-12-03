@@ -41,7 +41,7 @@ public class SearchQuery {
     @ToString.Exclude
     @EqualsAndHashCode.Exclude
     @Getter(lazy = true) @Accessors(fluent = true)
-    Constraint decomposeConstraints = AllConstraint.all(constraints.stream().map(Constraint::decompose).collect(
+    Constraint decomposeConstraints = AllConstraint.all(getConstraints().stream().map(Constraint::decompose).collect(
             Collectors.toList()));
 
     @SuppressWarnings("RedundantIfStatement")

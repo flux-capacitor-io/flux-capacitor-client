@@ -45,7 +45,7 @@ public class AnyConstraint implements Constraint {
     @ToString.Exclude
     @EqualsAndHashCode.Exclude
     @Getter(lazy = true) @Accessors(fluent = true)
-    Constraint decompose = new AnyConstraint(any.stream().map(Constraint::decompose).collect(Collectors.toList()));
+    Constraint decompose = new AnyConstraint(getAny().stream().map(Constraint::decompose).collect(Collectors.toList()));
 
     @Override
     public boolean matches(Document document) {
