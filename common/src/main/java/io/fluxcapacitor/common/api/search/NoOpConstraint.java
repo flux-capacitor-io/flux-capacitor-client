@@ -17,12 +17,15 @@ package io.fluxcapacitor.common.api.search;
 import io.fluxcapacitor.common.search.Document;
 import lombok.AccessLevel;
 import lombok.AllArgsConstructor;
+import lombok.Getter;
 import lombok.Value;
 
 @Value
 @AllArgsConstructor(access = AccessLevel.PRIVATE)
 public class NoOpConstraint implements Constraint {
-    public static final NoOpConstraint instance = new NoOpConstraint();
+    @Getter(lazy = true)
+    private static final NoOpConstraint instance = new NoOpConstraint();
+
     @Override
     public boolean matches(Document document) {
         return true;

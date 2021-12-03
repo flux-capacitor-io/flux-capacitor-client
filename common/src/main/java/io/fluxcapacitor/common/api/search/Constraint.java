@@ -17,7 +17,15 @@ package io.fluxcapacitor.common.api.search;
 import com.fasterxml.jackson.annotation.JsonSubTypes;
 import com.fasterxml.jackson.annotation.JsonSubTypes.Type;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
-import io.fluxcapacitor.common.api.search.constraints.*;
+import io.fluxcapacitor.common.api.search.constraints.AllConstraint;
+import io.fluxcapacitor.common.api.search.constraints.AnyConstraint;
+import io.fluxcapacitor.common.api.search.constraints.BetweenConstraint;
+import io.fluxcapacitor.common.api.search.constraints.ContainsConstraint;
+import io.fluxcapacitor.common.api.search.constraints.ExistsConstraint;
+import io.fluxcapacitor.common.api.search.constraints.LookAheadConstraint;
+import io.fluxcapacitor.common.api.search.constraints.MatchConstraint;
+import io.fluxcapacitor.common.api.search.constraints.NotConstraint;
+import io.fluxcapacitor.common.api.search.constraints.QueryConstraint;
 import io.fluxcapacitor.common.search.Document;
 
 import java.util.ArrayList;
@@ -28,7 +36,7 @@ import java.util.List;
         @Type(BetweenConstraint.class), @Type(ExistsConstraint.class), @Type(QueryConstraint.class),
         @Type(MatchConstraint.class), @Type(NotConstraint.class), @Type(LookAheadConstraint.class)})
 public interface Constraint {
-    Constraint noOp = NoOpConstraint.instance;
+    Constraint noOp = NoOpConstraint.getInstance();
 
     boolean matches(Document document);
 
