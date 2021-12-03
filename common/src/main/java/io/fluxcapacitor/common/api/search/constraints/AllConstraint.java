@@ -15,6 +15,7 @@
 package io.fluxcapacitor.common.api.search.constraints;
 
 import io.fluxcapacitor.common.api.search.Constraint;
+import io.fluxcapacitor.common.api.search.NoOpConstraint;
 import io.fluxcapacitor.common.search.Document;
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
@@ -35,7 +36,7 @@ public class AllConstraint implements Constraint {
 
     public static Constraint all(List<Constraint> constraints) {
         switch (constraints.size()) {
-            case 0: return Constraint.noOp;
+            case 0: return NoOpConstraint.instance;
             case 1: return constraints.get(0);
             default: return new AllConstraint(constraints);
         }

@@ -16,6 +16,7 @@ package io.fluxcapacitor.common.api.search.constraints;
 
 import io.fluxcapacitor.common.SearchUtils;
 import io.fluxcapacitor.common.api.search.Constraint;
+import io.fluxcapacitor.common.api.search.NoOpConstraint;
 import io.fluxcapacitor.common.search.Document;
 import lombok.AccessLevel;
 import lombok.EqualsAndHashCode;
@@ -54,12 +55,12 @@ public class MatchConstraint extends PathConstraint {
                             .map(v -> new MatchConstraint(v.toString(), path, strict))
                             .collect(toList());
             switch (constraints.size()) {
-                case 0: return noOp;
+                case 0: return NoOpConstraint.instance;
                 case 1: return constraints.get(0);
                 default: return new AnyConstraint(constraints);
             }
         } else {
-            return value == null ? noOp : new MatchConstraint(value.toString(), path, strict);
+            return value == null ? NoOpConstraint.instance : new MatchConstraint(value.toString(), path, strict);
         }
     }
 

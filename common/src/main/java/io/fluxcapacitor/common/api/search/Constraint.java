@@ -36,8 +36,6 @@ import java.util.List;
         @Type(BetweenConstraint.class), @Type(ExistsConstraint.class), @Type(QueryConstraint.class),
         @Type(MatchConstraint.class), @Type(NotConstraint.class), @Type(LookAheadConstraint.class)})
 public interface Constraint {
-    Constraint noOp = NoOpConstraint.getInstance();
-
     boolean matches(Document document);
 
     boolean hasPathConstraint();

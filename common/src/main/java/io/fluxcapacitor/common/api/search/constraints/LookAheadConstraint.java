@@ -15,6 +15,7 @@
 package io.fluxcapacitor.common.api.search.constraints;
 
 import io.fluxcapacitor.common.api.search.Constraint;
+import io.fluxcapacitor.common.api.search.NoOpConstraint;
 import io.fluxcapacitor.common.search.Document;
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
@@ -40,7 +41,7 @@ public class LookAheadConstraint extends PathConstraint {
             Pattern.compile(String.format("\"[^\"]*\"|[%1$s][^\\s]*[%1$s]|[%1$s]", letterOrNumber), Pattern.MULTILINE);
 
     public static Constraint lookAhead(String lookAhead, String... paths) {
-        if (isBlank(lookAhead)) return noOp;
+        if (isBlank(lookAhead)) return NoOpConstraint.instance;
         switch (paths.length) {
             case 0:
                 return new LookAheadConstraint(lookAhead, null);

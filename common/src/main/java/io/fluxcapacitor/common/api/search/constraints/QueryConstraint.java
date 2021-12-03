@@ -15,6 +15,7 @@
 package io.fluxcapacitor.common.api.search.constraints;
 
 import io.fluxcapacitor.common.api.search.Constraint;
+import io.fluxcapacitor.common.api.search.NoOpConstraint;
 import io.fluxcapacitor.common.search.Document;
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
@@ -43,7 +44,7 @@ public class QueryConstraint extends PathConstraint {
     private static final Pattern splitOnInnerAsterisk = Pattern.compile(String.format("(?<=[%1$s])\\*(?=[%1$s])", letterOrNumber));
 
     public static Constraint query(String query, String... paths) {
-        if (isBlank(query)) return noOp;
+        if (isBlank(query)) return NoOpConstraint.instance;
         switch (paths.length) {
             case 0:
                 return new QueryConstraint(query, null);
