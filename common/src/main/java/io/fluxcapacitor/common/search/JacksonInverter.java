@@ -27,12 +27,12 @@ import com.fasterxml.jackson.databind.node.JsonNodeFactory;
 import com.fasterxml.jackson.databind.node.NullNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.fasterxml.jackson.databind.node.TextNode;
-import io.fluxcapacitor.common.SearchUtils;
 import io.fluxcapacitor.common.api.Data;
 import io.fluxcapacitor.common.search.Document.Entry;
 import io.fluxcapacitor.common.search.Document.EntryType;
 import io.fluxcapacitor.common.search.Document.Path;
 import io.fluxcapacitor.common.serialization.NullCollectionsAsEmptyModule;
+import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
@@ -48,26 +48,29 @@ import java.util.List;
 import java.util.Map;
 import java.util.SortedMap;
 import java.util.TreeMap;
+import java.util.regex.Pattern;
 
 import static com.fasterxml.jackson.databind.DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES;
 import static com.fasterxml.jackson.databind.SerializationFeature.FAIL_ON_EMPTY_BEANS;
 import static com.fasterxml.jackson.databind.SerializationFeature.WRITE_DATES_AS_TIMESTAMPS;
 import static com.fasterxml.jackson.databind.node.JsonNodeFactory.withExactBigDecimals;
+import static io.fluxcapacitor.common.SearchUtils.asIntegerOrString;
 import static java.util.stream.Collectors.toList;
 import static java.util.stream.Collectors.toMap;
 import static org.apache.commons.lang3.StringUtils.isBlank;
 
 @Slf4j
+@Getter(AccessLevel.PROTECTED)
 public class JacksonInverter implements Inverter<JsonNode> {
     public static JsonMapper defaultObjectMapper = JsonMapper.builder()
             .findAndAddModules().addModule(new NullCollectionsAsEmptyModule())
             .disable(FAIL_ON_EMPTY_BEANS).disable(WRITE_DATES_AS_TIMESTAMPS).disable(FAIL_ON_UNKNOWN_PROPERTIES)
             .nodeFactory(withExactBigDecimals(true)).build();
 
-    @Getter
     private final ObjectMapper objectMapper;
     private final JsonFactory jsonFactory;
     private final JsonNodeFactory nodeFactory;
+    private final Pattern splitPattern = Pattern.compile("(?<!\\\\)/");
 
     public JacksonInverter() {
         this(defaultObjectMapper);
@@ -167,9 +170,7 @@ public class JacksonInverter implements Inverter<JsonNode> {
             while (!token.isStructEnd()) {
                 if (token == JsonToken.FIELD_NAME) {
                     String fieldName = parser.getCurrentName();
-                    if (SearchUtils.isInteger(fieldName)) {
-                        fieldName = "\"" + fieldName + "\"";
-                    }
+                    fieldName = escapeFieldName(fieldName);
                     path = root + fieldName;
                     token = parser.nextToken();
                     continue;
@@ -180,6 +181,8 @@ public class JacksonInverter implements Inverter<JsonNode> {
     }
 
     protected String escapeFieldName(String fieldName) {
+        fieldName = fieldName.replace("/", "\\/");
+        fieldName = fieldName.replace("\"", "\\\"");
         if (StringUtils.isNumeric(fieldName)) {
             try {
                 Integer.valueOf(fieldName);
@@ -187,7 +190,6 @@ public class JacksonInverter implements Inverter<JsonNode> {
             } catch (Exception ignored) {
             }
         }
-        fieldName = fieldName.replace("/", "\\/");
         return fieldName;
     }
 
@@ -198,11 +200,12 @@ public class JacksonInverter implements Inverter<JsonNode> {
     @Override
     @SuppressWarnings("unchecked")
     public JsonNode fromDocument(Document document) {
+        Pattern splitPattern = getSplitPattern();
         Map<Entry, List<Path>> entries = document.getEntries();
         if (entries.isEmpty()) {
             return NullNode.getInstance();
         }
-        Map<String, Object> tree = new TreeMap<>();
+        Map<Object, Object> tree = new TreeMap<>();
         for (Map.Entry<Entry, List<Path>> entry : entries.entrySet()) {
             JsonNode valueNode = toJsonNode(entry.getKey());
             List<Path> paths = entry.getValue();
@@ -210,12 +213,12 @@ public class JacksonInverter implements Inverter<JsonNode> {
                 return valueNode;
             }
             paths.forEach(path -> {
-                Map<String, Object> parent = tree;
-                Iterator<String> iterator = Arrays.stream(path.getValue().split("/")).iterator();
+                Map<Object, Object> parent = tree;
+                Iterator<String> iterator = Arrays.stream(splitPattern.split(path.getValue())).iterator();
                 while (iterator.hasNext()) {
-                    String segment = iterator.next();
+                    var segment = asIntegerOrString(iterator.next());
                     if (iterator.hasNext()) {
-                        parent = (Map<String, Object>) parent.computeIfAbsent(segment, s -> new TreeMap<>());
+                        parent = (Map<Object, Object>) parent.computeIfAbsent(segment, s -> new TreeMap<>());
                     } else {
                         Object existing = parent.put(segment, valueNode);
                         if (existing != null) {
@@ -230,23 +233,29 @@ public class JacksonInverter implements Inverter<JsonNode> {
 
     protected JsonNode toJsonNode(Object struct) {
         if (struct instanceof Map<?, ?>) {
-            @SuppressWarnings("unchecked") SortedMap<String, Object> map = (SortedMap<String, Object>) struct;
-            return map.keySet().stream().findFirst().map(firstKey -> SearchUtils.asInteger(firstKey).<JsonNode>map(
-                    arrayIndex -> new ArrayNode(
-                            nodeFactory, map.values().stream().map(this::toJsonNode).collect(toList())))
-                    .orElseGet(() -> new ObjectNode(nodeFactory, map.entrySet().stream().collect(
+            @SuppressWarnings("unchecked") SortedMap<Object, Object> map = (SortedMap<Object, Object>) struct;
+            return map.keySet().stream().findFirst().<JsonNode>map(firstKey -> firstKey instanceof Integer
+                    ? new ArrayNode(nodeFactory, map.values().stream().map(this::toJsonNode).collect(toList()))
+                    : new ObjectNode(nodeFactory, map.entrySet().stream().collect(
                             toMap(e -> {
-                                String key = e.getKey();
-                                if (key.startsWith("\"") && key.endsWith("\"")) {
-                                    key = key.substring(1, key.length() - 1);
-                                }
+                                String key = e.getKey().toString();
+                                key = unescapeFieldName(key);
                                 return key;
-                            }, e -> toJsonNode(e.getValue())))))).orElse(NullNode.getInstance());
+                            }, e -> toJsonNode(e.getValue()))))).orElse(NullNode.getInstance());
         }
         if (struct instanceof JsonNode) {
             return (JsonNode) struct;
         }
         throw new IllegalArgumentException("Unrecognized structure: " + struct);
+    }
+
+    protected String unescapeFieldName(String fieldName) {
+        if (fieldName.startsWith("\"") && fieldName.endsWith("\"")) {
+            fieldName = fieldName.substring(1, fieldName.length() - 1);
+        }
+        fieldName = fieldName.replace("\\/", "/");
+        fieldName = fieldName.replace("\\\"", "\"");
+        return fieldName;
     }
 
     protected JsonNode toJsonNode(Entry entry) {

@@ -27,14 +27,16 @@ import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
-import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
+import java.util.stream.IntStream;
 
 import static java.util.Collections.emptyMap;
+import static java.util.stream.Collectors.toList;
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
@@ -51,14 +53,16 @@ class JacksonInverterTest {
 
     @Test
     void testMap() {
-        Map<Object, Object> map = new HashMap<>();
-        map.put("foo", UUID.randomUUID().toString());
+        Map<Object, Object> map = new LinkedHashMap<>();
         map.put("1", UUID.randomUUID().toString());
+        map.put("\"2\"", UUID.randomUUID().toString());
+        map.put("foo", UUID.randomUUID().toString());
+        map.put("foo/dog", UUID.randomUUID().toString());
         Number sameNumber = new BigDecimal(10);
         map.put("bar", sameNumber);
         map.put("sameBar", sameNumber);
         map.computeIfAbsent("otherMap", k -> {
-            Map<Object, Object> otherMap = new HashMap<>();
+            Map<Object, Object> otherMap = new LinkedHashMap<>();
             otherMap.put("other", false);
             return otherMap;
         });
@@ -68,7 +72,7 @@ class JacksonInverterTest {
             collection.add("cát");
             collection.add(null);
             collection.add(emptyMap());
-            Map<Object, Object> mapInCollection = new HashMap<>();
+            Map<Object, Object> mapInCollection = new LinkedHashMap<>();
             mapInCollection.put("mapKey1", false);
             mapInCollection.put("mapKey2", "hi");
             mapInCollection.put("mapKey3", new ArrayList<>());
@@ -76,6 +80,20 @@ class JacksonInverterTest {
             return collection;
         });
         testReversion(map);
+    }
+
+    @Test
+    void testLongList() {
+        List<String> strings = IntStream.range(0, 11).mapToObj(i -> "i" + i).collect(toList());
+        Document document = subject.toDocument(strings, "id", "bla", null, null);
+        assertEquals(strings, subject.fromDocument(document));
+    }
+
+    @Test
+    void testNestedList() {
+        var expected = Map.of("foo", IntStream.range(0, 11).mapToObj(i -> "i" + i).collect(toList()));
+        Document document = subject.toDocument(expected, "id", "bla", null, null);
+        assertEquals(expected, subject.fromDocument(document));
     }
 
     @Test

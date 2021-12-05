@@ -17,7 +17,6 @@ package io.fluxcapacitor.common;
 import lombok.NonNull;
 import org.apache.commons.lang3.StringUtils;
 
-import java.util.Optional;
 import java.util.regex.Pattern;
 
 public class SearchUtils {
@@ -131,17 +130,24 @@ public class SearchUtils {
         return Pattern.compile(sb.toString());
     }
 
-    public static boolean isInteger(String string) {
-        return asInteger(string).isPresent();
-    }
-
-    public static Optional<Integer> asInteger(String string) {
-        if (StringUtils.isNumeric(string)) {
+    public static boolean isInteger(String fieldName) {
+        if (StringUtils.isNumeric(fieldName)) {
             try {
-                return Optional.of(Integer.valueOf(string));
+                Integer.valueOf(fieldName);
+                return true;
             } catch (Exception ignored) {
             }
         }
-        return Optional.empty();
+        return false;
+    }
+
+    public static Object asIntegerOrString(String fieldName) {
+        if (StringUtils.isNumeric(fieldName)) {
+            try {
+                return Integer.valueOf(fieldName);
+            } catch (Exception ignored) {
+            }
+        }
+        return fieldName;
     }
 }
