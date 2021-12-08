@@ -18,7 +18,7 @@ import java.util.UUID;
 
 public class UuidFactory implements IdentityProvider {
     @Override
-    public String nextId() {
+    public String nextFunctionalId() {
         return UUID.randomUUID().toString();
     }
 }

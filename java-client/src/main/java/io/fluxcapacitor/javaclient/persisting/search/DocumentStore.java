@@ -28,12 +28,12 @@ import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Function;
 
-import static io.fluxcapacitor.javaclient.FluxCapacitor.generateId;
+import static io.fluxcapacitor.javaclient.FluxCapacitor.currentIdentityProvider;
 
 public interface DocumentStore {
 
     default void index(Object object, String collection) {
-        index(object, generateId(), collection);
+        index(object, currentIdentityProvider().nextTechnicalId(), collection);
     }
 
     default void index(Object object, String id, String collection) {
@@ -54,7 +54,7 @@ public interface DocumentStore {
                                   Guarantee guarantee, boolean ifNotExists);
 
     default <T> void index(Collection<? extends T> objects, String collection) {
-        index(objects, collection, v -> generateId());
+        index(objects, collection, v -> currentIdentityProvider().nextTechnicalId());
     }
 
     default <T> void index(Collection<? extends T> objects, String collection, Function<? super T, String> idFunction) {
@@ -96,7 +96,7 @@ public interface DocumentStore {
                                       boolean ifNotExists);
 
     default void indexIfNotExists(Object object, String collection) {
-        indexIfNotExists(object, generateId(), collection);
+        indexIfNotExists(object, currentIdentityProvider().nextTechnicalId(), collection);
     }
 
     default void indexIfNotExists(Object object, String id, String collection) {
@@ -114,7 +114,7 @@ public interface DocumentStore {
     }
 
     default <T> void indexIfNotExists(Collection<? extends T> objects, String collection) {
-        indexIfNotExists(objects, collection, v -> generateId());
+        indexIfNotExists(objects, collection, v -> currentIdentityProvider().nextTechnicalId());
     }
 
     default <T> void indexIfNotExists(Collection<? extends T> objects, String collection,

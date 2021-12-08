@@ -57,7 +57,7 @@ public class DataProtectionInterceptor implements DispatchInterceptor, HandlerIn
                 Object payload = m.getPayload();
                 getAnnotatedFields(m.getPayload(), ProtectData.class).forEach(
                         field -> readProperty(field.getName(), payload).ifPresent(value -> {
-                            String key = FluxCapacitor.generateId();
+                            String key = FluxCapacitor.currentIdentityProvider().nextTechnicalId();
                             keyValueStore.store(key, value, Guarantee.STORED);
                             protectedFields.put(field.getName(), key);
                         }));
