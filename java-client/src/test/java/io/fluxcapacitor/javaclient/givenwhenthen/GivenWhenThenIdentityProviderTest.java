@@ -12,7 +12,7 @@ public class GivenWhenThenIdentityProviderTest {
 
     @Test
     void testPredictableIdentityProvider() {
-        TestFixture.create(spy(new CommandHandler())).givenNoPriorActivity()
+        TestFixture.create(spy(new QueryHandler())).givenNoPriorActivity()
                 .whenQuery(new GenerateId())
                 .expectResult("cfcd2084-95d5-35ef-a6e7-dff9f98764da"::equals);
     }
@@ -21,7 +21,7 @@ public class GivenWhenThenIdentityProviderTest {
     private static class GenerateId {
     }
 
-    private static class CommandHandler {
+    private static class QueryHandler {
 
         @HandleQuery
         public String handle(GenerateId query) {

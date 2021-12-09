@@ -11,9 +11,4 @@ public class PredictableUuidFactory implements IdentityProvider {
     public String nextFunctionalId() {
         return UUID.nameUUIDFromBytes((next.getAndIncrement() + "").getBytes()).toString();
     }
-
-    @Override
-    public String nextTechnicalId() {
-        return UUID.randomUUID().toString();
-    }
 }
