@@ -15,6 +15,7 @@
 package io.fluxcapacitor.javaclient.scheduling;
 
 import io.fluxcapacitor.common.api.Metadata;
+import io.fluxcapacitor.javaclient.FluxCapacitor;
 import io.fluxcapacitor.javaclient.common.Message;
 import lombok.EqualsAndHashCode;
 import lombok.NonNull;
@@ -26,7 +27,6 @@ import java.time.Duration;
 import java.time.Instant;
 
 import static io.fluxcapacitor.javaclient.FluxCapacitor.currentClock;
-import static io.fluxcapacitor.javaclient.FluxCapacitor.generateId;
 
 @Value
 @EqualsAndHashCode(callSuper = true)
@@ -68,7 +68,7 @@ public class Schedule extends Message {
     }
 
     public Schedule reschedule(Duration duration) {
-        return new Schedule(getPayload(), getMetadata(), generateId(), currentClock().instant(),
+        return new Schedule(getPayload(), getMetadata(), FluxCapacitor.currentIdentityProvider().nextTechnicalId(), currentClock().instant(),
                             scheduleId, deadline.plus(duration));
     }
 }

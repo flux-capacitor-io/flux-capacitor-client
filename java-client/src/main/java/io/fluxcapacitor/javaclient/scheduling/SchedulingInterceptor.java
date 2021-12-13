@@ -178,7 +178,7 @@ public class SchedulingInterceptor implements DispatchInterceptor, HandlerInterc
     private void reschedule(Object payload, Metadata metadata, Instant instant) {
         try {
             FluxCapacitor.get().scheduler().schedule(new Schedule(payload, metadata
-                    .getOrDefault(Schedule.scheduleIdMetadataKey, FluxCapacitor.generateId()), instant));
+                    .getOrDefault(Schedule.scheduleIdMetadataKey, FluxCapacitor.currentIdentityProvider().nextTechnicalId()), instant));
         } catch (Exception e) {
             log.error("Failed to reschedule a {}", payload.getClass(), e);
         }

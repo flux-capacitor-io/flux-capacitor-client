@@ -48,7 +48,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.function.Function;
 import java.util.stream.Stream;
 
-import static io.fluxcapacitor.javaclient.FluxCapacitor.generateId;
+import static io.fluxcapacitor.javaclient.FluxCapacitor.currentIdentityProvider;
 import static java.lang.String.format;
 import static java.util.Collections.singletonList;
 import static java.util.function.UnaryOperator.identity;
@@ -78,7 +78,7 @@ public class DefaultDocumentStore implements DocumentStore {
                                              @Nullable String idPath, @Nullable String beginPath,
                                              @Nullable String endPath, Guarantee guarantee, boolean ifNotExists) {
         List<Document> documents = objects.stream().map(v -> serializer.toDocument(
-                v, generateId(), collection, null, null)).map(d -> {
+                v, currentIdentityProvider().nextTechnicalId(), collection, null, null)).map(d -> {
             Document.DocumentBuilder builder = d.toBuilder();
             if (idPath != null) {
                 builder.id(d.getEntryAtPath(idPath).filter(

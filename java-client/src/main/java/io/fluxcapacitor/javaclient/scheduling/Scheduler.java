@@ -15,18 +15,18 @@
 package io.fluxcapacitor.javaclient.scheduling;
 
 import io.fluxcapacitor.common.api.Metadata;
+import io.fluxcapacitor.javaclient.FluxCapacitor;
 import io.fluxcapacitor.javaclient.common.Message;
 
 import java.time.Duration;
 import java.time.Instant;
 
 import static io.fluxcapacitor.javaclient.FluxCapacitor.currentClock;
-import static io.fluxcapacitor.javaclient.FluxCapacitor.generateId;
 
 public interface Scheduler {
 
     default String schedule(Object schedule, Instant deadline) {
-        String scheduleId = generateId();
+        String scheduleId = FluxCapacitor.currentIdentityProvider().nextTechnicalId();
         schedule(schedule, scheduleId, deadline);
         return scheduleId;
     }

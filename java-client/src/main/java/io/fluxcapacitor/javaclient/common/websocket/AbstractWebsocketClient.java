@@ -123,7 +123,7 @@ public abstract class AbstractWebsocketClient implements Listener, AutoCloseable
 
     @SneakyThrows
     protected Awaitable sendBatch(List<JsonType> requests, WebSocket webSocket) {
-        Metadata metadata = requests.size() > 1 ? Metadata.of("batchId", FluxCapacitor.generateId()) : Metadata.empty();
+        Metadata metadata = requests.size() > 1 ? Metadata.of("batchId", FluxCapacitor.currentIdentityProvider().nextTechnicalId()) : Metadata.empty();
         Collection<WebSocketRequest> webSocketRequests = new ArrayList<>();
         requests.forEach(r -> {
             if (r instanceof Request) {
@@ -178,7 +178,7 @@ public abstract class AbstractWebsocketClient implements Listener, AutoCloseable
                 return;
             }
             if (value instanceof ResultBatch) {
-                String batchId = FluxCapacitor.generateId();
+                String batchId = FluxCapacitor.currentIdentityProvider().nextTechnicalId();
                 ((ResultBatch) value).getResults().forEach(r -> resultExecutor.execute(() -> handleResult(r, batchId)));
             } else {
                 handleResult((QueryResult) value, null);

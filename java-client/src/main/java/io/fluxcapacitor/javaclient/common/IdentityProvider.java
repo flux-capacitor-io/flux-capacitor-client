@@ -14,7 +14,13 @@
 
 package io.fluxcapacitor.javaclient.common;
 
+import java.util.UUID;
+
 @FunctionalInterface
 public interface IdentityProvider {
-    String nextId();
+    String nextFunctionalId();
+
+    default String nextTechnicalId(){
+        return UUID.randomUUID().toString();
+    }
 }

@@ -34,7 +34,12 @@ import io.fluxcapacitor.javaclient.persisting.eventsourcing.EventStore;
 import io.fluxcapacitor.javaclient.persisting.keyvalue.KeyValueStore;
 import io.fluxcapacitor.javaclient.persisting.search.DocumentStore;
 import io.fluxcapacitor.javaclient.persisting.search.Search;
-import io.fluxcapacitor.javaclient.publishing.*;
+import io.fluxcapacitor.javaclient.publishing.CommandGateway;
+import io.fluxcapacitor.javaclient.publishing.ErrorGateway;
+import io.fluxcapacitor.javaclient.publishing.EventGateway;
+import io.fluxcapacitor.javaclient.publishing.MetricsGateway;
+import io.fluxcapacitor.javaclient.publishing.QueryGateway;
+import io.fluxcapacitor.javaclient.publishing.ResultGateway;
 import io.fluxcapacitor.javaclient.publishing.correlation.CorrelationDataProvider;
 import io.fluxcapacitor.javaclient.publishing.correlation.DefaultCorrelationDataProvider;
 import io.fluxcapacitor.javaclient.scheduling.Scheduler;
@@ -47,14 +52,20 @@ import io.fluxcapacitor.javaclient.tracking.handling.authentication.UserProvider
 import javax.annotation.Nullable;
 import java.time.Clock;
 import java.time.Instant;
-import java.util.*;
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.stream.Stream;
 
-import static io.fluxcapacitor.common.MessageType.*;
+import static io.fluxcapacitor.common.MessageType.COMMAND;
+import static io.fluxcapacitor.common.MessageType.EVENT;
+import static io.fluxcapacitor.common.MessageType.NOTIFICATION;
 import static io.fluxcapacitor.javaclient.modeling.AggregateIdResolver.getAggregateId;
 import static java.util.Arrays.stream;
 import static java.util.Optional.ofNullable;
@@ -124,7 +135,15 @@ public interface FluxCapacitor extends AutoCloseable {
      * If there is no current FluxCapacitor instance a new UUID is generated.
      */
     static String generateId() {
-        return getOptionally().map(FluxCapacitor::identityProvider).orElseGet(UuidFactory::new).nextId();
+        return currentIdentityProvider().nextFunctionalId();
+    }
+
+    /**
+     * Fetches the {@link IdentityProvider} of the current FluxCapacitor.
+     * If there is no current FluxCapacitor instance a new UUID factory is generated.
+     */
+    static IdentityProvider currentIdentityProvider() {
+        return getOptionally().map(FluxCapacitor::identityProvider).orElseGet(UuidFactory::new);
     }
 
     /**
