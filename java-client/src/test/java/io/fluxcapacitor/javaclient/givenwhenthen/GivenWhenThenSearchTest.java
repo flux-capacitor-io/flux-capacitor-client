@@ -22,10 +22,12 @@ import io.fluxcapacitor.common.api.search.bulkupdate.IndexDocument;
 import io.fluxcapacitor.common.serialization.JsonUtils;
 import io.fluxcapacitor.javaclient.common.serialization.jackson.JacksonSerializer;
 import io.fluxcapacitor.javaclient.test.TestFixture;
+import io.fluxcapacitor.javaclient.test.When;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Singular;
 import lombok.Value;
+import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
 import java.math.BigDecimal;
@@ -102,12 +104,24 @@ public class GivenWhenThenSearchTest {
     void testWeirdChars() {
         expectMatch(query("ẏṏṳṙ ẇḕḭṙḊ ṮḕẌ*", "weirdChars"));
         expectNoMatch(query("ẏṏṳṙ ẇḕḭṙḊo ṮḕẌ*", "weirdChars"));
-        expectMatch(query("ÄäǞǟĄ̈ą̈B̈b̈C̈c̈ËëḦḧÏïḮḯJ̈j̈K̈k̈L̈l̈M̈m̈N̈n̈ÖöȪȫǪ̈ǫ̈ṎṏP̈p̈Q̈q̈Q̣̈q̣̈R̈r̈S̈s̈T̈ẗÜüǕǖǗǘǙǚǛǜṲṳṺṻṲ̄ṳ̄ᴞV̈v̈ẄẅẌẍŸÿZ̈z̈ΪϊῒΐῗΫϋῢΰῧϔӒӓЁёӚӛӜӝӞӟӤӥЇїӦӧӪӫӰӱӴӵӸӹ*", "weirdChars"));
-        expectNoMatch(query("XXÄäǞǟĄ̈ą̈B̈b̈C̈c̈ËëḦḧÏïḮḯJ̈j̈K̈k̈L̈l̈M̈m̈N̈n̈ÖöȪȫǪ̈ǫ̈ṎṏP̈p̈Q̈q̈Q̣̈q̣̈R̈r̈S̈s̈T̈ẗÜüǕǖǗǘǙǚǛǜṲṳṺṻṲ̄ṳ̄ᴞV̈v̈ẄẅẌẍŸÿZ̈z̈ΪϊῒΐῗΫϋῢΰῧϔӒӓЁёӚӛӜӝӞӟӤӥЇїӦӧӪӫӰӱӴӵӸӹӬ*", "weirdChars"));
-        expectMatch(match("ẏṏṳṙ ẇḕḭṙḊ ṮḕẌṮ ÄäǞǟĄ̈ą̈B̈b̈C̈c̈ËëḦḧÏïḮḯJ̈j̈K̈k̈L̈l̈M̈m̈N̈n̈ÖöȪȫǪ̈ǫ̈ṎṏP̈p̈Q̈q̈Q̣̈q̣̈R̈r̈S̈s̈T̈ẗÜüǕǖǗǘǙǚǛǜṲṳṺṻṲ̄ṳ̄ᴞV̈v̈ẄẅẌẍŸÿZ̈z̈ΪϊῒΐῗΫϋῢΰῧϔӒӓЁёӚӛӜӝӞӟӤӥЇїӦӧӪӫӰӱӴӵӸӹӬӭ", true, "weirdChars"));
-        expectMatch(match("ẏṏṳṙ ẇḕḭṙḊ ṮḕẌṮ ÄäǞǟĄ̈ą̈B̈b̈C̈c̈ËëḦḧÏïḮḯJ̈j̈K̈k̈L̈l̈M̈m̈N̈n̈ÖöȪȫǪ̈ǫ̈ṎṏP̈p̈Q̈q̈Q̣̈q̣̈R̈r̈S̈s̈T̈ẗÜüǕǖǗǘǙǚǛǜṲṳṺṻṲ̄ṳ̄ᴞV̈v̈ẄẅẌẍŸÿZ̈z̈ΪϊῒΐῗΫϋῢΰῧϔӒӓЁёӚӛӜӝӞӟӤӥЇїӦӧӪӫӰӱӴӵӸӹӬӭ".toLowerCase(), "weirdChars"));
-        expectNoMatch(match("ẏṏṳṙ ẇḕḭṙḊ ṮḕẌṮ ÄäǞǟĄ̈ą̈B̈b̈C̈c̈ËëḦḧÏïḮḯJ̈j̈K̈k̈L̈l̈M̈m̈N̈n̈ÖöȪȫǪ̈ǫ̈ṎṏP̈p̈Q̈q̈Q̣̈q̣̈R̈r̈S̈s̈T̈ẗÜüǕǖǗǘǙǚǛǜṲṳṺṻṲ̄ṳ̄ᴞV̈v̈ẄẅẌẍŸÿZ̈z̈ΪϊῒΐῗΫϋῢΰῧϔӒӓЁёӚӛӜӝӞӟӤӥЇїӦӧӪӫӰӱӴӵӸӹӬӭ".toLowerCase(), true, "weirdChars"));
-        expectNoMatch(match("ẏṏṳṙ ẇḕḭṙḊo ṮḕẌṮ ÄäǞǟĄ̈ą̈B̈b̈C̈c̈ËëḦḧÏïḮḯJ̈j̈K̈k̈L̈l̈M̈m̈N̈n̈ÖöȪȫǪ̈ǫ̈ṎṏP̈p̈Q̈q̈Q̣̈q̣̈R̈r̈S̈s̈T̈ẗÜüǕǖǗǘǙǚǛǜṲṳṺṻṲ̄ṳ̄ᴞV̈v̈ẄẅẌẍŸÿZ̈z̈ΪϊῒΐῗΫϋῢΰῧϔӒӓЁёӚӛӜӝӞӟӤӥЇїӦӧӪӫӰӱӴӵӸӹӬӭ", "weirdChars"));
+        expectMatch(
+                query("ÄäǞǟĄ̈ą̈B̈b̈C̈c̈ËëḦḧÏïḮḯJ̈j̈K̈k̈L̈l̈M̈m̈N̈n̈ÖöȪȫǪ̈ǫ̈ṎṏP̈p̈Q̈q̈Q̣̈q̣̈R̈r̈S̈s̈T̈ẗÜüǕǖǗǘǙǚǛǜṲṳṺṻṲ̄ṳ̄ᴞV̈v̈ẄẅẌẍŸÿZ̈z̈ΪϊῒΐῗΫϋῢΰῧϔӒӓЁёӚӛӜӝӞӟӤӥЇїӦӧӪӫӰӱӴӵӸӹ*",
+                      "weirdChars"));
+        expectNoMatch(
+                query("XXÄäǞǟĄ̈ą̈B̈b̈C̈c̈ËëḦḧÏïḮḯJ̈j̈K̈k̈L̈l̈M̈m̈N̈n̈ÖöȪȫǪ̈ǫ̈ṎṏP̈p̈Q̈q̈Q̣̈q̣̈R̈r̈S̈s̈T̈ẗÜüǕǖǗǘǙǚǛǜṲṳṺṻṲ̄ṳ̄ᴞV̈v̈ẄẅẌẍŸÿZ̈z̈ΪϊῒΐῗΫϋῢΰῧϔӒӓЁёӚӛӜӝӞӟӤӥЇїӦӧӪӫӰӱӴӵӸӹӬ*",
+                      "weirdChars"));
+        expectMatch(
+                match("ẏṏṳṙ ẇḕḭṙḊ ṮḕẌṮ ÄäǞǟĄ̈ą̈B̈b̈C̈c̈ËëḦḧÏïḮḯJ̈j̈K̈k̈L̈l̈M̈m̈N̈n̈ÖöȪȫǪ̈ǫ̈ṎṏP̈p̈Q̈q̈Q̣̈q̣̈R̈r̈S̈s̈T̈ẗÜüǕǖǗǘǙǚǛǜṲṳṺṻṲ̄ṳ̄ᴞV̈v̈ẄẅẌẍŸÿZ̈z̈ΪϊῒΐῗΫϋῢΰῧϔӒӓЁёӚӛӜӝӞӟӤӥЇїӦӧӪӫӰӱӴӵӸӹӬӭ",
+                      true, "weirdChars"));
+        expectMatch(
+                match("ẏṏṳṙ ẇḕḭṙḊ ṮḕẌṮ ÄäǞǟĄ̈ą̈B̈b̈C̈c̈ËëḦḧÏïḮḯJ̈j̈K̈k̈L̈l̈M̈m̈N̈n̈ÖöȪȫǪ̈ǫ̈ṎṏP̈p̈Q̈q̈Q̣̈q̣̈R̈r̈S̈s̈T̈ẗÜüǕǖǗǘǙǚǛǜṲṳṺṻṲ̄ṳ̄ᴞV̈v̈ẄẅẌẍŸÿZ̈z̈ΪϊῒΐῗΫϋῢΰῧϔӒӓЁёӚӛӜӝӞӟӤӥЇїӦӧӪӫӰӱӴӵӸӹӬӭ".toLowerCase(),
+                      "weirdChars"));
+        expectNoMatch(
+                match("ẏṏṳṙ ẇḕḭṙḊ ṮḕẌṮ ÄäǞǟĄ̈ą̈B̈b̈C̈c̈ËëḦḧÏïḮḯJ̈j̈K̈k̈L̈l̈M̈m̈N̈n̈ÖöȪȫǪ̈ǫ̈ṎṏP̈p̈Q̈q̈Q̣̈q̣̈R̈r̈S̈s̈T̈ẗÜüǕǖǗǘǙǚǛǜṲṳṺṻṲ̄ṳ̄ᴞV̈v̈ẄẅẌẍŸÿZ̈z̈ΪϊῒΐῗΫϋῢΰῧϔӒӓЁёӚӛӜӝӞӟӤӥЇїӦӧӪӫӰӱӴӵӸӹӬӭ".toLowerCase(),
+                      true, "weirdChars"));
+        expectNoMatch(
+                match("ẏṏṳṙ ẇḕḭṙḊo ṮḕẌṮ ÄäǞǟĄ̈ą̈B̈b̈C̈c̈ËëḦḧÏïḮḯJ̈j̈K̈k̈L̈l̈M̈m̈N̈n̈ÖöȪȫǪ̈ǫ̈ṎṏP̈p̈Q̈q̈Q̣̈q̣̈R̈r̈S̈s̈T̈ẗÜüǕǖǗǘǙǚǛǜṲṳṺṻṲ̄ṳ̄ᴞV̈v̈ẄẅẌẍŸÿZ̈z̈ΪϊῒΐῗΫϋῢΰῧϔӒӓЁёӚӛӜӝӞӟӤӥЇїӦӧӪӫӰӱӴӵӸӹӬӭ",
+                      "weirdChars"));
     }
 
     @Test
@@ -285,6 +299,107 @@ public class GivenWhenThenSearchTest {
                 .expectResult(document);
     }
 
+    @Nested
+    class TimeConstraintTests {
+        Instant documentStart = Instant.parse("2021-12-01T12:00:00Z");
+        Instant documentEnd = Instant.parse("2021-12-30T12:00:00Z");
+        When testFixture =
+                TestFixture.create().givenDocument(new SomeDocument(), "testId", "foobar", documentStart, documentEnd);
+
+        @Test
+        void searchSinceBeforeDocument() {
+            testFixture.whenSearching("foobar", s -> s.since(documentStart.minusSeconds(1))
+            ).<List<?>>expectResult(docs -> docs.size() == 1);
+        }
+
+        @Test
+        void searchBeforeAfterDocument() {
+            testFixture.whenSearching("foobar", s -> s.before(documentEnd.plusSeconds(1))
+            ).<List<?>>expectResult(docs -> docs.size() == 1);
+        }
+
+        @Test
+        void searchPeriodBeforeAndAfterDocument() {
+            testFixture.whenSearching("foobar",
+                                      s -> s.inPeriod(documentStart.minusSeconds(1), documentEnd.plusSeconds(1), true)
+            ).<List<?>>expectResult(docs -> docs.size() == 1);
+        }
+
+        @Test
+        void searchPeriodStartsBeforeDocument() {
+            testFixture.whenSearching("foobar",
+                                      s -> s.inPeriod(documentStart.minusSeconds(1), documentEnd.minusSeconds(1), true)
+            ).<List<?>>expectResult(docs -> docs.size() == 1);
+        }
+
+        @Test
+        void searchPeriodEndsAfterDocument() {
+            testFixture.whenSearching("foobar",
+                                      s -> s.inPeriod(documentStart.plusSeconds(1), documentEnd.plusSeconds(1), true)
+            ).<List<?>>expectResult(docs -> docs.size() == 1);
+        }
+
+        @Test
+        void searchPeriodFallsWithinThatOfDocument() {
+            testFixture.whenSearching("foobar",
+                                      s -> s.inPeriod(documentStart.plusSeconds(1), documentEnd.minusSeconds(1), true)
+            ).<List<?>>expectResult(docs -> docs.size() == 1);
+        }
+
+        @Test
+        void searchPeriodBeforeThatOfDocument() {
+            testFixture.whenSearching("foobar",
+                                      s -> s.inPeriod(documentStart.minusSeconds(5), documentStart.minusSeconds(1), true)
+            ).<List<?>>expectResult(docs -> docs.size() == 0);
+        }
+
+        @Test
+        void searchPeriodAfterThatOfDocument() {
+            testFixture.whenSearching("foobar",
+                                      s -> s.inPeriod(documentEnd.plusSeconds(1), documentEnd.plusSeconds(5), true)
+            ).<List<?>>expectResult(docs -> docs.size() == 0);
+        }
+
+        @Test
+        void searchPeriodStartsAtEndOfDocument() {
+            testFixture.whenSearching("foobar",
+                                      s -> s.inPeriod(documentEnd, documentEnd.plusSeconds(5), true)
+            ).<List<?>>expectResult(docs -> docs.size() == 1);
+        }
+
+        @Test
+        void searchPeriodEndsAtStartOfDocument() {
+            testFixture.whenSearching("foobar",
+                                      s -> s.inPeriod(documentStart.minusSeconds(1), documentStart, true)
+            ).<List<?>>expectResult(docs -> docs.size() == 0);
+        }
+
+        @Test
+        void noDocumentEndTimestamp() {
+            TestFixture.create().givenDocument(new SomeDocument(), "testId", "foobar", documentStart, null)
+                    .whenSearching("foobar",
+                                      s -> s.inPeriod(documentStart.minusSeconds(1), documentStart.plusSeconds(1), true)
+            ).<List<?>>expectResult(docs -> docs.size() == 1);
+            TestFixture.create().givenDocument(new SomeDocument(), "testId", "foobar", documentStart, null)
+                    .whenSearching("foobar",
+                                   s -> s.inPeriod(documentStart.minusSeconds(1), documentStart, true)
+                    ).<List<?>>expectResult(docs -> docs.size() == 0);
+        }
+
+        @Test
+        void noDocumentStartTimestamp() {
+            TestFixture.create().givenDocument(new SomeDocument(), "testId", "foobar", null, null)
+                    .whenSearching("foobar",
+                                   s -> s.inPeriod(documentStart.minusSeconds(1), documentEnd.plusSeconds(1), false)
+                    ).<List<?>>expectResult(docs -> docs.size() == 1);
+            TestFixture.create().givenDocument(new SomeDocument(), "testId", "foobar", null, null)
+                    .whenSearching("foobar",
+                                   s -> s.inPeriod(documentStart.minusSeconds(1), documentEnd.plusSeconds(1), true)
+                    ).<List<?>>expectResult(docs -> docs.size() == 0);
+        }
+    }
+
+
     @Value
     @Builder
     private static class MockObjectWithBulkUpdates {
@@ -328,7 +443,8 @@ public class GivenWhenThenSearchTest {
             this.mapList = Arrays.asList(singletonMap(
                     "key1", new BigDecimal(10)), singletonMap("key2", "value2"));
             this.symbols = "Can you find slash in mid\\dle or \\front, or find <xml>? Anne-gre";
-            this.weirdChars = "ẏṏṳṙ ẇḕḭṙḊ ṮḕẌṮ ÄäǞǟĄ̈ą̈B̈b̈C̈c̈ËëḦḧÏïḮḯJ̈j̈K̈k̈L̈l̈M̈m̈N̈n̈ÖöȪȫǪ̈ǫ̈ṎṏP̈p̈Q̈q̈Q̣̈q̣̈R̈r̈S̈s̈T̈ẗÜüǕǖǗǘǙǚǛǜṲṳṺṻṲ̄ṳ̄ᴞV̈v̈ẄẅẌẍŸÿZ̈z̈ΪϊῒΐῗΫϋῢΰῧϔӒӓЁёӚӛӜӝӞӟӤӥЇїӦӧӪӫӰӱӴӵӸӹӬӭ";
+            this.weirdChars =
+                    "ẏṏṳṙ ẇḕḭṙḊ ṮḕẌṮ ÄäǞǟĄ̈ą̈B̈b̈C̈c̈ËëḦḧÏïḮḯJ̈j̈K̈k̈L̈l̈M̈m̈N̈n̈ÖöȪȫǪ̈ǫ̈ṎṏP̈p̈Q̈q̈Q̣̈q̣̈R̈r̈S̈s̈T̈ẗÜüǕǖǗǘǙǚǛǜṲṳṺṻṲ̄ṳ̄ᴞV̈v̈ẄẅẌẍŸÿZ̈z̈ΪϊῒΐῗΫϋῢΰῧϔӒӓЁёӚӛӜӝӞӟӤӥЇїӦӧӪӫӰӱӴӵӸӹӬӭ";
         }
     }
 }

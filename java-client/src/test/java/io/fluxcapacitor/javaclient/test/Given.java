@@ -51,7 +51,11 @@ public interface Given {
         return givenDocument(document, id, collection, null);
     }
 
-    When givenDocument(Object document, String id, String collection, Instant timestamp);
+    default When givenDocument(Object document, String id, String collection, Instant timestamp) {
+        return givenDocument(document, id, collection, timestamp, timestamp);
+    }
+
+    When givenDocument(Object document, String id, String collection, Instant timestamp, Instant end);
 
     When givenDocuments(String collection, Object... documents);
 
