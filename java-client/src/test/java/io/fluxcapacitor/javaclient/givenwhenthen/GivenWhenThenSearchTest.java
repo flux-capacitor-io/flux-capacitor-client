@@ -388,6 +388,18 @@ public class GivenWhenThenSearchTest {
 
         @Test
         void noDocumentStartTimestamp() {
+            TestFixture.create().givenDocument(new SomeDocument(), "testId", "foobar", null, documentEnd)
+                    .whenSearching("foobar",
+                                   s -> s.inPeriod(documentStart.minusSeconds(1), documentEnd.plusSeconds(1), false)
+                    ).<List<?>>expectResult(docs -> docs.size() == 1);
+            TestFixture.create().givenDocument(new SomeDocument(), "testId", "foobar", null, documentEnd)
+                    .whenSearching("foobar",
+                                   s -> s.inPeriod(documentStart.minusSeconds(1), documentEnd.plusSeconds(1), true)
+                    ).<List<?>>expectResult(docs -> docs.size() == 1);
+        }
+
+        @Test
+        void noDocumentStartAndEndTimestamp() {
             TestFixture.create().givenDocument(new SomeDocument(), "testId", "foobar", null, null)
                     .whenSearching("foobar",
                                    s -> s.inPeriod(documentStart.minusSeconds(1), documentEnd.plusSeconds(1), false)
