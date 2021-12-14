@@ -15,8 +15,8 @@
 package io.fluxcapacitor.javaclient.tracking.handling.validation;
 
 import io.fluxcapacitor.javaclient.common.exception.FunctionalException;
-import jakarta.validation.ConstraintViolation;
-import jakarta.validation.Path;
+import javax.validation.ConstraintViolation;
+import javax.validation.Path;
 import lombok.Getter;
 import org.hibernate.validator.internal.metadata.descriptor.ConstraintDescriptorImpl;
 
@@ -31,7 +31,7 @@ import java.util.TreeSet;
 import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
 
-import static jakarta.validation.ElementKind.CONTAINER_ELEMENT;
+import static javax.validation.ElementKind.CONTAINER_ELEMENT;
 import static java.lang.String.CASE_INSENSITIVE_ORDER;
 import static java.lang.System.lineSeparator;
 import static java.util.stream.Collectors.joining;

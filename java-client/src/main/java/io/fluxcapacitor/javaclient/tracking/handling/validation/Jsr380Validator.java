@@ -14,10 +14,10 @@
 
 package io.fluxcapacitor.javaclient.tracking.handling.validation;
 
-import jakarta.validation.ConstraintViolation;
-import jakarta.validation.Path;
-import jakarta.validation.TraversableResolver;
-import jakarta.validation.Validation;
+import javax.validation.ConstraintViolation;
+import javax.validation.Path;
+import javax.validation.TraversableResolver;
+import javax.validation.Validation;
 import lombok.AllArgsConstructor;
 
 import java.lang.annotation.ElementType;
@@ -36,8 +36,8 @@ import static java.lang.annotation.ElementType.TYPE_USE;
  */
 @AllArgsConstructor
 public class Jsr380Validator implements Validator {
-    private final jakarta.validation.Validator fieldValidator;
-    private final jakarta.validation.Validator defaultValidator;
+    private final javax.validation.Validator fieldValidator;
+    private final javax.validation.Validator defaultValidator;
 
     public static Jsr380Validator createDefault() {
         return new Jsr380Validator(

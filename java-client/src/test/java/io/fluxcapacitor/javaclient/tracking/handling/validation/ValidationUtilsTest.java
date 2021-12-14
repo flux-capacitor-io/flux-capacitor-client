@@ -14,7 +14,7 @@
 
 package io.fluxcapacitor.javaclient.tracking.handling.validation;
 
-import jakarta.validation.constraints.NotBlank;
+import javax.validation.constraints.NotBlank;
 import lombok.Value;
 import org.junit.jupiter.api.Test;
 

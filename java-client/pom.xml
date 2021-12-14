@@ -30,7 +30,7 @@
     <url>https://flux-capacitor.io</url>
 
     <properties>
-        <hibernate-validator.version>7.0.1.Final</hibernate-validator.version>
+        <hibernate-validator.version>6.2.0.Final</hibernate-validator.version>
     </properties>
 
     <dependencies>
@@ -62,7 +62,7 @@
         <dependency>
             <groupId>org.glassfish</groupId>
             <artifactId>jakarta.el</artifactId>
-            <version>4.0.2</version>
+            <version>3.0.3</version>
         </dependency>
 
         <!--spring-->
