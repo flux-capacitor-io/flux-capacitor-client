@@ -24,11 +24,11 @@ import io.fluxcapacitor.javaclient.tracking.handling.HandlerInterceptor;
 import lombok.AllArgsConstructor;
 import lombok.experimental.Delegate;
 
-import java.util.Optional;
 import java.util.function.Function;
 
 import static io.fluxcapacitor.javaclient.tracking.handling.validation.ValidationUtils.assertAuthorized;
 import static io.fluxcapacitor.javaclient.tracking.handling.validation.ValidationUtils.isAuthorized;
+import static java.util.Optional.ofNullable;
 
 @AllArgsConstructor
 public class AuthenticatingInterceptor implements DispatchInterceptor, HandlerInterceptor {
@@ -40,12 +40,8 @@ public class AuthenticatingInterceptor implements DispatchInterceptor, HandlerIn
                                                                   MessageType messageType) {
         return m -> {
             if (!userProvider.containsUser(m.getMetadata())) {
-                User user = userProvider.getActiveUser();
-                if (user == null) {
-                    user = Optional.ofNullable(DeserializingMessage.getCurrent())
-                            .map(d -> userProvider.getSystemUser()).orElse(null);
-
-                }
+                User user = ofNullable(DeserializingMessage.getCurrent()).isPresent() ? userProvider.getSystemUser() :
+                        ofNullable(userProvider.getActiveUser()).orElseGet(userProvider::getSystemUser);
                 if (user != null) {
                     m = m.withMetadata(userProvider.addToMetadata(m.getMetadata(), user));
                 }
