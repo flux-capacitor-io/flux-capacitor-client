@@ -17,10 +17,12 @@ package io.fluxcapacitor.common.api.search.constraints;
 import io.fluxcapacitor.common.api.search.Constraint;
 import io.fluxcapacitor.common.search.Document;
 import lombok.AccessLevel;
+import lombok.AllArgsConstructor;
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
 import lombok.NonNull;
 import lombok.Value;
+import lombok.With;
 import lombok.experimental.Accessors;
 
 import java.util.regex.Pattern;
@@ -30,6 +32,7 @@ import static java.util.Arrays.stream;
 import static java.util.stream.Collectors.toList;
 
 @Value
+@AllArgsConstructor(access = AccessLevel.PRIVATE)
 public class ContainsConstraint extends PathConstraint {
     protected static final String letterOrNumber = "\\p{L}0-9";
 
@@ -39,13 +42,13 @@ public class ContainsConstraint extends PathConstraint {
         switch (paths.length) {
             case 0: return new ContainsConstraint(normalized, null, prefixSearch, postfixSearch);
             case 1: return new ContainsConstraint(normalized, paths[0], prefixSearch, postfixSearch);
-            default: return new AnyConstraint(stream(paths).map(
+            default: return AnyConstraint.any(stream(paths).map(
                     p -> new ContainsConstraint(normalized, p, prefixSearch, postfixSearch)).collect(toList()));
         }
     }
 
     @NonNull String contains;
-    String path;
+    @With String path;
     boolean prefixSearch;
     boolean postfixSearch;
 

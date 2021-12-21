@@ -92,9 +92,9 @@ public interface Search {
             case 0:
                 return this;
             case 1:
-                return constraint(new ExistsConstraint(paths[0]));
+                return constraint(ExistsConstraint.exists(paths[0]));
             default:
-                return constraint(new AnyConstraint(Arrays.stream(paths).map(ExistsConstraint::new).collect(toList())));
+                return constraint(AnyConstraint.any(Arrays.stream(paths).map(ExistsConstraint::exists).collect(toList())));
         }
     }
 

@@ -33,10 +33,6 @@
       "prefixSearch" : false,
       "postfixSearch" : true
     }, {
-      "contains" : "or",
-      "prefixSearch" : false,
-      "postfixSearch" : true
-    }, {
       "contains" : "chick=fox",
       "prefixSearch" : false,
       "postfixSearch" : true
@@ -46,10 +42,6 @@
       "postfixSearch" : true
     }, {
       "contains" : "dog",
-      "prefixSearch" : false,
-      "postfixSearch" : true
-    }, {
-      "contains" : "or",
       "prefixSearch" : false,
       "postfixSearch" : true
     }, {

@@ -17,11 +17,14 @@ package io.fluxcapacitor.common.api.search.constraints;
 import io.fluxcapacitor.common.api.search.Constraint;
 import io.fluxcapacitor.common.api.search.NoOpConstraint;
 import io.fluxcapacitor.common.search.Document;
+import lombok.AccessLevel;
+import lombok.AllArgsConstructor;
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
 import lombok.NonNull;
 import lombok.ToString;
 import lombok.Value;
+import lombok.With;
 import lombok.experimental.Accessors;
 import org.apache.commons.lang3.StringUtils;
 
@@ -36,6 +39,7 @@ import static io.fluxcapacitor.common.api.search.constraints.ContainsConstraint.
 import static org.apache.commons.lang3.StringUtils.isBlank;
 
 @Value
+@AllArgsConstructor(access = AccessLevel.PRIVATE)
 public class LookAheadConstraint extends PathConstraint {
     static final Pattern termPattern =
             Pattern.compile(String.format("\"[^\"]*\"|[%1$s][^\\s]*[%1$s]|[%1$s]", letterOrNumber), Pattern.MULTILINE);
@@ -48,13 +52,13 @@ public class LookAheadConstraint extends PathConstraint {
             case 1:
                 return new LookAheadConstraint(lookAhead, paths[0]);
             default:
-                return new AnyConstraint(Arrays.stream(paths).map(p -> new LookAheadConstraint(lookAhead, p)).collect(
+                return AnyConstraint.any(Arrays.stream(paths).map(p -> new LookAheadConstraint(lookAhead, p)).collect(
                         Collectors.toList()));
         }
     }
 
     @NonNull String lookAhead;
-    String path;
+    @With String path;
 
     @Override
     public boolean matches(Document document) {

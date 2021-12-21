@@ -75,7 +75,7 @@ class TestServerTest {
             documentStore.index("bla1", "test");
             documentStore.index("bla2", "test");
             documentStore.index("bla3", "test");
-            List<Object> results = documentStore.search("test").fetchAll();
+            List<Object> results = documentStore.search("test").lookAhead("bla").fetchAll();
             assertEquals(3, results.size());
         } finally {
             WebSocketSearchClient.maxFetchSize = fetchSize;

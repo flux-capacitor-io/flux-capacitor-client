@@ -16,6 +16,8 @@ package io.fluxcapacitor.common.api.search.constraints;
 
 import io.fluxcapacitor.common.api.search.Constraint;
 import io.fluxcapacitor.common.search.Document;
+import lombok.AccessLevel;
+import lombok.AllArgsConstructor;
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
 import lombok.NonNull;
@@ -24,6 +26,7 @@ import lombok.Value;
 import lombok.experimental.Accessors;
 
 @Value
+@AllArgsConstructor(access = AccessLevel.PRIVATE)
 public class NotConstraint implements Constraint {
     public static NotConstraint not(Constraint constraint) {
         return new NotConstraint(constraint);
@@ -45,4 +48,5 @@ public class NotConstraint implements Constraint {
     public boolean hasPathConstraint() {
         return not.hasPathConstraint();
     }
+
 }

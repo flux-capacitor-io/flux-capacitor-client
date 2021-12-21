@@ -16,15 +16,18 @@ package io.fluxcapacitor.common.api.search.constraints;
 
 import io.fluxcapacitor.common.search.Document;
 import lombok.AccessLevel;
+import lombok.AllArgsConstructor;
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
 import lombok.NonNull;
 import lombok.Value;
+import lombok.With;
 import lombok.experimental.Accessors;
 
 import java.util.function.Predicate;
 
 @Value
+@AllArgsConstructor(access = AccessLevel.PRIVATE)
 public class BetweenConstraint extends PathConstraint {
     public static BetweenConstraint between(Object min, Object maxExclusive, @NonNull String path) {
         return new BetweenConstraint(min == null ? null : min.toString(),
@@ -41,6 +44,7 @@ public class BetweenConstraint extends PathConstraint {
 
     String min;
     String max;
+    @With
     String path;
 
     @Override
@@ -59,5 +63,4 @@ public class BetweenConstraint extends PathConstraint {
     Predicate<String> matcher =
             min == null ? max == null ? s -> true : s -> s.compareTo(max) < 0 : max == null
                     ? s -> s.compareTo(min) >= 0 : s -> s.compareTo(min) >= 0 && s.compareTo(max) < 0;
-
 }

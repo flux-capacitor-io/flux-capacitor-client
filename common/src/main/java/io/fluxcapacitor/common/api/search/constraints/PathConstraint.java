@@ -28,6 +28,8 @@ public abstract class PathConstraint implements Constraint {
 
     public abstract String getPath();
 
+    public abstract Constraint withPath(String path);
+
     protected abstract boolean matches(Document.Entry entry);
 
     @Override
@@ -54,6 +56,7 @@ public abstract class PathConstraint implements Constraint {
         return checkPathBeforeEntry() ? d -> d.getEntries().entrySet().stream()
                 .anyMatch(e -> e.getValue().stream().anyMatch(pathPredicate) && matches(e.getKey())) :
                 d -> d.getEntries().entrySet().stream()
-                        .anyMatch(e -> matches(e.getKey()) && e.getValue().stream().anyMatch(pathPredicate));
+                        .anyMatch(e -> matches(e.getKey()) && (e.getValue().isEmpty() ? pathPredicate.test(null) :
+                                e.getValue().stream().anyMatch(pathPredicate)));
     }
 }

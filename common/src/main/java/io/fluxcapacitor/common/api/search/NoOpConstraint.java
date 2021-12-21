@@ -33,4 +33,5 @@ public class NoOpConstraint implements Constraint {
     public boolean hasPathConstraint() {
         return false;
     }
+
 }

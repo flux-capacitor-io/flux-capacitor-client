@@ -15,14 +15,19 @@
 package io.fluxcapacitor.common.api.search.constraints;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
+import io.fluxcapacitor.common.api.search.Constraint;
+import io.fluxcapacitor.common.api.search.NoOpConstraint;
 import io.fluxcapacitor.common.search.Document;
+import lombok.AccessLevel;
+import lombok.AllArgsConstructor;
 import lombok.NonNull;
 import lombok.Value;
 
 @Value
+@AllArgsConstructor(access = AccessLevel.PRIVATE)
 public class ExistsConstraint extends PathConstraint {
-    public static ExistsConstraint exists(@NonNull String path) {
-        return new ExistsConstraint(path);
+    public static Constraint exists(String path) {
+        return path == null ? NoOpConstraint.instance : new ExistsConstraint(path);
     }
 
     @NonNull String exists;
@@ -36,5 +41,10 @@ public class ExistsConstraint extends PathConstraint {
     @JsonIgnore
     public String getPath() {
         return exists;
+    }
+
+    @Override
+    public Constraint withPath(String path) {
+        return exists(path);
     }
 }

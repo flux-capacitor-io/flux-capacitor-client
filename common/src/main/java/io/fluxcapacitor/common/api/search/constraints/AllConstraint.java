@@ -17,6 +17,8 @@ package io.fluxcapacitor.common.api.search.constraints;
 import io.fluxcapacitor.common.api.search.Constraint;
 import io.fluxcapacitor.common.api.search.NoOpConstraint;
 import io.fluxcapacitor.common.search.Document;
+import lombok.AccessLevel;
+import lombok.AllArgsConstructor;
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
 import lombok.ToString;
@@ -24,21 +26,25 @@ import lombok.Value;
 import lombok.experimental.Accessors;
 
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.List;
-import java.util.stream.Collectors;
+
+import static java.util.stream.Collectors.toList;
 
 @Value
+@AllArgsConstructor(access = AccessLevel.PRIVATE)
 public class AllConstraint implements Constraint {
 
     public static Constraint all(Constraint... constraints) {
         return all(Arrays.asList(constraints));
     }
 
-    public static Constraint all(List<Constraint> constraints) {
-        switch (constraints.size()) {
+    public static Constraint all(Collection<Constraint> constraints) {
+        var list = constraints.stream().distinct().collect(toList());
+        switch (list.size()) {
             case 0: return NoOpConstraint.instance;
-            case 1: return constraints.get(0);
-            default: return new AllConstraint(constraints);
+            case 1: return list.get(0);
+            default: return new AllConstraint(list);
         }
     }
 
@@ -47,7 +53,7 @@ public class AllConstraint implements Constraint {
     @ToString.Exclude
     @EqualsAndHashCode.Exclude
     @Getter(lazy = true) @Accessors(fluent = true)
-    Constraint decompose = new AllConstraint(getAll().stream().map(Constraint::decompose).collect(Collectors.toList()));
+    Constraint decompose = AllConstraint.all(getAll().stream().map(Constraint::decompose).collect(toList()));
 
     @Override
     public boolean matches(Document document) {
@@ -58,4 +64,5 @@ public class AllConstraint implements Constraint {
     public boolean hasPathConstraint() {
         return all.stream().anyMatch(Constraint::hasPathConstraint);
     }
+
 }

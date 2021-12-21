@@ -19,10 +19,12 @@ import io.fluxcapacitor.common.api.search.Constraint;
 import io.fluxcapacitor.common.api.search.NoOpConstraint;
 import io.fluxcapacitor.common.search.Document;
 import lombok.AccessLevel;
+import lombok.AllArgsConstructor;
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
 import lombok.NonNull;
 import lombok.Value;
+import lombok.With;
 import lombok.experimental.Accessors;
 
 import java.util.Arrays;
@@ -34,6 +36,7 @@ import java.util.function.Predicate;
 import static java.util.stream.Collectors.toList;
 
 @Value
+@AllArgsConstructor(access = AccessLevel.PRIVATE)
 public class MatchConstraint extends PathConstraint {
     public static Constraint match(Object value, String... paths) {
         return match(value, false, paths);
@@ -43,7 +46,7 @@ public class MatchConstraint extends PathConstraint {
         switch (paths.length) {
             case 0: return matchForPath(value, null, strict);
             case 1: return matchForPath(value, paths[0], strict);
-            default: return new AnyConstraint(Arrays.stream(paths).map(
+            default: return AnyConstraint.any(Arrays.stream(paths).map(
                     p -> matchForPath(value, p, strict)).collect(toList()));
         }
     }
@@ -57,7 +60,7 @@ public class MatchConstraint extends PathConstraint {
             switch (constraints.size()) {
                 case 0: return NoOpConstraint.instance;
                 case 1: return constraints.get(0);
-                default: return new AnyConstraint(constraints);
+                default: return AnyConstraint.any(constraints);
             }
         } else {
             return value == null ? NoOpConstraint.instance : new MatchConstraint(value.toString(), path, strict);
@@ -65,7 +68,7 @@ public class MatchConstraint extends PathConstraint {
     }
 
     @NonNull String match;
-    String path;
+    @With String path;
     boolean strict;
 
     @Getter(value = AccessLevel.PROTECTED, lazy = true)

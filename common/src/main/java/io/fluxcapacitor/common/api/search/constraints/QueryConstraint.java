@@ -17,11 +17,14 @@ package io.fluxcapacitor.common.api.search.constraints;
 import io.fluxcapacitor.common.api.search.Constraint;
 import io.fluxcapacitor.common.api.search.NoOpConstraint;
 import io.fluxcapacitor.common.search.Document;
+import lombok.AccessLevel;
+import lombok.AllArgsConstructor;
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
 import lombok.NonNull;
 import lombok.ToString;
 import lombok.Value;
+import lombok.With;
 import lombok.experimental.Accessors;
 
 import java.util.ArrayList;
@@ -37,6 +40,7 @@ import static io.fluxcapacitor.common.api.search.constraints.ContainsConstraint.
 import static org.apache.commons.lang3.StringUtils.isBlank;
 
 @Value
+@AllArgsConstructor(access = AccessLevel.PRIVATE)
 public class QueryConstraint extends PathConstraint {
     private static final String operator = "&|()!";
     private static final Pattern termPattern =
@@ -51,14 +55,14 @@ public class QueryConstraint extends PathConstraint {
             case 1:
                 return new QueryConstraint(query, paths[0]);
             default:
-                return new AnyConstraint(Arrays.stream(paths).map(p -> new QueryConstraint(query, p)).collect(
+                return AnyConstraint.any(Arrays.stream(paths).map(p -> new QueryConstraint(query, p)).collect(
                         Collectors.toList()));
         }
     }
 
 
     @NonNull String query;
-    String path;
+    @With String path;
 
     @Override
     public boolean matches(Document document) {

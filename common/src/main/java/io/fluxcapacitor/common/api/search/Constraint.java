@@ -56,7 +56,7 @@ public interface Constraint {
         } else {
             constraints.add(other);
         }
-        return new AllConstraint(constraints);
+        return AllConstraint.all(constraints);
     }
 
     default Constraint or(Constraint other) {
@@ -71,7 +71,7 @@ public interface Constraint {
         } else {
             constraints.add(other);
         }
-        return new AnyConstraint(constraints);
+        return AnyConstraint.any(constraints);
     }
 
 }
