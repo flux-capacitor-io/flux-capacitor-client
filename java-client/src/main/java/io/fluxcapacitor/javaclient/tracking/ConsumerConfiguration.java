@@ -25,6 +25,7 @@ import lombok.Value;
 import lombok.experimental.Accessors;
 
 import java.time.Duration;
+import java.util.EnumSet;
 import java.util.List;
 import java.util.UUID;
 import java.util.function.Function;
@@ -69,6 +70,8 @@ public class ConsumerConfiguration {
 
     public static ConsumerConfiguration getDefault(MessageType messageType) {
         return ConsumerConfiguration.builder().messageType(messageType)
-                .name(DEFAULT_CONSUMER_NAME.apply(messageType)).build();
+                .name(DEFAULT_CONSUMER_NAME.apply(messageType))
+                .ignoreSegment(EnumSet.of(MessageType.NOTIFICATION, MessageType.RESULT).contains(messageType))
+                .build();
     }
 }
