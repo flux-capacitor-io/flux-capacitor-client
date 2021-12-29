@@ -42,8 +42,8 @@ import io.fluxcapacitor.common.search.Document;
 import io.fluxcapacitor.javaclient.common.websocket.AbstractWebsocketClient;
 import io.fluxcapacitor.javaclient.configuration.client.WebSocketClient;
 import io.fluxcapacitor.javaclient.persisting.search.SearchHit;
-import lombok.extern.slf4j.Slf4j;
 
+import javax.websocket.ClientEndpoint;
 import java.net.URI;
 import java.time.Instant;
 import java.util.Collection;
@@ -56,7 +56,7 @@ import java.util.stream.Stream;
 
 import static io.fluxcapacitor.common.ObjectUtils.deduplicate;
 
-@Slf4j
+@ClientEndpoint
 public class WebSocketSearchClient extends AbstractWebsocketClient implements SearchClient {
     public static int maxFetchSize = 10_000;
 

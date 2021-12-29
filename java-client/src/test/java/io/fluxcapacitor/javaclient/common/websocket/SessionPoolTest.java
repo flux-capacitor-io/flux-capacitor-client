@@ -16,29 +16,23 @@ package io.fluxcapacitor.javaclient.common.websocket;
 
 import org.junit.jupiter.api.Test;
 
-import java.net.URI;
-import java.net.http.WebSocket;
-import java.net.http.WebSocket.Builder;
+import javax.websocket.Session;
 
-import static java.util.concurrent.CompletableFuture.completedFuture;
 import static org.junit.jupiter.api.Assertions.assertNotSame;
 import static org.junit.jupiter.api.Assertions.assertSame;
-import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
-class WebSocketPoolTest {
-    private final WebSocketPool subject = (WebSocketPool) WebSocketPool.builder(
-            when(mock(Builder.class).buildAsync(any(), any())).thenAnswer(
-                            i -> completedFuture(when(mock(WebSocket.class).isInputClosed()).thenReturn(false).getMock()))
-                    .getMock()).sessionCount(3).build(URI.create("bla"), mock(WebSocket.Listener.class));
+class SessionPoolTest {
 
     @Test
     void testPoolCyclesSessions() {
-        WebSocket first = subject.get();
-        WebSocket second = subject.get();
-        WebSocket third = subject.get();
-        WebSocket fourth = subject.get();
+        SessionPool sessionPool =
+                new SessionPool(3, () -> when(mock(Session.class).isOpen()).thenReturn(true).getMock());
+        Session first = sessionPool.get();
+        Session second = sessionPool.get();
+        Session third = sessionPool.get();
+        Session fourth = sessionPool.get();
 
         assertNotSame(first, second);
         assertNotSame(first, third);

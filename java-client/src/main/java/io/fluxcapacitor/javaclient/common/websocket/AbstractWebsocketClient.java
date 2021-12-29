@@ -18,6 +18,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.json.JsonMapper;
 import io.fluxcapacitor.common.Awaitable;
 import io.fluxcapacitor.common.Backlog;
+import io.fluxcapacitor.common.RetryConfiguration;
 import io.fluxcapacitor.common.api.JsonType;
 import io.fluxcapacitor.common.api.Metadata;
 import io.fluxcapacitor.common.api.QueryResult;
@@ -25,33 +26,33 @@ import io.fluxcapacitor.common.api.Request;
 import io.fluxcapacitor.common.api.RequestBatch;
 import io.fluxcapacitor.common.api.ResultBatch;
 import io.fluxcapacitor.javaclient.FluxCapacitor;
+import io.fluxcapacitor.javaclient.configuration.client.WebSocketClient;
 import io.fluxcapacitor.javaclient.configuration.client.WebSocketClient.ClientConfig;
 import lombok.RequiredArgsConstructor;
 import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
 
-import java.io.ByteArrayOutputStream;
+import javax.websocket.CloseReason;
+import javax.websocket.ContainerProvider;
+import javax.websocket.OnClose;
+import javax.websocket.OnError;
+import javax.websocket.OnMessage;
+import javax.websocket.Session;
+import javax.websocket.WebSocketContainer;
+import java.io.OutputStream;
 import java.net.URI;
-import java.net.http.WebSocket;
-import java.net.http.WebSocket.Listener;
-import java.nio.ByteBuffer;
 import java.time.Duration;
-import java.util.ArrayList;
-import java.util.Collection;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.CompletionStage;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.function.Function;
 
 import static com.fasterxml.jackson.databind.DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES;
 import static com.fasterxml.jackson.databind.SerializationFeature.WRITE_DATES_AS_TIMESTAMPS;
-import static io.fluxcapacitor.common.ObjectUtils.memoize;
+import static io.fluxcapacitor.common.TimingUtils.retryOnFailure;
 import static io.fluxcapacitor.common.serialization.compression.CompressionUtils.compress;
 import static io.fluxcapacitor.common.serialization.compression.CompressionUtils.decompress;
 import static io.fluxcapacitor.javaclient.FluxCapacitor.currentCorrelationData;
@@ -59,51 +60,51 @@ import static io.fluxcapacitor.javaclient.FluxCapacitor.publishMetrics;
 import static java.lang.System.currentTimeMillis;
 import static java.lang.Thread.currentThread;
 import static java.lang.Thread.sleep;
-import static java.nio.ByteBuffer.wrap;
-import static java.util.stream.Collectors.toList;
+import static javax.websocket.CloseReason.CloseCodes.NO_STATUS_CODE;
 
 @Slf4j
-public abstract class AbstractWebsocketClient implements Listener, AutoCloseable {
+public abstract class AbstractWebsocketClient implements AutoCloseable {
+    public static WebSocketContainer defaultWebSocketContainer = ContainerProvider.getWebSocketContainer();
     public static ObjectMapper defaultObjectMapper = JsonMapper.builder().disable(FAIL_ON_UNKNOWN_PROPERTIES)
             .findAndAddModules().disable(WRITE_DATES_AS_TIMESTAMPS).build();
 
-    private final AtomicBoolean closed = new AtomicBoolean();
-    private final WebSocketSupplier webSocketSupplier;
-    private final URI uri;
-    private final ClientConfig clientConfig;
+    private final SessionPool sessionPool;
+    private final WebSocketClient.ClientConfig clientConfig;
     private final ObjectMapper objectMapper;
-    private final Function<WebSocket, Backlog<JsonType>> socketBacklogs =
-            memoize(s -> new Backlog<>(batch -> sendBatch(batch, s)));
     private final Map<Long, WebSocketRequest> requests = new ConcurrentHashMap<>();
+    private final Map<String, Backlog<JsonType>> sessionBacklogs = new ConcurrentHashMap<>();
+    private final AtomicBoolean closed = new AtomicBoolean();
     private final ExecutorService resultExecutor = Executors.newFixedThreadPool(8);
-    private final ByteArrayOutputStream messageByteStream = new ByteArrayOutputStream();
     private final boolean sendMetrics;
-    private final Duration reconnectDelay;
 
-    public AbstractWebsocketClient(URI uri, ClientConfig clientConfig, boolean sendMetrics) {
-        this(uri, clientConfig, sendMetrics, 1);
+    public AbstractWebsocketClient(URI endpointUri, ClientConfig clientConfig, boolean sendMetrics) {
+        this(endpointUri, clientConfig, sendMetrics, 1);
     }
 
-    public AbstractWebsocketClient(URI uri, ClientConfig clientConfig, boolean sendMetrics,
-                                   int numberOfSessions) {
-        this(uri, clientConfig, sendMetrics, defaultObjectMapper, Duration.ofSeconds(5), Duration.ofSeconds(1),
-             numberOfSessions);
+    public AbstractWebsocketClient(URI endpointUri, WebSocketClient.ClientConfig clientConfig, boolean sendMetrics, int numberOfSessions) {
+        this(defaultWebSocketContainer, endpointUri, clientConfig, sendMetrics, Duration.ofSeconds(1),
+             defaultObjectMapper, numberOfSessions);
     }
 
-    @SuppressWarnings("OptionalGetWithoutIsPresent")
-    @SneakyThrows
-    public AbstractWebsocketClient(URI uri, ClientConfig clientConfig, boolean sendMetrics,
-                                   ObjectMapper objectMapper, Duration connectTimeout, Duration reconnectDelay,
+    public AbstractWebsocketClient(WebSocketContainer container, URI endpointUri, ClientConfig clientConfig,
+                                   boolean sendMetrics, Duration reconnectDelay, ObjectMapper objectMapper,
                                    int numberOfSessions) {
-        this.uri = uri;
         this.clientConfig = clientConfig;
         this.objectMapper = objectMapper;
         this.sendMetrics = sendMetrics;
-        this.reconnectDelay = reconnectDelay;
-        this.webSocketSupplier = (WebSocketSupplier) Optional.of(
-                        RetryingWebSocket.builder().reconnectDelay(reconnectDelay).connectTimeout(connectTimeout))
-                .map(b -> numberOfSessions == 1 ? b : WebSocketPool.builder(b).sessionCount(numberOfSessions))
-                .map(b -> b.buildAsync(uri, this)).get().get();
+        this.sessionPool = new SessionPool(numberOfSessions, () -> retryOnFailure(
+                () -> container.connectToServer(this, endpointUri),
+                RetryConfiguration.builder()
+                        .delay(reconnectDelay)
+                        .errorTest(e -> !closed.get())
+                        .successLogger(s -> log.info("Successfully reconnected to endpoint {}", endpointUri))
+                        .exceptionLogger(status -> {
+                            if (status.getNumberOfTimesRetried() == 0) {
+                                log.warn("Failed to connect to endpoint {}; reason: {}. Retrying every {} ms...",
+                                         endpointUri, status.getException().getMessage(),
+                                         status.getRetryConfiguration().getDelay().toMillis());
+                            }
+                        }).build()));
     }
 
     protected <R extends QueryResult> CompletableFuture<R> send(Request request) {
@@ -118,57 +119,34 @@ public abstract class AbstractWebsocketClient implements Listener, AutoCloseable
 
     @SneakyThrows
     protected Awaitable sendAndForget(JsonType object) {
-        return socketBacklogs.apply(webSocketSupplier.get()).add(object);
+        return send(object, sessionPool.get());
     }
 
     @SneakyThrows
-    protected Awaitable sendBatch(List<JsonType> requests, WebSocket webSocket) {
-        Metadata metadata = requests.size() > 1 ? Metadata.of("batchId", FluxCapacitor.currentIdentityProvider().nextTechnicalId()) : Metadata.empty();
-        Collection<WebSocketRequest> webSocketRequests = new ArrayList<>();
-        requests.forEach(r -> {
-            if (r instanceof Request) {
-                WebSocketRequest webSocketRequest = this.requests.get(((Request) r).getRequestId());
-                if (webSocketRequest != null) {
-                    webSocketRequests.add(webSocketRequest);
-                }
-            }
-            tryPublishMetrics(r, r instanceof Request
-                    ? metadata.with("requestId", ((Request) r).getRequestId()) : metadata);
-        });
+    protected Awaitable send(JsonType object, Session session) {
+        return sessionBacklogs.computeIfAbsent(
+                session.getId(), id -> new Backlog<>(batch -> sendBatch(batch, session))).add(object);
+    }
+
+    @SneakyThrows
+    protected Awaitable sendBatch(List<JsonType> requests, Session session) {
+        Metadata metadata = requests.size() > 1 ? Metadata.of("batchId", FluxCapacitor.generateId()) : Metadata.empty();
+        requests.forEach(r -> tryPublishMetrics(r, r instanceof Request
+                ? metadata.with("requestId", ((Request) r).getRequestId()) : metadata));
         JsonType object = requests.size() == 1 ? requests.get(0) : new RequestBatch<>(requests);
-        byte[] bytes;
-        try {
-            bytes = compress(objectMapper.writeValueAsBytes(object), clientConfig.getCompression());
+        try (OutputStream outputStream = session.getBasicRemote().getSendStream()) {
+            byte[] bytes = objectMapper.writeValueAsBytes(object);
+            outputStream.write(compress(bytes, clientConfig.getCompression()));
         } catch (Exception e) {
-            log.error("Failed to serialize request {}", object, e);
-            webSocketRequests.forEach(r -> r.result.completeExceptionally(e));
-            return Awaitable.failed(e);
+            log.error("Failed to send request {}", object, e);
+            throw e;
         }
-        try {
-            webSocket.sendBinary(wrap(bytes), true).get();
-            return Awaitable.ready();
-        } catch (Exception e) {
-            log.error("Permanently failed to send request {}", object, e);
-            webSocketRequests.forEach(r -> r.result.completeExceptionally(e));
-            return Awaitable.failed(e);
-        }
+        return Awaitable.ready();
     }
 
-    @Override
-    public CompletionStage<?> onBinary(WebSocket webSocket, ByteBuffer data, boolean last) {
-        byte[] arr = new byte[data.remaining()];
-        data.get(arr);
-        messageByteStream.writeBytes(arr);
-        webSocket.request(1);
-        if (last) {
-            onMessage(messageByteStream.toByteArray());
-            messageByteStream.reset();
-        }
-        return null;
-    }
-
+    @OnMessage
     @SneakyThrows
-    protected void onMessage(byte[] bytes) {
+    public void onMessage(byte[] bytes) {
         resultExecutor.execute(() -> {
             JsonType value;
             try {
@@ -178,12 +156,13 @@ public abstract class AbstractWebsocketClient implements Listener, AutoCloseable
                 return;
             }
             if (value instanceof ResultBatch) {
-                String batchId = FluxCapacitor.currentIdentityProvider().nextTechnicalId();
+                String batchId = FluxCapacitor.generateId();
                 ((ResultBatch) value).getResults().forEach(r -> resultExecutor.execute(() -> handleResult(r, batchId)));
             } else {
                 handleResult((QueryResult) value, null);
             }
         });
+
     }
 
     protected void handleResult(QueryResult result, String batchId) {
@@ -206,51 +185,44 @@ public abstract class AbstractWebsocketClient implements Listener, AutoCloseable
         }
     }
 
-    @Override
-    public void onError(WebSocket webSocket, Throwable error) {
-        log.error("Client side error for web socket connected to endpoint {}", uri, error);
-    }
-
-    @Override
-    public CompletionStage<?> onClose(WebSocket webSocket, int statusCode, String reason) {
-        if (!closed.get()) {
-            log.warn("Connection to endpoint {} closed with reason {} (status {})", uri, reason, statusCode);
+    @OnClose
+    public void onClose(Session session, CloseReason closeReason) {
+        sessionBacklogs.remove(session.getId());
+        if (closeReason.getCloseCode().getCode() > NO_STATUS_CODE.getCode()) {
+            log.warn("Connection to endpoint {} closed with reason {}", session.getRequestURI(), closeReason);
         }
-        messageByteStream.reset();
-        retryOutstandingRequests(webSocket);
-        return null;
+        retryOutstandingRequests(session.getId());
     }
 
-    protected void retryOutstandingRequests(WebSocket webSocket) {
-        Collection<WebSocketRequest> requests =
-                this.requests.values().stream().filter(r -> webSocket.equals(r.sender)).collect(toList());
+    protected void retryOutstandingRequests(String sessionId) {
         if (!closed.get() && !requests.isEmpty()) {
             try {
-                sleep(reconnectDelay.toMillis());
+                sleep(1_000);
             } catch (InterruptedException e) {
                 currentThread().interrupt();
-                log.warn("Thread interrupted while trying to retry outstanding requests to endpoint {}", uri, e);
-                return;
+                throw new IllegalStateException("Thread interrupted while trying to retry outstanding requests", e);
             }
-            log.warn("Resending {} request{} to endpoint {}", requests.size(), requests.size() == 1 ? "" : "s", uri);
-            requests.forEach(WebSocketRequest::send);
+            requests.values().stream().filter(r -> sessionId.equals(r.sessionId)).forEach(WebSocketRequest::send);
         }
     }
 
+    @OnError
+    public void onError(Session session, Throwable e) {
+        log.error("Client side error for web socket connected to endpoint {}", session.getRequestURI(), e);
+    }
+
     @Override
-    @SneakyThrows
     public void close() {
         close(false);
     }
 
-    @SneakyThrows
     protected void close(boolean clearOutstandingRequests) {
         if (closed.compareAndSet(false, true)) {
             synchronized (closed) {
                 if (clearOutstandingRequests) {
                     requests.clear();
                 }
-                webSocketSupplier.close();
+                sessionPool.close();
                 if (!requests.isEmpty()) {
                     log.warn("{}: Closed websocket session to endpoint with {} outstanding requests",
                              getClass().getSimpleName(), requests.size());
@@ -271,16 +243,25 @@ public abstract class AbstractWebsocketClient implements Listener, AutoCloseable
         private final Request request;
         private final CompletableFuture<QueryResult> result = new CompletableFuture<>();
         private final Map<String, String> correlationData;
-        private final WebSocket sender = webSocketSupplier.get();
-
+        private volatile String sessionId;
         private volatile long sendTimestamp;
 
         @SuppressWarnings("unchecked")
         protected <T extends QueryResult> CompletableFuture<T> send() {
+            Session session;
+            try {
+                session = sessionPool.get();
+            } catch (Exception e) {
+                log.error("Failed to get websocket session to send request {}", request, e);
+                result.completeExceptionally(e);
+                return (CompletableFuture<T>) result;
+            }
+            this.sessionId = session.getId();
             requests.put(request.getRequestId(), this);
+
             try {
                 sendTimestamp = System.currentTimeMillis();
-                socketBacklogs.apply(sender).add(request);
+                AbstractWebsocketClient.this.send(request, session);
             } catch (Exception e) {
                 requests.remove(request.getRequestId());
                 result.completeExceptionally(e);
