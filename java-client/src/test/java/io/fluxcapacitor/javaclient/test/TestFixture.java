@@ -169,7 +169,7 @@ public class TestFixture implements Given, When {
         }
         this.interceptor = new GivenWhenThenInterceptor();
         this.fluxCapacitor = new TestFluxCapacitor(
-                fluxCapacitorBuilder.disableShutdownHook().addDispatchInterceptor(interceptor, true)
+                fluxCapacitorBuilder.disableShutdownHook().addDispatchInterceptor(interceptor)
                 .addBatchInterceptor(interceptor).addHandlerInterceptor(interceptor, true)
                         .build(new TestClient(client)));
         withClock(Clock.fixed(Instant.now(), ZoneId.systemDefault()));

@@ -55,7 +55,7 @@ public class MessageRoutingInterceptor implements DispatchInterceptor {
                         SerializedMessage serializedMessage = function.apply(m);
                         serializedMessage.setSegment(s);
                         return serializedMessage;
-                    }).orElse(function.apply(m));
+                    }).orElseGet(() -> function.apply(m));
             if (result.getSegment() == null && m instanceof Schedule) {
                 result.setSegment(ConsistentHashing.computeSegment(((Schedule) m).getScheduleId()));
             }
