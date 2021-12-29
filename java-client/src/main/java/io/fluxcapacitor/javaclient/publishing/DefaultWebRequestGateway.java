@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016-2020 Flux Capacitor.
+ * Copyright (c) 2016-2021 Flux Capacitor.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -12,8 +12,13 @@
  * limitations under the License.
  */
 
-package io.fluxcapacitor.common;
+package io.fluxcapacitor.javaclient.publishing;
 
-public enum MessageType {
-    COMMAND, EVENT, NOTIFICATION, QUERY, RESULT, SCHEDULE, ERROR, METRICS, WEBREQUEST, WEBRESPONSE;
+import lombok.AllArgsConstructor;
+import lombok.experimental.Delegate;
+
+@AllArgsConstructor
+public class DefaultWebRequestGateway implements WebRequestGateway {
+    @Delegate
+    private final GenericGateway delegate;
 }

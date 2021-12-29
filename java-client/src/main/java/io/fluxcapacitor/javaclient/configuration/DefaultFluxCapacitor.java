@@ -51,6 +51,7 @@ import io.fluxcapacitor.javaclient.publishing.DefaultMetricsGateway;
 import io.fluxcapacitor.javaclient.publishing.DefaultQueryGateway;
 import io.fluxcapacitor.javaclient.publishing.DefaultRequestHandler;
 import io.fluxcapacitor.javaclient.publishing.DefaultResultGateway;
+import io.fluxcapacitor.javaclient.publishing.DefaultWebRequestGateway;
 import io.fluxcapacitor.javaclient.publishing.DispatchInterceptor;
 import io.fluxcapacitor.javaclient.publishing.ErrorGateway;
 import io.fluxcapacitor.javaclient.publishing.EventGateway;
@@ -59,6 +60,7 @@ import io.fluxcapacitor.javaclient.publishing.MetricsGateway;
 import io.fluxcapacitor.javaclient.publishing.QueryGateway;
 import io.fluxcapacitor.javaclient.publishing.RequestHandler;
 import io.fluxcapacitor.javaclient.publishing.ResultGateway;
+import io.fluxcapacitor.javaclient.publishing.WebRequestGateway;
 import io.fluxcapacitor.javaclient.publishing.correlation.CorrelatingInterceptor;
 import io.fluxcapacitor.javaclient.publishing.dataprotection.DataProtectionInterceptor;
 import io.fluxcapacitor.javaclient.publishing.routing.MessageRoutingInterceptor;
@@ -112,6 +114,7 @@ import static io.fluxcapacitor.common.MessageType.NOTIFICATION;
 import static io.fluxcapacitor.common.MessageType.QUERY;
 import static io.fluxcapacitor.common.MessageType.RESULT;
 import static io.fluxcapacitor.common.MessageType.SCHEDULE;
+import static io.fluxcapacitor.common.MessageType.WEBREQUEST;
 import static io.fluxcapacitor.javaclient.common.serialization.DeserializingMessage.defaultParameterResolvers;
 import static java.lang.Runtime.getRuntime;
 import static java.lang.String.format;
@@ -135,6 +138,7 @@ public class DefaultFluxCapacitor implements FluxCapacitor {
     private final ResultGateway resultGateway;
     private final ErrorGateway errorGateway;
     private final MetricsGateway metricsGateway;
+    private final WebRequestGateway webRequestGateway;
     private final AggregateRepository aggregateRepository;
     private final EventStore eventStore;
     private final KeyValueStore keyValueStore;
@@ -518,6 +522,10 @@ public class DefaultFluxCapacitor implements FluxCapacitor {
                     new DefaultMetricsGateway(createRequestGateway(client, METRICS, requestHandler,
                                               dispatchInterceptors, handlerInterceptors));
 
+            WebRequestGateway webRequestGateway =
+                    new DefaultWebRequestGateway(createRequestGateway(client, WEBREQUEST, requestHandler,
+                                                                      dispatchInterceptors, handlerInterceptors));
+
 
             //tracking
             batchInterceptors.forEach((type, interceptors) -> consumerConfigurations.computeIfPresent(
@@ -546,7 +554,8 @@ public class DefaultFluxCapacitor implements FluxCapacitor {
 
             //and finally...
             FluxCapacitor fluxCapacitor = doBuild(trackingMap, commandGateway, queryGateway, eventGateway,
-                                                  resultGateway, errorGateway, metricsGateway, aggregateRepository,
+                                                  resultGateway, errorGateway, metricsGateway, webRequestGateway,
+                                                  aggregateRepository,
                                                   eventStore, keyValueStore, documentStore, scheduler, userProvider,
                                                   cache, serializer, client, shutdownHandler);
 
@@ -566,12 +575,14 @@ public class DefaultFluxCapacitor implements FluxCapacitor {
                                         CommandGateway commandGateway, QueryGateway queryGateway,
                                         EventGateway eventGateway, ResultGateway resultGateway,
                                         ErrorGateway errorGateway, MetricsGateway metricsGateway,
+                                        WebRequestGateway webRequestGateway,
                                         AggregateRepository aggregateRepository,
                                         EventStore eventStore, KeyValueStore keyValueStore, DocumentStore documentStore,
                                         Scheduler scheduler, UserProvider userProvider, Cache cache,
                                         Serializer serializer, Client client, Runnable shutdownHandler) {
             return new DefaultFluxCapacitor(trackingSupplier, commandGateway, queryGateway, eventGateway, resultGateway,
-                                            errorGateway, metricsGateway, aggregateRepository, eventStore,
+                                            errorGateway, metricsGateway, webRequestGateway,
+                                            aggregateRepository, eventStore,
                                             keyValueStore, documentStore,
                                             scheduler, userProvider, cache, serializer, client, shutdownHandler);
         }

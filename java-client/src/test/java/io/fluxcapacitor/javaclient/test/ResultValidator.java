@@ -50,54 +50,54 @@ public class ResultValidator implements Then {
 
     @Getter(AccessLevel.PROTECTED)
     private final FluxCapacitor fluxCapacitor;
-    private final Object actualResult;
-    private final List<Message> resultingEvents, resultingCommands;
-    private final List<Schedule> resultingSchedules;
+    private final Object result;
+    private final List<Message> events, commands, webRequests;
+    private final List<Schedule> schedules;
     private final List<Throwable> exceptions;
 
     @Override
     public Then expectOnlyEvents(List<?> events) {
-        return expectOnly(asMessages(events), resultingEvents);
+        return expectOnly(asMessages(events), this.events);
     }
 
     @Override
     public Then expectEvents(List<?> events) {
-        return expect(asMessages(events), resultingEvents);
+        return expect(asMessages(events), this.events);
     }
 
     @Override
     public Then expectNoEventsLike(List<?> events) {
-        return expectNothingLike(asMessages(events), resultingEvents);
+        return expectNothingLike(asMessages(events), this.events);
     }
 
     @Override
     public Then expectOnlyCommands(List<?> commands) {
-        return expectOnly(asMessages(commands), resultingCommands);
+        return expectOnly(asMessages(commands), this.commands);
     }
 
     @Override
     public Then expectCommands(List<?> commands) {
-        return expect(asMessages(commands), resultingCommands);
+        return expect(asMessages(commands), this.commands);
     }
 
     @Override
     public Then expectNoCommandsLike(List<?> commands) {
-        return expectNothingLike(asMessages(commands), resultingCommands);
+        return expectNothingLike(asMessages(commands), this.commands);
     }
 
     @Override
     public Then expectOnlySchedules(List<?> schedules) {
-        return expectOnlyScheduledMessages(asMessages(schedules), resultingSchedules);
+        return expectOnlyScheduledMessages(asMessages(schedules), this.schedules);
     }
 
     @Override
     public Then expectSchedules(List<?> schedules) {
-        return expectScheduledMessages(asMessages(schedules), resultingSchedules);
+        return expectScheduledMessages(asMessages(schedules), this.schedules);
     }
 
     @Override
     public Then expectNoSchedulesLike(List<?> schedules) {
-        return expectNothingLike(asMessages(schedules), resultingSchedules);
+        return expectNothingLike(asMessages(schedules), this.schedules);
     }
 
     @Override
@@ -144,18 +144,18 @@ public class ResultValidator implements Then {
     @Override
     public ResultValidator expectResult(Object expectedResult) {
         return fluxCapacitor.apply(fc -> {
-            if (actualResult instanceof Throwable) {
+            if (result instanceof Throwable) {
                 throw new GivenWhenThenAssertionError("An unexpected exception occurred during handling",
-                                                      (Throwable) actualResult);
+                                                      (Throwable) result);
             }
-            if (!matches(expectedResult, actualResult)) {
+            if (!matches(expectedResult, result)) {
                 if (isComparableToActual(expectedResult)) {
                     throw new GivenWhenThenAssertionError(format(
                             "Handler returned a result of unexpected type.\nExpected: %s\nGot: %s",
-                            expectedResult.getClass(), actualResult.getClass()));
+                            expectedResult.getClass(), result.getClass()));
                 }
                 throw new GivenWhenThenAssertionError("Handler returned an unexpected result",
-                                                      expectedResult, actualResult);
+                                                      expectedResult, result);
             }
             return this;
         });
@@ -164,13 +164,13 @@ public class ResultValidator implements Then {
     @Override
     public <T> Then expectResult(Predicate<T> predicate, String description) {
         return fluxCapacitor.apply(fc -> {
-            if (actualResult instanceof Throwable) {
+            if (result instanceof Throwable) {
                 throw new GivenWhenThenAssertionError("An unexpected exception occurred during handling",
-                                                      (Throwable) actualResult);
+                                                      (Throwable) result);
             }
-            if (!testSafely(predicate, actualResult)) {
+            if (!testSafely(predicate, result)) {
                 throw new GivenWhenThenAssertionError("Handler returned an unexpected result",
-                                                      description, actualResult);
+                                                      description, result);
             }
             return this;
         });
@@ -179,14 +179,14 @@ public class ResultValidator implements Then {
     @Override
     public ResultValidator expectNoResultLike(Object value) {
         return fluxCapacitor.apply(fc -> {
-            if (actualResult instanceof Throwable) {
+            if (result instanceof Throwable) {
                 throw new GivenWhenThenAssertionError("An unexpected exception occurred during handling",
-                                                      (Throwable) actualResult);
+                                                      (Throwable) result);
             }
-            if (matches(value, actualResult)) {
+            if (matches(value, result)) {
                 throw new GivenWhenThenAssertionError(
                         format("Handler returned the unwanted result.\nExpected not to get: %s\nGot: %s",
-                               value, actualResult));
+                               value, result));
             }
             return this;
         });
@@ -195,19 +195,19 @@ public class ResultValidator implements Then {
     @Override
     public ResultValidator expectException(@NonNull Object expectedException) {
         return fluxCapacitor.apply(fc -> {
-            if (!(actualResult instanceof Throwable)) {
+            if (!(result instanceof Throwable)) {
                 throw new GivenWhenThenAssertionError(
                         "Handler returned normally but an exception was expected",
-                        expectedException, actualResult);
+                        expectedException, result);
             }
-            if (!matches(expectedException, actualResult)) {
+            if (!matches(expectedException, result)) {
                 if (isComparableToActual(expectedException)) {
                     throw new GivenWhenThenAssertionError(format(
                             "Handler threw unexpected exception.\nExpected: %s\nGot: %s",
-                            expectedException.getClass(), actualResult.getClass()));
+                            expectedException.getClass(), result.getClass()));
                 }
                 throw new GivenWhenThenAssertionError("Handler threw unexpected exception",
-                                                      expectedException, actualResult);
+                                                      expectedException, result);
             }
             return this;
         });
@@ -217,14 +217,14 @@ public class ResultValidator implements Then {
     @Override
     public <T extends Throwable> Then expectException(Predicate<T> predicate, String description) {
         return fluxCapacitor.apply(fc -> {
-            if (!(actualResult instanceof Throwable)) {
+            if (!(result instanceof Throwable)) {
                 throw new GivenWhenThenAssertionError(
                         "Handler returned normally but an exception was expected",
-                        description, actualResult);
+                        description, result);
             }
-            if (!predicate.test((T) actualResult)) {
+            if (!predicate.test((T) result)) {
                 throw new GivenWhenThenAssertionError("Handler threw unexpected exception",
-                                                      description, actualResult);
+                                                      description, result);
             }
             return this;
         });
@@ -253,10 +253,10 @@ public class ResultValidator implements Then {
     }
 
     protected boolean isComparableToActual(Object expected) {
-        return actualResult != null && expected != null && !isMatcher(expected)
-                && !(expected instanceof Collection<?> && actualResult instanceof Collection<?>)
-                && !(expected instanceof Map<?, ?> && actualResult instanceof Map<?, ?>)
-                && !Objects.equals(expected.getClass(), actualResult.getClass());
+        return result != null && expected != null && !isMatcher(expected)
+                && !(expected instanceof Collection<?> && result instanceof Collection<?>)
+                && !(expected instanceof Map<?, ?> && result instanceof Map<?, ?>)
+                && !Objects.equals(expected.getClass(), result.getClass());
     }
 
     protected ResultValidator expectScheduledMessages(Collection<?> expected, Collection<? extends Schedule> actual) {

@@ -153,7 +153,8 @@ public class TestFixture implements Given, When {
     private final GivenWhenThenInterceptor interceptor;
 
     private final Map<ConsumerConfiguration, List<Message>> consumers = new ConcurrentHashMap<>();
-    private final List<Message> commands = new CopyOnWriteArrayList<>(), events = new CopyOnWriteArrayList<>();
+    private final List<Message> commands = new CopyOnWriteArrayList<>(), events = new CopyOnWriteArrayList<>(),
+            webRequests = new CopyOnWriteArrayList<>();
     private final List<Schedule> schedules = new CopyOnWriteArrayList<>();
     private final List<Throwable> exceptions = new CopyOnWriteArrayList<>();
 
@@ -170,7 +171,7 @@ public class TestFixture implements Given, When {
         this.interceptor = new GivenWhenThenInterceptor();
         this.fluxCapacitor = new TestFluxCapacitor(
                 fluxCapacitorBuilder.disableShutdownHook().addDispatchInterceptor(interceptor)
-                .addBatchInterceptor(interceptor).addHandlerInterceptor(interceptor, true)
+                        .addBatchInterceptor(interceptor).addHandlerInterceptor(interceptor, true)
                         .build(new TestClient(client)));
         withClock(Clock.fixed(Instant.now(), ZoneId.systemDefault()));
         withIdentityProvider(new PredictableUuidFactory());
@@ -403,7 +404,7 @@ public class TestFixture implements Given, When {
 
     protected Then getResultValidator(Object result, List<Message> commands, List<Message> events,
                                       List<Schedule> schedules, List<Throwable> exceptions) {
-        return new ResultValidator(getFluxCapacitor(), result, events, commands, schedules, exceptions);
+        return new ResultValidator(getFluxCapacitor(), result, events, commands, webRequests, schedules, exceptions);
     }
 
     protected void publishDomainEvents(String aggregateId, FluxCapacitor fc, Object[] events) {
@@ -464,9 +465,9 @@ public class TestFixture implements Given, When {
                          consumers.entrySet().stream()
                                  .filter(e -> !e.getValue().isEmpty())
                                  .map(e -> e.getKey().getName() + " : " + e.getValue().stream()
-                                 .map(m -> m.getPayload() == null
-                                         ? "Void" : m.getPayload().getClass().getSimpleName()).collect(
-                                         Collectors.joining(", "))).collect(toList()));
+                                         .map(m -> m.getPayload() == null
+                                                 ? "Void" : m.getPayload().getClass().getSimpleName()).collect(
+                                                 Collectors.joining(", "))).collect(toList()));
             }
         }
     }
@@ -494,6 +495,10 @@ public class TestFixture implements Given, When {
 
     protected void registerEvent(Message event) {
         events.add(event);
+    }
+
+    protected void registerWebRequest(Message request) {
+        webRequests.add(request);
     }
 
     protected void registerSchedule(Schedule schedule) {
@@ -587,31 +592,35 @@ public class TestFixture implements Given, When {
                            message);
             }
 
-            synchronized (consumers) {
-                Message interceptedMessage = message;
-                consumers.entrySet().stream()
-                        .filter(t -> {
-                            ConsumerConfiguration configuration = t.getKey();
-                            return (configuration.getMessageType() == messageType && Optional
-                                    .ofNullable(configuration.getTypeFilter())
-                                    .map(f -> interceptedMessage.getPayload().getClass().getName().matches(f))
-                                    .orElse(true));
-                        }).forEach(e -> addMessage(e.getValue(), interceptedMessage));
-            }
-            if (!message.getMetadata().containsAnyKey(IGNORE_TAG, TRACE_TAG)) {
-                switch (messageType) {
-                    case COMMAND:
-                        registerCommand(message);
-                        break;
-                    case EVENT:
-                        registerEvent(message);
-                        break;
-                    case SCHEDULE:
-                        registerSchedule((Schedule) message);
-                        break;
+                synchronized (consumers) {
+                    Message interceptedMessage = message;
+                    consumers.entrySet().stream()
+                            .filter(t -> {
+                                ConsumerConfiguration configuration = t.getKey();
+                                return (configuration.getMessageType() == messageType && Optional
+                                        .ofNullable(configuration.getTypeFilter())
+                                        .map(f -> interceptedMessage.getPayload().getClass().getName().matches(f))
+                                        .orElse(true));
+                            }).forEach(e -> addMessage(e.getValue(), interceptedMessage));
                 }
-            }
-            return message;
+                if (!message.getMetadata().containsAnyKey(IGNORE_TAG, TRACE_TAG)) {
+                    switch (messageType) {
+                        case COMMAND:
+                            registerCommand(message);
+                            break;
+                        case EVENT:
+                            registerEvent(message);
+                            break;
+                        case SCHEDULE:
+                            registerSchedule((Schedule) message);
+                            break;
+                        case WEBREQUEST:
+                            registerWebRequest(message);
+                            break;
+                    }
+                }
+
+                return message;
         }
 
         protected void addMessage(List<Message> messages, Message message) {

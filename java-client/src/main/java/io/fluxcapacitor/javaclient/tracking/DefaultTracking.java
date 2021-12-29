@@ -61,9 +61,8 @@ import static java.util.stream.Collectors.toMap;
 @AllArgsConstructor
 @Slf4j
 public class DefaultTracking implements Tracking {
-    private static final HandlerConfiguration trackingHandlerConfiguration =
-            HandlerConfiguration.<DeserializingMessage>builder()
-                    .handlerFilter((c, e) -> !ClientUtils.isLocalHandlerMethod(c, e)).build();
+    private static final HandlerConfiguration defaultHandlerConfiguration =
+            HandlerConfiguration.builder().handlerFilter((c, e) -> !ClientUtils.isLocalHandlerMethod(c, e)).build();
 
     private final MessageType messageType;
     private final Client client;
@@ -87,7 +86,7 @@ public class DefaultTracking implements Tracking {
                     .entrySet().stream().flatMap(e -> {
                         List<Handler<DeserializingMessage>> converted = e.getValue().stream().flatMap(
                                 target -> handlerFactory.createHandler(
-                                                target, e.getKey().getName(), trackingHandlerConfiguration)
+                                                target, e.getKey().getName(), defaultHandlerConfiguration)
                                         .stream()).collect(toList());
                         return converted.isEmpty() ? Stream.empty() :
                                 Stream.of(new SimpleEntry<>(e.getKey(), converted));

@@ -40,6 +40,7 @@ import io.fluxcapacitor.javaclient.publishing.EventGateway;
 import io.fluxcapacitor.javaclient.publishing.MetricsGateway;
 import io.fluxcapacitor.javaclient.publishing.QueryGateway;
 import io.fluxcapacitor.javaclient.publishing.ResultGateway;
+import io.fluxcapacitor.javaclient.publishing.WebRequestGateway;
 import io.fluxcapacitor.javaclient.publishing.correlation.CorrelationDataProvider;
 import io.fluxcapacitor.javaclient.publishing.correlation.DefaultCorrelationDataProvider;
 import io.fluxcapacitor.javaclient.scheduling.Scheduler;
@@ -422,7 +423,7 @@ public interface FluxCapacitor extends AutoCloseable {
             Registration local = handlers.stream().flatMap(h -> Stream
                     .of(commandGateway().registerHandler(h), queryGateway().registerHandler(h),
                         eventGateway().registerHandler(h), eventStore().registerHandler(h),
-                        errorGateway().registerHandler(h)))
+                        errorGateway().registerHandler(h), webRequestGateway().registerHandler(h)))
                     .reduce(Registration::merge).orElse(Registration.noOp());
             return tracking.merge(local);
         });
@@ -484,6 +485,11 @@ public interface FluxCapacitor extends AutoCloseable {
      * metrics about an application.
      */
     MetricsGateway metricsGateway();
+
+    /**
+     * Returns the gateway for sending web requests.
+     */
+    WebRequestGateway webRequestGateway();
 
     /**
      * Returns a client to assist with the tracking of a given message type.

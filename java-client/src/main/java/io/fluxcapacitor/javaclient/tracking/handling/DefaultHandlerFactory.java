@@ -20,7 +20,6 @@ import io.fluxcapacitor.common.handling.HandlerConfiguration;
 import io.fluxcapacitor.common.handling.HandlerInspector;
 import io.fluxcapacitor.common.handling.ParameterResolver;
 import io.fluxcapacitor.javaclient.common.serialization.DeserializingMessage;
-import io.fluxcapacitor.javaclient.configuration.ConfigurationException;
 import lombok.RequiredArgsConstructor;
 
 import java.lang.annotation.Annotation;
@@ -38,13 +37,10 @@ public class DefaultHandlerFactory implements HandlerFactory {
     @Override
     public Optional<Handler<DeserializingMessage>> createHandler(
             Object target, String consumer, HandlerConfiguration handlerConfiguration) {
-        Class<? extends Annotation> methodAnnotation = getHandlerAnnotation(messageType);
-        if (hasHandlerMethods(target.getClass(), methodAnnotation, handlerConfiguration)) {
-            return Optional.of(handlerInterceptor.wrap(
-                    HandlerInspector.createHandler(target, methodAnnotation, parameterResolvers, handlerConfiguration),
-                    consumer));
-        }
-        return Optional.empty();
+        return Optional.ofNullable(getHandlerAnnotation(messageType))
+                .filter(a -> hasHandlerMethods(target.getClass(), a, handlerConfiguration))
+                .map(a -> handlerInterceptor.wrap(
+                        HandlerInspector.createHandler(target, a, parameterResolvers, handlerConfiguration), consumer));
     }
 
     private static Class<? extends Annotation> getHandlerAnnotation(MessageType messageType) {
@@ -65,8 +61,10 @@ public class DefaultHandlerFactory implements HandlerFactory {
                 return HandleSchedule.class;
             case METRICS:
                 return HandleMetrics.class;
+            case WEBREQUEST:
+                return HandleWeb.class;
             default:
-                throw new ConfigurationException(String.format("Unrecognized type: %s", messageType));
+                return null;
         }
     }
 }

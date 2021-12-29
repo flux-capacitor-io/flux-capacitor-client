@@ -12,8 +12,21 @@
  * limitations under the License.
  */
 
-package io.fluxcapacitor.common;
+package io.fluxcapacitor.javaclient.tracking.handling;
 
-public enum MessageType {
-    COMMAND, EVENT, NOTIFICATION, QUERY, RESULT, SCHEDULE, ERROR, METRICS, WEBREQUEST, WEBRESPONSE;
+import io.fluxcapacitor.javaclient.tracking.handling.web.WebRequestMethod;
+
+import java.lang.annotation.Documented;
+import java.lang.annotation.ElementType;
+import java.lang.annotation.Retention;
+import java.lang.annotation.RetentionPolicy;
+import java.lang.annotation.Target;
+
+@Documented
+@Retention(RetentionPolicy.RUNTIME)
+@Target(ElementType.METHOD)
+public @interface HandleWeb {
+    String value();
+    WebRequestMethod method() default WebRequestMethod.ANY;
+    boolean passive() default false;
 }
