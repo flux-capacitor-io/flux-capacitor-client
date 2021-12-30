@@ -18,30 +18,30 @@ import io.fluxcapacitor.common.Guarantee;
 import io.fluxcapacitor.common.api.Metadata;
 import io.fluxcapacitor.common.api.SerializedMessage;
 import io.fluxcapacitor.javaclient.common.Message;
-import io.fluxcapacitor.javaclient.common.exception.TechnicalException;
-import io.fluxcapacitor.javaclient.common.serialization.MessageSerializer;
+import io.fluxcapacitor.javaclient.common.serialization.Serializer;
 import io.fluxcapacitor.javaclient.publishing.client.GatewayClient;
 import lombok.AllArgsConstructor;
-import org.apache.commons.lang3.exception.ExceptionUtils;
 
 import java.util.concurrent.CompletableFuture;
+
+import static io.fluxcapacitor.common.MessageType.RESULT;
 
 @AllArgsConstructor
 public class DefaultResultGateway implements ResultGateway {
 
     private final GatewayClient client;
-    private final MessageSerializer serializer;
+    private final Serializer serializer;
+    private final DispatchInterceptor dispatchInterceptor;
 
     @Override
     public CompletableFuture<Void> respond(Object payload, Metadata metadata, String target, int requestId, Guarantee guarantee) {
         try {
-            if (payload instanceof TechnicalException) {
-                metadata = metadata.with("stackTrace", ExceptionUtils.getStackTrace((TechnicalException) payload));
-            }
-            SerializedMessage message = serializer.serialize(new Message(payload, metadata));
-            message.setTarget(target);
-            message.setRequestId(requestId);
-            return client.send(guarantee, message).asCompletableFuture();
+            Message message = dispatchInterceptor.interceptDispatch(new Message(payload, metadata), RESULT);
+            SerializedMessage serializedMessage
+                    = dispatchInterceptor.modifySerializedMessage(message.serialize(serializer), message, RESULT);
+            serializedMessage.setTarget(target);
+            serializedMessage.setRequestId(requestId);
+            return client.send(guarantee, serializedMessage).asCompletableFuture();
         } catch (Exception e) {
             throw new GatewayException(String.format("Failed to send response %s", payload), e);
         }

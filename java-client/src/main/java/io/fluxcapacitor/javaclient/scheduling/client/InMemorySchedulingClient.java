@@ -18,7 +18,7 @@ import io.fluxcapacitor.common.Awaitable;
 import io.fluxcapacitor.common.Guarantee;
 import io.fluxcapacitor.common.MessageType;
 import io.fluxcapacitor.common.api.SerializedMessage;
-import io.fluxcapacitor.common.api.scheduling.ScheduledMessage;
+import io.fluxcapacitor.common.api.scheduling.SerializedSchedule;
 import io.fluxcapacitor.javaclient.common.serialization.Serializer;
 import io.fluxcapacitor.javaclient.scheduling.Schedule;
 import io.fluxcapacitor.javaclient.tracking.client.InMemoryMessageStore;
@@ -52,11 +52,11 @@ public class InMemorySchedulingClient extends InMemoryMessageStore implements Sc
     }
 
     @Override
-    public Awaitable schedule(ScheduledMessage... schedules) {
-        List<ScheduledMessage> filtered = Arrays.stream(schedules)
+    public Awaitable schedule(SerializedSchedule... schedules) {
+        List<SerializedSchedule> filtered = Arrays.stream(schedules)
                 .filter(s -> !s.isIfAbsent() || !scheduleIdsByIndex.containsValue(s.getScheduleId()))
                 .collect(toList());
-        for (ScheduledMessage schedule : filtered) {
+        for (SerializedSchedule schedule : filtered) {
             cancelSchedule(schedule.getScheduleId());
             long index = indexFromMillis(schedule.getTimestamp());
             while (scheduleIdsByIndex.putIfAbsent(index, schedule.getScheduleId()) != null) {
@@ -64,7 +64,7 @@ public class InMemorySchedulingClient extends InMemoryMessageStore implements Sc
             }
             schedule.getMessage().setIndex(index);
         }
-        super.send(Guarantee.SENT, filtered.stream().map(ScheduledMessage::getMessage).toArray(SerializedMessage[]::new));
+        super.send(Guarantee.SENT, filtered.stream().map(SerializedSchedule::getMessage).toArray(SerializedMessage[]::new));
         return Awaitable.ready();
     }
 

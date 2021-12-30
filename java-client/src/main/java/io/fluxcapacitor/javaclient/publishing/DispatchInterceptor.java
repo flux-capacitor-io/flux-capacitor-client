@@ -18,18 +18,32 @@ import io.fluxcapacitor.common.MessageType;
 import io.fluxcapacitor.common.api.SerializedMessage;
 import io.fluxcapacitor.javaclient.common.Message;
 
-import java.util.function.Function;
-
 @FunctionalInterface
 public interface DispatchInterceptor {
     static DispatchInterceptor noOp() {
         return (m, messageType) -> m;
     }
 
-    Function<Message, SerializedMessage> interceptDispatch(Function<Message, SerializedMessage> function,
-                                                           MessageType messageType);
+    Message interceptDispatch(Message message, MessageType messageType);
+
+    default SerializedMessage modifySerializedMessage(SerializedMessage serializedMessage,
+                                                      Message message, MessageType messageType) {
+        return serializedMessage;
+    }
 
     default DispatchInterceptor andThen(DispatchInterceptor nextInterceptor) {
-        return (f, messageType) -> interceptDispatch(nextInterceptor.interceptDispatch(f, messageType), messageType);
+        return new DispatchInterceptor() {
+            @Override
+            public Message interceptDispatch(Message m, MessageType t) {
+                return nextInterceptor.interceptDispatch(DispatchInterceptor.this.interceptDispatch(m, t), t);
+            }
+
+            @Override
+            public SerializedMessage modifySerializedMessage(SerializedMessage s, Message m,
+                                                             MessageType type) {
+                return nextInterceptor.modifySerializedMessage(
+                        DispatchInterceptor.this.modifySerializedMessage(s, m, type), m, type);
+            }
+        };
     }
 }

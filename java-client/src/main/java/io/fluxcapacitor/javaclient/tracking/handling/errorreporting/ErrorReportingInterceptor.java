@@ -65,6 +65,6 @@ public class ErrorReportingInterceptor implements HandlerInterceptor {
             metadata = metadata.with("stackTrace", ExceptionUtils.getStackTrace(e));
             e = new TechnicalException(format("Handler %s failed to handle a %s", handler, cause));
         }
-        errorGateway.report(new Message(e, metadata), cause.getSerializedObject().getSource());
+        errorGateway.report(new Message(e, metadata));
     }
 }

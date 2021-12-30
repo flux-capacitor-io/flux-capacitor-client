@@ -19,7 +19,9 @@ import io.fluxcapacitor.common.ConsistentHashing;
 import io.fluxcapacitor.common.api.SerializedMessage;
 import io.fluxcapacitor.javaclient.common.Message;
 import io.fluxcapacitor.javaclient.common.serialization.DeserializingMessage;
+import io.fluxcapacitor.javaclient.common.serialization.Serializer;
 import io.fluxcapacitor.javaclient.persisting.eventsourcing.client.EventStoreClient;
+import io.fluxcapacitor.javaclient.publishing.DispatchInterceptor;
 import io.fluxcapacitor.javaclient.tracking.handling.HandlerRegistry;
 import lombok.AllArgsConstructor;
 import lombok.experimental.Delegate;
@@ -34,7 +36,8 @@ import static java.util.stream.Collectors.toList;
 @AllArgsConstructor
 public class DefaultEventStore implements EventStore {
     private final EventStoreClient client;
-    private final EventStoreSerializer serializer;
+    private final Serializer serializer;
+    private final DispatchInterceptor dispatchInterceptor;
     @Delegate
     private final HandlerRegistry localHandlerRegistry;
 
@@ -50,9 +53,11 @@ public class DefaultEventStore implements EventStore {
                 if (e instanceof DeserializingMessage) {
                     deserializingMessage = (DeserializingMessage) e;
                 } else {
-                    Message message = e instanceof Message ? (Message) e : new Message(e);
-                    deserializingMessage = new DeserializingMessage(serializer.serialize(message), type -> serializer
-                            .convert(message.getPayload(), type), EVENT);
+                    Message m = dispatchInterceptor.interceptDispatch(
+                            e instanceof Message ? (Message) e : new Message(e), EVENT);
+                    SerializedMessage serializedMessage
+                            = dispatchInterceptor.modifySerializedMessage(m.serialize(serializer), m, EVENT);
+                    deserializingMessage = new DeserializingMessage(serializedMessage, type -> m.getPayload(), EVENT);
                 }
                 messages.add(deserializingMessage);
             });
@@ -73,7 +78,7 @@ public class DefaultEventStore implements EventStore {
         try {
             AggregateEventStream<SerializedMessage> serializedEvents =
                     client.getEvents(aggregateId, lastSequenceNumber);
-            return serializedEvents.convert(serializer::deserializeDomainEvents);
+            return serializedEvents.convert(stream -> serializer.deserializeMessages(stream, true, EVENT));
         } catch (Exception e) {
             throw new EventSourcingException(format("Failed to obtain domain events for aggregate %s", aggregateId), e);
         }

@@ -17,7 +17,20 @@ package io.fluxcapacitor.testserver.endpoints;
 import io.fluxcapacitor.common.Awaitable;
 import io.fluxcapacitor.common.Guarantee;
 import io.fluxcapacitor.common.api.VoidResult;
-import io.fluxcapacitor.common.api.search.*;
+import io.fluxcapacitor.common.api.search.BulkUpdate;
+import io.fluxcapacitor.common.api.search.BulkUpdateDocuments;
+import io.fluxcapacitor.common.api.search.CreateAuditTrail;
+import io.fluxcapacitor.common.api.search.DeleteCollection;
+import io.fluxcapacitor.common.api.search.DeleteDocumentById;
+import io.fluxcapacitor.common.api.search.DeleteDocuments;
+import io.fluxcapacitor.common.api.search.GetSearchHistogram;
+import io.fluxcapacitor.common.api.search.GetSearchHistogramResult;
+import io.fluxcapacitor.common.api.search.IndexDocuments;
+import io.fluxcapacitor.common.api.search.SearchDocuments;
+import io.fluxcapacitor.common.api.search.SearchDocumentsResult;
+import io.fluxcapacitor.common.api.search.SearchHistogram;
+import io.fluxcapacitor.common.api.search.SerializedDocument;
+import io.fluxcapacitor.common.api.search.SerializedDocumentUpdate;
 import io.fluxcapacitor.common.search.Document;
 import io.fluxcapacitor.javaclient.persisting.search.SearchHit;
 import io.fluxcapacitor.javaclient.persisting.search.client.SearchClient;
@@ -26,15 +39,23 @@ import io.fluxcapacitor.testserver.WebsocketEndpoint;
 import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
 import java.util.stream.Stream;
 
-import static io.fluxcapacitor.common.api.search.BulkUpdate.Type.*;
+import static io.fluxcapacitor.common.api.search.BulkUpdate.Type.delete;
+import static io.fluxcapacitor.common.api.search.BulkUpdate.Type.index;
+import static io.fluxcapacitor.common.api.search.BulkUpdate.Type.indexIfNotExists;
 import static java.lang.String.format;
 import static java.util.Collections.emptyList;
 import static java.util.Optional.ofNullable;
 import static java.util.function.UnaryOperator.identity;
-import static java.util.stream.Collectors.*;
+import static java.util.stream.Collectors.groupingBy;
+import static java.util.stream.Collectors.toList;
+import static java.util.stream.Collectors.toMap;
 
 @Slf4j
 @AllArgsConstructor

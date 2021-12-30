@@ -566,56 +566,52 @@ public class TestFixture implements Given, When {
         }
 
         @Override
-        public Function<Message, SerializedMessage> interceptDispatch(Function<Message, SerializedMessage> function,
-                                                                      MessageType messageType) {
-            return message -> {
-                if (!collectingResults) {
+        public Message interceptDispatch(Message message, MessageType messageType) {
+            if (!collectingResults) {
+                message = message.withMetadata(message.getMetadata().with(IGNORE_TAG, "true"));
+            }
+
+            DeserializingMessage currentMessage = DeserializingMessage.getCurrent();
+            if (currentMessage != null) {
+                if (currentMessage.getMessageType() != SCHEDULE && currentMessage.getMetadata()
+                        .containsKey(IGNORE_TAG)) {
                     message = message.withMetadata(message.getMetadata().with(IGNORE_TAG, "true"));
                 }
-
-                DeserializingMessage currentMessage = DeserializingMessage.getCurrent();
-                if (currentMessage != null) {
-                    if (currentMessage.getMessageType() != SCHEDULE && currentMessage.getMetadata()
-                            .containsKey(IGNORE_TAG)) {
-                        message = message.withMetadata(message.getMetadata().with(IGNORE_TAG, "true"));
-                    }
-                    if (currentMessage.getMetadata().containsKey(TRACE_TAG)) {
-                        message = message.withMetadata(message.getMetadata().without(TRACE_TAG));
-                    }
+                if (currentMessage.getMetadata().containsKey(TRACE_TAG)) {
+                    message = message.withMetadata(message.getMetadata().without(TRACE_TAG));
                 }
+            }
 
-                if (messageType == SCHEDULE) {
-                    addMessage(publishedSchedules.computeIfAbsent(SCHEDULE, t -> new CopyOnWriteArrayList<>()),
-                               message);
-                }
+            if (messageType == SCHEDULE) {
+                addMessage(publishedSchedules.computeIfAbsent(SCHEDULE, t -> new CopyOnWriteArrayList<>()),
+                           message);
+            }
 
-                synchronized (consumers) {
-                    Message interceptedMessage = message;
-                    consumers.entrySet().stream()
-                            .filter(t -> {
-                                ConsumerConfiguration configuration = t.getKey();
-                                return (configuration.getMessageType() == messageType && Optional
-                                        .ofNullable(configuration.getTypeFilter())
-                                        .map(f -> interceptedMessage.getPayload().getClass().getName().matches(f))
-                                        .orElse(true));
-                            }).forEach(e -> addMessage(e.getValue(), interceptedMessage));
+            synchronized (consumers) {
+                Message interceptedMessage = message;
+                consumers.entrySet().stream()
+                        .filter(t -> {
+                            ConsumerConfiguration configuration = t.getKey();
+                            return (configuration.getMessageType() == messageType && Optional
+                                    .ofNullable(configuration.getTypeFilter())
+                                    .map(f -> interceptedMessage.getPayload().getClass().getName().matches(f))
+                                    .orElse(true));
+                        }).forEach(e -> addMessage(e.getValue(), interceptedMessage));
+            }
+            if (!message.getMetadata().containsAnyKey(IGNORE_TAG, TRACE_TAG)) {
+                switch (messageType) {
+                    case COMMAND:
+                        registerCommand(message);
+                        break;
+                    case EVENT:
+                        registerEvent(message);
+                        break;
+                    case SCHEDULE:
+                        registerSchedule((Schedule) message);
+                        break;
                 }
-                if (!message.getMetadata().containsAnyKey(IGNORE_TAG, TRACE_TAG)) {
-                    switch (messageType) {
-                        case COMMAND:
-                            registerCommand(message);
-                            break;
-                        case EVENT:
-                            registerEvent(message);
-                            break;
-                        case SCHEDULE:
-                            registerSchedule((Schedule) message);
-                            break;
-                    }
-                }
-
-                return function.apply(message);
-            };
+            }
+            return message;
         }
 
         protected void addMessage(List<Message> messages, Message message) {

@@ -15,9 +15,10 @@
 package io.fluxcapacitor.javaclient.publishing;
 
 import io.fluxcapacitor.common.Guarantee;
+import io.fluxcapacitor.common.MessageType;
 import io.fluxcapacitor.common.api.SerializedMessage;
 import io.fluxcapacitor.javaclient.common.Message;
-import io.fluxcapacitor.javaclient.common.serialization.MessageSerializer;
+import io.fluxcapacitor.javaclient.common.serialization.Serializer;
 import io.fluxcapacitor.javaclient.publishing.client.GatewayClient;
 import io.fluxcapacitor.javaclient.tracking.handling.HandlerRegistry;
 import lombok.AllArgsConstructor;
@@ -34,14 +35,18 @@ import static java.lang.String.format;
 public class DefaultGenericGateway implements GenericGateway {
     private final GatewayClient gatewayClient;
     private final RequestHandler requestHandler;
-    private final MessageSerializer serializer;
+    private final Serializer serializer;
+    private final DispatchInterceptor dispatchInterceptor;
+    private final MessageType messageType;
     @Delegate
     private final HandlerRegistry localHandlerRegistry;
 
     @Override
     @SneakyThrows
     public CompletableFuture<Void> sendAndForget(Message message, Guarantee guarantee) {
-        SerializedMessage serializedMessage = serializer.serialize(message);
+        message = dispatchInterceptor.interceptDispatch(message, messageType);
+        SerializedMessage serializedMessage
+                = dispatchInterceptor.modifySerializedMessage(message.serialize(serializer), message, messageType);
         Optional<CompletableFuture<Message>> localResult
                 = localHandlerRegistry.handle(message.getPayload(), serializedMessage);
         if (localResult.isEmpty()) {
@@ -62,7 +67,9 @@ public class DefaultGenericGateway implements GenericGateway {
 
     @Override
     public CompletableFuture<Message> sendForMessage(Message message) {
-        SerializedMessage serializedMessage = serializer.serialize(message);
+        message = dispatchInterceptor.interceptDispatch(message, messageType);
+        SerializedMessage serializedMessage
+                = dispatchInterceptor.modifySerializedMessage(message.serialize(serializer), message, messageType);
         Optional<CompletableFuture<Message>> localResult
                 = localHandlerRegistry.handle(message.getPayload(), serializedMessage);
         if (localResult.isPresent()) {

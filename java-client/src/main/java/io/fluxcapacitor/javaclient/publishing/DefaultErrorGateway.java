@@ -16,46 +16,21 @@ package io.fluxcapacitor.javaclient.publishing;
 
 import io.fluxcapacitor.common.Guarantee;
 import io.fluxcapacitor.common.api.Metadata;
-import io.fluxcapacitor.common.api.SerializedMessage;
 import io.fluxcapacitor.javaclient.common.Message;
-import io.fluxcapacitor.javaclient.common.serialization.MessageSerializer;
-import io.fluxcapacitor.javaclient.publishing.client.GatewayClient;
-import io.fluxcapacitor.javaclient.tracking.handling.HandlerRegistry;
 import lombok.AllArgsConstructor;
 import lombok.experimental.Delegate;
 import lombok.extern.slf4j.Slf4j;
 
-import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.CompletionException;
 
 @AllArgsConstructor
 @Slf4j
 public class DefaultErrorGateway implements ErrorGateway {
-
-    private final GatewayClient errorGateway;
-    private final MessageSerializer serializer;
-
     @Delegate
-    private final HandlerRegistry localHandlerRegistry;
+    private final GenericGateway delegate;
 
     @Override
-    public CompletableFuture<Void> report(Object payload, Metadata metadata, String target, Guarantee guarantee) {
-        try {
-            SerializedMessage message = serializer.serialize(new Message(payload, metadata));
-            message.setTarget(target);
-            Optional<CompletableFuture<Message>> result = localHandlerRegistry.handle(payload, message);
-            if (result.isPresent() && result.get().isCompletedExceptionally()) {
-                try {
-                    result.get().getNow(null);
-                } catch (CompletionException e) {
-                    log.error("Failed to handle error locally", e);
-                }
-            }
-            return errorGateway.send(guarantee, message).asCompletableFuture();
-        } catch (Exception e) {
-            log.error("Failed to report error {}", payload, e);
-            return CompletableFuture.allOf();
-        }
+    public CompletableFuture<Void> report(Object payload, Metadata metadata, Guarantee guarantee) {
+        return delegate.sendAndForget(new Message(payload, metadata), guarantee);
     }
 }

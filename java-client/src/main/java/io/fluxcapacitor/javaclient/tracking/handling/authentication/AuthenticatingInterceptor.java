@@ -15,7 +15,6 @@
 package io.fluxcapacitor.javaclient.tracking.handling.authentication;
 
 import io.fluxcapacitor.common.MessageType;
-import io.fluxcapacitor.common.api.SerializedMessage;
 import io.fluxcapacitor.common.handling.Handler;
 import io.fluxcapacitor.javaclient.common.Message;
 import io.fluxcapacitor.javaclient.common.serialization.DeserializingMessage;
@@ -36,18 +35,15 @@ public class AuthenticatingInterceptor implements DispatchInterceptor, HandlerIn
     private final UserProvider userProvider;
 
     @Override
-    public Function<Message, SerializedMessage> interceptDispatch(Function<Message, SerializedMessage> function,
-                                                                  MessageType messageType) {
-        return m -> {
-            if (!userProvider.containsUser(m.getMetadata())) {
-                User user = ofNullable(DeserializingMessage.getCurrent()).isPresent() ? userProvider.getSystemUser() :
-                        ofNullable(userProvider.getActiveUser()).orElseGet(userProvider::getSystemUser);
-                if (user != null) {
-                    m = m.withMetadata(userProvider.addToMetadata(m.getMetadata(), user));
-                }
+    public Message interceptDispatch(Message m, MessageType messageType) {
+        if (!userProvider.containsUser(m.getMetadata())) {
+            User user = ofNullable(DeserializingMessage.getCurrent()).isPresent() ? userProvider.getSystemUser() :
+                    ofNullable(userProvider.getActiveUser()).orElseGet(userProvider::getSystemUser);
+            if (user != null) {
+                m = m.withMetadata(userProvider.addToMetadata(m.getMetadata(), user));
             }
-            return function.apply(m);
-        };
+        }
+        return m;
     }
 
     @Override

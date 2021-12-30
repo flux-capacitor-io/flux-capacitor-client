@@ -23,7 +23,9 @@ import org.junit.jupiter.api.Test;
 
 import static io.fluxcapacitor.javaclient.FluxCapacitor.loadAggregate;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.*;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.spy;
+import static org.mockito.Mockito.verify;
 
 class SelectiveCacheTest {
     private final Cache defaultCache = spy(new DefaultCache()), customCache = spy(new DefaultCache());

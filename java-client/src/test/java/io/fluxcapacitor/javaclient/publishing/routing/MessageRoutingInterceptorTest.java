@@ -21,28 +21,23 @@ import io.fluxcapacitor.common.api.SerializedMessage;
 import io.fluxcapacitor.javaclient.common.Message;
 import lombok.Value;
 import org.junit.jupiter.api.Test;
+import org.opentest4j.AssertionFailedError;
 
 import java.time.Clock;
-import java.util.function.Function;
 
 import static io.fluxcapacitor.common.MessageType.EVENT;
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
 class MessageRoutingInterceptorTest {
 
-    private MessageRoutingInterceptor subject = new MessageRoutingInterceptor();
-    private Function<Message, SerializedMessage> invocation = m -> new SerializedMessage(
-            new Data<>("test".getBytes(), "test", 0, null), Metadata.empty(), "someId",
-            Clock.systemUTC().millis());
-    private int expectedHash = ConsistentHashing.computeSegment("bar");
+    private final MessageRoutingInterceptor subject = new MessageRoutingInterceptor();
+    private Integer expectedHash = ConsistentHashing.computeSegment("bar");
 
     @Test
     void testNoSegmentWithoutAnnotation() {
-        SerializedMessage result =
-                subject.interceptDispatch(invocation, EVENT).apply(new Message(new Object()));
-        assertNull(result.getSegment());
+        expectedHash = null;
+        testInvocation(new Object());
     }
 
     @Test
@@ -108,7 +103,7 @@ class MessageRoutingInterceptorTest {
 
     @Test
     void testAnnotationOnMethodWithParametersFails() {
-        assertThrows(Exception.class, () -> testInvocation(new AnnotationOnWrongMethod()));
+        assertThrows(AssertionFailedError.class, () -> testInvocation(new AnnotationOnWrongMethod()));
     }
 
     private void testInvocation(Object payload) {
@@ -116,13 +111,15 @@ class MessageRoutingInterceptorTest {
     }
 
     private void testInvocation(Message message) {
-        SerializedMessage result = subject.interceptDispatch(invocation, EVENT).apply(message);
-        assertEquals(expectedHash, (int) result.getSegment());
+        SerializedMessage result = subject.modifySerializedMessage(new SerializedMessage(
+                new Data<>("test".getBytes(), "test", 0, null), Metadata.empty(), "someId",
+                Clock.systemUTC().millis()), message, EVENT);
+        assertEquals(expectedHash, result.getSegment());
     }
 
     private static class AnnotationOnField {
         @RoutingKey
-        private Object foo = "bar";
+        private final Object foo = "bar";
     }
 
     @Value
@@ -133,7 +130,7 @@ class MessageRoutingInterceptorTest {
 
     private static class AnnotationOnStaticField {
         @RoutingKey
-        private static Object foo = "bar";
+        private static final Object foo = "bar";
     }
 
     private interface AnnotationOnInterfaceMethod {

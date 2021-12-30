@@ -16,7 +16,6 @@ package io.fluxcapacitor.javaclient.scheduling;
 
 import io.fluxcapacitor.common.MessageType;
 import io.fluxcapacitor.common.api.Metadata;
-import io.fluxcapacitor.common.api.SerializedMessage;
 import io.fluxcapacitor.common.handling.Handler;
 import io.fluxcapacitor.common.reflection.ReflectionUtils;
 import io.fluxcapacitor.javaclient.FluxCapacitor;
@@ -99,16 +98,13 @@ public class SchedulingInterceptor implements DispatchInterceptor, HandlerInterc
     }
 
     @Override
-    public Function<Message, SerializedMessage> interceptDispatch(Function<Message, SerializedMessage> function,
-                                                                  MessageType messageType) {
-        return message -> {
-            if (messageType == MessageType.SCHEDULE) {
-                message = message.withMetadata(
-                        message.getMetadata()
-                                .with(Schedule.scheduleIdMetadataKey, ((Schedule) message).getScheduleId()));
-            }
-            return function.apply(message);
-        };
+    public Message interceptDispatch(Message message, MessageType messageType) {
+        if (messageType == MessageType.SCHEDULE) {
+            message = message.withMetadata(
+                    message.getMetadata()
+                            .with(Schedule.scheduleIdMetadataKey, ((Schedule) message).getScheduleId()));
+        }
+        return message;
     }
 
     @Override

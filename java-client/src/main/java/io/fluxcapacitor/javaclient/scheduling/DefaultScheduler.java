@@ -16,29 +16,34 @@ package io.fluxcapacitor.javaclient.scheduling;
 
 import io.fluxcapacitor.common.Registration;
 import io.fluxcapacitor.common.api.SerializedMessage;
-import io.fluxcapacitor.common.api.scheduling.ScheduledMessage;
+import io.fluxcapacitor.common.api.scheduling.SerializedSchedule;
 import io.fluxcapacitor.common.handling.HandlerConfiguration;
-import io.fluxcapacitor.javaclient.common.serialization.MessageSerializer;
+import io.fluxcapacitor.javaclient.common.serialization.Serializer;
+import io.fluxcapacitor.javaclient.publishing.DispatchInterceptor;
 import io.fluxcapacitor.javaclient.scheduling.client.SchedulingClient;
 import io.fluxcapacitor.javaclient.tracking.handling.HandlerRegistry;
 import lombok.AllArgsConstructor;
 
 import static io.fluxcapacitor.common.IndexUtils.indexFromTimestamp;
+import static io.fluxcapacitor.common.MessageType.SCHEDULE;
 
 @AllArgsConstructor
 public class DefaultScheduler implements Scheduler {
 
     private final SchedulingClient client;
-    private final MessageSerializer serializer;
+    private final Serializer serializer;
+    private final DispatchInterceptor dispatchInterceptor;
     private final HandlerRegistry localHandlerRegistry;
 
     @Override
     public void schedule(Schedule message, boolean ifAbsent) {
         try {
-            SerializedMessage serializedMessage = serializer.serialize(message);
-            client.schedule(new ScheduledMessage(message.getScheduleId(),
-                                                 message.getDeadline().toEpochMilli(),
-                                                 serializedMessage, ifAbsent)).await();
+            message = (Schedule) dispatchInterceptor.interceptDispatch(message, SCHEDULE);
+            SerializedMessage serializedMessage = dispatchInterceptor.modifySerializedMessage(
+                    message.serialize(serializer), message, SCHEDULE);
+            client.schedule(new SerializedSchedule(message.getScheduleId(),
+                                                   message.getDeadline().toEpochMilli(),
+                                                   serializedMessage, ifAbsent)).await();
         } catch (Exception e) {
             throw new SchedulerException(String.format("Failed to schedule message %s for %s", message.getPayload(),
                                                        message.getDeadline()), e);

@@ -16,7 +16,7 @@ package io.fluxcapacitor.testserver.endpoints;
 
 import io.fluxcapacitor.common.api.scheduling.CancelSchedule;
 import io.fluxcapacitor.common.api.scheduling.Schedule;
-import io.fluxcapacitor.common.api.scheduling.ScheduledMessage;
+import io.fluxcapacitor.common.api.scheduling.SerializedSchedule;
 import io.fluxcapacitor.javaclient.scheduling.client.SchedulingClient;
 import io.fluxcapacitor.testserver.Handle;
 import io.fluxcapacitor.testserver.WebsocketEndpoint;
@@ -31,7 +31,7 @@ public class SchedulingEndpoint extends WebsocketEndpoint {
 
     @Handle
     public void handle(Schedule schedule) {
-        store.schedule(schedule.getMessages().toArray(ScheduledMessage[]::new));
+        store.schedule(schedule.getMessages().toArray(SerializedSchedule[]::new));
     }
 
     @Handle

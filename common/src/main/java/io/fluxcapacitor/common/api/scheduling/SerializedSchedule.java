@@ -19,7 +19,7 @@ import io.fluxcapacitor.common.api.SerializedMessage;
 import lombok.Value;
 
 @Value
-public class ScheduledMessage {
+public class SerializedSchedule {
     String scheduleId;
     long timestamp;
     SerializedMessage message;

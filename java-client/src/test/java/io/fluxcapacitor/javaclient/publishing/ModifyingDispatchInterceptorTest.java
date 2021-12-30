@@ -1,24 +1,22 @@
-package io.fluxcapacitor.javaclient.givenwhenthen;
+package io.fluxcapacitor.javaclient.publishing;
 
 import io.fluxcapacitor.common.MessageType;
-import io.fluxcapacitor.common.api.SerializedMessage;
 import io.fluxcapacitor.javaclient.FluxCapacitor;
 import io.fluxcapacitor.javaclient.common.Message;
 import io.fluxcapacitor.javaclient.configuration.DefaultFluxCapacitor;
-import io.fluxcapacitor.javaclient.publishing.DispatchInterceptor;
 import io.fluxcapacitor.javaclient.test.TestFixture;
 import io.fluxcapacitor.javaclient.tracking.handling.HandleCommand;
 import lombok.Value;
 import org.junit.jupiter.api.Test;
 
-import java.util.function.Function;
+import static io.fluxcapacitor.common.MessageType.COMMAND;
 
-public class GivenWhenThenInterceptorTest {
+public class ModifyingDispatchInterceptorTest {
 
     @Test
     void testThatInterceptorChangesMessageTypeSuccessfully() {
-        TestFixture.createAsync(
-                        DefaultFluxCapacitor.builder().addDispatchInterceptor(new ChangeTypeInterceptor(), MessageType.COMMAND),
+        TestFixture.create(
+                        DefaultFluxCapacitor.builder().addDispatchInterceptor(new ChangeTypeInterceptor(), COMMAND),
                         new CommandHandler())
                 .givenNoPriorActivity()
                 .whenCommand(new Command(""))
@@ -27,8 +25,8 @@ public class GivenWhenThenInterceptorTest {
 
     @Test
     void testThatInterceptorChangesMessageContentSuccessfully() {
-        TestFixture.createAsync(
-                        DefaultFluxCapacitor.builder().addDispatchInterceptor(new ChangeContentInterceptor(), MessageType.COMMAND),
+        TestFixture.create(
+                        DefaultFluxCapacitor.builder().addDispatchInterceptor(new ChangeContentInterceptor(), COMMAND),
                         new CommandHandler())
                 .givenNoPriorActivity()
                 .whenCommand(new Command(""))
@@ -38,17 +36,15 @@ public class GivenWhenThenInterceptorTest {
 
     public static class ChangeTypeInterceptor implements DispatchInterceptor {
         @Override
-        public final Function<Message, SerializedMessage> interceptDispatch(
-                Function<Message, SerializedMessage> function, MessageType messageType) {
-            return m -> function.apply(new Message(new DifferentCommand(), m.getMetadata()));
+        public Message interceptDispatch(Message message, MessageType messageType) {
+            return message.withPayload(new DifferentCommand());
         }
     }
 
     public static class ChangeContentInterceptor implements DispatchInterceptor {
         @Override
-        public final Function<Message, SerializedMessage> interceptDispatch(
-                Function<Message, SerializedMessage> function, MessageType messageType) {
-            return m -> function.apply(new Message(new Command("intercepted"), m.getMetadata()));
+        public Message interceptDispatch(Message message, MessageType messageType) {
+            return message.withPayload(new Command("intercepted"));
         }
     }
 

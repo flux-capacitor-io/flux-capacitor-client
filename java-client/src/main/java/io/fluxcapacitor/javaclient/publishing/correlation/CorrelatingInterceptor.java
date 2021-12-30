@@ -15,20 +15,16 @@
 package io.fluxcapacitor.javaclient.publishing.correlation;
 
 import io.fluxcapacitor.common.MessageType;
-import io.fluxcapacitor.common.api.SerializedMessage;
 import io.fluxcapacitor.javaclient.common.Message;
 import io.fluxcapacitor.javaclient.publishing.DispatchInterceptor;
 import lombok.AllArgsConstructor;
-
-import java.util.function.Function;
 
 import static io.fluxcapacitor.javaclient.FluxCapacitor.currentCorrelationData;
 
 @AllArgsConstructor
 public class CorrelatingInterceptor implements DispatchInterceptor {
     @Override
-    public Function<Message, SerializedMessage> interceptDispatch(Function<Message, SerializedMessage> function,
-                                                                  MessageType messageType) {
-        return message -> function.apply(message.withMetadata(message.getMetadata().with(currentCorrelationData())));
+    public Message interceptDispatch(Message message, MessageType messageType) {
+        return message.withMetadata(message.getMetadata().with(currentCorrelationData()));
     }
 }

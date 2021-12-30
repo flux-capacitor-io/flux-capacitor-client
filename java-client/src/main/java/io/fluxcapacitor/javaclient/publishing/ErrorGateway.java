@@ -32,19 +32,10 @@ public interface ErrorGateway extends HasLocalHandlers {
     }
 
     @SneakyThrows
-    default void report(Object error, String target) {
-        if (error instanceof Message) {
-            report(((Message) error).getPayload(), ((Message) error).getMetadata(), target, Guarantee.NONE).get();
-        } else {
-            report(error, Metadata.empty(), target, Guarantee.NONE).get();
-        }
-    }
-
-    @SneakyThrows
     default void report(Object payload, Metadata metadata) {
-        report(payload, metadata, null, Guarantee.NONE).get();
+        report(payload, metadata, Guarantee.NONE).get();
     }
 
-    CompletableFuture<Void> report(Object payload, Metadata metadata, String target, Guarantee guarantee);
+    CompletableFuture<Void> report(Object payload, Metadata metadata, Guarantee guarantee);
 
 }

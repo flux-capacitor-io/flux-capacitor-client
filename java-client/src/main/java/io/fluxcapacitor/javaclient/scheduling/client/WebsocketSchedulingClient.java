@@ -19,7 +19,7 @@ import io.fluxcapacitor.common.Backlog;
 import io.fluxcapacitor.common.MessageType;
 import io.fluxcapacitor.common.api.scheduling.CancelSchedule;
 import io.fluxcapacitor.common.api.scheduling.Schedule;
-import io.fluxcapacitor.common.api.scheduling.ScheduledMessage;
+import io.fluxcapacitor.common.api.scheduling.SerializedSchedule;
 import io.fluxcapacitor.javaclient.common.websocket.AbstractWebsocketClient;
 import io.fluxcapacitor.javaclient.configuration.client.WebSocketClient.ClientConfig;
 
@@ -30,7 +30,7 @@ import java.util.List;
 @ClientEndpoint
 public class WebsocketSchedulingClient extends AbstractWebsocketClient implements SchedulingClient {
 
-    private final Backlog<ScheduledMessage> backlog;
+    private final Backlog<SerializedSchedule> backlog;
 
     public WebsocketSchedulingClient(String endPointUrl, ClientConfig clientConfig) {
         this(URI.create(endPointUrl), clientConfig);
@@ -41,12 +41,12 @@ public class WebsocketSchedulingClient extends AbstractWebsocketClient implement
         backlog = new Backlog<>(this::scheduleMessages);
     }
 
-    protected Awaitable scheduleMessages(List<ScheduledMessage> scheduledMessages) {
-        return sendAndForget(new Schedule(scheduledMessages));
+    protected Awaitable scheduleMessages(List<SerializedSchedule> schedules) {
+        return sendAndForget(new Schedule(schedules));
     }
 
     @Override
-    public Awaitable schedule(ScheduledMessage... schedules) {
+    public Awaitable schedule(SerializedSchedule... schedules) {
         return backlog.add(schedules);
     }
 

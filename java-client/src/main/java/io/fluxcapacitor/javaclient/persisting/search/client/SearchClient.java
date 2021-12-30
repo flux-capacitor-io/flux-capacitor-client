@@ -16,7 +16,14 @@ package io.fluxcapacitor.javaclient.persisting.search.client;
 
 import io.fluxcapacitor.common.Awaitable;
 import io.fluxcapacitor.common.Guarantee;
-import io.fluxcapacitor.common.api.search.*;
+import io.fluxcapacitor.common.api.search.CreateAuditTrail;
+import io.fluxcapacitor.common.api.search.DocumentStats;
+import io.fluxcapacitor.common.api.search.GetDocument;
+import io.fluxcapacitor.common.api.search.GetSearchHistogram;
+import io.fluxcapacitor.common.api.search.SearchDocuments;
+import io.fluxcapacitor.common.api.search.SearchHistogram;
+import io.fluxcapacitor.common.api.search.SearchQuery;
+import io.fluxcapacitor.common.api.search.SerializedDocumentUpdate;
 import io.fluxcapacitor.common.search.Document;
 import io.fluxcapacitor.javaclient.persisting.search.SearchHit;
 

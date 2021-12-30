@@ -23,7 +23,7 @@ import static java.util.stream.Collectors.toList;
 
 @Value
 public class Schedule implements JsonType {
-    List<ScheduledMessage> messages;
+    List<SerializedSchedule> messages;
 
     @Override
     public String toString() {
@@ -32,12 +32,12 @@ public class Schedule implements JsonType {
 
     @Override
     public Object toMetric() {
-        return new Metric(messages.stream().map(ScheduledMessage::toMetric).collect(toList()), messages.size());
+        return new Metric(messages.stream().map(SerializedSchedule::toMetric).collect(toList()), messages.size());
     }
 
     @Value
     public static class Metric {
-        List<ScheduledMessage.Metric> messages;
+        List<SerializedSchedule.Metric> messages;
         int size;
     }
 }

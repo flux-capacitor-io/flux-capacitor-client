@@ -15,16 +15,16 @@
 package io.fluxcapacitor.javaclient.persisting.eventsourcing;
 
 import io.fluxcapacitor.common.Awaitable;
-import io.fluxcapacitor.common.api.Metadata;
 import io.fluxcapacitor.common.reflection.ReflectionUtils;
 import io.fluxcapacitor.javaclient.common.Message;
 import io.fluxcapacitor.javaclient.common.serialization.DeserializingMessage;
-import io.fluxcapacitor.javaclient.common.serialization.DeserializingObject;
+import io.fluxcapacitor.javaclient.common.serialization.Serializer;
 import io.fluxcapacitor.javaclient.modeling.AggregateRepository;
 import io.fluxcapacitor.javaclient.modeling.AggregateRoot;
 import io.fluxcapacitor.javaclient.persisting.caching.Cache;
 import io.fluxcapacitor.javaclient.persisting.caching.NoOpCache;
 import io.fluxcapacitor.javaclient.persisting.search.DocumentStore;
+import io.fluxcapacitor.javaclient.publishing.DispatchInterceptor;
 import io.fluxcapacitor.javaclient.tracking.handling.validation.ValidationUtils;
 import lombok.AllArgsConstructor;
 import lombok.RequiredArgsConstructor;
@@ -33,14 +33,23 @@ import lombok.extern.slf4j.Slf4j;
 
 import java.time.Instant;
 import java.time.temporal.TemporalAccessor;
-import java.util.*;
+import java.util.ArrayDeque;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Function;
 import java.util.function.UnaryOperator;
 
 import static io.fluxcapacitor.common.MessageType.EVENT;
-import static io.fluxcapacitor.javaclient.common.serialization.DeserializingMessage.*;
+import static io.fluxcapacitor.javaclient.common.serialization.DeserializingMessage.defaultParameterResolvers;
+import static io.fluxcapacitor.javaclient.common.serialization.DeserializingMessage.whenBatchCompletes;
+import static io.fluxcapacitor.javaclient.common.serialization.DeserializingMessage.whenMessageCompletes;
 import static java.lang.String.format;
 import static java.util.Collections.asLifoQueue;
 import static java.util.Collections.emptyList;
@@ -57,15 +66,16 @@ public class DefaultAggregateRepository implements AggregateRepository {
     private final SnapshotRepository snapshotRepository;
     private final Cache cache;
     private final DocumentStore documentStore;
-    private final EventStoreSerializer serializer;
+    private final Serializer serializer;
+    private final DispatchInterceptor dispatchInterceptor;
     private final EventSourcingHandlerFactory handlerFactory;
 
     private final Map<Class<?>, AggregateFactoryFunction> aggregateFactory = new ConcurrentHashMap<>();
     private final ThreadLocal<Collection<EventSourcedAggregate<?>>> loadedModels = new ThreadLocal<>();
 
     public DefaultAggregateRepository(EventStore eventStore, SnapshotRepository snapshotRepository, Cache cache,
-                                      DocumentStore documentStore, EventStoreSerializer serializer) {
-        this(eventStore, snapshotRepository, cache, documentStore, serializer,
+                                      DocumentStore documentStore, Serializer serializer, DispatchInterceptor dispatchInterceptor) {
+        this(eventStore, snapshotRepository, cache, documentStore, serializer, dispatchInterceptor,
              new DefaultEventSourcingHandlerFactory(defaultParameterResolvers));
     }
 
@@ -116,9 +126,9 @@ public class DefaultAggregateRepository implements AggregateRepository {
             Function<AggregateRoot<?>, Instant> timestampFunction = timestampFunction(aggregateType);
             return (id, ro, init) -> {
                 EventSourcedAggregate<T> eventSourcedAggregate = new EventSourcedAggregate<>(
-                        aggregateType, eventSourcingHandler, cache, serializer, eventStore, snapshotRepository,
-                        snapshotTrigger, documentStore, eventSourced, searchable, collection, timestampFunction,
-                        ro, id);
+                        aggregateType, eventSourcingHandler, cache, serializer, dispatchInterceptor,
+                        eventStore, snapshotRepository, snapshotTrigger, documentStore, eventSourced, searchable,
+                        collection, timestampFunction, ro, id);
                 if (init) {
                     eventSourcedAggregate.initialize();
                 }
@@ -191,7 +201,8 @@ public class DefaultAggregateRepository implements AggregateRepository {
         private final Class<T> aggregateType;
         private final EventSourcingHandler<T> eventSourcingHandler;
         private final Cache cache;
-        private final EventStoreSerializer serializer;
+        private final Serializer serializer;
+        private final DispatchInterceptor dispatchInterceptor;
         private final EventStore eventStore;
         private final SnapshotRepository snapshotRepository;
         private final SnapshotTrigger snapshotTrigger;
@@ -265,20 +276,19 @@ public class DefaultAggregateRepository implements AggregateRepository {
                                                                message));
             }
 
-            Metadata metadata = message.getMetadata()
-                    .with(AggregateRoot.AGGREGATE_ID_METADATA_KEY, id,
-                          AggregateRoot.AGGREGATE_TYPE_METADATA_KEY, getAggregateType().getName());
-
-            Message eventMessage = message.withMetadata(metadata);
-            DeserializingMessage deserializingMessage = new DeserializingMessage(new DeserializingObject<>(
-                    serializer.serialize(eventMessage), type -> serializer.convert(eventMessage.getPayload(), type)),
-                                                                                 EVENT);
+            Message m = dispatchInterceptor.interceptDispatch(message.withMetadata(
+                    message.getMetadata().with(AggregateRoot.AGGREGATE_ID_METADATA_KEY, id,
+                                               AggregateRoot.AGGREGATE_TYPE_METADATA_KEY,
+                                               getAggregateType().getName())), EVENT);
+            DeserializingMessage deserializingMessage = new DeserializingMessage(
+                    dispatchInterceptor.modifySerializedMessage(m.serialize(serializer), m, EVENT),
+                    type -> m.getPayload(), EVENT);
 
             unpublishedEvents.add(deserializingMessage);
             updateModel(model.toBuilder().sequenceNumber(model.sequenceNumber() + 1)
                                 .model(eventSourcingHandler.invoke(model, deserializingMessage))
-                                .previous(model).lastEventId(eventMessage.getMessageId())
-                                .timestamp(eventMessage.getTimestamp())
+                                .previous(model).lastEventId(m.getMessageId())
+                                .timestamp(m.getTimestamp())
                                 .lastEventIndex(deserializingMessage.getSerializedObject().getIndex())
                                 .build());
             return this;
@@ -348,16 +358,16 @@ public class DefaultAggregateRepository implements AggregateRepository {
         }
 
         protected EventSourcedModel<T> forceApply(EventSourcedModel<T> model, Message message) {
-            Message eventMessage = message.withMetadata(
+            Message m = dispatchInterceptor.interceptDispatch(message.withMetadata(
                     message.getMetadata().with(AggregateRoot.AGGREGATE_ID_METADATA_KEY, id,
                                                AggregateRoot.AGGREGATE_TYPE_METADATA_KEY,
-                                               getAggregateType().getName()));
-            DeserializingMessage deserializingMessage = new DeserializingMessage(new DeserializingObject<>(
-                    serializer.serialize(message), type -> serializer.convert(eventMessage.getPayload(), type)),
-                                                                                 EVENT);
+                                               getAggregateType().getName())), EVENT);
+            DeserializingMessage deserializingMessage = new DeserializingMessage(
+                    dispatchInterceptor.modifySerializedMessage(m.serialize(serializer), m, EVENT),
+                    type -> m.getPayload(), EVENT);
             return model.toBuilder().sequenceNumber(model.sequenceNumber() + 1)
                     .model(eventSourcingHandler.invoke(model, deserializingMessage))
-                    .previous(model).lastEventId(eventMessage.getMessageId()).timestamp(eventMessage.getTimestamp())
+                    .previous(model).lastEventId(m.getMessageId()).timestamp(m.getTimestamp())
                     .lastEventIndex(deserializingMessage.getSerializedObject().getIndex())
                     .build();
         }

@@ -27,7 +27,10 @@ import org.mockito.InOrder;
 
 import static io.fluxcapacitor.javaclient.FluxCapacitor.loadAggregate;
 import static org.hamcrest.CoreMatchers.isA;
-import static org.mockito.Mockito.*;
+import static org.mockito.Mockito.inOrder;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.spy;
+import static org.mockito.Mockito.verify;
 
 class GivenWhenThenTest {
 

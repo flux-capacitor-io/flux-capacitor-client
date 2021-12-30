@@ -26,7 +26,10 @@ import org.junit.jupiter.api.Test;
 
 import static io.fluxcapacitor.javaclient.FluxCapacitor.loadAggregate;
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.mockito.ArgumentMatchers.*;
+import static org.mockito.ArgumentMatchers.anyList;
+import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.atMost;
 import static org.mockito.Mockito.verify;
 

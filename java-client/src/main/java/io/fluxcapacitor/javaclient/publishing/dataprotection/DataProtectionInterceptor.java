@@ -16,7 +16,6 @@ package io.fluxcapacitor.javaclient.publishing.dataprotection;
 
 import io.fluxcapacitor.common.Guarantee;
 import io.fluxcapacitor.common.MessageType;
-import io.fluxcapacitor.common.api.SerializedMessage;
 import io.fluxcapacitor.common.handling.Handler;
 import io.fluxcapacitor.javaclient.FluxCapacitor;
 import io.fluxcapacitor.javaclient.common.Message;
@@ -47,31 +46,28 @@ public class DataProtectionInterceptor implements DispatchInterceptor, HandlerIn
 
     @Override
     @SuppressWarnings("unchecked")
-    public Function<Message, SerializedMessage> interceptDispatch(Function<Message, SerializedMessage> function,
-                                                                  MessageType messageType) {
-        return m -> {
-            Map<String, String> protectedFields = new HashMap<>();
-            if (m.getMetadata().containsKey(METADATA_KEY)) {
-                protectedFields.putAll(m.getMetadata().get(METADATA_KEY, Map.class));
-            } else {
-                Object payload = m.getPayload();
-                getAnnotatedFields(m.getPayload(), ProtectData.class).forEach(
-                        field -> readProperty(field.getName(), payload).ifPresent(value -> {
-                            String key = FluxCapacitor.currentIdentityProvider().nextTechnicalId();
-                            keyValueStore.store(key, value, Guarantee.STORED);
-                            protectedFields.put(field.getName(), key);
-                        }));
-                if (!protectedFields.isEmpty()) {
-                    m = m.withMetadata(m.getMetadata().with(METADATA_KEY, protectedFields));
-                }
-            }
+    public Message interceptDispatch(Message m, MessageType messageType) {
+        Map<String, String> protectedFields = new HashMap<>();
+        if (m.getMetadata().containsKey(METADATA_KEY)) {
+            protectedFields.putAll(m.getMetadata().get(METADATA_KEY, Map.class));
+        } else {
+            Object payload = m.getPayload();
+            getAnnotatedFields(m.getPayload(), ProtectData.class).forEach(
+                    field -> readProperty(field.getName(), payload).ifPresent(value -> {
+                        String key = FluxCapacitor.currentIdentityProvider().nextTechnicalId();
+                        keyValueStore.store(key, value, Guarantee.STORED);
+                        protectedFields.put(field.getName(), key);
+                    }));
             if (!protectedFields.isEmpty()) {
-                Object payloadCopy = serializer.deserialize(serializer.serialize(m.getPayload()));
-                protectedFields.forEach((name, key) -> writeProperty(name, payloadCopy, null));
-                m = m.withPayload(payloadCopy);
+                m = m.withMetadata(m.getMetadata().with(METADATA_KEY, protectedFields));
             }
-            return function.apply(m);
-        };
+        }
+        if (!protectedFields.isEmpty()) {
+            Object payloadCopy = serializer.deserialize(serializer.serialize(m.getPayload()));
+            protectedFields.forEach((name, key) -> writeProperty(name, payloadCopy, null));
+            m = m.withPayload(payloadCopy);
+        }
+        return m;
     }
 
     @Override
