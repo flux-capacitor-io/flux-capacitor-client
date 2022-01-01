@@ -303,25 +303,27 @@ public class ResultValidator implements Then {
 
 
     protected ResultValidator expect(Collection<?> expected, Collection<?> actual) {
-        if (!containsAll(expected, actual)) {
-            List<?> remaining = new ArrayList<>(actual);
-            List<?> filtered = expected.stream().flatMap(e -> {
-                if (e != null && !isMatcher(expected) && !(expected instanceof Predicate<?>)) {
-                    Class<?> payloadType =
-                            e instanceof Message ? ((Message) e).getPayload().getClass() : expected.getClass();
-                    Object match = remaining.stream().filter(a -> payloadType
-                                    .equals(a instanceof Message ? ((Message) a).getPayload().getClass() : a.getClass()))
-                            .findFirst().orElse(null);
-                    if (match != null) {
-                        remaining.remove(match);
-                        return Stream.of(match);
+        return fluxCapacitor.apply(fc -> {
+            if (!containsAll(expected, actual)) {
+                List<?> remaining = new ArrayList<>(actual);
+                List<?> filtered = expected.stream().flatMap(e -> {
+                    if (e != null && !isMatcher(expected) && !(expected instanceof Predicate<?>)) {
+                        Class<?> payloadType =
+                                e instanceof Message ? ((Message) e).getPayload().getClass() : expected.getClass();
+                        Object match = remaining.stream().filter(a -> payloadType
+                                        .equals(a instanceof Message ? ((Message) a).getPayload().getClass() : a.getClass()))
+                                .findFirst().orElse(null);
+                        if (match != null) {
+                            remaining.remove(match);
+                            return Stream.of(match);
+                        }
                     }
-                }
-                return Stream.empty();
-            }).collect(toList());
-            reportMismatch(expected, filtered.size() == expected.size() ? filtered : actual);
-        }
-        return this;
+                    return Stream.empty();
+                }).collect(toList());
+                reportMismatch(expected, filtered.size() == expected.size() ? filtered : actual);
+            }
+            return this;
+        });
     }
 
     protected ResultValidator expectOnly(Collection<?> expected, Collection<?> actual) {
