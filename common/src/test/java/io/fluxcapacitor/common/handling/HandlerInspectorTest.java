@@ -17,6 +17,11 @@ package io.fluxcapacitor.common.handling;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
+import java.lang.annotation.Documented;
+import java.lang.annotation.ElementType;
+import java.lang.annotation.Retention;
+import java.lang.annotation.RetentionPolicy;
+import java.lang.annotation.Target;
 import java.util.Collections;
 
 import static java.util.function.Function.identity;
@@ -33,7 +38,7 @@ class HandlerInspectorTest {
     @BeforeEach
     void setUp() {
         foo = new Foo();
-        subject = HandlerInspector.createHandler(foo, Handle.class, Collections.singletonList(p -> identity()));
+        subject = HandlerInspector.createHandler(foo, Handle.class, Collections.singletonList((p, methodAnnotation) -> identity()));
     }
 
     @Test
@@ -68,8 +73,12 @@ class HandlerInspectorTest {
         assertThrows(Exception.class, () -> subject.invoke('b'));
     }
 
-
-
+    @Test
+    void testMetaAnnotationHandler() {
+        subject = HandlerInspector.createHandler(new Meta(), Handle.class, Collections.singletonList(
+                (p, methodAnnotation) -> identity()));
+        assertEquals("a", subject.invoke("a"));
+    }
 
     private static class Foo extends Bar implements SomeInterface {
         @Handle
@@ -112,8 +121,28 @@ class HandlerInspectorTest {
         }
     }
 
+    private static class Meta {
+        @MetaHandle
+        public Object handle(String o) {
+            return o;
+        }
+    }
+
     private interface SomeInterface {
         Integer handle(Integer o);
+    }
+
+    @Documented
+    @Retention(RetentionPolicy.RUNTIME)
+    @Target({ElementType.METHOD, ElementType.ANNOTATION_TYPE})
+    public @interface Handle {
+    }
+
+    @Documented
+    @Retention(RetentionPolicy.RUNTIME)
+    @Target(ElementType.METHOD)
+    @Handle
+    public @interface MetaHandle {
     }
 
 }

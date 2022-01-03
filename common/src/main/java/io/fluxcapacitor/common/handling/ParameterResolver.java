@@ -14,16 +14,17 @@
 
 package io.fluxcapacitor.common.handling;
 
+import java.lang.annotation.Annotation;
 import java.lang.reflect.Parameter;
 import java.util.function.Function;
 
 @FunctionalInterface
 public interface ParameterResolver<M> {
 
-    Function<M, Object> resolve(Parameter parameter);
+    Function<M, Object> resolve(Parameter parameter, Annotation methodAnnotation);
 
-    default boolean matches(Parameter parameter, M value) {
-        Function<M, Object> function = resolve(parameter);
+    default boolean matches(Parameter parameter, Annotation methodAnnotation, M value) {
+        Function<M, Object> function = resolve(parameter, methodAnnotation);
         if (function == null) {
             return false;
         }

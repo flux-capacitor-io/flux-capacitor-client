@@ -19,6 +19,7 @@ import io.fluxcapacitor.common.reflection.ReflectionUtils;
 import io.fluxcapacitor.javaclient.common.serialization.DeserializingMessage;
 import lombok.extern.slf4j.Slf4j;
 
+import java.lang.annotation.Annotation;
 import java.lang.reflect.Parameter;
 import java.util.Optional;
 import java.util.function.Function;
@@ -26,7 +27,7 @@ import java.util.function.Function;
 @Slf4j
 public class AggregateTypeResolver implements ParameterResolver<DeserializingMessage> {
     @Override
-    public Function<DeserializingMessage, Object> resolve(Parameter p) {
+    public Function<DeserializingMessage, Object> resolve(Parameter p, Annotation methodAnnotation) {
         if (p.isAnnotationPresent(AggregateType.class)) {
             return AggregateTypeResolver::getAggregateType;
         }

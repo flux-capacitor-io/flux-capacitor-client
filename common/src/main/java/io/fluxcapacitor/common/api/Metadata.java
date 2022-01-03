@@ -117,6 +117,10 @@ public class Metadata {
 
     @SneakyThrows
     private static Map<String, String> with(String key, Object value, Map<String, String> entries) {
+        if (value == null) {
+            entries.remove(key);
+            return entries;
+        }
         if (value instanceof Optional<?>) {
             Optional<?> optional = (Optional<?>) value;
             if (optional.isEmpty()) {

@@ -18,9 +18,7 @@ import io.fluxcapacitor.common.MessageType;
 import io.fluxcapacitor.common.Registration;
 import io.fluxcapacitor.common.api.SerializedMessage;
 import io.fluxcapacitor.common.handling.Handler;
-import io.fluxcapacitor.common.handling.HandlerConfiguration;
 import io.fluxcapacitor.javaclient.FluxCapacitor;
-import io.fluxcapacitor.javaclient.common.ClientUtils;
 import io.fluxcapacitor.javaclient.common.exception.FunctionalException;
 import io.fluxcapacitor.javaclient.common.exception.TechnicalException;
 import io.fluxcapacitor.javaclient.common.serialization.DeserializingMessage;
@@ -35,6 +33,7 @@ import lombok.SneakyThrows;
 import lombok.Synchronized;
 import lombok.extern.slf4j.Slf4j;
 
+import java.lang.reflect.Executable;
 import java.time.Duration;
 import java.util.AbstractMap.SimpleEntry;
 import java.util.ArrayList;
@@ -48,9 +47,11 @@ import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.BiPredicate;
 import java.util.function.Consumer;
 import java.util.stream.Stream;
 
+import static io.fluxcapacitor.javaclient.common.ClientUtils.isLocalHandlerMethod;
 import static io.fluxcapacitor.javaclient.common.ClientUtils.waitForResults;
 import static io.fluxcapacitor.javaclient.common.serialization.DeserializingMessage.handleBatch;
 import static java.lang.String.format;
@@ -61,9 +62,7 @@ import static java.util.stream.Collectors.toMap;
 @AllArgsConstructor
 @Slf4j
 public class DefaultTracking implements Tracking {
-    private static final HandlerConfiguration defaultHandlerConfiguration =
-            HandlerConfiguration.builder().handlerFilter((c, e) -> !ClientUtils.isLocalHandlerMethod(c, e)).build();
-
+    private final BiPredicate<Class<?>, Executable> handlerFilter = (c, e) -> !isLocalHandlerMethod(c, e);
     private final MessageType messageType;
     private final Client client;
     private final ResultGateway resultGateway;
@@ -85,8 +84,7 @@ public class DefaultTracking implements Tracking {
                             .orElseThrow(() -> new TrackingException(format("Failed to find consumer for %s", h)))))
                     .entrySet().stream().flatMap(e -> {
                         List<Handler<DeserializingMessage>> converted = e.getValue().stream().flatMap(
-                                target -> handlerFactory.createHandler(
-                                                target, e.getKey().getName(), defaultHandlerConfiguration)
+                                target -> handlerFactory.createHandler(target, e.getKey().getName(), handlerFilter)
                                         .stream()).collect(toList());
                         return converted.isEmpty() ? Stream.empty() :
                                 Stream.of(new SimpleEntry<>(e.getKey(), converted));

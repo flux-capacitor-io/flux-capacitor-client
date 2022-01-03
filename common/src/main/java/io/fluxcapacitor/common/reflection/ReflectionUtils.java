@@ -69,8 +69,10 @@ public class ReflectionUtils {
 
     private static final Function<Class<?>, List<Method>> methodsCache = memoize(ReflectionUtils::computeAllMethods);
     private static final Function<String, Class<?>> classForNameCache = memoize(ReflectionUtils::computeClass);
-    private static final BiFunction<String, Class<?>, Function<Object, Object>> gettersCache = memoize(ReflectionUtils::computeNestedGetter);
-    private static final BiFunction<String, Class<?>, BiConsumer<Object, Object>> settersCache = memoize(ReflectionUtils::computeNestedSetter);
+    private static final BiFunction<String, Class<?>, Function<Object, Object>> gettersCache =
+            memoize(ReflectionUtils::computeNestedGetter);
+    private static final BiFunction<String, Class<?>, BiConsumer<Object, Object>> settersCache =
+            memoize(ReflectionUtils::computeNestedSetter);
 
     public static List<Method> getAllMethods(Class<?> type) {
         return methodsCache.apply(type);
@@ -254,7 +256,8 @@ public class ReflectionUtils {
     }
 
     @SneakyThrows
-    private static BiConsumer<Object, Object> computeNestedSetter(@NonNull String propertyPath, @NonNull Class<?> type) {
+    private static BiConsumer<Object, Object> computeNestedSetter(@NonNull String propertyPath,
+                                                                  @NonNull Class<?> type) {
         String[] parts = Arrays.stream(propertyPath.replace('.', '/').split("/"))
                 .filter(s -> !s.isBlank()).toArray(String[]::new);
         if (parts.length == 1) {
@@ -291,6 +294,11 @@ public class ReflectionUtils {
         } else {
             throw new IllegalStateException("Object property should be field or method: " + fieldOrMethod);
         }
+    }
+
+    public static boolean isOrHas(Annotation annotation, Class<? extends Annotation> annotationType) {
+        return annotation != null && (Objects.equals(annotation.annotationType(), annotationType)
+                || annotation.annotationType().isAnnotationPresent(annotationType));
     }
 
     @Value
@@ -354,8 +362,11 @@ public class ReflectionUtils {
     /*
        Adopted from https://stackoverflow.com/questions/49105303/how-to-get-annotation-from-overridden-method-in-java/49164791
     */
-    public static <A extends Annotation> A getAnnotation(Executable m, Class<A> a) {
-        A result = m.getAnnotation(a);
+    public static Optional<Annotation> getAnnotation(Executable m, Class<? extends Annotation> a) {
+        if (a == null) {
+            return Optional.empty();
+        }
+        Annotation result = getTopLevelAnnotation(m, a);
         Class<?> c = m.getDeclaringClass();
 
         if (result == null) {
@@ -371,13 +382,18 @@ public class ReflectionUtils {
                 }
             }
         }
-        return result;
+        return Optional.ofNullable(result);
     }
 
-    private static <A extends Annotation> A getAnnotationOnSuper(Executable m, Class<?> s, Class<A> a) {
+    private static Annotation getTopLevelAnnotation(Executable m, Class<? extends Annotation> a) {
+        return Optional.<Annotation>ofNullable(m.getAnnotation(a)).orElseGet(() -> Arrays.stream(m.getAnnotations())
+                .filter(other -> other.annotationType().isAnnotationPresent(a)).findFirst().orElse(null));
+    }
+
+    private static Annotation getAnnotationOnSuper(Executable m, Class<?> s, Class<? extends Annotation> a) {
         try {
             Method n = s.getDeclaredMethod(m.getName(), m.getParameterTypes());
-            return overrides(m, n) ? n.getAnnotation(a) : null;
+            return overrides(m, n) ? getTopLevelAnnotation(n, a) : null;
         } catch (NoSuchMethodException ignored) {
             return null;
         }

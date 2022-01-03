@@ -41,6 +41,7 @@ public class DefaultRequestHandler implements RequestHandler {
 
     private final Serializer serializer;
     private final Client client;
+    private final MessageType resultType;
     private final Map<Integer, CompletableFuture<Message>> callbacks = new ConcurrentHashMap<>();
     private final AtomicInteger nextId = new AtomicInteger();
     private final AtomicBoolean started = new AtomicBoolean();
@@ -49,7 +50,7 @@ public class DefaultRequestHandler implements RequestHandler {
     public CompletableFuture<Message> sendRequest(SerializedMessage request,
                                                   Consumer<SerializedMessage> requestSender) {
         if (started.compareAndSet(false, true)) {
-            DefaultTracker.start(this::handleMessages, ConsumerConfiguration.getDefault(MessageType.RESULT), client);
+            DefaultTracker.start(this::handleMessages, ConsumerConfiguration.getDefault(resultType), client);
         }
         CompletableFuture<Message> result = new CompletableFuture<>();
         int requestId = nextId.getAndIncrement();

@@ -27,6 +27,7 @@ import io.fluxcapacitor.javaclient.tracking.BatchInterceptor;
 import io.fluxcapacitor.javaclient.tracking.ConsumerConfiguration;
 import io.fluxcapacitor.javaclient.tracking.handling.HandlerInterceptor;
 import io.fluxcapacitor.javaclient.tracking.handling.authentication.UserProvider;
+import io.fluxcapacitor.javaclient.web.WebResponseMapper;
 
 import java.util.function.UnaryOperator;
 
@@ -56,6 +57,8 @@ public interface FluxCapacitorBuilder {
     FluxCapacitorBuilder replaceMessageRoutingInterceptor(DispatchInterceptor messageRoutingInterceptor);
 
     FluxCapacitorBuilder replaceCache(Cache cache);
+
+    FluxCapacitorBuilder replaceWebResponseMapper(WebResponseMapper webResponseMapper);
 
     /**
      * Configures a dedicated cache to use for aggregates of the given type. If no dedicated cache is set aggregates

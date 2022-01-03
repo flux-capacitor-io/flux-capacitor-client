@@ -35,11 +35,9 @@ import java.util.function.Function;
 import java.util.function.Predicate;
 import java.util.stream.Stream;
 
-import static io.fluxcapacitor.common.handling.HandlerConfiguration.defaultHandlerConfiguration;
 import static io.fluxcapacitor.common.handling.HandlerInspector.MethodHandlerInvoker.comparator;
 import static io.fluxcapacitor.common.reflection.ReflectionUtils.ensureAccessible;
 import static io.fluxcapacitor.common.reflection.ReflectionUtils.getAllMethods;
-import static io.fluxcapacitor.common.reflection.ReflectionUtils.getAnnotation;
 import static java.lang.String.format;
 import static java.util.Arrays.stream;
 import static java.util.Comparator.reverseOrder;
@@ -48,37 +46,29 @@ import static java.util.stream.Stream.concat;
 
 public class HandlerInspector {
 
-    public static boolean hasHandlerMethods(Class<?> targetClass, Class<? extends Annotation> methodAnnotation,
-                                            HandlerConfiguration handlerConfiguration) {
+    public static boolean hasHandlerMethods(Class<?> targetClass,
+                                            HandlerConfiguration<?> handlerConfiguration) {
         return concat(getAllMethods(targetClass).stream(), stream(targetClass.getConstructors()))
-                .anyMatch(m -> m.isAnnotationPresent(methodAnnotation) && handlerConfiguration.handlerFilter()
-                        .test(targetClass, m));
+                .anyMatch(m -> handlerConfiguration.methodMatches(targetClass, m));
     }
 
     public static <M> Handler<M> createHandler(Object target, Class<? extends Annotation> methodAnnotation,
                                                List<ParameterResolver<? super M>> parameterResolvers) {
-        return createHandler(target, methodAnnotation, parameterResolvers, defaultHandlerConfiguration());
+        return createHandler(target, parameterResolvers,
+                             HandlerConfiguration.builder().methodAnnotation(methodAnnotation).build());
     }
 
-    public static <M> Handler<M> createHandler(Object target, Class<? extends Annotation> methodAnnotation,
-                                               List<ParameterResolver<? super M>> parameterResolvers,
-                                               HandlerConfiguration handlerConfiguration) {
-        return new DefaultHandler<>(target, inspect(target.getClass(), methodAnnotation, parameterResolvers,
-                                                    handlerConfiguration));
+    public static <M> Handler<M> createHandler(Object target, List<ParameterResolver<? super M>> parameterResolvers,
+                                               HandlerConfiguration<? super M> config) {
+        return new DefaultHandler<>(target, inspect(target.getClass(), parameterResolvers, config));
     }
 
-    public static <M> HandlerInvoker<M> inspect(Class<?> type, Class<? extends Annotation> methodAnnotation,
-                                                List<ParameterResolver<? super M>> parameterResolvers,
-                                                HandlerConfiguration handlerConfiguration) {
-        return new ObjectHandlerInvoker<>(type,
-                                          concat(getAllMethods(type).stream(), stream(type.getDeclaredConstructors()))
-                                                  .filter(m -> handlerConfiguration.handlerFilter().test(type, m))
-                                                  .flatMap(m -> Optional.ofNullable(getAnnotation(m, methodAnnotation))
-                                                          .map(a -> new MethodHandlerInvoker<>(m, type,
-                                                                                               parameterResolvers,
-                                                                                               a)).stream())
-                                                  .sorted(comparator).collect(toList()),
-                                          handlerConfiguration.invokeMultipleMethods());
+    public static <M> HandlerInvoker<M> inspect(Class<?> c, List<ParameterResolver<? super M>> parameterResolvers,
+                                                HandlerConfiguration<? super M> config) {
+        return new ObjectHandlerInvoker<>(c, concat(getAllMethods(c).stream(), stream(c.getDeclaredConstructors()))
+                .filter(m -> config.methodMatches(c, m))
+                .flatMap(m -> Stream.of(new MethodHandlerInvoker<>(m, c, parameterResolvers, config)))
+                .sorted(comparator).collect(toList()), config.invokeMultipleMethods());
     }
 
     @Getter
@@ -108,16 +98,16 @@ public class HandlerInspector {
 
         public MethodHandlerInvoker(Executable executable, Class<?> enclosingType,
                                     List<ParameterResolver<? super M>> parameterResolvers,
-                                    Annotation methodAnnotation) {
-            this.methodAnnotation = methodAnnotation;
+                                    HandlerConfiguration<? super M> config) {
             this.methodIndex = executable instanceof Method ? methodIndex((Method) executable, enclosingType) : 0;
             this.executable = ensureAccessible(executable);
             this.hasReturnValue =
                     !(executable instanceof Method) || !(((Method) executable).getReturnType()).equals(void.class);
+            this.methodAnnotation = config.getAnnotation(executable).orElse(null);
             this.parameterSuppliers = getParameterSuppliers(executable, parameterResolvers);
             this.classForSpecificity = parameterSuppliers.stream().filter(ParameterSupplier::determinesSpecificity)
                     .map(ParameterSupplier::getSpecificityClass).findFirst().orElse(null);
-            this.matcher = getMatcher(executable, parameterResolvers);
+            this.matcher = getMatcher(executable, parameterResolvers, config);
             this.priority = getPriority(methodAnnotation);
             this.passive = isPassive(methodAnnotation);
         }
@@ -154,8 +144,8 @@ public class HandlerInspector {
                                                + "but the target instance is null. Should the method be static?",
                                        executable.getDeclaringClass().getSimpleName()));
                     }
-                    return ((Method) executable)
-                            .invoke(target, parameterSuppliers.stream().map(s -> s.apply(message)).toArray());
+                    Object[] arguments = parameterSuppliers.stream().map(s -> s.apply(message)).toArray();
+                    return ((Method) executable).invoke(target, arguments);
                 } else {
                     return ((Constructor<?>) executable)
                             .newInstance(parameterSuppliers.stream().map(s -> s.apply(message)).toArray());
@@ -174,7 +164,7 @@ public class HandlerInspector {
         protected List<ParameterSupplier<? super M>> getParameterSuppliers(
                 Executable method, List<ParameterResolver<? super M>> resolvers) {
             return stream(method.getParameters())
-                    .map(p -> resolvers.stream().map(r -> Optional.ofNullable(r.resolve(p))
+                    .map(p -> resolvers.stream().map(r -> Optional.ofNullable(r.resolve(p, methodAnnotation))
                                     .map(f -> new ParameterSupplier<>(f, r.determinesSpecificity() ? p.getType() : null))
                                     .orElse(null)).filter(Objects::nonNull).findFirst()
                             .orElseThrow(() -> new HandlerException(format("Could not resolve parameter %s", p))))
@@ -182,9 +172,10 @@ public class HandlerInspector {
         }
 
         protected Predicate<M> getMatcher(Executable executable,
-                                          List<ParameterResolver<? super M>> parameterResolvers) {
-            return m -> stream(executable.getParameters()).allMatch(
-                    p -> parameterResolvers.stream().anyMatch(r -> r.matches(p, m)));
+                                          List<ParameterResolver<? super M>> parameterResolvers,
+                                          HandlerConfiguration<? super M> config) {
+            return m -> config.messageFilter().test(m, methodAnnotation) && stream(executable.getParameters()).allMatch(
+                    p -> parameterResolvers.stream().anyMatch(r -> r.matches(p, methodAnnotation, m)));
         }
 
         protected static int specificity(Class<?> type) {
@@ -210,6 +201,9 @@ public class HandlerInspector {
 
         @SneakyThrows
         private static int getPriority(Annotation annotation) {
+            if (annotation == null) {
+                return 0;
+            }
             Optional<Method> match = Arrays.stream(annotation.annotationType().getMethods())
                     .filter(m -> m.getName().equals("priority")).findFirst();
             if (match.isPresent()) {
@@ -220,6 +214,9 @@ public class HandlerInspector {
 
         @SneakyThrows
         protected boolean isPassive(Annotation annotation) {
+            if (annotation == null) {
+                return false;
+            }
             Optional<Method> match = Arrays.stream(annotation.annotationType().getMethods())
                     .filter(m -> m.getName().equals("passive")).findFirst();
             if (match.isPresent()) {

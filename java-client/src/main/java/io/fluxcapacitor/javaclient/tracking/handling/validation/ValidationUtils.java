@@ -82,12 +82,14 @@ public class ValidationUtils {
 
     protected static class AssertLegalAggregateParameterResolver implements ParameterResolver<AggregateRoot<?>> {
         @Override
-        public Function<AggregateRoot<?>, Object> resolve(Parameter parameter) {
+        public Function<AggregateRoot<?>, Object> resolve(Parameter parameter,
+                                                          Annotation methodAnnotation) {
             return AggregateRoot::get;
         }
 
         @Override
-        public boolean matches(Parameter parameter, AggregateRoot<?> aggregate) {
+        public boolean matches(Parameter parameter,
+                               Annotation methodAnnotation, AggregateRoot<?> aggregate) {
             return parameter.getType().isAssignableFrom(aggregate.type()) || aggregate.type()
                     .isAssignableFrom(parameter.getType());
         }
@@ -95,9 +97,9 @@ public class ValidationUtils {
 
     protected static final Function<Class<?>, HandlerInvoker<AggregateRoot<?>>> assertLegalInvokerCache =
             memoize(type -> HandlerInspector.inspect(
-                    type, AssertLegal.class,
-                    Arrays.asList(new UserParameterResolver(), new AssertLegalAggregateParameterResolver()),
-                    HandlerConfiguration.builder().invokeMultipleMethods(true).build()));
+                    type, Arrays.asList(new UserParameterResolver(), new AssertLegalAggregateParameterResolver()),
+                    HandlerConfiguration.builder()
+                            .methodAnnotation(AssertLegal.class).invokeMultipleMethods(true).build()));
 
     public static <E extends Exception> void assertLegal(Object commandOrQuery, AggregateRoot<?> aggregate) throws E {
         HandlerInvoker<AggregateRoot<?>> invoker = assertLegalInvokerCache.apply(commandOrQuery.getClass());

@@ -34,6 +34,7 @@ import javax.websocket.EndpointConfig;
 import javax.websocket.Session;
 import java.io.IOException;
 import java.io.OutputStream;
+import java.lang.annotation.Annotation;
 import java.lang.reflect.Parameter;
 import java.util.Arrays;
 import java.util.List;
@@ -89,7 +90,7 @@ public abstract class WebsocketEndpoint extends Endpoint {
     private final Handler<Request> handler =
             HandlerInspector.createHandler(this, Handle.class, Arrays.asList(new ParameterResolver<>() {
                 @Override
-                public Function<Request, Object> resolve(Parameter p) {
+                public Function<Request, Object> resolve(Parameter p, Annotation methodAnnotation) {
                     if (Objects.equals(p.getDeclaringExecutable().getParameters()[0], p)) {
                         return Request::getPayload;
                     }
@@ -100,7 +101,7 @@ public abstract class WebsocketEndpoint extends Endpoint {
                 public boolean determinesSpecificity() {
                     return true;
                 }
-            }, p -> {
+            }, (p, methodAnnotation) -> {
                 if (p.getType().equals(Session.class)) {
                     return Request::getSession;
                 }

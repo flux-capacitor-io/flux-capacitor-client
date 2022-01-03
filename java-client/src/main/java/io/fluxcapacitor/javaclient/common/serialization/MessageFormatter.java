@@ -25,5 +25,11 @@ import static java.lang.String.format;
 public interface MessageFormatter extends Function<DeserializingMessage, String> {
     MessageFormatter DEFAULT = m -> m.isDeserialized() ? getAnnotatedPropertyValue(m.getPayload(), RoutingKey.class)
             .map(key -> format("%s (routing key: %s)", m.getPayloadClass().getSimpleName(), key))
-            .orElse(m.getPayloadClass().getSimpleName()) : m.getType();
+            .orElseGet(() -> {
+                try {
+                    return m.getPayloadClass().getSimpleName();
+                } catch (Exception e) {
+                    return m.getType();
+                }
+            }) : m.getType();
 }

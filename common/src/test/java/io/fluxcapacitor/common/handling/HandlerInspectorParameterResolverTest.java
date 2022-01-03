@@ -29,12 +29,12 @@ public class HandlerInspectorParameterResolverTest {
 
     private Foo foo = new Foo();
     private Handler<Message> subject = HandlerInspector
-            .createHandler(foo, Handle.class, Arrays.asList(p -> {
+            .createHandler(foo, Handle.class, Arrays.asList((p, methodAnnotation) -> {
                 if (p.getDeclaringExecutable().getParameters()[0] == p) {
                     return Message::getPayload;
                 }
                 return null;
-            }, p -> {
+            }, (p, methodAnnotation) -> {
                 if (p.getType().equals(Instant.class)) {
                     return m -> Instant.now();
                 }

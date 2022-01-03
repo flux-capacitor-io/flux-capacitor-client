@@ -28,6 +28,9 @@ import io.fluxcapacitor.javaclient.tracking.handling.MessageParameterResolver;
 import io.fluxcapacitor.javaclient.tracking.handling.MetadataParameterResolver;
 import io.fluxcapacitor.javaclient.tracking.handling.PayloadParameterResolver;
 import io.fluxcapacitor.javaclient.tracking.handling.authentication.UserParameterResolver;
+import io.fluxcapacitor.javaclient.web.WebPayloadParameterResolver;
+import io.fluxcapacitor.javaclient.web.WebRequest;
+import io.fluxcapacitor.javaclient.web.WebResponse;
 import lombok.AllArgsConstructor;
 import lombok.Value;
 import lombok.experimental.Delegate;
@@ -47,7 +50,6 @@ import java.util.function.Function;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 
-import static io.fluxcapacitor.javaclient.FluxCapacitor.currentClock;
 import static java.time.Instant.ofEpochMilli;
 import static java.util.Optional.ofNullable;
 import static java.util.stream.Collectors.toList;
@@ -62,7 +64,7 @@ public class DeserializingMessage {
                           new MetadataParameterResolver(),
                           new MessageParameterResolver(), new AggregateIdResolver(),
                           new AggregateTypeResolver(), new UserParameterResolver(),
-                          new PayloadParameterResolver());
+                          new WebPayloadParameterResolver(), new PayloadParameterResolver());
 
     private static final ThreadLocal<Collection<Runnable>> messageCompletionHandlers = new ThreadLocal<>();
     private static final ThreadLocal<Collection<Runnable>> batchCompletionHandlers = new ThreadLocal<>();
@@ -94,15 +96,19 @@ public class DeserializingMessage {
     }
 
     public Message toMessage() {
-        if (getMetadata().containsKey(Schedule.scheduleIdMetadataKey)) {
-            return new Schedule(delegate.getPayload(), getMetadata(),
-                                delegate.getSerializedObject().getMessageId(),
-                                ofEpochMilli(delegate.getSerializedObject().getTimestamp()),
-                                getMetadata().get(Schedule.scheduleIdMetadataKey), currentClock().instant());
+        Message message = new Message(delegate.getPayload(), getMetadata(),
+                                      delegate.getSerializedObject().getMessageId(),
+                                      ofEpochMilli(delegate.getSerializedObject().getTimestamp()));
+        switch (messageType) {
+            case SCHEDULE:
+                return new Schedule(message);
+            case WEBREQUEST:
+                return new WebRequest(message);
+            case WEBRESPONSE:
+                return new WebResponse(message);
+            default:
+                return message;
         }
-        return new Message(delegate.getPayload(), getMetadata(),
-                           delegate.getSerializedObject().getMessageId(),
-                           ofEpochMilli(delegate.getSerializedObject().getTimestamp()));
     }
 
     public static DeserializingMessage getCurrent() {

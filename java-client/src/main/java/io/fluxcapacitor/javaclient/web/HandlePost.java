@@ -12,14 +12,19 @@
  * limitations under the License.
  */
 
-package io.fluxcapacitor.javaclient.publishing;
+package io.fluxcapacitor.javaclient.web;
 
-import java.beans.ConstructorProperties;
+import java.lang.annotation.Documented;
+import java.lang.annotation.ElementType;
+import java.lang.annotation.Retention;
+import java.lang.annotation.RetentionPolicy;
+import java.lang.annotation.Target;
 
-public class TimeoutException extends RuntimeException {
-    @ConstructorProperties({"message"})
-    public TimeoutException(String message) {
-        super(message);
-    }
+@Documented
+@Retention(RetentionPolicy.RUNTIME)
+@Target(ElementType.METHOD)
+@HandleWeb(value = "", method = HttpRequestMethod.POST)
+public @interface HandlePost {
+    String value();
+    boolean passive() default false;
 }
-

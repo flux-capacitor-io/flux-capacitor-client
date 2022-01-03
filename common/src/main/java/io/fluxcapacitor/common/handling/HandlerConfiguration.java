@@ -14,24 +14,32 @@
 
 package io.fluxcapacitor.common.handling;
 
+import io.fluxcapacitor.common.reflection.ReflectionUtils;
 import lombok.Builder;
 import lombok.Builder.Default;
 import lombok.Value;
 import lombok.experimental.Accessors;
 
+import java.lang.annotation.Annotation;
 import java.lang.reflect.Executable;
+import java.util.Optional;
 import java.util.function.BiPredicate;
 
 @Value
 @Builder(toBuilder = true)
 @Accessors(fluent = true)
-public class HandlerConfiguration {
-
+public class HandlerConfiguration<M> {
+    Class<? extends Annotation> methodAnnotation;
     @Default boolean invokeMultipleMethods = false;
     @Default BiPredicate<Class<?>, Executable> handlerFilter = (c, e) -> true;
+    @Default BiPredicate<M, Annotation> messageFilter = (m, a) -> true;
 
-    public static <T> HandlerConfiguration defaultHandlerConfiguration() {
-        return HandlerConfiguration.builder().build();
+    public boolean methodMatches(Class<?> c, Executable e) {
+        return Optional.ofNullable(methodAnnotation).map(a -> getAnnotation(e).isPresent()).orElse(true)
+                && handlerFilter.test(c, e);
     }
 
+    public Optional<Annotation> getAnnotation(Executable e) {
+        return ReflectionUtils.getAnnotation(e, methodAnnotation);
+    }
 }

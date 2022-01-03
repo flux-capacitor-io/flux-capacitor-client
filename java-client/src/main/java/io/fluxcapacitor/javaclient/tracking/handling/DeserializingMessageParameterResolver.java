@@ -17,12 +17,13 @@ package io.fluxcapacitor.javaclient.tracking.handling;
 import io.fluxcapacitor.common.handling.ParameterResolver;
 import io.fluxcapacitor.javaclient.common.serialization.DeserializingMessage;
 
+import java.lang.annotation.Annotation;
 import java.lang.reflect.Parameter;
 import java.util.function.Function;
 
 public class DeserializingMessageParameterResolver implements ParameterResolver<DeserializingMessage> {
     @Override
-    public Function<DeserializingMessage, Object> resolve(Parameter p) {
+    public Function<DeserializingMessage, Object> resolve(Parameter p, Annotation methodAnnotation) {
         if (p.getType().equals(DeserializingMessage.class)) {
             return m -> m;
         }

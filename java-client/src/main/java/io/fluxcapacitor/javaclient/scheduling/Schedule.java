@@ -57,6 +57,11 @@ public class Schedule extends Message {
         this.deadline = deadline;
     }
 
+    public Schedule(Message m) {
+        this(m.getPayload(), m.getMetadata(), m.getMessageId(), m.getTimestamp(),
+             m.getMetadata().get(Schedule.scheduleIdMetadataKey), currentClock().instant());
+    }
+
     @Override
     public Schedule withPayload(Object payload) {
         return new Schedule(payload, getMetadata(), getMessageId(), getTimestamp(), scheduleId, deadline);

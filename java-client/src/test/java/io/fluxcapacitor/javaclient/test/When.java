@@ -18,6 +18,7 @@ import io.fluxcapacitor.common.api.search.Constraint;
 import io.fluxcapacitor.javaclient.FluxCapacitor;
 import io.fluxcapacitor.javaclient.persisting.search.Search;
 import io.fluxcapacitor.javaclient.tracking.handling.authentication.User;
+import io.fluxcapacitor.javaclient.web.WebRequest;
 
 import java.time.Duration;
 import java.time.Instant;
@@ -44,6 +45,8 @@ public interface When extends Given {
     default Then whenSearching(String collection, Constraint... constraints) {
         return whenSearching(collection, s -> s.constraint(constraints));
     }
+
+    Then whenWebRequest(WebRequest request);
 
     Then whenScheduleExpires(Object schedule);
 

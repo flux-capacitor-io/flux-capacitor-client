@@ -27,7 +27,7 @@ class HandlerInspectorSpecificityTest {
 
     private Foo foo = new Foo();
     private Handler<Object> subject =
-            HandlerInspector.createHandler(foo, Handle.class, Collections.singletonList(p -> o -> o));
+            HandlerInspector.createHandler(foo, Handle.class, Collections.singletonList((p, methodAnnotation) -> o -> o));
 
     @Test
     void testCanHandle() {

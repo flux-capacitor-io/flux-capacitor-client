@@ -15,10 +15,15 @@
 package io.fluxcapacitor.javaclient.tracking.handling;
 
 import io.fluxcapacitor.common.Registration;
-import io.fluxcapacitor.common.handling.HandlerConfiguration;
+import io.fluxcapacitor.javaclient.common.ClientUtils;
+
+import java.lang.reflect.Executable;
+import java.util.function.BiPredicate;
 
 public interface HasLocalHandlers {
-    Registration registerHandler(Object target);
+    default Registration registerHandler(Object target) {
+        return registerHandler(target, ClientUtils::isLocalHandlerMethod);
+    }
 
-    Registration registerHandler(Object target, HandlerConfiguration handlerConfiguration);
+    Registration registerHandler(Object target, BiPredicate<Class<?>, Executable> handlerFilter);
 }

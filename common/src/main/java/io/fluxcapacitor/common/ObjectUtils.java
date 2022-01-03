@@ -88,7 +88,7 @@ public class ObjectUtils {
     }
 
     @SneakyThrows
-    public static void forceThrow(Throwable error) {
+    public static Object forceThrow(Throwable error) {
         throw error;
     }
 

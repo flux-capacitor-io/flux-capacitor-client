@@ -36,7 +36,19 @@ public interface Serializer {
      * @return Data object containing byte array representation of the object
      * @throws SerializationException if serialization fails
      */
-    Data<byte[]> serialize(Object object);
+    default Data<byte[]> serialize(Object object) {
+        return serialize(object, null);
+    }
+
+    /**
+     * Serializes an object using the given desired {@code format} to a {@link Data} object containing a byte array. If
+     * format is {@code null} the default format of this serializer may be used.
+     *
+     * @param object The instance to serialize
+     * @return Data object containing byte array representation of the object
+     * @throws SerializationException if serialization fails
+     */
+    Data<byte[]> serialize(Object object, String format);
 
     /**
      * Upcasts and deserializes the given {@link Data} object to an object of type T. If the input data cannot be
@@ -82,7 +94,7 @@ public interface Serializer {
                                                                                                boolean failOnUnknownType);
 
     default Stream<DeserializingMessage> deserializeMessages(Stream<SerializedMessage> dataStream,
-                                                     boolean failOnUnknownType, MessageType messageType) {
+                                                             boolean failOnUnknownType, MessageType messageType) {
         return deserialize(dataStream, failOnUnknownType).map(s -> new DeserializingMessage(s, messageType));
     }
 

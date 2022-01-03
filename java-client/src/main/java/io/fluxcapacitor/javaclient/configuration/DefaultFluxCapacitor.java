@@ -82,6 +82,9 @@ import io.fluxcapacitor.javaclient.tracking.handling.errorreporting.ErrorReporti
 import io.fluxcapacitor.javaclient.tracking.handling.validation.ValidatingInterceptor;
 import io.fluxcapacitor.javaclient.tracking.metrics.HandlerMonitor;
 import io.fluxcapacitor.javaclient.tracking.metrics.TrackerMonitor;
+import io.fluxcapacitor.javaclient.web.DefaultWebResponseMapper;
+import io.fluxcapacitor.javaclient.web.WebResponseGateway;
+import io.fluxcapacitor.javaclient.web.WebResponseMapper;
 import lombok.AccessLevel;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
@@ -115,6 +118,7 @@ import static io.fluxcapacitor.common.MessageType.QUERY;
 import static io.fluxcapacitor.common.MessageType.RESULT;
 import static io.fluxcapacitor.common.MessageType.SCHEDULE;
 import static io.fluxcapacitor.common.MessageType.WEBREQUEST;
+import static io.fluxcapacitor.common.MessageType.WEBRESPONSE;
 import static io.fluxcapacitor.javaclient.common.serialization.DeserializingMessage.defaultParameterResolvers;
 import static java.lang.Runtime.getRuntime;
 import static java.lang.String.format;
@@ -224,6 +228,7 @@ public class DefaultFluxCapacitor implements FluxCapacitor {
         private DispatchInterceptor messageRoutingInterceptor = new MessageRoutingInterceptor();
         private SchedulingInterceptor schedulingInterceptor = new SchedulingInterceptor();
         private Cache cache = new DefaultCache();
+        private WebResponseMapper webResponseMapper = new DefaultWebResponseMapper();
         private boolean disableErrorReporting;
         private boolean disableMessageCorrelation;
         private boolean disablePayloadValidation;
@@ -301,12 +306,14 @@ public class DefaultFluxCapacitor implements FluxCapacitor {
         @Override
         public FluxCapacitorBuilder addBatchInterceptor(BatchInterceptor interceptor, MessageType... forTypes) {
             Arrays.stream(forTypes.length == 0 ? MessageType.values() : forTypes)
-                    .forEach(type -> customBatchInterceptors.computeIfAbsent(type, t -> new ArrayList<>()).add(interceptor));
+                    .forEach(type -> customBatchInterceptors.computeIfAbsent(type, t -> new ArrayList<>())
+                            .add(interceptor));
             return this;
         }
 
         @Override
-        public Builder addDispatchInterceptor(@NonNull DispatchInterceptor interceptor, boolean highPriority, MessageType... forTypes) {
+        public Builder addDispatchInterceptor(@NonNull DispatchInterceptor interceptor, boolean highPriority,
+                                              MessageType... forTypes) {
             Arrays.stream(forTypes.length == 0 ? MessageType.values() : forTypes)
                     .forEach(type -> (highPriority ? highPrioDispatchInterceptors : lowPrioDispatchInterceptors)
                             .computeIfAbsent(type, t -> new ArrayList<>()).add(interceptor));
@@ -314,7 +321,8 @@ public class DefaultFluxCapacitor implements FluxCapacitor {
         }
 
         @Override
-        public Builder addHandlerInterceptor(@NonNull HandlerInterceptor interceptor, boolean highPriority, MessageType... forTypes) {
+        public Builder addHandlerInterceptor(@NonNull HandlerInterceptor interceptor, boolean highPriority,
+                                             MessageType... forTypes) {
             Arrays.stream(forTypes.length == 0 ? MessageType.values() : forTypes)
                     .forEach(type -> (highPriority ? highPrioHandlerInterceptors : lowPrioHandlerInterceptors)
                             .computeIfAbsent(type, t -> new ArrayList<>()).add(interceptor));
@@ -330,6 +338,12 @@ public class DefaultFluxCapacitor implements FluxCapacitor {
         @Override
         public FluxCapacitorBuilder replaceCache(@NonNull Cache cache) {
             this.cache = cache;
+            return this;
+        }
+
+        @Override
+        public FluxCapacitorBuilder replaceWebResponseMapper(WebResponseMapper webResponseMapper) {
+            this.webResponseMapper = webResponseMapper;
             return this;
         }
 
@@ -408,7 +422,8 @@ public class DefaultFluxCapacitor implements FluxCapacitor {
 
             //enable message routing
             Arrays.stream(MessageType.values()).forEach(
-                    type -> dispatchInterceptors.computeIfPresent(type, (t, i) -> i.andThen(messageRoutingInterceptor)));
+                    type -> dispatchInterceptors.computeIfPresent(type,
+                                                                  (t, i) -> i.andThen(messageRoutingInterceptor)));
 
             //enable authentication
             if (userProvider != null) {
@@ -460,13 +475,17 @@ public class DefaultFluxCapacitor implements FluxCapacitor {
 
             //add customer interceptors
             lowPrioDispatchInterceptors.forEach((messageType, interceptors) -> interceptors.forEach(
-                    interceptor -> dispatchInterceptors.computeIfPresent(messageType, (t, i) -> i.andThen(interceptor))));
+                    interceptor -> dispatchInterceptors.computeIfPresent(messageType,
+                                                                         (t, i) -> i.andThen(interceptor))));
             highPrioDispatchInterceptors.forEach((messageType, interceptors) -> interceptors.forEach(
-                    interceptor -> dispatchInterceptors.computeIfPresent(messageType, (t, i) -> interceptor.andThen(i))));
+                    interceptor -> dispatchInterceptors.computeIfPresent(messageType,
+                                                                         (t, i) -> interceptor.andThen(i))));
             lowPrioHandlerInterceptors.forEach((messageType, interceptors) -> interceptors.forEach(
-                    interceptor -> handlerInterceptors.computeIfPresent(messageType, (t, i) -> i.andThen(interceptor))));
+                    interceptor -> handlerInterceptors.computeIfPresent(messageType,
+                                                                        (t, i) -> i.andThen(interceptor))));
             highPrioHandlerInterceptors.forEach((messageType, interceptors) -> interceptors.forEach(
-                    interceptor -> handlerInterceptors.computeIfPresent(messageType, (t, i) -> interceptor.andThen(i))));
+                    interceptor -> handlerInterceptors.computeIfPresent(messageType,
+                                                                        (t, i) -> interceptor.andThen(i))));
 
             /*
                 Create components
@@ -493,11 +512,11 @@ public class DefaultFluxCapacitor implements FluxCapacitor {
             }
 
             //create gateways
-            RequestHandler requestHandler = new DefaultRequestHandler(this.serializer, client);
+            RequestHandler defaultRequestHandler = new DefaultRequestHandler(this.serializer, client, RESULT);
 
             //enable error reporter as the outermost handler interceptor
             ErrorGateway errorGateway =
-                    new DefaultErrorGateway(createRequestGateway(client, ERROR, requestHandler,
+                    new DefaultErrorGateway(createRequestGateway(client, ERROR, defaultRequestHandler,
                                                                  dispatchInterceptors, handlerInterceptors));
             if (!disableErrorReporting) {
                 ErrorReportingInterceptor interceptor = new ErrorReportingInterceptor(errorGateway);
@@ -505,26 +524,30 @@ public class DefaultFluxCapacitor implements FluxCapacitor {
                         .forEach(type -> handlerInterceptors.compute(type, (t, i) -> interceptor.andThen(i)));
             }
 
-            ResultGateway resultGateway =
-                    new DefaultResultGateway(client.getGatewayClient(RESULT),
-                                             serializer, dispatchInterceptors.get(RESULT));
+            ResultGateway resultGateway = new DefaultResultGateway(client.getGatewayClient(RESULT),
+                                                                   serializer, dispatchInterceptors.get(RESULT));
             CommandGateway commandGateway =
-                    new DefaultCommandGateway(createRequestGateway(client, COMMAND, requestHandler,
+                    new DefaultCommandGateway(createRequestGateway(client, COMMAND, defaultRequestHandler,
                                                                    dispatchInterceptors, handlerInterceptors));
             QueryGateway queryGateway =
-                    new DefaultQueryGateway(createRequestGateway(client, QUERY, requestHandler,
+                    new DefaultQueryGateway(createRequestGateway(client, QUERY, defaultRequestHandler,
                                                                  dispatchInterceptors, handlerInterceptors));
             EventGateway eventGateway =
-                    new DefaultEventGateway(createRequestGateway(client, EVENT, requestHandler,
+                    new DefaultEventGateway(createRequestGateway(client, EVENT, defaultRequestHandler,
                                                                  dispatchInterceptors, handlerInterceptors));
 
             MetricsGateway metricsGateway =
-                    new DefaultMetricsGateway(createRequestGateway(client, METRICS, requestHandler,
-                                              dispatchInterceptors, handlerInterceptors));
+                    new DefaultMetricsGateway(createRequestGateway(client, METRICS, defaultRequestHandler,
+                                                                   dispatchInterceptors, handlerInterceptors));
 
+            RequestHandler webRequestHandler = new DefaultRequestHandler(this.serializer, client, WEBRESPONSE);
             WebRequestGateway webRequestGateway =
-                    new DefaultWebRequestGateway(createRequestGateway(client, WEBREQUEST, requestHandler,
+                    new DefaultWebRequestGateway(createRequestGateway(client, WEBREQUEST, webRequestHandler,
                                                                       dispatchInterceptors, handlerInterceptors));
+
+            ResultGateway webResponseGateway = new WebResponseGateway(client.getGatewayClient(WEBRESPONSE),
+                                                                      serializer, dispatchInterceptors.get(WEBRESPONSE),
+                                                                      webResponseMapper);
 
 
             //tracking
@@ -532,7 +555,9 @@ public class DefaultFluxCapacitor implements FluxCapacitor {
                     type, (t, configs) -> configs.stream().map(
                             c -> c.toBuilder().batchInterceptors(interceptors).build()).collect(toList())));
             Map<MessageType, Tracking> trackingMap = stream(MessageType.values())
-                    .collect(toMap(identity(), m -> new DefaultTracking(m, client, resultGateway,
+                    .collect(toMap(identity(), m -> new DefaultTracking(m, client,
+                                                                        m == WEBREQUEST ? webResponseGateway :
+                                                                                resultGateway,
                                                                         consumerConfigurations.get(m), this.serializer,
                                                                         new DefaultHandlerFactory(m, handlerInterceptors
                                                                                 .get(m == NOTIFICATION ? EVENT : m),
@@ -548,7 +573,8 @@ public class DefaultFluxCapacitor implements FluxCapacitor {
                     t.close();
                     return null;
                 }).collect(toList()));
-                requestHandler.close();
+                defaultRequestHandler.close();
+                webRequestHandler.close();
                 client.shutDown();
             };
 

@@ -20,27 +20,39 @@ import io.fluxcapacitor.common.handling.HandlerConfiguration;
 import io.fluxcapacitor.common.handling.HandlerInspector;
 import io.fluxcapacitor.common.handling.ParameterResolver;
 import io.fluxcapacitor.javaclient.common.serialization.DeserializingMessage;
+import io.fluxcapacitor.javaclient.web.HandleWeb;
+import io.fluxcapacitor.javaclient.web.WebRequest;
 import lombok.RequiredArgsConstructor;
 
 import java.lang.annotation.Annotation;
+import java.lang.reflect.Executable;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.function.BiPredicate;
 
 import static io.fluxcapacitor.common.handling.HandlerInspector.hasHandlerMethods;
 
 @RequiredArgsConstructor
 public class DefaultHandlerFactory implements HandlerFactory {
+    private static final Map<MessageType, BiPredicate<DeserializingMessage, Annotation>> messageFilterCache =
+            new ConcurrentHashMap<>();
     private final MessageType messageType;
     private final HandlerInterceptor handlerInterceptor;
     private final List<ParameterResolver<? super DeserializingMessage>> parameterResolvers;
 
     @Override
-    public Optional<Handler<DeserializingMessage>> createHandler(
-            Object target, String consumer, HandlerConfiguration handlerConfiguration) {
+    public Optional<Handler<DeserializingMessage>> createHandler(Object target, String consumer,
+                                                                 BiPredicate<Class<?>, Executable> handlerFilter) {
         return Optional.ofNullable(getHandlerAnnotation(messageType))
-                .filter(a -> hasHandlerMethods(target.getClass(), a, handlerConfiguration))
-                .map(a -> handlerInterceptor.wrap(
-                        HandlerInspector.createHandler(target, a, parameterResolvers, handlerConfiguration), consumer));
+                .map(a -> HandlerConfiguration.<DeserializingMessage>builder()
+                        .methodAnnotation(a).handlerFilter(handlerFilter)
+                        .messageFilter(getMessageFilter(messageType))
+                        .build())
+                .filter(config -> hasHandlerMethods(target.getClass(), config))
+                .map(config -> handlerInterceptor.wrap(
+                        HandlerInspector.createHandler(target, parameterResolvers, config), consumer));
     }
 
     private static Class<? extends Annotation> getHandlerAnnotation(MessageType messageType) {
@@ -66,5 +78,14 @@ public class DefaultHandlerFactory implements HandlerFactory {
             default:
                 return null;
         }
+    }
+
+    private static BiPredicate<DeserializingMessage, Annotation> getMessageFilter(MessageType messageType) {
+        return messageFilterCache.computeIfAbsent(messageType, t -> {
+            if (t == MessageType.WEBREQUEST) {
+                return WebRequest.getWebRequestFilter();
+            }
+            return (m, a) -> true;
+        });
     }
 }

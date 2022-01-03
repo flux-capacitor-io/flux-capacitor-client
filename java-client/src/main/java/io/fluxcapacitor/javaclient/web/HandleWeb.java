@@ -12,9 +12,7 @@
  * limitations under the License.
  */
 
-package io.fluxcapacitor.javaclient.tracking.handling;
-
-import io.fluxcapacitor.javaclient.tracking.handling.web.WebRequestMethod;
+package io.fluxcapacitor.javaclient.web;
 
 import java.lang.annotation.Documented;
 import java.lang.annotation.ElementType;
@@ -24,9 +22,9 @@ import java.lang.annotation.Target;
 
 @Documented
 @Retention(RetentionPolicy.RUNTIME)
-@Target(ElementType.METHOD)
+@Target({ElementType.METHOD, ElementType.ANNOTATION_TYPE})
 public @interface HandleWeb {
     String value();
-    WebRequestMethod method() default WebRequestMethod.ANY;
+    HttpRequestMethod method() default HttpRequestMethod.ANY;
     boolean passive() default false;
 }

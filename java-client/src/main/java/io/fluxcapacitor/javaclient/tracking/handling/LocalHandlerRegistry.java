@@ -18,40 +18,31 @@ import io.fluxcapacitor.common.MessageType;
 import io.fluxcapacitor.common.Registration;
 import io.fluxcapacitor.common.api.SerializedMessage;
 import io.fluxcapacitor.common.handling.Handler;
-import io.fluxcapacitor.common.handling.HandlerConfiguration;
-import io.fluxcapacitor.javaclient.common.ClientUtils;
 import io.fluxcapacitor.javaclient.common.Message;
 import io.fluxcapacitor.javaclient.common.serialization.DeserializingMessage;
 import io.fluxcapacitor.javaclient.common.serialization.Serializer;
 import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
+import java.lang.reflect.Executable;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.function.BiPredicate;
 
 @AllArgsConstructor
 @Slf4j
 public class LocalHandlerRegistry implements HandlerRegistry {
-    private static final HandlerConfiguration localHandlerConfiguration =
-            HandlerConfiguration.<DeserializingMessage>builder().handlerFilter(ClientUtils::isLocalHandlerMethod).build();
-
     private final MessageType messageType;
     private final HandlerFactory handlerFactory;
     private final Serializer serializer;
     private final List<Handler<DeserializingMessage>> localHandlers = new CopyOnWriteArrayList<>();
 
     @Override
-    public Registration registerHandler(Object target) {
-        return registerHandler(target, localHandlerConfiguration);
-    }
-
-    @Override
-    public Registration registerHandler(Object target,
-                                        HandlerConfiguration handlerConfiguration) {
+    public Registration registerHandler(Object target, BiPredicate<Class<?>, Executable> handlerFilter) {
         Optional<Handler<DeserializingMessage>> handler =
-                handlerFactory.createHandler(target, "local-" + messageType, handlerConfiguration);
+                handlerFactory.createHandler(target, "local-" + messageType, handlerFilter);
         handler.ifPresent(localHandlers::add);
         return () -> handler.ifPresent(localHandlers::remove);
     }

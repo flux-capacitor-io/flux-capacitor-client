@@ -12,34 +12,27 @@
  * limitations under the License.
  */
 
-package io.fluxcapacitor.javaclient.tracking.handling;
+package io.fluxcapacitor.javaclient.web;
 
 import io.fluxcapacitor.common.handling.ParameterResolver;
+import io.fluxcapacitor.common.reflection.ReflectionUtils;
 import io.fluxcapacitor.javaclient.common.serialization.DeserializingMessage;
 
 import java.lang.annotation.Annotation;
 import java.lang.reflect.Parameter;
 import java.util.function.Function;
 
-public class PayloadParameterResolver implements ParameterResolver<DeserializingMessage> {
+public class WebPayloadParameterResolver implements ParameterResolver<DeserializingMessage> {
     @Override
     public Function<DeserializingMessage, Object> resolve(Parameter p, Annotation methodAnnotation) {
-        return DeserializingMessage::getPayload;
-    }
-
-    @Override
-    public boolean matches(Parameter p, Annotation methodAnnotation, DeserializingMessage value) {
-        Class<?> payloadClass;
-        try {
-            payloadClass = value.getPayloadClass();
-        } catch (Exception e) {
-            return false; //class may be unknown, in that case we simply want to ignore the message
+        if (!ReflectionUtils.isOrHas(methodAnnotation, HandleWeb.class)) {
+            return null;
         }
-        return p.getType().isAssignableFrom(payloadClass);
+        return m -> m.getPayloadAs(p.getType());
     }
 
     @Override
-    public boolean determinesSpecificity() {
-        return true;
+    public boolean matches(Parameter parameter, Annotation methodAnnotation, DeserializingMessage value) {
+        return ReflectionUtils.isOrHas(methodAnnotation, HandleWeb.class);
     }
 }

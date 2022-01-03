@@ -15,13 +15,13 @@
 package io.fluxcapacitor.javaclient.tracking.handling;
 
 import io.fluxcapacitor.common.handling.Handler;
-import io.fluxcapacitor.common.handling.HandlerConfiguration;
 import io.fluxcapacitor.javaclient.common.serialization.DeserializingMessage;
 
+import java.lang.reflect.Executable;
 import java.util.Optional;
+import java.util.function.BiPredicate;
 
 public interface HandlerFactory {
 
-    Optional<Handler<DeserializingMessage>> createHandler(Object target, String consumer,
-                                                          HandlerConfiguration handlerConfiguration);
+    Optional<Handler<DeserializingMessage>> createHandler(Object target, String consumer, BiPredicate<Class<?>, Executable> handlerFilter);
 }

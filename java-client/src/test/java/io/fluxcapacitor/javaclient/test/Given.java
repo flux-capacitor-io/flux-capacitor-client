@@ -18,6 +18,7 @@ import io.fluxcapacitor.javaclient.FluxCapacitor;
 import io.fluxcapacitor.javaclient.common.IdentityProvider;
 import io.fluxcapacitor.javaclient.scheduling.Schedule;
 import io.fluxcapacitor.javaclient.tracking.handling.authentication.User;
+import io.fluxcapacitor.javaclient.web.WebRequest;
 
 import java.time.Clock;
 import java.time.Duration;
@@ -64,6 +65,8 @@ public interface Given {
                 Arrays.stream(schedules).map(p -> new Schedule(p, UUID.randomUUID().toString(), getClock().instant()))
                         .toArray(Schedule[]::new));
     }
+
+    When givenWebRequest(WebRequest webRequest);
 
     default When givenNoPriorActivity() {
         return givenCommands();

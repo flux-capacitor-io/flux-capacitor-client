@@ -22,7 +22,6 @@ import io.fluxcapacitor.common.api.Metadata;
 import io.fluxcapacitor.common.api.SerializedMessage;
 import io.fluxcapacitor.common.api.tracking.MessageBatch;
 import io.fluxcapacitor.common.handling.Handler;
-import io.fluxcapacitor.common.handling.HandlerConfiguration;
 import io.fluxcapacitor.javaclient.FluxCapacitor;
 import io.fluxcapacitor.javaclient.common.IdentityProvider;
 import io.fluxcapacitor.javaclient.common.Message;
@@ -45,6 +44,7 @@ import io.fluxcapacitor.javaclient.tracking.Tracker;
 import io.fluxcapacitor.javaclient.tracking.handling.HandlerInterceptor;
 import io.fluxcapacitor.javaclient.tracking.handling.authentication.User;
 import io.fluxcapacitor.javaclient.tracking.handling.authentication.UserProvider;
+import io.fluxcapacitor.javaclient.web.WebRequest;
 import lombok.Getter;
 import lombok.Setter;
 import lombok.SneakyThrows;
@@ -52,6 +52,7 @@ import lombok.experimental.Accessors;
 import lombok.extern.slf4j.Slf4j;
 import org.mockito.Mockito;
 
+import java.lang.reflect.Executable;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
@@ -66,8 +67,8 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.ExecutionException;
-import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import java.util.function.BiPredicate;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.UnaryOperator;
@@ -77,10 +78,10 @@ import java.util.stream.Stream;
 import static io.fluxcapacitor.common.MessageType.COMMAND;
 import static io.fluxcapacitor.common.MessageType.QUERY;
 import static io.fluxcapacitor.common.MessageType.SCHEDULE;
-import static io.fluxcapacitor.common.handling.HandlerConfiguration.defaultHandlerConfiguration;
 import static io.fluxcapacitor.javaclient.common.ClientUtils.isLocalHandlerMethod;
 import static java.util.Collections.emptyList;
 import static java.util.Collections.singletonList;
+import static java.util.concurrent.TimeUnit.MILLISECONDS;
 import static java.util.stream.Collectors.toCollection;
 import static java.util.stream.Collectors.toList;
 import static java.util.stream.Collectors.toMap;
@@ -196,18 +197,19 @@ public class TestFixture implements Given, When {
             return getFluxCapacitor().registerHandlers(handlers);
         }
         FluxCapacitor fluxCapacitor = getFluxCapacitor();
-        HandlerConfiguration handlerConfiguration = defaultHandlerConfiguration();
+        BiPredicate<Class<?>, Executable> handlerFilter = (c, e) -> true;
         Registration registration = fluxCapacitor.apply(f -> handlers.stream().flatMap(h -> Stream
-                        .of(fluxCapacitor.commandGateway().registerHandler(h, handlerConfiguration),
-                            fluxCapacitor.queryGateway().registerHandler(h, handlerConfiguration),
-                            fluxCapacitor.eventGateway().registerHandler(h, handlerConfiguration),
-                            fluxCapacitor.eventStore().registerHandler(h, handlerConfiguration),
-                            fluxCapacitor.errorGateway().registerHandler(h, handlerConfiguration)))
+                        .of(fluxCapacitor.commandGateway().registerHandler(h, handlerFilter),
+                            fluxCapacitor.queryGateway().registerHandler(h, handlerFilter),
+                            fluxCapacitor.eventGateway().registerHandler(h, handlerFilter),
+                            fluxCapacitor.eventStore().registerHandler(h, handlerFilter),
+                            fluxCapacitor.errorGateway().registerHandler(h, handlerFilter),
+                            fluxCapacitor.webRequestGateway().registerHandler(h, handlerFilter)))
                 .reduce(Registration::merge).orElse(Registration.noOp()));
         if (fluxCapacitor.scheduler() instanceof DefaultScheduler) {
             DefaultScheduler scheduler = (DefaultScheduler) fluxCapacitor.scheduler();
             registration = registration.merge(fluxCapacitor.apply(fc -> handlers.stream().flatMap(h -> Stream
-                            .of(scheduler.registerHandler(h, handlerConfiguration)))
+                            .of(scheduler.registerHandler(h, handlerFilter)))
                     .reduce(Registration::merge).orElse(Registration.noOp())));
         } else {
             log.warn("Could not register local schedule handlers");
@@ -286,6 +288,11 @@ public class TestFixture implements Given, When {
     }
 
     @Override
+    public When givenWebRequest(WebRequest webRequest) {
+        return given(fc -> getDispatchResult(fc.webRequestGateway().send(webRequest)));
+    }
+
+    @Override
     public When givenTimeAdvancesTo(Instant instant) {
         return given(fc -> advanceTimeTo(instant));
     }
@@ -348,6 +355,11 @@ public class TestFixture implements Given, When {
     @Override
     public Then whenSearching(String collection, UnaryOperator<Search> searchQuery) {
         return whenApplying(fc -> searchQuery.apply(fc.documentStore().search(collection)).fetchAll());
+    }
+
+    @Override
+    public Then whenWebRequest(WebRequest request) {
+        return whenApplying(fc -> getDispatchResult(fc.webRequestGateway().send(interceptor.trace(request))));
     }
 
     @Override
@@ -513,8 +525,8 @@ public class TestFixture implements Given, When {
     protected Object getDispatchResult(CompletableFuture<?> dispatchResult) {
         try {
             return synchronous
-                    ? dispatchResult.get(1, TimeUnit.MILLISECONDS)
-                    : dispatchResult.get(resultTimeout.toMillis(), TimeUnit.MILLISECONDS);
+                    ? dispatchResult.get(0, MILLISECONDS)
+                    : dispatchResult.get(resultTimeout.toMillis(), MILLISECONDS);
         } catch (ExecutionException e) {
             throw e.getCause();
         } catch (TimeoutException e) {

@@ -371,7 +371,7 @@ public class ResultValidator implements Then {
         if (expected instanceof Class<?>) {
             return actual instanceof Class<?> ? expected.equals(actual) : ((Class<?>) expected).isInstance(actual);
         }
-        return Objects.equals(expected, actual);
+        return Objects.deepEquals(expected, actual);
     }
 
     protected boolean matches(Object expected, Message actual) {

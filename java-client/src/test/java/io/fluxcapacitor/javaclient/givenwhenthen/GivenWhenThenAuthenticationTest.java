@@ -23,7 +23,6 @@ import io.fluxcapacitor.javaclient.tracking.handling.authentication.ForbidsRole;
 import io.fluxcapacitor.javaclient.tracking.handling.authentication.RequiresRole;
 import io.fluxcapacitor.javaclient.tracking.handling.authentication.UnauthorizedException;
 import io.fluxcapacitor.javaclient.tracking.handling.authentication.User;
-import io.fluxcapacitor.javaclient.tracking.handling.authentication.UserProvider;
 import lombok.AllArgsConstructor;
 import lombok.Value;
 import org.junit.jupiter.api.Test;
@@ -41,7 +40,6 @@ import static java.lang.annotation.ElementType.TYPE;
 public class GivenWhenThenAuthenticationTest {
 
     private MockUser user = new MockUser("get", "create");
-    private final UserProvider userProvider = new MockUserProvider();
     private final TestFixture testFixture = TestFixture.create(
             DefaultFluxCapacitor.builder().registerUserSupplier(new MockUserProvider()), new MockHandler(), new MockSystemHandler());
 

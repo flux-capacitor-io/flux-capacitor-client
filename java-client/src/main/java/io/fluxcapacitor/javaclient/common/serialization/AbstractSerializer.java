@@ -19,12 +19,14 @@ import io.fluxcapacitor.common.api.SerializedObject;
 import io.fluxcapacitor.common.reflection.ReflectionUtils;
 import io.fluxcapacitor.common.serialization.Revision;
 import io.fluxcapacitor.javaclient.common.serialization.upcasting.Upcaster;
+import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.reflect.TypeUtils;
 
 import java.lang.reflect.Type;
 import java.util.Collection;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.function.Function;
 import java.util.stream.Collectors;
@@ -35,6 +37,7 @@ import static java.lang.String.format;
 @Slf4j
 public abstract class AbstractSerializer implements Serializer {
     private final Upcaster<SerializedObject<byte[], ?>> upcasterChain;
+    @Getter
     private final String format;
 
     protected AbstractSerializer(Upcaster<SerializedObject<byte[], ?>> upcasterChain, String format) {
@@ -42,9 +45,13 @@ public abstract class AbstractSerializer implements Serializer {
         this.format = format;
     }
 
-    @SuppressWarnings("unchecked")
     @Override
-    public Data<byte[]> serialize(Object object) {
+    @SuppressWarnings("unchecked")
+    public Data<byte[]> serialize(Object object, String format) {
+        if (format != null && !format.equals(getFormat())) {
+            throw new UnsupportedOperationException(String.format(
+                    "Serialization format %s is unsupported. This Serializer only accepts %s", format, getFormat()));
+        }
         byte[] bytes;
         try {
             if (object instanceof Data<?>) {
@@ -58,9 +65,7 @@ public abstract class AbstractSerializer implements Serializer {
         } catch (Exception e) {
             throw new SerializationException("Could not serialize " + object, e);
         }
-        Revision revision = getRevision(object);
-        Type type = getType(object);
-        return new Data<>(bytes, asString(type), revision == null ? 0 : revision.value(), format);
+        return new Data<>(bytes, asString(getType(object)), getRevision(object).map(Revision::value).orElse(0), format);
     }
 
     protected Type getType(Object object) {
@@ -91,8 +96,8 @@ public abstract class AbstractSerializer implements Serializer {
         return type.getTypeName();
     }
 
-    protected Revision getRevision(Object object) {
-        return object == null ? null : object.getClass().getAnnotation(Revision.class);
+    protected Optional<Revision> getRevision(Object object) {
+        return Optional.ofNullable(object).map(o -> o.getClass().getAnnotation(Revision.class));
     }
 
     protected abstract byte[] doSerialize(Object object) throws Exception;

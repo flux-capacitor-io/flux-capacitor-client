@@ -16,14 +16,16 @@ package io.fluxcapacitor.javaclient.tracking.handling;
 
 import io.fluxcapacitor.common.Registration;
 import io.fluxcapacitor.common.api.SerializedMessage;
-import io.fluxcapacitor.common.handling.HandlerConfiguration;
 import io.fluxcapacitor.javaclient.common.Message;
 import lombok.AllArgsConstructor;
 
+import java.lang.reflect.Executable;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
+import java.util.function.BiPredicate;
 
 public interface HandlerRegistry extends HasLocalHandlers {
+
     Optional<CompletableFuture<Message>> handle(Object payload, SerializedMessage serializedMessage);
 
     default HandlerRegistry merge(HandlerRegistry next) {
@@ -48,9 +50,8 @@ public interface HandlerRegistry extends HasLocalHandlers {
         }
 
         @Override
-        public Registration registerHandler(Object target,
-                                            HandlerConfiguration handlerConfiguration) {
-            return first.registerHandler(target, handlerConfiguration).merge(second.registerHandler(target, handlerConfiguration));
+        public Registration registerHandler(Object target, BiPredicate<Class<?>, Executable> handlerFilter) {
+            return first.registerHandler(target, handlerFilter).merge(second.registerHandler(target, handlerFilter));
         }
     }
 }

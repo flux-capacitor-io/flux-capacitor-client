@@ -18,12 +18,13 @@ import io.fluxcapacitor.common.handling.ParameterResolver;
 import io.fluxcapacitor.javaclient.common.Message;
 import io.fluxcapacitor.javaclient.common.serialization.DeserializingMessage;
 
+import java.lang.annotation.Annotation;
 import java.lang.reflect.Parameter;
 import java.util.function.Function;
 
 public class MessageParameterResolver implements ParameterResolver<DeserializingMessage> {
     @Override
-    public Function<DeserializingMessage, Object> resolve(Parameter p) {
+    public Function<DeserializingMessage, Object> resolve(Parameter p, Annotation methodAnnotation) {
         if (Message.class.isAssignableFrom(p.getType())) {
             return DeserializingMessage::toMessage;
         }
