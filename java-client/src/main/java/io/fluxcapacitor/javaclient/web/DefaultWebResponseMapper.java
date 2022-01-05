@@ -20,24 +20,23 @@ public class DefaultWebResponseMapper implements WebResponseMapper {
         if (payload instanceof Throwable) {
             if (payload instanceof ValidationException || payload instanceof SerializationException) {
                 builder.status(400);
-                builder.statusText(((Exception) payload).getMessage());
+                builder.payload(((Exception) payload).getMessage());
             } else if (payload instanceof UnauthorizedException || payload instanceof UnauthenticatedException) {
                 builder.status(401);
-                builder.statusText(((Exception) payload).getMessage());
+                builder.payload(((Exception) payload).getMessage());
             } else if (payload instanceof FunctionalException) {
                 builder.status(403);
-                builder.statusText(((Exception) payload).getMessage());
+                builder.payload(((Exception) payload).getMessage());
             } else if (payload instanceof TimeoutException
                     || payload instanceof io.fluxcapacitor.javaclient.publishing.TimeoutException) {
                 builder.status(503);
-                builder.statusText("The request has timed out. Please try again later.");
+                builder.payload("The request has timed out. Please try again later.");
             } else {
                 builder.status(500);
-                builder.statusText("An unexpected error occurred.");
+                builder.payload("An unexpected error occurred.");
             }
         } else {
             builder.status(payload == null ? 204 : 200);
-            builder.statusText("OK");
             builder.payload(payload);
         }
         return builder.build();

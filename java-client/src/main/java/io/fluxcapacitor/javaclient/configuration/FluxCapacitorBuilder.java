@@ -58,6 +58,12 @@ public interface FluxCapacitorBuilder {
 
     FluxCapacitorBuilder replaceCache(Cache cache);
 
+    default FluxCapacitorBuilder forwardWebRequestsToLocalServer(int port) {
+        return forwardWebRequestsToLocalServer(port, UnaryOperator.identity());
+    }
+
+    FluxCapacitorBuilder forwardWebRequestsToLocalServer(int port, UnaryOperator<ConsumerConfiguration> configurator);
+
     FluxCapacitorBuilder replaceWebResponseMapper(WebResponseMapper webResponseMapper);
 
     /**

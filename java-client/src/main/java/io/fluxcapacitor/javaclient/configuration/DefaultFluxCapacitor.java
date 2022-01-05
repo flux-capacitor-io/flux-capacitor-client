@@ -83,6 +83,7 @@ import io.fluxcapacitor.javaclient.tracking.handling.validation.ValidatingInterc
 import io.fluxcapacitor.javaclient.tracking.metrics.HandlerMonitor;
 import io.fluxcapacitor.javaclient.tracking.metrics.TrackerMonitor;
 import io.fluxcapacitor.javaclient.web.DefaultWebResponseMapper;
+import io.fluxcapacitor.javaclient.web.ForwardingWebConsumer;
 import io.fluxcapacitor.javaclient.web.WebResponseGateway;
 import io.fluxcapacitor.javaclient.web.WebResponseMapper;
 import lombok.AccessLevel;
@@ -227,6 +228,7 @@ public class DefaultFluxCapacitor implements FluxCapacitor {
         private final Map<MessageType, List<BatchInterceptor>> customBatchInterceptors = new HashMap<>();
         private DispatchInterceptor messageRoutingInterceptor = new MessageRoutingInterceptor();
         private SchedulingInterceptor schedulingInterceptor = new SchedulingInterceptor();
+        private ForwardingWebConsumer forwardingWebConsumer;
         private Cache cache = new DefaultCache();
         private WebResponseMapper webResponseMapper = new DefaultWebResponseMapper();
         private boolean disableErrorReporting;
@@ -338,6 +340,14 @@ public class DefaultFluxCapacitor implements FluxCapacitor {
         @Override
         public FluxCapacitorBuilder replaceCache(@NonNull Cache cache) {
             this.cache = cache;
+            return this;
+        }
+
+        @Override
+        public FluxCapacitorBuilder forwardWebRequestsToLocalServer(int port,
+                                                                    UnaryOperator<ConsumerConfiguration> configurator) {
+            forwardingWebConsumer =
+                    new ForwardingWebConsumer(port, configurator.apply(ConsumerConfiguration.getDefault(WEBREQUEST)));
             return this;
         }
 
@@ -569,6 +579,7 @@ public class DefaultFluxCapacitor implements FluxCapacitor {
                                                        localHandlerRegistry(SCHEDULE, handlerInterceptors));
 
             Runnable shutdownHandler = () -> {
+                Optional.ofNullable(forwardingWebConsumer).ifPresent(ForwardingWebConsumer::close);
                 ForkJoinPool.commonPool().invokeAll(trackingMap.values().stream().map(t -> (Callable<?>) () -> {
                     t.close();
                     return null;
@@ -588,6 +599,8 @@ public class DefaultFluxCapacitor implements FluxCapacitor {
             if (makeApplicationInstance) {
                 FluxCapacitor.applicationInstance.set(fluxCapacitor);
             }
+
+            Optional.ofNullable(forwardingWebConsumer).ifPresent(c -> c.start(client));
 
             //perform a controlled shutdown when the vm exits
             if (!disableShutdownHook) {

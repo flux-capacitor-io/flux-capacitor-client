@@ -114,6 +114,14 @@
                 </exclusion>
             </exclusions>
         </dependency>
+
+        <!--undertow server for testing of web forwarding-->
+        <dependency>
+            <groupId>org.jboss.resteasy</groupId>
+            <artifactId>resteasy-undertow</artifactId>
+            <version>5.0.1.Final</version>
+            <scope>test</scope>
+        </dependency>
     </dependencies>
 
     <build>

@@ -30,13 +30,10 @@ public class WebResponse extends Message {
 
     @NonNull Map<String, List<String>> headers;
     Integer status;
-    String statusText;
 
     private WebResponse(Builder builder) {
-        super(builder.payload(), Metadata.of("status", builder.status(), "statusText", builder.statusText(), "headers",
-                                             builder.headers()));
+        super(builder.payload(), Metadata.of("status", builder.status(), "headers", builder.headers()));
         this.status = builder.status();
-        this.statusText = builder.statusText();
         this.headers = builder.headers();
     }
 
@@ -46,11 +43,14 @@ public class WebResponse extends Message {
         super(payload, metadata, messageId, timestamp);
         this.headers = Optional.ofNullable(metadata.get("headers", Map.class)).orElse(Collections.emptyMap());
         this.status = Optional.ofNullable(metadata.get("status")).map(Integer::valueOf).orElse(null);
-        this.statusText = metadata.get("statusText");
     }
 
     public WebResponse(Message m) {
         this(m.getPayload(), m.getMetadata(), m.getMessageId(), m.getTimestamp());
+    }
+
+    public static Metadata asMetadata(int statusCode, Map<String, List<String>> headers) {
+        return Metadata.of("status", statusCode, "headers", headers);
     }
 
     @Override
@@ -70,7 +70,6 @@ public class WebResponse extends Message {
         Map<String, List<String>> headers = new HashMap<>();
         Object payload;
         Integer status;
-        String statusText;
 
         public WebResponse build() {
             return new WebResponse(this);

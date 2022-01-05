@@ -20,12 +20,16 @@ import io.fluxcapacitor.common.reflection.ReflectionUtils;
 import io.fluxcapacitor.common.serialization.Revision;
 import io.fluxcapacitor.javaclient.common.serialization.upcasting.Upcaster;
 import lombok.Getter;
+import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.reflect.TypeUtils;
 
+import java.io.ByteArrayInputStream;
+import java.io.InputStream;
 import java.lang.reflect.Type;
 import java.util.Collection;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.function.Function;
@@ -33,6 +37,7 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import static java.lang.String.format;
+import static java.nio.charset.StandardCharsets.UTF_8;
 
 @Slf4j
 public abstract class AbstractSerializer implements Serializer {
@@ -48,24 +53,43 @@ public abstract class AbstractSerializer implements Serializer {
     @Override
     @SuppressWarnings("unchecked")
     public Data<byte[]> serialize(Object object, String format) {
-        if (format != null && !format.equals(getFormat())) {
-            throw new UnsupportedOperationException(String.format(
-                    "Serialization format %s is unsupported. This Serializer only accepts %s", format, getFormat()));
+        if (format == null) {
+            format = this.format;
         }
-        byte[] bytes;
         try {
             if (object instanceof Data<?>) {
                 Data<?> data = (Data<?>) object;
                 if (data.getValue() instanceof byte[]) {
                     return (Data<byte[]>) data;
                 }
-                return new Data<>(serialize(data.getValue()).getValue(), data.getType(), data.getRevision(), format);
+                return new Data<>(serialize(data.getValue(), format).getValue(), data.getType(), data.getRevision(),
+                                  format);
             }
-            bytes = doSerialize(object);
+            if (Objects.equals(this.format, format)) {
+                return new Data<>(doSerialize(object), asString(getType(object)),
+                                  getRevision(object).map(Revision::value).orElse(0), format);
+            } else {
+                return serializeToOtherFormat(object, format);
+            }
         } catch (Exception e) {
-            throw new SerializationException("Could not serialize " + object, e);
+            throw new SerializationException(String.format("Could not serialize %s (format %s)", object, format), e);
         }
-        return new Data<>(bytes, asString(getType(object)), getRevision(object).map(Revision::value).orElse(0), format);
+    }
+
+    @SneakyThrows
+    protected Data<byte[]> serializeToOtherFormat(Object object, String format) {
+        if (object instanceof String) {
+            return new Data<>(((String) object).getBytes(UTF_8), asString(String.class), 0, format);
+        }
+        if (object instanceof byte[]) {
+            return new Data<>((byte[]) object, asString(byte[].class), 0, format);
+        }
+        if (object instanceof InputStream) {
+            try (InputStream inputStream = (InputStream) object) {
+                return new Data<>(inputStream.readAllBytes(), asString(byte[].class), 0, format);
+            }
+        }
+        throw new UnsupportedOperationException();
     }
 
     protected Type getType(Object object) {
@@ -108,23 +132,28 @@ public abstract class AbstractSerializer implements Serializer {
             Stream<S> dataStream, boolean failOnUnknownType) {
         return upcasterChain.upcast((Stream<SerializedObject<byte[], ?>>) dataStream)
                 .flatMap(s -> {
+                    if (s.data().getType() == null || !Objects.equals(s.data().getFormat(), format)) {
+                        return (Stream) deserializeUntyped(s);
+                    }
                     if (!isKnownType(s.data().getType())) {
                         if (failOnUnknownType) {
                             throw new SerializationException(
                                     format("Could not deserialize object. The serialized type is unknown: %s (rev. %d)",
                                            s.data().getType(), s.data().getRevision()));
                         }
-                        return (Stream) handleUnknownType(s);
+                        return (Stream) deserializeUnknownType(s);
                     }
-                    return (Stream) Stream.of(new DeserializingObject(s, (Function<Class<?>, Object>) type -> {
-                        try {
-                            return Object.class.equals(type)
-                                    ? doDeserialize(s.data().getValue(), s.data().getType())
-                                    : doDeserialize(s.data().getValue(), asString(type));
-                        } catch (Exception e) {
-                            throw new SerializationException("Could not deserialize a " + s.data().getType(), e);
-                        }
-                    }));
+                    return Stream.<DeserializingObject<byte[], S>>of(
+                            new DeserializingObject(s, (Function<Class<?>, Object>) type -> {
+                                try {
+                                    return Object.class.equals(type)
+                                            ? doDeserialize(s.data(), s.data().getType())
+                                            : doDeserialize(s.data(), asString(type));
+                                } catch (Exception e) {
+                                    throw new SerializationException("Could not deserialize a " + s.data().getType(),
+                                                                     e);
+                                }
+                            }));
                 });
     }
 
@@ -148,13 +177,30 @@ public abstract class AbstractSerializer implements Serializer {
         }
     }
 
-    protected Stream<DeserializingObject<byte[], ?>> handleUnknownType(SerializedObject<byte[], ?> serializedObject) {
+    @SuppressWarnings({"unchecked", "rawtypes"})
+    protected Stream<DeserializingObject<byte[], ?>> deserializeUntyped(SerializedObject<byte[], ?> s) {
+        return Stream.of(new DeserializingObject(s, (Function<Class<?>, Object>) type -> {
+            try {
+                if (Object.class.equals(type) || byte[].class.isAssignableFrom(type)) {
+                    return s.data().getValue();
+                }
+                if (String.class.isAssignableFrom(type)) {
+                    return new String(s.data().getValue());
+                }
+                if (InputStream.class.isAssignableFrom(type)) {
+                    return new ByteArrayInputStream(s.data().getValue());
+                }
+                return doDeserialize(s.data(), asString(type));
+            } catch (Exception e) {
+                throw new SerializationException("Could not deserialize a " + s.data().getType(), e);
+            }
+        }));
+    }
+
+    protected Stream<DeserializingObject<byte[], ?>> deserializeUnknownType(
+            SerializedObject<byte[], ?> serializedObject) {
         return Stream.empty();
     }
 
-    protected abstract Object doDeserialize(byte[] bytes, String type) throws Exception;
-
-    protected enum NullValue {
-        INSTANCE;
-    }
+    protected abstract Object doDeserialize(Data<byte[]> data, String type) throws Exception;
 }

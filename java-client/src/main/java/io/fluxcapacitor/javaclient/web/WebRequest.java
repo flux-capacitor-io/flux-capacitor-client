@@ -2,13 +2,16 @@ package io.fluxcapacitor.javaclient.web;
 
 import io.fluxcapacitor.common.SearchUtils;
 import io.fluxcapacitor.common.api.Metadata;
+import io.fluxcapacitor.common.api.SerializedMessage;
 import io.fluxcapacitor.common.reflection.ReflectionUtils;
 import io.fluxcapacitor.javaclient.common.Message;
 import io.fluxcapacitor.javaclient.common.serialization.DeserializingMessage;
+import io.fluxcapacitor.javaclient.common.serialization.Serializer;
 import lombok.AccessLevel;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 import lombok.NonNull;
+import lombok.Setter;
 import lombok.ToString;
 import lombok.Value;
 import lombok.experimental.Accessors;
@@ -17,6 +20,7 @@ import lombok.experimental.FieldDefaults;
 import java.beans.ConstructorProperties;
 import java.lang.annotation.Annotation;
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
@@ -47,7 +51,7 @@ public class WebRequest extends Message {
             Predicate<String> pathTest = ReflectionUtils.<String>readProperty("value", a)
                     .map(path -> path.startsWith("/") ? path : "/" + path)
                     .map(SearchUtils::convertGlobToRegex).map(Pattern::asMatchPredicate)
-                            .<Predicate<String>>map(p -> s -> p.test(s.startsWith("/") ? s : "/" + s))
+                    .<Predicate<String>>map(p -> s -> p.test(s.startsWith("/") ? s : "/" + s))
                     .orElse(p -> true);
             Predicate<String> methodTest = ReflectionUtils.<HttpRequestMethod>readProperty("method", a)
                     .or(() -> ReflectionUtils.readProperty("method", typeAnnotation))
@@ -75,17 +79,24 @@ public class WebRequest extends Message {
         this.headers = builder.headers();
     }
 
-    @SuppressWarnings("unchecked")
     @ConstructorProperties({"payload", "metadata", "messageId", "timestamp"})
     WebRequest(Object payload, Metadata metadata, String messageId, Instant timestamp) {
         super(payload, metadata, messageId, timestamp);
-        this.path = metadata.get("path");
-        this.method = HttpRequestMethod.valueOf(metadata.get("method"));
-        this.headers = Optional.ofNullable(metadata.get("headers", Map.class)).orElse(Collections.emptyMap());
+        this.path = getPath(metadata);
+        this.method = getMethod(metadata);
+        this.headers = getHeaders(metadata);
     }
 
     public WebRequest(Message m) {
         this(m.getPayload(), m.getMetadata(), m.getMessageId(), m.getTimestamp());
+    }
+
+    @Override
+    public SerializedMessage serialize(Serializer serializer) {
+        return headers.getOrDefault("Content-Type", List.of()).stream().findFirst().map(
+                        format -> new SerializedMessage(serializer.serialize(getPayload(), format), getMetadata(),
+                                                        getMessageId(), getTimestamp().toEpochMilli()))
+                .orElseGet(() -> super.serialize(serializer));
     }
 
     @Override
@@ -98,14 +109,57 @@ public class WebRequest extends Message {
         return new WebRequest(super.withPayload(payload));
     }
 
+    public static String getPath(Metadata metadata) {
+        return Optional.ofNullable(metadata.get("path")).map(p -> p.startsWith("/") ? p : "/" + p)
+                .orElseThrow(() -> new IllegalStateException("WebRequest is malformed: path is missing"));
+    }
+
+    public static HttpRequestMethod getMethod(Metadata metadata) {
+        return Optional.ofNullable(metadata.get("method")).map(m -> {
+            try {
+                return HttpRequestMethod.valueOf(m);
+            } catch (Exception e) {
+                throw new IllegalStateException("WebRequest is malformed: unrecognized http method");
+            }
+        }).orElseThrow(() -> new IllegalStateException("WebRequest is malformed: http method is missing"));
+    }
+
+    @SuppressWarnings("unchecked")
+    public static Map<String, List<String>> getHeaders(Metadata metadata) {
+        return Optional.ofNullable(metadata.get("headers", Map.class)).orElse(Collections.emptyMap());
+    }
+
     @Data
     @Accessors(fluent = true, chain = true)
     @FieldDefaults(level = AccessLevel.PRIVATE)
     public static class Builder {
         String path;
         HttpRequestMethod method;
+        @Setter(AccessLevel.NONE)
         Map<String, List<String>> headers = new HashMap<>();
         Object payload;
+
+        public Builder header(String key, String value) {
+            headers.computeIfAbsent(key, k -> new ArrayList<>()).add(value);
+            return this;
+        }
+
+        public Builder contentType(String contentType) {
+            return header("Content-Type", contentType);
+        }
+
+        public Builder payload(Object payload) {
+            this.payload = payload;
+            if (!headers().containsKey("Content-Type")) {
+                if (payload instanceof String) {
+                    return contentType("text/plain");
+                }
+                if (payload instanceof byte[]) {
+                    return contentType("application/octet-stream");
+                }
+            }
+            return this;
+        }
 
         public WebRequest build() {
             return new WebRequest(this);

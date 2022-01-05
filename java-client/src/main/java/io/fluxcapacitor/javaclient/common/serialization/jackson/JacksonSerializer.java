@@ -99,8 +99,8 @@ public class JacksonSerializer extends AbstractSerializer implements DocumentSer
     }
 
     @Override
-    protected Object doDeserialize(byte[] bytes, String type) throws Exception {
-        return objectMapper.readValue(bytes, typeCache.apply(type));
+    protected Object doDeserialize(Data<byte[]> data, String type) throws Exception {
+        return objectMapper.readValue(data.getValue(), typeCache.apply(type));
     }
 
     @Override
@@ -115,7 +115,7 @@ public class JacksonSerializer extends AbstractSerializer implements DocumentSer
 
     @SuppressWarnings({"unchecked", "rawtypes"})
     @Override
-    protected Stream<DeserializingObject<byte[], ?>> handleUnknownType(SerializedObject<byte[], ?> s) {
+    protected Stream<DeserializingObject<byte[], ?>> deserializeUnknownType(SerializedObject<byte[], ?> s) {
         return Stream.of(new DeserializingObject(s, (Function<Class<?>, Object>) type -> {
             try {
                 return convert(objectMapper.readTree(s.data().getValue()), type);
