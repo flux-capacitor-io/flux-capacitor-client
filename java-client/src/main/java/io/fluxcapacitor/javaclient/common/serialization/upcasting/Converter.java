@@ -16,7 +16,7 @@ package io.fluxcapacitor.javaclient.common.serialization.upcasting;
 
 import io.fluxcapacitor.common.api.Data;
 
-public interface Converter<T> extends Patcher<T> {
+public interface Converter<T> {
 
     default Data<T> convert(Data<byte[]> data) {
         return new Data<>(() -> convert(data.getValue()), data.getType(), data.getRevision(), data.getFormat());
@@ -29,5 +29,7 @@ public interface Converter<T> extends Patcher<T> {
     default Data<byte[]> convertBack(Data<T> data) {
         return new Data<>(() -> convertBack(data.getValue()), data.getType(), data.getRevision(), data.getFormat());
     }
+
+    Class<T> getDataType();
 
 }

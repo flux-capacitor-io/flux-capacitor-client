@@ -86,13 +86,6 @@
             <scope>test</scope>
         </dependency>
 
-        <!--upcasting-->
-        <dependency>
-            <groupId>com.github.java-json-tools</groupId>
-            <artifactId>json-patch</artifactId>
-            <version>1.13</version>
-        </dependency>
-
         <!--caching-->
         <dependency>
             <groupId>com.google.guava</groupId>

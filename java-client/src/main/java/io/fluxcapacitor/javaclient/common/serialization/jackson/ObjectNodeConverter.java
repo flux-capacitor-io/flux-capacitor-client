@@ -17,15 +17,11 @@ package io.fluxcapacitor.javaclient.common.serialization.jackson;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.github.fge.jsonpatch.JsonPatch;
-import io.fluxcapacitor.common.api.SerializedObject;
 import io.fluxcapacitor.javaclient.common.serialization.SerializationException;
 import io.fluxcapacitor.javaclient.common.serialization.upcasting.Converter;
 import lombok.AllArgsConstructor;
-import lombok.SneakyThrows;
 
 import java.io.IOException;
-import java.util.function.Supplier;
 
 @AllArgsConstructor
 public class ObjectNodeConverter implements Converter<JsonNode> {
@@ -35,7 +31,7 @@ public class ObjectNodeConverter implements Converter<JsonNode> {
     @Override
     public JsonNode convert(byte[] bytes) {
         try {
-            return (JsonNode) objectMapper.readTree(bytes);
+            return objectMapper.readTree(bytes);
         } catch (IOException e) {
             throw new SerializationException("Could not read JsonNode from byte[]", e);
         }
@@ -48,24 +44,6 @@ public class ObjectNodeConverter implements Converter<JsonNode> {
         } catch (JsonProcessingException e) {
             throw new SerializationException("Could not write byte[] from JsonNode: " + value, e);
         }
-    }
-
-    @Override
-    public boolean canApplyPatch(Class<?> type) {
-        return JsonPatch.class.isAssignableFrom(type);
-    }
-
-    @Override
-    public Supplier<?> applyPatch(SerializedObject<JsonNode, ?> s, Supplier<?> o, Class<?> type) {
-        if(!canApplyPatch(type)){
-            Converter.super.applyPatch(s,o,type);
-        }
-        return () -> applyJsonPatch(s, o);
-    }
-
-    @SneakyThrows
-    private JsonNode applyJsonPatch(SerializedObject<JsonNode, ?> s, Supplier<?> o) {
-        return ((JsonPatch) o.get()).apply(s.data().getValue());
     }
 
     @Override

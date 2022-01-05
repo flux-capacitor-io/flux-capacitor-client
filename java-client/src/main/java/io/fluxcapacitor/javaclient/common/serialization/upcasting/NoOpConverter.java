@@ -17,7 +17,7 @@ package io.fluxcapacitor.javaclient.common.serialization.upcasting;
 import lombok.AllArgsConstructor;
 
 @AllArgsConstructor
-public class NoOpPatcher<T> implements Converter<T> {
+public class NoOpConverter<T> implements Converter<T> {
     private final Class<T> dataType;
 
     @Override

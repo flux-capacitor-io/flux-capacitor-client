@@ -33,7 +33,8 @@ import static java.util.stream.Collectors.toMap;
 
 public class UpcasterChain<T> {
 
-    public static <T> Upcaster<SerializedObject<byte[], ?>> createConverting(Collection<?> upcasters, Converter<T> converter) {
+    public static <T> Upcaster<SerializedObject<byte[], ?>> createConverting(Collection<?> upcasters,
+                                                                             Converter<T> converter) {
         if (upcasters.isEmpty()) {
             return s -> s;
         }
@@ -45,17 +46,18 @@ public class UpcasterChain<T> {
         };
     }
 
-    public static <T, S extends SerializedObject<T, S>> Upcaster<S> create(Collection<?> upcasters, Patcher<T> patcher) {
+    public static <T, S extends SerializedObject<T, S>> Upcaster<S> create(Collection<?> upcasters,
+                                                                           Converter<T> converter) {
         if (upcasters.isEmpty()) {
             return s -> s;
         }
-        List<AnnotatedUpcaster<T>> upcasterList = UpcastInspector.inspect(upcasters, patcher);
+        List<AnnotatedUpcaster<T>> upcasterList = UpcastInspector.inspect(upcasters, converter);
         UpcasterChain<T> upcasterChain = new UpcasterChain<>(upcasterList);
         return upcasterChain::upcast;
     }
 
     public static <T, S extends SerializedObject<T, S>> Upcaster<S> create(Collection<?> upcasters, Class<T> dataType) {
-        return create(upcasters, new NoOpPatcher<>(dataType));
+        return create(upcasters, new NoOpConverter<>(dataType));
     }
 
     private final Map<DataRevision, AnnotatedUpcaster<T>> upcasters;
