@@ -16,8 +16,6 @@ package io.fluxcapacitor.javaclient.publishing;
 
 import io.fluxcapacitor.common.MessageType;
 import io.fluxcapacitor.common.api.SerializedMessage;
-import io.fluxcapacitor.javaclient.common.Message;
-import io.fluxcapacitor.javaclient.common.serialization.Serializer;
 import io.fluxcapacitor.javaclient.configuration.client.Client;
 import io.fluxcapacitor.javaclient.tracking.ConsumerConfiguration;
 import io.fluxcapacitor.javaclient.tracking.client.DefaultTracker;
@@ -39,20 +37,19 @@ import static io.fluxcapacitor.javaclient.common.ClientUtils.waitForResults;
 @Slf4j
 public class DefaultRequestHandler implements RequestHandler {
 
-    private final Serializer serializer;
     private final Client client;
     private final MessageType resultType;
-    private final Map<Integer, CompletableFuture<Message>> callbacks = new ConcurrentHashMap<>();
+    private final Map<Integer, CompletableFuture<SerializedMessage>> callbacks = new ConcurrentHashMap<>();
     private final AtomicInteger nextId = new AtomicInteger();
     private final AtomicBoolean started = new AtomicBoolean();
 
     @Override
-    public CompletableFuture<Message> sendRequest(SerializedMessage request,
-                                                  Consumer<SerializedMessage> requestSender) {
+    public CompletableFuture<SerializedMessage> sendRequest(SerializedMessage request,
+                                                            Consumer<SerializedMessage> requestSender) {
         if (started.compareAndSet(false, true)) {
             DefaultTracker.start(this::handleMessages, ConsumerConfiguration.getDefault(resultType), client);
         }
-        CompletableFuture<Message> result = new CompletableFuture<>();
+        CompletableFuture<SerializedMessage> result = new CompletableFuture<>();
         int requestId = nextId.getAndIncrement();
         callbacks.put(requestId, result);
         request.setRequestId(requestId);
@@ -61,39 +58,19 @@ public class DefaultRequestHandler implements RequestHandler {
         return result;
     }
 
+    protected void handleMessages(List<SerializedMessage> messages) {
+        messages.forEach(m -> {
+            CompletableFuture<SerializedMessage> future = callbacks.remove(m.getRequestId());
+            if (future == null) {
+                log.warn("Received response with index {} for unknown request {}", m.getIndex(), m.getRequestId());
+                return;
+            }
+            future.complete(m);
+        });
+    }
+
     @Override
     public void close() {
         waitForResults(Duration.ofSeconds(2), callbacks.values());
-    }
-
-    protected void handleMessages(List<SerializedMessage> messages) {
-        messages.forEach(m -> {
-            try {
-                CompletableFuture<Message> future = callbacks.get(m.getRequestId());
-                if (future == null) {
-                    log.warn("Received response with index {} for unknown request {}", m.getIndex(), m.getRequestId());
-                    return;
-                }
-                Object result;
-                try {
-                    result = serializer.deserialize(m.getData());
-                } catch (Exception e) {
-                    log.error("Failed to deserialize result with id {}. Continuing with next result", m.getRequestId(), e);
-                    future.completeExceptionally(e);
-                    return;
-                }
-                try {
-                    if (result instanceof Throwable) {
-                        future.completeExceptionally((Exception) result);
-                    } else {
-                        future.complete(new Message(result, m.getMetadata()));
-                    }
-                } catch (Exception e) {
-                    log.error("Failed to complete request with id {}", m.getRequestId(), e);
-                }
-            } finally {
-                callbacks.remove(m.getRequestId());
-            }
-        });
     }
 }

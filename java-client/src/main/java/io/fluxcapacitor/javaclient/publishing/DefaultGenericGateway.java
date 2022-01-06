@@ -24,14 +24,17 @@ import io.fluxcapacitor.javaclient.tracking.handling.HandlerRegistry;
 import lombok.AllArgsConstructor;
 import lombok.SneakyThrows;
 import lombok.experimental.Delegate;
+import lombok.extern.slf4j.Slf4j;
 
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 
+import static io.fluxcapacitor.common.Guarantee.SENT;
 import static java.lang.String.format;
 
 @AllArgsConstructor
+@Slf4j
 public class DefaultGenericGateway implements GenericGateway {
     private final GatewayClient gatewayClient;
     private final RequestHandler requestHandler;
@@ -76,7 +79,15 @@ public class DefaultGenericGateway implements GenericGateway {
             return localResult.get();
         } else {
             try {
-                return requestHandler.sendRequest(serializedMessage, messages -> gatewayClient.send(Guarantee.SENT, messages));
+                return requestHandler.sendRequest(serializedMessage, messages -> gatewayClient.send(SENT, messages))
+                        .thenApply(m -> {
+                            try {
+                                return new Message(serializer.deserialize(m.getData()), m.getMetadata());
+                            } catch (Exception e) {
+                                log.error("Failed to deserialize result with id {}", m.getRequestId(), e);
+                                throw e;
+                            }
+                        });
             } catch (Exception e) {
                 throw new GatewayException(format("Failed to send %s", message.getPayload().toString()), e);
             }

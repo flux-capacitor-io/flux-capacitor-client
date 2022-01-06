@@ -522,7 +522,7 @@ public class DefaultFluxCapacitor implements FluxCapacitor {
             }
 
             //create gateways
-            RequestHandler defaultRequestHandler = new DefaultRequestHandler(this.serializer, client, RESULT);
+            RequestHandler defaultRequestHandler = new DefaultRequestHandler(client, RESULT);
 
             //enable error reporter as the outermost handler interceptor
             ErrorGateway errorGateway =
@@ -550,7 +550,7 @@ public class DefaultFluxCapacitor implements FluxCapacitor {
                     new DefaultMetricsGateway(createRequestGateway(client, METRICS, defaultRequestHandler,
                                                                    dispatchInterceptors, handlerInterceptors));
 
-            RequestHandler webRequestHandler = new DefaultRequestHandler(this.serializer, client, WEBRESPONSE);
+            RequestHandler webRequestHandler = new DefaultRequestHandler(client, WEBRESPONSE);
             WebRequestGateway webRequestGateway =
                     new DefaultWebRequestGateway(createRequestGateway(client, WEBREQUEST, webRequestHandler,
                                                                       dispatchInterceptors, handlerInterceptors));
