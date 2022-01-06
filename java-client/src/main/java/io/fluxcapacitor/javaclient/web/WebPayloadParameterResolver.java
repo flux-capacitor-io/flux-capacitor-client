@@ -25,14 +25,6 @@ import java.util.function.Function;
 public class WebPayloadParameterResolver implements ParameterResolver<DeserializingMessage> {
     @Override
     public Function<DeserializingMessage, Object> resolve(Parameter p, Annotation methodAnnotation) {
-        if (!ReflectionUtils.isOrHas(methodAnnotation, HandleWeb.class)) {
-            return null;
-        }
-        return m -> m.getPayloadAs(p.getType());
-    }
-
-    @Override
-    public boolean matches(Parameter parameter, Annotation methodAnnotation, DeserializingMessage value) {
-        return ReflectionUtils.isOrHas(methodAnnotation, HandleWeb.class);
+        return ReflectionUtils.isOrHas(methodAnnotation, HandleWeb.class) ? m -> m.getPayloadAs(p.getType()) : null;
     }
 }
