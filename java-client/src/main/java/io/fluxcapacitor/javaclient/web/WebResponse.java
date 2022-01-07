@@ -1,7 +1,9 @@
 package io.fluxcapacitor.javaclient.web;
 
 import io.fluxcapacitor.common.api.Metadata;
+import io.fluxcapacitor.common.api.SerializedMessage;
 import io.fluxcapacitor.javaclient.common.Message;
+import io.fluxcapacitor.javaclient.common.serialization.Serializer;
 import lombok.AccessLevel;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
@@ -13,6 +15,7 @@ import lombok.experimental.FieldDefaults;
 
 import java.beans.ConstructorProperties;
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
@@ -49,6 +52,14 @@ public class WebResponse extends Message {
         this(m.getPayload(), m.getMetadata(), m.getMessageId(), m.getTimestamp());
     }
 
+    @Override
+    public SerializedMessage serialize(Serializer serializer) {
+        return headers.getOrDefault("Content-Type", List.of()).stream().findFirst().map(
+                        format -> new SerializedMessage(serializer.serialize(getPayload(), format), getMetadata(),
+                                                        getMessageId(), getTimestamp().toEpochMilli()))
+                .orElseGet(() -> super.serialize(serializer));
+    }
+
     public static Metadata asMetadata(int statusCode, Map<String, List<String>> headers) {
         return Metadata.of("status", statusCode, "headers", headers);
     }
@@ -63,6 +74,15 @@ public class WebResponse extends Message {
         return new WebResponse(super.withPayload(payload));
     }
 
+    @SuppressWarnings("unchecked")
+    public static Map<String, List<String>> getHeaders(Metadata metadata) {
+        return Optional.ofNullable(metadata.get("headers", Map.class)).orElse(Collections.emptyMap());
+    }
+
+    public static Integer getStatusCode(Metadata metadata) {
+        return Optional.ofNullable(metadata.get("status")).map(Integer::valueOf).orElse(null);
+    }
+
     @Data
     @Accessors(fluent = true, chain = true)
     @FieldDefaults(level = AccessLevel.PRIVATE)
@@ -70,6 +90,28 @@ public class WebResponse extends Message {
         Map<String, List<String>> headers = new HashMap<>();
         Object payload;
         Integer status;
+
+        public Builder payload(Object payload) {
+            this.payload = payload;
+            if (!headers().containsKey("Content-Type")) {
+                if (payload instanceof String) {
+                    return contentType("text/plain");
+                }
+                if (payload instanceof byte[]) {
+                    return contentType("application/octet-stream");
+                }
+            }
+            return this;
+        }
+
+        public Builder header(String key, String value) {
+            headers.computeIfAbsent(key, k -> new ArrayList<>()).add(value);
+            return this;
+        }
+
+        public Builder contentType(String contentType) {
+            return header("Content-Type", contentType);
+        }
 
         public WebResponse build() {
             return new WebResponse(this);

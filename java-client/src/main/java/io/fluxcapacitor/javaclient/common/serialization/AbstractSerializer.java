@@ -132,8 +132,11 @@ public abstract class AbstractSerializer implements Serializer {
             Stream<S> dataStream, boolean failOnUnknownType) {
         return upcasterChain.upcast((Stream<SerializedObject<byte[], ?>>) dataStream)
                 .flatMap(s -> {
-                    if (s.data().getType() == null || !Objects.equals(s.data().getFormat(), format)) {
-                        return (Stream) deserializeUntyped(s);
+                    if (!Objects.equals(format, s.data().getFormat())) {
+                        return (Stream) deserializeOtherFormat(s);
+                    }
+                    if (s.data().getType() == null) {
+                        return (Stream) deserializeUnknownType(s);
                     }
                     if (!isKnownType(s.data().getType())) {
                         if (failOnUnknownType) {
@@ -178,10 +181,16 @@ public abstract class AbstractSerializer implements Serializer {
     }
 
     @SuppressWarnings({"unchecked", "rawtypes"})
-    protected Stream<DeserializingObject<byte[], ?>> deserializeUntyped(SerializedObject<byte[], ?> s) {
+    protected Stream<DeserializingObject<byte[], ?>> deserializeOtherFormat(SerializedObject<byte[], ?> s) {
         return Stream.of(new DeserializingObject(s, (Function<Class<?>, Object>) type -> {
             try {
-                if (Object.class.equals(type) || byte[].class.isAssignableFrom(type)) {
+                if (Object.class.equals(type)) {
+                    if (s.data().getFormat().startsWith("text/")) {
+                        return new String(s.data().getValue(), UTF_8);
+                    }
+                    return s.data().getValue();
+                }
+                if (byte[].class.isAssignableFrom(type)) {
                     return s.data().getValue();
                 }
                 if (String.class.isAssignableFrom(type)) {
