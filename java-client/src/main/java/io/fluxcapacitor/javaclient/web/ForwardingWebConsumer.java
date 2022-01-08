@@ -21,6 +21,7 @@ import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.util.Collections;
 import java.util.List;
+import java.util.Set;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
@@ -74,6 +75,7 @@ public class ForwardingWebConsumer implements AutoCloseable {
                                     ofByteArray(m.getData().getValue()));
 
             String[] headers = WebRequest.getHeaders(m.getMetadata()).entrySet().stream()
+                    .filter(e -> !isRestricted(e.getKey()))
                     .flatMap(e -> e.getValue().stream().flatMap(v -> Stream.of(e.getKey(), v)))
                     .toArray(String[]::new);
             if (headers.length > 0) {
@@ -86,6 +88,10 @@ public class ForwardingWebConsumer implements AutoCloseable {
         } catch (Exception e) {
             throw new IllegalStateException("Failed to create HttpRequest", e);
         }
+    }
+
+    protected boolean isRestricted(String headerName) {
+        return Set.of("connection", "content-length", "expect", "host", "upgrade").contains(headerName.toLowerCase());
     }
 
     protected SerializedMessage toMessage(HttpResponse<byte[]> response) {
