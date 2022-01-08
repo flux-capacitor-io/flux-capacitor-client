@@ -84,6 +84,7 @@ import io.fluxcapacitor.javaclient.tracking.metrics.HandlerMonitor;
 import io.fluxcapacitor.javaclient.tracking.metrics.TrackerMonitor;
 import io.fluxcapacitor.javaclient.web.DefaultWebResponseMapper;
 import io.fluxcapacitor.javaclient.web.ForwardingWebConsumer;
+import io.fluxcapacitor.javaclient.web.LocalServerConfig;
 import io.fluxcapacitor.javaclient.web.WebResponseGateway;
 import io.fluxcapacitor.javaclient.web.WebResponseMapper;
 import lombok.AccessLevel;
@@ -344,10 +345,10 @@ public class DefaultFluxCapacitor implements FluxCapacitor {
         }
 
         @Override
-        public FluxCapacitorBuilder forwardWebRequestsToLocalServer(int port,
-                                                                    UnaryOperator<ConsumerConfiguration> configurator) {
+        public FluxCapacitorBuilder forwardWebRequestsToLocalServer(LocalServerConfig localServerConfig,
+                                                                    UnaryOperator<ConsumerConfiguration> consumerConfigurator) {
             forwardingWebConsumer =
-                    new ForwardingWebConsumer(port, configurator.apply(ConsumerConfiguration.getDefault(WEBREQUEST)));
+                    new ForwardingWebConsumer(localServerConfig, consumerConfigurator.apply(ConsumerConfiguration.getDefault(WEBREQUEST)));
             return this;
         }
 

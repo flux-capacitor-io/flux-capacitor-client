@@ -32,12 +32,14 @@ import static java.net.http.HttpRequest.BodyPublishers.ofByteArray;
 @Slf4j
 public class ForwardingWebConsumer implements AutoCloseable {
     private final String host;
+    private final LocalServerConfig localServerConfig;
     private final ConsumerConfiguration configuration;
     private final HttpClient httpClient;
     private final AtomicReference<Registration> registration = new AtomicReference<>();
 
-    public ForwardingWebConsumer(int port, ConsumerConfiguration configuration) {
-        this.host = "http://localhost:" + port;
+    public ForwardingWebConsumer(LocalServerConfig localServerConfig, ConsumerConfiguration configuration) {
+        this.host = "http://localhost:" + localServerConfig.getPort();
+        this.localServerConfig = localServerConfig;
         this.configuration = configuration;
         this.httpClient = HttpClient.newHttpClient();
     }
@@ -54,7 +56,12 @@ public class ForwardingWebConsumer implements AutoCloseable {
             try {
                 HttpRequest request = createRequest(m);
                 httpClient.sendAsync(request, HttpResponse.BodyHandlers.ofByteArray())
-                        .whenComplete((r, e) -> gateway.accept(m, e == null ? toMessage(r) : toMessage(e)));
+                        .whenComplete((r, e) -> {
+                            if (e == null && r.statusCode() == 404 && localServerConfig.isIgnore404()) {
+                                return;
+                            }
+                            gateway.accept(m, e == null ? toMessage(r) : toMessage(e));
+                        });
             } catch (Exception e) {
                 try {
                     gateway.accept(m, toMessage(e));

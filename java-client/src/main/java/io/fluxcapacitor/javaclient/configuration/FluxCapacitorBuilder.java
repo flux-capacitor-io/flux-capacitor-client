@@ -27,6 +27,7 @@ import io.fluxcapacitor.javaclient.tracking.BatchInterceptor;
 import io.fluxcapacitor.javaclient.tracking.ConsumerConfiguration;
 import io.fluxcapacitor.javaclient.tracking.handling.HandlerInterceptor;
 import io.fluxcapacitor.javaclient.tracking.handling.authentication.UserProvider;
+import io.fluxcapacitor.javaclient.web.LocalServerConfig;
 import io.fluxcapacitor.javaclient.web.WebResponseMapper;
 
 import java.util.function.UnaryOperator;
@@ -59,10 +60,11 @@ public interface FluxCapacitorBuilder {
     FluxCapacitorBuilder replaceCache(Cache cache);
 
     default FluxCapacitorBuilder forwardWebRequestsToLocalServer(int port) {
-        return forwardWebRequestsToLocalServer(port, UnaryOperator.identity());
+        return forwardWebRequestsToLocalServer(LocalServerConfig.builder().port(port).build(), UnaryOperator.identity());
     }
 
-    FluxCapacitorBuilder forwardWebRequestsToLocalServer(int port, UnaryOperator<ConsumerConfiguration> configurator);
+    FluxCapacitorBuilder forwardWebRequestsToLocalServer(LocalServerConfig localServerConfig,
+                                                         UnaryOperator<ConsumerConfiguration> consumerConfigurator);
 
     FluxCapacitorBuilder replaceWebResponseMapper(WebResponseMapper webResponseMapper);
 
