@@ -19,12 +19,12 @@ public class GivenWhenThenWebTest {
 
         @Test
         void testGet() {
-            testFixture.whenWebRequest(WebRequest.builder().method(GET).path("/get").build()).expectResult("get");
+            testFixture.whenWebRequest(WebRequest.builder().method(GET).url("/get").build()).expectResult("get");
         }
 
         @Test
         void testPostString() {
-            testFixture.whenWebRequest(WebRequest.builder().method(POST).path("/string").payload("payload").build())
+            testFixture.whenWebRequest(WebRequest.builder().method(POST).url("/string").payload("payload").build())
                     .expectResult("payload");
         }
 
@@ -48,8 +48,8 @@ public class GivenWhenThenWebTest {
         @Test
         void testGivenPostWhenGet() {
             String payload = "testPayload";
-            testFixture.givenWebRequest(WebRequest.builder().method(POST).path("/string").payload(payload).build())
-                    .whenWebRequest(WebRequest.builder().method(GET).path("/get").build()).expectResult(payload);
+            testFixture.givenWebRequest(WebRequest.builder().method(POST).url("/string").payload(payload).build())
+                    .whenWebRequest(WebRequest.builder().method(GET).url("/get").build()).expectResult(payload);
         }
 
         private class Handler {
@@ -73,12 +73,12 @@ public class GivenWhenThenWebTest {
 
         @Test
         void testGet() {
-            testFixture.whenWebRequest(WebRequest.builder().method(GET).path("/get").build()).expectResult("get");
+            testFixture.whenWebRequest(WebRequest.builder().method(GET).url("/get").build()).expectResult("get");
         }
 
         @Test
         void testPostString() {
-            testFixture.whenWebRequest(WebRequest.builder().method(POST).path("/string").payload("payload").build())
+            testFixture.whenWebRequest(WebRequest.builder().method(POST).url("/string").payload("payload").build())
                     .expectResult("payload");
         }
 

@@ -49,7 +49,7 @@ public class WebRequest extends Message {
         return (message, annotation) -> filterCache.computeIfAbsent(annotation, a -> {
             Annotation typeAnnotation = getTypeAnnotation(a.annotationType(), HandleWeb.class);
             Predicate<String> pathTest = ReflectionUtils.<String>readProperty("value", a)
-                    .map(path -> path.startsWith("/") ? path : "/" + path)
+                    .map(url -> url.startsWith("/") ? url : "/" + url)
                     .map(SearchUtils::convertGlobToRegex).map(Pattern::asMatchPredicate)
                     .<Predicate<String>>map(p -> s -> p.test(s.startsWith("/") ? s : "/" + s))
                     .orElse(p -> true);
@@ -58,8 +58,8 @@ public class WebRequest extends Message {
                     .<Predicate<String>>map(r -> r == ANY ? p -> true : p -> r.name().equals(p))
                     .orElse(p -> true);
             return msg -> {
-                String path = requireNonNull(msg.getMetadata().get("path"),
-                                             "Web request path is missing in the metadata of a WebRequest message");
+                String path = requireNonNull(msg.getMetadata().get("url"),
+                                             "Web request url is missing in the metadata of a WebRequest message");
                 String method = requireNonNull(msg.getMetadata().get("method"),
                                                "Web request method is missing in the metadata of a WebRequest message");
                 return pathTest.test(path) && methodTest.test(method);
@@ -72,9 +72,9 @@ public class WebRequest extends Message {
     @NonNull Map<String, List<String>> headers;
 
     private WebRequest(Builder builder) {
-        super(builder.payload(), Metadata.of("path", builder.path(), "method", builder.method().name(),
+        super(builder.payload(), Metadata.of("url", builder.url(), "method", builder.method().name(),
                                              "headers", builder.headers()));
-        this.path = builder.path();
+        this.path = builder.url();
         this.method = builder.method();
         this.headers = builder.headers();
     }
@@ -82,7 +82,7 @@ public class WebRequest extends Message {
     @ConstructorProperties({"payload", "metadata", "messageId", "timestamp"})
     WebRequest(Object payload, Metadata metadata, String messageId, Instant timestamp) {
         super(payload, metadata, messageId, timestamp);
-        this.path = getPath(metadata);
+        this.path = getUrl(metadata);
         this.method = getMethod(metadata);
         this.headers = getHeaders(metadata);
     }
@@ -109,9 +109,9 @@ public class WebRequest extends Message {
         return new WebRequest(super.withPayload(payload));
     }
 
-    public static String getPath(Metadata metadata) {
-        return Optional.ofNullable(metadata.get("path")).map(p -> p.startsWith("/") ? p : "/" + p)
-                .orElseThrow(() -> new IllegalStateException("WebRequest is malformed: path is missing"));
+    public static String getUrl(Metadata metadata) {
+        return Optional.ofNullable(metadata.get("url")).map(u -> u.startsWith("/") ? u : "/" + u)
+                .orElseThrow(() -> new IllegalStateException("WebRequest is malformed: url is missing"));
     }
 
     public static HttpRequestMethod getMethod(Metadata metadata) {
@@ -133,7 +133,7 @@ public class WebRequest extends Message {
     @Accessors(fluent = true, chain = true)
     @FieldDefaults(level = AccessLevel.PRIVATE)
     public static class Builder {
-        String path;
+        String url;
         HttpRequestMethod method;
         @Setter(AccessLevel.NONE)
         Map<String, List<String>> headers = new HashMap<>();

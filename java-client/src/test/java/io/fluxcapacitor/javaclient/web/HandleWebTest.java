@@ -20,45 +20,45 @@ public class HandleWebTest {
 
         @Test
         void testGet() {
-            testFixture.whenWebRequest(WebRequest.builder().method(GET).path("/get").build()).expectResult("get");
+            testFixture.whenWebRequest(WebRequest.builder().method(GET).url("/get").build()).expectResult("get");
         }
 
         @Test
         void testPostString() {
-            testFixture.whenWebRequest(WebRequest.builder().method(POST).path("/string").payload("payload").build())
+            testFixture.whenWebRequest(WebRequest.builder().method(POST).url("/string").payload("payload").build())
                     .expectResult("payload");
         }
 
         @Test
         void testPostBytes() {
             testFixture.whenWebRequest(
-                    WebRequest.builder().method(POST).path("/bytes").payload("payload".getBytes()).build())
+                    WebRequest.builder().method(POST).url("/bytes").payload("payload".getBytes()).build())
                     .expectResult("payload".getBytes());
         }
 
         @Test
         void testPostObject() {
             var object = Map.of("foo", "bar");
-            testFixture.whenWebRequest(WebRequest.builder().method(POST).path("/object")
+            testFixture.whenWebRequest(WebRequest.builder().method(POST).url("/object")
                                                .payload(object).build()).expectResult(object);
         }
 
         @Test
         void testPostJson() {
             var object = Map.of("foo", "bar");
-            testFixture.whenWebRequest(WebRequest.builder().method(POST).path("/json")
+            testFixture.whenWebRequest(WebRequest.builder().method(POST).url("/json")
                                                .payload(object).build())
                     .expectResult((JsonNode) JsonUtils.valueToTree(object));
         }
 
         @Test
         void testWithoutSlash() {
-            testFixture.whenWebRequest(WebRequest.builder().method(GET).path("get").build()).expectResult("get");
+            testFixture.whenWebRequest(WebRequest.builder().method(GET).url("get").build()).expectResult("get");
         }
 
         @Test
         void testWrongPath() {
-            testFixture.whenWebRequest(WebRequest.builder().method(GET).path("/unknown").build())
+            testFixture.whenWebRequest(WebRequest.builder().method(GET).url("/unknown").build())
                     .expectException(TimeoutException.class);
         }
 
@@ -96,12 +96,12 @@ public class HandleWebTest {
 
         @Test
         void testGet() {
-            testFixture.whenWebRequest(WebRequest.builder().method(GET).path("/get").build()).expectResult("get");
+            testFixture.whenWebRequest(WebRequest.builder().method(GET).url("/get").build()).expectResult("get");
         }
 
         @Test
         void testPostString() {
-            testFixture.whenWebRequest(WebRequest.builder().method(POST).path("/string").payload("payload").build())
+            testFixture.whenWebRequest(WebRequest.builder().method(POST).url("/string").payload("payload").build())
                     .expectResult("payload");
         }
 

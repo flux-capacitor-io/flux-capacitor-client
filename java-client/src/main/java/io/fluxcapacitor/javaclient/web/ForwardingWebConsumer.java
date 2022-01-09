@@ -76,7 +76,7 @@ public class ForwardingWebConsumer implements AutoCloseable {
     protected HttpRequest createRequest(SerializedMessage m) {
         try {
             HttpRequest.Builder builder = HttpRequest.newBuilder()
-                    .uri(new URI(host + WebRequest.getPath(m.getMetadata())))
+                    .uri(new URI(host + WebRequest.getUrl(m.getMetadata())))
                     .method(WebRequest.getMethod(m.getMetadata()).name(),
                             m.getData().getValue().length == 0 ? HttpRequest.BodyPublishers.noBody() :
                                     ofByteArray(m.getData().getValue()));
