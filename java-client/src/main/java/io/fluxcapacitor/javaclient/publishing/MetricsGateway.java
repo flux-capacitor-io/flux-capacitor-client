@@ -23,13 +23,17 @@ import java.util.concurrent.CompletableFuture;
 
 public interface MetricsGateway {
 
-    @SneakyThrows
     default void publish(Object metrics) {
         if (metrics instanceof Message) {
-            publish(((Message) metrics).getPayload(), ((Message) metrics).getMetadata(), Guarantee.NONE).get();
+            publish(((Message) metrics).getPayload(), ((Message) metrics).getMetadata());
         } else {
-            publish(metrics, Metadata.empty(), Guarantee.NONE).get();
+            publish(metrics, Metadata.empty());
         }
+    }
+
+    @SneakyThrows
+    default void publish(Object payload, Metadata metadata) {
+        publish(payload, metadata, Guarantee.NONE).get();
     }
 
     CompletableFuture<Void> publish(Object payload, Metadata metadata, Guarantee guarantee);

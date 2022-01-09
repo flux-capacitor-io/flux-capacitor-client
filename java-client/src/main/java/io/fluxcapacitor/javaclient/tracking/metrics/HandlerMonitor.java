@@ -22,11 +22,12 @@ import io.fluxcapacitor.javaclient.tracking.handling.HandlerInterceptor;
 import lombok.extern.slf4j.Slf4j;
 
 import java.time.Instant;
-import java.time.temporal.ChronoUnit;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 import java.util.function.Function;
+
+import static java.time.temporal.ChronoUnit.NANOS;
 
 @Slf4j
 public class HandlerMonitor implements HandlerInterceptor {
@@ -51,21 +52,22 @@ public class HandlerMonitor implements HandlerInterceptor {
                                   boolean exceptionalResult, Instant start, Object result) {
         try {
             boolean completed = !(result instanceof CompletableFuture<?>) || ((CompletableFuture<?>) result).isDone();
-            FluxCapacitor.publishMetrics(new HandleMessageEvent(consumer,
-                    handler.getTarget().getClass().getSimpleName(), message.getSerializedObject().getIndex(),
-                    message.getPayloadClass().getSimpleName(), exceptionalResult,
-                    start.until(Instant.now(), ChronoUnit.NANOS), completed));
+            FluxCapacitor.getOptionally().ifPresent(fc -> fc.metricsGateway().publish(new HandleMessageEvent(
+                    consumer, handler.getTarget().getClass().getSimpleName(), message.getSerializedObject().getIndex(),
+                    message.getType(), exceptionalResult, start.until(Instant.now(), NANOS), completed)));
             if (!completed) {
                 Map<String, String> correlationData = FluxCapacitor.currentCorrelationData();
-                ((CompletionStage<?>) result).whenComplete((r, e) -> message.run(m -> FluxCapacitor.publishMetrics(
+                ((CompletionStage<?>) result).whenComplete((r, e) -> message.run(
+                        m -> FluxCapacitor.getOptionally().ifPresent(fc -> fc.metricsGateway().publish(
                         new CompleteMessageEvent(
                                 consumer, handler.getTarget().getClass().getSimpleName(),
-                                m.getSerializedObject().getIndex(), m.getPayloadClass().getSimpleName(),
-                                e != null, start.until(Instant.now(), ChronoUnit.NANOS)),
-                        Metadata.of(correlationData))));
+                                m.getSerializedObject().getIndex(), m.getType(),
+                                e != null, start.until(Instant.now(), NANOS)),
+                        Metadata.of(correlationData)))));
             }
         } catch (Exception e) {
             log.error("Failed to publish handler metrics", e);
         }
     }
+
 }
