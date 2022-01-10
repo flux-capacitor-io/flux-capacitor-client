@@ -62,7 +62,7 @@ public enum DefaultDocumentSerializer {
     }
 
     public Document deserialize(Data<byte[]> document) {
-        if (!document.getFormat().equals("document")) {
+        if (!"document".equals(document.getFormat())) {
             throw new IllegalArgumentException("Unsupported data format: " + document.getFormat());
         }
         try (MessageUnpacker unpacker = MessagePack.newDefaultUnpacker(decompress(document.getValue()))) {

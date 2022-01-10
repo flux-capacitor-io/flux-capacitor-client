@@ -185,7 +185,7 @@ public abstract class AbstractSerializer implements Serializer {
         return Stream.of(new DeserializingObject(s, (Function<Class<?>, Object>) type -> {
             try {
                 if (Object.class.equals(type)) {
-                    if (s.data().getFormat().startsWith("text/")) {
+                    if (s.data().getFormat() != null && s.data().getFormat().startsWith("text/")) {
                         return new String(s.data().getValue(), UTF_8);
                     }
                     return s.data().getValue();
