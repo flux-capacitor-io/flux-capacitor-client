@@ -38,4 +38,6 @@ public interface CommandGateway extends HasLocalHandlers {
     <R> R sendAndWait(Object command);
 
     <R> R sendAndWait(Object payload, Metadata metadata);
+
+    void close();
 }

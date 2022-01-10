@@ -348,7 +348,8 @@ public class DefaultFluxCapacitor implements FluxCapacitor {
         public FluxCapacitorBuilder forwardWebRequestsToLocalServer(LocalServerConfig localServerConfig,
                                                                     UnaryOperator<ConsumerConfiguration> consumerConfigurator) {
             forwardingWebConsumer =
-                    new ForwardingWebConsumer(localServerConfig, consumerConfigurator.apply(ConsumerConfiguration.getDefault(WEBREQUEST)));
+                    new ForwardingWebConsumer(localServerConfig,
+                                              consumerConfigurator.apply(ConsumerConfiguration.getDefault(WEBREQUEST)));
             return this;
         }
 
@@ -581,10 +582,18 @@ public class DefaultFluxCapacitor implements FluxCapacitor {
 
             Runnable shutdownHandler = () -> {
                 Optional.ofNullable(forwardingWebConsumer).ifPresent(ForwardingWebConsumer::close);
-                ForkJoinPool.commonPool().invokeAll(trackingMap.values().stream().map(t -> (Callable<?>) () -> {
-                    t.close();
-                    return null;
-                }).collect(toList()));
+                ForkJoinPool.commonPool().invokeAll(
+                        trackingMap.values().stream()
+                                .map(t -> (Callable<?>) () -> {
+                                    t.close();
+                                    return null;
+                                }).collect(toList()));
+                ForkJoinPool.commonPool().invokeAll(
+                        Stream.<Runnable>of(commandGateway::close, queryGateway::close, webRequestGateway::close)
+                                .map(t -> (Callable<?>) () -> {
+                                    t.run();
+                                    return null;
+                                }).collect(toList()));
                 defaultRequestHandler.close();
                 webRequestHandler.close();
                 client.shutDown();

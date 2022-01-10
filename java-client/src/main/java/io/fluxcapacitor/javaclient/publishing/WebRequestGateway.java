@@ -38,4 +38,6 @@ public interface WebRequestGateway extends HasLocalHandlers {
     <R> R sendAndWait(Object request);
 
     <R> R sendAndWait(Object payload, Metadata metadata);
+
+    void close();
 }

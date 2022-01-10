@@ -32,4 +32,5 @@ public interface QueryGateway extends HasLocalHandlers {
 
     <R> R sendAndWait(Object payload, Metadata metadata);
 
+    void close();
 }

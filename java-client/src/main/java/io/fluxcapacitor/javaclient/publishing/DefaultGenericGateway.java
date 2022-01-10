@@ -26,11 +26,15 @@ import lombok.SneakyThrows;
 import lombok.experimental.Delegate;
 import lombok.extern.slf4j.Slf4j;
 
+import java.time.Duration;
+import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
+import java.util.concurrent.ConcurrentHashMap;
 
 import static io.fluxcapacitor.common.Guarantee.SENT;
+import static io.fluxcapacitor.javaclient.common.ClientUtils.waitForResults;
 import static java.lang.String.format;
 
 @AllArgsConstructor
@@ -43,6 +47,8 @@ public class DefaultGenericGateway implements GenericGateway {
     private final MessageType messageType;
     @Delegate
     private final HandlerRegistry localHandlerRegistry;
+
+    private final Map<String, CompletableFuture<?>> callbacks = new ConcurrentHashMap<>();
 
     @Override
     @SneakyThrows
@@ -75,28 +81,37 @@ public class DefaultGenericGateway implements GenericGateway {
                 = dispatchInterceptor.modifySerializedMessage(message.serialize(serializer), message, messageType);
         Optional<CompletableFuture<Message>> localResult
                 = localHandlerRegistry.handle(message.getPayload(), serializedMessage);
+
+        CompletableFuture<Message> future;
         if (localResult.isPresent()) {
-            return localResult.get();
+            future = localResult.get();
         } else {
             try {
-                return requestHandler.sendRequest(serializedMessage, messages -> gatewayClient.send(SENT, messages))
-                        .thenCompose(m -> {
-                            Object result;
-                            try {
-                                result = serializer.deserialize(m.getData());
-                            } catch (Exception e) {
-                                log.error("Failed to deserialize result with id {}", m.getMessageId(), e);
-                                return CompletableFuture.failedFuture(e);
-                            }
-                            if (result instanceof Throwable) {
-                                return CompletableFuture.failedFuture((Throwable) result);
-                            } else {
-                                return CompletableFuture.completedFuture(new Message(result, m.getMetadata()));
-                            }
-                        });
+                future = requestHandler.sendRequest(
+                        serializedMessage, messages -> gatewayClient.send(SENT, messages)).thenCompose(m -> {
+                    Object result;
+                    try {
+                        result = serializer.deserialize(m.getData());
+                    } catch (Exception e) {
+                        log.error("Failed to deserialize result with id {}", m.getMessageId(), e);
+                        return CompletableFuture.failedFuture(e);
+                    }
+                    if (result instanceof Throwable) {
+                        return CompletableFuture.failedFuture((Throwable) result);
+                    } else {
+                        return CompletableFuture.completedFuture(new Message(result, m.getMetadata()));
+                    }
+                });
             } catch (Exception e) {
                 throw new GatewayException(format("Failed to send %s", message.getPayload().toString()), e);
             }
         }
+        callbacks.put(serializedMessage.getMessageId(), future);
+        return future.whenComplete((m, e) -> callbacks.remove(serializedMessage.getMessageId()));
+    }
+
+    @Override
+    public void close() {
+        waitForResults(Duration.ofSeconds(2), callbacks.values());
     }
 }

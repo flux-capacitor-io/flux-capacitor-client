@@ -88,4 +88,5 @@ public interface GenericGateway extends HasLocalHandlers {
         }
     }
 
+    void close();
 }
