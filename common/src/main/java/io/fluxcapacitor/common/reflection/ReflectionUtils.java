@@ -341,7 +341,7 @@ public class ReflectionUtils {
         return member;
     }
 
-    public static Collection<? extends Annotation> getAnnotations(Class<?> type) {
+    public static Collection<? extends Annotation> getTypeAnnotations(Class<?> type) {
         return Stream.concat(Arrays.stream(type.getAnnotations()), Arrays.stream(type.getAnnotatedInterfaces())
                 .map(AnnotatedType::getType).flatMap(t -> {
                     if (t instanceof ParameterizedType) {
@@ -362,7 +362,8 @@ public class ReflectionUtils {
     /*
        Adopted from https://stackoverflow.com/questions/49105303/how-to-get-annotation-from-overridden-method-in-java/49164791
     */
-    public static Optional<Annotation> getAnnotation(Executable m, Class<? extends Annotation> a) {
+    @SuppressWarnings("unchecked")
+    public static <A extends Annotation> Optional<A> getMethodAnnotation(Executable m, Class<A> a) {
         if (a == null) {
             return Optional.empty();
         }
@@ -382,7 +383,7 @@ public class ReflectionUtils {
                 }
             }
         }
-        return Optional.ofNullable(result);
+        return Optional.ofNullable((A) result);
     }
 
     private static Annotation getTopLevelAnnotation(Executable m, Class<? extends Annotation> a) {

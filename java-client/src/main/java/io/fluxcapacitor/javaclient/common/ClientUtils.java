@@ -21,13 +21,22 @@ import java.lang.reflect.Executable;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.Collection;
+import java.util.Optional;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import java.util.function.BiFunction;
+
+import static io.fluxcapacitor.common.ObjectUtils.memoize;
+import static io.fluxcapacitor.common.reflection.ReflectionUtils.getMethodAnnotation;
+import static io.fluxcapacitor.common.reflection.ReflectionUtils.getTypeAnnotation;
 
 @Slf4j
 public class ClientUtils {
+    private static final BiFunction<Class<?>, Executable, Optional<LocalHandler>> localHandlerCache = memoize(
+            (target, method) -> getMethodAnnotation(method, LocalHandler.class)
+                    .or(() -> Optional.ofNullable(getTypeAnnotation(target, LocalHandler.class))));
 
     public static void waitForResults(Duration maxDuration, Collection<? extends Future<?>> futures) {
         Instant deadline = Instant.now().plus(maxDuration);
@@ -55,11 +64,11 @@ public class ClientUtils {
     }
 
     public static boolean isLocalHandlerMethod(Class<?> target, Executable method) {
-        LocalHandler localHandler = method.getAnnotation(LocalHandler.class);
-        if (localHandler == null) {
-            localHandler = target.getAnnotation(LocalHandler.class);
-        }
-        return localHandler != null && localHandler.value();
+        return getLocalHandlerAnnotation(target, method).map(LocalHandler::value).orElse(false);
+    }
+
+    public static Optional<LocalHandler> getLocalHandlerAnnotation(Class<?> target, Executable method) {
+        return localHandlerCache.apply(target, method);
     }
 
 }

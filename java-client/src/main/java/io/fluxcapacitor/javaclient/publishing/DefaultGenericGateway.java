@@ -80,12 +80,18 @@ public class DefaultGenericGateway implements GenericGateway {
         } else {
             try {
                 return requestHandler.sendRequest(serializedMessage, messages -> gatewayClient.send(SENT, messages))
-                        .thenApply(m -> {
+                        .thenCompose(m -> {
+                            Object result;
                             try {
-                                return new Message(serializer.deserialize(m.getData()), m.getMetadata());
+                                result = serializer.deserialize(m.getData());
                             } catch (Exception e) {
-                                log.error("Failed to deserialize result with id {}", m.getRequestId(), e);
-                                throw e;
+                                log.error("Failed to deserialize result with id {}", m.getMessageId(), e);
+                                return CompletableFuture.failedFuture(e);
+                            }
+                            if (result instanceof Throwable) {
+                                return CompletableFuture.failedFuture((Throwable) result);
+                            } else {
+                                return CompletableFuture.completedFuture(new Message(result, m.getMetadata()));
                             }
                         });
             } catch (Exception e) {

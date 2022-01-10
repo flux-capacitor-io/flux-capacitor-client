@@ -14,10 +14,12 @@
 
 package io.fluxcapacitor.javaclient.tracking.handling;
 
+import io.fluxcapacitor.common.Guarantee;
 import io.fluxcapacitor.common.MessageType;
 import io.fluxcapacitor.common.Registration;
 import io.fluxcapacitor.common.api.SerializedMessage;
 import io.fluxcapacitor.common.handling.Handler;
+import io.fluxcapacitor.javaclient.FluxCapacitor;
 import io.fluxcapacitor.javaclient.common.Message;
 import io.fluxcapacitor.javaclient.common.serialization.DeserializingMessage;
 import io.fluxcapacitor.javaclient.common.serialization.Serializer;
@@ -30,6 +32,8 @@ import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.function.BiPredicate;
+
+import static io.fluxcapacitor.javaclient.common.ClientUtils.getLocalHandlerAnnotation;
 
 @AllArgsConstructor
 @Slf4j
@@ -53,6 +57,7 @@ public class LocalHandlerRegistry implements HandlerRegistry {
             return new DeserializingMessage(serializedMessage, type -> serializer.convert(payload, type),
                                             messageType).apply(m -> {
                 boolean handled = false;
+                boolean logMessage = false;
                 CompletableFuture<Message> future = new CompletableFuture<>();
                 for (Handler<DeserializingMessage> handler : localHandlers) {
                     if (handler.canHandle(m)) {
@@ -77,10 +82,20 @@ public class LocalHandlerRegistry implements HandlerRegistry {
                             if (!passive) {
                                 handled = true;
                             }
+                            logMessage = logMessage || getLocalHandlerAnnotation(
+                                    handler.getTarget().getClass(), handler.getMethod(m))
+                                    .map(LocalHandler::logMessage).orElse(false);
                         }
                     }
                 }
-                return handled ? Optional.of(future) : Optional.empty();
+                try {
+                    return handled ? Optional.of(future) : Optional.empty();
+                } finally {
+                    if (logMessage) {
+                        FluxCapacitor.getOptionally().ifPresent(fc -> fc.client().getGatewayClient(m.getMessageType())
+                                .send(Guarantee.NONE, serializedMessage));
+                    }
+                }
             });
         }
         return Optional.empty();

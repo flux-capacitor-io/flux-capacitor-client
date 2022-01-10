@@ -39,7 +39,7 @@ public class HandlerConfiguration<M> {
                 && handlerFilter.test(c, e);
     }
 
-    public Optional<Annotation> getAnnotation(Executable e) {
-        return ReflectionUtils.getAnnotation(e, methodAnnotation);
+    public Optional<? extends Annotation> getAnnotation(Executable e) {
+        return ReflectionUtils.getMethodAnnotation(e, methodAnnotation);
     }
 }

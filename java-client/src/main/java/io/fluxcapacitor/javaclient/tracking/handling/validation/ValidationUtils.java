@@ -43,7 +43,7 @@ import java.util.function.BiFunction;
 import java.util.function.Function;
 
 import static io.fluxcapacitor.common.ObjectUtils.memoize;
-import static io.fluxcapacitor.common.reflection.ReflectionUtils.getAnnotations;
+import static io.fluxcapacitor.common.reflection.ReflectionUtils.getTypeAnnotations;
 import static java.lang.String.format;
 import static java.util.Optional.empty;
 
@@ -128,11 +128,11 @@ public class ValidationUtils {
      */
 
     private static final Function<Class<?>, String[]> requiredRolesCache = memoize(
-            payloadClass -> getRequiredRoles(getAnnotations(payloadClass)));
+            payloadClass -> getRequiredRoles(getTypeAnnotations(payloadClass)));
 
     private static final BiFunction<Class<?>, Executable, String[]> requiredRolesForMethodCache = memoize(
             (target, executable) -> Optional.ofNullable(getRequiredRoles(Arrays.asList(executable.getAnnotations())))
-                    .orElseGet(() -> getRequiredRoles(getAnnotations(target))));
+                    .orElseGet(() -> getRequiredRoles(getTypeAnnotations(target))));
 
     public static void assertAuthorized(Class<?> payloadType,
                                         User user) throws UnauthenticatedException, UnauthorizedException {

@@ -28,7 +28,21 @@ import java.lang.annotation.Target;
 public @interface LocalHandler {
     /**
      * Enables overriding the default behavior. If a type is marked as local handler, a method can still be marked as
-     * non-local using annotation {@code @LocalHandler(false)}
+     * non-local using annotation {@code @LocalHandler(false)}.
      */
     boolean value() default true;
+
+    /**
+     * Enables publication of locally handled messages. If {@code true}, messages and their payloads are logged as if
+     * they were not handled locally. This is often desirable for locally handled queries and commands issued
+     * by e.g. admins.
+     */
+    boolean logMessage() default false;
+
+    /**
+     * Enables publication of handler metrics,
+     * like {@link io.fluxcapacitor.javaclient.tracking.metrics.HandleMessageEvent HandleMessageEvents}
+     * (if tracker monitoring is enabled).
+     */
+    boolean logMetrics() default false;
 }
