@@ -9,6 +9,7 @@ import io.fluxcapacitor.common.api.SerializedMessage;
 import io.fluxcapacitor.javaclient.FluxCapacitor;
 import io.fluxcapacitor.javaclient.configuration.client.Client;
 import io.fluxcapacitor.javaclient.publishing.client.GatewayClient;
+import io.fluxcapacitor.javaclient.publishing.correlation.DefaultCorrelationDataProvider;
 import io.fluxcapacitor.javaclient.tracking.ConsumerConfiguration;
 import io.fluxcapacitor.javaclient.tracking.client.DefaultTracker;
 import lombok.Synchronized;
@@ -21,12 +22,14 @@ import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 import java.util.stream.Stream;
 
+import static io.fluxcapacitor.javaclient.FluxCapacitor.currentCorrelationData;
 import static java.net.http.HttpRequest.BodyPublishers.ofByteArray;
 
 @Slf4j
@@ -50,9 +53,11 @@ public class ForwardingWebConsumer implements AutoCloseable {
         BiConsumer<SerializedMessage, SerializedMessage> gateway = (request, response) -> {
             response.setTarget(request.getSource());
             response.setRequestId(request.getRequestId());
+            response.setMetadata(response.getMetadata().with(currentCorrelationData()));
             gatewayClient.send(Guarantee.NONE, response);
         };
         Consumer<List<SerializedMessage>> consumer = messages -> messages.forEach(m -> {
+            Map<String, String> correlationData = getCorrelationData(m);
             try {
                 HttpRequest request = createRequest(m);
                 httpClient.sendAsync(request, HttpResponse.BodyHandlers.ofByteArray())
@@ -60,17 +65,27 @@ public class ForwardingWebConsumer implements AutoCloseable {
                             if (e == null && r.statusCode() == 404 && localServerConfig.isIgnore404()) {
                                 return;
                             }
-                            gateway.accept(m, e == null ? toMessage(r) : toMessage(e));
+                            gateway.accept(m, e == null ? toMessage(r, correlationData) : toMessage(e, correlationData));
                         });
             } catch (Exception e) {
                 try {
-                    gateway.accept(m, toMessage(e));
+                    gateway.accept(m, toMessage(e, correlationData));
                 } catch (Exception e2) {
                     log.error("Failed to create response message from exception", e2);
                 }
             }
         });
         registration.getAndUpdate(r -> r == null ? DefaultTracker.start(consumer, configuration, client) : r);
+    }
+
+    protected Map<String, String> getCorrelationData(SerializedMessage m) {
+        try {
+            return FluxCapacitor.getOptionally().map(FluxCapacitor::correlationDataProvider).orElse(
+                    DefaultCorrelationDataProvider.INSTANCE).getCorrelationData(m);
+        } catch (Exception e) {
+            log.error("Failed to get correlation data for request message", e);
+            return Collections.emptyMap();
+        }
     }
 
     protected HttpRequest createRequest(SerializedMessage m) {
@@ -101,20 +116,23 @@ public class ForwardingWebConsumer implements AutoCloseable {
         return Set.of("connection", "content-length", "expect", "host", "upgrade").contains(headerName.toLowerCase());
     }
 
-    protected SerializedMessage toMessage(HttpResponse<byte[]> response) {
+    protected SerializedMessage toMessage(HttpResponse<byte[]> response,
+                                          Map<String, String> correlationData) {
         HttpHeaders headers = response.headers();
-        Metadata metadata = WebResponse.asMetadata(response.statusCode(), headers.map());
+        Metadata metadata = Metadata.of(correlationData)
+                .with(WebResponse.asMetadata(response.statusCode(), headers.map()));
         return new SerializedMessage(new Data<>(response.body(), null, 0,
                                                 headers.firstValue("content-type").orElse(null)), metadata,
                                      FluxCapacitor.generateId(), System.currentTimeMillis());
     }
 
-    protected SerializedMessage toMessage(Throwable error) {
+    protected SerializedMessage toMessage(Throwable error,
+                                          Map<String, String> correlationData) {
         log.error("Failed to handle web request: " + error.getMessage() + ". Continuing with next request.", error);
         return new SerializedMessage(
                 new Data<>("The request failed due to a server error".getBytes(), null, 0, "text/plain"),
-                WebResponse.asMetadata(500, Collections.emptyMap()), FluxCapacitor.generateId(),
-                System.currentTimeMillis());
+                Metadata.of(correlationData).with(WebResponse.asMetadata(500, Collections.emptyMap())),
+                FluxCapacitor.generateId(), System.currentTimeMillis());
     }
 
     @Override

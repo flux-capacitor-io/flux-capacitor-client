@@ -15,11 +15,11 @@
 package io.fluxcapacitor.javaclient.publishing;
 
 import io.fluxcapacitor.common.MessageType;
+import io.fluxcapacitor.common.Registration;
 import io.fluxcapacitor.common.api.SerializedMessage;
 import io.fluxcapacitor.javaclient.configuration.client.Client;
 import io.fluxcapacitor.javaclient.tracking.ConsumerConfiguration;
-import io.fluxcapacitor.javaclient.tracking.client.DefaultTracker;
-import lombok.AllArgsConstructor;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
 import java.time.Duration;
@@ -32,8 +32,9 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Consumer;
 
 import static io.fluxcapacitor.javaclient.common.ClientUtils.waitForResults;
+import static io.fluxcapacitor.javaclient.tracking.client.DefaultTracker.start;
 
-@AllArgsConstructor
+@RequiredArgsConstructor
 @Slf4j
 public class DefaultRequestHandler implements RequestHandler {
 
@@ -42,12 +43,13 @@ public class DefaultRequestHandler implements RequestHandler {
     private final Map<Integer, CompletableFuture<SerializedMessage>> callbacks = new ConcurrentHashMap<>();
     private final AtomicInteger nextId = new AtomicInteger();
     private final AtomicBoolean started = new AtomicBoolean();
+    private volatile Registration registration;
 
     @Override
     public CompletableFuture<SerializedMessage> sendRequest(SerializedMessage request,
                                                             Consumer<SerializedMessage> requestSender) {
         if (started.compareAndSet(false, true)) {
-            DefaultTracker.start(this::handleMessages, ConsumerConfiguration.getDefault(resultType), client);
+            registration = start(this::handleMessages, ConsumerConfiguration.getDefault(resultType), client);
         }
         CompletableFuture<SerializedMessage> result = new CompletableFuture<>();
         int requestId = nextId.getAndIncrement();
@@ -72,5 +74,8 @@ public class DefaultRequestHandler implements RequestHandler {
     @Override
     public void close() {
         waitForResults(Duration.ofSeconds(2), callbacks.values());
+        if (registration != null) {
+            registration.cancel();
+        }
     }
 }

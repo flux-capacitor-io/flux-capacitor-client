@@ -23,6 +23,7 @@ import io.fluxcapacitor.javaclient.configuration.client.Client;
 import io.fluxcapacitor.javaclient.persisting.caching.Cache;
 import io.fluxcapacitor.javaclient.persisting.search.DocumentSerializer;
 import io.fluxcapacitor.javaclient.publishing.DispatchInterceptor;
+import io.fluxcapacitor.javaclient.publishing.correlation.CorrelationDataProvider;
 import io.fluxcapacitor.javaclient.tracking.BatchInterceptor;
 import io.fluxcapacitor.javaclient.tracking.ConsumerConfiguration;
 import io.fluxcapacitor.javaclient.tracking.handling.HandlerInterceptor;
@@ -83,6 +84,8 @@ public interface FluxCapacitorBuilder {
      * {@link #replaceDocumentSerializer(DocumentSerializer)}.
      */
     FluxCapacitorBuilder replaceSerializer(Serializer serializer);
+
+    FluxCapacitorBuilder replaceCorrelationDataProvider(CorrelationDataProvider correlationDataProvider);
 
     FluxCapacitorBuilder replaceSnapshotSerializer(Serializer serializer);
 

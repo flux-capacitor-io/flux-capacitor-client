@@ -62,6 +62,8 @@ import io.fluxcapacitor.javaclient.publishing.RequestHandler;
 import io.fluxcapacitor.javaclient.publishing.ResultGateway;
 import io.fluxcapacitor.javaclient.publishing.WebRequestGateway;
 import io.fluxcapacitor.javaclient.publishing.correlation.CorrelatingInterceptor;
+import io.fluxcapacitor.javaclient.publishing.correlation.CorrelationDataProvider;
+import io.fluxcapacitor.javaclient.publishing.correlation.DefaultCorrelationDataProvider;
 import io.fluxcapacitor.javaclient.publishing.dataprotection.DataProtectionInterceptor;
 import io.fluxcapacitor.javaclient.publishing.routing.MessageRoutingInterceptor;
 import io.fluxcapacitor.javaclient.scheduling.DefaultScheduler;
@@ -153,6 +155,7 @@ public class DefaultFluxCapacitor implements FluxCapacitor {
     private final UserProvider userProvider;
     private final Cache cache;
     private final Serializer serializer;
+    private final CorrelationDataProvider correlationDataProvider;
     private final AtomicReference<Clock> clock = new AtomicReference<>(Clock.systemUTC());
     private final AtomicReference<IdentityProvider> identityProvider = new AtomicReference<>(new UuidFactory());
     private final Client client;
@@ -218,6 +221,7 @@ public class DefaultFluxCapacitor implements FluxCapacitor {
 
         private Serializer serializer = new JacksonSerializer();
         private Serializer snapshotSerializer = serializer;
+        private CorrelationDataProvider correlationDataProvider = DefaultCorrelationDataProvider.INSTANCE;
         private DocumentSerializer documentSerializer = (JacksonSerializer) serializer;
         private final Map<MessageType, List<ConsumerConfiguration>> consumerConfigurations = defaultConfigurations();
         private final List<ParameterResolver<? super DeserializingMessage>> parameterResolvers =
@@ -256,6 +260,12 @@ public class DefaultFluxCapacitor implements FluxCapacitor {
                 documentSerializer = (DocumentSerializer) serializer;
             }
             this.serializer = serializer;
+            return this;
+        }
+
+        @Override
+        public FluxCapacitorBuilder replaceCorrelationDataProvider(CorrelationDataProvider correlationDataProvider) {
+            this.correlationDataProvider = correlationDataProvider;
             return this;
         }
 
@@ -604,7 +614,8 @@ public class DefaultFluxCapacitor implements FluxCapacitor {
                                                   resultGateway, errorGateway, metricsGateway, webRequestGateway,
                                                   aggregateRepository,
                                                   eventStore, keyValueStore, documentStore, scheduler, userProvider,
-                                                  cache, serializer, client, shutdownHandler);
+                                                  cache, serializer, correlationDataProvider,
+                                                  client, shutdownHandler);
 
             if (makeApplicationInstance) {
                 FluxCapacitor.applicationInstance.set(fluxCapacitor);
@@ -628,12 +639,13 @@ public class DefaultFluxCapacitor implements FluxCapacitor {
                                         AggregateRepository aggregateRepository,
                                         EventStore eventStore, KeyValueStore keyValueStore, DocumentStore documentStore,
                                         Scheduler scheduler, UserProvider userProvider, Cache cache,
-                                        Serializer serializer, Client client, Runnable shutdownHandler) {
+                                        Serializer serializer, CorrelationDataProvider correlationDataProvider,
+                                        Client client, Runnable shutdownHandler) {
             return new DefaultFluxCapacitor(trackingSupplier, commandGateway, queryGateway, eventGateway, resultGateway,
                                             errorGateway, metricsGateway, webRequestGateway,
                                             aggregateRepository, eventStore,
                                             keyValueStore, documentStore,
-                                            scheduler, userProvider, cache, serializer, client, shutdownHandler);
+                                            scheduler, userProvider, cache, serializer, correlationDataProvider, client, shutdownHandler);
         }
 
         protected GenericGateway createRequestGateway(Client client, MessageType messageType,

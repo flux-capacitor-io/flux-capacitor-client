@@ -100,11 +100,6 @@ public interface FluxCapacitor extends AutoCloseable {
     ThreadLocal<FluxCapacitor> instance = new ThreadLocal<>();
 
     /**
-     * Default correlation data provider can be overridden in client applications or tests
-     */
-    CorrelationDataProvider correlationDataProvider = new DefaultCorrelationDataProvider();
-
-    /**
      * Returns the Flux Capacitor instance bound to the current thread or else set by the current application. Throws an
      * exception if no instance was registered.
      */
@@ -152,7 +147,8 @@ public interface FluxCapacitor extends AutoCloseable {
      * {@link DeserializingMessage}
      */
     static Map<String, String> currentCorrelationData() {
-        return correlationDataProvider.getCorrelationData();
+        return getOptionally().map(FluxCapacitor::correlationDataProvider).orElse(
+                DefaultCorrelationDataProvider.INSTANCE).getCorrelationData();
     }
 
     /**
@@ -516,6 +512,11 @@ public interface FluxCapacitor extends AutoCloseable {
      * Returns the cache used by the client to cache aggregates etc.
      */
     Cache cache();
+
+    /**
+     * Returns the provider of correlation data for published messages.
+     */
+    CorrelationDataProvider correlationDataProvider();
 
     /**
      * Returns the default serializer
