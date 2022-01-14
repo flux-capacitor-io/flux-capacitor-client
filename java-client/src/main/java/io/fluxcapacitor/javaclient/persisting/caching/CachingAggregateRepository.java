@@ -16,6 +16,7 @@ package io.fluxcapacitor.javaclient.persisting.caching;
 
 import io.fluxcapacitor.common.IndexUtils;
 import io.fluxcapacitor.common.api.SerializedMessage;
+import io.fluxcapacitor.javaclient.FluxCapacitor;
 import io.fluxcapacitor.javaclient.common.Message;
 import io.fluxcapacitor.javaclient.common.serialization.DeserializingMessage;
 import io.fluxcapacitor.javaclient.common.serialization.DeserializingObject;
@@ -54,6 +55,7 @@ import static io.fluxcapacitor.javaclient.modeling.AggregateTypeResolver.getAggr
 import static io.fluxcapacitor.javaclient.tracking.client.DefaultTracker.start;
 import static java.lang.String.format;
 import static java.time.Instant.ofEpochMilli;
+import static java.util.Optional.ofNullable;
 
 @RequiredArgsConstructor
 @Slf4j
@@ -80,15 +82,18 @@ public class CachingAggregateRepository implements AggregateRepository {
         }
         AggregateRoot<T> result = delegate.load(aggregateId, aggregateType, true, true);
         if (result == null) {
-            return Optional.<AggregateRoot<T>>ofNullable(doLoad(aggregateId, aggregateType, onlyCached))
-                    .filter(a -> Optional.ofNullable(a.get()).map(m -> aggregateType.isAssignableFrom(m.getClass()))
+            if (onlyCached) {
+                return cache.getIfPresent(keyFunction.apply(aggregateId));
+            }
+            return Optional.<AggregateRoot<T>>of(doLoad(aggregateId, aggregateType))
+                    .filter(a -> ofNullable(a.get()).map(m -> aggregateType.isAssignableFrom(m.getClass()))
                             .orElse(true))
-                    .orElseGet(() -> delegate.load(aggregateId, aggregateType, true, onlyCached));
+                    .orElseGet(() -> delegate.load(aggregateId, aggregateType, true, false));
         }
         return result;
     }
 
-    private <T> RefreshingAggregateRoot<T> doLoad(String aggregateId, Class<T> type, boolean onlyCached) {
+    private <T> RefreshingAggregateRoot<T> doLoad(String aggregateId, Class<T> type) {
         if (started.compareAndSet(false, true)) {
             start(this::handleEvents, ConsumerConfiguration.builder().messageType(NOTIFICATION)
                     .lastIndex(lastEventIndex = IndexUtils.indexForCurrentTime())
@@ -111,8 +116,7 @@ public class CachingAggregateRepository implements AggregateRepository {
                                     cache.wait(5_000);
                                 } catch (InterruptedException e) {
                                     Thread.currentThread().interrupt();
-                                    log.warn("Failed to load aggregate for event {}", current, e);
-                                    return null;
+                                    throw new IllegalStateException("Failed to load aggregate for event " + current, e);
                                 }
                             }
                             Duration fetchDuration = Duration.between(start, Instant.now());
@@ -126,20 +130,16 @@ public class CachingAggregateRepository implements AggregateRepository {
                     break;
             }
         }
-        if (onlyCached) {
-            return cache.getIfPresent(keyFunction.apply(aggregateId));
-        }
-        return cache
-                .get(keyFunction.apply(aggregateId), cacheKey -> Optional.ofNullable(delegate.load(aggregateId, type))
-                        .map(a -> {
-                            EventSourcingHandler<T> handler = handlerFactory.forType(type);
-                            return new RefreshingAggregateRoot<>(a.get(), handler, serializer,
-                                                                 aggregateId, type, a.previous(),
-                                                                 a.lastEventId(),
-                                                                 a.lastEventIndex(), a.timestamp(),
-                                                                 Status.UNVERIFIED);
-                        })
-                        .orElse(null));
+        return ofNullable(cache.computeIfAbsent(
+                keyFunction.apply(aggregateId), cacheKey -> ofNullable(delegate.load(aggregateId, type))
+                        .filter(a -> a.get() != null)
+                        .map(a -> new RefreshingAggregateRoot<>(
+                                a.get(), handlerFactory.forType(type), serializer, aggregateId, type,
+                                a.previous(), a.lastEventId(), a.lastEventIndex(), a.timestamp(),
+                                Status.UNVERIFIED)).orElse(null)))
+                .orElseGet(() -> RefreshingAggregateRoot.<T>builder()
+                        .handler(handlerFactory.forType(type)).serializer(serializer).id(aggregateId).type(type)
+                        .build());
     }
 
     protected void handleEvents(List<SerializedMessage> messages) {
@@ -177,7 +177,7 @@ public class CachingAggregateRepository implements AggregateRepository {
 
         if (aggregate == null || aggregate.status == Status.UNVERIFIED) {
             aggregate =
-                    Optional.ofNullable(delegate.load(aggregateId, type, true, false))
+                    ofNullable(delegate.load(aggregateId, type, true, false))
                             .map(a -> new RefreshingAggregateRoot<>(
                                     a.get(), handler, serializer, a.id(), a.type(),
                                     a.previous(), a.lastEventId(), a.lastEventIndex(), a.timestamp(),
@@ -235,8 +235,10 @@ public class CachingAggregateRepository implements AggregateRepository {
         AggregateRoot<T> previous;
         String lastEventId;
         Long lastEventIndex;
-        Instant timestamp;
-        Status status;
+        @Builder.Default
+        Instant timestamp = FluxCapacitor.currentClock().instant();
+        @Builder.Default
+        Status status = Status.UNVERIFIED;
 
         @Override
         public T get() {

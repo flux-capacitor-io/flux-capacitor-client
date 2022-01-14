@@ -14,34 +14,52 @@
 
 package io.fluxcapacitor.javaclient.persisting.caching;
 
+import lombok.NonNull;
+
 import java.util.function.Function;
 
 public interface Cache {
 
     /**
-     * Adds or replaces a value in the cache.
+     * Adds or replaces a value in the cache. Values of {@code null} are not permitted.
      *
      * @param id    The object id
      * @param value The value to cache
      */
-    void put(String id, Object value);
+    void put(String id, @NonNull Object value);
 
     /**
      * Returns the value associated with the given id. If there is no association, the mapping function is used to
-     * calculate a value. This value will be stored in the cache.
+     * calculate a value. This value will be stored in the cache unless it is {@code null} in which case the cache is
+     * not updated.
      *
      * @param id              The object id
-     * @param mappingFunction The function to compute a value if the cache is not in the cache
+     * @param mappingFunction The function to compute a value if the key is not mapped to a value in the cache
      * @param <T>             the type of object to return from the cache
      * @return The value associated with given id
      */
-    <T> T get(String id, Function<? super String, T> mappingFunction);
+    default <T> T computeIfAbsent(String id, Function<? super String, T> mappingFunction) {
+        T result = getIfPresent(id);
+        if (result == null) {
+            synchronized (this) {
+                result = getIfPresent(id);
+                if (result == null) {
+                    result = mappingFunction.apply(id);
+                    if (result != null) {
+                        put(id, result);
+                    }
+                }
+            }
+        }
+        return result;
+    }
 
     /**
-     * Returns the value associated with the given id if it exists in the cache. If there is no association, {@code null} is returned.
+     * Returns the value associated with the given id if it exists in the cache. If there is no association, {@code
+     * null} is returned.
      *
-     * @param id              The object id
-     * @param <T>             the type of object to return from the cache
+     * @param id  The object id
+     * @param <T> the type of object to return from the cache
      * @return The value associated with given id
      */
     <T> T getIfPresent(String id);

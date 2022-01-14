@@ -16,9 +16,9 @@ package io.fluxcapacitor.javaclient.persisting.caching;
 
 import io.fluxcapacitor.javaclient.modeling.AggregateRoot;
 import lombok.AllArgsConstructor;
+import lombok.NonNull;
 
 import java.util.Optional;
-import java.util.function.Function;
 import java.util.function.Predicate;
 
 @AllArgsConstructor
@@ -43,22 +43,12 @@ public class SelectiveCache implements Cache {
     }
 
     @Override
-    public void put(String id, Object value) {
+    public void put(String id, @NonNull Object value) {
         if (selector.test(value)) {
             delegate.put(id, value);
         } else {
             nextCache.put(id, value);
         }
-    }
-
-    @Override
-    @SuppressWarnings("unchecked")
-    public <T> T get(String id, Function<? super String, T> mappingFunction) {
-        Object result = getIfPresent(id);
-        if (result == null) {
-            put(id, result = mappingFunction.apply(id));
-        }
-        return (T) result;
     }
 
     @Override

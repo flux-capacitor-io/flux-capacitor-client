@@ -16,10 +16,8 @@ package io.fluxcapacitor.javaclient.persisting.caching;
 
 import com.google.common.cache.CacheBuilder;
 import lombok.AllArgsConstructor;
-import lombok.SneakyThrows;
+import lombok.NonNull;
 import lombok.extern.slf4j.Slf4j;
-
-import java.util.function.Function;
 
 @Slf4j
 @AllArgsConstructor
@@ -36,15 +34,8 @@ public class DefaultCache implements Cache {
     }
 
     @Override
-    public void put(String id, Object value) {
+    public void put(String id, @NonNull Object value) {
         cache.put(id, value);
-    }
-
-    @SuppressWarnings("unchecked")
-    @Override
-    @SneakyThrows
-    public <T> T get(String id, Function<? super String, T> mappingFunction) {
-        return (T) cache.get(id, () -> mappingFunction.apply(id));
     }
 
     @SuppressWarnings("unchecked")

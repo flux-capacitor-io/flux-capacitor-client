@@ -14,18 +14,20 @@
 
 package io.fluxcapacitor.javaclient.persisting.caching;
 
+import lombok.NonNull;
+
 import java.util.function.Function;
 
 public enum NoOpCache implements Cache {
     INSTANCE;
 
     @Override
-    public void put(String id, Object value) {
+    public void put(String id, @NonNull Object value) {
         //no op
     }
 
     @Override
-    public <T> T get(String id, Function<? super String, T> mappingFunction) {
+    public <T> T computeIfAbsent(String id, Function<? super String, T> mappingFunction) {
         return mappingFunction.apply(id);
     }
 
