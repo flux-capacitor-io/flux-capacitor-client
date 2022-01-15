@@ -36,7 +36,6 @@ import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.commons.lang3.StringUtils;
 
 import java.math.BigDecimal;
 import java.time.Instant;
@@ -70,7 +69,7 @@ public class JacksonInverter implements Inverter<JsonNode> {
     private final ObjectMapper objectMapper;
     private final JsonFactory jsonFactory;
     private final JsonNodeFactory nodeFactory;
-    private final Pattern splitPattern = Pattern.compile("(?<!\\\\)/");
+    private final Pattern splitPattern = Path.splitPattern;
 
     public JacksonInverter() {
         this(defaultObjectMapper);
@@ -170,7 +169,7 @@ public class JacksonInverter implements Inverter<JsonNode> {
             while (!token.isStructEnd()) {
                 if (token == JsonToken.FIELD_NAME) {
                     String fieldName = parser.getCurrentName();
-                    fieldName = escapeFieldName(fieldName);
+                    fieldName = Path.escapeFieldName(fieldName);
                     path = root + fieldName;
                     token = parser.nextToken();
                     continue;
@@ -178,19 +177,6 @@ public class JacksonInverter implements Inverter<JsonNode> {
                 token = processToken(token, valueMap, path, parser);
             }
         }
-    }
-
-    protected String escapeFieldName(String fieldName) {
-        fieldName = fieldName.replace("/", "\\/");
-        fieldName = fieldName.replace("\"", "\\\"");
-        if (StringUtils.isNumeric(fieldName)) {
-            try {
-                Integer.valueOf(fieldName);
-                fieldName = "\"" + fieldName + "\"";
-            } catch (Exception ignored) {
-            }
-        }
-        return fieldName;
     }
 
     /*
@@ -239,7 +225,7 @@ public class JacksonInverter implements Inverter<JsonNode> {
                     : new ObjectNode(nodeFactory, map.entrySet().stream().collect(
                             toMap(e -> {
                                 String key = e.getKey().toString();
-                                key = unescapeFieldName(key);
+                                key = Path.unescapeFieldName(key);
                                 return key;
                             }, e -> toJsonNode(e.getValue()))))).orElse(NullNode.getInstance());
         }
@@ -247,15 +233,6 @@ public class JacksonInverter implements Inverter<JsonNode> {
             return (JsonNode) struct;
         }
         throw new IllegalArgumentException("Unrecognized structure: " + struct);
-    }
-
-    protected String unescapeFieldName(String fieldName) {
-        if (fieldName.startsWith("\"") && fieldName.endsWith("\"")) {
-            fieldName = fieldName.substring(1, fieldName.length() - 1);
-        }
-        fieldName = fieldName.replace("\\/", "/");
-        fieldName = fieldName.replace("\\\"", "\"");
-        return fieldName;
     }
 
     protected JsonNode toJsonNode(Entry entry) {

@@ -25,16 +25,17 @@ import lombok.NonNull;
 import lombok.ToString;
 import lombok.Value;
 import lombok.experimental.Accessors;
+import org.apache.commons.lang3.StringUtils;
 
 import java.time.Instant;
 import java.util.AbstractMap;
-import java.util.Arrays;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.function.Function;
 import java.util.function.Predicate;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -140,13 +141,39 @@ public class Document {
 
     @Value
     public static class Path {
+        public static final Pattern splitPattern = Pattern.compile("(?<!\\\\)/");
+        private static final Pattern dotPattern = Pattern.compile("(?<!\\\\)\\.");
+
+        public static String escapeFieldName(String fieldName) {
+            fieldName = fieldName.replace("/", "\\/");
+            fieldName = fieldName.replace("\"", "\\\"");
+            if (StringUtils.isNumeric(fieldName)) {
+                try {
+                    Integer.valueOf(fieldName);
+                    fieldName = "\"" + fieldName + "\"";
+                } catch (Exception ignored) {
+                }
+            }
+            return fieldName;
+        }
+
+        public static String unescapeFieldName(String fieldName) {
+            if (fieldName.startsWith("\"") && fieldName.endsWith("\"")) {
+                fieldName = fieldName.substring(1, fieldName.length() - 1);
+            }
+            fieldName = fieldName.replace("\\/", "/");
+            fieldName = fieldName.replace("\\\"", "\"");
+            return fieldName;
+        }
+
         public static Predicate<Path> pathPredicate(String path) {
             if (path == null) {
                 return p -> true;
             }
+            path = dotPattern.matcher(path).replaceAll("/");
             Predicate<String> predicate = SearchUtils.convertGlobToRegex(path).asMatchPredicate();
-            return Arrays.stream(path.split("/")).anyMatch(SearchUtils::isInteger)
-                    ? p -> predicate.test(p.getValue()) : p -> predicate.test(p.getShortValue());
+            return splitPattern.splitAsStream(path).anyMatch(SearchUtils::isInteger)
+                    ? p -> predicate.test(p.getLongValue()) : p -> predicate.test(p.getShortValue());
         }
 
         String value;
@@ -155,12 +182,19 @@ public class Document {
         @Getter(lazy = true)
         @EqualsAndHashCode.Exclude
         @ToString.Exclude
-        String shortValue = computeShortValue();
+        String shortValue = splitPattern.splitAsStream(getValue())
+                .filter(p -> !SearchUtils.isInteger(p))
+                .map(Path::unescapeFieldName)
+                .collect(Collectors.joining("/"));
 
-        private String computeShortValue() {
-            return Arrays.stream(getValue().split("/"))
-                    .filter(p -> !SearchUtils.isInteger(p)).collect(Collectors.joining("/"));
-        }
+        @JsonIgnore
+        @Getter(lazy = true)
+        @EqualsAndHashCode.Exclude
+        @ToString.Exclude
+        String longValue = splitPattern.splitAsStream(getValue())
+                .map(Path::unescapeFieldName)
+                .collect(Collectors.joining("/"));
+
     }
 
     public enum EntryType {
