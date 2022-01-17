@@ -19,18 +19,21 @@ import lombok.AllArgsConstructor;
 import lombok.NonNull;
 import lombok.extern.slf4j.Slf4j;
 
+import java.util.concurrent.ConcurrentMap;
+import java.util.function.Function;
+
 @Slf4j
 @AllArgsConstructor
 public class DefaultCache implements Cache {
 
-    private final com.google.common.cache.Cache<String, Object> cache;
+    private final ConcurrentMap<Object, Object> cache;
 
     public DefaultCache() {
         this(1_000);
     }
 
     public DefaultCache(int maxSize) {
-        this.cache = CacheBuilder.newBuilder().maximumSize(maxSize).build();
+        this.cache = CacheBuilder.newBuilder().maximumSize(maxSize).build().asMap();
     }
 
     @Override
@@ -38,19 +41,30 @@ public class DefaultCache implements Cache {
         cache.put(id, value);
     }
 
+    @Override
+    public void putIfAbsent(String id, @NonNull Object value) {
+        cache.putIfAbsent(id, value);
+    }
+
+    @SuppressWarnings("unchecked")
+    @Override
+    public <T> T computeIfAbsent(String id, Function<? super Object, T> mappingFunction) {
+        return (T) cache.computeIfAbsent(id, mappingFunction);
+    }
+
     @SuppressWarnings("unchecked")
     @Override
     public <T> T getIfPresent(String id) {
-        return (T) cache.getIfPresent(id);
+        return (T) cache.get(id);
     }
 
     @Override
     public void invalidate(String id) {
-        cache.invalidate(id);
+        cache.remove(id);
     }
 
     @Override
     public void invalidateAll() {
-        cache.invalidateAll();
+        cache.clear();
     }
 }

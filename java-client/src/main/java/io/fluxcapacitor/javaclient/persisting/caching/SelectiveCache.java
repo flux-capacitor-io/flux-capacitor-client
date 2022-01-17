@@ -19,6 +19,7 @@ import lombok.AllArgsConstructor;
 import lombok.NonNull;
 
 import java.util.Optional;
+import java.util.function.Function;
 import java.util.function.Predicate;
 
 @AllArgsConstructor
@@ -49,6 +50,32 @@ public class SelectiveCache implements Cache {
         } else {
             nextCache.put(id, value);
         }
+    }
+
+    @Override
+    public void putIfAbsent(String id, @NonNull Object value) {
+        if (selector.test(value)) {
+            delegate.putIfAbsent(id, value);
+        } else {
+            nextCache.putIfAbsent(id, value);
+        }
+    }
+
+    @Override
+    public <T> T computeIfAbsent(String id, Function<? super Object, T> mappingFunction) {
+        T result = getIfPresent(id);
+        if (result == null) {
+            synchronized (this) {
+                result = getIfPresent(id);
+                if (result == null) {
+                    result = mappingFunction.apply(id);
+                    if (result != null) {
+                        putIfAbsent(id, result);
+                    }
+                }
+            }
+        }
+        return result;
     }
 
     @Override
