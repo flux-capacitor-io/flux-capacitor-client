@@ -32,7 +32,7 @@ public enum NoOpCache implements Cache {
     }
 
     @Override
-    public <T> T computeIfAbsent(String id, Function<? super Object, T> mappingFunction) {
+    public <T> T computeIfAbsent(String id, Function<? super String, T> mappingFunction) {
         return mappingFunction.apply(id);
     }
 

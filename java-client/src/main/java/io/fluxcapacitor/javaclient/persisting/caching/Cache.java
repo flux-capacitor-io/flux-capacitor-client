@@ -46,7 +46,7 @@ public interface Cache {
      * @param mappingFunction The function to compute a value if the key is not mapped to a value in the cache
      * @return The value associated with given id
      */
-    <T> T computeIfAbsent(String id, Function<? super Object, T> mappingFunction);
+    <T> T computeIfAbsent(String id, Function<? super String, T> mappingFunction);
 
     /**
      * Returns the value associated with the given id if it exists in the cache. If there is no association, {@code

@@ -62,7 +62,7 @@ public class SelectiveCache implements Cache {
     }
 
     @Override
-    public <T> T computeIfAbsent(String id, Function<? super Object, T> mappingFunction) {
+    public <T> T computeIfAbsent(String id, Function<? super String, T> mappingFunction) {
         T result = getIfPresent(id);
         if (result == null) {
             synchronized (this) {

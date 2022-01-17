@@ -26,14 +26,15 @@ import java.util.function.Function;
 @AllArgsConstructor
 public class DefaultCache implements Cache {
 
-    private final ConcurrentMap<Object, Object> cache;
+    private final ConcurrentMap<String, Object> cache;
 
     public DefaultCache() {
         this(1_000);
     }
 
+    @SuppressWarnings({"unchecked", "rawtypes"})
     public DefaultCache(int maxSize) {
-        this.cache = CacheBuilder.newBuilder().maximumSize(maxSize).build().asMap();
+        this.cache = (ConcurrentMap) CacheBuilder.newBuilder().maximumSize(maxSize).build().asMap();
     }
 
     @Override
@@ -48,7 +49,7 @@ public class DefaultCache implements Cache {
 
     @SuppressWarnings("unchecked")
     @Override
-    public <T> T computeIfAbsent(String id, Function<? super Object, T> mappingFunction) {
+    public <T> T computeIfAbsent(String id, Function<? super String, T> mappingFunction) {
         return (T) cache.computeIfAbsent(id, mappingFunction);
     }
 
