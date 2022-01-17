@@ -15,6 +15,7 @@
 package io.fluxcapacitor.javaclient.persisting.eventsourcing;
 
 import io.fluxcapacitor.common.Awaitable;
+import io.fluxcapacitor.common.api.Metadata;
 import io.fluxcapacitor.common.reflection.ReflectionUtils;
 import io.fluxcapacitor.javaclient.common.Message;
 import io.fluxcapacitor.javaclient.common.serialization.DeserializingMessage;
@@ -74,7 +75,8 @@ public class DefaultAggregateRepository implements AggregateRepository {
     private final ThreadLocal<Collection<EventSourcedAggregate<?>>> loadedModels = new ThreadLocal<>();
 
     public DefaultAggregateRepository(EventStore eventStore, SnapshotRepository snapshotRepository, Cache cache,
-                                      DocumentStore documentStore, Serializer serializer, DispatchInterceptor dispatchInterceptor) {
+                                      DocumentStore documentStore, Serializer serializer,
+                                      DispatchInterceptor dispatchInterceptor) {
         this(eventStore, snapshotRepository, cache, documentStore, serializer, dispatchInterceptor,
              new DefaultEventSourcingHandlerFactory(defaultParameterResolvers));
     }
@@ -358,13 +360,11 @@ public class DefaultAggregateRepository implements AggregateRepository {
         }
 
         protected EventSourcedModel<T> forceApply(EventSourcedModel<T> model, Message message) {
-            Message m = dispatchInterceptor.interceptDispatch(message.withMetadata(
-                    message.getMetadata().with(AggregateRoot.AGGREGATE_ID_METADATA_KEY, id,
-                                               AggregateRoot.AGGREGATE_TYPE_METADATA_KEY,
-                                               getAggregateType().getName())), EVENT);
+            Message m = message.withMetadata(Metadata.of(AggregateRoot.AGGREGATE_ID_METADATA_KEY, id,
+                                                         AggregateRoot.AGGREGATE_TYPE_METADATA_KEY,
+                                                         getAggregateType().getName()));
             DeserializingMessage deserializingMessage = new DeserializingMessage(
-                    dispatchInterceptor.modifySerializedMessage(m.serialize(serializer), m, EVENT),
-                    type -> m.getPayload(), EVENT);
+                    m.serialize(serializer), type -> m.getPayload(), EVENT);
             return model.toBuilder().sequenceNumber(model.sequenceNumber() + 1)
                     .model(eventSourcingHandler.invoke(model, deserializingMessage))
                     .previous(model).lastEventId(m.getMessageId()).timestamp(m.getTimestamp())

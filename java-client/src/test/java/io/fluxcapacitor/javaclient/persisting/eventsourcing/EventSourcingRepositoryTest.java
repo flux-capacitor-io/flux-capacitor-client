@@ -21,7 +21,6 @@ import io.fluxcapacitor.javaclient.MockException;
 import io.fluxcapacitor.javaclient.common.Message;
 import io.fluxcapacitor.javaclient.configuration.DefaultFluxCapacitor;
 import io.fluxcapacitor.javaclient.modeling.AggregateRoot;
-import io.fluxcapacitor.javaclient.modeling.AssertLegal;
 import io.fluxcapacitor.javaclient.persisting.eventsourcing.client.EventStoreClient;
 import io.fluxcapacitor.javaclient.test.TestFixture;
 import io.fluxcapacitor.javaclient.tracking.handling.HandleCommand;
@@ -31,16 +30,15 @@ import lombok.Builder;
 import lombok.NoArgsConstructor;
 import lombok.Value;
 import lombok.extern.slf4j.Slf4j;
+import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
-import java.util.concurrent.atomic.AtomicInteger;
 
 import static io.fluxcapacitor.javaclient.FluxCapacitor.loadAggregate;
-import static io.fluxcapacitor.javaclient.modeling.AssertLegal.HIGHEST_PRIORITY;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -59,7 +57,8 @@ class EventSourcingRepositoryTest {
 
     private static final String aggregateId = "test";
 
-    static class Normal {
+    @Nested
+    class Normal {
         private final TestFixture testFixture =
                 TestFixture.create(DefaultFluxCapacitor.builder().disableAutomaticAggregateCaching(), new Handler());
         private final EventStoreClient eventStoreClient = testFixture.getFluxCapacitor().client().getEventStoreClient();
@@ -162,7 +161,7 @@ class EventSourcingRepositoryTest {
         }
 
 
-        private static class Handler {
+        private class Handler {
             @HandleCommand
             void handle(Object command, Metadata metadata) {
                 loadAggregate(aggregateId, TestModel.class).assertLegal(command).apply(command, metadata);
@@ -184,40 +183,41 @@ class EventSourcingRepositoryTest {
             }
 
         }
+    }
 
-        @Aggregate(cached = true, snapshotPeriod = 100)
-        @lombok.Data
-        @NoArgsConstructor
-        @AllArgsConstructor
-        public static class TestModel {
-            List<Object> events = new ArrayList<>();
-            Metadata metadata = Metadata.empty();
+    @Aggregate(cached = true, snapshotPeriod = 100)
+    @lombok.Data
+    @NoArgsConstructor
+    @AllArgsConstructor
+    private static class TestModel {
+        List<Object> events = new ArrayList<>();
+        Metadata metadata = Metadata.empty();
 
-            @ApplyEvent
-            public TestModel(CreateModel command) {
-                events.add(command);
-            }
+        @ApplyEvent
+        public TestModel(CreateModel command) {
+            events.add(command);
+        }
 
 
-            @ApplyEvent
-            public TestModel(FailToCreateModel command) {
-                throw new MockException();
-            }
+        @ApplyEvent
+        public TestModel(FailToCreateModel command) {
+            throw new MockException();
+        }
 
-            @ApplyEvent
-            public TestModel(CreateModelWithMetadata event, Metadata metadata) {
-                this.metadata = this.metadata.with(metadata);
-                events.add(event);
-            }
+        @ApplyEvent
+        public TestModel(CreateModelWithMetadata event, Metadata metadata) {
+            this.metadata = this.metadata.with(metadata);
+            events.add(event);
+        }
 
-            @ApplyEvent
-            public void handle(UpdateModel event) {
-                events.add(event);
-            }
+        @ApplyEvent
+        public void handle(UpdateModel event) {
+            events.add(event);
         }
     }
 
-    static class Snapshot {
+    @Nested
+    class SnapshotTests {
         private final TestFixture testFixture = TestFixture.create(new Handler());
 
         @Test
@@ -244,19 +244,7 @@ class EventSourcingRepositoryTest {
                                              times(1)).getEvents(aggregateId, 2L));
         }
 
-        @Aggregate(snapshotPeriod = 3, cached = false)
-        @NoArgsConstructor
-        @Value
-        public static class TestModelForSnapshotting {
-            String content = "somecontent";
-
-            @ApplyEvent
-            public TestModelForSnapshotting(CreateModel event) {
-            }
-        }
-
-
-        private static class Handler {
+        private class Handler {
             @HandleCommand
             void handle(Object command) {
                 loadAggregate(aggregateId, TestModelForSnapshotting.class).assertLegal(command)
@@ -264,10 +252,21 @@ class EventSourcingRepositoryTest {
             }
 
         }
-
     }
 
-    static class NotEventSourced {
+    @Aggregate(snapshotPeriod = 3, cached = false)
+    @NoArgsConstructor
+    @Value
+    private static class TestModelForSnapshotting {
+        String content = "somecontent";
+
+        @ApplyEvent
+        public TestModelForSnapshotting(CreateModel event) {
+        }
+    }
+
+    @Nested
+    class NotEventSourced {
         private final TestFixture testFixture = TestFixture.create(new Handler());
 
         @Test
@@ -286,27 +285,7 @@ class EventSourcingRepositoryTest {
                     });
         }
 
-        @Aggregate(eventSourced = false, snapshotPeriod = 3, cached = false)
-        @NoArgsConstructor
-        @Value
-        @Builder
-        public static class TestModelNotEventSourced {
-            List<String> names = new ArrayList<>();
-
-            @ApplyEvent
-            public TestModelNotEventSourced(CreateModel event) {
-                names.add(event.getClass().getSimpleName());
-            }
-
-            @ApplyEvent
-            public TestModelNotEventSourced apply(UpdateModel event) {
-                names.add(event.getClass().getSimpleName());
-                return this;
-            }
-        }
-
-
-        private static class Handler {
+        private class Handler {
             @HandleCommand
             void handle(Object command) {
                 loadAggregate(aggregateId, TestModelNotEventSourced.class).assertLegal(command)
@@ -315,9 +294,27 @@ class EventSourcingRepositoryTest {
         }
     }
 
+    @Aggregate(eventSourced = false, snapshotPeriod = 3, cached = false)
+    @NoArgsConstructor
+    @Value
+    @Builder
+    private static class TestModelNotEventSourced {
+        List<String> names = new ArrayList<>();
 
-    static class WithFactoryMethod {
+        @ApplyEvent
+        public TestModelNotEventSourced(CreateModel event) {
+            names.add(event.getClass().getSimpleName());
+        }
 
+        @ApplyEvent
+        public TestModelNotEventSourced apply(UpdateModel event) {
+            names.add(event.getClass().getSimpleName());
+            return this;
+        }
+    }
+
+    @Nested
+    class WithFactoryMethod {
         private final TestFixture testFixture = TestFixture.create(new Handler());
 
         @Test
@@ -327,85 +324,24 @@ class EventSourcingRepositoryTest {
                             .storeEvents(anyString(), anyString(), anyLong(), anyList(), eq(false)));
         }
 
-        @Test
-        void testCreateWithLegalCheckOnNonExistingModelSucceeds() {
-            testFixture.givenNoPriorActivity().whenCommand(new CreateModelWithAssertion()).expectNoException();
-        }
-
-        @Test
-        void testUpdateWithLegalCheckOnNonExistingModelFails() {
-            testFixture.givenNoPriorActivity().whenCommand(new UpdateModelWithAssertion())
-                    .expectException(MockException.class);
-        }
-
-        @Test
-        void testMultiAssert() {
-            testFixture.givenNoPriorActivity().whenApplying(
-                    fc -> fc.aggregateRepository().load(aggregateId, Normal.TestModel.class)
-                            .assertLegal(new CreateModel(), new CommandWithAssertionInInterface()))
-                    .expectException(MockException.class);
-        }
-
-        @Test
-        void testAssertionViaInterface() {
-            testFixture.givenNoPriorActivity().whenCommand(new CommandWithAssertionInInterface())
-                    .expectException(MockException.class);
-        }
-
-        @Test
-        void testMultipleAssertionMethods() {
-            CommandWithMultipleAssertions command = new CommandWithMultipleAssertions();
-            testFixture.givenNoPriorActivity().whenCommand(command)
-                    .expectThat(fc -> assertEquals(3, command.getAssertionCount().get()));
-        }
-
-        @Test
-        void testAssertionsForDifferentModels() {
-            CommandWithAssertionsForDifferentModels command = new CommandWithAssertionsForDifferentModels();
-            TestFixture.create()
-                    .when(fc -> loadAggregate("1", Model1.class, false).assertLegal(command))
-                    .expectThat(fc -> assertEquals(1, command.getAssertionCount().get()));
-
-            TestFixture.create()
-                    .when(fc -> loadAggregate("2", Model2.class, false).assertLegal(command))
-                    .expectThat(fc -> assertEquals(3, command.getAssertionCount().get()));
-        }
-
-        @Test
-        void testOverriddenAssertion() {
-            testFixture.givenNoPriorActivity().whenCommand(new CommandWithOverriddenAssertion()).expectNoException();
-        }
-
-
-        @Aggregate
-        public static class TestModelWithFactoryMethod {
-            @ApplyEvent
-            public static TestModelWithFactoryMethod handle(CreateModel event) {
-                return new TestModelWithFactoryMethod();
-            }
-
-        }
-
-
-        private static class Handler {
-
+        private class Handler {
             @HandleCommand
             void handle(CreateModel command) {
-                loadAggregate(aggregateId, TestModelWithFactoryMethod.class).assertLegal(command)
-                        .apply(command);
+                loadAggregate(aggregateId, TestModelWithFactoryMethod.class).apply(command);
             }
-
-            @HandleCommand
-            void handle(Object command) {
-                loadAggregate(aggregateId, TestModelWithFactoryMethod.class).assertLegal(command);
-            }
-
         }
-
     }
 
+    @Aggregate
+    private static class TestModelWithFactoryMethod {
+        @ApplyEvent
+        private static TestModelWithFactoryMethod handle(CreateModel event) {
+            return new TestModelWithFactoryMethod();
+        }
+    }
 
-    static class WithFactoryMethodAndSameInstanceMethod {
+    @Nested
+    class WithFactoryMethodAndSameInstanceMethod {
 
         private final TestFixture testFixture = TestFixture.create(new Handler());
 
@@ -417,20 +353,7 @@ class EventSourcingRepositoryTest {
                             .storeEvents(anyString(), anyString(), anyLong(), anyList(), eq(false)));
         }
 
-        @Aggregate
-        public static class TestModelWithFactoryMethodAndSameInstanceMethod {
-            @ApplyEvent
-            public static TestModelWithFactoryMethodAndSameInstanceMethod handleStatic(CreateModel event) {
-                return new TestModelWithFactoryMethodAndSameInstanceMethod();
-            }
-
-            @ApplyEvent
-            public TestModelWithFactoryMethodAndSameInstanceMethod handle(CreateModel event) {
-                return this;
-            }
-        }
-
-        private static class Handler {
+        private class Handler {
             @HandleCommand
             void handle(Object command) {
                 loadAggregate(aggregateId, TestModelWithFactoryMethodAndSameInstanceMethod.class)
@@ -440,8 +363,21 @@ class EventSourcingRepositoryTest {
         }
     }
 
+    @Aggregate
+    private static class TestModelWithFactoryMethodAndSameInstanceMethod {
+        @ApplyEvent
+        private static TestModelWithFactoryMethodAndSameInstanceMethod handleStatic(CreateModel event) {
+            return new TestModelWithFactoryMethodAndSameInstanceMethod();
+        }
 
-    static class WithoutFactoryMethodOrConstructor {
+        @ApplyEvent
+        public TestModelWithFactoryMethodAndSameInstanceMethod handle(CreateModel event) {
+            return this;
+        }
+    }
+
+    @Nested
+    class WithoutFactoryMethodOrConstructor {
 
         private final TestFixture testFixture = TestFixture.create(new Handler());
 
@@ -451,27 +387,25 @@ class EventSourcingRepositoryTest {
                     .expectException(HandlerNotFoundException.class);
         }
 
-        @Aggregate
-        public static class TestModelWithoutFactoryMethodOrConstructor {
-            @ApplyEvent
-            public TestModelWithoutFactoryMethodOrConstructor handle(CreateModel event) {
-                return this;
-            }
-        }
-
-        private static class Handler {
+        private class Handler {
             @HandleCommand
             void handle(CreateModel command) {
                 loadAggregate(aggregateId, TestModelWithoutFactoryMethodOrConstructor.class)
                         .assertLegal(command).apply(command);
             }
-
         }
-
     }
 
+    @Aggregate
+    private static class TestModelWithoutFactoryMethodOrConstructor {
+        @ApplyEvent
+        public TestModelWithoutFactoryMethodOrConstructor handle(CreateModel event) {
+            return this;
+        }
+    }
 
-    static class WithoutApplyEvent {
+    @Nested
+    class WithoutApplyEvent {
 
         private final TestFixture testFixture = TestFixture.create(new Handler());
 
@@ -526,56 +460,7 @@ class EventSourcingRepositoryTest {
                     .whenQuery(new GetPlayBackedAggregate()).expectResult(Optional.empty());
         }
 
-        @Value
-        public static class CreateModelFromEvent {
-            @Apply
-            public TestModelWithoutApplyEvent apply() {
-                return TestModelWithoutApplyEvent.builder().firstEvent(this).build();
-            }
-        }
-
-        @Value
-        public static class UpsertModelFromEvent {
-            @Apply
-            public TestModelWithoutApplyEvent apply() {
-                return TestModelWithoutApplyEvent.builder().firstEvent(this).build();
-            }
-
-            @Apply
-            public TestModelWithoutApplyEvent apply(TestModelWithoutApplyEvent aggregate) {
-                return aggregate.toBuilder().secondEvent(this).build();
-            }
-        }
-
-        @Value
-        public static class UpdateModelFromEvent {
-            @Apply
-            public TestModelWithoutApplyEvent apply(TestModelWithoutApplyEvent aggregate) {
-                return aggregate.toBuilder().secondEvent(this).build();
-            }
-        }
-
-        @Value
-        public static class ApplyOnPrevious {
-            @Apply
-            public TestModelWithoutApplyEvent apply(TestModelWithoutApplyEvent aggregate) {
-                return aggregate.toBuilder().build();
-            }
-        }
-
-        @Value
-        public static class GetPlayBackedAggregate {
-        }
-
-        @Aggregate
-        @Value
-        @Builder(toBuilder = true)
-        public static class TestModelWithoutApplyEvent {
-            Object firstEvent, secondEvent;
-        }
-
-
-        private static class Handler {
+        private class Handler {
             @HandleCommand
             void handle(Object command) {
                 loadAggregate(aggregateId, TestModelWithoutApplyEvent.class).assertLegal(command)
@@ -599,6 +484,54 @@ class EventSourcingRepositoryTest {
                         .playBackToCondition(a -> false);
             }
         }
+    }
+
+    @Value
+    private static class CreateModelFromEvent {
+        @Apply
+        public TestModelWithoutApplyEvent apply() {
+            return TestModelWithoutApplyEvent.builder().firstEvent(this).build();
+        }
+    }
+
+    @Value
+    private static class UpsertModelFromEvent {
+        @Apply
+        public TestModelWithoutApplyEvent apply() {
+            return TestModelWithoutApplyEvent.builder().firstEvent(this).build();
+        }
+
+        @Apply
+        public TestModelWithoutApplyEvent apply(TestModelWithoutApplyEvent aggregate) {
+            return aggregate.toBuilder().secondEvent(this).build();
+        }
+    }
+
+    @Value
+    private static class UpdateModelFromEvent {
+        @Apply
+        public TestModelWithoutApplyEvent apply(TestModelWithoutApplyEvent aggregate) {
+            return aggregate.toBuilder().secondEvent(this).build();
+        }
+    }
+
+    @Value
+    private static class ApplyOnPrevious {
+        @Apply
+        public TestModelWithoutApplyEvent apply(TestModelWithoutApplyEvent aggregate) {
+            return aggregate.toBuilder().build();
+        }
+    }
+
+    @Value
+    private static class GetPlayBackedAggregate {
+    }
+
+    @Aggregate
+    @Value
+    @Builder(toBuilder = true)
+    private static class TestModelWithoutApplyEvent {
+        Object firstEvent, secondEvent;
     }
 
     @Value
@@ -629,94 +562,5 @@ class EventSourcingRepositoryTest {
 
     @Value
     private static class CreateModelWithMetadata {
-    }
-
-    @Value
-    private static class CreateModelWithAssertion {
-        @AssertLegal
-        private void assertDoesNotExist(Object model) {
-            if (model != null) {
-                throw new MockException("Model should not exist");
-            }
-        }
-    }
-
-    @Value
-    private static class UpdateModelWithAssertion {
-        @AssertLegal
-        private void assertExists(Object model) {
-            if (model == null) {
-                throw new MockException("Model should exist");
-            }
-        }
-    }
-
-    @Value
-    private static class CommandWithAssertionInInterface implements ImpossibleAssertion {
-    }
-
-    private interface ImpossibleAssertion {
-        @AssertLegal
-        default void assertTheImpossible(Object model) {
-            throw new MockException();
-        }
-    }
-
-    @Value
-    private static class CommandWithMultipleAssertions {
-        AtomicInteger assertionCount = new AtomicInteger();
-
-        @AssertLegal
-        private void assert1(Object model) {
-            assertionCount.addAndGet(1);
-        }
-
-        @AssertLegal(priority = HIGHEST_PRIORITY)
-        private void assert2(Object model) {
-            if (assertionCount.get() > 0) {
-                throw new IllegalStateException("Expected to come first");
-            }
-            assertionCount.addAndGet(2);
-        }
-    }
-
-    @Value
-    private static class CommandWithAssertionsForDifferentModels {
-        AtomicInteger assertionCount = new AtomicInteger();
-
-        @AssertLegal
-        private void assert1(Model1 model) {
-            assertionCount.addAndGet(1);
-        }
-
-        @AssertLegal
-        private void assert2(Model2 model) {
-            assertionCount.addAndGet(2);
-        }
-    }
-
-    @Aggregate
-    @Value
-    private static class Model1 {
-    }
-
-    @Aggregate
-    @Value
-    private static class Model2 {
-        String event;
-
-        @ApplyEvent
-        static Model2 apply(String event) {
-            return new Model2(event);
-        }
-    }
-
-    @Value
-    private static class CommandWithOverriddenAssertion implements ImpossibleAssertion {
-        @Override
-        @AssertLegal
-        public void assertTheImpossible(Object model) {
-            //do nothing
-        }
     }
 }

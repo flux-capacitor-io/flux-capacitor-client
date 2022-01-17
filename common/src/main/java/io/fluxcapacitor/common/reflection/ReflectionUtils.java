@@ -437,6 +437,6 @@ public class ReflectionUtils {
 
     @SneakyThrows
     private static Class<?> computeClass(String type) {
-        return Class.forName(type);
+        return Class.forName(type.split("<")[0]);
     }
 }

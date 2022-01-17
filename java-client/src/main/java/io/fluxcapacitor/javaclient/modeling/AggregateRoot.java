@@ -63,8 +63,16 @@ public interface AggregateRoot<T> {
 
     AggregateRoot<T> apply(Message eventMessage);
 
+    default AggregateRoot<T> apply(Object... events) {
+        AggregateRoot<T> result = this;
+        for (Object event : events) {
+            result = apply(event);
+        }
+        return result;
+    }
+
     default AggregateRoot<T> apply(Object event) {
-        return apply(new Message(event));
+        return apply(event instanceof Message ? (Message) event : new Message(event));
     }
 
     default AggregateRoot<T> apply(Object event, Metadata metadata) {

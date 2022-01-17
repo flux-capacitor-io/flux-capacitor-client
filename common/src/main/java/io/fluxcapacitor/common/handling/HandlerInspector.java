@@ -80,8 +80,10 @@ public class HandlerInspector {
                         (o1, o2)
                                 -> Objects.equals(o1, o2) ? 0
                                 : o1 == null ? 1 : o2 == null ? -1
-                                : o1.isAssignableFrom(o2) || (o1.isInterface() && !o2.isInterface()) ? 1
-                                : o2.isAssignableFrom(o1) || (!o1.isInterface() && o2.isInterface()) ? -1
+                                : o1.isAssignableFrom(o2) ? 1
+                                : o2.isAssignableFrom(o1) ? -1
+                                : o1.isInterface() && !o2.isInterface() ? 1
+                                : !o1.isInterface() && o2.isInterface() ? -1
                                 : specificity(o2) - specificity(o1))
                 .thenComparingInt(a -> -a.getParameterSuppliers().size())
                 .thenComparingInt(MethodHandlerInvoker::getMethodIndex);

@@ -287,8 +287,8 @@ public class CachingAggregateRepository implements AggregateRepository {
             DeserializingMessage deserializingMessage = new DeserializingMessage(new DeserializingObject<>(
                     eventMessage.serialize(serializer), type -> serializer.convert(eventMessage.getPayload(), type)),
                                                                                  EVENT);
-            return new RefreshingAggregateRoot<>(handler.invoke(this, deserializingMessage), handler, serializer,
-                                                 id, type, this, eventMessage.getMessageId(),
+            return new RefreshingAggregateRoot<>(handler.invoke(this, deserializingMessage), handler,
+                                                 serializer, id, type, this, eventMessage.getMessageId(),
                                                  null, timestamp, status);
         }
     }
