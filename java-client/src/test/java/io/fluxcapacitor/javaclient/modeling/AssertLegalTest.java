@@ -84,7 +84,7 @@ public class AssertLegalTest {
 
         @HandleCommand
         void handle(List<?> commands) {
-            loadAggregate(aggregateId, TestModel.class).assertLegal("some", "other", "commands").apply(commands.toArray());
+            loadAggregate(aggregateId, TestModel.class).assertLegal("some", "other", "commands").apply(commands);
         }
     }
 

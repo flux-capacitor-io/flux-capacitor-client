@@ -19,6 +19,7 @@ import io.fluxcapacitor.javaclient.common.Message;
 import io.fluxcapacitor.javaclient.tracking.handling.validation.ValidationUtils;
 
 import java.time.Instant;
+import java.util.Collection;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.function.Function;
@@ -72,6 +73,9 @@ public interface AggregateRoot<T> {
     }
 
     default AggregateRoot<T> apply(Object event) {
+        if (event instanceof Collection<?>) {
+            return apply(((Collection<?>) event).toArray());
+        }
         return apply(event instanceof Message ? (Message) event : new Message(event));
     }
 
@@ -82,6 +86,9 @@ public interface AggregateRoot<T> {
     AggregateRoot<T> update(UnaryOperator<T> function);
 
     default <E extends Exception> AggregateRoot<T> assertLegal(Object command) throws E {
+        if (command instanceof Collection<?>) {
+            return assertLegal(((Collection<?>) command).toArray());
+        }
         ValidationUtils.assertLegal(command, this);
         return this;
     }
