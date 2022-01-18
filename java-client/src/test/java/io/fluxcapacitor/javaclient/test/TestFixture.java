@@ -157,7 +157,7 @@ public class TestFixture implements Given, When {
     private final List<Message> commands = new CopyOnWriteArrayList<>(), events = new CopyOnWriteArrayList<>(),
             webRequests = new CopyOnWriteArrayList<>();
     private final List<Schedule> schedules = new CopyOnWriteArrayList<>();
-    private final List<Throwable> exceptions = new CopyOnWriteArrayList<>();
+    private final CopyOnWriteArrayList<Throwable> exceptions = new CopyOnWriteArrayList<>();
 
     private volatile boolean collectingResults;
 
@@ -398,7 +398,8 @@ public class TestFixture implements Given, When {
                 Object result;
                 try {
                     result = action.apply(fc);
-                } catch (Exception e) {
+                } catch (Throwable e) {
+                    registerException(e);
                     result = e;
                 }
                 waitForConsumers();
@@ -518,7 +519,7 @@ public class TestFixture implements Given, When {
     }
 
     protected void registerException(Throwable e) {
-        exceptions.add(e);
+        exceptions.addIfAbsent(e);
     }
 
     @SneakyThrows
