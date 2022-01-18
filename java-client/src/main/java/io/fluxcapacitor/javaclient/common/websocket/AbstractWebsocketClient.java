@@ -124,15 +124,17 @@ public abstract class AbstractWebsocketClient implements AutoCloseable {
 
     @SneakyThrows
     protected Awaitable send(JsonType object, Session session) {
-        return sessionBacklogs.computeIfAbsent(
-                session.getId(), id -> new Backlog<>(batch -> sendBatch(batch, session))).add(object);
+        try {
+            return sessionBacklogs.computeIfAbsent(
+                    session.getId(), id -> new Backlog<>(batch -> sendBatch(batch, session))).add(object);
+        } finally {
+            tryPublishMetrics(object, object instanceof Request
+                    ? Metadata.of("requestId", ((Request) object).getRequestId()) : Metadata.empty());
+        }
     }
 
     @SneakyThrows
     protected Awaitable sendBatch(List<JsonType> requests, Session session) {
-        Metadata metadata = requests.size() > 1 ? Metadata.of("batchId", FluxCapacitor.generateId()) : Metadata.empty();
-        requests.forEach(r -> tryPublishMetrics(r, r instanceof Request
-                ? metadata.with("requestId", ((Request) r).getRequestId()) : metadata));
         JsonType object = requests.size() == 1 ? requests.get(0) : new RequestBatch<>(requests);
         try (OutputStream outputStream = session.getBasicRemote().getSendStream()) {
             byte[] bytes = objectMapper.writeValueAsBytes(object);
