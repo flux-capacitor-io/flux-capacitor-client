@@ -18,7 +18,6 @@ import io.fluxcapacitor.common.Guarantee;
 import io.fluxcapacitor.common.MessageType;
 import io.fluxcapacitor.common.Registration;
 import io.fluxcapacitor.common.api.Data;
-import io.fluxcapacitor.common.api.Metadata;
 import io.fluxcapacitor.common.api.SerializedMessage;
 import io.fluxcapacitor.common.api.tracking.MessageBatch;
 import io.fluxcapacitor.common.handling.Handler;
@@ -67,6 +66,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.Future;
 import java.util.concurrent.TimeoutException;
 import java.util.function.BiPredicate;
 import java.util.function.Consumer;
@@ -79,6 +79,7 @@ import static io.fluxcapacitor.common.MessageType.COMMAND;
 import static io.fluxcapacitor.common.MessageType.QUERY;
 import static io.fluxcapacitor.common.MessageType.SCHEDULE;
 import static io.fluxcapacitor.javaclient.common.ClientUtils.isLocalHandlerMethod;
+import static io.fluxcapacitor.javaclient.common.Message.asMessage;
 import static java.util.Collections.emptyList;
 import static java.util.Collections.singletonList;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
@@ -398,6 +399,13 @@ public class TestFixture implements Given, When {
                 Object result;
                 try {
                     result = action.apply(fc);
+                    if (result instanceof Future<?>) {
+                        try {
+                            result = ((Future<?>) result).get(consumerTimeout.toMillis(), MILLISECONDS);
+                        } catch (ExecutionException e) {
+                            throw e.getCause();
+                        }
+                    }
                 } catch (Throwable e) {
                     registerException(e);
                     result = e;
@@ -422,7 +430,7 @@ public class TestFixture implements Given, When {
 
     protected void publishDomainEvents(String aggregateId, FluxCapacitor fc, Object[] events) {
         List<Message> eventList = flatten(events).map(e -> {
-            Message m = e instanceof Message ? (Message) e : new Message(e);
+            Message m = asMessage(e);
             return m.withMetadata(m.getMetadata().with(AggregateRoot.AGGREGATE_ID_METADATA_KEY, aggregateId));
         }).collect(toList());
         if (eventList.stream().anyMatch(e -> e.getPayload() instanceof Data<?>)) {
@@ -553,8 +561,8 @@ public class TestFixture implements Given, When {
         if (userProvider == null) {
             throw new IllegalStateException("UserProvider has not been configured");
         }
-        return flatten(messages).map(o -> o instanceof Message ? (Message) o : new Message(o))
-                .map(m -> m.withMetadata(userProvider.addToMetadata(m.getMetadata(), user))).toArray();
+        return flatten(messages).map(Message::asMessage).map(
+                m -> m.withMetadata(userProvider.addToMetadata(m.getMetadata(), user))).toArray();
     }
 
     protected boolean checkConsumers() {
@@ -578,22 +586,20 @@ public class TestFixture implements Given, When {
         private final Map<MessageType, List<Message>> publishedSchedules = new ConcurrentHashMap<>();
 
         protected Message trace(Object message) {
-            Message result =
-                    message instanceof Message ? (Message) message : new Message(message, Metadata.empty());
-            return result.withMetadata(result.getMetadata().with(TRACE_TAG, "true"));
+            return asMessage(message).addMetaData(TRACE_TAG, "true");
         }
 
         @Override
         public Message interceptDispatch(Message message, MessageType messageType) {
             if (!collectingResults) {
-                message = message.withMetadata(message.getMetadata().with(IGNORE_TAG, "true"));
+                message = message.addMetaData(IGNORE_TAG, "true");
             }
 
             DeserializingMessage currentMessage = DeserializingMessage.getCurrent();
             if (currentMessage != null) {
                 if (currentMessage.getMessageType() != SCHEDULE && currentMessage.getMetadata()
                         .containsKey(IGNORE_TAG)) {
-                    message = message.withMetadata(message.getMetadata().with(IGNORE_TAG, "true"));
+                    message = message.addMetaData(IGNORE_TAG, "true");
                 }
                 if (currentMessage.getMetadata().containsKey(TRACE_TAG)) {
                     message = message.withMetadata(message.getMetadata().without(TRACE_TAG));

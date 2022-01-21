@@ -280,7 +280,7 @@ public class CachingAggregateRepository implements AggregateRepository {
         }
 
         private RefreshingAggregateRoot<T> forceApply(Object event) {
-            Message message = event instanceof Message ? (Message) event : new Message(event);
+            Message message = Message.asMessage(event);
             Message eventMessage = message.withMetadata(
                     message.getMetadata().with(AggregateRoot.AGGREGATE_ID_METADATA_KEY, id,
                                                AggregateRoot.AGGREGATE_TYPE_METADATA_KEY, type.getName()));

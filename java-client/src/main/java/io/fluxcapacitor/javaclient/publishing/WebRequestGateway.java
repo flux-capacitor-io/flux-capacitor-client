@@ -19,6 +19,7 @@ import io.fluxcapacitor.common.api.Metadata;
 import io.fluxcapacitor.javaclient.common.Message;
 import io.fluxcapacitor.javaclient.tracking.handling.HasLocalHandlers;
 
+import java.util.List;
 import java.util.concurrent.CompletableFuture;
 
 public interface WebRequestGateway extends HasLocalHandlers {
@@ -29,11 +30,19 @@ public interface WebRequestGateway extends HasLocalHandlers {
 
     void sendAndForget(Object payload, Metadata metadata, Guarantee guarantee);
 
+    void sendAndForget(Object... messages);
+
+    CompletableFuture<Void> sendAndForget(Guarantee guarantee, Object... messages);
+
     <R> CompletableFuture<R> send(Object request);
 
     <R> CompletableFuture<R> send(Object payload, Metadata metadata);
 
     CompletableFuture<Message> sendForMessage(Message message);
+
+    <R> List<CompletableFuture<R>> send(Object... messages);
+
+    List<CompletableFuture<Message>> sendForMessages(Message... messages);
 
     <R> R sendAndWait(Object request);
 

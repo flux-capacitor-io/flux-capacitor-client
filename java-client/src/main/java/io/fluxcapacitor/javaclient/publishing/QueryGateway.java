@@ -18,6 +18,7 @@ import io.fluxcapacitor.common.api.Metadata;
 import io.fluxcapacitor.javaclient.common.Message;
 import io.fluxcapacitor.javaclient.tracking.handling.HasLocalHandlers;
 
+import java.util.List;
 import java.util.concurrent.CompletableFuture;
 
 public interface QueryGateway extends HasLocalHandlers {
@@ -27,6 +28,10 @@ public interface QueryGateway extends HasLocalHandlers {
     <R> CompletableFuture<R> send(Object payload, Metadata metadata);
 
     CompletableFuture<Message> sendForMessage(Message message);
+
+    <R> List<CompletableFuture<R>> send(Object... messages);
+
+    List<CompletableFuture<Message>> sendForMessages(Message... messages);
 
     <R> R sendAndWait(Object query);
 

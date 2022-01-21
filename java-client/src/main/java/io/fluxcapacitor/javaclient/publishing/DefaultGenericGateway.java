@@ -27,11 +27,15 @@ import lombok.experimental.Delegate;
 import lombok.extern.slf4j.Slf4j;
 
 import java.time.Duration;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.stream.Collectors;
 
 import static io.fluxcapacitor.common.Guarantee.SENT;
 import static io.fluxcapacitor.javaclient.common.ClientUtils.waitForResults;
@@ -52,43 +56,56 @@ public class DefaultGenericGateway implements GenericGateway {
 
     @Override
     @SneakyThrows
-    public CompletableFuture<Void> sendAndForget(Message message, Guarantee guarantee) {
-        message = dispatchInterceptor.interceptDispatch(message, messageType);
-        SerializedMessage serializedMessage
-                = dispatchInterceptor.modifySerializedMessage(message.serialize(serializer), message, messageType);
-        Optional<CompletableFuture<Message>> localResult
-                = localHandlerRegistry.handle(message.getPayload(), serializedMessage);
-        if (localResult.isEmpty()) {
-            try {
-                return gatewayClient.send(guarantee, serializedMessage).asCompletableFuture();
-            } catch (Exception e) {
-                throw new GatewayException(format("Failed to send and forget %s", message.getPayload().toString()), e);
-            }
-        } else if (localResult.get().isCompletedExceptionally()) {
-            try {
-                localResult.get().getNow(null);
-            } catch (CompletionException e) {
-                throw e.getCause();
+    public CompletableFuture<Void> sendAndForget(Guarantee guarantee, Message... messages) {
+        List<SerializedMessage> serializedMessages = new ArrayList<>();
+        for (Message message : messages) {
+            message = dispatchInterceptor.interceptDispatch(message, messageType);
+            SerializedMessage serializedMessage
+                    = dispatchInterceptor.modifySerializedMessage(message.serialize(serializer), message, messageType);
+            Optional<CompletableFuture<Message>> localResult
+                    = localHandlerRegistry.handle(message.getPayload(), serializedMessage);
+            if (localResult.isEmpty()) {
+                serializedMessages.add(serializedMessage);
+            } else if (localResult.get().isCompletedExceptionally()) {
+                try {
+                    localResult.get().getNow(null);
+                } catch (CompletionException e) {
+                    throw e.getCause();
+                }
             }
         }
-        return CompletableFuture.allOf();
+        try {
+            return gatewayClient.send(guarantee, serializedMessages.toArray(new SerializedMessage[0]))
+                    .asCompletableFuture();
+        } catch (Exception e) {
+            throw new GatewayException(format("Failed to send and forget %s messages", messages.length), e);
+        }
     }
 
+    @SuppressWarnings("unchecked")
     @Override
-    public CompletableFuture<Message> sendForMessage(Message message) {
-        message = dispatchInterceptor.interceptDispatch(message, messageType);
-        SerializedMessage serializedMessage
-                = dispatchInterceptor.modifySerializedMessage(message.serialize(serializer), message, messageType);
-        Optional<CompletableFuture<Message>> localResult
-                = localHandlerRegistry.handle(message.getPayload(), serializedMessage);
-
-        CompletableFuture<Message> future;
-        if (localResult.isPresent()) {
-            future = localResult.get();
-        } else {
-            try {
-                future = requestHandler.sendRequest(
-                        serializedMessage, messages -> gatewayClient.send(SENT, messages)).thenCompose(m -> {
+    public List<CompletableFuture<Message>> sendForMessages(Message... messages) {
+        List<Object> results = new ArrayList<>(messages.length);
+        for (Message message : messages) {
+            message = dispatchInterceptor.interceptDispatch(message, messageType);
+            SerializedMessage serializedMessage
+                    = dispatchInterceptor.modifySerializedMessage(message.serialize(serializer), message, messageType);
+            Optional<CompletableFuture<Message>> localResult
+                    = localHandlerRegistry.handle(message.getPayload(), serializedMessage);
+            if (localResult.isPresent()) {
+                CompletableFuture<Message> c = localResult.get();
+                callbacks.put(serializedMessage.getMessageId(), c);
+                results.add(c.whenComplete((m, e) -> callbacks.remove(serializedMessage.getMessageId())));
+            } else {
+                results.add(serializedMessage);
+            }
+        }
+        List<SerializedMessage> serializedMessages = results.stream().filter(r -> r instanceof SerializedMessage)
+                .map(m -> (SerializedMessage) m).collect(Collectors.toList());
+        List<CompletableFuture<Message>> externalResults = serializedMessages.isEmpty()
+                ? Collections.emptyList() : requestHandler.sendRequests(
+                        serializedMessages, m -> gatewayClient.send(SENT, m.toArray(SerializedMessage[]::new))).stream()
+                .map(r -> r.thenCompose(m -> {
                     Object result;
                     try {
                         result = serializer.deserialize(m.getData());
@@ -101,13 +118,18 @@ public class DefaultGenericGateway implements GenericGateway {
                     } else {
                         return CompletableFuture.completedFuture(new Message(result, m.getMetadata()));
                     }
-                });
-            } catch (Exception e) {
-                throw new GatewayException(format("Failed to send %s", message.getPayload().toString()), e);
+                })).collect(Collectors.toList());
+
+        return results.stream().map(r -> {
+            if (r instanceof CompletableFuture<?>) {
+                return (CompletableFuture<Message>) r;
+            } else {
+                SerializedMessage m = (SerializedMessage) r;
+                CompletableFuture<Message> future = externalResults.get(serializedMessages.indexOf(m));
+                callbacks.put(m.getMessageId(), future);
+                return future.whenComplete((v, e) -> callbacks.remove(m.getMessageId()));
             }
-        }
-        callbacks.put(serializedMessage.getMessageId(), future);
-        return future.whenComplete((m, e) -> callbacks.remove(serializedMessage.getMessageId()));
+        }).collect(Collectors.toList());
     }
 
     @Override

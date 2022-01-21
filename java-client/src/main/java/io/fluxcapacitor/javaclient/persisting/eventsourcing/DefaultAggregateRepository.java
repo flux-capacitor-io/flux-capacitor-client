@@ -49,6 +49,7 @@ import java.util.function.Function;
 import java.util.function.UnaryOperator;
 
 import static io.fluxcapacitor.common.MessageType.EVENT;
+import static io.fluxcapacitor.javaclient.common.Message.asMessage;
 import static io.fluxcapacitor.javaclient.common.serialization.DeserializingMessage.defaultParameterResolvers;
 import static io.fluxcapacitor.javaclient.common.serialization.DeserializingMessage.whenBatchCompletes;
 import static io.fluxcapacitor.javaclient.common.serialization.DeserializingMessage.whenMessageCompletes;
@@ -364,7 +365,7 @@ public class DefaultAggregateRepository implements AggregateRepository {
                         Object c = iterator.next();
                         ValidationUtils.assertLegal(c, result);
                         if (iterator.hasNext()) {
-                            result = forceApply(model, c instanceof Message ? (Message) c : new Message(c));
+                            result = forceApply(model, asMessage(c));
                         }
                     }
                     return this;

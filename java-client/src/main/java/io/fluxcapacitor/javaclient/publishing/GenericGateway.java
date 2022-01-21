@@ -20,18 +20,23 @@ import io.fluxcapacitor.javaclient.common.Message;
 import io.fluxcapacitor.javaclient.tracking.handling.HasLocalHandlers;
 import lombok.SneakyThrows;
 
+import java.util.Arrays;
+import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
+import java.util.stream.Collectors;
 
+import static io.fluxcapacitor.javaclient.common.Message.asMessage;
 import static java.lang.String.format;
 import static java.lang.Thread.currentThread;
+import static java.util.Arrays.stream;
 
 public interface GenericGateway extends HasLocalHandlers {
 
     @SneakyThrows
-    default void sendAndForget(Object payload) {
-        sendAndForget(payload instanceof Message ? (Message) payload : new Message(payload), Guarantee.NONE).get();
+    default void sendAndForget(Object message) {
+        sendAndForget(asMessage(message), Guarantee.NONE).get();
     }
 
     @SneakyThrows
@@ -44,24 +49,45 @@ public interface GenericGateway extends HasLocalHandlers {
         sendAndForget(new Message(payload, metadata), guarantee).get();
     }
 
-    CompletableFuture<Void> sendAndForget(Message message, Guarantee guarantee);
+    default CompletableFuture<Void> sendAndForget(Message message, Guarantee guarantee) {
+        return sendAndForget(guarantee, message);
+    }
+
+    default void sendAndForget(Object... messages) {
+        sendAndForget(Guarantee.NONE, messages);
+    }
+
+    default CompletableFuture<Void> sendAndForget(Guarantee guarantee, Object... messages) {
+        return sendAndForget(guarantee, stream(messages).map(Message::asMessage).toArray(Message[]::new));
+    }
+
+    CompletableFuture<Void> sendAndForget(Guarantee guarantee, Message... messages);
 
     default <R> CompletableFuture<R> send(Message message) {
         return sendForMessage(message).thenApply(Message::getPayload);
     }
 
-    default <R> CompletableFuture<R> send(Object payload) {
-        return send(payload instanceof Message ? (Message) payload : new Message(payload));
+    default <R> CompletableFuture<R> send(Object message) {
+        return send(asMessage(message));
     }
 
     default <R> CompletableFuture<R> send(Object payload, Metadata metadata) {
         return send(new Message(payload, metadata));
     }
 
-    CompletableFuture<Message> sendForMessage(Message message);
+    default CompletableFuture<Message> sendForMessage(Message message) {
+        return sendForMessages(message).get(0);
+    }
 
-    default <R> R sendAndWait(Object payload) {
-        return sendAndWait(payload instanceof Message ? (Message) payload : new Message(payload));
+    default <R> List<CompletableFuture<R>> send(Object... messages) {
+        return sendForMessages(Arrays.stream(messages).map(Message::asMessage).toArray(Message[]::new)).stream()
+                .<CompletableFuture<R>>map(f -> f.thenApply(Message::getPayload)).collect(Collectors.toList());
+    }
+
+    List<CompletableFuture<Message>> sendForMessages(Message... messages);
+
+    default <R> R sendAndWait(Object message) {
+        return sendAndWait(asMessage(message));
     }
 
     @SneakyThrows
@@ -82,7 +108,8 @@ public interface GenericGateway extends HasLocalHandlers {
             throw new TimeoutException(format("%s has timed out", message.getPayload().toString()));
         } catch (InterruptedException e) {
             currentThread().interrupt();
-            throw new GatewayException(format("Thread interrupted while waiting for result of %s", message.getPayload().toString()), e);
+            throw new GatewayException(
+                    format("Thread interrupted while waiting for result of %s", message.getPayload().toString()), e);
         } catch (ExecutionException e) {
             throw e.getCause();
         }

@@ -39,6 +39,7 @@ import java.util.function.Consumer;
 import java.util.function.Predicate;
 import java.util.stream.Stream;
 
+import static io.fluxcapacitor.javaclient.common.Message.asMessage;
 import static java.lang.String.format;
 import static java.util.stream.Collectors.toList;
 import static java.util.stream.Stream.concat;
@@ -385,7 +386,7 @@ public class ResultValidator implements Then {
         if (expected instanceof Class<?>) {
             return ((Class<?>) expected).isInstance(actual.getPayload());
         }
-        Message expectedMessage = expected instanceof Message ? (Message) expected : new Message(expected);
+        Message expectedMessage = asMessage(expected);
         return expectedMessage.getPayload().equals(actual.getPayload()) && actual.getMetadata().entrySet()
                 .containsAll(expectedMessage.getMetadata().entrySet());
     }

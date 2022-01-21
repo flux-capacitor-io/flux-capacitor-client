@@ -26,8 +26,7 @@ public interface EventGateway extends HasLocalHandlers {
 
     @SneakyThrows
     default void publish(Object event) {
-        Message message = event instanceof Message ? (Message) event : new Message(event, Metadata.empty());
-        publish(message, Guarantee.NONE).get();
+        publish(Message.asMessage(event), Guarantee.NONE).get();
     }
 
     @SneakyThrows

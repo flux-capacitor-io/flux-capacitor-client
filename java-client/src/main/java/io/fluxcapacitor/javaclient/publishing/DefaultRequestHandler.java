@@ -23,6 +23,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
 import java.time.Duration;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
@@ -30,6 +31,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Consumer;
+import java.util.stream.Collectors;
 
 import static io.fluxcapacitor.javaclient.common.ClientUtils.waitForResults;
 import static io.fluxcapacitor.javaclient.tracking.client.DefaultTracker.start;
@@ -48,9 +50,7 @@ public class DefaultRequestHandler implements RequestHandler {
     @Override
     public CompletableFuture<SerializedMessage> sendRequest(SerializedMessage request,
                                                             Consumer<SerializedMessage> requestSender) {
-        if (started.compareAndSet(false, true)) {
-            registration = start(this::handleMessages, ConsumerConfiguration.getDefault(resultType), client);
-        }
+        ensureStarted();
         CompletableFuture<SerializedMessage> result = new CompletableFuture<>();
         int requestId = nextId.getAndIncrement();
         callbacks.put(requestId, result);
@@ -58,6 +58,22 @@ public class DefaultRequestHandler implements RequestHandler {
         request.setSource(client.id());
         requestSender.accept(request);
         return result;
+    }
+
+    @Override
+    public List<CompletableFuture<SerializedMessage>> sendRequests(List<SerializedMessage> requests,
+                                                                   Consumer<List<SerializedMessage>> requestSender) {
+        ensureStarted();
+        List<CompletableFuture<SerializedMessage>> futures = new ArrayList<>();
+        requestSender.accept(requests.stream().peek(request -> {
+            CompletableFuture<SerializedMessage> result = new CompletableFuture<>();
+            int requestId = nextId.getAndIncrement();
+            callbacks.put(requestId, result);
+            request.setRequestId(requestId);
+            request.setSource(client.id());
+            futures.add(result);
+        }).collect(Collectors.toList()));
+        return futures;
     }
 
     protected void handleMessages(List<SerializedMessage> messages) {
@@ -69,6 +85,12 @@ public class DefaultRequestHandler implements RequestHandler {
             }
             future.complete(m);
         });
+    }
+
+    protected void ensureStarted() {
+        if (started.compareAndSet(false, true)) {
+            registration = start(this::handleMessages, ConsumerConfiguration.getDefault(resultType), client);
+        }
     }
 
     @Override

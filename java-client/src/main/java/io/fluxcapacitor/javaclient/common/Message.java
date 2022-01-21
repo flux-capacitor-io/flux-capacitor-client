@@ -24,6 +24,7 @@ import lombok.With;
 import lombok.experimental.NonFinal;
 
 import java.time.Instant;
+import java.util.Map;
 
 import static io.fluxcapacitor.javaclient.FluxCapacitor.currentClock;
 import static io.fluxcapacitor.javaclient.FluxCapacitor.currentIdentityProvider;
@@ -33,6 +34,11 @@ import static io.fluxcapacitor.javaclient.FluxCapacitor.currentIdentityProvider;
 @JsonTypeInfo(use = JsonTypeInfo.Id.CLASS)
 @NonFinal
 public class Message {
+
+    public static Message asMessage(Object object) {
+        return object instanceof Message ? (Message) object : new Message(object);
+    }
+
     @With
     @JsonTypeInfo(use = JsonTypeInfo.Id.CLASS)
     Object payload;
@@ -52,6 +58,22 @@ public class Message {
     @SuppressWarnings("unchecked")
     public <R> R getPayload() {
         return (R) payload;
+    }
+
+    public Message addMetaData(Metadata metadata) {
+        return withMetadata(getMetadata().with(metadata));
+    }
+
+    public Message addMetaData(String key, Object value) {
+        return withMetadata(getMetadata().with(key, value));
+    }
+
+    public Message addMetaData(Object... keyValues) {
+        return withMetadata(getMetadata().with(keyValues));
+    }
+
+    public Message addMetadata(Map<String, ?> values) {
+        return withMetadata(getMetadata().with(values));
     }
 
     public SerializedMessage serialize(Serializer serializer) {

@@ -16,12 +16,16 @@ package io.fluxcapacitor.javaclient.publishing;
 
 import io.fluxcapacitor.common.api.SerializedMessage;
 
+import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Consumer;
 
 public interface RequestHandler extends AutoCloseable {
 
    CompletableFuture<SerializedMessage> sendRequest(SerializedMessage request, Consumer<SerializedMessage> requestSender);
+
+   List<CompletableFuture<SerializedMessage>> sendRequests(List<SerializedMessage> requests,
+                                                           Consumer<List<SerializedMessage>> requestSender);
 
    @Override
    void close();

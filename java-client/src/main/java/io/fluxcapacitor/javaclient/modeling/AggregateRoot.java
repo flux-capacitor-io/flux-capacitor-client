@@ -26,6 +26,7 @@ import java.util.function.Function;
 import java.util.function.Predicate;
 import java.util.function.UnaryOperator;
 
+import static io.fluxcapacitor.javaclient.common.Message.asMessage;
 import static java.lang.String.format;
 
 public interface AggregateRoot<T> {
@@ -76,7 +77,7 @@ public interface AggregateRoot<T> {
         if (event instanceof Collection<?>) {
             return apply(((Collection<?>) event).toArray());
         }
-        return apply(event instanceof Message ? (Message) event : new Message(event));
+        return apply(asMessage(event));
     }
 
     default AggregateRoot<T> apply(Object event, Metadata metadata) {
