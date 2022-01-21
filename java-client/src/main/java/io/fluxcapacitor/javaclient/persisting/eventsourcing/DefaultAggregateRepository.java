@@ -30,6 +30,7 @@ import io.fluxcapacitor.javaclient.tracking.handling.validation.ValidationUtils;
 import lombok.AllArgsConstructor;
 import lombok.RequiredArgsConstructor;
 import lombok.SneakyThrows;
+import lombok.With;
 import lombok.extern.slf4j.Slf4j;
 
 import java.time.Instant;
@@ -98,20 +99,29 @@ public class DefaultAggregateRepository implements AggregateRepository {
     @SuppressWarnings("unchecked")
     @Override
     public <T> AggregateRoot<T> load(String aggregateId, Class<T> aggregateType, boolean readOnly, boolean onlyCached) {
-        if (onlyCached) {
-            return Optional.<EventSourcedModel<T>>ofNullable(cache.getIfPresent(keyFunction.apply(aggregateId)))
-                    .map(m -> {
-                        EventSourcedAggregate<T> aggregate =
-                                createAggregate(aggregateType, aggregateId, readOnly, false);
-                        aggregate.model = m;
-                        return aggregate;
-                    }).orElse(null);
-        }
-        return ofNullable(loadedModels.get()).orElse(emptyList()).stream()
+        Optional<EventSourcedAggregate<T>> loadedModel = ofNullable(loadedModels.get()).orElse(emptyList()).stream()
                 .filter(model -> model.id.equals(aggregateId)
                         && aggregateType.isAssignableFrom(model.getAggregateType()))
-                .map(m -> (EventSourcedAggregate<T>) m)
-                .findAny().orElseGet(() -> createAggregate(aggregateType, aggregateId, readOnly, true));
+                .map(m -> {
+                    EventSourcedAggregate<T> result = (EventSourcedAggregate<T>) m;
+                    if (readOnly) {
+                        return result.withReadOnly(true);
+                    }
+                    return result;
+                })
+                .findAny();
+        if (onlyCached) {
+            return loadedModel
+                    .or(() -> Optional.<EventSourcedModel<T>>ofNullable(
+                                    cache.getIfPresent(keyFunction.apply(aggregateId)))
+                            .map(m -> {
+                                EventSourcedAggregate<T> aggregate =
+                                        createAggregate(aggregateType, aggregateId, readOnly, false);
+                                aggregate.model = m;
+                                return aggregate;
+                            })).orElse(null);
+        }
+        return loadedModel.orElseGet(() -> createAggregate(aggregateType, aggregateId, readOnly, true));
     }
 
     @SuppressWarnings("unchecked")
@@ -198,6 +208,7 @@ public class DefaultAggregateRepository implements AggregateRepository {
     }
 
     @RequiredArgsConstructor
+    @AllArgsConstructor
     protected class EventSourcedAggregate<T> implements AggregateRoot<T> {
 
         private final Class<T> aggregateType;
@@ -214,6 +225,7 @@ public class DefaultAggregateRepository implements AggregateRepository {
         private final String collection;
         private final Function<AggregateRoot<?>, Instant> timestampFunction;
         private final List<DeserializingMessage> unpublishedEvents = new ArrayList<>();
+        @With
         private final boolean readOnly;
         private final String id;
 
