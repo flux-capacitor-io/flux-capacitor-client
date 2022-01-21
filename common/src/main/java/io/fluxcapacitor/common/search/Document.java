@@ -27,6 +27,7 @@ import lombok.Value;
 import lombok.experimental.Accessors;
 import org.apache.commons.lang3.StringUtils;
 
+import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.AbstractMap;
 import java.util.Comparator;
@@ -39,6 +40,7 @@ import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
+import static io.fluxcapacitor.common.search.Document.EntryType.NUMERIC;
 import static java.util.Comparator.naturalOrder;
 import static java.util.stream.Collectors.toMap;
 
@@ -121,20 +123,17 @@ public class Document {
         EntryType type;
         String value;
 
-        @JsonIgnore
-        @Getter(lazy = true)
-        @Accessors(fluent = true)
-        @EqualsAndHashCode.Exclude
-        @ToString.Exclude
-        String asPhrase = computePhrase();
+        @JsonIgnore @Getter(lazy = true) @Accessors(fluent = true) @EqualsAndHashCode.Exclude @ToString.Exclude
+        String asPhrase = getType() == EntryType.TEXT ? SearchUtils.normalize(getValue()) : getValue();
 
-        @SuppressWarnings("ConstantConditions")
-        private String computePhrase() {
-            return type == EntryType.TEXT ? SearchUtils.normalize(value) : value;
-        }
+        @JsonIgnore @Getter(lazy = true) @Accessors(fluent = true) @EqualsAndHashCode.Exclude @ToString.Exclude
+        BigDecimal asNumber = getType() == NUMERIC ? new BigDecimal(getValue()) : null;
 
         @Override
         public int compareTo(@NonNull Entry o) {
+            if (type == NUMERIC && type == o.getType()) {
+                return asNumber().compareTo(o.asNumber());
+            }
             return getValue().compareTo(o.getValue());
         }
     }
