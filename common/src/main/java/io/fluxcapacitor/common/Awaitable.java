@@ -18,11 +18,15 @@ import lombok.SneakyThrows;
 
 import java.time.Duration;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.Executor;
+import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 
 @FunctionalInterface
 public interface Awaitable {
+
+    Executor executor = Executors.newCachedThreadPool();
 
     void await() throws Exception;
 
@@ -32,7 +36,7 @@ public interface Awaitable {
     }
 
     default CompletableFuture<Void> asCompletableFuture() {
-        return CompletableFuture.runAsync(this::awaitSilently);
+        return CompletableFuture.runAsync(this::awaitSilently, executor);
     }
 
     default Awaitable join(Awaitable other) {

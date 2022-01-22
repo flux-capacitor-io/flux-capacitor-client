@@ -591,14 +591,15 @@ public class DefaultFluxCapacitor implements FluxCapacitor {
                                                        localHandlerRegistry(SCHEDULE, handlerInterceptors));
 
             Runnable shutdownHandler = () -> {
+                ForkJoinPool shutdownPool = new ForkJoinPool(MessageType.values().length);
                 Optional.ofNullable(forwardingWebConsumer).ifPresent(ForwardingWebConsumer::close);
-                ForkJoinPool.commonPool().invokeAll(
+                shutdownPool.invokeAll(
                         trackingMap.values().stream()
                                 .map(t -> (Callable<?>) () -> {
                                     t.close();
                                     return null;
                                 }).collect(toList()));
-                ForkJoinPool.commonPool().invokeAll(
+                shutdownPool.invokeAll(
                         Stream.<Runnable>of(commandGateway::close, queryGateway::close, webRequestGateway::close)
                                 .map(t -> (Callable<?>) () -> {
                                     t.run();
@@ -607,6 +608,7 @@ public class DefaultFluxCapacitor implements FluxCapacitor {
                 defaultRequestHandler.close();
                 webRequestHandler.close();
                 client.shutDown();
+                shutdownPool.shutdown();
             };
 
             //and finally...
