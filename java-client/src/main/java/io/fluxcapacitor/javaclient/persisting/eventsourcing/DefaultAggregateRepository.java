@@ -45,6 +45,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.UnaryOperator;
 
@@ -326,7 +327,7 @@ public class DefaultAggregateRepository implements AggregateRepository {
                 loadedModels.set(asLifoQueue(new ArrayDeque<>()));
                 loadedModels.get().add(this);
 
-                Runnable commit = () -> {
+                Consumer<Throwable> commit = error -> {
                     Collection<EventSourcedAggregate<?>> models = loadedModels.get();
                     loadedModels.remove();
                     models.stream().map(EventSourcedAggregate::commit).reduce(Awaitable::join).ifPresent(a -> {

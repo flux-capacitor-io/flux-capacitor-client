@@ -15,7 +15,6 @@
 package io.fluxcapacitor.javaclient.common.serialization;
 
 import io.fluxcapacitor.common.MessageType;
-import io.fluxcapacitor.common.Registration;
 import io.fluxcapacitor.common.api.Metadata;
 import io.fluxcapacitor.common.api.SerializedMessage;
 import io.fluxcapacitor.common.handling.ParameterResolver;
@@ -38,7 +37,6 @@ import lombok.extern.slf4j.Slf4j;
 
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -66,8 +64,9 @@ public class DeserializingMessage {
                           new AggregateTypeResolver(), new UserParameterResolver(),
                           new WebPayloadParameterResolver(), new PayloadParameterResolver());
 
-    private static final ThreadLocal<Collection<Runnable>> messageCompletionHandlers = new ThreadLocal<>();
-    private static final ThreadLocal<Collection<Runnable>> batchCompletionHandlers = new ThreadLocal<>();
+    private static final ThreadLocal<List<Consumer<Throwable>>> messageCompletionHandlers = new ThreadLocal<>();
+    private static final ThreadLocal<Map<Object, Object>> messageResources = new ThreadLocal<>();
+    private static final ThreadLocal<List<Consumer<Throwable>>> batchCompletionHandlers = new ThreadLocal<>();
     private static final ThreadLocal<Map<Object, Object>> batchResources = new ThreadLocal<>();
     private static final ThreadLocal<DeserializingMessage> current = new ThreadLocal<>();
 
@@ -79,6 +78,10 @@ public class DeserializingMessage {
                                 MessageType messageType) {
         this(new DeserializingObject<>(message, payload), messageType);
     }
+    
+    /*
+        Message level
+     */
 
     public void run(Consumer<DeserializingMessage> task) {
         apply(m -> {
@@ -115,81 +118,97 @@ public class DeserializingMessage {
         return current.get();
     }
 
-    public static Registration whenBatchCompletes(Runnable handler) {
+    public static void whenMessageCompletes(Consumer<Throwable> handler) {
         if (current.get() == null) {
-            try {
-                return Registration.noOp();
-            } finally {
-                handler.run();
+            handler.accept(null);
+        } else {
+            if (messageCompletionHandlers.get() == null) {
+                messageCompletionHandlers.set(new ArrayList<>());
             }
+            messageCompletionHandlers.get().add(0, handler);
         }
-
-        if (batchCompletionHandlers.get() == null) {
-            batchCompletionHandlers.set(new ArrayList<>());
-        }
-        Collection<Runnable> handlers = batchCompletionHandlers.get();
-        handlers.add(handler);
-        return () -> handlers.remove(handler);
-    }
-
-    public static void whenMessageCompletes(Runnable handler) {
-        if (current.get() == null) {
-            try {
-                return;
-            } finally {
-                handler.run();
-            }
-        }
-        if (messageCompletionHandlers.get() == null) {
-            messageCompletionHandlers.set(new ArrayList<>());
-        }
-        Collection<Runnable> handlers = messageCompletionHandlers.get();
-        handlers.add(handler);
-    }
-
-
-    public static Stream<DeserializingMessage> handleBatch(Stream<DeserializingMessage> batch) {
-        return StreamSupport.stream(new MessageSpliterator(batch.spliterator()), false);
     }
 
     @SuppressWarnings({"unchecked", "rawtypes"})
-    public static <K, V> V computeForBatch(K key, BiFunction<? super K, ? super V, ? extends V> function) {
-        return (V) getResources().compute(key, (BiFunction) function);
+    public static <K, V> V computeForMessage(K key, BiFunction<? super K, ? super V, ? extends V> function) {
+        return (V) getMessageResources().compute(key, (BiFunction) function);
     }
 
     @SuppressWarnings({"unchecked", "rawtypes"})
-    public static <K, V> V computeForBatchIfAbsent(K key, Function<? super K, ? extends V> function) {
-        return (V) getResources().computeIfAbsent(key, (Function) function);
+    public static <K, V> V computeForMessageIfAbsent(K key, Function<? super K, ? extends V> function) {
+        return (V) getMessageResources().computeIfAbsent(key, (Function) function);
     }
 
     @SuppressWarnings("unchecked")
-    public static <V> V getBatchResource(Object key) {
-        return (V) getResources().get(key);
+    public static <V> V getMessageResource(Object key) {
+        return (V) getMessageResources().get(key);
     }
 
-    private static Map<Object, Object> getResources() {
-        if (batchResources.get() == null) {
-            batchResources.set(new HashMap<>());
+    @SuppressWarnings("unchecked")
+    public static <V> V getMessageResourceOrDefault(Object key, V defaultValue) {
+        return (V) getMessageResources().getOrDefault(key, defaultValue);
+    }
+
+    private static Map<Object, Object> getMessageResources() {
+        if (messageResources.get() == null) {
+            messageResources.set(new HashMap<>());
         }
-        return batchResources.get();
+        return messageResources.get();
     }
 
     @Override
     public String toString() {
         return messageFormatter.apply(this);
     }
+    
+    
+    /*
+        Batch level
+     */
 
-    private static void setCurrent(DeserializingMessage message) {
-        current.set(message);
-        if (message == null) {
-            ofNullable(messageCompletionHandlers.get()).ifPresent(handlers -> {
-                messageCompletionHandlers.remove();
-                handlers.forEach(Runnable::run);
-            });
+    public static Stream<DeserializingMessage> handleBatch(Stream<DeserializingMessage> batch) {
+        return StreamSupport.stream(new MessageSpliterator(batch.spliterator()), false);
+    }
+
+    public static void whenBatchCompletes(Consumer<Throwable> handler) {
+        if (current.get() == null) {
+            handler.accept(null);
+        } else {
+            if (batchCompletionHandlers.get() == null) {
+                batchCompletionHandlers.set(new ArrayList<>());
+            }
+            batchCompletionHandlers.get().add(0, handler);
         }
     }
 
-    private static class MessageSpliterator extends Spliterators.AbstractSpliterator<DeserializingMessage> {
+    @SuppressWarnings({"unchecked", "rawtypes"})
+    public static <K, V> V computeForBatch(K key, BiFunction<? super K, ? super V, ? extends V> function) {
+        return (V) getBatchResources().compute(key, (BiFunction) function);
+    }
+
+    @SuppressWarnings({"unchecked", "rawtypes"})
+    public static <K, V> V computeForBatchIfAbsent(K key, Function<? super K, ? extends V> function) {
+        return (V) getBatchResources().computeIfAbsent(key, (Function) function);
+    }
+
+    @SuppressWarnings("unchecked")
+    public static <V> V getBatchResource(Object key) {
+        return (V) getBatchResources().get(key);
+    }
+
+    @SuppressWarnings("unchecked")
+    public static <V> V getBatchResourceOrDefault(Object key, V defaultValue) {
+        return (V) getBatchResources().getOrDefault(key, defaultValue);
+    }
+
+    private static Map<Object, Object> getBatchResources() {
+        if (batchResources.get() == null) {
+            batchResources.set(new HashMap<>());
+        }
+        return batchResources.get();
+    }
+
+    protected static class MessageSpliterator extends Spliterators.AbstractSpliterator<DeserializingMessage> {
         private final Spliterator<DeserializingMessage> upStream;
 
         public MessageSpliterator(Spliterator<DeserializingMessage> upStream) {
@@ -199,27 +218,56 @@ public class DeserializingMessage {
 
         @Override
         public boolean tryAdvance(Consumer<? super DeserializingMessage> action) {
-            boolean hadNext = upStream.tryAdvance(d -> {
-                DeserializingMessage previous = getCurrent();
-                try {
-                    setCurrent(d);
-                    action.accept(d);
-                } finally {
-                    setCurrent(previous);
-                }
-            });
-            if (!hadNext && DeserializingMessage.getCurrent() == null) {
-                try {
-                    ofNullable(batchCompletionHandlers.get()).ifPresent(handlers -> {
-                        batchCompletionHandlers.remove();
-                        handlers.forEach(Runnable::run);
-                    });
-                } finally {
-                    batchResources.remove();
-                    batchCompletionHandlers.remove();
-                }
+            boolean hadNext;
+            try {
+                hadNext = upStream.tryAdvance(d -> {
+                    DeserializingMessage previous = getCurrent();
+                    try {
+                        current.set(d);
+                        action.accept(d);
+                        current.set(previous);
+                        if (previous == null) {
+                            onMessageCompletion(null);
+                        }
+                    } catch (Throwable e) {
+                        onMessageCompletion(e);
+                        throw e;
+                    }
+                });
+            } catch (Throwable e) {
+                onBatchCompletion(e);
+                throw e;
+            }
+            if (!hadNext && getCurrent() == null) {
+                onBatchCompletion(null);
             }
             return hadNext;
         }
+
+        protected void onMessageCompletion(Throwable error) {
+            try {
+                ofNullable(messageCompletionHandlers.get()).ifPresent(handlers -> {
+                    messageCompletionHandlers.remove();
+                    handlers.forEach(h -> h.accept(error));
+                });
+            } finally {
+                messageResources.remove();
+                messageCompletionHandlers.remove();
+                current.set(null);
+            }
+        }
+
+        protected void onBatchCompletion(Throwable error) {
+            try {
+                ofNullable(batchCompletionHandlers.get()).ifPresent(handlers -> {
+                    batchCompletionHandlers.remove();
+                    handlers.forEach(h -> h.accept(error));
+                });
+            } finally {
+                batchResources.remove();
+                batchCompletionHandlers.remove();
+            }
+        }
+
     }
 }
