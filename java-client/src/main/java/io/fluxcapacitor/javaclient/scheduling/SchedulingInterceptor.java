@@ -113,7 +113,7 @@ public class SchedulingInterceptor implements DispatchInterceptor, HandlerInterc
                                                                     String consumer) {
         return m -> {
             if (m.getMessageType() == MessageType.SCHEDULE) {
-                long deadline = millisFromIndex(m.getSerializedObject().getIndex());
+                long deadline = millisFromIndex(m.getIndex());
                 Periodic periodic =
                         Optional.ofNullable(handler.getMethod(m)).map(method -> method.getAnnotation(Periodic.class))
                                 .orElse(ReflectionUtils.getTypeAnnotation(m.getPayloadClass(), Periodic.class));
@@ -143,7 +143,7 @@ public class SchedulingInterceptor implements DispatchInterceptor, HandlerInterc
                     }
                     if (nextPayload != null && m.getPayloadClass().isAssignableFrom(nextPayload.getClass())) {
                         if (periodic == null) {
-                            Instant dispatched = ofEpochMilli(m.getSerializedObject().getTimestamp());
+                            Instant dispatched = m.getTimestamp();
                             Duration previousDelay = between(dispatched, now);
                             if (previousDelay.compareTo(Duration.ZERO) > 0) {
                                 reschedule(nextPayload, metadata, now.plus(previousDelay));

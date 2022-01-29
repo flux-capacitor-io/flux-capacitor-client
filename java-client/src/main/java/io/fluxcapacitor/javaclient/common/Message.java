@@ -60,15 +60,23 @@ public class Message {
         return (R) payload;
     }
 
-    public Message addMetaData(Metadata metadata) {
+    public Class<?> getPayloadClass() {
+        return payload == null ? Void.class : payload.getClass();
+    }
+
+    public Message toMessage() {
+        return this;
+    }
+
+    public Message addMetadata(Metadata metadata) {
         return withMetadata(getMetadata().with(metadata));
     }
 
-    public Message addMetaData(String key, Object value) {
+    public Message addMetadata(String key, Object value) {
         return withMetadata(getMetadata().with(key, value));
     }
 
-    public Message addMetaData(Object... keyValues) {
+    public Message addMetadata(Object... keyValues) {
         return withMetadata(getMetadata().with(keyValues));
     }
 

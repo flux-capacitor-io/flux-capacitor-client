@@ -25,20 +25,20 @@ import io.fluxcapacitor.javaclient.common.serialization.DeserializingMessage;
 import io.fluxcapacitor.javaclient.common.serialization.Serializer;
 import io.fluxcapacitor.javaclient.common.serialization.jackson.JacksonSerializer;
 import io.fluxcapacitor.javaclient.configuration.client.Client;
-import io.fluxcapacitor.javaclient.modeling.AggregateRepository;
-import io.fluxcapacitor.javaclient.modeling.CompositeAggregateRepository;
 import io.fluxcapacitor.javaclient.persisting.caching.Cache;
-import io.fluxcapacitor.javaclient.persisting.caching.CachingAggregateRepository;
 import io.fluxcapacitor.javaclient.persisting.caching.DefaultCache;
+import io.fluxcapacitor.javaclient.persisting.caching.NamedCache;
 import io.fluxcapacitor.javaclient.persisting.caching.SelectiveCache;
-import io.fluxcapacitor.javaclient.persisting.eventsourcing.DefaultAggregateRepository;
 import io.fluxcapacitor.javaclient.persisting.eventsourcing.DefaultEventSourcingHandlerFactory;
 import io.fluxcapacitor.javaclient.persisting.eventsourcing.DefaultEventStore;
-import io.fluxcapacitor.javaclient.persisting.eventsourcing.DefaultSnapshotRepository;
+import io.fluxcapacitor.javaclient.persisting.eventsourcing.DefaultSnapshotStore;
 import io.fluxcapacitor.javaclient.persisting.eventsourcing.EventSourcingHandlerFactory;
 import io.fluxcapacitor.javaclient.persisting.eventsourcing.EventStore;
 import io.fluxcapacitor.javaclient.persisting.keyvalue.DefaultKeyValueStore;
 import io.fluxcapacitor.javaclient.persisting.keyvalue.KeyValueStore;
+import io.fluxcapacitor.javaclient.persisting.repository.AggregateRepository;
+import io.fluxcapacitor.javaclient.persisting.repository.CachingAggregateRepository;
+import io.fluxcapacitor.javaclient.persisting.repository.DefaultAggregateRepository;
 import io.fluxcapacitor.javaclient.persisting.search.DefaultDocumentStore;
 import io.fluxcapacitor.javaclient.persisting.search.DocumentSerializer;
 import io.fluxcapacitor.javaclient.persisting.search.DocumentStore;
@@ -519,18 +519,17 @@ public class DefaultFluxCapacitor implements FluxCapacitor {
             EventStore eventStore = new DefaultEventStore(client.getEventStoreClient(),
                                                           serializer, dispatchInterceptors.get(EVENT),
                                                           localHandlerRegistry(EVENT, handlerInterceptors));
-            DefaultSnapshotRepository snapshotRepository =
-                    new DefaultSnapshotRepository(client.getKeyValueClient(), snapshotSerializer);
+            DefaultSnapshotStore snapshotRepository =
+                    new DefaultSnapshotStore(client.getKeyValueClient(), snapshotSerializer);
 
-            AggregateRepository aggregateRepository = new CompositeAggregateRepository(
-                    new DefaultAggregateRepository(eventStore, snapshotRepository, cache, documentStore,
-                                                   serializer, dispatchInterceptors.get(EVENT),
-                                                   eventSourcingHandlerFactory));
+            Cache aggregateCache = new NamedCache(cache, id -> "$Aggregate:" + id);
+            AggregateRepository aggregateRepository = new DefaultAggregateRepository(
+                    eventStore, snapshotRepository, aggregateCache, documentStore, serializer,
+                    dispatchInterceptors.get(EVENT), eventSourcingHandlerFactory);
 
             if (!disableAutomaticAggregateCaching) {
                 aggregateRepository =
-                        new CachingAggregateRepository(aggregateRepository, eventSourcingHandlerFactory, cache,
-                                                       client, this.serializer);
+                        new CachingAggregateRepository(aggregateRepository, client, aggregateCache, this.serializer);
             }
 
             //create gateways

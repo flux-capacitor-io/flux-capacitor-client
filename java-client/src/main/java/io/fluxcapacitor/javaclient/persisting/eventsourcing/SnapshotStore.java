@@ -14,13 +14,15 @@
 
 package io.fluxcapacitor.javaclient.persisting.eventsourcing;
 
+import io.fluxcapacitor.javaclient.modeling.AggregateRoot;
+
 import java.util.Optional;
 
-public interface SnapshotRepository {
+public interface SnapshotStore {
 
-    <T> void storeSnapshot(EventSourcedModel<T> snapshot);
+    <T> void storeSnapshot(AggregateRoot<T> snapshot);
 
-    <T> Optional<EventSourcedModel<T>> getSnapshot(String aggregateId);
+    <T> Optional<AggregateRoot<T>> getSnapshot(String aggregateId);
 
     void deleteSnapshot(String aggregateId);
 

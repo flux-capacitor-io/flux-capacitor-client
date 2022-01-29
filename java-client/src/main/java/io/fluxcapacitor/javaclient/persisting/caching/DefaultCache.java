@@ -20,11 +20,13 @@ import lombok.NonNull;
 import lombok.extern.slf4j.Slf4j;
 
 import java.util.concurrent.ConcurrentMap;
+import java.util.function.BiFunction;
 import java.util.function.Function;
 
 @Slf4j
 @AllArgsConstructor
 public class DefaultCache implements Cache {
+
 
     private final ConcurrentMap<String, Object> cache;
 
@@ -51,6 +53,18 @@ public class DefaultCache implements Cache {
     @Override
     public <T> T computeIfAbsent(String id, Function<? super String, T> mappingFunction) {
         return (T) cache.computeIfAbsent(id, mappingFunction);
+    }
+
+    @Override
+    @SuppressWarnings("unchecked")
+    public <T> T computeIfPresent(String id, BiFunction<? super String, ? super T, ? extends T> mappingFunction) {
+        return (T) cache.computeIfPresent(id, (BiFunction<? super String, ? super Object, ?>) mappingFunction);
+    }
+
+    @Override
+    @SuppressWarnings("unchecked")
+    public <T> T compute(String id, BiFunction<? super String, ? super T, ? extends T> mappingFunction) {
+        return (T) cache.compute(id, (BiFunction<? super String, ? super Object, ?>) mappingFunction);
     }
 
     @SuppressWarnings("unchecked")

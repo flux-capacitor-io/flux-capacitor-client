@@ -46,6 +46,8 @@ public interface AggregateRoot<T> {
 
     Instant timestamp();
 
+    long sequenceNumber();
+
     AggregateRoot<T> previous();
 
     default AggregateRoot<T> playBackToEvent(String eventId) {
@@ -62,8 +64,6 @@ public interface AggregateRoot<T> {
         }
         return Optional.ofNullable(result);
     }
-
-    AggregateRoot<T> apply(Message eventMessage);
 
     default AggregateRoot<T> apply(Object... events) {
         AggregateRoot<T> result = this;
@@ -83,6 +83,8 @@ public interface AggregateRoot<T> {
     default AggregateRoot<T> apply(Object event, Metadata metadata) {
         return apply(new Message(event, metadata));
     }
+
+    AggregateRoot<T> apply(Message eventMessage);
 
     AggregateRoot<T> update(UnaryOperator<T> function);
 

@@ -19,6 +19,7 @@ import lombok.AllArgsConstructor;
 import lombok.NonNull;
 
 import java.util.Optional;
+import java.util.function.BiFunction;
 import java.util.function.Function;
 import java.util.function.Predicate;
 
@@ -73,6 +74,36 @@ public class SelectiveCache implements Cache {
                         putIfAbsent(id, result);
                     }
                 }
+            }
+        }
+        return result;
+    }
+
+    @Override
+    public <T> T computeIfPresent(String id, BiFunction<? super String, ? super T, ? extends T> mappingFunction) {
+        T result = getIfPresent(id);
+        if (result != null) {
+            if (selector.test(result)) {
+                return delegate.computeIfPresent(id, mappingFunction);
+            }
+            return nextCache.computeIfPresent(id, mappingFunction);
+        }
+        return null;
+    }
+
+    @Override
+    public <T> T compute(String id, BiFunction<? super String, ? super T, ? extends T> mappingFunction) {
+        T result = computeIfPresent(id, mappingFunction);
+        if (result == null) {
+            synchronized (this) {
+                result = getIfPresent(id);
+                result = mappingFunction.apply(id, result);
+                if (result != null) {
+                    put(id, result);
+                } else {
+                    invalidate(id);
+                }
+                return result;
             }
         }
         return result;

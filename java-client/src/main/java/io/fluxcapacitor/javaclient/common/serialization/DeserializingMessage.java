@@ -35,11 +35,13 @@ import lombok.Value;
 import lombok.experimental.Delegate;
 import lombok.extern.slf4j.Slf4j;
 
-import java.util.ArrayList;
+import java.time.Instant;
 import java.util.Arrays;
 import java.util.HashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.Spliterator;
 import java.util.Spliterators;
 import java.util.function.BiFunction;
@@ -48,7 +50,6 @@ import java.util.function.Function;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 
-import static java.time.Instant.ofEpochMilli;
 import static java.util.Optional.ofNullable;
 import static java.util.stream.Collectors.toList;
 
@@ -64,9 +65,9 @@ public class DeserializingMessage {
                           new AggregateTypeResolver(), new UserParameterResolver(),
                           new WebPayloadParameterResolver(), new PayloadParameterResolver());
 
-    private static final ThreadLocal<List<Consumer<Throwable>>> messageCompletionHandlers = new ThreadLocal<>();
+    private static final ThreadLocal<Set<Consumer<Throwable>>> messageCompletionHandlers = new ThreadLocal<>();
     private static final ThreadLocal<Map<Object, Object>> messageResources = new ThreadLocal<>();
-    private static final ThreadLocal<List<Consumer<Throwable>>> batchCompletionHandlers = new ThreadLocal<>();
+    private static final ThreadLocal<Set<Consumer<Throwable>>> batchCompletionHandlers = new ThreadLocal<>();
     private static final ThreadLocal<Map<Object, Object>> batchResources = new ThreadLocal<>();
     private static final ThreadLocal<DeserializingMessage> current = new ThreadLocal<>();
 
@@ -98,10 +99,20 @@ public class DeserializingMessage {
         return delegate.getSerializedObject().getMetadata();
     }
 
+    public String getMessageId() {
+        return getSerializedObject().getMessageId();
+    }
+
+    public Long getIndex() {
+        return getSerializedObject().getIndex();
+    }
+
+    public Instant getTimestamp() {
+        return Instant.ofEpochMilli(getSerializedObject().getTimestamp());
+    }
+
     public Message toMessage() {
-        Message message = new Message(delegate.getPayload(), getMetadata(),
-                                      delegate.getSerializedObject().getMessageId(),
-                                      ofEpochMilli(delegate.getSerializedObject().getTimestamp()));
+        Message message = new Message(getPayload(), getMetadata(), getMessageId(), getTimestamp());
         switch (messageType) {
             case SCHEDULE:
                 return new Schedule(message);
@@ -118,14 +129,14 @@ public class DeserializingMessage {
         return current.get();
     }
 
-    public static void whenMessageCompletes(Consumer<Throwable> handler) {
+    public static void whenHandlerCompletes(Consumer<Throwable> handler) {
         if (current.get() == null) {
             handler.accept(null);
         } else {
             if (messageCompletionHandlers.get() == null) {
-                messageCompletionHandlers.set(new ArrayList<>());
+                messageCompletionHandlers.set(new LinkedHashSet<>());
             }
-            messageCompletionHandlers.get().add(0, handler);
+            messageCompletionHandlers.get().add(handler);
         }
     }
 
@@ -175,9 +186,9 @@ public class DeserializingMessage {
             handler.accept(null);
         } else {
             if (batchCompletionHandlers.get() == null) {
-                batchCompletionHandlers.set(new ArrayList<>());
+                batchCompletionHandlers.set(new LinkedHashSet<>());
             }
-            batchCompletionHandlers.get().add(0, handler);
+            batchCompletionHandlers.get().add(handler);
         }
     }
 
@@ -225,10 +236,10 @@ public class DeserializingMessage {
                     try {
                         current.set(d);
                         action.accept(d);
-                        current.set(previous);
                         if (previous == null) {
                             onMessageCompletion(null);
                         }
+                        current.set(previous);
                     } catch (Throwable e) {
                         onMessageCompletion(e);
                         throw e;

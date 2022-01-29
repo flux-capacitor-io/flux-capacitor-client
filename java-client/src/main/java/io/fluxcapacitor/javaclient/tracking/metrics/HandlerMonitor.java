@@ -60,7 +60,7 @@ public class HandlerMonitor implements HandlerInterceptor {
                         !(result instanceof CompletableFuture<?>) || ((CompletableFuture<?>) result).isDone();
                 FluxCapacitor.getOptionally().ifPresent(fc -> fc.metricsGateway().publish(new HandleMessageEvent(
                         consumer, handler.getTarget().getClass().getSimpleName(),
-                        message.getSerializedObject().getIndex(),
+                        message.getIndex(),
                         message.getType(), exceptionalResult, start.until(Instant.now(), NANOS), completed)));
                 if (!completed) {
                     Map<String, String> correlationData = FluxCapacitor.currentCorrelationData();
@@ -68,7 +68,7 @@ public class HandlerMonitor implements HandlerInterceptor {
                             m -> FluxCapacitor.getOptionally().ifPresent(fc -> fc.metricsGateway().publish(
                                     new CompleteMessageEvent(
                                             consumer, handler.getTarget().getClass().getSimpleName(),
-                                            m.getSerializedObject().getIndex(), m.getType(),
+                                            m.getIndex(), m.getType(),
                                             e != null, start.until(Instant.now(), NANOS)),
                                     Metadata.of(correlationData)))));
                 }

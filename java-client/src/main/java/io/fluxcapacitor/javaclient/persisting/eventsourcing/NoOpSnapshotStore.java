@@ -14,18 +14,20 @@
 
 package io.fluxcapacitor.javaclient.persisting.eventsourcing;
 
+import io.fluxcapacitor.javaclient.modeling.AggregateRoot;
+
 import java.util.Optional;
 
-public enum NoOpSnapshotRepository implements SnapshotRepository {
+public enum NoOpSnapshotStore implements SnapshotStore {
     INSTANCE;
 
     @Override
-    public <T> void storeSnapshot(EventSourcedModel<T> snapshot) {
+    public <T> void storeSnapshot(AggregateRoot<T> snapshot) {
         //no op
     }
 
     @Override
-    public <T> Optional<EventSourcedModel<T>> getSnapshot(String aggregateId) {
+    public <T> Optional<AggregateRoot<T>> getSnapshot(String aggregateId) {
         return Optional.empty();
     }
 
