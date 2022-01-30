@@ -586,20 +586,20 @@ public class TestFixture implements Given, When {
         private final Map<MessageType, List<Message>> publishedSchedules = new ConcurrentHashMap<>();
 
         protected Message trace(Object message) {
-            return asMessage(message).addMetaData(TRACE_TAG, "true");
+            return asMessage(message).addMetadata(TRACE_TAG, "true");
         }
 
         @Override
         public Message interceptDispatch(Message message, MessageType messageType) {
             if (!collectingResults) {
-                message = message.addMetaData(IGNORE_TAG, "true");
+                message = message.addMetadata(IGNORE_TAG, "true");
             }
 
             DeserializingMessage currentMessage = DeserializingMessage.getCurrent();
             if (currentMessage != null) {
                 if (currentMessage.getMessageType() != SCHEDULE && currentMessage.getMetadata()
                         .containsKey(IGNORE_TAG)) {
-                    message = message.addMetaData(IGNORE_TAG, "true");
+                    message = message.addMetadata(IGNORE_TAG, "true");
                 }
                 if (currentMessage.getMetadata().containsKey(TRACE_TAG)) {
                     message = message.withMetadata(message.getMetadata().without(TRACE_TAG));
@@ -683,8 +683,7 @@ public class TestFixture implements Given, When {
                             consumers.entrySet().stream()
                                     .filter(t -> t.getKey().getMessageType() == m.getMessageType())
                                     .forEach(e -> e.getValue().removeIf(
-                                            m2 -> m2.getMessageId()
-                                                    .equals(m.getSerializedObject().getMessageId())));
+                                            m2 -> m2.getMessageId().equals(m.getMessageId())));
                         }
                         checkConsumers();
                     }

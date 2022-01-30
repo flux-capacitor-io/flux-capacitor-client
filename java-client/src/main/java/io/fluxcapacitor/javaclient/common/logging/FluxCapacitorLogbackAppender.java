@@ -71,8 +71,8 @@ public class FluxCapacitorLogbackAppender extends AppenderBase<ILoggingEvent> {
         try {
             Optional<Throwable> throwable =
                     ofNullable((ThrowableProxy) event.getThrowableProxy()).map(ThrowableProxy::getThrowable);
-            Metadata metadata = ofNullable(DeserializingMessage.getCurrent()).map(
-                    d -> d.getSerializedObject().getMetadata()).orElse(Metadata.empty());
+            Metadata metadata = ofNullable(DeserializingMessage.getCurrent())
+                    .map(DeserializingMessage::getMetadata).orElse(Metadata.empty());
             metadata = metadata.with(
                     "stackTrace", format("[%s] %s %s - %s%s", event.getThreadName(), event.getLevel(),
                                          event.getLoggerName(), event.getFormattedMessage(),

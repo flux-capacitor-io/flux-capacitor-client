@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016-2020 Flux Capacitor.
+ * Copyright (c) 2016-2021 Flux Capacitor.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -12,18 +12,21 @@
  * limitations under the License.
  */
 
-package io.fluxcapacitor.javaclient.persisting.eventsourcing;
+package io.fluxcapacitor.javaclient.persisting.repository;
 
-import io.fluxcapacitor.javaclient.common.serialization.DeserializingMessage;
 import io.fluxcapacitor.javaclient.modeling.AggregateRoot;
+import io.fluxcapacitor.javaclient.modeling.ReadOnlyAggregateRoot;
 
-import java.util.List;
+import java.util.Optional;
 
-public enum NoSnapshotTrigger implements SnapshotTrigger {
-    INSTANCE;
+public interface AggregateRepository {
 
-    @Override
-    public boolean shouldCreateSnapshot(AggregateRoot<?> model, List<DeserializingMessage> newEvents) {
-        return false;
+    <T> AggregateRoot<T> load(String aggregateId, Class<T> aggregateType);
+
+    default <T> AggregateRoot<T> load(String aggregateId, Class<T> type, boolean readOnly) {
+        return Optional.of(load(aggregateId, type)).map(a -> readOnly ? new ReadOnlyAggregateRoot<>(a) : a).get();
     }
+
+    boolean cachingAllowed(Class<?> aggregateType);
+
 }

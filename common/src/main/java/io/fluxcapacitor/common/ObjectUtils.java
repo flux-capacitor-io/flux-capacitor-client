@@ -97,7 +97,7 @@ public class ObjectUtils {
         return callable.call();
     }
 
-    public static <T> Supplier<T> asSupplier(Callable<T> callable) {
+    public static <T> Supplier<T> safelySupply(Callable<T> callable) {
         return () -> safelyCall(callable);
     }
 

@@ -59,12 +59,12 @@ class ThrowingErrorHandlerTest {
 
         @HandleEvent
         private void handle(Integer event, DeserializingMessage message) {
-            firstIndex = message.getSerializedObject().getIndex();
+            firstIndex = message.getIndex();
         }
 
         @HandleEvent
         private void handle(String event, DeserializingMessage message) {
-            secondIndex = message.getSerializedObject().getIndex();
+            secondIndex = message.getIndex();
             throw new IllegalArgumentException();
         }
     }

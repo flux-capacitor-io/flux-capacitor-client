@@ -144,7 +144,7 @@ public class DefaultTracking implements Tracking {
                         .handleError(e, format("Handler %s failed to handle a %s", handler, message),
                                      () -> handle(message, handler, config));
             } catch (Exception thrown) {
-                throw new BatchProcessingException(message.getSerializedObject().getIndex());
+                throw new BatchProcessingException(message.getIndex());
             }
         }
     }

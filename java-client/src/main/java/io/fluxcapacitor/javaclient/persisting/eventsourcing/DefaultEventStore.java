@@ -17,6 +17,7 @@ package io.fluxcapacitor.javaclient.persisting.eventsourcing;
 import io.fluxcapacitor.common.Awaitable;
 import io.fluxcapacitor.common.ConsistentHashing;
 import io.fluxcapacitor.common.api.SerializedMessage;
+import io.fluxcapacitor.javaclient.FluxCapacitor;
 import io.fluxcapacitor.javaclient.common.Message;
 import io.fluxcapacitor.javaclient.common.serialization.DeserializingMessage;
 import io.fluxcapacitor.javaclient.common.serialization.Serializer;
@@ -58,6 +59,9 @@ public class DefaultEventStore implements EventStore {
                             = dispatchInterceptor.modifySerializedMessage(m.serialize(serializer), m, EVENT);
                     deserializingMessage = new DeserializingMessage(serializedMessage, type -> m.getPayload(), EVENT);
                 }
+                FluxCapacitor.getOptionally()
+                        .filter(fc -> deserializingMessage.getSerializedObject().getSource() == null)
+                        .ifPresent(fc -> deserializingMessage.getSerializedObject().setSource(fc.client().id()));
                 messages.add(deserializingMessage);
             });
             result = client.storeEvents(aggregateId, domain, lastSequenceNumber,

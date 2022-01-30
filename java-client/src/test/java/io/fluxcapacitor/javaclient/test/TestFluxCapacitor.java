@@ -16,10 +16,10 @@ package io.fluxcapacitor.javaclient.test;
 
 import io.fluxcapacitor.common.MessageType;
 import io.fluxcapacitor.javaclient.FluxCapacitor;
-import io.fluxcapacitor.javaclient.modeling.AggregateRepository;
 import io.fluxcapacitor.javaclient.persisting.caching.Cache;
 import io.fluxcapacitor.javaclient.persisting.eventsourcing.EventStore;
 import io.fluxcapacitor.javaclient.persisting.keyvalue.KeyValueStore;
+import io.fluxcapacitor.javaclient.persisting.repository.AggregateRepository;
 import io.fluxcapacitor.javaclient.persisting.search.DocumentStore;
 import io.fluxcapacitor.javaclient.publishing.CommandGateway;
 import io.fluxcapacitor.javaclient.publishing.ErrorGateway;

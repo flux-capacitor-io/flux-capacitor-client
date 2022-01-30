@@ -17,6 +17,8 @@ package io.fluxcapacitor.javaclient.persisting.eventsourcing;
 import io.fluxcapacitor.common.Guarantee;
 import io.fluxcapacitor.javaclient.common.serialization.SerializationException;
 import io.fluxcapacitor.javaclient.common.serialization.Serializer;
+import io.fluxcapacitor.javaclient.modeling.AggregateRoot;
+import io.fluxcapacitor.javaclient.modeling.ImmutableAggregateRoot;
 import io.fluxcapacitor.javaclient.persisting.keyvalue.client.KeyValueClient;
 import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -24,34 +26,28 @@ import lombok.extern.slf4j.Slf4j;
 import java.util.Optional;
 
 import static java.lang.String.format;
+import static java.util.Optional.ofNullable;
 
 @Slf4j
 @AllArgsConstructor
-public class DefaultSnapshotRepository implements SnapshotRepository {
-
+public class DefaultSnapshotStore implements SnapshotStore {
     private final KeyValueClient keyValueClient;
     private final Serializer serializer;
 
     @Override
-    public <T> void storeSnapshot(EventSourcedModel<T> snapshot) {
+    public <T> void storeSnapshot(AggregateRoot<T> snapshot) {
         try {
-            keyValueClient.putValue(snapshotKey(snapshot.id()), Optional.of(snapshot)
-                    .map(s -> new SnapshotModel<>(s.id(), s.type(), s.sequenceNumber(), s.lastEventId(),
-                            s.lastEventIndex(), s.timestamp(), s.model()))
-                    .map(serializer::serialize).orElse(null), Guarantee.SENT);
+            keyValueClient.putValue(snapshotKey(snapshot.id()), serializer.serialize(ImmutableAggregateRoot.from(
+                    snapshot, null, null)), Guarantee.SENT);
         } catch (Exception e) {
             throw new EventSourcingException(format("Failed to store a snapshot: %s", snapshot), e);
         }
     }
 
     @Override
-    @SuppressWarnings("unchecked")
-    public <T> Optional<EventSourcedModel<T>> getSnapshot(String aggregateId) {
+    public <T> Optional<AggregateRoot<T>> getSnapshot(String aggregateId) {
         try {
-            return Optional.ofNullable(keyValueClient.getValue(snapshotKey(aggregateId)))
-                    .map(serializer::deserialize).map(s -> (SnapshotModel<T>) s)
-                    .map(s -> new EventSourcedModel<>(s.id(), s.type(), s.sequenceNumber(), s.lastEventId(),
-                            s.lastEventIndex(), s.timestamp(), s.model(), null));
+            return ofNullable(keyValueClient.getValue(snapshotKey(aggregateId))).map(serializer::deserialize);
         } catch (SerializationException e) {
             log.warn("Failed to deserialize snapshot for {}. Deleting snapshot.", aggregateId, e);
             deleteSnapshot(aggregateId);

@@ -236,7 +236,12 @@ public class ResultValidator implements Then {
         return fluxCapacitor.apply(fc -> {
             try {
                 check.accept(fc);
-            } catch (Exception e) {
+            } catch (Throwable e) {
+                if (!exceptions.isEmpty()) {
+                    throw new GivenWhenThenAssertionError(String.format(
+                            "Verify check failed: %s\nProbable cause is an exception during handling.", e.getMessage()),
+                                                          (exceptions.get(0)));
+                }
                 throw new GivenWhenThenAssertionError("Verify check failed", e);
             }
             return this;

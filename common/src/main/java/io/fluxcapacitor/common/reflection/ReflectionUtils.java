@@ -160,6 +160,10 @@ public class ReflectionUtils {
         return new ArrayList<>(FieldUtils.getFieldsListWithAnnotation(target.getClass(), annotation));
     }
 
+    public static boolean isAnnotationPresent(Class<?> type, Class<? extends Annotation> annotationType) {
+        return getTypeAnnotation(type, annotationType) != null;
+    }
+
     public static <A extends Annotation> A getTypeAnnotation(Class<?> type, Class<A> annotationType) {
         A result = type.getAnnotation(annotationType);
         if (result == null) {

@@ -16,10 +16,12 @@ package io.fluxcapacitor.javaclient.modeling;
 
 import io.fluxcapacitor.common.api.Metadata;
 import io.fluxcapacitor.javaclient.common.Message;
+import io.fluxcapacitor.javaclient.common.serialization.DeserializingMessage;
 import io.fluxcapacitor.javaclient.tracking.handling.validation.ValidationUtils;
 
 import java.time.Instant;
 import java.util.Collection;
+import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.function.Function;
@@ -46,6 +48,8 @@ public interface AggregateRoot<T> {
 
     Instant timestamp();
 
+    long sequenceNumber();
+
     AggregateRoot<T> previous();
 
     default AggregateRoot<T> playBackToEvent(String eventId) {
@@ -63,9 +67,11 @@ public interface AggregateRoot<T> {
         return Optional.ofNullable(result);
     }
 
-    AggregateRoot<T> apply(Message eventMessage);
-
     default AggregateRoot<T> apply(Object... events) {
+        return apply(List.of(events));
+    }
+
+    default AggregateRoot<T> apply(Collection<?> events) {
         AggregateRoot<T> result = this;
         for (Object event : events) {
             result = apply(event);
@@ -74,8 +80,8 @@ public interface AggregateRoot<T> {
     }
 
     default AggregateRoot<T> apply(Object event) {
-        if (event instanceof Collection<?>) {
-            return apply(((Collection<?>) event).toArray());
+        if (event instanceof DeserializingMessage) {
+            return apply(((DeserializingMessage) event).toMessage());
         }
         return apply(asMessage(event));
     }
@@ -83,6 +89,8 @@ public interface AggregateRoot<T> {
     default AggregateRoot<T> apply(Object event, Metadata metadata) {
         return apply(new Message(event, metadata));
     }
+
+    AggregateRoot<T> apply(Message eventMessage);
 
     AggregateRoot<T> update(UnaryOperator<T> function);
 

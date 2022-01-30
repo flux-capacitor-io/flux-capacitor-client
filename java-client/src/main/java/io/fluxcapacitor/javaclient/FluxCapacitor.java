@@ -26,12 +26,12 @@ import io.fluxcapacitor.javaclient.common.serialization.Serializer;
 import io.fluxcapacitor.javaclient.configuration.DefaultFluxCapacitor;
 import io.fluxcapacitor.javaclient.configuration.client.Client;
 import io.fluxcapacitor.javaclient.configuration.spring.FluxCapacitorSpringConfig;
-import io.fluxcapacitor.javaclient.modeling.AggregateRepository;
 import io.fluxcapacitor.javaclient.modeling.AggregateRoot;
 import io.fluxcapacitor.javaclient.persisting.caching.Cache;
 import io.fluxcapacitor.javaclient.persisting.eventsourcing.Aggregate;
 import io.fluxcapacitor.javaclient.persisting.eventsourcing.EventStore;
 import io.fluxcapacitor.javaclient.persisting.keyvalue.KeyValueStore;
+import io.fluxcapacitor.javaclient.persisting.repository.AggregateRepository;
 import io.fluxcapacitor.javaclient.persisting.search.DocumentStore;
 import io.fluxcapacitor.javaclient.persisting.search.Search;
 import io.fluxcapacitor.javaclient.publishing.CommandGateway;
@@ -322,11 +322,11 @@ public interface FluxCapacitor extends AutoCloseable {
      * @see Aggregate for more info on how to define an event sourced aggregate root
      */
     static <T> AggregateRoot<T> loadAggregate(String id, Class<T> aggregateType, boolean readOnly) {
-        AggregateRoot<T> result = get().aggregateRepository().load(id, aggregateType, readOnly, false);
+        AggregateRoot<T> result = get().aggregateRepository().load(id, aggregateType, readOnly);
         DeserializingMessage message = DeserializingMessage.getCurrent();
         if (message != null && (message.getMessageType() == EVENT || message.getMessageType() == NOTIFICATION)
                 && id.equals(getAggregateId(message))) {
-            return result.playBackToEvent(message.getSerializedObject().getMessageId());
+            return result.playBackToEvent(message.getMessageId());
         }
         return result;
     }

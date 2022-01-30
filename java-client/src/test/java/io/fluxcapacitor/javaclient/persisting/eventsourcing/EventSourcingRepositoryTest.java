@@ -174,7 +174,9 @@ class EventSourcingRepositoryTest {
 
             @HandleQuery
             TestModel handle(ApplyInQuery query) {
-                return loadAggregate(aggregateId, TestModel.class).apply(query).get();
+                AggregateRoot<TestModel> testModelAggregateRoot = loadAggregate(aggregateId, TestModel.class);
+                AggregateRoot<TestModel> testModelAggregateRoot1 = testModelAggregateRoot.apply(query);
+                return testModelAggregateRoot1.get();
             }
 
             @HandleCommand
@@ -448,13 +450,6 @@ class EventSourcingRepositoryTest {
         }
 
         @Test
-        void testCannotApplyOnPreviousAggregates() {
-            testFixture.givenCommands(new CreateModelFromEvent(), new UpdateModelFromEvent())
-                    .whenCommand(new ApplyOnPrevious())
-                    .expectException(UnsupportedOperationException.class);
-        }
-
-        @Test
         void testPlayBackToConditionEndsWithEmptyOptional() {
             testFixture.givenCommands(new CreateModelFromEvent(), new UpsertModelFromEvent())
                     .whenQuery(new GetPlayBackedAggregate()).expectResult(Optional.empty());
@@ -470,12 +465,6 @@ class EventSourcingRepositoryTest {
             @HandleQuery
             TestModelWithoutApplyEvent handle(GetModel query) {
                 return loadAggregate(aggregateId, TestModelWithoutApplyEvent.class).get();
-            }
-
-            @HandleCommand
-            void handle(ApplyOnPrevious command) {
-                loadAggregate(aggregateId, TestModelWithoutApplyEvent.class).assertLegal(command)
-                        .previous().apply(command);
             }
 
             @HandleQuery
@@ -512,14 +501,6 @@ class EventSourcingRepositoryTest {
         @Apply
         public TestModelWithoutApplyEvent apply(TestModelWithoutApplyEvent aggregate) {
             return aggregate.toBuilder().secondEvent(this).build();
-        }
-    }
-
-    @Value
-    private static class ApplyOnPrevious {
-        @Apply
-        public TestModelWithoutApplyEvent apply(TestModelWithoutApplyEvent aggregate) {
-            return aggregate.toBuilder().build();
         }
     }
 
