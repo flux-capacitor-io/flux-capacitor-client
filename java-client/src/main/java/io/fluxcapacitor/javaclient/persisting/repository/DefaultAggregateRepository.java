@@ -31,6 +31,7 @@ import java.time.temporal.TemporalAccessor;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Function;
@@ -127,52 +128,54 @@ public class DefaultAggregateRepository implements AggregateRepository {
                     .orElse(AggregateRoot::timestamp);
         }
 
-        public ModifiableAggregateRoot<T> load(String id) {
-            ImmutableAggregateRoot<T> delegate =
-                    Optional.<ImmutableAggregateRoot<T>>ofNullable(cache.getIfPresent(id))
-                            .filter(a -> a.get() == null || type.isAssignableFrom(a.get().getClass()))
-                            .orElseGet(() -> {
-                                var builder =
-                                        ImmutableAggregateRoot.<T>builder().id(id).type(type)
-                                                .eventSourcingHandler(eventSourcingHandler).serializer(serializer);
-                                ImmutableAggregateRoot<T> model =
-                                        (searchable && !eventSourced
-                                                ? documentStore.<T>fetchDocument(id, collection)
-                                                .map(d -> builder.value(d).build())
-                                                : snapshotStore.<T>getSnapshot(id).map(
-                                                a -> ImmutableAggregateRoot.from(a, eventSourcingHandler, serializer)))
-                                                .filter(a -> {
-                                                    boolean assignable = a.get() == null
-                                                            || type.isAssignableFrom(a.get().getClass());
-                                                    if (!assignable) {
-                                                        log.warn("Could not load aggregate {} because the requested"
-                                                                         + " type {} is not assignable to the stored type {}",
-                                                                 id, type, a.get().getClass());
-                                                    }
-                                                    return assignable;
-                                                }).orElseGet(builder::build);
-                                if (!eventSourced) {
-                                    return model;
-                                }
-                                AggregateEventStream<DeserializingMessage> eventStream
-                                        = eventStore.getEvents(id, model.sequenceNumber());
-                                Iterator<DeserializingMessage> iterator = eventStream.iterator();
-                                while (iterator.hasNext()) {
-                                    model = model.apply(iterator.next());
-                                }
-                                return model.toBuilder()
-                                        .sequenceNumber(
-                                                eventStream.getLastSequenceNumber().orElse(model.sequenceNumber()))
-                                        .build();
-                            });
-            ImmutableAggregateRoot<T> root =
-                    delegate.get() != null ? cache.computeIfAbsent(id, i -> delegate) : delegate;
-            return new ModifiableAggregateRoot<>(root, commitInBatch, serializer, dispatchInterceptor, this::commit);
+        protected ModifiableAggregateRoot<T> load(String id) {
+            return ModifiableAggregateRoot.load(id, () -> {
+                ImmutableAggregateRoot<T> delegate =
+                        Optional.<ImmutableAggregateRoot<T>>ofNullable(cache.getIfPresent(id))
+                                .filter(a -> a.get() == null || type.isAssignableFrom(a.get().getClass()))
+                                .orElseGet(() -> {
+                                    var builder =
+                                            ImmutableAggregateRoot.<T>builder().id(id).type(type)
+                                                    .eventSourcingHandler(eventSourcingHandler).serializer(serializer);
+                                    ImmutableAggregateRoot<T> model =
+                                            (searchable && !eventSourced
+                                                    ? documentStore.<T>fetchDocument(id, collection)
+                                                    .map(d -> builder.value(d).build())
+                                                    : snapshotStore.<T>getSnapshot(id).map(
+                                                    a -> ImmutableAggregateRoot.from(a, eventSourcingHandler,
+                                                                                     serializer)))
+                                                    .filter(a -> {
+                                                        boolean assignable = a.get() == null
+                                                                || type.isAssignableFrom(a.get().getClass());
+                                                        if (!assignable) {
+                                                            log.warn("Could not load aggregate {} because the requested"
+                                                                             + " type {} is not assignable to the stored type {}",
+                                                                     id, type, a.get().getClass());
+                                                        }
+                                                        return assignable;
+                                                    }).orElseGet(builder::build);
+                                    if (!eventSourced) {
+                                        return model;
+                                    }
+                                    AggregateEventStream<DeserializingMessage> eventStream
+                                            = eventStore.getEvents(id, model.sequenceNumber());
+                                    Iterator<DeserializingMessage> iterator = eventStream.iterator();
+                                    while (iterator.hasNext()) {
+                                        model = model.apply(iterator.next());
+                                    }
+                                    return model.toBuilder().sequenceNumber(
+                                            eventStream.getLastSequenceNumber().orElse(model.sequenceNumber())).build();
+                                });
+                return delegate.get() != null ? cache.computeIfAbsent(id, i -> delegate) : delegate;
+            }, commitInBatch, serializer, dispatchInterceptor, this::commit);
         }
 
-        public void commit(ImmutableAggregateRoot<?> model, List<DeserializingMessage> unpublishedEvents) {
+        protected void commit(ImmutableAggregateRoot<?> model, List<DeserializingMessage> unpublishedEvents,
+                           String initialEventId) {
             try {
-                cache.put(model.id(), model);
+                cache.<AggregateRoot<?>>compute(model.id(), (id, current) -> current == null
+                        || Objects.equals(initialEventId, current.lastEventId()) || unpublishedEvents.isEmpty()
+                        ? model : current.apply(unpublishedEvents));
                 if (!unpublishedEvents.isEmpty()) {
                     eventStore.storeEvents(model.id(), collection, model.sequenceNumber(),
                                            new ArrayList<>(unpublishedEvents)).awaitSilently();
@@ -194,7 +197,7 @@ public class DefaultAggregateRepository implements AggregateRepository {
             }
         }
 
-        public boolean isCached() {
+        protected boolean isCached() {
             return !(cache instanceof NoOpCache);
         }
     }

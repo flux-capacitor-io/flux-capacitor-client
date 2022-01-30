@@ -23,6 +23,7 @@ import java.util.function.UnaryOperator;
 
 import static io.fluxcapacitor.common.MessageType.EVENT;
 import static io.fluxcapacitor.javaclient.FluxCapacitor.currentClock;
+import static io.fluxcapacitor.javaclient.common.Message.asMessage;
 import static java.util.Optional.ofNullable;
 
 @Value
@@ -94,6 +95,14 @@ public class ImmutableAggregateRoot<T> implements AggregateRoot<T> {
                 .lastEventIndex(message.getIndex())
                 .sequenceNumber(sequenceNumber() + 1L)
                 .build();
+    }
+
+    @Override
+    public AggregateRoot<T> apply(Object event) {
+        if (event instanceof DeserializingMessage) {
+            return apply(((DeserializingMessage) event));
+        }
+        return apply(asMessage(event));
     }
 
     @Override

@@ -12,7 +12,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.function.BiConsumer;
 import java.util.function.Supplier;
 import java.util.function.UnaryOperator;
 
@@ -22,36 +21,36 @@ import static java.util.Optional.ofNullable;
 @ToString(onlyExplicitlyIncluded = true)
 @EqualsAndHashCode(onlyExplicitlyIncluded = true)
 public class ModifiableAggregateRoot<T> extends DelegatingAggregateRoot<T, ImmutableAggregateRoot<T>> {
-    
-    private static final ThreadLocal<Map<String, ModifiableAggregateRoot<?>>> activeAggregates = 
+
+    private static final ThreadLocal<Map<String, ModifiableAggregateRoot<?>>> activeAggregates =
             ThreadLocal.withInitial(HashMap::new);
 
     @SuppressWarnings("unchecked")
-    public static <T> ModifiableAggregateRoot<T> load(String aggregateId, Supplier<ModifiableAggregateRoot<T>> loader) {
-        return ofNullable((ModifiableAggregateRoot<T>) activeAggregates.get().get(aggregateId)).orElseGet(loader);
+    public static <T> ModifiableAggregateRoot<T> load(
+            String aggregateId, Supplier<ImmutableAggregateRoot<T>> loader, boolean commitInBatch,
+            Serializer serializer, DispatchInterceptor dispatchInterceptor, CommitHandler commitHandler) {
+        return ofNullable((ModifiableAggregateRoot<T>) activeAggregates.get().get(aggregateId)).orElseGet(
+                () -> new ModifiableAggregateRoot<>(
+                        loader.get(), commitInBatch, serializer, dispatchInterceptor, commitHandler));
     }
 
+    private final String initialEventId;
     private ImmutableAggregateRoot<T> lastStable;
-    
+
     private final boolean commitInBatch;
     private final Serializer serializer;
     private final DispatchInterceptor dispatchInterceptor;
-    private final BiConsumer<ImmutableAggregateRoot<?>, List<DeserializingMessage>> commitHandler;
+    private final CommitHandler commitHandler;
 
     private final AtomicBoolean waitingForHandlerEnd = new AtomicBoolean(), waitingForBatchEnd = new AtomicBoolean();
     private final List<DeserializingMessage> applied = new ArrayList<>(), uncommitted = new ArrayList<>();
 
-    public ModifiableAggregateRoot(ImmutableAggregateRoot<T> delegate, boolean commitInBatch, Serializer serializer,
-                                   DispatchInterceptor dispatchInterceptor,
-                                   BiConsumer<ImmutableAggregateRoot<?>, List<DeserializingMessage>> commitHandler) {
-        this(delegate, delegate, commitInBatch, serializer, dispatchInterceptor, commitHandler);
-    }
-
-    public ModifiableAggregateRoot(ImmutableAggregateRoot<T> delegate, ImmutableAggregateRoot<T> lastStable,
-                                   boolean commitInBatch, Serializer serializer, DispatchInterceptor dispatchInterceptor,
-                                   BiConsumer<ImmutableAggregateRoot<?>, List<DeserializingMessage>> commitHandler) {
+    protected ModifiableAggregateRoot(ImmutableAggregateRoot<T> delegate, boolean commitInBatch,
+                                      Serializer serializer, DispatchInterceptor dispatchInterceptor,
+                                      CommitHandler commitHandler) {
         super(delegate);
-        this.lastStable = lastStable;
+        this.initialEventId = delegate.lastEventId();
+        this.lastStable = delegate;
         this.commitInBatch = commitInBatch;
         this.serializer = serializer;
         this.dispatchInterceptor = dispatchInterceptor;
@@ -110,6 +109,11 @@ public class ModifiableAggregateRoot<T> extends DelegatingAggregateRoot<T, Immut
         List<DeserializingMessage> events = new ArrayList<>(uncommitted);
         uncommitted.clear();
         waitingForBatchEnd.set(false);
-        commitHandler.accept(lastStable, events);
+        commitHandler.handle(lastStable, events, initialEventId);
+    }
+
+    @FunctionalInterface
+    public interface CommitHandler {
+        void handle(ImmutableAggregateRoot<?> model, List<DeserializingMessage> unpublished, String initialEventId);
     }
 }
