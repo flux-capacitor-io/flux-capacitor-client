@@ -3,9 +3,6 @@ name: Deploy any version
 on:
   workflow_dispatch:
     inputs:
-      branch:
-        description: 'Branch name'
-        required: true
       version:
         description: 'Version e.g. 1.0.1'
         required: true
@@ -16,8 +13,6 @@ jobs:
     steps:
       - name: Check out Git repository
         uses: actions/checkout@v2
-        with:
-          ref: ${{ github.event.inputs.branch }}
 
       - name: Install Java and Maven
         uses: actions/setup-java@v1
