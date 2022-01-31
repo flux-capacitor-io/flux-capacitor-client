@@ -1,11 +1,11 @@
-name: Deploy custom tag
+name: Deploy any version
 
 on:
-  push:
-    branches:
-      - "!master"
-    tags:
-      - "[0-9]+.[0-9]+.[0-9]+"
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version e.g. 1.0.1'
+        required: true
 
 jobs:
   deploy:
@@ -27,10 +27,10 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-maven-
 
-      - name: Get tag version
+      - name: Get the tag
         id: tag_version
         run: |
-          echo "::set-output name=new_tag::${GITHUB_REF#refs/*/}"
+          echo "::set-output name=new_tag::${{ github.event.inputs.version }}"
 
       - name: Set maven version
         run: |
