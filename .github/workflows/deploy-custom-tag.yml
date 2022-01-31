@@ -1,0 +1,70 @@
+name: Deploy custom tag
+
+on:
+  push:
+    branches:
+      - "!master"
+    tags:
+      - "[0-9]+.[0-9]+.[0-9]+"
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out Git repository
+        uses: actions/checkout@v2
+
+      - name: Install Java and Maven
+        uses: actions/setup-java@v1
+        with:
+          java-version: 15
+
+      - name: Cache local Maven repository
+        uses: actions/cache@v2
+        with:
+          path: ~/.m2/repository
+          key: ${{ runner.os }}-maven-${{ hashFiles('**/pom.xml') }}
+          restore-keys: |
+            ${{ runner.os }}-maven-
+
+      - name: Get tag version
+        id: tag_version
+        run: |
+          echo "::set-output name=new_tag::${GITHUB_REF#refs/*/}"
+
+      - name: Set maven version
+        run: |
+          echo "Setting Maven version to ${{ steps.tag_version.outputs.new_tag }}"
+          mvn -B versions:set -DnewVersion=${{ steps.tag_version.outputs.new_tag }}
+
+#      - name: Deploy to Maven Central
+#        uses: samuelmeuli/action-maven-publish@v1
+#        with:
+#          gpg_private_key: ${{ secrets.gpg_private_key }}
+#          gpg_passphrase: ${{ secrets.gpg_passphrase }}
+#          nexus_username: ${{ secrets.nexus_username }}
+#          nexus_password: ${{ secrets.nexus_password }}
+#
+#      - name: Create GitHub release
+#        uses: softprops/action-gh-release@v1
+#        with:
+#          tag_name: ${{ steps.tag_version.outputs.new_version }}
+#          name: Flux Capacitor ${{ steps.tag_version.outputs.new_version }}
+#          body: ${{ steps.tag_version.outputs.changelog }}
+#
+#      - name: Login to docker hub
+#        uses: actions-hub/docker/login@master
+#        env:
+#          DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
+#          DOCKER_PASSWORD: ${{ secrets.DOCKER_PASSWORD }}
+#
+#      - name: Docker build
+#        run: |
+#          cd test-server
+#          docker build -t fluxcapacitorio/flux-capacitor-test:${{ steps.tag_version.outputs.new_version }} -t fluxcapacitorio/flux-capacitor-test:latest .
+#          cd ..
+#
+#      - name: Push to docker hub
+#        uses: actions-hub/docker@master
+#        with:
+#          args: push fluxcapacitorio/flux-capacitor-test
