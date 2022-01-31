@@ -1,11 +1,14 @@
-name: Deploy custom tag
+name: Deploy any version
 
 on:
-  push:
-    branches:
-      - "!master"
-    tags:
-      - "[0-9]+.[0-9]+.[0-9]+"
+  workflow_dispatch:
+    inputs:
+      branch:
+        description: 'Branch name'
+        required: true
+      version:
+        description: 'Version e.g. 1.0.1'
+        required: true
 
 jobs:
   deploy:
@@ -13,6 +16,8 @@ jobs:
     steps:
       - name: Check out Git repository
         uses: actions/checkout@v2
+        with:
+          ref: ${{ github.event.inputs.branch }}
 
       - name: Install Java and Maven
         uses: actions/setup-java@v1
@@ -27,10 +32,10 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-maven-
 
-      - name: Get tag version
+      - name: Get the tag
         id: tag_version
         run: |
-          echo "::set-output name=new_tag::${GITHUB_REF#refs/*/}"
+          echo "::set-output name=new_tag::${{ github.event.inputs.version }}"
 
       - name: Set maven version
         run: |
