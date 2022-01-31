@@ -27,44 +27,47 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-maven-
 
-      - name: Get the tag
+      - name: Get version and push tag
+        uses: mathieudutour/github-tag-action@v5.6
         id: tag_version
-        run: |
-          echo "::set-output name=new_tag::${{ github.event.inputs.version }}"
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          release_branches: .*
+          custom_tag: ${{ github.event.inputs.version }}
+          tag_prefix: ""
 
       - name: Set maven version
         run: |
-          echo "Setting Maven version to ${{ steps.tag_version.outputs.new_tag }}"
           mvn -B versions:set -DnewVersion=${{ steps.tag_version.outputs.new_tag }}
 
-#      - name: Deploy to Maven Central
-#        uses: samuelmeuli/action-maven-publish@v1
-#        with:
-#          gpg_private_key: ${{ secrets.gpg_private_key }}
-#          gpg_passphrase: ${{ secrets.gpg_passphrase }}
-#          nexus_username: ${{ secrets.nexus_username }}
-#          nexus_password: ${{ secrets.nexus_password }}
-#
-#      - name: Create GitHub release
-#        uses: softprops/action-gh-release@v1
-#        with:
-#          tag_name: ${{ steps.tag_version.outputs.new_version }}
-#          name: Flux Capacitor ${{ steps.tag_version.outputs.new_version }}
-#          body: ${{ steps.tag_version.outputs.changelog }}
-#
-#      - name: Login to docker hub
-#        uses: actions-hub/docker/login@master
-#        env:
-#          DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
-#          DOCKER_PASSWORD: ${{ secrets.DOCKER_PASSWORD }}
-#
-#      - name: Docker build
-#        run: |
-#          cd test-server
-#          docker build -t fluxcapacitorio/flux-capacitor-test:${{ steps.tag_version.outputs.new_version }} -t fluxcapacitorio/flux-capacitor-test:latest .
-#          cd ..
-#
-#      - name: Push to docker hub
-#        uses: actions-hub/docker@master
-#        with:
-#          args: push fluxcapacitorio/flux-capacitor-test
+      - name: Deploy to Maven Central
+        uses: samuelmeuli/action-maven-publish@v1
+        with:
+          gpg_private_key: ${{ secrets.gpg_private_key }}
+          gpg_passphrase: ${{ secrets.gpg_passphrase }}
+          nexus_username: ${{ secrets.nexus_username }}
+          nexus_password: ${{ secrets.nexus_password }}
+
+      - name: Create GitHub release
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: ${{ steps.tag_version.outputs.new_version }}
+          name: Flux Capacitor ${{ steps.tag_version.outputs.new_version }}
+          body: Flux Capacitor ${{ steps.tag_version.outputs.new_version }}
+
+      - name: Login to docker hub
+        uses: actions-hub/docker/login@master
+        env:
+          DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
+          DOCKER_PASSWORD: ${{ secrets.DOCKER_PASSWORD }}
+
+      - name: Docker build
+        run: |
+          cd test-server
+          docker build -t fluxcapacitorio/flux-capacitor-test:${{ steps.tag_version.outputs.new_tag }} .
+          cd ..
+
+      - name: Push to docker hub
+        uses: actions-hub/docker@master
+        with:
+          args: push fluxcapacitorio/flux-capacitor-test
