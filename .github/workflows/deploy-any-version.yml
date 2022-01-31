@@ -1,7 +1,11 @@
-name: Deploy patch
+name: Deploy any version
 
 on:
-  workflow_dispatch
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version e.g. 1.0.1'
+        required: true
 
 jobs:
   deploy:
@@ -23,20 +27,20 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-maven-
 
-      - name: Bump version and push tag
+      - name: Get version and push tag
         uses: mathieudutour/github-tag-action@v5.6
         id: tag_version
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           release_branches: .*
-          default_bump: patch
+          custom_tag: ${{ github.event.inputs.version }}
           tag_prefix: ""
 
       - name: Set maven version
         run: |
           echo "Setting Maven version to ${{ steps.tag_version.outputs.new_tag }}"
-          echo "Changelog: ${{ steps.tag_version.outputs.changelog }}"
           mvn -B versions:set -DnewVersion=${{ steps.tag_version.outputs.new_tag }}
+          mvn -B install
 
 #      - name: Deploy to Maven Central
 #        uses: samuelmeuli/action-maven-publish@v1
@@ -46,12 +50,12 @@ jobs:
 #          nexus_username: ${{ secrets.nexus_username }}
 #          nexus_password: ${{ secrets.nexus_password }}
 #
-#      - name: Create GitHub release
-#        uses: softprops/action-gh-release@v1
-#        with:
-#          tag_name: ${{ steps.tag_version.outputs.new_version }}
-#          name: Flux Capacitor ${{ steps.tag_version.outputs.new_version }}
-#          body: ${{ steps.tag_version.outputs.changelog }}
+      - name: Create GitHub release
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: ${{ steps.tag_version.outputs.new_version }}
+          name: Flux Capacitor ${{ steps.tag_version.outputs.new_version }}
+          body: Flux Capacitor ${{ steps.tag_version.outputs.new_version }}
 #
 #      - name: Login to docker hub
 #        uses: actions-hub/docker/login@master
