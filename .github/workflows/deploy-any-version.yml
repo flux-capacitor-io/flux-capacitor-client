@@ -38,9 +38,7 @@ jobs:
 
       - name: Set maven version
         run: |
-          echo "Setting Maven version to ${{ steps.tag_version.outputs.new_tag }}"
           mvn -B versions:set -DnewVersion=${{ steps.tag_version.outputs.new_tag }}
-          mvn -B install
 
       - name: Deploy to Maven Central
         uses: samuelmeuli/action-maven-publish@v1
@@ -66,7 +64,7 @@ jobs:
       - name: Docker build
         run: |
           cd test-server
-          docker build -t fluxcapacitorio/flux-capacitor-test:${{ steps.tag_version.outputs.new_version }} .
+          docker build -t fluxcapacitorio/flux-capacitor-test:${{ steps.tag_version.outputs.new_tag }} .
           cd ..
 
       - name: Push to docker hub
