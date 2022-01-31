@@ -1,11 +1,7 @@
-name: Deploy any version
+name: Deploy patch
 
 on:
-  workflow_dispatch:
-    inputs:
-      version:
-        description: 'Version e.g. 1.0.1'
-        required: true
+  workflow_dispatch
 
 jobs:
   deploy:
@@ -33,7 +29,7 @@ jobs:
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           release_branches: .*
-          custom_tag: ${{ github.event.inputs.version }}
+          default_bump: patch
           tag_prefix: ""
 
       - name: Set maven version
