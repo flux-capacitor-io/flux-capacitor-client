@@ -68,10 +68,6 @@ public class Document {
                 .collect(Collectors.joining(" "));
     }
 
-    public Instant getEnd() {
-        return end == null ? timestamp : end;
-    }
-
     public Optional<Entry> getEntryAtPath(String path) {
         return getMatchingEntries(Path.pathPredicate(path)).findFirst();
     }
