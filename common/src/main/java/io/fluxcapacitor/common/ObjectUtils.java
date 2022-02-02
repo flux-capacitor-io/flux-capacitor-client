@@ -26,7 +26,9 @@ import java.util.Map;
 import java.util.Set;
 import java.util.Spliterators;
 import java.util.concurrent.Callable;
+import java.util.concurrent.CompletionException;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ExecutionException;
 import java.util.function.BiFunction;
 import java.util.function.Consumer;
 import java.util.function.Function;
@@ -103,6 +105,16 @@ public class ObjectUtils {
 
     public static Runnable asRunnable(Callable<?> callable) {
         return () -> safelyCall(callable);
+    }
+
+    public static Throwable unwrapException(Throwable e) {
+        if (e == null) {
+            return null;
+        }
+        if (e instanceof CompletionException || e instanceof ExecutionException) {
+            return unwrapException(e.getCause());
+        }
+        return e;
     }
 
     public static class MemoizingSupplier<T> implements Supplier<T> {

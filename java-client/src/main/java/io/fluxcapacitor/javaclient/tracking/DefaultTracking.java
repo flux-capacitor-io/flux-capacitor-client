@@ -15,6 +15,7 @@
 package io.fluxcapacitor.javaclient.tracking;
 
 import io.fluxcapacitor.common.MessageType;
+import io.fluxcapacitor.common.ObjectUtils;
 import io.fluxcapacitor.common.Registration;
 import io.fluxcapacitor.common.api.SerializedMessage;
 import io.fluxcapacitor.common.handling.Handler;
@@ -167,17 +168,19 @@ public class DefaultTracking implements Tracking {
         boolean shouldSendResponse = shouldSendResponse(handler, message);
         if (result instanceof CompletableFuture<?>) {
             CompletableFuture<?> future = ((CompletableFuture<?>) result).whenComplete((r, e) -> {
-                Object asyncResult = e == null ? r : e instanceof FunctionalException ? e : new TechnicalException(
-                        format("Handler %s failed to handle a %s", handler, message), e);
+                Throwable error = ObjectUtils.unwrapException(e);
+                Object asyncResult = error == null ? r : error instanceof FunctionalException
+                        ? error : new TechnicalException(
+                        format("Handler %s failed to handle a %s", handler, message), error);
                 message.run(m -> {
                     try {
                         if (shouldSendResponse) {
                             resultGateway.respond(
                                     asyncResult, serializedMessage.getSource(), serializedMessage.getRequestId());
                         }
-                        if (e != null) {
-                            config.getErrorHandler().handleError((Exception) e, format(
-                                    "Handler %s failed to handle a %s", handler, message),
+                        if (error != null) {
+                            config.getErrorHandler().handleError((Exception) error, format(
+                                                                         "Handler %s failed to handle a %s", handler, message),
                                                                  () -> handle(message, handler, config));
                         }
                     } catch (Exception exc) {
