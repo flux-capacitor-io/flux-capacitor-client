@@ -24,6 +24,7 @@ import io.fluxcapacitor.javaclient.test.TestFixture;
 import io.fluxcapacitor.javaclient.tracking.handling.HandleCommand;
 import io.fluxcapacitor.javaclient.tracking.handling.HandleEvent;
 import io.fluxcapacitor.javaclient.tracking.handling.HandleSchedule;
+import io.fluxcapacitor.javaclient.tracking.handling.IllegalCommandException;
 import lombok.Value;
 import org.junit.jupiter.api.Test;
 
@@ -64,6 +65,16 @@ class GivenWhenThenStreamingTest {
     @Test
     void testAsyncCommandHandling() {
         subject.whenCommand(new YieldsAsyncResult()).expectResult("test");
+    }
+
+    @Test
+    void testAsyncExceptionHandling() {
+        subject.whenCommand(new YieldsAsyncException()).expectException(IllegalCommandException.class);
+    }
+
+    @Test
+    void testAsyncExceptionHandling2() {
+        subject.whenCommand(new YieldsAsyncExceptionSecondHand()).expectException(IllegalCommandException.class);
     }
 
     @Test
@@ -136,6 +147,18 @@ class GivenWhenThenStreamingTest {
             scheduler.schedule(() -> result.complete("test"), 10, TimeUnit.MILLISECONDS);
             return result;
         }
+
+        @HandleCommand
+        public CompletableFuture<?> handle(YieldsAsyncException command) {
+            CompletableFuture<String> result = new CompletableFuture<>();
+            scheduler.schedule(() -> result.completeExceptionally(new IllegalCommandException("test")), 10, TimeUnit.MILLISECONDS);
+            return result;
+        }
+
+        @HandleCommand
+        public CompletableFuture<?> handle(YieldsAsyncExceptionSecondHand command) {
+            return FluxCapacitor.sendCommand(new YieldsAsyncException());
+        }
     }
 
     @Value
@@ -148,6 +171,14 @@ class GivenWhenThenStreamingTest {
 
     @Value
     private static class YieldsException {
+    }
+
+    @Value
+    private static class YieldsAsyncException {
+    }
+
+    @Value
+    private static class YieldsAsyncExceptionSecondHand {
     }
 
     @Value
