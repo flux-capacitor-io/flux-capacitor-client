@@ -25,7 +25,6 @@ import io.fluxcapacitor.javaclient.common.exception.TechnicalException;
 import io.fluxcapacitor.javaclient.common.serialization.DeserializingMessage;
 import io.fluxcapacitor.javaclient.common.serialization.Serializer;
 import io.fluxcapacitor.javaclient.configuration.client.Client;
-import io.fluxcapacitor.javaclient.persisting.caching.CacheInvalidatingInterceptor;
 import io.fluxcapacitor.javaclient.publishing.ResultGateway;
 import io.fluxcapacitor.javaclient.tracking.client.DefaultTracker;
 import io.fluxcapacitor.javaclient.tracking.handling.HandlerFactory;
@@ -37,7 +36,6 @@ import lombok.extern.slf4j.Slf4j;
 import java.lang.reflect.Executable;
 import java.time.Duration;
 import java.util.AbstractMap.SimpleEntry;
-import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashSet;
@@ -108,18 +106,11 @@ public class DefaultTracking implements Tracking {
     protected Registration startTracking(ConsumerConfiguration configuration,
                                          List<Handler<DeserializingMessage>> handlers,
                                          FluxCapacitor fluxCapacitor) {
-        Consumer<List<SerializedMessage>> consumer = createConsumer(configuration, handlers);
-        List<BatchInterceptor> batchInterceptors = new ArrayList<>(
-                Collections.singletonList(new FluxCapacitorInterceptor(fluxCapacitor)));
-        switch (configuration.getMessageType()) {
-            case COMMAND:
-            case EVENT:
-                batchInterceptors.add(new CacheInvalidatingInterceptor(fluxCapacitor.cache()));
-                break;
-        }
-        batchInterceptors.addAll(configuration.getBatchInterceptors());
-        configuration = configuration.toBuilder().clearBatchInterceptors().batchInterceptors(batchInterceptors).build();
-        return DefaultTracker.start(consumer, configuration, client);
+        return DefaultTracker.start(
+                createConsumer(configuration, handlers), configuration.toBuilder().clearBatchInterceptors()
+                        .batchInterceptors(Stream.concat(Stream.of(new FluxCapacitorInterceptor(fluxCapacitor)),
+                                                         configuration.getBatchInterceptors().stream())
+                                                   .collect(toList())).build(), client);
     }
 
     protected Consumer<List<SerializedMessage>> createConsumer(ConsumerConfiguration configuration,
