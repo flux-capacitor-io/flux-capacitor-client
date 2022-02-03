@@ -21,6 +21,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 
 import static io.fluxcapacitor.common.MessageType.EVENT;
 import static io.fluxcapacitor.common.MessageType.NOTIFICATION;
+import static io.fluxcapacitor.javaclient.common.serialization.DeserializingMessage.handleBatch;
 import static io.fluxcapacitor.javaclient.modeling.AggregateIdResolver.getAggregateId;
 import static io.fluxcapacitor.javaclient.modeling.AggregateTypeResolver.getAggregateType;
 import static io.fluxcapacitor.javaclient.tracking.client.DefaultTracker.start;
@@ -46,7 +47,8 @@ public class CachingAggregateRepository implements AggregateRepository {
 
     protected void handleEvents(List<SerializedMessage> messages) {
         try {
-            serializer.deserializeMessages(messages.stream(), false, EVENT).forEach(this::handleEvent);
+            handleBatch(serializer.deserializeMessages(messages.stream(), false, EVENT))
+                    .forEach(this::handleEvent);
         } finally {
             messages.stream().reduce((a, b) -> b).map(SerializedMessage::getIndex).ifPresent(index -> {
                 lastEventIndex = index;
