@@ -373,9 +373,18 @@ public interface FluxCapacitor extends AutoCloseable {
     }
 
     /**
+     * Search the given collections for documents.
+     * <p>
+     * Example usage: FluxCapacitor.search("myCollection", "myOtherCollection).query("foo !bar").fetch(100);
+     */
+    static Search search(String... collections) {
+        return get().documentStore().search(collections);
+    }
+
+    /**
      * Search the given collection for documents.
      * <p>
-     * Example usage: FluxCapacitor.search("myCollection").find("foo !bar").get(100);
+     * Example usage: FluxCapacitor.search("myCollection").query("foo !bar").fetch(100);
      */
     static Search search(String collection) {
         return get().documentStore().search(collection);

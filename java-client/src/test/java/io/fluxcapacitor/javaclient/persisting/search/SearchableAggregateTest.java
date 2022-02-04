@@ -14,8 +14,10 @@
 
 package io.fluxcapacitor.javaclient.persisting.search;
 
+import io.fluxcapacitor.javaclient.FluxCapacitor;
 import io.fluxcapacitor.javaclient.persisting.eventsourcing.Aggregate;
 import io.fluxcapacitor.javaclient.test.TestFixture;
+import io.fluxcapacitor.javaclient.tracking.handling.HandleQuery;
 import lombok.Value;
 import org.junit.jupiter.api.Test;
 
@@ -27,13 +29,13 @@ import static io.fluxcapacitor.javaclient.FluxCapacitor.search;
 
 public class SearchableAggregateTest {
 
-    private final TestFixture testFixture = TestFixture.create();
+    private final TestFixture testFixture = TestFixture.create(new QueryHandler());
 
     @Test
     void testAggregateIsSearchableAfterApply() {
         testFixture.when(fc -> loadAggregate("123", SearchableAggregate.class, false)
                         .update(a -> new SearchableAggregate("bar")))
-                .expectDocuments(List.of(new SearchableAggregate("bar")))
+                .expectTrue(fc -> fc.documentStore().search("SearchableAggregate").fetchAll().equals(List.of(new SearchableAggregate("bar"))))
                 .expectFalse(fc -> search(SearchableAggregate.class.getSimpleName()).fetchAll().isEmpty())
                 .expectTrue(fc -> search("searchables").fetchAll().isEmpty());
     }
@@ -51,7 +53,7 @@ public class SearchableAggregateTest {
         Instant timestamp = Instant.now().minusSeconds(1000);
         testFixture.when(fc -> loadAggregate("123", SearchableAggregateWithTimePath.class, false)
                         .update(a -> new SearchableAggregateWithTimePath(timestamp)))
-                .expectDocuments(List.of(new SearchableAggregateWithTimePath(timestamp)))
+                .expectTrue(fc -> fc.documentStore().search("SearchableAggregateWithTimePath").fetchAll().equals(List.of(new SearchableAggregateWithTimePath(timestamp))))
                 .expectFalse(fc -> search(SearchableAggregateWithTimePath.class.getSimpleName())
                         .before(timestamp.plusSeconds(1)).fetchAll().isEmpty())
                 .expectTrue(fc -> search(SearchableAggregateWithTimePath.class.getSimpleName())
@@ -73,8 +75,28 @@ public class SearchableAggregateTest {
     void testAggregateWithCustomCollection() {
         testFixture.when(fc -> loadAggregate("123", SearchableAggregateWithCustomCollection.class, false)
                         .update(a -> new SearchableAggregateWithCustomCollection("bar")))
-                .expectDocuments(List.of(new SearchableAggregateWithCustomCollection("bar")))
+                .expectTrue(fc -> fc.documentStore().search("searchables").fetchAll().equals(List.of(new SearchableAggregateWithCustomCollection("bar"))))
                 .expectFalse(fc -> search("searchables").fetchAll().isEmpty());
+    }
+
+    @Test
+    void testAggregateWithCustomCollectionViaQuery() {
+        testFixture.given(fc -> loadAggregate("123", SearchableAggregateWithCustomCollection.class, false)
+                        .update(a -> new SearchableAggregateWithCustomCollection("bar")))
+                .whenQuery(new GetAggregates("searchables"))
+                .expectResultContaining(new SearchableAggregateWithCustomCollection("bar"));
+    }
+
+    @Value
+    private static class GetAggregates {
+        String collection;
+    }
+
+    private static class QueryHandler {
+        @HandleQuery
+        List<?> handle(GetAggregates query) {
+            return FluxCapacitor.search(query.getCollection()).fetchAll();
+        }
     }
 
     @Aggregate(eventSourced = false, searchable = true, cached = false)
