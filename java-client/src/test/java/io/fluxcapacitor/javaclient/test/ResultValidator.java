@@ -14,10 +14,7 @@
 
 package io.fluxcapacitor.javaclient.test;
 
-import io.fluxcapacitor.common.api.search.SerializedDocument;
-import io.fluxcapacitor.common.api.search.SerializedDocumentUpdate;
 import io.fluxcapacitor.common.reflection.ReflectionUtils;
-import io.fluxcapacitor.common.search.Document;
 import io.fluxcapacitor.javaclient.FluxCapacitor;
 import io.fluxcapacitor.javaclient.common.Message;
 import io.fluxcapacitor.javaclient.scheduling.Schedule;
@@ -27,10 +24,8 @@ import lombok.Getter;
 import lombok.NonNull;
 import lombok.extern.slf4j.Slf4j;
 import org.hamcrest.Matcher;
-import org.mockito.Mockito;
 
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
@@ -42,7 +37,6 @@ import java.util.stream.Stream;
 import static io.fluxcapacitor.javaclient.common.Message.asMessage;
 import static java.lang.String.format;
 import static java.util.stream.Collectors.toList;
-import static java.util.stream.Stream.concat;
 
 @AllArgsConstructor
 @Slf4j
@@ -102,47 +96,6 @@ public class ResultValidator implements Then {
     }
 
     @Override
-    public Then expectOnlyDocuments(List<?> documents) {
-        return expectOnly(documents, getResultingDocuments());
-    }
-
-    @Override
-    public Then expectDocuments(List<?> documents) {
-        return expect(documents, getResultingDocuments());
-    }
-
-    @Override
-    public Then expectNoDocumentsLike(List<?> documents) {
-        return expectNothingLike(documents, getResultingDocuments());
-    }
-
-    @SuppressWarnings("unchecked")
-    protected List<Object> getResultingDocuments() {
-        return concat(Mockito.mockingDetails(fluxCapacitor.client().getSearchClient()).getInvocations().stream()
-                              .filter(i -> i.getMethod().getName().equals("index"))
-                              .flatMap(i -> Arrays.stream(i.getArguments()).flatMap(a -> {
-                                  if (a instanceof Document[]) {
-                                      return Arrays.stream((Document[]) a);
-                                  }
-                                  if (a instanceof List<?>) {
-                                      return ((List<Document>) a).stream();
-                                  }
-                                  return Stream.empty();
-                              })).map(d -> fluxCapacitor.documentStore().getSerializer().fromDocument(d)),
-                      Mockito.mockingDetails(fluxCapacitor.client().getSearchClient()).getInvocations().stream()
-                              .filter(i -> i.getMethod().getName().equals("bulkUpdate"))
-                              .flatMap(i -> Arrays.stream(i.getArguments()).flatMap(a -> {
-                                  if (a instanceof Collection<?>) {
-                                      return ((Collection<SerializedDocumentUpdate>) a).stream()
-                                              .map(SerializedDocumentUpdate::getObject)
-                                              .filter(Objects::nonNull).map(SerializedDocument::deserializeDocument);
-                                  }
-                                  return Stream.empty();
-                              })).map(d -> fluxCapacitor.documentStore().getSerializer().fromDocument(d)))
-                .collect(toList());
-    }
-
-    @Override
     public ResultValidator expectResult(Object expectedResult) {
         return fluxCapacitor.apply(fc -> {
             if (result instanceof Throwable) {
@@ -191,6 +144,15 @@ public class ResultValidator implements Then {
             }
             return this;
         });
+    }
+
+    @SafeVarargs
+    @Override
+    public final <T> Then expectResultContaining(T... results) {
+        if (!(this.result instanceof Collection<?>)) {
+            throw new GivenWhenThenAssertionError("Result is not a collection", List.of(results), this.result);
+        }
+        return expect(List.of(results), (Collection<?>) this.result);
     }
 
     @Override

@@ -109,16 +109,6 @@ public interface Then {
     Then expectNoSchedulesLike(List<?> schedules);
 
     /*
-        Documents
-     */
-
-    Then expectOnlyDocuments(List<?> documents);
-
-    Then expectDocuments(List<?> documents);
-
-    Then expectNoDocumentsLike(List<?> documents);
-
-    /*
         Normal result
      */
 
@@ -140,6 +130,9 @@ public interface Then {
     }
 
     Then expectNoResultLike(Object result);
+
+    @SuppressWarnings("unchecked")
+    <T> Then expectResultContaining(T... results);
 
     /*
         Exceptional result
@@ -181,7 +174,7 @@ public interface Then {
     }
 
     /*
-        External process
+        Other
      */
 
     Then expectThat(Consumer<FluxCapacitor> check);
