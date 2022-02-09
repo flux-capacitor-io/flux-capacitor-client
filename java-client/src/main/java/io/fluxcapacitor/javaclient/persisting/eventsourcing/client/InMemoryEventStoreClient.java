@@ -17,32 +17,23 @@ package io.fluxcapacitor.javaclient.persisting.eventsourcing.client;
 import io.fluxcapacitor.common.Awaitable;
 import io.fluxcapacitor.common.Guarantee;
 import io.fluxcapacitor.common.api.SerializedMessage;
-import io.fluxcapacitor.common.api.eventsourcing.EventBatch;
 import io.fluxcapacitor.javaclient.persisting.eventsourcing.AggregateEventStream;
 import io.fluxcapacitor.javaclient.tracking.client.InMemoryMessageStore;
 
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
 
 public class InMemoryEventStoreClient extends InMemoryMessageStore implements EventStoreClient {
 
-    private final Map<String, List<EventBatch>> domainEvents = new ConcurrentHashMap<>();
+    private final Map<String, List<SerializedMessage>> appliedEvents = new ConcurrentHashMap<>();
 
     @Override
-    public Awaitable storeEvents(String aggregateId, String domain, long lastSequenceNumber,
-                                 List<SerializedMessage> events, boolean storeOnly) {
-        domainEvents.compute(aggregateId, (id, list) -> {
-            if (list == null) {
-                list = new CopyOnWriteArrayList<>();
-            }
-            list.add(new EventBatch(aggregateId, domain, lastSequenceNumber, events, storeOnly));
-            return list;
-        });
+    public Awaitable storeEvents(String aggregateId, List<SerializedMessage> events, boolean storeOnly) {
+        appliedEvents.computeIfAbsent(aggregateId, id -> new CopyOnWriteArrayList<>()).addAll(events);
         if (storeOnly) {
             return Awaitable.ready();
         }
@@ -51,24 +42,15 @@ public class InMemoryEventStoreClient extends InMemoryMessageStore implements Ev
 
     @Override
     public AggregateEventStream<SerializedMessage> getEvents(String aggregateId, long lastSequenceNumber) {
-        List<EventBatch> eventBatches = domainEvents.getOrDefault(aggregateId, Collections.emptyList());
-        Optional<EventBatch> lastBatch = eventBatches.stream().reduce((a, b) -> b);
-        return new AggregateEventStream<>(
-                eventBatches.stream()
-                        .filter(batch -> batch.getLastSequenceNumber() > lastSequenceNumber)
-                        .flatMap(batch -> {
-                            List<SerializedMessage> events = batch.getEvents();
-                            if (batch.getFirstSequenceNumber() > lastSequenceNumber) {
-                                return events.stream();
-                            }
-                            return events.stream().skip(lastSequenceNumber - batch.getFirstSequenceNumber() + 1);
-                        }), aggregateId, lastBatch.map(EventBatch::getDomain).orElse(null),
-                () -> lastBatch.map(EventBatch::getLastSequenceNumber).orElse(null));
+        List<SerializedMessage> events = appliedEvents.getOrDefault(aggregateId, Collections.emptyList());
+        return new AggregateEventStream<>(events.subList(
+                Math.min(1 + (int) lastSequenceNumber, events.size()), events.size()).stream(), aggregateId,
+                () -> (long) events.size() - 1L);
     }
 
     @Override
     public CompletableFuture<Boolean> deleteEvents(String aggregateId) {
-        return CompletableFuture.completedFuture(domainEvents.remove(aggregateId) != null);
+        return CompletableFuture.completedFuture(appliedEvents.remove(aggregateId) != null);
     }
 
 }

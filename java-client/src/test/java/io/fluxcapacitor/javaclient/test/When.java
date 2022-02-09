@@ -38,7 +38,7 @@ public interface When extends Given {
 
     Then whenEvent(Object event);
 
-    Then whenDomainEvents(String aggregateId, Object... events);
+    Then whenEventsAreApplied(String aggregateId, Object... events);
 
     Then whenSearching(String collection, UnaryOperator<Search> searchQuery);
 

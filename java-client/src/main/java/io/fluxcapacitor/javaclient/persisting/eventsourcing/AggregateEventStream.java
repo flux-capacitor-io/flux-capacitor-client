@@ -29,11 +29,10 @@ public class AggregateEventStream<T> implements Stream<T> {
     @Delegate
     private final Stream<T> eventStream;
     private final String aggregateId;
-    private final String domain;
     private final Supplier<Long> lastSequenceNumber;
 
     public <O> AggregateEventStream<O> convert(Function<Stream<T>, Stream<O>> streamConvertor) {
-        return new AggregateEventStream<>(streamConvertor.apply(eventStream), aggregateId, domain, lastSequenceNumber);
+        return new AggregateEventStream<>(streamConvertor.apply(eventStream), aggregateId, lastSequenceNumber);
     }
 
     public Optional<Long> getLastSequenceNumber() {

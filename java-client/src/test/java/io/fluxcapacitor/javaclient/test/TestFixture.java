@@ -269,8 +269,8 @@ public class TestFixture implements Given, When {
     }
 
     @Override
-    public When givenDomainEvents(String aggregateId, Object... events) {
-        return given(fc -> publishDomainEvents(aggregateId, fc, events));
+    public When givenAppliedEvents(String aggregateId, Object... events) {
+        return given(fc -> applyEvents(aggregateId, fc, events));
     }
 
     @Override
@@ -349,8 +349,8 @@ public class TestFixture implements Given, When {
     }
 
     @Override
-    public Then whenDomainEvents(String aggregateId, Object... events) {
-        return when(fc -> publishDomainEvents(aggregateId, fc, events));
+    public Then whenEventsAreApplied(String aggregateId, Object... events) {
+        return when(fc -> applyEvents(aggregateId, fc, events));
     }
 
     @Override
@@ -428,28 +428,26 @@ public class TestFixture implements Given, When {
         return new ResultValidator(getFluxCapacitor(), result, events, commands, webRequests, schedules, exceptions);
     }
 
-    protected void publishDomainEvents(String aggregateId, FluxCapacitor fc, Object[] events) {
+    protected void applyEvents(String aggregateId, FluxCapacitor fc, Object[] events) {
         List<Message> eventList = flatten(events).map(e -> {
             Message m = asMessage(e);
             return m.withMetadata(m.getMetadata().with(AggregateRoot.AGGREGATE_ID_METADATA_KEY, aggregateId));
         }).collect(toList());
         if (eventList.stream().anyMatch(e -> e.getPayload() instanceof Data<?>)) {
-            for (int i = 0; i < eventList.size(); i++) {
-                Message event = eventList.get(i);
+            for (Message event : eventList) {
                 if (event.getPayload() instanceof Data<?>) {
                     Data<?> eventData = event.getPayload();
                     Data<byte[]> eventBytes = fc.serializer().serialize(eventData);
                     SerializedMessage message =
                             new SerializedMessage(eventBytes, event.getMetadata(), event.getMessageId(),
                                                   event.getTimestamp().toEpochMilli());
-                    fc.client().getEventStoreClient().storeEvents(aggregateId, "test", i,
-                                                                  singletonList(message), false);
+                    fc.client().getEventStoreClient().storeEvents(aggregateId, singletonList(message), false);
                 } else {
-                    fc.eventStore().storeEvents(aggregateId, aggregateId, i, event);
+                    fc.eventStore().storeEvents(aggregateId, event);
                 }
             }
         } else {
-            fc.eventStore().storeEvents(aggregateId, aggregateId, eventList.size() - 1, eventList);
+            fc.eventStore().storeEvents(aggregateId, eventList);
         }
     }
 

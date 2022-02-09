@@ -145,11 +145,12 @@ public class DefaultAggregateRepository implements AggregateRepository {
                                                     a -> ImmutableAggregateRoot.from(a, eventSourcingHandler,
                                                                                      serializer)))
                                                     .filter(a -> {
-                                                        boolean assignable = a.get() == null
+                                                        boolean assignable =
+                                                                a.get() == null
                                                                 || type.isAssignableFrom(a.get().getClass());
                                                         if (!assignable) {
                                                             log.warn("Could not load aggregate {} because the requested"
-                                                                             + " type {} is not assignable to the stored type {}",
+                                                                     + " type {} is not assignable to the stored type {}",
                                                                      id, type, a.get().getClass());
                                                         }
                                                         return assignable;
@@ -171,14 +172,13 @@ public class DefaultAggregateRepository implements AggregateRepository {
         }
 
         protected void commit(ImmutableAggregateRoot<?> model, List<DeserializingMessage> unpublishedEvents,
-                           String initialEventId) {
+                              String initialEventId) {
             try {
-                cache.<AggregateRoot<?>>compute(model.id(), (id, current) -> current == null
-                        || Objects.equals(initialEventId, current.lastEventId()) || unpublishedEvents.isEmpty()
-                        ? model : current.apply(unpublishedEvents));
+                cache.<AggregateRoot<?>>compute(model.id(), (id, current) ->
+                        current == null || Objects.equals(initialEventId, current.lastEventId())
+                        || unpublishedEvents.isEmpty() ? model : current.apply(unpublishedEvents));
                 if (!unpublishedEvents.isEmpty()) {
-                    eventStore.storeEvents(model.id(), collection, model.sequenceNumber(),
-                                           new ArrayList<>(unpublishedEvents)).awaitSilently();
+                    eventStore.storeEvents(model.id(), new ArrayList<>(unpublishedEvents)).awaitSilently();
                     if (snapshotTrigger.shouldCreateSnapshot(model, unpublishedEvents)) {
                         snapshotStore.storeSnapshot(model);
                     }

@@ -45,14 +45,14 @@ class StallingBatchInterceptorTest {
 
     @Test
     void testLargeBatchPassed() {
-        testFixture.whenDomainEvents("test", 0, 1)
+        testFixture.whenEventsAreApplied("test", 0, 1)
                 .expectThat(fc -> verify(handler, times(2)).handle(any()))
                 .expectThat(fc -> verify(fc.client().getTrackingClient(EVENT)).storePosition(any(), any(), anyLong()));
     }
 
     @Test
     void testSmallBatchStalled() {
-        testFixture.whenDomainEvents("test", 0)
+        testFixture.whenEventsAreApplied("test", 0)
                 .expectThat(fc -> verify(handler, never()).handle(any()))
                 .expectThat(fc -> verify(fc.client().getTrackingClient(EVENT), never())
                         .storePosition(any(), any(), anyLong()));
@@ -60,7 +60,7 @@ class StallingBatchInterceptorTest {
 
     @Test
     void testSmallBatchPassedAfterTimeout() {
-        testFixture.givenDomainEvents("test", 0)
+        testFixture.givenAppliedEvents("test", 0)
                 .whenTimeElapses(stallingDuration)
                 .expectThat(fc -> verify(handler, times(1)).handle(any()))
                 .expectThat(fc -> verify(fc.client().getTrackingClient(EVENT)).storePosition(any(), any(), anyLong()));

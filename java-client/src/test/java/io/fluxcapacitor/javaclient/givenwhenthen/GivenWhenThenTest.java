@@ -154,8 +154,8 @@ class GivenWhenThenTest {
     }
 
     @Test
-    void testGivenDomainEvents() {
-        subject.givenDomainEvents("test", new MockDomainEvent())
+    void testGivenAppliedEvents() {
+        subject.givenAppliedEvents("test", new MockAggregateEvent())
                 .whenApplying(fc -> loadAggregate("test", MockAggregate.class).get())
                 .expectResult(r -> r instanceof MockAggregate);
     }
@@ -211,12 +211,12 @@ class GivenWhenThenTest {
     @Aggregate
     private static class MockAggregate {
         @ApplyEvent
-        MockAggregate(MockDomainEvent event) {
+        MockAggregate(MockAggregateEvent event) {
         }
     }
 
     @Value
-    private static class MockDomainEvent {
+    private static class MockAggregateEvent {
     }
 
     @Value

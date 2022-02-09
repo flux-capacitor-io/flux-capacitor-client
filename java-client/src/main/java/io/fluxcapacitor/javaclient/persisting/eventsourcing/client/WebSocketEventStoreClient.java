@@ -58,9 +58,9 @@ public class WebSocketEventStoreClient extends AbstractWebsocketClient implement
     }
 
     @Override
-    public Awaitable storeEvents(String aggregateId, String domain, long lastSequenceNumber,
+    public Awaitable storeEvents(String aggregateId,
                                  List<SerializedMessage> events, boolean storeOnly) {
-        return backlog.add(new EventBatch(aggregateId, domain, lastSequenceNumber, events, storeOnly));
+        return backlog.add(new EventBatch(aggregateId, events, storeOnly));
     }
 
     private Awaitable doSend(List<EventBatch> batches) {
@@ -73,17 +73,16 @@ public class WebSocketEventStoreClient extends AbstractWebsocketClient implement
         AtomicReference<Long> highestSequenceNumber = new AtomicReference<>();
         GetEventsResult firstBatch = sendAndWait(new GetEvents(aggregateId, lastSequenceNumber, fetchBatchSize));
         Stream<SerializedMessage> eventStream = iterate(firstBatch,
-                                              r -> sendAndWait(new GetEvents(aggregateId, r.getEventBatch()
+                                              r -> sendAndWait(new GetEvents(aggregateId, r
                                                       .getLastSequenceNumber(), fetchBatchSize)),
                                               r -> r.getEventBatch().getEvents().size() < fetchBatchSize)
                 .flatMap(r -> {
                     if (!r.getEventBatch().isEmpty()) {
-                        highestSequenceNumber.set(r.getEventBatch().getLastSequenceNumber());
+                        highestSequenceNumber.set(r.getLastSequenceNumber());
                     }
                     return r.getEventBatch().getEvents().stream();
                 });
-        return new AggregateEventStream<>(eventStream, aggregateId, firstBatch.getEventBatch().getDomain(),
-                                          highestSequenceNumber::get);
+        return new AggregateEventStream<>(eventStream, aggregateId, highestSequenceNumber::get);
     }
 
     @Override
