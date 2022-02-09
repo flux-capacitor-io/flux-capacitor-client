@@ -38,14 +38,14 @@ class ThrowingErrorHandlerTest {
 
     @Test
     void testTrackingStoppedDuringFirstEvent() {
-        testFixture.whenDomainEvents("testAggregate", "error")
+        testFixture.whenEventsAreApplied("testAggregate", "error")
                 .expectThat(fc -> verify(fc.client().getTrackingClient(MessageType.EVENT), never())
                         .storePosition(any(), any(), anyLong()));
     }
 
     @Test
     void testTrackingStoppedDuringSecondEvent() {
-        testFixture.whenDomainEvents("testAggregate", 1, "error")
+        testFixture.whenEventsAreApplied("testAggregate", 1, "error")
                 .expectThat(fc -> {
                     TrackingClient trackingClient = fc.client().getTrackingClient(MessageType.EVENT);
                     verify(trackingClient).storePosition(any(), any(), eq((long) eventHandler.getFirstIndex()));

@@ -34,7 +34,7 @@ public interface Given {
 
     When givenCommandsByUser(User user, Object... commands);
 
-    When givenDomainEvents(String aggregateId, Object... events);
+    When givenAppliedEvents(String aggregateId, Object... events);
 
     When givenEvents(Object... events);
 

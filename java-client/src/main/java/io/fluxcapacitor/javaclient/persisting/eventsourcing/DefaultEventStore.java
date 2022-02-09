@@ -43,8 +43,7 @@ public class DefaultEventStore implements EventStore {
     private final HandlerRegistry localHandlerRegistry;
 
     @Override
-    public Awaitable storeEvents(String aggregateId, String domain, long lastSequenceNumber,
-                                 List<?> events, boolean storeOnly) {
+    public Awaitable storeEvents(String aggregateId, List<?> events, boolean storeOnly) {
         Awaitable result;
         List<DeserializingMessage> messages = new ArrayList<>(events.size());
         try {
@@ -64,7 +63,7 @@ public class DefaultEventStore implements EventStore {
                         .ifPresent(fc -> deserializingMessage.getSerializedObject().setSource(fc.client().id()));
                 messages.add(deserializingMessage);
             });
-            result = client.storeEvents(aggregateId, domain, lastSequenceNumber,
+            result = client.storeEvents(aggregateId,
                                         messages.stream().map(m -> m.getSerializedObject().getSegment() == null ?
                                                 m.getSerializedObject().withSegment(segment) : m.getSerializedObject())
                                                 .collect(toList()), storeOnly);
@@ -79,11 +78,10 @@ public class DefaultEventStore implements EventStore {
     @Override
     public AggregateEventStream<DeserializingMessage> getEvents(String aggregateId, long lastSequenceNumber) {
         try {
-            AggregateEventStream<SerializedMessage> serializedEvents =
-                    client.getEvents(aggregateId, lastSequenceNumber);
+            AggregateEventStream<SerializedMessage> serializedEvents = client.getEvents(aggregateId, lastSequenceNumber);
             return serializedEvents.convert(stream -> serializer.deserializeMessages(stream, true, EVENT));
         } catch (Exception e) {
-            throw new EventSourcingException(format("Failed to obtain domain events for aggregate %s", aggregateId), e);
+            throw new EventSourcingException(format("Failed to obtain events for aggregate %s", aggregateId), e);
         }
     }
 }

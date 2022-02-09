@@ -24,15 +24,8 @@ import java.util.List;
 @Value
 public class EventBatch {
     String aggregateId;
-    String domain;
-    long lastSequenceNumber;
     List<SerializedMessage> events;
     boolean storeOnly;
-
-    @JsonIgnore
-    public Long getFirstSequenceNumber() {
-        return lastSequenceNumber - events.size() + 1;
-    }
 
     @JsonIgnore
     public boolean isEmpty() {
@@ -48,8 +41,6 @@ public class EventBatch {
     public String toString() {
         return "EventBatch{" +
                 "aggregateId='" + aggregateId + '\'' +
-                ", domain='" + domain + '\'' +
-                ", lastSequenceNumber=" + lastSequenceNumber +
                 ", event count=" + events.size() +
                 ", storeOnly=" + storeOnly +
                 '}';
@@ -57,16 +48,13 @@ public class EventBatch {
 
     @JsonIgnore
     public Metric toMetric() {
-        return Metric.builder().aggregateId(aggregateId).domain(domain)
-                .lastSequenceNumber(lastSequenceNumber).size(events.size()).storeOnly(storeOnly).build();
+        return Metric.builder().aggregateId(aggregateId).size(events.size()).storeOnly(storeOnly).build();
     }
 
     @Value
     @Builder
     public static class Metric {
         String aggregateId;
-        String domain;
-        long lastSequenceNumber;
         int size;
         boolean storeOnly;
     }

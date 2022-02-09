@@ -23,8 +23,7 @@ import java.util.concurrent.CompletableFuture;
 
 public interface EventStoreClient extends AutoCloseable {
 
-    Awaitable storeEvents(String aggregateId, String domain, long lastSequenceNumber, List<SerializedMessage> events,
-                          boolean storeOnly);
+    Awaitable storeEvents(String aggregateId, List<SerializedMessage> events, boolean storeOnly);
 
     default AggregateEventStream<SerializedMessage> getEvents(String aggregateId) {
         return getEvents(aggregateId, -1L);

@@ -24,15 +24,15 @@ import static java.util.Arrays.asList;
 
 public interface EventStore extends HasLocalHandlers {
 
-    default Awaitable storeEvents(String aggregateId, String domain, long lastSequenceNumber, Object... events) {
-        return storeEvents(aggregateId, domain, lastSequenceNumber, asList(events));
+    default Awaitable storeEvents(String aggregateId, Object... events) {
+        return storeEvents(aggregateId, asList(events));
     }
 
-    default Awaitable storeEvents(String aggregateId, String domain, long lastSequenceNumber, List<?> events) {
-        return storeEvents(aggregateId, domain, lastSequenceNumber, events, false);
+    default Awaitable storeEvents(String aggregateId, List<?> events) {
+        return storeEvents(aggregateId, events, false);
     }
 
-    Awaitable storeEvents(String aggregateId, String domain, long lastSequenceNumber, List<?> events, boolean storeOnly);
+    Awaitable storeEvents(String aggregateId, List<?> events, boolean storeOnly);
 
     default AggregateEventStream<DeserializingMessage> getEvents(String aggregateId) {
         return getEvents(aggregateId, -1L);

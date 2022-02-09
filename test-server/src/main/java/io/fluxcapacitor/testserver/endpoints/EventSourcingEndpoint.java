@@ -42,7 +42,7 @@ public class EventSourcingEndpoint extends WebsocketEndpoint {
     @Handle
     public VoidResult handle(AppendEvents appendEvents) throws Exception {
         List<Awaitable> results = appendEvents.getEventBatches().stream().map(b -> eventStore
-                .storeEvents(b.getAggregateId(), b.getDomain(), b.getLastSequenceNumber(), b.getEvents(),
+                .storeEvents(b.getAggregateId(), b.getEvents(),
                              b.isStoreOnly())).collect(
                 Collectors.toList());
         for (Awaitable awaitable : results) {
@@ -63,7 +63,6 @@ public class EventSourcingEndpoint extends WebsocketEndpoint {
                 .getEvents(getEvents.getAggregateId(), getEvents.getLastSequenceNumber());
         long lastSequenceNumber = stream.getLastSequenceNumber().orElse(-1L);
         return new GetEventsResult(getEvents.getRequestId(), new EventBatch(
-                getEvents.getAggregateId(), stream.getDomain(), lastSequenceNumber,
-                stream.collect(Collectors.toList()), false), lastSequenceNumber);
+                getEvents.getAggregateId(), stream.collect(Collectors.toList()), false), lastSequenceNumber);
     }
 }
