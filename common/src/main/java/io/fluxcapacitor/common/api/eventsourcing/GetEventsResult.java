@@ -21,16 +21,18 @@ import lombok.Value;
 public class GetEventsResult implements QueryResult {
     long requestId;
     EventBatch eventBatch;
+    long lastSequenceNumber;
     long timestamp = System.currentTimeMillis();
 
     @Override
     public Metric toMetric() {
-        return new Metric(eventBatch.toMetric(), timestamp);
+        return new Metric(eventBatch.toMetric(), lastSequenceNumber, timestamp);
     }
 
     @Value
     public static class Metric {
         EventBatch.Metric eventBatch;
+        long lastSequenceNumber;
         long timestamp;
     }
 }

@@ -61,8 +61,9 @@ public class EventSourcingEndpoint extends WebsocketEndpoint {
     public GetEventsResult handle(GetEvents getEvents) throws Exception {
         AggregateEventStream<SerializedMessage> stream = eventStore
                 .getEvents(getEvents.getAggregateId(), getEvents.getLastSequenceNumber());
+        long lastSequenceNumber = stream.getLastSequenceNumber().orElse(-1L);
         return new GetEventsResult(getEvents.getRequestId(), new EventBatch(
-                getEvents.getAggregateId(), stream.getDomain(), stream.getLastSequenceNumber().orElse(-1L),
-                stream.collect(Collectors.toList()), false));
+                getEvents.getAggregateId(), stream.getDomain(), lastSequenceNumber,
+                stream.collect(Collectors.toList()), false), lastSequenceNumber);
     }
 }
