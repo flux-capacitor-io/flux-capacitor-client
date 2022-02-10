@@ -65,6 +65,11 @@ public class DefaultAggregateRepository implements AggregateRepository {
     }
 
     @Override
+    public <T> AggregateRoot<T> loadFor(String entityId, Class<?> entityType) {
+        return null;
+    }
+
+    @Override
     public boolean cachingAllowed(Class<?> type) {
         return delegates.apply(type).isCached();
     }

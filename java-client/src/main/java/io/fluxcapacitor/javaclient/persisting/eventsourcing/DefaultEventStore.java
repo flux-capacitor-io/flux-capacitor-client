@@ -79,7 +79,7 @@ public class DefaultEventStore implements EventStore {
     public AggregateEventStream<DeserializingMessage> getEvents(String aggregateId, long lastSequenceNumber) {
         try {
             AggregateEventStream<SerializedMessage> serializedEvents = client.getEvents(aggregateId, lastSequenceNumber);
-            return serializedEvents.convert(stream -> serializer.deserializeMessages(stream, true, EVENT));
+            return serializedEvents.convert(stream -> serializer.deserializeMessages(stream, EVENT));
         } catch (Exception e) {
             throw new EventSourcingException(format("Failed to obtain events for aggregate %s", aggregateId), e);
         }

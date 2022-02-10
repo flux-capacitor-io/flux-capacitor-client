@@ -23,6 +23,9 @@ import io.fluxcapacitor.common.api.eventsourcing.DeleteEvents;
 import io.fluxcapacitor.common.api.eventsourcing.EventBatch;
 import io.fluxcapacitor.common.api.eventsourcing.GetEvents;
 import io.fluxcapacitor.common.api.eventsourcing.GetEventsResult;
+import io.fluxcapacitor.common.api.modeling.GetAggregateIds;
+import io.fluxcapacitor.common.api.modeling.GetAggregateIdsResult;
+import io.fluxcapacitor.common.api.modeling.UpdateRelationships;
 import io.fluxcapacitor.javaclient.common.websocket.AbstractWebsocketClient;
 import io.fluxcapacitor.javaclient.configuration.client.WebSocketClient;
 import io.fluxcapacitor.javaclient.configuration.client.WebSocketClient.ClientConfig;
@@ -31,6 +34,7 @@ import io.fluxcapacitor.javaclient.persisting.eventsourcing.AggregateEventStream
 import javax.websocket.ClientEndpoint;
 import java.net.URI;
 import java.util.List;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Stream;
@@ -83,6 +87,16 @@ public class WebSocketEventStoreClient extends AbstractWebsocketClient implement
                     return r.getEventBatch().getEvents().stream();
                 });
         return new AggregateEventStream<>(eventStream, aggregateId, highestSequenceNumber::get);
+    }
+
+    @Override
+    public Awaitable updateRelationships(UpdateRelationships request) {
+        return Awaitable.fromFuture(send(request));
+    }
+
+    @Override
+    public Set<String> getAggregateIds(GetAggregateIds request) {
+        return this.<GetAggregateIdsResult>sendAndWait(request).getAggregateIds();
     }
 
     @Override

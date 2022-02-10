@@ -92,8 +92,7 @@ public class InMemorySchedulingClient extends InMemoryMessageStore implements Sc
         List<Schedule> result = expiredEntries.entrySet().stream().map(e -> {
             SerializedMessage m = getMessage(e.getKey());
             return new Schedule(
-                    serializer.deserializeMessages(Stream.of(m), true, MessageType.SCHEDULE)
-                            .findFirst().get().getPayload(),
+                    serializer.deserializeMessages(Stream.of(m), MessageType.SCHEDULE).findFirst().get().getPayload(),
                     m.getMetadata(), e.getValue(), timestampFromIndex(e.getKey()));
         }).collect(toList());
         expiredEntries.clear();

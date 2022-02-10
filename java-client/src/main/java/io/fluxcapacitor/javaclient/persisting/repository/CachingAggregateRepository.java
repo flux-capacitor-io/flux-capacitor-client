@@ -45,10 +45,15 @@ public class CachingAggregateRepository implements AggregateRepository {
         return delegate.load(aggregateId, type);
     }
 
+    @Override
+    public <T> AggregateRoot<T> loadFor(String entityId, Class<?> entityType) {
+        catchUpIfNeeded();
+        return delegate.loadFor(entityId, entityType);
+    }
+
     protected void handleEvents(List<SerializedMessage> messages) {
         try {
-            handleBatch(serializer.deserializeMessages(messages.stream(), false, EVENT))
-                    .forEach(this::handleEvent);
+            handleBatch(serializer.deserializeMessages(messages.stream(), EVENT)).forEach(this::handleEvent);
         } finally {
             messages.stream().reduce((a, b) -> b).map(SerializedMessage::getIndex).ifPresent(index -> {
                 lastEventIndex = index;

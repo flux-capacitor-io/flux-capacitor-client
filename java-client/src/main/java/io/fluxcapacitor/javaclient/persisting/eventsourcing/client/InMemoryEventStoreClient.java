@@ -17,19 +17,25 @@ package io.fluxcapacitor.javaclient.persisting.eventsourcing.client;
 import io.fluxcapacitor.common.Awaitable;
 import io.fluxcapacitor.common.Guarantee;
 import io.fluxcapacitor.common.api.SerializedMessage;
+import io.fluxcapacitor.common.api.modeling.GetAggregateIds;
+import io.fluxcapacitor.common.api.modeling.UpdateRelationships;
 import io.fluxcapacitor.javaclient.persisting.eventsourcing.AggregateEventStream;
 import io.fluxcapacitor.javaclient.tracking.client.InMemoryMessageStore;
 
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.CopyOnWriteArraySet;
 
 public class InMemoryEventStoreClient extends InMemoryMessageStore implements EventStoreClient {
 
     private final Map<String, List<SerializedMessage>> appliedEvents = new ConcurrentHashMap<>();
+    private final Map<String, Set<String>> relationships = new ConcurrentHashMap<>();
 
     @Override
     public Awaitable storeEvents(String aggregateId, List<SerializedMessage> events, boolean storeOnly) {
@@ -38,6 +44,15 @@ public class InMemoryEventStoreClient extends InMemoryMessageStore implements Ev
             return Awaitable.ready();
         }
         return super.send(Guarantee.SENT, events.toArray(new SerializedMessage[0]));
+    }
+
+    @Override
+    public Awaitable updateRelationships(UpdateRelationships request) {
+        request.getDissociations().forEach(r -> relationships.computeIfAbsent(
+                r.getEntityId(), entityId -> new CopyOnWriteArraySet<>()).remove(r.getAggregateId()));
+        request.getAssociations().forEach(r -> relationships.computeIfAbsent(
+                r.getEntityId(), entityId -> new CopyOnWriteArraySet<>()).add(r.getAggregateId()));
+        return Awaitable.ready();
     }
 
     @Override
@@ -53,4 +68,8 @@ public class InMemoryEventStoreClient extends InMemoryMessageStore implements Ev
         return CompletableFuture.completedFuture(appliedEvents.remove(aggregateId) != null);
     }
 
+    @Override
+    public Set<String> getAggregateIds(GetAggregateIds request) {
+        return new HashSet<>(relationships.getOrDefault(request.getEntityId(), Collections.emptySet()));
+    }
 }
