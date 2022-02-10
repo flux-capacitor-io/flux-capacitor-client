@@ -1,7 +1,6 @@
 package io.fluxcapacitor.javaclient.modeling;
 
 import io.fluxcapacitor.javaclient.MockException;
-import io.fluxcapacitor.javaclient.persisting.eventsourcing.Aggregate;
 import io.fluxcapacitor.javaclient.persisting.eventsourcing.ApplyEvent;
 import io.fluxcapacitor.javaclient.test.TestFixture;
 import io.fluxcapacitor.javaclient.tracking.handling.HandleCommand;

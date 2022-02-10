@@ -46,9 +46,9 @@ public class CachingAggregateRepository implements AggregateRepository {
     }
 
     @Override
-    public <T> AggregateRoot<T> loadFor(String entityId, Class<?> entityType) {
+    public <T> AggregateRoot<T> loadFor(String entityId, Class<?> defaultType) {
         catchUpIfNeeded();
-        return delegate.loadFor(entityId, entityType);
+        return delegate.loadFor(entityId, defaultType);
     }
 
     protected void handleEvents(List<SerializedMessage> messages) {

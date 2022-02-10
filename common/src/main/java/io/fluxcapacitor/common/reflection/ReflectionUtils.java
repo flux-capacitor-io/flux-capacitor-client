@@ -140,11 +140,16 @@ public class ReflectionUtils {
         if (target == null) {
             return emptyList();
         }
+        return getAnnotatedProperties(target.getClass(), annotation);
+    }
+
+    public static List<? extends AccessibleObject> getAnnotatedProperties(Class<?> target,
+                                                                          Class<? extends Annotation> annotation) {
         List<AccessibleObject> result =
-                new ArrayList<>(FieldUtils.getFieldsListWithAnnotation(target.getClass(), annotation));
-        result.addAll(getMethodsListWithAnnotation(target.getClass(), annotation, true, true).stream()
+                new ArrayList<>(FieldUtils.getFieldsListWithAnnotation(target, annotation));
+        result.addAll(getMethodsListWithAnnotation(target, annotation, true, true).stream()
                               .filter(m -> m.getParameterCount() == 0).collect(toList()));
-        getAllInterfaces(target.getClass())
+        getAllInterfaces(target)
                 .forEach(i -> result.addAll(FieldUtils.getFieldsListWithAnnotation(i, annotation)));
         return result;
     }
@@ -235,7 +240,7 @@ public class ReflectionUtils {
     }
 
     @SneakyThrows
-    private static Object getValue(AccessibleObject fieldOrMethod, Object target) {
+    public static Object getValue(AccessibleObject fieldOrMethod, Object target) {
         ensureAccessible(fieldOrMethod);
         if (fieldOrMethod instanceof Method) {
             return ((Method) fieldOrMethod).invoke(target);

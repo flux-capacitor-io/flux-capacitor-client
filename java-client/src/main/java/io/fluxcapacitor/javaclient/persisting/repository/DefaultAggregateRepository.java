@@ -3,12 +3,13 @@ package io.fluxcapacitor.javaclient.persisting.repository;
 import io.fluxcapacitor.common.reflection.ReflectionUtils;
 import io.fluxcapacitor.javaclient.common.serialization.DeserializingMessage;
 import io.fluxcapacitor.javaclient.common.serialization.Serializer;
+import io.fluxcapacitor.javaclient.modeling.Aggregate;
 import io.fluxcapacitor.javaclient.modeling.AggregateRoot;
 import io.fluxcapacitor.javaclient.modeling.ImmutableAggregateRoot;
+import io.fluxcapacitor.javaclient.modeling.ImmutableEntity;
 import io.fluxcapacitor.javaclient.modeling.ModifiableAggregateRoot;
 import io.fluxcapacitor.javaclient.persisting.caching.Cache;
 import io.fluxcapacitor.javaclient.persisting.caching.NoOpCache;
-import io.fluxcapacitor.javaclient.persisting.eventsourcing.Aggregate;
 import io.fluxcapacitor.javaclient.persisting.eventsourcing.AggregateEventStream;
 import io.fluxcapacitor.javaclient.persisting.eventsourcing.EventSourcingHandler;
 import io.fluxcapacitor.javaclient.persisting.eventsourcing.EventSourcingHandlerFactory;
@@ -65,7 +66,7 @@ public class DefaultAggregateRepository implements AggregateRepository {
     }
 
     @Override
-    public <T> AggregateRoot<T> loadFor(String entityId, Class<?> entityType) {
+    public <T> AggregateRoot<T> loadFor(String entityId, Class<?> defaultType) {
         return null;
     }
 
@@ -140,12 +141,13 @@ public class DefaultAggregateRepository implements AggregateRepository {
                                 .filter(a -> a.get() == null || type.isAssignableFrom(a.get().getClass()))
                                 .orElseGet(() -> {
                                     var builder =
-                                            ImmutableAggregateRoot.<T>builder().id(id).type(type)
-                                                    .eventSourcingHandler(eventSourcingHandler).serializer(serializer);
+                                                    ImmutableEntity.<T>builder().id(id).type(type).eventSourcingHandler(
+                                                            eventSourcingHandler).serializer(serializer);
                                     ImmutableAggregateRoot<T> model =
                                             (searchable && !eventSourced
                                                     ? documentStore.<T>fetchDocument(id, collection)
                                                     .map(d -> builder.value(d).build())
+                                                    .map(e -> ImmutableAggregateRoot.<T>builder().delegate(e).build())
                                                     : snapshotStore.<T>getSnapshot(id).map(
                                                     a -> ImmutableAggregateRoot.from(a, eventSourcingHandler,
                                                                                      serializer)))
@@ -159,7 +161,7 @@ public class DefaultAggregateRepository implements AggregateRepository {
                                                                      id, type, a.get().getClass());
                                                         }
                                                         return assignable;
-                                                    }).orElseGet(builder::build);
+                                                    }).orElseGet(() -> ImmutableAggregateRoot.<T>builder().delegate(builder.build()).build());
                                     if (!eventSourced) {
                                         return model;
                                     }

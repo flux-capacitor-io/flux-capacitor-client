@@ -23,7 +23,7 @@ public interface AggregateRepository {
 
     <T> AggregateRoot<T> load(String aggregateId, Class<T> aggregateType);
 
-    <T> AggregateRoot<T> loadFor(String entityId, Class<?> entityType);
+    <T> AggregateRoot<T> loadFor(String entityId, Class<?> defaultType);
 
     default <T> AggregateRoot<T> load(String aggregateId, Class<T> type, boolean readOnly) {
         return Optional.of(load(aggregateId, type)).map(a -> readOnly ? new ReadOnlyAggregateRoot<>(a) : a).get();

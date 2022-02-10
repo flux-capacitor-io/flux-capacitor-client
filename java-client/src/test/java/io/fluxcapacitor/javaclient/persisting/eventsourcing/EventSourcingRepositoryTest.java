@@ -20,6 +20,7 @@ import io.fluxcapacitor.common.handling.HandlerNotFoundException;
 import io.fluxcapacitor.javaclient.MockException;
 import io.fluxcapacitor.javaclient.common.Message;
 import io.fluxcapacitor.javaclient.configuration.DefaultFluxCapacitor;
+import io.fluxcapacitor.javaclient.modeling.Aggregate;
 import io.fluxcapacitor.javaclient.modeling.AggregateRoot;
 import io.fluxcapacitor.javaclient.persisting.eventsourcing.client.EventStoreClient;
 import io.fluxcapacitor.javaclient.test.TestFixture;

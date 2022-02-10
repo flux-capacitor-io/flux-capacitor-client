@@ -21,6 +21,7 @@ import io.fluxcapacitor.common.handling.ParameterResolver;
 import io.fluxcapacitor.common.reflection.ReflectionUtils;
 import io.fluxcapacitor.javaclient.modeling.AggregateRoot;
 import io.fluxcapacitor.javaclient.modeling.AssertLegal;
+import io.fluxcapacitor.javaclient.modeling.Entity;
 import io.fluxcapacitor.javaclient.tracking.handling.authentication.ForbidsRole;
 import io.fluxcapacitor.javaclient.tracking.handling.authentication.RequiresRole;
 import io.fluxcapacitor.javaclient.tracking.handling.authentication.UnauthenticatedException;
@@ -80,31 +81,30 @@ public class ValidationUtils {
         Check command / query legality
      */
 
-    protected static class AssertLegalAggregateParameterResolver implements ParameterResolver<AggregateRoot<?>> {
+    protected static class AssertLegalEntityParameterResolver implements ParameterResolver<Entity<?, ?>> {
         @Override
-        public Function<AggregateRoot<?>, Object> resolve(Parameter parameter,
-                                                          Annotation methodAnnotation) {
-            return AggregateRoot::get;
+        public Function<Entity<?, ?>, Object> resolve(Parameter parameter, Annotation methodAnnotation) {
+            return Entity::get;
         }
 
         @Override
         public boolean matches(Parameter parameter,
-                               Annotation methodAnnotation, AggregateRoot<?> aggregate) {
+                               Annotation methodAnnotation, Entity<?, ?> aggregate) {
             return parameter.getType().isAssignableFrom(aggregate.type()) || aggregate.type()
                     .isAssignableFrom(parameter.getType());
         }
     }
 
-    protected static final Function<Class<?>, HandlerInvoker<AggregateRoot<?>>> assertLegalInvokerCache =
+    protected static final Function<Class<?>, HandlerInvoker<Entity<?, ?>>> assertLegalInvokerCache =
             memoize(type -> HandlerInspector.inspect(
-                    type, Arrays.asList(new UserParameterResolver(), new AssertLegalAggregateParameterResolver()),
+                    type, Arrays.asList(new UserParameterResolver(), new AssertLegalEntityParameterResolver()),
                     HandlerConfiguration.builder()
                             .methodAnnotation(AssertLegal.class).invokeMultipleMethods(true).build()));
 
-    public static <E extends Exception> void assertLegal(Object commandOrQuery, AggregateRoot<?> aggregate) throws E {
-        HandlerInvoker<AggregateRoot<?>> invoker = assertLegalInvokerCache.apply(commandOrQuery.getClass());
-        if (invoker.canHandle(commandOrQuery, aggregate)) {
-            invoker.invoke(commandOrQuery, aggregate);
+    public static <E extends Exception> void assertLegal(Object commandOrQuery, Entity<?, ?> entity) throws E {
+        HandlerInvoker<Entity<?, ?>> invoker = assertLegalInvokerCache.apply(commandOrQuery.getClass());
+        if (invoker.canHandle(commandOrQuery, entity)) {
+            invoker.invoke(commandOrQuery, entity);
         }
     }
 

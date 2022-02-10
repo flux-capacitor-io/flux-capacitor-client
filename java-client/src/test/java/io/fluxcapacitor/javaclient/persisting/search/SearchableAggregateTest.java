@@ -15,7 +15,7 @@
 package io.fluxcapacitor.javaclient.persisting.search;
 
 import io.fluxcapacitor.javaclient.FluxCapacitor;
-import io.fluxcapacitor.javaclient.persisting.eventsourcing.Aggregate;
+import io.fluxcapacitor.javaclient.modeling.Aggregate;
 import io.fluxcapacitor.javaclient.test.TestFixture;
 import io.fluxcapacitor.javaclient.tracking.handling.HandleQuery;
 import lombok.Value;
