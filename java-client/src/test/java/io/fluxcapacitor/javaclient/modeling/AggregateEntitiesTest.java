@@ -15,6 +15,7 @@ import org.junit.jupiter.api.Test;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.function.Predicate;
 
 import static io.fluxcapacitor.common.ObjectUtils.safelyCall;
@@ -55,7 +56,7 @@ public class AggregateEntitiesTest {
 
         @Test
         void findGrandChild() {
-            expectEntity(Aggregate.class, e -> e.entities().stream().findFirst().map(c -> "grandChild".equals(c.id())).orElse(false));
+            expectEntity(Aggregate.class, e -> e.entities().stream().findFirst().map(c -> "grandchild".equals(c.id())).orElse(false));
         }
     }
 
@@ -73,13 +74,35 @@ public class AggregateEntitiesTest {
 
         @Test
         void testRouteToGrandchild() {
-            testFixture.whenCommand(new CommandWithRoutingKey("grandChild"))
+            testFixture.whenCommand(new CommandWithRoutingKey("grandchild"))
                     .expectException(IllegalCommandException.class);
         }
 
         @Test
         void testNoChildRoute() {
             testFixture.whenCommand(new CommandWithRoutingKey("somethingRandom")).expectNoException();
+        }
+
+        @Test
+        void testPropertyMatchesChild() {
+            testFixture.whenCommand(new CommandWithoutRoutingKey("id"))
+                    .expectException(IllegalCommandException.class);
+        }
+
+        @Test
+        void testPropertyValueMatchesNothing() {
+            testFixture.whenCommand(new CommandWithoutRoutingKey("somethingRandom")).expectNoException();
+        }
+
+        @Test
+        void testPropertyPathMatchesNothing() {
+            testFixture.whenCommand(new CommandWithWrongProperty("id")).expectNoException();
+        }
+
+        @Test
+        void testRouteToGrandchildButFailingOnChild() {
+            testFixture.whenCommand(new CommandTargetingGrandchildButFailingOnParent("grandchild"))
+                    .expectException(IllegalCommandException.class);
         }
 
         class CommandHandler {
@@ -111,7 +134,7 @@ public class AggregateEntitiesTest {
                 "map0", new Child(), new Key("map1"), new Child());
 
         @Member(idProperty = "customId")
-        Child childWithGrandChild = Child.builder().customId("withChild").child(Child.builder().customId("grandChild").build()).build();
+        Child childWithGrandChild = Child.builder().customId("withChild").child(Child.builder().customId("grandchild").build()).build();
     }
 
     @Value
@@ -150,6 +173,38 @@ public class AggregateEntitiesTest {
     static class CommandWithRoutingKey {
         @RoutingKey
         String target;
+
+        @AssertLegal
+        void assertLegal(Child child) {
+            throw new IllegalCommandException("Child is unauthorized");
+        }
+    }
+
+    @Value
+    static class CommandWithoutRoutingKey {
+        String id;
+
+        @AssertLegal
+        void assertLegal(Child child) {
+            throw new IllegalCommandException("Child is unauthorized");
+        }
+    }
+
+    @Value
+    static class CommandTargetingGrandchildButFailingOnParent {
+        String customId;
+
+        @AssertLegal
+        void assertLegal(Child child) {
+            if (!Objects.equals(child.getId(), customId)) {
+                throw new IllegalCommandException("Child is unauthorized");
+            }
+        }
+    }
+
+    @Value
+    static class CommandWithWrongProperty {
+        String randomProperty;
 
         @AssertLegal
         void assertLegal(Child child) {

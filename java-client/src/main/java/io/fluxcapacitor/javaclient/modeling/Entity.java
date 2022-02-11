@@ -109,6 +109,9 @@ public interface Entity<M extends Entity<M, T>, T> {
         if (message == null) {
             return false;
         }
+        if (entities().stream().anyMatch(e -> e.mightHandle(message))) {
+            return true;
+        }
         String idProperty = idProperty();
         String id = id();
         if (idProperty == null) {
