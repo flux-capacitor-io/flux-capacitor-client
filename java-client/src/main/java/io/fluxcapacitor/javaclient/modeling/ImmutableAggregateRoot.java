@@ -120,7 +120,7 @@ public class ImmutableAggregateRoot<T> implements AggregateRoot<T> {
     }
 
     @Override
-    public Collection<? extends Entity<?, ?>> entities() {
+    public Collection<Entity<?, ?>> entities() {
         return delegate.entities();
     }
 

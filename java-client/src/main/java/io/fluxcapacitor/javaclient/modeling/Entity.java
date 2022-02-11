@@ -17,18 +17,23 @@ package io.fluxcapacitor.javaclient.modeling;
 import io.fluxcapacitor.common.api.Metadata;
 import io.fluxcapacitor.javaclient.common.Message;
 import io.fluxcapacitor.javaclient.common.serialization.DeserializingMessage;
+import io.fluxcapacitor.javaclient.publishing.routing.RoutingKey;
 import io.fluxcapacitor.javaclient.tracking.handling.validation.ValidationUtils;
 
-import java.beans.Transient;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Iterator;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.function.Function;
 import java.util.function.Predicate;
 import java.util.function.UnaryOperator;
+import java.util.stream.Stream;
 
+import static io.fluxcapacitor.common.reflection.ReflectionUtils.getAnnotatedPropertyValue;
+import static io.fluxcapacitor.common.reflection.ReflectionUtils.readProperty;
 import static io.fluxcapacitor.javaclient.common.Message.asMessage;
+import static java.util.stream.Collectors.toCollection;
 
 public interface Entity<M extends Entity<M, T>, T> {
 
@@ -40,8 +45,12 @@ public interface Entity<M extends Entity<M, T>, T> {
 
     String idProperty();
 
-    @Transient
-    Collection<? extends Entity<?, ?>> entities();
+    Collection<Entity<?, ?>> entities();
+
+    default Collection<Entity<?, ?>> allEntities() {
+        return entities().stream().flatMap(e -> Stream.concat(Stream.of(e), e.allEntities().stream()))
+                .collect(toCollection(LinkedHashSet::new));
+    }
 
     default M apply(Object... events) {
         return apply(List.of(events));
@@ -71,35 +80,46 @@ public interface Entity<M extends Entity<M, T>, T> {
 
     M update(UnaryOperator<T> function);
 
-    @SuppressWarnings("unchecked")
     default <E extends Exception> M assertLegal(Object command) throws E {
         if (command instanceof Collection<?>) {
             return assertLegal(((Collection<?>) command).toArray());
         }
-        ValidationUtils.assertLegal(command, this);
-        return (M) this;
+        return assertLegal(new Object[]{command});
     }
 
     @SuppressWarnings("unchecked")
     default <E extends Exception> M assertLegal(Object... commands) throws E {
-        switch (commands.length) {
-            case 0:
-                return (M) this;
-            case 1:
-                ValidationUtils.assertLegal(commands[0], this);
-                return (M) this;
-            default:
-                M result = (M) this;
-                Iterator<Object> iterator = Arrays.stream(commands).iterator();
-                while (iterator.hasNext()) {
-                    Object c = iterator.next();
-                    ValidationUtils.assertLegal(c, result);
-                    if (iterator.hasNext()) {
-                        result = result.apply(Message.asMessage(c));
-                    }
+        if (commands.length > 0) {
+            M result = (M) this;
+            Collection<Entity<?, ?>> entities = allEntities();
+            Iterator<Object> iterator = Arrays.stream(commands).iterator();
+            while (iterator.hasNext()) {
+                Object c = iterator.next();
+                ValidationUtils.assertLegal(c, result);
+                entities.stream().filter(e -> e.mightHandle(c)).forEach(e -> e.assertLegal(c));
+                if (iterator.hasNext()) {
+                    result = result.apply(Message.asMessage(c));
                 }
-                return (M) this;
+            }
         }
+        return (M) this;
+    }
+
+    default boolean mightHandle(Object message) {
+        if (message == null) {
+            return false;
+        }
+        String idProperty = idProperty();
+        String id = id();
+        if (idProperty == null) {
+            return true;
+        }
+        if (id == null) {
+            return false;
+        }
+        Object payload = message instanceof Message ? ((Message) message).getPayload() : message;
+        return readProperty(idProperty, payload)
+                .or(() -> getAnnotatedPropertyValue(payload, RoutingKey.class)).map(id::equals).orElse(false);
     }
 
     @SuppressWarnings("unchecked")

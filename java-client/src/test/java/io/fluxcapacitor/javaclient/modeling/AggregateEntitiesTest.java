@@ -1,8 +1,12 @@
 package io.fluxcapacitor.javaclient.modeling;
 
+import io.fluxcapacitor.javaclient.publishing.routing.RoutingKey;
 import io.fluxcapacitor.javaclient.test.TestFixture;
+import io.fluxcapacitor.javaclient.tracking.handling.HandleCommand;
+import io.fluxcapacitor.javaclient.tracking.handling.IllegalCommandException;
 import lombok.AllArgsConstructor;
-import lombok.RequiredArgsConstructor;
+import lombok.Builder;
+import lombok.NoArgsConstructor;
 import lombok.Value;
 import lombok.experimental.NonFinal;
 import org.junit.jupiter.api.Nested;
@@ -48,55 +52,111 @@ public class AggregateEntitiesTest {
             expectEntity(Aggregate.class, e -> "map0".equals(e.id()));
             expectEntity(Aggregate.class, e -> "map1".equals(e.id()));
         }
+
+        @Test
+        void findGrandChild() {
+            expectEntity(Aggregate.class, e -> e.entities().stream().findFirst().map(c -> "grandChild".equals(c.id())).orElse(false));
+        }
+    }
+
+    @Nested
+    class AssertLegalTests {
+        private final TestFixture testFixture = (TestFixture) TestFixture.create(new CommandHandler())
+                .given(fc -> loadAggregate("test", Aggregate.class, false)
+                        .update(s -> safelyCall(() -> Aggregate.class.getConstructor().newInstance())));
+
+        @Test
+        void testRouteToChild() {
+            testFixture.whenCommand(new CommandWithRoutingKey("id"))
+                    .expectException(IllegalCommandException.class);
+        }
+
+        @Test
+        void testRouteToGrandchild() {
+            testFixture.whenCommand(new CommandWithRoutingKey("grandChild"))
+                    .expectException(IllegalCommandException.class);
+        }
+
+        @Test
+        void testNoChildRoute() {
+            testFixture.whenCommand(new CommandWithRoutingKey("somethingRandom")).expectNoException();
+        }
+
+        class CommandHandler {
+            @HandleCommand
+            void handle(Object command) {
+                loadAggregate("test", Aggregate.class).assertLegal(command);
+            }
+        }
     }
 
     @Value
     static class Aggregate {
         @Member
-        EntityWithAnnotatedId singleton = new EntityWithAnnotatedId();
+        Child singleton = new Child();
 
         @Member(idProperty = "customId")
-        EntityWithAnnotatedId singletonCustomPath = new EntityWithAnnotatedId();
+        Child singletonCustomPath = new Child();
 
         @Member(idProperty = "missingId")
-        EntityWithAnnotatedId missingSingleton = null;
+        Child missingSingleton = null;
 
-        @Member(idProperty = "collectionId")
-        List<EntityWithAnnotatedId> list = List.of(
-                new EntityWithAnnotatedId("list0"), new EntityWithAnnotatedId("list1"), new EntityWithAnnotatedId());
+        @Member(idProperty = "customId")
+        List<Child> list = List.of(
+                Child.builder().customId("list0").build(),
+                Child.builder().customId("list1").build(), Child.builder().customId(null).build());
 
         @Member
-        Map<?, EntityWithAnnotatedId> map = Map.of(
-                "map0", new EntityWithAnnotatedId(), new Key("map1"), new EntityWithAnnotatedId());
+        Map<?, Child> map = Map.of(
+                "map0", new Child(), new Key("map1"), new Child());
+
+        @Member(idProperty = "customId")
+        Child childWithGrandChild = Child.builder().customId("withChild").child(Child.builder().customId("grandChild").build()).build();
     }
 
     @Value
-    @RequiredArgsConstructor
+    @NoArgsConstructor
     @AllArgsConstructor
-    static class EntityWithAnnotatedId {
+    @Builder
+    static class Child {
         @EntityId
         String id = "id";
+        @NonFinal
         String customId = "otherId";
         String missingId = "missingId";
         @NonFinal
-        String collectionId;
+        @Member(idProperty = "customId")
+        Child child;
     }
 
 
-    void expectEntity(Class<?> parentClass, Predicate<Entity> predicate) {
+    void expectEntity(Class<?> parentClass, Predicate<Entity<?, ?>> predicate) {
         expectEntities(parentClass, entities -> entities.stream().anyMatch(predicate));
     }
 
-    void expectNoEntity(Class<?> parentClass, Predicate<Entity> predicate) {
+    void expectNoEntity(Class<?> parentClass, Predicate<Entity<?, ?>> predicate) {
         expectEntities(parentClass, entities -> entities.stream().noneMatch(predicate));
     }
 
-    void expectEntities(Class<?> parentClass, Predicate<Collection<Entity>> predicate) {
+    void expectEntities(Class<?> parentClass, Predicate<Collection<Entity<?, ?>>> predicate) {
         TestFixture.create()
-                .whenApplying(fc -> loadAggregate("test", (Class) parentClass, false)
-                        .update(s -> safelyCall(() -> parentClass.getConstructor().newInstance())).entities())
+                .given(fc -> loadAggregate("test", (Class) parentClass, false)
+                        .update(s -> safelyCall(() -> parentClass.getConstructor().newInstance())))
+                .whenApplying(fc -> loadAggregate("test", (Class) parentClass).entities())
                 .expectResult(predicate);
     }
+
+    @Value
+    static class CommandWithRoutingKey {
+        @RoutingKey
+        String target;
+
+        @AssertLegal
+        void assertLegal(Child child) {
+            throw new IllegalCommandException("Child is unauthorized");
+        }
+    }
+
 
     @AllArgsConstructor
     static class Key {

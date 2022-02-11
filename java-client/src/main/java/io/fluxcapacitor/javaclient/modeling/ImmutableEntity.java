@@ -60,7 +60,10 @@ public class ImmutableEntity<T> implements Entity<ImmutableEntity<T>, T> {
     transient Serializer serializer;
 
     @Getter(lazy = true)
-    Collection<? extends Entity<?, ?>> entities = computeEntities();
+    Collection<Entity<?, ?>> entities = computeEntities();
+
+    @Getter(lazy = true)
+    Collection<Entity<?, ?>> allEntities = Entity.super.allEntities();
 
     public static <T> ImmutableEntity<T> from(ImmutableEntity<T> a, EventSourcingHandler<T> eventSourcingHandler,
                                               Serializer serializer) {
@@ -104,7 +107,7 @@ public class ImmutableEntity<T> implements Entity<ImmutableEntity<T>, T> {
         return value;
     }
 
-    private Collection<? extends Entity<?, ?>> computeEntities() {
+    private Collection<Entity<?, ?>> computeEntities() {
         return value == null ? Collections.emptySet() : unmodifiableCollection(
                 getAnnotatedProperties(value.getClass(), Member.class).stream().flatMap(this::getEntities)
                         .collect(Collectors.toCollection(LinkedHashSet::new)));
