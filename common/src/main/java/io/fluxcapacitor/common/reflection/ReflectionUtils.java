@@ -153,6 +153,10 @@ public class ReflectionUtils {
         return getAnnotatedProperties(target, annotation).stream().findFirst();
     }
 
+    public static Optional<? extends AccessibleObject> getAnnotatedProperty(Class<?> target, Class<? extends Annotation> annotation) {
+        return getAnnotatedProperties(target, annotation).stream().findFirst();
+    }
+
     public static Optional<?> getAnnotatedPropertyValue(Object target, Class<? extends Annotation> annotation) {
         return getAnnotatedProperty(target, annotation).map(m -> getValue(m, target));
     }
@@ -246,10 +250,18 @@ public class ReflectionUtils {
     public static Object getValue(AccessibleObject fieldOrMethod, Object target) {
         ensureAccessible(fieldOrMethod);
         if (fieldOrMethod instanceof Method) {
-            return ((Method) fieldOrMethod).invoke(target);
+            Method method = (Method) fieldOrMethod;
+            if (target == null && !Modifier.isStatic(method.getModifiers())) {
+                return null;
+            }
+            return method.invoke(target);
         }
         if (fieldOrMethod instanceof Field) {
-            return ((Field) fieldOrMethod).get(target);
+            Field field = (Field) fieldOrMethod;
+            if (target == null && !Modifier.isStatic(field.getModifiers())) {
+                return null;
+            }
+            return field.get(target);
         }
         throw new IllegalStateException("Object property should be field or method: " + fieldOrMethod);
     }
@@ -261,6 +273,16 @@ public class ReflectionUtils {
         }
         if (fieldOrMethod instanceof Field) {
             return ((Field) fieldOrMethod).getName();
+        }
+        throw new IllegalStateException("Object property should be field or method: " + fieldOrMethod);
+    }
+
+    public static Class<?> getPropertyType(AccessibleObject fieldOrMethod) {
+        if (fieldOrMethod instanceof Method) {
+            return ((Method) fieldOrMethod).getReturnType();
+        }
+        if (fieldOrMethod instanceof Field) {
+            return ((Field) fieldOrMethod).getType();
         }
         throw new IllegalStateException("Object property should be field or method: " + fieldOrMethod);
     }
@@ -330,9 +352,25 @@ public class ReflectionUtils {
         @NonNull Class<?> type;
     }
 
+    public static Class<?> getCollectionElementType(AccessibleObject fieldOrMethod) {
+        if (fieldOrMethod instanceof Method) {
+            return getCollectionElementType(((Method) fieldOrMethod).getGenericReturnType());
+        }
+        if (fieldOrMethod instanceof Field) {
+            return getCollectionElementType(((Field) fieldOrMethod).getGenericType());
+        }
+        throw new IllegalStateException("Object property should be field or method: " + fieldOrMethod);
+    }
+
     public static Class<?> getCollectionElementType(Type parameterizedType) {
         if (parameterizedType instanceof ParameterizedType) {
-            Type elementType = ((ParameterizedType) parameterizedType).getActualTypeArguments()[0];
+            Type elementType;
+            Type rawType = ((ParameterizedType) parameterizedType).getRawType();
+            if (rawType instanceof Class<?> && Map.class.isAssignableFrom((Class<?>) rawType)) {
+                elementType = ((ParameterizedType) parameterizedType).getActualTypeArguments()[1];
+            } else {
+                elementType = ((ParameterizedType) parameterizedType).getActualTypeArguments()[0];
+            }
             if (elementType instanceof WildcardType) {
                 Type[] upperBounds = ((WildcardType) elementType).getUpperBounds();
                 elementType = upperBounds.length > 0 ? upperBounds[0] : null;

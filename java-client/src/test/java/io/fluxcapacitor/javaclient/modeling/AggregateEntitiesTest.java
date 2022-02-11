@@ -105,6 +105,12 @@ public class AggregateEntitiesTest {
                     .expectException(IllegalCommandException.class);
         }
 
+        @Test
+        void updateCommandExpectsExistingChild() {
+            testFixture.whenCommand(new UpdateCommandThatFailsIfChildDoesNotExist("whatever"))
+                    .expectException(IllegalCommandException.class);
+        }
+
         class CommandHandler {
             @HandleCommand
             void handle(Object command) {
@@ -176,7 +182,9 @@ public class AggregateEntitiesTest {
 
         @AssertLegal
         void assertLegal(Child child) {
-            throw new IllegalCommandException("Child is unauthorized");
+            if (child != null) {
+                throw new IllegalCommandException("Child is unauthorized");
+            }
         }
     }
 
@@ -186,7 +194,9 @@ public class AggregateEntitiesTest {
 
         @AssertLegal
         void assertLegal(Child child) {
-            throw new IllegalCommandException("Child is unauthorized");
+            if (child != null) {
+                throw new IllegalCommandException("Child is unauthorized");
+            }
         }
     }
 
@@ -196,7 +206,7 @@ public class AggregateEntitiesTest {
 
         @AssertLegal
         void assertLegal(Child child) {
-            if (!Objects.equals(child.getId(), customId)) {
+            if (child != null && !Objects.equals(child.getId(), customId)) {
                 throw new IllegalCommandException("Child is unauthorized");
             }
         }
@@ -208,7 +218,21 @@ public class AggregateEntitiesTest {
 
         @AssertLegal
         void assertLegal(Child child) {
-            throw new IllegalCommandException("Child is unauthorized");
+            if (child != null) {
+                throw new IllegalCommandException("Child is unauthorized");
+            }
+        }
+    }
+
+    @Value
+    static class UpdateCommandThatFailsIfChildDoesNotExist {
+        String id;
+
+        @AssertLegal
+        void assertLegal(Child child) {
+            if (child == null) {
+                throw new IllegalCommandException("Expected a child");
+            }
         }
     }
 

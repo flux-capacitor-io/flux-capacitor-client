@@ -48,7 +48,7 @@ public interface Entity<M extends Entity<M, T>, T> {
     Collection<Entity<?, ?>> entities();
 
     default Collection<Entity<?, ?>> allEntities() {
-        return entities().stream().flatMap(e -> Stream.concat(Stream.of(e), e.allEntities().stream()))
+        return Stream.concat(Stream.of(this), entities().stream().flatMap(e -> e.allEntities().stream()))
                 .collect(toCollection(LinkedHashSet::new));
     }
 
@@ -91,12 +91,12 @@ public interface Entity<M extends Entity<M, T>, T> {
     default <E extends Exception> M assertLegal(Object... commands) throws E {
         if (commands.length > 0) {
             M result = (M) this;
-            Collection<Entity<?, ?>> entities = allEntities();
+            Collection<Entity<?, ?>> entities = entities();
             Iterator<Object> iterator = Arrays.stream(commands).iterator();
             while (iterator.hasNext()) {
                 Object c = iterator.next();
-                ValidationUtils.assertLegal(c, result);
                 entities.stream().filter(e -> e.mightHandle(c)).forEach(e -> e.assertLegal(c));
+                ValidationUtils.assertLegal(c, result);
                 if (iterator.hasNext()) {
                     result = result.apply(Message.asMessage(c));
                 }
@@ -117,10 +117,13 @@ public interface Entity<M extends Entity<M, T>, T> {
         if (idProperty == null) {
             return true;
         }
-        if (id == null) {
+        if (id == null && get() != null) {
             return false;
         }
         Object payload = message instanceof Message ? ((Message) message).getPayload() : message;
+        if (id == null) {
+            return readProperty(idProperty, payload).isPresent();
+        }
         return readProperty(idProperty, payload)
                 .or(() -> getAnnotatedPropertyValue(payload, RoutingKey.class)).map(id::equals).orElse(false);
     }

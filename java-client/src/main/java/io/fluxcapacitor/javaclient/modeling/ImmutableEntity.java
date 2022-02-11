@@ -2,6 +2,7 @@ package io.fluxcapacitor.javaclient.modeling;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
+import io.fluxcapacitor.common.reflection.ReflectionUtils;
 import io.fluxcapacitor.javaclient.common.Message;
 import io.fluxcapacitor.javaclient.common.serialization.DeserializingMessage;
 import io.fluxcapacitor.javaclient.common.serialization.Serializer;
@@ -29,7 +30,9 @@ import java.util.stream.Stream;
 import static io.fluxcapacitor.common.MessageType.EVENT;
 import static io.fluxcapacitor.common.reflection.ReflectionUtils.getAnnotatedProperties;
 import static io.fluxcapacitor.common.reflection.ReflectionUtils.getAnnotatedProperty;
+import static io.fluxcapacitor.common.reflection.ReflectionUtils.getCollectionElementType;
 import static io.fluxcapacitor.common.reflection.ReflectionUtils.getName;
+import static io.fluxcapacitor.common.reflection.ReflectionUtils.getPropertyType;
 import static io.fluxcapacitor.common.reflection.ReflectionUtils.getValue;
 import static io.fluxcapacitor.common.reflection.ReflectionUtils.readProperty;
 import static io.fluxcapacitor.javaclient.common.Message.asMessage;
@@ -59,9 +62,13 @@ public class ImmutableEntity<T> implements Entity<ImmutableEntity<T>, T> {
     @EqualsAndHashCode.Exclude
     transient Serializer serializer;
 
+    @ToString.Exclude
+    @EqualsAndHashCode.Exclude
     @Getter(lazy = true)
     Collection<Entity<?, ?>> entities = computeEntities();
 
+    @ToString.Exclude
+    @EqualsAndHashCode.Exclude
     @Getter(lazy = true)
     Collection<Entity<?, ?>> allEntities = Entity.super.allEntities();
 
@@ -115,16 +122,18 @@ public class ImmutableEntity<T> implements Entity<ImmutableEntity<T>, T> {
 
     private Stream<Entity<?, ?>> getEntities(AccessibleObject location) {
         Object member = getValue(location, value);
+        Function<Object, Id> idProvider = idProvider(location);
         if (member instanceof Collection<?>) {
-            Function<Object, Id> idProvider = idProvider(location);
-            return ((Collection<?>) member).stream().flatMap(v -> createEntity(v, idProvider).stream());
+            return Stream.concat(((Collection<?>) member).stream().flatMap(v -> createEntity(v, idProvider).stream()),
+                                 Stream.of(createEmptyEntity(getCollectionElementType(location), idProvider)));
         } else if (member instanceof Map<?, ?>) {
-            Function<Object, Id> idProvider = idProvider(location);
-            return ((Map<?, ?>) member).entrySet().stream().flatMap(
+            return Stream.concat(((Map<?, ?>) member).entrySet().stream().flatMap(
                     e -> createEntity(e.getValue(), v -> new Id(
-                            e.getKey().toString(), idProvider.apply(v).property())).stream());
+                            e.getKey().toString(), idProvider.apply(v).property())).stream()),
+                                 Stream.of(createEmptyEntity(getCollectionElementType(location), idProvider)));
         } else {
-            return createEntity(member, idProvider(location)).stream();
+            return createEntity(member, idProvider).or(
+                    () -> Optional.of(createEmptyEntity(getPropertyType(location), idProvider))).stream();
         }
     }
 
@@ -143,13 +152,29 @@ public class ImmutableEntity<T> implements Entity<ImmutableEntity<T>, T> {
                 .build());
     }
 
+    @SuppressWarnings({"unchecked", "rawtypes"})
+    private Entity<?, ?> createEmptyEntity(Class<?> type, Function<Object, Id> idProvider) {
+        return ImmutableEntity.builder()
+                .type((Class) type)
+                .eventSourcingHandler(eventSourcingHandler.forType(type))
+                .serializer(serializer)
+                .idProperty(idProvider.apply(type).property())
+                .build();
+    }
+
     private static Function<Object, Id> idProvider(AccessibleObject property) {
         Member member = property.getAnnotation(Member.class);
         String pathToId = member.idProperty();
         return pathToId.isBlank() ?
                 v -> getAnnotatedProperty(v, EntityId.class).map(
                                 p -> new Id(ofNullable(getValue(p, v)).map(Objects::toString).orElse(null), getName(p)))
-                        .orElseGet(() -> new Id(null, null)) :
+                        .orElseGet(() -> {
+                            if (v instanceof Class<?>) {
+                                return new Id(null, getAnnotatedProperty((Class<?>) v, EntityId.class)
+                                        .map(ReflectionUtils::getName).orElse(null));
+                            }
+                            return new Id(null, null);
+                        }) :
                 v -> new Id(readProperty(pathToId, v).map(Object::toString).orElse(null), pathToId);
     }
 
