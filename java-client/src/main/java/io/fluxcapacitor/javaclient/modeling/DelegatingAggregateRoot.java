@@ -6,7 +6,7 @@ import lombok.NonNull;
 import lombok.ToString;
 
 import java.time.Instant;
-import java.util.Map;
+import java.util.Collection;
 
 public abstract class DelegatingAggregateRoot<T, A extends AggregateRoot<T>> implements AggregateRoot<T> {
     @ToString.Include
@@ -40,6 +40,11 @@ public abstract class DelegatingAggregateRoot<T, A extends AggregateRoot<T>> imp
     }
 
     @Override
+    public String idProperty() {
+        return delegate.idProperty();
+    }
+
+    @Override
     public String lastEventId() {
         return delegate.lastEventId();
     }
@@ -65,7 +70,7 @@ public abstract class DelegatingAggregateRoot<T, A extends AggregateRoot<T>> imp
     }
 
     @Override
-    public Map<String, ? extends Entity<?, ?>> entities() {
+    public Collection<? extends Entity<?, ?>> entities() {
         return delegate.entities();
     }
 }

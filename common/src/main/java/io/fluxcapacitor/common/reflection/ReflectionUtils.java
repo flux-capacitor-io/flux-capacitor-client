@@ -130,11 +130,6 @@ public class ReflectionUtils {
                              MethodType.methodType(m.getReturnType(), m.getParameterTypes()));
     }
 
-
-    public static Optional<?> getAnnotatedPropertyValue(Object target, Class<? extends Annotation> annotation) {
-        return getAnnotatedProperties(target, annotation).stream().findFirst().map(m -> getValue(m, target));
-    }
-
     public static List<? extends AccessibleObject> getAnnotatedProperties(Object target,
                                                                           Class<? extends Annotation> annotation) {
         if (target == null) {
@@ -152,6 +147,14 @@ public class ReflectionUtils {
         getAllInterfaces(target)
                 .forEach(i -> result.addAll(FieldUtils.getFieldsListWithAnnotation(i, annotation)));
         return result;
+    }
+
+    public static Optional<? extends AccessibleObject> getAnnotatedProperty(Object target, Class<? extends Annotation> annotation) {
+        return getAnnotatedProperties(target, annotation).stream().findFirst();
+    }
+
+    public static Optional<?> getAnnotatedPropertyValue(Object target, Class<? extends Annotation> annotation) {
+        return getAnnotatedProperty(target, annotation).map(m -> getValue(m, target));
     }
 
     public static List<Method> getAnnotatedMethods(Object target, Class<? extends Annotation> annotation) {
@@ -247,6 +250,17 @@ public class ReflectionUtils {
         }
         if (fieldOrMethod instanceof Field) {
             return ((Field) fieldOrMethod).get(target);
+        }
+        throw new IllegalStateException("Object property should be field or method: " + fieldOrMethod);
+    }
+
+    @SneakyThrows
+    public static String getName(AccessibleObject fieldOrMethod) {
+        if (fieldOrMethod instanceof Method) {
+            return ((Method) fieldOrMethod).getName();
+        }
+        if (fieldOrMethod instanceof Field) {
+            return ((Field) fieldOrMethod).getName();
         }
         throw new IllegalStateException("Object property should be field or method: " + fieldOrMethod);
     }

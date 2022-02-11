@@ -2,7 +2,6 @@ package io.fluxcapacitor.javaclient.modeling;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
-import io.fluxcapacitor.common.reflection.ReflectionUtils;
 import io.fluxcapacitor.javaclient.common.Message;
 import io.fluxcapacitor.javaclient.common.serialization.DeserializingMessage;
 import io.fluxcapacitor.javaclient.common.serialization.Serializer;
@@ -18,22 +17,24 @@ import lombok.extern.slf4j.Slf4j;
 import java.lang.reflect.AccessibleObject;
 import java.util.Collection;
 import java.util.Collections;
-import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.function.Function;
 import java.util.function.UnaryOperator;
+import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import static io.fluxcapacitor.common.MessageType.EVENT;
 import static io.fluxcapacitor.common.reflection.ReflectionUtils.getAnnotatedProperties;
-import static io.fluxcapacitor.common.reflection.ReflectionUtils.getAnnotatedPropertyValue;
+import static io.fluxcapacitor.common.reflection.ReflectionUtils.getAnnotatedProperty;
+import static io.fluxcapacitor.common.reflection.ReflectionUtils.getName;
+import static io.fluxcapacitor.common.reflection.ReflectionUtils.getValue;
 import static io.fluxcapacitor.common.reflection.ReflectionUtils.readProperty;
 import static io.fluxcapacitor.javaclient.common.Message.asMessage;
-import static java.util.Collections.unmodifiableMap;
-import static java.util.function.Function.identity;
-import static java.util.stream.Collectors.toMap;
+import static java.util.Collections.unmodifiableCollection;
+import static java.util.Optional.ofNullable;
 
 @Value
 @Builder(toBuilder = true)
@@ -47,6 +48,8 @@ public class ImmutableEntity<T> implements Entity<ImmutableEntity<T>, T> {
     @JsonProperty
     @JsonTypeInfo(use = JsonTypeInfo.Id.CLASS, property = "type")
     T value;
+    @JsonProperty
+    String idProperty;
 
     @ToString.Exclude
     @EqualsAndHashCode.Exclude
@@ -57,7 +60,7 @@ public class ImmutableEntity<T> implements Entity<ImmutableEntity<T>, T> {
     transient Serializer serializer;
 
     @Getter(lazy = true)
-    Map<String, ? extends Entity<?, ?>> entities = computeEntities();
+    Collection<? extends Entity<?, ?>> entities = computeEntities();
 
     public static <T> ImmutableEntity<T> from(ImmutableEntity<T> a, EventSourcingHandler<T> eventSourcingHandler,
                                               Serializer serializer) {
@@ -101,44 +104,55 @@ public class ImmutableEntity<T> implements Entity<ImmutableEntity<T>, T> {
         return value;
     }
 
-    private Map<String, ? extends Entity<?, ?>> computeEntities() {
-        return value == null ? Collections.emptyMap() : unmodifiableMap(
+    private Collection<? extends Entity<?, ?>> computeEntities() {
+        return value == null ? Collections.emptySet() : unmodifiableCollection(
                 getAnnotatedProperties(value.getClass(), Member.class).stream().flatMap(this::getEntities)
-                        .collect(toMap(Entity::id, identity(), (a, b) -> a, LinkedHashMap::new)));
+                        .collect(Collectors.toCollection(LinkedHashSet::new)));
     }
 
     private Stream<Entity<?, ?>> getEntities(AccessibleObject location) {
-        Object member = ReflectionUtils.getValue(location, value);
+        Object member = getValue(location, value);
         if (member instanceof Collection<?>) {
-            Function<Object, Optional<String>> idProvider = idProvider(location);
+            Function<Object, Id> idProvider = idProvider(location);
             return ((Collection<?>) member).stream().flatMap(v -> createEntity(v, idProvider).stream());
         } else if (member instanceof Map<?, ?>) {
+            Function<Object, Id> idProvider = idProvider(location);
             return ((Map<?, ?>) member).entrySet().stream().flatMap(
-                    e -> createEntity(e.getValue(), v -> Optional.of(e.getKey().toString())).stream());
+                    e -> createEntity(e.getValue(), v -> new Id(
+                            e.getKey().toString(), idProvider.apply(v).property())).stream());
         } else {
             return createEntity(member, idProvider(location)).stream();
         }
     }
 
     @SuppressWarnings({"unchecked", "rawtypes"})
-    private Optional<Entity<?, ?>> createEntity(Object member, Function<Object, Optional<String>> idProvider) {
-        return idProvider.apply(member).<Entity<?, ?>>map(id -> ImmutableEntity.builder()
-                .id(id)
+    private Optional<Entity<?, ?>> createEntity(Object member, Function<Object, Id> idProvider) {
+        if (member == null) {
+            return Optional.empty();
+        }
+        return Optional.of(idProvider.apply(member)).map(id -> ImmutableEntity.builder()
                 .value(member)
                 .type((Class) member.getClass())
                 .eventSourcingHandler(eventSourcingHandler.forType(member.getClass()))
                 .serializer(serializer)
-                .build()).or(() -> {
-            log.warn("Could not determine the id of entity {}", member);
-            return Optional.empty();
-        });
+                .id(id.value())
+                .idProperty(id.property())
+                .build());
     }
 
-    private static Function<Object, Optional<String>> idProvider(AccessibleObject property) {
+    private static Function<Object, Id> idProvider(AccessibleObject property) {
         Member member = property.getAnnotation(Member.class);
-        String pathToId = member.pathToId();
+        String pathToId = member.idProperty();
         return pathToId.isBlank() ?
-                v -> getAnnotatedPropertyValue(v, EntityId.class).map(Object::toString) :
-                v -> readProperty(pathToId, v).map(Objects::toString);
+                v -> getAnnotatedProperty(v, EntityId.class).map(
+                                p -> new Id(ofNullable(getValue(p, v)).map(Objects::toString).orElse(null), getName(p)))
+                        .orElseGet(() -> new Id(null, null)) :
+                v -> new Id(readProperty(pathToId, v).map(Object::toString).orElse(null), pathToId);
+    }
+
+    @Value
+    private static class Id {
+        String value;
+        String property;
     }
 }

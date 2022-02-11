@@ -14,7 +14,7 @@ import lombok.With;
 import lombok.experimental.Accessors;
 
 import java.time.Instant;
-import java.util.Map;
+import java.util.Collection;
 import java.util.Objects;
 import java.util.function.UnaryOperator;
 
@@ -55,7 +55,7 @@ public class ImmutableAggregateRoot<T> implements AggregateRoot<T> {
         }
         return ImmutableAggregateRoot.<T>builder()
                 .delegate(ImmutableEntity.<T>builder().eventSourcingHandler(eventSourcingHandler).serializer(serializer)
-                                  .id(a.id()).value(a.get()).type(a.type()).build())
+                                  .id(a.id()).value(a.get()).type(a.type()).idProperty(a.idProperty()).build())
                 .lastEventId(a.lastEventId())
                 .lastEventIndex(a.lastEventIndex())
                 .timestamp(a.timestamp())
@@ -115,7 +115,12 @@ public class ImmutableAggregateRoot<T> implements AggregateRoot<T> {
     }
 
     @Override
-    public Map<String, ? extends Entity<?, ?>> entities() {
+    public String idProperty() {
+        return delegate.idProperty();
+    }
+
+    @Override
+    public Collection<? extends Entity<?, ?>> entities() {
         return delegate.entities();
     }
 

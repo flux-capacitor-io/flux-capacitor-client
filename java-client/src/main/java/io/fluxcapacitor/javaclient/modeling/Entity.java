@@ -24,8 +24,6 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.Iterator;
 import java.util.List;
-import java.util.Map;
-import java.util.Optional;
 import java.util.function.Function;
 import java.util.function.Predicate;
 import java.util.function.UnaryOperator;
@@ -40,13 +38,10 @@ public interface Entity<M extends Entity<M, T>, T> {
 
     T get();
 
-    @Transient
-    Map<String, ? extends Entity<?, ?>> entities();
+    String idProperty();
 
-    @SuppressWarnings("unchecked")
-    default <E> Optional<Entity<?, E>> getEntity(String id) {
-        return Optional.ofNullable((Entity<?, E>) entities().get(id));
-    }
+    @Transient
+    Collection<? extends Entity<?, ?>> entities();
 
     default M apply(Object... events) {
         return apply(List.of(events));
