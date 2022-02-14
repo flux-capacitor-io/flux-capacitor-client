@@ -120,6 +120,11 @@ public class ImmutableAggregateRoot<T> implements AggregateRoot<T> {
     }
 
     @Override
+    public Holder holder() {
+        return delegate.holder();
+    }
+
+    @Override
     public Collection<Entity<?, ?>> entities() {
         return delegate.entities();
     }

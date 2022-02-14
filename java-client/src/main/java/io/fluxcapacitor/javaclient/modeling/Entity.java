@@ -45,6 +45,8 @@ public interface Entity<M extends Entity<M, T>, T> {
 
     String idProperty();
 
+    Holder holder();
+
     Collection<Entity<?, ?>> entities();
 
     default Collection<Entity<?, ?>> allEntities() {
@@ -95,8 +97,8 @@ public interface Entity<M extends Entity<M, T>, T> {
             Iterator<Object> iterator = Arrays.stream(commands).iterator();
             while (iterator.hasNext()) {
                 Object c = iterator.next();
-                entities.stream().filter(e -> e.mightHandle(c)).forEach(e -> e.assertLegal(c));
                 ValidationUtils.assertLegal(c, result);
+                entities.stream().filter(e -> e.mightHandle(c)).forEach(e -> e.assertLegal(c));
                 if (iterator.hasNext()) {
                     result = result.apply(Message.asMessage(c));
                 }
@@ -145,5 +147,10 @@ public interface Entity<M extends Entity<M, T>, T> {
     @FunctionalInterface
     interface Validator<T, E extends Exception> {
         void validate(T model) throws E;
+    }
+
+    interface Holder {
+        Stream<Entity<?, ?>> getEntities(Object owner);
+        Object updateOwner(Object owner, Entity<?, ?> before, Entity<?, ?> after);
     }
 }

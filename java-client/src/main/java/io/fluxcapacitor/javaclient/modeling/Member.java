@@ -27,4 +27,5 @@ import java.lang.annotation.Target;
 @Inherited
 public @interface Member {
     String idProperty() default "";
+    String wither() default "";
 }

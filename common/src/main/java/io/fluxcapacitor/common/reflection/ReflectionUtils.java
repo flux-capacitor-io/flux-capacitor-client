@@ -27,6 +27,7 @@ import java.lang.reflect.AccessibleObject;
 import java.lang.reflect.AnnotatedType;
 import java.lang.reflect.Executable;
 import java.lang.reflect.Field;
+import java.lang.reflect.Member;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
 import java.lang.reflect.ParameterizedType;
@@ -55,6 +56,7 @@ import java.util.stream.Stream;
 import static io.fluxcapacitor.common.ObjectUtils.memoize;
 import static java.beans.Introspector.getBeanInfo;
 import static java.lang.Integer.compare;
+import static java.lang.String.format;
 import static java.security.AccessController.doPrivileged;
 import static java.util.Collections.emptyList;
 import static java.util.stream.Collectors.toCollection;
@@ -268,11 +270,16 @@ public class ReflectionUtils {
 
     @SneakyThrows
     public static String getName(AccessibleObject fieldOrMethod) {
-        if (fieldOrMethod instanceof Method) {
-            return ((Method) fieldOrMethod).getName();
+        if (fieldOrMethod instanceof Member) {
+            return ((Member) fieldOrMethod).getName();
         }
-        if (fieldOrMethod instanceof Field) {
-            return ((Field) fieldOrMethod).getName();
+        throw new IllegalStateException("Object property should be field or method: " + fieldOrMethod);
+    }
+
+    @SneakyThrows
+    public static Class<?> getEnclosingClass(AccessibleObject fieldOrMethod) {
+        if (fieldOrMethod instanceof Member) {
+            return ((Member) fieldOrMethod).getDeclaringClass();
         }
         throw new IllegalStateException("Object property should be field or method: " + fieldOrMethod);
     }
@@ -283,6 +290,16 @@ public class ReflectionUtils {
         }
         if (fieldOrMethod instanceof Field) {
             return ((Field) fieldOrMethod).getType();
+        }
+        throw new IllegalStateException("Object property should be field or method: " + fieldOrMethod);
+    }
+
+    public static Type getGenericPropertyType(AccessibleObject fieldOrMethod) {
+        if (fieldOrMethod instanceof Method) {
+            return ((Method) fieldOrMethod).getGenericReturnType();
+        }
+        if (fieldOrMethod instanceof Field) {
+            return ((Field) fieldOrMethod).getGenericType();
         }
         throw new IllegalStateException("Object property should be field or method: " + fieldOrMethod);
     }
@@ -346,13 +363,24 @@ public class ReflectionUtils {
                 || annotation.annotationType().isAnnotationPresent(annotationType));
     }
 
+    @SneakyThrows
+    public static Class<?> getPropertyType(Class<?> target, String propertyName) {
+        Field field = FieldUtils.getField(target, propertyName);
+        return field != null ? field.getType() :
+                Arrays.stream(getBeanInfo(target, Object.class).getPropertyDescriptors())
+                        .filter(d -> propertyName.equals(d.getName()))
+                        .map(PropertyDescriptor::getPropertyType).findFirst()
+                        .orElseThrow(() -> new IllegalStateException(
+                                format("Property %s could not be found on target class %s", propertyName, target)));
+    }
+
     @Value
     private static class PropertyNotFoundException extends RuntimeException {
         @NonNull String propertyName;
         @NonNull Class<?> type;
     }
 
-    public static Class<?> getCollectionElementType(AccessibleObject fieldOrMethod) {
+    public static Optional<Class<?>> getCollectionElementType(AccessibleObject fieldOrMethod) {
         if (fieldOrMethod instanceof Method) {
             return getCollectionElementType(((Method) fieldOrMethod).getGenericReturnType());
         }
@@ -362,7 +390,7 @@ public class ReflectionUtils {
         throw new IllegalStateException("Object property should be field or method: " + fieldOrMethod);
     }
 
-    public static Class<?> getCollectionElementType(Type parameterizedType) {
+    public static Optional<Class<?>> getCollectionElementType(Type parameterizedType) {
         if (parameterizedType instanceof ParameterizedType) {
             Type elementType;
             Type rawType = ((ParameterizedType) parameterizedType).getRawType();
@@ -375,9 +403,9 @@ public class ReflectionUtils {
                 Type[] upperBounds = ((WildcardType) elementType).getUpperBounds();
                 elementType = upperBounds.length > 0 ? upperBounds[0] : null;
             }
-            return elementType instanceof Class<?> ? (Class<?>) elementType : Object.class;
+            return Optional.of(elementType instanceof Class<?> ? (Class<?>) elementType : Object.class);
         }
-        return Object.class;
+        return Optional.empty();
     }
 
     public static boolean declaresField(Class<?> target, String fieldName) {

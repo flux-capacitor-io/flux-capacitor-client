@@ -68,23 +68,23 @@ public class AnnotatedEventSourcingHandler<T> implements EventSourcingHandler<T>
     }
 
     @Override
-    public T invoke(Entity<?, T> aggregate, DeserializingMessage message) {
+    public T invoke(Entity<?, T> entity, DeserializingMessage message) {
         return message.apply(m -> {
             Object result;
             HandlerInvoker<DeserializingMessage> invoker;
-            T model = aggregate.get();
+            T model = entity.get();
             boolean handledByAggregate;
             try {
                 try {
-                    aggregateResolver.setAggregate(aggregate);
+                    aggregateResolver.setAggregate(entity);
                     handledByAggregate = aggregateInvoker.canHandle(model, m);
                     invoker = handledByAggregate ? aggregateInvoker : eventInvokers.apply(message.getPayloadClass());
                     result = invoker.invoke(handledByAggregate ? model : m.getPayload(), m);
                 } catch (HandlerNotFoundException e) {
                     if (model == null) {
                         throw new HandlerNotFoundException(String.format(
-                                "Aggregate '%2$s' of type %1$s does not exist and no applicable method exists in %1$s or %3$s that would instantiate a new %1$s.",
-                                aggregate.type().getSimpleName(), aggregate.id(),
+                                "Entity '%2$s' of type %1$s does not exist and no applicable method exists in %1$s or %3$s that would instantiate a new %1$s.",
+                                entity.type().getSimpleName(), entity.id(),
                                 message.getPayloadClass().getSimpleName()));
                     }
                     return model;
@@ -106,10 +106,10 @@ public class AnnotatedEventSourcingHandler<T> implements EventSourcingHandler<T>
     }
 
     @Override
-    public boolean canHandle(Entity<?, T> aggregate, DeserializingMessage message) {
+    public boolean canHandle(Entity<?, T> entity, DeserializingMessage message) {
         try {
-            aggregateResolver.setAggregate(aggregate);
-            return aggregateInvoker.canHandle(aggregate, message)
+            aggregateResolver.setAggregate(entity);
+            return aggregateInvoker.canHandle(entity.get(), message)
                     || eventInvokers.apply(message.getPayloadClass()).canHandle(message.getPayload(), message);
         } finally {
             aggregateResolver.removeAggregate();

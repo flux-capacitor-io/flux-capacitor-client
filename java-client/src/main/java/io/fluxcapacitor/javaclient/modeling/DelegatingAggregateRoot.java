@@ -40,6 +40,11 @@ public abstract class DelegatingAggregateRoot<T, A extends AggregateRoot<T>> imp
     }
 
     @Override
+    public Holder holder() {
+        return delegate.holder();
+    }
+
+    @Override
     public String idProperty() {
         return delegate.idProperty();
     }
