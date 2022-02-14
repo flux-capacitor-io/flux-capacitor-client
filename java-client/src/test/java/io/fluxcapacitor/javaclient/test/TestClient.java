@@ -15,12 +15,14 @@
 package io.fluxcapacitor.javaclient.test;
 
 import io.fluxcapacitor.common.MessageType;
+import io.fluxcapacitor.common.reflection.ReflectionUtils;
 import io.fluxcapacitor.javaclient.configuration.client.Client;
 import io.fluxcapacitor.javaclient.persisting.eventsourcing.client.EventStoreClient;
 import io.fluxcapacitor.javaclient.persisting.keyvalue.client.KeyValueClient;
 import io.fluxcapacitor.javaclient.persisting.search.client.SearchClient;
 import io.fluxcapacitor.javaclient.publishing.client.GatewayClient;
 import io.fluxcapacitor.javaclient.scheduling.client.SchedulingClient;
+import io.fluxcapacitor.javaclient.tracking.client.CachingTrackingClient;
 import io.fluxcapacitor.javaclient.tracking.client.TrackingClient;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
@@ -43,6 +45,10 @@ public class TestClient implements Client {
         return (T) spiedComponents.computeIfAbsent(component, Mockito::spy);
     }
 
+    public void resetMocks() {
+        spiedComponents.values().forEach(Mockito::reset);
+    }
+
     @Override
     public String name() {
         return delegate.name();
@@ -60,7 +66,12 @@ public class TestClient implements Client {
 
     @Override
     public TrackingClient getTrackingClient(MessageType messageType) {
-        return decorate(delegate.getTrackingClient(messageType));
+        var component = delegate.getTrackingClient(messageType);
+        if (component instanceof CachingTrackingClient && !spiedComponents.containsKey(component)) {
+            ReflectionUtils.setField("delegate", component,
+                                     decorate(((CachingTrackingClient) component).getDelegate()));
+        }
+        return decorate(component);
     }
 
     @Override

@@ -49,7 +49,6 @@ import lombok.Setter;
 import lombok.SneakyThrows;
 import lombok.experimental.Accessors;
 import lombok.extern.slf4j.Slf4j;
-import org.mockito.Mockito;
 
 import java.lang.reflect.Executable;
 import java.time.Clock;
@@ -60,7 +59,6 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
@@ -79,6 +77,7 @@ import static io.fluxcapacitor.common.MessageType.COMMAND;
 import static io.fluxcapacitor.common.MessageType.QUERY;
 import static io.fluxcapacitor.common.MessageType.SCHEDULE;
 import static io.fluxcapacitor.javaclient.common.ClientUtils.isLocalHandlerMethod;
+import static io.fluxcapacitor.javaclient.common.ClientUtils.runSilently;
 import static io.fluxcapacitor.javaclient.common.Message.asMessage;
 import static java.util.Collections.emptyList;
 import static java.util.Collections.singletonList;
@@ -275,7 +274,8 @@ public class TestFixture implements Given, When {
 
     @Override
     public When givenEvents(Object... events) {
-        return given(fc -> flatten(events).forEach(c -> fc.eventGateway().publish(c)));
+        return given(fc -> flatten(events).forEach(c -> runSilently(
+                () -> fc.eventGateway().publish(Message.asMessage(c), Guarantee.STORED).get())));
     }
 
     @Override
@@ -345,7 +345,7 @@ public class TestFixture implements Given, When {
 
     @Override
     public Then whenEvent(Object event) {
-        return when(fc -> fc.eventGateway().publish(interceptor.trace(event), Guarantee.NONE));
+        return when(fc -> runSilently(() -> fc.eventGateway().publish(interceptor.trace(Message.asMessage(event)), Guarantee.STORED).get()));
     }
 
     @Override
@@ -492,12 +492,8 @@ public class TestFixture implements Given, When {
     }
 
     protected void resetMocks() {
-        Client client = fluxCapacitor.client();
-        Mockito.reset(Stream.concat(
-                Stream.of(client.getEventStoreClient(), client.getSchedulingClient(), client.getKeyValueClient()),
-                Arrays.stream(MessageType.values())
-                        .flatMap(t -> Stream.of(client.getGatewayClient(t), client.getTrackingClient(t)).filter(
-                                Objects::nonNull))).distinct().toArray());
+        ((TestClient) fluxCapacitor.client()).resetMocks();
+        ((TestFluxCapacitor) fluxCapacitor).resetMocks();
     }
 
     protected void advanceTimeBy(Duration duration) {
@@ -609,35 +605,35 @@ public class TestFixture implements Given, When {
                            message);
             }
 
-                synchronized (consumers) {
-                    Message interceptedMessage = message;
-                    consumers.entrySet().stream()
-                            .filter(t -> {
-                                ConsumerConfiguration configuration = t.getKey();
-                                return (configuration.getMessageType() == messageType && Optional
-                                        .ofNullable(configuration.getTypeFilter())
-                                        .map(f -> interceptedMessage.getPayload().getClass().getName().matches(f))
-                                        .orElse(true));
-                            }).forEach(e -> addMessage(e.getValue(), interceptedMessage));
+            synchronized (consumers) {
+                Message interceptedMessage = message;
+                consumers.entrySet().stream()
+                        .filter(t -> {
+                            ConsumerConfiguration configuration = t.getKey();
+                            return (configuration.getMessageType() == messageType && Optional
+                                    .ofNullable(configuration.getTypeFilter())
+                                    .map(f -> interceptedMessage.getPayload().getClass().getName().matches(f))
+                                    .orElse(true));
+                        }).forEach(e -> addMessage(e.getValue(), interceptedMessage));
+            }
+            if (!message.getMetadata().containsAnyKey(IGNORE_TAG, TRACE_TAG)) {
+                switch (messageType) {
+                    case COMMAND:
+                        registerCommand(message);
+                        break;
+                    case EVENT:
+                        registerEvent(message);
+                        break;
+                    case SCHEDULE:
+                        registerSchedule((Schedule) message);
+                        break;
+                    case WEBREQUEST:
+                        registerWebRequest(message);
+                        break;
                 }
-                if (!message.getMetadata().containsAnyKey(IGNORE_TAG, TRACE_TAG)) {
-                    switch (messageType) {
-                        case COMMAND:
-                            registerCommand(message);
-                            break;
-                        case EVENT:
-                            registerEvent(message);
-                            break;
-                        case SCHEDULE:
-                            registerSchedule((Schedule) message);
-                            break;
-                        case WEBREQUEST:
-                            registerWebRequest(message);
-                            break;
-                    }
-                }
+            }
 
-                return message;
+            return message;
         }
 
         protected void addMessage(List<Message> messages, Message message) {

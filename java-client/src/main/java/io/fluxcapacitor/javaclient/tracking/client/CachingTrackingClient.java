@@ -14,6 +14,7 @@
 
 package io.fluxcapacitor.javaclient.tracking.client;
 
+import io.fluxcapacitor.common.Awaitable;
 import io.fluxcapacitor.common.IndexUtils;
 import io.fluxcapacitor.common.Registration;
 import io.fluxcapacitor.common.api.SerializedMessage;
@@ -22,8 +23,8 @@ import io.fluxcapacitor.common.api.tracking.MessageBatch;
 import io.fluxcapacitor.common.api.tracking.Position;
 import io.fluxcapacitor.javaclient.FluxCapacitor;
 import io.fluxcapacitor.javaclient.tracking.ConsumerConfiguration;
+import lombok.Getter;
 import lombok.RequiredArgsConstructor;
-import lombok.experimental.Delegate;
 import lombok.extern.slf4j.Slf4j;
 
 import java.time.Duration;
@@ -52,7 +53,7 @@ import static java.util.stream.Collectors.toMap;
 @RequiredArgsConstructor
 @Slf4j
 public class CachingTrackingClient implements TrackingClient {
-    @Delegate(excludes = Overrides.class)
+    @Getter
     private final WebsocketTrackingClient delegate;
     private final int maxCacheSize;
 
@@ -185,19 +186,34 @@ public class CachingTrackingClient implements TrackingClient {
     }
 
     @Override
+    public List<SerializedMessage> readFromIndex(long minIndex, int maxSize) {
+        return delegate.readFromIndex(minIndex, maxSize);
+    }
+
+    @Override
+    public Awaitable storePosition(String consumer, int[] segment, long lastIndex) {
+        return delegate.storePosition(consumer, segment, lastIndex);
+    }
+
+    @Override
+    public Awaitable resetPosition(String consumer, long lastIndex) {
+        return delegate.resetPosition(consumer, lastIndex);
+    }
+
+    @Override
+    public Position getPosition(String consumer) {
+        return delegate.getPosition(consumer);
+    }
+
+    @Override
+    public Awaitable disconnectTracker(String consumer, String trackerId, boolean sendFinalEmptyBatch) {
+        return delegate.disconnectTracker(consumer, trackerId, sendFinalEmptyBatch);
+    }
+
+    @Override
     public void close() {
         ofNullable(registration).ifPresent(Registration::cancel);
         scheduler.shutdown();
         delegate.close();
-    }
-
-    protected interface Overrides {
-        CompletableFuture<MessageBatch> read(String consumer, String trackerId, Long lastIndex,
-                                             ConsumerConfiguration trackingConfiguration);
-
-        MessageBatch readAndWait(String consumer, String trackerId, Long lastIndex,
-                                 ConsumerConfiguration configuration);
-
-        void close();
     }
 }

@@ -15,7 +15,11 @@
 package io.fluxcapacitor.javaclient.test;
 
 import io.fluxcapacitor.common.MessageType;
+import io.fluxcapacitor.common.Registration;
 import io.fluxcapacitor.javaclient.FluxCapacitor;
+import io.fluxcapacitor.javaclient.common.IdentityProvider;
+import io.fluxcapacitor.javaclient.common.serialization.Serializer;
+import io.fluxcapacitor.javaclient.configuration.client.Client;
 import io.fluxcapacitor.javaclient.persisting.caching.Cache;
 import io.fluxcapacitor.javaclient.persisting.eventsourcing.EventStore;
 import io.fluxcapacitor.javaclient.persisting.keyvalue.KeyValueStore;
@@ -27,12 +31,15 @@ import io.fluxcapacitor.javaclient.publishing.EventGateway;
 import io.fluxcapacitor.javaclient.publishing.MetricsGateway;
 import io.fluxcapacitor.javaclient.publishing.QueryGateway;
 import io.fluxcapacitor.javaclient.publishing.ResultGateway;
+import io.fluxcapacitor.javaclient.publishing.WebRequestGateway;
+import io.fluxcapacitor.javaclient.publishing.correlation.CorrelationDataProvider;
 import io.fluxcapacitor.javaclient.scheduling.Scheduler;
 import io.fluxcapacitor.javaclient.tracking.Tracking;
+import io.fluxcapacitor.javaclient.tracking.handling.authentication.UserProvider;
 import lombok.AllArgsConstructor;
-import lombok.experimental.Delegate;
 import org.mockito.Mockito;
 
+import java.time.Clock;
 import java.util.Map;
 import java.util.WeakHashMap;
 
@@ -40,12 +47,15 @@ import java.util.WeakHashMap;
 public class TestFluxCapacitor implements FluxCapacitor {
     private final Map<Object, Object> spiedComponents = new WeakHashMap<>();
 
-    @Delegate(excludes = ExcludedMethods.class)
     private final FluxCapacitor delegate;
 
     @SuppressWarnings("unchecked")
     protected <T> T decorate(T component) {
         return (T) spiedComponents.computeIfAbsent(component, Mockito::spy);
+    }
+
+    public void resetMocks(){
+        spiedComponents.values().forEach(Mockito::reset);
     }
 
     @Override
@@ -113,20 +123,59 @@ public class TestFluxCapacitor implements FluxCapacitor {
         return decorate(delegate.cache());
     }
 
-    private interface ExcludedMethods {
-        AggregateRepository aggregateRepository();
-        EventStore eventStore();
-        Scheduler scheduler();
-        CommandGateway commandGateway();
-        QueryGateway queryGateway();
-        EventGateway eventGateway();
-        ResultGateway resultGateway();
-        ErrorGateway errorGateway();
-        MetricsGateway metricsGateway();
-        Tracking tracking(MessageType messageType);
-        KeyValueStore keyValueStore();
-        DocumentStore documentStore();
-        Cache cache();
+    @Override
+    public WebRequestGateway webRequestGateway() {
+        return delegate.webRequestGateway();
+    }
+
+    @Override
+    public void withClock(Clock clock) {
+        delegate.withClock(clock);
+    }
+
+    @Override
+    public void withIdentityProvider(IdentityProvider identityProvider) {
+        delegate.withIdentityProvider(identityProvider);
+    }
+
+    @Override
+    public UserProvider userProvider() {
+        return delegate.userProvider();
+    }
+
+    @Override
+    public CorrelationDataProvider correlationDataProvider() {
+        return delegate.correlationDataProvider();
+    }
+
+    @Override
+    public Serializer serializer() {
+        return delegate.serializer();
+    }
+
+    @Override
+    public Clock clock() {
+        return delegate.clock();
+    }
+
+    @Override
+    public IdentityProvider identityProvider() {
+        return delegate.identityProvider();
+    }
+
+    @Override
+    public Client client() {
+        return delegate.client();
+    }
+
+    @Override
+    public Registration beforeShutdown(Runnable task) {
+        return delegate.beforeShutdown(task);
+    }
+
+    @Override
+    public void close() {
+        delegate.close();
     }
 
 }
