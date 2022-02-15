@@ -5,6 +5,7 @@ import io.fluxcapacitor.javaclient.common.serialization.DeserializingMessage;
 import io.fluxcapacitor.javaclient.common.serialization.Serializer;
 import io.fluxcapacitor.javaclient.modeling.Aggregate;
 import io.fluxcapacitor.javaclient.modeling.AggregateRoot;
+import io.fluxcapacitor.javaclient.modeling.EntityId;
 import io.fluxcapacitor.javaclient.modeling.ImmutableAggregateRoot;
 import io.fluxcapacitor.javaclient.modeling.ImmutableEntity;
 import io.fluxcapacitor.javaclient.modeling.ModifiableAggregateRoot;
@@ -39,6 +40,7 @@ import java.util.function.Function;
 
 import static io.fluxcapacitor.common.ObjectUtils.memoize;
 import static io.fluxcapacitor.common.ObjectUtils.safelySupply;
+import static io.fluxcapacitor.common.reflection.ReflectionUtils.getAnnotatedProperty;
 import static java.util.Optional.ofNullable;
 
 @Slf4j
@@ -90,6 +92,7 @@ public class DefaultAggregateRepository implements AggregateRepository {
         private final EventStore eventStore;
         private final DispatchInterceptor dispatchInterceptor;
         private final DocumentStore documentStore;
+        private final String idProperty;
 
         public AnnotatedAggregateRepository(Class<T> type, Serializer serializer, Cache cache, EventStore eventStore,
                                             SnapshotStore snapshotStore,
@@ -132,6 +135,7 @@ public class DefaultAggregateRepository implements AggregateRepository {
                                         return aggregateRoot.timestamp();
                                     }))
                     .orElse(AggregateRoot::timestamp);
+            this.idProperty = getAnnotatedProperty(type, EntityId.class).map(ReflectionUtils::getName).orElse(null);
         }
 
         protected ModifiableAggregateRoot<T> load(String id) {
@@ -141,8 +145,8 @@ public class DefaultAggregateRepository implements AggregateRepository {
                                 .filter(a -> a.get() == null || type.isAssignableFrom(a.get().getClass()))
                                 .orElseGet(() -> {
                                     var builder =
-                                                    ImmutableEntity.<T>builder().id(id).type(type).eventSourcingHandler(
-                                                            eventSourcingHandler).serializer(serializer);
+                                            ImmutableEntity.<T>builder().id(id).type(type).idProperty(idProperty)
+                                                    .eventSourcingHandler(eventSourcingHandler).serializer(serializer);
                                     ImmutableAggregateRoot<T> model =
                                             (searchable && !eventSourced
                                                     ? documentStore.<T>fetchDocument(id, collection)
@@ -161,7 +165,9 @@ public class DefaultAggregateRepository implements AggregateRepository {
                                                                      id, type, a.get().getClass());
                                                         }
                                                         return assignable;
-                                                    }).orElseGet(() -> ImmutableAggregateRoot.<T>builder().delegate(builder.build()).build());
+                                                    }).orElseGet(
+                                                            () -> ImmutableAggregateRoot.<T>builder().delegate(builder.build())
+                                                                    .build());
                                     if (!eventSourced) {
                                         return model;
                                     }

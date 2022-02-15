@@ -8,6 +8,7 @@ import io.fluxcapacitor.javaclient.tracking.handling.IllegalCommandException;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Builder.Default;
+import lombok.Data;
 import lombok.Value;
 import lombok.With;
 import org.junit.jupiter.api.BeforeEach;
@@ -18,6 +19,7 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.UUID;
 import java.util.function.Predicate;
 
 import static io.fluxcapacitor.javaclient.FluxCapacitor.loadAggregate;
@@ -27,12 +29,12 @@ public class AggregateEntitiesTest {
     private final TestFixture testFixture = (TestFixture) TestFixture.create().given(
             fc -> loadAggregate("test", Aggregate.class, false).update(s -> Aggregate.builder().build()));
 
-    void expectEntity(Class<?> parentClass, Predicate<Entity<?, ?>> predicate) {
-        expectEntities(parentClass, entities -> entities.stream().anyMatch(predicate));
+    void expectEntity(Predicate<Entity<?, ?>> predicate) {
+        expectEntities(Aggregate.class, entities -> entities.stream().anyMatch(predicate));
     }
 
-    void expectNoEntity(Class<?> parentClass, Predicate<Entity<?, ?>> predicate) {
-        expectEntities(parentClass, entities -> entities.stream().noneMatch(predicate));
+    void expectNoEntity(Predicate<Entity<?, ?>> predicate) {
+        expectEntities(Aggregate.class, entities -> entities.stream().noneMatch(predicate));
     }
 
     void expectEntities(Class<?> parentClass, Predicate<Collection<Entity<?, ?>>> predicate) {
@@ -46,36 +48,36 @@ public class AggregateEntitiesTest {
 
         @Test
         void findSingleton() {
-            expectEntity(Aggregate.class, e -> "id".equals(e.id()) && "childId".equals(e.idProperty()));
+            expectEntity(e -> "id".equals(e.id()) && "childId".equals(e.idProperty()));
         }
 
         @Test
         void findSingletonWithCustomPath() {
-            expectEntity(Aggregate.class, e -> "otherId".equals(e.id()) && "customId".equals(e.idProperty()));
+            expectEntity(e -> "otherId".equals(e.id()) && "customId".equals(e.idProperty()));
         }
 
         @Test
         void noEntityIfNull() {
-            expectNoEntity(Aggregate.class, e -> "missingId".equals(e.id()));
+            expectNoEntity(e -> "missingId".equals(e.id()));
         }
 
         @Test
         void findEntitiesInList() {
-            expectEntity(Aggregate.class, e -> "list0".equals(e.id()));
-            expectEntity(Aggregate.class, e -> "list1".equals(e.id()));
-            expectEntity(Aggregate.class, e -> e.id() == null);
+            expectEntity(e -> "list0".equals(e.id()));
+            expectEntity(e -> "list1".equals(e.id()));
+            expectEntity(e -> e.id() == null);
         }
 
         @Test
         void findEntitiesInMapUsingKey() {
-            expectEntity(Aggregate.class, e -> "map0".equals(e.id()));
-            expectEntity(Aggregate.class, e -> "map1".equals(e.id()));
+            expectEntity(e -> "map0".equals(e.id()));
+            expectEntity(e -> "map1".equals(e.id()));
         }
 
         @Test
         void findGrandChild() {
-            expectEntity(Aggregate.class,
-                         e -> e.entities().stream().findFirst().map(c -> "grandChild".equals(c.id())).orElse(false));
+            expectEntity(
+                    e -> e.entities().stream().findFirst().map(c -> "grandChild".equals(c.id())).orElse(false));
         }
     }
 
@@ -153,36 +155,133 @@ public class AggregateEntitiesTest {
             testFixture.registerHandlers(new CommandHandler());
         }
 
-        @Test
-        void testAddSingleton() {
-            testFixture.whenCommand(new AddChild("missing"))
-                    .expectThat(fc -> expectEntity(
-                            Aggregate.class, e -> e.get() instanceof MissingChild && "missing".equals(e.id())));
+        @Nested
+        class SingletonTests {
+            @Test
+            void testAddSingleton() {
+                testFixture.whenCommand(new AddChild("missing"))
+                        .expectThat(fc -> expectEntity(
+                                e -> e.get() instanceof MissingChild && "missing".equals(e.id())));
+            }
+
+            @Test
+            void testAddChildAndGrandChild() {
+                testFixture.whenCommand(new AddChildAndGrandChild("missing", "missingGc"))
+                        .expectThat(fc -> {
+                            expectEntity(e -> Objects.equals(e.id(), "missing"));
+                            expectEntity(e -> Objects.equals(e.id(), "missingGc"));
+                        });
+            }
+
+            @Test
+            void testUpdateSingleton() {
+                testFixture.whenCommand(new UpdateChild("id", "data"))
+                        .expectThat(fc -> expectEntity(
+                                e -> e.get() instanceof Child && ((Child) e.get()).getData().equals("data")));
+            }
+
+            @Test
+            void testRemoveSingleton() {
+                testFixture.whenCommand(new RemoveChild("id"))
+                        .expectThat(fc -> {
+                            expectNoEntity(e -> "id".equals(e.id()));
+                            expectEntity(e -> "otherId".equals(e.id()));
+                        });
+            }
+
+            @Value
+            class AddChild {
+                String missingChildId;
+
+                @Apply
+                MissingChild apply() {
+                    return MissingChild.builder().missingChildId(missingChildId).build();
+                }
+            }
+
+            @Value
+            class AddChildAndGrandChild {
+                String missingChildId;
+                String missingGrandChildId;
+
+                @Apply
+                MissingChild createChild() {
+                    return MissingChild.builder().missingChildId(missingChildId).build();
+                }
+
+                @Apply
+                MissingGrandChild createGrandChild() {
+                    return new MissingGrandChild(missingGrandChildId);
+                }
+            }
         }
 
-        @Test
-        void testAddChildAndGrandChild() {
-            testFixture.whenCommand(new AddChildAndGrandChild("missing", "missingGc"))
-                    .expectThat(fc -> {
-                        expectEntity(Aggregate.class, e -> Objects.equals(e.id(), "missing"));
-                        expectEntity(Aggregate.class, e -> Objects.equals(e.id(), "missingGc"));
-                    });
+        @Nested
+        class ListTests {
+            @Test
+            void testAddListChild() {
+                testFixture.whenCommand(new AddListChild("list2"))
+                        .expectThat(fc -> expectEntity(
+                                e -> e.get() instanceof ListChild && "list2".equals(e.id())))
+                        .expectTrue(fc -> loadAggregate("test", Aggregate.class).get().getList().size() == 4);
+            }
+
+            @Test
+            void testUpdateListChild() {
+                testFixture.whenCommand(new UpdateChild("list1", "data"))
+                        .expectTrue(fc -> loadAggregate("test", Aggregate.class).get().getList().get(1).getData().equals("data"));
+            }
+
+            @Test
+            void testRemoveListChild() {
+                testFixture.whenCommand(new RemoveChild("list1"))
+                        .expectThat(fc -> expectNoEntity(e -> "list1".equals(e.id())))
+                        .expectTrue(fc -> loadAggregate("test", Aggregate.class).get().getList().size() == 2);
+            }
+
+            @Value
+            class AddListChild {
+                String listChildId;
+
+                @Apply
+                ListChild apply() {
+                    return ListChild.builder().listChildId(listChildId).build();
+                }
+            }
         }
 
-        @Test
-        void testUpdateSingleton() {
-            testFixture.whenCommand(new UpdateChild("id"))
-                    .expectThat(fc -> expectEntity(
-                            Aggregate.class, e -> e.get() instanceof Child && ((Child) e.get()).getCustomId().equals("updatedCustomId")));
-        }
+        @Nested
+        class MapTests {
+            @Test
+            void testAddMapChild() {
+                testFixture.whenCommand(new AddMapChild("map2"))
+                        .expectThat(fc -> expectEntity(
+                                e -> e.get() instanceof MapChild && "map2".equals(e.id())))
+                        .expectTrue(fc -> loadAggregate("test", Aggregate.class).get().getMap().size() == 3);
+            }
 
-        @Test
-        void testRemoveSingleton() {
-            testFixture.whenCommand(new RemoveChild("id"))
-                    .expectThat(fc -> {
-                        expectNoEntity(Aggregate.class, e -> "id".equals(e.id()));
-                        expectEntity(Aggregate.class, e -> "otherId".equals(e.id()));
-                    });
+            @Test
+            void testUpdateMapChild() {
+                testFixture.whenCommand(new UpdateChild("map1", "data"))
+                        .expectTrue(fc -> loadAggregate("test", Aggregate.class).get().getMap().get("map1").getData().equals("data"));
+            }
+
+            @Test
+            void testRemoveMapChild() {
+                testFixture.whenCommand(new RemoveChild("map1"))
+                        .expectThat(fc -> expectNoEntity(e -> "map1".equals(e.id())))
+                        .expectTrue(fc -> loadAggregate("test", Aggregate.class).get().getMap().size() == 1);
+            }
+
+            @Value
+            class AddMapChild {
+                String mapChildId;
+
+                @Apply
+                MapChild apply() {
+                    return MapChild.builder().mapChildId(mapChildId).build();
+                }
+            }
         }
 
         @Value
@@ -191,44 +290,20 @@ public class AggregateEntitiesTest {
             String id;
 
             @Apply
-            Child apply(Child target) {
+            Object apply(Updatable target) {
                 return null;
             }
         }
 
         @Value
-        class AddChild {
-            String missingChildId;
-
-            @Apply
-            MissingChild apply() {
-                return MissingChild.builder().missingChildId(missingChildId).build();
-            }
-        }
-
-        @Value
-        class AddChildAndGrandChild {
-            String missingChildId;
-            String missingGrandChildId;
-
-            @Apply
-            MissingChild createChild() {
-                return MissingChild.builder().missingChildId(missingChildId).build();
-            }
-
-            @Apply
-            MissingGrandChild createGrandChild() {
-                return new MissingGrandChild(missingGrandChildId);
-            }
-        }
-
-        @Value
         class UpdateChild {
+            @RoutingKey
             String childId;
+            Object data;
 
             @Apply
-            Child apply(Child child) {
-                return child.toBuilder().customId("updatedCustomId").build();
+            Object apply(Updatable child) {
+                return child.withData(data);
             }
         }
 
@@ -240,10 +315,93 @@ public class AggregateEntitiesTest {
         }
     }
 
+    @Nested
+    class MutableEntityTests {
+        private final TestFixture testFixture = (TestFixture) TestFixture.create(new CommandHandler()).given(
+                fc -> loadAggregate("test", MutableAggregate.class, false)
+                        .update(s -> new MutableAggregate(null)));
+
+        @Test
+        void createMutableEntity() {
+            testFixture.whenCommand(new CreateMutableEntity("childId")).expectThat(
+                    fc -> expectEntity(MutableAggregate.class, e -> "childId".equals(e.id())));
+        }
+
+        @Test
+        void deleteMutableEntity() {
+            testFixture.givenCommands(new CreateMutableEntity("childId"))
+                    .whenCommand(new DeleteMutableEntity("childId")).expectThat(
+                    fc -> expectNoEntity(MutableAggregate.class, e -> "childId".equals(e.id())));
+        }
+
+        class CommandHandler {
+            @HandleCommand
+            void handle(Object command) {
+                loadAggregate("test", MutableAggregate.class).apply(command);
+            }
+        }
+
+        @Value
+        class CreateMutableEntity {
+            @RoutingKey
+            String id;
+
+            @Apply
+            MutableEntity create() {
+                return new MutableEntity(id);
+            }
+        }
+
+        @Value
+        class DeleteMutableEntity {
+            @RoutingKey
+            String id;
+
+            @Apply
+            MutableEntity delete(MutableEntity entity) {
+                return null;
+            }
+        }
+
+        @Data
+        @AllArgsConstructor
+        class MutableAggregate {
+            @Member
+            MutableEntity child;
+        }
+
+        @Data
+        @AllArgsConstructor
+        class MutableEntity {
+            @EntityId
+            String id;
+        }
+
+        void expectEntity(Class<?> parentClass, Predicate<Entity<?, ?>> predicate) {
+            expectEntities(parentClass, entities -> entities.stream().anyMatch(predicate));
+        }
+
+        void expectNoEntity(Class<?> parentClass, Predicate<Entity<?, ?>> predicate) {
+            expectEntities(parentClass, entities -> entities.stream().noneMatch(predicate));
+        }
+
+        void expectEntities(Class<?> parentClass, Predicate<Collection<Entity<?, ?>>> predicate) {
+            testFixture
+                    .whenApplying(fc -> loadAggregate("test", (Class) parentClass).allEntities())
+                    .expectResult(predicate);
+        }
+
+    }
+
 
     @Value
     @Builder
     public static class Aggregate {
+
+        @EntityId
+        @Default
+        String id = UUID.randomUUID().toString();
+
         @Member
         @Default
         @With
@@ -259,47 +417,54 @@ public class AggregateEntitiesTest {
 
         @Member
         @Default
+        @With
         List<ListChild> list = List.of(
                 ListChild.builder().listChildId("list0").build(),
                 ListChild.builder().listChildId("list1").build(), ListChild.builder().listChildId(null).build());
 
         @Member
         @Default
+        @With
         Map<?, MapChild> map = Map.of(
-                "map0", MapChild.builder().build(), new Key("map1"), MapChild.builder().build());
+                "map0", MapChild.builder().mapChildId("map0").build(), new Key("map1"), MapChild.builder().build());
 
         @Member
         @Default
+        @With
         ChildWithChild childWithGrandChild = ChildWithChild.builder().build();
     }
 
     @Value
     @AllArgsConstructor
     @Builder(toBuilder = true)
-    static class Child {
+    static class Child implements Updatable {
         @EntityId
         @Default
         String childId = "id";
-
         @Default
         String customId = "otherId";
-
         @Member
         GrandChild grandChild;
+        @With
+        Object data;
     }
 
     @Value
-    @Builder
-    static class ListChild {
+    @Builder(toBuilder = true)
+    static class ListChild implements Updatable {
         @EntityId
         String listChildId;
+        @With
+        Object data;
     }
 
     @Value
     @Builder
-    static class MapChild {
+    static class MapChild implements Updatable{
         @EntityId
         String mapChildId;
+        @With
+        Object data;
     }
 
     @Value
@@ -409,5 +574,9 @@ public class AggregateEntitiesTest {
         public String toString() {
             return key;
         }
+    }
+
+    interface Updatable {
+        Object withData(Object data);
     }
 }

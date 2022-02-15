@@ -72,7 +72,7 @@ public class ImmutableEntity<T> implements Entity<ImmutableEntity<T>, T> {
     private Collection<Entity<?, ?>> computeEntities() {
         return value == null ? Collections.emptySet() : unmodifiableCollection(
                 getAnnotatedProperties(value.getClass(), Member.class).stream().flatMap(
-                        location -> getEntityHolder(location, eventSourcingHandler, serializer)
+                        location -> getEntityHolder(value.getClass(), location, eventSourcingHandler, serializer)
                                 .getEntities(value)).collect(Collectors.toCollection(LinkedHashSet::new)));
     }
 

@@ -10,7 +10,6 @@ import lombok.extern.slf4j.Slf4j;
 
 import java.lang.reflect.AccessibleObject;
 import java.lang.reflect.Method;
-import java.lang.reflect.Type;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -55,17 +54,19 @@ public class AnnotatedEntityHolder implements Entity.Holder {
     private final EventSourcingHandler<?> eventSourcingHandler;
     private final Serializer serializer;
 
-    public static Entity.Holder getEntityHolder(AccessibleObject location, EventSourcingHandler<?> eventSourcingHandler,
+    public static Entity.Holder getEntityHolder(Class<?> ownerType, AccessibleObject location,
+                                                EventSourcingHandler<?> eventSourcingHandler,
                                                 Serializer serializer) {
-        return cache.computeIfAbsent(location, l -> new AnnotatedEntityHolder(l, eventSourcingHandler, serializer));
+        return cache.computeIfAbsent(location,
+                                     l -> new AnnotatedEntityHolder(ownerType, l, eventSourcingHandler, serializer));
     }
 
-    private AnnotatedEntityHolder(AccessibleObject location, EventSourcingHandler<?> eventSourcingHandler,
-                                  Serializer serializer) {
+    private AnnotatedEntityHolder(Class<?> ownerType, AccessibleObject location,
+                                  EventSourcingHandler<?> eventSourcingHandler, Serializer serializer) {
         this.eventSourcingHandler = eventSourcingHandler;
         this.serializer = serializer;
         this.location = location;
-        this.ownerType = ReflectionUtils.getEnclosingClass(location);
+        this.ownerType = ownerType;
         this.holderType = ReflectionUtils.getPropertyType(location);
         this.entityType = getCollectionElementType(location).orElse(holderType);
         Member member = location.getAnnotation(Member.class);
@@ -84,11 +85,11 @@ public class AnnotatedEntityHolder implements Entity.Holder {
                 v -> new Id(readProperty(pathToId, v).map(Object::toString).orElse(null), pathToId);
         String propertyName = Optional.of(getName(location)).map(name -> Optional.of(getterPattern.matcher(name)).map(
                 matcher -> matcher.matches() ? matcher.group(2) : name).orElse(name)).orElseThrow().toLowerCase();
-        Type[] witherParams = new Type[]{ReflectionUtils.getGenericPropertyType(location)};
-        Stream<Method> witherCandidates = ReflectionUtils.getAllMethods(ownerType).stream().filter(
-                m -> m.getReturnType().isAssignableFrom(ownerType) || m.getReturnType().equals(void.class));
+        Class<?>[] witherParams = new Class<?>[]{ReflectionUtils.getPropertyType(location)};
+        Stream<Method> witherCandidates = ReflectionUtils.getAllMethods(this.ownerType).stream().filter(
+                m -> m.getReturnType().isAssignableFrom(this.ownerType) || m.getReturnType().equals(void.class));
         witherCandidates = member.wither().isBlank() ?
-                witherCandidates.filter(m -> Arrays.equals(witherParams, m.getGenericParameterTypes())
+                witherCandidates.filter(m -> Arrays.equals(witherParams, m.getParameterTypes())
                                              && m.getName().toLowerCase().contains(propertyName)) :
                 witherCandidates.filter(m -> Objects.equals(member.wither(), m.getName()));
         this.wither = witherCandidates.findFirst().<BiFunction<Object, Object, Object>>map(
@@ -160,19 +161,25 @@ public class AnnotatedEntityHolder implements Entity.Holder {
                 if (index < 0) {
                     list.add(after.get());
                 } else {
-                    list.set(index, after.get());
+                    if (after.get() == null) {
+                        list.remove(index);
+                    } else {
+                        list.set(index, after.get());
+                    }
                 }
+                holder = list;
             } else {
                 collection.remove(before.get());
                 collection.add(after.get());
+                holder = collection;
             }
-            holder = collection;
         } else if (Map.class.isAssignableFrom(holderType)) {
-            Map<String, Object> map = copyMap(holder);
+            Map<Object, Object> map = copyMap(holder);
+            String id = Optional.ofNullable(after.id()).orElseGet(() -> idProvider.apply(after.get()).value());
             if (after.get() == null) {
-                map.remove(after.id());
+                map.keySet().removeIf(k -> k != null && Objects.equals(k.toString(), id));
             } else {
-                map.put(after.id(), after.get());
+                map.put(id, after.get());
             }
             holder = map;
         } else {
@@ -184,11 +191,11 @@ public class AnnotatedEntityHolder implements Entity.Holder {
 
 
     @SuppressWarnings("unchecked")
-    private Map<String, Object> copyMap(Object holder) {
+    private Map<Object, Object> copyMap(Object holder) {
         if (SortedMap.class.isAssignableFrom(holderType)) {
-            return holder == null ? new TreeMap<>() : new TreeMap<>((Map<String, ?>) holder);
+            return holder == null ? new TreeMap<>() : new TreeMap<>((Map<Object, ?>) holder);
         }
-        return holder == null ? new LinkedHashMap<>() : new LinkedHashMap<>((Map<String, ?>) holder);
+        return holder == null ? new LinkedHashMap<>() : new LinkedHashMap<>((Map<Object, ?>) holder);
     }
 
     private Collection<Object> copyCollection(Object holder) {
