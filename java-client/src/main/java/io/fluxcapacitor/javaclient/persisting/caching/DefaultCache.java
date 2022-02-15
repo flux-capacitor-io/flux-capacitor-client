@@ -26,55 +26,52 @@ import java.util.function.Function;
 @Slf4j
 @AllArgsConstructor
 public class DefaultCache implements Cache {
-
-
-    private final ConcurrentMap<String, Object> cache;
+    private final ConcurrentMap<Object, Object> cache;
 
     public DefaultCache() {
         this(1_000);
     }
 
-    @SuppressWarnings({"unchecked", "rawtypes"})
     public DefaultCache(int maxSize) {
-        this.cache = (ConcurrentMap) CacheBuilder.newBuilder().maximumSize(maxSize).build().asMap();
+        this.cache = CacheBuilder.newBuilder().maximumSize(maxSize).build().asMap();
     }
 
     @Override
-    public void put(String id, @NonNull Object value) {
+    public void put(Object id, @NonNull Object value) {
         cache.put(id, value);
     }
 
     @Override
-    public void putIfAbsent(String id, @NonNull Object value) {
+    public void putIfAbsent(Object id, @NonNull Object value) {
         cache.putIfAbsent(id, value);
     }
 
     @SuppressWarnings("unchecked")
     @Override
-    public <T> T computeIfAbsent(String id, Function<? super String, T> mappingFunction) {
+    public <T> T computeIfAbsent(Object id, Function<? super Object, T> mappingFunction) {
         return (T) cache.computeIfAbsent(id, mappingFunction);
     }
 
     @Override
     @SuppressWarnings("unchecked")
-    public <T> T computeIfPresent(String id, BiFunction<? super String, ? super T, ? extends T> mappingFunction) {
-        return (T) cache.computeIfPresent(id, (BiFunction<? super String, ? super Object, ?>) mappingFunction);
+    public <T> T computeIfPresent(Object id, BiFunction<? super Object, ? super T, ? extends T> mappingFunction) {
+        return (T) cache.computeIfPresent(id, (BiFunction<? super Object, ? super Object, ?>) mappingFunction);
     }
 
     @Override
     @SuppressWarnings("unchecked")
-    public <T> T compute(String id, BiFunction<? super String, ? super T, ? extends T> mappingFunction) {
-        return (T) cache.compute(id, (BiFunction<? super String, ? super Object, ?>) mappingFunction);
+    public <T> T compute(Object id, BiFunction<? super Object, ? super T, ? extends T> mappingFunction) {
+        return (T) cache.compute(id, (BiFunction<? super Object, ? super Object, ?>) mappingFunction);
     }
 
     @SuppressWarnings("unchecked")
     @Override
-    public <T> T getIfPresent(String id) {
+    public <T> T getIfPresent(Object id) {
         return (T) cache.get(id);
     }
 
     @Override
-    public void invalidate(String id) {
+    public void invalidate(Object id) {
         cache.remove(id);
     }
 

@@ -33,7 +33,7 @@ import static java.util.Collections.unmodifiableCollection;
 @Slf4j
 public class ImmutableEntity<T> implements Entity<ImmutableEntity<T>, T> {
     @JsonProperty
-    String id;
+    Object id;
     @JsonProperty
     Class<T> type;
     @JsonProperty
@@ -102,7 +102,7 @@ public class ImmutableEntity<T> implements Entity<ImmutableEntity<T>, T> {
         Object payload = message.getPayload();
         Collection<Entity<?, ?>> entities = result.entities();
         for (Entity<?, ?> entity : entities) {
-            if (entity.mightHandle(payload)) {
+            if (entity.isPossibleTarget(payload)) {
                 Entity<?, ?> updated = entity.apply(message);
                 if (!Objects.equals(updated, entity)) {
                     result = result.toBuilder().value((T) entity.holder().updateOwner(result.get(), entity, updated))

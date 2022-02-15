@@ -66,7 +66,7 @@ public class DefaultSnapshotStore implements SnapshotStore {
         }
     }
 
-    protected String snapshotKey(String aggregateId) {
+    protected String snapshotKey(Object aggregateId) {
         return "$snapshot_" + aggregateId;
     }
 }

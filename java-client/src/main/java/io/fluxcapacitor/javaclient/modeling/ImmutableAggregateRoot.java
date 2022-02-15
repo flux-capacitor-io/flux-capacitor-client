@@ -100,7 +100,7 @@ public class ImmutableAggregateRoot<T> implements AggregateRoot<T> {
     }
 
     @Override
-    public String id() {
+    public Object id() {
         return delegate().id();
     }
 

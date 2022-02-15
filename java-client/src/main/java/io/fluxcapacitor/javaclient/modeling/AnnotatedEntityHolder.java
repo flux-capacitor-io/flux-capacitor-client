@@ -73,8 +73,7 @@ public class AnnotatedEntityHolder implements Entity.Holder {
         String pathToId = member.idProperty();
         this.idProvider = pathToId.isBlank() ?
                 v -> getAnnotatedProperty(v, EntityId.class).map(
-                                p -> new Id(ofNullable(getValue(p, v)).map(
-                                        Objects::toString).orElse(null), getName(p)))
+                                p -> new Id(ofNullable(getValue(p, v)).orElse(null), getName(p)))
                         .orElseGet(() -> {
                             if (v instanceof Class<?>) {
                                 return new Id(null, getAnnotatedProperty((Class<?>) v, EntityId.class)
@@ -82,7 +81,7 @@ public class AnnotatedEntityHolder implements Entity.Holder {
                             }
                             return new Id(null, null);
                         }) :
-                v -> new Id(readProperty(pathToId, v).map(Object::toString).orElse(null), pathToId);
+                v -> new Id(readProperty(pathToId, v).orElse(null), pathToId);
         String propertyName = Optional.of(getName(location)).map(name -> Optional.of(getterPattern.matcher(name)).map(
                 matcher -> matcher.matches() ? matcher.group(2) : name).orElse(name)).orElseThrow().toLowerCase();
         Class<?>[] witherParams = new Class<?>[]{ReflectionUtils.getPropertyType(location)};
@@ -116,7 +115,7 @@ public class AnnotatedEntityHolder implements Entity.Holder {
         } else if (holderValue instanceof Map<?, ?>) {
             return Stream.concat(
                     ((Map<?, ?>) holderValue).entrySet().stream().flatMap(e -> createEntity(
-                            e.getValue(), v -> new Id(e.getKey().toString(), idProvider.apply(v).property())).stream()),
+                            e.getValue(), v -> new Id(e.getKey(), idProvider.apply(v).property())).stream()),
                     Stream.of(createEmptyEntity()));
         } else {
             return createEntity(holderValue, idProvider).or(() -> Optional.of(createEmptyEntity())).stream();
@@ -175,9 +174,9 @@ public class AnnotatedEntityHolder implements Entity.Holder {
             }
         } else if (Map.class.isAssignableFrom(holderType)) {
             Map<Object, Object> map = copyMap(holder);
-            String id = Optional.ofNullable(after.id()).orElseGet(() -> idProvider.apply(after.get()).value());
+            Object id = Optional.ofNullable(after.id()).orElseGet(() -> idProvider.apply(after.get()).value());
             if (after.get() == null) {
-                map.keySet().removeIf(k -> k != null && Objects.equals(k.toString(), id));
+                map.remove(id);
             } else {
                 map.put(id, after.get());
             }
@@ -211,7 +210,7 @@ public class AnnotatedEntityHolder implements Entity.Holder {
     @Value
     @Accessors(fluent = true)
     private static class Id {
-        String value;
+        Object value;
         String property;
     }
 

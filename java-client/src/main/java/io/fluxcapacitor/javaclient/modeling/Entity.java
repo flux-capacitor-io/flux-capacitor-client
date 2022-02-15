@@ -37,7 +37,7 @@ import static java.util.stream.Collectors.toCollection;
 
 public interface Entity<M extends Entity<M, T>, T> {
 
-    String id();
+    Object id();
 
     Class<T> type();
 
@@ -98,7 +98,7 @@ public interface Entity<M extends Entity<M, T>, T> {
             while (iterator.hasNext()) {
                 Object c = iterator.next();
                 ValidationUtils.assertLegal(c, result);
-                entities.stream().filter(e -> e.mightHandle(c)).forEach(e -> e.assertLegal(c));
+                entities.stream().filter(e -> e.isPossibleTarget(c)).forEach(e -> e.assertLegal(c));
                 if (iterator.hasNext()) {
                     result = result.apply(Message.asMessage(c));
                 }
@@ -107,15 +107,15 @@ public interface Entity<M extends Entity<M, T>, T> {
         return (M) this;
     }
 
-    default boolean mightHandle(Object message) {
+    default boolean isPossibleTarget(Object message) {
         if (message == null) {
             return false;
         }
-        if (entities().stream().anyMatch(e -> e.mightHandle(message))) {
+        if (entities().stream().anyMatch(e -> e.isPossibleTarget(message))) {
             return true;
         }
         String idProperty = idProperty();
-        String id = id();
+        Object id = id();
         if (idProperty == null) {
             return true;
         }

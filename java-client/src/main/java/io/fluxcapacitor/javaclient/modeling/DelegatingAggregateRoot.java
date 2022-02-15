@@ -25,7 +25,7 @@ public abstract class DelegatingAggregateRoot<T, A extends AggregateRoot<T>> imp
     }
 
     @Override
-    public String id() {
+    public Object id() {
         return delegate.id();
     }
 

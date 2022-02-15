@@ -58,8 +58,7 @@ public class DefaultAggregateRepository implements AggregateRepository {
 
     private final Function<Class<?>, AnnotatedAggregateRepository<?>> delegates = memoize(
             type -> new AnnotatedAggregateRepository<>(type, serializer(), cache(), eventStore(), snapshotStore(),
-                                                       dispatchInterceptor(), handlerFactory(),
-                                                       documentStore()));
+                                                       dispatchInterceptor(), handlerFactory(), documentStore()));
 
     @Override
     @SuppressWarnings("unchecked")
@@ -191,7 +190,7 @@ public class DefaultAggregateRepository implements AggregateRepository {
                         current == null || Objects.equals(initialEventId, current.lastEventId())
                         || unpublishedEvents.isEmpty() ? model : current.apply(unpublishedEvents));
                 if (!unpublishedEvents.isEmpty()) {
-                    eventStore.storeEvents(model.id(), new ArrayList<>(unpublishedEvents)).awaitSilently();
+                    eventStore.storeEvents(model.id().toString(), new ArrayList<>(unpublishedEvents)).awaitSilently();
                     if (snapshotTrigger.shouldCreateSnapshot(model, unpublishedEvents)) {
                         snapshotStore.storeSnapshot(model);
                     }
@@ -199,9 +198,9 @@ public class DefaultAggregateRepository implements AggregateRepository {
                 if (searchable) {
                     Object value = model.get();
                     if (value == null) {
-                        documentStore.deleteDocument(model.id(), collection);
+                        documentStore.deleteDocument(model.id().toString(), collection);
                     } else {
-                        documentStore.index(value, model.id(), collection, timestampFunction.apply(model));
+                        documentStore.index(value, model.id().toString(), collection, timestampFunction.apply(model));
                     }
                 }
             } catch (Exception e) {

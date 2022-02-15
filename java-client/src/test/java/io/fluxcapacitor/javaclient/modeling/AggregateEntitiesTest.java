@@ -70,8 +70,8 @@ public class AggregateEntitiesTest {
 
         @Test
         void findEntitiesInMapUsingKey() {
-            expectEntity(e -> "map0".equals(e.id()));
-            expectEntity(e -> "map1".equals(e.id()));
+            expectEntity(e -> new Key("map0").equals(e.id()));
+            expectEntity(e -> new Key("map1").equals(e.id()));
         }
 
         @Test
@@ -254,28 +254,28 @@ public class AggregateEntitiesTest {
         class MapTests {
             @Test
             void testAddMapChild() {
-                testFixture.whenCommand(new AddMapChild("map2"))
+                testFixture.whenCommand(new AddMapChild(new Key("map2")))
                         .expectThat(fc -> expectEntity(
-                                e -> e.get() instanceof MapChild && "map2".equals(e.id())))
+                                e -> e.get() instanceof MapChild && new Key("map2").equals(e.id())))
                         .expectTrue(fc -> loadAggregate("test", Aggregate.class).get().getMap().size() == 3);
             }
 
             @Test
             void testUpdateMapChild() {
-                testFixture.whenCommand(new UpdateChild("map1", "data"))
-                        .expectTrue(fc -> loadAggregate("test", Aggregate.class).get().getMap().get("map1").getData().equals("data"));
+                testFixture.whenCommand(new UpdateChild(new Key("map1"), "data"))
+                        .expectTrue(fc -> loadAggregate("test", Aggregate.class).get().getMap().get(new Key("map1")).getData().equals("data"));
             }
 
             @Test
             void testRemoveMapChild() {
-                testFixture.whenCommand(new RemoveChild("map1"))
-                        .expectThat(fc -> expectNoEntity(e -> "map1".equals(e.id())))
+                testFixture.whenCommand(new RemoveChild(new Key("map1")))
+                        .expectThat(fc -> expectNoEntity(e -> new Key("map1").equals(e.id())))
                         .expectTrue(fc -> loadAggregate("test", Aggregate.class).get().getMap().size() == 1);
             }
 
             @Value
             class AddMapChild {
-                String mapChildId;
+                Key mapChildId;
 
                 @Apply
                 MapChild apply() {
@@ -287,7 +287,7 @@ public class AggregateEntitiesTest {
         @Value
         class RemoveChild {
             @RoutingKey
-            String id;
+            Object id;
 
             @Apply
             Object apply(Updatable target) {
@@ -298,7 +298,7 @@ public class AggregateEntitiesTest {
         @Value
         class UpdateChild {
             @RoutingKey
-            String childId;
+            Object childId;
             Object data;
 
             @Apply
@@ -425,8 +425,9 @@ public class AggregateEntitiesTest {
         @Member
         @Default
         @With
-        Map<?, MapChild> map = Map.of(
-                "map0", MapChild.builder().mapChildId("map0").build(), new Key("map1"), MapChild.builder().build());
+        Map<Key, MapChild> map = Map.of(
+                new Key("map0"), MapChild.builder().mapChildId(new Key("map0")).build(),
+                new Key("map1"), MapChild.builder().build());
 
         @Member
         @Default
@@ -460,9 +461,9 @@ public class AggregateEntitiesTest {
 
     @Value
     @Builder
-    static class MapChild implements Updatable{
+    static class MapChild implements Updatable {
         @EntityId
-        String mapChildId;
+        Key mapChildId;
         @With
         Object data;
     }
@@ -566,7 +567,7 @@ public class AggregateEntitiesTest {
     }
 
 
-    @AllArgsConstructor
+    @Value
     static class Key {
         String key;
 

@@ -22,7 +22,7 @@ import static java.util.Optional.ofNullable;
 @EqualsAndHashCode(onlyExplicitlyIncluded = true)
 public class ModifiableAggregateRoot<T> extends DelegatingAggregateRoot<T, ImmutableAggregateRoot<T>> {
 
-    private static final ThreadLocal<Map<String, ModifiableAggregateRoot<?>>> activeAggregates =
+    private static final ThreadLocal<Map<Object, ModifiableAggregateRoot<?>>> activeAggregates =
             ThreadLocal.withInitial(HashMap::new);
 
     @SuppressWarnings("unchecked")
