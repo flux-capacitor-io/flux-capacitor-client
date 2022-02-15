@@ -27,11 +27,20 @@ import org.apache.commons.lang3.reflect.TypeUtils;
 import java.io.ByteArrayInputStream;
 import java.io.InputStream;
 import java.lang.reflect.Type;
+import java.util.ArrayList;
 import java.util.Collection;
+import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
+import java.util.LinkedList;
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
+import java.util.SortedMap;
+import java.util.SortedSet;
+import java.util.TreeMap;
+import java.util.TreeSet;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -168,6 +177,37 @@ public abstract class AbstractSerializer implements Serializer {
         }
         return doConvert(value, type);
     }
+
+    @SuppressWarnings("unchecked")
+    @Override
+    public <V> V clone(Object value) {
+        if (value == null || value.getClass().isPrimitive() || value instanceof String) {
+            return null;
+        }
+        if (value instanceof Collection<?>) {
+            Collection<?> collection = (Collection<?>) value;
+            if (value instanceof List<?>) {
+                return (V) new ArrayList<>(collection);
+            }
+            if (value instanceof SortedSet<?>) {
+                return (V) new TreeSet<>(collection);
+            }
+            if (value instanceof Set<?>) {
+                return (V) new LinkedHashSet<>(collection);
+            }
+            return (V) new LinkedList<>(collection);
+        }
+        if (value instanceof Map<?, ?>) {
+            Map<?, ?> map = (Map<?, ?>) value;
+            if (value instanceof SortedMap<?, ?>) {
+                return (V) new TreeMap<>(map);
+            }
+            return (V) new LinkedHashMap<>(map);
+        }
+        return (V) doClone(value);
+    }
+
+    protected abstract Object doClone(Object value);
 
     protected abstract <V> V doConvert(Object value, Class<V> type);
 

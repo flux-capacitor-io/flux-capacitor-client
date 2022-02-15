@@ -404,7 +404,6 @@ public class AggregateEntitiesTest {
 
         @Member
         @Default
-        @With
         Child singleton = Child.builder().build();
 
         @Member(idProperty = "customId")
@@ -412,19 +411,16 @@ public class AggregateEntitiesTest {
         Child singletonCustomPath = Child.builder().build();
 
         @Member
-        @With
         MissingChild missingChild;
 
         @Member
         @Default
-        @With
         List<ListChild> list = List.of(
                 ListChild.builder().listChildId("list0").build(),
                 ListChild.builder().listChildId("list1").build(), ListChild.builder().listChildId(null).build());
 
         @Member
         @Default
-        @With
         Map<Key, MapChild> map = Map.of(
                 new Key("map0"), MapChild.builder().mapChildId(new Key("map0")).build(),
                 new Key("map1"), MapChild.builder().build());

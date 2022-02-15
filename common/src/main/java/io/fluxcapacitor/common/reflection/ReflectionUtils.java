@@ -374,6 +374,18 @@ public class ReflectionUtils {
                                 format("Property %s could not be found on target class %s", propertyName, target)));
     }
 
+    public static Optional<Field> getField(Class<?> owner, String name) {
+        while (owner != null) {
+            for (Field declaredField : owner.getDeclaredFields()) {
+                if (declaredField.getName().equals(name)) {
+                    return Optional.of(declaredField);
+                }
+            }
+            owner = owner.getSuperclass();
+        }
+        return Optional.empty();
+    }
+
     @Value
     private static class PropertyNotFoundException extends RuntimeException {
         @NonNull String propertyName;
@@ -522,6 +534,27 @@ public class ReflectionUtils {
         } catch (Exception e) {
             return false;
         }
+    }
+
+    @SneakyThrows
+    public static <V> V copyFields(V source, V target) {
+        if (target == null || source == null) {
+            return target;
+        }
+        if (!source.getClass().equals(target.getClass())) {
+            throw new IllegalArgumentException("Source and target class should be equal");
+        }
+        Class<?> type = source.getClass();
+        if (type.isPrimitive()) {
+            return source;
+        }
+        while (type != null) {
+            for (Field field : type.getDeclaredFields()) {
+                ensureAccessible(field).set(target, field.get(source));
+            }
+            type = type.getSuperclass();
+        }
+        return target;
     }
 
     @SneakyThrows

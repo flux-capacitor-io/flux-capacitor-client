@@ -22,6 +22,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.json.JsonMapper;
 import io.fluxcapacitor.common.api.Data;
 import io.fluxcapacitor.common.api.SerializedObject;
+import io.fluxcapacitor.common.reflection.ReflectionUtils;
 import io.fluxcapacitor.common.search.Document;
 import io.fluxcapacitor.common.search.Inverter;
 import io.fluxcapacitor.common.search.JacksonInverter;
@@ -157,5 +158,10 @@ public class JacksonSerializer extends AbstractSerializer implements DocumentSer
     @Override
     public <V> V doConvert(Object value, Class<V> type) {
         return objectMapper.convertValue(value, type);
+    }
+
+    @Override
+    public Object doClone(Object value) {
+        return ReflectionUtils.copyFields(value, doConvert(objectMapper.createObjectNode(), value.getClass()));
     }
 }

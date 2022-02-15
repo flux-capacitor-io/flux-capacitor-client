@@ -105,4 +105,6 @@ public interface Serializer {
 
     <V> V convert(Object value, Class<V> type);
 
+    <V> V clone(Object value);
+
 }

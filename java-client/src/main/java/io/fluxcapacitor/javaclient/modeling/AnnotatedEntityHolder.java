@@ -9,21 +9,14 @@ import lombok.experimental.Accessors;
 import lombok.extern.slf4j.Slf4j;
 
 import java.lang.reflect.AccessibleObject;
+import java.lang.reflect.Field;
 import java.lang.reflect.Method;
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
-import java.util.LinkedHashMap;
-import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
-import java.util.Set;
-import java.util.SortedMap;
-import java.util.SortedSet;
-import java.util.TreeMap;
-import java.util.TreeSet;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.BiFunction;
@@ -37,6 +30,7 @@ import static io.fluxcapacitor.common.reflection.ReflectionUtils.getCollectionEl
 import static io.fluxcapacitor.common.reflection.ReflectionUtils.getName;
 import static io.fluxcapacitor.common.reflection.ReflectionUtils.getValue;
 import static io.fluxcapacitor.common.reflection.ReflectionUtils.readProperty;
+import static java.beans.Introspector.decapitalize;
 import static java.util.Optional.ofNullable;
 
 @Slf4j
@@ -82,22 +76,41 @@ public class AnnotatedEntityHolder implements Entity.Holder {
                             return new Id(null, null);
                         }) :
                 v -> new Id(readProperty(pathToId, v).orElse(null), pathToId);
-        String propertyName = Optional.of(getName(location)).map(name -> Optional.of(getterPattern.matcher(name)).map(
-                matcher -> matcher.matches() ? matcher.group(2) : name).orElse(name)).orElseThrow().toLowerCase();
+        String propertyName = decapitalize(Optional.of(getName(location)).map(name -> Optional.of(
+                getterPattern.matcher(name)).map(matcher -> matcher.matches() ? matcher.group(2) : name)
+                .orElse(name)).orElseThrow());
         Class<?>[] witherParams = new Class<?>[]{ReflectionUtils.getPropertyType(location)};
         Stream<Method> witherCandidates = ReflectionUtils.getAllMethods(this.ownerType).stream().filter(
                 m -> m.getReturnType().isAssignableFrom(this.ownerType) || m.getReturnType().equals(void.class));
         witherCandidates = member.wither().isBlank() ?
                 witherCandidates.filter(m -> Arrays.equals(witherParams, m.getParameterTypes())
-                                             && m.getName().toLowerCase().contains(propertyName)) :
+                                             && m.getName().toLowerCase().contains(propertyName.toLowerCase())) :
                 witherCandidates.filter(m -> Objects.equals(member.wither(), m.getName()));
-        this.wither = witherCandidates.findFirst().<BiFunction<Object, Object, Object>>map(
-                m -> (o, h) -> safelyCall(() -> m.invoke(o, h))).orElseGet(() -> {
-            AtomicBoolean warnedAboutMissingWither = new AtomicBoolean();
+        Optional<BiFunction<Object, Object, Object>> wither =
+                witherCandidates.findFirst().map(m -> (o, h) -> safelyCall(() -> m.invoke(o, h)));
+        this.wither = wither.orElseGet(() -> {
+            AtomicBoolean warningIssued = new AtomicBoolean();
+            Field field = ReflectionUtils.getField(ownerType, propertyName).orElse(null);
             return (o, h) -> {
-                if (warnedAboutMissingWither.compareAndSet(false, true)) {
-                    log.warn("No update function found for @Member {}. "
-                             + "Updates to enclosed entities won't automatically update the parent entity.", location);
+                if (warningIssued.get()) {
+                    return o;
+                }
+                if (field == null) {
+                    if (warningIssued.compareAndSet(false, true)) {
+                        log.warn("No update function found for @Member {}. "
+                                 + "Updates to enclosed entities won't automatically update the parent entity.",
+                                 location);
+                    }
+                } else {
+                    try {
+                        o = serializer.clone(o);
+                        ReflectionUtils.setField(field, o, h);
+                    } catch (Exception e) {
+                        if (warningIssued.compareAndSet(false, true)) {
+                            log.warn("Not able to update @Member {}. Please add a wither or setter method.", location,
+                                     e);
+                        }
+                    }
                 }
                 return o;
             };
@@ -153,7 +166,7 @@ public class AnnotatedEntityHolder implements Entity.Holder {
     public Object updateOwner(Object owner, Entity<?, ?> before, Entity<?, ?> after) {
         Object holder = ReflectionUtils.getValue(location, owner);
         if (Collection.class.isAssignableFrom(holderType)) {
-            Collection<Object> collection = copyCollection(holder);
+            Collection<Object> collection = serializer.clone(holder);
             if (collection instanceof List<?>) {
                 List<Object> list = (List<Object>) collection;
                 int index = list.indexOf(before.get());
@@ -173,7 +186,7 @@ public class AnnotatedEntityHolder implements Entity.Holder {
                 holder = collection;
             }
         } else if (Map.class.isAssignableFrom(holderType)) {
-            Map<Object, Object> map = copyMap(holder);
+            Map<Object, Object> map = serializer.clone(holder);
             Object id = Optional.ofNullable(after.id()).orElseGet(() -> idProvider.apply(after.get()).value());
             if (after.get() == null) {
                 map.remove(id);
@@ -186,25 +199,6 @@ public class AnnotatedEntityHolder implements Entity.Holder {
         }
         Object result = wither.apply(owner, holder);
         return result == null ? owner : result;
-    }
-
-
-    @SuppressWarnings("unchecked")
-    private Map<Object, Object> copyMap(Object holder) {
-        if (SortedMap.class.isAssignableFrom(holderType)) {
-            return holder == null ? new TreeMap<>() : new TreeMap<>((Map<Object, ?>) holder);
-        }
-        return holder == null ? new LinkedHashMap<>() : new LinkedHashMap<>((Map<Object, ?>) holder);
-    }
-
-    private Collection<Object> copyCollection(Object holder) {
-        if (SortedSet.class.isAssignableFrom(holderType)) {
-            return holder == null ? new TreeSet<>() : new TreeSet<>((Collection<?>) holder);
-        }
-        if (Set.class.isAssignableFrom(holderType)) {
-            return holder == null ? new LinkedHashSet<>() : new LinkedHashSet<>((Collection<?>) holder);
-        }
-        return holder == null ? new ArrayList<>() : new ArrayList<>((Collection<?>) holder);
     }
 
     @Value
