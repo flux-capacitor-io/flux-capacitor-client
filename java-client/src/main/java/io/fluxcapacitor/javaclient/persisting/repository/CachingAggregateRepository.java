@@ -74,7 +74,7 @@ public class CachingAggregateRepository implements AggregateRepository {
                             m.getIndex(), m.getMessageId()));
                 } else {
                     long index = m.getIndex();
-                    delegate.load(id, type, true);
+                    delegate.load(id, type);
                     cache.<ImmutableAggregateRoot<?>>computeIfPresent(
                             id, (i, a) -> Optional.ofNullable(a.highestEventIndex())
                                     .filter(lastIndex -> lastIndex < index)

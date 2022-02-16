@@ -96,12 +96,6 @@ class EventSourcingRepositoryTest {
         }
 
         @Test
-        void testModelIsReadOnlyIfCurrentMessageIsntCommand() {
-            testFixture.givenCommands(new CreateModel()).whenQuery(new ApplyInQuery())
-                    .expectException(UnsupportedOperationException.class);
-        }
-
-        @Test
         void testApplyEventsWithMetadata() {
             Metadata metaData = Metadata.of("foo", "bar");
             testFixture.givenCommands(new Message(new CreateModelWithMetadata(), metaData)).whenQuery(new GetModel())

@@ -16,6 +16,7 @@ package io.fluxcapacitor.common.api;
 
 import lombok.ToString;
 import lombok.Value;
+import lombok.With;
 
 import java.beans.ConstructorProperties;
 import java.util.Objects;
@@ -25,6 +26,7 @@ import java.util.function.Supplier;
 @ToString(exclude = "value")
 public class Data<T> implements SerializedObject<T, Data<T>> {
     Supplier<T> value;
+    @With
     String type;
     int revision;
     String format;

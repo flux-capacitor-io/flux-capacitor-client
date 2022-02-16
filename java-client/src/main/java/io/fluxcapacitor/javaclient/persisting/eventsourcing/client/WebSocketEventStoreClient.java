@@ -34,7 +34,7 @@ import io.fluxcapacitor.javaclient.persisting.eventsourcing.AggregateEventStream
 import javax.websocket.ClientEndpoint;
 import java.net.URI;
 import java.util.List;
-import java.util.Set;
+import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Stream;
@@ -55,7 +55,8 @@ public class WebSocketEventStoreClient extends AbstractWebsocketClient implement
         this(URI.create(endPointUrl), backlogSize, 1024, clientConfig);
     }
 
-    public WebSocketEventStoreClient(URI endPointUri, int backlogSize, int fetchBatchSize, WebSocketClient.ClientConfig clientConfig) {
+    public WebSocketEventStoreClient(URI endPointUri, int backlogSize, int fetchBatchSize,
+                                     WebSocketClient.ClientConfig clientConfig) {
         super(endPointUri, clientConfig, true, clientConfig.getEventSourcingSessions());
         this.backlog = new Backlog<>(this::doSend, backlogSize);
         this.fetchBatchSize = fetchBatchSize;
@@ -77,9 +78,9 @@ public class WebSocketEventStoreClient extends AbstractWebsocketClient implement
         AtomicReference<Long> highestSequenceNumber = new AtomicReference<>();
         GetEventsResult firstBatch = sendAndWait(new GetEvents(aggregateId, lastSequenceNumber, fetchBatchSize));
         Stream<SerializedMessage> eventStream = iterate(firstBatch,
-                                              r -> sendAndWait(new GetEvents(aggregateId, r
-                                                      .getLastSequenceNumber(), fetchBatchSize)),
-                                              r -> r.getEventBatch().getEvents().size() < fetchBatchSize)
+                                                        r -> sendAndWait(new GetEvents(aggregateId, r
+                                                                .getLastSequenceNumber(), fetchBatchSize)),
+                                                        r -> r.getEventBatch().getEvents().size() < fetchBatchSize)
                 .flatMap(r -> {
                     if (!r.getEventBatch().isEmpty()) {
                         highestSequenceNumber.set(r.getLastSequenceNumber());
@@ -91,11 +92,19 @@ public class WebSocketEventStoreClient extends AbstractWebsocketClient implement
 
     @Override
     public Awaitable updateRelationships(UpdateRelationships request) {
-        return Awaitable.fromFuture(send(request));
+        switch (request.getGuarantee()) {
+            case NONE:
+                sendAndForget(request);
+                return Awaitable.ready();
+            case SENT:
+                return sendAndForget(request);
+            default:
+                return Awaitable.fromFuture(send(request));
+        }
     }
 
     @Override
-    public Set<String> getAggregateIds(GetAggregateIds request) {
+    public Map<String, String> getAggregateIds(GetAggregateIds request) {
         return this.<GetAggregateIdsResult>sendAndWait(request).getAggregateIds();
     }
 

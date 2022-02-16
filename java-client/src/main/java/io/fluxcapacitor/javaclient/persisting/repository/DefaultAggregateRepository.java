@@ -33,6 +33,7 @@ import java.time.temporal.TemporalAccessor;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -66,9 +67,22 @@ public class DefaultAggregateRepository implements AggregateRepository {
         return (AggregateRoot<T>) delegates.apply(type).load(aggregateId);
     }
 
+    @SuppressWarnings("unchecked")
     @Override
     public <T> AggregateRoot<T> loadFor(String entityId, Class<?> defaultType) {
-        return null;
+        Map<String, Class<?>> aggregates = eventStore.getAggregatesFor(entityId);
+        if (aggregates.isEmpty()) {
+            return (AggregateRoot<T>) load(entityId, defaultType);
+        }
+        if (aggregates.containsKey(entityId)) {
+            return (AggregateRoot<T>) load(entityId, aggregates.get(entityId));
+        }
+        if (aggregates.size() > 1) {
+            log.warn("Found several aggregates containing entity {}", entityId);
+        }
+        return aggregates.entrySet().stream().filter(e -> !Void.class.equals(e.getValue())).findFirst()
+                .map(e -> (AggregateRoot<T>) load(e.getKey(), e.getValue()))
+                .orElseGet(() -> (AggregateRoot<T>) load(entityId, defaultType));
     }
 
     @Override

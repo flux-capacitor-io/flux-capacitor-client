@@ -27,7 +27,7 @@ import static io.fluxcapacitor.javaclient.FluxCapacitor.loadAggregate;
 @SuppressWarnings({"rawtypes", "SameParameterValue", "unchecked"})
 public class AggregateEntitiesTest {
     private final TestFixture testFixture = (TestFixture) TestFixture.create().given(
-            fc -> loadAggregate("test", Aggregate.class, false).update(s -> Aggregate.builder().build()));
+            fc -> loadAggregate("test", Aggregate.class).update(s -> Aggregate.builder().build()));
 
     void expectEntity(Predicate<Entity<?, ?>> predicate) {
         expectEntities(Aggregate.class, entities -> entities.stream().anyMatch(predicate));
@@ -318,7 +318,7 @@ public class AggregateEntitiesTest {
     @Nested
     class MutableEntityTests {
         private final TestFixture testFixture = (TestFixture) TestFixture.create(new CommandHandler()).given(
-                fc -> loadAggregate("test", MutableAggregate.class, false)
+                fc -> loadAggregate("test", MutableAggregate.class)
                         .update(s -> new MutableAggregate(null)));
 
         @Test

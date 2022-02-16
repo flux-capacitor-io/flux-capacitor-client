@@ -524,8 +524,8 @@ public class DefaultFluxCapacitor implements FluxCapacitor {
 
             Cache aggregateCache = new NamedCache(cache, id -> "$Aggregate:" + id);
             AggregateRepository aggregateRepository = new DefaultAggregateRepository(
-                    eventStore, snapshotRepository, aggregateCache, documentStore, serializer,
-                    dispatchInterceptors.get(EVENT), eventSourcingHandlerFactory);
+                    eventStore, snapshotRepository, aggregateCache, documentStore,
+                    serializer, dispatchInterceptors.get(EVENT), eventSourcingHandlerFactory);
 
             if (!disableAutomaticAggregateCaching) {
                 aggregateRepository =

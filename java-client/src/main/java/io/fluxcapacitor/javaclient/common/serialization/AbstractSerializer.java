@@ -41,6 +41,7 @@ import java.util.SortedMap;
 import java.util.SortedSet;
 import java.util.TreeMap;
 import java.util.TreeSet;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -53,6 +54,7 @@ public abstract class AbstractSerializer implements Serializer {
     private final Upcaster<SerializedObject<byte[], ?>> upcasterChain;
     @Getter
     private final String format;
+    private final Map<String, String> typeCasters = new ConcurrentHashMap<>();
 
     protected AbstractSerializer(Upcaster<SerializedObject<byte[], ?>> upcasterChain, String format) {
         this.upcasterChain = upcasterChain;
@@ -140,6 +142,11 @@ public abstract class AbstractSerializer implements Serializer {
     public <S extends SerializedObject<byte[], S>> Stream<DeserializingObject<byte[], S>> deserialize(
             Stream<S> dataStream, boolean failOnUnknownType) {
         return upcasterChain.upcast((Stream<SerializedObject<byte[], ?>>) dataStream)
+                .map(s -> {
+                    String type = s.data().getType();
+                    String upcastedType = upcastType(type);
+                    return Objects.equals(type, upcastedType) ? s : s.withData(s.data().withType(upcastedType));
+                })
                 .flatMap(s -> {
                     if (!Objects.equals(format, s.data().getFormat())) {
                         return (Stream) deserializeOtherFormat(s);
@@ -205,6 +212,24 @@ public abstract class AbstractSerializer implements Serializer {
             return (V) new LinkedHashMap<>(map);
         }
         return (V) doClone(value);
+    }
+
+    @Override
+    public Serializer registerTypeCaster(String oldType, String newType) {
+        typeCasters.put(oldType, newType);
+        return this;
+    }
+
+    @Override
+    public String upcastType(String type) {
+        if (type == null) {
+            return null;
+        }
+        String result = typeCasters.get(type);
+        if (result == null || Objects.equals(result, type)) {
+            return type;
+        }
+        return upcastType(result);
     }
 
     protected abstract Object doClone(Object value);

@@ -107,4 +107,8 @@ public interface Serializer {
 
     <V> V clone(Object value);
 
+    Serializer registerTypeCaster(String oldType, String newType);
+
+    String upcastType(String type);
+
 }

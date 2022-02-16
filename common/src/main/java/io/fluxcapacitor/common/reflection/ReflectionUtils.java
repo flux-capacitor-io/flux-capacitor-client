@@ -545,7 +545,7 @@ public class ReflectionUtils {
             throw new IllegalArgumentException("Source and target class should be equal");
         }
         Class<?> type = source.getClass();
-        if (type.isPrimitive()) {
+        if (type.isPrimitive() || type.isArray()) {
             return source;
         }
         while (type != null) {

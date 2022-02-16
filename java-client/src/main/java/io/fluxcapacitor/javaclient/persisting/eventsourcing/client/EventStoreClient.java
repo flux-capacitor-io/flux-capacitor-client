@@ -23,7 +23,7 @@ import io.fluxcapacitor.common.api.modeling.UpdateRelationships;
 import io.fluxcapacitor.javaclient.persisting.eventsourcing.AggregateEventStream;
 
 import java.util.List;
-import java.util.Set;
+import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 
 public interface EventStoreClient extends AutoCloseable {
@@ -44,11 +44,11 @@ public interface EventStoreClient extends AutoCloseable {
 
     CompletableFuture<Boolean> deleteEvents(String aggregateId);
 
-    default Set<String> getAggregateIds(String entityId) {
+    default Map<String, String> getAggregateIds(String entityId) {
         return getAggregateIds(new GetAggregateIds(entityId));
     }
 
-    Set<String> getAggregateIds(GetAggregateIds request);
+    Map<String, String> getAggregateIds(GetAggregateIds request);
 
     @Override
     void close();

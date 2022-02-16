@@ -17,6 +17,7 @@ package io.fluxcapacitor.javaclient.persisting.eventsourcing;
 import io.fluxcapacitor.common.Awaitable;
 import io.fluxcapacitor.common.ConsistentHashing;
 import io.fluxcapacitor.common.api.SerializedMessage;
+import io.fluxcapacitor.common.reflection.ReflectionUtils;
 import io.fluxcapacitor.javaclient.FluxCapacitor;
 import io.fluxcapacitor.javaclient.common.Message;
 import io.fluxcapacitor.javaclient.common.serialization.DeserializingMessage;
@@ -26,15 +27,19 @@ import io.fluxcapacitor.javaclient.publishing.DispatchInterceptor;
 import io.fluxcapacitor.javaclient.tracking.handling.HandlerRegistry;
 import lombok.AllArgsConstructor;
 import lombok.experimental.Delegate;
+import lombok.extern.slf4j.Slf4j;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 
 import static io.fluxcapacitor.common.MessageType.EVENT;
 import static java.lang.String.format;
 import static java.util.stream.Collectors.toList;
+import static java.util.stream.Collectors.toMap;
 
 @AllArgsConstructor
+@Slf4j
 public class DefaultEventStore implements EventStore {
     private final EventStoreClient client;
     private final Serializer serializer;
@@ -65,7 +70,7 @@ public class DefaultEventStore implements EventStore {
             });
             result = client.storeEvents(aggregateId,
                                         messages.stream().map(m -> m.getSerializedObject().getSegment() == null ?
-                                                m.getSerializedObject().withSegment(segment) : m.getSerializedObject())
+                                                        m.getSerializedObject().withSegment(segment) : m.getSerializedObject())
                                                 .collect(toList()), storeOnly);
         } catch (Exception e) {
             throw new EventSourcingException(format("Failed to store events %s for aggregate %s", events, aggregateId),
@@ -78,10 +83,25 @@ public class DefaultEventStore implements EventStore {
     @Override
     public AggregateEventStream<DeserializingMessage> getEvents(String aggregateId, long lastSequenceNumber) {
         try {
-            AggregateEventStream<SerializedMessage> serializedEvents = client.getEvents(aggregateId, lastSequenceNumber);
+            AggregateEventStream<SerializedMessage> serializedEvents =
+                    client.getEvents(aggregateId, lastSequenceNumber);
             return serializedEvents.convert(stream -> serializer.deserializeMessages(stream, EVENT));
         } catch (Exception e) {
             throw new EventSourcingException(format("Failed to obtain events for aggregate %s", aggregateId), e);
         }
+    }
+
+    @Override
+    public Map<String, Class<?>> getAggregatesFor(String entityId) {
+        return client.getAggregateIds(entityId).entrySet().stream().collect(toMap(Map.Entry::getKey, e -> {
+            try {
+                return ReflectionUtils.classForName(serializer.upcastType(e.getValue()));
+            } catch (Exception error) {
+                log.error("Failed to get the aggregate class for type {} (aggregate id: {}, entity id: {})."
+                          + " Please register a type caster with the Serializer.",
+                          e.getValue(), e.getKey(), entityId, error);
+                return Void.class;
+            }
+        }));
     }
 }

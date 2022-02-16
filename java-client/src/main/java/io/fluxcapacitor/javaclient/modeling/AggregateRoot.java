@@ -50,4 +50,11 @@ public interface AggregateRoot<T> extends Entity<AggregateRoot<T>, T> {
         }
         return Optional.ofNullable(result);
     }
+
+    default AggregateRoot<T> makeReadOnly() {
+        if (this instanceof ReadOnlyAggregateRoot<?>) {
+            return this;
+        }
+        return new ReadOnlyAggregateRoot<>(this);
+    }
 }
