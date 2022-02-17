@@ -1,5 +1,6 @@
 package io.fluxcapacitor.javaclient.persisting.repository;
 
+import io.fluxcapacitor.common.api.modeling.Relationship;
 import io.fluxcapacitor.common.reflection.ReflectionUtils;
 import io.fluxcapacitor.javaclient.common.serialization.DeserializingMessage;
 import io.fluxcapacitor.javaclient.common.serialization.Serializer;
@@ -35,6 +36,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Function;
 
@@ -51,13 +54,15 @@ public class DefaultAggregateRepository implements AggregateRepository {
     private final EventStore eventStore;
     private final SnapshotStore snapshotStore;
     private final Cache cache;
+    private final Cache relationshipsCache;
     private final DocumentStore documentStore;
     private final Serializer serializer;
     private final DispatchInterceptor dispatchInterceptor;
     private final EventSourcingHandlerFactory handlerFactory;
 
     private final Function<Class<?>, AnnotatedAggregateRepository<?>> delegates = memoize(
-            type -> new AnnotatedAggregateRepository<>(type, serializer(), cache(), eventStore(), snapshotStore(),
+            type -> new AnnotatedAggregateRepository<>(type, serializer(), cache(), relationshipsCache(),
+                                                       eventStore(), snapshotStore(),
                                                        dispatchInterceptor(), handlerFactory(), documentStore()));
 
     @Override
@@ -69,7 +74,8 @@ public class DefaultAggregateRepository implements AggregateRepository {
     @SuppressWarnings("unchecked")
     @Override
     public <T> AggregateRoot<T> loadFor(String entityId, Class<?> defaultType) {
-        Map<String, Class<?>> aggregates = eventStore.getAggregatesFor(entityId);
+        Map<String, Class<?>> aggregates = relationshipsCache.computeIfAbsent(
+                entityId, id -> eventStore.getAggregatesFor(entityId));
         if (aggregates.isEmpty()) {
             return (AggregateRoot<T>) load(entityId, defaultType);
         }
@@ -92,6 +98,7 @@ public class DefaultAggregateRepository implements AggregateRepository {
     public static class AnnotatedAggregateRepository<T> {
         private final Class<T> type;
         private final Cache cache;
+        private final Cache relationshipsCache;
         private final boolean eventSourced;
         private final boolean commitInBatch;
         private final SnapshotTrigger snapshotTrigger;
@@ -106,11 +113,12 @@ public class DefaultAggregateRepository implements AggregateRepository {
         private final DocumentStore documentStore;
         private final String idProperty;
 
-        public AnnotatedAggregateRepository(Class<T> type, Serializer serializer, Cache cache, EventStore eventStore,
-                                            SnapshotStore snapshotStore,
+        public AnnotatedAggregateRepository(Class<T> type, Serializer serializer, Cache cache, Cache relationshipsCache,
+                                            EventStore eventStore, SnapshotStore snapshotStore,
                                             DispatchInterceptor dispatchInterceptor,
                                             EventSourcingHandlerFactory handlerFactory, DocumentStore documentStore) {
             this.serializer = serializer;
+            this.relationshipsCache = relationshipsCache;
             this.eventStore = eventStore;
             this.dispatchInterceptor = dispatchInterceptor;
             this.handlerFactory = handlerFactory;
@@ -195,29 +203,35 @@ public class DefaultAggregateRepository implements AggregateRepository {
             }, commitInBatch, serializer, dispatchInterceptor, this::commit);
         }
 
-        protected void commit(ImmutableAggregateRoot<?> model, List<DeserializingMessage> unpublishedEvents,
-                              String initialEventId) {
+        protected void commit(ImmutableAggregateRoot<?> after, List<DeserializingMessage> unpublishedEvents,
+                              ImmutableAggregateRoot<?> before) {
             try {
-                cache.<AggregateRoot<?>>compute(model.id(), (id, current) ->
-                        current == null || Objects.equals(initialEventId, current.lastEventId())
-                        || unpublishedEvents.isEmpty() ? model : current.apply(unpublishedEvents));
+                cache.<AggregateRoot<?>>compute(after.id(), (id, current) ->
+                        current == null || Objects.equals(before.lastEventId(), current.lastEventId())
+                        || unpublishedEvents.isEmpty() ? after : current.apply(unpublishedEvents));
+                Set<Relationship> associations = after.associations(before), dissociations = after.dissociations(before);
+                dissociations.forEach(r -> relationshipsCache.computeIfAbsent(r.getEntityId(), entityId ->
+                        new ConcurrentHashMap<String, Class<?>>()).remove(r.getAggregateId(), before.type()));
+                associations.forEach(r -> relationshipsCache.computeIfAbsent(r.getEntityId(), entityId ->
+                        new ConcurrentHashMap<String, Class<?>>()).put(r.getAggregateId(), after.type()));
+                eventStore.updateRelationships(associations, dissociations).awaitSilently();
                 if (!unpublishedEvents.isEmpty()) {
-                    eventStore.storeEvents(model.id().toString(), new ArrayList<>(unpublishedEvents)).awaitSilently();
-                    if (snapshotTrigger.shouldCreateSnapshot(model, unpublishedEvents)) {
-                        snapshotStore.storeSnapshot(model);
+                    eventStore.storeEvents(after.id().toString(), new ArrayList<>(unpublishedEvents)).awaitSilently();
+                    if (snapshotTrigger.shouldCreateSnapshot(after, unpublishedEvents)) {
+                        snapshotStore.storeSnapshot(after);
                     }
                 }
                 if (searchable) {
-                    Object value = model.get();
+                    Object value = after.get();
                     if (value == null) {
-                        documentStore.deleteDocument(model.id().toString(), collection);
+                        documentStore.deleteDocument(after.id().toString(), collection);
                     } else {
-                        documentStore.index(value, model.id().toString(), collection, timestampFunction.apply(model));
+                        documentStore.index(value, after.id().toString(), collection, timestampFunction.apply(after));
                     }
                 }
             } catch (Exception e) {
-                log.error("Failed to commit aggregate {}", model.id(), e);
-                cache.invalidate(model.id());
+                log.error("Failed to commit aggregate {}", after.id(), e);
+                cache.invalidate(after.id());
             }
         }
 

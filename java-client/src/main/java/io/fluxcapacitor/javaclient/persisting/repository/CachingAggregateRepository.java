@@ -2,6 +2,7 @@ package io.fluxcapacitor.javaclient.persisting.repository;
 
 import io.fluxcapacitor.common.IndexUtils;
 import io.fluxcapacitor.common.api.SerializedMessage;
+import io.fluxcapacitor.common.api.modeling.Relationship;
 import io.fluxcapacitor.javaclient.common.serialization.DeserializingMessage;
 import io.fluxcapacitor.javaclient.common.serialization.Serializer;
 import io.fluxcapacitor.javaclient.configuration.client.Client;
@@ -17,6 +18,8 @@ import java.time.Instant;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import static io.fluxcapacitor.common.MessageType.EVENT;
@@ -34,6 +37,7 @@ public class CachingAggregateRepository implements AggregateRepository {
     private final AggregateRepository delegate;
     private final Client client;
     private final Cache cache;
+    private final Cache relationshipsCache;
     private final Serializer serializer;
 
     private final AtomicBoolean started = new AtomicBoolean();
@@ -76,14 +80,26 @@ public class CachingAggregateRepository implements AggregateRepository {
                     long index = m.getIndex();
                     delegate.load(id, type);
                     cache.<ImmutableAggregateRoot<?>>computeIfPresent(
-                            id, (i, a) -> Optional.ofNullable(a.highestEventIndex())
+                            id, (i, before) -> Optional.ofNullable(before.highestEventIndex())
                                     .filter(lastIndex -> lastIndex < index)
-                                    .<ImmutableAggregateRoot<?>>map(li -> a.apply(m)).orElse(a));
+                                    .<ImmutableAggregateRoot<?>>map(li -> {
+                                        ImmutableAggregateRoot<?> after = before.apply(m);
+                                        updateRelationships(before, after);
+                                        return after;
+                                    }).orElse(before));
                 }
             } catch (Exception e) {
                 log.error("Failed to handle event {} for aggregate {} (id {})", m.getMessageId(), type, id, e);
             }
         }
+    }
+
+    protected void updateRelationships(ImmutableAggregateRoot<?> before, ImmutableAggregateRoot<?> after) {
+        Set<Relationship> associations = after.associations(before), dissociations = after.dissociations(before);
+        dissociations.forEach(r -> relationshipsCache.computeIfAbsent(r.getEntityId(), entityId ->
+                new ConcurrentHashMap<String, Class<?>>()).remove(r.getAggregateId(), before.type()));
+        associations.forEach(r -> relationshipsCache.computeIfAbsent(r.getEntityId(), entityId ->
+                new ConcurrentHashMap<String, Class<?>>()).put(r.getAggregateId(), after.type()));
     }
 
     protected void catchUpIfNeeded() {
