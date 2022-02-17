@@ -31,6 +31,7 @@ import java.util.function.UnaryOperator;
 import java.util.stream.Stream;
 
 import static io.fluxcapacitor.common.reflection.ReflectionUtils.getAnnotatedPropertyValue;
+import static io.fluxcapacitor.common.reflection.ReflectionUtils.hasProperty;
 import static io.fluxcapacitor.common.reflection.ReflectionUtils.readProperty;
 import static io.fluxcapacitor.javaclient.common.Message.asMessage;
 import static java.util.stream.Collectors.toCollection;
@@ -98,7 +99,7 @@ public interface Entity<M extends Entity<M, T>, T> {
             while (iterator.hasNext()) {
                 Object c = iterator.next();
                 ValidationUtils.assertLegal(c, result);
-                entities.stream().filter(e -> e.isPossibleTarget(c)).forEach(e -> e.assertLegal(c));
+                entities.stream().filter(e -> e.isPossibleTarget(c)).findFirst().ifPresent(e -> e.assertLegal(c));
                 if (iterator.hasNext()) {
                     result = result.apply(Message.asMessage(c));
                 }
@@ -124,7 +125,7 @@ public interface Entity<M extends Entity<M, T>, T> {
         }
         Object payload = message instanceof Message ? ((Message) message).getPayload() : message;
         if (id == null) {
-            return readProperty(idProperty, payload).isPresent();
+            return hasProperty(idProperty, payload);
         }
         return readProperty(idProperty, payload)
                 .or(() -> getAnnotatedPropertyValue(payload, RoutingKey.class)).map(id::equals).orElse(false);

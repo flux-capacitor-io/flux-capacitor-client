@@ -2,7 +2,7 @@ package io.fluxcapacitor.javaclient.modeling;
 
 import io.fluxcapacitor.common.reflection.ReflectionUtils;
 import io.fluxcapacitor.javaclient.common.serialization.Serializer;
-import io.fluxcapacitor.javaclient.persisting.eventsourcing.EventSourcingHandler;
+import io.fluxcapacitor.javaclient.persisting.eventsourcing.EventSourcingHandlerFactory;
 import lombok.SneakyThrows;
 import lombok.Value;
 import lombok.experimental.Accessors;
@@ -45,19 +45,19 @@ public class AnnotatedEntityHolder implements Entity.Holder {
     private final Function<Object, Id> idProvider;
     private final Class<?> entityType;
 
-    private final EventSourcingHandler<?> eventSourcingHandler;
+    private final EventSourcingHandlerFactory handlerFactory;
     private final Serializer serializer;
 
     public static Entity.Holder getEntityHolder(Class<?> ownerType, AccessibleObject location,
-                                                EventSourcingHandler<?> eventSourcingHandler,
+                                                EventSourcingHandlerFactory handlerFactory,
                                                 Serializer serializer) {
         return cache.computeIfAbsent(location,
-                                     l -> new AnnotatedEntityHolder(ownerType, l, eventSourcingHandler, serializer));
+                                     l -> new AnnotatedEntityHolder(ownerType, l, handlerFactory, serializer));
     }
 
     private AnnotatedEntityHolder(Class<?> ownerType, AccessibleObject location,
-                                  EventSourcingHandler<?> eventSourcingHandler, Serializer serializer) {
-        this.eventSourcingHandler = eventSourcingHandler;
+                                  EventSourcingHandlerFactory handlerFactory, Serializer serializer) {
+        this.handlerFactory = handlerFactory;
         this.serializer = serializer;
         this.location = location;
         this.ownerType = ownerType;
@@ -121,11 +121,18 @@ public class AnnotatedEntityHolder implements Entity.Holder {
     @Override
     public Stream<Entity<?, ?>> getEntities(Object owner) {
         Object holderValue = getValue(location, owner);
-        if (holderValue instanceof Collection<?>) {
+        Class<?> type = holderValue == null ? holderType : holderValue.getClass();
+        if (Collection.class.isAssignableFrom(type)) {
+            if (holderValue == null) {
+                return Stream.of(createEmptyEntity());
+            }
             return Stream.concat(
                     ((Collection<?>) holderValue).stream().flatMap(v -> createEntity(v, idProvider).stream()),
                     Stream.of(createEmptyEntity()));
-        } else if (holderValue instanceof Map<?, ?>) {
+        } else if (Map.class.isAssignableFrom(type)) {
+            if (holderValue == null) {
+                return Stream.of(createEmptyEntity());
+            }
             return Stream.concat(
                     ((Map<?, ?>) holderValue).entrySet().stream().flatMap(e -> createEntity(
                             e.getValue(), v -> new Id(e.getKey(), idProvider.apply(v).property())).stream()),
@@ -135,6 +142,7 @@ public class AnnotatedEntityHolder implements Entity.Holder {
         }
     }
 
+
     @SuppressWarnings({"unchecked", "rawtypes"})
     private Optional<Entity<?, ?>> createEntity(Object member, Function<Object, Id> idProvider) {
         return Optional.ofNullable(member)
@@ -142,7 +150,7 @@ public class AnnotatedEntityHolder implements Entity.Holder {
                 .map(id -> ImmutableEntity.builder()
                         .value(member)
                         .type((Class) member.getClass())
-                        .eventSourcingHandler(eventSourcingHandler.forType(member.getClass()))
+                        .handlerFactory(handlerFactory)
                         .serializer(serializer)
                         .id(id.value())
                         .holder(this)
@@ -154,7 +162,7 @@ public class AnnotatedEntityHolder implements Entity.Holder {
     private Entity<?, ?> createEmptyEntity() {
         return ImmutableEntity.builder()
                 .type((Class) entityType)
-                .eventSourcingHandler(eventSourcingHandler.forType(entityType))
+                .handlerFactory(handlerFactory)
                 .serializer(serializer)
                 .holder(this)
                 .idProperty(idProvider.apply(entityType).property())

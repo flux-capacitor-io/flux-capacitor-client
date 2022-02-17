@@ -151,11 +151,13 @@ public class ReflectionUtils {
         return result;
     }
 
-    public static Optional<? extends AccessibleObject> getAnnotatedProperty(Object target, Class<? extends Annotation> annotation) {
+    public static Optional<? extends AccessibleObject> getAnnotatedProperty(Object target,
+                                                                            Class<? extends Annotation> annotation) {
         return getAnnotatedProperties(target, annotation).stream().findFirst();
     }
 
-    public static Optional<? extends AccessibleObject> getAnnotatedProperty(Class<?> target, Class<? extends Annotation> annotation) {
+    public static Optional<? extends AccessibleObject> getAnnotatedProperty(Class<?> target,
+                                                                            Class<? extends Annotation> annotation) {
         return getAnnotatedProperties(target, annotation).stream().findFirst();
     }
 
@@ -245,7 +247,9 @@ public class ReflectionUtils {
                 .or(() -> Optional.ofNullable(MethodUtils.getMatchingMethod(type, propertyName)))
                 .or(() -> Optional.ofNullable(FieldUtils.getField(type, propertyName, true)))
                 .<Function<Object, Object>>map(a -> target -> getValue(a, target))
-                .orElseThrow(() -> new PropertyNotFoundException(propertyName, type));
+                .orElseGet(() -> o -> {
+                    throw new PropertyNotFoundException(propertyName, type);
+                });
     }
 
     @SneakyThrows
@@ -343,7 +347,9 @@ public class ReflectionUtils {
                 .<AccessibleObject>map(PropertyDescriptor::getWriteMethod).filter(Objects::nonNull).findFirst()
                 .or(() -> Optional.ofNullable(FieldUtils.getField(type, propertyName, true)))
                 .<BiConsumer<Object, Object>>map(a -> (target, value) -> setValue(a, target, value))
-                .orElseThrow(() -> new PropertyNotFoundException(propertyName, type));
+                .orElseGet(() -> (t, v) -> {
+                    throw new PropertyNotFoundException(propertyName, type);
+                });
     }
 
     @SneakyThrows

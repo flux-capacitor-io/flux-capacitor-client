@@ -23,5 +23,4 @@ public interface EventSourcingHandler<T> {
 
     boolean canHandle(Entity<?, T> entity, DeserializingMessage message);
 
-    <E> EventSourcingHandler<E> forType(Class<? extends E> type);
 }

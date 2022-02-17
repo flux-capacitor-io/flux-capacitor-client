@@ -5,7 +5,7 @@ import io.fluxcapacitor.javaclient.FluxCapacitor;
 import io.fluxcapacitor.javaclient.common.Message;
 import io.fluxcapacitor.javaclient.common.serialization.DeserializingMessage;
 import io.fluxcapacitor.javaclient.common.serialization.Serializer;
-import io.fluxcapacitor.javaclient.persisting.eventsourcing.EventSourcingHandler;
+import io.fluxcapacitor.javaclient.persisting.eventsourcing.EventSourcingHandlerFactory;
 import lombok.Builder;
 import lombok.EqualsAndHashCode;
 import lombok.ToString;
@@ -48,19 +48,19 @@ public class ImmutableAggregateRoot<T> implements AggregateRoot<T> {
     transient ImmutableAggregateRoot<T> previous;
 
     public static <T> ImmutableAggregateRoot<T> from(AggregateRoot<T> a,
-                                                     EventSourcingHandler<T> eventSourcingHandler,
+                                                     EventSourcingHandlerFactory handlerFactory,
                                                      Serializer serializer) {
         if (a == null) {
             return null;
         }
         return ImmutableAggregateRoot.<T>builder()
-                .delegate(ImmutableEntity.<T>builder().eventSourcingHandler(eventSourcingHandler).serializer(serializer)
+                .delegate(ImmutableEntity.<T>builder().handlerFactory(handlerFactory).serializer(serializer)
                                   .id(a.id()).value(a.get()).type(a.type()).idProperty(a.idProperty()).build())
                 .lastEventId(a.lastEventId())
                 .lastEventIndex(a.lastEventIndex())
                 .timestamp(a.timestamp())
                 .sequenceNumber(a.sequenceNumber())
-                .previous(ImmutableAggregateRoot.from(a.previous(), eventSourcingHandler, serializer))
+                .previous(ImmutableAggregateRoot.from(a.previous(), handlerFactory, serializer))
                 .build();
     }
 

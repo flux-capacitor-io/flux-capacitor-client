@@ -79,8 +79,8 @@ class ReflectionUtilsTest {
 
         @Test
         void testReadingUnknownProperty() {
-            assertFalse(hasProperty("child/unknown2", someObject));
             assertFalse(hasProperty("unknown", someObject));
+            assertFalse(hasProperty("child/unknown2", someObject));
             assertFalse(hasProperty("unknown1/unknown2", someObject));
             assertTrue(readProperty("unknownGetter", someObject).isEmpty());
         }

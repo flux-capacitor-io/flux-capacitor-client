@@ -34,7 +34,6 @@ import static io.fluxcapacitor.common.handling.HandlerInspector.inspect;
 public class AnnotatedEventSourcingHandler<T> implements EventSourcingHandler<T> {
 
     private final Class<? extends T> handlerType;
-    private final List<ParameterResolver<? super DeserializingMessage>> parameterResolvers;
     private final HandlerInvoker<DeserializingMessage> aggregateInvoker;
     private final EventSourcingAggregateParameterResolver<T>
             aggregateResolver = new EventSourcingAggregateParameterResolver<>();
@@ -47,7 +46,6 @@ public class AnnotatedEventSourcingHandler<T> implements EventSourcingHandler<T>
     public AnnotatedEventSourcingHandler(Class<? extends T> handlerType,
                                          List<ParameterResolver<? super DeserializingMessage>> parameterResolvers) {
         this.handlerType = handlerType;
-        this.parameterResolvers = parameterResolvers;
         this.aggregateInvoker = inspect(handlerType, parameterResolvers,
                                         HandlerConfiguration.builder().methodAnnotation(ApplyEvent.class).build());
         this.eventInvokers = memoize(eventType -> {
@@ -81,9 +79,9 @@ public class AnnotatedEventSourcingHandler<T> implements EventSourcingHandler<T>
                     invoker = handledByAggregate ? aggregateInvoker : eventInvokers.apply(message.getPayloadClass());
                     result = invoker.invoke(handledByAggregate ? model : m.getPayload(), m);
                 } catch (HandlerNotFoundException e) {
-                    if (model == null) {
+                    if (model == null && entity.holder() == null) {
                         throw new HandlerNotFoundException(String.format(
-                                "Entity '%2$s' of type %1$s does not exist and no applicable method exists in %1$s or %3$s that would instantiate a new %1$s.",
+                                "Aggregate '%2$s' of type %1$s does not exist and no applicable method exists in %1$s or %3$s that would instantiate a new %1$s.",
                                 entity.type().getSimpleName(), entity.id(),
                                 message.getPayloadClass().getSimpleName()));
                     }
@@ -114,10 +112,6 @@ public class AnnotatedEventSourcingHandler<T> implements EventSourcingHandler<T>
         } finally {
             aggregateResolver.removeAggregate();
         }
-    }
-
-    public <E> AnnotatedEventSourcingHandler<E> forType(Class<? extends E> type) {
-        return new AnnotatedEventSourcingHandler<E>(type, parameterResolvers);
     }
 
     public static class EventSourcingAggregateParameterResolver<T> implements ParameterResolver<Object> {

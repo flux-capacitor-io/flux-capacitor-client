@@ -6,6 +6,7 @@ import io.fluxcapacitor.javaclient.common.Message;
 import io.fluxcapacitor.javaclient.common.serialization.DeserializingMessage;
 import io.fluxcapacitor.javaclient.common.serialization.Serializer;
 import io.fluxcapacitor.javaclient.persisting.eventsourcing.EventSourcingHandler;
+import io.fluxcapacitor.javaclient.persisting.eventsourcing.EventSourcingHandlerFactory;
 import lombok.Builder;
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
@@ -15,7 +16,6 @@ import lombok.experimental.Accessors;
 import lombok.extern.slf4j.Slf4j;
 
 import java.util.Collection;
-import java.util.Collections;
 import java.util.LinkedHashSet;
 import java.util.Objects;
 import java.util.function.UnaryOperator;
@@ -26,6 +26,7 @@ import static io.fluxcapacitor.common.reflection.ReflectionUtils.getAnnotatedPro
 import static io.fluxcapacitor.javaclient.common.Message.asMessage;
 import static io.fluxcapacitor.javaclient.modeling.AnnotatedEntityHolder.getEntityHolder;
 import static java.util.Collections.unmodifiableCollection;
+import static java.util.Optional.ofNullable;
 
 @Value
 @Builder(toBuilder = true)
@@ -48,7 +49,14 @@ public class ImmutableEntity<T> implements Entity<ImmutableEntity<T>, T> {
 
     @ToString.Exclude
     @EqualsAndHashCode.Exclude
-    transient EventSourcingHandler<T> eventSourcingHandler;
+    transient EventSourcingHandlerFactory handlerFactory;
+
+    @SuppressWarnings("unchecked")
+    @ToString.Exclude
+    @EqualsAndHashCode.Exclude
+    @Getter(lazy = true)
+    EventSourcingHandler<T> handler = handlerFactory.forType(
+            ofNullable(get()).map(v -> (Class<T>) v.getClass()).orElse(type));
 
     @ToString.Exclude
     @EqualsAndHashCode.Exclude
@@ -70,9 +78,10 @@ public class ImmutableEntity<T> implements Entity<ImmutableEntity<T>, T> {
     }
 
     private Collection<Entity<?, ?>> computeEntities() {
-        return value == null ? Collections.emptySet() : unmodifiableCollection(
-                getAnnotatedProperties(value.getClass(), Member.class).stream().flatMap(
-                        location -> getEntityHolder(value.getClass(), location, eventSourcingHandler, serializer)
+        Class<?> type = value == null ? type() : value.getClass();
+        return unmodifiableCollection(
+                getAnnotatedProperties(type, Member.class).stream().flatMap(
+                        location -> getEntityHolder(type, location, handlerFactory, serializer)
                                 .getEntities(value)).collect(Collectors.toCollection(LinkedHashSet::new)));
     }
 
@@ -97,8 +106,7 @@ public class ImmutableEntity<T> implements Entity<ImmutableEntity<T>, T> {
 
     @SuppressWarnings("unchecked")
     public ImmutableEntity<T> apply(DeserializingMessage message) {
-        ImmutableEntity<T> result = holder == null || eventSourcingHandler.canHandle(this, message)
-                ? toBuilder().value(eventSourcingHandler.invoke(this, message)).build() : this;
+        ImmutableEntity<T> result = toBuilder().value(handler().invoke(this, message)).build();
         Object payload = message.getPayload();
         Collection<Entity<?, ?>> entities = result.entities();
         for (Entity<?, ?> entity : entities) {

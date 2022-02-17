@@ -12,7 +12,6 @@ import io.fluxcapacitor.javaclient.modeling.ModifiableAggregateRoot;
 import io.fluxcapacitor.javaclient.persisting.caching.Cache;
 import io.fluxcapacitor.javaclient.persisting.caching.NoOpCache;
 import io.fluxcapacitor.javaclient.persisting.eventsourcing.AggregateEventStream;
-import io.fluxcapacitor.javaclient.persisting.eventsourcing.EventSourcingHandler;
 import io.fluxcapacitor.javaclient.persisting.eventsourcing.EventSourcingHandlerFactory;
 import io.fluxcapacitor.javaclient.persisting.eventsourcing.EventStore;
 import io.fluxcapacitor.javaclient.persisting.eventsourcing.NoOpSnapshotStore;
@@ -93,7 +92,6 @@ public class DefaultAggregateRepository implements AggregateRepository {
     public static class AnnotatedAggregateRepository<T> {
         private final Class<T> type;
         private final Cache cache;
-        private final EventSourcingHandler<T> eventSourcingHandler;
         private final boolean eventSourced;
         private final boolean commitInBatch;
         private final SnapshotTrigger snapshotTrigger;
@@ -104,6 +102,7 @@ public class DefaultAggregateRepository implements AggregateRepository {
         private final Serializer serializer;
         private final EventStore eventStore;
         private final DispatchInterceptor dispatchInterceptor;
+        private final EventSourcingHandlerFactory handlerFactory;
         private final DocumentStore documentStore;
         private final String idProperty;
 
@@ -114,6 +113,7 @@ public class DefaultAggregateRepository implements AggregateRepository {
             this.serializer = serializer;
             this.eventStore = eventStore;
             this.dispatchInterceptor = dispatchInterceptor;
+            this.handlerFactory = handlerFactory;
             this.documentStore = documentStore;
             Aggregate typeAnnotation = ReflectionUtils.getTypeAnnotation(type, Aggregate.class);
             int snapshotPeriod = ofNullable(typeAnnotation)
@@ -124,7 +124,6 @@ public class DefaultAggregateRepository implements AggregateRepository {
             this.cache = ofNullable(typeAnnotation).map(Aggregate::cached).orElseGet(
                     safelySupply(() -> (boolean) Aggregate.class.getMethod("cached").getDefaultValue()))
                     ? cache : NoOpCache.INSTANCE;
-            this.eventSourcingHandler = handlerFactory.forType(type);
             this.eventSourced = ofNullable(typeAnnotation).map(Aggregate::eventSourced)
                     .orElseGet(safelySupply(() -> (boolean) Aggregate.class.getMethod(
                             "eventSourced").getDefaultValue()));
@@ -159,15 +158,14 @@ public class DefaultAggregateRepository implements AggregateRepository {
                                 .orElseGet(() -> {
                                     var builder =
                                             ImmutableEntity.<T>builder().id(id).type(type).idProperty(idProperty)
-                                                    .eventSourcingHandler(eventSourcingHandler).serializer(serializer);
+                                                    .handlerFactory(handlerFactory).serializer(serializer);
                                     ImmutableAggregateRoot<T> model =
                                             (searchable && !eventSourced
                                                     ? documentStore.<T>fetchDocument(id, collection)
                                                     .map(d -> builder.value(d).build())
                                                     .map(e -> ImmutableAggregateRoot.<T>builder().delegate(e).build())
                                                     : snapshotStore.<T>getSnapshot(id).map(
-                                                    a -> ImmutableAggregateRoot.from(a, eventSourcingHandler,
-                                                                                     serializer)))
+                                                    a -> ImmutableAggregateRoot.from(a, handlerFactory, serializer)))
                                                     .filter(a -> {
                                                         boolean assignable =
                                                                 a.get() == null
