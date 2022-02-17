@@ -34,7 +34,7 @@ public class ModifiableAggregateRoot<T> extends DelegatingAggregateRoot<T, Immut
                         loader.get(), commitInBatch, serializer, dispatchInterceptor, commitHandler));
     }
 
-    private final String initialEventId;
+    private final ImmutableAggregateRoot<T> initial;
     private ImmutableAggregateRoot<T> lastStable;
 
     private final boolean commitInBatch;
@@ -49,7 +49,7 @@ public class ModifiableAggregateRoot<T> extends DelegatingAggregateRoot<T, Immut
                                       Serializer serializer, DispatchInterceptor dispatchInterceptor,
                                       CommitHandler commitHandler) {
         super(delegate);
-        this.initialEventId = delegate.lastEventId();
+        this.initial = delegate;
         this.lastStable = delegate;
         this.commitInBatch = commitInBatch;
         this.serializer = serializer;
@@ -109,11 +109,11 @@ public class ModifiableAggregateRoot<T> extends DelegatingAggregateRoot<T, Immut
         List<DeserializingMessage> events = new ArrayList<>(uncommitted);
         uncommitted.clear();
         waitingForBatchEnd.set(false);
-        commitHandler.handle(lastStable, events, initialEventId);
+        commitHandler.handle(lastStable, events, initial);
     }
 
     @FunctionalInterface
     public interface CommitHandler {
-        void handle(ImmutableAggregateRoot<?> model, List<DeserializingMessage> unpublished, String initialEventId);
+        void handle(ImmutableAggregateRoot<?> model, List<DeserializingMessage> unpublished, ImmutableAggregateRoot<?> beforeUpdate);
     }
 }

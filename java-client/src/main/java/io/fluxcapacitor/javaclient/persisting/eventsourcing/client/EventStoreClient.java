@@ -15,10 +15,8 @@
 package io.fluxcapacitor.javaclient.persisting.eventsourcing.client;
 
 import io.fluxcapacitor.common.Awaitable;
-import io.fluxcapacitor.common.Guarantee;
 import io.fluxcapacitor.common.api.SerializedMessage;
 import io.fluxcapacitor.common.api.modeling.GetAggregateIds;
-import io.fluxcapacitor.common.api.modeling.Relationship;
 import io.fluxcapacitor.common.api.modeling.UpdateRelationships;
 import io.fluxcapacitor.javaclient.persisting.eventsourcing.AggregateEventStream;
 
@@ -29,10 +27,6 @@ import java.util.concurrent.CompletableFuture;
 public interface EventStoreClient extends AutoCloseable {
 
     Awaitable storeEvents(String aggregateId, List<SerializedMessage> events, boolean storeOnly);
-
-    default Awaitable updateRelationships(List<Relationship> dissociations, List<Relationship> associations) {
-        return updateRelationships(new UpdateRelationships(dissociations, associations, Guarantee.STORED));
-    }
 
     Awaitable updateRelationships(UpdateRelationships request);
 

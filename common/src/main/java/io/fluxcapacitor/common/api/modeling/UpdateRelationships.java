@@ -4,11 +4,11 @@ import io.fluxcapacitor.common.Guarantee;
 import io.fluxcapacitor.common.api.Request;
 import lombok.Value;
 
-import java.util.List;
+import java.util.Set;
 
 @Value
 public class UpdateRelationships extends Request {
-    List<Relationship> dissociations;
-    List<Relationship> associations;
+    Set<Relationship> associations;
+    Set<Relationship> dissociations;
     Guarantee guarantee;
 }

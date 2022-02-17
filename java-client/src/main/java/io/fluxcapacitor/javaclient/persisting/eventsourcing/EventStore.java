@@ -15,11 +15,15 @@
 package io.fluxcapacitor.javaclient.persisting.eventsourcing;
 
 import io.fluxcapacitor.common.Awaitable;
+import io.fluxcapacitor.common.Guarantee;
+import io.fluxcapacitor.common.api.modeling.Relationship;
+import io.fluxcapacitor.common.api.modeling.UpdateRelationships;
 import io.fluxcapacitor.javaclient.common.serialization.DeserializingMessage;
 import io.fluxcapacitor.javaclient.tracking.handling.HasLocalHandlers;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 import static java.util.Arrays.asList;
 
@@ -40,6 +44,12 @@ public interface EventStore extends HasLocalHandlers {
     }
 
     AggregateEventStream<DeserializingMessage> getEvents(String aggregateId, long lastSequenceNumber);
+
+    Awaitable updateRelationships(UpdateRelationships updateRelationships);
+
+    default Awaitable updateRelationships(Set<Relationship> associations, Set<Relationship> dissociations) {
+        return updateRelationships(new UpdateRelationships(associations, dissociations, Guarantee.SENT));
+    }
 
     Map<String, Class<?>> getAggregatesFor(String entityId);
 }

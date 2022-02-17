@@ -17,6 +17,7 @@ package io.fluxcapacitor.javaclient.persisting.eventsourcing;
 import io.fluxcapacitor.common.Awaitable;
 import io.fluxcapacitor.common.ConsistentHashing;
 import io.fluxcapacitor.common.api.SerializedMessage;
+import io.fluxcapacitor.common.api.modeling.UpdateRelationships;
 import io.fluxcapacitor.common.reflection.ReflectionUtils;
 import io.fluxcapacitor.javaclient.FluxCapacitor;
 import io.fluxcapacitor.javaclient.common.Message;
@@ -89,6 +90,11 @@ public class DefaultEventStore implements EventStore {
         } catch (Exception e) {
             throw new EventSourcingException(format("Failed to obtain events for aggregate %s", aggregateId), e);
         }
+    }
+
+    @Override
+    public Awaitable updateRelationships(UpdateRelationships updateRelationships) {
+        return client.updateRelationships(updateRelationships);
     }
 
     @Override

@@ -1,5 +1,6 @@
 package io.fluxcapacitor.javaclient.modeling;
 
+import io.fluxcapacitor.javaclient.FluxCapacitor;
 import io.fluxcapacitor.javaclient.persisting.eventsourcing.Apply;
 import io.fluxcapacitor.javaclient.publishing.routing.RoutingKey;
 import io.fluxcapacitor.javaclient.test.TestFixture;
@@ -393,6 +394,26 @@ public class AggregateEntitiesTest {
 
     }
 
+    @Nested
+    class loadForTests {
+        @Test
+        void loadAggregateForEntity() {
+            testFixture.whenApplying(fc -> FluxCapacitor.loadAggregateFor("map0", Aggregate.class))
+                    .<AggregateRoot<Aggregate>>expectResult(a -> a.get() != null);
+        }
+
+        @Test
+        void loadForNewEntityReturnsDefault() {
+            testFixture.whenApplying(fc -> FluxCapacitor.loadAggregateFor("unknown", Aggregate.class))
+                    .<AggregateRoot<Aggregate>>expectResult(a -> a.get() == null);
+        }
+
+        @Test
+        void loadForNewEntityReturnsDefaultClass() {
+            testFixture.whenApplying(fc -> FluxCapacitor.loadAggregateFor("unknown", MapChild.class))
+                    .<AggregateRoot<MapChild>>expectResult(a -> a.get() == null && a.type().equals(MapChild.class));
+        }
+    }
 
     @Value
     @Builder
