@@ -15,6 +15,7 @@
 package io.fluxcapacitor.javaclient.persisting.eventsourcing;
 
 import io.fluxcapacitor.javaclient.FluxCapacitor;
+import io.fluxcapacitor.javaclient.modeling.Aggregate;
 import io.fluxcapacitor.javaclient.publishing.routing.RoutingKey;
 import io.fluxcapacitor.javaclient.test.TestFixture;
 import io.fluxcapacitor.javaclient.tracking.handling.HandleCommand;

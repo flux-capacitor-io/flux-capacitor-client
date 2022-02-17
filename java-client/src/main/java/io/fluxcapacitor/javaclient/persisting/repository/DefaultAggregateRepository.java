@@ -3,14 +3,15 @@ package io.fluxcapacitor.javaclient.persisting.repository;
 import io.fluxcapacitor.common.reflection.ReflectionUtils;
 import io.fluxcapacitor.javaclient.common.serialization.DeserializingMessage;
 import io.fluxcapacitor.javaclient.common.serialization.Serializer;
+import io.fluxcapacitor.javaclient.modeling.Aggregate;
 import io.fluxcapacitor.javaclient.modeling.AggregateRoot;
+import io.fluxcapacitor.javaclient.modeling.EntityId;
 import io.fluxcapacitor.javaclient.modeling.ImmutableAggregateRoot;
+import io.fluxcapacitor.javaclient.modeling.ImmutableEntity;
 import io.fluxcapacitor.javaclient.modeling.ModifiableAggregateRoot;
 import io.fluxcapacitor.javaclient.persisting.caching.Cache;
 import io.fluxcapacitor.javaclient.persisting.caching.NoOpCache;
-import io.fluxcapacitor.javaclient.persisting.eventsourcing.Aggregate;
 import io.fluxcapacitor.javaclient.persisting.eventsourcing.AggregateEventStream;
-import io.fluxcapacitor.javaclient.persisting.eventsourcing.EventSourcingHandler;
 import io.fluxcapacitor.javaclient.persisting.eventsourcing.EventSourcingHandlerFactory;
 import io.fluxcapacitor.javaclient.persisting.eventsourcing.EventStore;
 import io.fluxcapacitor.javaclient.persisting.eventsourcing.NoOpSnapshotStore;
@@ -31,6 +32,7 @@ import java.time.temporal.TemporalAccessor;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -38,6 +40,7 @@ import java.util.function.Function;
 
 import static io.fluxcapacitor.common.ObjectUtils.memoize;
 import static io.fluxcapacitor.common.ObjectUtils.safelySupply;
+import static io.fluxcapacitor.common.reflection.ReflectionUtils.getAnnotatedProperty;
 import static java.util.Optional.ofNullable;
 
 @Slf4j
@@ -55,13 +58,30 @@ public class DefaultAggregateRepository implements AggregateRepository {
 
     private final Function<Class<?>, AnnotatedAggregateRepository<?>> delegates = memoize(
             type -> new AnnotatedAggregateRepository<>(type, serializer(), cache(), eventStore(), snapshotStore(),
-                                                       dispatchInterceptor(), handlerFactory(),
-                                                       documentStore()));
+                                                       dispatchInterceptor(), handlerFactory(), documentStore()));
 
     @Override
     @SuppressWarnings("unchecked")
     public <T> AggregateRoot<T> load(String aggregateId, Class<T> type) {
         return (AggregateRoot<T>) delegates.apply(type).load(aggregateId);
+    }
+
+    @SuppressWarnings("unchecked")
+    @Override
+    public <T> AggregateRoot<T> loadFor(String entityId, Class<?> defaultType) {
+        Map<String, Class<?>> aggregates = eventStore.getAggregatesFor(entityId);
+        if (aggregates.isEmpty()) {
+            return (AggregateRoot<T>) load(entityId, defaultType);
+        }
+        if (aggregates.containsKey(entityId)) {
+            return (AggregateRoot<T>) load(entityId, aggregates.get(entityId));
+        }
+        if (aggregates.size() > 1) {
+            log.warn("Found several aggregates containing entity {}", entityId);
+        }
+        return aggregates.entrySet().stream().filter(e -> !Void.class.equals(e.getValue())).findFirst()
+                .map(e -> (AggregateRoot<T>) load(e.getKey(), e.getValue()))
+                .orElseGet(() -> (AggregateRoot<T>) load(entityId, defaultType));
     }
 
     @Override
@@ -72,7 +92,6 @@ public class DefaultAggregateRepository implements AggregateRepository {
     public static class AnnotatedAggregateRepository<T> {
         private final Class<T> type;
         private final Cache cache;
-        private final EventSourcingHandler<T> eventSourcingHandler;
         private final boolean eventSourced;
         private final boolean commitInBatch;
         private final SnapshotTrigger snapshotTrigger;
@@ -83,7 +102,9 @@ public class DefaultAggregateRepository implements AggregateRepository {
         private final Serializer serializer;
         private final EventStore eventStore;
         private final DispatchInterceptor dispatchInterceptor;
+        private final EventSourcingHandlerFactory handlerFactory;
         private final DocumentStore documentStore;
+        private final String idProperty;
 
         public AnnotatedAggregateRepository(Class<T> type, Serializer serializer, Cache cache, EventStore eventStore,
                                             SnapshotStore snapshotStore,
@@ -92,6 +113,7 @@ public class DefaultAggregateRepository implements AggregateRepository {
             this.serializer = serializer;
             this.eventStore = eventStore;
             this.dispatchInterceptor = dispatchInterceptor;
+            this.handlerFactory = handlerFactory;
             this.documentStore = documentStore;
             Aggregate typeAnnotation = ReflectionUtils.getTypeAnnotation(type, Aggregate.class);
             int snapshotPeriod = ofNullable(typeAnnotation)
@@ -102,7 +124,6 @@ public class DefaultAggregateRepository implements AggregateRepository {
             this.cache = ofNullable(typeAnnotation).map(Aggregate::cached).orElseGet(
                     safelySupply(() -> (boolean) Aggregate.class.getMethod("cached").getDefaultValue()))
                     ? cache : NoOpCache.INSTANCE;
-            this.eventSourcingHandler = handlerFactory.forType(type);
             this.eventSourced = ofNullable(typeAnnotation).map(Aggregate::eventSourced)
                     .orElseGet(safelySupply(() -> (boolean) Aggregate.class.getMethod(
                             "eventSourced").getDefaultValue()));
@@ -126,6 +147,7 @@ public class DefaultAggregateRepository implements AggregateRepository {
                                         return aggregateRoot.timestamp();
                                     }))
                     .orElse(AggregateRoot::timestamp);
+            this.idProperty = getAnnotatedProperty(type, EntityId.class).map(ReflectionUtils::getName).orElse(null);
         }
 
         protected ModifiableAggregateRoot<T> load(String id) {
@@ -135,15 +157,15 @@ public class DefaultAggregateRepository implements AggregateRepository {
                                 .filter(a -> a.get() == null || type.isAssignableFrom(a.get().getClass()))
                                 .orElseGet(() -> {
                                     var builder =
-                                            ImmutableAggregateRoot.<T>builder().id(id).type(type)
-                                                    .eventSourcingHandler(eventSourcingHandler).serializer(serializer);
+                                            ImmutableEntity.<T>builder().id(id).type(type).idProperty(idProperty)
+                                                    .handlerFactory(handlerFactory).serializer(serializer);
                                     ImmutableAggregateRoot<T> model =
                                             (searchable && !eventSourced
                                                     ? documentStore.<T>fetchDocument(id, collection)
                                                     .map(d -> builder.value(d).build())
+                                                    .map(e -> ImmutableAggregateRoot.<T>builder().delegate(e).build())
                                                     : snapshotStore.<T>getSnapshot(id).map(
-                                                    a -> ImmutableAggregateRoot.from(a, eventSourcingHandler,
-                                                                                     serializer)))
+                                                    a -> ImmutableAggregateRoot.from(a, handlerFactory, serializer)))
                                                     .filter(a -> {
                                                         boolean assignable =
                                                                 a.get() == null
@@ -154,7 +176,9 @@ public class DefaultAggregateRepository implements AggregateRepository {
                                                                      id, type, a.get().getClass());
                                                         }
                                                         return assignable;
-                                                    }).orElseGet(builder::build);
+                                                    }).orElseGet(
+                                                            () -> ImmutableAggregateRoot.<T>builder().delegate(builder.build())
+                                                                    .build());
                                     if (!eventSourced) {
                                         return model;
                                     }
@@ -178,7 +202,7 @@ public class DefaultAggregateRepository implements AggregateRepository {
                         current == null || Objects.equals(initialEventId, current.lastEventId())
                         || unpublishedEvents.isEmpty() ? model : current.apply(unpublishedEvents));
                 if (!unpublishedEvents.isEmpty()) {
-                    eventStore.storeEvents(model.id(), new ArrayList<>(unpublishedEvents)).awaitSilently();
+                    eventStore.storeEvents(model.id().toString(), new ArrayList<>(unpublishedEvents)).awaitSilently();
                     if (snapshotTrigger.shouldCreateSnapshot(model, unpublishedEvents)) {
                         snapshotStore.storeSnapshot(model);
                     }
@@ -186,9 +210,9 @@ public class DefaultAggregateRepository implements AggregateRepository {
                 if (searchable) {
                     Object value = model.get();
                     if (value == null) {
-                        documentStore.deleteDocument(model.id(), collection);
+                        documentStore.deleteDocument(model.id().toString(), collection);
                     } else {
-                        documentStore.index(value, model.id(), collection, timestampFunction.apply(model));
+                        documentStore.index(value, model.id().toString(), collection, timestampFunction.apply(model));
                     }
                 }
             } catch (Exception e) {

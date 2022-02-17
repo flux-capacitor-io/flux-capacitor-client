@@ -116,7 +116,7 @@ public class DefaultTracking implements Tracking {
     protected Consumer<List<SerializedMessage>> createConsumer(ConsumerConfiguration configuration,
                                                                List<Handler<DeserializingMessage>> handlers) {
         return serializedMessages ->
-                handleBatch(serializer.deserializeMessages(serializedMessages.stream(), false, messageType))
+                handleBatch(serializer.deserializeMessages(serializedMessages.stream(), messageType))
                         .forEach(m -> handlers.forEach(h -> tryHandle(m, h, configuration)));
     }
 

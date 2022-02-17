@@ -26,9 +26,9 @@ import io.fluxcapacitor.javaclient.common.serialization.Serializer;
 import io.fluxcapacitor.javaclient.configuration.DefaultFluxCapacitor;
 import io.fluxcapacitor.javaclient.configuration.client.Client;
 import io.fluxcapacitor.javaclient.configuration.spring.FluxCapacitorSpringConfig;
+import io.fluxcapacitor.javaclient.modeling.Aggregate;
 import io.fluxcapacitor.javaclient.modeling.AggregateRoot;
 import io.fluxcapacitor.javaclient.persisting.caching.Cache;
-import io.fluxcapacitor.javaclient.persisting.eventsourcing.Aggregate;
 import io.fluxcapacitor.javaclient.persisting.eventsourcing.EventStore;
 import io.fluxcapacitor.javaclient.persisting.keyvalue.KeyValueStore;
 import io.fluxcapacitor.javaclient.persisting.repository.AggregateRepository;
@@ -64,12 +64,10 @@ import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.stream.Stream;
 
-import static io.fluxcapacitor.common.MessageType.COMMAND;
 import static io.fluxcapacitor.common.MessageType.EVENT;
 import static io.fluxcapacitor.common.MessageType.NOTIFICATION;
 import static io.fluxcapacitor.javaclient.modeling.AggregateIdResolver.getAggregateId;
 import static java.util.Arrays.stream;
-import static java.util.Optional.ofNullable;
 
 /**
  * High-level client for Flux Capacitor. If you are using anything other than this to interact with the service at
@@ -299,33 +297,40 @@ public interface FluxCapacitor extends AutoCloseable {
     }
 
     /**
-     * Loads the aggregate root of type {@code <T>} with given id.
+     * Loads the aggregate root of type {@code <T>} with given aggregateId.
      * <p>
      * If the aggregate is loaded while handling an event of the aggregate, the returned Aggregate will automatically be
-     * replayed back to event currently being handled. Otherwise, the most recent state of the aggregate is loaded.
+     * replayed back to the event currently being handled. Otherwise, the most recent state of the aggregate is loaded.
      *
      * @see Aggregate for more info on how to define an event sourced aggregate root
      */
-    static <T> AggregateRoot<T> loadAggregate(String id, Class<T> aggregateType) {
-        return loadAggregate(id, aggregateType,
-                             ofNullable(DeserializingMessage.getCurrent()).map(d -> d.getMessageType() != COMMAND)
-                                     .orElse(true));
+    static <T> AggregateRoot<T> loadAggregate(String aggregateId, Class<T> aggregateType) {
+        AggregateRoot<T> result = get().aggregateRepository().load(aggregateId, aggregateType);
+        DeserializingMessage message = DeserializingMessage.getCurrent();
+        if (message != null && (message.getMessageType() == EVENT || message.getMessageType() == NOTIFICATION)
+                && aggregateId.equals(getAggregateId(message))) {
+            return result.playBackToEvent(message.getMessageId());
+        }
+        return result;
     }
 
     /**
-     * Loads the aggregate root of type {@code <T>} with given id. If {@code readonly} is true the returned aggregate
-     * will not be modifiable.
+     * Loads the aggregate root of type {@code <T>} that currently contains the entity with given entityId. If no
+     * such aggregate exists an empty aggregate root is returned with given {@code defaultType} as its type. This method
+     * can also be used if the entity is the aggregate root (aggregateId is equal to entityId). If the entity is
+     * associated with more than one aggregate the behavior of this method is unpredictable, though the default behavior
+     * is that any one of the associated aggregates may be returned.
      * <p>
      * If the aggregate is loaded while handling an event of the aggregate, the returned Aggregate will automatically be
-     * replayed back to event currently being handled. Otherwise, the most recent state of the aggregate is loaded.
+     * replayed back to the event currently being handled. Otherwise, the most recent state of the aggregate is loaded.
      *
      * @see Aggregate for more info on how to define an event sourced aggregate root
      */
-    static <T> AggregateRoot<T> loadAggregate(String id, Class<T> aggregateType, boolean readOnly) {
-        AggregateRoot<T> result = get().aggregateRepository().load(id, aggregateType, readOnly);
+    static <T> AggregateRoot<T> loadAggregateFor(String entityId, Class<?> defaultType) {
+        AggregateRoot<T> result = get().aggregateRepository().loadFor(entityId, defaultType);
         DeserializingMessage message = DeserializingMessage.getCurrent();
         if (message != null && (message.getMessageType() == EVENT || message.getMessageType() == NOTIFICATION)
-                && id.equals(getAggregateId(message))) {
+            && entityId.equals(getAggregateId(message))) {
             return result.playBackToEvent(message.getMessageId());
         }
         return result;

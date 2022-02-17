@@ -27,11 +27,21 @@ import org.apache.commons.lang3.reflect.TypeUtils;
 import java.io.ByteArrayInputStream;
 import java.io.InputStream;
 import java.lang.reflect.Type;
+import java.util.ArrayList;
 import java.util.Collection;
+import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
+import java.util.LinkedList;
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
+import java.util.SortedMap;
+import java.util.SortedSet;
+import java.util.TreeMap;
+import java.util.TreeSet;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -44,6 +54,7 @@ public abstract class AbstractSerializer implements Serializer {
     private final Upcaster<SerializedObject<byte[], ?>> upcasterChain;
     @Getter
     private final String format;
+    private final Map<String, String> typeCasters = new ConcurrentHashMap<>();
 
     protected AbstractSerializer(Upcaster<SerializedObject<byte[], ?>> upcasterChain, String format) {
         this.upcasterChain = upcasterChain;
@@ -131,6 +142,11 @@ public abstract class AbstractSerializer implements Serializer {
     public <S extends SerializedObject<byte[], S>> Stream<DeserializingObject<byte[], S>> deserialize(
             Stream<S> dataStream, boolean failOnUnknownType) {
         return upcasterChain.upcast((Stream<SerializedObject<byte[], ?>>) dataStream)
+                .map(s -> {
+                    String type = s.data().getType();
+                    String upcastedType = upcastType(type);
+                    return Objects.equals(type, upcastedType) ? s : s.withData(s.data().withType(upcastedType));
+                })
                 .flatMap(s -> {
                     if (!Objects.equals(format, s.data().getFormat())) {
                         return (Stream) deserializeOtherFormat(s);
@@ -168,6 +184,55 @@ public abstract class AbstractSerializer implements Serializer {
         }
         return doConvert(value, type);
     }
+
+    @SuppressWarnings("unchecked")
+    @Override
+    public <V> V clone(Object value) {
+        if (value == null || value.getClass().isPrimitive() || value instanceof String) {
+            return null;
+        }
+        if (value instanceof Collection<?>) {
+            Collection<?> collection = (Collection<?>) value;
+            if (value instanceof List<?>) {
+                return (V) new ArrayList<>(collection);
+            }
+            if (value instanceof SortedSet<?>) {
+                return (V) new TreeSet<>(collection);
+            }
+            if (value instanceof Set<?>) {
+                return (V) new LinkedHashSet<>(collection);
+            }
+            return (V) new LinkedList<>(collection);
+        }
+        if (value instanceof Map<?, ?>) {
+            Map<?, ?> map = (Map<?, ?>) value;
+            if (value instanceof SortedMap<?, ?>) {
+                return (V) new TreeMap<>(map);
+            }
+            return (V) new LinkedHashMap<>(map);
+        }
+        return (V) doClone(value);
+    }
+
+    @Override
+    public Serializer registerTypeCaster(String oldType, String newType) {
+        typeCasters.put(oldType, newType);
+        return this;
+    }
+
+    @Override
+    public String upcastType(String type) {
+        if (type == null) {
+            return null;
+        }
+        String result = typeCasters.get(type);
+        if (result == null || Objects.equals(result, type)) {
+            return type;
+        }
+        return upcastType(result);
+    }
+
+    protected abstract Object doClone(Object value);
 
     protected abstract <V> V doConvert(Object value, Class<V> type);
 

@@ -12,7 +12,7 @@
  * limitations under the License.
  */
 
-package io.fluxcapacitor.javaclient.persisting.eventsourcing;
+package io.fluxcapacitor.javaclient.modeling;
 
 import java.lang.annotation.Documented;
 import java.lang.annotation.ElementType;
@@ -22,21 +22,10 @@ import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
 @Documented
-@Target(ElementType.TYPE)
+@Target({ElementType.FIELD, ElementType.METHOD})
 @Retention(RetentionPolicy.RUNTIME)
 @Inherited
-public @interface Aggregate {
-    boolean eventSourced() default true;
-
-    int snapshotPeriod() default 0;
-
-    boolean cached() default true;
-
-    boolean commitInBatch() default true;
-
-    boolean searchable() default false;
-
-    String collection() default "";
-
-    String timestampPath() default "";
+public @interface Member {
+    String idProperty() default "";
+    String wither() default "";
 }

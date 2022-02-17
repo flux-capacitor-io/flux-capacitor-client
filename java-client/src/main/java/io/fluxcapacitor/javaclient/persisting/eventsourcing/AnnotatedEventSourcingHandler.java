@@ -19,7 +19,7 @@ import io.fluxcapacitor.common.handling.HandlerInvoker;
 import io.fluxcapacitor.common.handling.HandlerNotFoundException;
 import io.fluxcapacitor.common.handling.ParameterResolver;
 import io.fluxcapacitor.javaclient.common.serialization.DeserializingMessage;
-import io.fluxcapacitor.javaclient.modeling.AggregateRoot;
+import io.fluxcapacitor.javaclient.modeling.Entity;
 
 import java.lang.annotation.Annotation;
 import java.lang.reflect.Method;
@@ -33,17 +33,17 @@ import static io.fluxcapacitor.common.handling.HandlerInspector.inspect;
 
 public class AnnotatedEventSourcingHandler<T> implements EventSourcingHandler<T> {
 
-    private final Class<T> handlerType;
+    private final Class<? extends T> handlerType;
     private final HandlerInvoker<DeserializingMessage> aggregateInvoker;
     private final EventSourcingAggregateParameterResolver<T>
             aggregateResolver = new EventSourcingAggregateParameterResolver<>();
     private final Function<Class<?>, HandlerInvoker<DeserializingMessage>> eventInvokers;
 
-    public AnnotatedEventSourcingHandler(Class<T> handlerType) {
+    public AnnotatedEventSourcingHandler(Class<? extends T> handlerType) {
         this(handlerType, DeserializingMessage.defaultParameterResolvers);
     }
 
-    public AnnotatedEventSourcingHandler(Class<T> handlerType,
+    public AnnotatedEventSourcingHandler(Class<? extends T> handlerType,
                                          List<ParameterResolver<? super DeserializingMessage>> parameterResolvers) {
         this.handlerType = handlerType;
         this.aggregateInvoker = inspect(handlerType, parameterResolvers,
@@ -66,23 +66,23 @@ public class AnnotatedEventSourcingHandler<T> implements EventSourcingHandler<T>
     }
 
     @Override
-    public T invoke(AggregateRoot<T> aggregate, DeserializingMessage message) {
+    public T invoke(Entity<?, T> entity, DeserializingMessage message) {
         return message.apply(m -> {
             Object result;
             HandlerInvoker<DeserializingMessage> invoker;
-            T model = aggregate.get();
+            T model = entity.get();
             boolean handledByAggregate;
             try {
                 try {
-                    aggregateResolver.setAggregate(aggregate);
+                    aggregateResolver.setAggregate(entity);
                     handledByAggregate = aggregateInvoker.canHandle(model, m);
                     invoker = handledByAggregate ? aggregateInvoker : eventInvokers.apply(message.getPayloadClass());
                     result = invoker.invoke(handledByAggregate ? model : m.getPayload(), m);
                 } catch (HandlerNotFoundException e) {
-                    if (model == null) {
+                    if (model == null && entity.holder() == null) {
                         throw new HandlerNotFoundException(String.format(
                                 "Aggregate '%2$s' of type %1$s does not exist and no applicable method exists in %1$s or %3$s that would instantiate a new %1$s.",
-                                aggregate.type().getSimpleName(), aggregate.id(),
+                                entity.type().getSimpleName(), entity.id(),
                                 message.getPayloadClass().getSimpleName()));
                     }
                     return model;
@@ -104,10 +104,10 @@ public class AnnotatedEventSourcingHandler<T> implements EventSourcingHandler<T>
     }
 
     @Override
-    public boolean canHandle(AggregateRoot<T> aggregate, DeserializingMessage message) {
+    public boolean canHandle(Entity<?, T> entity, DeserializingMessage message) {
         try {
-            aggregateResolver.setAggregate(aggregate);
-            return aggregateInvoker.canHandle(aggregate, message)
+            aggregateResolver.setAggregate(entity);
+            return aggregateInvoker.canHandle(entity.get(), message)
                     || eventInvokers.apply(message.getPayloadClass()).canHandle(message.getPayload(), message);
         } finally {
             aggregateResolver.removeAggregate();
@@ -115,7 +115,7 @@ public class AnnotatedEventSourcingHandler<T> implements EventSourcingHandler<T>
     }
 
     public static class EventSourcingAggregateParameterResolver<T> implements ParameterResolver<Object> {
-        private final ThreadLocal<AggregateRoot<T>> currentAggregate = new ThreadLocal<>();
+        private final ThreadLocal<Entity<?, T>> currentAggregate = new ThreadLocal<>();
 
         @Override
         public Function<Object, Object> resolve(Parameter parameter, Annotation methodAnnotation) {
@@ -136,7 +136,7 @@ public class AnnotatedEventSourcingHandler<T> implements EventSourcingHandler<T>
             return true;
         }
 
-        public void setAggregate(AggregateRoot<T> aggregate) {
+        public void setAggregate(Entity<?, T> aggregate) {
             currentAggregate.set(aggregate);
         }
 

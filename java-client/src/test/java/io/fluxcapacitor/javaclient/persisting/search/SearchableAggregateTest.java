@@ -15,7 +15,7 @@
 package io.fluxcapacitor.javaclient.persisting.search;
 
 import io.fluxcapacitor.javaclient.FluxCapacitor;
-import io.fluxcapacitor.javaclient.persisting.eventsourcing.Aggregate;
+import io.fluxcapacitor.javaclient.modeling.Aggregate;
 import io.fluxcapacitor.javaclient.test.TestFixture;
 import io.fluxcapacitor.javaclient.tracking.handling.HandleQuery;
 import lombok.Value;
@@ -33,7 +33,7 @@ public class SearchableAggregateTest {
 
     @Test
     void testAggregateIsSearchableAfterApply() {
-        testFixture.when(fc -> loadAggregate("123", SearchableAggregate.class, false)
+        testFixture.when(fc -> loadAggregate("123", SearchableAggregate.class)
                         .update(a -> new SearchableAggregate("bar")))
                 .expectTrue(fc -> fc.documentStore().search("SearchableAggregate").fetchAll().equals(List.of(new SearchableAggregate("bar"))))
                 .expectFalse(fc -> search(SearchableAggregate.class.getSimpleName()).fetchAll().isEmpty())
@@ -42,16 +42,16 @@ public class SearchableAggregateTest {
 
     @Test
     void testAggregateIsDeletedFromDocumentStoreAutomatically() {
-        testFixture.given(fc -> loadAggregate("123", SearchableAggregate.class, false)
+        testFixture.given(fc -> loadAggregate("123", SearchableAggregate.class)
                         .update(a -> new SearchableAggregate("bar")))
-                .when(fc -> loadAggregate("123", SearchableAggregate.class, false).update(a -> null))
+                .when(fc -> loadAggregate("123", SearchableAggregate.class).update(a -> null))
                 .expectTrue(fc -> search(SearchableAggregate.class.getSimpleName()).fetchAll().isEmpty());
     }
 
     @Test
     void testAggregateWithTimePath() {
         Instant timestamp = Instant.now().minusSeconds(1000);
-        testFixture.when(fc -> loadAggregate("123", SearchableAggregateWithTimePath.class, false)
+        testFixture.when(fc -> loadAggregate("123", SearchableAggregateWithTimePath.class)
                         .update(a -> new SearchableAggregateWithTimePath(timestamp)))
                 .expectTrue(fc -> fc.documentStore().search("SearchableAggregateWithTimePath").fetchAll().equals(List.of(new SearchableAggregateWithTimePath(timestamp))))
                 .expectFalse(fc -> search(SearchableAggregateWithTimePath.class.getSimpleName())
@@ -63,7 +63,7 @@ public class SearchableAggregateTest {
     @Test
     void testAggregateWithTimePathPropertyMissing() {
         Instant timestamp = Instant.now().minusSeconds(1000);
-        testFixture.when(fc -> loadAggregate("123", SearchableAggregateWithMissingTimePath.class, false)
+        testFixture.when(fc -> loadAggregate("123", SearchableAggregateWithMissingTimePath.class)
                         .update(a -> new SearchableAggregateWithMissingTimePath(timestamp)))
                 .expectTrue(fc -> search(SearchableAggregateWithMissingTimePath.class.getSimpleName())
                         .before(timestamp.plusSeconds(1)).fetchAll().isEmpty())
@@ -73,7 +73,7 @@ public class SearchableAggregateTest {
 
     @Test
     void testAggregateWithCustomCollection() {
-        testFixture.when(fc -> loadAggregate("123", SearchableAggregateWithCustomCollection.class, false)
+        testFixture.when(fc -> loadAggregate("123", SearchableAggregateWithCustomCollection.class)
                         .update(a -> new SearchableAggregateWithCustomCollection("bar")))
                 .expectTrue(fc -> fc.documentStore().search("searchables").fetchAll().equals(List.of(new SearchableAggregateWithCustomCollection("bar"))))
                 .expectFalse(fc -> search("searchables").fetchAll().isEmpty());
@@ -81,7 +81,7 @@ public class SearchableAggregateTest {
 
     @Test
     void testAggregateWithCustomCollectionViaQuery() {
-        testFixture.given(fc -> loadAggregate("123", SearchableAggregateWithCustomCollection.class, false)
+        testFixture.given(fc -> loadAggregate("123", SearchableAggregateWithCustomCollection.class)
                         .update(a -> new SearchableAggregateWithCustomCollection("bar")))
                 .whenQuery(new GetAggregates("searchables"))
                 .expectResultContaining(new SearchableAggregateWithCustomCollection("bar"));

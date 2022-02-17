@@ -90,14 +90,25 @@ public interface Serializer {
      * @param <I>               the type of the serialized object
      * @return a stream containing deserialization results
      */
-    <I extends SerializedObject<byte[], I>> Stream<DeserializingObject<byte[], I>> deserialize(Stream<I> dataStream,
-                                                                                               boolean failOnUnknownType);
+    <I extends SerializedObject<byte[], I>> Stream<DeserializingObject<byte[], I>> deserialize(
+            Stream<I> dataStream, boolean failOnUnknownType);
 
     default Stream<DeserializingMessage> deserializeMessages(Stream<SerializedMessage> dataStream,
-                                                             boolean failOnUnknownType, MessageType messageType) {
+                                                             MessageType messageType) {
+        return deserializeMessages(dataStream, messageType, false);
+    }
+
+    default Stream<DeserializingMessage> deserializeMessages(Stream<SerializedMessage> dataStream,
+                                                             MessageType messageType, boolean failOnUnknownType) {
         return deserialize(dataStream, failOnUnknownType).map(s -> new DeserializingMessage(s, messageType));
     }
 
     <V> V convert(Object value, Class<V> type);
+
+    <V> V clone(Object value);
+
+    Serializer registerTypeCaster(String oldType, String newType);
+
+    String upcastType(String type);
 
 }

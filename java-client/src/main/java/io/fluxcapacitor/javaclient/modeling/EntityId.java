@@ -12,15 +12,18 @@
  * limitations under the License.
  */
 
-package io.fluxcapacitor.javaclient.persisting.eventsourcing;
+package io.fluxcapacitor.javaclient.modeling;
 
-import io.fluxcapacitor.javaclient.common.serialization.DeserializingMessage;
-import io.fluxcapacitor.javaclient.modeling.Entity;
+import java.lang.annotation.Documented;
+import java.lang.annotation.ElementType;
+import java.lang.annotation.Inherited;
+import java.lang.annotation.Retention;
+import java.lang.annotation.RetentionPolicy;
+import java.lang.annotation.Target;
 
-public interface EventSourcingHandler<T> {
-
-    T invoke(Entity<?, T> entity, DeserializingMessage message);
-
-    boolean canHandle(Entity<?, T> entity, DeserializingMessage message);
-
+@Documented
+@Target({ElementType.FIELD, ElementType.METHOD})
+@Retention(RetentionPolicy.RUNTIME)
+@Inherited
+public @interface EntityId {
 }

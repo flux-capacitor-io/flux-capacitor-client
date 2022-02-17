@@ -10,40 +10,40 @@ import java.util.function.UnaryOperator;
 @AllArgsConstructor
 public class NamedCache implements Cache {
     private final Cache delegate;
-    private final UnaryOperator<String> idFunction;
+    private final UnaryOperator<Object> idFunction;
 
     @Override
-    public void put(String id, @NonNull Object value) {
+    public void put(Object id, @NonNull Object value) {
         delegate.put(idFunction.apply(id), value);
     }
 
     @Override
-    public void putIfAbsent(String id, @NonNull Object value) {
+    public void putIfAbsent(Object id, @NonNull Object value) {
         delegate.putIfAbsent(idFunction.apply(id), value);
     }
 
     @Override
-    public <T> T computeIfAbsent(String id, Function<? super String, T> mappingFunction) {
+    public <T> T computeIfAbsent(Object id, Function<? super Object, T> mappingFunction) {
         return delegate.computeIfAbsent(idFunction.apply(id), mappingFunction);
     }
 
     @Override
-    public <T> T computeIfPresent(String id, BiFunction<? super String, ? super T, ? extends T> mappingFunction) {
+    public <T> T computeIfPresent(Object id, BiFunction<? super Object, ? super T, ? extends T> mappingFunction) {
         return delegate.computeIfPresent(idFunction.apply(id), mappingFunction);
     }
 
     @Override
-    public <T> T compute(String id, BiFunction<? super String, ? super T, ? extends T> mappingFunction) {
+    public <T> T compute(Object id, BiFunction<? super Object, ? super T, ? extends T> mappingFunction) {
         return delegate.compute(idFunction.apply(id), mappingFunction);
     }
 
     @Override
-    public <T> T getIfPresent(String id) {
+    public <T> T getIfPresent(Object id) {
         return delegate.getIfPresent(idFunction.apply(id));
     }
 
     @Override
-    public void invalidate(String id) {
+    public void invalidate(Object id) {
         delegate.invalidate(idFunction.apply(id));
     }
 

@@ -20,19 +20,19 @@ import java.util.function.BiFunction;
 import java.util.function.Function;
 
 public interface Cache {
-    void put(String id, @NonNull Object value);
+    void put(Object id, @NonNull Object value);
 
-    void putIfAbsent(String id, @NonNull Object value);
+    void putIfAbsent(Object id, @NonNull Object value);
 
-    <T> T computeIfAbsent(String id, Function<? super String, T> mappingFunction);
+    <T> T computeIfAbsent(Object id, Function<? super Object, T> mappingFunction);
 
-    <T> T computeIfPresent(String id, BiFunction<? super String, ? super T, ? extends T> mappingFunction);
+    <T> T computeIfPresent(Object id, BiFunction<? super Object, ? super T, ? extends T> mappingFunction);
 
-    <T> T compute(String id, BiFunction<? super String, ? super T, ? extends T> mappingFunction);
+    <T> T compute(Object id, BiFunction<? super Object, ? super T, ? extends T> mappingFunction);
 
-    <T> T getIfPresent(String id);
+    <T> T getIfPresent(Object id);
 
-    void invalidate(String id);
+    void invalidate(Object id);
 
     void invalidateAll();
 }

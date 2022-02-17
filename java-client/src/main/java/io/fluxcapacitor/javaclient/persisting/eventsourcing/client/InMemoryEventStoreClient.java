@@ -17,6 +17,8 @@ package io.fluxcapacitor.javaclient.persisting.eventsourcing.client;
 import io.fluxcapacitor.common.Awaitable;
 import io.fluxcapacitor.common.Guarantee;
 import io.fluxcapacitor.common.api.SerializedMessage;
+import io.fluxcapacitor.common.api.modeling.GetAggregateIds;
+import io.fluxcapacitor.common.api.modeling.UpdateRelationships;
 import io.fluxcapacitor.javaclient.persisting.eventsourcing.AggregateEventStream;
 import io.fluxcapacitor.javaclient.tracking.client.InMemoryMessageStore;
 
@@ -30,6 +32,7 @@ import java.util.concurrent.CopyOnWriteArrayList;
 public class InMemoryEventStoreClient extends InMemoryMessageStore implements EventStoreClient {
 
     private final Map<String, List<SerializedMessage>> appliedEvents = new ConcurrentHashMap<>();
+    private final Map<String, Map<String, String>> relationships = new ConcurrentHashMap<>();
 
     @Override
     public Awaitable storeEvents(String aggregateId, List<SerializedMessage> events, boolean storeOnly) {
@@ -38,6 +41,16 @@ public class InMemoryEventStoreClient extends InMemoryMessageStore implements Ev
             return Awaitable.ready();
         }
         return super.send(Guarantee.SENT, events.toArray(new SerializedMessage[0]));
+    }
+
+    @Override
+    public Awaitable updateRelationships(UpdateRelationships request) {
+        request.getDissociations().forEach(r -> relationships.computeIfAbsent(
+                r.getEntityId(), entityId -> new ConcurrentHashMap<>()).remove(r.getAggregateId()));
+        request.getAssociations().forEach(r -> relationships.computeIfAbsent(
+                r.getEntityId(), entityId -> new ConcurrentHashMap<>())
+                .put(r.getAggregateId(), r.getAggregateType()));
+        return Awaitable.ready();
     }
 
     @Override
@@ -53,4 +66,8 @@ public class InMemoryEventStoreClient extends InMemoryMessageStore implements Ev
         return CompletableFuture.completedFuture(appliedEvents.remove(aggregateId) != null);
     }
 
+    @Override
+    public Map<String, String> getAggregateIds(GetAggregateIds request) {
+        return Map.copyOf(relationships.getOrDefault(request.getEntityId(), Collections.emptyMap()));
+    }
 }

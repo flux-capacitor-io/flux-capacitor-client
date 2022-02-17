@@ -45,7 +45,7 @@ public class SelectiveCache implements Cache {
     }
 
     @Override
-    public void put(String id, @NonNull Object value) {
+    public void put(Object id, @NonNull Object value) {
         if (selector.test(value)) {
             delegate.put(id, value);
         } else {
@@ -54,7 +54,7 @@ public class SelectiveCache implements Cache {
     }
 
     @Override
-    public void putIfAbsent(String id, @NonNull Object value) {
+    public void putIfAbsent(Object id, @NonNull Object value) {
         if (selector.test(value)) {
             delegate.putIfAbsent(id, value);
         } else {
@@ -63,7 +63,7 @@ public class SelectiveCache implements Cache {
     }
 
     @Override
-    public <T> T computeIfAbsent(String id, Function<? super String, T> mappingFunction) {
+    public <T> T computeIfAbsent(Object id, Function<? super Object, T> mappingFunction) {
         T result = getIfPresent(id);
         if (result == null) {
             synchronized (this) {
@@ -80,7 +80,7 @@ public class SelectiveCache implements Cache {
     }
 
     @Override
-    public <T> T computeIfPresent(String id, BiFunction<? super String, ? super T, ? extends T> mappingFunction) {
+    public <T> T computeIfPresent(Object id, BiFunction<? super Object, ? super T, ? extends T> mappingFunction) {
         T result = getIfPresent(id);
         if (result != null) {
             if (selector.test(result)) {
@@ -92,7 +92,7 @@ public class SelectiveCache implements Cache {
     }
 
     @Override
-    public <T> T compute(String id, BiFunction<? super String, ? super T, ? extends T> mappingFunction) {
+    public <T> T compute(Object id, BiFunction<? super Object, ? super T, ? extends T> mappingFunction) {
         T result = computeIfPresent(id, mappingFunction);
         if (result == null) {
             synchronized (this) {
@@ -111,13 +111,13 @@ public class SelectiveCache implements Cache {
 
     @Override
     @SuppressWarnings("unchecked")
-    public <T> T getIfPresent(String id) {
+    public <T> T getIfPresent(Object id) {
         return (T) Optional
                 .ofNullable(delegate.getIfPresent(id)).orElseGet(() -> nextCache.getIfPresent(id));
     }
 
     @Override
-    public void invalidate(String id) {
+    public void invalidate(Object id) {
         delegate.invalidate(id);
         nextCache.invalidate(id);
     }

@@ -27,6 +27,7 @@ import java.lang.reflect.AccessibleObject;
 import java.lang.reflect.AnnotatedType;
 import java.lang.reflect.Executable;
 import java.lang.reflect.Field;
+import java.lang.reflect.Member;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
 import java.lang.reflect.ParameterizedType;
@@ -55,6 +56,7 @@ import java.util.stream.Stream;
 import static io.fluxcapacitor.common.ObjectUtils.memoize;
 import static java.beans.Introspector.getBeanInfo;
 import static java.lang.Integer.compare;
+import static java.lang.String.format;
 import static java.security.AccessController.doPrivileged;
 import static java.util.Collections.emptyList;
 import static java.util.stream.Collectors.toCollection;
@@ -130,23 +132,37 @@ public class ReflectionUtils {
                              MethodType.methodType(m.getReturnType(), m.getParameterTypes()));
     }
 
-
-    public static Optional<?> getAnnotatedPropertyValue(Object target, Class<? extends Annotation> annotation) {
-        return getAnnotatedProperties(target, annotation).stream().findFirst().map(m -> getValue(m, target));
-    }
-
     public static List<? extends AccessibleObject> getAnnotatedProperties(Object target,
                                                                           Class<? extends Annotation> annotation) {
         if (target == null) {
             return emptyList();
         }
+        return getAnnotatedProperties(target.getClass(), annotation);
+    }
+
+    public static List<? extends AccessibleObject> getAnnotatedProperties(Class<?> target,
+                                                                          Class<? extends Annotation> annotation) {
         List<AccessibleObject> result =
-                new ArrayList<>(FieldUtils.getFieldsListWithAnnotation(target.getClass(), annotation));
-        result.addAll(getMethodsListWithAnnotation(target.getClass(), annotation, true, true).stream()
+                new ArrayList<>(FieldUtils.getFieldsListWithAnnotation(target, annotation));
+        result.addAll(getMethodsListWithAnnotation(target, annotation, true, true).stream()
                               .filter(m -> m.getParameterCount() == 0).collect(toList()));
-        getAllInterfaces(target.getClass())
+        getAllInterfaces(target)
                 .forEach(i -> result.addAll(FieldUtils.getFieldsListWithAnnotation(i, annotation)));
         return result;
+    }
+
+    public static Optional<? extends AccessibleObject> getAnnotatedProperty(Object target,
+                                                                            Class<? extends Annotation> annotation) {
+        return getAnnotatedProperties(target, annotation).stream().findFirst();
+    }
+
+    public static Optional<? extends AccessibleObject> getAnnotatedProperty(Class<?> target,
+                                                                            Class<? extends Annotation> annotation) {
+        return getAnnotatedProperties(target, annotation).stream().findFirst();
+    }
+
+    public static Optional<?> getAnnotatedPropertyValue(Object target, Class<? extends Annotation> annotation) {
+        return getAnnotatedProperty(target, annotation).map(m -> getValue(m, target));
     }
 
     public static List<Method> getAnnotatedMethods(Object target, Class<? extends Annotation> annotation) {
@@ -231,17 +247,63 @@ public class ReflectionUtils {
                 .or(() -> Optional.ofNullable(MethodUtils.getMatchingMethod(type, propertyName)))
                 .or(() -> Optional.ofNullable(FieldUtils.getField(type, propertyName, true)))
                 .<Function<Object, Object>>map(a -> target -> getValue(a, target))
-                .orElseThrow(() -> new PropertyNotFoundException(propertyName, type));
+                .orElseGet(() -> o -> {
+                    throw new PropertyNotFoundException(propertyName, type);
+                });
     }
 
     @SneakyThrows
-    private static Object getValue(AccessibleObject fieldOrMethod, Object target) {
+    public static Object getValue(AccessibleObject fieldOrMethod, Object target) {
         ensureAccessible(fieldOrMethod);
         if (fieldOrMethod instanceof Method) {
-            return ((Method) fieldOrMethod).invoke(target);
+            Method method = (Method) fieldOrMethod;
+            if (target == null && !Modifier.isStatic(method.getModifiers())) {
+                return null;
+            }
+            return method.invoke(target);
         }
         if (fieldOrMethod instanceof Field) {
-            return ((Field) fieldOrMethod).get(target);
+            Field field = (Field) fieldOrMethod;
+            if (target == null && !Modifier.isStatic(field.getModifiers())) {
+                return null;
+            }
+            return field.get(target);
+        }
+        throw new IllegalStateException("Object property should be field or method: " + fieldOrMethod);
+    }
+
+    @SneakyThrows
+    public static String getName(AccessibleObject fieldOrMethod) {
+        if (fieldOrMethod instanceof Member) {
+            return ((Member) fieldOrMethod).getName();
+        }
+        throw new IllegalStateException("Object property should be field or method: " + fieldOrMethod);
+    }
+
+    @SneakyThrows
+    public static Class<?> getEnclosingClass(AccessibleObject fieldOrMethod) {
+        if (fieldOrMethod instanceof Member) {
+            return ((Member) fieldOrMethod).getDeclaringClass();
+        }
+        throw new IllegalStateException("Object property should be field or method: " + fieldOrMethod);
+    }
+
+    public static Class<?> getPropertyType(AccessibleObject fieldOrMethod) {
+        if (fieldOrMethod instanceof Method) {
+            return ((Method) fieldOrMethod).getReturnType();
+        }
+        if (fieldOrMethod instanceof Field) {
+            return ((Field) fieldOrMethod).getType();
+        }
+        throw new IllegalStateException("Object property should be field or method: " + fieldOrMethod);
+    }
+
+    public static Type getGenericPropertyType(AccessibleObject fieldOrMethod) {
+        if (fieldOrMethod instanceof Method) {
+            return ((Method) fieldOrMethod).getGenericReturnType();
+        }
+        if (fieldOrMethod instanceof Field) {
+            return ((Field) fieldOrMethod).getGenericType();
         }
         throw new IllegalStateException("Object property should be field or method: " + fieldOrMethod);
     }
@@ -285,7 +347,9 @@ public class ReflectionUtils {
                 .<AccessibleObject>map(PropertyDescriptor::getWriteMethod).filter(Objects::nonNull).findFirst()
                 .or(() -> Optional.ofNullable(FieldUtils.getField(type, propertyName, true)))
                 .<BiConsumer<Object, Object>>map(a -> (target, value) -> setValue(a, target, value))
-                .orElseThrow(() -> new PropertyNotFoundException(propertyName, type));
+                .orElseGet(() -> (t, v) -> {
+                    throw new PropertyNotFoundException(propertyName, type);
+                });
     }
 
     @SneakyThrows
@@ -305,22 +369,61 @@ public class ReflectionUtils {
                 || annotation.annotationType().isAnnotationPresent(annotationType));
     }
 
+    @SneakyThrows
+    public static Class<?> getPropertyType(Class<?> target, String propertyName) {
+        Field field = FieldUtils.getField(target, propertyName);
+        return field != null ? field.getType() :
+                Arrays.stream(getBeanInfo(target, Object.class).getPropertyDescriptors())
+                        .filter(d -> propertyName.equals(d.getName()))
+                        .map(PropertyDescriptor::getPropertyType).findFirst()
+                        .orElseThrow(() -> new IllegalStateException(
+                                format("Property %s could not be found on target class %s", propertyName, target)));
+    }
+
+    public static Optional<Field> getField(Class<?> owner, String name) {
+        while (owner != null) {
+            for (Field declaredField : owner.getDeclaredFields()) {
+                if (declaredField.getName().equals(name)) {
+                    return Optional.of(declaredField);
+                }
+            }
+            owner = owner.getSuperclass();
+        }
+        return Optional.empty();
+    }
+
     @Value
     private static class PropertyNotFoundException extends RuntimeException {
         @NonNull String propertyName;
         @NonNull Class<?> type;
     }
 
-    public static Class<?> getCollectionElementType(Type parameterizedType) {
+    public static Optional<Class<?>> getCollectionElementType(AccessibleObject fieldOrMethod) {
+        if (fieldOrMethod instanceof Method) {
+            return getCollectionElementType(((Method) fieldOrMethod).getGenericReturnType());
+        }
+        if (fieldOrMethod instanceof Field) {
+            return getCollectionElementType(((Field) fieldOrMethod).getGenericType());
+        }
+        throw new IllegalStateException("Object property should be field or method: " + fieldOrMethod);
+    }
+
+    public static Optional<Class<?>> getCollectionElementType(Type parameterizedType) {
         if (parameterizedType instanceof ParameterizedType) {
-            Type elementType = ((ParameterizedType) parameterizedType).getActualTypeArguments()[0];
+            Type elementType;
+            Type rawType = ((ParameterizedType) parameterizedType).getRawType();
+            if (rawType instanceof Class<?> && Map.class.isAssignableFrom((Class<?>) rawType)) {
+                elementType = ((ParameterizedType) parameterizedType).getActualTypeArguments()[1];
+            } else {
+                elementType = ((ParameterizedType) parameterizedType).getActualTypeArguments()[0];
+            }
             if (elementType instanceof WildcardType) {
                 Type[] upperBounds = ((WildcardType) elementType).getUpperBounds();
                 elementType = upperBounds.length > 0 ? upperBounds[0] : null;
             }
-            return elementType instanceof Class<?> ? (Class<?>) elementType : Object.class;
+            return Optional.of(elementType instanceof Class<?> ? (Class<?>) elementType : Object.class);
         }
-        return Object.class;
+        return Optional.empty();
     }
 
     public static boolean declaresField(Class<?> target, String fieldName) {
@@ -437,6 +540,27 @@ public class ReflectionUtils {
         } catch (Exception e) {
             return false;
         }
+    }
+
+    @SneakyThrows
+    public static <V> V copyFields(V source, V target) {
+        if (target == null || source == null) {
+            return target;
+        }
+        if (!source.getClass().equals(target.getClass())) {
+            throw new IllegalArgumentException("Source and target class should be equal");
+        }
+        Class<?> type = source.getClass();
+        if (type.isPrimitive() || type.isArray()) {
+            return source;
+        }
+        while (type != null) {
+            for (Field field : type.getDeclaredFields()) {
+                ensureAccessible(field).set(target, field.get(source));
+            }
+            type = type.getSuperclass();
+        }
+        return target;
     }
 
     @SneakyThrows

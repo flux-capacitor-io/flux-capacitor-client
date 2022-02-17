@@ -1,7 +1,6 @@
 package io.fluxcapacitor.javaclient.modeling;
 
 import io.fluxcapacitor.javaclient.MockException;
-import io.fluxcapacitor.javaclient.persisting.eventsourcing.Aggregate;
 import io.fluxcapacitor.javaclient.persisting.eventsourcing.ApplyEvent;
 import io.fluxcapacitor.javaclient.test.TestFixture;
 import io.fluxcapacitor.javaclient.tracking.handling.HandleCommand;
@@ -58,11 +57,11 @@ public class AssertLegalTest {
         CommandWithAssertionsForDifferentModels
                 command = new CommandWithAssertionsForDifferentModels();
         TestFixture.create()
-                .when(fc -> loadAggregate("1", Model1.class, false).assertLegal(command))
+                .when(fc -> loadAggregate("1", Model1.class).assertLegal(command))
                 .expectThat(fc -> assertEquals(1, command.getAssertionCount().get()));
 
         TestFixture.create()
-                .when(fc -> loadAggregate("2", Model2.class, false).assertLegal(command))
+                .when(fc -> loadAggregate("2", Model2.class).assertLegal(command))
                 .expectThat(fc -> assertEquals(3, command.getAssertionCount().get()));
     }
 

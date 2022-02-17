@@ -6,6 +6,7 @@ import lombok.NonNull;
 import lombok.ToString;
 
 import java.time.Instant;
+import java.util.Collection;
 
 public abstract class DelegatingAggregateRoot<T, A extends AggregateRoot<T>> implements AggregateRoot<T> {
     @ToString.Include
@@ -24,7 +25,7 @@ public abstract class DelegatingAggregateRoot<T, A extends AggregateRoot<T>> imp
     }
 
     @Override
-    public String id() {
+    public Object id() {
         return delegate.id();
     }
 
@@ -36,6 +37,16 @@ public abstract class DelegatingAggregateRoot<T, A extends AggregateRoot<T>> imp
     @Override
     public T get() {
         return delegate.get();
+    }
+
+    @Override
+    public Holder holder() {
+        return delegate.holder();
+    }
+
+    @Override
+    public String idProperty() {
+        return delegate.idProperty();
     }
 
     @Override
@@ -61,5 +72,10 @@ public abstract class DelegatingAggregateRoot<T, A extends AggregateRoot<T>> imp
     @Override
     public AggregateRoot<T> previous() {
         return delegate.previous();
+    }
+
+    @Override
+    public Collection<Entity<?, ?>> entities() {
+        return delegate.entities();
     }
 }

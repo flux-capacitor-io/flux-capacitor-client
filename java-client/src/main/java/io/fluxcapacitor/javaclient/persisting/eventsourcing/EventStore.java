@@ -19,6 +19,7 @@ import io.fluxcapacitor.javaclient.common.serialization.DeserializingMessage;
 import io.fluxcapacitor.javaclient.tracking.handling.HasLocalHandlers;
 
 import java.util.List;
+import java.util.Map;
 
 import static java.util.Arrays.asList;
 
@@ -39,4 +40,6 @@ public interface EventStore extends HasLocalHandlers {
     }
 
     AggregateEventStream<DeserializingMessage> getEvents(String aggregateId, long lastSequenceNumber);
+
+    Map<String, Class<?>> getAggregatesFor(String entityId);
 }

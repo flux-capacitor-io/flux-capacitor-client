@@ -22,7 +22,7 @@ import io.fluxcapacitor.common.serialization.Revision;
 import io.fluxcapacitor.javaclient.FluxCapacitor;
 import io.fluxcapacitor.javaclient.common.serialization.jackson.JacksonSerializer;
 import io.fluxcapacitor.javaclient.configuration.DefaultFluxCapacitor;
-import io.fluxcapacitor.javaclient.persisting.eventsourcing.Aggregate;
+import io.fluxcapacitor.javaclient.modeling.Aggregate;
 import io.fluxcapacitor.javaclient.persisting.eventsourcing.ApplyEvent;
 import io.fluxcapacitor.javaclient.test.TestFixture;
 import io.fluxcapacitor.javaclient.tracking.handling.HandleCommand;
