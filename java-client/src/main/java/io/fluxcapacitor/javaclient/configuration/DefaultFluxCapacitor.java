@@ -235,6 +235,7 @@ public class DefaultFluxCapacitor implements FluxCapacitor {
         private SchedulingInterceptor schedulingInterceptor = new SchedulingInterceptor();
         private ForwardingWebConsumer forwardingWebConsumer;
         private Cache cache = new DefaultCache();
+        private Cache relationshipsCache = new DefaultCache(100_000);
         private WebResponseMapper webResponseMapper = new DefaultWebResponseMapper();
         private boolean disableErrorReporting;
         private boolean disableMessageCorrelation;
@@ -372,6 +373,12 @@ public class DefaultFluxCapacitor implements FluxCapacitor {
         @Override
         public FluxCapacitorBuilder withAggregateCache(Class<?> aggregateType, Cache cache) {
             this.cache = new SelectiveCache(cache, SelectiveCache.aggregateSelector(aggregateType), this.cache);
+            return this;
+        }
+
+        @Override
+        public FluxCapacitorBuilder replaceRelationshipsCache(UnaryOperator<Cache> replaceFunction) {
+            relationshipsCache = replaceFunction.apply(relationshipsCache);
             return this;
         }
 
@@ -523,7 +530,6 @@ public class DefaultFluxCapacitor implements FluxCapacitor {
                     new DefaultSnapshotStore(client.getKeyValueClient(), snapshotSerializer);
 
             Cache aggregateCache = new NamedCache(cache, id -> "$Aggregate:" + id);
-            Cache relationshipsCache = new DefaultCache(100_000);
             AggregateRepository aggregateRepository = new DefaultAggregateRepository(
                     eventStore, snapshotRepository, aggregateCache, relationshipsCache, documentStore,
                     serializer, dispatchInterceptors.get(EVENT), eventSourcingHandlerFactory);
