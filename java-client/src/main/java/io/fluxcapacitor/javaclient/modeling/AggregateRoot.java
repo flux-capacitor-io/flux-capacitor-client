@@ -14,10 +14,16 @@
 
 package io.fluxcapacitor.javaclient.modeling;
 
+import com.google.common.collect.Sets;
+import io.fluxcapacitor.common.api.modeling.Relationship;
+
 import java.time.Instant;
+import java.util.Collections;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.Set;
 import java.util.function.Predicate;
+import java.util.stream.Collectors;
 
 import static java.lang.String.format;
 
@@ -56,5 +62,23 @@ public interface AggregateRoot<T> extends Entity<AggregateRoot<T>, T> {
             return this;
         }
         return new ReadOnlyAggregateRoot<>(this);
+    }
+
+    default Set<Relationship> relationships() {
+        String id = id().toString();
+        String type = type().getName();
+        return get() == null ? Collections.emptySet()
+                : allEntities().stream().map(Entity::id).filter(Objects::nonNull)
+                .map(entityId -> Relationship.builder().entityId(entityId.toString()).aggregateType(type)
+                        .aggregateId(id).build())
+                .collect(Collectors.toSet());
+    }
+
+    default Set<Relationship> associations(AggregateRoot<?> previous) {
+        return Sets.difference(relationships(), previous.relationships());
+    }
+
+    default Set<Relationship> dissociations(AggregateRoot<?> previous) {
+        return Sets.difference(previous.relationships(), relationships());
     }
 }

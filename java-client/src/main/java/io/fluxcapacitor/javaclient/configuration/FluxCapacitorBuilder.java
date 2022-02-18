@@ -75,6 +75,8 @@ public interface FluxCapacitorBuilder {
      */
     FluxCapacitorBuilder withAggregateCache(Class<?> aggregateType, Cache cache);
 
+    FluxCapacitorBuilder replaceRelationshipsCache(UnaryOperator<Cache> replaceFunction);
+
     FluxCapacitorBuilder addParameterResolver(ParameterResolver<DeserializingMessage> parameterResolver);
 
     /**
