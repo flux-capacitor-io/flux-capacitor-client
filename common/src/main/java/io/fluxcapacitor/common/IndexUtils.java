@@ -14,7 +14,6 @@
 
 package io.fluxcapacitor.common;
 
-import java.time.Clock;
 import java.time.Instant;
 
 /**
@@ -24,16 +23,6 @@ import java.time.Instant;
  * The index is only able to store 2^47 - 1 ms of time since epoch, i.e. about 4,500 years.
  */
 public class IndexUtils {
-
-    public static final ThreadLocal<Clock> clock = ThreadLocal.withInitial(Clock::systemUTC);
-
-    public static Instant currentTime() {
-        return clock.get().instant();
-    }
-
-    public static long currentTimeMillis() {
-        return clock.get().millis();
-    }
 
     public static long millisFromIndex(long index) {
         return index >> 16;
@@ -49,10 +38,6 @@ public class IndexUtils {
 
     public static long indexFromMillis(long millisSinceEpoch) {
         return millisSinceEpoch << 16;
-    }
-
-    public static long indexForCurrentTime() {
-        return clock.get().millis() << 16;
     }
 
     public static int offsetFromIndex(long index) {

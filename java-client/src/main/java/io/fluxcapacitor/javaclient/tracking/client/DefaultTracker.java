@@ -32,6 +32,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
+import java.util.function.Predicate;
 import java.util.stream.IntStream;
 
 import static io.fluxcapacitor.common.TimingUtils.retryOnFailure;
@@ -39,6 +40,7 @@ import static io.fluxcapacitor.javaclient.tracking.BatchInterceptor.join;
 import static java.lang.String.format;
 import static java.lang.Thread.currentThread;
 import static java.util.Comparator.naturalOrder;
+import static java.util.Optional.ofNullable;
 import static java.util.concurrent.Executors.newFixedThreadPool;
 import static java.util.stream.Collectors.toList;
 
@@ -66,6 +68,7 @@ import static java.util.stream.Collectors.toList;
 @Slf4j
 public class DefaultTracker implements Runnable, Registration {
 
+    private final Consumer<List<SerializedMessage>> consumer;
     private final Tracker tracker;
     private final Consumer<MessageBatch> processor;
 
@@ -74,6 +77,8 @@ public class DefaultTracker implements Runnable, Registration {
     private final AtomicBoolean running = new AtomicBoolean();
     private final AtomicReference<Thread> thread = new AtomicReference<>();
     private final Duration retryDelay;
+    private final Long maxIndexExclusive;
+    private final Long minIndex;
     private volatile Long lastProcessedIndex;
     private volatile boolean processing;
 
@@ -116,11 +121,14 @@ public class DefaultTracker implements Runnable, Registration {
 
     private DefaultTracker(Consumer<List<SerializedMessage>> consumer, ConsumerConfiguration config, Tracker tracker,
                            TrackingClient trackingClient) {
+        this.consumer = consumer;
         this.tracker = tracker;
-        this.processor = join(config.getBatchInterceptors()).intercept(b -> process(b, consumer), tracker);
+        this.processor = join(config.getBatchInterceptors()).intercept(this::process, tracker);
         this.trackingClient = trackingClient;
         this.retryDelay = Duration.ofSeconds(1);
-        this.lastProcessedIndex = config.getLastIndex();
+        this.lastProcessedIndex = ofNullable(config.getMinIndex()).map(i -> i - 1).orElse(null);
+        this.minIndex = config.getMinIndex();
+        this.maxIndexExclusive = config.getMaxIndexExclusive();
     }
 
     @Override
@@ -145,37 +153,86 @@ public class DefaultTracker implements Runnable, Registration {
                               retryDelay, e -> running.get());
     }
 
-    protected void process(MessageBatch messageBatch, Consumer<List<SerializedMessage>> consumer) {
+    protected void process(MessageBatch batch) {
+        Long lastIndex = batch.getLastIndex();
         try {
             processing = true;
-            List<SerializedMessage> messages = messageBatch.getMessages();
-            if (messages.isEmpty() || !running.get()) {
+            if (batch.getMessages().isEmpty() || !running.get()) {
                 return;
             }
-            try {
-                consumer.accept(messages);
-            } catch (BatchProcessingException e) {
-                log.error("Consumer {} failed to handle batch of {} messages at index {} and did not handle exception. "
-                                  + "Consumer will be updated to the last processed index and then stopped.",
-                          tracker.getName(), messages.size(), e.getMessageIndex());
-                updatePosition(messages.stream().map(SerializedMessage::getIndex)
-                                       .filter(i -> e.getMessageIndex() != null && i != null && i < e.getMessageIndex())
-                                       .max(naturalOrder()).orElse(null), messageBatch.getSegment());
-                processing = false;
-                cancel();
-                return;
-            } catch (Exception e) {
-                log.error("Consumer {} failed to handle batch of {} messages and did not handle exception. "
-                                  + "Tracker will be stopped.", tracker.getName(), messages.size(), e);
-                processing = false;
-                cancel();
+            batch = filterBatchIfNeeded(batch);
+            if (batch.getMessages().isEmpty()) {
+                updatePosition(batch.getLastIndex(), batch.getSegment());
                 return;
             }
-            updatePosition(messageBatch.getLastIndex(), messageBatch.getSegment());
+            doProcess(consumer, batch);
         } finally {
             processing = false;
+            if (isMaxIndexReached(lastIndex)) {
+                cancel();
+            }
         }
     }
+
+    private boolean isMaxIndexReached(Long lastIndex) {
+        return maxIndexExclusive != null && maxIndexExclusive <= lastIndex;
+    }
+
+    private MessageBatch filterBatchIfNeeded(MessageBatch batch) {
+        if (shouldFilterBatch(batch)) {
+            var filter = messageIndexFilter();
+            var newLastIndex = isMaxIndexReached(batch.getLastIndex()) ? maxIndexExclusive - 1 :
+                    minIndex == null ? batch.getLastIndex() : Math.max(minIndex, batch.getLastIndex());
+            batch = new MessageBatch(batch.getSegment(),
+                                     batch.getMessages().stream().filter(filter).collect(toList()),
+                                     newLastIndex);
+        }
+        return batch;
+    }
+
+    private boolean shouldFilterBatch(MessageBatch batch) {
+        return isMaxIndexReached(batch.getLastIndex()) || (minIndex != null && !batch.getMessages().isEmpty()
+                && minIndex > batch.getMessages().get(0).getIndex());
+    }
+
+    private Predicate<SerializedMessage> messageIndexFilter() {
+        Predicate<SerializedMessage> filter = i -> true;
+        if (maxIndexExclusive != null) {
+            filter = filter.and(i -> i.getIndex() < maxIndexExclusive);
+        }
+        if (minIndex != null) {
+            filter = filter.and(i -> i.getIndex() >= minIndex);
+        }
+        return filter;
+    }
+
+
+    private void doProcess(Consumer<List<SerializedMessage>> consumer, MessageBatch messageBatch) {
+        List<SerializedMessage> messages = messageBatch.getMessages();
+        try {
+            consumer.accept(messages);
+        } catch (BatchProcessingException e) {
+            log.error(
+                    "Consumer {} failed to handle batch of {} messages at index {} and did not handle exception. "
+                            + "Consumer will be updated to the last processed index and then stopped.",
+                    tracker.getName(), messages.size(), e.getMessageIndex());
+            updatePosition(messages.stream().map(SerializedMessage::getIndex)
+                                   .filter(i -> e.getMessageIndex() != null && i != null
+                                           && i < e.getMessageIndex())
+                                   .max(naturalOrder()).orElse(null), messageBatch.getSegment());
+            processing = false;
+            cancel();
+            return;
+        } catch (Exception e) {
+            log.error("Consumer {} failed to handle batch of {} messages and did not handle exception. "
+                              + "Tracker will be stopped.", tracker.getName(), messages.size(), e);
+            processing = false;
+            cancel();
+            return;
+        }
+        updatePosition(messageBatch.getLastIndex(), messageBatch.getSegment());
+    }
+
 
     private void updatePosition(Long index, int[] segment) {
         if (index != null) {

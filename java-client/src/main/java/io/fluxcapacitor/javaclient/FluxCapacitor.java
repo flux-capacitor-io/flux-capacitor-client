@@ -125,6 +125,27 @@ public interface FluxCapacitor extends AutoCloseable {
     }
 
     /**
+     * Gets the current time given the current clock.
+     */
+    static Instant currentTime() {
+        return currentClock().instant();
+    }
+
+    /**
+     * Gets the current time given the current clock in milliseconds.
+     */
+    static long currentTimeMillis() {
+        return currentClock().millis();
+    }
+
+    /**
+     * Creates a message index that corresponds to the current time.
+     */
+    static long indexForCurrentTime() {
+        return currentTimeMillis() << 16;
+    }
+
+    /**
      * Gets the {@link IdentityProvider} of the current FluxCapacitor to generate a unique identifier.
      * If there is no current FluxCapacitor instance a new UUID is generated.
      */

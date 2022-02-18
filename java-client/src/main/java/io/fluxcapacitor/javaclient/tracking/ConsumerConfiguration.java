@@ -62,7 +62,15 @@ public class ConsumerConfiguration {
     @Default
     TrackingStrategy readStrategy = TrackingStrategy.NEW;
     @Default
-    Long lastIndex = null;
+    Long minIndex = null;
+    @Default
+    Long maxIndexExclusive = null;
+    @Default
+    @Accessors(fluent = true)
+    boolean exclusive = true;
+    @Default
+    @Accessors(fluent = true)
+    boolean passive = false;
     @Default
     Function<Client, String> trackerIdFactory = client -> String.format("%s_%s", client.id(), UUID.randomUUID());
     @Default

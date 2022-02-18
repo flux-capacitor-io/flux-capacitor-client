@@ -36,6 +36,7 @@ import lombok.extern.slf4j.Slf4j;
 import java.lang.reflect.Executable;
 import java.time.Duration;
 import java.util.AbstractMap.SimpleEntry;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashSet;
@@ -54,7 +55,6 @@ import static io.fluxcapacitor.javaclient.common.ClientUtils.isLocalHandlerMetho
 import static io.fluxcapacitor.javaclient.common.ClientUtils.waitForResults;
 import static io.fluxcapacitor.javaclient.common.serialization.DeserializingMessage.handleBatch;
 import static java.lang.String.format;
-import static java.util.stream.Collectors.groupingBy;
 import static java.util.stream.Collectors.toList;
 import static java.util.stream.Collectors.toMap;
 
@@ -77,17 +77,15 @@ public class DefaultTracking implements Tracking {
     @Synchronized
     public Registration start(FluxCapacitor fluxCapacitor, List<?> handlers) {
         return fluxCapacitor.apply(fc -> {
-            Map<ConsumerConfiguration, List<Handler<DeserializingMessage>>> consumers = handlers.stream()
-                    .collect(groupingBy(h -> configurations.stream()
-                            .filter(config -> config.getHandlerFilter().test(h)).findFirst()
-                            .orElseThrow(() -> new TrackingException(format("Failed to find consumer for %s", h)))))
-                    .entrySet().stream().flatMap(e -> {
+            Map<ConsumerConfiguration, List<Handler<DeserializingMessage>>> consumers =
+                    assignHandlersToConsumers(handlers).entrySet().stream().flatMap(e -> {
                         List<Handler<DeserializingMessage>> converted = e.getValue().stream().flatMap(
                                 target -> handlerFactory.createHandler(target, e.getKey().getName(), handlerFilter)
                                         .stream()).collect(toList());
                         return converted.isEmpty() ? Stream.empty() :
                                 Stream.of(new SimpleEntry<>(e.getKey(), converted));
                     }).collect(toMap(Entry::getKey, Entry::getValue));
+
 
             if (!Collections.disjoint(consumers.keySet(), startedConfigurations)) {
                 throw new TrackingException("Failed to start tracking. "
@@ -101,6 +99,23 @@ public class DefaultTracking implements Tracking {
             shutdownFunction.updateAndGet(r -> r.merge(registration));
             return registration;
         });
+    }
+
+    private Map<ConsumerConfiguration, List<Object>> assignHandlersToConsumers(List<?> handlers) {
+        var unassignedHandlers = new ArrayList<Object>(handlers);
+        var assignedHandlers = configurations.stream().map(config -> {
+            var matches =
+                    unassignedHandlers.stream().filter(h -> config.getHandlerFilter().test(h)).collect(toList());
+            if (config.exclusive()) {
+                unassignedHandlers.removeAll(matches);
+            }
+            return Map.entry(config, matches);
+        }).collect(toMap(Entry::getKey, Entry::getValue));
+        unassignedHandlers.removeAll(assignedHandlers.values().stream().flatMap(Collection::stream).distinct().collect(toList()));
+        unassignedHandlers.forEach(h -> {
+            throw new TrackingException(format("Failed to find consumer for %s", h));
+        });
+        return assignedHandlers;
     }
 
     protected Registration startTracking(ConsumerConfiguration configuration,
@@ -156,7 +171,7 @@ public class DefaultTracking implements Tracking {
             exception = e;
         }
         SerializedMessage serializedMessage = message.getSerializedObject();
-        boolean shouldSendResponse = shouldSendResponse(handler, message);
+        boolean shouldSendResponse = shouldSendResponse(handler, message, config);
         if (result instanceof CompletableFuture<?>) {
             CompletableFuture<?> future = ((CompletableFuture<?>) result).whenComplete((r, e) -> {
                 Throwable error = ObjectUtils.unwrapException(e);
@@ -192,12 +207,12 @@ public class DefaultTracking implements Tracking {
     }
 
     @SneakyThrows
-    private boolean shouldSendResponse(Handler<DeserializingMessage> handler, DeserializingMessage message) {
+    private boolean shouldSendResponse(Handler<DeserializingMessage> handler, DeserializingMessage message, ConsumerConfiguration config) {
         SerializedMessage serializedMessage = message.getSerializedObject();
         if (serializedMessage.getRequestId() == null) {
             return false;
         }
-        return !handler.isPassive(message);
+        return !config.passive() && !handler.isPassive(message);
     }
 
     @Override

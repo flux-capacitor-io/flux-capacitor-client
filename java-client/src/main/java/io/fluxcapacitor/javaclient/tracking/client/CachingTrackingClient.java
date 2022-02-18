@@ -15,7 +15,6 @@
 package io.fluxcapacitor.javaclient.tracking.client;
 
 import io.fluxcapacitor.common.Awaitable;
-import io.fluxcapacitor.common.IndexUtils;
 import io.fluxcapacitor.common.Registration;
 import io.fluxcapacitor.common.api.SerializedMessage;
 import io.fluxcapacitor.common.api.tracking.ClaimSegmentResult;
@@ -74,7 +73,7 @@ public class CachingTrackingClient implements TrackingClient {
         if (started.compareAndSet(false, true)) {
             ConsumerConfiguration cacheFillerConfig = ConsumerConfiguration.builder()
                     .messageType(config.getMessageType()).ignoreSegment(true)
-                    .lastIndex(IndexUtils.indexForCurrentTime())
+                    .minIndex(FluxCapacitor.indexForCurrentTime())
                     .name(CachingTrackingClient.class.getSimpleName()).build();
             registration = FluxCapacitor.getOptionally()
                     .map(fc -> DefaultTracker.start(this::cacheNewMessages, cacheFillerConfig, fc.client()))
