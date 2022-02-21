@@ -18,11 +18,8 @@ import io.fluxcapacitor.common.api.Metadata;
 import io.fluxcapacitor.javaclient.common.Message;
 import io.fluxcapacitor.javaclient.common.serialization.DeserializingMessage;
 import io.fluxcapacitor.javaclient.publishing.routing.RoutingKey;
-import io.fluxcapacitor.javaclient.tracking.handling.validation.ValidationUtils;
 
-import java.util.Arrays;
 import java.util.Collection;
-import java.util.Iterator;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.function.Function;
@@ -90,23 +87,7 @@ public interface Entity<M extends Entity<M, T>, T> {
         return assertLegal(new Object[]{command});
     }
 
-    @SuppressWarnings("unchecked")
-    default <E extends Exception> M assertLegal(Object... commands) throws E {
-        if (commands.length > 0) {
-            M result = (M) this;
-            Collection<Entity<?, ?>> entities = entities();
-            Iterator<Object> iterator = Arrays.stream(commands).iterator();
-            while (iterator.hasNext()) {
-                Object c = iterator.next();
-                ValidationUtils.assertLegal(c, result);
-                entities.stream().filter(e -> e.isPossibleTarget(c)).findFirst().ifPresent(e -> e.assertLegal(c));
-                if (iterator.hasNext()) {
-                    result = result.apply(Message.asMessage(c));
-                }
-            }
-        }
-        return (M) this;
-    }
+    <E extends Exception> M assertLegal(Object... commands) throws E;
 
     default boolean isPossibleTarget(Object message) {
         if (message == null) {

@@ -29,6 +29,12 @@ import static java.lang.String.format;
 
 public interface AggregateRoot<T> extends Entity<AggregateRoot<T>, T> {
 
+    ThreadLocal<Boolean> loading = ThreadLocal.withInitial(() -> false);
+
+    static boolean isLoading() {
+        return loading.get();
+    }
+
     String AGGREGATE_ID_METADATA_KEY = "$aggregateId";
     String AGGREGATE_TYPE_METADATA_KEY = "$aggregateType";
 

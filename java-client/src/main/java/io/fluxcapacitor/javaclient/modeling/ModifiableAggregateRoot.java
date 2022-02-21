@@ -11,6 +11,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Supplier;
 import java.util.function.UnaryOperator;
@@ -26,10 +27,14 @@ public class ModifiableAggregateRoot<T> extends DelegatingAggregateRoot<T, Immut
             ThreadLocal.withInitial(HashMap::new);
 
     @SuppressWarnings("unchecked")
+    public static <T> Optional<ModifiableAggregateRoot<T>> getIfActive(String aggregateId) {
+        return ofNullable((ModifiableAggregateRoot<T>) activeAggregates.get().get(aggregateId));
+    }
+
     public static <T> ModifiableAggregateRoot<T> load(
             String aggregateId, Supplier<ImmutableAggregateRoot<T>> loader, boolean commitInBatch,
             Serializer serializer, DispatchInterceptor dispatchInterceptor, CommitHandler commitHandler) {
-        return ofNullable((ModifiableAggregateRoot<T>) activeAggregates.get().get(aggregateId)).orElseGet(
+        return ModifiableAggregateRoot.<T>getIfActive(aggregateId).orElseGet(
                 () -> new ModifiableAggregateRoot<>(
                         loader.get(), commitInBatch, serializer, dispatchInterceptor, commitHandler));
     }
@@ -44,6 +49,9 @@ public class ModifiableAggregateRoot<T> extends DelegatingAggregateRoot<T, Immut
 
     private final AtomicBoolean waitingForHandlerEnd = new AtomicBoolean(), waitingForBatchEnd = new AtomicBoolean();
     private final List<DeserializingMessage> applied = new ArrayList<>(), uncommitted = new ArrayList<>();
+    private final List<Message> queued = new ArrayList<>();
+
+    private volatile boolean applying;
 
     protected ModifiableAggregateRoot(ImmutableAggregateRoot<T> delegate, boolean commitInBatch,
                                       Serializer serializer, DispatchInterceptor dispatchInterceptor,
@@ -59,28 +67,44 @@ public class ModifiableAggregateRoot<T> extends DelegatingAggregateRoot<T, Immut
 
     @Override
     public ModifiableAggregateRoot<T> apply(Message message) {
+        if (applying) {
+            queued.add(message);
+            return this;
+        }
         Message m = dispatchInterceptor.interceptDispatch(message.addMetadata(
                 AggregateRoot.AGGREGATE_ID_METADATA_KEY, id(),
                 AggregateRoot.AGGREGATE_TYPE_METADATA_KEY, type().getName()), EVENT);
         DeserializingMessage eventMessage = new DeserializingMessage(
                 dispatchInterceptor.modifySerializedMessage(m.serialize(serializer), m, EVENT),
                 type -> serializer.convert(m.getPayload(), type), EVENT);
+        try {
+            applying = true;
+            handleUpdate(a -> a.apply(eventMessage));
+        } finally {
+            applying = false;
+        }
         applied.add(eventMessage);
-        return handleUpdate(delegate.apply(eventMessage));
+        while (!queued.isEmpty()) {
+            apply(queued.remove(0));
+        }
+        return this;
     }
 
     @Override
     public ModifiableAggregateRoot<T> update(UnaryOperator<T> function) {
-        return handleUpdate(delegate.update(function));
+        handleUpdate(a -> a.update(function));
+        return this;
     }
 
-    private ModifiableAggregateRoot<T> handleUpdate(ImmutableAggregateRoot<T> update) {
-        delegate = update;
+    private void handleUpdate(UnaryOperator<ImmutableAggregateRoot<T>> update) {
+        boolean firstUpdate = waitingForHandlerEnd.compareAndSet(false, true);
+        if (firstUpdate) {
+            activeAggregates.get().putIfAbsent(id(), this);
+        }
         try {
-            return this;
+            delegate = update.apply(delegate);
         } finally {
-            if (waitingForHandlerEnd.compareAndSet(false, true)) {
-                activeAggregates.get().putIfAbsent(id(), this);
+            if (firstUpdate) {
                 DeserializingMessage.whenHandlerCompletes(this::whenHandlerCompletes);
             }
         }

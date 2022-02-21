@@ -5,8 +5,8 @@ import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import io.fluxcapacitor.javaclient.common.Message;
 import io.fluxcapacitor.javaclient.common.serialization.DeserializingMessage;
 import io.fluxcapacitor.javaclient.common.serialization.Serializer;
-import io.fluxcapacitor.javaclient.persisting.eventsourcing.EventSourcingHandler;
 import io.fluxcapacitor.javaclient.persisting.eventsourcing.EventSourcingHandlerFactory;
+import io.fluxcapacitor.javaclient.tracking.handling.validation.ValidationUtils;
 import lombok.Builder;
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
@@ -15,7 +15,9 @@ import lombok.Value;
 import lombok.experimental.Accessors;
 import lombok.extern.slf4j.Slf4j;
 
+import java.util.Arrays;
 import java.util.Collection;
+import java.util.Iterator;
 import java.util.LinkedHashSet;
 import java.util.Objects;
 import java.util.function.UnaryOperator;
@@ -26,7 +28,6 @@ import static io.fluxcapacitor.common.reflection.ReflectionUtils.getAnnotatedPro
 import static io.fluxcapacitor.javaclient.common.Message.asMessage;
 import static io.fluxcapacitor.javaclient.modeling.AnnotatedEntityHolder.getEntityHolder;
 import static java.util.Collections.unmodifiableCollection;
-import static java.util.Optional.ofNullable;
 
 @Value
 @Builder(toBuilder = true)
@@ -51,13 +52,6 @@ public class ImmutableEntity<T> implements Entity<ImmutableEntity<T>, T> {
     @EqualsAndHashCode.Exclude
     transient EventSourcingHandlerFactory handlerFactory;
 
-    @SuppressWarnings("unchecked")
-    @ToString.Exclude
-    @EqualsAndHashCode.Exclude
-    @Getter(lazy = true)
-    EventSourcingHandler<T> handler = handlerFactory.forType(
-            ofNullable(get()).map(v -> (Class<T>) v.getClass()).orElse(type));
-
     @ToString.Exclude
     @EqualsAndHashCode.Exclude
     transient Serializer serializer;
@@ -71,6 +65,11 @@ public class ImmutableEntity<T> implements Entity<ImmutableEntity<T>, T> {
     @EqualsAndHashCode.Exclude
     @Getter(lazy = true)
     Collection<Entity<?, ?>> allEntities = Entity.super.allEntities();
+
+    @SuppressWarnings("unchecked")
+    public Class<T> type() {
+        return value == null ? type : (Class<T>) value.getClass();
+    }
 
     @Override
     public T get() {
@@ -104,9 +103,10 @@ public class ImmutableEntity<T> implements Entity<ImmutableEntity<T>, T> {
         return toBuilder().value(function.apply(get())).build();
     }
 
+
     @SuppressWarnings("unchecked")
     public ImmutableEntity<T> apply(DeserializingMessage message) {
-        ImmutableEntity<T> result = toBuilder().value(handler().invoke(this, message)).build();
+        ImmutableEntity<T> result = toBuilder().value(handlerFactory.<T>forType(type()).invoke(this, message)).build();
         Object payload = message.getPayload();
         Collection<Entity<?, ?>> entities = result.entities();
         for (Entity<?, ?> entity : entities) {
@@ -119,5 +119,23 @@ public class ImmutableEntity<T> implements Entity<ImmutableEntity<T>, T> {
             }
         }
         return result;
+    }
+
+    @Override
+    public <E extends Exception> ImmutableEntity<T> assertLegal(Object... commands) throws E {
+        if (commands.length > 0) {
+            ImmutableEntity<T> result = this;
+            Collection<Entity<?, ?>> entities = entities();
+            Iterator<Object> iterator = Arrays.stream(commands).iterator();
+            while (iterator.hasNext()) {
+                Object c = iterator.next();
+                ValidationUtils.assertLegal(c, result);
+                entities.stream().filter(e -> e.isPossibleTarget(c)).findFirst().ifPresent(e -> e.assertLegal(c));
+                if (iterator.hasNext()) {
+                    result = result.apply(Message.asMessage(c));
+                }
+            }
+        }
+        return this;
     }
 }

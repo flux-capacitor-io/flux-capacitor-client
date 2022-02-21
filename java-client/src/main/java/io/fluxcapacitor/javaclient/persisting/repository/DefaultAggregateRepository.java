@@ -2,6 +2,7 @@ package io.fluxcapacitor.javaclient.persisting.repository;
 
 import io.fluxcapacitor.common.api.modeling.Relationship;
 import io.fluxcapacitor.common.reflection.ReflectionUtils;
+import io.fluxcapacitor.javaclient.FluxCapacitor;
 import io.fluxcapacitor.javaclient.common.serialization.DeserializingMessage;
 import io.fluxcapacitor.javaclient.common.serialization.Serializer;
 import io.fluxcapacitor.javaclient.modeling.Aggregate;
@@ -10,6 +11,7 @@ import io.fluxcapacitor.javaclient.modeling.EntityId;
 import io.fluxcapacitor.javaclient.modeling.ImmutableAggregateRoot;
 import io.fluxcapacitor.javaclient.modeling.ImmutableEntity;
 import io.fluxcapacitor.javaclient.modeling.ModifiableAggregateRoot;
+import io.fluxcapacitor.javaclient.modeling.NoOpAggregateRoot;
 import io.fluxcapacitor.javaclient.persisting.caching.Cache;
 import io.fluxcapacitor.javaclient.persisting.caching.NoOpCache;
 import io.fluxcapacitor.javaclient.persisting.eventsourcing.AggregateEventStream;
@@ -68,6 +70,9 @@ public class DefaultAggregateRepository implements AggregateRepository {
     @Override
     @SuppressWarnings("unchecked")
     public <T> AggregateRoot<T> load(String aggregateId, Class<T> type) {
+        if (AggregateRoot.isLoading()) {
+            return new NoOpAggregateRoot<>(() -> (AggregateRoot<T>) delegates.apply(type).load(aggregateId));
+        }
         return (AggregateRoot<T>) delegates.apply(type).load(aggregateId);
     }
 
@@ -88,6 +93,14 @@ public class DefaultAggregateRepository implements AggregateRepository {
         return aggregates.entrySet().stream().filter(e -> !Void.class.equals(e.getValue())).findFirst()
                 .map(e -> (AggregateRoot<T>) load(e.getKey(), e.getValue()))
                 .orElseGet(() -> (AggregateRoot<T>) load(entityId, defaultType));
+    }
+
+    @Override
+    public void applyEvents(String aggregateId, Object... events) {
+        if (!AggregateRoot.isLoading()) {
+            ModifiableAggregateRoot.getIfActive(aggregateId).ifPresentOrElse(
+                    a -> a.apply(events), () -> eventStore.storeEvents(aggregateId, events));
+        }
     }
 
     @Override
@@ -193,8 +206,13 @@ public class DefaultAggregateRepository implements AggregateRepository {
                                     AggregateEventStream<DeserializingMessage> eventStream
                                             = eventStore.getEvents(id, model.sequenceNumber());
                                     Iterator<DeserializingMessage> iterator = eventStream.iterator();
-                                    while (iterator.hasNext()) {
-                                        model = model.apply(iterator.next());
+                                    try {
+                                        AggregateRoot.loading.set(true);
+                                        while (iterator.hasNext()) {
+                                            model = model.apply(iterator.next());
+                                        }
+                                    } finally {
+                                        AggregateRoot.loading.remove();
                                     }
                                     return model.toBuilder().sequenceNumber(
                                             eventStream.getLastSequenceNumber().orElse(model.sequenceNumber())).build();
@@ -216,6 +234,8 @@ public class DefaultAggregateRepository implements AggregateRepository {
                         new ConcurrentHashMap<String, Class<?>>()).put(r.getAggregateId(), after.type()));
                 eventStore.updateRelationships(associations, dissociations).awaitSilently();
                 if (!unpublishedEvents.isEmpty()) {
+                    FluxCapacitor.getOptionally().ifPresent(
+                            fc -> unpublishedEvents.forEach(e -> e.getSerializedObject().setSource(fc.client().id())));
                     eventStore.storeEvents(after.id().toString(), new ArrayList<>(unpublishedEvents)).awaitSilently();
                     if (snapshotTrigger.shouldCreateSnapshot(after, unpublishedEvents)) {
                         snapshotStore.storeSnapshot(after);

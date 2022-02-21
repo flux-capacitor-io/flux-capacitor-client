@@ -36,9 +36,9 @@ import java.util.List;
 import java.util.Optional;
 import java.util.function.Function;
 
-import static io.fluxcapacitor.common.IndexUtils.millisFromIndex;
 import static io.fluxcapacitor.common.reflection.ReflectionUtils.ensureAccessible;
 import static io.fluxcapacitor.common.reflection.ReflectionUtils.getAnnotatedMethods;
+import static io.fluxcapacitor.javaclient.tracking.IndexUtils.millisFromIndex;
 import static java.lang.String.format;
 import static java.time.Duration.between;
 import static java.time.Instant.ofEpochMilli;

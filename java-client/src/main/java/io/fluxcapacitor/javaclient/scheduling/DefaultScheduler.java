@@ -26,8 +26,8 @@ import lombok.AllArgsConstructor;
 import java.lang.reflect.Executable;
 import java.util.function.BiPredicate;
 
-import static io.fluxcapacitor.common.IndexUtils.indexFromTimestamp;
 import static io.fluxcapacitor.common.MessageType.SCHEDULE;
+import static io.fluxcapacitor.javaclient.tracking.IndexUtils.indexFromTimestamp;
 
 @AllArgsConstructor
 public class DefaultScheduler implements Scheduler {

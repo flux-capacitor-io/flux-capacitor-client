@@ -22,6 +22,8 @@ public interface AggregateRepository {
 
     <T> AggregateRoot<T> loadFor(String entityId, Class<?> defaultType);
 
+    void applyEvents(String aggregateId, Object... events);
+
     boolean cachingAllowed(Class<?> aggregateType);
 
 }

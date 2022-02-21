@@ -398,7 +398,7 @@ public class AggregateEntitiesTest {
     class loadForTests {
         @Test
         void loadAggregateForEntity() {
-            testFixture.whenApplying(fc -> FluxCapacitor.loadAggregateFor("map0", Aggregate.class))
+            testFixture.whenApplying(fc -> FluxCapacitor.loadAggregateFor("map0"))
                     .<AggregateRoot<Aggregate>>expectResult(a -> a.get() != null);
         }
 

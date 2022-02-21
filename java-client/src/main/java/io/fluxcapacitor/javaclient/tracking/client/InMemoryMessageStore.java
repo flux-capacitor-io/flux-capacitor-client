@@ -44,8 +44,8 @@ import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Consumer;
 import java.util.function.Predicate;
 
-import static io.fluxcapacitor.common.IndexUtils.indexFromMillis;
 import static io.fluxcapacitor.javaclient.FluxCapacitor.currentClock;
+import static io.fluxcapacitor.javaclient.tracking.IndexUtils.indexFromMillis;
 import static java.lang.System.currentTimeMillis;
 import static java.lang.Thread.currentThread;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;

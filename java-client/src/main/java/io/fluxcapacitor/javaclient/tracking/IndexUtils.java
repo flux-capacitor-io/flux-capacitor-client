@@ -12,7 +12,9 @@
  * limitations under the License.
  */
 
-package io.fluxcapacitor.common;
+package io.fluxcapacitor.javaclient.tracking;
+
+import io.fluxcapacitor.javaclient.FluxCapacitor;
 
 import java.time.Instant;
 
@@ -21,6 +23,9 @@ import java.time.Instant;
  * used to increment the index if messages are written in the same ms as the last batch.
  * <p>
  * The index is only able to store 2^47 - 1 ms of time since epoch, i.e. about 4,500 years.
+ * <p>
+ * Uses {@link FluxCapacitor#currentClock()} to get the index corresponding to the current timestamp of Flux Capacitor's
+ * internal clock.
  */
 public class IndexUtils {
 
@@ -44,4 +49,7 @@ public class IndexUtils {
         return (int) (index % 65_536);
     }
 
+    public static long indexForCurrentTime() {
+        return FluxCapacitor.currentClock().millis() << 16;
+    }
 }

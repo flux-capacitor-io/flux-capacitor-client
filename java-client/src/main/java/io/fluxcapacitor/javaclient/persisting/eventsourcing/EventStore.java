@@ -48,7 +48,7 @@ public interface EventStore extends HasLocalHandlers {
     Awaitable updateRelationships(UpdateRelationships updateRelationships);
 
     default Awaitable updateRelationships(Set<Relationship> associations, Set<Relationship> dissociations) {
-        return updateRelationships(new UpdateRelationships(associations, dissociations, Guarantee.SENT));
+        return updateRelationships(new UpdateRelationships(associations, dissociations, Guarantee.STORED));
     }
 
     Map<String, Class<?>> getAggregatesFor(String entityId);

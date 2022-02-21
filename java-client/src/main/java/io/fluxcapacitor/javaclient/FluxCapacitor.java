@@ -125,37 +125,16 @@ public interface FluxCapacitor extends AutoCloseable {
     }
 
     /**
-     * Gets the current time given the current clock.
-     */
-    static Instant currentTime() {
-        return currentClock().instant();
-    }
-
-    /**
-     * Gets the current time given the current clock in milliseconds.
-     */
-    static long currentTimeMillis() {
-        return currentClock().millis();
-    }
-
-    /**
-     * Creates a message index that corresponds to the current time.
-     */
-    static long indexForCurrentTime() {
-        return currentTimeMillis() << 16;
-    }
-
-    /**
-     * Gets the {@link IdentityProvider} of the current FluxCapacitor to generate a unique identifier.
-     * If there is no current FluxCapacitor instance a new UUID is generated.
+     * Gets the {@link IdentityProvider} of the current FluxCapacitor to generate a unique identifier. If there is no
+     * current FluxCapacitor instance a new UUID is generated.
      */
     static String generateId() {
         return currentIdentityProvider().nextFunctionalId();
     }
 
     /**
-     * Fetches the {@link IdentityProvider} of the current FluxCapacitor.
-     * If there is no current FluxCapacitor instance a new UUID factory is generated.
+     * Fetches the {@link IdentityProvider} of the current FluxCapacitor. If there is no current FluxCapacitor instance
+     * a new UUID factory is generated.
      */
     static IdentityProvider currentIdentityProvider() {
         return getOptionally().map(FluxCapacitor::identityProvider).orElseGet(UuidFactory::new);
@@ -213,8 +192,8 @@ public interface FluxCapacitor extends AutoCloseable {
     }
 
     /**
-     * Sends a command with given payload and metadata and don't wait for a result.
-     * With a guarantee the method will wait for the command itself to be sent or stored.
+     * Sends a command with given payload and metadata and don't wait for a result. With a guarantee the method will
+     * wait for the command itself to be sent or stored.
      *
      * @see #sendCommand(Object, Metadata) to send a command and inspect its result
      */
@@ -291,8 +270,8 @@ public interface FluxCapacitor extends AutoCloseable {
     }
 
     /**
-     * Schedules a message with given {@code scheduleId} for the given timestamp. The {@code schedule} parameter may
-     * be an instance of a {@link Message} in which case it will be scheduled as is. Otherwise the schedule is published
+     * Schedules a message with given {@code scheduleId} for the given timestamp. The {@code schedule} parameter may be
+     * an instance of a {@link Message} in which case it will be scheduled as is. Otherwise the schedule is published
      * using the passed value as payload without additional metadata.
      */
     static void schedule(Object schedule, String scheduleId, Instant deadline) {
@@ -329,18 +308,19 @@ public interface FluxCapacitor extends AutoCloseable {
         AggregateRoot<T> result = get().aggregateRepository().load(aggregateId, aggregateType);
         DeserializingMessage message = DeserializingMessage.getCurrent();
         if (message != null && (message.getMessageType() == EVENT || message.getMessageType() == NOTIFICATION)
-                && aggregateId.equals(getAggregateId(message))) {
+            && aggregateId.equals(getAggregateId(message))) {
             return result.playBackToEvent(message.getMessageId());
         }
         return result;
     }
 
     /**
-     * Loads the aggregate root of type {@code <T>} that currently contains the entity with given entityId. If no
-     * such aggregate exists an empty aggregate root is returned with given {@code defaultType} as its type. This method
-     * can also be used if the entity is the aggregate root (aggregateId is equal to entityId). If the entity is
-     * associated with more than one aggregate the behavior of this method is unpredictable, though the default behavior
-     * is that any one of the associated aggregates may be returned.
+     * Loads the aggregate root of type {@code <T>} that currently contains the entity with given entityId. If no such
+     * aggregate exists an empty aggregate root is returned with given {@code defaultType} as its type.
+     * <p>
+     * This method can also be used if the entity is the aggregate root (aggregateId is equal to entityId). If the
+     * entity is associated with more than one aggregate the behavior of this method is unpredictable, though the
+     * default behavior is that any one of the associated aggregates is returned.
      * <p>
      * If the aggregate is loaded while handling an event of the aggregate, the returned Aggregate will automatically be
      * replayed back to the event currently being handled. Otherwise, the most recent state of the aggregate is loaded.
@@ -355,6 +335,32 @@ public interface FluxCapacitor extends AutoCloseable {
             return result.playBackToEvent(message.getMessageId());
         }
         return result;
+    }
+
+    /**
+     * Loads the aggregate root that currently contains the entity with given entityId. If no such aggregate exists an
+     * empty aggregate root is returned of type {@code Object}. In that case be aware that applying events to create the
+     * aggregate may yield an undesired result; to prevent this use {@link #loadAggregateFor(String, Class)}.
+     * <p>
+     * This method can also be used if the entity is the aggregate root (aggregateId is equal to entityId). If the
+     * entity is associated with more than one aggregate the behavior of this method is unpredictable, though the
+     * default behavior is that any one of the associated aggregates is returned.
+     * <p>
+     * If the aggregate is loaded while handling an event of the aggregate, the returned Aggregate will automatically be
+     * replayed back to the event currently being handled. Otherwise, the most recent state of the aggregate is loaded.
+     *
+     * @see Aggregate for more info on how to define an event sourced aggregate root
+     */
+    static <T> AggregateRoot<T> loadAggregateFor(String entityId) {
+        return loadAggregateFor(entityId, Object.class);
+    }
+
+    /**
+     * Convenience method to apply the given events to the aggregate with id {@code aggregateId} without loading the
+     * aggregate. Events may be {@link Message} instances or event message payloads.
+     */
+    static void applyEvents(String aggregateId, Object... events) {
+        get().aggregateRepository().applyEvents(aggregateId, events);
     }
 
     /**
@@ -452,9 +458,9 @@ public interface FluxCapacitor extends AutoCloseable {
             Registration tracking = stream(MessageType.values()).map(t -> tracking(t).start(this, handlers))
                     .reduce(Registration::merge).orElse(Registration.noOp());
             Registration local = handlers.stream().flatMap(h -> Stream
-                    .of(commandGateway().registerHandler(h), queryGateway().registerHandler(h),
-                        eventGateway().registerHandler(h), eventStore().registerHandler(h),
-                        errorGateway().registerHandler(h), webRequestGateway().registerHandler(h)))
+                            .of(commandGateway().registerHandler(h), queryGateway().registerHandler(h),
+                                eventGateway().registerHandler(h), eventStore().registerHandler(h),
+                                errorGateway().registerHandler(h), webRequestGateway().registerHandler(h)))
                     .reduce(Registration::merge).orElse(Registration.noOp());
             return tracking.merge(local);
         });

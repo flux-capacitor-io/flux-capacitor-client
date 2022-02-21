@@ -129,6 +129,12 @@ public class ImmutableAggregateRoot<T> implements AggregateRoot<T> {
         return delegate.entities();
     }
 
+    @Override
+    public <E extends Exception> AggregateRoot<T> assertLegal(Object... commands) throws E {
+        delegate.assertLegal(commands);
+        return this;
+    }
+
     public ImmutableAggregateRoot<T> withEventIndex(Long index, String messageId) {
         if (Objects.equals(messageId, lastEventId)) {
             return lastEventIndex == null ? withLastEventIndex(index) : this;

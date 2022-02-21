@@ -2,7 +2,6 @@ package io.fluxcapacitor.javaclient.persisting.repository;
 
 import io.fluxcapacitor.common.api.SerializedMessage;
 import io.fluxcapacitor.common.api.modeling.Relationship;
-import io.fluxcapacitor.javaclient.FluxCapacitor;
 import io.fluxcapacitor.javaclient.common.serialization.DeserializingMessage;
 import io.fluxcapacitor.javaclient.common.serialization.Serializer;
 import io.fluxcapacitor.javaclient.configuration.client.Client;
@@ -10,6 +9,7 @@ import io.fluxcapacitor.javaclient.modeling.AggregateRoot;
 import io.fluxcapacitor.javaclient.modeling.ImmutableAggregateRoot;
 import io.fluxcapacitor.javaclient.persisting.caching.Cache;
 import io.fluxcapacitor.javaclient.tracking.ConsumerConfiguration;
+import io.fluxcapacitor.javaclient.tracking.IndexUtils;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
@@ -53,6 +53,11 @@ public class CachingAggregateRepository implements AggregateRepository {
     public <T> AggregateRoot<T> loadFor(String entityId, Class<?> defaultType) {
         catchUpIfNeeded();
         return delegate.loadFor(entityId, defaultType);
+    }
+
+    @Override
+    public void applyEvents(String aggregateId, Object... events) {
+        delegate.applyEvents(aggregateId, events);
     }
 
     protected void handleEvents(List<SerializedMessage> messages) {
@@ -136,7 +141,7 @@ public class CachingAggregateRepository implements AggregateRepository {
     protected void startTrackerIfNeeded() {
         if (started.compareAndSet(false, true)) {
             start(this::handleEvents, ConsumerConfiguration.builder().messageType(NOTIFICATION)
-                    .minIndex(lastEventIndex = FluxCapacitor.indexForCurrentTime())
+                    .minIndex(lastEventIndex = IndexUtils.indexForCurrentTime())
                     .name(CachingAggregateRepository.class.getSimpleName()).build(), client);
             synchronized (cache) {
                 cache.notifyAll();

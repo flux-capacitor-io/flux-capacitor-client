@@ -33,8 +33,8 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentSkipListMap;
 import java.util.stream.Stream;
 
-import static io.fluxcapacitor.common.IndexUtils.indexFromMillis;
-import static io.fluxcapacitor.common.IndexUtils.timestampFromIndex;
+import static io.fluxcapacitor.javaclient.tracking.IndexUtils.indexFromMillis;
+import static io.fluxcapacitor.javaclient.tracking.IndexUtils.timestampFromIndex;
 import static java.util.stream.Collectors.toList;
 
 @Slf4j

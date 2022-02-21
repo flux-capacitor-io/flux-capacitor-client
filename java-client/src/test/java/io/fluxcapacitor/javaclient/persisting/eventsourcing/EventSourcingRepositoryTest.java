@@ -17,6 +17,7 @@ package io.fluxcapacitor.javaclient.persisting.eventsourcing;
 import io.fluxcapacitor.common.api.Metadata;
 import io.fluxcapacitor.common.api.SerializedMessage;
 import io.fluxcapacitor.common.handling.HandlerNotFoundException;
+import io.fluxcapacitor.javaclient.FluxCapacitor;
 import io.fluxcapacitor.javaclient.MockException;
 import io.fluxcapacitor.javaclient.common.Message;
 import io.fluxcapacitor.javaclient.configuration.DefaultFluxCapacitor;
@@ -48,6 +49,7 @@ import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
@@ -155,6 +157,26 @@ class EventSourcingRepositoryTest {
                                                                            eq(false)));
         }
 
+        @Test
+        void testApplyEventsDuringApply() {
+            testFixture.givenCommands(new CreateModel())
+                    .whenCommand(new ApplyWhileApplying())
+                    .expectEvents(new ApplyWhileApplying(), new UpdateModel())
+                    .expectTrue(fc -> {
+                        TestModel testModel = loadAggregate(aggregateId, TestModel.class).get();
+                        return testModel.events.equals(List.of(
+                                new CreateModel(), new ApplyWhileApplying(), new UpdateModel()));
+                    });
+        }
+
+        @Test
+        void testApplyEventsDuringApplyIsIgnoredDuringReplay() {
+            testFixture.givenCommands(new CreateModel(), new ApplyWhileApplying())
+                    .given(fc -> fc.cache().invalidateAll())
+                    .when(fc -> loadAggregate(aggregateId, TestModel.class))
+                    .expectThat(fc -> verify(eventStoreClient, never()).storeEvents(anyString(), anyList(),
+                                                                           eq(false)));
+        }
 
         private class Handler {
             @HandleCommand
@@ -208,7 +230,13 @@ class EventSourcingRepositoryTest {
         }
 
         @ApplyEvent
-        public void handle(UpdateModel event) {
+        void handle(UpdateModel event) {
+            events.add(event);
+        }
+
+        @ApplyEvent
+        void handle(ApplyWhileApplying event) {
+            FluxCapacitor.applyEvents(aggregateId, new UpdateModel());
             events.add(event);
         }
     }
@@ -516,6 +544,10 @@ class EventSourcingRepositoryTest {
 
     @Value
     private static class UpdateModel {
+    }
+
+    @Value
+    private static class ApplyWhileApplying {
     }
 
     @Value

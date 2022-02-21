@@ -22,6 +22,7 @@ import io.fluxcapacitor.common.api.tracking.MessageBatch;
 import io.fluxcapacitor.common.api.tracking.Position;
 import io.fluxcapacitor.javaclient.FluxCapacitor;
 import io.fluxcapacitor.javaclient.tracking.ConsumerConfiguration;
+import io.fluxcapacitor.javaclient.tracking.IndexUtils;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -73,7 +74,7 @@ public class CachingTrackingClient implements TrackingClient {
         if (started.compareAndSet(false, true)) {
             ConsumerConfiguration cacheFillerConfig = ConsumerConfiguration.builder()
                     .messageType(config.getMessageType()).ignoreSegment(true)
-                    .minIndex(FluxCapacitor.indexForCurrentTime())
+                    .minIndex(IndexUtils.indexForCurrentTime())
                     .name(CachingTrackingClient.class.getSimpleName()).build();
             registration = FluxCapacitor.getOptionally()
                     .map(fc -> DefaultTracker.start(this::cacheNewMessages, cacheFillerConfig, fc.client()))
