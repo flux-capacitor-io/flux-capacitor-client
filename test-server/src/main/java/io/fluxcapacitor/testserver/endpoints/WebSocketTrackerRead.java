@@ -17,7 +17,6 @@ package io.fluxcapacitor.testserver.endpoints;
 import io.fluxcapacitor.common.MessageType;
 import io.fluxcapacitor.common.api.SerializedMessage;
 import io.fluxcapacitor.common.api.tracking.Read;
-import io.fluxcapacitor.common.api.tracking.TrackingStrategy;
 import io.fluxcapacitor.javaclient.tracking.client.TrackerRead;
 import lombok.Value;
 
@@ -37,7 +36,6 @@ public class WebSocketTrackerRead implements TrackerRead {
     int maxSize;
     Predicate<String> typeFilter;
     boolean ignoreMessageTarget;
-    TrackingStrategy strategy;
     MessageType messageType;
 
     public WebSocketTrackerRead(Read read, String clientId, String sessionId, MessageType messageType) {
@@ -51,7 +49,6 @@ public class WebSocketTrackerRead implements TrackerRead {
         this.maxSize = read.getMaxSize();
         this.typeFilter = toPredicate(read.getTypeFilter());
         this.ignoreMessageTarget = read.isIgnoreMessageTarget();
-        this.strategy = read.getStrategy();
         this.messageType = messageType;
     }
 
