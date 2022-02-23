@@ -16,6 +16,7 @@ package io.fluxcapacitor.javaclient.persisting.caching;
 
 import lombok.NonNull;
 
+import java.util.Optional;
 import java.util.function.BiFunction;
 import java.util.function.Function;
 
@@ -31,6 +32,10 @@ public interface Cache {
     <T> T compute(Object id, BiFunction<? super Object, ? super T, ? extends T> mappingFunction);
 
     <T> T getIfPresent(Object id);
+
+    default <T> T getOrDefault(Object id, T defaultValue) {
+        return Optional.<T>ofNullable(getIfPresent(id)).orElse(defaultValue);
+    }
 
     void invalidate(Object id);
 

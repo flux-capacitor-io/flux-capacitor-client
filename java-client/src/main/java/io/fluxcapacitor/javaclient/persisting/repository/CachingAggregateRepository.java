@@ -16,10 +16,10 @@ import lombok.extern.slf4j.Slf4j;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import static io.fluxcapacitor.common.MessageType.EVENT;
@@ -101,10 +101,16 @@ public class CachingAggregateRepository implements AggregateRepository {
 
     protected void updateRelationships(ImmutableAggregateRoot<?> before, ImmutableAggregateRoot<?> after) {
         Set<Relationship> associations = after.associations(before), dissociations = after.dissociations(before);
-        dissociations.forEach(r -> relationshipsCache.computeIfAbsent(r.getEntityId(), entityId ->
-                new ConcurrentHashMap<String, Class<?>>()).remove(r.getAggregateId(), before.type()));
-        associations.forEach(r -> relationshipsCache.computeIfAbsent(r.getEntityId(), entityId ->
-                new ConcurrentHashMap<String, Class<?>>()).put(r.getAggregateId(), after.type()));
+        dissociations.forEach(
+                r -> relationshipsCache.<Map<String, String>>computeIfPresent(r.getEntityId(), (id, map) -> {
+                    map.remove(r.getAggregateId());
+                    return map;
+                }));
+        associations.forEach(
+                r -> relationshipsCache.<Map<String, Class<?>>>computeIfPresent(r.getEntityId(), (id, map) -> {
+                    map.put(r.getAggregateId(), after.type());
+                    return map;
+                }));
     }
 
     protected void catchUpIfNeeded() {
