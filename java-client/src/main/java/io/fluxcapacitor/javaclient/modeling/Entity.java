@@ -20,18 +20,17 @@ import io.fluxcapacitor.javaclient.common.serialization.DeserializingMessage;
 import io.fluxcapacitor.javaclient.publishing.routing.RoutingKey;
 
 import java.util.Collection;
-import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.function.Function;
 import java.util.function.Predicate;
 import java.util.function.UnaryOperator;
+import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import static io.fluxcapacitor.common.reflection.ReflectionUtils.getAnnotatedPropertyValue;
 import static io.fluxcapacitor.common.reflection.ReflectionUtils.hasProperty;
 import static io.fluxcapacitor.common.reflection.ReflectionUtils.readProperty;
 import static io.fluxcapacitor.javaclient.common.Message.asMessage;
-import static java.util.stream.Collectors.toCollection;
 
 public interface Entity<M extends Entity<M, T>, T> {
 
@@ -49,7 +48,7 @@ public interface Entity<M extends Entity<M, T>, T> {
 
     default Collection<Entity<?, ?>> allEntities() {
         return Stream.concat(Stream.of(this), entities().stream().flatMap(e -> e.allEntities().stream()))
-                .collect(toCollection(LinkedHashSet::new));
+                .collect(Collectors.toUnmodifiableList());
     }
 
     default M apply(Object... events) {

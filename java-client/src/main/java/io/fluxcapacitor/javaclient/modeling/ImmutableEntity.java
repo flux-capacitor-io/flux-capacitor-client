@@ -18,7 +18,6 @@ import lombok.extern.slf4j.Slf4j;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Iterator;
-import java.util.LinkedHashSet;
 import java.util.Objects;
 import java.util.function.UnaryOperator;
 import java.util.stream.Collectors;
@@ -27,7 +26,6 @@ import static io.fluxcapacitor.common.MessageType.EVENT;
 import static io.fluxcapacitor.common.reflection.ReflectionUtils.getAnnotatedProperties;
 import static io.fluxcapacitor.javaclient.common.Message.asMessage;
 import static io.fluxcapacitor.javaclient.modeling.AnnotatedEntityHolder.getEntityHolder;
-import static java.util.Collections.unmodifiableCollection;
 
 @Value
 @Builder(toBuilder = true)
@@ -78,10 +76,9 @@ public class ImmutableEntity<T> implements Entity<ImmutableEntity<T>, T> {
 
     private Collection<Entity<?, ?>> computeEntities() {
         Class<?> type = value == null ? type() : value.getClass();
-        return unmodifiableCollection(
-                getAnnotatedProperties(type, Member.class).stream().flatMap(
-                        location -> getEntityHolder(type, location, handlerFactory, serializer)
-                                .getEntities(value)).collect(Collectors.toCollection(LinkedHashSet::new)));
+        return getAnnotatedProperties(type, Member.class).stream().flatMap(
+                location -> getEntityHolder(type, location, handlerFactory, serializer)
+                        .getEntities(value)).collect(Collectors.toUnmodifiableList());
     }
 
     @Override
