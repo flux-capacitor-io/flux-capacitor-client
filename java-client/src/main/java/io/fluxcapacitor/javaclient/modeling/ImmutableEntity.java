@@ -21,11 +21,13 @@ import java.util.Iterator;
 import java.util.Objects;
 import java.util.function.UnaryOperator;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import static io.fluxcapacitor.common.MessageType.EVENT;
 import static io.fluxcapacitor.common.reflection.ReflectionUtils.getAnnotatedProperties;
 import static io.fluxcapacitor.javaclient.common.Message.asMessage;
 import static io.fluxcapacitor.javaclient.modeling.AnnotatedEntityHolder.getEntityHolder;
+import static java.util.stream.Collectors.groupingBy;
 
 @Value
 @Builder(toBuilder = true)
@@ -105,8 +107,9 @@ public class ImmutableEntity<T> implements Entity<ImmutableEntity<T>, T> {
     public ImmutableEntity<T> apply(DeserializingMessage message) {
         ImmutableEntity<T> result = toBuilder().value(handlerFactory.<T>forType(type()).invoke(this, message)).build();
         Object payload = message.getPayload();
-        Collection<Entity<?, ?>> entities = result.entities();
-        for (Entity<?, ?> entity : entities) {
+        Iterator<Entity<?, ?>> iterator = result.possibleTargets(payload).iterator();
+        while (iterator.hasNext()) {
+            Entity<?, ?> entity = iterator.next();
             if (entity.isPossibleTarget(payload)) {
                 Entity<?, ?> updated = entity.apply(message);
                 if (!Objects.equals(updated, entity)) {
@@ -122,17 +125,21 @@ public class ImmutableEntity<T> implements Entity<ImmutableEntity<T>, T> {
     public <E extends Exception> ImmutableEntity<T> assertLegal(Object... commands) throws E {
         if (commands.length > 0) {
             ImmutableEntity<T> result = this;
-            Collection<Entity<?, ?>> entities = entities();
             Iterator<Object> iterator = Arrays.stream(commands).iterator();
             while (iterator.hasNext()) {
                 Object c = iterator.next();
                 ValidationUtils.assertLegal(c, result);
-                entities.stream().filter(e -> e.isPossibleTarget(c)).findFirst().ifPresent(e -> e.assertLegal(c));
+                possibleTargets(c).forEach(e -> e.assertLegal(c));
                 if (iterator.hasNext()) {
                     result = result.apply(Message.asMessage(c));
                 }
             }
         }
         return this;
+    }
+
+    Stream<Entity<?, ?>> possibleTargets(Object payload) {
+        return entities().stream().collect(groupingBy(Entity::holder)).values().stream()
+                .flatMap(group -> group.stream().filter(e -> e.isPossibleTarget(payload)).findFirst().stream());
     }
 }
