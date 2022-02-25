@@ -355,6 +355,17 @@ public interface FluxCapacitor extends AutoCloseable {
         return loadAggregateFor(entityId, Object.class);
     }
 
+
+    /**
+     * Loads the current entity value for given entity id. Entity may be the aggregate root or any ancestral entity. If
+     * no such entity exists an empty optional is returned.
+     */
+    @SuppressWarnings("unchecked")
+    static <T> Optional<T> loadEntityValue(String entityId) {
+        return loadAggregateFor(entityId).allEntities().stream()
+                .filter(e -> entityId.equals(e.id())).findFirst().map(e -> (T) e.get());
+    }
+
     /**
      * Convenience method to apply the given events to the aggregate with id {@code aggregateId} without loading the
      * aggregate. Events may be {@link Message} instances or event message payloads.

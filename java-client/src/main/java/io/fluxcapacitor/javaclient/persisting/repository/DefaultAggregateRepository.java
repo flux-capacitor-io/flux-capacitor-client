@@ -78,8 +78,7 @@ public class DefaultAggregateRepository implements AggregateRepository {
     @SuppressWarnings("unchecked")
     @Override
     public <T> AggregateRoot<T> loadFor(String entityId, Class<?> defaultType) {
-        Map<String, Class<?>> aggregates = relationshipsCache.computeIfAbsent(
-                entityId, id -> eventStore.getAggregatesFor(entityId));
+        Map<String, Class<?>> aggregates = getAggregatesFor(entityId);
         if (aggregates.isEmpty()) {
             return (AggregateRoot<T>) load(entityId, defaultType);
         }
@@ -92,6 +91,11 @@ public class DefaultAggregateRepository implements AggregateRepository {
         return aggregates.entrySet().stream().filter(e -> !Void.class.equals(e.getValue())).findFirst()
                 .map(e -> (AggregateRoot<T>) load(e.getKey(), e.getValue()))
                 .orElseGet(() -> (AggregateRoot<T>) load(entityId, defaultType));
+    }
+
+    @Override
+    public Map<String, Class<?>> getAggregatesFor(String entityId) {
+        return relationshipsCache.computeIfAbsent(entityId, id -> eventStore.getAggregatesFor(entityId));
     }
 
     @Override

@@ -56,6 +56,11 @@ public class CachingAggregateRepository implements AggregateRepository {
     }
 
     @Override
+    public Map<String, Class<?>> getAggregatesFor(String entityId) {
+        return delegate.getAggregatesFor(entityId);
+    }
+
+    @Override
     public void applyEvents(String aggregateId, Object... events) {
         delegate.applyEvents(aggregateId, events);
     }

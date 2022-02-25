@@ -16,6 +16,8 @@ package io.fluxcapacitor.javaclient.persisting.repository;
 
 import io.fluxcapacitor.javaclient.modeling.AggregateRoot;
 
+import java.util.Map;
+
 public interface AggregateRepository {
 
     <T> AggregateRoot<T> load(String aggregateId, Class<T> aggregateType);
@@ -25,5 +27,7 @@ public interface AggregateRepository {
     void applyEvents(String aggregateId, Object... events);
 
     boolean cachingAllowed(Class<?> aggregateType);
+
+    Map<String, Class<?>> getAggregatesFor(String entityId);
 
 }
