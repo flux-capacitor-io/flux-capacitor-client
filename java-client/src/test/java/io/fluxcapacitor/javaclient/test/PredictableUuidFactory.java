@@ -1,4 +1,6 @@
-package io.fluxcapacitor.javaclient.common;
+package io.fluxcapacitor.javaclient.test;
+
+import io.fluxcapacitor.javaclient.common.IdentityProvider;
 
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicInteger;

@@ -24,7 +24,6 @@ import io.fluxcapacitor.common.handling.Handler;
 import io.fluxcapacitor.javaclient.FluxCapacitor;
 import io.fluxcapacitor.javaclient.common.IdentityProvider;
 import io.fluxcapacitor.javaclient.common.Message;
-import io.fluxcapacitor.javaclient.common.PredictableUuidFactory;
 import io.fluxcapacitor.javaclient.common.serialization.DeserializingMessage;
 import io.fluxcapacitor.javaclient.configuration.DefaultFluxCapacitor;
 import io.fluxcapacitor.javaclient.configuration.FluxCapacitorBuilder;
@@ -175,7 +174,7 @@ public class TestFixture implements Given, When {
                         .addBatchInterceptor(interceptor).addHandlerInterceptor(interceptor, true)
                         .build(new TestClient(client)));
         withClock(Clock.fixed(Instant.now(), ZoneId.systemDefault()));
-        withIdentityProvider(new PredictableUuidFactory());
+        withIdentityProvider(new PredictableIdFactory());
         this.registration = registerHandlers(handlerFactory.apply(fluxCapacitor));
     }
 
@@ -222,7 +221,7 @@ public class TestFixture implements Given, When {
      */
 
     @Override
-    public Given withClock(Clock clock) {
+    public TestFixture withClock(Clock clock) {
         return getFluxCapacitor().apply(fc -> {
             fc.withClock(clock);
             SchedulingClient schedulingClient = fc.client().getSchedulingClient();
@@ -245,7 +244,7 @@ public class TestFixture implements Given, When {
     }
 
     @Override
-    public Given withIdentityProvider(IdentityProvider identityProvider) {
+    public TestFixture withIdentityProvider(IdentityProvider identityProvider) {
         return getFluxCapacitor().apply(fc -> {
             fc.withIdentityProvider(identityProvider);
             return this;
@@ -257,54 +256,54 @@ public class TestFixture implements Given, When {
      */
 
     @Override
-    public When givenCommands(Object... commands) {
+    public TestFixture givenCommands(Object... commands) {
         return given(fc -> getDispatchResult(CompletableFuture.allOf(flatten(commands).map(
                 c -> fc.commandGateway().send(c)).toArray(CompletableFuture[]::new))));
     }
 
     @Override
-    public When givenCommandsByUser(User user, Object... commands) {
+    public TestFixture givenCommandsByUser(User user, Object... commands) {
         return givenCommands(addUser(user, commands));
     }
 
     @Override
-    public When givenAppliedEvents(String aggregateId, Object... events) {
+    public TestFixture givenAppliedEvents(String aggregateId, Object... events) {
         return given(fc -> applyEvents(aggregateId, fc, events));
     }
 
     @Override
-    public When givenEvents(Object... events) {
+    public TestFixture givenEvents(Object... events) {
         return given(fc -> flatten(events).forEach(c -> runSilently(
                 () -> fc.eventGateway().publish(Message.asMessage(c), Guarantee.STORED).get())));
     }
 
     @Override
-    public When givenDocument(Object document, String id, String collection, Instant timestamp, Instant end) {
+    public TestFixture givenDocument(Object document, String id, String collection, Instant timestamp, Instant end) {
         return given(fc -> fc.documentStore().index(document, id, collection, timestamp, end));
     }
 
     @Override
-    public When givenDocuments(String collection, Object... documents) {
+    public TestFixture givenDocuments(String collection, Object... documents) {
         return given(fc -> fc.documentStore().index(Arrays.asList(documents), collection));
     }
 
     @Override
-    public When givenWebRequest(WebRequest webRequest) {
+    public TestFixture givenWebRequest(WebRequest webRequest) {
         return given(fc -> getDispatchResult(fc.webRequestGateway().send(webRequest)));
     }
 
     @Override
-    public When givenTimeAdvancesTo(Instant instant) {
+    public TestFixture givenTimeAdvancesTo(Instant instant) {
         return given(fc -> advanceTimeTo(instant));
     }
 
     @Override
-    public When givenTimeElapses(Duration duration) {
+    public TestFixture givenTimeElapses(Duration duration) {
         return given(fc -> advanceTimeBy(duration));
     }
 
     @Override
-    public When given(Consumer<FluxCapacitor> condition) {
+    public TestFixture given(Consumer<FluxCapacitor> condition) {
         return fluxCapacitor.apply(fc -> {
             try {
                 condition.accept(fc);
