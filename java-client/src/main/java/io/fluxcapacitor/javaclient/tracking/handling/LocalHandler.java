@@ -45,4 +45,10 @@ public @interface LocalHandler {
      * (if tracker monitoring is enabled).
      */
     boolean logMetrics() default false;
+
+    /**
+     * Flag that indicates whether this handler will handle external (non-local) messages as well as local messages.
+     * The value of this flag is ignored if {@link #value()} is false.
+     */
+    boolean allowExternalMessages() default false;
 }

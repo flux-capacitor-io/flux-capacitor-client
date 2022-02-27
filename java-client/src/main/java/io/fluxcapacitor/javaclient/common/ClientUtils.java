@@ -74,8 +74,13 @@ public class ClientUtils {
         void run() throws Exception;
     }
 
-    public static boolean isLocalHandlerMethod(Class<?> target, Executable method) {
+    public static boolean isLocalHandler(Class<?> target, Executable method) {
         return getLocalHandlerAnnotation(target, method).map(LocalHandler::value).orElse(false);
+    }
+
+    public static boolean isTrackingHandler(Class<?> target, Executable method) {
+        return getLocalHandlerAnnotation(target, method).map(l -> !l.value() || l.allowExternalMessages())
+                .orElse(true);
     }
 
     public static Optional<LocalHandler> getLocalHandlerAnnotation(Class<?> target, Executable method) {

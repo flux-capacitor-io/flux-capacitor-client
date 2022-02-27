@@ -20,6 +20,7 @@ import io.fluxcapacitor.common.Registration;
 import io.fluxcapacitor.common.api.SerializedMessage;
 import io.fluxcapacitor.common.handling.Handler;
 import io.fluxcapacitor.javaclient.FluxCapacitor;
+import io.fluxcapacitor.javaclient.common.ClientUtils;
 import io.fluxcapacitor.javaclient.common.exception.FunctionalException;
 import io.fluxcapacitor.javaclient.common.exception.TechnicalException;
 import io.fluxcapacitor.javaclient.common.serialization.DeserializingMessage;
@@ -51,7 +52,6 @@ import java.util.function.BiPredicate;
 import java.util.function.Consumer;
 import java.util.stream.Stream;
 
-import static io.fluxcapacitor.javaclient.common.ClientUtils.isLocalHandlerMethod;
 import static io.fluxcapacitor.javaclient.common.ClientUtils.waitForResults;
 import static io.fluxcapacitor.javaclient.common.serialization.DeserializingMessage.handleBatch;
 import static java.lang.String.format;
@@ -61,7 +61,7 @@ import static java.util.stream.Collectors.toMap;
 @AllArgsConstructor
 @Slf4j
 public class DefaultTracking implements Tracking {
-    private final BiPredicate<Class<?>, Executable> handlerFilter = (c, e) -> !isLocalHandlerMethod(c, e);
+    private final BiPredicate<Class<?>, Executable> handlerFilter = ClientUtils::isTrackingHandler;
     private final MessageType messageType;
     private final Client client;
     private final ResultGateway resultGateway;

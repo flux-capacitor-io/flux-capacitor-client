@@ -22,7 +22,7 @@ import java.util.function.BiPredicate;
 
 public interface HasLocalHandlers {
     default Registration registerHandler(Object target) {
-        return registerHandler(target, ClientUtils::isLocalHandlerMethod);
+        return registerHandler(target, ClientUtils::isLocalHandler);
     }
 
     Registration registerHandler(Object target, BiPredicate<Class<?>, Executable> handlerFilter);

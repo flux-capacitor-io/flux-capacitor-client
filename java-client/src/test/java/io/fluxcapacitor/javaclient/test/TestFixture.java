@@ -75,7 +75,7 @@ import java.util.stream.Stream;
 import static io.fluxcapacitor.common.MessageType.COMMAND;
 import static io.fluxcapacitor.common.MessageType.QUERY;
 import static io.fluxcapacitor.common.MessageType.SCHEDULE;
-import static io.fluxcapacitor.javaclient.common.ClientUtils.isLocalHandlerMethod;
+import static io.fluxcapacitor.javaclient.common.ClientUtils.isLocalHandler;
 import static io.fluxcapacitor.javaclient.common.ClientUtils.runSilently;
 import static io.fluxcapacitor.javaclient.common.Message.asMessage;
 import static java.util.Collections.emptyList;
@@ -671,7 +671,7 @@ public class TestFixture implements Given, When {
                     throw e;
                 } finally {
                     if ((m.getMessageType() == COMMAND || m.getMessageType() == QUERY)
-                            && isLocalHandlerMethod(handler.getTarget().getClass(), handler.getMethod(m))) {
+                        && isLocalHandler(handler.getTarget().getClass(), handler.getMethod(m))) {
                         synchronized (consumers) {
                             consumers.entrySet().stream()
                                     .filter(t -> t.getKey().getMessageType() == m.getMessageType())
