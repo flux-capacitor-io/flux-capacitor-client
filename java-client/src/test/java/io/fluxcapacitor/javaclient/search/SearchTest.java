@@ -189,7 +189,7 @@ public class SearchTest {
 
     @Test
     void testMetricsMessageExample() {
-        JsonNode jsonNode = JsonUtils.fromFile(getClass(), "metrics-message.json", JsonNode.class);
+        JsonNode jsonNode = JsonUtils.fromFile("metrics-message.json", JsonNode.class);
         TestFixture.create().givenDocuments("test", jsonNode)
                 .whenSearching("test", query("106193501828612100", "messageIndex"))
                 .<List<JsonNode>>expectResult(r -> !r.isEmpty() && r.get(0).get("payload") != null);
@@ -252,7 +252,7 @@ public class SearchTest {
     class IncludesAndExcludesTests {
         @Test
         void testExcludePaths() {
-            JsonNode jsonNode = JsonUtils.fromFile(getClass(), "metrics-message.json", JsonNode.class);
+            JsonNode jsonNode = JsonUtils.fromFile( "metrics-message.json", JsonNode.class);
             TestFixture.create().givenDocuments("test", jsonNode)
                     .whenSearching("test", search -> search.exclude("payload"))
                     .<List<JsonNode>>expectResult(r -> !r.isEmpty() && r.get(0).get("payload") == null
@@ -277,7 +277,7 @@ public class SearchTest {
 
         @Test
         void testIncludePaths() {
-            JsonNode jsonNode = JsonUtils.fromFile(getClass(), "metrics-message.json", JsonNode.class);
+            JsonNode jsonNode = JsonUtils.fromFile("metrics-message.json", JsonNode.class);
             TestFixture.create().givenDocuments("test", jsonNode)
                     .whenSearching("test", search -> search.includeOnly("payload"))
                     .<List<JsonNode>>expectResult(r -> !r.isEmpty()

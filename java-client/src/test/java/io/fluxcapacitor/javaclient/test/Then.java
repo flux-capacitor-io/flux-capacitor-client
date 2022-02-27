@@ -20,8 +20,6 @@ import io.fluxcapacitor.javaclient.tracking.handling.authentication.Unauthorized
 import io.fluxcapacitor.javaclient.tracking.handling.validation.ValidationException;
 import lombok.NonNull;
 
-import java.util.Arrays;
-import java.util.List;
 import java.util.Objects;
 import java.util.function.Consumer;
 import java.util.function.Predicate;
@@ -34,79 +32,43 @@ public interface Then {
         Events
      */
 
-    default Then expectOnlyEvents(Object... events) {
-        return expectOnlyEvents(Arrays.asList(events));
-    }
+    Then expectOnlyEvents(Object... events);
 
-    default Then expectEvents(Object... events) {
-        return expectEvents(Arrays.asList(events));
-    }
+    Then expectEvents(Object... events);
 
-    default Then expectNoEventsLike(Object... events) {
-        return expectNoEventsLike(Arrays.asList(events));
-    }
+    Then expectNoEventsLike(Object... events);
 
     default Then expectNoEvents() {
         return expectOnlyEvents();
     }
 
-    Then expectOnlyEvents(List<?> events);
-
-    Then expectEvents(List<?> events);
-
-    Then expectNoEventsLike(List<?> events);
-
     /*
         Commands
      */
 
-    default Then expectOnlyCommands(Object... commands) {
-        return expectOnlyCommands(Arrays.asList(commands));
-    }
+    Then expectOnlyCommands(Object... commands);
 
-    default Then expectCommands(Object... commands) {
-        return expectCommands(Arrays.asList(commands));
-    }
+    Then expectCommands(Object... commands);
 
-    default Then expectNoCommandsLike(Object... commands) {
-        return expectNoCommandsLike(Arrays.asList(commands));
-    }
+    Then expectNoCommandsLike(Object... commands);
 
     default Then expectNoCommands() {
         return expectOnlyCommands();
     }
 
-    Then expectOnlyCommands(List<?> commands);
-
-    Then expectCommands(List<?> commands);
-
-    Then expectNoCommandsLike(List<?> commands);
-
     /*
         Schedules
      */
 
-    default Then expectOnlySchedules(Object... schedules) {
-        return expectOnlySchedules(Arrays.asList(schedules));
-    }
+    Then expectOnlySchedules(Object... schedules);
 
-    default Then expectSchedules(Object... schedules) {
-        return expectSchedules(Arrays.asList(schedules));
-    }
+    Then expectSchedules(Object... schedules);
 
-    default Then expectNoSchedulesLike(Object... schedules) {
-        return expectNoSchedulesLike(Arrays.asList(schedules));
-    }
+    Then expectNoSchedulesLike(Object... schedules);
 
     default Then expectNoSchedules() {
         return expectOnlySchedules();
     }
-
-    Then expectOnlySchedules(List<?> schedules);
-
-    Then expectSchedules(List<?> schedules);
-
-    Then expectNoSchedulesLike(List<?> schedules);
 
     /*
         Normal result

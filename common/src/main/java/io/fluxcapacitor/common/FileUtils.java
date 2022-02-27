@@ -26,11 +26,8 @@ import java.io.InputStream;
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 import java.util.Scanner;
-import java.util.function.Predicate;
 
-import static java.lang.Thread.currentThread;
 import static java.nio.charset.StandardCharsets.UTF_8;
-import static java.util.Arrays.stream;
 
 @Slf4j
 public class FileUtils {
@@ -43,7 +40,7 @@ public class FileUtils {
     }
 
     public static String loadFile(String fileName) {
-        return loadFile(getCallerClass(), fileName, UTF_8);
+        return loadFile(ReflectionUtils.getCallerClass(), fileName, UTF_8);
     }
 
     public static String loadFile(Class<?> referencePoint, String fileName) {
@@ -51,7 +48,7 @@ public class FileUtils {
     }
 
     public static String loadFile(String fileName, Charset charset) {
-        return loadFile(getCallerClass(), fileName, charset);
+        return loadFile(ReflectionUtils.getCallerClass(), fileName, charset);
     }
 
     @SneakyThrows
@@ -59,7 +56,7 @@ public class FileUtils {
         try (InputStream inputStream = referencePoint.getResourceAsStream(fileName)) {
             return new Scanner(inputStream, charset.name()).useDelimiter("\\A").next();
         } catch (NullPointerException e) {
-            log.error("File not found {}", fileName);
+            log.error("Resource {} not found in package {}", fileName, referencePoint.getPackageName());
             throw e;
         }
     }
@@ -74,16 +71,4 @@ public class FileUtils {
         }
     }
 
-    private static Class<?> getCallerClass() {
-        return stream(currentThread().getStackTrace())
-                .map(StackTraceElement::getClassName)
-                .filter(callerClassFilter())
-                .findFirst()
-                .map(ReflectionUtils::classForName)
-                .orElseThrow(() -> new IllegalStateException("Could not find caller class"));
-    }
-
-    public static Predicate<String> callerClassFilter() {
-        return c -> !c.startsWith("io.fluxcapacitor");
-    }
 }

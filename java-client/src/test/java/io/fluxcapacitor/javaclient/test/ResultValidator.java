@@ -26,6 +26,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.hamcrest.Matcher;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
@@ -51,65 +52,67 @@ public class ResultValidator implements Then {
     private final List<Throwable> exceptions;
 
     @Override
-    public Then expectOnlyEvents(List<?> events) {
+    public Then expectOnlyEvents(Object... events) {
         return expectOnly(asMessages(events), this.events);
     }
 
     @Override
-    public Then expectEvents(List<?> events) {
+    public Then expectEvents(Object... events) {
         return expect(asMessages(events), this.events);
     }
 
     @Override
-    public Then expectNoEventsLike(List<?> events) {
+    public Then expectNoEventsLike(Object... events) {
         return expectNothingLike(asMessages(events), this.events);
     }
 
     @Override
-    public Then expectOnlyCommands(List<?> commands) {
+    public Then expectOnlyCommands(Object... commands) {
         return expectOnly(asMessages(commands), this.commands);
     }
 
     @Override
-    public Then expectCommands(List<?> commands) {
+    public Then expectCommands(Object... commands) {
         return expect(asMessages(commands), this.commands);
     }
 
     @Override
-    public Then expectNoCommandsLike(List<?> commands) {
+    public Then expectNoCommandsLike(Object... commands) {
         return expectNothingLike(asMessages(commands), this.commands);
     }
 
     @Override
-    public Then expectOnlySchedules(List<?> schedules) {
+    public Then expectOnlySchedules(Object... schedules) {
         return expectOnlyScheduledMessages(asMessages(schedules), this.schedules);
     }
 
     @Override
-    public Then expectSchedules(List<?> schedules) {
+    public Then expectSchedules(Object... schedules) {
         return expectScheduledMessages(asMessages(schedules), this.schedules);
     }
 
     @Override
-    public Then expectNoSchedulesLike(List<?> schedules) {
+    public Then expectNoSchedulesLike(Object... schedules) {
         return expectNothingLike(asMessages(schedules), this.schedules);
     }
 
     @Override
     public ResultValidator expectResult(Object expectedResult) {
+        Class<?> callerClass = ReflectionUtils.getCallerClass();
         return fluxCapacitor.apply(fc -> {
+            Object expected = TestFixture.parseObject(expectedResult, callerClass);
             if (result instanceof Throwable) {
                 throw new GivenWhenThenAssertionError("An unexpected exception occurred during handling",
                                                       (Throwable) result);
             }
-            if (!matches(expectedResult, result)) {
-                if (isComparableToActual(expectedResult)) {
+            if (!matches(expected, result)) {
+                if (isComparableToActual(expected)) {
                     throw new GivenWhenThenAssertionError(format(
                             "Handler returned a result of unexpected type.\nExpected: %s\nGot: %s",
-                            expectedResult.getClass(), result.getClass()));
+                            expected.getClass(), result.getClass()));
                 }
                 throw new GivenWhenThenAssertionError("Handler returned an unexpected result",
-                                                      expectedResult, result);
+                                                      expected, result);
             }
             return this;
         });
@@ -132,15 +135,17 @@ public class ResultValidator implements Then {
 
     @Override
     public ResultValidator expectNoResultLike(Object value) {
+        Class<?> callerClass = ReflectionUtils.getCallerClass();
         return fluxCapacitor.apply(fc -> {
+            Object notExpected = TestFixture.parseObject(value, callerClass);
             if (result instanceof Throwable) {
                 throw new GivenWhenThenAssertionError("An unexpected exception occurred during handling",
                                                       (Throwable) result);
             }
-            if (matches(value, result)) {
+            if (matches(notExpected, result)) {
                 throw new GivenWhenThenAssertionError(
                         format("Handler returned the unwanted result.\nExpected not to get: %s\nGot: %s",
-                               value, result));
+                               notExpected, result));
             }
             return this;
         });
@@ -358,10 +363,13 @@ public class ResultValidator implements Then {
                 .containsAll(expectedMessage.getMetadata().entrySet());
     }
 
-    protected Collection<?> asMessages(Collection<?> expectedMessages) {
-        return expectedMessages.stream()
+    protected Collection<?> asMessages(Object... expectedMessages) {
+        Class<?> callerClass = ReflectionUtils.getCallerClass();
+        return fluxCapacitor.apply(fc -> Arrays.stream(expectedMessages)
+                .flatMap(e -> e instanceof Collection<?> ? ((Collection<?>) e).stream() : Stream.of(e))
+                .map(c -> TestFixture.parseObject(c, callerClass))
                 .map(e -> e instanceof Message || e instanceof Predicate<?> || isMatcher(e) ? e :
-                        new Message(e)).collect(toList());
+                        new Message(e)).collect(toList()));
     }
 
     @SuppressWarnings("unchecked")

@@ -15,16 +15,21 @@
 package io.fluxcapacitor.common.serialization;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
+import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.JavaType;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.json.JsonMapper;
 import com.fasterxml.jackson.databind.jsontype.impl.LaissezFaireSubTypeValidator;
+import com.fasterxml.jackson.databind.type.TypeFactory;
 import io.fluxcapacitor.common.FileUtils;
+import io.fluxcapacitor.common.reflection.ReflectionUtils;
 import lombok.SneakyThrows;
 
 import java.io.InputStream;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 
 import static com.fasterxml.jackson.annotation.JsonTypeInfo.As.PROPERTY;
@@ -39,20 +44,36 @@ public class JsonUtils {
             .findAndAddModules().addModule(new StripStringsModule()).addModule(new NullCollectionsAsEmptyModule())
             .disable(FAIL_ON_EMPTY_BEANS).disable(WRITE_DATES_AS_TIMESTAMPS).disable(FAIL_ON_UNKNOWN_PROPERTIES)
             .nodeFactory(withExactBigDecimals(true)).serializationInclusion(JsonInclude.Include.NON_NULL)
+            .enable(DeserializationFeature.ACCEPT_SINGLE_VALUE_AS_ARRAY)
             .activateDefaultTyping(LaissezFaireSubTypeValidator.instance, JAVA_LANG_OBJECT, PROPERTY)
             .build();
 
     public static final JsonMapper writer = reader.rebuild().deactivateDefaultTyping().build();
 
-    @SuppressWarnings("unchecked")
     @SneakyThrows
-    public static <T> T fromFile(String fileName) {
-        return (T) reader.readValue(FileUtils.loadFile(fileName), Object.class);
+    public static Object fromFile(String fileName) {
+        return reader.readValue(FileUtils.loadFile(ReflectionUtils.getCallerClass(), fileName), Object.class);
+    }
+
+    public static List<?> fromFile(String... fileNames) {
+        Class<?> callerClass = ReflectionUtils.getCallerClass();
+        return Arrays.stream(fileNames).map(f -> JsonUtils.fromFile(callerClass, f)).collect(Collectors.toList());
+    }
+
+    @SneakyThrows
+    public static <T> T fromFile(String fileName, Class<T> type) {
+        return reader.readValue(FileUtils.loadFile(ReflectionUtils.getCallerClass(), fileName), type);
     }
 
     @SneakyThrows
     public static <T> T fromFile(String fileName, JavaType javaType) {
-        return reader.readValue(FileUtils.loadFile(fileName), javaType);
+        return reader.readValue(FileUtils.loadFile(ReflectionUtils.getCallerClass(), fileName), javaType);
+    }
+
+    @SneakyThrows
+    public static <T> T fromFile(String fileName, Function<TypeFactory, JavaType> typeFunction) {
+        return reader.readValue(FileUtils.loadFile(ReflectionUtils.getCallerClass(), fileName),
+                                typeFunction.apply(typeFactory()));
     }
 
     @SuppressWarnings("unchecked")
@@ -62,17 +83,29 @@ public class JsonUtils {
     }
 
     @SneakyThrows
+    public static <T> T fromFile(Class<?> referencePoint, String fileName, Class<T> type) {
+        return reader.readValue(FileUtils.loadFile(referencePoint, fileName), type);
+    }
+
+    @SneakyThrows
     public static <T> T fromFile(Class<?> referencePoint, String fileName, JavaType javaType) {
         return reader.readValue(FileUtils.loadFile(referencePoint, fileName), javaType);
     }
 
     @SneakyThrows
-    public static <T> T fromFile(Class<?> referencePoint, String fileName, Class<T> type) {
-        return reader.readValue(FileUtils.loadFile(referencePoint, fileName), type);
+    public static <T> T fromFile(Class<?> referencePoint, String fileName,
+                                 Function<TypeFactory, JavaType> typeFunction) {
+        return reader.readValue(FileUtils.loadFile(referencePoint, fileName), typeFunction.apply(typeFactory()));
     }
 
-    public static List<?> fromFile(String... fileNames) {
-        return Arrays.stream(fileNames).map(JsonUtils::fromFile).collect(Collectors.toList());
+    public static <T> T fromFileAs(String fileName) {
+        return fromFile(ReflectionUtils.getCallerClass(), fileName);
+    }
+
+    public static Object fromFileWith(String fileName, Map<String, Object> replaceValues) {
+        Object o = JsonUtils.fromFile(ReflectionUtils.getCallerClass(), fileName);
+        replaceValues.forEach((path, replacement) -> ReflectionUtils.writeProperty(path, o, replacement));
+        return o;
     }
 
     @SuppressWarnings("unchecked")
@@ -89,6 +122,11 @@ public class JsonUtils {
     @SneakyThrows
     public static <T> T fromJson(String json, JavaType type) {
         return reader.readValue(json, type);
+    }
+
+    @SneakyThrows
+    public static <T> T fromJson(String json, Function<TypeFactory, JavaType> typeFunction) {
+        return reader.readValue(json, typeFunction.apply(typeFactory()));
     }
 
     @SneakyThrows
@@ -117,6 +155,16 @@ public class JsonUtils {
     }
 
     @SneakyThrows
+    public static JsonNode readTree(byte[] readEntity) {
+        return writer.readTree(readEntity);
+    }
+
+    @SneakyThrows
+    public static JsonNode readTree(String readEntity) {
+        return writer.readTree(readEntity);
+    }
+
+    @SneakyThrows
     public static JsonNode readTree(InputStream readEntity) {
         return writer.readTree(readEntity);
     }
@@ -124,5 +172,19 @@ public class JsonUtils {
     @SneakyThrows
     public static <T extends JsonNode> T valueToTree(Object object) {
         return writer.valueToTree(object);
+    }
+
+    @SuppressWarnings("unchecked")
+    @SneakyThrows
+    public static <T> T merge(T value, Object update) {
+        if (value == null) {
+            return (T) update;
+        }
+        return update == null ? value
+                : writer.readerForUpdating(value).readValue(convertValue(update, JsonNode.class));
+    }
+
+    public static TypeFactory typeFactory() {
+        return reader.getTypeFactory();
     }
 }

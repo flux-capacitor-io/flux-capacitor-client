@@ -40,6 +40,7 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Iterator;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
@@ -390,6 +391,23 @@ public class ReflectionUtils {
             owner = owner.getSuperclass();
         }
         return Optional.empty();
+    }
+
+    public static Class<?> getCallerClass() {
+        return StackWalker.getInstance(Set.of(StackWalker.Option.RETAIN_CLASS_REFERENCE))
+                .walk(s -> {
+                    Iterator<StackWalker.StackFrame> iterator = s.skip(1).iterator();
+                    Class<?> invoker = iterator.next().getDeclaringClass();
+                    while (iterator.hasNext()) {
+                        StackWalker.StackFrame frame = iterator.next();
+                        var frameClass = frame.getDeclaringClass();
+                        if (!frameClass.equals(invoker)
+                            && !frameClass.getName().startsWith("java.")) {
+                            return frameClass;
+                        }
+                    }
+                    return null;
+                });
     }
 
     @Value

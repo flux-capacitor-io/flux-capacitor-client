@@ -138,7 +138,7 @@ class JacksonInverterTest {
 
     @Test
     void testDocumentSerializationViaJackson() {
-        Object value = JsonUtils.fromFile(JacksonInverterTest.class, "mixed-object.json", MixedObject.class);
+        Object value = JsonUtils.fromFile("mixed-object.json", MixedObject.class);
         Document document = subject.toDocument(value, "test", "test", Instant.now(), Instant.now());
         String json = JsonUtils.asPrettyJson(document);
 

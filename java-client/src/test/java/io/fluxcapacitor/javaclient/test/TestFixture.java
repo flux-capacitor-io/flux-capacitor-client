@@ -21,6 +21,8 @@ import io.fluxcapacitor.common.api.Data;
 import io.fluxcapacitor.common.api.SerializedMessage;
 import io.fluxcapacitor.common.api.tracking.MessageBatch;
 import io.fluxcapacitor.common.handling.Handler;
+import io.fluxcapacitor.common.reflection.ReflectionUtils;
+import io.fluxcapacitor.common.serialization.JsonUtils;
 import io.fluxcapacitor.javaclient.FluxCapacitor;
 import io.fluxcapacitor.javaclient.common.IdentityProvider;
 import io.fluxcapacitor.javaclient.common.Message;
@@ -88,6 +90,8 @@ import static java.util.stream.Collectors.toSet;
 
 @Slf4j
 public class TestFixture implements Given, When {
+    private static final String TRACE_TAG = "$givenWhenThen.trace", IGNORE_TAG = "$givenWhenThen.ignore";
+    
     /*
         Synchronous test fixture: Messages are dispatched and consumed in the same thread (i.e. all handlers are registered as local handlers)
      */
@@ -257,7 +261,8 @@ public class TestFixture implements Given, When {
 
     @Override
     public TestFixture givenCommands(Object... commands) {
-        return given(fc -> getDispatchResult(CompletableFuture.allOf(flatten(commands).map(
+        Stream<Message> messages = asMessages(commands);
+        return given(fc -> getDispatchResult(CompletableFuture.allOf(messages.map(
                 c -> fc.commandGateway().send(c)).toArray(CompletableFuture[]::new))));
     }
 
@@ -273,8 +278,9 @@ public class TestFixture implements Given, When {
 
     @Override
     public TestFixture givenEvents(Object... events) {
-        return given(fc -> flatten(events).forEach(c -> runSilently(
-                () -> fc.eventGateway().publish(Message.asMessage(c), Guarantee.STORED).get())));
+        Stream<Message> messages = asMessages(events);
+        return given(fc -> messages.forEach(c -> runSilently(
+                () -> fc.eventGateway().publish(c, Guarantee.STORED).get())));
     }
 
     @Override
@@ -324,7 +330,8 @@ public class TestFixture implements Given, When {
 
     @Override
     public Then whenCommand(Object command) {
-        return whenApplying(fc -> getDispatchResult(fc.commandGateway().send(interceptor.trace(command))));
+        Message message = trace(command);
+        return whenApplying(fc -> getDispatchResult(fc.commandGateway().send(message)));
     }
 
     @Override
@@ -334,7 +341,8 @@ public class TestFixture implements Given, When {
 
     @Override
     public Then whenQuery(Object query) {
-        return whenApplying(fc -> getDispatchResult(fc.queryGateway().send(interceptor.trace(query))));
+        Message message = trace(query);
+        return whenApplying(fc -> getDispatchResult(fc.queryGateway().send(message)));
     }
 
     @Override
@@ -344,7 +352,8 @@ public class TestFixture implements Given, When {
 
     @Override
     public Then whenEvent(Object event) {
-        return when(fc -> runSilently(() -> fc.eventGateway().publish(interceptor.trace(Message.asMessage(event)), Guarantee.STORED).get()));
+        Message message = trace(event);
+        return when(fc -> runSilently(() -> fc.eventGateway().publish(message, Guarantee.STORED).get()));
     }
 
     @Override
@@ -359,12 +368,13 @@ public class TestFixture implements Given, When {
 
     @Override
     public Then whenWebRequest(WebRequest request) {
-        return whenApplying(fc -> getDispatchResult(fc.webRequestGateway().send(interceptor.trace(request))));
+        return whenApplying(fc -> getDispatchResult(fc.webRequestGateway().send(trace(request))));
     }
 
     @Override
     public Then whenScheduleExpires(Object schedule) {
-        return when(fc -> fc.scheduler().schedule(interceptor.trace(schedule), getClock().instant()));
+        Message message = trace(schedule);
+        return when(fc -> fc.scheduler().schedule(message, getClock().instant()));
     }
 
     @Override
@@ -428,10 +438,9 @@ public class TestFixture implements Given, When {
     }
 
     protected void applyEvents(String aggregateId, FluxCapacitor fc, Object[] events) {
-        List<Message> eventList = flatten(events).map(e -> {
-            Message m = asMessage(e);
-            return m.withMetadata(m.getMetadata().with(AggregateRoot.AGGREGATE_ID_METADATA_KEY, aggregateId));
-        }).collect(toList());
+        List<Message> eventList = asMessages(events).map(
+                e -> e.withMetadata(e.getMetadata().with(AggregateRoot.AGGREGATE_ID_METADATA_KEY, aggregateId)))
+                .collect(toList());
         if (eventList.stream().anyMatch(e -> e.getPayload() instanceof Data<?>)) {
             for (Message event : eventList) {
                 if (event.getPayload() instanceof Data<?>) {
@@ -537,8 +546,9 @@ public class TestFixture implements Given, When {
         }
     }
 
-    protected Stream<Object> flatten(Object... messages) {
-        return Arrays.stream(messages).flatMap(c -> {
+    protected Stream<Message> asMessages(Object... messages) {
+        Class<?> callerClass = ReflectionUtils.getCallerClass();
+        return fluxCapacitor.apply(fc -> Arrays.stream(messages).flatMap(c -> {
             if (c instanceof Collection<?>) {
                 return ((Collection<?>) c).stream();
             }
@@ -546,7 +556,12 @@ public class TestFixture implements Given, When {
                 return Arrays.stream((Object[]) c);
             }
             return Stream.of(c);
-        });
+        }).map(c -> parseObject(c, callerClass)).map(Message::asMessage));
+    }
+
+    protected Message trace(Object object) {
+        Class<?> callerClass = ReflectionUtils.getCallerClass();
+        return fluxCapacitor.apply(fc -> asMessage(parseObject(object, callerClass)).addMetadata(TRACE_TAG, "true"));
     }
 
     protected Object[] addUser(User user, Object... messages) {
@@ -554,8 +569,15 @@ public class TestFixture implements Given, When {
         if (userProvider == null) {
             throw new IllegalStateException("UserProvider has not been configured");
         }
-        return flatten(messages).map(Message::asMessage).map(
+        return asMessages(messages).map(
                 m -> m.withMetadata(userProvider.addToMetadata(m.getMetadata(), user))).toArray();
+    }
+
+    public static Object parseObject(Object object, Class<?> callerClass) {
+        if (object instanceof String && ((String) object).endsWith(".json")) {
+            return JsonUtils.fromFile(callerClass, (String) object);
+        }
+        return object;
     }
 
     protected boolean checkConsumers() {
@@ -574,13 +596,7 @@ public class TestFixture implements Given, When {
 
     protected class GivenWhenThenInterceptor implements DispatchInterceptor, BatchInterceptor, HandlerInterceptor {
 
-        private static final String TRACE_TAG = "$givenWhenThen.trace", IGNORE_TAG = "$givenWhenThen.ignore";
-
         private final Map<MessageType, List<Message>> publishedSchedules = new ConcurrentHashMap<>();
-
-        protected Message trace(Object message) {
-            return asMessage(message).addMetadata(TRACE_TAG, "true");
-        }
 
         @Override
         public Message interceptDispatch(Message message, MessageType messageType) {

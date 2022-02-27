@@ -160,6 +160,16 @@ class GivenWhenThenTest {
                 .expectResult(r -> r instanceof MockAggregate);
     }
 
+    @Test
+    void testGivenCommandsAsJson() {
+        subject.givenCommands("yields-result.json").whenCommand(new YieldsNoResult()).expectNoResult().expectNoEvents();
+    }
+
+    @Test
+    void testExpectAsJson() {
+        subject.whenCommand("yields-result.json").expectResult("result.json");
+    }
+
     private static class CommandHandler {
         @HandleCommand
         public void handle(YieldsNoResult command) {
