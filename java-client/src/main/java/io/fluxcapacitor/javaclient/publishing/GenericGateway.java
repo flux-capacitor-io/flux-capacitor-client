@@ -105,11 +105,13 @@ public interface GenericGateway extends HasLocalHandlers {
             }
             return future.get(1, TimeUnit.MINUTES);
         } catch (java.util.concurrent.TimeoutException e) {
-            throw new TimeoutException(format("%s has timed out", message.getPayload().toString()));
+            throw new TimeoutException(format("Request %s (type %s) has timed out", message.getMessageId(),
+                                              message.getPayloadClass()));
         } catch (InterruptedException e) {
             currentThread().interrupt();
             throw new GatewayException(
-                    format("Thread interrupted while waiting for result of %s", message.getPayload().toString()), e);
+                    format("Thread interrupted while waiting for result of %s (type %s)",
+                           message.getMessageId(), message.getPayloadClass()), e);
         } catch (ExecutionException e) {
             throw e.getCause();
         }
