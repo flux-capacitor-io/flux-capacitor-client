@@ -362,8 +362,7 @@ public interface FluxCapacitor extends AutoCloseable {
      */
     @SuppressWarnings("unchecked")
     static <T> Optional<T> loadEntityValue(String entityId) {
-        return loadAggregateFor(entityId).allEntities().stream()
-                .filter(e -> entityId.equals(e.id())).findFirst().map(e -> (T) e.get());
+        return loadAggregateFor(entityId).getEntity(entityId).map(e -> (T) e.get());
     }
 
     /**

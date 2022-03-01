@@ -21,6 +21,7 @@ import io.fluxcapacitor.javaclient.publishing.routing.RoutingKey;
 
 import java.util.Collection;
 import java.util.List;
+import java.util.Optional;
 import java.util.function.Function;
 import java.util.function.Predicate;
 import java.util.function.UnaryOperator;
@@ -49,6 +50,10 @@ public interface Entity<M extends Entity<M, T>, T> {
     default Collection<Entity<?, ?>> allEntities() {
         return Stream.concat(Stream.of(this), entities().stream().flatMap(e -> e.allEntities().stream()))
                 .collect(Collectors.toUnmodifiableList());
+    }
+
+    default Optional<Entity<?, ?>> getEntity(String entityId) {
+        return allEntities().stream().filter(e -> entityId.equals(e.id())).findFirst();
     }
 
     default M apply(Object... events) {
@@ -132,6 +137,7 @@ public interface Entity<M extends Entity<M, T>, T> {
 
     interface Holder {
         Stream<Entity<?, ?>> getEntities(Object owner);
+
         Object updateOwner(Object owner, Entity<?, ?> before, Entity<?, ?> after);
     }
 }
