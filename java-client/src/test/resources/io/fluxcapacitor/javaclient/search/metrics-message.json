@@ -16,7 +16,6 @@
     "ignoreMessageTarget": true,
     "maxSize": 128,
     "lastIndex": 106187509441101820,
-    "strategy": "NEW",
     "consumer": "audittrail:QUERY"
   },
   "created": "2021-05-07T10:44:04.210Z",

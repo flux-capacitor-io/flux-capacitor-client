@@ -16,7 +16,6 @@ package io.fluxcapacitor.javaclient.tracking.client;
 
 import io.fluxcapacitor.common.MessageType;
 import io.fluxcapacitor.common.api.SerializedMessage;
-import io.fluxcapacitor.common.api.tracking.TrackingStrategy;
 import io.fluxcapacitor.javaclient.tracking.ConsumerConfiguration;
 import lombok.Value;
 
@@ -36,7 +35,6 @@ public class SimpleTrackerRead implements TrackerRead {
     int maxSize;
     Predicate<String> typeFilter;
     boolean ignoreMessageTarget;
-    TrackingStrategy strategy;
     MessageType messageType;
 
     public SimpleTrackerRead(String consumer, String trackerId, Long previousLastIndex,
@@ -49,7 +47,6 @@ public class SimpleTrackerRead implements TrackerRead {
         this.maxSize = config.getMaxFetchBatchSize();
         this.typeFilter = toPredicate(config.getTypeFilter());
         this.ignoreMessageTarget = config.ignoreMessageTarget();
-        this.strategy = config.getReadStrategy();
         this.messageType = config.getMessageType();
     }
 

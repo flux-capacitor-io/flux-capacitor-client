@@ -16,7 +16,6 @@ package io.fluxcapacitor.javaclient.tracking.client;
 
 import io.fluxcapacitor.common.MessageType;
 import io.fluxcapacitor.common.api.SerializedMessage;
-import io.fluxcapacitor.common.api.tracking.TrackingStrategy;
 
 import java.util.Comparator;
 
@@ -38,8 +37,6 @@ public interface TrackerRead extends Comparable<TrackerRead> {
     Long getPurgeDelay();
 
     int getMaxSize();
-
-    TrackingStrategy getStrategy();
 
     @Override
     default int compareTo(TrackerRead o) {

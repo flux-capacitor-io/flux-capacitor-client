@@ -61,8 +61,7 @@ public class WebsocketTrackingClient extends AbstractWebsocketClient implements 
         return this.<ReadResult>send(new Read(
                         consumer, trackerId, configuration.getMaxFetchBatchSize(),
                         configuration.getMaxWaitDuration().toMillis(), configuration.getTypeFilter(),
-                        configuration.ignoreMessageTarget(), configuration.ignoreSegment(),
-                        configuration.getReadStrategy(), lastIndex,
+                        configuration.ignoreMessageTarget(), configuration.ignoreSegment(), lastIndex,
                         Optional.ofNullable(configuration.getPurgeDelay()).map(Duration::toMillis).orElse(null)))
                 .thenApply(ReadResult::getMessageBatch);
     }
@@ -71,7 +70,7 @@ public class WebsocketTrackingClient extends AbstractWebsocketClient implements 
                                            ConsumerConfiguration config) {
         return send(new ClaimSegment(
                 consumer, trackerId, config.getMaxWaitDuration().toMillis(), config.getTypeFilter(),
-                config.ignoreMessageTarget(), config.getReadStrategy(), lastIndex,
+                config.ignoreMessageTarget(), lastIndex,
                 Optional.ofNullable(config.getPurgeDelay()).map(Duration::toMillis).orElse(null)));
     }
 

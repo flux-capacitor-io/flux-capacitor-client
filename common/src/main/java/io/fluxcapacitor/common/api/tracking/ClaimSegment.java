@@ -22,15 +22,15 @@ import java.beans.ConstructorProperties;
 @Value
 @EqualsAndHashCode(callSuper = true)
 public class ClaimSegment extends Read {
-    @ConstructorProperties({"consumer", "trackerId", "maxTimeout", "typeFilter", "ignoreMessageTarget", "strategy", "lastIndex", "purgeTimeout"})
+    @ConstructorProperties({"consumer", "trackerId", "maxTimeout", "typeFilter", "ignoreMessageTarget", "lastIndex", "purgeTimeout"})
     public ClaimSegment(String consumer, String trackerId, long maxTimeout, String typeFilter,
-                        boolean ignoreMessageTarget, TrackingStrategy strategy, Long lastIndex, Long purgeTimeout) {
+                        boolean ignoreMessageTarget, Long lastIndex, Long purgeTimeout) {
         super(consumer, trackerId, 0, maxTimeout, typeFilter, ignoreMessageTarget, false,
-              strategy, lastIndex, purgeTimeout);
+              lastIndex, purgeTimeout);
     }
 
     public ClaimSegment(Read read) {
         this(read.getConsumer(), read.getTrackerId(), read.getMaxTimeout(), read.getTypeFilter(),
-             read.isIgnoreMessageTarget(), read.getStrategy(), read.getLastIndex(), read.getPurgeTimeout());
+             read.isIgnoreMessageTarget(), read.getLastIndex(), read.getPurgeTimeout());
     }
 }

@@ -15,7 +15,6 @@
 package io.fluxcapacitor.javaclient.tracking;
 
 import io.fluxcapacitor.common.MessageType;
-import io.fluxcapacitor.common.api.tracking.TrackingStrategy;
 import io.fluxcapacitor.javaclient.configuration.client.Client;
 import lombok.Builder;
 import lombok.Builder.Default;
@@ -59,8 +58,6 @@ public class ConsumerConfiguration {
     @Default
     @Accessors(fluent = true)
     boolean ignoreSegment = false;
-    @Default
-    TrackingStrategy readStrategy = TrackingStrategy.NEW;
     @Default
     Long minIndex = null;
     @Default
