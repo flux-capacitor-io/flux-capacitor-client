@@ -465,12 +465,12 @@ public interface FluxCapacitor extends AutoCloseable {
      */
     default Registration registerHandlers(List<?> handlers) {
         return apply(f -> {
-            Registration tracking = stream(MessageType.values()).map(t -> tracking(t).start(this, handlers))
-                    .reduce(Registration::merge).orElse(Registration.noOp());
             Registration local = handlers.stream().flatMap(h -> Stream
                             .of(commandGateway().registerHandler(h), queryGateway().registerHandler(h),
                                 eventGateway().registerHandler(h), eventStore().registerHandler(h),
                                 errorGateway().registerHandler(h), webRequestGateway().registerHandler(h)))
+                    .reduce(Registration::merge).orElse(Registration.noOp());
+            Registration tracking = stream(MessageType.values()).map(t -> tracking(t).start(this, handlers))
                     .reduce(Registration::merge).orElse(Registration.noOp());
             return tracking.merge(local);
         });
