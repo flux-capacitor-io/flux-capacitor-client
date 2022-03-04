@@ -72,6 +72,8 @@ public class ReflectionUtils {
 
     private static final Function<Class<?>, List<Method>> methodsCache = memoize(ReflectionUtils::computeAllMethods);
     private static final Function<String, Class<?>> classForNameCache = memoize(ReflectionUtils::computeClass);
+    private static final BiFunction<Class<?>, Class<? extends Annotation>, List<? extends AccessibleObject>>
+            annotatedPropertiesCache = memoize(ReflectionUtils::computeAnnotatedProperties);
     private static final BiFunction<String, Class<?>, Function<Object, Object>> gettersCache =
             memoize(ReflectionUtils::computeNestedGetter);
     private static final BiFunction<String, Class<?>, BiConsumer<Object, Object>> settersCache =
@@ -86,8 +88,8 @@ public class ReflectionUtils {
     */
     private static List<Method> computeAllMethods(Class<?> type) {
         Predicate<Method> include = m -> !m.isBridge() && !m.isSynthetic() &&
-                Character.isJavaIdentifierStart(m.getName().charAt(0))
-                && m.getName().chars().skip(1).allMatch(Character::isJavaIdentifierPart);
+                                         Character.isJavaIdentifierStart(m.getName().charAt(0))
+                                         && m.getName().chars().skip(1).allMatch(Character::isJavaIdentifierPart);
 
         Set<Method> methods = new LinkedHashSet<>();
         Collections.addAll(methods, type.getMethods());
@@ -113,7 +115,7 @@ public class ReflectionUtils {
         include = include.and(m -> {
             int acc = m.getModifiers() & access;
             return acc != 0 ? acc == Modifier.PRIVATE
-                    || types.putIfAbsent(methodKey(m), pkgIndependent) == null :
+                              || types.putIfAbsent(methodKey(m), pkgIndependent) == null :
                     noPkgOverride(m, types, pkgIndependent);
         });
         for (type = type.getSuperclass(); type != null; type = type.getSuperclass()) {
@@ -143,6 +145,11 @@ public class ReflectionUtils {
 
     public static List<? extends AccessibleObject> getAnnotatedProperties(Class<?> target,
                                                                           Class<? extends Annotation> annotation) {
+        return annotatedPropertiesCache.apply(target, annotation);
+    }
+
+    private static List<? extends AccessibleObject> computeAnnotatedProperties(Class<?> target,
+                                                                               Class<? extends Annotation> annotation) {
         List<AccessibleObject> result =
                 new ArrayList<>(FieldUtils.getFieldsListWithAnnotation(target, annotation));
         result.addAll(getMethodsListWithAnnotation(target, annotation, true, true).stream()
@@ -242,6 +249,7 @@ public class ReflectionUtils {
 
     @SneakyThrows
     private static Function<Object, Object> computeGetter(@NonNull String propertyName, @NonNull Class<?> type) {
+        PropertyNotFoundException notFoundException = new PropertyNotFoundException(propertyName, type);
         return Arrays.stream(getBeanInfo(type, Object.class).getPropertyDescriptors())
                 .filter(d -> propertyName.equals(d.getName()))
                 .<AccessibleObject>map(PropertyDescriptor::getReadMethod).filter(Objects::nonNull).findFirst()
@@ -249,7 +257,7 @@ public class ReflectionUtils {
                 .or(() -> Optional.ofNullable(FieldUtils.getField(type, propertyName, true)))
                 .<Function<Object, Object>>map(a -> target -> getValue(a, target))
                 .orElseGet(() -> o -> {
-                    throw new PropertyNotFoundException(propertyName, type);
+                    throw notFoundException;
                 });
     }
 
@@ -343,13 +351,14 @@ public class ReflectionUtils {
 
     @SneakyThrows
     private static BiConsumer<Object, Object> computeSetter(@NonNull String propertyName, @NonNull Class<?> type) {
+        PropertyNotFoundException notFoundException = new PropertyNotFoundException(propertyName, type);
         return Arrays.stream(getBeanInfo(type, Object.class).getPropertyDescriptors())
                 .filter(d -> propertyName.equals(d.getName()))
                 .<AccessibleObject>map(PropertyDescriptor::getWriteMethod).filter(Objects::nonNull).findFirst()
                 .or(() -> Optional.ofNullable(FieldUtils.getField(type, propertyName, true)))
                 .<BiConsumer<Object, Object>>map(a -> (target, value) -> setValue(a, target, value))
                 .orElseGet(() -> (t, v) -> {
-                    throw new PropertyNotFoundException(propertyName, type);
+                    throw notFoundException;
                 });
     }
 
@@ -367,7 +376,7 @@ public class ReflectionUtils {
 
     public static boolean isOrHas(Annotation annotation, Class<? extends Annotation> annotationType) {
         return annotation != null && (Objects.equals(annotation.annotationType(), annotationType)
-                || annotation.annotationType().isAnnotationPresent(annotationType));
+                                      || annotation.annotationType().isAnnotationPresent(annotationType));
     }
 
     @SneakyThrows
@@ -540,7 +549,7 @@ public class ReflectionUtils {
             return false;
         }
         return (notPackageAccess(modsA) && notPackageAccess(modsB))
-                || a.getDeclaringClass().getPackage().equals(b.getDeclaringClass().getPackage());
+               || a.getDeclaringClass().getPackage().equals(b.getDeclaringClass().getPackage());
     }
 
     private static boolean notPackageAccess(int mods) {

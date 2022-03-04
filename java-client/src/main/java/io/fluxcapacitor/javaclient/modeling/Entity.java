@@ -49,7 +49,7 @@ public interface Entity<M extends Entity<M, T>, T> {
 
     default Collection<Entity<?, ?>> allEntities() {
         return Stream.concat(Stream.of(this), entities().stream().flatMap(e -> e.allEntities().stream()))
-                .collect(Collectors.toUnmodifiableList());
+                .collect(Collectors.toList());
     }
 
     default Optional<Entity<?, ?>> getEntity(String entityId) {

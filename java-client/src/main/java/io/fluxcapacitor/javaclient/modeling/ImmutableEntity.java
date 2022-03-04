@@ -5,6 +5,7 @@ import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import io.fluxcapacitor.javaclient.common.Message;
 import io.fluxcapacitor.javaclient.common.serialization.DeserializingMessage;
 import io.fluxcapacitor.javaclient.common.serialization.Serializer;
+import io.fluxcapacitor.javaclient.persisting.eventsourcing.EventSourcingHandler;
 import io.fluxcapacitor.javaclient.persisting.eventsourcing.EventSourcingHandlerFactory;
 import io.fluxcapacitor.javaclient.tracking.handling.validation.ValidationUtils;
 import lombok.Builder;
@@ -18,7 +19,6 @@ import lombok.extern.slf4j.Slf4j;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Iterator;
-import java.util.Objects;
 import java.util.function.UnaryOperator;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -27,7 +27,6 @@ import static io.fluxcapacitor.common.MessageType.EVENT;
 import static io.fluxcapacitor.common.reflection.ReflectionUtils.getAnnotatedProperties;
 import static io.fluxcapacitor.javaclient.common.Message.asMessage;
 import static io.fluxcapacitor.javaclient.modeling.AnnotatedEntityHolder.getEntityHolder;
-import static java.util.stream.Collectors.groupingBy;
 
 @Value
 @Builder(toBuilder = true)
@@ -80,7 +79,7 @@ public class ImmutableEntity<T> implements Entity<ImmutableEntity<T>, T> {
         Class<?> type = value == null ? type() : value.getClass();
         return getAnnotatedProperties(type, Member.class).stream().flatMap(
                 location -> getEntityHolder(type, location, handlerFactory, serializer)
-                        .getEntities(value)).collect(Collectors.toUnmodifiableList());
+                        .getEntities(value)).collect(Collectors.toList());
     }
 
     @Override
@@ -105,15 +104,18 @@ public class ImmutableEntity<T> implements Entity<ImmutableEntity<T>, T> {
 
     @SuppressWarnings("unchecked")
     public ImmutableEntity<T> apply(DeserializingMessage message) {
-        ImmutableEntity<T> result = toBuilder().value(handlerFactory.<T>forType(type()).invoke(this, message)).build();
+        EventSourcingHandler<T> handler = handlerFactory.forType(type());
+        ImmutableEntity<T> result = handler.canHandle(this, message)
+                ? toBuilder().value(handler.invoke(this, message)).build() : this;
         Object payload = message.getPayload();
         Iterator<Entity<?, ?>> iterator = result.possibleTargets(payload).iterator();
         while (iterator.hasNext()) {
             Entity<?, ?> entity = iterator.next();
             if (entity.isPossibleTarget(payload)) {
                 Entity<?, ?> updated = entity.apply(message);
-                if (!Objects.equals(updated, entity)) {
-                    result = result.toBuilder().value((T) entity.holder().updateOwner(result.get(), entity, updated))
+                if (entity.get() != updated.get()) {
+                    result = result.toBuilder()
+                            .value((T) entity.holder().updateOwner(result.get(), entity, updated))
                             .build();
                 }
             }
@@ -139,7 +141,6 @@ public class ImmutableEntity<T> implements Entity<ImmutableEntity<T>, T> {
     }
 
     Stream<Entity<?, ?>> possibleTargets(Object payload) {
-        return entities().stream().collect(groupingBy(Entity::holder)).values().stream()
-                .flatMap(group -> group.stream().filter(e -> e.isPossibleTarget(payload)).findFirst().stream());
+        return entities().stream().filter(e -> e.isPossibleTarget(payload)).findFirst().stream();
     }
 }
