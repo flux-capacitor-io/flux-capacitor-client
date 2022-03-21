@@ -14,13 +14,11 @@ import lombok.With;
 import lombok.experimental.Accessors;
 
 import java.time.Instant;
-import java.util.Collection;
 import java.util.Objects;
 import java.util.function.UnaryOperator;
 
 import static io.fluxcapacitor.common.MessageType.EVENT;
 import static io.fluxcapacitor.javaclient.FluxCapacitor.currentClock;
-import static io.fluxcapacitor.javaclient.common.Message.asMessage;
 import static java.util.Optional.ofNullable;
 
 @Value
@@ -83,14 +81,6 @@ public class ImmutableAggregateRoot<T> implements AggregateRoot<T> {
     }
 
     @Override
-    public AggregateRoot<T> apply(Object event) {
-        if (event instanceof DeserializingMessage) {
-            return apply(((DeserializingMessage) event));
-        }
-        return apply(asMessage(event));
-    }
-
-    @Override
     public ImmutableAggregateRoot<T> update(UnaryOperator<T> function) {
         return toBuilder()
                 .delegate(delegate.update(function))
@@ -120,12 +110,7 @@ public class ImmutableAggregateRoot<T> implements AggregateRoot<T> {
     }
 
     @Override
-    public Holder holder() {
-        return delegate.holder();
-    }
-
-    @Override
-    public Collection<Entity<?, ?>> entities() {
+    public Iterable<? extends Entity<?, ?>> entities() {
         return delegate.entities();
     }
 
@@ -133,6 +118,11 @@ public class ImmutableAggregateRoot<T> implements AggregateRoot<T> {
     public <E extends Exception> AggregateRoot<T> assertLegal(Object... commands) throws E {
         delegate.assertLegal(commands);
         return this;
+    }
+
+    @Override
+    public boolean isPossibleTarget(Object message) {
+        return delegate.isPossibleTarget(message);
     }
 
     public ImmutableAggregateRoot<T> withEventIndex(Long index, String messageId) {

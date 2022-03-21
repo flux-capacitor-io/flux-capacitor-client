@@ -30,7 +30,9 @@ import io.fluxcapacitor.javaclient.tracking.handling.authentication.UserParamete
 import io.fluxcapacitor.javaclient.web.WebPayloadParameterResolver;
 import io.fluxcapacitor.javaclient.web.WebRequest;
 import io.fluxcapacitor.javaclient.web.WebResponse;
+import lombok.AccessLevel;
 import lombok.AllArgsConstructor;
+import lombok.Getter;
 import lombok.Value;
 import lombok.experimental.Delegate;
 import lombok.extern.slf4j.Slf4j;
@@ -75,6 +77,9 @@ public class DeserializingMessage {
     DeserializingObject<byte[], SerializedMessage> delegate;
     MessageType messageType;
 
+    @Getter(lazy = true, value = AccessLevel.PRIVATE)
+    Message message = toMessage();
+
     public DeserializingMessage(SerializedMessage message, Function<Class<?>, Object> payload,
                                 MessageType messageType) {
         this(new DeserializingObject<>(message, payload), messageType);
@@ -111,9 +116,13 @@ public class DeserializingMessage {
         return Instant.ofEpochMilli(getSerializedObject().getTimestamp());
     }
 
-    public Message toMessage() {
+    public Message asMessage() {
+        return getMessage();
+    }
+
+    private Message toMessage() {
         Message message = new Message(getPayload(), getMetadata(), getMessageId(), getTimestamp());
-        switch (messageType) {
+        switch (getMessageType()) {
             case SCHEDULE:
                 return new Schedule(message);
             case WEBREQUEST:

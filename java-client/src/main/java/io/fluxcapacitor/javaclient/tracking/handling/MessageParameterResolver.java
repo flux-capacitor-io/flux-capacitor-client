@@ -26,7 +26,7 @@ public class MessageParameterResolver implements ParameterResolver<Deserializing
     @Override
     public Function<DeserializingMessage, Object> resolve(Parameter p, Annotation methodAnnotation) {
         if (Message.class.isAssignableFrom(p.getType())) {
-            return DeserializingMessage::toMessage;
+            return DeserializingMessage::asMessage;
         }
         return null;
     }
