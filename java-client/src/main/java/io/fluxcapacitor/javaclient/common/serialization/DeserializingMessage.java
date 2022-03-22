@@ -236,12 +236,9 @@ public class DeserializingMessage {
                     try {
                         current.set(d);
                         action.accept(d);
-                        if (previous == null) {
-                            onMessageCompletion(null);
-                        }
-                        current.set(previous);
+                        onMessageCompletion(null, previous);
                     } catch (Throwable e) {
-                        onMessageCompletion(e);
+                        onMessageCompletion(e, previous);
                         throw e;
                     }
                 });
@@ -255,17 +252,23 @@ public class DeserializingMessage {
             return hadNext;
         }
 
-        protected void onMessageCompletion(Throwable error) {
+        protected void onMessageCompletion(Throwable error, DeserializingMessage previous) {
             try {
-                ofNullable(messageCompletionHandlers.get()).ifPresent(handlers -> {
-                    messageCompletionHandlers.remove();
-                    handlers.forEach(h -> h.accept(error));
-                });
+                if (previous == null) {
+                    try {
+                        ofNullable(messageCompletionHandlers.get()).ifPresent(handlers -> {
+                            messageCompletionHandlers.remove();
+                            handlers.forEach(h -> h.accept(error));
+                        });
+                    } finally {
+                        messageResources.remove();
+                        messageCompletionHandlers.remove();
+                    }
+                }
             } finally {
-                messageResources.remove();
-                messageCompletionHandlers.remove();
-                current.set(null);
+                current.set(previous);
             }
+
         }
 
         protected void onBatchCompletion(Throwable error) {
