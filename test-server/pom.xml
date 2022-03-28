@@ -29,10 +29,6 @@
     <description>In memory server that can be used for testing applications in your local environment.</description>
     <url>https://flux-capacitor.io</url>
 
-    <properties>
-        <undertow.version>2.2.14.Final</undertow.version>
-    </properties>
-
     <dependencies>
         <dependency>
             <groupId>io.flux-capacitor</groupId>
