@@ -17,7 +17,6 @@ package io.fluxcapacitor.javaclient.modeling;
 import io.fluxcapacitor.common.api.Metadata;
 import io.fluxcapacitor.javaclient.common.Message;
 import io.fluxcapacitor.javaclient.common.serialization.DeserializingMessage;
-import io.fluxcapacitor.javaclient.publishing.routing.RoutingKey;
 
 import java.util.Collection;
 import java.util.List;
@@ -27,10 +26,8 @@ import java.util.function.Predicate;
 import java.util.function.UnaryOperator;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
+import java.util.stream.StreamSupport;
 
-import static io.fluxcapacitor.common.reflection.ReflectionUtils.getAnnotatedPropertyValue;
-import static io.fluxcapacitor.common.reflection.ReflectionUtils.hasProperty;
-import static io.fluxcapacitor.common.reflection.ReflectionUtils.readProperty;
 import static io.fluxcapacitor.javaclient.common.Message.asMessage;
 
 public interface Entity<M extends Entity<M, T>, T> {
@@ -43,13 +40,11 @@ public interface Entity<M extends Entity<M, T>, T> {
 
     String idProperty();
 
-    Holder holder();
-
-    Collection<Entity<?, ?>> entities();
+    Iterable<? extends Entity<?, ?>> entities();
 
     default Collection<Entity<?, ?>> allEntities() {
-        return Stream.concat(Stream.of(this), entities().stream().flatMap(e -> e.allEntities().stream()))
-                .collect(Collectors.toUnmodifiableList());
+        return Stream.concat(Stream.of(this), StreamSupport.stream(entities().spliterator(), false)
+                        .flatMap(e -> e.allEntities().stream())).collect(Collectors.toList());
     }
 
     default Optional<Entity<?, ?>> getEntity(String entityId) {
@@ -93,28 +88,7 @@ public interface Entity<M extends Entity<M, T>, T> {
 
     <E extends Exception> M assertLegal(Object... commands) throws E;
 
-    default boolean isPossibleTarget(Object message) {
-        if (message == null) {
-            return false;
-        }
-        if (entities().stream().anyMatch(e -> e.isPossibleTarget(message))) {
-            return true;
-        }
-        String idProperty = idProperty();
-        Object id = id();
-        if (idProperty == null) {
-            return true;
-        }
-        if (id == null && get() != null) {
-            return false;
-        }
-        Object payload = message instanceof Message ? ((Message) message).getPayload() : message;
-        if (id == null) {
-            return hasProperty(idProperty, payload);
-        }
-        return readProperty(idProperty, payload)
-                .or(() -> getAnnotatedPropertyValue(payload, RoutingKey.class)).map(id::equals).orElse(false);
-    }
+    boolean isPossibleTarget(Object message);
 
     @SuppressWarnings("unchecked")
     default <E extends Exception> M assertThat(Validator<T, E> validator) throws E {
@@ -133,11 +107,5 @@ public interface Entity<M extends Entity<M, T>, T> {
     @FunctionalInterface
     interface Validator<T, E extends Exception> {
         void validate(T model) throws E;
-    }
-
-    interface Holder {
-        Stream<Entity<?, ?>> getEntities(Object owner);
-
-        Object updateOwner(Object owner, Entity<?, ?> before, Entity<?, ?> after);
     }
 }

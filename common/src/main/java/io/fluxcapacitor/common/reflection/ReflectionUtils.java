@@ -72,7 +72,9 @@ public class ReflectionUtils {
 
     private static final Function<Class<?>, List<Method>> methodsCache = memoize(ReflectionUtils::computeAllMethods);
     private static final Function<String, Class<?>> classForNameCache = memoize(ReflectionUtils::computeClass);
-    private static final BiFunction<String, Class<?>, Function<Object, Object>> gettersCache =
+    private static final BiFunction<Class<?>, Class<? extends Annotation>, List<? extends AccessibleObject>>
+            annotatedPropertiesCache = memoize(ReflectionUtils::computeAnnotatedProperties);
+    private static final BiFunction<Class<?>, String, Function<Object, Object>> gettersCache =
             memoize(ReflectionUtils::computeNestedGetter);
     private static final BiFunction<String, Class<?>, BiConsumer<Object, Object>> settersCache =
             memoize(ReflectionUtils::computeNestedSetter);
@@ -86,8 +88,8 @@ public class ReflectionUtils {
     */
     private static List<Method> computeAllMethods(Class<?> type) {
         Predicate<Method> include = m -> !m.isBridge() && !m.isSynthetic() &&
-                Character.isJavaIdentifierStart(m.getName().charAt(0))
-                && m.getName().chars().skip(1).allMatch(Character::isJavaIdentifierPart);
+                                         Character.isJavaIdentifierStart(m.getName().charAt(0))
+                                         && m.getName().chars().skip(1).allMatch(Character::isJavaIdentifierPart);
 
         Set<Method> methods = new LinkedHashSet<>();
         Collections.addAll(methods, type.getMethods());
@@ -113,7 +115,7 @@ public class ReflectionUtils {
         include = include.and(m -> {
             int acc = m.getModifiers() & access;
             return acc != 0 ? acc == Modifier.PRIVATE
-                    || types.putIfAbsent(methodKey(m), pkgIndependent) == null :
+                              || types.putIfAbsent(methodKey(m), pkgIndependent) == null :
                     noPkgOverride(m, types, pkgIndependent);
         });
         for (type = type.getSuperclass(); type != null; type = type.getSuperclass()) {
@@ -143,27 +145,34 @@ public class ReflectionUtils {
 
     public static List<? extends AccessibleObject> getAnnotatedProperties(Class<?> target,
                                                                           Class<? extends Annotation> annotation) {
+        return annotatedPropertiesCache.apply(target, annotation);
+    }
+
+    private static List<? extends AccessibleObject> computeAnnotatedProperties(Class<?> target,
+                                                                               Class<? extends Annotation> annotation) {
         List<AccessibleObject> result =
                 new ArrayList<>(FieldUtils.getFieldsListWithAnnotation(target, annotation));
         result.addAll(getMethodsListWithAnnotation(target, annotation, true, true).stream()
                               .filter(m -> m.getParameterCount() == 0).collect(toList()));
         getAllInterfaces(target)
                 .forEach(i -> result.addAll(FieldUtils.getFieldsListWithAnnotation(i, annotation)));
+        result.forEach(ReflectionUtils::ensureAccessible);
         return result;
     }
 
     public static Optional<? extends AccessibleObject> getAnnotatedProperty(Object target,
                                                                             Class<? extends Annotation> annotation) {
-        return getAnnotatedProperties(target, annotation).stream().findFirst();
+        return target == null ? Optional.empty() : getAnnotatedProperty(target.getClass(), annotation);
     }
 
     public static Optional<? extends AccessibleObject> getAnnotatedProperty(Class<?> target,
                                                                             Class<? extends Annotation> annotation) {
-        return getAnnotatedProperties(target, annotation).stream().findFirst();
+        List<? extends AccessibleObject> annotatedProperties = getAnnotatedProperties(target, annotation);
+        return annotatedProperties.isEmpty() ? Optional.empty() : Optional.of(annotatedProperties.get(0));
     }
 
     public static Optional<?> getAnnotatedPropertyValue(Object target, Class<? extends Annotation> annotation) {
-        return getAnnotatedProperty(target, annotation).map(m -> getValue(m, target));
+        return getAnnotatedProperty(target, annotation).map(m -> getValue(m, target, false));
     }
 
     public static List<Method> getAnnotatedMethods(Object target, Class<? extends Annotation> annotation) {
@@ -204,7 +213,7 @@ public class ReflectionUtils {
             return Optional.empty();
         }
         try {
-            return Optional.ofNullable(gettersCache.apply(propertyPath, target.getClass()).apply(target))
+            return Optional.ofNullable(gettersCache.apply(target.getClass(), propertyPath).apply(target))
                     .map(v -> (T) v);
         } catch (PropertyNotFoundException ignored) {
             return Optional.empty();
@@ -216,46 +225,50 @@ public class ReflectionUtils {
             return false;
         }
         try {
-            gettersCache.apply(propertyPath, target.getClass()).apply(target);
+            gettersCache.apply(target.getClass(), propertyPath).apply(target);
             return true;
         } catch (PropertyNotFoundException ignored) {
             return false;
         }
     }
 
-    private static Function<Object, Object> computeNestedGetter(String propertyPath, Class<?> type) {
+    private static Function<Object, Object> computeNestedGetter(Class<?> type, String propertyPath) {
         String[] parts = Arrays.stream(propertyPath.replace('.', '/').split("/"))
                 .filter(s -> !s.isBlank()).toArray(String[]::new);
         if (parts.length == 1) {
-            return computeGetter(parts[0], type);
+            return computeGetter(type, parts[0]);
         }
         return object -> {
             for (String part : parts) {
                 if (object == null) {
                     return null;
                 }
-                object = gettersCache.apply(part, object.getClass()).apply(object);
+                object = gettersCache.apply(object.getClass(), part).apply(object);
             }
             return object;
         };
     }
 
     @SneakyThrows
-    private static Function<Object, Object> computeGetter(@NonNull String propertyName, @NonNull Class<?> type) {
+    private static Function<Object, Object> computeGetter(@NonNull Class<?> type, @NonNull String propertyName) {
+        PropertyNotFoundException notFoundException = new PropertyNotFoundException(propertyName, type);
         return Arrays.stream(getBeanInfo(type, Object.class).getPropertyDescriptors())
                 .filter(d -> propertyName.equals(d.getName()))
                 .<AccessibleObject>map(PropertyDescriptor::getReadMethod).filter(Objects::nonNull).findFirst()
                 .or(() -> Optional.ofNullable(MethodUtils.getMatchingMethod(type, propertyName)))
                 .or(() -> Optional.ofNullable(FieldUtils.getField(type, propertyName, true)))
-                .<Function<Object, Object>>map(a -> target -> getValue(a, target))
+                .map(ReflectionUtils::ensureAccessible)
+                .<Function<Object, Object>>map(a -> target -> getValue(a, target, false))
                 .orElseGet(() -> o -> {
-                    throw new PropertyNotFoundException(propertyName, type);
+                    throw notFoundException;
                 });
     }
 
     @SneakyThrows
-    public static Object getValue(AccessibleObject fieldOrMethod, Object target) {
-        ensureAccessible(fieldOrMethod);
+    public static Object getValue(AccessibleObject fieldOrMethod, Object target, boolean forceAccess) {
+        if (forceAccess) {
+            ensureAccessible(fieldOrMethod);
+        }
         if (fieldOrMethod instanceof Method) {
             Method method = (Method) fieldOrMethod;
             if (target == null && !Modifier.isStatic(method.getModifiers())) {
@@ -271,6 +284,11 @@ public class ReflectionUtils {
             return field.get(target);
         }
         throw new IllegalStateException("Object property should be field or method: " + fieldOrMethod);
+    }
+
+    @SneakyThrows
+    public static Object getValue(AccessibleObject fieldOrMethod, Object target) {
+        return getValue(fieldOrMethod, target, true);
     }
 
     @SneakyThrows
@@ -331,7 +349,7 @@ public class ReflectionUtils {
             return computeSetter(parts[0], type);
         }
         Function<Object, Object> parentSupplier = gettersCache.apply(
-                Arrays.stream(parts).limit(parts.length - 1).collect(Collectors.joining("/")), type);
+                type, Arrays.stream(parts).limit(parts.length - 1).collect(Collectors.joining("/")));
         return (object, value) -> {
             Object parent = parentSupplier.apply(object);
             if (parent != null) {
@@ -343,13 +361,14 @@ public class ReflectionUtils {
 
     @SneakyThrows
     private static BiConsumer<Object, Object> computeSetter(@NonNull String propertyName, @NonNull Class<?> type) {
+        PropertyNotFoundException notFoundException = new PropertyNotFoundException(propertyName, type);
         return Arrays.stream(getBeanInfo(type, Object.class).getPropertyDescriptors())
                 .filter(d -> propertyName.equals(d.getName()))
                 .<AccessibleObject>map(PropertyDescriptor::getWriteMethod).filter(Objects::nonNull).findFirst()
                 .or(() -> Optional.ofNullable(FieldUtils.getField(type, propertyName, true)))
                 .<BiConsumer<Object, Object>>map(a -> (target, value) -> setValue(a, target, value))
                 .orElseGet(() -> (t, v) -> {
-                    throw new PropertyNotFoundException(propertyName, type);
+                    throw notFoundException;
                 });
     }
 
@@ -367,7 +386,7 @@ public class ReflectionUtils {
 
     public static boolean isOrHas(Annotation annotation, Class<? extends Annotation> annotationType) {
         return annotation != null && (Objects.equals(annotation.annotationType(), annotationType)
-                || annotation.annotationType().isAnnotationPresent(annotationType));
+                                      || annotation.annotationType().isAnnotationPresent(annotationType));
     }
 
     @SneakyThrows
@@ -540,7 +559,7 @@ public class ReflectionUtils {
             return false;
         }
         return (notPackageAccess(modsA) && notPackageAccess(modsB))
-                || a.getDeclaringClass().getPackage().equals(b.getDeclaringClass().getPackage());
+               || a.getDeclaringClass().getPackage().equals(b.getDeclaringClass().getPackage());
     }
 
     private static boolean notPackageAccess(int mods) {

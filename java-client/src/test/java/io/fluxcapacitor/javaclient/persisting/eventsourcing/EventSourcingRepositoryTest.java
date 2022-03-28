@@ -16,7 +16,6 @@ package io.fluxcapacitor.javaclient.persisting.eventsourcing;
 
 import io.fluxcapacitor.common.api.Metadata;
 import io.fluxcapacitor.common.api.SerializedMessage;
-import io.fluxcapacitor.common.handling.HandlerNotFoundException;
 import io.fluxcapacitor.javaclient.FluxCapacitor;
 import io.fluxcapacitor.javaclient.MockException;
 import io.fluxcapacitor.javaclient.common.Message;
@@ -67,8 +66,8 @@ class EventSourcingRepositoryTest {
         private final EventStoreClient eventStoreClient = testFixture.getFluxCapacitor().client().getEventStoreClient();
 
         @Test
-        void testUpdateBeforeCreate() {
-            testFixture.whenCommand(new UpdateModel()).expectException(HandlerNotFoundException.class);
+        void testUpdateBeforeCreateIsAllowedButDoesNothing() {
+            testFixture.whenCommand(new UpdateModel()).expectEvents(new UpdateModel()).expectNoException();
         }
 
         @Test
@@ -128,15 +127,6 @@ class EventSourcingRepositoryTest {
                     .expectThat(fc -> verify(eventStoreClient)
                             .storeEvents(eq(aggregateId), anyList(),
                                          eq(false)));
-        }
-
-        @Test
-        void testApplyingUnknownEventsFailsIfModelDoesNotExist() {
-            testFixture.givenNoPriorActivity()
-                    .whenCommand(new ApplyNonsense())
-                    .expectException(HandlerNotFoundException.class)
-                    .expectThat(fc -> verify(eventStoreClient, times(0))
-                            .storeEvents(anyString(), anyList(), eq(false)));
         }
 
         @SuppressWarnings("unchecked")
@@ -405,12 +395,6 @@ class EventSourcingRepositoryTest {
     class WithoutFactoryMethodOrConstructor {
 
         private final TestFixture testFixture = TestFixture.create(new Handler());
-
-        @Test
-        void testApplyingUnknownEventsFailsIfModelHasNoConstructorOrFactoryMethod() {
-            testFixture.givenNoPriorActivity().whenCommand(new CreateModel())
-                    .expectException(HandlerNotFoundException.class);
-        }
 
         private class Handler {
             @HandleCommand

@@ -16,6 +16,7 @@ package io.fluxcapacitor.common;
 
 import lombok.AllArgsConstructor;
 import lombok.SneakyThrows;
+import lombok.Value;
 
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -161,25 +162,25 @@ public class ObjectUtils {
 
     @AllArgsConstructor
     public static class MemoizingBiFunction<T, U, R> implements BiFunction<T, U, R> {
-        private final Map<T, MemoizingFunction<U, R>> map = new ConcurrentHashMap<>();
-        private final BiFunction<T, U, R> delegate;
+        private final MemoizingFunction<Pair<T, U>, R> function;
+
+        public MemoizingBiFunction(BiFunction<T, U, R> delegate) {
+            this.function = ObjectUtils.memoize(p -> delegate.apply(p.first, p.second));
+        }
 
         @Override
         public R apply(T t, U u) {
-            MemoizingFunction<U, R> f = map.get(t);
-            if (f == null) {
-                synchronized (delegate) {
-                    f = map.get(t);
-                    if (f == null) {
-                        f = map.computeIfAbsent(t, t2 -> new MemoizingFunction<>(u2 -> delegate.apply(t2, u2)));
-                    }
-                }
-            }
-            return f.apply(u);
+            return function.apply(new Pair<>(t, u));
         }
 
         public boolean isCached(T t, U u) {
-            return map.containsKey(t) && map.get(t).isCached(u);
+            return function.isCached(new Pair<>(t, u));
+        }
+
+        @Value
+        private static class Pair<T, U> {
+            T first;
+            U second;
         }
     }
 

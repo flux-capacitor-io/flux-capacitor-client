@@ -3,6 +3,7 @@ package io.fluxcapacitor.javaclient.modeling;
 import io.fluxcapacitor.common.reflection.ReflectionUtils;
 import io.fluxcapacitor.javaclient.common.serialization.Serializer;
 import io.fluxcapacitor.javaclient.persisting.eventsourcing.EventSourcingHandlerFactory;
+import lombok.Getter;
 import lombok.SneakyThrows;
 import lombok.Value;
 import lombok.experimental.Accessors;
@@ -31,11 +32,12 @@ import static io.fluxcapacitor.common.reflection.ReflectionUtils.getName;
 import static io.fluxcapacitor.common.reflection.ReflectionUtils.getValue;
 import static io.fluxcapacitor.common.reflection.ReflectionUtils.readProperty;
 import static java.beans.Introspector.decapitalize;
+import static java.util.Optional.empty;
 import static java.util.Optional.ofNullable;
 
 @Slf4j
-public class AnnotatedEntityHolder implements Entity.Holder {
-    private static final Map<AccessibleObject, Entity.Holder> cache = new ConcurrentHashMap<>();
+public class AnnotatedEntityHolder {
+    private static final Map<AccessibleObject, AnnotatedEntityHolder> cache = new ConcurrentHashMap<>();
     private static final Pattern getterPattern = Pattern.compile("(get|is)([A-Z].*)");
 
     private final AccessibleObject location;
@@ -48,9 +50,19 @@ public class AnnotatedEntityHolder implements Entity.Holder {
     private final EventSourcingHandlerFactory handlerFactory;
     private final Serializer serializer;
 
-    public static Entity.Holder getEntityHolder(Class<?> ownerType, AccessibleObject location,
-                                                EventSourcingHandlerFactory handlerFactory,
-                                                Serializer serializer) {
+    @SuppressWarnings({"unchecked", "rawtypes"})
+    @Getter(lazy = true)
+    private final ImmutableEntity<?> emptyEntity = ImmutableEntity.builder()
+            .type((Class) entityType)
+            .handlerFactory(handlerFactory)
+            .serializer(serializer)
+            .holder(this)
+            .idProperty(idProvider.apply(entityType).property())
+            .build();
+
+    public static AnnotatedEntityHolder getEntityHolder(Class<?> ownerType, AccessibleObject location,
+                                                        EventSourcingHandlerFactory handlerFactory,
+                                                        Serializer serializer) {
         return cache.computeIfAbsent(location,
                                      l -> new AnnotatedEntityHolder(ownerType, l, handlerFactory, serializer));
     }
@@ -67,7 +79,7 @@ public class AnnotatedEntityHolder implements Entity.Holder {
         String pathToId = member.idProperty();
         this.idProvider = pathToId.isBlank() ?
                 v -> getAnnotatedProperty(v, EntityId.class).map(
-                                p -> new Id(ofNullable(getValue(p, v)).orElse(null), getName(p)))
+                                p -> new Id(ofNullable(getValue(p, v, false)).orElse(null), getName(p)))
                         .orElseGet(() -> {
                             if (v instanceof Class<?>) {
                                 return new Id(null, getAnnotatedProperty((Class<?>) v, EntityId.class)
@@ -77,7 +89,7 @@ public class AnnotatedEntityHolder implements Entity.Holder {
                         }) :
                 v -> new Id(readProperty(pathToId, v).orElse(null), pathToId);
         String propertyName = decapitalize(Optional.of(getName(location)).map(name -> Optional.of(
-                getterPattern.matcher(name)).map(matcher -> matcher.matches() ? matcher.group(2) : name)
+                        getterPattern.matcher(name)).map(matcher -> matcher.matches() ? matcher.group(2) : name)
                 .orElse(name)).orElseThrow());
         Class<?>[] witherParams = new Class<?>[]{ReflectionUtils.getPropertyType(location)};
         Stream<Method> witherCandidates = ReflectionUtils.getAllMethods(this.ownerType).stream().filter(
@@ -118,36 +130,36 @@ public class AnnotatedEntityHolder implements Entity.Holder {
 
     }
 
-    @Override
-    public Stream<Entity<?, ?>> getEntities(Object owner) {
-        Object holderValue = getValue(location, owner);
+    public Stream<? extends ImmutableEntity<?>> getEntities(Object owner) {
+        Object holderValue = getValue(location, owner, false);
         Class<?> type = holderValue == null ? holderType : holderValue.getClass();
+        if (holderValue == null) {
+            return Stream.of(getEmptyEntity());
+        }
         if (Collection.class.isAssignableFrom(type)) {
-            if (holderValue == null) {
-                return Stream.of(createEmptyEntity());
-            }
             return Stream.concat(
-                    ((Collection<?>) holderValue).stream().flatMap(v -> createEntity(v, idProvider).stream()),
-                    Stream.of(createEmptyEntity()));
+                    ((Collection<?>) holderValue).stream().map(v -> createEntity(v, idProvider).orElse(null))
+                            .filter(Objects::nonNull),
+                    Stream.of(getEmptyEntity()));
         } else if (Map.class.isAssignableFrom(type)) {
-            if (holderValue == null) {
-                return Stream.of(createEmptyEntity());
-            }
             return Stream.concat(
                     ((Map<?, ?>) holderValue).entrySet().stream().flatMap(e -> createEntity(
                             e.getValue(), v -> new Id(e.getKey(), idProvider.apply(v).property())).stream()),
-                    Stream.of(createEmptyEntity()));
+                    Stream.of(getEmptyEntity()));
         } else {
-            return createEntity(holderValue, idProvider).or(() -> Optional.of(createEmptyEntity())).stream();
+            return createEntity(holderValue, idProvider).stream();
         }
     }
 
 
     @SuppressWarnings({"unchecked", "rawtypes"})
-    private Optional<Entity<?, ?>> createEntity(Object member, Function<Object, Id> idProvider) {
-        return Optional.ofNullable(member)
-                .map(m -> idProvider.apply(member))
-                .map(id -> ImmutableEntity.builder()
+    private Optional<ImmutableEntity<?>> createEntity(Object member, Function<Object, Id> idProvider) {
+        if (member == null) {
+            return empty();
+        }
+        Id id = idProvider.apply(member);
+        return id == null ? empty() : Optional.of(
+                ImmutableEntity.builder()
                         .value(member)
                         .type((Class) member.getClass())
                         .handlerFactory(handlerFactory)
@@ -158,19 +170,7 @@ public class AnnotatedEntityHolder implements Entity.Holder {
                         .build());
     }
 
-    @SuppressWarnings({"unchecked", "rawtypes"})
-    private Entity<?, ?> createEmptyEntity() {
-        return ImmutableEntity.builder()
-                .type((Class) entityType)
-                .handlerFactory(handlerFactory)
-                .serializer(serializer)
-                .holder(this)
-                .idProperty(idProvider.apply(entityType).property())
-                .build();
-    }
-
     @SneakyThrows
-    @Override
     public Object updateOwner(Object owner, Entity<?, ?> before, Entity<?, ?> after) {
         Object holder = ReflectionUtils.getValue(location, owner);
         if (Collection.class.isAssignableFrom(holderType)) {

@@ -22,6 +22,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.UUID;
 import java.util.function.Predicate;
+import java.util.stream.StreamSupport;
 
 import static io.fluxcapacitor.javaclient.FluxCapacitor.loadAggregate;
 
@@ -78,7 +79,8 @@ public class AggregateEntitiesTest {
         @Test
         void findGrandChild() {
             expectEntity(
-                    e -> e.entities().stream().findFirst().map(c -> "grandChild".equals(c.id())).orElse(false));
+                    e -> StreamSupport.stream(e.entities().spliterator(), false)
+                            .findFirst().map(c -> "grandChild".equals(c.id())).orElse(false));
         }
     }
 

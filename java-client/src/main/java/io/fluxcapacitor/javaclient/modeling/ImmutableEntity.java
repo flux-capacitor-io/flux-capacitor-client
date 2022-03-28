@@ -5,7 +5,9 @@ import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import io.fluxcapacitor.javaclient.common.Message;
 import io.fluxcapacitor.javaclient.common.serialization.DeserializingMessage;
 import io.fluxcapacitor.javaclient.common.serialization.Serializer;
+import io.fluxcapacitor.javaclient.persisting.eventsourcing.EventSourcingHandler;
 import io.fluxcapacitor.javaclient.persisting.eventsourcing.EventSourcingHandlerFactory;
+import io.fluxcapacitor.javaclient.publishing.routing.RoutingKey;
 import io.fluxcapacitor.javaclient.tracking.handling.validation.ValidationUtils;
 import lombok.Builder;
 import lombok.EqualsAndHashCode;
@@ -15,19 +17,23 @@ import lombok.Value;
 import lombok.experimental.Accessors;
 import lombok.extern.slf4j.Slf4j;
 
+import java.lang.reflect.AccessibleObject;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Iterator;
-import java.util.Objects;
+import java.util.List;
 import java.util.function.UnaryOperator;
 import java.util.stream.Collectors;
-import java.util.stream.Stream;
 
 import static io.fluxcapacitor.common.MessageType.EVENT;
 import static io.fluxcapacitor.common.reflection.ReflectionUtils.getAnnotatedProperties;
-import static io.fluxcapacitor.javaclient.common.Message.asMessage;
+import static io.fluxcapacitor.common.reflection.ReflectionUtils.getAnnotatedPropertyValue;
+import static io.fluxcapacitor.common.reflection.ReflectionUtils.hasProperty;
+import static io.fluxcapacitor.common.reflection.ReflectionUtils.readProperty;
 import static io.fluxcapacitor.javaclient.modeling.AnnotatedEntityHolder.getEntityHolder;
-import static java.util.stream.Collectors.groupingBy;
+import static java.util.Collections.emptyList;
+import static java.util.Collections.singletonList;
 
 @Value
 @Builder(toBuilder = true)
@@ -46,7 +52,7 @@ public class ImmutableEntity<T> implements Entity<ImmutableEntity<T>, T> {
 
     @ToString.Exclude
     @EqualsAndHashCode.Exclude
-    transient Holder holder;
+    transient AnnotatedEntityHolder holder;
 
     @ToString.Exclude
     @EqualsAndHashCode.Exclude
@@ -59,7 +65,7 @@ public class ImmutableEntity<T> implements Entity<ImmutableEntity<T>, T> {
     @ToString.Exclude
     @EqualsAndHashCode.Exclude
     @Getter(lazy = true)
-    Collection<Entity<?, ?>> entities = computeEntities();
+    Iterable<? extends Entity<?, ?>> entities = computeEntities();
 
     @ToString.Exclude
     @EqualsAndHashCode.Exclude
@@ -76,11 +82,14 @@ public class ImmutableEntity<T> implements Entity<ImmutableEntity<T>, T> {
         return value;
     }
 
-    private Collection<Entity<?, ?>> computeEntities() {
+    private Iterable<? extends Entity<?, ?>> computeEntities() {
         Class<?> type = value == null ? type() : value.getClass();
-        return getAnnotatedProperties(type, Member.class).stream().flatMap(
-                location -> getEntityHolder(type, location, handlerFactory, serializer)
-                        .getEntities(value)).collect(Collectors.toUnmodifiableList());
+        List<ImmutableEntity<?>> result = new ArrayList<>();
+        for (AccessibleObject location : getAnnotatedProperties(type, Member.class)) {
+            result.addAll(getEntityHolder(type, location, handlerFactory, serializer).getEntities(value).collect(
+                    Collectors.toList()));
+        }
+        return result;
     }
 
     @Override
@@ -90,32 +99,21 @@ public class ImmutableEntity<T> implements Entity<ImmutableEntity<T>, T> {
     }
 
     @Override
-    public ImmutableEntity<T> apply(Object event) {
-        if (event instanceof DeserializingMessage) {
-            return apply(((DeserializingMessage) event));
-        }
-        return apply(asMessage(event));
-    }
-
-    @Override
     public ImmutableEntity<T> update(UnaryOperator<T> function) {
         return toBuilder().value(function.apply(get())).build();
     }
 
-
     @SuppressWarnings("unchecked")
     public ImmutableEntity<T> apply(DeserializingMessage message) {
-        ImmutableEntity<T> result = toBuilder().value(handlerFactory.<T>forType(type()).invoke(this, message)).build();
+        EventSourcingHandler<T> handler = handlerFactory.forType(type());
+        ImmutableEntity<T> result = handler.canHandle(this, message)
+                ? toBuilder().value(handler.invoke(this, message)).build() : this;
         Object payload = message.getPayload();
-        Iterator<Entity<?, ?>> iterator = result.possibleTargets(payload).iterator();
-        while (iterator.hasNext()) {
-            Entity<?, ?> entity = iterator.next();
-            if (entity.isPossibleTarget(payload)) {
-                Entity<?, ?> updated = entity.apply(message);
-                if (!Objects.equals(updated, entity)) {
-                    result = result.toBuilder().value((T) entity.holder().updateOwner(result.get(), entity, updated))
-                            .build();
-                }
+        for (ImmutableEntity<?> entity : result.possibleTargets(payload)) {
+            ImmutableEntity<?> updated = entity.apply(message);
+            if (entity.get() != updated.get()) {
+                result = result.toBuilder().value(
+                        (T) entity.holder().updateOwner(result.get(), entity, updated)).build();
             }
         }
         return result;
@@ -138,8 +136,38 @@ public class ImmutableEntity<T> implements Entity<ImmutableEntity<T>, T> {
         return this;
     }
 
-    Stream<Entity<?, ?>> possibleTargets(Object payload) {
-        return entities().stream().collect(groupingBy(Entity::holder)).values().stream()
-                .flatMap(group -> group.stream().filter(e -> e.isPossibleTarget(payload)).findFirst().stream());
+    Iterable<ImmutableEntity<?>> possibleTargets(Object payload) {
+        for (Entity<?, ?> e : entities()) {
+            if (e.isPossibleTarget(payload)) {
+                return singletonList((ImmutableEntity<?>) e);
+            }
+        }
+        return emptyList();
+    }
+
+    @Override
+    public boolean isPossibleTarget(Object message) {
+        if (message == null) {
+            return false;
+        }
+        for (Entity<?, ?> e : entities()) {
+            if (e.isPossibleTarget(message)) {
+                return true;
+            }
+        }
+        String idProperty = idProperty();
+        Object id = id();
+        if (idProperty == null) {
+            return true;
+        }
+        if (id == null && get() != null) {
+            return false;
+        }
+        Object payload = message instanceof Message ? ((Message) message).getPayload() : message;
+        if (id == null) {
+            return hasProperty(idProperty, payload);
+        }
+        return readProperty(idProperty, payload)
+                .or(() -> getAnnotatedPropertyValue(payload, RoutingKey.class)).map(id::equals).orElse(false);
     }
 }
