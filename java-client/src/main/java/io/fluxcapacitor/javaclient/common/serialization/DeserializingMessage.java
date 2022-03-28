@@ -78,7 +78,7 @@ public class DeserializingMessage {
     MessageType messageType;
 
     @Getter(lazy = true, value = AccessLevel.PRIVATE)
-    Message message = toMessage();
+    Message message = asMessage();
 
     public DeserializingMessage(SerializedMessage message, Function<Class<?>, Object> payload,
                                 MessageType messageType) {
@@ -116,11 +116,7 @@ public class DeserializingMessage {
         return Instant.ofEpochMilli(getSerializedObject().getTimestamp());
     }
 
-    public Message asMessage() {
-        return getMessage();
-    }
-
-    private Message toMessage() {
+    private Message asMessage() {
         Message message = new Message(getPayload(), getMetadata(), getMessageId(), getTimestamp());
         switch (getMessageType()) {
             case SCHEDULE:
@@ -132,6 +128,10 @@ public class DeserializingMessage {
             default:
                 return message;
         }
+    }
+
+    public Message toMessage() {
+        return getMessage();
     }
 
     public static DeserializingMessage getCurrent() {

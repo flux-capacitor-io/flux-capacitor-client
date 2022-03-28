@@ -66,7 +66,7 @@ public interface Entity<M extends Entity<M, T>, T> {
 
     default M apply(Object event) {
         if (event instanceof DeserializingMessage) {
-            return apply(((DeserializingMessage) event).asMessage());
+            return apply(((DeserializingMessage) event).toMessage());
         }
         return apply(asMessage(event));
     }
