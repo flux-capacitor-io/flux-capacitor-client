@@ -6,6 +6,7 @@ import lombok.Getter;
 import lombok.experimental.Accessors;
 
 import java.time.Instant;
+import java.util.Collection;
 import java.util.Optional;
 import java.util.function.Supplier;
 import java.util.function.UnaryOperator;
@@ -84,12 +85,8 @@ public class NoOpAggregateRoot<T> implements AggregateRoot<T> {
     }
 
     @Override
-    public Iterable<? extends Entity<?, ?>> entities() {
+    public Collection<? extends Entity<?, ?>> entities() {
         return delegate().entities();
     }
 
-    @Override
-    public boolean isPossibleTarget(Object message) {
-        return false;
-    }
 }

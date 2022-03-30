@@ -28,6 +28,7 @@ import io.fluxcapacitor.javaclient.configuration.client.Client;
 import io.fluxcapacitor.javaclient.configuration.spring.FluxCapacitorSpringConfig;
 import io.fluxcapacitor.javaclient.modeling.Aggregate;
 import io.fluxcapacitor.javaclient.modeling.AggregateRoot;
+import io.fluxcapacitor.javaclient.modeling.Entity;
 import io.fluxcapacitor.javaclient.persisting.caching.Cache;
 import io.fluxcapacitor.javaclient.persisting.eventsourcing.EventStore;
 import io.fluxcapacitor.javaclient.persisting.keyvalue.KeyValueStore;
@@ -355,6 +356,17 @@ public interface FluxCapacitor extends AutoCloseable {
         return loadAggregateFor(entityId, Object.class);
     }
 
+    /**
+     * Loads the entity with given id. If the entity is not associated with any aggregate yet, a new aggregate root is
+     * loaded with the entityId as aggregate identifier. no such aggregate exists an empty aggregate root is returned of
+     * type {@code Object}. In case multiple entities are associated with the given entityId the most recent entity is
+     * returned.
+     */
+    @SuppressWarnings("unchecked")
+    static <T> Entity<?, T> loadEntity(String entityId) {
+        return (Entity<?, T>) loadAggregateFor(entityId).getEntity(entityId)
+                .orElseGet(() -> loadAggregate(entityId, Object.class));
+    }
 
     /**
      * Loads the current entity value for given entity id. Entity may be the aggregate root or any ancestral entity. If

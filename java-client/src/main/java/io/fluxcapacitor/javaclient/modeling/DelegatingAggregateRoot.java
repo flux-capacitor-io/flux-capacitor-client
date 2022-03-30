@@ -6,6 +6,7 @@ import lombok.NonNull;
 import lombok.ToString;
 
 import java.time.Instant;
+import java.util.Collection;
 
 public abstract class DelegatingAggregateRoot<T, A extends AggregateRoot<T>> implements AggregateRoot<T> {
     @ToString.Include
@@ -69,12 +70,8 @@ public abstract class DelegatingAggregateRoot<T, A extends AggregateRoot<T>> imp
     }
 
     @Override
-    public Iterable<? extends Entity<?, ?>> entities() {
+    public Collection<? extends Entity<?, ?>> entities() {
         return delegate.entities();
     }
 
-    @Override
-    public boolean isPossibleTarget(Object message) {
-        return delegate.isPossibleTarget(message);
-    }
 }

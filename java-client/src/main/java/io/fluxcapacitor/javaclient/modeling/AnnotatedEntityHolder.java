@@ -130,30 +130,31 @@ public class AnnotatedEntityHolder {
 
     }
 
-    public Stream<? extends ImmutableEntity<?>> getEntities(Object owner) {
-        Object holderValue = getValue(location, owner, false);
+    public Stream<? extends ImmutableEntity<?>> getEntities(Entity<?, ?> parent) {
+        Object holderValue = getValue(location, parent.get(), false);
         Class<?> type = holderValue == null ? holderType : holderValue.getClass();
         if (holderValue == null) {
             return Stream.of(getEmptyEntity());
         }
         if (Collection.class.isAssignableFrom(type)) {
             return Stream.concat(
-                    ((Collection<?>) holderValue).stream().map(v -> createEntity(v, idProvider).orElse(null))
+                    ((Collection<?>) holderValue).stream().map(v -> createEntity(v, idProvider, parent).orElse(null))
                             .filter(Objects::nonNull),
                     Stream.of(getEmptyEntity()));
         } else if (Map.class.isAssignableFrom(type)) {
             return Stream.concat(
                     ((Map<?, ?>) holderValue).entrySet().stream().flatMap(e -> createEntity(
-                            e.getValue(), v -> new Id(e.getKey(), idProvider.apply(v).property())).stream()),
+                            e.getValue(), v -> new Id(e.getKey(), idProvider.apply(v).property()), parent).stream()),
                     Stream.of(getEmptyEntity()));
         } else {
-            return createEntity(holderValue, idProvider).stream();
+            return createEntity(holderValue, idProvider, parent).stream();
         }
     }
 
 
     @SuppressWarnings({"unchecked", "rawtypes"})
-    private Optional<ImmutableEntity<?>> createEntity(Object member, Function<Object, Id> idProvider) {
+    private Optional<ImmutableEntity<?>> createEntity(Object member, Function<Object, Id> idProvider,
+                                                      Entity<?, ?> parent) {
         if (member == null) {
             return empty();
         }
@@ -167,6 +168,7 @@ public class AnnotatedEntityHolder {
                         .id(id.value())
                         .holder(this)
                         .idProperty(id.property())
+                        .parent(parent)
                         .build());
     }
 

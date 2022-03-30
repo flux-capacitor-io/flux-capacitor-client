@@ -1,6 +1,7 @@
 package io.fluxcapacitor.javaclient.modeling;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
+import io.fluxcapacitor.common.api.modeling.Relationship;
 import io.fluxcapacitor.javaclient.FluxCapacitor;
 import io.fluxcapacitor.javaclient.common.Message;
 import io.fluxcapacitor.javaclient.common.serialization.DeserializingMessage;
@@ -8,13 +9,16 @@ import io.fluxcapacitor.javaclient.common.serialization.Serializer;
 import io.fluxcapacitor.javaclient.persisting.eventsourcing.EventSourcingHandlerFactory;
 import lombok.Builder;
 import lombok.EqualsAndHashCode;
+import lombok.Getter;
 import lombok.ToString;
 import lombok.Value;
 import lombok.With;
 import lombok.experimental.Accessors;
 
 import java.time.Instant;
+import java.util.Collection;
 import java.util.Objects;
+import java.util.Set;
 import java.util.function.UnaryOperator;
 
 import static io.fluxcapacitor.common.MessageType.EVENT;
@@ -44,6 +48,11 @@ public class ImmutableAggregateRoot<T> implements AggregateRoot<T> {
     @EqualsAndHashCode.Exclude
     @With
     transient ImmutableAggregateRoot<T> previous;
+
+    @ToString.Exclude
+    @EqualsAndHashCode.Exclude
+    @Getter(lazy = true)
+    Set<Relationship> relationships = AggregateRoot.super.relationships();
 
     public static <T> ImmutableAggregateRoot<T> from(AggregateRoot<T> a,
                                                      EventSourcingHandlerFactory handlerFactory,
@@ -110,7 +119,7 @@ public class ImmutableAggregateRoot<T> implements AggregateRoot<T> {
     }
 
     @Override
-    public Iterable<? extends Entity<?, ?>> entities() {
+    public Collection<? extends Entity<?, ?>> entities() {
         return delegate.entities();
     }
 
@@ -118,11 +127,6 @@ public class ImmutableAggregateRoot<T> implements AggregateRoot<T> {
     public <E extends Exception> AggregateRoot<T> assertLegal(Object... commands) throws E {
         delegate.assertLegal(commands);
         return this;
-    }
-
-    @Override
-    public boolean isPossibleTarget(Object message) {
-        return delegate.isPossibleTarget(message);
     }
 
     public ImmutableAggregateRoot<T> withEventIndex(Long index, String messageId) {

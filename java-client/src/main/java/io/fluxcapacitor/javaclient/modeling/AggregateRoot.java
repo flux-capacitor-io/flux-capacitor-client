@@ -74,7 +74,7 @@ public interface AggregateRoot<T> extends Entity<AggregateRoot<T>, T> {
         String id = id().toString();
         String type = type().getName();
         return get() == null ? Collections.emptySet()
-                : allEntities().stream().map(Entity::id).filter(Objects::nonNull)
+                : allEntities().map(Entity::id).filter(Objects::nonNull)
                 .map(entityId -> Relationship.builder().entityId(entityId.toString()).aggregateType(type)
                         .aggregateId(id).build())
                 .collect(Collectors.toSet());

@@ -24,7 +24,6 @@ import java.util.Collection;
 import java.util.Iterator;
 import java.util.List;
 import java.util.function.UnaryOperator;
-import java.util.stream.Collectors;
 
 import static io.fluxcapacitor.common.MessageType.EVENT;
 import static io.fluxcapacitor.common.reflection.ReflectionUtils.getAnnotatedProperties;
@@ -34,6 +33,7 @@ import static io.fluxcapacitor.common.reflection.ReflectionUtils.readProperty;
 import static io.fluxcapacitor.javaclient.modeling.AnnotatedEntityHolder.getEntityHolder;
 import static java.util.Collections.emptyList;
 import static java.util.Collections.singletonList;
+import static java.util.stream.Collectors.toList;
 
 @Value
 @Builder(toBuilder = true)
@@ -52,6 +52,10 @@ public class ImmutableEntity<T> implements Entity<ImmutableEntity<T>, T> {
 
     @ToString.Exclude
     @EqualsAndHashCode.Exclude
+    transient Entity<?, ?> parent;
+
+    @ToString.Exclude
+    @EqualsAndHashCode.Exclude
     transient AnnotatedEntityHolder holder;
 
     @ToString.Exclude
@@ -65,12 +69,7 @@ public class ImmutableEntity<T> implements Entity<ImmutableEntity<T>, T> {
     @ToString.Exclude
     @EqualsAndHashCode.Exclude
     @Getter(lazy = true)
-    Iterable<? extends Entity<?, ?>> entities = computeEntities();
-
-    @ToString.Exclude
-    @EqualsAndHashCode.Exclude
-    @Getter(lazy = true)
-    Collection<Entity<?, ?>> allEntities = Entity.super.allEntities();
+    Collection<? extends Entity<?, ?>> entities = computeEntities();
 
     @SuppressWarnings("unchecked")
     public Class<T> type() {
@@ -82,20 +81,48 @@ public class ImmutableEntity<T> implements Entity<ImmutableEntity<T>, T> {
         return value;
     }
 
-    private Iterable<? extends Entity<?, ?>> computeEntities() {
+    private Collection<? extends ImmutableEntity<?>> computeEntities() {
         Class<?> type = value == null ? type() : value.getClass();
         List<ImmutableEntity<?>> result = new ArrayList<>();
         for (AccessibleObject location : getAnnotatedProperties(type, Member.class)) {
-            result.addAll(getEntityHolder(type, location, handlerFactory, serializer).getEntities(value).collect(
-                    Collectors.toList()));
+            result.addAll(getEntityHolder(type, location, handlerFactory, serializer)
+                                  .getEntities(this).collect(toList()));
         }
         return result;
     }
 
     @Override
+    public <E extends Exception> ImmutableEntity<T> assertLegal(Object... commands) throws E {
+        if (parent == null) {
+            if (commands.length > 0) {
+                ImmutableEntity<T> result = this;
+                Iterator<Object> iterator = Arrays.stream(commands).iterator();
+                while (iterator.hasNext()) {
+                    Object payload = iterator.next();
+                    ValidationUtils.assertLegal(payload, this);
+                    possibleTargets(payload).forEach(e -> ValidationUtils.assertLegal(payload, e));
+                    if (iterator.hasNext()) {
+                        result = result.apply(Message.asMessage(payload));
+                    }
+                }
+            }
+        } else {
+            parent.assertLegal(commands);
+        }
+        return this;
+    }
+
+    @SuppressWarnings("unchecked")
+    @Override
     public ImmutableEntity<T> apply(Message message) {
-        return apply(new DeserializingMessage(message.serialize(serializer),
-                                              type -> serializer.convert(message.getPayload(), type), EVENT));
+        if (parent == null) {
+            return apply(new DeserializingMessage(message.serialize(serializer),
+                                                  type -> serializer.convert(message.getPayload(), type), EVENT));
+        } else {
+            Entity<?, ?> result = parent.apply(message);
+            return result.getEntity(id()).map(e -> (ImmutableEntity<T>) e)
+                    .orElseGet(() -> toBuilder().value(null).id(null).parent(null).build());
+        }
     }
 
     @Override
@@ -104,7 +131,7 @@ public class ImmutableEntity<T> implements Entity<ImmutableEntity<T>, T> {
     }
 
     @SuppressWarnings("unchecked")
-    public ImmutableEntity<T> apply(DeserializingMessage message) {
+    ImmutableEntity<T> apply(DeserializingMessage message) {
         EventSourcingHandler<T> handler = handlerFactory.forType(type());
         ImmutableEntity<T> result = handler.canHandle(this, message)
                 ? toBuilder().value(handler.invoke(this, message)).build() : this;
@@ -119,39 +146,21 @@ public class ImmutableEntity<T> implements Entity<ImmutableEntity<T>, T> {
         return result;
     }
 
-    @Override
-    public <E extends Exception> ImmutableEntity<T> assertLegal(Object... commands) throws E {
-        if (commands.length > 0) {
-            ImmutableEntity<T> result = this;
-            Iterator<Object> iterator = Arrays.stream(commands).iterator();
-            while (iterator.hasNext()) {
-                Object c = iterator.next();
-                ValidationUtils.assertLegal(c, result);
-                possibleTargets(c).forEach(e -> e.assertLegal(c));
-                if (iterator.hasNext()) {
-                    result = result.apply(Message.asMessage(c));
-                }
-            }
-        }
-        return this;
-    }
-
     Iterable<ImmutableEntity<?>> possibleTargets(Object payload) {
         for (Entity<?, ?> e : entities()) {
-            if (e.isPossibleTarget(payload)) {
+            if (((ImmutableEntity<?>) e).isPossibleTarget(payload)) {
                 return singletonList((ImmutableEntity<?>) e);
             }
         }
         return emptyList();
     }
 
-    @Override
-    public boolean isPossibleTarget(Object message) {
+    boolean isPossibleTarget(Object message) {
         if (message == null) {
             return false;
         }
         for (Entity<?, ?> e : entities()) {
-            if (e.isPossibleTarget(message)) {
+            if (((ImmutableEntity<?>) e).isPossibleTarget(message)) {
                 return true;
             }
         }

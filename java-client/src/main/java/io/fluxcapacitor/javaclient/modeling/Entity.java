@@ -24,9 +24,7 @@ import java.util.Optional;
 import java.util.function.Function;
 import java.util.function.Predicate;
 import java.util.function.UnaryOperator;
-import java.util.stream.Collectors;
 import java.util.stream.Stream;
-import java.util.stream.StreamSupport;
 
 import static io.fluxcapacitor.javaclient.common.Message.asMessage;
 
@@ -40,15 +38,14 @@ public interface Entity<M extends Entity<M, T>, T> {
 
     String idProperty();
 
-    Iterable<? extends Entity<?, ?>> entities();
+    Collection<? extends Entity<?, ?>> entities();
 
-    default Collection<Entity<?, ?>> allEntities() {
-        return Stream.concat(Stream.of(this), StreamSupport.stream(entities().spliterator(), false)
-                        .flatMap(e -> e.allEntities().stream())).collect(Collectors.toList());
+    default Stream<Entity<?, ?>> allEntities() {
+        return Stream.concat(Stream.of(this), entities().stream().flatMap(Entity::allEntities));
     }
 
-    default Optional<Entity<?, ?>> getEntity(String entityId) {
-        return allEntities().stream().filter(e -> entityId.equals(e.id())).findFirst();
+    default Optional<Entity<?, ?>> getEntity(Object entityId) {
+        return allEntities().filter(e -> entityId.equals(e.id())).findFirst();
     }
 
     default M apply(Object... events) {
@@ -87,8 +84,6 @@ public interface Entity<M extends Entity<M, T>, T> {
     }
 
     <E extends Exception> M assertLegal(Object... commands) throws E;
-
-    boolean isPossibleTarget(Object message);
 
     @SuppressWarnings("unchecked")
     default <E extends Exception> M assertThat(Validator<T, E> validator) throws E {

@@ -25,6 +25,7 @@ import java.util.function.Predicate;
 import java.util.stream.StreamSupport;
 
 import static io.fluxcapacitor.javaclient.FluxCapacitor.loadAggregate;
+import static java.util.stream.Collectors.toList;
 
 @SuppressWarnings({"rawtypes", "SameParameterValue", "unchecked"})
 public class AggregateEntitiesTest {
@@ -41,7 +42,7 @@ public class AggregateEntitiesTest {
 
     void expectEntities(Class<?> parentClass, Predicate<Collection<Entity<?, ?>>> predicate) {
         testFixture
-                .whenApplying(fc -> loadAggregate("test", (Class) parentClass).allEntities())
+                .whenApplying(fc -> loadAggregate("test", (Class) parentClass).allEntities().collect(toList()))
                 .expectResult(predicate);
     }
 
@@ -390,7 +391,7 @@ public class AggregateEntitiesTest {
 
         void expectEntities(Class<?> parentClass, Predicate<Collection<Entity<?, ?>>> predicate) {
             testFixture
-                    .whenApplying(fc -> loadAggregate("test", (Class) parentClass).allEntities())
+                    .whenApplying(fc -> loadAggregate("test", (Class) parentClass).allEntities().collect(toList()))
                     .expectResult(predicate);
         }
 
