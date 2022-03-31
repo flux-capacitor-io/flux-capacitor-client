@@ -99,8 +99,8 @@ public class ImmutableEntity<T> implements Entity<ImmutableEntity<T>, T> {
                 Iterator<Object> iterator = Arrays.stream(commands).iterator();
                 while (iterator.hasNext()) {
                     Object payload = iterator.next();
-                    ValidationUtils.assertLegal(payload, this);
-                    possibleTargets(payload).forEach(e -> ValidationUtils.assertLegal(payload, e));
+                    ValidationUtils.assertLegal(payload, result);
+                    result.possibleTargets(payload).forEach(e -> ValidationUtils.assertLegal(payload, e));
                     if (iterator.hasNext()) {
                         result = result.apply(Message.asMessage(payload));
                     }
