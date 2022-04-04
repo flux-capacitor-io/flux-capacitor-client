@@ -131,6 +131,9 @@ public class AnnotatedEntityHolder {
     }
 
     public Stream<? extends ImmutableEntity<?>> getEntities(Entity<?, ?> parent) {
+        if (parent.get() == null) {
+            return Stream.empty();
+        }
         Object holderValue = getValue(location, parent.get(), false);
         Class<?> type = holderValue == null ? holderType : holderValue.getClass();
         if (holderValue == null) {
