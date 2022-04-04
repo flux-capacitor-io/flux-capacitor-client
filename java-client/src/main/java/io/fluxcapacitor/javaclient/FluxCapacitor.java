@@ -328,8 +328,8 @@ public interface FluxCapacitor extends AutoCloseable {
      *
      * @see Aggregate for more info on how to define an event sourced aggregate root
      */
-    static <T> AggregateRoot<T> loadAggregateFor(String entityId, Class<?> defaultType) {
-        AggregateRoot<T> result = get().aggregateRepository().loadFor(entityId, defaultType);
+    static <T> AggregateRoot<T> loadAggregateFor(Object entityId, Class<?> defaultType) {
+        AggregateRoot<T> result = get().aggregateRepository().loadFor(entityId.toString(), defaultType);
         DeserializingMessage message = DeserializingMessage.getCurrent();
         if (message != null && (message.getMessageType() == EVENT || message.getMessageType() == NOTIFICATION)
             && entityId.equals(getAggregateId(message))) {
@@ -341,7 +341,7 @@ public interface FluxCapacitor extends AutoCloseable {
     /**
      * Loads the aggregate root that currently contains the entity with given entityId. If no such aggregate exists an
      * empty aggregate root is returned of type {@code Object}. In that case be aware that applying events to create the
-     * aggregate may yield an undesired result; to prevent this use {@link #loadAggregateFor(String, Class)}.
+     * aggregate may yield an undesired result; to prevent this use {@link #loadAggregateFor(Object, Class)}.
      * <p>
      * This method can also be used if the entity is the aggregate root (aggregateId is equal to entityId). If the
      * entity is associated with more than one aggregate the behavior of this method is unpredictable, though the
@@ -352,7 +352,7 @@ public interface FluxCapacitor extends AutoCloseable {
      *
      * @see Aggregate for more info on how to define an event sourced aggregate root
      */
-    static <T> AggregateRoot<T> loadAggregateFor(String entityId) {
+    static <T> AggregateRoot<T> loadAggregateFor(Object entityId) {
         return loadAggregateFor(entityId, Object.class);
     }
 
@@ -363,9 +363,9 @@ public interface FluxCapacitor extends AutoCloseable {
      * returned.
      */
     @SuppressWarnings("unchecked")
-    static <T> Entity<?, T> loadEntity(String entityId) {
+    static <T> Entity<?, T> loadEntity(Object entityId) {
         return (Entity<?, T>) loadAggregateFor(entityId).getEntity(entityId)
-                .orElseGet(() -> loadAggregate(entityId, Object.class));
+                .orElseGet(() -> loadAggregate(entityId.toString(), Object.class));
     }
 
     /**

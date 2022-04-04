@@ -168,7 +168,6 @@ public class AnnotatedEntityHolder {
                         .id(id.value())
                         .holder(this)
                         .idProperty(id.property())
-                        .parent(parent)
                         .build());
     }
 

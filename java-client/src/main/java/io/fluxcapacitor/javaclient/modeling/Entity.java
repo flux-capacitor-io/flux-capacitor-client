@@ -17,16 +17,22 @@ package io.fluxcapacitor.javaclient.modeling;
 import io.fluxcapacitor.common.api.Metadata;
 import io.fluxcapacitor.javaclient.common.Message;
 import io.fluxcapacitor.javaclient.common.serialization.DeserializingMessage;
+import io.fluxcapacitor.javaclient.publishing.routing.RoutingKey;
+import io.fluxcapacitor.javaclient.tracking.handling.validation.ValidationUtils;
 
 import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import java.util.function.Function;
 import java.util.function.Predicate;
-import java.util.function.UnaryOperator;
 import java.util.stream.Stream;
 
+import static io.fluxcapacitor.common.reflection.ReflectionUtils.getAnnotatedPropertyValue;
+import static io.fluxcapacitor.common.reflection.ReflectionUtils.hasProperty;
+import static io.fluxcapacitor.common.reflection.ReflectionUtils.readProperty;
 import static io.fluxcapacitor.javaclient.common.Message.asMessage;
+import static java.util.Collections.emptyList;
+import static java.util.Collections.singletonList;
 
 public interface Entity<M extends Entity<M, T>, T> {
 
@@ -74,16 +80,11 @@ public interface Entity<M extends Entity<M, T>, T> {
 
     M apply(Message eventMessage);
 
-    M update(UnaryOperator<T> function);
-
+    @SuppressWarnings("unchecked")
     default <E extends Exception> M assertLegal(Object command) throws E {
-        if (command instanceof Collection<?>) {
-            return assertLegal(((Collection<?>) command).toArray());
-        }
-        return assertLegal(new Object[]{command});
+        ValidationUtils.assertLegal(command, this);
+        return (M) this;
     }
-
-    <E extends Exception> M assertLegal(Object... commands) throws E;
 
     @SuppressWarnings("unchecked")
     default <E extends Exception> M assertThat(Validator<T, E> validator) throws E {
@@ -97,6 +98,40 @@ public interface Entity<M extends Entity<M, T>, T> {
             throw errorProvider.apply(get());
         }
         return (M) this;
+    }
+
+    default Iterable<Entity<?, ?>> possibleTargets(Object payload) {
+        for (Entity<?, ?> e : entities()) {
+            if (e.isPossibleTarget(payload)) {
+                return singletonList(e);
+            }
+        }
+        return emptyList();
+    }
+
+    default boolean isPossibleTarget(Object message) {
+        if (message == null) {
+            return false;
+        }
+        for (Entity<?, ?> e : entities()) {
+            if (e.isPossibleTarget(message)) {
+                return true;
+            }
+        }
+        String idProperty = idProperty();
+        Object id = id();
+        if (idProperty == null) {
+            return true;
+        }
+        if (id == null && get() != null) {
+            return false;
+        }
+        Object payload = message instanceof Message ? ((Message) message).getPayload() : message;
+        if (id == null) {
+            return hasProperty(idProperty, payload);
+        }
+        return readProperty(idProperty, payload)
+                .or(() -> getAnnotatedPropertyValue(payload, RoutingKey.class)).map(id::equals).orElse(false);
     }
 
     @FunctionalInterface

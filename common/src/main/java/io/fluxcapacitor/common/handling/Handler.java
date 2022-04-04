@@ -15,8 +15,20 @@
 package io.fluxcapacitor.common.handling;
 
 import java.lang.reflect.Executable;
+import java.util.function.BiConsumer;
 
 public interface Handler<M> {
+
+    ThreadLocal<Invocation> currentInvocation = new ThreadLocal<>();
+
+    static void whenHandlerCompletes(BiConsumer<Object, Throwable> callback) {
+        Invocation invocation = currentInvocation.get();
+        if (invocation == null) {
+            callback.accept(null, null);
+        } else {
+            invocation.registerCallback(callback);
+        }
+    }
 
     boolean canHandle(M message);
 

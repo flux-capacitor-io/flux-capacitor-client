@@ -14,14 +14,17 @@
 
 package io.fluxcapacitor.javaclient.tracking.handling.validation;
 
+import io.fluxcapacitor.common.handling.Handler;
 import io.fluxcapacitor.common.handling.HandlerConfiguration;
 import io.fluxcapacitor.common.handling.HandlerInspector;
 import io.fluxcapacitor.common.handling.HandlerInvoker;
 import io.fluxcapacitor.common.handling.ParameterResolver;
 import io.fluxcapacitor.common.reflection.ReflectionUtils;
-import io.fluxcapacitor.javaclient.modeling.AggregateRoot;
 import io.fluxcapacitor.javaclient.modeling.AssertLegal;
 import io.fluxcapacitor.javaclient.modeling.Entity;
+import io.fluxcapacitor.javaclient.tracking.handling.DeserializingMessageParameterResolver;
+import io.fluxcapacitor.javaclient.tracking.handling.MessageParameterResolver;
+import io.fluxcapacitor.javaclient.tracking.handling.MetadataParameterResolver;
 import io.fluxcapacitor.javaclient.tracking.handling.authentication.ForbidsRole;
 import io.fluxcapacitor.javaclient.tracking.handling.authentication.RequiresRole;
 import io.fluxcapacitor.javaclient.tracking.handling.authentication.UnauthenticatedException;
@@ -44,6 +47,7 @@ import java.util.function.BiFunction;
 import java.util.function.Function;
 
 import static io.fluxcapacitor.common.ObjectUtils.memoize;
+import static io.fluxcapacitor.common.reflection.ReflectionUtils.getMethodAnnotation;
 import static io.fluxcapacitor.common.reflection.ReflectionUtils.getTypeAnnotations;
 import static java.lang.String.format;
 import static java.util.Optional.empty;
@@ -97,31 +101,57 @@ public class ValidationUtils {
 
     protected static final Function<Class<?>, HandlerInvoker<Entity<?, ?>>> assertLegalInvokerCache =
             memoize(type -> HandlerInspector.inspect(
-                    type, Arrays.asList(new UserParameterResolver(), new AssertLegalEntityParameterResolver()),
-                    HandlerConfiguration.builder()
-                            .methodAnnotation(AssertLegal.class).invokeMultipleMethods(true).build()));
+                    type, Arrays.asList(new DeserializingMessageParameterResolver(),
+                                        new MetadataParameterResolver(),
+                                        new MessageParameterResolver(),
+                                        new UserParameterResolver(), new AssertLegalEntityParameterResolver()),
+                    HandlerConfiguration.builder().methodAnnotation(AssertLegal.class)
+                            .handlerFilter((owner, method) -> getMethodAnnotation(method, AssertLegal.class)
+                                    .map(a -> !a.afterHandler()).orElse(false))
+                            .invokeMultipleMethods(true).build()));
 
-    public static <E extends Exception> void assertLegal(Object commandOrQuery, Entity<?, ?> entity) throws E {
-        HandlerInvoker<Entity<?, ?>> invoker = assertLegalInvokerCache.apply(commandOrQuery.getClass());
-        if (invoker.canHandle(commandOrQuery, entity)) {
-            invoker.invoke(commandOrQuery, entity);
+    protected static final Function<Class<?>, HandlerInvoker<Entity<?, ?>>> assertLegalAfterUpdateInvokerCache =
+            memoize(type -> HandlerInspector.inspect(
+                    type, Arrays.asList(new DeserializingMessageParameterResolver(),
+                                        new MetadataParameterResolver(),
+                                        new MessageParameterResolver(),
+                                        new UserParameterResolver(), new AssertLegalEntityParameterResolver()),
+                    HandlerConfiguration.builder().methodAnnotation(AssertLegal.class)
+                            .handlerFilter((owner, method) -> getMethodAnnotation(method, AssertLegal.class)
+                                    .map(AssertLegal::afterHandler).orElse(false))
+                            .invokeMultipleMethods(true).build()));
+
+    public static <E extends Exception> void assertLegal(Object payload, Entity<?, ?> entity) throws E {
+        assertLegal(payload, entity, assertLegalInvokerCache);
+        Handler.whenHandlerCompletes((r, e) -> {
+            if (e == null) {
+                ValidationUtils.assertLegal(payload, entity, assertLegalAfterUpdateInvokerCache);
+            }
+        });
+    }
+
+    public static <E extends Exception> void assertLegal(Object payload, Entity<?, ?> entity, Function<Class<?>,
+            HandlerInvoker<Entity<?, ?>>> invokerProvider) throws E {
+        HandlerInvoker<Entity<?, ?>> invoker = invokerProvider.apply(payload.getClass());
+        if (invoker.canHandle(payload, entity)) {
+            invoker.invoke(payload, entity);
         }
+        entity.possibleTargets(payload).forEach(e -> ValidationUtils.assertLegal(payload, e, invokerProvider));
     }
 
     @SuppressWarnings("unchecked")
-    public static <E extends Exception> Optional<E> checkLegality(Object commandOrQuery, AggregateRoot<?> aggregate) {
+    public static <E extends Exception> Optional<E> checkLegality(Object payload, Entity<?, ?> entity) {
         try {
-            assertLegal(commandOrQuery, aggregate);
+            assertLegal(payload, entity);
+            return Optional.empty();
         } catch (Exception e) {
             return Optional.of((E) e);
         }
-        return empty();
     }
 
-    public static boolean isLegal(Object commandOrQuery, AggregateRoot<?> aggregate) {
-        return checkLegality(commandOrQuery, aggregate).isEmpty();
+    public static boolean isLegal(Object commandOrQuery, Entity<?, ?> entity) {
+        return checkLegality(commandOrQuery, entity).isEmpty();
     }
-
 
     /*
         Check command / query authorization

@@ -21,11 +21,11 @@ import java.lang.annotation.Annotation;
 import java.lang.reflect.Parameter;
 import java.util.function.Function;
 
-public class DeserializingMessageParameterResolver implements ParameterResolver<DeserializingMessage> {
+public class DeserializingMessageParameterResolver implements ParameterResolver<Object> {
     @Override
-    public Function<DeserializingMessage, Object> resolve(Parameter p, Annotation methodAnnotation) {
+    public Function<Object, Object> resolve(Parameter p, Annotation methodAnnotation) {
         if (p.getType().equals(DeserializingMessage.class)) {
-            return m -> m;
+            return m -> m instanceof DeserializingMessage ? m : DeserializingMessage.getCurrent();
         }
         return null;
     }

@@ -19,6 +19,7 @@ import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.SneakyThrows;
 import lombok.experimental.Delegate;
+import lombok.extern.slf4j.Slf4j;
 
 import java.lang.annotation.Annotation;
 import java.lang.reflect.Constructor;
@@ -272,6 +273,7 @@ public class HandlerInspector {
     }
 
     @AllArgsConstructor
+    @Slf4j
     public static class DefaultHandler<M> implements Handler<M> {
         private final Object target;
         private final HandlerInvoker<M> invoker;
@@ -293,7 +295,19 @@ public class HandlerInspector {
 
         @Override
         public Object invoke(M message) {
-            return invoker.invoke(target, message);
+            Invocation previousInvocation = Handler.currentInvocation.get();
+            Invocation invocation = new Invocation();
+            Handler.currentInvocation.set(invocation);
+            try {
+                Object result = invoker.invoke(target, message);
+                invocation.getCallbacks().forEach(c -> c.accept(result, null));
+                return result;
+            } catch (Throwable e) {
+                invocation.getCallbacks().forEach(c -> c.accept(null, e));
+                throw e;
+            } finally {
+                Handler.currentInvocation.set(previousInvocation);
+            }
         }
 
         @Override

@@ -8,6 +8,7 @@ import lombok.EqualsAndHashCode;
 import lombok.ToString;
 
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -15,6 +16,7 @@ import java.util.Optional;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Supplier;
 import java.util.function.UnaryOperator;
+import java.util.stream.Collectors;
 
 import static io.fluxcapacitor.common.MessageType.EVENT;
 import static java.util.Optional.ofNullable;
@@ -96,6 +98,11 @@ public class ModifiableAggregateRoot<T> extends DelegatingAggregateRoot<T, Immut
         return this;
     }
 
+    @Override
+    public Collection<? extends Entity<?, ?>> entities() {
+        return super.entities().stream().map(e -> new ModifiableEntity<>(e, this)).collect(Collectors.toList());
+    }
+
     private void handleUpdate(UnaryOperator<ImmutableAggregateRoot<T>> update) {
         boolean firstUpdate = waitingForHandlerEnd.compareAndSet(false, true);
         if (firstUpdate) {
@@ -105,7 +112,7 @@ public class ModifiableAggregateRoot<T> extends DelegatingAggregateRoot<T, Immut
             delegate = update.apply(delegate);
         } finally {
             if (firstUpdate) {
-                DeserializingMessage.whenHandlerCompletes(this::whenHandlerCompletes);
+                DeserializingMessage.whenMessageCompletes(this::whenHandlerCompletes);
             }
         }
     }

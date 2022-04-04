@@ -22,11 +22,14 @@ import java.lang.annotation.Annotation;
 import java.lang.reflect.Parameter;
 import java.util.function.Function;
 
-public class MessageParameterResolver implements ParameterResolver<DeserializingMessage> {
+import static java.util.Optional.ofNullable;
+
+public class MessageParameterResolver implements ParameterResolver<Object> {
     @Override
-    public Function<DeserializingMessage, Object> resolve(Parameter p, Annotation methodAnnotation) {
+    public Function<Object, Object> resolve(Parameter p, Annotation methodAnnotation) {
         if (Message.class.isAssignableFrom(p.getType())) {
-            return DeserializingMessage::toMessage;
+            return m -> m instanceof DeserializingMessage ? ((DeserializingMessage) m).toMessage()
+                    : ofNullable(DeserializingMessage.getCurrent()).map(DeserializingMessage::toMessage).orElse(null);
         }
         return null;
     }

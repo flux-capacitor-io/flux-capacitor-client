@@ -92,7 +92,7 @@ public class ImmutableAggregateRoot<T> implements AggregateRoot<T> {
     @Override
     public ImmutableAggregateRoot<T> update(UnaryOperator<T> function) {
         return toBuilder()
-                .delegate(delegate.update(function))
+                .delegate(delegate.toBuilder().value(function.apply(get())).build())
                 .previous(this)
                 .timestamp(currentClock().instant())
                 .build();
@@ -121,12 +121,6 @@ public class ImmutableAggregateRoot<T> implements AggregateRoot<T> {
     @Override
     public Collection<? extends Entity<?, ?>> entities() {
         return delegate.entities();
-    }
-
-    @Override
-    public <E extends Exception> AggregateRoot<T> assertLegal(Object... commands) throws E {
-        delegate.assertLegal(commands);
-        return this;
     }
 
     public ImmutableAggregateRoot<T> withEventIndex(Long index, String messageId) {

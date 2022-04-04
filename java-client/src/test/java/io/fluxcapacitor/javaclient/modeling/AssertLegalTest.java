@@ -1,6 +1,7 @@
 package io.fluxcapacitor.javaclient.modeling;
 
 import io.fluxcapacitor.javaclient.MockException;
+import io.fluxcapacitor.javaclient.persisting.eventsourcing.Apply;
 import io.fluxcapacitor.javaclient.persisting.eventsourcing.ApplyEvent;
 import io.fluxcapacitor.javaclient.test.TestFixture;
 import io.fluxcapacitor.javaclient.tracking.handling.HandleCommand;
@@ -21,26 +22,27 @@ public class AssertLegalTest {
 
     @Test
     void testCreateWithLegalCheckOnNonExistingModelSucceeds() {
-        testFixture.givenNoPriorActivity().whenCommand(new CreateModelWithAssertion()).expectNoException();
+        testFixture.whenCommand(new CreateModelWithAssertion()).expectNoException();
     }
 
     @Test
     void testUpdateWithLegalCheckOnNonExistingModelFails() {
-        testFixture.givenNoPriorActivity().whenCommand(new UpdateModelWithAssertion())
+        testFixture.whenCommand(new UpdateModelWithAssertion())
                 .expectException(MockException.class);
     }
 
     @Test
     void testMultiAssert() {
-        testFixture.givenNoPriorActivity().whenApplying(
+        testFixture.whenApplying(
                         fc -> fc.aggregateRepository().load(aggregateId, TestModel.class)
-                                .assertLegal(new CreateModel(), new CommandWithAssertionInInterface()))
+                                .assertLegal(new CreateModel()).apply(new CreateModel())
+                                .assertLegal(new CommandWithAssertionInInterface()))
                 .expectException(MockException.class);
     }
 
     @Test
     void testAssertionViaInterface() {
-        testFixture.givenNoPriorActivity().whenCommand(new CommandWithAssertionInInterface())
+        testFixture.whenCommand(new CommandWithAssertionInInterface())
                 .expectException(MockException.class);
     }
 
@@ -48,7 +50,7 @@ public class AssertLegalTest {
     void testMultipleAssertionMethods() {
         CommandWithMultipleAssertions
                 command = new CommandWithMultipleAssertions();
-        testFixture.givenNoPriorActivity().whenCommand(command)
+        testFixture.whenCommand(command)
                 .expectThat(fc -> assertEquals(3, command.getAssertionCount().get()));
     }
 
@@ -67,12 +69,17 @@ public class AssertLegalTest {
 
     @Test
     void testOverriddenAssertion() {
-        testFixture.givenNoPriorActivity().whenCommand(new CommandWithOverriddenAssertion()).expectNoException();
+        testFixture.whenCommand(new CommandWithOverriddenAssertion()).expectNoException();
     }
 
     @Test
     void testBatchAssertLegalInWhen() {
         testFixture.whenCommand(List.of("a", "b")).expectOnlyEvents(List.of("a", "b"));
+    }
+
+    @Test
+    void testAssertLegalAfterApply() {
+        testFixture.whenCommand(new CommandWithAssertAfterApply()).expectException(MockException.class);
     }
 
     private static class Handler {
@@ -83,7 +90,8 @@ public class AssertLegalTest {
 
         @HandleCommand
         void handle(List<?> commands) {
-            loadAggregate(aggregateId, TestModel.class).assertLegal("some", "other", "commands").apply(commands);
+            AggregateRoot<TestModel> root = loadAggregate(aggregateId, TestModel.class);
+            commands.forEach(c -> root.assertLegal(c).apply(c));
         }
     }
 
@@ -184,6 +192,21 @@ public class AssertLegalTest {
         @AssertLegal
         public void assertTheImpossible(Object model) {
             //do nothing
+        }
+    }
+
+    @Value
+    private static class CommandWithAssertAfterApply {
+        @AssertLegal(afterHandler = true)
+        void assertAfterApply(TestModel model) {
+            if (model != null) {
+                throw new MockException();
+            }
+        }
+
+        @Apply
+        TestModel apply() {
+            return new TestModel(this);
         }
     }
 }

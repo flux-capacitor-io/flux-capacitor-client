@@ -138,7 +138,7 @@ public class DeserializingMessage {
         return current.get();
     }
 
-    public static void whenHandlerCompletes(Consumer<Throwable> handler) {
+    public static void whenMessageCompletes(Consumer<Throwable> handler) {
         if (current.get() == null) {
             handler.accept(null);
         } else {

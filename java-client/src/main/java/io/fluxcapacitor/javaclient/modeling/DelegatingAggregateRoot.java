@@ -19,12 +19,6 @@ public abstract class DelegatingAggregateRoot<T, A extends AggregateRoot<T>> imp
     }
 
     @Override
-    public <E extends Exception> AggregateRoot<T> assertLegal(Object... commands) throws E {
-        delegate.assertLegal(commands);
-        return this;
-    }
-
-    @Override
     public Object id() {
         return delegate.id();
     }

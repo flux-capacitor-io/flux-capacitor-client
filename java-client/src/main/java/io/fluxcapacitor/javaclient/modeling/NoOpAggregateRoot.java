@@ -31,7 +31,7 @@ public class NoOpAggregateRoot<T> implements AggregateRoot<T> {
     }
 
     @Override
-    public <E extends Exception> AggregateRoot<T> assertLegal(Object... commands) throws E {
+    public <E extends Exception> AggregateRoot<T> assertLegal(Object command) throws E {
         return this;
     }
 

@@ -23,6 +23,7 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.function.Predicate;
+import java.util.function.UnaryOperator;
 import java.util.stream.Collectors;
 
 import static java.lang.String.format;
@@ -37,6 +38,8 @@ public interface AggregateRoot<T> extends Entity<AggregateRoot<T>, T> {
 
     String AGGREGATE_ID_METADATA_KEY = "$aggregateId";
     String AGGREGATE_TYPE_METADATA_KEY = "$aggregateType";
+
+    AggregateRoot<T> update(UnaryOperator<T> function);
 
     String lastEventId();
 

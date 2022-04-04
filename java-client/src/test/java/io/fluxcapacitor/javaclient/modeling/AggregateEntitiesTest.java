@@ -25,12 +25,18 @@ import java.util.function.Predicate;
 import java.util.stream.StreamSupport;
 
 import static io.fluxcapacitor.javaclient.FluxCapacitor.loadAggregate;
+import static io.fluxcapacitor.javaclient.FluxCapacitor.loadEntity;
 import static java.util.stream.Collectors.toList;
 
 @SuppressWarnings({"rawtypes", "SameParameterValue", "unchecked"})
 public class AggregateEntitiesTest {
-    private final TestFixture testFixture = (TestFixture) TestFixture.create().given(
-            fc -> loadAggregate("test", Aggregate.class).update(s -> Aggregate.builder().build()));
+    private TestFixture testFixture;
+
+    @BeforeEach
+    void setUp() {
+        testFixture = TestFixture.create().given(
+                fc -> loadAggregate("test", Aggregate.class).update(s -> Aggregate.builder().build()));
+    }
 
     void expectEntity(Predicate<Entity<?, ?>> predicate) {
         expectEntities(Aggregate.class, entities -> entities.stream().anyMatch(predicate));
@@ -95,13 +101,13 @@ public class AggregateEntitiesTest {
         @Test
         void testRouteToChild() {
             testFixture.whenCommand(new CommandWithRoutingKey("id"))
-                    .expectException(IllegalCommandException.class);
+                    .expectException(IllegalCommandException.class).expectNoEvents();
         }
 
         @Test
         void testRouteToGrandchild() {
             testFixture.whenCommand(new CommandWithRoutingKey("grandChild"))
-                    .expectException(IllegalCommandException.class);
+                    .expectException(IllegalCommandException.class).expectNoEvents();
         }
 
         @Test
@@ -112,7 +118,7 @@ public class AggregateEntitiesTest {
         @Test
         void testPropertyMatchesChild() {
             testFixture.whenCommand(new CommandWithoutRoutingKey("otherId"))
-                    .expectException(IllegalCommandException.class);
+                    .expectException(IllegalCommandException.class).expectNoEvents();
         }
 
         @Test
@@ -122,31 +128,46 @@ public class AggregateEntitiesTest {
 
         @Test
         void testPropertyPathMatchesNothing() {
-            testFixture.whenCommand(new CommandWithWrongProperty("id")).expectNoException();
+            testFixture.whenCommand(new CommandWithWrongProperty("id")).expectNoException()
+                    .expectEvents(new CommandWithWrongProperty("id"));
         }
 
         @Test
         void testRouteToGrandchildButFailingOnChild() {
             testFixture.whenCommand(new CommandTargetingGrandchildButFailingOnParent("grandChild"))
-                    .expectException(IllegalCommandException.class);
+                    .expectException(IllegalCommandException.class).expectNoEvents();
         }
 
         @Test
         void updateCommandExpectsExistingChild() {
             testFixture.whenCommand(new UpdateCommandThatFailsIfChildDoesNotExist("whatever"))
-                    .expectException(IllegalCommandException.class);
+                    .expectException(IllegalCommandException.class).expectNoEvents();
         }
 
         @Test
         void testListChildAssertion() {
             testFixture.whenCommand(new CommandWithRoutingKey("list0"))
-                    .expectException(IllegalCommandException.class);
+                    .expectException(IllegalCommandException.class).expectNoEvents();
+        }
+
+        @Test
+        void assertLegalOnChildEntity() {
+            AggregateEntitiesTest.this.setUp();
+            testFixture.registerHandlers(new Object() {
+                @HandleCommand
+                void handle(CommandWithRoutingKey command) {
+                    loadEntity(command.getTarget()).assertLegal(command);
+                }
+            });
+            testFixture.whenCommand(new CommandWithRoutingKey("list0"))
+                    .expectException(IllegalCommandException.class).expectNoEvents();
         }
 
         class CommandHandler {
             @HandleCommand
             void handle(Object command) {
-                loadAggregate("test", Aggregate.class).assertLegal(command);
+                loadAggregate("test", Aggregate.class).assertLegal(command)
+                        .apply(command);
             }
         }
     }
@@ -191,6 +212,20 @@ public class AggregateEntitiesTest {
                             expectNoEntity(e -> "id".equals(e.id()));
                             expectEntity(e -> "otherId".equals(e.id()));
                         });
+            }
+
+            @Test
+            void applyOnChildEntity() {
+                AggregateEntitiesTest.this.setUp();
+                testFixture.registerHandlers(new Object() {
+                    @HandleCommand
+                    void handle(UpdateChild command) {
+                        loadEntity(command.getChildId()).assertLegal(command).apply(command);
+                    }
+                });
+                testFixture.whenCommand(new UpdateChild("id", "data"))
+                        .expectThat(fc -> expectEntity(
+                                e -> e.get() instanceof Child && ((Child) e.get()).getData().equals("data")));
             }
 
             @Value
