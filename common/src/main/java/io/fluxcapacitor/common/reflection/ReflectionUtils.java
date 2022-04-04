@@ -135,12 +135,15 @@ public class ReflectionUtils {
                              MethodType.methodType(m.getReturnType(), m.getParameterTypes()));
     }
 
-    public static List<? extends AccessibleObject> getAnnotatedProperties(Object target,
-                                                                          Class<? extends Annotation> annotation) {
+    public static List<?> getAnnotatedPropertyValues(Object target, Class<? extends Annotation> annotation) {
         if (target == null) {
             return emptyList();
         }
-        return getAnnotatedProperties(target.getClass(), annotation);
+        List<Object> result = new ArrayList<>();
+        for (AccessibleObject property : getAnnotatedProperties(target.getClass(), annotation)) {
+            result.add(getValue(property, target));
+        }
+        return result;
     }
 
     public static List<? extends AccessibleObject> getAnnotatedProperties(Class<?> target,

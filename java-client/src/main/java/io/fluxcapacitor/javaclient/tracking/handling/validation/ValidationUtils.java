@@ -132,11 +132,16 @@ public class ValidationUtils {
 
     public static <E extends Exception> void assertLegal(Object payload, Entity<?, ?> entity, Function<Class<?>,
             HandlerInvoker<Entity<?, ?>>> invokerProvider) throws E {
+        if (payload == null) {
+            return;
+        }
         HandlerInvoker<Entity<?, ?>> invoker = invokerProvider.apply(payload.getClass());
         if (invoker.canHandle(payload, entity)) {
             invoker.invoke(payload, entity);
         }
         entity.possibleTargets(payload).forEach(e -> ValidationUtils.assertLegal(payload, e, invokerProvider));
+        ReflectionUtils.getAnnotatedPropertyValues(payload, AssertLegal.class).forEach(
+                property -> assertLegal(property, entity, invokerProvider));
     }
 
     @SuppressWarnings("unchecked")

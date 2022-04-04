@@ -27,7 +27,7 @@ import java.lang.annotation.Target;
  * Annotated methods should contain at least one parameter. The first parameter is reserved for the Model's entity (as
  * obtained via {@link AggregateRoot#get()}).
  */
-@Target(ElementType.METHOD)
+@Target({ElementType.METHOD, ElementType.FIELD, ElementType.ANNOTATION_TYPE})
 @Retention(RetentionPolicy.RUNTIME)
 public @interface AssertLegal {
     int HIGHEST_PRIORITY = Integer.MAX_VALUE, LOWEST_PRIORITY = Integer.MIN_VALUE, DEFAULT_PRIORITY = 0;

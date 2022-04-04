@@ -82,6 +82,23 @@ public class AssertLegalTest {
         testFixture.whenCommand(new CommandWithAssertAfterApply()).expectException(MockException.class);
     }
 
+    @Test
+    void testAssertInField() {
+        testFixture.whenCommand(new CommandThatDelegatesToProperty(new CommandWithAssertionInInterface(), null))
+                .expectException(MockException.class);
+    }
+
+    @Test
+    void testAssertInMethod() {
+        testFixture.whenCommand(new CommandThatDelegatesToProperty(null, new CommandWithAssertionInInterface()))
+                .expectException(MockException.class);
+    }
+
+    @Test
+    void testAssertInFieldOrMethodIfBothAreNull() {
+        testFixture.whenCommand(new CommandThatDelegatesToProperty(null, null)).expectNoException();
+    }
+
     private static class Handler {
         @HandleCommand
         void handle(Object command) {
@@ -209,4 +226,16 @@ public class AssertLegalTest {
             return new TestModel(this);
         }
     }
+
+    @Value
+    private static class CommandThatDelegatesToProperty {
+        @AssertLegal CommandWithAssertionInInterface field;
+        CommandWithAssertionInInterface method;
+
+        @AssertLegal
+        public CommandWithAssertionInInterface getMethod() {
+            return method;
+        }
+    }
+
 }
