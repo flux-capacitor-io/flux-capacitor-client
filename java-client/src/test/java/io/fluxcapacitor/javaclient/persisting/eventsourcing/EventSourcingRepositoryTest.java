@@ -57,7 +57,7 @@ import static org.mockito.Mockito.when;
 @Slf4j
 class EventSourcingRepositoryTest {
 
-    private static final String aggregateId = "test";
+    static final String aggregateId = "test";
 
     @Nested
     class Normal {
@@ -198,7 +198,7 @@ class EventSourcingRepositoryTest {
     @lombok.Data
     @NoArgsConstructor
     @AllArgsConstructor
-    private static class TestModel {
+    static class TestModel {
         List<Object> events = new ArrayList<>();
         Metadata metadata = Metadata.empty();
 
@@ -272,7 +272,7 @@ class EventSourcingRepositoryTest {
     @Aggregate(snapshotPeriod = 3, cached = false)
     @NoArgsConstructor
     @Value
-    private static class TestModelForSnapshotting {
+    static class TestModelForSnapshotting {
         String content = "somecontent";
 
         @ApplyEvent
@@ -313,7 +313,7 @@ class EventSourcingRepositoryTest {
     @NoArgsConstructor
     @Value
     @Builder
-    private static class TestModelNotEventSourced {
+    static class TestModelNotEventSourced {
         List<String> names = new ArrayList<>();
 
         @ApplyEvent
@@ -348,9 +348,9 @@ class EventSourcingRepositoryTest {
     }
 
     @Aggregate
-    private static class TestModelWithFactoryMethod {
+    static class TestModelWithFactoryMethod {
         @ApplyEvent
-        private static TestModelWithFactoryMethod handle(CreateModel event) {
+        static TestModelWithFactoryMethod handle(CreateModel event) {
             return new TestModelWithFactoryMethod();
         }
     }
@@ -379,9 +379,9 @@ class EventSourcingRepositoryTest {
     }
 
     @Aggregate
-    private static class TestModelWithFactoryMethodAndSameInstanceMethod {
+    static class TestModelWithFactoryMethodAndSameInstanceMethod {
         @ApplyEvent
-        private static TestModelWithFactoryMethodAndSameInstanceMethod handleStatic(CreateModel event) {
+        static TestModelWithFactoryMethodAndSameInstanceMethod handleStatic(CreateModel event) {
             return new TestModelWithFactoryMethodAndSameInstanceMethod();
         }
 
@@ -406,7 +406,7 @@ class EventSourcingRepositoryTest {
     }
 
     @Aggregate
-    private static class TestModelWithoutFactoryMethodOrConstructor {
+    static class TestModelWithoutFactoryMethodOrConstructor {
         @ApplyEvent
         public TestModelWithoutFactoryMethodOrConstructor handle(CreateModel event) {
             return this;
@@ -416,7 +416,7 @@ class EventSourcingRepositoryTest {
     @Nested
     class WithoutApplyEvent {
 
-        private final TestFixture testFixture = TestFixture.create(new Handler());
+        private TestFixture testFixture = TestFixture.create(new Handler());
 
         @Test
         void testCreateViaEvent() {
@@ -462,6 +462,25 @@ class EventSourcingRepositoryTest {
                     .whenQuery(new GetPlayBackedAggregate()).expectResult(Optional.empty());
         }
 
+        @Test
+        void testApplyInApply() {
+            @Value
+            class CreateAnotherAggregateInApply {
+                String nextAggregate;
+
+                @Apply
+                TestModelWithoutApplyEvent apply() {
+                    loadAggregate(nextAggregate, TestModelWithoutApplyEvent.class).apply(new CreateModelFromEvent());
+                    return TestModelWithoutApplyEvent.builder().firstEvent(this).build();
+                }
+            }
+
+            testFixture
+                    .whenCommand(new CreateAnotherAggregateInApply("another"))
+                    .expectOnlyEvents(new CreateAnotherAggregateInApply("another"),
+                                      new CreateModelFromEvent());
+        }
+
         private class Handler {
             @HandleCommand
             void handle(Object command) {
@@ -483,7 +502,7 @@ class EventSourcingRepositoryTest {
     }
 
     @Value
-    private static class CreateModelFromEvent {
+    static class CreateModelFromEvent {
         @Apply
         public TestModelWithoutApplyEvent apply() {
             return TestModelWithoutApplyEvent.builder().firstEvent(this).build();
@@ -491,7 +510,7 @@ class EventSourcingRepositoryTest {
     }
 
     @Value
-    private static class UpsertModelFromEvent {
+    static class UpsertModelFromEvent {
         @Apply
         public TestModelWithoutApplyEvent apply() {
             return TestModelWithoutApplyEvent.builder().firstEvent(this).build();
@@ -504,7 +523,7 @@ class EventSourcingRepositoryTest {
     }
 
     @Value
-    private static class UpdateModelFromEvent {
+    static class UpdateModelFromEvent {
         @Apply
         public TestModelWithoutApplyEvent apply(TestModelWithoutApplyEvent aggregate) {
             return aggregate.toBuilder().secondEvent(this).build();
@@ -512,47 +531,47 @@ class EventSourcingRepositoryTest {
     }
 
     @Value
-    private static class GetPlayBackedAggregate {
+    static class GetPlayBackedAggregate {
     }
 
     @Aggregate
     @Value
     @Builder(toBuilder = true)
-    private static class TestModelWithoutApplyEvent {
+    static class TestModelWithoutApplyEvent {
         Object firstEvent, secondEvent;
     }
 
     @Value
-    private static class CreateModel {
+    static class CreateModel {
     }
 
     @Value
-    private static class UpdateModel {
+    static class UpdateModel {
     }
 
     @Value
-    private static class ApplyWhileApplying {
+    static class ApplyWhileApplying {
     }
 
     @Value
-    private static class GetModel {
+    static class GetModel {
     }
 
     @Value
-    private static class ApplyInQuery {
+    static class ApplyInQuery {
     }
 
     @Value
-    private static class ApplyNonsense {
-    }
-
-
-    @Value
-    private static class FailToCreateModel {
+    static class ApplyNonsense {
     }
 
 
     @Value
-    private static class CreateModelWithMetadata {
+    static class FailToCreateModel {
+    }
+
+
+    @Value
+    static class CreateModelWithMetadata {
     }
 }

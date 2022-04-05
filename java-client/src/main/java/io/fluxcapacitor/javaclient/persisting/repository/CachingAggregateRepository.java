@@ -121,7 +121,7 @@ public class CachingAggregateRepository implements AggregateRepository {
     protected void catchUpIfNeeded() {
         startTrackerIfNeeded();
         DeserializingMessage current = DeserializingMessage.getCurrent();
-        if (current != null) {
+        if (current != null && !AggregateRoot.isLoading()) {
             switch (current.getMessageType()) {
                 case EVENT:
                 case NOTIFICATION:
