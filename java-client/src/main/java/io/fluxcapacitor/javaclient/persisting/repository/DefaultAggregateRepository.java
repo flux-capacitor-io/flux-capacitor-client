@@ -209,13 +209,14 @@ public class DefaultAggregateRepository implements AggregateRepository {
                                     AggregateEventStream<DeserializingMessage> eventStream
                                             = eventStore.getEvents(id, model.sequenceNumber());
                                     Iterator<DeserializingMessage> iterator = eventStream.iterator();
+                                    boolean wasLoading = AggregateRoot.isLoading();
                                     try {
                                         AggregateRoot.loading.set(true);
                                         while (iterator.hasNext()) {
                                             model = model.apply(iterator.next());
                                         }
                                     } finally {
-                                        AggregateRoot.loading.remove();
+                                        AggregateRoot.loading.set(wasLoading);
                                     }
                                     return model.toBuilder().sequenceNumber(
                                             eventStream.getLastSequenceNumber().orElse(model.sequenceNumber())).build();

@@ -8,6 +8,8 @@ import lombok.experimental.Accessors;
 import java.time.Instant;
 import java.util.Collection;
 import java.util.Optional;
+import java.util.function.Function;
+import java.util.function.Predicate;
 import java.util.function.Supplier;
 import java.util.function.UnaryOperator;
 
@@ -30,8 +32,22 @@ public class NoOpAggregateRoot<T> implements AggregateRoot<T> {
         return this;
     }
 
+    /*
+        Assertions are ignored
+     */
+
     @Override
     public <E extends Exception> AggregateRoot<T> assertLegal(Object command) throws E {
+        return this;
+    }
+
+    @Override
+    public <E extends Exception> AggregateRoot<T> assertThat(Validator<T, E> validator) throws E {
+        return this;
+    }
+
+    @Override
+    public <E extends Exception> AggregateRoot<T> ensure(Predicate<T> check, Function<T, E> errorProvider) throws E {
         return this;
     }
 
