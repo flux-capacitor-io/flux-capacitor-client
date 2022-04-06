@@ -36,6 +36,7 @@ import io.fluxcapacitor.javaclient.common.serialization.upcasting.Upcaster;
 import io.fluxcapacitor.javaclient.common.serialization.upcasting.UpcasterChain;
 import io.fluxcapacitor.javaclient.persisting.search.DocumentSerializer;
 import lombok.Getter;
+import lombok.extern.slf4j.Slf4j;
 
 import java.lang.reflect.Type;
 import java.time.Instant;
@@ -51,6 +52,7 @@ import static com.fasterxml.jackson.databind.node.JsonNodeFactory.withExactBigDe
 import static io.fluxcapacitor.common.ObjectUtils.memoize;
 import static java.lang.String.format;
 
+@Slf4j
 public class JacksonSerializer extends AbstractSerializer implements DocumentSerializer {
     public static JsonMapper defaultObjectMapper = JsonMapper.builder()
             .findAndAddModules().addModule(new StripStringsModule()).addModule(new NullCollectionsAsEmptyModule())
@@ -117,12 +119,14 @@ public class JacksonSerializer extends AbstractSerializer implements DocumentSer
     @SuppressWarnings({"unchecked", "rawtypes"})
     @Override
     protected Stream<DeserializingObject<byte[], ?>> deserializeUnknownType(SerializedObject<byte[], ?> s) {
-        return Stream.of(new DeserializingObject(s, (Function<Class<?>, Object>) type -> {
+        SerializedObject<byte[], ?> jsonNode =
+                s.withData(new Data<>(s.data().getValue(), JsonNode.class.getName(), 0, getFormat()));
+        return Stream.of(new DeserializingObject(jsonNode, (Function<Class<?>, Object>) type -> {
             try {
-                return convert(objectMapper.readTree(s.data().getValue()), type);
+                return convert(objectMapper.readTree(jsonNode.data().getValue()), type);
             } catch (Exception e) {
-                throw new SerializationException(format("Could not deserialize a %s to a JsonNode. Invalid Json?",
-                        s.data().getType()), e);
+                throw new SerializationException(format("Could not deserialize a %s to a %s. Invalid json?",
+                                                        type, s.data().getType()), e);
             }
         }));
     }
@@ -144,7 +148,7 @@ public class JacksonSerializer extends AbstractSerializer implements DocumentSer
     public <T> T fromDocument(Document document) {
         JsonNode jsonNode = inverter.fromDocument(document);
         return jsonNodeUpcaster.upcast(Stream.of(new Data<>(
-                jsonNode, document.getType(), document.getRevision(), "application/json"))).findFirst()
+                        jsonNode, document.getType(), document.getRevision(), getFormat()))).findFirst()
                 .<T>map(d -> objectMapper.convertValue(d.getValue(), typeCache.apply(d.getType()))).orElse(null);
     }
 
@@ -152,9 +156,10 @@ public class JacksonSerializer extends AbstractSerializer implements DocumentSer
     public <T> T fromDocument(Document document, Class<T> type) {
         JsonNode jsonNode = inverter.fromDocument(document);
         return jsonNodeUpcaster.upcast(Stream.of(new Data<>(
-                jsonNode, document.getType(), document.getRevision(), "application/json"))).findFirst()
-                .map(d ->  objectMapper.convertValue(d.getValue(), type)).orElse(null);
+                        jsonNode, document.getType(), document.getRevision(), getFormat()))).findFirst()
+                .map(d -> objectMapper.convertValue(d.getValue(), type)).orElse(null);
     }
+
     @Override
     public <V> V doConvert(Object value, Class<V> type) {
         return objectMapper.convertValue(value, type);

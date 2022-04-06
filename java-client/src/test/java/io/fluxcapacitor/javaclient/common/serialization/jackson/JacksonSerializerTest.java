@@ -15,6 +15,7 @@
 package io.fluxcapacitor.javaclient.common.serialization.jackson;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.fasterxml.jackson.databind.node.TextNode;
@@ -40,6 +41,7 @@ import static java.util.Collections.singletonMap;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class JacksonSerializerTest {
     private static final String TYPE =
@@ -90,6 +92,7 @@ class JacksonSerializerTest {
         Data<byte[]> data = new Data<>(objectMapper.writeValueAsBytes(new Foo("bar")), "unknownType", 0, "application/json");
         List<DeserializingObject<byte[], Data<byte[]>>> result = serializer.deserialize(Stream.of(data), false)
                 .collect(Collectors.toList());
+        assertTrue(JsonNode.class.isAssignableFrom(result.get(0).getPayloadClass()));
         assertEquals(new ObjectNode(objectMapper.getNodeFactory(), singletonMap("foo", TextNode.valueOf("bar"))),
                      result.get(0).getPayload());
     }

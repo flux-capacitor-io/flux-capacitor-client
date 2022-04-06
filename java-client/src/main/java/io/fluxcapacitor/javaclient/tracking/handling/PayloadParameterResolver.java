@@ -29,13 +29,7 @@ public class PayloadParameterResolver implements ParameterResolver<Deserializing
 
     @Override
     public boolean matches(Parameter p, Annotation methodAnnotation, DeserializingMessage value) {
-        Class<?> payloadClass;
-        try {
-            payloadClass = value.getPayloadClass();
-        } catch (Exception e) {
-            return false; //class may be unknown, in that case we simply want to ignore the message
-        }
-        return p.getType().isAssignableFrom(payloadClass);
+        return p.getType().isAssignableFrom(value.getPayloadClass());
     }
 
     @Override
