@@ -100,6 +100,14 @@ public interface Entity<M extends Entity<M, T>, T> {
         return (M) this;
     }
 
+    default M assertAndApply(Object payload) {
+        return assertLegal(payload).apply(payload);
+    }
+
+    default M assertAndApply(Object payload, Metadata metadata) {
+        return assertLegal(payload).apply(payload, metadata);
+    }
+
     default Iterable<Entity<?, ?>> possibleTargets(Object payload) {
         for (Entity<?, ?> e : entities()) {
             if (e.isPossibleTarget(payload)) {
@@ -109,7 +117,7 @@ public interface Entity<M extends Entity<M, T>, T> {
         return emptyList();
     }
 
-    default boolean isPossibleTarget(Object message) {
+    private boolean isPossibleTarget(Object message) {
         if (message == null) {
             return false;
         }

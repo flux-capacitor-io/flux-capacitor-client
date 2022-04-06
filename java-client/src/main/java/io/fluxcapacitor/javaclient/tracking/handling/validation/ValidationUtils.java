@@ -20,6 +20,7 @@ import io.fluxcapacitor.common.handling.HandlerInspector;
 import io.fluxcapacitor.common.handling.HandlerInvoker;
 import io.fluxcapacitor.common.handling.ParameterResolver;
 import io.fluxcapacitor.common.reflection.ReflectionUtils;
+import io.fluxcapacitor.javaclient.common.Message;
 import io.fluxcapacitor.javaclient.modeling.AssertLegal;
 import io.fluxcapacitor.javaclient.modeling.Entity;
 import io.fluxcapacitor.javaclient.tracking.handling.DeserializingMessageParameterResolver;
@@ -130,8 +131,9 @@ public class ValidationUtils {
         });
     }
 
-    public static <E extends Exception> void assertLegal(Object payload, Entity<?, ?> entity, Function<Class<?>,
+    public static <E extends Exception> void assertLegal(Object object, Entity<?, ?> entity, Function<Class<?>,
             HandlerInvoker<Entity<?, ?>>> invokerProvider) throws E {
+        Object payload = object instanceof Message ? ((Message) object).getPayload() : object;
         if (payload == null) {
             return;
         }

@@ -166,8 +166,7 @@ public class AggregateEntitiesTest {
         class CommandHandler {
             @HandleCommand
             void handle(Object command) {
-                loadAggregate("test", Aggregate.class).assertLegal(command)
-                        .apply(command);
+                loadAggregate("test", Aggregate.class).assertAndApply(command);
             }
         }
     }
@@ -220,7 +219,7 @@ public class AggregateEntitiesTest {
                 testFixture.registerHandlers(new Object() {
                     @HandleCommand
                     void handle(UpdateChild command) {
-                        loadEntity(command.getChildId()).assertLegal(command).apply(command);
+                        loadEntity(command.getChildId()).assertAndApply(command);
                     }
                 });
                 testFixture.whenCommand(new UpdateChild("id", "data"))
