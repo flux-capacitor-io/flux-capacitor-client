@@ -175,7 +175,7 @@ public class DefaultTracker implements Runnable, Registration {
     }
 
     private boolean isMaxIndexReached(Long lastIndex) {
-        return maxIndexExclusive != null && maxIndexExclusive <= lastIndex;
+        return maxIndexExclusive != null && lastIndex != null && maxIndexExclusive <= lastIndex;
     }
 
     private MessageBatch filterBatchIfNeeded(MessageBatch batch) {
