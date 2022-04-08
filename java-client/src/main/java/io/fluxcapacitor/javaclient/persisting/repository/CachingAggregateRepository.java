@@ -93,9 +93,15 @@ public class CachingAggregateRepository implements AggregateRepository {
                             id, (i, before) -> Optional.ofNullable(before.highestEventIndex())
                                     .filter(lastIndex -> lastIndex < index)
                                     .<ImmutableAggregateRoot<?>>map(li -> {
-                                        ImmutableAggregateRoot<?> after = before.apply(m);
-                                        updateRelationships(before, after);
-                                        return after;
+                                        boolean wasLoading = AggregateRoot.isLoading();
+                                        try {
+                                            AggregateRoot.loading.set(true);
+                                            ImmutableAggregateRoot<?> after = before.apply(m);
+                                            updateRelationships(before, after);
+                                            return after;
+                                        } finally {
+                                            AggregateRoot.loading.set(wasLoading);
+                                        }
                                     }).orElse(before));
                 }
             } catch (Exception e) {
