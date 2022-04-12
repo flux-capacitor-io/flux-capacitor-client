@@ -30,6 +30,7 @@ import java.lang.reflect.Field;
 import java.lang.reflect.Member;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
+import java.lang.reflect.Parameter;
 import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
 import java.lang.reflect.WildcardType;
@@ -59,6 +60,7 @@ import static java.beans.Introspector.getBeanInfo;
 import static java.lang.Integer.compare;
 import static java.lang.String.format;
 import static java.security.AccessController.doPrivileged;
+import static java.util.Arrays.stream;
 import static java.util.Collections.emptyList;
 import static java.util.stream.Collectors.toCollection;
 import static java.util.stream.Collectors.toList;
@@ -78,6 +80,8 @@ public class ReflectionUtils {
             memoize(ReflectionUtils::computeNestedGetter);
     private static final BiFunction<String, Class<?>, BiConsumer<Object, Object>> settersCache =
             memoize(ReflectionUtils::computeNestedSetter);
+    private static final Function<Parameter, Boolean> isNullableCache = memoize(parameter -> stream(
+            parameter.getAnnotations()).anyMatch(a -> a.annotationType().getSimpleName().equals("Nullable")));
 
     public static List<Method> getAllMethods(Class<?> type) {
         return methodsCache.apply(type);
@@ -236,7 +240,7 @@ public class ReflectionUtils {
     }
 
     private static Function<Object, Object> computeNestedGetter(Class<?> type, String propertyPath) {
-        String[] parts = Arrays.stream(propertyPath.replace('.', '/').split("/"))
+        String[] parts = stream(propertyPath.replace('.', '/').split("/"))
                 .filter(s -> !s.isBlank()).toArray(String[]::new);
         if (parts.length == 1) {
             return computeGetter(type, parts[0]);
@@ -255,7 +259,7 @@ public class ReflectionUtils {
     @SneakyThrows
     private static Function<Object, Object> computeGetter(@NonNull Class<?> type, @NonNull String propertyName) {
         PropertyNotFoundException notFoundException = new PropertyNotFoundException(propertyName, type);
-        return Arrays.stream(getBeanInfo(type, Object.class).getPropertyDescriptors())
+        return stream(getBeanInfo(type, Object.class).getPropertyDescriptors())
                 .filter(d -> propertyName.equals(d.getName()))
                 .<AccessibleObject>map(PropertyDescriptor::getReadMethod).filter(Objects::nonNull).findFirst()
                 .or(() -> Optional.ofNullable(MethodUtils.getMatchingMethod(type, propertyName)))
@@ -346,13 +350,13 @@ public class ReflectionUtils {
     @SneakyThrows
     private static BiConsumer<Object, Object> computeNestedSetter(@NonNull String propertyPath,
                                                                   @NonNull Class<?> type) {
-        String[] parts = Arrays.stream(propertyPath.replace('.', '/').split("/"))
+        String[] parts = stream(propertyPath.replace('.', '/').split("/"))
                 .filter(s -> !s.isBlank()).toArray(String[]::new);
         if (parts.length == 1) {
             return computeSetter(parts[0], type);
         }
         Function<Object, Object> parentSupplier = gettersCache.apply(
-                type, Arrays.stream(parts).limit(parts.length - 1).collect(Collectors.joining("/")));
+                type, stream(parts).limit(parts.length - 1).collect(Collectors.joining("/")));
         return (object, value) -> {
             Object parent = parentSupplier.apply(object);
             if (parent != null) {
@@ -365,7 +369,7 @@ public class ReflectionUtils {
     @SneakyThrows
     private static BiConsumer<Object, Object> computeSetter(@NonNull String propertyName, @NonNull Class<?> type) {
         PropertyNotFoundException notFoundException = new PropertyNotFoundException(propertyName, type);
-        return Arrays.stream(getBeanInfo(type, Object.class).getPropertyDescriptors())
+        return stream(getBeanInfo(type, Object.class).getPropertyDescriptors())
                 .filter(d -> propertyName.equals(d.getName()))
                 .<AccessibleObject>map(PropertyDescriptor::getWriteMethod).filter(Objects::nonNull).findFirst()
                 .or(() -> Optional.ofNullable(FieldUtils.getField(type, propertyName, true)))
@@ -396,7 +400,7 @@ public class ReflectionUtils {
     public static Class<?> getPropertyType(Class<?> target, String propertyName) {
         Field field = FieldUtils.getField(target, propertyName);
         return field != null ? field.getType() :
-                Arrays.stream(getBeanInfo(target, Object.class).getPropertyDescriptors())
+                stream(getBeanInfo(target, Object.class).getPropertyDescriptors())
                         .filter(d -> propertyName.equals(d.getName()))
                         .map(PropertyDescriptor::getPropertyType).findFirst()
                         .orElseThrow(() -> new IllegalStateException(
@@ -430,6 +434,10 @@ public class ReflectionUtils {
                     }
                     return null;
                 });
+    }
+
+    public static boolean isNullable(Parameter parameter) {
+        return isNullableCache.apply(parameter);
     }
 
     @Value
@@ -489,7 +497,7 @@ public class ReflectionUtils {
     }
 
     public static Collection<? extends Annotation> getTypeAnnotations(Class<?> type) {
-        return Stream.concat(Arrays.stream(type.getAnnotations()), Arrays.stream(type.getAnnotatedInterfaces())
+        return Stream.concat(stream(type.getAnnotations()), stream(type.getAnnotatedInterfaces())
                 .map(AnnotatedType::getType).flatMap(t -> {
                     if (t instanceof ParameterizedType) {
                         t = ((ParameterizedType) t).getRawType();
@@ -499,7 +507,7 @@ public class ReflectionUtils {
                     }
                     return Stream.empty();
                 }).map(t -> (Class<?>) t)
-                .flatMap(i -> Arrays.stream(i.getAnnotations()))).collect(toCollection(LinkedHashSet::new));
+                .flatMap(i -> stream(i.getAnnotations()))).collect(toCollection(LinkedHashSet::new));
     }
 
     public static Class<?> classForName(String type) {
@@ -534,7 +542,7 @@ public class ReflectionUtils {
     }
 
     private static Annotation getTopLevelAnnotation(Executable m, Class<? extends Annotation> a) {
-        return Optional.<Annotation>ofNullable(m.getAnnotation(a)).orElseGet(() -> Arrays.stream(m.getAnnotations())
+        return Optional.<Annotation>ofNullable(m.getAnnotation(a)).orElseGet(() -> stream(m.getAnnotations())
                 .filter(other -> other.annotationType().isAnnotationPresent(a)).findFirst().orElse(null));
     }
 

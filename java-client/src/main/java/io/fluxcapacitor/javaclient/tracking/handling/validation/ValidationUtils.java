@@ -93,10 +93,10 @@ public class ValidationUtils {
         }
 
         @Override
-        public boolean matches(Parameter parameter,
-                               Annotation methodAnnotation, Entity<?, ?> aggregate) {
-            return parameter.getType().isAssignableFrom(aggregate.type()) || aggregate.type()
-                    .isAssignableFrom(parameter.getType());
+        public boolean matches(Parameter parameter, Annotation methodAnnotation, Entity<?, ?> entity) {
+            return (parameter.getType().isAssignableFrom(entity.type())
+                    || entity.type().isAssignableFrom(parameter.getType()))
+                   && (entity.get() != null || ReflectionUtils.isNullable(parameter));
         }
     }
 

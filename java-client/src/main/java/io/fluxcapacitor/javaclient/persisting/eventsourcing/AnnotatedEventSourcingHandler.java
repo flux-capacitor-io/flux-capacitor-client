@@ -18,6 +18,7 @@ import io.fluxcapacitor.common.handling.HandlerConfiguration;
 import io.fluxcapacitor.common.handling.HandlerInvoker;
 import io.fluxcapacitor.common.handling.HandlerNotFoundException;
 import io.fluxcapacitor.common.handling.ParameterResolver;
+import io.fluxcapacitor.common.reflection.ReflectionUtils;
 import io.fluxcapacitor.javaclient.common.serialization.DeserializingMessage;
 import io.fluxcapacitor.javaclient.modeling.Entity;
 
@@ -57,7 +58,7 @@ public class AnnotatedEventSourcingHandler<T> implements EventSourcingHandler<T>
                                        if (executable instanceof Method) {
                                            Class<?> returnType = ((Method) executable).getReturnType();
                                            return handlerType.isAssignableFrom(returnType)
-                                                   || returnType.isAssignableFrom(
+                                                  || returnType.isAssignableFrom(
                                                    handlerType) || returnType.equals(void.class);
                                        }
                                        return false;
@@ -102,7 +103,7 @@ public class AnnotatedEventSourcingHandler<T> implements EventSourcingHandler<T>
         try {
             aggregateResolver.setAggregate(entity);
             return aggregateInvoker.canHandle(entity.get(), message)
-                    || eventInvokers.apply(message.getPayloadClass()).canHandle(message.getPayload(), message);
+                   || eventInvokers.apply(message.getPayloadClass()).canHandle(message.getPayload(), message);
         } finally {
             aggregateResolver.removeAggregate();
         }
@@ -115,14 +116,14 @@ public class AnnotatedEventSourcingHandler<T> implements EventSourcingHandler<T>
         public Function<Object, Object> resolve(Parameter parameter, Annotation methodAnnotation) {
             Class<T> aggregateType = currentAggregate.get().type();
             return parameter.getType().isAssignableFrom(aggregateType)
-                    || aggregateType.isAssignableFrom(parameter.getType()) ? m -> currentAggregate.get().get() : null;
+                   || aggregateType.isAssignableFrom(parameter.getType()) ? m -> currentAggregate.get().get() : null;
         }
 
         @Override
         public boolean matches(Parameter parameter, Annotation methodAnnotation, Object value) {
             return currentAggregate.get() != null
-                    && currentAggregate.get().get() != null && ParameterResolver.super.matches(parameter,
-                                                                                               methodAnnotation, value);
+                   && (currentAggregate.get().get() != null || ReflectionUtils.isNullable(parameter))
+                   && ParameterResolver.super.matches(parameter, methodAnnotation, value);
         }
 
         @Override

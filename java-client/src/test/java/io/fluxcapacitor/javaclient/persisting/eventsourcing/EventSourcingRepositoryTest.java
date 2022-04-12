@@ -34,6 +34,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
+import javax.annotation.Nullable;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -442,6 +443,17 @@ class EventSourcingRepositoryTest {
                     .<TestModelWithoutApplyEvent>expectResult(r -> r.secondEvent.equals(new UpsertModelFromEvent()));
         }
 
+        @Test
+        void testUpsertViaEventIfNotExists_nullableModel() {
+            testFixture.givenCommands(new UpsertModelWithNullable()).whenQuery(new GetModel())
+                    .<TestModelWithoutApplyEvent>expectResult(r -> r.firstEvent.equals(new UpsertModelWithNullable()));
+        }
+
+        @Test
+        void testUpsertViaEventIfExists_nullableModel() {
+            testFixture.givenCommands(new UpsertModelWithNullable(), new UpsertModelWithNullable())
+                    .whenQuery(new GetModel()).<TestModelWithoutApplyEvent>expectResult(r -> r.secondEvent.equals(new UpsertModelWithNullable()));
+        }
 
         @Test
         void testAccessToPrevious() {
@@ -519,6 +531,16 @@ class EventSourcingRepositoryTest {
         @Apply
         public TestModelWithoutApplyEvent apply(TestModelWithoutApplyEvent aggregate) {
             return aggregate.toBuilder().secondEvent(this).build();
+        }
+    }
+
+    @Value
+    static class UpsertModelWithNullable {
+        @Apply
+        public TestModelWithoutApplyEvent apply(@Nullable TestModelWithoutApplyEvent aggregate) {
+            return aggregate == null
+                    ? TestModelWithoutApplyEvent.builder().firstEvent(this).build()
+                    : aggregate.toBuilder().secondEvent(this).build();
         }
     }
 

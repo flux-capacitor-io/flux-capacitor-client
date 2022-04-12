@@ -16,6 +16,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
+import javax.annotation.Nullable;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
@@ -613,7 +614,7 @@ public class AggregateEntitiesTest {
         String missingChildId;
 
         @AssertLegal
-        void assertLegal(MissingChild child) {
+        void assertLegal(@Nullable MissingChild child) {
             if (child == null) {
                 throw new IllegalCommandException("Expected a child");
             }

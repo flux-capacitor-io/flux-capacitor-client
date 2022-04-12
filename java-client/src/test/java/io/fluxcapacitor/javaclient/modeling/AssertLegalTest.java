@@ -8,6 +8,7 @@ import io.fluxcapacitor.javaclient.tracking.handling.HandleCommand;
 import lombok.Value;
 import org.junit.jupiter.api.Test;
 
+import javax.annotation.Nullable;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -136,7 +137,7 @@ public class AssertLegalTest {
     @Value
     private static class UpdateModelWithAssertion {
         @AssertLegal
-        private void assertExists(Object model) {
+        private void assertExists(@Nullable Object model) {
             if (model == null) {
                 throw new MockException("Model should exist");
             }
@@ -149,7 +150,7 @@ public class AssertLegalTest {
 
     private interface ImpossibleAssertion {
         @AssertLegal
-        default void assertTheImpossible(Object model) {
+        default void assertTheImpossible(@Nullable Object model) {
             throw new MockException();
         }
     }
@@ -159,12 +160,12 @@ public class AssertLegalTest {
         AtomicInteger assertionCount = new AtomicInteger();
 
         @AssertLegal
-        private void assert1(Object model) {
+        private void assert1(@Nullable Object model) {
             assertionCount.addAndGet(1);
         }
 
         @AssertLegal(priority = HIGHEST_PRIORITY)
-        private void assert2(Object model) {
+        private void assert2(@Nullable Object model) {
             if (assertionCount.get() > 0) {
                 throw new IllegalStateException("Expected to come first");
             }
@@ -177,12 +178,12 @@ public class AssertLegalTest {
         AtomicInteger assertionCount = new AtomicInteger();
 
         @AssertLegal
-        private void assert1(Model1 model) {
+        private void assert1(@Nullable Model1 model) {
             assertionCount.addAndGet(1);
         }
 
         @AssertLegal
-        private void assert2(Model2 model) {
+        private void assert2(@Nullable Model2 model) {
             assertionCount.addAndGet(2);
         }
     }
