@@ -34,6 +34,12 @@ public class ModifiableEntity<T> implements Entity<ModifiableEntity<T>, T> {
     }
 
     @Override
+    public Entity<?, ?> parent() {
+        Entity<?, ?> parent = delegate.parent();
+        return parent == null ? root : new ModifiableEntity<>(parent, root);
+    }
+
+    @Override
     public Object id() {
         return delegate.id();
     }

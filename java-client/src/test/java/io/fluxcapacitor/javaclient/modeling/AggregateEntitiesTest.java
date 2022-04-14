@@ -1,5 +1,6 @@
 package io.fluxcapacitor.javaclient.modeling;
 
+import io.fluxcapacitor.common.api.Metadata;
 import io.fluxcapacitor.javaclient.FluxCapacitor;
 import io.fluxcapacitor.javaclient.persisting.eventsourcing.Apply;
 import io.fluxcapacitor.javaclient.publishing.routing.RoutingKey;
@@ -10,6 +11,7 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Builder.Default;
 import lombok.Data;
+import lombok.NonNull;
 import lombok.Value;
 import lombok.With;
 import org.junit.jupiter.api.BeforeEach;
@@ -23,7 +25,6 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.UUID;
 import java.util.function.Predicate;
-import java.util.stream.StreamSupport;
 
 import static io.fluxcapacitor.javaclient.FluxCapacitor.loadAggregate;
 import static io.fluxcapacitor.javaclient.FluxCapacitor.loadEntity;
@@ -86,9 +87,7 @@ public class AggregateEntitiesTest {
 
         @Test
         void findGrandChild() {
-            expectEntity(
-                    e -> StreamSupport.stream(e.entities().spliterator(), false)
-                            .findFirst().map(c -> "grandChild".equals(c.id())).orElse(false));
+            expectEntity(e -> e.entities().stream().findFirst().map(c -> "grandChild".equals(c.id())).orElse(false));
         }
     }
 
@@ -249,7 +248,8 @@ public class AggregateEntitiesTest {
                 }
 
                 @Apply
-                MissingGrandChild createGrandChild() {
+                MissingGrandChild createGrandChild(@NonNull MissingChild parent, @NonNull Aggregate aggregate,
+                                                   @NonNull Metadata metadata) {
                     return new MissingGrandChild(missingGrandChildId);
                 }
             }
@@ -317,7 +317,7 @@ public class AggregateEntitiesTest {
                 Key mapChildId;
 
                 @Apply
-                MapChild apply() {
+                MapChild apply(@NonNull Aggregate aggregate, @NonNull Metadata metadata) {
                     return MapChild.builder().mapChildId(mapChildId).build();
                 }
             }
@@ -329,7 +329,7 @@ public class AggregateEntitiesTest {
             Object id;
 
             @Apply
-            Object apply(Updatable target) {
+            Object apply(Updatable target, @NonNull Aggregate aggregate, @NonNull Metadata metadata) {
                 return null;
             }
         }
@@ -341,7 +341,7 @@ public class AggregateEntitiesTest {
             Object data;
 
             @Apply
-            Object apply(Updatable child) {
+            Object apply(Updatable child, @NonNull Aggregate aggregate, @NonNull Metadata metadata) {
                 return child.withData(data);
             }
         }
@@ -614,7 +614,7 @@ public class AggregateEntitiesTest {
         String missingChildId;
 
         @AssertLegal
-        void assertLegal(@Nullable MissingChild child) {
+        void assertLegal(@Nullable MissingChild child, @NonNull Aggregate aggregate) {
             if (child == null) {
                 throw new IllegalCommandException("Expected a child");
             }

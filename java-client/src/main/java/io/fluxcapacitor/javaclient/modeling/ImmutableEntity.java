@@ -43,6 +43,10 @@ public class ImmutableEntity<T> implements Entity<ImmutableEntity<T>, T> {
 
     @ToString.Exclude
     @EqualsAndHashCode.Exclude
+    transient Entity<?, ?> parent;
+
+    @ToString.Exclude
+    @EqualsAndHashCode.Exclude
     transient AnnotatedEntityHolder holder;
 
     @ToString.Exclude

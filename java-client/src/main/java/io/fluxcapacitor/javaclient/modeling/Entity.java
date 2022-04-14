@@ -44,6 +44,13 @@ public interface Entity<M extends Entity<M, T>, T> {
 
     String idProperty();
 
+    Entity<?, ?> parent();
+
+    @SuppressWarnings("rawtypes")
+    default Entity<?, ?> root() {
+        return Optional.<Entity>ofNullable(parent()).map(Entity::root).orElse(this);
+    }
+
     Collection<? extends Entity<?, ?>> entities();
 
     default Stream<Entity<?, ?>> allEntities() {

@@ -50,6 +50,7 @@ import java.util.function.Function;
 import static io.fluxcapacitor.common.ObjectUtils.memoize;
 import static io.fluxcapacitor.common.reflection.ReflectionUtils.getMethodAnnotation;
 import static io.fluxcapacitor.common.reflection.ReflectionUtils.getTypeAnnotations;
+import static io.fluxcapacitor.common.reflection.ReflectionUtils.isNullable;
 import static java.lang.String.format;
 import static java.util.Optional.empty;
 
@@ -89,14 +90,36 @@ public class ValidationUtils {
     protected static class AssertLegalEntityParameterResolver implements ParameterResolver<Entity<?, ?>> {
         @Override
         public Function<Entity<?, ?>, Object> resolve(Parameter parameter, Annotation methodAnnotation) {
-            return Entity::get;
+            return entity -> resolve(parameter, entity);
+        }
+
+        protected Object resolve(Parameter parameter, Entity<?, ?> entity) {
+            if (entity == null) {
+                return null;
+            }
+            Class<?> type = entity.type();
+            if (parameter.getType().isAssignableFrom(type) || type.isAssignableFrom(parameter.getType())) {
+                return entity.get();
+            }
+            return resolve(parameter, entity.parent());
         }
 
         @Override
         public boolean matches(Parameter parameter, Annotation methodAnnotation, Entity<?, ?> entity) {
-            return (parameter.getType().isAssignableFrom(entity.type())
-                    || entity.type().isAssignableFrom(parameter.getType()))
-                   && (entity.get() != null || ReflectionUtils.isNullable(parameter));
+            if (entity == null) {
+                return false;
+            }
+            Class<?> entityType = entity.type();
+            Class<?> parameterType = parameter.getType();
+            if (entity.get() == null) {
+                if (isNullable(parameter)
+                    && (parameterType.isAssignableFrom(entityType) || entityType.isAssignableFrom(parameterType))) {
+                    return true;
+                }
+            } else if (parameterType.isAssignableFrom(entityType)) {
+                return true;
+            }
+            return matches(parameter, methodAnnotation, entity.parent());
         }
     }
 
@@ -187,7 +210,7 @@ public class ValidationUtils {
     }
 
     public static boolean isAuthorized(Class<?> payloadType, User user) {
-        return !checkAuthorization(payloadType, user).isPresent();
+        return checkAuthorization(payloadType, user).isEmpty();
     }
 
     public static boolean isAuthorized(Class<?> target, Executable method, User user) {

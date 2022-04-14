@@ -136,19 +136,20 @@ public class AnnotatedEntityHolder {
         }
         Object holderValue = getValue(location, parent.get(), false);
         Class<?> type = holderValue == null ? holderType : holderValue.getClass();
+        ImmutableEntity<?> emptyEntity = getEmptyEntity().toBuilder().parent(parent).build();
         if (holderValue == null) {
-            return Stream.of(getEmptyEntity());
+            return Stream.of(emptyEntity);
         }
         if (Collection.class.isAssignableFrom(type)) {
             return Stream.concat(
                     ((Collection<?>) holderValue).stream().map(v -> createEntity(v, idProvider, parent).orElse(null))
                             .filter(Objects::nonNull),
-                    Stream.of(getEmptyEntity()));
+                    Stream.of(emptyEntity));
         } else if (Map.class.isAssignableFrom(type)) {
             return Stream.concat(
                     ((Map<?, ?>) holderValue).entrySet().stream().flatMap(e -> createEntity(
                             e.getValue(), v -> new Id(e.getKey(), idProvider.apply(v).property()), parent).stream()),
-                    Stream.of(getEmptyEntity()));
+                    Stream.of(emptyEntity));
         } else {
             return createEntity(holderValue, idProvider, parent).stream();
         }
@@ -171,6 +172,7 @@ public class AnnotatedEntityHolder {
                         .id(id.value())
                         .holder(this)
                         .idProperty(id.property())
+                        .parent(parent)
                         .build());
     }
 

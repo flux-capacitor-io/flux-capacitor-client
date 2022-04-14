@@ -90,4 +90,9 @@ public interface AggregateRoot<T> extends Entity<AggregateRoot<T>, T> {
     default Set<Relationship> dissociations(AggregateRoot<?> previous) {
         return Sets.difference(previous.relationships(), relationships());
     }
+
+    @Override
+    default Entity<?, ?> parent() {
+        return null;
+    }
 }
