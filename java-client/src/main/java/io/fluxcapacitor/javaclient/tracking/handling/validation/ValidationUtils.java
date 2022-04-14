@@ -72,15 +72,13 @@ public class ValidationUtils {
     }
 
     public static void assertValid(Object object, Class<?>... groups) {
-        defaultValidator.assertValid(object, groups);
-    }
-
-    public static void assertValid(Object[] objects, Class<?>... groups) {
-        Arrays.stream(objects).forEach(o -> assertValid(o, groups));
-    }
-
-    public static void assertValid(List<Object> objects, Class<?>... groups) {
-        objects.forEach(o -> assertValid(o, groups));
+        if (object != null) {
+            if (object instanceof Iterable<?>) {
+                ((Iterable<?>) object).forEach(o -> assertValid(o, groups));
+            } else {
+                defaultValidator.assertValid(object, groups);
+            }
+        }
     }
 
     /*
