@@ -100,6 +100,11 @@ public class AssertLegalTest {
         testFixture.whenCommand(new CommandThatDelegatesToProperty(null, null)).expectNoException();
     }
 
+    @Test
+    void testFollowUpAssertionFromReturnedValue() {
+        testFixture.whenCommand(new CommandWithAssertThatReturnsValue()).expectException(MockException.class);
+    }
+
     private static class Handler {
         @HandleCommand
         void handle(Object command) {
@@ -236,6 +241,14 @@ public class AssertLegalTest {
         @AssertLegal
         public CommandWithAssertionInInterface getMethod() {
             return method;
+        }
+    }
+
+    @Value
+    private static class CommandWithAssertThatReturnsValue {
+        @AssertLegal
+        CommandWithAssertionInInterface followUpAssertion(@Nullable TestModel model) {
+            return new CommandWithAssertionInInterface();
         }
     }
 

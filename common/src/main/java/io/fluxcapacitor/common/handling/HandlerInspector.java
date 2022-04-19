@@ -28,6 +28,7 @@ import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Objects;
@@ -256,7 +257,8 @@ public class HandlerInspector {
             Stream<HandlerInvoker<M>> handlerStream = methodHandlers.stream().filter(d -> d.canHandle(target, message));
             if (invokeMultipleMethods) {
                 return handlerStream.map(h -> h.invoke(target, message)).filter(Objects::nonNull)
-                        .reduce((a, b) -> b).orElse(null);
+                        .reduce((a, b) -> a instanceof List ? concat(((List<?>) a).stream(), b instanceof Collection<?>
+                                ? ((Collection<?>) b).stream() : Stream.of(b)).collect(toList()) : b).orElse(null);
             }
             Optional<HandlerInvoker<M>> delegate = handlerStream.findFirst();
             if (delegate.isEmpty()) {
