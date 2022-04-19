@@ -479,10 +479,12 @@ public class DefaultFluxCapacitor implements FluxCapacitor {
                         type -> dispatchInterceptors.compute(type, (t, i) -> correlatingInterceptor.andThen(i)));
             }
 
-            //enable command and query validation
+            //enable command and query validation before handling and event validation upon dispatch
             if (!disablePayloadValidation) {
-                Stream.of(COMMAND, QUERY).forEach(type -> handlerInterceptors
-                        .computeIfPresent(type, (t, i) -> i.andThen(new ValidatingInterceptor())));
+                ValidatingInterceptor interceptor = new ValidatingInterceptor();
+                Stream.of(COMMAND, QUERY).forEach(type -> handlerInterceptors.computeIfPresent(
+                        type, (t, i) -> i.andThen(interceptor)));
+                dispatchInterceptors.computeIfPresent(EVENT, (t, i) -> i.andThen(interceptor));
             }
 
             //enable scheduling interceptor

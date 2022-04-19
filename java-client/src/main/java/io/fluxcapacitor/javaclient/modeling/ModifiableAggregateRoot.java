@@ -4,7 +4,6 @@ import io.fluxcapacitor.javaclient.common.Message;
 import io.fluxcapacitor.javaclient.common.serialization.DeserializingMessage;
 import io.fluxcapacitor.javaclient.common.serialization.Serializer;
 import io.fluxcapacitor.javaclient.publishing.DispatchInterceptor;
-import io.fluxcapacitor.javaclient.tracking.handling.validation.ValidationUtils;
 import lombok.EqualsAndHashCode;
 import lombok.ToString;
 
@@ -71,7 +70,6 @@ public class ModifiableAggregateRoot<T> extends DelegatingAggregateRoot<T, Immut
     @Override
     public ModifiableAggregateRoot<T> apply(Message message) {
         if (applying) {
-            ValidationUtils.assertValid(message.getPayload());
             queued.add(message);
             return this;
         }
