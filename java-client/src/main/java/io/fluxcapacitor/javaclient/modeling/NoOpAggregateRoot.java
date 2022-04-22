@@ -12,6 +12,7 @@ import java.util.function.Function;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
 import java.util.function.UnaryOperator;
+import java.util.stream.Collectors;
 
 @AllArgsConstructor
 @Accessors(fluent = true)
@@ -102,7 +103,7 @@ public class NoOpAggregateRoot<T> implements AggregateRoot<T> {
 
     @Override
     public Collection<? extends Entity<?, ?>> entities() {
-        return delegate().entities();
+        return delegate().entities().stream().map(NoOpEntity::new).collect(Collectors.toList());
     }
 
 }
