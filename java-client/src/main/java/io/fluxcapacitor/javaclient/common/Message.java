@@ -18,19 +18,19 @@ import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import io.fluxcapacitor.common.api.Metadata;
 import io.fluxcapacitor.common.api.SerializedMessage;
 import io.fluxcapacitor.javaclient.common.serialization.Serializer;
-import lombok.AllArgsConstructor;
 import lombok.Value;
 import lombok.With;
 import lombok.experimental.NonFinal;
 
+import java.beans.ConstructorProperties;
 import java.time.Instant;
 import java.util.Map;
+import java.util.Optional;
 
 import static io.fluxcapacitor.javaclient.FluxCapacitor.currentClock;
 import static io.fluxcapacitor.javaclient.FluxCapacitor.currentIdentityProvider;
 
 @Value
-@AllArgsConstructor
 @JsonTypeInfo(use = JsonTypeInfo.Id.CLASS)
 @NonFinal
 public class Message {
@@ -48,11 +48,19 @@ public class Message {
     Instant timestamp;
 
     public Message(Object payload) {
-        this(payload, Metadata.empty(), currentIdentityProvider().nextTechnicalId(), currentClock().instant());
+        this(payload, Metadata.empty());
     }
 
     public Message(Object payload, Metadata metadata) {
-        this(payload, metadata, currentIdentityProvider().nextTechnicalId(), currentClock().instant());
+        this(payload, metadata, null, null);
+    }
+
+    @ConstructorProperties({"payload", "metadata", "messageId", "timestamp"})
+    public Message(Object payload, Metadata metadata, String messageId, Instant timestamp) {
+        this.payload = payload;
+        this.metadata = Optional.ofNullable(metadata).orElseGet(Metadata::empty);
+        this.messageId = Optional.ofNullable(messageId).orElseGet(() -> currentIdentityProvider().nextTechnicalId());
+        this.timestamp = Optional.ofNullable(timestamp).orElseGet(() -> currentClock().instant());
     }
 
     @SuppressWarnings("unchecked")
