@@ -1,4 +1,4 @@
-FROM adoptopenjdk/openjdk16:x86_64-alpine-jre-16.0.1_9
+FROM azul/zulu-openjdk-alpine:17-jre-headless
 
 RUN apk upgrade
 
