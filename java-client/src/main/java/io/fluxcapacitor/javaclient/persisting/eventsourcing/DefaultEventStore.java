@@ -48,7 +48,8 @@ public class DefaultEventStore implements EventStore {
     private final HandlerRegistry localHandlerRegistry;
 
     @Override
-    public Awaitable storeEvents(String aggregateId, List<?> events, boolean storeOnly) {
+    public Awaitable storeEvents(String aggregateId, List<?> events, boolean storeOnly,
+                                 boolean interceptBeforeStoring) {
         Awaitable result;
         List<DeserializingMessage> messages = new ArrayList<>(events.size());
         try {
@@ -57,11 +58,15 @@ public class DefaultEventStore implements EventStore {
                 DeserializingMessage deserializingMessage;
                 if (e instanceof DeserializingMessage) {
                     deserializingMessage = (DeserializingMessage) e;
-                } else {
+                } else if (interceptBeforeStoring) {
                     Message m = dispatchInterceptor.interceptDispatch(Message.asMessage(e), EVENT);
                     SerializedMessage serializedMessage
                             = dispatchInterceptor.modifySerializedMessage(m.serialize(serializer), m, EVENT);
                     deserializingMessage = new DeserializingMessage(serializedMessage, type -> m.getPayload(), EVENT);
+                } else {
+                    Message m = Message.asMessage(e);
+                    deserializingMessage = new DeserializingMessage(
+                            m.serialize(serializer), type -> m.getPayload(), EVENT);
                 }
                 messages.add(deserializingMessage);
             });
@@ -70,11 +75,16 @@ public class DefaultEventStore implements EventStore {
                                                         m.getSerializedObject().withSegment(segment) : m.getSerializedObject())
                                                 .collect(toList()), storeOnly);
         } catch (Exception e) {
-            throw new EventSourcingException(format("Failed to store events %s for aggregate %s", events, aggregateId),
-                                             e);
+            throw new EventSourcingException(format("Failed to store events %s for aggregate %s", events.stream().map(
+                    DefaultEventStore::payloadName).collect(toList()), aggregateId), e);
         }
         messages.forEach(m -> localHandlerRegistry.handle(m.getPayload(), m.getSerializedObject()));
         return result;
+    }
+
+    private static String payloadName(Object event) {
+        return event instanceof Message ? ((Message) event).getPayloadClass().getSimpleName()
+                : event == null ? "null" : event.getClass().getSimpleName();
     }
 
     @Override

@@ -84,14 +84,14 @@ class GivenWhenThenStreamingTest {
 
     @Test
     void testExpectSchedule() {
-        subject.whenCommand(new YieldsSchedule("test")).expectSchedules("test");
+        subject.whenCommand(new YieldsSchedule("test")).expectNewSchedules("test");
     }
 
     @Test
     void testScheduledCommand() {
         Instant deadline = subject.getClock().instant().plusSeconds(1);
         subject.givenSchedules(new Schedule(new DelayedCommand(), "test", deadline))
-                .whenTimeAdvancesTo(deadline).expectOnlyCommands(new DelayedCommand()).expectNoSchedules();
+                .whenTimeAdvancesTo(deadline).expectOnlyCommands(new DelayedCommand()).expectNoNewSchedules();
     }
 
     private static class CommandHandler {

@@ -27,6 +27,7 @@ import java.time.Duration;
 import java.time.Instant;
 
 import static io.fluxcapacitor.javaclient.FluxCapacitor.currentClock;
+import static java.time.temporal.ChronoUnit.MILLIS;
 
 @Value
 @EqualsAndHashCode(callSuper = true)
@@ -40,13 +41,18 @@ public class Schedule extends Message {
     public Schedule(Object payload, String scheduleId, Instant deadline) {
         super(payload);
         this.scheduleId = scheduleId;
-        this.deadline = deadline;
+        this.deadline = deadline.truncatedTo(MILLIS);
     }
 
     public Schedule(Object payload, Metadata metadata, String scheduleId, Instant deadline) {
         super(payload, metadata);
         this.scheduleId = scheduleId;
-        this.deadline = deadline;
+        this.deadline = deadline.truncatedTo(MILLIS);
+    }
+
+    public Schedule(Message m) {
+        this(m.getPayload(), m.getMetadata(), m.getMessageId(), m.getTimestamp(),
+             m.getMetadata().get(Schedule.scheduleIdMetadataKey), currentClock().instant());
     }
 
     @ConstructorProperties({"payload", "metadata", "messageId", "timestamp", "scheduleId", "deadline"})
@@ -54,12 +60,7 @@ public class Schedule extends Message {
                     String scheduleId, Instant deadline) {
         super(payload, metadata, messageId, timestamp);
         this.scheduleId = scheduleId;
-        this.deadline = deadline;
-    }
-
-    public Schedule(Message m) {
-        this(m.getPayload(), m.getMetadata(), m.getMessageId(), m.getTimestamp(),
-             m.getMetadata().get(Schedule.scheduleIdMetadataKey), currentClock().instant());
+        this.deadline = deadline.truncatedTo(MILLIS);
     }
 
     @Override

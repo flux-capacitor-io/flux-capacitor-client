@@ -58,6 +58,7 @@ import java.time.Instant;
 import java.time.ZoneId;
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -75,6 +76,7 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import static io.fluxcapacitor.common.MessageType.COMMAND;
+import static io.fluxcapacitor.common.MessageType.EVENT;
 import static io.fluxcapacitor.common.MessageType.QUERY;
 import static io.fluxcapacitor.common.MessageType.SCHEDULE;
 import static io.fluxcapacitor.javaclient.common.ClientUtils.isLocalHandler;
@@ -273,7 +275,7 @@ public class TestFixture implements Given, When {
 
     @Override
     public TestFixture givenAppliedEvents(String aggregateId, Object... events) {
-        return given(fc -> applyEvents(aggregateId, fc, events));
+        return given(fc -> applyEvents(aggregateId, fc, events, false));
     }
 
     @Override
@@ -358,7 +360,7 @@ public class TestFixture implements Given, When {
 
     @Override
     public Then whenEventsAreApplied(String aggregateId, Object... events) {
-        return when(fc -> applyEvents(aggregateId, fc, events));
+        return when(fc -> applyEvents(aggregateId, fc, events, true));
     }
 
     @Override
@@ -420,7 +422,7 @@ public class TestFixture implements Given, When {
                     result = e;
                 }
                 waitForConsumers();
-                return getResultValidator(result, commands, events, schedules, exceptions);
+                return getResultValidator(result, commands, events, schedules, getFutureSchedules(), exceptions);
             } finally {
                 handleExpiredSchedulesLocally();
                 registration.cancel();
@@ -433,13 +435,18 @@ public class TestFixture implements Given, When {
      */
 
     protected Then getResultValidator(Object result, List<Message> commands, List<Message> events,
-                                      List<Schedule> schedules, List<Throwable> exceptions) {
-        return new ResultValidator(getFluxCapacitor(), result, events, commands, webRequests, schedules, exceptions);
+                                      List<Schedule> schedules, List<Schedule> allSchedules,
+                                      List<Throwable> exceptions) {
+        return new ResultValidator(getFluxCapacitor(), result, events, commands, webRequests, schedules,
+                                   allSchedules.stream().filter(
+                                           s -> s.getDeadline().isAfter(getClock().instant())).collect(toList()),
+                                   exceptions);
     }
 
-    protected void applyEvents(String aggregateId, FluxCapacitor fc, Object[] events) {
+    protected void applyEvents(String aggregateId, FluxCapacitor fc, Object[] events, boolean interceptBeforeStoring) {
         List<Message> eventList = asMessages(events).map(
                 e -> e.withMetadata(e.getMetadata().with(AggregateRoot.AGGREGATE_ID_METADATA_KEY, aggregateId)))
+                .map(e -> interceptBeforeStoring ? e : interceptor.interceptDispatch(e, EVENT))
                 .collect(toList());
         if (eventList.stream().anyMatch(e -> e.getPayload() instanceof Data<?>)) {
             for (Message event : eventList) {
@@ -451,11 +458,11 @@ public class TestFixture implements Given, When {
                                                   event.getTimestamp().toEpochMilli());
                     fc.client().getEventStoreClient().storeEvents(aggregateId, singletonList(message), false);
                 } else {
-                    fc.eventStore().storeEvents(aggregateId, event);
+                    fc.eventStore().storeEvents(aggregateId, event, false, interceptBeforeStoring);
                 }
             }
         } else {
-            fc.eventStore().storeEvents(aggregateId, eventList);
+            fc.eventStore().storeEvents(aggregateId, eventList, false, interceptBeforeStoring);
         }
     }
 
@@ -472,6 +479,15 @@ public class TestFixture implements Given, When {
                 }
             }
         }
+    }
+
+    protected List<Schedule> getFutureSchedules() {
+        SchedulingClient schedulingClient = getFluxCapacitor().client().getSchedulingClient();
+        if (schedulingClient instanceof InMemorySchedulingClient) {
+            return ((InMemorySchedulingClient) schedulingClient).getSchedules(getFluxCapacitor().serializer())
+                    .stream().filter(s -> s.getDeadline().isAfter(getClock().instant())).collect(toList());
+        }
+        return emptyList();
     }
 
     protected void waitForConsumers() {
@@ -596,7 +612,7 @@ public class TestFixture implements Given, When {
 
     protected class GivenWhenThenInterceptor implements DispatchInterceptor, BatchInterceptor, HandlerInterceptor {
 
-        private final Map<MessageType, List<Message>> publishedSchedules = new ConcurrentHashMap<>();
+        private final List<Schedule> publishedSchedules = new CopyOnWriteArrayList<>();
 
         @Override
         public Message interceptDispatch(Message message, MessageType messageType) {
@@ -616,8 +632,7 @@ public class TestFixture implements Given, When {
             }
 
             if (messageType == SCHEDULE) {
-                addMessage(publishedSchedules.computeIfAbsent(SCHEDULE, t -> new CopyOnWriteArrayList<>()),
-                           message);
+                addMessage(publishedSchedules, (Schedule) message);
             }
 
             synchronized (consumers) {
@@ -651,7 +666,7 @@ public class TestFixture implements Given, When {
             return message;
         }
 
-        protected void addMessage(List<Message> messages, Message message) {
+        protected <T extends Message> void addMessage(List<T> messages, T message) {
             if (message instanceof Schedule) {
                 messages.removeIf(m -> m instanceof Schedule && ((Schedule) m).getScheduleId()
                         .equals(((Schedule) message).getScheduleId()));
@@ -662,9 +677,10 @@ public class TestFixture implements Given, When {
         @Override
         public Consumer<MessageBatch> intercept(Consumer<MessageBatch> consumer, Tracker tracker) {
             List<Message> messages = consumers.computeIfAbsent(
-                    tracker.getConfiguration(), c -> publishedSchedules.getOrDefault(
-                                    c.getMessageType(), emptyList()).stream().filter(m -> Optional.ofNullable(c.getTypeFilter())
-                                    .map(f -> m.getPayload().getClass().getName().matches(f)).orElse(true))
+                            tracker.getConfiguration(), c -> (c.getMessageType() == SCHEDULE
+                            ? publishedSchedules : Collections.<Message>emptyList()).stream().filter(
+                                    m -> Optional.ofNullable(c.getTypeFilter()).map(f -> m.getPayload().getClass()
+                                            .getName().matches(f)).orElse(true))
                             .collect(toCollection(CopyOnWriteArrayList::new)));
             return b -> {
                 consumer.accept(b);

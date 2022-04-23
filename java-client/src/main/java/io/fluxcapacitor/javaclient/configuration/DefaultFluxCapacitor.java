@@ -449,6 +449,12 @@ public class DefaultFluxCapacitor implements FluxCapacitor {
             KeyValueStore keyValueStore = new DefaultKeyValueStore(client.getKeyValueClient(), serializer);
             DocumentStore documentStore = new DefaultDocumentStore(client.getSearchClient(), documentSerializer);
 
+            //enable event validation upon dispatch
+            if (!disablePayloadValidation) {
+                ValidatingInterceptor interceptor = new ValidatingInterceptor();
+                dispatchInterceptors.computeIfPresent(EVENT, (t, i) -> i.andThen(interceptor));
+            }
+
             //enable message routing
             Arrays.stream(MessageType.values()).forEach(
                     type -> dispatchInterceptors.computeIfPresent(type,
@@ -479,12 +485,11 @@ public class DefaultFluxCapacitor implements FluxCapacitor {
                         type -> dispatchInterceptors.compute(type, (t, i) -> correlatingInterceptor.andThen(i)));
             }
 
-            //enable command and query validation before handling and event validation upon dispatch
+            //enable command and query validation before handling
             if (!disablePayloadValidation) {
                 ValidatingInterceptor interceptor = new ValidatingInterceptor();
                 Stream.of(COMMAND, QUERY).forEach(type -> handlerInterceptors.computeIfPresent(
                         type, (t, i) -> i.andThen(interceptor)));
-                dispatchInterceptors.computeIfPresent(EVENT, (t, i) -> i.andThen(interceptor));
             }
 
             //enable scheduling interceptor

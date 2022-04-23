@@ -16,7 +16,6 @@ package io.fluxcapacitor.javaclient.scheduling.client;
 
 import io.fluxcapacitor.common.Awaitable;
 import io.fluxcapacitor.common.Guarantee;
-import io.fluxcapacitor.common.MessageType;
 import io.fluxcapacitor.common.api.SerializedMessage;
 import io.fluxcapacitor.common.api.scheduling.SerializedSchedule;
 import io.fluxcapacitor.javaclient.common.serialization.Serializer;
@@ -33,6 +32,7 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentSkipListMap;
 import java.util.stream.Stream;
 
+import static io.fluxcapacitor.common.MessageType.SCHEDULE;
 import static io.fluxcapacitor.javaclient.tracking.IndexUtils.indexFromMillis;
 import static io.fluxcapacitor.javaclient.tracking.IndexUtils.timestampFromIndex;
 import static java.util.stream.Collectors.toList;
@@ -92,10 +92,20 @@ public class InMemorySchedulingClient extends InMemoryMessageStore implements Sc
         List<Schedule> result = expiredEntries.entrySet().stream().map(e -> {
             SerializedMessage m = getMessage(e.getKey());
             return new Schedule(
-                    serializer.deserializeMessages(Stream.of(m), MessageType.SCHEDULE).findFirst().get().getPayload(),
+                    serializer.deserializeMessages(Stream.of(m), SCHEDULE).findFirst().get().getPayload(),
                     m.getMetadata(), e.getValue(), timestampFromIndex(e.getKey()));
         }).collect(toList());
         expiredEntries.clear();
         return result;
+    }
+
+    @SuppressWarnings("OptionalGetWithoutIsPresent")
+    public List<Schedule> getSchedules(Serializer serializer) {
+        return scheduleIdsByIndex.entrySet().stream().map(e -> {
+            SerializedMessage m = getMessage(e.getKey());
+                return new Schedule(
+                        serializer.deserializeMessages(Stream.of(m), SCHEDULE).findFirst().get().getPayload(),
+                        m.getMetadata(), e.getValue(), timestampFromIndex(e.getKey()));
+        }).collect(toList());
     }
 }

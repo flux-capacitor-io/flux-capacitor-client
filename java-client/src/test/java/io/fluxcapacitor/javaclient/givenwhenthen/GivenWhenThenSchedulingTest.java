@@ -29,8 +29,6 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.UUID;
 
-import static java.time.Instant.now;
-import static org.hamcrest.Matchers.isA;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
 class GivenWhenThenSchedulingTest {
@@ -61,7 +59,7 @@ class GivenWhenThenSchedulingTest {
         YieldsNewSchedule schedule = new YieldsNewSchedule(delay.toMillis());
         subject.givenExpiredSchedules(schedule)
                 .whenTimeElapses(delay)
-                .expectSchedules(schedule);
+                .expectNewSchedules(schedule);
     }
 
     @Test
@@ -109,30 +107,32 @@ class GivenWhenThenSchedulingTest {
     @Test
     void testExpectSchedule() {
         YieldsSchedule command = new YieldsSchedule();
-        subject.whenCommand(command).expectOnlySchedules(command.getSchedule());
+        subject.whenCommand(command)
+                .expectOnlyNewSchedules(command.getSchedule())
+                .expectSchedules(command.getSchedule(), PeriodicSchedule.class);
     }
 
     @Test
     void testExpectScheduleAnyTime() {
         YieldsSchedule command = new YieldsSchedule();
-        subject.whenCommand(command).expectOnlySchedules(command.getSchedule());
+        subject.whenCommand(command).expectOnlyNewSchedules(command.getSchedule());
     }
 
     @Test
     void testExpectNoScheduleLike() {
-        subject.whenCommand(new YieldsSchedule()).expectNoSchedulesLike("anotherPayload");
+        subject.whenCommand(new YieldsSchedule()).expectNoNewSchedulesLike("anotherPayload");
     }
 
     @Test
     void testExpectScheduleWithoutAnySchedules() {
         assertThrows(GivenWhenThenAssertionError.class,
-                     () -> subject.whenCommand("command").expectOnlySchedules("schedule"));
+                     () -> subject.whenCommand("command").expectOnlyNewSchedules("schedule"));
     }
 
     @Test
     void testExpectSchedulePayloadMismatch() {
         assertThrows(GivenWhenThenAssertionError.class,
-                     () -> subject.whenCommand(new YieldsSchedule()).expectOnlySchedules("otherPayload"));
+                     () -> subject.whenCommand(new YieldsSchedule()).expectOnlyNewSchedules("otherPayload"));
     }
 
     /*
@@ -144,7 +144,9 @@ class GivenWhenThenSchedulingTest {
         Duration delay = Duration.ofSeconds(10);
         Object payload = new YieldsCommand("whatever");
         subject.givenSchedules(new Schedule(payload, "test", subject.getClock().instant().plus(delay)))
-                .whenTimeElapses(delay).expectNoSchedulesLike(isA(YieldsCommand.class));
+                .whenTimeElapses(delay)
+                .expectNoNewSchedulesLike(YieldsCommand.class)
+                .expectNoSchedulesLike(YieldsCommand.class);
     }
 
     @Test
@@ -152,7 +154,7 @@ class GivenWhenThenSchedulingTest {
         Duration delay = Duration.ofSeconds(10);
         YieldsNewSchedule payload = new YieldsNewSchedule(delay.toMillis());
         subject.givenSchedules(new Schedule(payload, "test", subject.getClock().instant().plus(delay)))
-                .whenTimeElapses(delay).expectSchedules(payload);
+                .whenTimeElapses(delay).expectNewSchedules(payload);
     }
 
     @Test
@@ -177,37 +179,37 @@ class GivenWhenThenSchedulingTest {
 
     @Test
     void testNoAutomaticRescheduleBeforeDeadline() {
-        subject.givenNoPriorActivity().givenTimeElapses(Duration.ofMillis(500)).when(fc -> {}).expectNoSchedules();
+        subject.givenNoPriorActivity().givenTimeElapses(Duration.ofMillis(500)).when(fc -> {}).expectNoNewSchedules();
     }
 
     @Test
     void testAutomaticReschedule() {
         subject.givenNoPriorActivity().givenTimeElapses(Duration.ofMillis(500))
-                .whenTimeElapses(Duration.ofMillis(1000)).expectOnlySchedules(new PeriodicSchedule());
+                .whenTimeElapses(Duration.ofMillis(1000)).expectOnlyNewSchedules(new PeriodicSchedule());
     }
 
     @Test
     void testAutomaticPeriodicSchedule() {
         subject.givenNoPriorActivity().whenTimeElapses(Duration.ofMillis(1000))
-                .expectSchedules(isA(PeriodicSchedule.class));
+                .expectNewSchedules(PeriodicSchedule.class);
     }
 
     @Test
     void testAutomaticPeriodicScheduleWithMethodAnnotation() {
         TestFixture.create(new MethodPeriodicHandler()).givenNoPriorActivity()
-                .whenTimeElapses(Duration.ofMillis(1000)).expectSchedules(isA(MethodPeriodicSchedule.class));
+                .whenTimeElapses(Duration.ofMillis(1000)).expectNewSchedules(MethodPeriodicSchedule.class);
     }
 
     @Test
     void testNonAutomaticPeriodicSchedule() {
         subject.givenNoPriorActivity().whenTimeElapses(Duration.ofMillis(1000))
-                .expectNoSchedulesLike(isA(NonAutomaticPeriodicSchedule.class));
+                .expectNoNewSchedulesLike(NonAutomaticPeriodicSchedule.class);
     }
 
     @Test
     void testAlteredPayloadPeriodic() {
         TestFixture.create(new AlteredPayloadPeriodicHandler()).givenNoPriorActivity()
-                .whenTimeElapses(Duration.ofMillis(1000)).expectOnlySchedules(new YieldsAlteredSchedule(2));
+                .whenTimeElapses(Duration.ofMillis(1000)).expectOnlyNewSchedules(new YieldsAlteredSchedule(2));
     }
 
     @Test
@@ -215,7 +217,7 @@ class GivenWhenThenSchedulingTest {
         subject = TestFixture.create(new AlteredPayloadNonPeriodicHandler());
         Instant deadline = subject.getClock().instant().plusSeconds(1);
         subject.givenSchedules(new Schedule(new YieldsAlteredSchedule(), "test", deadline))
-                .whenTimeAdvancesTo(deadline).expectOnlySchedules(new YieldsAlteredSchedule(1));
+                .whenTimeAdvancesTo(deadline).expectOnlyNewSchedules(new YieldsAlteredSchedule(1));
     }
 
     @Test
@@ -223,14 +225,14 @@ class GivenWhenThenSchedulingTest {
         subject = TestFixture.create(new AlteredPayloadNonPeriodicHandlerReturningSchedule());
         Instant deadline = subject.getClock().instant().plusSeconds(1);
         subject.givenSchedules(new Schedule(new YieldsAlteredSchedule(), "test", deadline))
-                .whenTimeAdvancesTo(deadline).expectOnlySchedules(new YieldsAlteredSchedule(1));
+                .whenTimeAdvancesTo(deadline).expectOnlyNewSchedules(new YieldsAlteredSchedule(1));
     }
 
     @Test
     void testInterfacePeriodicHandler() {
         TestFixture.create(new InterfacePeriodicHandler())
                 .givenNoPriorActivity().whenTimeElapses(Duration.ofMillis(1000))
-                .expectSchedules(isA(PeriodicScheduleFromInterface.class));
+                .expectNewSchedules(PeriodicScheduleFromInterface.class);
     }
 
     static class CommandHandler {
@@ -298,11 +300,12 @@ class GivenWhenThenSchedulingTest {
 
     @AllArgsConstructor
     @Value
-    static class YieldsSchedule {
+    class YieldsSchedule {
         Schedule schedule;
 
         public YieldsSchedule() {
-            this(new Schedule("schedule", UUID.randomUUID().toString(), now().plusSeconds(10)));
+            this(new Schedule("schedule", UUID.randomUUID().toString(),
+                              subject.getClock().instant().plusSeconds(10)));
         }
     }
 

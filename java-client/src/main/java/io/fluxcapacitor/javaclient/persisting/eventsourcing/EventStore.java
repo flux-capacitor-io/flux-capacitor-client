@@ -37,7 +37,11 @@ public interface EventStore extends HasLocalHandlers {
         return storeEvents(aggregateId, events, false);
     }
 
-    Awaitable storeEvents(String aggregateId, List<?> events, boolean storeOnly);
+    default Awaitable storeEvents(String aggregateId, List<?> events, boolean storeOnly) {
+        return storeEvents(aggregateId, events, storeOnly, true);
+    }
+
+    Awaitable storeEvents(String aggregateId, List<?> events, boolean storeOnly, boolean interceptBeforeStoring);
 
     default AggregateEventStream<DeserializingMessage> getEvents(String aggregateId) {
         return getEvents(aggregateId, -1L);

@@ -60,6 +60,16 @@ public interface Then {
         Schedules
      */
 
+    Then expectOnlyNewSchedules(Object... schedules);
+
+    Then expectNewSchedules(Object... schedules);
+
+    Then expectNoNewSchedulesLike(Object... schedules);
+
+    default Then expectNoNewSchedules() {
+        return expectOnlyNewSchedules();
+    }
+
     Then expectOnlySchedules(Object... schedules);
 
     Then expectSchedules(Object... schedules);

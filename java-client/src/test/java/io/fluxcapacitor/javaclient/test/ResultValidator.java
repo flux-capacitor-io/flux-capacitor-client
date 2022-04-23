@@ -42,13 +42,14 @@ import static java.util.stream.Collectors.toList;
 @AllArgsConstructor
 @Slf4j
 public class ResultValidator implements Then {
-    private static final boolean matchersSupported = ReflectionUtils.classExists("org.hamcrest.Matcher");
+    static final boolean matchersSupported = ReflectionUtils.classExists("org.hamcrest.Matcher");
 
     @Getter(AccessLevel.PROTECTED)
     private final FluxCapacitor fluxCapacitor;
     private final Object result;
     private final List<Message> events, commands, webRequests;
-    private final List<Schedule> schedules;
+    private final List<Schedule> newSchedules;
+    private final List<Schedule> allSchedules;
     private final List<Throwable> exceptions;
 
     @Override
@@ -82,18 +83,33 @@ public class ResultValidator implements Then {
     }
 
     @Override
+    public Then expectOnlyNewSchedules(Object... schedules) {
+        return expectOnlyScheduledMessages(asMessages(schedules), this.newSchedules);
+    }
+
+    @Override
+    public Then expectNewSchedules(Object... schedules) {
+        return expectScheduledMessages(asMessages(schedules), this.newSchedules);
+    }
+
+    @Override
+    public Then expectNoNewSchedulesLike(Object... schedules) {
+        return expectNothingLike(asMessages(schedules), this.newSchedules);
+    }
+
+    @Override
     public Then expectOnlySchedules(Object... schedules) {
-        return expectOnlyScheduledMessages(asMessages(schedules), this.schedules);
+        return expectOnlyScheduledMessages(asMessages(schedules), this.allSchedules);
     }
 
     @Override
     public Then expectSchedules(Object... schedules) {
-        return expectScheduledMessages(asMessages(schedules), this.schedules);
+        return expectScheduledMessages(asMessages(schedules), this.allSchedules);
     }
 
     @Override
     public Then expectNoSchedulesLike(Object... schedules) {
-        return expectNothingLike(asMessages(schedules), this.schedules);
+        return expectNothingLike(asMessages(schedules), this.allSchedules);
     }
 
     @Override
@@ -368,8 +384,8 @@ public class ResultValidator implements Then {
         return fluxCapacitor.apply(fc -> Arrays.stream(expectedMessages)
                 .flatMap(e -> e instanceof Collection<?> ? ((Collection<?>) e).stream() : Stream.of(e))
                 .map(c -> TestFixture.parseObject(c, callerClass))
-                .map(e -> e instanceof Message || e instanceof Predicate<?> || isMatcher(e) ? e :
-                        new Message(e)).collect(toList()));
+                .map(e -> e instanceof Message || e instanceof Predicate<?> || isMatcher(e) || e instanceof Class<?>
+                        ? e : new Message(e)).collect(toList()));
     }
 
     @SuppressWarnings("unchecked")

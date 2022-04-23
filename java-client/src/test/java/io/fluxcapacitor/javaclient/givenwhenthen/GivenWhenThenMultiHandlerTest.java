@@ -25,7 +25,6 @@ import lombok.Value;
 import org.junit.jupiter.api.Test;
 import org.mockito.InOrder;
 
-import static org.hamcrest.CoreMatchers.isA;
 import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.spy;
 
@@ -44,7 +43,7 @@ class GivenWhenThenMultiHandlerTest {
 
     @Test
     void testExpectResultButNoEvents() {
-        subject.givenNoPriorActivity().whenCommand(new YieldsResult()).expectNoEvents().expectResult(isA(String.class));
+        subject.givenNoPriorActivity().whenCommand(new YieldsResult()).expectNoEvents().expectResult(String.class);
     }
 
     @Test
@@ -61,7 +60,7 @@ class GivenWhenThenMultiHandlerTest {
     @Test
     void testExpectResultAndEvent() {
         YieldsEventAndResult command = new YieldsEventAndResult();
-        subject.givenNoPriorActivity().whenCommand(command).expectOnlyEvents(command).expectResult(isA(String.class));
+        subject.givenNoPriorActivity().whenCommand(command).expectOnlyEvents(command).expectResult(String.class);
     }
 
     @Test
@@ -72,7 +71,7 @@ class GivenWhenThenMultiHandlerTest {
 
     @Test
     void testWithGivenCommandsAndResult() {
-        subject.givenCommands(new YieldsNoResult()).whenCommand(new YieldsResult()).expectResult(isA(String.class)).expectNoEvents();
+        subject.givenCommands(new YieldsNoResult()).whenCommand(new YieldsResult()).expectResult(String.class).expectNoEvents();
     }
 
     @Test

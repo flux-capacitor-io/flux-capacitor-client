@@ -64,14 +64,16 @@ public class GivenWhenThenAssertionError extends AssertionFailedError {
             Collection<?> collection = (Collection<?>) expectedOrActual;
             return collection.stream().map(GivenWhenThenAssertionError::formatForComparison).collect(toList());
         }
-        if (expectedOrActual instanceof Matcher<?>) {
-            return expectedOrActual;
-        }
         if (expectedOrActual instanceof Throwable) {
             return ExceptionUtils.readStackTrace((Throwable) expectedOrActual);
         }
-        if (expectedOrActual instanceof Description) {
-            return expectedOrActual.toString();
+        if (ResultValidator.matchersSupported) {
+            if (expectedOrActual instanceof Matcher<?>) {
+                return expectedOrActual;
+            }
+            if (expectedOrActual instanceof Description) {
+                return expectedOrActual.toString();
+            }
         }
         try {
             return expectedOrActual instanceof CharSequence

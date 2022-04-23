@@ -26,7 +26,6 @@ import org.junit.jupiter.api.Test;
 import org.mockito.InOrder;
 
 import static io.fluxcapacitor.javaclient.FluxCapacitor.loadAggregate;
-import static org.hamcrest.CoreMatchers.isA;
 import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.spy;
@@ -44,7 +43,7 @@ class GivenWhenThenTest {
 
     @Test
     void testExpectResultButNoEvents() {
-        subject.givenNoPriorActivity().whenCommand(new YieldsResult()).expectNoEvents().expectResult(isA(String.class));
+        subject.givenNoPriorActivity().whenCommand(new YieldsResult()).expectNoEvents().expectResult(String.class);
     }
 
     @Test
@@ -63,13 +62,13 @@ class GivenWhenThenTest {
     @Test
     void testExpectNoEventsLike() {
         YieldsEventAndNoResult command = new YieldsEventAndNoResult();
-        subject.givenNoPriorActivity().whenCommand(command).expectNoEventsLike(isA(String.class));
+        subject.givenNoPriorActivity().whenCommand(command).expectNoEventsLike(String.class);
     }
 
     @Test
     void testExpectResultAndEvent() {
         YieldsEventAndResult command = new YieldsEventAndResult();
-        subject.givenNoPriorActivity().whenCommand(command).expectOnlyEvents(command).expectResult(isA(String.class));
+        subject.givenNoPriorActivity().whenCommand(command).expectOnlyEvents(command).expectResult(String.class);
     }
 
     @Test
@@ -87,7 +86,7 @@ class GivenWhenThenTest {
 
     @Test
     void testWithGivenCommandsAndResult() {
-        subject.givenCommands(new YieldsNoResult()).whenCommand(new YieldsResult()).expectResult(isA(String.class))
+        subject.givenCommands(new YieldsNoResult()).whenCommand(new YieldsResult()).expectResult(String.class)
                 .expectNoEvents();
     }
 
