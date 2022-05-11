@@ -21,9 +21,9 @@ import java.util.function.BiFunction;
 import java.util.function.Function;
 
 public interface Cache {
-    void put(Object id, @NonNull Object value);
+    Object put(Object id, @NonNull Object value);
 
-    void putIfAbsent(Object id, @NonNull Object value);
+    Object putIfAbsent(Object id, @NonNull Object value);
 
     <T> T computeIfAbsent(Object id, Function<? super Object, T> mappingFunction);
 
@@ -40,4 +40,10 @@ public interface Cache {
     void invalidate(Object id);
 
     void invalidateAll();
+
+    int size();
+
+    default boolean isEmpty() {
+        return size() < 1;
+    }
 }

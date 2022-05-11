@@ -13,13 +13,13 @@ public class NamedCache implements Cache {
     private final UnaryOperator<Object> idFunction;
 
     @Override
-    public void put(Object id, @NonNull Object value) {
-        delegate.put(idFunction.apply(id), value);
+    public Object put(Object id, @NonNull Object value) {
+        return delegate.put(idFunction.apply(id), value);
     }
 
     @Override
-    public void putIfAbsent(Object id, @NonNull Object value) {
-        delegate.putIfAbsent(idFunction.apply(id), value);
+    public Object putIfAbsent(Object id, @NonNull Object value) {
+        return delegate.putIfAbsent(idFunction.apply(id), value);
     }
 
     @Override
@@ -50,5 +50,10 @@ public class NamedCache implements Cache {
     @Override
     public void invalidateAll() {
         delegate.invalidateAll();
+    }
+
+    @Override
+    public int size() {
+        return delegate.size();
     }
 }

@@ -22,10 +22,7 @@ import io.fluxcapacitor.javaclient.tracking.handling.HandleCommand;
 import org.junit.jupiter.api.Test;
 
 import static io.fluxcapacitor.javaclient.FluxCapacitor.loadAggregate;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.spy;
-import static org.mockito.Mockito.verify;
 
 class SelectiveCacheTest {
     private final Cache defaultCache = spy(new DefaultCache()), customCache = spy(new DefaultCache());
@@ -36,18 +33,16 @@ class SelectiveCacheTest {
 
     @Test
     void testAggregateStoredInDedicatedCache() {
-        testFixture.whenCommand("testCommand").expectEvents("testCommand").expectThat(fc -> {
-            verify(customCache).put(any(), any());
-            verify(defaultCache, never()).put(any(), any());
-        });
+        testFixture.whenCommand("testCommand").expectEvents("testCommand")
+                .expectTrue(fc -> defaultCache.isEmpty())
+                .expectFalse(fc -> customCache.isEmpty());
     }
 
     @Test
     void testOtherAggregateStoredInDefaultCache() {
-        testFixture.whenCommand(1).expectEvents(1).expectThat(fc -> {
-            verify(customCache, never()).put(any(), any());
-            verify(defaultCache).put(any(), any());
-        });
+        testFixture.whenCommand(1).expectEvents(1)
+                .expectTrue(fc -> customCache.isEmpty())
+                .expectFalse(fc -> defaultCache.isEmpty());
     }
 
     static class MockCommandHandler {

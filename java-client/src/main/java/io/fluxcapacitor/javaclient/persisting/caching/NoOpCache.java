@@ -23,13 +23,13 @@ public enum NoOpCache implements Cache {
     INSTANCE;
 
     @Override
-    public void put(Object id, @NonNull Object value) {
-        //no op
+    public Object put(Object id, @NonNull Object value) {
+        return null;
     }
 
     @Override
-    public void putIfAbsent(Object id, @NonNull Object value) {
-        //no op
+    public Object putIfAbsent(Object id, @NonNull Object value) {
+        return null;
     }
 
     @Override
@@ -60,5 +60,10 @@ public enum NoOpCache implements Cache {
     @Override
     public void invalidateAll() {
         //no op
+    }
+
+    @Override
+    public int size() {
+        return 0;
     }
 }

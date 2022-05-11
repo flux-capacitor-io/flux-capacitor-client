@@ -37,13 +37,13 @@ public class DefaultCache implements Cache {
     }
 
     @Override
-    public void put(Object id, @NonNull Object value) {
-        cache.put(id, value);
+    public Object put(Object id, @NonNull Object value) {
+        return cache.put(id, value);
     }
 
     @Override
-    public void putIfAbsent(Object id, @NonNull Object value) {
-        cache.putIfAbsent(id, value);
+    public Object putIfAbsent(Object id, @NonNull Object value) {
+        return cache.putIfAbsent(id, value);
     }
 
     @SuppressWarnings("unchecked")
@@ -78,5 +78,10 @@ public class DefaultCache implements Cache {
     @Override
     public void invalidateAll() {
         cache.clear();
+    }
+
+    @Override
+    public int size() {
+        return cache.size();
     }
 }

@@ -45,75 +45,38 @@ public class SelectiveCache implements Cache {
     }
 
     @Override
-    public void put(Object id, @NonNull Object value) {
-        if (selector.test(value)) {
-            delegate.put(id, value);
-        } else {
-            nextCache.put(id, value);
-        }
+    public Object put(Object id, @NonNull Object value) {
+        return selector.test(value) ? delegate.put(id, value) : nextCache.put(id, value);
     }
 
     @Override
-    public void putIfAbsent(Object id, @NonNull Object value) {
-        if (selector.test(value)) {
-            delegate.putIfAbsent(id, value);
-        } else {
-            nextCache.putIfAbsent(id, value);
-        }
+    public Object putIfAbsent(Object id, @NonNull Object value) {
+        return selector.test(value) ? delegate.putIfAbsent(id, value) : nextCache.putIfAbsent(id, value);
     }
 
     @Override
     public <T> T computeIfAbsent(Object id, Function<? super Object, T> mappingFunction) {
         T result = getIfPresent(id);
-        if (result == null) {
-            synchronized (this) {
-                result = getIfPresent(id);
-                if (result == null) {
-                    result = mappingFunction.apply(id);
-                    if (result != null) {
-                        putIfAbsent(id, result);
-                    }
-                }
-            }
-        }
-        return result;
+        return result == null ? selector.test(mappingFunction.apply(id))
+                ? delegate.computeIfAbsent(id, mappingFunction) : nextCache.computeIfAbsent(id, mappingFunction) : null;
     }
 
     @Override
     public <T> T computeIfPresent(Object id, BiFunction<? super Object, ? super T, ? extends T> mappingFunction) {
         T result = getIfPresent(id);
-        if (result != null) {
-            if (selector.test(result)) {
-                return delegate.computeIfPresent(id, mappingFunction);
-            }
-            return nextCache.computeIfPresent(id, mappingFunction);
-        }
-        return null;
+        return result == null ? null : selector.test(result) ? delegate.computeIfPresent(id, mappingFunction) :
+                nextCache.computeIfPresent(id, mappingFunction);
     }
 
     @Override
     public <T> T compute(Object id, BiFunction<? super Object, ? super T, ? extends T> mappingFunction) {
-        T result = computeIfPresent(id, mappingFunction);
-        if (result == null) {
-            synchronized (this) {
-                result = getIfPresent(id);
-                result = mappingFunction.apply(id, result);
-                if (result != null) {
-                    put(id, result);
-                } else {
-                    invalidate(id);
-                }
-                return result;
-            }
-        }
-        return result;
+        T result = Optional.<T>ofNullable(getIfPresent(id)).orElseGet(() -> mappingFunction.apply(id, null));
+        return selector.test(result) ? delegate.compute(id, mappingFunction) : nextCache.compute(id, mappingFunction);
     }
 
     @Override
-    @SuppressWarnings("unchecked")
     public <T> T getIfPresent(Object id) {
-        return (T) Optional
-                .ofNullable(delegate.getIfPresent(id)).orElseGet(() -> nextCache.getIfPresent(id));
+        return Optional.<T>ofNullable(delegate.getIfPresent(id)).orElseGet(() -> nextCache.getIfPresent(id));
     }
 
     @Override
@@ -126,5 +89,10 @@ public class SelectiveCache implements Cache {
     public void invalidateAll() {
         delegate.invalidateAll();
         nextCache.invalidateAll();
+    }
+
+    @Override
+    public int size() {
+        return delegate.size() + nextCache.size();
     }
 }
