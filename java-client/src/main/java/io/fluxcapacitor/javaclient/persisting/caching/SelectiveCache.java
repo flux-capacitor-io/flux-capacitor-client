@@ -58,7 +58,8 @@ public class SelectiveCache implements Cache {
     public <T> T computeIfAbsent(Object id, Function<? super Object, T> mappingFunction) {
         T result = getIfPresent(id);
         return result == null ? selector.test(mappingFunction.apply(id))
-                ? delegate.computeIfAbsent(id, mappingFunction) : nextCache.computeIfAbsent(id, mappingFunction) : null;
+                ? delegate.computeIfAbsent(id, mappingFunction) : nextCache.computeIfAbsent(id, mappingFunction)
+                : result;
     }
 
     @Override
