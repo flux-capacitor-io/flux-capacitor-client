@@ -18,7 +18,6 @@ import java.time.Instant;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
-import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicBoolean;
 
@@ -90,19 +89,21 @@ public class CachingAggregateRepository implements AggregateRepository {
                     long index = m.getIndex();
                     delegate.load(id, type);
                     cache.<ImmutableAggregateRoot<?>>computeIfPresent(
-                            id, (i, before) -> Optional.ofNullable(before.highestEventIndex())
-                                    .filter(lastIndex -> lastIndex < index)
-                                    .<ImmutableAggregateRoot<?>>map(li -> {
-                                        boolean wasLoading = AggregateRoot.isLoading();
-                                        try {
-                                            AggregateRoot.loading.set(true);
-                                            ImmutableAggregateRoot<?> after = before.apply(m);
-                                            updateRelationships(before, after);
-                                            return after;
-                                        } finally {
-                                            AggregateRoot.loading.set(wasLoading);
-                                        }
-                                    }).orElse(before));
+                            id, (i, before) -> {
+                                Long lastIndex = before.highestEventIndex();
+                                if (lastIndex == null || lastIndex < index) {
+                                    boolean wasLoading = AggregateRoot.isLoading();
+                                    try {
+                                        AggregateRoot.loading.set(true);
+                                        ImmutableAggregateRoot<?> after = before.apply(m);
+                                        updateRelationships(before, after);
+                                        return after;
+                                    } finally {
+                                        AggregateRoot.loading.set(wasLoading);
+                                    }
+                                }
+                                return before;
+                            });
                 }
             } catch (Exception e) {
                 log.error("Failed to handle event {} for aggregate {} (id {})", m.getMessageId(), type, id, e);
