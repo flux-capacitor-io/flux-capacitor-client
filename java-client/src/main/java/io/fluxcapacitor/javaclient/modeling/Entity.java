@@ -69,7 +69,7 @@ public interface Entity<M extends Entity<M, T>, T> {
     default M apply(Collection<?> events) {
         M result = (M) this;
         for (Object event : events) {
-            result = apply(event);
+            result = result.apply(event);
         }
         return result;
     }
