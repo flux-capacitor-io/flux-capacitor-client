@@ -82,7 +82,10 @@ public class Backlog<T> implements Monitored<List<T>> {
                 while (position > flushPosition.get()) {
                     syncObject.wait();
                 }
-                syncObject.get().await();
+                Awaitable externalProcess = syncObject.get();
+                if (externalProcess != null) {
+                    externalProcess.await();
+                }
             }
         };
     }
@@ -111,9 +114,9 @@ public class Backlog<T> implements Monitored<List<T>> {
                     awaitable = Awaitable.failed(e);
                     errorHandler.handleError(e, batch);
                 }
+                syncObject.set(awaitable);
                 flushPosition.addAndGet(batch.size());
                 synchronized (syncObject) {
-                    syncObject.set(awaitable);
                     syncObject.notifyAll();
                 }
                 monitors.forEach(m -> m.accept(batch));
