@@ -17,12 +17,18 @@ package io.fluxcapacitor.common;
 import lombok.NonNull;
 import org.apache.commons.lang3.StringUtils;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 public class SearchUtils {
 
+    public static final String letterOrNumber = "\\p{L}0-9";
+    public static final Pattern termPattern =
+            Pattern.compile(String.format("\"[^\"]*\"|[%1$s][^\\s]*[%1$s]|[%1$s]", letterOrNumber), Pattern.MULTILINE);
     private static final Map<String, Pattern> globPatternCache = new ConcurrentHashMap<>();
 
     public static String normalize(@NonNull String text) {
@@ -155,5 +161,21 @@ public class SearchUtils {
             }
         }
         return fieldName;
+    }
+
+    public static List<String> splitInTerms(String query) {
+        List<String> parts = new ArrayList<>();
+
+        Matcher matcher = termPattern.matcher(query.trim());
+        while (matcher.find()) {
+            String group = matcher.group().trim();
+            if (!group.isEmpty() && !group.equals("\"")) {
+                if (group.startsWith("\"") && group.endsWith("\"")) {
+                    group = group.substring(1, group.length() - 1);
+                }
+                parts.add(group);
+            }
+        }
+        return parts;
     }
 }

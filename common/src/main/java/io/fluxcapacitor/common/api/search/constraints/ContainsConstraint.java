@@ -15,6 +15,7 @@
 package io.fluxcapacitor.common.api.search.constraints;
 
 import io.fluxcapacitor.common.api.search.Constraint;
+import io.fluxcapacitor.common.api.search.NoOpConstraint;
 import io.fluxcapacitor.common.search.Document;
 import lombok.AccessLevel;
 import lombok.AllArgsConstructor;
@@ -25,30 +26,34 @@ import lombok.Value;
 import lombok.With;
 import lombok.experimental.Accessors;
 
+import java.util.List;
 import java.util.regex.Pattern;
 
+import static io.fluxcapacitor.common.SearchUtils.letterOrNumber;
 import static io.fluxcapacitor.common.SearchUtils.normalize;
-import static java.util.Arrays.stream;
+import static io.fluxcapacitor.common.SearchUtils.splitInTerms;
 import static java.util.stream.Collectors.toList;
 
 @Value
 @AllArgsConstructor(access = AccessLevel.PRIVATE)
 public class ContainsConstraint extends PathConstraint {
-    protected static final String letterOrNumber = "\\p{L}0-9";
 
-    public static Constraint contains(@NonNull String phrase, boolean prefixSearch, boolean postfixSearch,
+    public static Constraint contains(String phrase, boolean prefixSearch, boolean postfixSearch,
                                       String... paths) {
-        String normalized = normalize(phrase);
-        switch (paths.length) {
-            case 0: return new ContainsConstraint(normalized, null, prefixSearch, postfixSearch);
-            case 1: return new ContainsConstraint(normalized, paths[0], prefixSearch, postfixSearch);
-            default: return AnyConstraint.any(stream(paths).map(
-                    p -> new ContainsConstraint(normalized, p, prefixSearch, postfixSearch)).collect(toList()));
-        }
+        return contains(phrase, prefixSearch, postfixSearch, false, paths);
+    }
+
+    public static Constraint contains(String phrase, boolean prefixSearch, boolean postfixSearch,
+                                      boolean splitInTerms, String... paths) {
+        return phrase == null ? NoOpConstraint.instance : AllConstraint.all(
+                (splitInTerms ? splitInTerms(normalize(phrase)) : List.of(normalize(phrase))).stream()
+                        .map(term -> new ContainsConstraint(term, List.of(paths), prefixSearch, postfixSearch))
+                        .collect(toList()));
     }
 
     @NonNull String contains;
-    @With String path;
+    @With
+    List<String> paths;
     boolean prefixSearch;
     boolean postfixSearch;
 

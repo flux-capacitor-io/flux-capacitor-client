@@ -14,6 +14,7 @@
 
 package io.fluxcapacitor.common.api.search.constraints;
 
+import com.fasterxml.jackson.annotation.JsonAlias;
 import io.fluxcapacitor.common.api.search.Constraint;
 import io.fluxcapacitor.common.search.Document;
 import io.fluxcapacitor.common.search.Document.Path;
@@ -22,13 +23,15 @@ import lombok.EqualsAndHashCode;
 import lombok.Getter;
 import lombok.experimental.Accessors;
 
+import java.util.List;
 import java.util.function.Predicate;
 
 public abstract class PathConstraint implements Constraint {
 
-    public abstract String getPath();
+    @JsonAlias("path")
+    public abstract List<String> getPaths();
 
-    public abstract Constraint withPath(String path);
+    public abstract Constraint withPaths(List<String> paths);
 
     protected abstract boolean matches(Document.Entry entry);
 
@@ -39,7 +42,7 @@ public abstract class PathConstraint implements Constraint {
 
     @Override
     public boolean hasPathConstraint() {
-        return getPath() != null;
+        return !getPaths().isEmpty();
     }
 
     protected boolean checkPathBeforeEntry() {
@@ -52,7 +55,8 @@ public abstract class PathConstraint implements Constraint {
     private final Predicate<Document> documentPredicate = computeDocumentPredicate();
 
     private Predicate<Document> computeDocumentPredicate() {
-        Predicate<Path> pathPredicate = Path.pathPredicate(getPath());
+        Predicate<Path> pathPredicate = getPaths().stream().map(
+                Path::pathPredicate).reduce(Predicate::or).orElseGet(() -> p -> true);
         return checkPathBeforeEntry() ? d -> d.getEntries().entrySet().stream()
                 .anyMatch(e -> e.getValue().stream().anyMatch(pathPredicate) && matches(e.getKey())) :
                 d -> d.getEntries().entrySet().stream()

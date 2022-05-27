@@ -24,6 +24,7 @@ import lombok.Value;
 import lombok.With;
 import lombok.experimental.Accessors;
 
+import java.util.List;
 import java.util.function.Predicate;
 
 @Value
@@ -31,21 +32,21 @@ import java.util.function.Predicate;
 public class BetweenConstraint extends PathConstraint {
     public static BetweenConstraint between(Object min, Object maxExclusive, @NonNull String path) {
         return new BetweenConstraint(min == null ? null : min.toString(),
-                                     maxExclusive == null ? null : maxExclusive.toString(), path);
+                                     maxExclusive == null ? null : maxExclusive.toString(), List.of(path));
     }
 
     public static BetweenConstraint atLeast(@NonNull Object min, @NonNull String path) {
-        return new BetweenConstraint(min.toString(), null, path);
+        return new BetweenConstraint(min.toString(), null, List.of(path));
     }
 
     public static BetweenConstraint below(@NonNull Object maxExclusive, @NonNull String path) {
-        return new BetweenConstraint(null, maxExclusive.toString(), path);
+        return new BetweenConstraint(null, maxExclusive.toString(), List.of(path));
     }
 
     String min;
     String max;
     @With
-    String path;
+    List<String> paths;
 
     @Override
     protected boolean matches(Document.Entry entry) {

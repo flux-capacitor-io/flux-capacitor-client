@@ -74,6 +74,7 @@ public class SearchTest {
         expectMatch(lookAhead("se wha"));
         expectNoMatch(lookAhead("ee hat"));
         expectMatch(lookAhead("se wha", "foo", "wrongField"));
+        expectMatch(lookAhead("what slash", "foo", "symbols"));
     }
 
     @Test

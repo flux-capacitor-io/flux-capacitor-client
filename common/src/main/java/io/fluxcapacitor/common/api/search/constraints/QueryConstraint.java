@@ -28,15 +28,13 @@ import lombok.With;
 import lombok.experimental.Accessors;
 
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 import java.util.ListIterator;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-import java.util.stream.Collectors;
 
+import static io.fluxcapacitor.common.SearchUtils.letterOrNumber;
 import static io.fluxcapacitor.common.api.search.constraints.AllConstraint.all;
-import static io.fluxcapacitor.common.api.search.constraints.ContainsConstraint.letterOrNumber;
 import static org.apache.commons.lang3.StringUtils.isBlank;
 
 @Value
@@ -48,21 +46,12 @@ public class QueryConstraint extends PathConstraint {
     private static final Pattern splitOnInnerAsterisk = Pattern.compile(String.format("(?<=[%1$s])\\*(?=[%1$s])", letterOrNumber));
 
     public static Constraint query(String query, String... paths) {
-        if (isBlank(query)) return NoOpConstraint.instance;
-        switch (paths.length) {
-            case 0:
-                return new QueryConstraint(query, null);
-            case 1:
-                return new QueryConstraint(query, paths[0]);
-            default:
-                return AnyConstraint.any(Arrays.stream(paths).map(p -> new QueryConstraint(query, p)).collect(
-                        Collectors.toList()));
-        }
+        return isBlank(query) ? NoOpConstraint.instance : new QueryConstraint(query, List.of(paths));
     }
 
 
     @NonNull String query;
-    @With String path;
+    @With List<String> paths;
 
     @Override
     public boolean matches(Document document) {
@@ -142,7 +131,7 @@ public class QueryConstraint extends PathConstraint {
     private void handleTerm(String term, List<Constraint> constraints) {
         if (term.startsWith("\"") && term.endsWith("\"")) {
             constraints.add(ContainsConstraint.contains(term.substring(1, term.length() - 1),
-                    false, false, path));
+                    false, false, paths.toArray(String[]::new)));
             return;
         }
 
@@ -160,7 +149,7 @@ public class QueryConstraint extends PathConstraint {
                 part = part.substring(1);
                 prefixSearch = true;
             }
-            result.add(ContainsConstraint.contains(part, prefixSearch, postfixSearch, path));
+            result.add(ContainsConstraint.contains(part, prefixSearch, postfixSearch, paths.toArray(String[]::new)));
         }
         constraints.add(all(result));
     }

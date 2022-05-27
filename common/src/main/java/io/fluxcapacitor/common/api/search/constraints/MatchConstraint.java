@@ -27,7 +27,6 @@ import lombok.Value;
 import lombok.With;
 import lombok.experimental.Accessors;
 
-import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
 import java.util.Objects;
@@ -43,19 +42,10 @@ public class MatchConstraint extends PathConstraint {
     }
 
     public static Constraint match(Object value, boolean strict, String... paths) {
-        switch (paths.length) {
-            case 0: return matchForPath(value, null, strict);
-            case 1: return matchForPath(value, paths[0], strict);
-            default: return AnyConstraint.any(Arrays.stream(paths).map(
-                    p -> matchForPath(value, p, strict)).collect(toList()));
-        }
-    }
-
-    protected static Constraint matchForPath(Object value, String path, boolean strict) {
         if (value instanceof Collection<?>) {
             List<Constraint> constraints =
                     ((Collection<?>) value).stream().filter(Objects::nonNull)
-                            .map(v -> new MatchConstraint(v.toString(), path, strict))
+                            .map(v -> new MatchConstraint(v.toString(), List.of(paths), strict))
                             .collect(toList());
             switch (constraints.size()) {
                 case 0: return NoOpConstraint.instance;
@@ -63,12 +53,13 @@ public class MatchConstraint extends PathConstraint {
                 default: return AnyConstraint.any(constraints);
             }
         } else {
-            return value == null ? NoOpConstraint.instance : new MatchConstraint(value.toString(), path, strict);
+            return value == null
+                    ? NoOpConstraint.instance : new MatchConstraint(value.toString(), List.of(paths), strict);
         }
     }
 
     @NonNull String match;
-    @With String path;
+    @With List<String> paths;
     boolean strict;
 
     @Getter(value = AccessLevel.PROTECTED, lazy = true)

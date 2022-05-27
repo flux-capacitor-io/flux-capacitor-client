@@ -23,6 +23,8 @@ import lombok.AllArgsConstructor;
 import lombok.NonNull;
 import lombok.Value;
 
+import java.util.List;
+
 @Value
 @AllArgsConstructor(access = AccessLevel.PRIVATE)
 public class ExistsConstraint extends PathConstraint {
@@ -39,12 +41,12 @@ public class ExistsConstraint extends PathConstraint {
 
     @Override
     @JsonIgnore
-    public String getPath() {
-        return exists;
+    public List<String> getPaths() {
+        return List.of(exists);
     }
 
     @Override
-    public Constraint withPath(String path) {
-        return exists(path);
+    public Constraint withPaths(List<String> paths) {
+        return paths.isEmpty() ? NoOpConstraint.instance : exists(paths.get(0));
     }
 }
