@@ -48,6 +48,7 @@ import java.util.stream.Stream;
 import static com.fasterxml.jackson.databind.DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES;
 import static com.fasterxml.jackson.databind.SerializationFeature.FAIL_ON_EMPTY_BEANS;
 import static com.fasterxml.jackson.databind.SerializationFeature.WRITE_DATES_AS_TIMESTAMPS;
+import static com.fasterxml.jackson.databind.SerializationFeature.WRITE_DURATIONS_AS_TIMESTAMPS;
 import static com.fasterxml.jackson.databind.node.JsonNodeFactory.withExactBigDecimals;
 import static io.fluxcapacitor.common.ObjectUtils.memoize;
 import static java.lang.String.format;
@@ -56,8 +57,9 @@ import static java.lang.String.format;
 public class JacksonSerializer extends AbstractSerializer implements DocumentSerializer {
     public static JsonMapper defaultObjectMapper = JsonMapper.builder()
             .findAndAddModules().addModule(new StripStringsModule()).addModule(new NullCollectionsAsEmptyModule())
-            .disable(FAIL_ON_EMPTY_BEANS).disable(WRITE_DATES_AS_TIMESTAMPS).disable(FAIL_ON_UNKNOWN_PROPERTIES)
-            .nodeFactory(withExactBigDecimals(true)).serializationInclusion(JsonInclude.Include.NON_NULL)
+            .disable(FAIL_ON_EMPTY_BEANS).disable(WRITE_DATES_AS_TIMESTAMPS).disable(WRITE_DURATIONS_AS_TIMESTAMPS)
+            .disable(FAIL_ON_UNKNOWN_PROPERTIES).nodeFactory(withExactBigDecimals(true))
+            .serializationInclusion(JsonInclude.Include.NON_NULL)
             .enable(DeserializationFeature.ACCEPT_SINGLE_VALUE_AS_ARRAY)
             .build();
 
