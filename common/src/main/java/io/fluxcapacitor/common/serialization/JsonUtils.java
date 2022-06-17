@@ -37,18 +37,22 @@ import static com.fasterxml.jackson.databind.DeserializationFeature.FAIL_ON_UNKN
 import static com.fasterxml.jackson.databind.ObjectMapper.DefaultTyping.JAVA_LANG_OBJECT;
 import static com.fasterxml.jackson.databind.SerializationFeature.FAIL_ON_EMPTY_BEANS;
 import static com.fasterxml.jackson.databind.SerializationFeature.WRITE_DATES_AS_TIMESTAMPS;
+import static com.fasterxml.jackson.databind.SerializationFeature.WRITE_DURATIONS_AS_TIMESTAMPS;
 import static com.fasterxml.jackson.databind.node.JsonNodeFactory.withExactBigDecimals;
 
 public class JsonUtils {
-    public static final JsonMapper reader = JsonMapper.builder()
+    public static JsonMapper writer = JsonMapper.builder()
             .findAndAddModules().addModule(new StripStringsModule()).addModule(new NullCollectionsAsEmptyModule())
-            .disable(FAIL_ON_EMPTY_BEANS).disable(WRITE_DATES_AS_TIMESTAMPS).disable(FAIL_ON_UNKNOWN_PROPERTIES)
-            .nodeFactory(withExactBigDecimals(true)).serializationInclusion(JsonInclude.Include.NON_NULL)
+            .disable(FAIL_ON_EMPTY_BEANS).disable(WRITE_DATES_AS_TIMESTAMPS).disable(WRITE_DURATIONS_AS_TIMESTAMPS)
+            .disable(FAIL_ON_UNKNOWN_PROPERTIES).nodeFactory(withExactBigDecimals(true))
+            .serializationInclusion(JsonInclude.Include.NON_NULL)
             .enable(DeserializationFeature.ACCEPT_SINGLE_VALUE_AS_ARRAY)
+            .build();
+
+    public static JsonMapper reader = writer.rebuild()
             .activateDefaultTyping(LaissezFaireSubTypeValidator.instance, JAVA_LANG_OBJECT, PROPERTY)
             .build();
 
-    public static final JsonMapper writer = reader.rebuild().deactivateDefaultTyping().build();
 
     @SneakyThrows
     public static Object fromFile(String fileName) {

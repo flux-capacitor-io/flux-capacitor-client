@@ -14,8 +14,6 @@
 
 package io.fluxcapacitor.javaclient.common.serialization.jackson;
 
-import com.fasterxml.jackson.annotation.JsonInclude;
-import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.JavaType;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -26,8 +24,7 @@ import io.fluxcapacitor.common.reflection.ReflectionUtils;
 import io.fluxcapacitor.common.search.Document;
 import io.fluxcapacitor.common.search.Inverter;
 import io.fluxcapacitor.common.search.JacksonInverter;
-import io.fluxcapacitor.common.serialization.NullCollectionsAsEmptyModule;
-import io.fluxcapacitor.common.serialization.StripStringsModule;
+import io.fluxcapacitor.common.serialization.JsonUtils;
 import io.fluxcapacitor.javaclient.common.serialization.AbstractSerializer;
 import io.fluxcapacitor.javaclient.common.serialization.DeserializingObject;
 import io.fluxcapacitor.javaclient.common.serialization.SerializationException;
@@ -45,23 +42,12 @@ import java.util.Collections;
 import java.util.function.Function;
 import java.util.stream.Stream;
 
-import static com.fasterxml.jackson.databind.DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES;
-import static com.fasterxml.jackson.databind.SerializationFeature.FAIL_ON_EMPTY_BEANS;
-import static com.fasterxml.jackson.databind.SerializationFeature.WRITE_DATES_AS_TIMESTAMPS;
-import static com.fasterxml.jackson.databind.SerializationFeature.WRITE_DURATIONS_AS_TIMESTAMPS;
-import static com.fasterxml.jackson.databind.node.JsonNodeFactory.withExactBigDecimals;
 import static io.fluxcapacitor.common.ObjectUtils.memoize;
 import static java.lang.String.format;
 
 @Slf4j
 public class JacksonSerializer extends AbstractSerializer implements DocumentSerializer {
-    public static JsonMapper defaultObjectMapper = JsonMapper.builder()
-            .findAndAddModules().addModule(new StripStringsModule()).addModule(new NullCollectionsAsEmptyModule())
-            .disable(FAIL_ON_EMPTY_BEANS).disable(WRITE_DATES_AS_TIMESTAMPS).disable(WRITE_DURATIONS_AS_TIMESTAMPS)
-            .disable(FAIL_ON_UNKNOWN_PROPERTIES).nodeFactory(withExactBigDecimals(true))
-            .serializationInclusion(JsonInclude.Include.NON_NULL)
-            .enable(DeserializationFeature.ACCEPT_SINGLE_VALUE_AS_ARRAY)
-            .build();
+    public static JsonMapper defaultObjectMapper = JsonUtils.writer;
 
     @Getter
     private final ObjectMapper objectMapper;
