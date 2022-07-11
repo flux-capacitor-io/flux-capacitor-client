@@ -39,6 +39,7 @@ import java.util.function.UnaryOperator;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 
+import static java.util.Optional.ofNullable;
 import static java.util.function.UnaryOperator.identity;
 
 public class ObjectUtils {
@@ -138,25 +139,32 @@ public class ObjectUtils {
 
     @AllArgsConstructor
     public static class MemoizingFunction<K, V> implements Function<K, V> {
-        private final Map<K, V> map = new ConcurrentHashMap<>();
+        private final Map<Object, Object> map = new ConcurrentHashMap<>();
         private final Function<K, V> delegate;
 
+        @SuppressWarnings("unchecked")
         @Override
         public V apply(K key) {
-            V v = map.get(key);
+            Object storedKey = key == null ? NullObject.INSTANCE : key;
+            Object v = map.get(storedKey);
             if (v == null) {
                 synchronized (delegate) {
-                    v = map.get(key);
+                    v = map.get(storedKey);
                     if (v == null) {
-                        return map.computeIfAbsent(key, delegate);
+                        v = map.computeIfAbsent(storedKey, k -> ofNullable((Object) delegate.apply(
+                                k == NullObject.INSTANCE ? null : key)).orElse(NullObject.INSTANCE));
                     }
                 }
             }
-            return v;
+            return v == NullObject.INSTANCE ? null : (V) v;
         }
 
         public boolean isCached(K key) {
-            return map.containsKey(key);
+            return key == null || map.containsKey(key);
+        }
+
+        private enum NullObject {
+            INSTANCE;
         }
     }
 

@@ -19,7 +19,15 @@ import org.junit.jupiter.api.Test;
 import java.util.List;
 import java.util.function.Function;
 
+import static io.fluxcapacitor.common.ObjectUtils.memoize;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 class ObjectUtilsTest {
     @Test
@@ -32,5 +40,30 @@ class ObjectUtilsTest {
     void testDeduplicateListKeepFirst() {
         List<Object> list = List.of("a", "b", "b", "c", "b", "a", "a");
         assertEquals(List.of("a", "b", "c"), ObjectUtils.deduplicate(list, Function.identity(), true));
+    }
+
+    @SuppressWarnings("unchecked")
+    @Test
+    void memoizeAllowsNullKeys() {
+        Function<Object, Object> mockFunction = mock(Function.class);
+        when(mockFunction.apply(any())).thenReturn("foo");
+        ObjectUtils.MemoizingFunction<Object, Object> memoizingFunction = memoize(mockFunction);
+        assertEquals("foo", memoizingFunction.apply(null));
+        assertTrue(memoizingFunction.isCached(null));
+        memoizingFunction.apply(null);
+        verify(mockFunction, times(1)).apply(any());
+    }
+
+    @SuppressWarnings("unchecked")
+    @Test
+    void memoizeAllowsNullValues() {
+        Function<Object, Object> mockFunction = mock(Function.class);
+        ObjectUtils.MemoizingFunction<Object, Object> memoizingFunction = memoize(mockFunction);
+        assertNull(memoizingFunction.apply("foo"));
+        assertTrue(memoizingFunction.isCached("foo"));
+        memoizingFunction.apply("foo");
+        verify(mockFunction, times(1)).apply(any());
+        assertNull(memoizingFunction.apply(null));
+        verify(mockFunction, times(2)).apply(any());
     }
 }
