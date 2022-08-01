@@ -33,7 +33,7 @@ public class DefaultCache implements Cache {
     }
 
     public DefaultCache(int maxSize) {
-        this.cache = CacheBuilder.newBuilder().maximumSize(maxSize).build().asMap();
+        this.cache = CacheBuilder.newBuilder().maximumSize(maxSize).softValues().build().asMap();
     }
 
     @Override
