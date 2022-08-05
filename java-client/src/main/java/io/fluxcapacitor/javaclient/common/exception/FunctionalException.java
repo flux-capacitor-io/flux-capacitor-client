@@ -15,7 +15,9 @@
 package io.fluxcapacitor.javaclient.common.exception;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import lombok.EqualsAndHashCode;
 
+@EqualsAndHashCode
 @JsonIgnoreProperties({"localizedMessage", "cause", "stackTrace", "suppressed"})
 public abstract class FunctionalException extends RuntimeException {
 

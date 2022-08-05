@@ -59,7 +59,7 @@ public class HandleWebTest {
         @Test
         void testWrongPath() {
             testFixture.whenWebRequest(WebRequest.builder().method(GET).url("/unknown").build())
-                    .expectException(TimeoutException.class);
+                    .expectExceptionalResult(TimeoutException.class);
         }
 
         private class Handler {

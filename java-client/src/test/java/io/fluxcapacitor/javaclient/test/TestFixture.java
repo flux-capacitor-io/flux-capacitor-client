@@ -162,7 +162,7 @@ public class TestFixture implements Given, When {
     private final List<Message> commands = new CopyOnWriteArrayList<>(), events = new CopyOnWriteArrayList<>(),
             webRequests = new CopyOnWriteArrayList<>();
     private final List<Schedule> schedules = new CopyOnWriteArrayList<>();
-    private final CopyOnWriteArrayList<Throwable> exceptions = new CopyOnWriteArrayList<>();
+    private final CopyOnWriteArrayList<Throwable> errors = new CopyOnWriteArrayList<>();
 
     private volatile boolean collectingResults;
 
@@ -418,11 +418,11 @@ public class TestFixture implements Given, When {
                         }
                     }
                 } catch (Throwable e) {
-                    registerException(e);
+                    registerError(e);
                     result = e;
                 }
                 waitForConsumers();
-                return getResultValidator(result, commands, events, schedules, getFutureSchedules(), exceptions);
+                return getResultValidator(result, commands, events, schedules, getFutureSchedules(), errors);
             } finally {
                 handleExpiredSchedulesLocally();
                 registration.cancel();
@@ -436,11 +436,11 @@ public class TestFixture implements Given, When {
 
     protected Then getResultValidator(Object result, List<Message> commands, List<Message> events,
                                       List<Schedule> schedules, List<Schedule> allSchedules,
-                                      List<Throwable> exceptions) {
+                                      List<Throwable> errors) {
         return new ResultValidator(getFluxCapacitor(), result, events, commands, webRequests, schedules,
                                    allSchedules.stream().filter(
                                            s -> s.getDeadline().isAfter(getClock().instant())).collect(toList()),
-                                   exceptions);
+                                   errors);
     }
 
     protected void applyEvents(String aggregateId, FluxCapacitor fc, Object[] events, boolean interceptBeforeStoring) {
@@ -544,8 +544,8 @@ public class TestFixture implements Given, When {
         schedules.add(schedule);
     }
 
-    protected void registerException(Throwable e) {
-        exceptions.addIfAbsent(e);
+    protected void registerError(Throwable e) {
+        errors.addIfAbsent(e);
     }
 
     @SneakyThrows
@@ -699,7 +699,7 @@ public class TestFixture implements Given, When {
                 try {
                     return function.apply(m);
                 } catch (Exception e) {
-                    registerException(e);
+                    registerError(e);
                     throw e;
                 } finally {
                     if ((m.getMessageType() == COMMAND || m.getMessageType() == QUERY)

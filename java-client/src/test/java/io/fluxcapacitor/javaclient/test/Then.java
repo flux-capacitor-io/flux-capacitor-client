@@ -15,9 +15,6 @@
 package io.fluxcapacitor.javaclient.test;
 
 import io.fluxcapacitor.javaclient.FluxCapacitor;
-import io.fluxcapacitor.javaclient.tracking.handling.authentication.UnauthenticatedException;
-import io.fluxcapacitor.javaclient.tracking.handling.authentication.UnauthorizedException;
-import io.fluxcapacitor.javaclient.tracking.handling.validation.ValidationException;
 import lombok.NonNull;
 
 import java.util.Objects;
@@ -107,43 +104,46 @@ public interface Then {
     <T> Then expectResultContaining(T... results);
 
     /*
-        Exceptional result
+        Exceptions
      */
 
-    Then expectException(Object expectedException);
+    Then expectExceptionalResult(Object expectedException);
 
-    default Then expectException() {
-        return expectException(Objects::nonNull);
+    default Then expectExceptionalResult() {
+        return expectExceptionalResult(Objects::nonNull);
     }
 
-    default Then expectIllegalCommandException() {
-        return expectException(e -> e.getClass().getSimpleName().equals("IllegalCommandException"),
-                               "an instance of IllegalCommandException");
+    default Then expectExceptionalResult(@NonNull Class<? extends Throwable> exceptionClass) {
+        return expectExceptionalResult(exceptionClass::isInstance, format("an instance of %s", exceptionClass.getSimpleName()));
     }
 
-    default Then expectValidationException() {
-        return expectException(ValidationException.class);
+    default <T extends Throwable> Then expectExceptionalResult(Predicate<T> predicate) {
+        return expectExceptionalResult(predicate, "Predicate matcher");
     }
 
-    default Then expectAuthenticationException() {
-        return expectException(e -> e instanceof UnauthenticatedException || e instanceof UnauthorizedException,
-                               format("an instance of %s or %s", UnauthenticatedException.class.getSimpleName(),
-                                      UnauthorizedException.class.getSimpleName()));
-    }
+    <T extends Throwable> Then expectExceptionalResult(Predicate<T> predicate, String errorMessage);
 
-    default Then expectException(@NonNull Class<? extends Throwable> exceptionClass) {
-        return expectException(exceptionClass::isInstance, format("an instance of %s", exceptionClass.getSimpleName()));
-    }
-
-    default <T extends Throwable> Then expectException(Predicate<T> predicate) {
-        return expectException(predicate, "Predicate matcher");
-    }
-
-    <T extends Throwable> Then expectException(Predicate<T> predicate, String errorMessage);
-
-    default Then expectNoException() {
+    default Then expectSuccessfulResult() {
         return expectResult(r -> !(r instanceof Throwable));
     }
+
+    Then expectError(Object expectedError);
+
+    default Then expectError() {
+        return expectError(Objects::nonNull);
+    }
+
+    default Then expectError(@NonNull Class<? extends Throwable> errorClass) {
+        return expectError(errorClass::isInstance, format("an instance of %s", errorClass.getSimpleName()));
+    }
+
+    default <T extends Throwable> Then expectError(Predicate<T> predicate) {
+        return expectError(predicate, "Predicate matcher");
+    }
+
+    <T extends Throwable> Then expectError(Predicate<T> predicate, String description);
+
+    Then expectNoErrors();
 
     /*
         Other

@@ -48,7 +48,7 @@ class GivenWhenThenMultiHandlerTest {
 
     @Test
     void testExpectExceptionButNoEvents() {
-        subject.givenNoPriorActivity().whenCommand(new YieldsFunctionalException()).expectNoEvents().expectException(FunctionalMockException.class);
+        subject.givenNoPriorActivity().whenCommand(new YieldsFunctionalException()).expectNoEvents().expectExceptionalResult(FunctionalMockException.class);
     }
 
     @Test
@@ -66,7 +66,7 @@ class GivenWhenThenMultiHandlerTest {
     @Test
     void testExpectExceptionAndEvent() {
         YieldsEventAndException command = new YieldsEventAndException();
-        subject.givenNoPriorActivity().whenCommand(command).expectOnlyEvents(command).expectException(Exception.class);
+        subject.givenNoPriorActivity().whenCommand(command).expectOnlyEvents(command).expectExceptionalResult(Exception.class);
     }
 
     @Test
@@ -122,7 +122,7 @@ class GivenWhenThenMultiHandlerTest {
 
     @Test
     void testFailingQuery() {
-        subject.whenQuery(1L).expectException(Exception.class);
+        subject.whenQuery(1L).expectExceptionalResult(Exception.class);
     }
 
     private static class CommandHandler {

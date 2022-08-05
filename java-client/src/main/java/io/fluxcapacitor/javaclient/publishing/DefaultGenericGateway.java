@@ -70,7 +70,8 @@ public class DefaultGenericGateway implements GenericGateway {
                 try {
                     localResult.get().getNow(null);
                 } catch (CompletionException e) {
-                    throw e.getCause();
+                    log.error("Handler failed to handle a {}",
+                              message.getPayloadClass().getSimpleName(), e.getCause());
                 }
             }
         }

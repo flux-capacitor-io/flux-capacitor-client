@@ -49,14 +49,14 @@ class GivenWhenThenTest {
     @Test
     void testExpectExceptionButNoEvents() {
         subject.givenNoPriorActivity().whenCommand(new YieldsException()).expectNoEvents()
-                .expectException(MockException.class);
+                .expectExceptionalResult(MockException.class);
     }
 
     @Test
     void testExpectEventButNoResult() {
         YieldsEventAndNoResult command = new YieldsEventAndNoResult();
         subject.givenNoPriorActivity().whenCommand(command)
-                .expectOnlyEvents(command).expectNoResult().expectNoException();
+                .expectOnlyEvents(command).expectNoResult().expectSuccessfulResult();
     }
 
     @Test
@@ -81,13 +81,15 @@ class GivenWhenThenTest {
     void testExpectExceptionAndEvent() {
         YieldsEventAndException command = new YieldsEventAndException();
         subject.givenNoPriorActivity().whenCommand(command).expectOnlyEvents(command)
-                .expectException(MockException.class);
+                .expectExceptionalResult(MockException.class)
+                .expectError(MockException.class);
     }
 
     @Test
     void testWithGivenCommandsAndResult() {
         subject.givenCommands(new YieldsNoResult()).whenCommand(new YieldsResult()).expectResult(String.class)
-                .expectNoEvents();
+                .expectNoEvents()
+                .expectNoErrors();
     }
 
     @Test
@@ -137,7 +139,8 @@ class GivenWhenThenTest {
         subject = TestFixture.create(commandHandler, new ThrowingEventHandler());
         subject.whenCommand(new YieldsEventAndNoResult())
                 .expectEvents(new YieldsEventAndNoResult())
-                .expectException();
+                .expectSuccessfulResult()
+                .expectError(MockException.class);
     }
 
     @Test

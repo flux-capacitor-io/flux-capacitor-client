@@ -11,6 +11,6 @@ class ReadOnlyAggregateRootTest {
     void testApplyForbidden() {
         TestFixture.create()
                 .whenApplying(fc -> loadAggregate("test", Object.class).makeReadOnly().apply("whatever"))
-                .expectException(UnsupportedOperationException.class);
+                .expectExceptionalResult(UnsupportedOperationException.class);
     }
 }

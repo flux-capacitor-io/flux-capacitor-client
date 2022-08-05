@@ -101,53 +101,53 @@ public class AggregateEntitiesTest {
         @Test
         void testRouteToChild() {
             testFixture.whenCommand(new CommandWithRoutingKey("id"))
-                    .expectException(IllegalCommandException.class).expectNoEvents();
+                    .expectExceptionalResult(IllegalCommandException.class).expectNoEvents();
         }
 
         @Test
         void testRouteToGrandchild() {
             testFixture.whenCommand(new CommandWithRoutingKey("grandChild"))
-                    .expectException(IllegalCommandException.class).expectNoEvents();
+                    .expectExceptionalResult(IllegalCommandException.class).expectNoEvents();
         }
 
         @Test
         void testNoChildRoute() {
-            testFixture.whenCommand(new CommandWithoutRoutingKey("somethingRandom")).expectNoException();
+            testFixture.whenCommand(new CommandWithoutRoutingKey("somethingRandom")).expectSuccessfulResult();
         }
 
         @Test
         void testPropertyMatchesChild() {
             testFixture.whenCommand(new CommandWithoutRoutingKey("otherId"))
-                    .expectException(IllegalCommandException.class).expectNoEvents();
+                    .expectExceptionalResult(IllegalCommandException.class).expectNoEvents();
         }
 
         @Test
         void testPropertyValueMatchesNothing() {
-            testFixture.whenCommand(new CommandWithoutRoutingKey("somethingRandom")).expectNoException();
+            testFixture.whenCommand(new CommandWithoutRoutingKey("somethingRandom")).expectSuccessfulResult();
         }
 
         @Test
         void testPropertyPathMatchesNothing() {
-            testFixture.whenCommand(new CommandWithWrongProperty("id")).expectNoException()
+            testFixture.whenCommand(new CommandWithWrongProperty("id")).expectSuccessfulResult()
                     .expectEvents(new CommandWithWrongProperty("id"));
         }
 
         @Test
         void testRouteToGrandchildButFailingOnChild() {
             testFixture.whenCommand(new CommandTargetingGrandchildButFailingOnParent("grandChild"))
-                    .expectException(IllegalCommandException.class).expectNoEvents();
+                    .expectExceptionalResult(IllegalCommandException.class).expectNoEvents();
         }
 
         @Test
         void updateCommandExpectsExistingChild() {
             testFixture.whenCommand(new UpdateCommandThatFailsIfChildDoesNotExist("whatever"))
-                    .expectException(IllegalCommandException.class).expectNoEvents();
+                    .expectExceptionalResult(IllegalCommandException.class).expectNoEvents();
         }
 
         @Test
         void testListChildAssertion() {
             testFixture.whenCommand(new CommandWithRoutingKey("list0"))
-                    .expectException(IllegalCommandException.class).expectNoEvents();
+                    .expectExceptionalResult(IllegalCommandException.class).expectNoEvents();
         }
 
         @Test
@@ -160,7 +160,7 @@ public class AggregateEntitiesTest {
                 }
             });
             testFixture.whenCommand(new CommandWithRoutingKey("list0"))
-                    .expectException(IllegalCommandException.class).expectNoEvents();
+                    .expectExceptionalResult(IllegalCommandException.class).expectNoEvents();
         }
 
         class CommandHandler {

@@ -54,12 +54,12 @@ class GivenWhenThenStreamingTest {
 
     @Test
     void testExpectFunctionalException() {
-        subject.whenCommand(new YieldsException()).expectException(MockException.class);
+        subject.whenCommand(new YieldsException()).expectExceptionalResult(MockException.class);
     }
 
     @Test
     void testExpectTechnicalException() {
-        subject.whenCommand(new YieldsRuntimeException()).expectException(TechnicalException.class);
+        subject.whenCommand(new YieldsRuntimeException()).expectExceptionalResult(TechnicalException.class);
     }
 
     @Test
@@ -69,17 +69,17 @@ class GivenWhenThenStreamingTest {
 
     @Test
     void testAsyncExceptionHandling() {
-        subject.whenCommand(new YieldsAsyncException()).expectException(IllegalCommandException.class);
+        subject.whenCommand(new YieldsAsyncException()).expectExceptionalResult(IllegalCommandException.class);
     }
 
     @Test
     void testAsyncExceptionHandling2() {
-        subject.whenCommand(new YieldsAsyncExceptionSecondHand()).expectException(IllegalCommandException.class);
+        subject.whenCommand(new YieldsAsyncExceptionSecondHand()).expectExceptionalResult(IllegalCommandException.class);
     }
 
     @Test
     void testExpectPassiveHandling() {
-        subject.givenNoPriorActivity().whenCommand(new PassivelyHandled()).expectException(TimeoutException.class);
+        subject.givenNoPriorActivity().whenCommand(new PassivelyHandled()).expectExceptionalResult(TimeoutException.class);
     }
 
     @Test

@@ -68,7 +68,7 @@ class EventSourcingRepositoryTest {
 
         @Test
         void testUpdateBeforeCreateIsAllowedButDoesNothing() {
-            testFixture.whenCommand(new UpdateModel()).expectEvents(new UpdateModel()).expectNoException();
+            testFixture.whenCommand(new UpdateModel()).expectEvents(new UpdateModel()).expectSuccessfulResult();
         }
 
         @Test
@@ -116,7 +116,7 @@ class EventSourcingRepositoryTest {
         void testEventsDoNotGetStoredWhenHandlerTriggersException() {
             testFixture.givenNoPriorActivity()
                     .whenCommand(new FailToCreateModel())
-                    .expectException(MockException.class)
+                    .expectExceptionalResult(MockException.class)
                     .expectThat(fc -> assertEquals(0, eventStoreClient.getEvents(aggregateId, -1L).count()));
         }
 
@@ -124,7 +124,7 @@ class EventSourcingRepositoryTest {
         void testApplyingUnknownEventsAllowedIfModelExists() {
             testFixture.givenCommands(new CreateModel())
                     .whenCommand(new ApplyNonsense())
-                    .expectNoException()
+                    .expectSuccessfulResult()
                     .expectThat(fc -> verify(eventStoreClient)
                             .storeEvents(eq(aggregateId), anyList(),
                                          eq(false)));

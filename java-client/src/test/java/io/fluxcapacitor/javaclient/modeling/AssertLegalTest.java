@@ -23,13 +23,13 @@ public class AssertLegalTest {
 
     @Test
     void testCreateWithLegalCheckOnNonExistingModelSucceeds() {
-        testFixture.whenCommand(new CreateModelWithAssertion()).expectNoException();
+        testFixture.whenCommand(new CreateModelWithAssertion()).expectSuccessfulResult();
     }
 
     @Test
     void testUpdateWithLegalCheckOnNonExistingModelFails() {
         testFixture.whenCommand(new UpdateModelWithAssertion())
-                .expectException(MockException.class);
+                .expectExceptionalResult(MockException.class);
     }
 
     @Test
@@ -38,13 +38,13 @@ public class AssertLegalTest {
                         fc -> fc.aggregateRepository().load(aggregateId, TestModel.class)
                                 .assertLegal(new CreateModel()).apply(new CreateModel())
                                 .assertLegal(new CommandWithAssertionInInterface()))
-                .expectException(MockException.class);
+                .expectExceptionalResult(MockException.class);
     }
 
     @Test
     void testAssertionViaInterface() {
         testFixture.whenCommand(new CommandWithAssertionInInterface())
-                .expectException(MockException.class);
+                .expectExceptionalResult(MockException.class);
     }
 
     @Test
@@ -70,7 +70,7 @@ public class AssertLegalTest {
 
     @Test
     void testOverriddenAssertion() {
-        testFixture.whenCommand(new CommandWithOverriddenAssertion()).expectNoException();
+        testFixture.whenCommand(new CommandWithOverriddenAssertion()).expectSuccessfulResult();
     }
 
     @Test
@@ -80,29 +80,29 @@ public class AssertLegalTest {
 
     @Test
     void testAssertLegalAfterApply() {
-        testFixture.whenCommand(new CommandWithAssertAfterApply()).expectException(MockException.class);
+        testFixture.whenCommand(new CommandWithAssertAfterApply()).expectExceptionalResult(MockException.class);
     }
 
     @Test
     void testAssertInField() {
         testFixture.whenCommand(new CommandThatDelegatesToProperty(new CommandWithAssertionInInterface(), null))
-                .expectException(MockException.class);
+                .expectExceptionalResult(MockException.class);
     }
 
     @Test
     void testAssertInMethod() {
         testFixture.whenCommand(new CommandThatDelegatesToProperty(null, new CommandWithAssertionInInterface()))
-                .expectException(MockException.class);
+                .expectExceptionalResult(MockException.class);
     }
 
     @Test
     void testAssertInFieldOrMethodIfBothAreNull() {
-        testFixture.whenCommand(new CommandThatDelegatesToProperty(null, null)).expectNoException();
+        testFixture.whenCommand(new CommandThatDelegatesToProperty(null, null)).expectSuccessfulResult();
     }
 
     @Test
     void testFollowUpAssertionFromReturnedValue() {
-        testFixture.whenCommand(new CommandWithAssertThatReturnsValue()).expectException(MockException.class);
+        testFixture.whenCommand(new CommandWithAssertThatReturnsValue()).expectExceptionalResult(MockException.class);
     }
 
     private static class Handler {

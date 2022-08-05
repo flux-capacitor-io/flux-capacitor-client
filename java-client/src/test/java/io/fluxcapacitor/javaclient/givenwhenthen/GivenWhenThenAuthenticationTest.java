@@ -57,69 +57,69 @@ public class GivenWhenThenAuthenticationTest {
     @Test
     void testUnauthorizedQuery() {
         user = new MockUser();
-        testFixture.whenQuery(new Get()).expectException(UnauthorizedException.class);
+        testFixture.whenQuery(new Get()).expectExceptionalResult(UnauthorizedException.class);
     }
 
     @Test
     void testAuthorizedCommand() {
-        testFixture.whenCommand(new Create()).expectNoException();
+        testFixture.whenCommand(new Create()).expectSuccessfulResult();
     }
 
     @Test
     void testUnauthorizedCreate() {
         user = new MockUser();
-        testFixture.whenCommand(new Create()).expectException(UnauthorizedException.class);
+        testFixture.whenCommand(new Create()).expectExceptionalResult(UnauthorizedException.class);
     }
 
     @Test
     void testAuthorizedModify() {
         user = new MockUser("modify");
-        testFixture.whenCommand(new Update()).expectNoException();
+        testFixture.whenCommand(new Update()).expectSuccessfulResult();
     }
 
     @Test
     void testUnauthorizedModify() {
-        testFixture.whenCommand(new Update()).expectException(UnauthorizedException.class);
+        testFixture.whenCommand(new Update()).expectExceptionalResult(UnauthorizedException.class);
     }
 
     @Test
     void testWhenCommandByUser() {
-        testFixture.whenCommandByUser(new Update(), new MockUser("modify")).expectNoException();
+        testFixture.whenCommandByUser(new Update(), new MockUser("modify")).expectSuccessfulResult();
     }
 
     @Test
     void testAuthorizedModifyAsSystem() {
         user = new MockUser("modify", "system");
-        testFixture.whenCommand(new Update()).expectNoException();
+        testFixture.whenCommand(new Update()).expectSuccessfulResult();
     }
 
     @Test
     void testUnauthorizedModifyAsSystemAdmin() {
         user = new MockUser("modify", "system", "admin");
-        testFixture.whenCommand(new Update()).expectException(Exception.class);
+        testFixture.whenCommand(new Update()).expectExceptionalResult(Exception.class);
     }
 
     @Test
     void testAuthorizedDelete() {
         user = new MockUser("delete");
-        testFixture.whenCommand(new Delete()).expectNoException();
+        testFixture.whenCommand(new Delete()).expectSuccessfulResult();
     }
 
     @Test
     void testUnauthorizedDelete1() {
-        testFixture.whenCommand(new Delete()).expectException(UnauthorizedException.class);
+        testFixture.whenCommand(new Delete()).expectExceptionalResult(UnauthorizedException.class);
     }
 
     @Test
     void testUnauthorizedDelete2() {
         user = new MockUser("modify");
-        testFixture.whenCommand(new Delete()).expectException(UnauthorizedException.class);
+        testFixture.whenCommand(new Delete()).expectExceptionalResult(UnauthorizedException.class);
     }
 
     @Test
     void testUnauthorizedIfForbiddenRoleIsPresent() {
         user = new MockUser("create", "admin");
-        testFixture.whenCommand(new Create()).expectException(UnauthorizedException.class);
+        testFixture.whenCommand(new Create()).expectExceptionalResult(UnauthorizedException.class);
     }
 
     @ForbidsRole("system")

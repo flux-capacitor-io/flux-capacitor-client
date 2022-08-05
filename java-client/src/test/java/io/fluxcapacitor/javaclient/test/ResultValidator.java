@@ -50,7 +50,7 @@ public class ResultValidator implements Then {
     private final List<Message> events, commands, webRequests;
     private final List<Schedule> newSchedules;
     private final List<Schedule> allSchedules;
-    private final List<Throwable> exceptions;
+    private final List<Throwable> errors;
 
     @Override
     public Then expectOnlyEvents(Object... events) {
@@ -177,7 +177,7 @@ public class ResultValidator implements Then {
     }
 
     @Override
-    public ResultValidator expectException(@NonNull Object expectedException) {
+    public ResultValidator expectExceptionalResult(@NonNull Object expectedException) {
         return fluxCapacitor.apply(fc -> {
             if (!(result instanceof Throwable)) {
                 throw new GivenWhenThenAssertionError(
@@ -199,7 +199,7 @@ public class ResultValidator implements Then {
 
     @SuppressWarnings("unchecked")
     @Override
-    public <T extends Throwable> Then expectException(Predicate<T> predicate, String description) {
+    public <T extends Throwable> Then expectExceptionalResult(Predicate<T> predicate, String description) {
         return fluxCapacitor.apply(fc -> {
             if (!(result instanceof Throwable)) {
                 throw new GivenWhenThenAssertionError(
@@ -215,15 +215,46 @@ public class ResultValidator implements Then {
     }
 
     @Override
+    public Then expectError(Object expectedError) {
+        if (errors.isEmpty()) {
+            throw new GivenWhenThenAssertionError("An error was expected but none was published");
+        }
+        return expect(List.of(expectedError), this.errors);
+    }
+
+    @Override
+    public <T extends Throwable> Then expectError(Predicate<T> predicate, String description) {
+        if (errors.isEmpty()) {
+            throw new GivenWhenThenAssertionError("An error was expected but none was published");
+        }
+        try {
+            expect(List.of(predicate), this.errors);
+        } catch (GivenWhenThenAssertionError e) {
+            throw new GivenWhenThenAssertionError("An unexpected error was published",
+                                                  description, result);
+        }
+        return this;
+    }
+
+    @Override
+    public Then expectNoErrors() {
+        if (!errors.isEmpty()) {
+            throw new GivenWhenThenAssertionError("An unexpected exception occurred during handling",
+                                                  errors.get(0));
+        }
+        return this;
+    }
+
+    @Override
     public ResultValidator expectThat(Consumer<FluxCapacitor> check) {
         return fluxCapacitor.apply(fc -> {
             try {
                 check.accept(fc);
             } catch (Throwable e) {
-                if (!exceptions.isEmpty()) {
+                if (!errors.isEmpty()) {
                     throw new GivenWhenThenAssertionError(String.format(
                             "Verify check failed: %s\nProbable cause is an exception during handling.", e.getMessage()),
-                                                          (exceptions.get(0)));
+                                                          (errors.get(0)));
                 }
                 throw new GivenWhenThenAssertionError("Verify check failed", e);
             }
@@ -264,29 +295,6 @@ public class ResultValidator implements Then {
                 }
             });
             return expect(asMessages(expected), actual);
-        });
-    }
-
-    protected void reportMismatch(Collection<?> expected, Collection<?> actual) {
-        fluxCapacitor.apply(fc -> {
-            if (!exceptions.isEmpty()) {
-                throw new GivenWhenThenAssertionError(
-                        "Published messages did not match. Probable cause is an exception that occurred during handling",
-                        expected, actual, exceptions.get(0));
-            }
-            throw new GivenWhenThenAssertionError("Published messages did not match", expected, actual);
-        });
-    }
-
-    protected void reportUnwantedMatch(Collection<?> expected, Collection<?> actual) {
-        fluxCapacitor.apply(fc -> {
-            if (!exceptions.isEmpty()) {
-                throw new GivenWhenThenAssertionError("An unexpected exception occurred during handling",
-                                                      (exceptions.get(0)));
-            }
-            throw new GivenWhenThenAssertionError(
-                    format("Unwanted match found in published messages.\nExpected not to get: %s\nGot: %s\n\n",
-                           expected, actual));
         });
     }
 
@@ -331,6 +339,31 @@ public class ResultValidator implements Then {
             reportUnwantedMatch(expectedNotToGet, actual);
         }
         return this;
+    }
+
+    @SuppressWarnings("SuspiciousMethodCalls")
+    protected void reportMismatch(Collection<?> expected, Collection<?> actual) {
+        fluxCapacitor.apply(fc -> {
+            if (!errors.isEmpty() && !errors.containsAll(actual)) {
+                throw new GivenWhenThenAssertionError(
+                        "Published messages did not match. Probable cause is an exception that occurred during handling",
+                        expected, actual, errors.get(0));
+            }
+            throw new GivenWhenThenAssertionError("Published messages did not match", expected, actual);
+        });
+    }
+
+    @SuppressWarnings("SuspiciousMethodCalls")
+    protected void reportUnwantedMatch(Collection<?> expected, Collection<?> actual) {
+        fluxCapacitor.apply(fc -> {
+            if (!errors.isEmpty() && !errors.containsAll(actual)) {
+                throw new GivenWhenThenAssertionError("An unexpected exception occurred during handling",
+                                                      (errors.get(0)));
+            }
+            throw new GivenWhenThenAssertionError(
+                    format("Unwanted match found in published messages.\nExpected not to get: %s\nGot: %s\n\n",
+                           expected, actual));
+        });
     }
 
     protected ResultValidator expectOnlyScheduledMessages(Collection<?> expected,
