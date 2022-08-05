@@ -14,6 +14,7 @@
 
 package io.fluxcapacitor.common.reflection;
 
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import lombok.NonNull;
 import lombok.SneakyThrows;
 import lombok.Value;
@@ -258,6 +259,9 @@ public class ReflectionUtils {
 
     @SneakyThrows
     private static Function<Object, Object> computeGetter(@NonNull Class<?> type, @NonNull String propertyName) {
+        if (ObjectNode.class.isAssignableFrom(type)) {
+            return target -> ((ObjectNode) target).get(propertyName);
+        }
         PropertyNotFoundException notFoundException = new PropertyNotFoundException(propertyName, type);
         return stream(getBeanInfo(type, Object.class).getPropertyDescriptors())
                 .filter(d -> propertyName.equals(d.getName()))
@@ -368,6 +372,9 @@ public class ReflectionUtils {
 
     @SneakyThrows
     private static BiConsumer<Object, Object> computeSetter(@NonNull String propertyName, @NonNull Class<?> type) {
+        if (ObjectNode.class.isAssignableFrom(type)) {
+            return (target, propertyValue) -> ((ObjectNode) target).putPOJO(propertyName, propertyValue);
+        }
         PropertyNotFoundException notFoundException = new PropertyNotFoundException(propertyName, type);
         return stream(getBeanInfo(type, Object.class).getPropertyDescriptors())
                 .filter(d -> propertyName.equals(d.getName()))

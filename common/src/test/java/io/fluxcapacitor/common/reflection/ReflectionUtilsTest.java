@@ -14,6 +14,9 @@
 
 package io.fluxcapacitor.common.reflection;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.node.ObjectNode;
+import io.fluxcapacitor.common.serialization.JsonUtils;
 import lombok.AccessLevel;
 import lombok.Builder;
 import lombok.Getter;
@@ -134,6 +137,23 @@ class ReflectionUtilsTest {
             writeProperty("unknownProperty", someObject, testString);
             assertFalse(hasProperty("unknownProperty", someObject));
             writeProperty("child/child/unknownProperty2", someObject, testString);
+        }
+
+        @Test
+        void testWriteToObjectNode() {
+            ObjectNode node = JsonUtils.valueToTree(someObject);
+            writeProperty("child/child/propertyWithGetter", node, testString);
+            assertEquals(testString,
+                         ReflectionUtils.<JsonNode>readProperty("child/child/propertyWithGetter", node)
+                                 .map(JsonNode::asText).orElseThrow());
+        }
+
+        @Test
+        void testWritingMissingObjectNode() {
+            ObjectNode node = JsonUtils.valueToTree(someObject);
+            writeProperty("child.child.propertyWithoutGetter", node, testString);
+            assertEquals(testString, ReflectionUtils.<JsonNode>readProperty(
+                    "child/child/propertyWithoutGetter", node).map(JsonNode::asText).orElseThrow());
         }
     }
 

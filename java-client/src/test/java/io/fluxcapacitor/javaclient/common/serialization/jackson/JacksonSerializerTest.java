@@ -181,7 +181,7 @@ class JacksonSerializerTest {
 
         @Upcast(type = TYPE, revision = 1)
         public ObjectNode upcastFrom1(ObjectNode input) {
-            return input.put("name", input.remove("n").textValue());
+            return input.put("name", input.remove("n").asText());
         }
 
         @Upcast(type = TYPE, revision = 2)
