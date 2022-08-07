@@ -24,8 +24,8 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import static io.fluxcapacitor.common.MessageType.EVENT;
 import static io.fluxcapacitor.common.MessageType.NOTIFICATION;
 import static io.fluxcapacitor.javaclient.common.serialization.DeserializingMessage.handleBatch;
-import static io.fluxcapacitor.javaclient.modeling.AggregateIdResolver.getAggregateId;
-import static io.fluxcapacitor.javaclient.modeling.AggregateTypeResolver.getAggregateType;
+import static io.fluxcapacitor.javaclient.modeling.AggregateRoot.getAggregateId;
+import static io.fluxcapacitor.javaclient.modeling.AggregateRoot.getAggregateType;
 import static io.fluxcapacitor.javaclient.tracking.client.DefaultTracker.start;
 
 @RequiredArgsConstructor

@@ -19,8 +19,6 @@ import io.fluxcapacitor.common.api.Metadata;
 import io.fluxcapacitor.common.api.SerializedMessage;
 import io.fluxcapacitor.common.handling.ParameterResolver;
 import io.fluxcapacitor.javaclient.common.Message;
-import io.fluxcapacitor.javaclient.modeling.AggregateIdResolver;
-import io.fluxcapacitor.javaclient.modeling.AggregateTypeResolver;
 import io.fluxcapacitor.javaclient.scheduling.Schedule;
 import io.fluxcapacitor.javaclient.tracking.handling.DeserializingMessageParameterResolver;
 import io.fluxcapacitor.javaclient.tracking.handling.MessageParameterResolver;
@@ -62,10 +60,9 @@ public class DeserializingMessage {
     public static MessageFormatter messageFormatter = MessageFormatter.DEFAULT;
     public static List<ParameterResolver<? super DeserializingMessage>> defaultParameterResolvers =
             Arrays.asList(new DeserializingMessageParameterResolver(),
-                          new MetadataParameterResolver(),
-                          new MessageParameterResolver(), new AggregateIdResolver(),
-                          new AggregateTypeResolver(), new UserParameterResolver(),
-                          new WebPayloadParameterResolver(), new PayloadParameterResolver());
+                          new MetadataParameterResolver(), new MessageParameterResolver(),
+                          new UserParameterResolver(), new WebPayloadParameterResolver(),
+                          new PayloadParameterResolver());
 
     private static final ThreadLocal<Set<Consumer<Throwable>>> batchCompletionHandlers = new ThreadLocal<>();
     private static final ThreadLocal<Map<Object, Object>> batchResources = new ThreadLocal<>();

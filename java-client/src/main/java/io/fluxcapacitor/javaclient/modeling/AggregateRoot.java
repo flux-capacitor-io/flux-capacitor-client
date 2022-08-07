@@ -16,6 +16,8 @@ package io.fluxcapacitor.javaclient.modeling;
 
 import com.google.common.collect.Sets;
 import io.fluxcapacitor.common.api.modeling.Relationship;
+import io.fluxcapacitor.common.reflection.ReflectionUtils;
+import io.fluxcapacitor.javaclient.common.serialization.DeserializingMessage;
 
 import java.time.Instant;
 import java.util.Collections;
@@ -38,6 +40,20 @@ public interface AggregateRoot<T> extends Entity<AggregateRoot<T>, T> {
 
     String AGGREGATE_ID_METADATA_KEY = "$aggregateId";
     String AGGREGATE_TYPE_METADATA_KEY = "$aggregateType";
+
+    static String getAggregateId(DeserializingMessage message) {
+        return message.getMetadata().get(AGGREGATE_ID_METADATA_KEY);
+    }
+
+    static Class<?> getAggregateType(DeserializingMessage message) {
+        return Optional.ofNullable(message.getMetadata().get(AGGREGATE_TYPE_METADATA_KEY)).map(c -> {
+            try {
+                return ReflectionUtils.classForName(c);
+            } catch (Exception ignored) {
+                return null;
+            }
+        }).orElse(null);
+    }
 
     AggregateRoot<T> update(UnaryOperator<T> function);
 

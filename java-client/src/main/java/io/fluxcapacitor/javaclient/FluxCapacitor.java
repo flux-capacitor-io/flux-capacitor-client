@@ -67,7 +67,7 @@ import java.util.stream.Stream;
 
 import static io.fluxcapacitor.common.MessageType.EVENT;
 import static io.fluxcapacitor.common.MessageType.NOTIFICATION;
-import static io.fluxcapacitor.javaclient.modeling.AggregateIdResolver.getAggregateId;
+import static io.fluxcapacitor.javaclient.modeling.AggregateRoot.getAggregateId;
 import static java.util.Arrays.stream;
 
 /**
