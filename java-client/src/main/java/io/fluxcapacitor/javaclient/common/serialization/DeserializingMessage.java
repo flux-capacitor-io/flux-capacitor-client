@@ -67,8 +67,6 @@ public class DeserializingMessage {
                           new AggregateTypeResolver(), new UserParameterResolver(),
                           new WebPayloadParameterResolver(), new PayloadParameterResolver());
 
-    private static final ThreadLocal<Set<Consumer<Throwable>>> messageCompletionHandlers = new ThreadLocal<>();
-    private static final ThreadLocal<Map<Object, Object>> messageResources = new ThreadLocal<>();
     private static final ThreadLocal<Set<Consumer<Throwable>>> batchCompletionHandlers = new ThreadLocal<>();
     private static final ThreadLocal<Map<Object, Object>> batchResources = new ThreadLocal<>();
     private static final ThreadLocal<DeserializingMessage> current = new ThreadLocal<>();
@@ -136,44 +134,6 @@ public class DeserializingMessage {
 
     public static DeserializingMessage getCurrent() {
         return current.get();
-    }
-
-    public static void whenMessageCompletes(Consumer<Throwable> handler) {
-        if (current.get() == null) {
-            handler.accept(null);
-        } else {
-            if (messageCompletionHandlers.get() == null) {
-                messageCompletionHandlers.set(new LinkedHashSet<>());
-            }
-            messageCompletionHandlers.get().add(handler);
-        }
-    }
-
-    @SuppressWarnings({"unchecked", "rawtypes"})
-    public static <K, V> V computeForMessage(K key, BiFunction<? super K, ? super V, ? extends V> function) {
-        return (V) getMessageResources().compute(key, (BiFunction) function);
-    }
-
-    @SuppressWarnings({"unchecked", "rawtypes"})
-    public static <K, V> V computeForMessageIfAbsent(K key, Function<? super K, ? extends V> function) {
-        return (V) getMessageResources().computeIfAbsent(key, (Function) function);
-    }
-
-    @SuppressWarnings("unchecked")
-    public static <V> V getMessageResource(Object key) {
-        return (V) getMessageResources().get(key);
-    }
-
-    @SuppressWarnings("unchecked")
-    public static <V> V getMessageResourceOrDefault(Object key, V defaultValue) {
-        return (V) getMessageResources().getOrDefault(key, defaultValue);
-    }
-
-    private static Map<Object, Object> getMessageResources() {
-        if (messageResources.get() == null) {
-            messageResources.set(new HashMap<>());
-        }
-        return messageResources.get();
     }
 
     @Override
@@ -245,10 +205,8 @@ public class DeserializingMessage {
                     try {
                         current.set(d);
                         action.accept(d);
-                        onMessageCompletion(null, previous);
-                    } catch (Throwable e) {
-                        onMessageCompletion(e, previous);
-                        throw e;
+                    } finally {
+                        current.set(previous);
                     }
                 });
             } catch (Throwable e) {
@@ -259,25 +217,6 @@ public class DeserializingMessage {
                 onBatchCompletion(null);
             }
             return hadNext;
-        }
-
-        protected void onMessageCompletion(Throwable error, DeserializingMessage previous) {
-            try {
-                if (previous == null) {
-                    try {
-                        ofNullable(messageCompletionHandlers.get()).ifPresent(handlers -> {
-                            messageCompletionHandlers.remove();
-                            handlers.forEach(h -> h.accept(error));
-                        });
-                    } finally {
-                        messageResources.remove();
-                        messageCompletionHandlers.remove();
-                    }
-                }
-            } finally {
-                current.set(previous);
-            }
-
         }
 
         protected void onBatchCompletion(Throwable error) {

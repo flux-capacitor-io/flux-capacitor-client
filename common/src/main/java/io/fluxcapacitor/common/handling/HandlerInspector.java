@@ -297,19 +297,7 @@ public class HandlerInspector {
 
         @Override
         public Object invoke(M message) {
-            Invocation previousInvocation = Handler.currentInvocation.get();
-            Invocation invocation = new Invocation();
-            Handler.currentInvocation.set(invocation);
-            try {
-                Object result = invoker.invoke(target, message);
-                invocation.getCallbacks().forEach(c -> c.accept(result, null));
-                return result;
-            } catch (Throwable e) {
-                invocation.getCallbacks().forEach(c -> c.accept(null, e));
-                throw e;
-            } finally {
-                Handler.currentInvocation.set(previousInvocation);
-            }
+            return Invocation.performInvocation(() -> invoker.invoke(target, message));
         }
 
         @Override

@@ -1,5 +1,6 @@
 package io.fluxcapacitor.javaclient.modeling;
 
+import io.fluxcapacitor.common.handling.Invocation;
 import io.fluxcapacitor.javaclient.common.Message;
 import io.fluxcapacitor.javaclient.common.serialization.DeserializingMessage;
 import io.fluxcapacitor.javaclient.common.serialization.Serializer;
@@ -112,7 +113,7 @@ public class ModifiableAggregateRoot<T> extends DelegatingAggregateRoot<T, Immut
             delegate = update.apply(delegate);
         } finally {
             if (firstUpdate) {
-                DeserializingMessage.whenMessageCompletes(this::whenHandlerCompletes);
+                Invocation.whenHandlerCompletes((r, e) -> whenHandlerCompletes(e));
             }
         }
     }

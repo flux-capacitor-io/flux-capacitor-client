@@ -169,10 +169,33 @@ class EventSourcingRepositoryTest {
                                                                            eq(false)));
         }
 
+        @Test
+        void testRollbackAllAppliedEventsAfterException() {
+            testFixture.whenCommand(new FailsAfterApply())
+                    .expectThat(fc -> verify(eventStoreClient, never()).storeEvents(anyString(), anyList(),
+                                                                                    eq(false)))
+                    .expectTrue(fc -> fc.eventStore().getEvents(aggregateId).findAny().isEmpty());
+        }
+
+        @Test
+        void testRollbackAllAppliedEventsAfterException_async() {
+            TestFixture.createAsync(new Handler())
+                    .whenCommand(new FailsAfterApply())
+                    .expectThat(fc -> verify(eventStoreClient, never()).storeEvents(anyString(), anyList(),
+                                                                                    eq(false)))
+                    .expectTrue(fc -> fc.eventStore().getEvents(aggregateId).findAny().isEmpty());
+        }
+
         private class Handler {
             @HandleCommand
             void handle(Object command, Metadata metadata) {
                 loadAggregate(aggregateId, TestModel.class).assertLegal(command).apply(command, metadata);
+            }
+
+            @HandleCommand
+            void handle(FailsAfterApply command, Metadata metadata) {
+                loadAggregate(aggregateId, TestModel.class).assertLegal(command).apply(command, metadata);
+                throw new MockException();
             }
 
             @HandleQuery
@@ -590,6 +613,10 @@ class EventSourcingRepositoryTest {
 
     @Value
     static class FailToCreateModel {
+    }
+
+    @Value
+    static class FailsAfterApply {
     }
 
 

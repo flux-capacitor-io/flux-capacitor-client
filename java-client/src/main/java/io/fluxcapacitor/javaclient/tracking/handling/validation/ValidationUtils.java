@@ -14,10 +14,10 @@
 
 package io.fluxcapacitor.javaclient.tracking.handling.validation;
 
-import io.fluxcapacitor.common.handling.Handler;
 import io.fluxcapacitor.common.handling.HandlerConfiguration;
 import io.fluxcapacitor.common.handling.HandlerInspector;
 import io.fluxcapacitor.common.handling.HandlerInvoker;
+import io.fluxcapacitor.common.handling.Invocation;
 import io.fluxcapacitor.common.handling.ParameterResolver;
 import io.fluxcapacitor.common.reflection.ReflectionUtils;
 import io.fluxcapacitor.javaclient.common.Message;
@@ -150,7 +150,7 @@ public class ValidationUtils {
     public static <E extends Exception> void assertLegal(Object object, Entity<?, ?> entity) throws E {
         Collection<Object> additionalProperties = assertLegal(object, entity, assertLegalInvokerCache);
         additionalProperties.forEach(p -> assertLegal(p, entity));
-        Handler.whenHandlerCompletes((r, e) -> {
+        Invocation.whenHandlerCompletes((r, e) -> {
             if (e == null) {
                 ValidationUtils.assertLegal(object, entity, assertLegalAfterUpdateInvokerCache);
             }
