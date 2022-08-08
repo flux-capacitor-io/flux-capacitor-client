@@ -101,9 +101,19 @@ public class DefaultAggregateRepository implements AggregateRepository {
     @Override
     public void applyEvents(String aggregateId, Object... events) {
         if (!AggregateRoot.isLoading()) {
-            ModifiableAggregateRoot.getIfActive(aggregateId).ifPresentOrElse(
+            getIfCached(aggregateId).ifPresentOrElse(
                     a -> a.apply(events), () -> eventStore.storeEvents(aggregateId, events));
         }
+    }
+
+    @SuppressWarnings({"unchecked", "rawtypes"})
+    protected Optional<ModifiableAggregateRoot<Object>> getIfCached(String aggregateId) {
+        return ModifiableAggregateRoot.getIfActive(aggregateId).or(
+                () -> {
+                    AggregateRoot<?> aggregate = cache.getIfPresent(aggregateId);
+                    return (Optional) ofNullable(aggregate).flatMap(
+                            aggregateRoot -> ofNullable(delegates.apply(aggregateRoot.type()).load(aggregateId)));
+                });
     }
 
     @Override

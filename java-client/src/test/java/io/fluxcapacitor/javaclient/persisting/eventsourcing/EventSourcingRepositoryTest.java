@@ -186,6 +186,14 @@ class EventSourcingRepositoryTest {
                     .expectTrue(fc -> fc.eventStore().getEvents(aggregateId).findAny().isEmpty());
         }
 
+        @Test
+        void applyEventsWithoutLoadingAggregateUpdatesCache() {
+            testFixture.givenCommands(new CreateModel())
+                    .given(fc -> FluxCapacitor.applyEvents(aggregateId, new UpdateModel()))
+                    .whenQuery(new GetModel())
+                    .expectResult(new TestModel(Arrays.asList(new CreateModel(), new UpdateModel()), Metadata.empty()));
+        }
+
         private class Handler {
             @HandleCommand
             void handle(Object command, Metadata metadata) {
