@@ -344,7 +344,7 @@ public class ResultValidator implements Then {
     @SuppressWarnings("SuspiciousMethodCalls")
     protected void reportMismatch(Collection<?> expected, Collection<?> actual) {
         fluxCapacitor.apply(fc -> {
-            if (!errors.isEmpty() && !errors.containsAll(actual)) {
+            if (!errors.isEmpty() && (actual.isEmpty() || !errors.containsAll(actual))) {
                 throw new GivenWhenThenAssertionError(
                         "Published messages did not match. Probable cause is an exception that occurred during handling",
                         expected, actual, errors.get(0));
@@ -356,7 +356,7 @@ public class ResultValidator implements Then {
     @SuppressWarnings("SuspiciousMethodCalls")
     protected void reportUnwantedMatch(Collection<?> expected, Collection<?> actual) {
         fluxCapacitor.apply(fc -> {
-            if (!errors.isEmpty() && !errors.containsAll(actual)) {
+            if (!errors.isEmpty() && (actual.isEmpty() || !errors.containsAll(actual))) {
                 throw new GivenWhenThenAssertionError("An unexpected exception occurred during handling",
                                                       (errors.get(0)));
             }

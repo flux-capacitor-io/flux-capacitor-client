@@ -14,45 +14,63 @@
 
 package io.fluxcapacitor.javaclient.tracking.handling.validation;
 
-import io.fluxcapacitor.common.api.Data;
-import io.fluxcapacitor.common.api.Metadata;
-import io.fluxcapacitor.common.api.SerializedMessage;
-import io.fluxcapacitor.javaclient.common.serialization.DeserializingMessage;
-import io.fluxcapacitor.javaclient.common.serialization.DeserializingObject;
+import io.fluxcapacitor.javaclient.test.TestFixture;
+import io.fluxcapacitor.javaclient.tracking.handling.HandleCommand;
 import jakarta.validation.constraints.NotNull;
 import lombok.Value;
 import org.junit.jupiter.api.Test;
 
-import java.time.Clock;
-import java.util.function.Function;
-
-import static io.fluxcapacitor.common.MessageType.EVENT;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-
 class ValidatingInterceptorTest {
-
-    private ValidatingInterceptor subject = new ValidatingInterceptor();
-    private Function<Object, DeserializingMessage> messageFactory = payload -> new DeserializingMessage(
-            new DeserializingObject<>(new SerializedMessage(new Data<>(
-                    "test".getBytes(), "test", 0, null), Metadata.empty(), "someId",
-                                                            Clock.systemUTC().millis()), type -> payload), EVENT);
+    private final TestFixture testFixture = TestFixture.create(new MockHandler());
 
     @Test
     void testWithConstraintViolations() {
-        DeserializingMessage message = messageFactory.apply(new ConstrainedObject(null));
-        assertThrows(ValidationException.class,
-                () -> subject.interceptHandling(m -> null, null, "test").apply(message));
+        testFixture.whenCommand(new BasicCommand(null)).expectExceptionalResult(ValidationException.class);
     }
 
     @Test
     void testWithoutConstraintViolations() {
-        DeserializingMessage message = messageFactory.apply(new ConstrainedObject("foo"));
-        subject.interceptHandling(m -> null, null, "test").apply(message);
+        testFixture.whenCommand(new BasicCommand("foo")).expectSuccessfulResult();
+    }
+
+    @Test
+    void testValidateWith_invalid() {
+        testFixture.whenCommand(new CommandWithGroupValidation("foo", null))
+                .expectExceptionalResult(ValidationException.class);
+    }
+
+    @Test
+    void testValidateWith_valid() {
+        testFixture.whenCommand(new CommandWithGroupValidation("foo", "bar"))
+                .expectSuccessfulResult();
+    }
+
+    @Test
+    void testValidateWith_valid2() {
+        testFixture.whenCommand(new CommandWithGroupValidation(null, "bar"))
+                .expectSuccessfulResult();
     }
 
     @Value
-    private static class ConstrainedObject {
+    private static class BasicCommand {
         @NotNull String aString;
+        @NotNull(groups = GroupA.class) String groupAString = null;
+    }
+
+    @Value
+    @ValidateWith(GroupA.class)
+    private static class CommandWithGroupValidation {
+        @NotNull String aString;
+        @NotNull(groups = GroupA.class) String groupAString;
+    }
+
+    private interface GroupA {
+    }
+
+    private static class MockHandler {
+        @HandleCommand
+        void handle(Object command) {
+        }
     }
 
 }
