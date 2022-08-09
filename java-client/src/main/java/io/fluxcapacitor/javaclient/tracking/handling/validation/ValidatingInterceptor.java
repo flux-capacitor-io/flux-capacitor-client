@@ -36,7 +36,7 @@ public class ValidatingInterceptor implements HandlerInterceptor, DispatchInterc
 
     @Override
     public Message interceptDispatch(Message message, MessageType messageType) {
-        validator.assertValid(message.getPayload());
+        ValidationUtils.assertValid(message.getPayload(), validator);
         return message;
     }
 

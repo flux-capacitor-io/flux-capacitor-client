@@ -14,10 +14,13 @@
 
 package io.fluxcapacitor.javaclient.tracking.handling.validation;
 
+import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
+import lombok.Builder;
 import lombok.Value;
 import org.junit.jupiter.api.Test;
 
+import static io.fluxcapacitor.javaclient.tracking.handling.validation.ValidationUtils.isValid;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -26,15 +29,32 @@ class ValidationUtilsTest {
 
     @Test
     void testValidation() {
-        assertTrue(ValidationUtils.isValid(new Foo("bar")));
-        assertFalse(ValidationUtils.isValid(new Foo("")));
+        assertTrue(isValid(new Foo("bar")));
+        assertFalse(isValid(new Foo("")));
         assertTrue(ValidationUtils.checkValidity(new Foo("")).isPresent());
         assertThrows(ValidationException.class, () -> ValidationUtils.assertValid(new Foo("")));
+    }
+
+    @Test
+    void testValidateWith() {
+        assertTrue(isValid(ValidateWithExample.builder().foo(new Foo("bar")).stringInGroup1("bla").build()));
+        assertFalse(isValid(ValidateWithExample.builder().foo(new Foo("bar")).stringInGroup1("").build()));
+        assertTrue(isValid(ValidateWithExample.builder().foo(new Foo("")).stringInGroup1("bla").build()));
     }
 
     @Value
     public static class Foo {
         @NotBlank String bar;
     }
+
+    @Value
+    @Builder
+    @ValidateWith(Group1.class)
+    public static class ValidateWithExample {
+        @Valid Foo foo;
+        @NotBlank(groups = Group1.class) String stringInGroup1;
+    }
+
+    public interface Group1 {}
 
 }

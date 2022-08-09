@@ -62,27 +62,61 @@ public class ValidationUtils {
     public static final Validator defaultValidator = Optional.of(ServiceLoader.load(Validator.class))
             .map(ServiceLoader::iterator).filter(Iterator::hasNext).map(Iterator::next)
             .orElse(Jsr380Validator.createDefault());
+    private static final Function<Class<?>, Class<?>[]> validateWithGroups = memoize(type -> {
+        ValidateWith annotation = type.getAnnotation(ValidateWith.class);
+        if (annotation == null) {
+            return new Class<?>[0];
+        }
+        return annotation.value();
+    });
 
     /*
         Check object validity
      */
 
     public static Optional<ValidationException> checkValidity(Object object, Class<?>... groups) {
-        return defaultValidator.checkValidity(object, groups);
+        return checkValidity(object, defaultValidator, groups);
     }
 
     public static boolean isValid(Object object, Class<?>... groups) {
-        return defaultValidator.isValid(object, groups);
+        return isValid(object, defaultValidator, groups);
     }
 
     public static void assertValid(Object object, Class<?>... groups) {
-        if (object != null) {
-            if (object instanceof Iterable<?>) {
-                ((Iterable<?>) object).forEach(o -> assertValid(o, groups));
-            } else {
-                defaultValidator.assertValid(object, groups);
-            }
+        assertValid(object, defaultValidator, groups);
+    }
+
+    public static Optional<ValidationException> checkValidity(Object object, Validator validator, Class<?>... groups) {
+        if (object instanceof Collection<?>) {
+            return ((Collection<?>) object).stream().map(
+                    o -> checkValidity(o, validator, groups)).reduce((a, b) -> a.isEmpty() ? b : a).orElse(Optional.empty());
+        } else {
+            return validator.checkValidity(object, getValidationGroups(object, groups));
         }
+    }
+
+    public static boolean isValid(Object object, Validator validator, Class<?>... groups) {
+        if (object instanceof Collection<?>) {
+            return ((Collection<?>) object).stream().map(
+                    o -> isValid(o, validator, groups)).reduce((a, b) -> a && b).orElse(true);
+        } else {
+            return validator.isValid(object, getValidationGroups(object, groups));
+        }
+    }
+
+    public static void assertValid(Object object, Validator validator, Class<?>... groups) {
+        if (object instanceof Iterable<?>) {
+            ((Iterable<?>) object).forEach(o -> assertValid(o, validator, groups));
+        } else {
+            validator.assertValid(object, getValidationGroups(object, groups));
+        }
+    }
+
+    private static Class<?>[] getValidationGroups(Object object, Class<?>[] customGroups) {
+        if (customGroups.length > 0 || object == null) {
+            return customGroups;
+        }
+        return validateWithGroups.apply(object.getClass());
     }
 
     /*
