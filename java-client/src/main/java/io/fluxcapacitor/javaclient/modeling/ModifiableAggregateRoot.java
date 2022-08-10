@@ -42,7 +42,7 @@ public class ModifiableAggregateRoot<T> extends DelegatingAggregateRoot<T, Immut
                         loader.get(), commitInBatch, serializer, dispatchInterceptor, commitHandler));
     }
 
-    private final ImmutableAggregateRoot<T> initial;
+    private ImmutableAggregateRoot<T> lastCommitted;
     private ImmutableAggregateRoot<T> lastStable;
 
     private final boolean commitInBatch;
@@ -60,7 +60,7 @@ public class ModifiableAggregateRoot<T> extends DelegatingAggregateRoot<T, Immut
                                       Serializer serializer, DispatchInterceptor dispatchInterceptor,
                                       CommitHandler commitHandler) {
         super(delegate);
-        this.initial = delegate;
+        this.lastCommitted = delegate;
         this.lastStable = delegate;
         this.commitInBatch = commitInBatch;
         this.serializer = serializer;
@@ -104,7 +104,7 @@ public class ModifiableAggregateRoot<T> extends DelegatingAggregateRoot<T, Immut
         return super.entities().stream().map(e -> new ModifiableEntity<>(e, this)).collect(Collectors.toList());
     }
 
-    private void handleUpdate(UnaryOperator<ImmutableAggregateRoot<T>> update) {
+    protected void handleUpdate(UnaryOperator<ImmutableAggregateRoot<T>> update) {
         boolean firstUpdate = waitingForHandlerEnd.compareAndSet(false, true);
         if (firstUpdate) {
             activeAggregates.get().putIfAbsent(id(), this);
@@ -118,7 +118,7 @@ public class ModifiableAggregateRoot<T> extends DelegatingAggregateRoot<T, Immut
         }
     }
 
-    private void whenHandlerCompletes(Throwable error) {
+    protected void whenHandlerCompletes(Throwable error) {
         waitingForHandlerEnd.set(false);
         if (error == null) {
             uncommitted.addAll(applied);
@@ -130,22 +130,28 @@ public class ModifiableAggregateRoot<T> extends DelegatingAggregateRoot<T, Immut
                 DeserializingMessage.whenBatchCompletes(e -> commit());
             }
         } else {
-            activeAggregates.get().remove(id(), this);
             applied.clear();
             delegate = lastStable;
+            if (!commitInBatch) {
+                activeAggregates.get().remove(id(), this);
+            } else if (waitingForBatchEnd.compareAndSet(false, true)) {
+                DeserializingMessage.whenBatchCompletes(e -> commit());
+            }
         }
     }
 
-    private void commit() {
+    protected void commit() {
         activeAggregates.get().remove(id(), this);
         List<DeserializingMessage> events = new ArrayList<>(uncommitted);
         uncommitted.clear();
         waitingForBatchEnd.set(false);
-        commitHandler.handle(lastStable, events, initial);
+        commitHandler.handle(lastStable, events, lastCommitted);
+        lastCommitted = lastStable;
     }
 
     @FunctionalInterface
     public interface CommitHandler {
-        void handle(ImmutableAggregateRoot<?> model, List<DeserializingMessage> unpublished, ImmutableAggregateRoot<?> beforeUpdate);
+        void handle(ImmutableAggregateRoot<?> model, List<DeserializingMessage> unpublished,
+                    ImmutableAggregateRoot<?> beforeUpdate);
     }
 }

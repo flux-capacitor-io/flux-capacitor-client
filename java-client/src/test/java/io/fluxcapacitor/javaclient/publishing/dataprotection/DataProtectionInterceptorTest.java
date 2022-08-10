@@ -18,12 +18,9 @@ import io.fluxcapacitor.common.api.Data;
 import io.fluxcapacitor.common.api.Metadata;
 import io.fluxcapacitor.javaclient.FluxCapacitor;
 import io.fluxcapacitor.javaclient.common.serialization.DeserializingMessage;
-import io.fluxcapacitor.javaclient.common.serialization.jackson.JacksonSerializer;
-import io.fluxcapacitor.javaclient.configuration.DefaultFluxCapacitor;
-import io.fluxcapacitor.javaclient.configuration.client.InMemoryClient;
+import io.fluxcapacitor.javaclient.test.TestFixture;
 import io.fluxcapacitor.javaclient.tracking.handling.HandleCommand;
 import io.fluxcapacitor.javaclient.tracking.handling.HandleEvent;
-import io.fluxcapacitor.javaclient.tracking.handling.LocalHandler;
 import jakarta.validation.constraints.NotNull;
 import lombok.Builder;
 import lombok.Getter;
@@ -36,58 +33,59 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class DataProtectionInterceptorTest {
-
-    private final JacksonSerializer serializer = new JacksonSerializer();
-    private final FluxCapacitor fluxCapacitor = DefaultFluxCapacitor.builder().disableShutdownHook()
-            .replaceSerializer(serializer).build(InMemoryClient.newInstance());
+    private final TestFixture testFixture = TestFixture.createAsync();
 
     @Test
     void testSerializedMessageDoesNotContainData() {
-        SomeHandler handler = new SomeHandler();
-        fluxCapacitor.registerHandlers(handler);
-        String payload = "something super secret";
-        fluxCapacitor.eventGateway().publish(new SomeEvent(payload));
-        SomeEvent deserializedEvent = serializer.deserialize(handler.getData());
-        assertNull(deserializedEvent.getSensitiveData());
+        testFixture.registerHandlers(new SomeHandler())
+                .when(fc -> FluxCapacitor.publishEvent(new SomeEvent("something super secret")))
+                .expectEvents(new SomeEvent(null));
     }
 
     @Test
     void testHandlerDoesGetData() {
-        SomeHandler handler = new SomeHandler();
-        fluxCapacitor.registerHandlers(handler);
         String payload = "something super secret";
-        fluxCapacitor.eventGateway().publish(new SomeEvent(payload));
-        assertEquals(payload, handler.getLastEvent().getSensitiveData());
-        assertTrue(handler.getLastMetadata().containsKey(DataProtectionInterceptor.METADATA_KEY));
+        SomeHandler handler = new SomeHandler();
+        testFixture.registerHandlers(handler)
+                .when(fc -> FluxCapacitor.publishEvent(new SomeEvent(payload)))
+                .expectThat(fc -> {
+                    assertEquals(payload, handler.getLastEvent().getSensitiveData());
+                    assertTrue(handler.getLastMetadata().containsKey(DataProtectionInterceptor.METADATA_KEY));
+                });
     }
 
     @Test
     void testDroppingDataPermanently() {
+        String payload = "something super secret";
         DroppingHandler droppingHandler = new DroppingHandler();
         SomeHandler secondHandler = new SomeHandler();
-        fluxCapacitor.registerHandlers(droppingHandler, secondHandler);
-        String payload = "something super secret";
-        fluxCapacitor.eventGateway().publish(new SomeEvent(payload));
-        assertEquals(payload, droppingHandler.getLastEvent().getSensitiveData());
-        assertNull(secondHandler.getLastEvent().getSensitiveData());
+        testFixture.registerHandlers(droppingHandler, secondHandler)
+                .when(fc -> FluxCapacitor.publishEvent(new SomeEvent(payload)))
+                .expectThat(fc -> {
+                    assertEquals(payload, droppingHandler.getLastEvent().getSensitiveData());
+                    assertNull(secondHandler.getLastEvent().getSensitiveData());
+                });
     }
 
     @Test
     void testCommandValidationAfterFieldIsSet() {
-        ValidatingHandler handler = new ValidatingHandler();
-        fluxCapacitor.registerHandlers(handler);
         String payload = "something super secret";
-        fluxCapacitor.commandGateway().sendAndWait(new ConstrainedCommand(payload));
-        assertEquals(payload, handler.getLastCommand().getSensitiveData());
+        var handler = new ValidatingHandler();
+        testFixture.registerHandlers(handler)
+                .when(fc -> FluxCapacitor.sendCommandAndWait(new ConstrainedCommand(payload)))
+                .expectThat(fc -> assertEquals(payload, handler.getLastCommand().getSensitiveData()));
     }
 
     @Test
     void testNullDataIsIgnored() {
         SomeHandler handler = new SomeHandler();
-        fluxCapacitor.registerHandlers(handler);
-        fluxCapacitor.eventGateway().publish(new SomeEvent(null));
-        assertNull(handler.getLastEvent().getSensitiveData());
-        assertFalse(handler.getLastMetadata().containsKey(DataProtectionInterceptor.METADATA_KEY));
+        testFixture.registerHandlers(handler)
+                .when(fc -> FluxCapacitor.publishEvent(new SomeEvent(null)))
+                .expectEvents(new SomeEvent(null))
+                .expectThat(fc -> {
+                    assertNull(handler.getLastEvent().getSensitiveData());
+                    assertFalse(handler.getLastMetadata().containsKey(DataProtectionInterceptor.METADATA_KEY));
+                });
     }
 
     @Value
@@ -106,7 +104,6 @@ class DataProtectionInterceptorTest {
     }
 
     @Getter
-    @LocalHandler
     private static class SomeHandler {
         private SomeEvent lastEvent;
         private Metadata lastMetadata;
@@ -121,7 +118,6 @@ class DataProtectionInterceptorTest {
     }
 
     @Getter
-    @LocalHandler
     private static class ValidatingHandler {
         private ConstrainedCommand lastCommand;
 
@@ -132,7 +128,6 @@ class DataProtectionInterceptorTest {
     }
 
     @Getter
-    @LocalHandler
     private static class DroppingHandler {
         private SomeEvent lastEvent;
 

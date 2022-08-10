@@ -154,8 +154,7 @@ public class JsonUtils {
     }
 
     public static <T> T convertValue(Object fromValue, Class<? extends T> toValueType) {
-        return (JsonNode.class.isAssignableFrom(toValueType) ? writer : reader)
-                .convertValue(fromValue, toValueType);
+        return writer.convertValue(fromValue, toValueType);
     }
 
     @SneakyThrows

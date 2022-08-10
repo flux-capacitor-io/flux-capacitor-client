@@ -155,7 +155,7 @@ public class TestFixture implements Given, When {
     @Accessors(chain = true, fluent = true)
     private Duration consumerTimeout = defaultConsumerTimeout;
     private final boolean synchronous;
-    private final Registration registration;
+    private Registration registration = Registration.noOp();
     private final GivenWhenThenInterceptor interceptor;
 
     private final Map<ConsumerConfiguration, List<Message>> consumers = new ConcurrentHashMap<>();
@@ -181,17 +181,17 @@ public class TestFixture implements Given, When {
                         .build(new TestClient(client)));
         withClock(Clock.fixed(Instant.now(), ZoneId.systemDefault()));
         withIdentityProvider(new PredictableIdFactory());
-        this.registration = registerHandlers(handlerFactory.apply(fluxCapacitor));
+        registerHandlers(handlerFactory.apply(fluxCapacitor));
     }
 
-    public Registration registerHandlers(Object... handlers) {
+    public TestFixture registerHandlers(Object... handlers) {
         return registerHandlers(Arrays.asList(handlers));
     }
 
     @SuppressWarnings("ResultOfMethodCallIgnored")
-    public Registration registerHandlers(List<?> handlers) {
+    public TestFixture registerHandlers(List<?> handlers) {
         if (handlers.isEmpty()) {
-            return Registration.noOp();
+            return this;
         }
         handlers.stream().collect(toMap(Object::getClass, Function.identity(), (a, b) -> {
             log.warn("Handler of type {} is registered more than once. Please make sure this is intentional.",
@@ -199,11 +199,12 @@ public class TestFixture implements Given, When {
             return a;
         }));
         if (!synchronous) {
-            return getFluxCapacitor().registerHandlers(handlers);
+            getFluxCapacitor().registerHandlers(handlers);
+            return this;
         }
         FluxCapacitor fluxCapacitor = getFluxCapacitor();
         BiPredicate<Class<?>, Executable> handlerFilter = (c, e) -> true;
-        Registration registration = fluxCapacitor.apply(f -> handlers.stream().flatMap(h -> Stream
+        var registration = fluxCapacitor.apply(f -> handlers.stream().flatMap(h -> Stream
                         .of(fluxCapacitor.commandGateway().registerHandler(h, handlerFilter),
                             fluxCapacitor.queryGateway().registerHandler(h, handlerFilter),
                             fluxCapacitor.eventGateway().registerHandler(h, handlerFilter),
@@ -213,13 +214,14 @@ public class TestFixture implements Given, When {
                 .reduce(Registration::merge).orElse(Registration.noOp()));
         if (fluxCapacitor.scheduler() instanceof DefaultScheduler) {
             DefaultScheduler scheduler = (DefaultScheduler) fluxCapacitor.scheduler();
-            registration = registration.merge(fluxCapacitor.apply(fc -> handlers.stream().flatMap(h -> Stream
+            registration.merge(fluxCapacitor.apply(fc -> handlers.stream().flatMap(h -> Stream
                             .of(scheduler.registerHandler(h, handlerFilter)))
                     .reduce(Registration::merge).orElse(Registration.noOp())));
         } else {
             log.warn("Could not register local schedule handlers");
         }
-        return registration;
+        this.registration = Optional.ofNullable(this.registration).map(r -> r.merge(registration)).orElse(registration);
+        return this;
     }
 
     /*
@@ -474,8 +476,7 @@ public class TestFixture implements Given, When {
                         .removeExpiredSchedules(getFluxCapacitor().serializer());
                 if (getFluxCapacitor().scheduler() instanceof DefaultScheduler) {
                     DefaultScheduler scheduler = (DefaultScheduler) getFluxCapacitor().scheduler();
-                    expiredSchedules.forEach(s -> scheduler.handleLocally(
-                            s, s.serialize(getFluxCapacitor().serializer())));
+                    expiredSchedules.forEach(scheduler::handleLocally);
                 }
             }
         }

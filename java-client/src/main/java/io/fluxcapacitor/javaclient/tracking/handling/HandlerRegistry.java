@@ -15,8 +15,8 @@
 package io.fluxcapacitor.javaclient.tracking.handling;
 
 import io.fluxcapacitor.common.Registration;
-import io.fluxcapacitor.common.api.SerializedMessage;
 import io.fluxcapacitor.javaclient.common.Message;
+import io.fluxcapacitor.javaclient.common.serialization.DeserializingMessage;
 import lombok.AllArgsConstructor;
 
 import java.lang.reflect.Executable;
@@ -26,7 +26,7 @@ import java.util.function.BiPredicate;
 
 public interface HandlerRegistry extends HasLocalHandlers {
 
-    Optional<CompletableFuture<Message>> handle(Object payload, SerializedMessage serializedMessage);
+    Optional<CompletableFuture<Message>> handle(DeserializingMessage message);
 
     default HandlerRegistry merge(HandlerRegistry next) {
         return new MergedHandlerRegistry(this, next);
@@ -37,9 +37,9 @@ public interface HandlerRegistry extends HasLocalHandlers {
         private final HandlerRegistry first, second;
 
         @Override
-        public Optional<CompletableFuture<Message>> handle(Object payload, SerializedMessage serializedMessage) {
-            Optional<CompletableFuture<Message>> firstResult = first.handle(payload, serializedMessage);
-            Optional<CompletableFuture<Message>> secondResult = second.handle(payload, serializedMessage);
+        public Optional<CompletableFuture<Message>> handle(DeserializingMessage message) {
+            Optional<CompletableFuture<Message>> firstResult = first.handle(message);
+            Optional<CompletableFuture<Message>> secondResult = second.handle(message);
             return firstResult.isPresent() ? secondResult.map(messageCompletableFuture -> firstResult.get()
                     .thenCombine(messageCompletableFuture, (a, b) -> a)).or(() -> firstResult) : secondResult;
         }

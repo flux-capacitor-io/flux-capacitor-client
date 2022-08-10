@@ -145,7 +145,7 @@ public class HandlerInspector {
                     if (target == null && !Modifier.isStatic(executable.getModifiers())) {
                         throw new HandlerNotFoundException(
                                 format("Found instance method on target class %s that can handle the message "
-                                               + "but the target instance is null. Should the method be static?",
+                                       + "but the target instance is null. Should the method be static?",
                                        executable.getDeclaringClass().getSimpleName()));
                     }
                     Object[] arguments = parameterSuppliers.stream().map(s -> s.apply(message)).toArray();
@@ -254,17 +254,23 @@ public class HandlerInspector {
 
         @Override
         public Object invoke(Object target, M message) {
-            Stream<HandlerInvoker<M>> handlerStream = methodHandlers.stream().filter(d -> d.canHandle(target, message));
-            if (invokeMultipleMethods) {
-                return handlerStream.map(h -> h.invoke(target, message)).filter(Objects::nonNull)
-                        .reduce((a, b) -> a instanceof List ? concat(((List<?>) a).stream(), b instanceof Collection<?>
-                                ? ((Collection<?>) b).stream() : Stream.of(b)).collect(toList()) : b).orElse(null);
-            }
-            Optional<HandlerInvoker<M>> delegate = handlerStream.findFirst();
-            if (delegate.isEmpty()) {
-                throw new HandlerNotFoundException(format("No method found on %s that could handle %s", type, message));
-            }
-            return delegate.get().invoke(target, message);
+            return Invocation.performInvocation(() -> {
+                Stream<HandlerInvoker<M>> handlerStream =
+                        methodHandlers.stream().filter(d -> d.canHandle(target, message));
+                if (invokeMultipleMethods) {
+                    return handlerStream.map(h -> h.invoke(target, message)).filter(Objects::nonNull)
+                            .reduce((a, b) -> a instanceof List ?
+                                    concat(((List<?>) a).stream(), b instanceof Collection<?>
+                                            ? ((Collection<?>) b).stream() : Stream.of(b)).collect(toList()) : b)
+                            .orElse(null);
+                }
+                Optional<HandlerInvoker<M>> delegate = handlerStream.findFirst();
+                if (delegate.isEmpty()) {
+                    throw new HandlerNotFoundException(
+                            format("No method found on %s that could handle %s", type, message));
+                }
+                return delegate.get().invoke(target, message);
+            });
         }
 
         @Override
@@ -297,7 +303,7 @@ public class HandlerInspector {
 
         @Override
         public Object invoke(M message) {
-            return Invocation.performInvocation(() -> invoker.invoke(target, message));
+            return invoker.invoke(target, message);
         }
 
         @Override

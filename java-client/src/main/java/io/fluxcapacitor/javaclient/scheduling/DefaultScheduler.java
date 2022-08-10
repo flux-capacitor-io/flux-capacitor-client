@@ -17,6 +17,7 @@ package io.fluxcapacitor.javaclient.scheduling;
 import io.fluxcapacitor.common.Registration;
 import io.fluxcapacitor.common.api.SerializedMessage;
 import io.fluxcapacitor.common.api.scheduling.SerializedSchedule;
+import io.fluxcapacitor.javaclient.common.serialization.DeserializingMessage;
 import io.fluxcapacitor.javaclient.common.serialization.Serializer;
 import io.fluxcapacitor.javaclient.publishing.DispatchInterceptor;
 import io.fluxcapacitor.javaclient.scheduling.client.SchedulingClient;
@@ -69,8 +70,10 @@ public class DefaultScheduler implements Scheduler {
         return localHandlerRegistry.registerHandler(target, handlerFilter);
     }
 
-    public void handleLocally(Schedule schedule, SerializedMessage serializedMessage) {
+    public void handleLocally(Schedule schedule) {
+        var serializedMessage = schedule.serialize(serializer);
         serializedMessage.setIndex(indexFromTimestamp(schedule.getDeadline()));
-        localHandlerRegistry.handle(schedule.getPayload(), serializedMessage);
+        localHandlerRegistry.handle(new DeserializingMessage(
+                serializedMessage, type -> serializer.convert(schedule.getPayload(), type), SCHEDULE));
     }
 }

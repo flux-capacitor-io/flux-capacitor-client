@@ -19,6 +19,7 @@ import io.fluxcapacitor.common.ConsistentHashing;
 import io.fluxcapacitor.common.api.SerializedMessage;
 import io.fluxcapacitor.common.api.modeling.UpdateRelationships;
 import io.fluxcapacitor.common.reflection.ReflectionUtils;
+import io.fluxcapacitor.javaclient.FluxCapacitor;
 import io.fluxcapacitor.javaclient.common.Message;
 import io.fluxcapacitor.javaclient.common.serialization.DeserializingMessage;
 import io.fluxcapacitor.javaclient.common.serialization.Serializer;
@@ -64,12 +65,12 @@ public class DefaultEventStore implements EventStore {
                             = dispatchInterceptor.modifySerializedMessage(m.serialize(serializer), m, EVENT);
                     deserializingMessage = new DeserializingMessage(serializedMessage, type -> m.getPayload(), EVENT);
                 } else {
-                    Message m = Message.asMessage(e);
-                    deserializingMessage = new DeserializingMessage(
-                            m.serialize(serializer), type -> m.getPayload(), EVENT);
+                    deserializingMessage = new DeserializingMessage(Message.asMessage(e), EVENT, serializer);
                 }
                 messages.add(deserializingMessage);
             });
+            FluxCapacitor.getOptionally().ifPresent(
+                    fc -> messages.forEach(e -> e.getSerializedObject().setSource(fc.client().id())));
             result = client.storeEvents(aggregateId,
                                         messages.stream().map(m -> m.getSerializedObject().getSegment() == null ?
                                                         m.getSerializedObject().withSegment(segment) : m.getSerializedObject())
@@ -78,7 +79,7 @@ public class DefaultEventStore implements EventStore {
             throw new EventSourcingException(format("Failed to store events %s for aggregate %s", events.stream().map(
                     DefaultEventStore::payloadName).collect(toList()), aggregateId), e);
         }
-        messages.forEach(m -> localHandlerRegistry.handle(m.getPayload(), m.getSerializedObject()));
+        messages.forEach(localHandlerRegistry::handle);
         return result;
     }
 

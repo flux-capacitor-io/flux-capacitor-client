@@ -25,12 +25,9 @@ import io.fluxcapacitor.javaclient.tracking.handling.HandleQuery;
 import lombok.Value;
 import org.junit.jupiter.api.Test;
 
-import java.util.ArrayList;
-import java.util.List;
+import java.util.function.Predicate;
 
 import static java.lang.Long.parseLong;
-import static java.util.Collections.singletonList;
-import static java.util.Optional.ofNullable;
 
 public class GivenWhenThenCorrelationTest {
     private static final String aggregateId = "test";
@@ -38,50 +35,42 @@ public class GivenWhenThenCorrelationTest {
 
     @Test
     void testDefaultCorrelationData() {
-        testFixture.givenCommands(new CreateModel())
-                .whenQuery(new GetModel())
-                .<TestModel>expectResult(r -> r.getEventMetadata().size() == 1 &&
-                        ofNullable(r.getEventMetadata().get(0))
-                                .map(m -> m.get("$consumer").equals(m.get("$clientName") + "_COMMAND")
-                                        && parseLong(m.get("$correlationId")) == parseLong(m.get("$traceId"))
-                                        && m.get("$trigger").equals(CreateModel.class.getName())
-                                ).orElse(false));
+        testFixture.whenCommand(new CreateModel())
+                .expectEvents((Predicate<Message>) e -> {
+                    Metadata m = e.getMetadata();
+                    return m.get("$consumer").equals(m.get("$clientName") + "_COMMAND")
+                           && parseLong(m.get("$correlationId")) == parseLong(m.get("$traceId"))
+                           && m.get("$trigger").equals(CreateModel.class.getName());
+                });
     }
 
     @Test
     void testDefaultCorrelationDataAfterTwoSteps() {
-        testFixture.givenCommands(new CreateModelInTwoSteps())
-                .whenQuery(new GetModel())
-                .<TestModel>expectResult(r -> r.getEventMetadata().size() == 1 &&
-                        ofNullable(r.getEventMetadata().get(0))
-                                .map(m -> m.get("$consumer").equals(m.get("$clientName") + "_COMMAND")
-                                        && parseLong(m.get("$correlationId")) > parseLong(m.get("$traceId"))
-                                        && m.get("$trigger").equals(CreateModel.class.getName())
-                                ).orElse(false));
+        testFixture.whenCommand(new CreateModelInTwoSteps())
+                .expectEvents((Predicate<Message>) e -> {
+                    Metadata m = e.getMetadata();
+                    return m.get("$consumer").equals(m.get("$clientName") + "_COMMAND")
+                           && parseLong(m.get("$correlationId")) > parseLong(m.get("$traceId"))
+                           && m.get("$trigger").equals(CreateModel.class.getName());
+                });
     }
 
     @Test
     void testCustomTrace() {
-        testFixture.givenCommands(new Message(new CreateModel(), Metadata.empty().withTrace("userName", "myself")))
-                .whenQuery(new GetModel())
-                .<TestModel>expectResult(r -> r.getEventMetadata().size() == 1 &&
-                        ofNullable(r.getEventMetadata().get(0))
-                                .map(m -> m.get("$trace.userName").equals("myself")).orElse(false));
+        testFixture.whenCommand(new Message(new CreateModel(), Metadata.empty().withTrace("userName", "myself")))
+                .expectEvents((Predicate<Message>) e -> e.getMetadata().get("$trace.userName").equals("myself"));
     }
 
     @Test
     void testCustomTraceInTwoSteps() {
-        testFixture.givenCommands(new Message(new CreateModelInTwoSteps(), Metadata.empty().withTrace("userName", "myself")))
-                .whenQuery(new GetModel())
-                .<TestModel>expectResult(r -> r.getEventMetadata().size() == 1 &&
-                        ofNullable(r.getEventMetadata().get(0))
-                                .map(m -> m.get("$trace.userName").equals("myself")).orElse(false));
+        testFixture.whenCommand(new Message(new CreateModelInTwoSteps(), Metadata.empty().withTrace("userName", "myself")))
+                .expectEvents((Predicate<Message>) e -> e.getMetadata().get("$trace.userName").equals("myself"));
     }
 
     private static class Handler {
         @HandleCommand
-        void handle(Metadata metadata, Object command) {
-            FluxCapacitor.loadAggregate(aggregateId, TestModel.class).assertLegal(command).apply(command, metadata);
+        void handle(Object command) {
+            FluxCapacitor.loadAggregate(aggregateId, TestModel.class).assertLegal(command).apply(command);
         }
 
         @HandleCommand
@@ -99,14 +88,10 @@ public class GivenWhenThenCorrelationTest {
     @Aggregate
     @Value
     public static class TestModel {
-        List<Metadata> eventMetadata;
-
         @ApplyEvent
-        public static TestModel handle(CreateModel event, Metadata metadata) {
-            return new TestModel(new ArrayList<>(singletonList(metadata)));
+        public static TestModel handle(CreateModel event) {
+            return new TestModel();
         }
-
-
     }
 
     @Value

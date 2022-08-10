@@ -17,12 +17,13 @@ public class Invocation {
     @Getter(lazy = true)
     String id = UUID.randomUUID().toString();
     transient List<BiConsumer<Object, Throwable>> callbacks = new ArrayList<>();
-    public Invocation previous;
 
     @SneakyThrows
     public static <V> V performInvocation(Callable<V> callable) {
-        Invocation previousInvocation = current.get();
-        Invocation invocation = new Invocation(previousInvocation);
+        if (current.get() != null) {
+            return callable.call();
+        }
+        Invocation invocation = new Invocation();
         current.set(invocation);
         try {
             V result = callable.call();
@@ -32,7 +33,7 @@ public class Invocation {
             invocation.getCallbacks().forEach(c -> c.accept(null, e));
             throw e;
         } finally {
-            current.set(previousInvocation);
+            current.set(null);
         }
     }
 
@@ -41,23 +42,16 @@ public class Invocation {
     }
 
     public static Registration whenHandlerCompletes(BiConsumer<Object, Throwable> callback) {
-        return whenHandlerCompletes(callback, true);
-    }
-
-    public static Registration whenHandlerCompletes(BiConsumer<Object, Throwable> callback, boolean outer) {
         Invocation invocation = current.get();
         if (invocation == null) {
             callback.accept(null, null);
             return Registration.noOp();
         } else {
-            return invocation.registerCallback(callback, outer);
+            return invocation.registerCallback(callback);
         }
     }
 
-    private Registration registerCallback(BiConsumer<Object, Throwable> callback, boolean outer) {
-        if (outer && previous != null) {
-            return previous.registerCallback(callback, true);
-        }
+    private Registration registerCallback(BiConsumer<Object, Throwable> callback) {
         callbacks.add(callback);
         return () -> callbacks.remove(callback);
     }

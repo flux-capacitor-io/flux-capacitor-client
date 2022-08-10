@@ -18,6 +18,7 @@ import io.fluxcapacitor.common.Guarantee;
 import io.fluxcapacitor.common.MessageType;
 import io.fluxcapacitor.common.api.SerializedMessage;
 import io.fluxcapacitor.javaclient.common.Message;
+import io.fluxcapacitor.javaclient.common.serialization.DeserializingMessage;
 import io.fluxcapacitor.javaclient.common.serialization.Serializer;
 import io.fluxcapacitor.javaclient.publishing.client.GatewayClient;
 import io.fluxcapacitor.javaclient.tracking.handling.HandlerRegistry;
@@ -60,11 +61,11 @@ public class DefaultGenericGateway implements GenericGateway {
         List<SerializedMessage> serializedMessages = new ArrayList<>();
         for (Message message : messages) {
             message = dispatchInterceptor.interceptDispatch(message, messageType);
-            SerializedMessage serializedMessage
-                    = dispatchInterceptor.modifySerializedMessage(message.serialize(serializer), message, messageType);
             Optional<CompletableFuture<Message>> localResult
-                    = localHandlerRegistry.handle(message.getPayload(), serializedMessage);
+                    = localHandlerRegistry.handle(new DeserializingMessage(message, messageType, serializer));
             if (localResult.isEmpty()) {
+                SerializedMessage serializedMessage = dispatchInterceptor.modifySerializedMessage(
+                        message.serialize(serializer), message, messageType);
                 serializedMessages.add(serializedMessage);
             } else if (localResult.get().isCompletedExceptionally()) {
                 try {
@@ -89,15 +90,16 @@ public class DefaultGenericGateway implements GenericGateway {
         List<Object> results = new ArrayList<>(messages.length);
         for (Message message : messages) {
             message = dispatchInterceptor.interceptDispatch(message, messageType);
-            SerializedMessage serializedMessage
-                    = dispatchInterceptor.modifySerializedMessage(message.serialize(serializer), message, messageType);
             Optional<CompletableFuture<Message>> localResult
-                    = localHandlerRegistry.handle(message.getPayload(), serializedMessage);
+                    = localHandlerRegistry.handle(new DeserializingMessage(message, messageType, serializer));
             if (localResult.isPresent()) {
                 CompletableFuture<Message> c = localResult.get();
-                callbacks.put(serializedMessage.getMessageId(), c);
-                results.add(c.whenComplete((m, e) -> callbacks.remove(serializedMessage.getMessageId())));
+                String messageId = message.getMessageId();
+                callbacks.put(messageId, c);
+                results.add(c.whenComplete((m, e) -> callbacks.remove(messageId)));
             } else {
+                SerializedMessage serializedMessage = dispatchInterceptor.modifySerializedMessage(
+                        message.serialize(serializer), message, messageType);
                 results.add(serializedMessage);
             }
         }

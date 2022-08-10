@@ -2,7 +2,6 @@ package io.fluxcapacitor.javaclient.persisting.repository;
 
 import io.fluxcapacitor.common.api.modeling.Relationship;
 import io.fluxcapacitor.common.reflection.ReflectionUtils;
-import io.fluxcapacitor.javaclient.FluxCapacitor;
 import io.fluxcapacitor.javaclient.common.serialization.DeserializingMessage;
 import io.fluxcapacitor.javaclient.common.serialization.Serializer;
 import io.fluxcapacitor.javaclient.modeling.Aggregate;
@@ -255,8 +254,6 @@ public class DefaultAggregateRepository implements AggregateRepository {
                         }));
                 eventStore.updateRelationships(associations, dissociations).awaitSilently();
                 if (!unpublishedEvents.isEmpty()) {
-                    FluxCapacitor.getOptionally().ifPresent(
-                            fc -> unpublishedEvents.forEach(e -> e.getSerializedObject().setSource(fc.client().id())));
                     eventStore.storeEvents(after.id().toString(), new ArrayList<>(unpublishedEvents)).awaitSilently();
                     if (snapshotTrigger.shouldCreateSnapshot(after, unpublishedEvents)) {
                         snapshotStore.storeSnapshot(after);

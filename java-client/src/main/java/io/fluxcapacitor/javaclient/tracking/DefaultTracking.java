@@ -19,6 +19,7 @@ import io.fluxcapacitor.common.ObjectUtils;
 import io.fluxcapacitor.common.Registration;
 import io.fluxcapacitor.common.api.SerializedMessage;
 import io.fluxcapacitor.common.handling.Handler;
+import io.fluxcapacitor.common.handling.Invocation;
 import io.fluxcapacitor.javaclient.FluxCapacitor;
 import io.fluxcapacitor.javaclient.common.ClientUtils;
 import io.fluxcapacitor.javaclient.common.exception.FunctionalException;
@@ -162,7 +163,7 @@ public class DefaultTracking implements Tracking {
         Exception exception = null;
         Object result;
         try {
-            result = handler.invoke(message);
+            result = Invocation.performInvocation(() -> handler.invoke(message));
         } catch (FunctionalException e) {
             result = e;
             exception = e;

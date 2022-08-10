@@ -194,6 +194,14 @@ class EventSourcingRepositoryTest {
                     .expectResult(new TestModel(Arrays.asList(new CreateModel(), new UpdateModel()), Metadata.empty()));
         }
 
+        @Test
+        void applyMultipleEventsOutsideHandler() {
+            testFixture.givenCommands(new CreateModel())
+                    .given(fc -> FluxCapacitor.applyEvents(aggregateId, new UpdateModel(), new UpdateModel()))
+                    .whenQuery(new GetModel())
+                    .expectResult(new TestModel(Arrays.asList(new CreateModel(), new UpdateModel(), new UpdateModel()), Metadata.empty()));
+        }
+
         private class Handler {
             @HandleCommand
             void handle(Object command, Metadata metadata) {

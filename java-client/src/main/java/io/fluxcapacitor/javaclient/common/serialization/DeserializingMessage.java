@@ -18,8 +18,10 @@ import io.fluxcapacitor.common.MessageType;
 import io.fluxcapacitor.common.api.Metadata;
 import io.fluxcapacitor.common.api.SerializedMessage;
 import io.fluxcapacitor.common.handling.ParameterResolver;
+import io.fluxcapacitor.common.serialization.JsonUtils;
 import io.fluxcapacitor.javaclient.common.Message;
 import io.fluxcapacitor.javaclient.scheduling.Schedule;
+import io.fluxcapacitor.javaclient.tracking.IndexUtils;
 import io.fluxcapacitor.javaclient.tracking.handling.DeserializingMessageParameterResolver;
 import io.fluxcapacitor.javaclient.tracking.handling.MessageParameterResolver;
 import io.fluxcapacitor.javaclient.tracking.handling.MetadataParameterResolver;
@@ -31,8 +33,9 @@ import io.fluxcapacitor.javaclient.web.WebResponse;
 import lombok.AccessLevel;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
+import lombok.NonNull;
 import lombok.Value;
-import lombok.experimental.Delegate;
+import lombok.experimental.NonFinal;
 import lombok.extern.slf4j.Slf4j;
 
 import java.time.Instant;
@@ -41,6 +44,7 @@ import java.util.HashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.Spliterator;
 import java.util.Spliterators;
@@ -54,8 +58,8 @@ import static java.util.Optional.ofNullable;
 import static java.util.stream.Collectors.toList;
 
 @Value
-@AllArgsConstructor
 @Slf4j
+@AllArgsConstructor(access = AccessLevel.NONE)
 public class DeserializingMessage {
     public static MessageFormatter messageFormatter = MessageFormatter.DEFAULT;
     public static List<ParameterResolver<? super DeserializingMessage>> defaultParameterResolvers =
@@ -68,18 +72,39 @@ public class DeserializingMessage {
     private static final ThreadLocal<Map<Object, Object>> batchResources = new ThreadLocal<>();
     private static final ThreadLocal<DeserializingMessage> current = new ThreadLocal<>();
 
-    @Delegate
+    @Getter(AccessLevel.NONE)
     DeserializingObject<byte[], SerializedMessage> delegate;
     MessageType messageType;
 
-    @Getter(lazy = true, value = AccessLevel.PRIVATE)
-    Message message = asMessage();
+    @Getter(AccessLevel.NONE)
+    @NonFinal
+    Message message;
+
+    @Getter(AccessLevel.NONE)
+    transient Serializer serializer;
+
+    @Getter(AccessLevel.NONE)
+    @NonFinal
+    SerializedMessage serializedMessage;
 
     public DeserializingMessage(SerializedMessage message, Function<Class<?>, Object> payload,
                                 MessageType messageType) {
         this(new DeserializingObject<>(message, payload), messageType);
     }
-    
+
+    public DeserializingMessage(DeserializingObject<byte[], SerializedMessage> delegate, MessageType messageType) {
+        this.delegate = delegate;
+        this.messageType = messageType;
+        this.serializer = null;
+    }
+
+    public DeserializingMessage(@NonNull Message message, MessageType messageType, Serializer serializer) {
+        this.messageType = messageType;
+        this.message = message;
+        this.serializer = serializer;
+        this.delegate = null;
+    }
+
     /*
         Message level
      */
@@ -96,24 +121,37 @@ public class DeserializingMessage {
     }
 
     public Metadata getMetadata() {
-        return delegate.getSerializedObject().getMetadata();
+        return Optional.ofNullable(delegate).map(DeserializingObject::getSerializedObject)
+                .map(SerializedMessage::getMetadata).orElseGet(() -> message.getMetadata());
     }
 
     public String getMessageId() {
-        return getSerializedObject().getMessageId();
+        return Optional.ofNullable(delegate).map(DeserializingObject::getSerializedObject)
+                .map(SerializedMessage::getMessageId).orElseGet(() -> message.getMessageId());
     }
 
     public Long getIndex() {
-        return getSerializedObject().getIndex();
+        return Optional.ofNullable(delegate).map(DeserializingObject::getSerializedObject)
+                .map(SerializedMessage::getIndex).orElseGet(() -> message instanceof Schedule
+                        ? IndexUtils.indexFromTimestamp(((Schedule) message).getDeadline()) : null);
     }
 
     public Instant getTimestamp() {
-        return Instant.ofEpochMilli(getSerializedObject().getTimestamp());
+        return Optional.ofNullable(delegate).map(DeserializingObject::getSerializedObject)
+                .map(SerializedMessage::getTimestamp).map(Instant::ofEpochMilli)
+                .orElseGet(() -> message.getTimestamp());
+    }
+
+    public Message toMessage() {
+        if (message == null) {
+            message = asMessage();
+        }
+        return message;
     }
 
     private Message asMessage() {
         Message message = new Message(getPayload(), getMetadata(), getMessageId(), getTimestamp());
-        switch (getMessageType()) {
+        switch (messageType) {
             case SCHEDULE:
                 return new Schedule(message);
             case WEBREQUEST:
@@ -125,8 +163,39 @@ public class DeserializingMessage {
         }
     }
 
-    public Message toMessage() {
-        return getMessage();
+    public boolean isDeserialized() {
+        return Optional.ofNullable(delegate).map(DeserializingObject::isDeserialized).orElse(true);
+    }
+
+    public <V> V getPayload() {
+        return Optional.ofNullable(delegate).<V>map(DeserializingObject::getPayload)
+                .orElseGet(() -> message.getPayload());
+    }
+
+    public <V> V getPayloadAs(Class<V> type) {
+        return Optional.ofNullable(delegate).map(d -> d.getPayloadAs(type)).orElseGet(
+                () -> JsonUtils.convertValue(message.getPayload(), type));
+    }
+
+    @SuppressWarnings("rawtypes")
+    public Class<?> getPayloadClass() {
+        return Optional.ofNullable(delegate).<Class>map(DeserializingObject::getPayloadClass)
+                .orElseGet(() -> message.getPayloadClass());
+    }
+
+    public String getType() {
+        return Optional.ofNullable(delegate).map(DeserializingObject::getType).orElseGet(
+                () -> message.getPayloadClass().getName());
+    }
+
+    public SerializedMessage getSerializedObject() {
+        if (delegate != null) {
+            return delegate.getSerializedObject();
+        }
+        if (serializedMessage == null) {
+            serializedMessage = message.serialize(serializer);
+        }
+        return serializedMessage;
     }
 
     public static DeserializingMessage getCurrent() {
