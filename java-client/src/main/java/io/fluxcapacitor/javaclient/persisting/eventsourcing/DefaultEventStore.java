@@ -19,7 +19,6 @@ import io.fluxcapacitor.common.ConsistentHashing;
 import io.fluxcapacitor.common.api.SerializedMessage;
 import io.fluxcapacitor.common.api.modeling.UpdateRelationships;
 import io.fluxcapacitor.common.reflection.ReflectionUtils;
-import io.fluxcapacitor.javaclient.FluxCapacitor;
 import io.fluxcapacitor.javaclient.common.Message;
 import io.fluxcapacitor.javaclient.common.serialization.DeserializingMessage;
 import io.fluxcapacitor.javaclient.common.serialization.Serializer;
@@ -69,8 +68,6 @@ public class DefaultEventStore implements EventStore {
                 }
                 messages.add(deserializingMessage);
             });
-            FluxCapacitor.getOptionally().ifPresent(
-                    fc -> messages.forEach(e -> e.getSerializedObject().setSource(fc.client().id())));
             result = client.storeEvents(aggregateId,
                                         messages.stream().map(m -> m.getSerializedObject().getSegment() == null ?
                                                         m.getSerializedObject().withSegment(segment) : m.getSerializedObject())
