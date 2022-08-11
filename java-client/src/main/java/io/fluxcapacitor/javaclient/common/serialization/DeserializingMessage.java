@@ -44,7 +44,6 @@ import java.util.HashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import java.util.Set;
 import java.util.Spliterator;
 import java.util.Spliterators;
@@ -120,28 +119,6 @@ public class DeserializingMessage {
         return handleBatch(Stream.of(this)).map(action).collect(toList()).get(0);
     }
 
-    public Metadata getMetadata() {
-        return Optional.ofNullable(delegate).map(DeserializingObject::getSerializedObject)
-                .map(SerializedMessage::getMetadata).orElseGet(() -> message.getMetadata());
-    }
-
-    public String getMessageId() {
-        return Optional.ofNullable(delegate).map(DeserializingObject::getSerializedObject)
-                .map(SerializedMessage::getMessageId).orElseGet(() -> message.getMessageId());
-    }
-
-    public Long getIndex() {
-        return Optional.ofNullable(delegate).map(DeserializingObject::getSerializedObject)
-                .map(SerializedMessage::getIndex).orElseGet(() -> message instanceof Schedule
-                        ? IndexUtils.indexFromTimestamp(((Schedule) message).getDeadline()) : null);
-    }
-
-    public Instant getTimestamp() {
-        return Optional.ofNullable(delegate).map(DeserializingObject::getSerializedObject)
-                .map(SerializedMessage::getTimestamp).map(Instant::ofEpochMilli)
-                .orElseGet(() -> message.getTimestamp());
-    }
-
     public Message toMessage() {
         if (message == null) {
             message = asMessage();
@@ -163,29 +140,53 @@ public class DeserializingMessage {
         }
     }
 
+    public Metadata getMetadata() {
+        return ofNullable(delegate).map(DeserializingObject::getSerializedObject)
+                .map(SerializedMessage::getMetadata)
+                .or(() -> ofNullable(message).map(Message::getMetadata)).orElse(null);
+    }
+
+    public String getMessageId() {
+        return ofNullable(delegate).map(DeserializingObject::getSerializedObject)
+                .map(SerializedMessage::getMessageId)
+                .or(() -> ofNullable(message).map(Message::getMessageId)).orElse(null);
+    }
+
+    public Long getIndex() {
+        return ofNullable(delegate).map(DeserializingObject::getSerializedObject)
+                .map(SerializedMessage::getIndex).orElseGet(() -> message instanceof Schedule
+                        ? IndexUtils.indexFromTimestamp(((Schedule) message).getDeadline()) : null);
+    }
+
+    public Instant getTimestamp() {
+        return ofNullable(delegate).map(DeserializingObject::getSerializedObject)
+                .map(SerializedMessage::getTimestamp).map(Instant::ofEpochMilli)
+                .or(() -> ofNullable(message).map(Message::getTimestamp)).orElse(null);
+    }
+
     public boolean isDeserialized() {
-        return Optional.ofNullable(delegate).map(DeserializingObject::isDeserialized).orElse(true);
+        return ofNullable(delegate).map(DeserializingObject::isDeserialized).orElse(true);
     }
 
     public <V> V getPayload() {
-        return Optional.ofNullable(delegate).<V>map(DeserializingObject::getPayload)
-                .orElseGet(() -> message.getPayload());
+        return ofNullable(delegate).<V>map(DeserializingObject::getPayload)
+                .or(() -> ofNullable(message).map(Message::getPayload)).orElse(null);
     }
 
     public <V> V getPayloadAs(Class<V> type) {
-        return Optional.ofNullable(delegate).map(d -> d.getPayloadAs(type)).orElseGet(
-                () -> JsonUtils.convertValue(message.getPayload(), type));
+        return ofNullable(delegate).map(d -> d.getPayloadAs(type))
+                .or(() -> ofNullable(message).map(m -> JsonUtils.convertValue(m.getPayload(), type))).orElse(null);
     }
 
     @SuppressWarnings("rawtypes")
     public Class<?> getPayloadClass() {
-        return Optional.ofNullable(delegate).<Class>map(DeserializingObject::getPayloadClass)
-                .orElseGet(() -> message.getPayloadClass());
+        return ofNullable(delegate).<Class>map(DeserializingObject::getPayloadClass)
+                .or(() -> ofNullable(message).map(Message::getPayloadClass)).orElse(null);
     }
 
     public String getType() {
-        return Optional.ofNullable(delegate).map(DeserializingObject::getType).orElseGet(
-                () -> message.getPayloadClass().getName());
+        return ofNullable(delegate).map(DeserializingObject::getType)
+                .or(() -> ofNullable(message).map(m -> m.getPayloadClass().getName())).orElse(null);
     }
 
     public SerializedMessage getSerializedObject() {
