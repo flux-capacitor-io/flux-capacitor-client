@@ -235,6 +235,15 @@ class GivenWhenThenSchedulingTest {
                 .expectNewSchedules(PeriodicScheduleFromInterface.class);
     }
 
+    @Test
+    void testGetSchedule() {
+        Schedule schedule = new Schedule(new YieldsCommand("bla"), "test",
+                                         subject.getClock().instant().plusSeconds(10));
+        subject.givenSchedules(schedule)
+                .whenApplying(fc -> fc.scheduler().getSchedule("test").orElse(null))
+                .expectResult(schedule);
+    }
+
     static class CommandHandler {
         @HandleCommand
         void handle(YieldsSchedule command) {

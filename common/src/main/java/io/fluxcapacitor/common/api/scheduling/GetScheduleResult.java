@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016-2020 Flux Capacitor.
+ * Copyright (c) 2016-2021 Flux Capacitor.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -12,19 +12,14 @@
  * limitations under the License.
  */
 
-package io.fluxcapacitor.javaclient.scheduling.client;
+package io.fluxcapacitor.common.api.scheduling;
 
-import io.fluxcapacitor.common.Awaitable;
-import io.fluxcapacitor.common.api.scheduling.SerializedSchedule;
+import io.fluxcapacitor.common.api.QueryResult;
+import lombok.Value;
 
-public interface SchedulingClient extends AutoCloseable {
-
-    Awaitable schedule(SerializedSchedule... schedules);
-
-    Awaitable cancelSchedule(String scheduleId);
-
-    SerializedSchedule getSchedule(String scheduleId);
-
-    @Override
-    void close();
+@Value
+public class GetScheduleResult implements QueryResult {
+    long requestId;
+    SerializedSchedule schedule;
+    long timestamp = System.currentTimeMillis();
 }

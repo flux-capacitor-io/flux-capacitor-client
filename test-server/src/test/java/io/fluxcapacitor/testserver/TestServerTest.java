@@ -18,6 +18,7 @@ import io.fluxcapacitor.javaclient.FluxCapacitor;
 import io.fluxcapacitor.javaclient.configuration.client.WebSocketClient;
 import io.fluxcapacitor.javaclient.persisting.search.DocumentStore;
 import io.fluxcapacitor.javaclient.persisting.search.client.WebSocketSearchClient;
+import io.fluxcapacitor.javaclient.scheduling.Schedule;
 import io.fluxcapacitor.javaclient.test.TestFixture;
 import io.fluxcapacitor.javaclient.test.spring.FluxCapacitorTestConfig;
 import io.fluxcapacitor.javaclient.tracking.handling.HandleCommand;
@@ -36,7 +37,6 @@ import org.springframework.test.context.ContextConfiguration;
 import org.springframework.test.context.junit.jupiter.SpringExtension;
 
 import java.util.List;
-import java.util.concurrent.CompletableFuture;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
@@ -82,6 +82,16 @@ class TestServerTest {
         }
     }
 
+    @Test
+    void testGetSchedule() {
+        Schedule schedule = new Schedule("bla", "test",
+                                         testFixture.getClock().instant().plusSeconds(10));
+        testFixture.givenSchedules(schedule)
+                .given(fc -> sleepAWhile())
+                .whenApplying(fc -> fc.scheduler().getSchedule("test").orElse(null))
+                .expectResult(schedule);
+    }
+
     @Configuration
     static class FooConfig {
         @Bean
@@ -103,11 +113,6 @@ class TestServerTest {
         @HandleCommand
         public void handle(DoSomething command) {
             FluxCapacitor.publishEvent(command);
-        }
-
-        @HandleCommand
-        public CompletableFuture<?> handle(SlowCommand command) {
-            return CompletableFuture.runAsync(TestServerTest::sleepAWhile);
         }
     }
 
@@ -134,13 +139,9 @@ class TestServerTest {
     private static class DoSomethingElse {
     }
 
-    @Value
-    private static class SlowCommand {
-    }
-
     @SneakyThrows
     private static void sleepAWhile() {
-        Thread.sleep(500);
+        Thread.sleep(100);
     }
 
 }

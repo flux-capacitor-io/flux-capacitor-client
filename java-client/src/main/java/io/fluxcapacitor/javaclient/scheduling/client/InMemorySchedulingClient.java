@@ -34,6 +34,7 @@ import java.util.stream.Stream;
 
 import static io.fluxcapacitor.common.MessageType.SCHEDULE;
 import static io.fluxcapacitor.javaclient.tracking.IndexUtils.indexFromMillis;
+import static io.fluxcapacitor.javaclient.tracking.IndexUtils.millisFromIndex;
 import static io.fluxcapacitor.javaclient.tracking.IndexUtils.timestampFromIndex;
 import static java.util.stream.Collectors.toList;
 
@@ -64,7 +65,8 @@ public class InMemorySchedulingClient extends InMemoryMessageStore implements Sc
             }
             schedule.getMessage().setIndex(index);
         }
-        super.send(Guarantee.SENT, filtered.stream().map(SerializedSchedule::getMessage).toArray(SerializedMessage[]::new));
+        super.send(Guarantee.SENT,
+                   filtered.stream().map(SerializedSchedule::getMessage).toArray(SerializedMessage[]::new));
         return Awaitable.ready();
     }
 
@@ -72,6 +74,15 @@ public class InMemorySchedulingClient extends InMemoryMessageStore implements Sc
     public Awaitable cancelSchedule(String scheduleId) {
         scheduleIdsByIndex.values().removeIf(s -> s.equals(scheduleId));
         return Awaitable.ready();
+    }
+
+    @Override
+    public SerializedSchedule getSchedule(String scheduleId) {
+        return scheduleIdsByIndex.entrySet().stream().filter(e -> scheduleId.equals(e.getValue())).findFirst()
+                .map(e -> {
+                    SerializedMessage message = getMessage(e.getKey());
+                    return new SerializedSchedule(scheduleId, millisFromIndex(e.getKey()), message, false);
+                }).orElse(null);
     }
 
     @Override
@@ -103,9 +114,9 @@ public class InMemorySchedulingClient extends InMemoryMessageStore implements Sc
     public List<Schedule> getSchedules(Serializer serializer) {
         return scheduleIdsByIndex.entrySet().stream().map(e -> {
             SerializedMessage m = getMessage(e.getKey());
-                return new Schedule(
-                        serializer.deserializeMessages(Stream.of(m), SCHEDULE).findFirst().get().getPayload(),
-                        m.getMetadata(), e.getValue(), timestampFromIndex(e.getKey()));
+            return new Schedule(
+                    serializer.deserializeMessages(Stream.of(m), SCHEDULE).findFirst().get().getPayload(),
+                    m.getMetadata(), e.getValue(), timestampFromIndex(e.getKey()));
         }).collect(toList());
     }
 }

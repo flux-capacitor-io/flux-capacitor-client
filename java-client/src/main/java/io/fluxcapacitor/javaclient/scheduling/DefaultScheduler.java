@@ -25,7 +25,10 @@ import io.fluxcapacitor.javaclient.tracking.handling.HandlerRegistry;
 import lombok.AllArgsConstructor;
 
 import java.lang.reflect.Executable;
+import java.time.Instant;
+import java.util.Optional;
 import java.util.function.BiPredicate;
+import java.util.stream.Stream;
 
 import static io.fluxcapacitor.common.MessageType.SCHEDULE;
 import static io.fluxcapacitor.javaclient.tracking.IndexUtils.indexFromTimestamp;
@@ -60,6 +63,15 @@ public class DefaultScheduler implements Scheduler {
         } catch (Exception e) {
             throw new SchedulerException(String.format("Failed to cancel schedule with id %s", scheduleId), e);
         }
+    }
+
+    @Override
+    public Optional<Schedule> getSchedule(String scheduleId) {
+        return Optional.ofNullable(client.getSchedule(scheduleId)).flatMap(
+                s -> serializer.deserializeMessages(Stream.of(s.getMessage()), SCHEDULE).findFirst()
+                        .map(DeserializingMessage::toMessage).map(
+                                m -> new Schedule(m.getPayload(), m.getMetadata(), m.getMessageId(), m.getTimestamp(),
+                                                  s.getScheduleId(), Instant.ofEpochMilli(s.getTimestamp()))));
     }
 
     /*

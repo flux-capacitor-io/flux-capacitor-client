@@ -32,6 +32,8 @@ import io.fluxcapacitor.common.api.modeling.GetAggregateIdsResult;
 import io.fluxcapacitor.common.api.modeling.UpdateRelationships;
 import io.fluxcapacitor.common.api.publishing.Append;
 import io.fluxcapacitor.common.api.scheduling.CancelSchedule;
+import io.fluxcapacitor.common.api.scheduling.GetSchedule;
+import io.fluxcapacitor.common.api.scheduling.GetScheduleResult;
 import io.fluxcapacitor.common.api.scheduling.Schedule;
 import io.fluxcapacitor.common.api.search.BulkUpdateDocuments;
 import io.fluxcapacitor.common.api.search.CreateAuditTrail;
@@ -100,6 +102,8 @@ import io.fluxcapacitor.common.api.tracking.StorePosition;
         //scheduling
         @JsonSubTypes.Type(value = Schedule.class, name = "schedule"),
         @JsonSubTypes.Type(value = CancelSchedule.class, name = "cancelSchedule"),
+        @JsonSubTypes.Type(value = GetSchedule.class, name = "getSchedule"),
+        @JsonSubTypes.Type(value = GetScheduleResult.class, name = "getScheduleResult"),
 
         //key-value
         @JsonSubTypes.Type(value = StoreValues.class, name = "storeValues"),

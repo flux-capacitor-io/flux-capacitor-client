@@ -18,6 +18,8 @@ import io.fluxcapacitor.common.Awaitable;
 import io.fluxcapacitor.common.Backlog;
 import io.fluxcapacitor.common.MessageType;
 import io.fluxcapacitor.common.api.scheduling.CancelSchedule;
+import io.fluxcapacitor.common.api.scheduling.GetSchedule;
+import io.fluxcapacitor.common.api.scheduling.GetScheduleResult;
 import io.fluxcapacitor.common.api.scheduling.Schedule;
 import io.fluxcapacitor.common.api.scheduling.SerializedSchedule;
 import io.fluxcapacitor.javaclient.common.websocket.AbstractWebsocketClient;
@@ -53,5 +55,10 @@ public class WebsocketSchedulingClient extends AbstractWebsocketClient implement
     @Override
     public Awaitable cancelSchedule(String scheduleId) {
         return sendAndForget(new CancelSchedule(scheduleId));
+    }
+
+    @Override
+    public SerializedSchedule getSchedule(String scheduleId) {
+        return this.<GetScheduleResult>sendAndWait(new GetSchedule(scheduleId)).getSchedule();
     }
 }

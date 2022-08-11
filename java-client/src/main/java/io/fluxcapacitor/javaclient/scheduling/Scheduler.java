@@ -20,6 +20,7 @@ import io.fluxcapacitor.javaclient.common.Message;
 
 import java.time.Duration;
 import java.time.Instant;
+import java.util.Optional;
 
 import static io.fluxcapacitor.javaclient.FluxCapacitor.currentClock;
 
@@ -65,4 +66,5 @@ public interface Scheduler {
 
     void cancelSchedule(String scheduleId);
 
+    Optional<Schedule> getSchedule(String scheduleId);
 }
