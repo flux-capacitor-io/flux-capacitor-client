@@ -14,6 +14,8 @@
 
 package io.fluxcapacitor.common.handling;
 
+import io.fluxcapacitor.common.reflection.DefaultMemberInvoker;
+import io.fluxcapacitor.common.reflection.MemberInvoker;
 import io.fluxcapacitor.common.reflection.ReflectionUtils;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
@@ -24,9 +26,10 @@ import lombok.extern.slf4j.Slf4j;
 import java.lang.annotation.Annotation;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Executable;
-import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
+import java.lang.reflect.Parameter;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Comparator;
@@ -92,6 +95,10 @@ public class HandlerInspector {
 
         private final int methodIndex;
         private final Executable executable;
+        private final Parameter[] parameters;
+        private final int parameterCount;
+        private final boolean staticMethod;
+        private final MemberInvoker invoker;
         private final boolean hasReturnValue;
         private final List<ParameterSupplier<? super M>> parameterSuppliers;
         private final Class<?> classForSpecificity;
@@ -105,15 +112,19 @@ public class HandlerInspector {
                                     HandlerConfiguration<? super M> config) {
             this.methodIndex = executable instanceof Method ? methodIndex((Method) executable, enclosingType) : 0;
             this.executable = ensureAccessible(executable);
+            this.parameters = this.executable.getParameters();
+            this.parameterCount = this.parameters.length;
+            this.staticMethod = Modifier.isStatic(this.executable.getModifiers());
             this.hasReturnValue =
                     !(executable instanceof Method) || !(((Method) executable).getReturnType()).equals(void.class);
             this.methodAnnotation = config.getAnnotation(executable).orElse(null);
-            this.parameterSuppliers = getParameterSuppliers(executable, parameterResolvers);
+            this.parameterSuppliers = getParameterSuppliers(parameterResolvers);
             this.classForSpecificity = parameterSuppliers.stream().filter(ParameterSupplier::determinesSpecificity)
                     .map(ParameterSupplier::getSpecificityClass).findFirst().orElse(null);
-            this.matcher = getMatcher(executable, parameterResolvers, config);
+            this.matcher = getMatcher(parameterResolvers, config);
             this.priority = getPriority(methodAnnotation);
             this.passive = isPassive(methodAnnotation);
+            this.invoker = DefaultMemberInvoker.asInvoker(this.executable);
         }
 
         @Override
@@ -122,9 +133,9 @@ public class HandlerInspector {
                 return false;
             }
             if (target == null) {
-                return Modifier.isStatic(executable.getModifiers()) || executable instanceof Constructor;
+                return executable instanceof Constructor || staticMethod;
             }
-            return !Modifier.isStatic(executable.getModifiers()) && executable instanceof Method;
+            return executable instanceof Method && !staticMethod;
         }
 
         @Override
@@ -133,30 +144,28 @@ public class HandlerInspector {
         }
 
         @Override
+        public HandlerInvoker<M> getInvoker(Object target, M message) {
+            return canHandle(target, message) ? this : null;
+        }
+
+        @Override
         public boolean expectResult(Object target, M message) {
             return canHandle(target, message) && hasReturnValue;
         }
 
         @Override
-        @SneakyThrows
         public Object invoke(Object target, M message) {
-            try {
-                if (executable instanceof Method) {
-                    if (target == null && !Modifier.isStatic(executable.getModifiers())) {
-                        throw new HandlerNotFoundException(
-                                format("Found instance method on target class %s that can handle the message "
-                                       + "but the target instance is null. Should the method be static?",
-                                       executable.getDeclaringClass().getSimpleName()));
-                    }
-                    Object[] arguments = parameterSuppliers.stream().map(s -> s.apply(message)).toArray();
-                    return ((Method) executable).invoke(target, arguments);
-                } else {
-                    return ((Constructor<?>) executable)
-                            .newInstance(parameterSuppliers.stream().map(s -> s.apply(message)).toArray());
-                }
-            } catch (InvocationTargetException e) {
-                throw e.getCause();
+            Object[] params = parameterCount == 0 ? MemberInvoker.emptyArray : new Object[parameterCount];
+            for (int i = 0; i < parameterCount; i++) {
+                params[i] = parameterSuppliers.get(i).apply(message);
             }
+            if (target == null && executable instanceof Method && !staticMethod) {
+                throw new HandlerNotFoundException(
+                        format("Found instance method on target class %s that can handle the message "
+                               + "but the target instance is null. Should the method be static?",
+                               executable.getDeclaringClass().getSimpleName()));
+            }
+            return invoker.invoke(target, params);
         }
 
         @Override
@@ -166,20 +175,47 @@ public class HandlerInspector {
         }
 
         protected List<ParameterSupplier<? super M>> getParameterSuppliers(
-                Executable method, List<ParameterResolver<? super M>> resolvers) {
-            return stream(method.getParameters())
-                    .map(p -> resolvers.stream().map(r -> Optional.ofNullable(r.resolve(p, methodAnnotation))
-                                    .map(f -> new ParameterSupplier<>(f, r.determinesSpecificity() ? p.getType() : null))
-                                    .orElse(null)).filter(Objects::nonNull).findFirst()
-                            .orElseThrow(() -> new HandlerException(format("Could not resolve parameter %s", p))))
-                    .collect(toList());
+                List<ParameterResolver<? super M>> resolvers) {
+            List<ParameterSupplier<? super M>> list = new ArrayList<>();
+            for (Parameter p : parameters) {
+                Optional<ParameterSupplier<? super M>> found = Optional.empty();
+                for (ParameterResolver<? super M> r : resolvers) {
+                    ParameterSupplier<? super M> supplier = Optional.ofNullable(r.resolve(p, methodAnnotation))
+                            .map(f -> new ParameterSupplier<>(f, r.determinesSpecificity() ? p.getType() : null))
+                            .orElse(null);
+                    if (supplier != null) {
+                        found = Optional.of(supplier);
+                        break;
+                    }
+                }
+                ParameterSupplier<? super M> parameterSupplier =
+                        found.orElseThrow(() -> new HandlerException(format("Could not resolve parameter %s", p)));
+                list.add(parameterSupplier);
+            }
+            return list;
         }
 
-        protected Predicate<M> getMatcher(Executable executable,
-                                          List<ParameterResolver<? super M>> parameterResolvers,
+        protected Predicate<M> getMatcher(List<ParameterResolver<? super M>> parameterResolvers,
                                           HandlerConfiguration<? super M> config) {
-            return m -> config.messageFilter().test(m, methodAnnotation) && stream(executable.getParameters()).allMatch(
-                    p -> parameterResolvers.stream().anyMatch(r -> r.matches(p, methodAnnotation, m)));
+            return m -> {
+                if (!config.messageFilter().test(m, methodAnnotation)) {
+                    return false;
+                }
+                for (int i = 0; i < parameterCount; i++) {
+                    Parameter p = parameters[i];
+                    boolean match = true;
+                    for (ParameterResolver<? super M> r : parameterResolvers) {
+                        if (r.matches(p, methodAnnotation, m)) {
+                            match = false;
+                            break;
+                        }
+                    }
+                    if (match) {
+                        return false;
+                    }
+                }
+                return true;
+            };
         }
 
         protected static int specificity(Class<?> type) {
@@ -238,12 +274,23 @@ public class HandlerInspector {
 
         @Override
         public boolean canHandle(Object target, M message) {
-            return methodHandlers.stream().anyMatch(h -> h.canHandle(target, message));
+            for (HandlerInvoker<M> h : methodHandlers) {
+                if (h.canHandle(target, message)) {
+                    return true;
+                }
+            }
+            return false;
         }
 
         @Override
         public Executable getMethod(Object target, M message) {
             return methodHandlers.stream().map(h -> h.getMethod(target, message)).filter(Objects::nonNull).findAny()
+                    .orElse(null);
+        }
+
+        @Override
+        public HandlerInvoker<M> getInvoker(Object target, M message) {
+            return methodHandlers.stream().map(h -> h.getInvoker(target, message)).filter(Objects::nonNull).findAny()
                     .orElse(null);
         }
 
@@ -254,23 +301,28 @@ public class HandlerInspector {
 
         @Override
         public Object invoke(Object target, M message) {
-            return Invocation.performInvocation(() -> {
-                Stream<HandlerInvoker<M>> handlerStream =
-                        methodHandlers.stream().filter(d -> d.canHandle(target, message));
-                if (invokeMultipleMethods) {
-                    return handlerStream.map(h -> h.invoke(target, message)).filter(Objects::nonNull)
-                            .reduce((a, b) -> a instanceof List ?
-                                    concat(((List<?>) a).stream(), b instanceof Collection<?>
-                                            ? ((Collection<?>) b).stream() : Stream.of(b)).collect(toList()) : b)
-                            .orElse(null);
+            if (invokeMultipleMethods) {
+                List<Object> result = new ArrayList<>();
+                for (HandlerInvoker<M> d : methodHandlers) {
+                    if (d.canHandle(target, message)) {
+                        Object r = d.invoke(target, message);
+                        if (r instanceof Collection<?>) {
+                            result.addAll((Collection<?>) r);
+                        } else if (r != null) {
+                            result.add(r);
+                        }
+                    }
                 }
-                Optional<HandlerInvoker<M>> delegate = handlerStream.findFirst();
-                if (delegate.isEmpty()) {
-                    throw new HandlerNotFoundException(
-                            format("No method found on %s that could handle %s", type, message));
+                return result;
+            }
+
+            for (HandlerInvoker<M> d : methodHandlers) {
+                if (d.canHandle(target, message)) {
+                    return d.invoke(target, message);
                 }
-                return delegate.get().invoke(target, message);
-            });
+            }
+            throw new HandlerNotFoundException(
+                    format("No method found on %s that could handle %s", type, message));
         }
 
         @Override
@@ -294,6 +346,11 @@ public class HandlerInspector {
         @Override
         public Executable getMethod(M message) {
             return invoker.getMethod(target, message);
+        }
+
+        @Override
+        public HandlerInvoker<M> getInvoker(M message) {
+            return invoker.getInvoker(target, message);
         }
 
         @Override

@@ -1,5 +1,7 @@
 package io.fluxcapacitor.javaclient.modeling;
 
+import io.fluxcapacitor.common.reflection.DefaultMemberInvoker;
+import io.fluxcapacitor.common.reflection.MemberInvoker;
 import io.fluxcapacitor.common.reflection.ReflectionUtils;
 import io.fluxcapacitor.javaclient.common.serialization.Serializer;
 import io.fluxcapacitor.javaclient.persisting.eventsourcing.EventSourcingHandlerFactory;
@@ -10,7 +12,6 @@ import lombok.experimental.Accessors;
 import lombok.extern.slf4j.Slf4j;
 
 import java.lang.reflect.AccessibleObject;
-import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.util.Arrays;
 import java.util.Collection;
@@ -25,6 +26,7 @@ import java.util.function.Function;
 import java.util.regex.Pattern;
 import java.util.stream.Stream;
 
+import static io.fluxcapacitor.common.ObjectUtils.memoize;
 import static io.fluxcapacitor.common.ObjectUtils.safelyCall;
 import static io.fluxcapacitor.common.reflection.ReflectionUtils.getAnnotatedProperty;
 import static io.fluxcapacitor.common.reflection.ReflectionUtils.getCollectionElementType;
@@ -33,7 +35,6 @@ import static io.fluxcapacitor.common.reflection.ReflectionUtils.getValue;
 import static io.fluxcapacitor.common.reflection.ReflectionUtils.readProperty;
 import static java.beans.Introspector.decapitalize;
 import static java.util.Optional.empty;
-import static java.util.Optional.ofNullable;
 
 @Slf4j
 public class AnnotatedEntityHolder {
@@ -67,6 +68,10 @@ public class AnnotatedEntityHolder {
                                      l -> new AnnotatedEntityHolder(ownerType, l, handlerFactory, serializer));
     }
 
+    private static final Function<Class<?>, Optional<MemberInvoker>> entityIdInvokerCache = memoize(
+            entityType -> getAnnotatedProperty(
+                    entityType, EntityId.class).map(a -> DefaultMemberInvoker.asInvoker((java.lang.reflect.Member) a)));
+
     private AnnotatedEntityHolder(Class<?> ownerType, AccessibleObject location,
                                   EventSourcingHandlerFactory handlerFactory, Serializer serializer) {
         this.handlerFactory = handlerFactory;
@@ -78,8 +83,8 @@ public class AnnotatedEntityHolder {
         Member member = location.getAnnotation(Member.class);
         String pathToId = member.idProperty();
         this.idProvider = pathToId.isBlank() ?
-                v -> getAnnotatedProperty(v, EntityId.class).map(
-                                p -> new Id(ofNullable(getValue(p, v, false)).orElse(null), getName(p)))
+                v -> (v == null ? Optional.<MemberInvoker>empty() : entityIdInvokerCache.apply(v.getClass())).map(
+                                p -> new Id(p.invoke(v), p.getMember().getName()))
                         .orElseGet(() -> {
                             if (v instanceof Class<?>) {
                                 return new Id(null, getAnnotatedProperty((Class<?>) v, EntityId.class)
@@ -88,21 +93,27 @@ public class AnnotatedEntityHolder {
                             return new Id(null, null);
                         }) :
                 v -> new Id(readProperty(pathToId, v).orElse(null), pathToId);
+        this.wither = computeWither(ownerType, location, serializer, member);
+    }
+
+    private static BiFunction<Object, Object, Object> computeWither(
+            Class<?> ownerType, AccessibleObject location, Serializer serializer, Member member) {
         String propertyName = decapitalize(Optional.of(getName(location)).map(name -> Optional.of(
                         getterPattern.matcher(name)).map(matcher -> matcher.matches() ? matcher.group(2) : name)
                 .orElse(name)).orElseThrow());
         Class<?>[] witherParams = new Class<?>[]{ReflectionUtils.getPropertyType(location)};
-        Stream<Method> witherCandidates = ReflectionUtils.getAllMethods(this.ownerType).stream().filter(
-                m -> m.getReturnType().isAssignableFrom(this.ownerType) || m.getReturnType().equals(void.class));
+        Stream<Method> witherCandidates = ReflectionUtils.getAllMethods(ownerType).stream().filter(
+                m -> m.getReturnType().isAssignableFrom(ownerType) || m.getReturnType().equals(void.class));
         witherCandidates = member.wither().isBlank() ?
                 witherCandidates.filter(m -> Arrays.equals(witherParams, m.getParameterTypes())
                                              && m.getName().toLowerCase().contains(propertyName.toLowerCase())) :
                 witherCandidates.filter(m -> Objects.equals(member.wither(), m.getName()));
         Optional<BiFunction<Object, Object, Object>> wither =
                 witherCandidates.findFirst().map(m -> (o, h) -> safelyCall(() -> m.invoke(o, h)));
-        this.wither = wither.orElseGet(() -> {
+        return wither.orElseGet(() -> {
             AtomicBoolean warningIssued = new AtomicBoolean();
-            Field field = ReflectionUtils.getField(ownerType, propertyName).orElse(null);
+            MemberInvoker field = ReflectionUtils.getField(ownerType, propertyName)
+                    .map(DefaultMemberInvoker::asInvoker).orElse(null);
             return (o, h) -> {
                 if (warningIssued.get()) {
                     return o;
@@ -116,7 +127,7 @@ public class AnnotatedEntityHolder {
                 } else {
                     try {
                         o = serializer.clone(o);
-                        ReflectionUtils.setField(field, o, h);
+                        field.invoke(o, h);
                     } catch (Exception e) {
                         if (warningIssued.compareAndSet(false, true)) {
                             log.warn("Not able to update @Member {}. Please add a wither or setter method.", location,
@@ -127,7 +138,6 @@ public class AnnotatedEntityHolder {
                 return o;
             };
         });
-
     }
 
     public Stream<? extends ImmutableEntity<?>> getEntities(Entity<?, ?> parent) {
@@ -163,17 +173,8 @@ public class AnnotatedEntityHolder {
             return empty();
         }
         Id id = idProvider.apply(member);
-        return id == null ? empty() : Optional.of(
-                ImmutableEntity.builder()
-                        .value(member)
-                        .type((Class) member.getClass())
-                        .handlerFactory(handlerFactory)
-                        .serializer(serializer)
-                        .id(id.value())
-                        .holder(this)
-                        .idProperty(id.property())
-                        .parent(parent)
-                        .build());
+        return Optional.of(new ImmutableEntity(
+                id.value(), member.getClass(), member, id.property(), parent, this, handlerFactory, serializer));
     }
 
     @SneakyThrows

@@ -22,6 +22,8 @@ public interface HandlerInvoker<M> {
 
     Executable getMethod(Object target, M message);
 
+    HandlerInvoker<M> getInvoker(Object target, M message);
+
     boolean expectResult(Object target, M message);
 
     Object invoke(Object target, M message);

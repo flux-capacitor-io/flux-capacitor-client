@@ -244,13 +244,8 @@ public class AggregateEntitiesTest {
 
                 @Apply
                 MissingChild createChild() {
-                    return MissingChild.builder().missingChildId(missingChildId).build();
-                }
-
-                @Apply
-                MissingGrandChild createGrandChild(@NonNull MissingChild parent, @NonNull Aggregate aggregate,
-                                                   @NonNull Metadata metadata) {
-                    return new MissingGrandChild(missingGrandChildId);
+                    return MissingChild.builder().missingChildId(missingChildId)
+                            .grandChild(new MissingGrandChild(missingGrandChildId)).build();
                 }
             }
         }

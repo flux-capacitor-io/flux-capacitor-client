@@ -32,7 +32,6 @@ import static io.fluxcapacitor.common.reflection.ReflectionUtils.hasProperty;
 import static io.fluxcapacitor.common.reflection.ReflectionUtils.readProperty;
 import static io.fluxcapacitor.javaclient.common.Message.asMessage;
 import static java.util.Collections.emptyList;
-import static java.util.Collections.singletonList;
 
 public interface Entity<M extends Entity<M, T>, T> {
 
@@ -118,7 +117,7 @@ public interface Entity<M extends Entity<M, T>, T> {
     default Iterable<Entity<?, ?>> possibleTargets(Object payload) {
         for (Entity<?, ?> e : entities()) {
             if (e.isPossibleTarget(payload)) {
-                return singletonList(e);
+                return List.of(e);
             }
         }
         return emptyList();

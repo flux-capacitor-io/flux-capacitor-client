@@ -8,6 +8,7 @@ import io.fluxcapacitor.javaclient.common.serialization.Serializer;
 import io.fluxcapacitor.javaclient.persisting.eventsourcing.EventSourcingHandler;
 import io.fluxcapacitor.javaclient.persisting.eventsourcing.EventSourcingHandlerFactory;
 import io.fluxcapacitor.javaclient.tracking.handling.validation.ValidationUtils;
+import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
@@ -30,6 +31,7 @@ import static java.util.stream.Collectors.toList;
 @Builder(toBuilder = true)
 @Accessors(fluent = true)
 @Slf4j
+@AllArgsConstructor
 public class ImmutableEntity<T> implements Entity<ImmutableEntity<T>, T> {
     @JsonProperty
     Object id;
@@ -97,8 +99,10 @@ public class ImmutableEntity<T> implements Entity<ImmutableEntity<T>, T> {
     @SuppressWarnings("unchecked")
     ImmutableEntity<T> apply(DeserializingMessage message) {
         EventSourcingHandler<T> handler = handlerFactory.forType(type());
-        ImmutableEntity<T> result = handler.canHandle(this, message)
-                ? toBuilder().value(handler.invoke(this, message)).build() : this;
+        if (handler.canHandle(this, message)) {
+            return toBuilder().value(handler.invoke(this, message)).build();
+        }
+        ImmutableEntity<T> result = this;
         Object payload = message.getPayload();
         for (Entity<?, ?> entity : result.possibleTargets(payload)) {
             ImmutableEntity<?> immutableEntity = (ImmutableEntity<?>) entity;

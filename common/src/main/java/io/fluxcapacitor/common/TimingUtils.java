@@ -17,6 +17,8 @@ package io.fluxcapacitor.common;
 import lombok.extern.slf4j.Slf4j;
 
 import java.time.Duration;
+import java.time.temporal.ChronoUnit;
+import java.time.temporal.TemporalUnit;
 import java.util.concurrent.Callable;
 import java.util.function.Consumer;
 import java.util.function.Predicate;
@@ -27,23 +29,32 @@ import static java.lang.Thread.currentThread;
 public class TimingUtils {
 
     public static void time(Runnable task, Consumer<Long> callback) {
-        long start = System.currentTimeMillis();
-        try {
+        time(() -> {
             task.run();
-        } catch (Exception e) {
-            throw new IllegalStateException("Task failed to execute", e);
-        }
-        callback.accept(System.currentTimeMillis() - start);
+            return null;
+        }, callback);
+    }
+
+    public static void time(Runnable task, Consumer<Long> callback, TemporalUnit timeUnit) {
+        time(() -> {
+            task.run();
+            return null;
+        }, callback, timeUnit);
     }
 
     public static <T> T time(Callable<T> task, Consumer<Long> callback) {
-        long start = System.currentTimeMillis();
+        return time(task, callback, ChronoUnit.MILLIS);
+    }
+
+    public static <T> T time(Callable<T> task, Consumer<Long> callback, TemporalUnit timeUnit) {
+        long start = System.nanoTime();
         try {
             return task.call();
         } catch (Exception e) {
             throw new IllegalStateException("Task failed to execute", e);
         } finally {
-            callback.accept(System.currentTimeMillis() - start);
+            long elapsedNanos = System.nanoTime() - start;
+            callback.accept(elapsedNanos / timeUnit.getDuration().toNanos());
         }
     }
 

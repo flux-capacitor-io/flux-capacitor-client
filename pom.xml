@@ -33,8 +33,10 @@
     <url>https://flux-capacitor.io</url>
 
     <properties>
+        <maven.compiler.source>11</maven.compiler.source>
+        <maven.compiler.target>11</maven.compiler.target>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-        <java.version>11</java.version>
+        <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
         <undertow.version>2.2.18.Final</undertow.version>
     </properties>
 
@@ -169,14 +171,6 @@
         </pluginManagement>
 
         <plugins>
-            <plugin>
-                <artifactId>maven-compiler-plugin</artifactId>
-                <configuration>
-                    <source>${java.version}</source>
-                    <target>${java.version}</target>
-                    <encoding>UTF-8</encoding>
-                </configuration>
-            </plugin>
             <plugin>
                 <artifactId>maven-enforcer-plugin</artifactId>
                 <executions>

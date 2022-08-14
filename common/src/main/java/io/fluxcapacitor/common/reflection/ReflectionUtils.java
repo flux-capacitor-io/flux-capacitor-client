@@ -18,6 +18,7 @@ import com.fasterxml.jackson.databind.node.ObjectNode;
 import lombok.NonNull;
 import lombok.SneakyThrows;
 import lombok.Value;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.reflect.FieldUtils;
 import org.apache.commons.lang3.reflect.MethodUtils;
 
@@ -57,6 +58,7 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import static io.fluxcapacitor.common.ObjectUtils.memoize;
+import static io.fluxcapacitor.common.reflection.DefaultMemberInvoker.asInvoker;
 import static java.beans.Introspector.getBeanInfo;
 import static java.lang.Integer.compare;
 import static java.lang.String.format;
@@ -263,13 +265,11 @@ public class ReflectionUtils {
             return target -> ((ObjectNode) target).get(propertyName);
         }
         PropertyNotFoundException notFoundException = new PropertyNotFoundException(propertyName, type);
-        return stream(getBeanInfo(type, Object.class).getPropertyDescriptors())
-                .filter(d -> propertyName.equals(d.getName()))
-                .<AccessibleObject>map(PropertyDescriptor::getReadMethod).filter(Objects::nonNull).findFirst()
+        return Optional.<Member>ofNullable(MethodUtils.getMatchingMethod(type, "get" + StringUtils.capitalize(propertyName)))
                 .or(() -> Optional.ofNullable(MethodUtils.getMatchingMethod(type, propertyName)))
                 .or(() -> Optional.ofNullable(FieldUtils.getField(type, propertyName, true)))
-                .map(ReflectionUtils::ensureAccessible)
-                .<Function<Object, Object>>map(a -> target -> getValue(a, target, false))
+                .map(DefaultMemberInvoker::asInvoker)
+                .<Function<Object, Object>>map(invoker -> invoker::invoke)
                 .orElseGet(() -> o -> {
                     throw notFoundException;
                 });
@@ -277,22 +277,11 @@ public class ReflectionUtils {
 
     @SneakyThrows
     public static Object getValue(AccessibleObject fieldOrMethod, Object target, boolean forceAccess) {
-        if (forceAccess) {
-            ensureAccessible(fieldOrMethod);
-        }
         if (fieldOrMethod instanceof Method) {
-            Method method = (Method) fieldOrMethod;
-            if (target == null && !Modifier.isStatic(method.getModifiers())) {
-                return null;
-            }
-            return method.invoke(target);
+            return asInvoker((Method) fieldOrMethod, forceAccess).invoke(target);
         }
         if (fieldOrMethod instanceof Field) {
-            Field field = (Field) fieldOrMethod;
-            if (target == null && !Modifier.isStatic(field.getModifiers())) {
-                return null;
-            }
-            return field.get(target);
+            return asInvoker((Field) fieldOrMethod, forceAccess).invoke(target);
         }
         throw new IllegalStateException("Object property should be field or method: " + fieldOrMethod);
     }
@@ -378,24 +367,18 @@ public class ReflectionUtils {
         PropertyNotFoundException notFoundException = new PropertyNotFoundException(propertyName, type);
         return stream(getBeanInfo(type, Object.class).getPropertyDescriptors())
                 .filter(d -> propertyName.equals(d.getName()))
-                .<AccessibleObject>map(PropertyDescriptor::getWriteMethod).filter(Objects::nonNull).findFirst()
+                .<Member>map(PropertyDescriptor::getWriteMethod).filter(Objects::nonNull).findFirst()
                 .or(() -> Optional.ofNullable(FieldUtils.getField(type, propertyName, true)))
-                .<BiConsumer<Object, Object>>map(a -> (target, value) -> setValue(a, target, value))
+                .map(DefaultMemberInvoker::asInvoker)
+                .<BiConsumer<Object, Object>>map(invoker -> invoker::invoke)
                 .orElseGet(() -> (t, v) -> {
                     throw notFoundException;
                 });
     }
 
     @SneakyThrows
-    private static void setValue(AccessibleObject fieldOrMethod, Object target, Object value) {
-        ensureAccessible(fieldOrMethod);
-        if (fieldOrMethod instanceof Method) {
-            ((Method) fieldOrMethod).invoke(target, value);
-        } else if (fieldOrMethod instanceof Field) {
-            ((Field) fieldOrMethod).set(target, value);
-        } else {
-            throw new IllegalStateException("Object property should be field or method: " + fieldOrMethod);
-        }
+    private static void setValue(Member fieldOrMethod, Object target, Object value) {
+        asInvoker(fieldOrMethod).invoke(target, value);
     }
 
     public static boolean isOrHas(Annotation annotation, Class<? extends Annotation> annotationType) {
