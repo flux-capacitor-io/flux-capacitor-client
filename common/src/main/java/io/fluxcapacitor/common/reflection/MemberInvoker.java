@@ -4,13 +4,18 @@ import java.lang.reflect.Member;
 import java.util.function.IntFunction;
 
 public interface MemberInvoker {
-    Object[] emptyArray = new Object[0];
 
     default Object invoke(Object target) {
-        return invoke(target, emptyArray);
+        return invoke(target, 0, i -> null);
     }
 
-    Object invoke(Object target, Object... params);
+    default Object invoke(Object target, Object param) {
+        return invoke(target, 1, i -> param);
+    }
+
+    default Object invoke(Object target, Object... params) {
+        return invoke(target, params.length, i -> params[i]);
+    }
 
     Object invoke(Object target, int parameterCount, IntFunction<?> parameterProvider);
 

@@ -155,17 +155,15 @@ public class HandlerInspector {
 
         @Override
         public Object invoke(Object target, M message) {
-            Object[] params = parameterCount == 0 ? MemberInvoker.emptyArray : new Object[parameterCount];
-            for (int i = 0; i < parameterCount; i++) {
-                params[i] = parameterSuppliers.get(i).apply(message);
-            }
             if (target == null && executable instanceof Method && !staticMethod) {
                 throw new HandlerNotFoundException(
                         format("Found instance method on target class %s that can handle the message "
                                + "but the target instance is null. Should the method be static?",
                                executable.getDeclaringClass().getSimpleName()));
             }
-            return invoker.invoke(target, params);
+            return parameterCount == 0
+                    ? invoker.invoke(target)
+                    : invoker.invoke(target, parameterCount, i -> parameterSuppliers.get(i).apply(message));
         }
 
         @Override
@@ -203,14 +201,14 @@ public class HandlerInspector {
                 }
                 for (int i = 0; i < parameterCount; i++) {
                     Parameter p = parameters[i];
-                    boolean match = true;
+                    boolean unmatched = true;
                     for (ParameterResolver<? super M> r : parameterResolvers) {
                         if (r.matches(p, methodAnnotation, m)) {
-                            match = false;
+                            unmatched = false;
                             break;
                         }
                     }
-                    if (match) {
+                    if (unmatched) {
                         return false;
                     }
                 }
