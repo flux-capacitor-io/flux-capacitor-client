@@ -60,11 +60,11 @@ public class Metadata {
         return new Metadata(emptyMap());
     }
 
-    public static Metadata of(String key, Object value) {
+    public static Metadata of(Object key, Object value) {
         return Metadata.empty().with(key, value);
     }
 
-    public static Metadata of(Map<String, ?> map) {
+    public static Metadata of(Map<?, ?> map) {
         return Metadata.empty().with(map);
     }
 
@@ -82,7 +82,7 @@ public class Metadata {
         Add
      */
 
-    public Metadata with(Map<String, ?> values) {
+    public Metadata with(Map<?, ?> values) {
         Map<String, String> map = new HashMap<>(entries);
         values.forEach((key, value) -> with(key, value, map));
         return new Metadata(map);
@@ -106,19 +106,20 @@ public class Metadata {
     }
 
     @SneakyThrows
-    public Metadata with(String key, Object value) {
+    public Metadata with(Object key, Object value) {
         return new Metadata(with(key, value, new HashMap<>(entries)));
     }
 
 
-    public Metadata addIfAbsent(String key, String value) {
+    public Metadata addIfAbsent(Object key, String value) {
         return containsKey(key) ? this : with(key, value);
     }
 
     @SneakyThrows
-    private static Map<String, String> with(String key, Object value, Map<String, String> entries) {
+    private static Map<String, String> with(Object key, Object value, Map<String, String> entries) {
+        String keyString = key.toString();
         if (value == null) {
-            entries.remove(key);
+            entries.remove(keyString);
             return entries;
         }
         if (value instanceof Optional<?>) {
@@ -128,7 +129,7 @@ public class Metadata {
             }
             value = optional.get();
         }
-        entries.put(key, value instanceof String ? (String) value : objectMapper.writeValueAsString(value));
+        entries.put(keyString, value instanceof String ? (String) value : objectMapper.writeValueAsString(value));
         return entries;
     }
 
@@ -144,12 +145,12 @@ public class Metadata {
      */
 
     @SneakyThrows
-    private static Map<String, String> withTrace(String key, Object value, Map<String, String> entries) {
+    private static Map<String, String> withTrace(Object key, Object value, Map<String, String> entries) {
         return with("$trace." + key, value, entries);
     }
 
     @SneakyThrows
-    public Metadata withTrace(String key, Object value) {
+    public Metadata withTrace(Object key, Object value) {
         return new Metadata(withTrace(key, value, new HashMap<>(entries)));
     }
 
@@ -157,9 +158,9 @@ public class Metadata {
         Remove
      */
 
-    public Metadata without(String key) {
+    public Metadata without(Object key) {
         Map<String, String> map = new HashMap<>(entries);
-        map.remove(key);
+        map.remove(key.toString());
         return new Metadata(map);
     }
 
@@ -178,13 +179,13 @@ public class Metadata {
         Query
      */
 
-    public String get(String key) {
-        return entries.get(key);
+    public String get(Object key) {
+        return entries.get(key.toString());
     }
 
     @SuppressWarnings("unchecked")
     @SneakyThrows
-    public <T> T get(String key, Class<T> type) {
+    public <T> T get(Object key, Class<T> type) {
         String value = get(key);
         if (value == null) {
             return null;
@@ -207,16 +208,16 @@ public class Metadata {
     }
 
 
-    public boolean containsKey(String key) {
-        return entries.containsKey(key);
+    public boolean containsKey(Object key) {
+        return entries.containsKey(key.toString());
     }
 
-    public boolean containsAnyKey(String... keys) {
-        return Arrays.stream(keys).anyMatch(entries::containsKey);
+    public boolean containsAnyKey(Object... keys) {
+        return Arrays.stream(keys).anyMatch(this::containsKey);
     }
 
-    public String getOrDefault(String key, String defaultValue) {
-        return entries.getOrDefault(key, defaultValue);
+    public String getOrDefault(Object key, String defaultValue) {
+        return entries.getOrDefault(key.toString(), defaultValue);
     }
 
     public Set<Map.Entry<String, String>> entrySet() {
