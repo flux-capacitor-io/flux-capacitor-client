@@ -31,6 +31,7 @@
 
     <dependencies>
         <!--logging api-->
+        <!--updating to 2.0 gives issues so long as logback is on v1.2.xx-->
         <dependency>
             <groupId>org.slf4j</groupId>
             <artifactId>slf4j-api</artifactId>
