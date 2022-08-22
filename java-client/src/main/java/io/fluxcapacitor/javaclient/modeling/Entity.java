@@ -20,8 +20,10 @@ import io.fluxcapacitor.javaclient.common.serialization.DeserializingMessage;
 import io.fluxcapacitor.javaclient.publishing.routing.RoutingKey;
 import io.fluxcapacitor.javaclient.tracking.handling.validation.ValidationUtils;
 
+import java.time.Instant;
 import java.util.Collection;
 import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.function.Function;
 import java.util.function.Predicate;
@@ -46,8 +48,30 @@ public interface Entity<M extends Entity<M, T>, T> {
     Entity<?, ?> parent();
 
     @SuppressWarnings("rawtypes")
-    default Entity<?, ?> root() {
-        return Optional.<Entity>ofNullable(parent()).map(Entity::root).orElse(this);
+    default AggregateRoot<?> root() {
+        return Optional.<Entity>ofNullable(parent()).map(Entity::root).orElse((AggregateRoot<?>) this);
+    }
+
+    default String lastEventId() {
+        return root().lastEventId();
+    }
+
+    default Long lastEventIndex() {
+        return root().lastEventIndex();
+    }
+
+    default Instant timestamp() {
+        return root().timestamp();
+    }
+
+    default long sequenceNumber() {
+        return root().sequenceNumber();
+    }
+
+    @SuppressWarnings("unchecked")
+    default M previous() {
+        return (M) root().previous().allEntities().filter(
+                e -> Objects.equals(e.id(), id()) && Objects.equals(e.type(), type())).findFirst().orElse(null);
     }
 
     Collection<? extends Entity<?, ?>> entities();
@@ -57,7 +81,7 @@ public interface Entity<M extends Entity<M, T>, T> {
     }
 
     default Optional<Entity<?, ?>> getEntity(Object entityId) {
-        return allEntities().filter(e -> entityId.equals(e.id())).findFirst();
+        return allEntities().filter(e -> entityId != null && entityId.equals(e.id())).findFirst();
     }
 
     default M apply(Object... events) {

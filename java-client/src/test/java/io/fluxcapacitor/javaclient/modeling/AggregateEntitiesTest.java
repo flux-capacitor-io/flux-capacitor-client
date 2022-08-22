@@ -14,6 +14,7 @@ import lombok.Data;
 import lombok.NonNull;
 import lombok.Value;
 import lombok.With;
+import lombok.extern.slf4j.Slf4j;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -30,6 +31,7 @@ import static io.fluxcapacitor.javaclient.FluxCapacitor.loadAggregate;
 import static io.fluxcapacitor.javaclient.FluxCapacitor.loadEntity;
 import static java.util.stream.Collectors.toList;
 
+@Slf4j
 @SuppressWarnings({"rawtypes", "SameParameterValue", "unchecked"})
 public class AggregateEntitiesTest {
     private TestFixture testFixture;
@@ -209,7 +211,9 @@ public class AggregateEntitiesTest {
                 testFixture.whenCommand(new RemoveChild("id"))
                         .expectThat(fc -> {
                             expectNoEntity(e -> "id".equals(e.id()));
+                            expectEntity(e -> e.root().previous().allEntities().anyMatch(p -> "id".equals(p.id())));
                             expectEntity(e -> "otherId".equals(e.id()));
+                            expectEntity(e -> e.previous() != null && "otherId".equals(e.previous().id()));
                         });
             }
 

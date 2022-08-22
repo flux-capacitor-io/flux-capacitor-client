@@ -40,6 +40,11 @@ public class ModifiableEntity<T> implements Entity<ModifiableEntity<T>, T> {
     }
 
     @Override
+    public AggregateRoot<?> root() {
+        return root;
+    }
+
+    @Override
     public Object id() {
         return delegate.id();
     }

@@ -142,6 +142,11 @@ public class ResultValidator implements Then {
                                                       (Throwable) result);
             }
             if (!testSafely(predicate, result)) {
+                if (!errors.isEmpty()) {
+                    throw new GivenWhenThenAssertionError(String.format(
+                            "Handler returned an unexpected result. Expected: %s\n"
+                            + "Probable cause is an exception during handling.", description), (errors.get(0)));
+                }
                 throw new GivenWhenThenAssertionError("Handler returned an unexpected result",
                                                       description, result);
             }
