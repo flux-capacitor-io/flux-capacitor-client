@@ -17,6 +17,7 @@ package io.fluxcapacitor.javaclient.configuration;
 import io.fluxcapacitor.common.MessageType;
 import io.fluxcapacitor.common.handling.ParameterResolver;
 import io.fluxcapacitor.javaclient.FluxCapacitor;
+import io.fluxcapacitor.javaclient.common.IdentityProvider;
 import io.fluxcapacitor.javaclient.common.serialization.DeserializingMessage;
 import io.fluxcapacitor.javaclient.common.serialization.Serializer;
 import io.fluxcapacitor.javaclient.configuration.client.Client;
@@ -76,6 +77,8 @@ public interface FluxCapacitorBuilder {
     FluxCapacitorBuilder withAggregateCache(Class<?> aggregateType, Cache cache);
 
     FluxCapacitorBuilder replaceRelationshipsCache(UnaryOperator<Cache> replaceFunction);
+
+    FluxCapacitorBuilder replaceIdentityProvider(UnaryOperator<IdentityProvider> replaceFunction);
 
     FluxCapacitorBuilder addParameterResolver(ParameterResolver<DeserializingMessage> parameterResolver);
 

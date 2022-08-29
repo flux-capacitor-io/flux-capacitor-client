@@ -134,11 +134,6 @@ public class TestFluxCapacitor implements FluxCapacitor {
     }
 
     @Override
-    public void withIdentityProvider(IdentityProvider identityProvider) {
-        delegate.withIdentityProvider(identityProvider);
-    }
-
-    @Override
     public UserProvider userProvider() {
         return delegate.userProvider();
     }

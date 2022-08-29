@@ -494,11 +494,6 @@ public interface FluxCapacitor extends AutoCloseable {
     void withClock(Clock clock);
 
     /**
-     * Have Flux Capacitor use the given IdentityProvider when generating ids, e.g. when creating a {@link Message}.
-     */
-    void withIdentityProvider(IdentityProvider identityProvider);
-
-    /**
      * Returns a client to assist with event sourcing.
      */
     AggregateRepository aggregateRepository();

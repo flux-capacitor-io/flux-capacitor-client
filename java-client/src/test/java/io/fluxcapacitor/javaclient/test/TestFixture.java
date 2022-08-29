@@ -177,10 +177,11 @@ public class TestFixture implements Given, When {
         this.interceptor = new GivenWhenThenInterceptor();
         this.fluxCapacitor = new TestFluxCapacitor(
                 fluxCapacitorBuilder.disableShutdownHook().addDispatchInterceptor(interceptor)
+                        .replaceIdentityProvider(p -> p == IdentityProvider.defaultIdentityProvider
+                                ? new PredictableIdFactory() : p)
                         .addBatchInterceptor(interceptor).addHandlerInterceptor(interceptor, true)
                         .build(new TestClient(client)));
         withClock(Clock.fixed(Instant.now(), ZoneId.systemDefault()));
-        withIdentityProvider(new PredictableIdFactory());
         registerHandlers(handlerFactory.apply(fluxCapacitor));
     }
 
@@ -244,19 +245,6 @@ public class TestFixture implements Given, When {
 
     public Clock getClock() {
         return getFluxCapacitor().clock();
-    }
-
-    @Override
-    public IdentityProvider getIdentityProvider() {
-        return getFluxCapacitor().identityProvider();
-    }
-
-    @Override
-    public TestFixture withIdentityProvider(IdentityProvider identityProvider) {
-        return getFluxCapacitor().apply(fc -> {
-            fc.withIdentityProvider(identityProvider);
-            return this;
-        });
     }
 
     /*

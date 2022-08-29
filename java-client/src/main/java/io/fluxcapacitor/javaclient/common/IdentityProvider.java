@@ -14,10 +14,16 @@
 
 package io.fluxcapacitor.javaclient.common;
 
+import java.util.Iterator;
+import java.util.Optional;
+import java.util.ServiceLoader;
 import java.util.UUID;
 
 @FunctionalInterface
 public interface IdentityProvider {
+    IdentityProvider defaultIdentityProvider = Optional.of(ServiceLoader.load(IdentityProvider.class)).map(
+            ServiceLoader::iterator).filter(Iterator::hasNext).map(Iterator::next).orElseGet(UuidFactory::new);
+
     String nextFunctionalId();
 
     default String nextTechnicalId(){
