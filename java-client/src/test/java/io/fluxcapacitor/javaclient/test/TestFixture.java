@@ -308,6 +308,7 @@ public class TestFixture implements Given, When {
                 try {
                     return this;
                 } finally {
+                    handleExpiredSchedulesLocally();
                     waitForConsumers();
                 }
             } catch (Exception e) {
