@@ -173,14 +173,25 @@ public interface FluxCapacitor extends AutoCloseable {
     }
 
     /**
-     * Sends the given command and don't wait for a result. The command may be an instance of a {@link Message} in which
-     * case it will be sent as is. Otherwise the command is published using the passed value as payload without
+     * Sends the given command and doesn't wait for a result. The command may be an instance of a {@link Message} in
+     * which case it will be sent as is. Otherwise the command is published using the passed value as payload without
      * additional metadata.
      *
-     * @see #sendCommand(Object) to send a command and inspect its result
+     * @see #sendCommand(Object) to send a command and inspect its result asynchronously
      */
     static void sendAndForgetCommand(Object command) {
         get().commandGateway().sendAndForget(command);
+    }
+
+    /**
+     * Sends the given commands and doesn't wait for results. Commands may be an instance of a {@link Message} in which
+     * case it will be sent as is. Otherwise, the commands are published using the passed value as payload without
+     * additional metadata.
+     *
+     * @see #sendCommands(Object...)  to send commands and inspect their results asynchronously
+     */
+    static void sendAndForgetCommands(Object... commands) {
+        get().commandGateway().sendAndForget(commands);
     }
 
     /**
@@ -210,6 +221,15 @@ public interface FluxCapacitor extends AutoCloseable {
      */
     static <R> CompletableFuture<R> sendCommand(Object command) {
         return get().commandGateway().send(command);
+    }
+
+    /**
+     * Sends the given commands and returns a list of futures that will be completed with the commands' results. The
+     * commands may be instances of a {@link Message} in which case they will be sent as is. Otherwise, the commands are
+     * published using the passed values as payload without additional metadata.
+     */
+    static <R> List<CompletableFuture<R>> sendCommands(Object... commands) {
+        return get().commandGateway().send(commands);
     }
 
     /**
@@ -413,9 +433,9 @@ public interface FluxCapacitor extends AutoCloseable {
     }
 
     /**
-     * Index given objects for search. Use {@code idFunction} to provide the document's required id. Use {@code
-     * timestampFunction} and {@code endFunction} to provide the object's timestamp. If none are supplied the document
-     * will not be timestamped.
+     * Index given objects for search. Use {@code idFunction} to provide the document's required id. Use
+     * {@code timestampFunction} and {@code endFunction} to provide the object's timestamp. If none are supplied the
+     * document will not be timestamped.
      * <p>
      * This method returns once all objects are stored.
      *
@@ -447,9 +467,9 @@ public interface FluxCapacitor extends AutoCloseable {
     /**
      * Registers given handlers and initiates message tracking (i.e. listening for messages).
      * <p>
-     * The given handlers will be inspected for annotated handler methods (e.g. methods annotated with {@link
-     * HandleCommand}). Depending on this inspection message tracking will commence for any handled message types. To
-     * stop listening at any time invoke {@link Registration#cancel()} on the returned object.
+     * The given handlers will be inspected for annotated handler methods (e.g. methods annotated with
+     * {@link HandleCommand}). Depending on this inspection message tracking will commence for any handled message
+     * types. To stop listening at any time invoke {@link Registration#cancel()} on the returned object.
      * <p>
      * Note that an exception may be thrown if tracking for a given message type is already in progress.
      * <p>
