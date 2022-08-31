@@ -37,6 +37,20 @@ class GivenWhenThenTest {
     private TestFixture subject = TestFixture.create(commandHandler);
 
     @Test
+    void registeringHandlerAsClassWorks() {
+        TestFixture.create(CommandHandler.class).whenCommand(new YieldsEventAndResult())
+                .expectOnlyEvents(new YieldsEventAndResult())
+                .expectResult(String.class);
+    }
+
+    @Test
+    void registeringHandlerAsClassWorks_async() {
+        TestFixture.createAsync(CommandHandler.class).whenCommand(new YieldsEventAndResult())
+                .expectOnlyEvents(new YieldsEventAndResult())
+                .expectResult(String.class);
+    }
+
+    @Test
     void testExpectNoEventsAndNoResult() {
         subject.givenNoPriorActivity().whenCommand(new YieldsNoResult()).expectNoEvents().expectNoResult();
     }

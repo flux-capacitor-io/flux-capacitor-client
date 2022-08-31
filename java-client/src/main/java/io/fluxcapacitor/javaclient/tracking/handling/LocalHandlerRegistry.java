@@ -22,7 +22,6 @@ import io.fluxcapacitor.common.handling.Invocation;
 import io.fluxcapacitor.javaclient.FluxCapacitor;
 import io.fluxcapacitor.javaclient.common.Message;
 import io.fluxcapacitor.javaclient.common.serialization.DeserializingMessage;
-import io.fluxcapacitor.javaclient.common.serialization.Serializer;
 import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
@@ -33,6 +32,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.function.BiPredicate;
 
+import static io.fluxcapacitor.common.reflection.ReflectionUtils.asInstance;
 import static io.fluxcapacitor.javaclient.common.ClientUtils.getLocalHandlerAnnotation;
 
 @AllArgsConstructor
@@ -40,13 +40,17 @@ import static io.fluxcapacitor.javaclient.common.ClientUtils.getLocalHandlerAnno
 public class LocalHandlerRegistry implements HandlerRegistry {
     private final MessageType messageType;
     private final HandlerFactory handlerFactory;
-    private final Serializer serializer;
     private final List<Handler<DeserializingMessage>> localHandlers = new CopyOnWriteArrayList<>();
 
+    @SuppressWarnings("unchecked")
     @Override
     public Registration registerHandler(Object target, BiPredicate<Class<?>, Executable> handlerFilter) {
+        if (target instanceof Handler<?>) {
+            localHandlers.add((Handler<DeserializingMessage>) target);
+            return () -> localHandlers.remove(target);
+        }
         Optional<Handler<DeserializingMessage>> handler =
-                handlerFactory.createHandler(target, "local-" + messageType, handlerFilter);
+                handlerFactory.createHandler(asInstance(target), "local-" + messageType, handlerFilter);
         handler.ifPresent(localHandlers::add);
         return () -> handler.ifPresent(localHandlers::remove);
     }

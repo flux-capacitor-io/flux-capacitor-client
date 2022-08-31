@@ -677,9 +677,9 @@ public class DefaultFluxCapacitor implements FluxCapacitor {
         protected HandlerRegistry localHandlerRegistry(MessageType messageType,
                                                        Map<MessageType, HandlerInterceptor> handlerInterceptors) {
             LocalHandlerRegistry result = new LocalHandlerRegistry(messageType, new DefaultHandlerFactory(
-                    messageType, handlerInterceptors.get(messageType), parameterResolvers), serializer);
+                    messageType, handlerInterceptors.get(messageType), parameterResolvers));
             return messageType == EVENT ? result.merge(new LocalHandlerRegistry(NOTIFICATION, new DefaultHandlerFactory(
-                    NOTIFICATION, handlerInterceptors.get(EVENT), parameterResolvers), serializer)) : result;
+                    NOTIFICATION, handlerInterceptors.get(EVENT), parameterResolvers))) : result;
         }
     }
 

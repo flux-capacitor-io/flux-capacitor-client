@@ -265,7 +265,8 @@ public class ReflectionUtils {
             return target -> ((ObjectNode) target).get(propertyName);
         }
         PropertyNotFoundException notFoundException = new PropertyNotFoundException(propertyName, type);
-        return Optional.<Member>ofNullable(MethodUtils.getMatchingMethod(type, "get" + StringUtils.capitalize(propertyName)))
+        return Optional.<Member>ofNullable(
+                        MethodUtils.getMatchingMethod(type, "get" + StringUtils.capitalize(propertyName)))
                 .or(() -> Optional.ofNullable(MethodUtils.getMatchingMethod(type, propertyName)))
                 .or(() -> Optional.ofNullable(FieldUtils.getField(type, propertyName, true)))
                 .map(DefaultMemberInvoker::asInvoker)
@@ -428,6 +429,19 @@ public class ReflectionUtils {
 
     public static boolean isNullable(Parameter parameter) {
         return isNullableCache.apply(parameter);
+    }
+
+    public static Object asInstance(Object classOrInstance) {
+        if (classOrInstance instanceof Class<?>) {
+            try {
+                return ensureAccessible(((Class<?>) classOrInstance).getDeclaredConstructor()).newInstance();
+            } catch (Exception e) {
+                throw new IllegalStateException(format(
+                        "Failed to create an instance of class %s. Does it have an accessible default constructor?",
+                        classOrInstance), e);
+            }
+        }
+        return classOrInstance;
     }
 
     @Value

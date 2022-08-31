@@ -53,6 +53,7 @@ import java.util.function.BiPredicate;
 import java.util.function.Consumer;
 import java.util.stream.Stream;
 
+import static io.fluxcapacitor.common.reflection.ReflectionUtils.asInstance;
 import static io.fluxcapacitor.javaclient.common.ClientUtils.waitForResults;
 import static io.fluxcapacitor.javaclient.common.serialization.DeserializingMessage.handleBatch;
 import static java.lang.String.format;
@@ -74,15 +75,20 @@ public class DefaultTracking implements Tracking {
     private final Collection<CompletableFuture<?>> outstandingRequests = new CopyOnWriteArrayList<>();
     private final AtomicReference<Registration> shutdownFunction = new AtomicReference<>(Registration.noOp());
 
+    @SuppressWarnings("unchecked")
     @Override
     @Synchronized
     public Registration start(FluxCapacitor fluxCapacitor, List<?> handlers) {
         return fluxCapacitor.apply(fc -> {
             Map<ConsumerConfiguration, List<Handler<DeserializingMessage>>> consumers =
                     assignHandlersToConsumers(handlers).entrySet().stream().flatMap(e -> {
-                        List<Handler<DeserializingMessage>> converted = e.getValue().stream().flatMap(
-                                target -> handlerFactory.createHandler(target, e.getKey().getName(), handlerFilter)
-                                        .stream()).collect(toList());
+                        List<Handler<DeserializingMessage>> converted = e.getValue().stream().flatMap(target -> {
+                            if (target instanceof Handler<?>) {
+                                return Stream.of((Handler<DeserializingMessage>) target);
+                            }
+                            return handlerFactory.createHandler(asInstance(target), e.getKey().getName(), handlerFilter)
+                                    .stream();
+                        }).collect(toList());
                         return converted.isEmpty() ? Stream.empty() :
                                 Stream.of(new SimpleEntry<>(e.getKey(), converted));
                     }).collect(toMap(Entry::getKey, Entry::getValue));
@@ -90,7 +96,7 @@ public class DefaultTracking implements Tracking {
 
             if (!Collections.disjoint(consumers.keySet(), startedConfigurations)) {
                 throw new TrackingException("Failed to start tracking. "
-                                                    + "Consumers for some handlers have already started tracking.");
+                                            + "Consumers for some handlers have already started tracking.");
             }
 
             startedConfigurations.addAll(consumers.keySet());
@@ -112,7 +118,8 @@ public class DefaultTracking implements Tracking {
             }
             return Map.entry(config, matches);
         }).collect(toMap(Entry::getKey, Entry::getValue));
-        unassignedHandlers.removeAll(assignedHandlers.values().stream().flatMap(Collection::stream).distinct().collect(toList()));
+        unassignedHandlers.removeAll(
+                assignedHandlers.values().stream().flatMap(Collection::stream).distinct().collect(toList()));
         unassignedHandlers.forEach(h -> {
             throw new TrackingException(format("Failed to find consumer for %s", h));
         });
@@ -208,7 +215,8 @@ public class DefaultTracking implements Tracking {
     }
 
     @SneakyThrows
-    private boolean shouldSendResponse(Handler<DeserializingMessage> handler, DeserializingMessage message, ConsumerConfiguration config) {
+    private boolean shouldSendResponse(Handler<DeserializingMessage> handler, DeserializingMessage message,
+                                       ConsumerConfiguration config) {
         SerializedMessage serializedMessage = message.getSerializedObject();
         if (serializedMessage.getRequestId() == null) {
             return false;
