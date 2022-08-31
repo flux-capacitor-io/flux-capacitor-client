@@ -32,7 +32,7 @@ public class ConsumerConfigurationFiltersTest {
                                                                           .prependApplicationName(false).build())
                                         .configureDefaultConsumer(COMMAND, c -> c.toBuilder().name("default").build()),
                                 new Handler())
-                .givenNoPriorActivity()
+                
                 .whenCommand(new Command())
                 .expectOnlyEvents("nonExclusive", "exclusive");
     }
@@ -46,7 +46,7 @@ public class ConsumerConfigurationFiltersTest {
                                                                           .exclusive(false).passive(true).build())
                                         .configureDefaultConsumer(COMMAND, c -> c.toBuilder().name("default").build()),
                                 new Handler())
-                .givenNoPriorActivity()
+                
                 .whenCommand(new Command())
                 .expectOnlyEvents("nonExclusivePassive", "default")
                 .expectResult("default");
@@ -83,7 +83,7 @@ public class ConsumerConfigurationFiltersTest {
                                         .configureDefaultConsumer(COMMAND, c -> c.toBuilder().name("default").build()),
                                 new Handler())
                 .withClock(nowClock)
-                .givenNoPriorActivity()
+                
                 .whenCommand(new Command())
                 .expectEvents("minIndex")
                 .expectResult("minIndex");

@@ -106,7 +106,7 @@ class EventSourcingRepositoryTest {
 
         @Test
         void testEventsGetStoredWhenHandlingEnds() {
-            testFixture.givenNoPriorActivity().whenCommand(new CreateModel())
+            testFixture.whenCommand(new CreateModel())
                     .expectThat(fc -> verify(eventStoreClient)
                             .storeEvents(eq(aggregateId), anyList(),
                                          eq(false)));
@@ -114,7 +114,7 @@ class EventSourcingRepositoryTest {
 
         @Test
         void testEventsDoNotGetStoredWhenHandlerTriggersException() {
-            testFixture.givenNoPriorActivity()
+            testFixture
                     .whenCommand(new FailToCreateModel())
                     .expectExceptionalResult(MockException.class)
                     .expectThat(fc -> assertEquals(0, eventStoreClient.getEvents(aggregateId, -1L).count()));
@@ -374,7 +374,7 @@ class EventSourcingRepositoryTest {
 
         @Test
         void testCreateUsingFactoryMethod() {
-            testFixture.givenNoPriorActivity().whenCommand(new CreateModel())
+            testFixture.whenCommand(new CreateModel())
                     .expectThat(fc -> verify(testFixture.getFluxCapacitor().client().getEventStoreClient(), times(1))
                             .storeEvents(anyString(), anyList(), eq(false)));
         }
@@ -403,7 +403,7 @@ class EventSourcingRepositoryTest {
         @Test
         void testCreateUsingFactoryMethodIfInstanceMethodForSamePayloadExists() {
 
-            testFixture.givenNoPriorActivity().whenCommand(new CreateModel())
+            testFixture.whenCommand(new CreateModel())
                     .expectThat(fc -> verify(testFixture.getFluxCapacitor().client().getEventStoreClient(), times(1))
                             .storeEvents(anyString(), anyList(), eq(false)));
         }

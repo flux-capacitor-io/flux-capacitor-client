@@ -45,12 +45,12 @@ class GivenWhenThenSpringTest {
 
     @Test
     void testFoo() {
-        testFixture.givenNoPriorActivity().whenCommand(new DoSomething()).expectEvents(new DoSomething());
+        testFixture.whenCommand(new DoSomething()).expectEvents(new DoSomething());
     }
 
     @Test
     void testBar() {
-        testFixture.givenNoPriorActivity().whenCommand(new DoSomething()).expectCommands(new DoSomethingElse());
+        testFixture.whenCommand(new DoSomething()).expectCommands(new DoSomethingElse());
     }
 
     @Test

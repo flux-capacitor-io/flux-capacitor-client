@@ -18,7 +18,7 @@ public class ModifyingDispatchInterceptorTest {
         TestFixture.create(
                         DefaultFluxCapacitor.builder().addDispatchInterceptor(new ChangeTypeInterceptor(), COMMAND),
                         new CommandHandler())
-                .givenNoPriorActivity()
+                
                 .whenCommand(new Command(""))
                 .expectEvents(new DifferentCommand());
     }
@@ -28,7 +28,7 @@ public class ModifyingDispatchInterceptorTest {
         TestFixture.create(
                         DefaultFluxCapacitor.builder().addDispatchInterceptor(new ChangeContentInterceptor(), COMMAND),
                         new CommandHandler())
-                .givenNoPriorActivity()
+                
                 .whenCommand(new Command(""))
                 .expectEvents(new Command("intercepted"));
     }

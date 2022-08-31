@@ -38,35 +38,35 @@ class GivenWhenThenMultiHandlerTest {
 
     @Test
     void testExpectNoEventsAndNoResult() {
-        subject.givenNoPriorActivity().whenCommand(new YieldsNoResult()).expectNoEvents().expectNoResult();
+        subject.whenCommand(new YieldsNoResult()).expectNoEvents().expectNoResult();
     }
 
     @Test
     void testExpectResultButNoEvents() {
-        subject.givenNoPriorActivity().whenCommand(new YieldsResult()).expectNoEvents().expectResult(String.class);
+        subject.whenCommand(new YieldsResult()).expectNoEvents().expectResult(String.class);
     }
 
     @Test
     void testExpectExceptionButNoEvents() {
-        subject.givenNoPriorActivity().whenCommand(new YieldsFunctionalException()).expectNoEvents().expectExceptionalResult(FunctionalMockException.class);
+        subject.whenCommand(new YieldsFunctionalException()).expectNoEvents().expectExceptionalResult(FunctionalMockException.class);
     }
 
     @Test
     void testExpectEventButNoResult() {
         YieldsEventAndNoResult command = new YieldsEventAndNoResult();
-        subject.givenNoPriorActivity().whenCommand(command).expectOnlyEvents(command).expectNoResult();
+        subject.whenCommand(command).expectOnlyEvents(command).expectNoResult();
     }
 
     @Test
     void testExpectResultAndEvent() {
         YieldsEventAndResult command = new YieldsEventAndResult();
-        subject.givenNoPriorActivity().whenCommand(command).expectOnlyEvents(command).expectResult(String.class);
+        subject.whenCommand(command).expectOnlyEvents(command).expectResult(String.class);
     }
 
     @Test
     void testExpectExceptionAndEvent() {
         YieldsEventAndException command = new YieldsEventAndException();
-        subject.givenNoPriorActivity().whenCommand(command).expectOnlyEvents(command).expectExceptionalResult(Exception.class);
+        subject.whenCommand(command).expectOnlyEvents(command).expectExceptionalResult(Exception.class);
     }
 
     @Test

@@ -79,7 +79,7 @@ class GivenWhenThenStreamingTest {
 
     @Test
     void testExpectPassiveHandling() {
-        subject.givenNoPriorActivity().whenCommand(new PassivelyHandled()).expectExceptionalResult(TimeoutException.class);
+        subject.whenCommand(new PassivelyHandled()).expectExceptionalResult(TimeoutException.class);
     }
 
     @Test

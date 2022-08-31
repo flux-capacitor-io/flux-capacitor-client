@@ -52,49 +52,49 @@ class GivenWhenThenTest {
 
     @Test
     void testExpectNoEventsAndNoResult() {
-        subject.givenNoPriorActivity().whenCommand(new YieldsNoResult()).expectNoEvents().expectNoResult();
+        subject.whenCommand(new YieldsNoResult()).expectNoEvents().expectNoResult();
     }
 
     @Test
     void testExpectResultButNoEvents() {
-        subject.givenNoPriorActivity().whenCommand(new YieldsResult()).expectNoEvents().expectResult(String.class);
+        subject.whenCommand(new YieldsResult()).expectNoEvents().expectResult(String.class);
     }
 
     @Test
     void testExpectExceptionButNoEvents() {
-        subject.givenNoPriorActivity().whenCommand(new YieldsException()).expectNoEvents()
+        subject.whenCommand(new YieldsException()).expectNoEvents()
                 .expectExceptionalResult(MockException.class);
     }
 
     @Test
     void testExpectEventButNoResult() {
         YieldsEventAndNoResult command = new YieldsEventAndNoResult();
-        subject.givenNoPriorActivity().whenCommand(command)
+        subject.whenCommand(command)
                 .expectOnlyEvents(command).expectNoResult().expectSuccessfulResult();
     }
 
     @Test
     void testExpectNoEventsLike() {
         YieldsEventAndNoResult command = new YieldsEventAndNoResult();
-        subject.givenNoPriorActivity().whenCommand(command).expectNoEventsLike(String.class);
+        subject.whenCommand(command).expectNoEventsLike(String.class);
     }
 
     @Test
     void testExpectResultAndEvent() {
         YieldsEventAndResult command = new YieldsEventAndResult();
-        subject.givenNoPriorActivity().whenCommand(command).expectOnlyEvents(command).expectResult(String.class);
+        subject.whenCommand(command).expectOnlyEvents(command).expectResult(String.class);
     }
 
     @Test
     void testExpectResultUsingPredicate() {
         YieldsResult command = new YieldsResult();
-        subject.givenNoPriorActivity().whenCommand(command).expectResult("result"::equals);
+        subject.whenCommand(command).expectResult("result"::equals);
     }
 
     @Test
     void testExpectExceptionAndEvent() {
         YieldsEventAndException command = new YieldsEventAndException();
-        subject.givenNoPriorActivity().whenCommand(command).expectOnlyEvents(command)
+        subject.whenCommand(command).expectOnlyEvents(command)
                 .expectExceptionalResult(MockException.class)
                 .expectError(MockException.class);
     }
@@ -166,7 +166,7 @@ class GivenWhenThenTest {
     @Test
     void testWhenCondition() {
         Runnable mockCondition = mock(Runnable.class);
-        subject.givenNoPriorActivity().whenExecuting(fc -> mockCondition.run()).expectThat(fc -> verify(mockCondition).run());
+        subject.whenExecuting(fc -> mockCondition.run()).expectThat(fc -> verify(mockCondition).run());
     }
 
     @Test

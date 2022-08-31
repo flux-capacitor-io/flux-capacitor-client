@@ -26,7 +26,7 @@ import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.UnaryOperator;
 
-public interface When extends Given {
+public interface When {
 
     Then whenCommand(Object command);
 

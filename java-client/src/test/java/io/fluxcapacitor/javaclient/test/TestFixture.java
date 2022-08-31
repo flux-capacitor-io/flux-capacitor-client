@@ -291,12 +291,12 @@ public class TestFixture implements Given, When {
     }
 
     @Override
-    public TestFixture givenTimeAdvancesTo(Instant instant) {
+    public TestFixture givenTimeAdvancedTo(Instant instant) {
         return given(fc -> advanceTimeTo(instant));
     }
 
     @Override
-    public TestFixture givenTimeElapses(Duration duration) {
+    public TestFixture givenElapsedTime(Duration duration) {
         return given(fc -> advanceTimeBy(duration));
     }
 

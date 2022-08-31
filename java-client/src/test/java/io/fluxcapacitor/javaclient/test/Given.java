@@ -15,6 +15,7 @@
 package io.fluxcapacitor.javaclient.test;
 
 import io.fluxcapacitor.javaclient.FluxCapacitor;
+import io.fluxcapacitor.javaclient.common.Message;
 import io.fluxcapacitor.javaclient.scheduling.Schedule;
 import io.fluxcapacitor.javaclient.tracking.handling.authentication.User;
 import io.fluxcapacitor.javaclient.web.WebRequest;
@@ -27,59 +28,153 @@ import java.util.Arrays;
 import java.util.UUID;
 import java.util.function.Consumer;
 
-public interface Given {
+/**
+ * Interface of the `given` phase of a behavioral given-when-then test. Here you specify everything that happened prior
+ * to the action you want to test the behavior of. Any effects of the given phase will *not* be reported in the `then`
+ * phase.
+ * <p>
+ * This interface extends from {@link When} meaning you can immediately skip ahead to the `when` phase if there was no
+ * prior activity before your test.
+ */
+public interface Given extends When {
 
-    When givenCommands(Object... commands);
+    /**
+     * Specify one or more commands that have been issued prior to the behavior you want to test.
+     * <p>
+     * A command may be an instance of {@link Message} in which case it will be issued as is. Otherwise, the command is
+     * issued using the passed value as payload without additional metadata.
+     */
+    Given givenCommands(Object... commands);
 
-    When givenCommandsByUser(User user, Object... commands);
+    /**
+     * Specify one or more commands that have been issued by given {@code user} prior to the behavior you want to test.
+     * <p>
+     * A command may be an instance of {@link Message} in which case it will be issued as is. Otherwise, the command is
+     * issued using the passed value as payload without additional metadata.
+     */
+    Given givenCommandsByUser(User user, Object... commands);
 
-    When givenAppliedEvents(String aggregateId, Object... events);
+    /**
+     * Specify one or more events that have been applied to given aggregate prior to the behavior you want to test.
+     * <p>
+     * An event may be an instance of {@link Message} in which case it will be applied as is. Otherwise, the event is
+     * applied using the passed value as payload without additional metadata.
+     */
+    Given givenAppliedEvents(String aggregateId, Object... events);
 
-    When givenEvents(Object... events);
+    /**
+     * Specify one or more events that have been published prior to the behavior you want to test.
+     * <p>
+     * An event may be an instance of {@link Message} in which case it will be published as is. Otherwise, the event is
+     * published using the passed value as payload without additional metadata.
+     */
+    Given givenEvents(Object... events);
 
-    When given(Consumer<FluxCapacitor> condition);
-
-    default When givenSchedules(Schedule... schedules) {
-        return given(fc -> Arrays.stream(schedules).forEach(s -> fc.scheduler().schedule(s)));
+    /**
+     * Specify a document that has been stored for search prior to the behavior you want to test.
+     * <p>
+     * The document will be stored in the given {@code collection} with random id and without start or end timestamp.
+     */
+    default Given givenDocument(Object document, String collection) {
+        return givenDocument(document, UUID.randomUUID().toString(), collection);
     }
 
-    default When givenScheduleIfAbsent(Schedule schedule) {
-        return given(fc -> fc.scheduler().schedule(schedule, true));
-    }
-
-    default When givenDocument(Object document, String id, String collection) {
+    /**
+     * Specify a document that has been stored for search prior to the behavior you want to test.
+     * <p>
+     * The document will be stored in the given {@code collection} with given {@code id} and without start or end
+     * timestamp.
+     */
+    default Given givenDocument(Object document, String id, String collection) {
         return givenDocument(document, id, collection, null);
     }
 
-    default When givenDocument(Object document, String id, String collection, Instant timestamp) {
+    /**
+     * Specify a document that has been stored for search prior to the behavior you want to test.
+     * <p>
+     * The document will be stored in the given {@code collection} with given {@code id} and given {@code timestamp} as
+     * start and end timestamp.
+     */
+    default Given givenDocument(Object document, String id, String collection, Instant timestamp) {
         return givenDocument(document, id, collection, timestamp, timestamp);
     }
 
-    When givenDocument(Object document, String id, String collection, Instant timestamp, Instant end);
+    /**
+     * Specify a document that has been stored for search prior to the behavior you want to test.
+     * <p>
+     * The document will be stored in the given {@code collection} with given {@code id} and given start and end
+     * timestamps.
+     */
+    Given givenDocument(Object document, String id, String collection, Instant start, Instant end);
 
-    When givenDocuments(String collection, Object... documents);
+    /**
+     * Specify one or multiple documents that has been stored for search prior to the behavior you want to test.
+     * <p>
+     * The documents will be stored in the given {@code collection} with random id and without start or end timestamp.
+     */
+    Given givenDocuments(String collection, Object... documents);
 
-    default When givenExpiredSchedules(Object... schedules) {
+    /**
+     * Specify one or more schedules that have been issued prior to the behavior you want to test.
+     */
+    default Given givenSchedules(Schedule... schedules) {
+        return given(fc -> Arrays.stream(schedules).forEach(s -> fc.scheduler().schedule(s)));
+    }
+
+    /**
+     * Specify one or more expired schedules that have been issued prior to the behavior you want to test.
+     * <p>
+     * A schedule may be an instance of {@link Message} in which case it will be published as is. Otherwise, the
+     * schedule is issued using the passed value as payload without additional metadata.
+     */
+    default Given givenExpiredSchedules(Object... schedules) {
         return givenSchedules(
                 Arrays.stream(schedules).map(p -> new Schedule(p, UUID.randomUUID().toString(), getClock().instant()))
                         .toArray(Schedule[]::new));
     }
 
-    When givenWebRequest(WebRequest webRequest);
+    /**
+     * Simulates moving the time forward to given {@code timestamp} prior to testing for the expected behavior.
+     * <p>
+     * Any schedule that has expired by moving the time will be passed to handlers.
+     */
+    Given givenTimeAdvancedTo(Instant timestamp);
 
-    default When givenNoPriorActivity() {
-        return givenCommands();
-    }
+    /**
+     * Simulates moving the time forward by given {@code duration} prior to testing for the expected behavior.
+     * <p>
+     * Any schedule that has expired by moving the time will be passed to handlers.
+     */
+    Given givenElapsedTime(Duration duration);
 
-    When givenTimeAdvancesTo(Instant instant);
+    /**
+     * Specify a web request that has been issued prior to the behavior you want to test.
+     */
+    Given givenWebRequest(WebRequest webRequest);
 
-    When givenTimeElapses(Duration duration);
+    /**
+     * Specify any action that has happened prior to the behavior you want to test.
+     */
+    Given given(Consumer<FluxCapacitor> condition);
 
+    /**
+     * Get the clock used by this test fixture.
+     */
     Clock getClock();
 
+    /**
+     * Sets the clock used by this test fixture. By default, the test fixture fixes its clock when it is created, but if
+     * the result of your test depends on the time at which it is run you can fix the test fixture's clock using this
+     * method.
+     */
     Given withClock(Clock clock);
 
-    default Given withFixedTime(Instant time) {
+    /**
+     * Fixes the time of the test fixture. By default, the test fixture fixes its clock when it is created, but if the
+     * result of your test depends on the time at which it is run you can fix the test fixture's time using this
+     * method.
+     */
+    default Given atFixedTime(Instant time) {
         return withClock(Clock.fixed(time, ZoneId.systemDefault()));
     }
 

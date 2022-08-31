@@ -168,47 +168,37 @@ class GivenWhenThenSchedulingTest {
     }
 
     @Test
-    void testNoOverrideWithAbsentCheck() {
-        Duration delay = Duration.ofSeconds(10);
-        Object expected = new YieldsCommand("original");
-        Object notExpected = new YieldsCommand("override");
-        subject.givenSchedules(new Schedule(expected, "test", subject.getClock().instant().plus(delay)))
-                .givenScheduleIfAbsent(new Schedule(notExpected, "test", subject.getClock().instant().plus(delay).minusSeconds(1)))
-                .whenTimeElapses(delay).expectOnlyCommands("original");
-    }
-
-    @Test
     void testNoAutomaticRescheduleBeforeDeadline() {
-        subject.givenNoPriorActivity().givenTimeElapses(Duration.ofMillis(500)).whenExecuting(fc -> {}).expectNoNewSchedules();
+        subject.givenElapsedTime(Duration.ofMillis(500)).whenExecuting(fc -> {}).expectNoNewSchedules();
     }
 
     @Test
     void testAutomaticReschedule() {
-        subject.givenNoPriorActivity().givenTimeElapses(Duration.ofMillis(500))
+        subject.givenElapsedTime(Duration.ofMillis(500))
                 .whenTimeElapses(Duration.ofMillis(1000)).expectOnlyNewSchedules(new PeriodicSchedule());
     }
 
     @Test
     void testAutomaticPeriodicSchedule() {
-        subject.givenNoPriorActivity().whenTimeElapses(Duration.ofMillis(1000))
+        subject.whenTimeElapses(Duration.ofMillis(1000))
                 .expectNewSchedules(PeriodicSchedule.class);
     }
 
     @Test
     void testAutomaticPeriodicScheduleWithMethodAnnotation() {
-        TestFixture.create(new MethodPeriodicHandler()).givenNoPriorActivity()
+        TestFixture.create(new MethodPeriodicHandler())
                 .whenTimeElapses(Duration.ofMillis(1000)).expectNewSchedules(MethodPeriodicSchedule.class);
     }
 
     @Test
     void testNonAutomaticPeriodicSchedule() {
-        subject.givenNoPriorActivity().whenTimeElapses(Duration.ofMillis(1000))
+        subject.whenTimeElapses(Duration.ofMillis(1000))
                 .expectNoNewSchedulesLike(NonAutomaticPeriodicSchedule.class);
     }
 
     @Test
     void testAlteredPayloadPeriodic() {
-        TestFixture.create(new AlteredPayloadPeriodicHandler()).givenNoPriorActivity()
+        TestFixture.create(new AlteredPayloadPeriodicHandler())
                 .whenTimeElapses(Duration.ofMillis(1000)).expectOnlyNewSchedules(new YieldsAlteredSchedule(2));
     }
 
@@ -231,7 +221,7 @@ class GivenWhenThenSchedulingTest {
     @Test
     void testInterfacePeriodicHandler() {
         TestFixture.create(new InterfacePeriodicHandler())
-                .givenNoPriorActivity().whenTimeElapses(Duration.ofMillis(1000))
+                .whenTimeElapses(Duration.ofMillis(1000))
                 .expectNewSchedules(PeriodicScheduleFromInterface.class);
     }
 
