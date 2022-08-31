@@ -38,7 +38,7 @@ class DataProtectionInterceptorTest {
     @Test
     void testSerializedMessageDoesNotContainData() {
         testFixture.registerHandlers(new SomeHandler())
-                .when(fc -> FluxCapacitor.publishEvent(new SomeEvent("something super secret")))
+                .whenExecuting(fc -> FluxCapacitor.publishEvent(new SomeEvent("something super secret")))
                 .expectEvents(new SomeEvent(null));
     }
 
@@ -47,7 +47,7 @@ class DataProtectionInterceptorTest {
         String payload = "something super secret";
         SomeHandler handler = new SomeHandler();
         testFixture.registerHandlers(handler)
-                .when(fc -> FluxCapacitor.publishEvent(new SomeEvent(payload)))
+                .whenExecuting(fc -> FluxCapacitor.publishEvent(new SomeEvent(payload)))
                 .expectThat(fc -> {
                     assertEquals(payload, handler.getLastEvent().getSensitiveData());
                     assertTrue(handler.getLastMetadata().containsKey(DataProtectionInterceptor.METADATA_KEY));
@@ -60,7 +60,7 @@ class DataProtectionInterceptorTest {
         DroppingHandler droppingHandler = new DroppingHandler();
         SomeHandler secondHandler = new SomeHandler();
         testFixture.registerHandlers(droppingHandler, secondHandler)
-                .when(fc -> FluxCapacitor.publishEvent(new SomeEvent(payload)))
+                .whenExecuting(fc -> FluxCapacitor.publishEvent(new SomeEvent(payload)))
                 .expectThat(fc -> {
                     assertEquals(payload, droppingHandler.getLastEvent().getSensitiveData());
                     assertNull(secondHandler.getLastEvent().getSensitiveData());
@@ -72,7 +72,7 @@ class DataProtectionInterceptorTest {
         String payload = "something super secret";
         var handler = new ValidatingHandler();
         testFixture.registerHandlers(handler)
-                .when(fc -> FluxCapacitor.sendCommandAndWait(new ConstrainedCommand(payload)))
+                .whenExecuting(fc -> FluxCapacitor.sendCommandAndWait(new ConstrainedCommand(payload)))
                 .expectThat(fc -> assertEquals(payload, handler.getLastCommand().getSensitiveData()));
     }
 
@@ -80,7 +80,7 @@ class DataProtectionInterceptorTest {
     void testNullDataIsIgnored() {
         SomeHandler handler = new SomeHandler();
         testFixture.registerHandlers(handler)
-                .when(fc -> FluxCapacitor.publishEvent(new SomeEvent(null)))
+                .whenExecuting(fc -> FluxCapacitor.publishEvent(new SomeEvent(null)))
                 .expectEvents(new SomeEvent(null))
                 .expectThat(fc -> {
                     assertNull(handler.getLastEvent().getSensitiveData());

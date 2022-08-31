@@ -135,7 +135,7 @@ class EventSourcingRepositoryTest {
         void testSkippedSequenceNumbers() {
             testFixture.givenCommands(new CreateModel())
                     .given(fc -> fc.cache().invalidateAll())
-                    .when(fc -> {
+                    .whenExecuting(fc -> {
                         when(eventStoreClient.getEvents(anyString(), anyLong())).thenAnswer(invocation -> {
                             AggregateEventStream<SerializedMessage> result =
                                     (AggregateEventStream<SerializedMessage>) invocation.callRealMethod();
@@ -164,7 +164,7 @@ class EventSourcingRepositoryTest {
         void testApplyEventsDuringApplyIsIgnoredDuringReplay() {
             testFixture.givenCommands(new CreateModel(), new ApplyWhileApplying())
                     .given(fc -> fc.cache().invalidateAll())
-                    .when(fc -> loadAggregate(aggregateId, TestModel.class))
+                    .whenExecuting(fc -> loadAggregate(aggregateId, TestModel.class))
                     .expectThat(fc -> verify(eventStoreClient, never()).storeEvents(anyString(), anyList(),
                                                                            eq(false)));
         }

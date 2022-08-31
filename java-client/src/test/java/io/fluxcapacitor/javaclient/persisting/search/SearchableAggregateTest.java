@@ -33,7 +33,7 @@ public class SearchableAggregateTest {
 
     @Test
     void testAggregateIsSearchableAfterApply() {
-        testFixture.when(fc -> loadAggregate("123", SearchableAggregate.class)
+        testFixture.whenExecuting(fc -> loadAggregate("123", SearchableAggregate.class)
                         .update(a -> new SearchableAggregate("bar")))
                 .expectTrue(fc -> fc.documentStore().search("SearchableAggregate").fetchAll().equals(List.of(new SearchableAggregate("bar"))))
                 .expectFalse(fc -> search(SearchableAggregate.class.getSimpleName()).fetchAll().isEmpty())
@@ -44,14 +44,14 @@ public class SearchableAggregateTest {
     void testAggregateIsDeletedFromDocumentStoreAutomatically() {
         testFixture.given(fc -> loadAggregate("123", SearchableAggregate.class)
                         .update(a -> new SearchableAggregate("bar")))
-                .when(fc -> loadAggregate("123", SearchableAggregate.class).update(a -> null))
+                .whenExecuting(fc -> loadAggregate("123", SearchableAggregate.class).update(a -> null))
                 .expectTrue(fc -> search(SearchableAggregate.class.getSimpleName()).fetchAll().isEmpty());
     }
 
     @Test
     void testAggregateWithTimePath() {
         Instant timestamp = Instant.now().minusSeconds(1000);
-        testFixture.when(fc -> loadAggregate("123", SearchableAggregateWithTimePath.class)
+        testFixture.whenExecuting(fc -> loadAggregate("123", SearchableAggregateWithTimePath.class)
                         .update(a -> new SearchableAggregateWithTimePath(timestamp)))
                 .expectTrue(fc -> fc.documentStore().search("SearchableAggregateWithTimePath").fetchAll().equals(List.of(new SearchableAggregateWithTimePath(timestamp))))
                 .expectFalse(fc -> search(SearchableAggregateWithTimePath.class.getSimpleName())
@@ -63,7 +63,7 @@ public class SearchableAggregateTest {
     @Test
     void testAggregateWithTimePathPropertyMissing() {
         Instant timestamp = Instant.now().minusSeconds(1000);
-        testFixture.when(fc -> loadAggregate("123", SearchableAggregateWithMissingTimePath.class)
+        testFixture.whenExecuting(fc -> loadAggregate("123", SearchableAggregateWithMissingTimePath.class)
                         .update(a -> new SearchableAggregateWithMissingTimePath(timestamp)))
                 .expectTrue(fc -> search(SearchableAggregateWithMissingTimePath.class.getSimpleName())
                         .before(timestamp.plusSeconds(1)).fetchAll().isEmpty())
@@ -73,7 +73,7 @@ public class SearchableAggregateTest {
 
     @Test
     void testAggregateWithCustomCollection() {
-        testFixture.when(fc -> loadAggregate("123", SearchableAggregateWithCustomCollection.class)
+        testFixture.whenExecuting(fc -> loadAggregate("123", SearchableAggregateWithCustomCollection.class)
                         .update(a -> new SearchableAggregateWithCustomCollection("bar")))
                 .expectTrue(fc -> fc.documentStore().search("searchables").fetchAll().equals(List.of(new SearchableAggregateWithCustomCollection("bar"))))
                 .expectFalse(fc -> search("searchables").fetchAll().isEmpty());

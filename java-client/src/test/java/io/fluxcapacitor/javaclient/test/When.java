@@ -54,7 +54,12 @@ public interface When extends Given {
 
     Then whenTimeElapses(Duration duration);
 
-    Then when(Consumer<FluxCapacitor> action);
+    default Then whenExecuting(Consumer<FluxCapacitor> action) {
+        return whenApplying(fc -> {
+            action.accept(fc);
+            return null;
+        });
+    }
 
     Then whenApplying(Function<FluxCapacitor, ?> action);
 }

@@ -347,12 +347,12 @@ public class TestFixture implements Given, When {
     @Override
     public Then whenEvent(Object event) {
         Message message = trace(event);
-        return when(fc -> runSilently(() -> fc.eventGateway().publish(message, Guarantee.STORED).get()));
+        return whenExecuting(fc -> runSilently(() -> fc.eventGateway().publish(message, Guarantee.STORED).get()));
     }
 
     @Override
     public Then whenEventsAreApplied(String aggregateId, Object... events) {
-        return when(fc -> applyEvents(aggregateId, fc, events, true));
+        return whenExecuting(fc -> applyEvents(aggregateId, fc, events, true));
     }
 
     @Override
@@ -368,27 +368,19 @@ public class TestFixture implements Given, When {
     @Override
     public Then whenScheduleExpires(Object schedule) {
         Message message = trace(schedule);
-        return when(fc -> fc.scheduler().schedule(message, getClock().instant()));
+        return whenExecuting(fc -> fc.scheduler().schedule(message, getClock().instant()));
     }
 
     @Override
     @SneakyThrows
     public Then whenTimeElapses(Duration duration) {
-        return when(fc -> advanceTimeBy(duration));
+        return whenExecuting(fc -> advanceTimeBy(duration));
     }
 
     @Override
     @SneakyThrows
     public Then whenTimeAdvancesTo(Instant instant) {
-        return when(fc -> advanceTimeTo(instant));
-    }
-
-    @Override
-    public Then when(Consumer<FluxCapacitor> action) {
-        return whenApplying(fc -> {
-            action.accept(fc);
-            return null;
-        });
+        return whenExecuting(fc -> advanceTimeTo(instant));
     }
 
     @Override
