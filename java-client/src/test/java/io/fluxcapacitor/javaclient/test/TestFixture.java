@@ -304,6 +304,7 @@ public class TestFixture implements Given, When {
     public TestFixture given(Consumer<FluxCapacitor> condition) {
         return fluxCapacitor.apply(fc -> {
             try {
+                handleExpiredSchedulesLocally();
                 condition.accept(fc);
                 try {
                     return this;
