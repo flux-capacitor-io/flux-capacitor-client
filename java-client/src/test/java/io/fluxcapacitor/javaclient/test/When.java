@@ -16,6 +16,7 @@ package io.fluxcapacitor.javaclient.test;
 
 import io.fluxcapacitor.common.api.search.Constraint;
 import io.fluxcapacitor.javaclient.FluxCapacitor;
+import io.fluxcapacitor.javaclient.common.Message;
 import io.fluxcapacitor.javaclient.persisting.search.Search;
 import io.fluxcapacitor.javaclient.tracking.handling.authentication.User;
 import io.fluxcapacitor.javaclient.web.WebRequest;
@@ -26,34 +27,102 @@ import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.UnaryOperator;
 
+/**
+ * Interface of the `when` phase of a behavioral given-when-then test. Here you specify the action you want to test the
+ * behavior of.
+ * <p>
+ * Only effects of the `when` phase will be reported in the `then` phase, i.e. effects of the `given` phase will *not*
+ * be reported.
+ */
 public interface When {
 
+    /**
+     * Test expected behavior of handling the given command, including any side effects.
+     * <p>
+     * The command may be an instance of {@link Message} in which case it will be issued as is. Otherwise, the command
+     * is issued using the passed value as payload without additional metadata.
+     */
     Then whenCommand(Object command);
 
+    /**
+     * Test expected behavior of handling the given command issued by the given user, including any side effects.
+     * <p>
+     * The command may be an instance of {@link Message} in which case it will be issued as is. Otherwise, the command
+     * is issued using the passed value as payload without additional metadata.
+     */
     Then whenCommandByUser(Object command, User user);
 
+    /**
+     * Test expected result of the given query (or side effects if any).
+     * <p>
+     * The query may be an instance of {@link Message} in which case it will be issued as is. Otherwise, the query is
+     * issued using the passed value as payload without additional metadata.
+     */
     Then whenQuery(Object query);
 
+    /**
+     * Test expected result of the given query issued by the given user (or side effects if any).
+     * <p>
+     * The query may be an instance of {@link Message} in which case it will be issued as is. Otherwise, the query is
+     * issued using the passed value as payload without additional metadata.
+     */
     Then whenQueryByUser(Object command, User user);
 
+    /**
+     * Test expected behavior of handling the given event, including any side effects.
+     * <p>
+     * The event may be an instance of {@link Message} in which case it will be issued as is. Otherwise, the event is
+     * issued using the passed value as payload without additional metadata.
+     */
     Then whenEvent(Object event);
 
+    /**
+     * Test expected behavior of applying the given events on the given aggregate and then publishing those events,
+     * including any side effects.
+     * <p>
+     * The event may be an instance of {@link Message} in which case it will be applied as is. Otherwise, the event is
+     * applied using the passed value as payload without additional metadata.
+     */
     Then whenEventsAreApplied(String aggregateId, Object... events);
 
+    /**
+     * Test expected result of the given search in given collection.
+     */
     Then whenSearching(String collection, UnaryOperator<Search> searchQuery);
 
+    /**
+     * Test expected result of a search with given constraints in given collection.
+     */
     default Then whenSearching(String collection, Constraint... constraints) {
         return whenSearching(collection, s -> s.constraint(constraints));
     }
 
+    /**
+     * Test expected behavior of handling the given web request, including any side effects.
+     */
     Then whenWebRequest(WebRequest request);
 
+    /**
+     * Test expected behavior of handling the given expired schedule.
+     * <p>
+     * The schedule may be an instance of {@link Message} if you need to include metadata. Otherwise, the schedule is
+     * issued using the passed value as payload without additional metadata.
+     */
     Then whenScheduleExpires(Object schedule);
 
-    Then whenTimeAdvancesTo(Instant instant);
+    /**
+     * Test expected behavior after simulating a time advance to the given timestamp.
+     */
+    Then whenTimeAdvancesTo(Instant timestamp);
 
+    /**
+     * Test expected behavior after simulating a time advance by the given duration.
+     */
     Then whenTimeElapses(Duration duration);
 
+    /**
+     * Test expected (side) effect of the given action.
+     */
     default Then whenExecuting(Consumer<FluxCapacitor> action) {
         return whenApplying(fc -> {
             action.accept(fc);
@@ -61,5 +130,8 @@ public interface When {
         });
     }
 
+    /**
+     * Test expected result and/or (side) effects of the given action.
+     */
     Then whenApplying(Function<FluxCapacitor, ?> action);
 }

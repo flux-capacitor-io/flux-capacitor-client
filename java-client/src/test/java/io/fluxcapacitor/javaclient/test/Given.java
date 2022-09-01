@@ -30,7 +30,7 @@ import java.util.function.Consumer;
 
 /**
  * Interface of the `given` phase of a behavioral given-when-then test. Here you specify everything that happened prior
- * to the action you want to test the behavior of. Any effects of the given phase will *not* be reported in the `then`
+ * to the action you want to test the behavior of. Any effects of the `given` phase will *not* be reported in the `then`
  * phase.
  * <p>
  * This interface extends from {@link When} meaning you can immediately skip ahead to the `when` phase if there was no
