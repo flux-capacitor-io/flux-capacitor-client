@@ -16,6 +16,7 @@ package io.fluxcapacitor.javaclient.test;
 
 import io.fluxcapacitor.javaclient.FluxCapacitor;
 import io.fluxcapacitor.javaclient.common.Message;
+import io.fluxcapacitor.javaclient.scheduling.Schedule;
 import lombok.NonNull;
 
 import java.util.Collection;
@@ -141,7 +142,8 @@ public interface Then {
      * <p>
      * A schedule may be an instance of {@link Message} in which case it will be tested against published schedules
      * including any of the Message's metadata. Otherwise, the schedule is tested against published schedules using the
-     * passed value as payload without additional metadata.
+     * passed value as payload without additional metadata. If the schedule is an instance of a {@link Schedule} the
+     * deadline of the expected schedule will also be tested against published schedules.
      * <p>
      * A schedule may also be an instance of {@link Predicate}, hamcrest matcher, or Class. A schedule may also refer to
      * a json resource in the class path of the unit test by passing a string ending in `.json`, e.g.
@@ -154,7 +156,8 @@ public interface Then {
      * <p>
      * A schedule may be an instance of {@link Message} in which case it will be tested against published schedules
      * including any of the Message's metadata. Otherwise, the schedule is tested against published schedules using the
-     * passed value as payload without additional metadata.
+     * passed value as payload without additional metadata. If the schedule is an instance of a {@link Schedule} the
+     * deadline of the expected schedule will also be tested against published schedules.
      * <p>
      * A schedule may also be an instance of {@link Predicate}, hamcrest matcher, or Class. A schedule may also refer to
      * a json resource in the class path of the unit test by passing a string ending in `.json`, e.g.
@@ -167,7 +170,8 @@ public interface Then {
      * <p>
      * A schedule may be an instance of {@link Message} in which case it will be tested against published schedules
      * including any of the Message's metadata. Otherwise, the schedule is tested against published schedules using the
-     * passed value as payload without additional metadata.
+     * passed value as payload without additional metadata. If the schedule is an instance of a {@link Schedule} the
+     * deadline of the expected schedule will also be tested against published schedules.
      * <p>
      * A schedule may also be an instance of {@link Predicate}, hamcrest matcher, or Class. A schedule may also refer to
      * a json resource in the class path of the unit test by passing a string ending in `.json`, e.g.
@@ -187,7 +191,8 @@ public interface Then {
      * <p>
      * A schedule may be an instance of {@link Message} in which case it will be tested against published schedules
      * including any of the Message's metadata. Otherwise, the schedule is tested against published schedules using the
-     * passed value as payload without additional metadata.
+     * passed value as payload without additional metadata. If the schedule is an instance of a {@link Schedule} the
+     * deadline of the expected schedule will also be tested against published schedules.
      * <p>
      * A schedule may also be an instance of {@link Predicate}, hamcrest matcher, or Class. A schedule may also refer to
      * a json resource in the class path of the unit test by passing a string ending in `.json`, e.g.
@@ -200,7 +205,8 @@ public interface Then {
      * <p>
      * A schedule may be an instance of {@link Message} in which case it will be tested against published schedules
      * including any of the Message's metadata. Otherwise, the schedule is tested against published schedules using the
-     * passed value as payload without additional metadata.
+     * passed value as payload without additional metadata. If the schedule is an instance of a {@link Schedule} the
+     * deadline of the expected schedule will also be tested against published schedules.
      * <p>
      * A schedule may also be an instance of {@link Predicate}, hamcrest matcher, or Class. A schedule may also refer to
      * a json resource in the class path of the unit test by passing a string ending in `.json`, e.g.
@@ -213,7 +219,8 @@ public interface Then {
      * <p>
      * A schedule may be an instance of {@link Message} in which case it will be tested against published schedules
      * including any of the Message's metadata. Otherwise, the schedule is tested against published schedules using the
-     * passed value as payload without additional metadata.
+     * passed value as payload without additional metadata. If the schedule is an instance of a {@link Schedule} the
+     * deadline of the expected schedule will also be tested against published schedules.
      * <p>
      * A schedule may also be an instance of {@link Predicate}, hamcrest matcher, or Class. A schedule may also refer to
      * a json resource in the class path of the unit test by passing a string ending in `.json`, e.g.

@@ -38,6 +38,10 @@ public class Schedule extends Message {
     @NonNull String scheduleId;
     @NonNull Instant deadline;
 
+    public Schedule(Object payload, Instant deadline) {
+        this(payload, FluxCapacitor.currentIdentityProvider().nextTechnicalId(), deadline);
+    }
+
     public Schedule(Object payload, String scheduleId, Instant deadline) {
         super(payload);
         this.scheduleId = scheduleId;

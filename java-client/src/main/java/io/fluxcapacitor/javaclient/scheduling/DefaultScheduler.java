@@ -57,6 +57,11 @@ public class DefaultScheduler implements Scheduler {
     }
 
     @Override
+    public void scheduleCommand(Schedule command, boolean ifAbsent) {
+        schedule(command.withPayload(new ScheduledCommand(command.serialize(serializer))), ifAbsent);
+    }
+
+    @Override
     public void cancelSchedule(String scheduleId) {
         try {
             client.cancelSchedule(scheduleId).await();

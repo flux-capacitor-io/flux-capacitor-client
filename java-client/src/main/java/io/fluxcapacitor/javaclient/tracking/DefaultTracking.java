@@ -26,7 +26,6 @@ import io.fluxcapacitor.javaclient.common.exception.FunctionalException;
 import io.fluxcapacitor.javaclient.common.exception.TechnicalException;
 import io.fluxcapacitor.javaclient.common.serialization.DeserializingMessage;
 import io.fluxcapacitor.javaclient.common.serialization.Serializer;
-import io.fluxcapacitor.javaclient.configuration.client.Client;
 import io.fluxcapacitor.javaclient.publishing.ResultGateway;
 import io.fluxcapacitor.javaclient.tracking.client.DefaultTracker;
 import io.fluxcapacitor.javaclient.tracking.handling.HandlerFactory;
@@ -65,7 +64,6 @@ import static java.util.stream.Collectors.toMap;
 public class DefaultTracking implements Tracking {
     private final BiPredicate<Class<?>, Executable> handlerFilter = ClientUtils::isTrackingHandler;
     private final MessageType messageType;
-    private final Client client;
     private final ResultGateway resultGateway;
     private final List<ConsumerConfiguration> configurations;
     private final Serializer serializer;
@@ -127,13 +125,8 @@ public class DefaultTracking implements Tracking {
     }
 
     protected Registration startTracking(ConsumerConfiguration configuration,
-                                         List<Handler<DeserializingMessage>> handlers,
-                                         FluxCapacitor fluxCapacitor) {
-        return DefaultTracker.start(
-                createConsumer(configuration, handlers), configuration.toBuilder().clearBatchInterceptors()
-                        .batchInterceptors(Stream.concat(Stream.of(new FluxCapacitorInterceptor(fluxCapacitor)),
-                                                         configuration.getBatchInterceptors().stream())
-                                                   .collect(toList())).build(), client);
+                                         List<Handler<DeserializingMessage>> handlers, FluxCapacitor fluxCapacitor) {
+        return DefaultTracker.start(createConsumer(configuration, handlers), configuration, fluxCapacitor);
     }
 
     protected Consumer<List<SerializedMessage>> createConsumer(ConsumerConfiguration configuration,

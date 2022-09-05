@@ -309,6 +309,24 @@ public interface FluxCapacitor extends AutoCloseable {
     }
 
     /**
+     * Schedules a command for the given timestamp, returning the command schedule's id. The {@code command} parameter
+     * may be an instance of a {@link Message} in which case it will be scheduled as is. Otherwise, the command is
+     * scheduled using the passed value as payload without additional metadata.
+     */
+    static String scheduleCommand(Object command, Instant deadline) {
+        return get().scheduler().scheduleCommand(command, deadline);
+    }
+
+    /**
+     * Schedules a command with given {@code scheduleId} for the given timestamp. The {@code command} parameter may be
+     * an instance of a {@link Message} in which case it will be scheduled as is. Otherwise, the command is published
+     * using the passed value as payload without additional metadata.
+     */
+    static void scheduleCommand(Object command, String scheduleId, Instant deadline) {
+        get().scheduler().scheduleCommand(command, scheduleId, deadline);
+    }
+
+    /**
      * Cancels the schedule with given {@code scheduleId}.
      */
     static void cancelSchedule(String scheduleId) {

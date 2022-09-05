@@ -77,7 +77,7 @@ public class CachingTrackingClient implements TrackingClient {
                     .minIndex(IndexUtils.indexForCurrentTime())
                     .name(CachingTrackingClient.class.getSimpleName()).build();
             registration = FluxCapacitor.getOptionally()
-                    .map(fc -> DefaultTracker.start(this::cacheNewMessages, cacheFillerConfig, fc.client()))
+                    .map(fc -> DefaultTracker.start(this::cacheNewMessages, cacheFillerConfig, fc))
                     .orElseGet(() -> DefaultTracker.start(this::cacheNewMessages, cacheFillerConfig, delegate));
         }
         if (lastIndex != null && cache.containsKey(lastIndex)) {

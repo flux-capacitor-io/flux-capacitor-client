@@ -66,6 +66,7 @@ import io.fluxcapacitor.javaclient.publishing.correlation.DefaultCorrelationData
 import io.fluxcapacitor.javaclient.publishing.dataprotection.DataProtectionInterceptor;
 import io.fluxcapacitor.javaclient.publishing.routing.MessageRoutingInterceptor;
 import io.fluxcapacitor.javaclient.scheduling.DefaultScheduler;
+import io.fluxcapacitor.javaclient.scheduling.ScheduledCommandHandler;
 import io.fluxcapacitor.javaclient.scheduling.Scheduler;
 import io.fluxcapacitor.javaclient.scheduling.SchedulingInterceptor;
 import io.fluxcapacitor.javaclient.tracking.BatchInterceptor;
@@ -236,6 +237,7 @@ public class DefaultFluxCapacitor implements FluxCapacitor {
         private boolean disablePayloadValidation;
         private boolean disableDataProtection;
         private boolean disableAutomaticAggregateCaching;
+        private boolean disableScheduledCommandHandler;
         private boolean disableShutdownHook;
         private boolean collectTrackingMetrics;
         private boolean makeApplicationInstance;
@@ -426,6 +428,12 @@ public class DefaultFluxCapacitor implements FluxCapacitor {
         }
 
         @Override
+        public FluxCapacitorBuilder disableScheduledCommandHandler() {
+            disableScheduledCommandHandler = true;
+            return this;
+        }
+
+        @Override
         public FluxCapacitorBuilder enableTrackingMetrics() {
             collectTrackingMetrics = true;
             return this;
@@ -591,13 +599,11 @@ public class DefaultFluxCapacitor implements FluxCapacitor {
                     type, (t, configs) -> configs.stream().map(
                             c -> c.toBuilder().batchInterceptors(interceptors).build()).collect(toList())));
             Map<MessageType, Tracking> trackingMap = stream(MessageType.values())
-                    .collect(toMap(identity(), m -> new DefaultTracking(m, client,
-                                                                        m == WEBREQUEST ? webResponseGateway :
-                                                                                resultGateway,
-                                                                        consumerConfigurations.get(m), this.serializer,
-                                                                        new DefaultHandlerFactory(m, handlerInterceptors
-                                                                                .get(m == NOTIFICATION ? EVENT : m),
-                                                                                                  parameterResolvers))));
+                    .collect(toMap(identity(), m -> new DefaultTracking(
+                            m, m == WEBREQUEST ? webResponseGateway : resultGateway, consumerConfigurations.get(m),
+                            this.serializer,
+                            new DefaultHandlerFactory(m, handlerInterceptors.get(m == NOTIFICATION ? EVENT : m),
+                                                      parameterResolvers))));
 
             //misc
             Scheduler scheduler = new DefaultScheduler(client.getSchedulingClient(),
@@ -637,7 +643,11 @@ public class DefaultFluxCapacitor implements FluxCapacitor {
                 FluxCapacitor.applicationInstance.set(fluxCapacitor);
             }
 
-            Optional.ofNullable(forwardingWebConsumer).ifPresent(c -> c.start(client));
+            Optional.ofNullable(forwardingWebConsumer).ifPresent(c -> c.start(fluxCapacitor));
+
+            if (!disableScheduledCommandHandler) {
+                ScheduledCommandHandler.start(fluxCapacitor);
+            }
 
             //perform a controlled shutdown when the vm exits
             if (!disableShutdownHook) {

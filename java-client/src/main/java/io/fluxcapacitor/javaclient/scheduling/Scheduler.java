@@ -64,6 +64,44 @@ public interface Scheduler {
 
     void schedule(Schedule message, boolean ifAbsent);
 
+    default String scheduleCommand(Object schedule, Instant deadline) {
+        String scheduleId = FluxCapacitor.currentIdentityProvider().nextTechnicalId();
+        scheduleCommand(schedule, scheduleId, deadline);
+        return scheduleId;
+    }
+
+    default String scheduleCommand(Object schedule, Duration delay) {
+        return scheduleCommand(schedule, currentClock().instant().plus(delay));
+    }
+
+    default void scheduleCommand(Object schedule, String scheduleId, Duration delay) {
+        scheduleCommand(schedule, scheduleId, currentClock().instant().plus(delay));
+    }
+
+    default void scheduleCommand(Object schedulePayload, Metadata metadata, String scheduleId, Instant deadline) {
+        scheduleCommand(new Message(schedulePayload, metadata), scheduleId, deadline);
+    }
+
+    default void scheduleCommand(Object schedulePayload, Metadata metadata, String scheduleId, Duration delay) {
+        scheduleCommand(new Message(schedulePayload, metadata), scheduleId, delay);
+    }
+
+    default void scheduleCommand(Object schedule, String scheduleId, Instant deadline) {
+        if (schedule instanceof Message) {
+            Message message = (Message) schedule;
+            scheduleCommand(new Schedule(message.getPayload(), message.getMetadata(), message.getMessageId(),
+                                  message.getTimestamp(), scheduleId, deadline));
+        } else {
+            scheduleCommand(new Schedule(schedule, scheduleId, deadline));
+        }
+    }
+
+    default void scheduleCommand(Schedule message) {
+        scheduleCommand(message, false);
+    }
+
+    void scheduleCommand(Schedule message, boolean ifAbsent);
+
     void cancelSchedule(String scheduleId);
 
     Optional<Schedule> getSchedule(String scheduleId);

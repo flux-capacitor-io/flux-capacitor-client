@@ -15,6 +15,7 @@
 package io.fluxcapacitor.javaclient.givenwhenthen;
 
 import io.fluxcapacitor.javaclient.FluxCapacitor;
+import io.fluxcapacitor.javaclient.configuration.DefaultFluxCapacitor;
 import io.fluxcapacitor.javaclient.scheduling.Periodic;
 import io.fluxcapacitor.javaclient.scheduling.Schedule;
 import io.fluxcapacitor.javaclient.test.GivenWhenThenAssertionError;
@@ -67,7 +68,8 @@ class GivenWhenThenSchedulingTest {
         Object command = "command";
         Instant deadline = subject.getClock().instant().minusSeconds(10);
         subject.givenSchedules(new Schedule(new YieldsCommand(command), "test", deadline))
-                .whenExecuting(fc -> {})
+                .whenExecuting(fc -> {
+                })
                 .expectNoCommands();
     }
 
@@ -163,13 +165,15 @@ class GivenWhenThenSchedulingTest {
         Object expected = new YieldsCommand("original");
         Object notExpected = new YieldsCommand("override");
         subject.givenSchedules(new Schedule(expected, "test", subject.getClock().instant().plus(delay)))
-                .givenSchedules(new Schedule(notExpected, "test", subject.getClock().instant().plus(delay).minusSeconds(1)))
+                .givenSchedules(
+                        new Schedule(notExpected, "test", subject.getClock().instant().plus(delay).minusSeconds(1)))
                 .whenTimeElapses(delay).expectOnlyCommands("override");
     }
 
     @Test
     void testNoAutomaticRescheduleBeforeDeadline() {
-        subject.givenElapsedTime(Duration.ofMillis(500)).whenExecuting(fc -> {}).expectNoNewSchedules();
+        subject.givenElapsedTime(Duration.ofMillis(500)).whenExecuting(fc -> {
+        }).expectNoNewSchedules();
     }
 
     @Test
@@ -234,10 +238,46 @@ class GivenWhenThenSchedulingTest {
                 .expectResult(schedule);
     }
 
+    @Test
+    void testScheduledCommand() {
+        Instant deadline = Instant.now().plusSeconds(10);
+        subject.givenScheduledCommands(new Schedule("some command", "testId", deadline))
+                .whenTimeAdvancesTo(deadline).expectCommands("some command");
+    }
+
+    @Test
+    void testScheduledCommand_async() {
+        Instant deadline = Instant.now().plusSeconds(10);
+        TestFixture.createAsync(new CommandHandler()).givenScheduledCommands(new Schedule("some command", deadline))
+                .whenTimeAdvancesTo(deadline).expectCommands("some command");
+    }
+
+    @Test
+    void testScheduledCommandCancellation() {
+        Instant deadline = Instant.now().plusSeconds(10);
+        String scheduleId = "testId";
+        subject.givenScheduledCommands(new Schedule("some command", scheduleId,  deadline))
+                .given(fc -> FluxCapacitor.cancelSchedule(scheduleId))
+                .whenTimeAdvancesTo(deadline).expectNoCommands();
+    }
+
+    @Test
+    void noScheduledCommandsWhenDisabled() {
+        Instant deadline = Instant.now().plusSeconds(10);
+        TestFixture.create(DefaultFluxCapacitor.builder().disableScheduledCommandHandler(),
+                           new CommandHandler()).givenScheduledCommands(new Schedule("some command", deadline))
+                .whenTimeAdvancesTo(deadline).expectNoCommands();
+    }
+
     static class CommandHandler {
         @HandleCommand
         void handle(YieldsSchedule command) {
             FluxCapacitor.get().scheduler().schedule(command.getSchedule());
+        }
+
+        @HandleCommand
+        void handle(String simpleCommand) {
+            System.out.println(simpleCommand);
         }
     }
 

@@ -7,7 +7,6 @@ import io.fluxcapacitor.common.api.Data;
 import io.fluxcapacitor.common.api.Metadata;
 import io.fluxcapacitor.common.api.SerializedMessage;
 import io.fluxcapacitor.javaclient.FluxCapacitor;
-import io.fluxcapacitor.javaclient.configuration.client.Client;
 import io.fluxcapacitor.javaclient.publishing.client.GatewayClient;
 import io.fluxcapacitor.javaclient.publishing.correlation.DefaultCorrelationDataProvider;
 import io.fluxcapacitor.javaclient.tracking.ConsumerConfiguration;
@@ -48,8 +47,8 @@ public class ForwardingWebConsumer implements AutoCloseable {
     }
 
     @Synchronized
-    public void start(Client client) {
-        GatewayClient gatewayClient = client.getGatewayClient(MessageType.WEBRESPONSE);
+    public void start(FluxCapacitor fluxCapacitor) {
+        GatewayClient gatewayClient = fluxCapacitor.client().getGatewayClient(MessageType.WEBRESPONSE);
         BiConsumer<SerializedMessage, SerializedMessage> gateway = (request, response) -> {
             response.setTarget(request.getSource());
             response.setRequestId(request.getRequestId());
@@ -75,7 +74,7 @@ public class ForwardingWebConsumer implements AutoCloseable {
                 }
             }
         });
-        registration.getAndUpdate(r -> r == null ? DefaultTracker.start(consumer, configuration, client) : r);
+        registration.getAndUpdate(r -> r == null ? DefaultTracker.start(consumer, configuration, fluxCapacitor) : r);
     }
 
     protected Map<String, String> getCorrelationData(SerializedMessage m) {

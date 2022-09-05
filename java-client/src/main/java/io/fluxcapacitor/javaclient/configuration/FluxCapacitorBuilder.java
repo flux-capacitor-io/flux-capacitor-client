@@ -110,6 +110,8 @@ public interface FluxCapacitorBuilder {
 
     FluxCapacitorBuilder disableAutomaticAggregateCaching();
 
+    FluxCapacitorBuilder disableScheduledCommandHandler();
+
     FluxCapacitorBuilder enableTrackingMetrics();
 
     FluxCapacitorBuilder makeApplicationInstance(boolean makeApplicationInstance);

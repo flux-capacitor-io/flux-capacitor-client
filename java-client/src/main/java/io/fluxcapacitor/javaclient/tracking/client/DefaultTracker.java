@@ -17,9 +17,11 @@ package io.fluxcapacitor.javaclient.tracking.client;
 import io.fluxcapacitor.common.Registration;
 import io.fluxcapacitor.common.api.SerializedMessage;
 import io.fluxcapacitor.common.api.tracking.MessageBatch;
+import io.fluxcapacitor.javaclient.FluxCapacitor;
 import io.fluxcapacitor.javaclient.configuration.client.Client;
 import io.fluxcapacitor.javaclient.tracking.BatchProcessingException;
 import io.fluxcapacitor.javaclient.tracking.ConsumerConfiguration;
+import io.fluxcapacitor.javaclient.tracking.FluxCapacitorInterceptor;
 import io.fluxcapacitor.javaclient.tracking.Tracker;
 import io.fluxcapacitor.javaclient.tracking.TrackingException;
 import lombok.extern.slf4j.Slf4j;
@@ -34,6 +36,7 @@ import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
 import java.util.function.Predicate;
 import java.util.stream.IntStream;
+import java.util.stream.Stream;
 
 import static io.fluxcapacitor.common.TimingUtils.retryOnFailure;
 import static io.fluxcapacitor.javaclient.tracking.BatchInterceptor.join;
@@ -86,8 +89,27 @@ public class DefaultTracker implements Runnable, Registration {
      * Starts one or more trackers. Messages will be passed to the given consumer. Once the consumer is done the
      * position of the tracker is automatically updated.
      * <p>
-     * Each tracker started is using a single thread. To track in parallel configure the number of trackers using {@link
-     * ConsumerConfiguration}.
+     * {@link FluxCapacitorInterceptor} will be added to the list of batch interceptors in the given configuration.
+     * This ensures that a thread local {@link FluxCapacitor} instance will always be available during tracking.
+     * <p>
+     * Each tracker started is using a single thread. To track in parallel configure the number of trackers using
+     * {@link ConsumerConfiguration}.
+     */
+    public static Registration start(Consumer<List<SerializedMessage>> consumer, ConsumerConfiguration config,
+                                     FluxCapacitor fluxCapacitor) {
+        return start(
+                consumer, config.toBuilder().clearBatchInterceptors().batchInterceptors(
+                        Stream.concat(Stream.of(new FluxCapacitorInterceptor(fluxCapacitor)),
+                                      config.getBatchInterceptors().stream()).collect(toList())).build(),
+                fluxCapacitor.client());
+    }
+
+    /**
+     * Starts one or more trackers. Messages will be passed to the given consumer. Once the consumer is done the
+     * position of the tracker is automatically updated.
+     * <p>
+     * Each tracker started is using a single thread. To track in parallel configure the number of trackers using
+     * {@link ConsumerConfiguration}.
      */
     public static Registration start(Consumer<List<SerializedMessage>> consumer, ConsumerConfiguration config,
                                      Client client) {
@@ -192,7 +214,7 @@ public class DefaultTracker implements Runnable, Registration {
 
     private boolean shouldFilterBatch(MessageBatch batch) {
         return isMaxIndexReached(batch.getLastIndex()) || (minIndex != null && !batch.getMessages().isEmpty()
-                && minIndex > batch.getMessages().get(0).getIndex());
+                                                           && minIndex > batch.getMessages().get(0).getIndex());
     }
 
     private Predicate<SerializedMessage> messageIndexFilter() {
@@ -214,18 +236,18 @@ public class DefaultTracker implements Runnable, Registration {
         } catch (BatchProcessingException e) {
             log.error(
                     "Consumer {} failed to handle batch of {} messages at index {} and did not handle exception. "
-                            + "Consumer will be updated to the last processed index and then stopped.",
+                    + "Consumer will be updated to the last processed index and then stopped.",
                     tracker.getName(), messages.size(), e.getMessageIndex());
             updatePosition(messages.stream().map(SerializedMessage::getIndex)
                                    .filter(i -> e.getMessageIndex() != null && i != null
-                                           && i < e.getMessageIndex())
+                                                && i < e.getMessageIndex())
                                    .max(naturalOrder()).orElse(null), messageBatch.getSegment());
             processing = false;
             cancel();
             return;
         } catch (Exception e) {
             log.error("Consumer {} failed to handle batch of {} messages and did not handle exception. "
-                              + "Tracker will be stopped.", tracker.getName(), messages.size(), e);
+                      + "Tracker will be stopped.", tracker.getName(), messages.size(), e);
             processing = false;
             cancel();
             return;

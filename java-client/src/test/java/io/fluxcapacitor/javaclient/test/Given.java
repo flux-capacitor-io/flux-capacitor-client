@@ -122,6 +122,13 @@ public interface Given extends When {
     }
 
     /**
+     * Specify one or more scheduled commands that have been issued prior to the behavior you want to test.
+     */
+    default Given givenScheduledCommands(Schedule... commands) {
+        return given(fc -> Arrays.stream(commands).forEach(s -> fc.scheduler().scheduleCommand(s)));
+    }
+
+    /**
      * Specify one or more expired schedules that have been issued prior to the behavior you want to test.
      * <p>
      * A schedule may be an instance of {@link Message} in which case it will be published as is. Otherwise, the
@@ -161,6 +168,13 @@ public interface Given extends When {
      * Get the clock used by this test fixture.
      */
     Clock getClock();
+
+    /**
+     * Get the current time of this test fixture.
+     */
+    default Instant getCurrentTime() {
+        return getClock().instant();
+    }
 
     /**
      * Sets the clock used by this test fixture. By default, the test fixture fixes its clock when it is created, but if
