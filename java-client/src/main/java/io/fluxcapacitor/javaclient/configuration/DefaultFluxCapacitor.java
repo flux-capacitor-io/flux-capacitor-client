@@ -66,6 +66,7 @@ import io.fluxcapacitor.javaclient.publishing.correlation.DefaultCorrelationData
 import io.fluxcapacitor.javaclient.publishing.dataprotection.DataProtectionInterceptor;
 import io.fluxcapacitor.javaclient.publishing.routing.MessageRoutingInterceptor;
 import io.fluxcapacitor.javaclient.scheduling.DefaultScheduler;
+import io.fluxcapacitor.javaclient.scheduling.ScheduledCommand;
 import io.fluxcapacitor.javaclient.scheduling.ScheduledCommandHandler;
 import io.fluxcapacitor.javaclient.scheduling.Scheduler;
 import io.fluxcapacitor.javaclient.scheduling.SchedulingInterceptor;
@@ -593,6 +594,11 @@ public class DefaultFluxCapacitor implements FluxCapacitor {
                                                                       serializer, dispatchInterceptors.get(WEBRESPONSE),
                                                                       webResponseMapper);
 
+            if (!disableScheduledCommandHandler) {
+                consumerConfigurations.get(SCHEDULE).add(0, ConsumerConfiguration.builder()
+                        .messageType(SCHEDULE).typeFilter(ScheduledCommand.class.getName())
+                        .name(ScheduledCommandHandler.class.getSimpleName()).build());
+            }
 
             //tracking
             batchInterceptors.forEach((type, interceptors) -> consumerConfigurations.computeIfPresent(
@@ -646,7 +652,7 @@ public class DefaultFluxCapacitor implements FluxCapacitor {
             Optional.ofNullable(forwardingWebConsumer).ifPresent(c -> c.start(fluxCapacitor));
 
             if (!disableScheduledCommandHandler) {
-                ScheduledCommandHandler.start(fluxCapacitor);
+                fluxCapacitor.registerHandlers(new ScheduledCommandHandler());
             }
 
             //perform a controlled shutdown when the vm exits

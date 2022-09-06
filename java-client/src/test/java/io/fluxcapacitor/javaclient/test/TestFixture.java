@@ -36,6 +36,7 @@ import io.fluxcapacitor.javaclient.persisting.search.Search;
 import io.fluxcapacitor.javaclient.publishing.DispatchInterceptor;
 import io.fluxcapacitor.javaclient.scheduling.DefaultScheduler;
 import io.fluxcapacitor.javaclient.scheduling.Schedule;
+import io.fluxcapacitor.javaclient.scheduling.ScheduledCommandHandler;
 import io.fluxcapacitor.javaclient.scheduling.client.InMemorySchedulingClient;
 import io.fluxcapacitor.javaclient.scheduling.client.SchedulingClient;
 import io.fluxcapacitor.javaclient.tracking.BatchInterceptor;
@@ -56,6 +57,7 @@ import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.ZoneId;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
@@ -174,6 +176,7 @@ public class TestFixture implements Given, When {
         if (userProvider.isPresent()) {
             fluxCapacitorBuilder = fluxCapacitorBuilder.registerUserSupplier(userProvider.get());
         }
+        fluxCapacitorBuilder.disableScheduledCommandHandler();
         this.interceptor = new GivenWhenThenInterceptor();
         this.fluxCapacitor = new TestFluxCapacitor(
                 fluxCapacitorBuilder.disableShutdownHook().addDispatchInterceptor(interceptor)
@@ -182,7 +185,9 @@ public class TestFixture implements Given, When {
                         .addBatchInterceptor(interceptor).addHandlerInterceptor(interceptor, true)
                         .build(new TestClient(client)));
         withClock(Clock.fixed(Instant.now(), ZoneId.systemDefault()));
-        registerHandlers(handlerFactory.apply(fluxCapacitor));
+        List<Object> handlers = new ArrayList<>(handlerFactory.apply(fluxCapacitor));
+        handlers.add(0, new ScheduledCommandHandler());
+        registerHandlers(handlers);
     }
 
     public TestFixture registerHandlers(Object... handlers) {

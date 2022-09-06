@@ -17,6 +17,7 @@ package io.fluxcapacitor.common;
 import io.fluxcapacitor.common.api.Data;
 import io.fluxcapacitor.common.api.Metadata;
 import io.fluxcapacitor.common.api.SerializedMessage;
+import lombok.SneakyThrows;
 
 import java.nio.ByteBuffer;
 import java.time.Clock;
@@ -53,4 +54,8 @@ public class TestUtils {
         }
     }
 
+    @SneakyThrows
+    public static void sleepAWhile(int millis) {
+        Thread.sleep(millis);
+    }
 }

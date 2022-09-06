@@ -15,7 +15,6 @@
 package io.fluxcapacitor.javaclient.givenwhenthen;
 
 import io.fluxcapacitor.javaclient.FluxCapacitor;
-import io.fluxcapacitor.javaclient.configuration.DefaultFluxCapacitor;
 import io.fluxcapacitor.javaclient.scheduling.Periodic;
 import io.fluxcapacitor.javaclient.scheduling.Schedule;
 import io.fluxcapacitor.javaclient.test.GivenWhenThenAssertionError;
@@ -240,7 +239,7 @@ class GivenWhenThenSchedulingTest {
 
     @Test
     void testScheduledCommand() {
-        Instant deadline = Instant.now().plusSeconds(10);
+        Instant deadline = subject.getCurrentTime().plusSeconds(10);
         subject.givenScheduledCommands(new Schedule("some command", "testId", deadline))
                 .whenTimeAdvancesTo(deadline).expectCommands("some command");
     }
@@ -248,7 +247,8 @@ class GivenWhenThenSchedulingTest {
     @Test
     void testScheduledCommand_async() {
         Instant deadline = Instant.now().plusSeconds(10);
-        TestFixture.createAsync(new CommandHandler()).givenScheduledCommands(new Schedule("some command", deadline))
+        TestFixture.createAsync(new CommandHandler())
+                .givenScheduledCommands(new Schedule("some command", deadline))
                 .whenTimeAdvancesTo(deadline).expectCommands("some command");
     }
 
@@ -261,14 +261,6 @@ class GivenWhenThenSchedulingTest {
                 .whenTimeAdvancesTo(deadline).expectNoCommands();
     }
 
-    @Test
-    void noScheduledCommandsWhenDisabled() {
-        Instant deadline = Instant.now().plusSeconds(10);
-        TestFixture.create(DefaultFluxCapacitor.builder().disableScheduledCommandHandler(),
-                           new CommandHandler()).givenScheduledCommands(new Schedule("some command", deadline))
-                .whenTimeAdvancesTo(deadline).expectNoCommands();
-    }
-
     static class CommandHandler {
         @HandleCommand
         void handle(YieldsSchedule command) {
@@ -277,7 +269,6 @@ class GivenWhenThenSchedulingTest {
 
         @HandleCommand
         void handle(String simpleCommand) {
-            System.out.println(simpleCommand);
         }
     }
 
