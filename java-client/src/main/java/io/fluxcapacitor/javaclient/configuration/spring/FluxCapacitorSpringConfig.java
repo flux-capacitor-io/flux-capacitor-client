@@ -53,6 +53,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.stream.Collectors;
 
 @Configuration
 @Slf4j
@@ -76,7 +77,9 @@ public class FluxCapacitorSpringConfig implements BeanPostProcessor {
     @EventListener
     public void handle(ContextRefreshedEvent event) {
         FluxCapacitor fluxCapacitor = context.getBean(FluxCapacitor.class);
-        handlerRegistration.updateAndGet(r -> r == null ? fluxCapacitor.registerHandlers(springBeans) : r);
+        List<Object> potentialHandlers = springBeans.stream().filter(b -> !(b instanceof Class<?>)).collect(
+                Collectors.toList());
+        handlerRegistration.updateAndGet(r -> r == null ? fluxCapacitor.registerHandlers(potentialHandlers) : r);
         if (Thread.getDefaultUncaughtExceptionHandler() == null) {
             Thread.setDefaultUncaughtExceptionHandler((t, e) -> log.error("Uncaught exception", e));
         }
