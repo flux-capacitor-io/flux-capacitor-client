@@ -15,7 +15,9 @@
 package io.fluxcapacitor.javaclient.publishing.correlation;
 
 import io.fluxcapacitor.common.MessageType;
+import io.fluxcapacitor.common.api.Metadata;
 import io.fluxcapacitor.javaclient.common.Message;
+import io.fluxcapacitor.javaclient.common.serialization.DeserializingMessage;
 import io.fluxcapacitor.javaclient.publishing.DispatchInterceptor;
 import lombok.AllArgsConstructor;
 
@@ -25,6 +27,13 @@ import static io.fluxcapacitor.javaclient.FluxCapacitor.currentCorrelationData;
 public class CorrelatingInterceptor implements DispatchInterceptor {
     @Override
     public Message interceptDispatch(Message message, MessageType messageType) {
-        return message.withMetadata(message.getMetadata().with(currentCorrelationData()));
+        Metadata metadata = message.getMetadata();
+        if (messageType == MessageType.EVENT) {
+            DeserializingMessage currentMessage = DeserializingMessage.getCurrent();
+            if (currentMessage != null) {
+                metadata = metadata.with(currentMessage.getMetadata());
+            }
+        }
+        return message.withMetadata(metadata.with(currentCorrelationData()));
     }
 }
