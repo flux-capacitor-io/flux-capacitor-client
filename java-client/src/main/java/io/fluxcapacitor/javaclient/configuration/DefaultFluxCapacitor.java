@@ -597,6 +597,7 @@ public class DefaultFluxCapacitor implements FluxCapacitor {
             if (!disableScheduledCommandHandler) {
                 consumerConfigurations.get(SCHEDULE).add(0, ConsumerConfiguration.builder()
                         .messageType(SCHEDULE).typeFilter(ScheduledCommand.class.getName())
+                        .handlerFilter(h -> ScheduledCommandHandler.class.equals(h.getClass()))
                         .name(ScheduledCommandHandler.class.getSimpleName()).build());
             }
 

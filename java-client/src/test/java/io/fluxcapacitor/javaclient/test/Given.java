@@ -23,7 +23,6 @@ import io.fluxcapacitor.javaclient.web.WebRequest;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
-import java.time.ZoneId;
 import java.util.Arrays;
 import java.util.UUID;
 import java.util.function.Consumer;
@@ -188,8 +187,6 @@ public interface Given extends When {
      * result of your test depends on the time at which it is run you can fix the test fixture's time using this
      * method.
      */
-    default Given atFixedTime(Instant time) {
-        return withClock(Clock.fixed(time, ZoneId.systemDefault()));
-    }
+    Given atFixedTime(Instant time);
 
 }

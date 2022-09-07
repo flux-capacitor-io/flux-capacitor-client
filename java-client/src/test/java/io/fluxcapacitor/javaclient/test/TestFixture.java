@@ -63,6 +63,7 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
@@ -94,8 +95,6 @@ import static java.util.stream.Collectors.toSet;
 
 @Slf4j
 public class TestFixture implements Given, When {
-    private static final String TRACE_TAG = "$givenWhenThen.trace", IGNORE_TAG = "$givenWhenThen.ignore";
-    
     /*
         Synchronous test fixture: Messages are dispatched and consumed in the same thread (i.e. all handlers are registered as local handlers)
      */
@@ -160,6 +159,7 @@ public class TestFixture implements Given, When {
     private Registration registration = Registration.noOp();
     private final GivenWhenThenInterceptor interceptor;
 
+    private volatile Message tracedMessage;
     private final Map<ConsumerConfiguration, List<Message>> consumers = new ConcurrentHashMap<>();
     private final List<Message> commands = new CopyOnWriteArrayList<>(), events = new CopyOnWriteArrayList<>(),
             webRequests = new CopyOnWriteArrayList<>();
@@ -176,7 +176,11 @@ public class TestFixture implements Given, When {
         if (userProvider.isPresent()) {
             fluxCapacitorBuilder = fluxCapacitorBuilder.registerUserSupplier(userProvider.get());
         }
-        fluxCapacitorBuilder.disableScheduledCommandHandler();
+        List<Object> handlers = new ArrayList<>();
+        if (synchronous) {
+            fluxCapacitorBuilder.disableScheduledCommandHandler();
+            handlers.add(new ScheduledCommandHandler());
+        }
         this.interceptor = new GivenWhenThenInterceptor();
         this.fluxCapacitor = new TestFluxCapacitor(
                 fluxCapacitorBuilder.disableShutdownHook().addDispatchInterceptor(interceptor)
@@ -185,8 +189,7 @@ public class TestFixture implements Given, When {
                         .addBatchInterceptor(interceptor).addHandlerInterceptor(interceptor, true)
                         .build(new TestClient(client)));
         withClock(Clock.fixed(Instant.now(), ZoneId.systemDefault()));
-        List<Object> handlers = new ArrayList<>(handlerFactory.apply(fluxCapacitor));
-        handlers.add(0, new ScheduledCommandHandler());
+        handlers.addAll(handlerFactory.apply(fluxCapacitor));
         registerHandlers(handlers);
     }
 
@@ -246,6 +249,11 @@ public class TestFixture implements Given, When {
             }
             return this;
         });
+    }
+
+    @Override
+    public TestFixture atFixedTime(Instant time) {
+        return withClock(Clock.fixed(time, ZoneId.systemDefault()));
     }
 
     public Clock getClock() {
@@ -565,7 +573,7 @@ public class TestFixture implements Given, When {
 
     protected Message trace(Object object) {
         Class<?> callerClass = ReflectionUtils.getCallerClass();
-        return fluxCapacitor.apply(fc -> asMessage(parseObject(object, callerClass)).addMetadata(TRACE_TAG, "true"));
+        return tracedMessage = fluxCapacitor.apply(fc -> asMessage(parseObject(object, callerClass)));
     }
 
     protected Object[] addUser(User user, Object... messages) {
@@ -604,37 +612,24 @@ public class TestFixture implements Given, When {
 
         @Override
         public Message interceptDispatch(Message message, MessageType messageType) {
-            if (!collectingResults) {
-                message = message.addMetadata(IGNORE_TAG, "true");
-            }
-
-            DeserializingMessage currentMessage = DeserializingMessage.getCurrent();
-            if (currentMessage != null) {
-                if (currentMessage.getMessageType() != SCHEDULE && currentMessage.getMetadata()
-                        .containsKey(IGNORE_TAG)) {
-                    message = message.addMetadata(IGNORE_TAG, "true");
-                }
-                if (currentMessage.getMetadata().containsKey(TRACE_TAG)) {
-                    message = message.withMetadata(message.getMetadata().without(TRACE_TAG));
-                }
-            }
-
             if (messageType == SCHEDULE) {
                 addMessage(publishedSchedules, (Schedule) message);
             }
 
             synchronized (consumers) {
-                Message interceptedMessage = message;
                 consumers.entrySet().stream()
                         .filter(t -> {
                             ConsumerConfiguration configuration = t.getKey();
                             return (configuration.getMessageType() == messageType && Optional
                                     .ofNullable(configuration.getTypeFilter())
-                                    .map(f -> interceptedMessage.getPayload().getClass().getName().matches(f))
+                                    .map(f -> message.getPayload().getClass().getName().matches(f))
                                     .orElse(true));
-                        }).forEach(e -> addMessage(e.getValue(), interceptedMessage));
+                        }).forEach(e -> addMessage(e.getValue(), message));
             }
-            if (!message.getMetadata().containsAnyKey(IGNORE_TAG, TRACE_TAG)) {
+
+            if (collectingResults
+                && Optional.ofNullable(tracedMessage)
+                        .map(t -> !Objects.equals(t.getMessageId(), message.getMessageId())).orElse(true)) {
                 switch (messageType) {
                     case COMMAND:
                         registerCommand(message);
