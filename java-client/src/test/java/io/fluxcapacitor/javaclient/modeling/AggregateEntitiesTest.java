@@ -52,7 +52,7 @@ public class AggregateEntitiesTest {
 
     void expectEntities(Class<?> parentClass, Predicate<Collection<Entity<?, ?>>> predicate) {
         testFixture
-                .whenApplying(fc -> loadAggregate("test", (Class) parentClass).allEntities().collect(toList()))
+                .whenApplying(fc -> loadAggregate("test", (Class<?>) parentClass).allEntities().collect(toList()))
                 .expectResult(predicate);
     }
 
@@ -229,6 +229,19 @@ public class AggregateEntitiesTest {
                 testFixture.whenCommand(new UpdateChild("id", "data"))
                         .expectThat(fc -> expectEntity(
                                 e -> e.get() instanceof Child && ((Child) e.get()).getData().equals("data")));
+            }
+
+            @Test
+            void addStringMember() {
+                testFixture.whenCommand(new Object() {
+                    @Apply
+                    Aggregate apply(Aggregate aggregate) {
+                        return aggregate.toBuilder().clientReference("clientRef").build();
+                    }
+                })
+                        .expectThat(fc -> expectEntity(e -> "clientRef".equals(e.id()) && "clientRef".equals(e.get())))
+                        .expectTrue(fc -> "clientRef".equals(FluxCapacitor.loadEntity("clientRef").get()))
+                        .expectTrue(fc -> FluxCapacitor.loadEntityValue("clientRef").filter("clientRef"::equals).isPresent());
             }
 
             @Value
@@ -453,7 +466,7 @@ public class AggregateEntitiesTest {
     }
 
     @Value
-    @Builder
+    @Builder(toBuilder = true)
     public static class Aggregate {
 
         @EntityId
@@ -487,6 +500,9 @@ public class AggregateEntitiesTest {
         @Default
         @With
         ChildWithChild childWithGrandChild = ChildWithChild.builder().build();
+
+        @Member
+        String clientReference;
     }
 
     @Value
