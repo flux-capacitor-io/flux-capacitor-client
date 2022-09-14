@@ -83,8 +83,16 @@ public class ReflectionUtils {
             memoize(ReflectionUtils::computeNestedGetter);
     private static final BiFunction<String, Class<?>, BiConsumer<Object, Object>> settersCache =
             memoize(ReflectionUtils::computeNestedSetter);
-    private static final Function<Parameter, Boolean> isNullableCache = memoize(parameter -> stream(
-            parameter.getAnnotations()).anyMatch(a -> a.annotationType().getSimpleName().equals("Nullable")));
+    private static final Function<Parameter, Boolean> isNullableCache = memoize(
+            parameter -> (isKotlinReflectionSupported()
+                          && KotlinReflectionUtils.asKotlinParameter(parameter).getType().isMarkedNullable())
+                         || stream(parameter.getAnnotations()).anyMatch(
+                                 a -> a.annotationType().getSimpleName().equals("Nullable"))
+    );
+
+    public static boolean isKotlinReflectionSupported() {
+        return ReflectionUtils.classExists("kotlin.reflect.full.IllegalCallableAccessException");
+    }
 
     public static List<Method> getAllMethods(Class<?> type) {
         return methodsCache.apply(type);

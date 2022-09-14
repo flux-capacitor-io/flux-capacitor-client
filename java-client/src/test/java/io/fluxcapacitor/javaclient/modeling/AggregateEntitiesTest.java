@@ -147,6 +147,12 @@ public class AggregateEntitiesTest {
         }
 
         @Test
+        void updateCommandExpectsExistingChild_kotlin() {
+            testFixture.whenCommand(new KotlinUpdateCommandThatFailsIfChildDoesNotExist("whatever"))
+                    .expectExceptionalResult(IllegalCommandException.class).expectNoEvents();
+        }
+
+        @Test
         void testListChildAssertion() {
             testFixture.whenCommand(new CommandWithRoutingKey("list0"))
                     .expectExceptionalResult(IllegalCommandException.class).expectNoEvents();
@@ -540,7 +546,7 @@ public class AggregateEntitiesTest {
 
     @Value
     @Builder
-    static class MissingChild {
+    public static class MissingChild {
         @EntityId
         String missingChildId;
 
