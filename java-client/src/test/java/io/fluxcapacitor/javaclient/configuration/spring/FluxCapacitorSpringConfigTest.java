@@ -20,8 +20,10 @@ import io.fluxcapacitor.javaclient.FluxCapacitor;
 import io.fluxcapacitor.javaclient.common.serialization.upcasting.Upcast;
 import io.fluxcapacitor.javaclient.configuration.FluxCapacitorBuilder;
 import io.fluxcapacitor.javaclient.persisting.caching.DefaultCache;
+import io.fluxcapacitor.javaclient.persisting.eventsourcing.Apply;
 import io.fluxcapacitor.javaclient.tracking.handling.HandleCommand;
 import io.fluxcapacitor.javaclient.tracking.handling.HandleQuery;
+import io.fluxcapacitor.javaclient.tracking.handling.IllegalCommandException;
 import io.fluxcapacitor.javaclient.tracking.handling.LocalHandler;
 import io.fluxcapacitor.javaclient.tracking.handling.authentication.User;
 import io.fluxcapacitor.javaclient.tracking.handling.authentication.UserProvider;
@@ -44,6 +46,7 @@ import org.springframework.test.context.junit.jupiter.SpringExtension;
 import static java.util.Objects.requireNonNull;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
@@ -77,6 +80,12 @@ public class FluxCapacitorSpringConfigTest {
     void testHandleCommand() {
         String result = fluxCapacitor.commandGateway().sendAndWait("command");
         assertEquals("upcasted result", result);
+    }
+
+    @Test
+    void testHandleAggregateCommand() {
+        Object result = fluxCapacitor.commandGateway().sendAndWait(new AggregateCommand());
+        assertNull(result);
     }
 
     @Test
@@ -115,6 +124,11 @@ public class FluxCapacitorSpringConfigTest {
         public Object handleCommand(String command, User user) {
             requireNonNull(user, "User is null");
             return "result";
+        }
+
+        @HandleCommand
+        void handle(AggregateCommand command) {
+            FluxCapacitor.loadAggregate("whatever", Object.class).assertAndApply(command);
         }
     }
 
@@ -159,6 +173,17 @@ public class FluxCapacitorSpringConfigTest {
 
     @Value
     static class GetUser {
+    }
+
+    @Value
+    static class AggregateCommand {
+        @Apply
+        Object apply(User user) {
+            if (user == null) {
+                throw new IllegalCommandException("User is null");
+            }
+            return new Object();
+        }
     }
 
     @Value

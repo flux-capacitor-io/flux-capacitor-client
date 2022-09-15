@@ -76,10 +76,15 @@ import io.fluxcapacitor.javaclient.tracking.DefaultTracking;
 import io.fluxcapacitor.javaclient.tracking.Tracking;
 import io.fluxcapacitor.javaclient.tracking.TrackingException;
 import io.fluxcapacitor.javaclient.tracking.handling.DefaultHandlerFactory;
+import io.fluxcapacitor.javaclient.tracking.handling.DeserializingMessageParameterResolver;
 import io.fluxcapacitor.javaclient.tracking.handling.HandlerInterceptor;
 import io.fluxcapacitor.javaclient.tracking.handling.HandlerRegistry;
 import io.fluxcapacitor.javaclient.tracking.handling.LocalHandlerRegistry;
+import io.fluxcapacitor.javaclient.tracking.handling.MessageParameterResolver;
+import io.fluxcapacitor.javaclient.tracking.handling.MetadataParameterResolver;
+import io.fluxcapacitor.javaclient.tracking.handling.PayloadParameterResolver;
 import io.fluxcapacitor.javaclient.tracking.handling.authentication.AuthenticatingInterceptor;
+import io.fluxcapacitor.javaclient.tracking.handling.authentication.UserParameterResolver;
 import io.fluxcapacitor.javaclient.tracking.handling.authentication.UserProvider;
 import io.fluxcapacitor.javaclient.tracking.handling.errorreporting.ErrorReportingInterceptor;
 import io.fluxcapacitor.javaclient.tracking.handling.validation.ValidatingInterceptor;
@@ -88,6 +93,7 @@ import io.fluxcapacitor.javaclient.tracking.metrics.TrackerMonitor;
 import io.fluxcapacitor.javaclient.web.DefaultWebResponseMapper;
 import io.fluxcapacitor.javaclient.web.ForwardingWebConsumer;
 import io.fluxcapacitor.javaclient.web.LocalServerConfig;
+import io.fluxcapacitor.javaclient.web.WebPayloadParameterResolver;
 import io.fluxcapacitor.javaclient.web.WebResponseGateway;
 import io.fluxcapacitor.javaclient.web.WebResponseMapper;
 import lombok.AccessLevel;
@@ -124,7 +130,6 @@ import static io.fluxcapacitor.common.MessageType.RESULT;
 import static io.fluxcapacitor.common.MessageType.SCHEDULE;
 import static io.fluxcapacitor.common.MessageType.WEBREQUEST;
 import static io.fluxcapacitor.common.MessageType.WEBRESPONSE;
-import static io.fluxcapacitor.javaclient.common.serialization.DeserializingMessage.defaultParameterResolvers;
 import static java.lang.Runtime.getRuntime;
 import static java.lang.String.format;
 import static java.util.Arrays.stream;
@@ -220,8 +225,8 @@ public class DefaultFluxCapacitor implements FluxCapacitor {
         private CorrelationDataProvider correlationDataProvider = DefaultCorrelationDataProvider.INSTANCE;
         private DocumentSerializer documentSerializer = (JacksonSerializer) serializer;
         private final Map<MessageType, List<ConsumerConfiguration>> consumerConfigurations = defaultConfigurations();
-        private final List<ParameterResolver<? super DeserializingMessage>> parameterResolvers =
-                new ArrayList<>(defaultParameterResolvers);
+        private final List<ParameterResolver<? super DeserializingMessage>> customParameterResolvers =
+                new ArrayList<>();
         private final Map<MessageType, List<DispatchInterceptor>> lowPrioDispatchInterceptors = new HashMap<>();
         private final Map<MessageType, List<DispatchInterceptor>> highPrioDispatchInterceptors = new HashMap<>();
         private final Map<MessageType, List<HandlerInterceptor>> lowPrioHandlerInterceptors = new HashMap<>();
@@ -388,7 +393,7 @@ public class DefaultFluxCapacitor implements FluxCapacitor {
 
         @Override
         public Builder addParameterResolver(@NonNull ParameterResolver<DeserializingMessage> parameterResolver) {
-            parameterResolvers.add(parameterResolver);
+            customParameterResolvers.add(parameterResolver);
             return this;
         }
 
@@ -537,12 +542,20 @@ public class DefaultFluxCapacitor implements FluxCapacitor {
                 Create components
              */
 
+
+            List<ParameterResolver<? super DeserializingMessage>> parameterResolvers =
+                    new ArrayList<>(customParameterResolvers);
+            parameterResolvers.addAll(Arrays.asList(new DeserializingMessageParameterResolver(),
+                                                  new MetadataParameterResolver(), new MessageParameterResolver(),
+                                                  new UserParameterResolver(userProvider),
+                                                  new WebPayloadParameterResolver(), new PayloadParameterResolver()));
+
             //event sourcing
             EventSourcingHandlerFactory eventSourcingHandlerFactory =
                     new DefaultEventSourcingHandlerFactory(parameterResolvers);
             EventStore eventStore = new DefaultEventStore(client.getEventStoreClient(),
                                                           serializer, dispatchInterceptors.get(EVENT),
-                                                          localHandlerRegistry(EVENT, handlerInterceptors));
+                                                          localHandlerRegistry(EVENT, handlerInterceptors, parameterResolvers));
             DefaultSnapshotStore snapshotRepository =
                     new DefaultSnapshotStore(client.getKeyValueClient(), snapshotSerializer);
 
@@ -562,7 +575,7 @@ public class DefaultFluxCapacitor implements FluxCapacitor {
             //enable error reporter as the outermost handler interceptor
             ErrorGateway errorGateway =
                     new DefaultErrorGateway(createRequestGateway(client, ERROR, defaultRequestHandler,
-                                                                 dispatchInterceptors, handlerInterceptors));
+                                                                 dispatchInterceptors, handlerInterceptors, parameterResolvers));
             if (!disableErrorReporting) {
                 ErrorReportingInterceptor interceptor = new ErrorReportingInterceptor(errorGateway);
                 Arrays.stream(MessageType.values())
@@ -573,22 +586,22 @@ public class DefaultFluxCapacitor implements FluxCapacitor {
                                                                    serializer, dispatchInterceptors.get(RESULT));
             CommandGateway commandGateway =
                     new DefaultCommandGateway(createRequestGateway(client, COMMAND, defaultRequestHandler,
-                                                                   dispatchInterceptors, handlerInterceptors));
+                                                                   dispatchInterceptors, handlerInterceptors, parameterResolvers));
             QueryGateway queryGateway =
                     new DefaultQueryGateway(createRequestGateway(client, QUERY, defaultRequestHandler,
-                                                                 dispatchInterceptors, handlerInterceptors));
+                                                                 dispatchInterceptors, handlerInterceptors, parameterResolvers));
             EventGateway eventGateway =
                     new DefaultEventGateway(createRequestGateway(client, EVENT, defaultRequestHandler,
-                                                                 dispatchInterceptors, handlerInterceptors));
+                                                                 dispatchInterceptors, handlerInterceptors, parameterResolvers));
 
             MetricsGateway metricsGateway =
                     new DefaultMetricsGateway(createRequestGateway(client, METRICS, defaultRequestHandler,
-                                                                   dispatchInterceptors, handlerInterceptors));
+                                                                   dispatchInterceptors, handlerInterceptors, parameterResolvers));
 
             RequestHandler webRequestHandler = new DefaultRequestHandler(client, WEBRESPONSE);
             WebRequestGateway webRequestGateway =
                     new DefaultWebRequestGateway(createRequestGateway(client, WEBREQUEST, webRequestHandler,
-                                                                      dispatchInterceptors, handlerInterceptors));
+                                                                      dispatchInterceptors, handlerInterceptors, parameterResolvers));
 
             ResultGateway webResponseGateway = new WebResponseGateway(client.getGatewayClient(WEBRESPONSE),
                                                                       serializer, dispatchInterceptors.get(WEBRESPONSE),
@@ -615,7 +628,7 @@ public class DefaultFluxCapacitor implements FluxCapacitor {
             //misc
             Scheduler scheduler = new DefaultScheduler(client.getSchedulingClient(),
                                                        serializer, dispatchInterceptors.get(SCHEDULE),
-                                                       localHandlerRegistry(SCHEDULE, handlerInterceptors));
+                                                       localHandlerRegistry(SCHEDULE, handlerInterceptors, parameterResolvers));
 
             Runnable shutdownHandler = () -> {
                 ForkJoinPool shutdownPool = new ForkJoinPool(MessageType.values().length);
@@ -685,14 +698,16 @@ public class DefaultFluxCapacitor implements FluxCapacitor {
         protected GenericGateway createRequestGateway(Client client, MessageType messageType,
                                                       RequestHandler requestHandler,
                                                       Map<MessageType, DispatchInterceptor> dispatchInterceptors,
-                                                      Map<MessageType, HandlerInterceptor> handlerInterceptors) {
+                                                      Map<MessageType, HandlerInterceptor> handlerInterceptors,
+                                                      List<ParameterResolver<? super DeserializingMessage>> parameterResolvers) {
             return new DefaultGenericGateway(client.getGatewayClient(messageType), requestHandler,
                                              this.serializer, dispatchInterceptors.get(messageType), messageType,
-                                             localHandlerRegistry(messageType, handlerInterceptors));
+                                             localHandlerRegistry(messageType, handlerInterceptors, parameterResolvers));
         }
 
         protected HandlerRegistry localHandlerRegistry(MessageType messageType,
-                                                       Map<MessageType, HandlerInterceptor> handlerInterceptors) {
+                                                       Map<MessageType, HandlerInterceptor> handlerInterceptors,
+                                                       List<ParameterResolver<? super DeserializingMessage>> parameterResolvers) {
             LocalHandlerRegistry result = new LocalHandlerRegistry(messageType, new DefaultHandlerFactory(
                     messageType, handlerInterceptors.get(messageType), parameterResolvers));
             return messageType == EVENT ? result.merge(new LocalHandlerRegistry(NOTIFICATION, new DefaultHandlerFactory(

@@ -20,6 +20,7 @@ import io.fluxcapacitor.common.handling.HandlerNotFoundException;
 import io.fluxcapacitor.common.handling.ParameterResolver;
 import io.fluxcapacitor.javaclient.common.serialization.DeserializingMessage;
 import io.fluxcapacitor.javaclient.modeling.Entity;
+import io.fluxcapacitor.javaclient.tracking.handling.PayloadParameterResolver;
 
 import java.lang.annotation.Annotation;
 import java.lang.reflect.Method;
@@ -40,10 +41,6 @@ public class AnnotatedEventSourcingHandler<T> implements EventSourcingHandler<T>
     private final EventSourcingEntityParameterResolver entityResolver = new EventSourcingEntityParameterResolver();
     private final Function<Class<?>, HandlerInvoker<DeserializingMessage>> eventInvokers;
 
-    public AnnotatedEventSourcingHandler(Class<? extends T> handlerType) {
-        this(handlerType, DeserializingMessage.defaultParameterResolvers);
-    }
-
     public AnnotatedEventSourcingHandler(Class<? extends T> handlerType,
                                          List<ParameterResolver<? super DeserializingMessage>> parameterResolvers) {
         this.handlerType = handlerType;
@@ -51,7 +48,9 @@ public class AnnotatedEventSourcingHandler<T> implements EventSourcingHandler<T>
                                      HandlerConfiguration.builder().methodAnnotation(ApplyEvent.class).build());
         this.eventInvokers = memoize(eventType -> {
             List<ParameterResolver<? super DeserializingMessage>> paramResolvers = new ArrayList<>(parameterResolvers);
-            paramResolvers.add(0, entityResolver);
+            paramResolvers.stream().filter(p -> p instanceof PayloadParameterResolver).findFirst().ifPresentOrElse(
+                    payloadResolver -> paramResolvers.add(paramResolvers.indexOf(payloadResolver), entityResolver),
+                    () -> paramResolvers.add(entityResolver));
             return inspect(eventType, paramResolvers,
                            HandlerConfiguration.builder().methodAnnotation(Apply.class)
                                    .handlerFilter((type, executable) -> {

@@ -27,6 +27,7 @@ import io.fluxcapacitor.javaclient.tracking.handling.DeserializingMessageParamet
 import io.fluxcapacitor.javaclient.tracking.handling.MessageParameterResolver;
 import io.fluxcapacitor.javaclient.tracking.handling.MetadataParameterResolver;
 import io.fluxcapacitor.javaclient.tracking.handling.authentication.ForbidsRole;
+import io.fluxcapacitor.javaclient.tracking.handling.authentication.NoOpUserProvider;
 import io.fluxcapacitor.javaclient.tracking.handling.authentication.RequiresRole;
 import io.fluxcapacitor.javaclient.tracking.handling.authentication.UnauthenticatedException;
 import io.fluxcapacitor.javaclient.tracking.handling.authentication.UnauthorizedException;
@@ -164,7 +165,8 @@ public class ValidationUtils {
                     type, Arrays.asList(new DeserializingMessageParameterResolver(),
                                         new MetadataParameterResolver(),
                                         new MessageParameterResolver(),
-                                        new UserParameterResolver(), new AssertLegalEntityParameterResolver()),
+                                        new UserParameterResolver(NoOpUserProvider.getInstance()),
+                                        new AssertLegalEntityParameterResolver()),
                     HandlerConfiguration.builder().methodAnnotation(AssertLegal.class)
                             .handlerFilter((owner, method) -> getMethodAnnotation(method, AssertLegal.class)
                                     .map(a -> !a.afterHandler()).orElse(false))
@@ -175,7 +177,8 @@ public class ValidationUtils {
                     type, Arrays.asList(new DeserializingMessageParameterResolver(),
                                         new MetadataParameterResolver(),
                                         new MessageParameterResolver(),
-                                        new UserParameterResolver(), new AssertLegalEntityParameterResolver()),
+                                        new UserParameterResolver(NoOpUserProvider.getInstance()),
+                                        new AssertLegalEntityParameterResolver()),
                     HandlerConfiguration.builder().methodAnnotation(AssertLegal.class)
                             .handlerFilter((owner, method) -> getMethodAnnotation(method, AssertLegal.class)
                                     .map(AssertLegal::afterHandler).orElse(false))

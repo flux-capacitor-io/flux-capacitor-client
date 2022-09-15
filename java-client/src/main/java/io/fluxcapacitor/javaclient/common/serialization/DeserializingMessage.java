@@ -17,17 +17,10 @@ package io.fluxcapacitor.javaclient.common.serialization;
 import io.fluxcapacitor.common.MessageType;
 import io.fluxcapacitor.common.api.Metadata;
 import io.fluxcapacitor.common.api.SerializedMessage;
-import io.fluxcapacitor.common.handling.ParameterResolver;
 import io.fluxcapacitor.common.serialization.JsonUtils;
 import io.fluxcapacitor.javaclient.common.Message;
 import io.fluxcapacitor.javaclient.scheduling.Schedule;
 import io.fluxcapacitor.javaclient.tracking.IndexUtils;
-import io.fluxcapacitor.javaclient.tracking.handling.DeserializingMessageParameterResolver;
-import io.fluxcapacitor.javaclient.tracking.handling.MessageParameterResolver;
-import io.fluxcapacitor.javaclient.tracking.handling.MetadataParameterResolver;
-import io.fluxcapacitor.javaclient.tracking.handling.PayloadParameterResolver;
-import io.fluxcapacitor.javaclient.tracking.handling.authentication.UserParameterResolver;
-import io.fluxcapacitor.javaclient.web.WebPayloadParameterResolver;
 import io.fluxcapacitor.javaclient.web.WebRequest;
 import io.fluxcapacitor.javaclient.web.WebResponse;
 import lombok.AccessLevel;
@@ -39,10 +32,8 @@ import lombok.experimental.NonFinal;
 import lombok.extern.slf4j.Slf4j;
 
 import java.time.Instant;
-import java.util.Arrays;
 import java.util.HashMap;
 import java.util.LinkedHashSet;
-import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.Spliterator;
@@ -61,11 +52,6 @@ import static java.util.stream.Collectors.toList;
 @AllArgsConstructor(access = AccessLevel.NONE)
 public class DeserializingMessage {
     public static MessageFormatter messageFormatter = MessageFormatter.DEFAULT;
-    public static List<ParameterResolver<? super DeserializingMessage>> defaultParameterResolvers =
-            Arrays.asList(new DeserializingMessageParameterResolver(),
-                          new MetadataParameterResolver(), new MessageParameterResolver(),
-                          new UserParameterResolver(), new WebPayloadParameterResolver(),
-                          new PayloadParameterResolver());
 
     private static final ThreadLocal<Set<Consumer<Throwable>>> batchCompletionHandlers = new ThreadLocal<>();
     private static final ThreadLocal<Map<Object, Object>> batchResources = new ThreadLocal<>();
