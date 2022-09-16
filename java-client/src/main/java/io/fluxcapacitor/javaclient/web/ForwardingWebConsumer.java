@@ -7,6 +7,7 @@ import io.fluxcapacitor.common.api.Data;
 import io.fluxcapacitor.common.api.Metadata;
 import io.fluxcapacitor.common.api.SerializedMessage;
 import io.fluxcapacitor.javaclient.FluxCapacitor;
+import io.fluxcapacitor.javaclient.common.serialization.DeserializingMessage;
 import io.fluxcapacitor.javaclient.publishing.client.GatewayClient;
 import io.fluxcapacitor.javaclient.publishing.correlation.DefaultCorrelationDataProvider;
 import io.fluxcapacitor.javaclient.tracking.ConsumerConfiguration;
@@ -80,7 +81,8 @@ public class ForwardingWebConsumer implements AutoCloseable {
     protected Map<String, String> getCorrelationData(SerializedMessage m) {
         try {
             return FluxCapacitor.getOptionally().map(FluxCapacitor::correlationDataProvider).orElse(
-                    DefaultCorrelationDataProvider.INSTANCE).getCorrelationData(m);
+                    DefaultCorrelationDataProvider.INSTANCE).getCorrelationData(new DeserializingMessage(
+                            m, type -> null, MessageType.WEBRESPONSE));
         } catch (Exception e) {
             log.error("Failed to get correlation data for request message", e);
             return Collections.emptyMap();
