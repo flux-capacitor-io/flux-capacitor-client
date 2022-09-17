@@ -78,11 +78,6 @@ public class ConsumerEndpoint extends WebsocketEndpoint {
     }
 
     @Handle
-    public GetPositionResult handle(GetPosition getPosition) {
-        return new GetPositionResult(getPosition.getRequestId(), store.getPosition(getPosition.getConsumer()));
-    }
-
-    @Handle
     public VoidResult handle(ResetPosition resetPosition) {
         store.resetPosition(resetPosition.getConsumer(), resetPosition.getLastIndex());
         return new VoidResult(resetPosition.getRequestId());
@@ -98,6 +93,11 @@ public class ConsumerEndpoint extends WebsocketEndpoint {
     public ReadFromIndexResult handle(ReadFromIndex read) {
         List<SerializedMessage> batch = store.readFromIndex(read.getMinIndex() - 1L, read.getMaxSize());
         return new ReadFromIndexResult(read.getRequestId(), batch);
+    }
+
+    @Handle
+    public GetPositionResult handle(GetPosition getPosition) {
+        return new GetPositionResult(getPosition.getRequestId(), store.getPosition(getPosition.getConsumer()));
     }
 
     @Override

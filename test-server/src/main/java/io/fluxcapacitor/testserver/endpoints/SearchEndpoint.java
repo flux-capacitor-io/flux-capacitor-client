@@ -23,6 +23,10 @@ import io.fluxcapacitor.common.api.search.CreateAuditTrail;
 import io.fluxcapacitor.common.api.search.DeleteCollection;
 import io.fluxcapacitor.common.api.search.DeleteDocumentById;
 import io.fluxcapacitor.common.api.search.DeleteDocuments;
+import io.fluxcapacitor.common.api.search.GetDocument;
+import io.fluxcapacitor.common.api.search.GetDocumentResult;
+import io.fluxcapacitor.common.api.search.GetDocumentStats;
+import io.fluxcapacitor.common.api.search.GetDocumentStatsResult;
 import io.fluxcapacitor.common.api.search.GetSearchHistogram;
 import io.fluxcapacitor.common.api.search.GetSearchHistogramResult;
 import io.fluxcapacitor.common.api.search.IndexDocuments;
@@ -133,6 +137,29 @@ public class SearchEndpoint extends WebsocketEndpoint {
                                                 new SearchHistogram(request.getQuery().getSince(),
                                                                     request.getQuery().getBefore(),
                                                                     emptyList()));
+        }
+    }
+
+    @Handle
+    public GetDocumentStatsResult handle(GetDocumentStats request) {
+        try {
+            return new GetDocumentStatsResult(request.getRequestId(),
+                                              store.fetchStatistics(request.getQuery(), request.getFields(),
+                                                                    request.getGroupBy()));
+        } catch (Exception e) {
+            log.error("Failed to handle {}", request, e);
+            return new GetDocumentStatsResult(request.getRequestId(), emptyList());
+        }
+    }
+
+    @Handle
+    public GetDocumentResult handle(GetDocument request) {
+        try {
+            return new GetDocumentResult(request.getRequestId(), store.fetch(request).map(
+                    SerializedDocument::new).orElse(null));
+        } catch (Exception e) {
+            log.error("Failed to handle {}", request, e);
+            return new GetDocumentResult(request.getRequestId(), null);
         }
     }
 

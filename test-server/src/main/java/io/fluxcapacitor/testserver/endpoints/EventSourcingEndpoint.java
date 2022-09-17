@@ -15,6 +15,7 @@
 package io.fluxcapacitor.testserver.endpoints;
 
 import io.fluxcapacitor.common.Awaitable;
+import io.fluxcapacitor.common.Guarantee;
 import io.fluxcapacitor.common.api.BooleanResult;
 import io.fluxcapacitor.common.api.SerializedMessage;
 import io.fluxcapacitor.common.api.VoidResult;
@@ -23,6 +24,9 @@ import io.fluxcapacitor.common.api.eventsourcing.DeleteEvents;
 import io.fluxcapacitor.common.api.eventsourcing.EventBatch;
 import io.fluxcapacitor.common.api.eventsourcing.GetEvents;
 import io.fluxcapacitor.common.api.eventsourcing.GetEventsResult;
+import io.fluxcapacitor.common.api.modeling.GetAggregateIds;
+import io.fluxcapacitor.common.api.modeling.GetAggregateIdsResult;
+import io.fluxcapacitor.common.api.modeling.UpdateRelationships;
 import io.fluxcapacitor.javaclient.persisting.eventsourcing.AggregateEventStream;
 import io.fluxcapacitor.javaclient.persisting.eventsourcing.client.EventStoreClient;
 import io.fluxcapacitor.testserver.Handle;
@@ -64,5 +68,20 @@ public class EventSourcingEndpoint extends WebsocketEndpoint {
         long lastSequenceNumber = stream.getLastSequenceNumber().orElse(-1L);
         return new GetEventsResult(getEvents.getRequestId(), new EventBatch(
                 getEvents.getAggregateId(), stream.collect(Collectors.toList()), false), lastSequenceNumber);
+    }
+
+    @Handle
+    public VoidResult handle(UpdateRelationships request) {
+        Awaitable awaitable = eventStore.updateRelationships(request);
+        if (request.getGuarantee().compareTo(Guarantee.STORED) >= 0) {
+            awaitable.awaitSilently();
+            return new VoidResult(request.getRequestId());
+        }
+        return null;
+    }
+
+    @Handle
+    public GetAggregateIdsResult handle(GetAggregateIds request) {
+        return new GetAggregateIdsResult(request.getRequestId(), eventStore.getAggregateIds(request));
     }
 }
