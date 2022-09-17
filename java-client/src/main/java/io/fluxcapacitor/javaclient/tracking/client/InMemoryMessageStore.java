@@ -112,7 +112,7 @@ public class InMemoryMessageStore implements GatewayClient, TrackingClient {
                         .tailMap(Optional.ofNullable(trackerRead.getLastTrackerIndex()).orElseGet(
                                 () -> getLastIndex(trackerRead.getConsumerName())), false))) {
                     try {
-                        this.wait(trackerRead.getDeadline() - currentTimeMillis());
+                        this.wait(Math.min(0, trackerRead.getDeadline() - currentTimeMillis()));
                     } catch (InterruptedException e) {
                         currentThread().interrupt();
                     }
