@@ -268,8 +268,8 @@ public class DefaultFluxCapacitor implements FluxCapacitor {
         }
 
         @Override
-        public FluxCapacitorBuilder replaceCorrelationDataProvider(CorrelationDataProvider correlationDataProvider) {
-            this.correlationDataProvider = correlationDataProvider;
+        public FluxCapacitorBuilder replaceCorrelationDataProvider(@NonNull UnaryOperator<CorrelationDataProvider> replaceFunction) {
+            correlationDataProvider = replaceFunction.apply(correlationDataProvider);
             return this;
         }
 

@@ -90,7 +90,7 @@ public interface FluxCapacitorBuilder {
      */
     FluxCapacitorBuilder replaceSerializer(Serializer serializer);
 
-    FluxCapacitorBuilder replaceCorrelationDataProvider(CorrelationDataProvider correlationDataProvider);
+    FluxCapacitorBuilder replaceCorrelationDataProvider(UnaryOperator<CorrelationDataProvider> correlationDataProvider);
 
     FluxCapacitorBuilder replaceSnapshotSerializer(Serializer serializer);
 
