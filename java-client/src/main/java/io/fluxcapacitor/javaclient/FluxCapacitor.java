@@ -359,12 +359,7 @@ public interface FluxCapacitor extends AutoCloseable {
      * @see Aggregate for more info on how to define an event sourced aggregate root
      */
     static <T> AggregateRoot<T> loadAggregate(String aggregateId, Class<T> aggregateType) {
-        AggregateRoot<T> result = get().aggregateRepository().load(aggregateId, aggregateType);
-        DeserializingMessage message = DeserializingMessage.getCurrent();
-        if (message != null && (message.getMessageType() == EVENT || message.getMessageType() == NOTIFICATION)) {
-            return result.playBackToEvent(message);
-        }
-        return result;
+        return playbackToHandledEvent(get().aggregateRepository().load(aggregateId, aggregateType));
     }
 
     /**
@@ -381,12 +376,16 @@ public interface FluxCapacitor extends AutoCloseable {
      * @see Aggregate for more info on how to define an event sourced aggregate root
      */
     static <T> AggregateRoot<T> loadAggregateFor(Object entityId, Class<?> defaultType) {
-        AggregateRoot<T> result = get().aggregateRepository().loadFor(entityId.toString(), defaultType);
+        return playbackToHandledEvent(get().aggregateRepository().loadFor(entityId.toString(), defaultType));
+    }
+
+    private static <T> AggregateRoot<T> playbackToHandledEvent(AggregateRoot<T> aggregateRoot) {
         DeserializingMessage message = DeserializingMessage.getCurrent();
-        if (message != null && (message.getMessageType() == EVENT || message.getMessageType() == NOTIFICATION)) {
-            return result.playBackToEvent(message);
+        if (message != null && (message.getMessageType() == EVENT || message.getMessageType() == NOTIFICATION)
+            && aggregateRoot.id().equals(AggregateRoot.getAggregateId(message))) {
+            return aggregateRoot.playBackToEvent(message.getMessageId());
         }
-        return result;
+        return aggregateRoot;
     }
 
     /**

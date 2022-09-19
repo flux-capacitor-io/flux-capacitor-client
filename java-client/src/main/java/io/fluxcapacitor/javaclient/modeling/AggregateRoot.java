@@ -21,7 +21,6 @@ import io.fluxcapacitor.common.reflection.ReflectionUtils;
 import io.fluxcapacitor.javaclient.common.Message;
 import io.fluxcapacitor.javaclient.common.serialization.DeserializingMessage;
 
-import java.time.Instant;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Objects;
@@ -65,22 +64,6 @@ public interface AggregateRoot<T> extends Entity<T> {
 
     default AggregateRoot<T> playBackToEvent(String eventId) {
         return playBackToCondition(aggregate -> Objects.equals(eventId, aggregate.lastEventId()))
-                .orElseThrow(() -> new IllegalStateException(format(
-                        "Could not load aggregate %s of type %s for event %s. Aggregate (%s) started at event %s",
-                        id(), type().getSimpleName(), eventId, this, lastEventId())));
-    }
-
-    default AggregateRoot<T> playBackToEvent(DeserializingMessage event) {
-        if (id().equals(getAggregateId(event))) {
-            return playBackToEvent(event.getMessageId());
-        }
-        String eventId = event.getMessageId();
-        long eventIndex = Optional.ofNullable(event.getIndex()).orElse(-1L);
-        Instant eventTimestamp = event.getTimestamp();
-        return playBackToCondition(
-                aggregate -> Objects.equals(eventId, aggregate.lastEventId())
-                             || (aggregate.lastEventIndex() != null && aggregate.lastEventIndex() <= eventIndex)
-                             || aggregate.sequenceNumber() < 0L || !aggregate.timestamp().isAfter(eventTimestamp))
                 .orElseThrow(() -> new IllegalStateException(format(
                         "Could not load aggregate %s of type %s for event %s. Aggregate (%s) started at event %s",
                         id(), type().getSimpleName(), eventId, this, lastEventId())));
