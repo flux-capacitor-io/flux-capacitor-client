@@ -74,9 +74,9 @@ public class ModifiableAggregateRoot<T> extends DelegatingAggregateRoot<T, Immut
             queued.add(message);
             return this;
         }
-        Message m = dispatchInterceptor.interceptDispatch(message.addMetadata(
-                AggregateRoot.AGGREGATE_ID_METADATA_KEY, id(),
-                AggregateRoot.AGGREGATE_TYPE_METADATA_KEY, type().getName()), EVENT);
+        Message m = dispatchInterceptor.interceptDispatch(message, EVENT)
+                .addMetadata(AggregateRoot.AGGREGATE_ID_METADATA_KEY, id(),
+                             AggregateRoot.AGGREGATE_TYPE_METADATA_KEY, type().getName());
         DeserializingMessage eventMessage = new DeserializingMessage(
                 dispatchInterceptor.modifySerializedMessage(m.serialize(serializer), m, EVENT),
                 type -> serializer.convert(m.getPayload(), type), EVENT);
