@@ -39,7 +39,11 @@ public class WebsocketSchedulingClient extends AbstractWebsocketClient implement
     }
 
     public WebsocketSchedulingClient(URI endpointUri, ClientConfig clientConfig) {
-        super(endpointUri, clientConfig, true, clientConfig.getGatewaySessions().get(MessageType.SCHEDULE));
+        this(endpointUri, clientConfig, true);
+    }
+
+    public WebsocketSchedulingClient(URI endpointUri, ClientConfig clientConfig, boolean sendMetrics) {
+        super(endpointUri, clientConfig, sendMetrics, clientConfig.getGatewaySessions().get(MessageType.SCHEDULE));
         backlog = new Backlog<>(this::scheduleMessages);
     }
 

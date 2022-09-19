@@ -46,7 +46,11 @@ public class WebsocketKeyValueClient extends AbstractWebsocketClient implements 
     }
 
     public WebsocketKeyValueClient(URI endpointUri, WebSocketClient.ClientConfig clientConfig) {
-        super(endpointUri, clientConfig, true, clientConfig.getKeyValueSessions());
+        this(endpointUri, clientConfig, true);
+    }
+
+    public WebsocketKeyValueClient(URI endpointUri, WebSocketClient.ClientConfig clientConfig, boolean sendMetrics) {
+        super(endpointUri, clientConfig, sendMetrics, clientConfig.getKeyValueSessions());
         backlog = new Backlog<>(this::storeValues);
     }
 

@@ -72,7 +72,11 @@ public class WebSocketSearchClient extends AbstractWebsocketClient implements Se
     }
 
     public WebSocketSearchClient(URI endpointUri, WebSocketClient.ClientConfig clientConfig) {
-        super(endpointUri, clientConfig, true, clientConfig.getSearchSessions());
+        this(endpointUri, clientConfig, true);
+    }
+
+    public WebSocketSearchClient(URI endpointUri, WebSocketClient.ClientConfig clientConfig, boolean sendMetrics) {
+        super(endpointUri, clientConfig, sendMetrics, clientConfig.getSearchSessions());
         sendBacklog = new Backlog<>(documents -> sendValues(documents, false));
         sendIfNotExistsBacklog = new Backlog<>(documents -> sendValues(documents, true));
         storeBacklog = new Backlog<>(documents -> storeValues(documents, false));

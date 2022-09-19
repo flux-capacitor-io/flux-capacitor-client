@@ -57,7 +57,12 @@ public class WebSocketEventStoreClient extends AbstractWebsocketClient implement
 
     public WebSocketEventStoreClient(URI endPointUri, int backlogSize, int fetchBatchSize,
                                      WebSocketClient.ClientConfig clientConfig) {
-        super(endPointUri, clientConfig, true, clientConfig.getEventSourcingSessions());
+        this(endPointUri, backlogSize, fetchBatchSize, clientConfig, true);
+    }
+
+    public WebSocketEventStoreClient(URI endPointUri, int backlogSize, int fetchBatchSize,
+                                     WebSocketClient.ClientConfig clientConfig, boolean sendMetrics) {
+        super(endPointUri, clientConfig, sendMetrics, clientConfig.getEventSourcingSessions());
         this.backlog = new Backlog<>(this::doSend, backlogSize);
         this.fetchBatchSize = fetchBatchSize;
     }

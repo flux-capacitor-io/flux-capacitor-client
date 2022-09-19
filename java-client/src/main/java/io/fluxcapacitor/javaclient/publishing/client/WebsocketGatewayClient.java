@@ -46,8 +46,13 @@ public class WebsocketGatewayClient extends AbstractWebsocketClient implements G
         this(URI.create(endPointUrl), backlogSize, clientConfig, type);
     }
 
-    public WebsocketGatewayClient(URI endPointUri, int backlogSize, WebSocketClient.ClientConfig clientConfig, MessageType type) {
-        super(endPointUri, clientConfig, type != METRICS, clientConfig.getGatewaySessions().get(type));
+    public WebsocketGatewayClient(URI endPointUri, int backlogSize, ClientConfig clientConfig, MessageType type) {
+        this(endPointUri, backlogSize, clientConfig, type, type != METRICS);
+    }
+
+    public WebsocketGatewayClient(URI endPointUri, int backlogSize, WebSocketClient.ClientConfig clientConfig,
+                                  MessageType type, boolean sendMetrics) {
+        super(endPointUri, clientConfig, sendMetrics, clientConfig.getGatewaySessions().get(type));
         this.sendBacklog = new Backlog<>(this::doSend, backlogSize);
         this.storeBacklog = new Backlog<>(this::doStore, backlogSize);
     }
