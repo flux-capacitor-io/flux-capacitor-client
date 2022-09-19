@@ -111,10 +111,13 @@ public class InMemoryMessageStore implements GatewayClient, TrackingClient {
                         && shouldWait(tailMap = messageLog
                         .tailMap(Optional.ofNullable(trackerRead.getLastTrackerIndex()).orElseGet(
                                 () -> getLastIndex(trackerRead.getConsumerName())), false))) {
-                    try {
-                        this.wait(Math.min(0, trackerRead.getDeadline() - currentTimeMillis()));
-                    } catch (InterruptedException e) {
-                        currentThread().interrupt();
+                    long duration = trackerRead.getDeadline() - currentTimeMillis();
+                    if (duration > 0) {
+                        try {
+                            this.wait(duration);
+                        } catch (InterruptedException e) {
+                            currentThread().interrupt();
+                        }
                     }
                 }
                 List<SerializedMessage> messages = filterMessages(new ArrayList<>(tailMap.values()));
