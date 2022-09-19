@@ -42,15 +42,15 @@ public class AggregateEntitiesTest {
                 fc -> loadAggregate("test", Aggregate.class).update(s -> Aggregate.builder().build()));
     }
 
-    void expectEntity(Predicate<Entity<?, ?>> predicate) {
+    void expectEntity(Predicate<Entity<?>> predicate) {
         expectEntities(Aggregate.class, entities -> entities.stream().anyMatch(predicate));
     }
 
-    void expectNoEntity(Predicate<Entity<?, ?>> predicate) {
+    void expectNoEntity(Predicate<Entity<?>> predicate) {
         expectEntities(Aggregate.class, entities -> entities.stream().noneMatch(predicate));
     }
 
-    void expectEntities(Class<?> parentClass, Predicate<Collection<Entity<?, ?>>> predicate) {
+    void expectEntities(Class<?> parentClass, Predicate<Collection<Entity<?>>> predicate) {
         testFixture
                 .whenApplying(fc -> loadAggregate("test", (Class<?>) parentClass).allEntities().collect(toList()))
                 .expectResult(predicate);
@@ -434,15 +434,15 @@ public class AggregateEntitiesTest {
             String id;
         }
 
-        void expectEntity(Class<?> parentClass, Predicate<Entity<?, ?>> predicate) {
+        void expectEntity(Class<?> parentClass, Predicate<Entity<?>> predicate) {
             expectEntities(parentClass, entities -> entities.stream().anyMatch(predicate));
         }
 
-        void expectNoEntity(Class<?> parentClass, Predicate<Entity<?, ?>> predicate) {
+        void expectNoEntity(Class<?> parentClass, Predicate<Entity<?>> predicate) {
             expectEntities(parentClass, entities -> entities.stream().noneMatch(predicate));
         }
 
-        void expectEntities(Class<?> parentClass, Predicate<Collection<Entity<?, ?>>> predicate) {
+        void expectEntities(Class<?> parentClass, Predicate<Collection<Entity<?>>> predicate) {
             testFixture
                     .whenApplying(fc -> loadAggregate("test", (Class) parentClass).allEntities().collect(toList()))
                     .expectResult(predicate);

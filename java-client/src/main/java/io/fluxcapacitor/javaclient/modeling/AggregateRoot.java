@@ -15,22 +15,26 @@
 package io.fluxcapacitor.javaclient.modeling;
 
 import com.google.common.collect.Sets;
+import io.fluxcapacitor.common.api.Metadata;
 import io.fluxcapacitor.common.api.modeling.Relationship;
 import io.fluxcapacitor.common.reflection.ReflectionUtils;
+import io.fluxcapacitor.javaclient.common.Message;
 import io.fluxcapacitor.javaclient.common.serialization.DeserializingMessage;
 
 import java.time.Instant;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
+import java.util.function.Function;
 import java.util.function.Predicate;
 import java.util.function.UnaryOperator;
 import java.util.stream.Collectors;
 
 import static java.lang.String.format;
 
-public interface AggregateRoot<T> extends Entity<AggregateRoot<T>, T> {
+public interface AggregateRoot<T> extends Entity<T> {
 
     ThreadLocal<Boolean> loading = ThreadLocal.withInitial(() -> false);
 
@@ -57,18 +61,26 @@ public interface AggregateRoot<T> extends Entity<AggregateRoot<T>, T> {
 
     AggregateRoot<T> update(UnaryOperator<T> function);
 
-    String lastEventId();
-
-    Long lastEventIndex();
-
-    Instant timestamp();
-
-    long sequenceNumber();
-
     AggregateRoot<T> previous();
 
     default AggregateRoot<T> playBackToEvent(String eventId) {
         return playBackToCondition(aggregate -> Objects.equals(eventId, aggregate.lastEventId()))
+                .orElseThrow(() -> new IllegalStateException(format(
+                        "Could not load aggregate %s of type %s for event %s. Aggregate (%s) started at event %s",
+                        id(), type().getSimpleName(), eventId, this, lastEventId())));
+    }
+
+    default AggregateRoot<T> playBackToEvent(DeserializingMessage event) {
+        if (id().equals(getAggregateId(event))) {
+            return playBackToEvent(event.getMessageId());
+        }
+        String eventId = event.getMessageId();
+        long eventIndex = Optional.ofNullable(event.getIndex()).orElse(-1L);
+        Instant eventTimestamp = event.getTimestamp();
+        return playBackToCondition(
+                aggregate -> Objects.equals(eventId, aggregate.lastEventId())
+                             || (aggregate.lastEventIndex() != null && aggregate.lastEventIndex() <= eventIndex)
+                             || aggregate.sequenceNumber() < 0L || !aggregate.timestamp().isAfter(eventTimestamp))
                 .orElseThrow(() -> new IllegalStateException(format(
                         "Could not load aggregate %s of type %s for event %s. Aggregate (%s) started at event %s",
                         id(), type().getSimpleName(), eventId, this, lastEventId())));
@@ -108,7 +120,56 @@ public interface AggregateRoot<T> extends Entity<AggregateRoot<T>, T> {
     }
 
     @Override
-    default Entity<?, ?> parent() {
+    default Entity<?> parent() {
         return null;
+    }
+
+
+    @Override
+    default AggregateRoot<T> apply(Object... events) {
+        return (AggregateRoot<T>) Entity.super.apply(events);
+    }
+
+    @Override
+    default AggregateRoot<T> apply(Collection<?> events) {
+        return (AggregateRoot<T>) Entity.super.apply(events);
+    }
+
+    @Override
+    default AggregateRoot<T> apply(Object event) {
+        return (AggregateRoot<T>) Entity.super.apply(event);
+    }
+
+    @Override
+    default AggregateRoot<T> apply(Object event, Metadata metadata) {
+        return (AggregateRoot<T>) Entity.super.apply(event, metadata);
+    }
+
+    @Override
+    AggregateRoot<T> apply(Message eventMessage);
+
+    @Override
+    default <E extends Exception> AggregateRoot<T> assertLegal(Object command) throws E {
+        return (AggregateRoot<T>) Entity.super.assertLegal(command);
+    }
+
+    @Override
+    default <E extends Exception> AggregateRoot<T> assertThat(Validator<T, E> validator) throws E {
+        return (AggregateRoot<T>) Entity.super.assertThat(validator);
+    }
+
+    @Override
+    default <E extends Exception> AggregateRoot<T> ensure(Predicate<T> check, Function<T, E> errorProvider) throws E {
+        return (AggregateRoot<T>) Entity.super.ensure(check, errorProvider);
+    }
+
+    @Override
+    default AggregateRoot<T> assertAndApply(Object payload) {
+        return (AggregateRoot<T>) Entity.super.assertAndApply(payload);
+    }
+
+    @Override
+    default AggregateRoot<T> assertAndApply(Object payload, Metadata metadata) {
+        return (AggregateRoot<T>) Entity.super.assertAndApply(payload, metadata);
     }
 }

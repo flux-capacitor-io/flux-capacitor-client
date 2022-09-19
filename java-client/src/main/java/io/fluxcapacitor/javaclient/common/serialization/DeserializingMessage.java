@@ -50,6 +50,7 @@ import static java.util.stream.Collectors.toList;
 @Value
 @Slf4j
 @AllArgsConstructor(access = AccessLevel.NONE)
+@NonFinal
 public class DeserializingMessage {
     public static MessageFormatter messageFormatter = MessageFormatter.DEFAULT;
 
@@ -88,6 +89,14 @@ public class DeserializingMessage {
         this.message = message;
         this.serializer = serializer;
         this.delegate = null;
+    }
+
+    protected DeserializingMessage(@NonNull DeserializingMessage input) {
+        this.messageType = input.messageType;
+        this.message = input.message;
+        this.serializer = input.serializer;
+        this.delegate = input.delegate;
+        this.serializedMessage = input.serializedMessage;
     }
 
     /*

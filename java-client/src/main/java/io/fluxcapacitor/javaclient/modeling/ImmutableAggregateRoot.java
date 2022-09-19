@@ -12,11 +12,11 @@ import lombok.EqualsAndHashCode;
 import lombok.Getter;
 import lombok.ToString;
 import lombok.Value;
-import lombok.With;
 import lombok.experimental.Accessors;
+import lombok.experimental.SuperBuilder;
+import lombok.extern.jackson.Jacksonized;
 
 import java.time.Instant;
-import java.util.Collection;
 import java.util.Objects;
 import java.util.Set;
 import java.util.function.UnaryOperator;
@@ -26,16 +26,13 @@ import static io.fluxcapacitor.javaclient.FluxCapacitor.currentClock;
 import static java.util.Optional.ofNullable;
 
 @Value
-@Builder(toBuilder = true)
+@SuperBuilder(toBuilder = true)
 @Accessors(fluent = true)
-public class ImmutableAggregateRoot<T> implements AggregateRoot<T> {
-    @JsonProperty
-    ImmutableEntity<T> delegate;
-
+@Jacksonized
+public class ImmutableAggregateRoot<T> extends ImmutableEntity<T> implements AggregateRoot<T> {
     @JsonProperty
     String lastEventId;
     @JsonProperty
-    @With
     Long lastEventIndex;
     @JsonProperty
     @Builder.Default
@@ -46,7 +43,6 @@ public class ImmutableAggregateRoot<T> implements AggregateRoot<T> {
 
     @ToString.Exclude
     @EqualsAndHashCode.Exclude
-    @With
     transient ImmutableAggregateRoot<T> previous;
 
     @ToString.Exclude
@@ -61,8 +57,12 @@ public class ImmutableAggregateRoot<T> implements AggregateRoot<T> {
             return null;
         }
         return ImmutableAggregateRoot.<T>builder()
-                .delegate(ImmutableEntity.<T>builder().handlerFactory(handlerFactory).serializer(serializer)
-                                  .id(a.id()).value(a.get()).type(a.type()).idProperty(a.idProperty()).build())
+                .handlerFactory(handlerFactory)
+                .serializer(serializer)
+                .id(a.id())
+                .value(a.get())
+                .type(a.type())
+                .idProperty(a.idProperty())
                 .lastEventId(a.lastEventId())
                 .lastEventIndex(a.lastEventIndex())
                 .timestamp(a.timestamp())
@@ -73,14 +73,14 @@ public class ImmutableAggregateRoot<T> implements AggregateRoot<T> {
 
     @Override
     public ImmutableAggregateRoot<T> apply(Message message) {
-        return apply(new DeserializingMessage(message.serialize(delegate.serializer()),
-                                              type -> delegate.serializer().convert(message.getPayload(), type),
+        return apply(new DeserializingMessage(message.serialize(serializer()),
+                                              type -> serializer().convert(message.getPayload(), type),
                                               EVENT));
     }
 
     public ImmutableAggregateRoot<T> apply(DeserializingMessage message) {
-        return toBuilder()
-                .delegate(delegate.apply(message))
+        return ((ImmutableAggregateRoot<T>) super.apply(message))
+                .toBuilder()
                 .previous(this)
                 .timestamp(message.getTimestamp())
                 .lastEventId(message.getMessageId())
@@ -92,42 +92,17 @@ public class ImmutableAggregateRoot<T> implements AggregateRoot<T> {
     @Override
     public ImmutableAggregateRoot<T> update(UnaryOperator<T> function) {
         return toBuilder()
-                .delegate(delegate.toBuilder().value(function.apply(get())).build())
+                .value(function.apply(get()))
                 .previous(this)
                 .timestamp(currentClock().instant())
                 .build();
     }
 
-    @Override
-    public Object id() {
-        return delegate().id();
-    }
-
-    @Override
-    public Class<T> type() {
-        return delegate().type();
-    }
-
-    @Override
-    public T get() {
-        return delegate.get();
-    }
-
-    @Override
-    public String idProperty() {
-        return delegate.idProperty();
-    }
-
-    @Override
-    public Collection<? extends Entity<?, ?>> entities() {
-        return delegate.entities();
-    }
-
     public ImmutableAggregateRoot<T> withEventIndex(Long index, String messageId) {
         if (Objects.equals(messageId, lastEventId)) {
-            return lastEventIndex == null ? withLastEventIndex(index) : this;
+            return lastEventIndex == null ? toBuilder().lastEventIndex(index).build() : this;
         }
-        return withPrevious(previous.withEventIndex(index, messageId));
+        return toBuilder().previous(previous.withEventIndex(index, messageId)).build();
     }
 
     public Long highestEventIndex() {

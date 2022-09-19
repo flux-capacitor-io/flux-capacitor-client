@@ -9,15 +9,15 @@ import java.util.Collection;
 import java.util.stream.Collectors;
 
 @Value
-public class ModifiableEntity<T> implements Entity<ModifiableEntity<T>, T> {
-    Entity<?, T> delegate;
+public class ModifiableEntity<T> implements Entity<T> {
+    Entity<T> delegate;
 
     @ToString.Exclude
     @EqualsAndHashCode.Exclude
     ModifiableAggregateRoot<?> root;
 
     @Override
-    public Collection<? extends Entity<?, ?>> entities() {
+    public Collection<? extends Entity<?>> entities() {
         return delegate.entities().stream().map(e -> new ModifiableEntity<>(e, root)).collect(Collectors.toList());
     }
 
@@ -34,8 +34,8 @@ public class ModifiableEntity<T> implements Entity<ModifiableEntity<T>, T> {
     }
 
     @Override
-    public Entity<?, ?> parent() {
-        Entity<?, ?> parent = delegate.parent();
+    public Entity<?> parent() {
+        Entity<?> parent = delegate.parent();
         return parent == null ? root : new ModifiableEntity<>(parent, root);
     }
 

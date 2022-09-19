@@ -18,11 +18,11 @@ import io.fluxcapacitor.common.handling.HandlerConfiguration;
 import io.fluxcapacitor.common.handling.HandlerInspector;
 import io.fluxcapacitor.common.handling.HandlerInvoker;
 import io.fluxcapacitor.common.handling.Invocation;
-import io.fluxcapacitor.common.handling.ParameterResolver;
 import io.fluxcapacitor.common.reflection.ReflectionUtils;
 import io.fluxcapacitor.javaclient.common.Message;
 import io.fluxcapacitor.javaclient.modeling.AssertLegal;
 import io.fluxcapacitor.javaclient.modeling.Entity;
+import io.fluxcapacitor.javaclient.modeling.EntityParameterResolver;
 import io.fluxcapacitor.javaclient.tracking.handling.DeserializingMessageParameterResolver;
 import io.fluxcapacitor.javaclient.tracking.handling.MessageParameterResolver;
 import io.fluxcapacitor.javaclient.tracking.handling.MetadataParameterResolver;
@@ -38,7 +38,6 @@ import lombok.SneakyThrows;
 import java.lang.annotation.Annotation;
 import java.lang.reflect.Executable;
 import java.lang.reflect.Method;
-import java.lang.reflect.Parameter;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -55,7 +54,6 @@ import static io.fluxcapacitor.common.ObjectUtils.memoize;
 import static io.fluxcapacitor.common.reflection.ReflectionUtils.getAnnotatedPropertyValues;
 import static io.fluxcapacitor.common.reflection.ReflectionUtils.getMethodAnnotation;
 import static io.fluxcapacitor.common.reflection.ReflectionUtils.getTypeAnnotations;
-import static io.fluxcapacitor.common.reflection.ReflectionUtils.isNullable;
 import static java.lang.String.format;
 import static java.util.Optional.empty;
 
@@ -124,67 +122,31 @@ public class ValidationUtils {
         Check command / query legality
      */
 
-    protected static class AssertLegalEntityParameterResolver implements ParameterResolver<Entity<?, ?>> {
-        @Override
-        public Function<Entity<?, ?>, Object> resolve(Parameter parameter, Annotation methodAnnotation) {
-            return entity -> resolve(parameter, entity);
-        }
-
-        protected Object resolve(Parameter parameter, Entity<?, ?> entity) {
-            if (entity == null) {
-                return null;
-            }
-            Class<?> type = entity.type();
-            if (parameter.getType().isAssignableFrom(type) || type.isAssignableFrom(parameter.getType())) {
-                return entity.get();
-            }
-            return resolve(parameter, entity.parent());
-        }
-
-        @Override
-        public boolean matches(Parameter parameter, Annotation methodAnnotation, Entity<?, ?> entity) {
-            if (entity == null) {
-                return false;
-            }
-            Class<?> entityType = entity.type();
-            Class<?> parameterType = parameter.getType();
-            if (entity.get() == null) {
-                if (isNullable(parameter)
-                    && (parameterType.isAssignableFrom(entityType) || entityType.isAssignableFrom(parameterType))) {
-                    return true;
-                }
-            } else if (parameterType.isAssignableFrom(entityType)) {
-                return true;
-            }
-            return matches(parameter, methodAnnotation, entity.parent());
-        }
-    }
-
-    protected static final Function<Class<?>, HandlerInvoker<Entity<?, ?>>> assertLegalInvokerCache =
+    protected static final Function<Class<?>, HandlerInvoker<Entity<?>>> assertLegalInvokerCache =
             memoize(type -> HandlerInspector.inspect(
                     type, Arrays.asList(new DeserializingMessageParameterResolver(),
                                         new MetadataParameterResolver(),
                                         new MessageParameterResolver(),
                                         new UserParameterResolver(NoOpUserProvider.getInstance()),
-                                        new AssertLegalEntityParameterResolver()),
+                                        new EntityParameterResolver()),
                     HandlerConfiguration.builder().methodAnnotation(AssertLegal.class)
                             .handlerFilter((owner, method) -> getMethodAnnotation(method, AssertLegal.class)
                                     .map(a -> !a.afterHandler()).orElse(false))
                             .invokeMultipleMethods(true).build()));
 
-    protected static final Function<Class<?>, HandlerInvoker<Entity<?, ?>>> assertLegalAfterUpdateInvokerCache =
+    protected static final Function<Class<?>, HandlerInvoker<Entity<?>>> assertLegalAfterUpdateInvokerCache =
             memoize(type -> HandlerInspector.inspect(
                     type, Arrays.asList(new DeserializingMessageParameterResolver(),
                                         new MetadataParameterResolver(),
                                         new MessageParameterResolver(),
                                         new UserParameterResolver(NoOpUserProvider.getInstance()),
-                                        new AssertLegalEntityParameterResolver()),
+                                        new EntityParameterResolver()),
                     HandlerConfiguration.builder().methodAnnotation(AssertLegal.class)
                             .handlerFilter((owner, method) -> getMethodAnnotation(method, AssertLegal.class)
                                     .map(AssertLegal::afterHandler).orElse(false))
                             .invokeMultipleMethods(true).build()));
 
-    public static <E extends Exception> void assertLegal(Object object, Entity<?, ?> entity) throws E {
+    public static <E extends Exception> void assertLegal(Object object, Entity<?> entity) throws E {
         Collection<Object> additionalProperties = assertLegal(object, entity, assertLegalInvokerCache);
         additionalProperties.forEach(p -> assertLegal(p, entity));
         Invocation.whenHandlerCompletes((r, e) -> {
@@ -195,12 +157,12 @@ public class ValidationUtils {
     }
 
     private static Collection<Object> assertLegal(
-            Object object, Entity<?, ?> entity, Function<Class<?>, HandlerInvoker<Entity<?, ?>>> invokerProvider) {
+            Object object, Entity<?> entity, Function<Class<?>, HandlerInvoker<Entity<?>>> invokerProvider) {
         Object payload = object instanceof Message ? ((Message) object).getPayload() : object;
         if (payload == null) {
             return Collections.emptyList();
         }
-        HandlerInvoker<Entity<?, ?>> invoker = invokerProvider.apply(payload.getClass());
+        HandlerInvoker<Entity<?>> invoker = invokerProvider.apply(payload.getClass());
         Collection<Object> additionalProperties = new HashSet<>(getAnnotatedPropertyValues(payload, AssertLegal.class));
         if (invoker.canHandle(payload, entity)) {
             Object additionalObject = invoker.invoke(payload, entity);
@@ -216,7 +178,7 @@ public class ValidationUtils {
     }
 
     @SuppressWarnings("unchecked")
-    public static <E extends Exception> Optional<E> checkLegality(Object payload, Entity<?, ?> entity) {
+    public static <E extends Exception> Optional<E> checkLegality(Object payload, Entity<?> entity) {
         try {
             assertLegal(payload, entity);
             return Optional.empty();
@@ -225,7 +187,7 @@ public class ValidationUtils {
         }
     }
 
-    public static boolean isLegal(Object commandOrQuery, Entity<?, ?> entity) {
+    public static boolean isLegal(Object commandOrQuery, Entity<?> entity) {
         return checkLegality(commandOrQuery, entity).isEmpty();
     }
 

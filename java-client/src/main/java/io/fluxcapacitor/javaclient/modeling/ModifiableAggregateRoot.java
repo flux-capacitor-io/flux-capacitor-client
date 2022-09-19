@@ -100,7 +100,7 @@ public class ModifiableAggregateRoot<T> extends DelegatingAggregateRoot<T, Immut
     }
 
     @Override
-    public Collection<? extends Entity<?, ?>> entities() {
+    public Collection<? extends Entity<?>> entities() {
         return super.entities().stream().map(e -> new ModifiableEntity<>(e, this)).collect(Collectors.toList());
     }
 

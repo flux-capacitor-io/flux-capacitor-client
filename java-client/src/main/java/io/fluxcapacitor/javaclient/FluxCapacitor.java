@@ -67,7 +67,6 @@ import java.util.stream.Stream;
 
 import static io.fluxcapacitor.common.MessageType.EVENT;
 import static io.fluxcapacitor.common.MessageType.NOTIFICATION;
-import static io.fluxcapacitor.javaclient.modeling.AggregateRoot.getAggregateId;
 import static java.util.Arrays.stream;
 
 /**
@@ -362,9 +361,8 @@ public interface FluxCapacitor extends AutoCloseable {
     static <T> AggregateRoot<T> loadAggregate(String aggregateId, Class<T> aggregateType) {
         AggregateRoot<T> result = get().aggregateRepository().load(aggregateId, aggregateType);
         DeserializingMessage message = DeserializingMessage.getCurrent();
-        if (message != null && (message.getMessageType() == EVENT || message.getMessageType() == NOTIFICATION)
-            && aggregateId.equals(getAggregateId(message))) {
-            return result.playBackToEvent(message.getMessageId());
+        if (message != null && (message.getMessageType() == EVENT || message.getMessageType() == NOTIFICATION)) {
+            return result.playBackToEvent(message);
         }
         return result;
     }
@@ -385,9 +383,8 @@ public interface FluxCapacitor extends AutoCloseable {
     static <T> AggregateRoot<T> loadAggregateFor(Object entityId, Class<?> defaultType) {
         AggregateRoot<T> result = get().aggregateRepository().loadFor(entityId.toString(), defaultType);
         DeserializingMessage message = DeserializingMessage.getCurrent();
-        if (message != null && (message.getMessageType() == EVENT || message.getMessageType() == NOTIFICATION)
-            && entityId.equals(getAggregateId(message))) {
-            return result.playBackToEvent(message.getMessageId());
+        if (message != null && (message.getMessageType() == EVENT || message.getMessageType() == NOTIFICATION)) {
+            return result.playBackToEvent(message);
         }
         return result;
     }
@@ -417,8 +414,8 @@ public interface FluxCapacitor extends AutoCloseable {
      * returned.
      */
     @SuppressWarnings("unchecked")
-    static <T> Entity<?, T> loadEntity(Object entityId) {
-        return (Entity<?, T>) loadAggregateFor(entityId).getEntity(entityId)
+    static <T> Entity<T> loadEntity(Object entityId) {
+        return (Entity<T>) loadAggregateFor(entityId).getEntity(entityId)
                 .orElseGet(() -> loadAggregate(entityId.toString(), Object.class));
     }
 

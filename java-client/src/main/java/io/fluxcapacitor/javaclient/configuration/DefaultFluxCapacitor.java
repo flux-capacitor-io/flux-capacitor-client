@@ -268,7 +268,8 @@ public class DefaultFluxCapacitor implements FluxCapacitor {
         }
 
         @Override
-        public FluxCapacitorBuilder replaceCorrelationDataProvider(@NonNull UnaryOperator<CorrelationDataProvider> replaceFunction) {
+        public FluxCapacitorBuilder replaceCorrelationDataProvider(
+                @NonNull UnaryOperator<CorrelationDataProvider> replaceFunction) {
             correlationDataProvider = replaceFunction.apply(correlationDataProvider);
             return this;
         }
@@ -545,17 +546,19 @@ public class DefaultFluxCapacitor implements FluxCapacitor {
 
             List<ParameterResolver<? super DeserializingMessage>> parameterResolvers =
                     new ArrayList<>(customParameterResolvers);
-            parameterResolvers.addAll(Arrays.asList(new DeserializingMessageParameterResolver(),
-                                                  new MetadataParameterResolver(), new MessageParameterResolver(),
-                                                  new UserParameterResolver(userProvider),
-                                                  new WebPayloadParameterResolver(), new PayloadParameterResolver()));
+            parameterResolvers.addAll(List.of(new DeserializingMessageParameterResolver(),
+                                              new MetadataParameterResolver(), new MessageParameterResolver(),
+                                              new UserParameterResolver(userProvider),
+                                              new WebPayloadParameterResolver(),
+                                              new PayloadParameterResolver()));
 
             //event sourcing
             EventSourcingHandlerFactory eventSourcingHandlerFactory =
                     new DefaultEventSourcingHandlerFactory(parameterResolvers);
             EventStore eventStore = new DefaultEventStore(client.getEventStoreClient(),
                                                           serializer, dispatchInterceptors.get(EVENT),
-                                                          localHandlerRegistry(EVENT, handlerInterceptors, parameterResolvers));
+                                                          localHandlerRegistry(EVENT, handlerInterceptors,
+                                                                               parameterResolvers));
             DefaultSnapshotStore snapshotRepository =
                     new DefaultSnapshotStore(client.getKeyValueClient(), snapshotSerializer);
 
@@ -575,7 +578,8 @@ public class DefaultFluxCapacitor implements FluxCapacitor {
             //enable error reporter as the outermost handler interceptor
             ErrorGateway errorGateway =
                     new DefaultErrorGateway(createRequestGateway(client, ERROR, defaultRequestHandler,
-                                                                 dispatchInterceptors, handlerInterceptors, parameterResolvers));
+                                                                 dispatchInterceptors, handlerInterceptors,
+                                                                 parameterResolvers));
             if (!disableErrorReporting) {
                 ErrorReportingInterceptor interceptor = new ErrorReportingInterceptor(errorGateway);
                 Arrays.stream(MessageType.values())
@@ -586,22 +590,27 @@ public class DefaultFluxCapacitor implements FluxCapacitor {
                                                                    serializer, dispatchInterceptors.get(RESULT));
             CommandGateway commandGateway =
                     new DefaultCommandGateway(createRequestGateway(client, COMMAND, defaultRequestHandler,
-                                                                   dispatchInterceptors, handlerInterceptors, parameterResolvers));
+                                                                   dispatchInterceptors, handlerInterceptors,
+                                                                   parameterResolvers));
             QueryGateway queryGateway =
                     new DefaultQueryGateway(createRequestGateway(client, QUERY, defaultRequestHandler,
-                                                                 dispatchInterceptors, handlerInterceptors, parameterResolvers));
+                                                                 dispatchInterceptors, handlerInterceptors,
+                                                                 parameterResolvers));
             EventGateway eventGateway =
                     new DefaultEventGateway(createRequestGateway(client, EVENT, defaultRequestHandler,
-                                                                 dispatchInterceptors, handlerInterceptors, parameterResolvers));
+                                                                 dispatchInterceptors, handlerInterceptors,
+                                                                 parameterResolvers));
 
             MetricsGateway metricsGateway =
                     new DefaultMetricsGateway(createRequestGateway(client, METRICS, defaultRequestHandler,
-                                                                   dispatchInterceptors, handlerInterceptors, parameterResolvers));
+                                                                   dispatchInterceptors, handlerInterceptors,
+                                                                   parameterResolvers));
 
             RequestHandler webRequestHandler = new DefaultRequestHandler(client, WEBRESPONSE);
             WebRequestGateway webRequestGateway =
                     new DefaultWebRequestGateway(createRequestGateway(client, WEBREQUEST, webRequestHandler,
-                                                                      dispatchInterceptors, handlerInterceptors, parameterResolvers));
+                                                                      dispatchInterceptors, handlerInterceptors,
+                                                                      parameterResolvers));
 
             ResultGateway webResponseGateway = new WebResponseGateway(client.getGatewayClient(WEBRESPONSE),
                                                                       serializer, dispatchInterceptors.get(WEBRESPONSE),
@@ -628,7 +637,8 @@ public class DefaultFluxCapacitor implements FluxCapacitor {
             //misc
             Scheduler scheduler = new DefaultScheduler(client.getSchedulingClient(),
                                                        serializer, dispatchInterceptors.get(SCHEDULE),
-                                                       localHandlerRegistry(SCHEDULE, handlerInterceptors, parameterResolvers));
+                                                       localHandlerRegistry(SCHEDULE, handlerInterceptors,
+                                                                            parameterResolvers));
 
             Runnable shutdownHandler = () -> {
                 ForkJoinPool shutdownPool = new ForkJoinPool(MessageType.values().length);
@@ -702,7 +712,8 @@ public class DefaultFluxCapacitor implements FluxCapacitor {
                                                       List<ParameterResolver<? super DeserializingMessage>> parameterResolvers) {
             return new DefaultGenericGateway(client.getGatewayClient(messageType), requestHandler,
                                              this.serializer, dispatchInterceptors.get(messageType), messageType,
-                                             localHandlerRegistry(messageType, handlerInterceptors, parameterResolvers));
+                                             localHandlerRegistry(messageType, handlerInterceptors,
+                                                                  parameterResolvers));
         }
 
         protected HandlerRegistry localHandlerRegistry(MessageType messageType,

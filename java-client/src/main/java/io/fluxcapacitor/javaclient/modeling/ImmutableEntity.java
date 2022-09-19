@@ -7,14 +7,14 @@ import io.fluxcapacitor.javaclient.common.serialization.DeserializingMessage;
 import io.fluxcapacitor.javaclient.common.serialization.Serializer;
 import io.fluxcapacitor.javaclient.persisting.eventsourcing.EventSourcingHandler;
 import io.fluxcapacitor.javaclient.persisting.eventsourcing.EventSourcingHandlerFactory;
-import io.fluxcapacitor.javaclient.tracking.handling.validation.ValidationUtils;
 import lombok.AllArgsConstructor;
-import lombok.Builder;
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
 import lombok.ToString;
 import lombok.Value;
 import lombok.experimental.Accessors;
+import lombok.experimental.NonFinal;
+import lombok.experimental.SuperBuilder;
 import lombok.extern.slf4j.Slf4j;
 
 import java.lang.reflect.AccessibleObject;
@@ -28,11 +28,12 @@ import static io.fluxcapacitor.javaclient.modeling.AnnotatedEntityHolder.getEnti
 import static java.util.stream.Collectors.toList;
 
 @Value
-@Builder(toBuilder = true)
+@NonFinal
+@SuperBuilder(toBuilder = true)
 @Accessors(fluent = true)
 @Slf4j
 @AllArgsConstructor
-public class ImmutableEntity<T> implements Entity<ImmutableEntity<T>, T> {
+public class ImmutableEntity<T> implements Entity<T> {
     @JsonProperty
     Object id;
     @JsonProperty
@@ -45,7 +46,7 @@ public class ImmutableEntity<T> implements Entity<ImmutableEntity<T>, T> {
 
     @ToString.Exclude
     @EqualsAndHashCode.Exclude
-    transient Entity<?, ?> parent;
+    transient Entity<?> parent;
 
     @ToString.Exclude
     @EqualsAndHashCode.Exclude
@@ -62,7 +63,7 @@ public class ImmutableEntity<T> implements Entity<ImmutableEntity<T>, T> {
     @ToString.Exclude
     @EqualsAndHashCode.Exclude
     @Getter(lazy = true)
-    Collection<? extends Entity<?, ?>> entities = computeEntities();
+    Collection<? extends Entity<?>> entities = computeEntities();
 
     @SuppressWarnings("unchecked")
     public Class<T> type() {
@@ -85,12 +86,6 @@ public class ImmutableEntity<T> implements Entity<ImmutableEntity<T>, T> {
     }
 
     @Override
-    public <E extends Exception> ImmutableEntity<T> assertLegal(Object command) throws E {
-        ValidationUtils.assertLegal(command, this);
-        return this;
-    }
-
-    @Override
     public ImmutableEntity<T> apply(Message message) {
         return apply(new DeserializingMessage(message.serialize(serializer),
                                               type -> serializer.convert(message.getPayload(), type), EVENT));
@@ -104,9 +99,9 @@ public class ImmutableEntity<T> implements Entity<ImmutableEntity<T>, T> {
         }
         ImmutableEntity<T> result = this;
         Object payload = message.getPayload();
-        for (Entity<?, ?> entity : result.possibleTargets(payload)) {
+        for (Entity<?> entity : result.possibleTargets(payload)) {
             ImmutableEntity<?> immutableEntity = (ImmutableEntity<?>) entity;
-            Entity<?, ?> updated = immutableEntity.apply(message);
+            Entity<?> updated = immutableEntity.apply(message);
             if (immutableEntity.get() != updated.get()) {
                 result = result.toBuilder().value((T) immutableEntity
                         .holder().updateOwner(result.get(), entity, updated)).build();

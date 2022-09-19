@@ -20,25 +20,22 @@ import io.fluxcapacitor.common.handling.HandlerNotFoundException;
 import io.fluxcapacitor.common.handling.ParameterResolver;
 import io.fluxcapacitor.javaclient.common.serialization.DeserializingMessage;
 import io.fluxcapacitor.javaclient.modeling.Entity;
+import io.fluxcapacitor.javaclient.modeling.EntityParameterResolver;
 import io.fluxcapacitor.javaclient.tracking.handling.PayloadParameterResolver;
 
-import java.lang.annotation.Annotation;
 import java.lang.reflect.Method;
-import java.lang.reflect.Parameter;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.function.Function;
-import java.util.function.Supplier;
 
 import static io.fluxcapacitor.common.ObjectUtils.memoize;
 import static io.fluxcapacitor.common.handling.HandlerInspector.inspect;
-import static io.fluxcapacitor.common.reflection.ReflectionUtils.isNullable;
 
 public class AnnotatedEventSourcingHandler<T> implements EventSourcingHandler<T> {
 
     private final Class<? extends T> handlerType;
     private final HandlerInvoker<DeserializingMessage> entityInvoker;
-    private final EventSourcingEntityParameterResolver entityResolver = new EventSourcingEntityParameterResolver();
+    private final EntityParameterResolver entityResolver = new EntityParameterResolver();
     private final Function<Class<?>, HandlerInvoker<DeserializingMessage>> eventInvokers;
 
     public AnnotatedEventSourcingHandler(Class<? extends T> handlerType,
@@ -66,108 +63,38 @@ public class AnnotatedEventSourcingHandler<T> implements EventSourcingHandler<T>
     }
 
     @Override
-    public T invoke(Entity<?, T> entity, DeserializingMessage message) {
+    public T invoke(Entity<T> entity, DeserializingMessage message) {
+        message = new DeserializingMessageWithEntity(message, entity);
         return message.apply(m -> {
             Object result;
             HandlerInvoker<DeserializingMessage> invoker;
             T model = entity.get();
             boolean handledByEntity;
             try {
-                try {
-                    entityResolver.setEntity(entity);
-                    handledByEntity = entityInvoker.canHandle(model, m);
-                    invoker = handledByEntity ? entityInvoker : eventInvokers.apply(message.getPayloadClass());
-                    result = invoker.invoke(handledByEntity ? model : m.getPayload(), m);
-                } catch (HandlerNotFoundException e) {
-                    return model;
-                }
-                if (model == null) {
-                    return handlerType.cast(result);
-                }
-                if (handlerType.isInstance(result)) {
-                    return handlerType.cast(result);
-                }
-                if (result == null && invoker.expectResult(handledByEntity ? model : m.getPayload(), m)) {
-                    return null; //this handler has deleted the model on purpose
-                }
-                return model; //Annotated method returned void - apparently the model is mutable
-            } finally {
-                entityResolver.removeEntity();
+                handledByEntity = entityInvoker.canHandle(model, m);
+                invoker = handledByEntity ? entityInvoker : eventInvokers.apply(m.getPayloadClass());
+                result = invoker.invoke(handledByEntity ? model : m.getPayload(), m);
+            } catch (HandlerNotFoundException e) {
+                return model;
             }
+            if (model == null) {
+                return handlerType.cast(result);
+            }
+            if (handlerType.isInstance(result)) {
+                return handlerType.cast(result);
+            }
+            if (result == null && invoker.expectResult(handledByEntity ? model : m.getPayload(), m)) {
+                return null; //this handler has deleted the model on purpose
+            }
+            return model; //Annotated method returned void - apparently the model is mutable
         });
     }
 
     @Override
-    public boolean canHandle(Entity<?, T> entity, DeserializingMessage message) {
-        try {
-            entityResolver.setEntity(entity);
-            return entityInvoker.canHandle(entity.get(), message)
-                   || eventInvokers.apply(message.getPayloadClass()).canHandle(message.getPayload(), message);
-        } finally {
-            entityResolver.removeEntity();
-        }
+    public boolean canHandle(Entity<T> entity, DeserializingMessage message) {
+        message = new DeserializingMessageWithEntity(message, entity);
+        return entityInvoker.canHandle(entity.get(), message)
+               || eventInvokers.apply(message.getPayloadClass()).canHandle(message.getPayload(), message);
     }
 
-    protected static class EventSourcingEntityParameterResolver implements ParameterResolver<Object> {
-        private final ThreadLocal<Entity<?, ?>> currentEntity = new ThreadLocal<>();
-
-        @Override
-        public boolean matches(Parameter parameter, Annotation methodAnnotation, Object value) {
-            return matches(parameter, currentEntity.get())
-                   && ParameterResolver.super.matches(parameter, methodAnnotation, value);
-        }
-
-        protected boolean matches(Parameter parameter, Entity<?, ?> entity) {
-            if (entity == null) {
-                return false;
-            }
-            if (isAssignable(parameter, entity, true)) {
-                return true;
-            }
-            return matches(parameter, entity.parent());
-        }
-
-        @Override
-        public Function<Object, Object> resolve(Parameter parameter, Annotation methodAnnotation) {
-            Supplier<?> supplier = resolve(parameter, currentEntity.get());
-            return supplier == null ? null : m -> resolve(parameter, currentEntity.get()).get();
-        }
-
-        protected Supplier<?> resolve(Parameter parameter, Entity<?, ?> entity) {
-            if (entity == null) {
-                return null;
-            }
-            if (isAssignable(parameter, entity, false)) {
-                return Entity.class.isAssignableFrom(parameter.getType()) ? () -> entity : entity::get;
-            }
-            return resolve(parameter, entity.parent());
-        }
-
-        protected boolean isAssignable(Parameter parameter, Entity<?, ?> entity, boolean considerEntityValue) {
-            Class<?> entityType = entity.type();
-            Class<?> parameterType = parameter.getType();
-            if (!considerEntityValue) {
-                return parameterType.isAssignableFrom(entityType) || entityType.isAssignableFrom(parameterType);
-            }
-            if (entity.get() == null) {
-                return isNullable(parameter)
-                       && (parameterType.isAssignableFrom(entityType) || entityType.isAssignableFrom(parameterType));
-            } else {
-                return parameterType.isAssignableFrom(entityType);
-            }
-        }
-
-        @Override
-        public boolean determinesSpecificity() {
-            return true;
-        }
-
-        public void setEntity(Entity<?, ?> entity) {
-            currentEntity.set(entity);
-        }
-
-        public void removeEntity() {
-            currentEntity.remove();
-        }
-    }
 }

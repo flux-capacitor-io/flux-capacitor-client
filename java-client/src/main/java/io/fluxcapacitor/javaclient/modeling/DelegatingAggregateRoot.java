@@ -64,7 +64,7 @@ public abstract class DelegatingAggregateRoot<T, A extends AggregateRoot<T>> imp
     }
 
     @Override
-    public Collection<? extends Entity<?, ?>> entities() {
+    public Collection<? extends Entity<?>> entities() {
         return delegate.entities();
     }
 

@@ -11,9 +11,9 @@ import java.util.stream.Collectors;
 
 @AllArgsConstructor
 @Accessors(fluent = true)
-public class NoOpEntity<T> implements Entity<NoOpEntity<T>, T> {
+public class NoOpEntity<T> implements Entity<T> {
 
-    private final Entity<?, T> delegate;
+    private final Entity<T> delegate;
 
     @Override
     public NoOpEntity<T> apply(Message eventMessage) {
@@ -36,13 +36,13 @@ public class NoOpEntity<T> implements Entity<NoOpEntity<T>, T> {
     }
 
     @Override
-    public Entity<?, ?> parent() {
-        Entity<?, ?> parent = delegate.parent();
+    public Entity<?> parent() {
+        Entity<?> parent = delegate.parent();
         return parent instanceof AggregateRoot<?> ? parent : parent == null ? null : new NoOpEntity<>(parent);
     }
 
     @Override
-    public Collection<? extends Entity<?, ?>> entities() {
+    public Collection<? extends Entity<?>> entities() {
         return delegate.entities().stream().map(NoOpEntity::new).collect(Collectors.toList());
     }
 

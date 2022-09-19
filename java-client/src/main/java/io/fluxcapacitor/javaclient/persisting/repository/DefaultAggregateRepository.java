@@ -9,7 +9,6 @@ import io.fluxcapacitor.javaclient.modeling.Aggregate;
 import io.fluxcapacitor.javaclient.modeling.AggregateRoot;
 import io.fluxcapacitor.javaclient.modeling.EntityId;
 import io.fluxcapacitor.javaclient.modeling.ImmutableAggregateRoot;
-import io.fluxcapacitor.javaclient.modeling.ImmutableEntity;
 import io.fluxcapacitor.javaclient.modeling.ModifiableAggregateRoot;
 import io.fluxcapacitor.javaclient.modeling.NoOpAggregateRoot;
 import io.fluxcapacitor.javaclient.persisting.caching.Cache;
@@ -191,13 +190,12 @@ public class DefaultAggregateRepository implements AggregateRepository {
                                 .filter(a -> a.get() == null || type.isAssignableFrom(a.get().getClass()))
                                 .orElseGet(() -> {
                                     var builder =
-                                            ImmutableEntity.<T>builder().id(id).type(type).idProperty(idProperty)
+                                            ImmutableAggregateRoot.<T>builder().id(id).type(type).idProperty(idProperty)
                                                     .handlerFactory(handlerFactory).serializer(serializer);
                                     ImmutableAggregateRoot<T> model =
                                             (searchable && !eventSourced
                                                     ? documentStore.<T>fetchDocument(id, collection)
                                                     .map(d -> builder.value(d).build())
-                                                    .map(e -> ImmutableAggregateRoot.<T>builder().delegate(e).build())
                                                     : snapshotStore.<T>getSnapshot(id).map(
                                                     a -> ImmutableAggregateRoot.from(a, handlerFactory, serializer)))
                                                     .filter(a -> {
@@ -210,9 +208,8 @@ public class DefaultAggregateRepository implements AggregateRepository {
                                                                      id, type, a.get().getClass());
                                                         }
                                                         return assignable;
-                                                    }).orElseGet(
-                                                            () -> ImmutableAggregateRoot.<T>builder().delegate(builder.build())
-                                                                    .build());
+                                                    })
+                                                    .map(a -> (ImmutableAggregateRoot<T>) a).orElseGet(builder::build);
                                     if (!eventSourced) {
                                         return model;
                                     }

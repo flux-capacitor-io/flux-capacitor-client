@@ -140,7 +140,7 @@ public class AnnotatedEntityHolder {
         });
     }
 
-    public Stream<? extends ImmutableEntity<?>> getEntities(Entity<?, ?> parent) {
+    public Stream<? extends ImmutableEntity<?>> getEntities(Entity<?> parent) {
         if (parent.get() == null) {
             return Stream.empty();
         }
@@ -168,7 +168,7 @@ public class AnnotatedEntityHolder {
 
     @SuppressWarnings({"unchecked", "rawtypes"})
     private Optional<ImmutableEntity<?>> createEntity(Object member, Function<Object, Id> idProvider,
-                                                      Entity<?, ?> parent) {
+                                                      Entity<?> parent) {
         if (member == null) {
             return empty();
         }
@@ -178,7 +178,7 @@ public class AnnotatedEntityHolder {
     }
 
     @SneakyThrows
-    public Object updateOwner(Object owner, Entity<?, ?> before, Entity<?, ?> after) {
+    public Object updateOwner(Object owner, Entity<?> before, Entity<?> after) {
         Object holder = ReflectionUtils.getValue(location, owner);
         if (Collection.class.isAssignableFrom(holderType)) {
             Collection<Object> collection = serializer.clone(holder);

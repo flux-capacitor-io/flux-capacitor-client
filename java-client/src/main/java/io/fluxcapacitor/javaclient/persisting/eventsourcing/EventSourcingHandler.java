@@ -19,8 +19,8 @@ import io.fluxcapacitor.javaclient.modeling.Entity;
 
 public interface EventSourcingHandler<T> {
 
-    T invoke(Entity<?, T> entity, DeserializingMessage message);
+    T invoke(Entity<T> entity, DeserializingMessage message);
 
-    boolean canHandle(Entity<?, T> entity, DeserializingMessage message);
+    boolean canHandle(Entity<T> entity, DeserializingMessage message);
 
 }

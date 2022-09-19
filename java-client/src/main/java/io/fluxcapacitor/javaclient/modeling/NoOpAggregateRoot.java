@@ -102,7 +102,7 @@ public class NoOpAggregateRoot<T> implements AggregateRoot<T> {
     }
 
     @Override
-    public Collection<? extends Entity<?, ?>> entities() {
+    public Collection<? extends Entity<?>> entities() {
         return delegate().entities().stream().map(NoOpEntity::new).collect(Collectors.toList());
     }
 

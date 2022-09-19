@@ -35,7 +35,7 @@ import static io.fluxcapacitor.common.reflection.ReflectionUtils.readProperty;
 import static io.fluxcapacitor.javaclient.common.Message.asMessage;
 import static java.util.Collections.emptyList;
 
-public interface Entity<M extends Entity<M, T>, T> {
+public interface Entity<T> {
 
     Object id();
 
@@ -45,11 +45,11 @@ public interface Entity<M extends Entity<M, T>, T> {
 
     String idProperty();
 
-    Entity<?, ?> parent();
+    Entity<?> parent();
 
     @SuppressWarnings("rawtypes")
     default AggregateRoot<?> root() {
-        return Optional.<Entity>ofNullable(parent()).map(Entity::root).orElse((AggregateRoot<?>) this);
+        return Optional.<Entity>ofNullable(parent()).map(Entity::root).orElseGet(() -> (AggregateRoot<?>) this);
     }
 
     default String lastEventId() {
@@ -69,77 +69,73 @@ public interface Entity<M extends Entity<M, T>, T> {
     }
 
     @SuppressWarnings("unchecked")
-    default M previous() {
-        return (M) root().previous().allEntities().filter(
+    default Entity<T> previous() {
+        return (Entity<T>) root().previous().allEntities().filter(
                 e -> Objects.equals(e.id(), id()) && Objects.equals(e.type(), type())).findFirst().orElse(null);
     }
 
-    Collection<? extends Entity<?, ?>> entities();
+    Collection<? extends Entity<?>> entities();
 
-    default Stream<Entity<?, ?>> allEntities() {
+    default Stream<Entity<?>> allEntities() {
         return Stream.concat(Stream.of(this), entities().stream().flatMap(Entity::allEntities));
     }
 
-    default Optional<Entity<?, ?>> getEntity(Object entityId) {
+    default Optional<Entity<?>> getEntity(Object entityId) {
         return allEntities().filter(e -> entityId != null && entityId.equals(e.id())).findFirst();
     }
 
-    default M apply(Object... events) {
+    default Entity<T> apply(Object... events) {
         return apply(List.of(events));
     }
 
-    @SuppressWarnings("unchecked")
-    default M apply(Collection<?> events) {
-        M result = (M) this;
+    default Entity<T> apply(Collection<?> events) {
+        Entity<T> result = this;
         for (Object event : events) {
             result = result.apply(event);
         }
         return result;
     }
 
-    default M apply(Object event) {
+    default Entity<T> apply(Object event) {
         if (event instanceof DeserializingMessage) {
             return apply(((DeserializingMessage) event).toMessage());
         }
         return apply(asMessage(event));
     }
 
-    default M apply(Object event, Metadata metadata) {
+    default Entity<T> apply(Object event, Metadata metadata) {
         return apply(new Message(event, metadata));
     }
 
-    M apply(Message eventMessage);
+    Entity<T> apply(Message eventMessage);
 
-    @SuppressWarnings("unchecked")
-    default <E extends Exception> M assertLegal(Object command) throws E {
+    default <E extends Exception> Entity<T> assertLegal(Object command) throws E {
         ValidationUtils.assertLegal(command, this);
-        return (M) this;
+        return this;
     }
 
-    @SuppressWarnings("unchecked")
-    default <E extends Exception> M assertThat(Validator<T, E> validator) throws E {
+    default <E extends Exception> Entity<T> assertThat(Validator<T, E> validator) throws E {
         validator.validate(this.get());
-        return (M) this;
+        return this;
     }
 
-    @SuppressWarnings("unchecked")
-    default <E extends Exception> M ensure(Predicate<T> check, Function<T, E> errorProvider) throws E {
+    default <E extends Exception> Entity<T> ensure(Predicate<T> check, Function<T, E> errorProvider) throws E {
         if (!check.test(get())) {
             throw errorProvider.apply(get());
         }
-        return (M) this;
+        return this;
     }
 
-    default M assertAndApply(Object payload) {
+    default Entity<T> assertAndApply(Object payload) {
         return assertLegal(payload).apply(payload);
     }
 
-    default M assertAndApply(Object payload, Metadata metadata) {
+    default Entity<T> assertAndApply(Object payload, Metadata metadata) {
         return assertLegal(payload).apply(payload, metadata);
     }
 
-    default Iterable<Entity<?, ?>> possibleTargets(Object payload) {
-        for (Entity<?, ?> e : entities()) {
+    default Iterable<Entity<?>> possibleTargets(Object payload) {
+        for (Entity<?> e : entities()) {
             if (e.isPossibleTarget(payload)) {
                 return List.of(e);
             }
@@ -151,7 +147,7 @@ public interface Entity<M extends Entity<M, T>, T> {
         if (message == null) {
             return false;
         }
-        for (Entity<?, ?> e : entities()) {
+        for (Entity<?> e : entities()) {
             if (e.isPossibleTarget(message)) {
                 return true;
             }
