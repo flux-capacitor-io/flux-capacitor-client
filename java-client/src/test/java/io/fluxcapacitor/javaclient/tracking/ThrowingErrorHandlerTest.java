@@ -33,19 +33,20 @@ class ThrowingErrorHandlerTest {
 
     private final ThrowingEventHandler eventHandler = new ThrowingEventHandler();
     private final TestFixture testFixture = TestFixture.createAsync(
-            DefaultFluxCapacitor.builder().configureDefaultConsumer(MessageType.EVENT, c -> c.toBuilder()
+            DefaultFluxCapacitor.builder().disableAutomaticAggregateCaching()
+                    .configureDefaultConsumer(MessageType.EVENT, c -> c.toBuilder()
                     .errorHandler(new ThrowingErrorHandler()).build()), eventHandler);
 
     @Test
     void testTrackingStoppedDuringFirstEvent() {
-        testFixture.whenEventsAreApplied("testAggregate", "error")
+        testFixture.whenEventsAreApplied("testAggregate", Object.class, "error")
                 .expectThat(fc -> verify(fc.client().getTrackingClient(MessageType.EVENT), never())
                         .storePosition(any(), any(), anyLong()));
     }
 
     @Test
     void testTrackingStoppedDuringSecondEvent() {
-        testFixture.whenEventsAreApplied("testAggregate", 1, "error")
+        testFixture.whenEventsAreApplied("testAggregate", Object.class, 1, "error")
                 .expectThat(fc -> {
                     TrackingClient trackingClient = fc.client().getTrackingClient(MessageType.EVENT);
                     verify(trackingClient).storePosition(any(), any(), eq((long) eventHandler.getFirstIndex()));

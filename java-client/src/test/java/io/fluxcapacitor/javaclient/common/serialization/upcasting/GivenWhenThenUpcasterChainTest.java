@@ -46,7 +46,7 @@ public class GivenWhenThenUpcasterChainTest {
 
         @Test
         void testUpcastingWithDataInput() {
-            testFixture.givenAppliedEvents(aggregateId, JsonUtils
+            testFixture.givenAppliedEvents(aggregateId, TestModel.class, JsonUtils
                     .fromFile( "create-model-revision-0.json", Object.class))
                     .whenQuery(new GetModel())
                     .expectResult(new TestModel(singletonList(new CreateModel("patchedContent"))));

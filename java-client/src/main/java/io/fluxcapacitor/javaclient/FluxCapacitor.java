@@ -27,7 +27,6 @@ import io.fluxcapacitor.javaclient.configuration.DefaultFluxCapacitor;
 import io.fluxcapacitor.javaclient.configuration.client.Client;
 import io.fluxcapacitor.javaclient.configuration.spring.FluxCapacitorSpringConfig;
 import io.fluxcapacitor.javaclient.modeling.Aggregate;
-import io.fluxcapacitor.javaclient.modeling.AggregateRoot;
 import io.fluxcapacitor.javaclient.modeling.Entity;
 import io.fluxcapacitor.javaclient.persisting.caching.Cache;
 import io.fluxcapacitor.javaclient.persisting.eventsourcing.EventStore;
@@ -358,7 +357,7 @@ public interface FluxCapacitor extends AutoCloseable {
      *
      * @see Aggregate for more info on how to define an event sourced aggregate root
      */
-    static <T> AggregateRoot<T> loadAggregate(String aggregateId, Class<T> aggregateType) {
+    static <T> Entity<T> loadAggregate(String aggregateId, Class<T> aggregateType) {
         return playbackToHandledEvent(get().aggregateRepository().load(aggregateId, aggregateType));
     }
 
@@ -375,14 +374,14 @@ public interface FluxCapacitor extends AutoCloseable {
      *
      * @see Aggregate for more info on how to define an event sourced aggregate root
      */
-    static <T> AggregateRoot<T> loadAggregateFor(Object entityId, Class<?> defaultType) {
+    static <T> Entity<T> loadAggregateFor(Object entityId, Class<?> defaultType) {
         return playbackToHandledEvent(get().aggregateRepository().loadFor(entityId.toString(), defaultType));
     }
 
-    private static <T> AggregateRoot<T> playbackToHandledEvent(AggregateRoot<T> aggregateRoot) {
+    private static <T> Entity<T> playbackToHandledEvent(Entity<T> aggregateRoot) {
         DeserializingMessage message = DeserializingMessage.getCurrent();
         if (message != null && (message.getMessageType() == EVENT || message.getMessageType() == NOTIFICATION)
-            && aggregateRoot.id().equals(AggregateRoot.getAggregateId(message))) {
+            && aggregateRoot.id().equals(Entity.getAggregateId(message))) {
             return aggregateRoot.playBackToEvent(message.getMessageId());
         }
         return aggregateRoot;
@@ -402,7 +401,7 @@ public interface FluxCapacitor extends AutoCloseable {
      *
      * @see Aggregate for more info on how to define an event sourced aggregate root
      */
-    static <T> AggregateRoot<T> loadAggregateFor(Object entityId) {
+    static <T> Entity<T> loadAggregateFor(Object entityId) {
         return loadAggregateFor(entityId, Object.class);
     }
 

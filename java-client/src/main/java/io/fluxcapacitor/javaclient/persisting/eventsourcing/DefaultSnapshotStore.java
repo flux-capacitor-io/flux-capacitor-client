@@ -17,7 +17,7 @@ package io.fluxcapacitor.javaclient.persisting.eventsourcing;
 import io.fluxcapacitor.common.Guarantee;
 import io.fluxcapacitor.javaclient.common.serialization.SerializationException;
 import io.fluxcapacitor.javaclient.common.serialization.Serializer;
-import io.fluxcapacitor.javaclient.modeling.AggregateRoot;
+import io.fluxcapacitor.javaclient.modeling.Entity;
 import io.fluxcapacitor.javaclient.modeling.ImmutableAggregateRoot;
 import io.fluxcapacitor.javaclient.persisting.keyvalue.client.KeyValueClient;
 import lombok.AllArgsConstructor;
@@ -35,7 +35,7 @@ public class DefaultSnapshotStore implements SnapshotStore {
     private final Serializer serializer;
 
     @Override
-    public <T> void storeSnapshot(AggregateRoot<T> snapshot) {
+    public <T> void storeSnapshot(Entity<T> snapshot) {
         try {
             keyValueClient.putValue(snapshotKey(snapshot.id()), serializer.serialize(ImmutableAggregateRoot.from(
                     snapshot, null, null)), Guarantee.SENT);
@@ -45,7 +45,7 @@ public class DefaultSnapshotStore implements SnapshotStore {
     }
 
     @Override
-    public <T> Optional<AggregateRoot<T>> getSnapshot(String aggregateId) {
+    public <T> Optional<Entity<T>> getSnapshot(String aggregateId) {
         try {
             return ofNullable(keyValueClient.getValue(snapshotKey(aggregateId))).map(serializer::deserialize);
         } catch (SerializationException e) {

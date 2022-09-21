@@ -5,7 +5,7 @@ import org.junit.jupiter.api.Test;
 
 import static io.fluxcapacitor.javaclient.FluxCapacitor.loadAggregate;
 
-class ReadOnlyAggregateRootTest {
+class ReadOnlyEntityTest {
 
     @Test
     void testApplyForbidden() {

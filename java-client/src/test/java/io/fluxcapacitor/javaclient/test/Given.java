@@ -14,6 +14,7 @@
 
 package io.fluxcapacitor.javaclient.test;
 
+import io.fluxcapacitor.common.api.Data;
 import io.fluxcapacitor.javaclient.FluxCapacitor;
 import io.fluxcapacitor.javaclient.common.Message;
 import io.fluxcapacitor.javaclient.scheduling.Schedule;
@@ -56,10 +57,11 @@ public interface Given extends When {
     /**
      * Specify one or more events that have been applied to given aggregate prior to the behavior you want to test.
      * <p>
-     * An event may be an instance of {@link Message} in which case it will be applied as is. Otherwise, the event is
-     * applied using the passed value as payload without additional metadata.
+     * An event may be an instance of {@link Message} in which case it will be applied as is. An event may also be an
+     * instance of serialized {@link Data}, which will automatically be upcasted and deserialized before applying.
+     * Otherwise, the event is applied using the passed value as payload without additional metadata.
      */
-    Given givenAppliedEvents(String aggregateId, Object... events);
+    Given givenAppliedEvents(String aggregateId, Class<?> aggregateClass, Object... events);
 
     /**
      * Specify one or more events that have been published prior to the behavior you want to test.

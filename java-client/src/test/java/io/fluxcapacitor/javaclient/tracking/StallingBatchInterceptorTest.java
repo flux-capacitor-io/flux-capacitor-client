@@ -35,7 +35,8 @@ class StallingBatchInterceptorTest {
     private final MockEventHandler handler = spy(new MockEventHandler());
 
     private final TestFixture testFixture =
-            TestFixture.createAsync(DefaultFluxCapacitor.builder().configureDefaultConsumer(
+            TestFixture.createAsync(DefaultFluxCapacitor.builder().disableAutomaticAggregateCaching()
+                                            .configureDefaultConsumer(
                     EVENT,
                     c -> c.toBuilder().batchInterceptor(
                             StallingBatchInterceptor.builder()
@@ -45,14 +46,14 @@ class StallingBatchInterceptorTest {
 
     @Test
     void testLargeBatchPassed() {
-        testFixture.whenEventsAreApplied("test", 0, 1)
+        testFixture.whenEventsAreApplied("test", Object.class, 0, 1)
                 .expectThat(fc -> verify(handler, times(2)).handle(any()))
                 .expectThat(fc -> verify(fc.client().getTrackingClient(EVENT)).storePosition(any(), any(), anyLong()));
     }
 
     @Test
     void testSmallBatchStalled() {
-        testFixture.whenEventsAreApplied("test", 0)
+        testFixture.whenEventsAreApplied("test", Object.class, 0)
                 .expectThat(fc -> verify(handler, never()).handle(any()))
                 .expectThat(fc -> verify(fc.client().getTrackingClient(EVENT), never())
                         .storePosition(any(), any(), anyLong()));
@@ -60,7 +61,7 @@ class StallingBatchInterceptorTest {
 
     @Test
     void testSmallBatchPassedAfterTimeout() {
-        testFixture.givenAppliedEvents("test", 0)
+        testFixture.givenAppliedEvents("test", Object.class, 0)
                 .whenTimeElapses(stallingDuration)
                 .expectThat(fc -> verify(handler, times(1)).handle(any()))
                 .expectThat(fc -> verify(fc.client().getTrackingClient(EVENT)).storePosition(any(), any(), anyLong()));

@@ -8,13 +8,13 @@ import lombok.ToString;
 import java.time.Instant;
 import java.util.Collection;
 
-public abstract class DelegatingAggregateRoot<T, A extends AggregateRoot<T>> implements AggregateRoot<T> {
+public abstract class DelegatingEntity<T> implements Entity<T> {
     @ToString.Include
     @EqualsAndHashCode.Include
     @Getter
-    protected A delegate;
+    protected Entity<T> delegate;
 
-    public DelegatingAggregateRoot(@NonNull A delegate) {
+    public DelegatingEntity(@NonNull Entity<T> delegate) {
         this.delegate = delegate;
     }
 
@@ -59,7 +59,7 @@ public abstract class DelegatingAggregateRoot<T, A extends AggregateRoot<T>> imp
     }
 
     @Override
-    public AggregateRoot<T> previous() {
+    public Entity<T> previous() {
         return delegate.previous();
     }
 
@@ -68,4 +68,8 @@ public abstract class DelegatingAggregateRoot<T, A extends AggregateRoot<T>> imp
         return delegate.entities();
     }
 
+    @Override
+    public Entity<?> parent() {
+        return delegate.parent();
+    }
 }

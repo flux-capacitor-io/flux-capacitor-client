@@ -21,7 +21,7 @@ import io.fluxcapacitor.javaclient.MockException;
 import io.fluxcapacitor.javaclient.common.Message;
 import io.fluxcapacitor.javaclient.configuration.DefaultFluxCapacitor;
 import io.fluxcapacitor.javaclient.modeling.Aggregate;
-import io.fluxcapacitor.javaclient.modeling.AggregateRoot;
+import io.fluxcapacitor.javaclient.modeling.Entity;
 import io.fluxcapacitor.javaclient.persisting.eventsourcing.client.EventStoreClient;
 import io.fluxcapacitor.javaclient.test.TestFixture;
 import io.fluxcapacitor.javaclient.tracking.handling.HandleCommand;
@@ -221,8 +221,8 @@ class EventSourcingRepositoryTest {
 
             @HandleQuery
             TestModel handle(ApplyInQuery query) {
-                AggregateRoot<TestModel> testModelAggregateRoot = loadAggregate(aggregateId, TestModel.class);
-                AggregateRoot<TestModel> testModelAggregateRoot1 = testModelAggregateRoot.apply(query);
+                Entity<TestModel> testModelAggregateRoot = loadAggregate(aggregateId, TestModel.class);
+                Entity<TestModel> testModelAggregateRoot1 = testModelAggregateRoot.apply(query);
                 return testModelAggregateRoot1.get();
             }
 
@@ -498,7 +498,7 @@ class EventSourcingRepositoryTest {
         void testAccessToPrevious() {
             testFixture.givenCommands(new CreateModelFromEvent()).whenCommand(new UpdateModelFromEvent())
                     .expectThat(fc -> {
-                        AggregateRoot<TestModelWithoutApplyEvent> aggregateRoot =
+                        Entity<TestModelWithoutApplyEvent> aggregateRoot =
                                 testFixture.getFluxCapacitor().aggregateRepository()
                                         .load(aggregateId, TestModelWithoutApplyEvent.class);
                         assertEquals(aggregateRoot.get().firstEvent, aggregateRoot.previous().get().firstEvent);
@@ -545,7 +545,7 @@ class EventSourcingRepositoryTest {
             }
 
             @HandleQuery
-            Optional<AggregateRoot<TestModelWithoutApplyEvent>> handle(GetPlayBackedAggregate query) {
+            Optional<Entity<TestModelWithoutApplyEvent>> handle(GetPlayBackedAggregate query) {
                 return loadAggregate(aggregateId, TestModelWithoutApplyEvent.class)
                         .playBackToCondition(a -> false);
             }

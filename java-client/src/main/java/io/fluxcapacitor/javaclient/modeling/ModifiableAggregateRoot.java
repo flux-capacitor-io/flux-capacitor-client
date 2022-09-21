@@ -24,7 +24,7 @@ import static java.util.Optional.ofNullable;
 
 @ToString(onlyExplicitlyIncluded = true)
 @EqualsAndHashCode(onlyExplicitlyIncluded = true)
-public class ModifiableAggregateRoot<T> extends DelegatingAggregateRoot<T, ImmutableAggregateRoot<T>> {
+public class ModifiableAggregateRoot<T> extends DelegatingEntity<T> {
 
     private static final ThreadLocal<Map<Object, ModifiableAggregateRoot<?>>> activeAggregates =
             ThreadLocal.withInitial(HashMap::new);
@@ -35,15 +35,15 @@ public class ModifiableAggregateRoot<T> extends DelegatingAggregateRoot<T, Immut
     }
 
     public static <T> ModifiableAggregateRoot<T> load(
-            String aggregateId, Supplier<ImmutableAggregateRoot<T>> loader, boolean commitInBatch,
+            String aggregateId, Supplier<ImmutableEntity<T>> loader, boolean commitInBatch,
             Serializer serializer, DispatchInterceptor dispatchInterceptor, CommitHandler commitHandler) {
         return ModifiableAggregateRoot.<T>getIfActive(aggregateId).orElseGet(
                 () -> new ModifiableAggregateRoot<>(
                         loader.get(), commitInBatch, serializer, dispatchInterceptor, commitHandler));
     }
 
-    private ImmutableAggregateRoot<T> lastCommitted;
-    private ImmutableAggregateRoot<T> lastStable;
+    private Entity<T> lastCommitted;
+    private Entity<T> lastStable;
 
     private final boolean commitInBatch;
     private final Serializer serializer;
@@ -56,7 +56,7 @@ public class ModifiableAggregateRoot<T> extends DelegatingAggregateRoot<T, Immut
 
     private volatile boolean applying;
 
-    protected ModifiableAggregateRoot(ImmutableAggregateRoot<T> delegate, boolean commitInBatch,
+    protected ModifiableAggregateRoot(ImmutableEntity<T> delegate, boolean commitInBatch,
                                       Serializer serializer, DispatchInterceptor dispatchInterceptor,
                                       CommitHandler commitHandler) {
         super(delegate);
@@ -75,18 +75,21 @@ public class ModifiableAggregateRoot<T> extends DelegatingAggregateRoot<T, Immut
             return this;
         }
         Message m = dispatchInterceptor.interceptDispatch(message, EVENT)
-                .addMetadata(AggregateRoot.AGGREGATE_ID_METADATA_KEY, id(),
-                             AggregateRoot.AGGREGATE_TYPE_METADATA_KEY, type().getName());
+                .addMetadata(Entity.AGGREGATE_ID_METADATA_KEY, id(),
+                             Entity.AGGREGATE_TYPE_METADATA_KEY, type().getName());
         DeserializingMessage eventMessage = new DeserializingMessage(
                 dispatchInterceptor.modifySerializedMessage(m.serialize(serializer), m, EVENT),
                 type -> serializer.convert(m.getPayload(), type), EVENT);
         try {
             applying = true;
-            handleUpdate(a -> a.apply(eventMessage));
+            handleUpdate(a -> {
+                Entity<T> result = a.apply(eventMessage);
+                applied.add(eventMessage);
+                return result;
+            });
         } finally {
             applying = false;
         }
-        applied.add(eventMessage);
         while (!queued.isEmpty()) {
             apply(queued.remove(0));
         }
@@ -104,13 +107,18 @@ public class ModifiableAggregateRoot<T> extends DelegatingAggregateRoot<T, Immut
         return super.entities().stream().map(e -> new ModifiableEntity<>(e, this)).collect(Collectors.toList());
     }
 
-    protected void handleUpdate(UnaryOperator<ImmutableAggregateRoot<T>> update) {
+    @Override
+    public Entity<T> previous() {
+        return new ModifiableEntity<>(delegate.previous(), this);
+    }
+
+    protected void handleUpdate(UnaryOperator<Entity<T>> update) {
         boolean firstUpdate = waitingForHandlerEnd.compareAndSet(false, true);
         if (firstUpdate) {
             activeAggregates.get().putIfAbsent(id(), this);
         }
         try {
-            delegate = update.apply(delegate);
+            delegate = update.apply(getDelegate());
         } finally {
             if (firstUpdate) {
                 Invocation.whenHandlerCompletes((r, e) -> whenHandlerCompletes(e));
@@ -123,7 +131,7 @@ public class ModifiableAggregateRoot<T> extends DelegatingAggregateRoot<T, Immut
         if (error == null) {
             uncommitted.addAll(applied);
             applied.clear();
-            lastStable = delegate;
+            lastStable = getDelegate();
             if (!commitInBatch) {
                 commit();
             } else if (waitingForBatchEnd.compareAndSet(false, true)) {
@@ -151,7 +159,6 @@ public class ModifiableAggregateRoot<T> extends DelegatingAggregateRoot<T, Immut
 
     @FunctionalInterface
     public interface CommitHandler {
-        void handle(ImmutableAggregateRoot<?> model, List<DeserializingMessage> unpublished,
-                    ImmutableAggregateRoot<?> beforeUpdate);
+        void handle(Entity<?> model, List<DeserializingMessage> unpublished, Entity<?> beforeUpdate);
     }
 }

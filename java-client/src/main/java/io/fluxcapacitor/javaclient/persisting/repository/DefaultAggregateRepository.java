@@ -6,11 +6,11 @@ import io.fluxcapacitor.javaclient.FluxCapacitor;
 import io.fluxcapacitor.javaclient.common.serialization.DeserializingMessage;
 import io.fluxcapacitor.javaclient.common.serialization.Serializer;
 import io.fluxcapacitor.javaclient.modeling.Aggregate;
-import io.fluxcapacitor.javaclient.modeling.AggregateRoot;
+import io.fluxcapacitor.javaclient.modeling.Entity;
 import io.fluxcapacitor.javaclient.modeling.EntityId;
 import io.fluxcapacitor.javaclient.modeling.ImmutableAggregateRoot;
 import io.fluxcapacitor.javaclient.modeling.ModifiableAggregateRoot;
-import io.fluxcapacitor.javaclient.modeling.NoOpAggregateRoot;
+import io.fluxcapacitor.javaclient.modeling.NoOpEntity;
 import io.fluxcapacitor.javaclient.persisting.caching.Cache;
 import io.fluxcapacitor.javaclient.persisting.caching.NoOpCache;
 import io.fluxcapacitor.javaclient.persisting.eventsourcing.AggregateEventStream;
@@ -67,29 +67,29 @@ public class DefaultAggregateRepository implements AggregateRepository {
 
     @Override
     @SuppressWarnings("unchecked")
-    public <T> AggregateRoot<T> load(String aggregateId, Class<T> type) {
-        if (AggregateRoot.isLoading()) {
-            return new NoOpAggregateRoot<>(() -> (AggregateRoot<T>) delegates.apply(type).load(aggregateId));
+    public <T> Entity<T> load(String aggregateId, Class<T> type) {
+        if (Entity.isLoading()) {
+            return new NoOpEntity<>(() -> (Entity<T>) delegates.apply(type).load(aggregateId));
         }
-        return (AggregateRoot<T>) delegates.apply(type).load(aggregateId);
+        return (Entity<T>) delegates.apply(type).load(aggregateId);
     }
 
     @SuppressWarnings("unchecked")
     @Override
-    public <T> AggregateRoot<T> loadFor(String entityId, Class<?> defaultType) {
+    public <T> Entity<T> loadFor(String entityId, Class<?> defaultType) {
         Map<String, Class<?>> aggregates = getAggregatesFor(entityId);
         if (aggregates.isEmpty()) {
-            return (AggregateRoot<T>) load(entityId, defaultType);
+            return (Entity<T>) load(entityId, defaultType);
         }
         if (aggregates.containsKey(entityId)) {
-            return (AggregateRoot<T>) load(entityId, aggregates.get(entityId));
+            return (Entity<T>) load(entityId, aggregates.get(entityId));
         }
         if (aggregates.size() > 1) {
             log.warn("Found several aggregates containing entity {}", entityId);
         }
         return aggregates.entrySet().stream().filter(e -> !Void.class.equals(e.getValue())).findFirst()
-                .map(e -> (AggregateRoot<T>) load(e.getKey(), e.getValue()))
-                .orElseGet(() -> (AggregateRoot<T>) load(entityId, defaultType));
+                .map(e -> (Entity<T>) load(e.getKey(), e.getValue()))
+                .orElseGet(() -> (Entity<T>) load(entityId, defaultType));
     }
 
     @Override
@@ -99,7 +99,7 @@ public class DefaultAggregateRepository implements AggregateRepository {
 
     @Override
     public void applyEvents(String aggregateId, Object... events) {
-        if (!AggregateRoot.isLoading()) {
+        if (!Entity.isLoading()) {
             getIfCached(aggregateId).ifPresentOrElse(
                     a -> a.apply(events), () -> eventStore.storeEvents(aggregateId, events));
         }
@@ -109,7 +109,7 @@ public class DefaultAggregateRepository implements AggregateRepository {
     protected Optional<ModifiableAggregateRoot<Object>> getIfCached(String aggregateId) {
         return ModifiableAggregateRoot.getIfActive(aggregateId).or(
                 () -> {
-                    AggregateRoot<?> aggregate = cache.getIfPresent(aggregateId);
+                    Entity<?> aggregate = cache.getIfPresent(aggregateId);
                     return (Optional) ofNullable(aggregate).flatMap(
                             aggregateRoot -> ofNullable(delegates.apply(aggregateRoot.type()).load(aggregateId)));
                 });
@@ -130,7 +130,7 @@ public class DefaultAggregateRepository implements AggregateRepository {
         private final SnapshotStore snapshotStore;
         private final boolean searchable;
         private final String collection;
-        private final Function<AggregateRoot<?>, Instant> timestampFunction;
+        private final Function<Entity<?>, Instant> timestampFunction;
         private final Serializer serializer;
         private final EventStore eventStore;
         private final DispatchInterceptor dispatchInterceptor;
@@ -170,7 +170,7 @@ public class DefaultAggregateRepository implements AggregateRepository {
             this.collection = ofNullable(typeAnnotation).map(Aggregate::collection)
                     .filter(s -> !s.isEmpty()).orElse(type.getSimpleName());
             this.timestampFunction = ofNullable(typeAnnotation).map(Aggregate::timestampPath)
-                    .filter(s -> !s.isBlank()).<Function<AggregateRoot<?>, Instant>>map(
+                    .filter(s -> !s.isBlank()).<Function<Entity<?>, Instant>>map(
                             s -> aggregateRoot -> ReflectionUtils.readProperty(s, aggregateRoot.get())
                                     .map(t -> Instant.from((TemporalAccessor) t)).orElseGet(() -> {
                                         if (warnedAboutMissingTimePath.compareAndSet(false, true)) {
@@ -179,7 +179,7 @@ public class DefaultAggregateRepository implements AggregateRepository {
                                         }
                                         return aggregateRoot.timestamp();
                                     }))
-                    .orElse(AggregateRoot::timestamp);
+                    .orElse(Entity::timestamp);
             this.idProperty = getAnnotatedProperty(type, EntityId.class).map(ReflectionUtils::getName).orElse(null);
         }
 
@@ -216,14 +216,14 @@ public class DefaultAggregateRepository implements AggregateRepository {
                                     AggregateEventStream<DeserializingMessage> eventStream
                                             = eventStore.getEvents(id, model.sequenceNumber());
                                     Iterator<DeserializingMessage> iterator = eventStream.iterator();
-                                    boolean wasLoading = AggregateRoot.isLoading();
+                                    boolean wasLoading = Entity.isLoading();
                                     try {
-                                        AggregateRoot.loading.set(true);
+                                        Entity.loading.set(true);
                                         while (iterator.hasNext()) {
                                             model = model.apply(iterator.next());
                                         }
                                     } finally {
-                                        AggregateRoot.loading.set(wasLoading);
+                                        Entity.loading.set(wasLoading);
                                     }
                                     return model.toBuilder().sequenceNumber(
                                             eventStream.getLastSequenceNumber().orElse(model.sequenceNumber())).build();
@@ -232,10 +232,9 @@ public class DefaultAggregateRepository implements AggregateRepository {
             }, commitInBatch, serializer, dispatchInterceptor, this::commit);
         }
 
-        protected void commit(ImmutableAggregateRoot<?> after, List<DeserializingMessage> unpublishedEvents,
-                              ImmutableAggregateRoot<?> before) {
+        protected void commit(Entity<?> after, List<DeserializingMessage> unpublishedEvents, Entity<?> before) {
             try {
-                cache.<AggregateRoot<?>>compute(after.id(), (id, current) ->
+                cache.<Entity<?>>compute(after.id(), (id, current) ->
                         current == null || Objects.equals(before.lastEventId(), current.lastEventId())
                         || unpublishedEvents.isEmpty() ? after : current.apply(unpublishedEvents));
                 Set<Relationship> associations = after.associations(before), dissociations =

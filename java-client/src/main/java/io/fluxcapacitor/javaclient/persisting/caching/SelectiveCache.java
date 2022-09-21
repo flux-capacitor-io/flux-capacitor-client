@@ -14,7 +14,7 @@
 
 package io.fluxcapacitor.javaclient.persisting.caching;
 
-import io.fluxcapacitor.javaclient.modeling.AggregateRoot;
+import io.fluxcapacitor.javaclient.modeling.Entity;
 import lombok.AllArgsConstructor;
 import lombok.NonNull;
 
@@ -27,8 +27,8 @@ import java.util.function.Predicate;
 public class SelectiveCache implements Cache {
     public static Predicate<Object> aggregateSelector(Class<?> type) {
         return v -> {
-            if (v instanceof AggregateRoot<?>) {
-                AggregateRoot<?> aggregateRoot = (AggregateRoot<?>) v;
+            if (v instanceof Entity<?>) {
+                Entity<?> aggregateRoot = (Entity<?>) v;
                 return Optional.ofNullable(aggregateRoot.get()).map(r -> type.isAssignableFrom(r.getClass()))
                         .orElseGet(() -> type.isAssignableFrom(aggregateRoot.type()));
             }

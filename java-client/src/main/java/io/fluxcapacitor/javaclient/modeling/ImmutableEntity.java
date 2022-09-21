@@ -21,6 +21,7 @@ import java.lang.reflect.AccessibleObject;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
+import java.util.function.UnaryOperator;
 
 import static io.fluxcapacitor.common.MessageType.EVENT;
 import static io.fluxcapacitor.common.reflection.ReflectionUtils.getAnnotatedProperties;
@@ -83,6 +84,16 @@ public class ImmutableEntity<T> implements Entity<T> {
                                   .getEntities(this).collect(toList()));
         }
         return result;
+    }
+
+    @SuppressWarnings({"unchecked", "rawtypes"})
+    @Override
+    public Entity<T> update(UnaryOperator<T> function) {
+        ImmutableEntity<T> after = toBuilder().value(function.apply(get())).build();
+        if (parent == null) {
+            return after;
+        }
+        return parent.update((UnaryOperator) p -> holder.updateOwner(p, this, after));
     }
 
     @Override

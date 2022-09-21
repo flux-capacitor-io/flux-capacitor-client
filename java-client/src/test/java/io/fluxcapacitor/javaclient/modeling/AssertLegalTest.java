@@ -113,7 +113,7 @@ public class AssertLegalTest {
 
         @HandleCommand
         void handle(List<?> commands) {
-            AggregateRoot<TestModel> root = loadAggregate(aggregateId, TestModel.class);
+            Entity<TestModel> root = loadAggregate(aggregateId, TestModel.class);
             commands.forEach(c -> root.assertLegal(c).apply(c));
         }
     }

@@ -5,7 +5,7 @@ import io.fluxcapacitor.common.api.modeling.Relationship;
 import io.fluxcapacitor.javaclient.common.serialization.DeserializingMessage;
 import io.fluxcapacitor.javaclient.common.serialization.Serializer;
 import io.fluxcapacitor.javaclient.configuration.client.Client;
-import io.fluxcapacitor.javaclient.modeling.AggregateRoot;
+import io.fluxcapacitor.javaclient.modeling.Entity;
 import io.fluxcapacitor.javaclient.modeling.ImmutableAggregateRoot;
 import io.fluxcapacitor.javaclient.persisting.caching.Cache;
 import io.fluxcapacitor.javaclient.tracking.ConsumerConfiguration;
@@ -24,8 +24,8 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import static io.fluxcapacitor.common.MessageType.EVENT;
 import static io.fluxcapacitor.common.MessageType.NOTIFICATION;
 import static io.fluxcapacitor.javaclient.common.serialization.DeserializingMessage.handleBatch;
-import static io.fluxcapacitor.javaclient.modeling.AggregateRoot.getAggregateId;
-import static io.fluxcapacitor.javaclient.modeling.AggregateRoot.getAggregateType;
+import static io.fluxcapacitor.javaclient.modeling.Entity.getAggregateId;
+import static io.fluxcapacitor.javaclient.modeling.Entity.getAggregateType;
 import static io.fluxcapacitor.javaclient.tracking.client.DefaultTracker.start;
 
 @RequiredArgsConstructor
@@ -43,13 +43,13 @@ public class CachingAggregateRepository implements AggregateRepository {
     private volatile long lastEventIndex = -1L;
 
     @Override
-    public <T> AggregateRoot<T> load(String aggregateId, Class<T> type) {
+    public <T> Entity<T> load(String aggregateId, Class<T> type) {
         catchUpIfNeeded();
         return delegate.load(aggregateId, type);
     }
 
     @Override
-    public <T> AggregateRoot<T> loadFor(String entityId, Class<?> defaultType) {
+    public <T> Entity<T> loadFor(String entityId, Class<?> defaultType) {
         catchUpIfNeeded();
         return delegate.loadFor(entityId, defaultType);
     }
@@ -92,14 +92,14 @@ public class CachingAggregateRepository implements AggregateRepository {
                             id, (i, before) -> {
                                 Long lastIndex = before.highestEventIndex();
                                 if (lastIndex == null || lastIndex < index) {
-                                    boolean wasLoading = AggregateRoot.isLoading();
+                                    boolean wasLoading = Entity.isLoading();
                                     try {
-                                        AggregateRoot.loading.set(true);
+                                        Entity.loading.set(true);
                                         ImmutableAggregateRoot<?> after = before.apply(m);
                                         updateRelationships(before, after);
                                         return after;
                                     } finally {
-                                        AggregateRoot.loading.set(wasLoading);
+                                        Entity.loading.set(wasLoading);
                                     }
                                 }
                                 return before;
@@ -128,7 +128,7 @@ public class CachingAggregateRepository implements AggregateRepository {
     protected void catchUpIfNeeded() {
         startTrackerIfNeeded();
         DeserializingMessage current = DeserializingMessage.getCurrent();
-        if (current != null && !AggregateRoot.isLoading()) {
+        if (current != null && !Entity.isLoading()) {
             switch (current.getMessageType()) {
                 case EVENT:
                 case NOTIFICATION:

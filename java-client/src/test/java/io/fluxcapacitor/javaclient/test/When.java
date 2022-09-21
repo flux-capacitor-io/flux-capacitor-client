@@ -14,6 +14,7 @@
 
 package io.fluxcapacitor.javaclient.test;
 
+import io.fluxcapacitor.common.api.Data;
 import io.fluxcapacitor.common.api.search.Constraint;
 import io.fluxcapacitor.javaclient.FluxCapacitor;
 import io.fluxcapacitor.javaclient.common.Message;
@@ -80,10 +81,11 @@ public interface When {
      * Test expected behavior of applying the given events on the given aggregate and then publishing those events,
      * including any side effects.
      * <p>
-     * The event may be an instance of {@link Message} in which case it will be applied as is. Otherwise, the event is
-     * applied using the passed value as payload without additional metadata.
+     * The event may be an instance of {@link Message} in which case it will be applied as is. An event may also be an
+     * instance of serialized {@link Data}, which will automatically be upcasted and deserialized before applying.
+     * Otherwise, the event is applied using the passed value as payload without additional metadata.
      */
-    Then whenEventsAreApplied(String aggregateId, Object... events);
+    Then whenEventsAreApplied(String aggregateId, Class<?> aggregateClass, Object... events);
 
     /**
      * Test expected result of the given search in given collection.

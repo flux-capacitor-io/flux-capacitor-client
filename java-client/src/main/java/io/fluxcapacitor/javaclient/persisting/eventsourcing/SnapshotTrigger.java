@@ -15,13 +15,13 @@
 package io.fluxcapacitor.javaclient.persisting.eventsourcing;
 
 import io.fluxcapacitor.javaclient.common.serialization.DeserializingMessage;
-import io.fluxcapacitor.javaclient.modeling.AggregateRoot;
+import io.fluxcapacitor.javaclient.modeling.Entity;
 
 import java.util.List;
 
 @FunctionalInterface
 public interface SnapshotTrigger {
 
-    boolean shouldCreateSnapshot(AggregateRoot<?> model, List<DeserializingMessage> newEvents);
+    boolean shouldCreateSnapshot(Entity<?> model, List<DeserializingMessage> newEvents);
 
 }

@@ -14,15 +14,15 @@
 
 package io.fluxcapacitor.javaclient.persisting.repository;
 
-import io.fluxcapacitor.javaclient.modeling.AggregateRoot;
+import io.fluxcapacitor.javaclient.modeling.Entity;
 
 import java.util.Map;
 
 public interface AggregateRepository {
 
-    <T> AggregateRoot<T> load(String aggregateId, Class<T> aggregateType);
+    <T> Entity<T> load(String aggregateId, Class<T> aggregateType);
 
-    <T> AggregateRoot<T> loadFor(String entityId, Class<?> defaultType);
+    <T> Entity<T> loadFor(String entityId, Class<?> defaultType);
 
     void applyEvents(String aggregateId, Object... events);
 

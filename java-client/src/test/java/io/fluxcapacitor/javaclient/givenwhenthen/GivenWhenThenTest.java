@@ -171,7 +171,7 @@ class GivenWhenThenTest {
 
     @Test
     void testGivenAppliedEvents() {
-        subject.givenAppliedEvents("test", new MockAggregateEvent())
+        subject.givenAppliedEvents("test", MockAggregate.class, new MockAggregateEvent())
                 .whenApplying(fc -> loadAggregate("test", MockAggregate.class).get())
                 .expectResult(r -> r instanceof MockAggregate);
     }

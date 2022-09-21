@@ -15,7 +15,7 @@
 package io.fluxcapacitor.javaclient.persisting.eventsourcing;
 
 import io.fluxcapacitor.javaclient.common.serialization.DeserializingMessage;
-import io.fluxcapacitor.javaclient.modeling.AggregateRoot;
+import io.fluxcapacitor.javaclient.modeling.Entity;
 
 import java.util.List;
 
@@ -30,7 +30,7 @@ public class PeriodicSnapshotTrigger implements SnapshotTrigger {
     }
 
     @Override
-    public boolean shouldCreateSnapshot(AggregateRoot<?> model, List<DeserializingMessage> newEvents) {
+    public boolean shouldCreateSnapshot(Entity<?> model, List<DeserializingMessage> newEvents) {
         return periodIndex(model.sequenceNumber()) > periodIndex(model.sequenceNumber() - newEvents.size());
     }
 

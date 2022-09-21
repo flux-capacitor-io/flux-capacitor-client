@@ -6,61 +6,47 @@ import lombok.ToString;
 import lombok.Value;
 
 import java.util.Collection;
+import java.util.function.UnaryOperator;
 import java.util.stream.Collectors;
 
+import static java.util.Optional.ofNullable;
+
 @Value
-public class ModifiableEntity<T> implements Entity<T> {
-    Entity<T> delegate;
+public class ModifiableEntity<T> extends DelegatingEntity<T> {
+    public ModifiableEntity(Entity<T> delegate, ModifiableAggregateRoot<?> root) {
+        super(delegate);
+        this.root = root;
+    }
 
     @ToString.Exclude
     @EqualsAndHashCode.Exclude
     ModifiableAggregateRoot<?> root;
 
+    @SuppressWarnings({"unchecked", "rawtypes"})
     @Override
-    public Collection<? extends Entity<?>> entities() {
-        return delegate.entities().stream().map(e -> new ModifiableEntity<>(e, root)).collect(Collectors.toList());
+    public Entity<T> update(UnaryOperator<T> function) {
+        return (Entity<T>) ((Entity) root).update(
+                r -> delegate.update(function).root().get()).getEntity(id()).orElse(null);
     }
 
     @SuppressWarnings("unchecked")
     @Override
-    public ModifiableEntity<T> apply(Message eventMessage) {
-        return (ModifiableEntity<T>) root.apply(eventMessage).getEntity(id()).orElse(null);
+    public Entity<T> apply(Message eventMessage) {
+        return (Entity<T>) root.apply(eventMessage).getEntity(id()).orElse(null);
     }
 
     @Override
-    public <E extends Exception> ModifiableEntity<T> assertLegal(Object payload) throws E {
-        root.assertLegal(payload);
-        return this;
+    public Collection<? extends Entity<?>> entities() {
+        return super.entities().stream().map(e -> new ModifiableEntity<>(e, root)).collect(Collectors.toList());
     }
 
     @Override
     public Entity<?> parent() {
-        Entity<?> parent = delegate.parent();
-        return parent == null ? root : new ModifiableEntity<>(parent, root);
+        return ofNullable(super.parent()).map(entity -> new ModifiableEntity<>(entity, root)).orElse(null);
     }
 
     @Override
-    public AggregateRoot<?> root() {
-        return root;
-    }
-
-    @Override
-    public Object id() {
-        return delegate.id();
-    }
-
-    @Override
-    public Class<T> type() {
-        return delegate.type();
-    }
-
-    @Override
-    public T get() {
-        return delegate.get();
-    }
-
-    @Override
-    public String idProperty() {
-        return delegate.idProperty();
+    public Entity<T> previous() {
+        return ofNullable(super.previous()).map(e -> new ModifiableEntity<>(e, root)).orElse(null);
     }
 }

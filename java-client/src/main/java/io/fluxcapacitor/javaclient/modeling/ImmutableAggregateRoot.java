@@ -3,7 +3,6 @@ package io.fluxcapacitor.javaclient.modeling;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import io.fluxcapacitor.common.api.modeling.Relationship;
 import io.fluxcapacitor.javaclient.FluxCapacitor;
-import io.fluxcapacitor.javaclient.common.Message;
 import io.fluxcapacitor.javaclient.common.serialization.DeserializingMessage;
 import io.fluxcapacitor.javaclient.common.serialization.Serializer;
 import io.fluxcapacitor.javaclient.persisting.eventsourcing.EventSourcingHandlerFactory;
@@ -21,7 +20,6 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.function.UnaryOperator;
 
-import static io.fluxcapacitor.common.MessageType.EVENT;
 import static io.fluxcapacitor.javaclient.FluxCapacitor.currentClock;
 import static java.util.Optional.ofNullable;
 
@@ -29,7 +27,7 @@ import static java.util.Optional.ofNullable;
 @SuperBuilder(toBuilder = true)
 @Accessors(fluent = true)
 @Jacksonized
-public class ImmutableAggregateRoot<T> extends ImmutableEntity<T> implements AggregateRoot<T> {
+public class ImmutableAggregateRoot<T> extends ImmutableEntity<T> {
     @JsonProperty
     String lastEventId;
     @JsonProperty
@@ -48,9 +46,9 @@ public class ImmutableAggregateRoot<T> extends ImmutableEntity<T> implements Agg
     @ToString.Exclude
     @EqualsAndHashCode.Exclude
     @Getter(lazy = true)
-    Set<Relationship> relationships = AggregateRoot.super.relationships();
+    Set<Relationship> relationships = super.relationships();
 
-    public static <T> ImmutableAggregateRoot<T> from(AggregateRoot<T> a,
+    public static <T> ImmutableAggregateRoot<T> from(Entity<T> a,
                                                      EventSourcingHandlerFactory handlerFactory,
                                                      Serializer serializer) {
         if (a == null) {
@@ -71,13 +69,6 @@ public class ImmutableAggregateRoot<T> extends ImmutableEntity<T> implements Agg
                 .build();
     }
 
-    @Override
-    public ImmutableAggregateRoot<T> apply(Message message) {
-        return apply(new DeserializingMessage(message.serialize(serializer()),
-                                              type -> serializer().convert(message.getPayload(), type),
-                                              EVENT));
-    }
-
     public ImmutableAggregateRoot<T> apply(DeserializingMessage message) {
         return ((ImmutableAggregateRoot<T>) super.apply(message))
                 .toBuilder()
@@ -91,8 +82,8 @@ public class ImmutableAggregateRoot<T> extends ImmutableEntity<T> implements Agg
 
     @Override
     public ImmutableAggregateRoot<T> update(UnaryOperator<T> function) {
-        return toBuilder()
-                .value(function.apply(get()))
+        return ((ImmutableAggregateRoot<T>) super.update(function))
+                .toBuilder()
                 .previous(this)
                 .timestamp(currentClock().instant())
                 .build();

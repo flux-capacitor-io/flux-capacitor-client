@@ -14,7 +14,10 @@
 
 package io.fluxcapacitor.javaclient.modeling;
 
+import com.google.common.collect.Sets;
 import io.fluxcapacitor.common.api.Metadata;
+import io.fluxcapacitor.common.api.modeling.Relationship;
+import io.fluxcapacitor.common.reflection.ReflectionUtils;
 import io.fluxcapacitor.javaclient.common.Message;
 import io.fluxcapacitor.javaclient.common.serialization.DeserializingMessage;
 import io.fluxcapacitor.javaclient.publishing.routing.RoutingKey;
@@ -22,20 +25,47 @@ import io.fluxcapacitor.javaclient.tracking.handling.validation.ValidationUtils;
 
 import java.time.Instant;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.Set;
 import java.util.function.Function;
 import java.util.function.Predicate;
+import java.util.function.UnaryOperator;
+import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import static io.fluxcapacitor.common.reflection.ReflectionUtils.getAnnotatedPropertyValue;
 import static io.fluxcapacitor.common.reflection.ReflectionUtils.hasProperty;
 import static io.fluxcapacitor.common.reflection.ReflectionUtils.readProperty;
 import static io.fluxcapacitor.javaclient.common.Message.asMessage;
+import static java.lang.String.format;
 import static java.util.Collections.emptyList;
 
 public interface Entity<T> {
+
+    ThreadLocal<Boolean> loading = ThreadLocal.withInitial(() -> false);
+    String AGGREGATE_ID_METADATA_KEY = "$aggregateId";
+    String AGGREGATE_TYPE_METADATA_KEY = "$aggregateType";
+
+    static boolean isLoading() {
+        return loading.get();
+    }
+
+    static String getAggregateId(DeserializingMessage message) {
+        return message.getMetadata().get(AGGREGATE_ID_METADATA_KEY);
+    }
+
+    static Class<?> getAggregateType(DeserializingMessage message) {
+        return Optional.ofNullable(message.getMetadata().get(AGGREGATE_TYPE_METADATA_KEY)).map(c -> {
+            try {
+                return ReflectionUtils.classForName(c);
+            } catch (Exception ignored) {
+                return null;
+            }
+        }).orElse(null);
+    }
 
     Object id();
 
@@ -48,8 +78,8 @@ public interface Entity<T> {
     Entity<?> parent();
 
     @SuppressWarnings("rawtypes")
-    default AggregateRoot<?> root() {
-        return Optional.<Entity>ofNullable(parent()).map(Entity::root).orElseGet(() -> (AggregateRoot<?>) this);
+    default Entity<?> root() {
+        return Optional.<Entity>ofNullable(parent()).map(Entity::root).orElse(this);
     }
 
     default String lastEventId() {
@@ -74,6 +104,21 @@ public interface Entity<T> {
                 e -> Objects.equals(e.id(), id()) && Objects.equals(e.type(), type())).findFirst().orElse(null);
     }
 
+    default Entity<T> playBackToEvent(String eventId) {
+        return playBackToCondition(aggregate -> Objects.equals(eventId, aggregate.lastEventId()))
+                .orElseThrow(() -> new IllegalStateException(format(
+                        "Could not load aggregate %s of type %s for event %s. Aggregate (%s) started at event %s",
+                        id(), type().getSimpleName(), eventId, this, lastEventId())));
+    }
+
+    default Optional<Entity<T>> playBackToCondition(Predicate<Entity<T>> condition) {
+        Entity<T> result = this;
+        while (result != null && !condition.test(result)) {
+            result = result.previous();
+        }
+        return Optional.ofNullable(result);
+    }
+
     Collection<? extends Entity<?>> entities();
 
     default Stream<Entity<?>> allEntities() {
@@ -83,6 +128,33 @@ public interface Entity<T> {
     default Optional<Entity<?>> getEntity(Object entityId) {
         return allEntities().filter(e -> entityId != null && entityId.equals(e.id())).findFirst();
     }
+
+    default Entity<T> makeReadOnly() {
+        if (this instanceof ReadOnlyEntity<?>) {
+            return this;
+        }
+        return new ReadOnlyEntity<>(this);
+    }
+
+    default Set<Relationship> relationships() {
+        String id = id().toString();
+        String type = type().getName();
+        return get() == null ? Collections.emptySet()
+                : allEntities().map(Entity::id).filter(Objects::nonNull)
+                .map(entityId -> Relationship.builder().entityId(entityId.toString()).aggregateType(type)
+                        .aggregateId(id).build())
+                .collect(Collectors.toSet());
+    }
+
+    default Set<Relationship> associations(Entity<?> previous) {
+        return Sets.difference(relationships(), previous.relationships());
+    }
+
+    default Set<Relationship> dissociations(Entity<?> previous) {
+        return Sets.difference(previous.relationships(), relationships());
+    }
+
+    Entity<T> update(UnaryOperator<T> function);
 
     default Entity<T> apply(Object... events) {
         return apply(List.of(events));
@@ -110,7 +182,7 @@ public interface Entity<T> {
     Entity<T> apply(Message eventMessage);
 
     default <E extends Exception> Entity<T> assertLegal(Object command) throws E {
-        ValidationUtils.assertLegal(command, this);
+        ValidationUtils.assertLegal(command, root());
         return this;
     }
 

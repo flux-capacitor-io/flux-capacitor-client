@@ -31,7 +31,7 @@ import io.fluxcapacitor.javaclient.configuration.DefaultFluxCapacitor;
 import io.fluxcapacitor.javaclient.configuration.FluxCapacitorBuilder;
 import io.fluxcapacitor.javaclient.configuration.client.Client;
 import io.fluxcapacitor.javaclient.configuration.client.InMemoryClient;
-import io.fluxcapacitor.javaclient.modeling.AggregateRoot;
+import io.fluxcapacitor.javaclient.modeling.Entity;
 import io.fluxcapacitor.javaclient.persisting.search.Search;
 import io.fluxcapacitor.javaclient.publishing.DispatchInterceptor;
 import io.fluxcapacitor.javaclient.scheduling.DefaultScheduler;
@@ -79,14 +79,12 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import static io.fluxcapacitor.common.MessageType.COMMAND;
-import static io.fluxcapacitor.common.MessageType.EVENT;
 import static io.fluxcapacitor.common.MessageType.QUERY;
 import static io.fluxcapacitor.common.MessageType.SCHEDULE;
 import static io.fluxcapacitor.javaclient.common.ClientUtils.isLocalHandler;
 import static io.fluxcapacitor.javaclient.common.ClientUtils.runSilently;
 import static io.fluxcapacitor.javaclient.common.Message.asMessage;
 import static java.util.Collections.emptyList;
-import static java.util.Collections.singletonList;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
 import static java.util.stream.Collectors.toCollection;
 import static java.util.stream.Collectors.toList;
@@ -277,8 +275,8 @@ public class TestFixture implements Given, When {
     }
 
     @Override
-    public TestFixture givenAppliedEvents(String aggregateId, Object... events) {
-        return given(fc -> applyEvents(aggregateId, fc, events, false));
+    public TestFixture givenAppliedEvents(String aggregateId, Class<?> aggregateClass, Object... events) {
+        return given(fc -> applyEvents(aggregateId, aggregateClass, fc, events));
     }
 
     @Override
@@ -364,8 +362,8 @@ public class TestFixture implements Given, When {
     }
 
     @Override
-    public Then whenEventsAreApplied(String aggregateId, Object... events) {
-        return whenExecuting(fc -> applyEvents(aggregateId, fc, events, true));
+    public Then whenEventsAreApplied(String aggregateId, Class<?> aggregateClass, Object... events) {
+        return whenExecuting(fc -> applyEvents(aggregateId, aggregateClass, fc, events));
     }
 
     @Override
@@ -440,27 +438,19 @@ public class TestFixture implements Given, When {
                                    errors);
     }
 
-    protected void applyEvents(String aggregateId, FluxCapacitor fc, Object[] events, boolean interceptBeforeStoring) {
+    protected void applyEvents(String aggregateId, Class<?> aggregateClass, FluxCapacitor fc, Object[] events) {
         List<Message> eventList = asMessages(events).map(
-                e -> e.withMetadata(e.getMetadata().with(AggregateRoot.AGGREGATE_ID_METADATA_KEY, aggregateId)))
-                .map(e -> interceptBeforeStoring ? e : interceptor.interceptDispatch(e, EVENT))
-                .collect(toList());
-        if (eventList.stream().anyMatch(e -> e.getPayload() instanceof Data<?>)) {
-            for (Message event : eventList) {
-                if (event.getPayload() instanceof Data<?>) {
-                    Data<?> eventData = event.getPayload();
-                    Data<byte[]> eventBytes = fc.serializer().serialize(eventData);
-                    SerializedMessage message =
-                            new SerializedMessage(eventBytes, event.getMetadata(), event.getMessageId(),
-                                                  event.getTimestamp().toEpochMilli());
-                    fc.client().getEventStoreClient().storeEvents(aggregateId, singletonList(message), false);
-                } else {
-                    fc.eventStore().storeEvents(aggregateId, event, false, interceptBeforeStoring);
-                }
-            }
-        } else {
-            fc.eventStore().storeEvents(aggregateId, eventList, false, interceptBeforeStoring);
-        }
+                e -> e.withMetadata(e.getMetadata().with(Entity.AGGREGATE_ID_METADATA_KEY, aggregateId)))
+                .map(m -> {
+                    if (m.getPayload() instanceof Data<?>) {
+                        Data<?> eventData = m.getPayload();
+                        Data<byte[]> eventBytes = getFluxCapacitor().serializer().serialize(eventData);
+                        Object payload = getFluxCapacitor().serializer().deserialize(eventBytes);
+                        return m.withPayload(payload);
+                    }
+                    return m;
+                }).collect(toList());
+        fc.aggregateRepository().load(aggregateId, aggregateClass).apply(eventList);
     }
 
     protected void handleExpiredSchedulesLocally() {
