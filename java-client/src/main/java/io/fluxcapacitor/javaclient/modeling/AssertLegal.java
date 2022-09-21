@@ -20,12 +20,12 @@ import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
 /**
- * Annotation to be placed on methods in commands or queries. After an aggregate is loaded and a {@link AggregateRoot}
- * is returned you can pass the command or query to the {@link AggregateRoot#assertLegal} method to assert whether or
+ * Annotation to be placed on methods in commands or queries. After an aggregate is loaded and a {@link Entity}
+ * is returned you can pass the command or query to the {@link Entity#assertLegal} method to assert whether or
  * not the command or query is allowed given the state of the model.
  * <p>
  * Annotated methods should contain at least one parameter. The first parameter is reserved for the Model's entity (as
- * obtained via {@link AggregateRoot#get()}).
+ * obtained via {@link Entity#get()}).
  */
 @Target({ElementType.METHOD, ElementType.FIELD, ElementType.ANNOTATION_TYPE})
 @Retention(RetentionPolicy.RUNTIME)
