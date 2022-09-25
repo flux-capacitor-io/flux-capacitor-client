@@ -15,7 +15,7 @@
 package io.fluxcapacitor.javaclient.tracking.metrics;
 
 import io.fluxcapacitor.common.api.Metadata;
-import io.fluxcapacitor.common.handling.Handler;
+import io.fluxcapacitor.common.handling.HandlerInvoker;
 import io.fluxcapacitor.javaclient.FluxCapacitor;
 import io.fluxcapacitor.javaclient.common.serialization.DeserializingMessage;
 import io.fluxcapacitor.javaclient.tracking.handling.HandlerInterceptor;
@@ -35,31 +35,31 @@ import static java.time.temporal.ChronoUnit.NANOS;
 public class HandlerMonitor implements HandlerInterceptor {
     @Override
     public Function<DeserializingMessage, Object> interceptHandling(Function<DeserializingMessage, Object> function,
-                                                                    Handler<DeserializingMessage> handler,
+                                                                    HandlerInvoker invoker,
                                                                     String consumer) {
         return message -> {
             Instant start = Instant.now();
             try {
                 Object result = function.apply(message);
-                publishMetrics(handler, consumer, message, false, start, result);
+                publishMetrics(invoker, consumer, message, false, start, result);
                 return result;
             } catch (Throwable e) {
-                publishMetrics(handler, consumer, message, true, start, e);
+                publishMetrics(invoker, consumer, message, true, start, e);
                 throw e;
             }
         };
     }
 
-    protected void publishMetrics(Handler<DeserializingMessage> handler, String consumer, DeserializingMessage message,
+    protected void publishMetrics(HandlerInvoker invoker, String consumer, DeserializingMessage message,
                                   boolean exceptionalResult, Instant start, Object result) {
         try {
-            boolean logMetrics = getLocalHandlerAnnotation(handler.getTarget().getClass(), handler.getMethod(message))
+            boolean logMetrics = getLocalHandlerAnnotation(invoker.getTarget().getClass(), invoker.getMethod())
                     .map(LocalHandler::logMetrics).orElse(true);
             if (logMetrics) {
                 boolean completed =
                         !(result instanceof CompletableFuture<?>) || ((CompletableFuture<?>) result).isDone();
                 FluxCapacitor.getOptionally().ifPresent(fc -> fc.metricsGateway().publish(new HandleMessageEvent(
-                        consumer, handler.getTarget().getClass().getSimpleName(),
+                        consumer, invoker.getTarget().getClass().getSimpleName(),
                         message.getIndex(),
                         message.getType(), exceptionalResult, start.until(Instant.now(), NANOS), completed)));
                 if (!completed) {
@@ -67,7 +67,7 @@ public class HandlerMonitor implements HandlerInterceptor {
                     ((CompletionStage<?>) result).whenComplete((r, e) -> message.run(
                             m -> FluxCapacitor.getOptionally().ifPresent(fc -> fc.metricsGateway().publish(
                                     new CompleteMessageEvent(
-                                            consumer, handler.getTarget().getClass().getSimpleName(),
+                                            consumer, invoker.getTarget().getClass().getSimpleName(),
                                             m.getIndex(), m.getType(),
                                             e != null, start.until(Instant.now(), NANOS)),
                                     Metadata.of(correlationData)))));

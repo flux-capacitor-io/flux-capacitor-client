@@ -42,42 +42,42 @@ class HandlerInspectorTest {
     }
 
     @Test
-    void testCanHandle() {
-        assertTrue(subject.canHandle(100L));
-        assertTrue(subject.canHandle("bla"));
-        assertTrue(subject.canHandle(50));
-        assertTrue(subject.canHandle(4f));
-        assertFalse(subject.canHandle('b'));
-        assertFalse(subject.canHandle(foo));
+    void testFindInvoker() {
+        assertTrue(subject.findInvoker(100L).isPresent());
+        assertTrue(subject.findInvoker("bla").isPresent());
+        assertTrue(subject.findInvoker(50).isPresent());
+        assertTrue(subject.findInvoker(4f).isPresent());
+        assertFalse(subject.findInvoker('b').isPresent());
+        assertFalse(subject.findInvoker(foo).isPresent());
     }
 
     @Test
     void testHandleInPrivateMethod() {
-        assertEquals(42, subject.invoke(true));
+        assertEquals(42, subject.findInvoker(true).orElseThrow().invoke());
     }
 
     @Test
     void testInvoke() {
-        assertEquals(200L, subject.invoke(200L));
-        assertEquals("a", subject.invoke("a"));
-        assertEquals(15, subject.invoke(15));
+        assertEquals(200L, subject.findInvoker(200L).orElseThrow().invoke());
+        assertEquals("a", subject.findInvoker("a").orElseThrow().invoke());
+        assertEquals(15, subject.findInvoker(15).orElseThrow().invoke());
     }
 
     @Test
     void testInvokeExceptionally() {
-        assertThrows(UnsupportedOperationException.class, () -> subject.invoke(3f));
+        assertThrows(UnsupportedOperationException.class, () -> subject.findInvoker(3f).orElseThrow().invoke());
     }
 
     @Test
     void testInvokeUnknownType() {
-        assertThrows(Exception.class, () -> subject.invoke('b'));
+        assertThrows(Exception.class, () -> subject.findInvoker('b').orElseThrow().invoke());
     }
 
     @Test
     void testMetaAnnotationHandler() {
         subject = HandlerInspector.createHandler(new Meta(), Handle.class, Collections.singletonList(
                 (p, methodAnnotation) -> identity()));
-        assertEquals("a", subject.invoke("a"));
+        assertEquals("a", subject.findInvoker("a").orElseThrow().invoke());
     }
 
     private static class Foo extends Bar implements SomeInterface {

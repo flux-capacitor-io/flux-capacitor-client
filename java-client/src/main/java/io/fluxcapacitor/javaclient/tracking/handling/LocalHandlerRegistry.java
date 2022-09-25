@@ -18,6 +18,7 @@ import io.fluxcapacitor.common.Guarantee;
 import io.fluxcapacitor.common.MessageType;
 import io.fluxcapacitor.common.Registration;
 import io.fluxcapacitor.common.handling.Handler;
+import io.fluxcapacitor.common.handling.HandlerInvoker;
 import io.fluxcapacitor.common.handling.Invocation;
 import io.fluxcapacitor.javaclient.FluxCapacitor;
 import io.fluxcapacitor.javaclient.common.Message;
@@ -63,10 +64,12 @@ public class LocalHandlerRegistry implements HandlerRegistry {
                 boolean logMessage = false;
                 CompletableFuture<Message> future = new CompletableFuture<>();
                 for (Handler<DeserializingMessage> handler : localHandlers) {
-                    if (handler.canHandle(m)) {
-                        boolean passive = handler.isPassive(m);
+                    Optional<HandlerInvoker> optionalInvoker = handler.findInvoker(m);
+                    if (optionalInvoker.isPresent()) {
+                        HandlerInvoker invoker = optionalInvoker.get();
+                        boolean passive = invoker.isPassive();
                         try {
-                            Object result = Invocation.performInvocation(() -> handler.invoke(m));
+                            Object result = Invocation.performInvocation(invoker::invoke);
                             if (!passive && !future.isDone()) {
                                 if (result instanceof CompletableFuture<?>) {
                                     future = ((CompletableFuture<?>) result).thenApply(Message::new);
@@ -86,7 +89,7 @@ public class LocalHandlerRegistry implements HandlerRegistry {
                                 handled = true;
                             }
                             logMessage = logMessage || getLocalHandlerAnnotation(
-                                    handler.getTarget().getClass(), handler.getMethod(m))
+                                    handler.getTarget().getClass(), invoker.getMethod())
                                     .map(LocalHandler::logMessage).orElse(false);
                         }
                     }

@@ -16,7 +16,8 @@ package io.fluxcapacitor.javaclient.persisting.eventsourcing;
 
 import io.fluxcapacitor.common.handling.HandlerConfiguration;
 import io.fluxcapacitor.common.handling.HandlerInvoker;
-import io.fluxcapacitor.common.handling.HandlerNotFoundException;
+import io.fluxcapacitor.common.handling.HandlerInvoker.DelegatingHandlerInvoker;
+import io.fluxcapacitor.common.handling.HandlerMatcher;
 import io.fluxcapacitor.common.handling.ParameterResolver;
 import io.fluxcapacitor.javaclient.common.serialization.DeserializingMessage;
 import io.fluxcapacitor.javaclient.modeling.Entity;
@@ -26,6 +27,8 @@ import io.fluxcapacitor.javaclient.tracking.handling.PayloadParameterResolver;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
+import java.util.function.BiFunction;
 import java.util.function.Function;
 
 import static io.fluxcapacitor.common.ObjectUtils.memoize;
@@ -34,9 +37,9 @@ import static io.fluxcapacitor.common.handling.HandlerInspector.inspect;
 public class AnnotatedEventSourcingHandler<T> implements EventSourcingHandler<T> {
 
     private final Class<? extends T> handlerType;
-    private final HandlerInvoker<DeserializingMessage> entityInvoker;
+    private final HandlerMatcher<DeserializingMessage> entityInvoker;
     private final EntityParameterResolver entityResolver = new EntityParameterResolver();
-    private final Function<Class<?>, HandlerInvoker<DeserializingMessage>> eventInvokers;
+    private final Function<Class<?>, HandlerMatcher<DeserializingMessage>> eventInvokers;
 
     public AnnotatedEventSourcingHandler(Class<? extends T> handlerType,
                                          List<ParameterResolver<? super DeserializingMessage>> parameterResolvers) {
@@ -63,38 +66,28 @@ public class AnnotatedEventSourcingHandler<T> implements EventSourcingHandler<T>
     }
 
     @Override
-    public T invoke(Entity<T> entity, DeserializingMessage message) {
-        message = new DeserializingMessageWithEntity(message, entity);
-        return message.apply(m -> {
-            Object result;
-            HandlerInvoker<DeserializingMessage> invoker;
-            T model = entity.get();
-            boolean handledByEntity;
-            try {
-                handledByEntity = entityInvoker.canHandle(model, m);
-                invoker = handledByEntity ? entityInvoker : eventInvokers.apply(m.getPayloadClass());
-                result = invoker.invoke(handledByEntity ? model : m.getPayload(), m);
-            } catch (HandlerNotFoundException e) {
-                return model;
-            }
-            if (model == null) {
-                return handlerType.cast(result);
-            }
-            if (handlerType.isInstance(result)) {
-                return handlerType.cast(result);
-            }
-            if (result == null && invoker.expectResult(handledByEntity ? model : m.getPayload(), m)) {
-                return null; //this handler has deleted the model on purpose
-            }
-            return model; //Annotated method returned void - apparently the model is mutable
-        });
+    public Optional<HandlerInvoker> findInvoker(Entity<T> entity, DeserializingMessage event) {
+        var message = new DeserializingMessageWithEntity(event, entity);
+        return entityInvoker.findInvoker(entity.get(), message)
+                .or(() -> eventInvokers.apply(message.getPayloadClass()).findInvoker(message.getPayload(), message))
+                .map(i -> new DelegatingHandlerInvoker(i) {
+                    @Override
+                    public Object invoke(BiFunction<Object, Object, Object> combiner) {
+                        return message.apply(m -> {
+                            Object entityValue = entity.get();
+                            Object result = delegate.invoke();
+                            if (entityValue == null) {
+                                return handlerType.cast(result);
+                            }
+                            if (handlerType.isInstance(result)) {
+                                return handlerType.cast(result);
+                            }
+                            if (result == null && delegate.expectResult()) {
+                                return null; //this handler has deleted the entity on purpose
+                            }
+                            return entityValue; //Annotated method returned void - apparently the entity is mutable
+                        });
+                    }
+                });
     }
-
-    @Override
-    public boolean canHandle(Entity<T> entity, DeserializingMessage message) {
-        message = new DeserializingMessageWithEntity(message, entity);
-        return entityInvoker.canHandle(entity.get(), message)
-               || eventInvokers.apply(message.getPayloadClass()).canHandle(message.getPayload(), message);
-    }
-
 }

@@ -2,6 +2,7 @@ package io.fluxcapacitor.javaclient.modeling;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
+import io.fluxcapacitor.common.handling.HandlerInvoker;
 import io.fluxcapacitor.javaclient.common.Message;
 import io.fluxcapacitor.javaclient.common.serialization.DeserializingMessage;
 import io.fluxcapacitor.javaclient.common.serialization.Serializer;
@@ -21,6 +22,7 @@ import java.lang.reflect.AccessibleObject;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
+import java.util.Optional;
 import java.util.function.UnaryOperator;
 
 import static io.fluxcapacitor.common.MessageType.EVENT;
@@ -105,8 +107,9 @@ public class ImmutableEntity<T> implements Entity<T> {
     @SuppressWarnings("unchecked")
     ImmutableEntity<T> apply(DeserializingMessage message) {
         EventSourcingHandler<T> handler = handlerFactory.forType(type());
-        if (handler.canHandle(this, message)) {
-            return toBuilder().value(handler.invoke(this, message)).build();
+        Optional<HandlerInvoker> invoker = handler.findInvoker(this, message);
+        if (invoker.isPresent()) {
+            return toBuilder().value((T) invoker.get().invoke()).build();
         }
         ImmutableEntity<T> result = this;
         Object payload = message.getPayload();

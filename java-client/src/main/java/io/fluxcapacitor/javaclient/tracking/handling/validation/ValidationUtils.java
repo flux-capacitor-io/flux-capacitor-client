@@ -16,7 +16,7 @@ package io.fluxcapacitor.javaclient.tracking.handling.validation;
 
 import io.fluxcapacitor.common.handling.HandlerConfiguration;
 import io.fluxcapacitor.common.handling.HandlerInspector;
-import io.fluxcapacitor.common.handling.HandlerInvoker;
+import io.fluxcapacitor.common.handling.HandlerMatcher;
 import io.fluxcapacitor.common.handling.Invocation;
 import io.fluxcapacitor.common.reflection.ReflectionUtils;
 import io.fluxcapacitor.javaclient.common.Message;
@@ -122,7 +122,7 @@ public class ValidationUtils {
         Check command / query legality
      */
 
-    protected static final Function<Class<?>, HandlerInvoker<Entity<?>>> assertLegalInvokerCache =
+    protected static final Function<Class<?>, HandlerMatcher<Entity<?>>> assertLegalInvokerCache =
             memoize(type -> HandlerInspector.inspect(
                     type, Arrays.asList(new DeserializingMessageParameterResolver(),
                                         new MetadataParameterResolver(),
@@ -134,7 +134,7 @@ public class ValidationUtils {
                                     .map(a -> !a.afterHandler()).orElse(false))
                             .invokeMultipleMethods(true).build()));
 
-    protected static final Function<Class<?>, HandlerInvoker<Entity<?>>> assertLegalAfterUpdateInvokerCache =
+    protected static final Function<Class<?>, HandlerMatcher<Entity<?>>> assertLegalAfterUpdateInvokerCache =
             memoize(type -> HandlerInspector.inspect(
                     type, Arrays.asList(new DeserializingMessageParameterResolver(),
                                         new MetadataParameterResolver(),
@@ -157,21 +157,21 @@ public class ValidationUtils {
     }
 
     private static Collection<Object> assertLegal(
-            Object object, Entity<?> entity, Function<Class<?>, HandlerInvoker<Entity<?>>> invokerProvider) {
+            Object object, Entity<?> entity, Function<Class<?>, HandlerMatcher<Entity<?>>> invokerProvider) {
         Object payload = object instanceof Message ? ((Message) object).getPayload() : object;
         if (payload == null) {
             return Collections.emptyList();
         }
-        HandlerInvoker<Entity<?>> invoker = invokerProvider.apply(payload.getClass());
+        HandlerMatcher<Entity<?>> invoker = invokerProvider.apply(payload.getClass());
         Collection<Object> additionalProperties = new HashSet<>(getAnnotatedPropertyValues(payload, AssertLegal.class));
-        if (invoker.canHandle(payload, entity)) {
-            Object additionalObject = invoker.invoke(payload, entity);
+        invoker.findInvoker(payload, entity).ifPresent(s -> {
+            Object additionalObject = s.invoke();
             if (additionalObject instanceof List<?>) {
                 additionalProperties.addAll((List<?>) additionalObject);
             } else if (additionalObject != null) {
                 additionalProperties.add(additionalObject);
             }
-        }
+        });
         entity.possibleTargets(payload).forEach(
                 e -> additionalProperties.addAll(ValidationUtils.assertLegal(payload, e, invokerProvider)));
         return additionalProperties;

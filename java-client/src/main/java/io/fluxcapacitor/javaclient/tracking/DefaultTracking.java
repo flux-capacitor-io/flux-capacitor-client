@@ -19,6 +19,7 @@ import io.fluxcapacitor.common.ObjectUtils;
 import io.fluxcapacitor.common.Registration;
 import io.fluxcapacitor.common.api.SerializedMessage;
 import io.fluxcapacitor.common.handling.Handler;
+import io.fluxcapacitor.common.handling.HandlerInvoker;
 import io.fluxcapacitor.common.handling.Invocation;
 import io.fluxcapacitor.javaclient.FluxCapacitor;
 import io.fluxcapacitor.javaclient.common.ClientUtils;
@@ -139,31 +140,31 @@ public class DefaultTracking implements Tracking {
     @SneakyThrows
     protected void tryHandle(DeserializingMessage message, Handler<DeserializingMessage> handler,
                              ConsumerConfiguration config) {
-        try {
-            if (handler.canHandle(message)) {
-                handle(message, handler, config);
-            }
-        } catch (BatchProcessingException e) {
-            throw new BatchProcessingException(format("Handler %s failed to handle a %s", handler, message),
-                                               e.getCause(), e.getMessageIndex());
-        } catch (Exception e) {
+        handler.findInvoker(message).ifPresent(h -> {
             try {
-                config.getErrorHandler()
-                        .handleError(e, format("Handler %s failed to handle a %s", handler, message),
-                                     () -> handle(message, handler, config));
-            } catch (Exception thrown) {
-                throw new BatchProcessingException(message.getIndex());
+                handle(message, h, handler, config);
+            } catch (BatchProcessingException e) {
+                throw new BatchProcessingException(format("Handler %s failed to handle a %s", handler, message),
+                                                   e.getCause(), e.getMessageIndex());
+            } catch (Exception e) {
+                try {
+                    config.getErrorHandler()
+                            .handleError(e, format("Handler %s failed to handle a %s", handler, message),
+                                         () -> handle(message, h, handler, config));
+                } catch (Exception thrown) {
+                    throw new BatchProcessingException(message.getIndex());
+                }
             }
-        }
+        });
     }
 
     @SneakyThrows
-    protected void handle(DeserializingMessage message, Handler<DeserializingMessage> handler,
+    protected void handle(DeserializingMessage message, HandlerInvoker h, Handler<DeserializingMessage> handler,
                           ConsumerConfiguration config) {
         Exception exception = null;
         Object result;
         try {
-            result = Invocation.performInvocation(() -> handler.invoke(message));
+            result = Invocation.performInvocation(h::invoke);
         } catch (FunctionalException e) {
             result = e;
             exception = e;
@@ -172,7 +173,7 @@ public class DefaultTracking implements Tracking {
             exception = e;
         }
         SerializedMessage serializedMessage = message.getSerializedObject();
-        boolean shouldSendResponse = shouldSendResponse(handler, message, config);
+        boolean shouldSendResponse = shouldSendResponse(h, message, config);
         if (result instanceof CompletableFuture<?>) {
             CompletableFuture<?> future = ((CompletableFuture<?>) result).whenComplete((r, e) -> {
                 Throwable error = ObjectUtils.unwrapException(e);
@@ -188,7 +189,7 @@ public class DefaultTracking implements Tracking {
                         if (error != null) {
                             config.getErrorHandler().handleError((Exception) error, format(
                                                                          "Handler %s failed to handle a %s", handler, message),
-                                                                 () -> handle(message, handler, config));
+                                                                 () -> handle(message, h, handler, config));
                         }
                     } catch (Exception exc) {
                         log.warn("Did not stop consumer {} after async handler {} failed to handle a {}",
@@ -208,13 +209,9 @@ public class DefaultTracking implements Tracking {
     }
 
     @SneakyThrows
-    private boolean shouldSendResponse(Handler<DeserializingMessage> handler, DeserializingMessage message,
+    private boolean shouldSendResponse(HandlerInvoker invoker, DeserializingMessage message,
                                        ConsumerConfiguration config) {
-        SerializedMessage serializedMessage = message.getSerializedObject();
-        if (serializedMessage.getRequestId() == null) {
-            return false;
-        }
-        return !config.passive() && !handler.isPassive(message);
+        return message.getSerializedObject().getRequestId() != null && !config.passive() && !invoker.isPassive();
     }
 
     @Override

@@ -16,6 +16,7 @@ package io.fluxcapacitor.javaclient.tracking.handling.authentication;
 
 import io.fluxcapacitor.common.MessageType;
 import io.fluxcapacitor.common.handling.Handler;
+import io.fluxcapacitor.common.handling.HandlerInvoker;
 import io.fluxcapacitor.javaclient.common.Message;
 import io.fluxcapacitor.javaclient.common.serialization.DeserializingMessage;
 import io.fluxcapacitor.javaclient.publishing.DispatchInterceptor;
@@ -23,7 +24,9 @@ import io.fluxcapacitor.javaclient.tracking.handling.HandlerInterceptor;
 import lombok.AllArgsConstructor;
 import lombok.experimental.Delegate;
 
+import java.util.Optional;
 import java.util.function.Function;
+import java.util.function.Supplier;
 
 import static io.fluxcapacitor.javaclient.tracking.handling.validation.ValidationUtils.assertAuthorized;
 import static io.fluxcapacitor.javaclient.tracking.handling.validation.ValidationUtils.isAuthorized;
@@ -48,7 +51,7 @@ public class AuthenticatingInterceptor implements DispatchInterceptor, HandlerIn
 
     @Override
     public Function<DeserializingMessage, Object> interceptHandling(Function<DeserializingMessage, Object> function,
-                                                                    Handler<DeserializingMessage> handler,
+                                                                    HandlerInvoker invoker,
                                                                     String consumer) {
         return m -> {
             User previous = User.getCurrent();
@@ -74,12 +77,14 @@ public class AuthenticatingInterceptor implements DispatchInterceptor, HandlerIn
         private final Handler<DeserializingMessage> delegate;
 
         @Override
-        public boolean canHandle(DeserializingMessage m) {
-            if (!delegate.canHandle(m)) {
-                return false;
+        public Optional<HandlerInvoker> findInvoker(DeserializingMessage m) {
+            var invoker = delegate.findInvoker(m);
+            if (invoker.isEmpty() || isAuthorized(delegate.getTarget().getClass(),
+                                                  invoker.get().getMethod(),
+                                                  userProvider.fromMetadata(m.getMetadata()))) {
+                return invoker;
             }
-            return isAuthorized(delegate.getTarget().getClass(),
-                                delegate.getMethod(m), userProvider.fromMetadata(m.getMetadata()));
+            return Optional.empty();
         }
 
         @Override
@@ -89,6 +94,6 @@ public class AuthenticatingInterceptor implements DispatchInterceptor, HandlerIn
     }
 
     private interface ExcludedMethods {
-        boolean canHandle(DeserializingMessage message);
+        Optional<Supplier<?>> findInvoker(DeserializingMessage message);
     }
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016-2021 Flux Capacitor.
+ * Copyright (c) 2016-2020 Flux Capacitor.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -12,16 +12,10 @@
  * limitations under the License.
  */
 
-package io.fluxcapacitor.javaclient.persisting.eventsourcing;
-
-import io.fluxcapacitor.common.handling.HandlerInvoker;
-import io.fluxcapacitor.javaclient.common.serialization.DeserializingMessage;
-import io.fluxcapacitor.javaclient.modeling.Entity;
+package io.fluxcapacitor.common.handling;
 
 import java.util.Optional;
 
-public interface EventSourcingHandler<T> {
-
-    Optional<HandlerInvoker> findInvoker(Entity<T> entity, DeserializingMessage message);
-
+public interface HandlerMatcher<M> {
+    Optional<HandlerInvoker> findInvoker(Object target, M message);
 }

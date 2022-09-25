@@ -27,8 +27,8 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 public class HandlerInspectorParameterResolverTest {
 
-    private Foo foo = new Foo();
-    private Handler<Message> subject = HandlerInspector
+    private final Foo foo = new Foo();
+    private final Handler<Message> subject = HandlerInspector
             .createHandler(foo, Handle.class, Arrays.asList((p, methodAnnotation) -> {
                 if (p.getDeclaringExecutable().getParameters()[0] == p) {
                     return Message::getPayload;
@@ -42,18 +42,18 @@ public class HandlerInspectorParameterResolverTest {
             }));
 
     @Test
-    public void testCanHandle() {
-        assertTrue(subject.canHandle(new Message("payload")));
-        assertTrue(subject.canHandle(new Message(0L)));
-        assertFalse(subject.canHandle(new Message(0)));
+    public void testFindInvoker() {
+        assertTrue(subject.findInvoker(new Message("payload")).isPresent());
+        assertTrue(subject.findInvoker(new Message(0L)).isPresent());
+        assertFalse(subject.findInvoker(new Message(0)).isPresent());
     }
 
     @Test
     public void testInvoke() {
         Message message = new Message("payload");
-        assertEquals("payload", subject.invoke(message));
+        assertEquals("payload", subject.findInvoker(message).orElseThrow().invoke());
         message = new Message(100L);
-        assertEquals(100L, subject.invoke(message));
+        assertEquals(100L, subject.findInvoker(message).orElseThrow().invoke());
     }
 
     private static class Foo {

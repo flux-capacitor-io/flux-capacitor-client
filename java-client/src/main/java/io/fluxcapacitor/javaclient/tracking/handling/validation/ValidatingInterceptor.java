@@ -15,7 +15,7 @@
 package io.fluxcapacitor.javaclient.tracking.handling.validation;
 
 import io.fluxcapacitor.common.MessageType;
-import io.fluxcapacitor.common.handling.Handler;
+import io.fluxcapacitor.common.handling.HandlerInvoker;
 import io.fluxcapacitor.javaclient.common.Message;
 import io.fluxcapacitor.javaclient.common.serialization.DeserializingMessage;
 import io.fluxcapacitor.javaclient.publishing.DispatchInterceptor;
@@ -42,7 +42,7 @@ public class ValidatingInterceptor implements HandlerInterceptor, DispatchInterc
 
     @Override
     public Function<DeserializingMessage, Object> interceptHandling(Function<DeserializingMessage, Object> function,
-                                                                    Handler<DeserializingMessage> handler, String consumer) {
+                                                                    HandlerInvoker invoker, String consumer) {
         return m -> {
             ValidationUtils.assertValid(m.getPayload(), validator);
             return function.apply(m);

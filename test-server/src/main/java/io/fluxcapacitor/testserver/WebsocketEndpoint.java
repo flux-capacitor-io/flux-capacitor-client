@@ -22,6 +22,7 @@ import io.fluxcapacitor.common.api.JsonType;
 import io.fluxcapacitor.common.api.RequestBatch;
 import io.fluxcapacitor.common.handling.Handler;
 import io.fluxcapacitor.common.handling.HandlerInspector;
+import io.fluxcapacitor.common.handling.HandlerInvoker;
 import io.fluxcapacitor.common.handling.ParameterResolver;
 import io.fluxcapacitor.common.serialization.compression.CompressionAlgorithm;
 import io.undertow.util.SameThreadExecutor;
@@ -156,9 +157,11 @@ public abstract class WebsocketEndpoint extends Endpoint {
             ((RequestBatch<?>) value).getRequests().forEach(r -> handleRequest(session, r));
             return;
         }
+        HandlerInvoker invoker = handler.findInvoker(new Request(value, session)).orElseThrow(
+                () -> new IllegalArgumentException("Could not find find a handler for request " + value));
         Object result;
         try {
-            result = handler.invoke(new Request(value, session));
+            result = invoker.invoke();
         } catch (Exception e) {
             throw new IllegalArgumentException("Could not handle request " + value, e);
         }

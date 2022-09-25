@@ -15,7 +15,7 @@
 package io.fluxcapacitor.javaclient.tracking.handling.errorreporting;
 
 import io.fluxcapacitor.common.api.Metadata;
-import io.fluxcapacitor.common.handling.Handler;
+import io.fluxcapacitor.common.handling.HandlerInvoker;
 import io.fluxcapacitor.javaclient.common.Message;
 import io.fluxcapacitor.javaclient.common.exception.FunctionalException;
 import io.fluxcapacitor.javaclient.common.exception.TechnicalException;
@@ -39,7 +39,7 @@ public class ErrorReportingInterceptor implements HandlerInterceptor {
 
     @Override
     public Function<DeserializingMessage, Object> interceptHandling(Function<DeserializingMessage, Object> function,
-                                                                    Handler<DeserializingMessage> handler,
+                                                                    HandlerInvoker invoker,
                                                                     String consumer) {
         return message -> {
             try {
@@ -47,23 +47,23 @@ public class ErrorReportingInterceptor implements HandlerInterceptor {
                 if (result instanceof CompletionStage<?>) {
                     ((CompletionStage<?>) result).whenComplete((r, e) -> {
                         if (e != null) {
-                            message.run(m -> reportError(e, handler, m));
+                            message.run(m -> reportError(e, invoker, m));
                         }
                     });
                 }
                 return result;
             } catch (Exception e) {
-                reportError(e, handler, message);
+                reportError(e, invoker, message);
                 throw e;
             }
         };
     }
 
-    protected void reportError(Throwable e, Handler<DeserializingMessage> handler, DeserializingMessage cause) {
+    protected void reportError(Throwable e, HandlerInvoker invoker, DeserializingMessage cause) {
         Metadata metadata = cause.getMetadata();
         if (!(e instanceof FunctionalException || e instanceof TechnicalException)) {
             metadata = metadata.with("stackTrace", ExceptionUtils.getStackTrace(e));
-            e = new TechnicalException(format("Handler %s failed to handle a %s", handler, cause));
+            e = new TechnicalException(format("Handler %s failed to handle a %s", invoker.getTarget(), cause));
         }
         errorGateway.report(new Message(e, metadata));
     }

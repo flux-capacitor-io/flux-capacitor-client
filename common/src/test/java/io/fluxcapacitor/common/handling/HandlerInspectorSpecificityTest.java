@@ -25,21 +25,21 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class HandlerInspectorSpecificityTest {
 
-    private Foo foo = new Foo();
-    private Handler<Object> subject =
+    private final Foo foo = new Foo();
+    private final Handler<Object> subject =
             HandlerInspector.createHandler(foo, Handle.class, Collections.singletonList((p, methodAnnotation) -> o -> o));
 
     @Test
-    void testCanHandle() {
-        assertTrue(subject.canHandle(new Message()));
-        assertTrue(subject.canHandle(new MessageSuper()));
-        assertFalse(subject.canHandle(foo));
+    void testFindInvoker() {
+        assertTrue(subject.findInvoker(new Message()).isPresent());
+        assertTrue(subject.findInvoker(new MessageSuper()).isPresent());
+        assertFalse(subject.findInvoker(foo).isPresent());
     }
 
     @Test
     void testInvoke() {
         Message message = new Message();
-        assertEquals(message, subject.invoke(message));
+        assertEquals(message, subject.findInvoker(message).orElseThrow().invoke());
     }
 
     private static class Foo {

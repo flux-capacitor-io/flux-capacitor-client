@@ -16,7 +16,7 @@ package io.fluxcapacitor.javaclient.publishing.dataprotection;
 
 import io.fluxcapacitor.common.Guarantee;
 import io.fluxcapacitor.common.MessageType;
-import io.fluxcapacitor.common.handling.Handler;
+import io.fluxcapacitor.common.handling.HandlerInvoker;
 import io.fluxcapacitor.javaclient.FluxCapacitor;
 import io.fluxcapacitor.javaclient.common.Message;
 import io.fluxcapacitor.javaclient.common.serialization.DeserializingMessage;
@@ -73,13 +73,13 @@ public class DataProtectionInterceptor implements DispatchInterceptor, HandlerIn
     @Override
     @SuppressWarnings("unchecked")
     public Function<DeserializingMessage, Object> interceptHandling(Function<DeserializingMessage, Object> function,
-                                                                    Handler<DeserializingMessage> handler,
+                                                                    HandlerInvoker invoker,
                                                                     String consumer) {
         return m -> {
             if (m.getMetadata().containsKey(METADATA_KEY)) {
                 Object payload = m.getPayload();
                 Map<String, String> protectedFields = m.getMetadata().get(METADATA_KEY, Map.class);
-                boolean dropProtectedData = handler.getMethod(m).isAnnotationPresent(DropProtectedData.class);
+                boolean dropProtectedData = invoker.getMethod().isAnnotationPresent(DropProtectedData.class);
                 protectedFields.forEach((fieldName, key) -> {
                     try {
                         writeProperty(fieldName, payload, keyValueStore.get(key));

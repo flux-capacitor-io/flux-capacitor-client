@@ -15,10 +15,14 @@
 package io.fluxcapacitor.javaclient.tracking.handling;
 
 import io.fluxcapacitor.common.handling.Handler;
+import io.fluxcapacitor.common.handling.HandlerInvoker;
+import io.fluxcapacitor.common.handling.HandlerInvoker.DelegatingHandlerInvoker;
 import io.fluxcapacitor.javaclient.common.serialization.DeserializingMessage;
 import lombok.AllArgsConstructor;
 import lombok.experimental.Delegate;
 
+import java.util.Optional;
+import java.util.function.BiFunction;
 import java.util.function.Function;
 
 @FunctionalInterface
@@ -28,7 +32,7 @@ public interface HandlerInterceptor {
     }
 
     Function<DeserializingMessage, Object> interceptHandling(Function<DeserializingMessage, Object> function,
-                                                             Handler<DeserializingMessage> handler, String consumer);
+                                                             HandlerInvoker invoker, String consumer);
 
     default Handler<DeserializingMessage> wrap(Handler<DeserializingMessage> handler, String consumer) {
         return new InterceptedHandler(handler, this, consumer);
@@ -47,12 +51,18 @@ public interface HandlerInterceptor {
         private final String consumer;
 
         @Override
-        public Object invoke(DeserializingMessage message) {
-            return interceptor.interceptHandling(delegate::invoke, delegate, consumer).apply(message);
+        public Optional<HandlerInvoker> findInvoker(DeserializingMessage message) {
+            Optional<HandlerInvoker> invoker = delegate.findInvoker(message);
+            return invoker.map(s -> new DelegatingHandlerInvoker(s) {
+                @Override
+                public Object invoke(BiFunction<Object, Object, Object> combiner) {
+                    return interceptor.interceptHandling(m -> s.invoke(), s, consumer).apply(message);
+                }
+            });
         }
 
         private interface ExcludedMethods {
-            Object invoke(DeserializingMessage message);
+            Optional<HandlerInvoker> findInvoker(DeserializingMessage message);
         }
 
         @Override
@@ -67,9 +77,9 @@ public interface HandlerInterceptor {
 
         @Override
         public Function<DeserializingMessage, Object> interceptHandling(Function<DeserializingMessage, Object> function,
-                                                                        Handler<DeserializingMessage> handler,
+                                                                        HandlerInvoker invoker,
                                                                         String consumer) {
-            return first.interceptHandling(second.interceptHandling(function, handler, consumer), handler, consumer);
+            return first.interceptHandling(second.interceptHandling(function, invoker, consumer), invoker, consumer);
         }
 
         @Override

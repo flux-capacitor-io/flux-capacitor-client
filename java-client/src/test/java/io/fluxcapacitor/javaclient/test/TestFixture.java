@@ -20,7 +20,7 @@ import io.fluxcapacitor.common.Registration;
 import io.fluxcapacitor.common.api.Data;
 import io.fluxcapacitor.common.api.SerializedMessage;
 import io.fluxcapacitor.common.api.tracking.MessageBatch;
-import io.fluxcapacitor.common.handling.Handler;
+import io.fluxcapacitor.common.handling.HandlerInvoker;
 import io.fluxcapacitor.common.reflection.ReflectionUtils;
 import io.fluxcapacitor.common.serialization.JsonUtils;
 import io.fluxcapacitor.javaclient.FluxCapacitor;
@@ -666,7 +666,7 @@ public class TestFixture implements Given, When {
 
         @Override
         public Function<DeserializingMessage, Object> interceptHandling(
-                Function<DeserializingMessage, Object> function, Handler<DeserializingMessage> handler,
+                Function<DeserializingMessage, Object> function, HandlerInvoker invoker,
                 String consumer) {
             return m -> {
                 try {
@@ -676,7 +676,7 @@ public class TestFixture implements Given, When {
                     throw e;
                 } finally {
                     if ((m.getMessageType() == COMMAND || m.getMessageType() == QUERY)
-                        && isLocalHandler(handler.getTarget().getClass(), handler.getMethod(m))) {
+                        && isLocalHandler(invoker.getTarget().getClass(), invoker.getMethod())) {
                         synchronized (consumers) {
                             consumers.entrySet().stream()
                                     .filter(t -> t.getKey().getMessageType() == m.getMessageType())

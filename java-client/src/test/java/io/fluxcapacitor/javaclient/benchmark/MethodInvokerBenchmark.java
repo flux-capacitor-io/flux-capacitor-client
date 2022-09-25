@@ -33,7 +33,7 @@ class MethodInvokerBenchmark {
         MemberInvoker invoker = DefaultMemberInvoker.asInvoker(method);
         Handler<Object> fluxHandler = createHandler(target, Handle.class, List.of(
                 (parameter, methodAnnotation) -> identity()));
-        HandlerInvoker<Object> fluxInvoker = fluxHandler.getInvoker(null);
+        HandlerInvoker fluxInvoker = fluxHandler.findInvoker(null).orElseThrow();
 
         System.out.println("Invocation result of lambda: " + invoker.invoke(target));
 
@@ -44,7 +44,7 @@ class MethodInvokerBenchmark {
             testInvoker(invoker, target);
             testMessageHandle(realMethodHandle, target);
             testReflection(method, target);
-            testFluxInvoker(fluxInvoker, target);
+            testFluxInvoker(fluxInvoker);
             testFluxHandler(fluxHandler);
         }
 
@@ -54,15 +54,15 @@ class MethodInvokerBenchmark {
         TimingUtils.time(() -> testReflection(method, target), ms -> System.out.printf("reflection: %dms, ", ms));
         TimingUtils.time(() -> testMessageHandle(realMethodHandle, target), ms -> System.out.printf("method handle: %dms, ", ms));
         TimingUtils.time(() -> testInvoker(invoker, target), ms -> System.out.printf("lambda invoker: %dms, ", ms));
-        TimingUtils.time(() -> testFluxInvoker(fluxInvoker, target),
+        TimingUtils.time(() -> testFluxInvoker(fluxInvoker),
                          elapsed -> System.out.printf("flux invoker: %dms, ", elapsed), ChronoUnit.MILLIS);
         TimingUtils.time(() -> testFluxHandler(fluxHandler), ms -> System.out.printf("flux handler: %dms, ", ms));
 
     }
 
-    private static void testFluxInvoker(HandlerInvoker<Object> invoker, Person target) {
+    private static void testFluxInvoker(HandlerInvoker invoker) {
         for (long i = 0; i < iterations; i++) {
-            invoker.invoke(target, null);
+            invoker.invoke();
         }
     }
 
@@ -80,7 +80,7 @@ class MethodInvokerBenchmark {
 
     private static void testFluxHandler(Handler<Object> handler) {
         for (long i = 0; i < iterations; i++) {
-            handler.invoke(null);
+            handler.findInvoker(null).orElseThrow().invoke();
         }
     }
 

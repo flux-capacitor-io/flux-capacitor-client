@@ -17,6 +17,7 @@ package io.fluxcapacitor.javaclient.scheduling;
 import io.fluxcapacitor.common.MessageType;
 import io.fluxcapacitor.common.api.Metadata;
 import io.fluxcapacitor.common.handling.Handler;
+import io.fluxcapacitor.common.handling.HandlerInvoker;
 import io.fluxcapacitor.common.reflection.ReflectionUtils;
 import io.fluxcapacitor.javaclient.FluxCapacitor;
 import io.fluxcapacitor.javaclient.common.Message;
@@ -109,13 +110,13 @@ public class SchedulingInterceptor implements DispatchInterceptor, HandlerInterc
 
     @Override
     public Function<DeserializingMessage, Object> interceptHandling(Function<DeserializingMessage, Object> function,
-                                                                    Handler<DeserializingMessage> handler,
+                                                                    HandlerInvoker invoker,
                                                                     String consumer) {
         return m -> {
             if (m.getMessageType() == MessageType.SCHEDULE) {
                 long deadline = millisFromIndex(m.getIndex());
                 Periodic periodic =
-                        Optional.ofNullable(handler.getMethod(m)).map(method -> method.getAnnotation(Periodic.class))
+                        Optional.ofNullable(invoker.getMethod()).map(method -> method.getAnnotation(Periodic.class))
                                 .orElse(ReflectionUtils.getTypeAnnotation(m.getPayloadClass(), Periodic.class));
                 Object result;
                 Instant now = ofEpochMilli(deadline);
