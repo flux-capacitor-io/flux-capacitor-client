@@ -14,6 +14,7 @@
 
 package io.fluxcapacitor.javaclient.tracking.handling;
 
+import io.fluxcapacitor.common.api.HasMetadata;
 import io.fluxcapacitor.common.api.Metadata;
 import io.fluxcapacitor.common.handling.ParameterResolver;
 import io.fluxcapacitor.javaclient.common.serialization.DeserializingMessage;
@@ -28,7 +29,7 @@ public class MetadataParameterResolver implements ParameterResolver<Object> {
     @Override
     public Function<Object, Object> resolve(Parameter p, Annotation methodAnnotation) {
         if (p.getType().equals(Metadata.class)) {
-            return m -> m instanceof DeserializingMessage ? ((DeserializingMessage) m).getMetadata()
+            return m -> m instanceof HasMetadata ? ((HasMetadata) m).getMetadata()
                     : ofNullable(DeserializingMessage.getCurrent()).map(DeserializingMessage::getMetadata).orElse(null);
         }
         return null;

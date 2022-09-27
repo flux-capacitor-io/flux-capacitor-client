@@ -6,6 +6,7 @@ import io.fluxcapacitor.javaclient.persisting.eventsourcing.Apply;
 import io.fluxcapacitor.javaclient.publishing.routing.RoutingKey;
 import io.fluxcapacitor.javaclient.test.TestFixture;
 import io.fluxcapacitor.javaclient.tracking.handling.HandleCommand;
+import io.fluxcapacitor.javaclient.tracking.handling.HandleEvent;
 import io.fluxcapacitor.javaclient.tracking.handling.IllegalCommandException;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -24,7 +25,6 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
-import java.util.UUID;
 import java.util.function.Predicate;
 
 import static io.fluxcapacitor.javaclient.FluxCapacitor.loadAggregate;
@@ -189,6 +189,7 @@ public class AggregateEntitiesTest {
 
         @Nested
         class SingletonTests {
+
             @Test
             void testAddSingleton() {
                 testFixture.whenCommand(new AddChild("missing"))
@@ -250,6 +251,20 @@ public class AggregateEntitiesTest {
                         .expectTrue(fc -> FluxCapacitor.loadEntityValue("clientRef").filter("clientRef"::equals).isPresent());
             }
 
+            @Test
+            void checkIfEventHandlerGetsEntity() {
+                testFixture.registerHandlers(new EventHandler())
+                        .whenCommand(new AddChild("missing"))
+                        .expectEvents("added child to: test");
+            }
+
+            @Test
+            void checkIfEventHandlerGetsEntity_unwrapped() {
+                testFixture.registerHandlers(new EventHandler())
+                        .whenCommand(new UpdateChild("id", "missing"))
+                        .expectEvents("updated child of: test");
+            }
+
             @Value
             class AddChild {
                 String missingChildId;
@@ -269,6 +284,18 @@ public class AggregateEntitiesTest {
                 MissingChild createChild() {
                     return MissingChild.builder().missingChildId(missingChildId)
                             .grandChild(new MissingGrandChild(missingGrandChildId)).build();
+                }
+            }
+
+            class EventHandler {
+                @HandleEvent
+                void handle(AddChild event, Entity<Aggregate> entity) {
+                    FluxCapacitor.publishEvent("added child to: " + entity.id());
+                }
+
+                @HandleEvent
+                void handle(UpdateChild event, Aggregate entity) {
+                    FluxCapacitor.publishEvent("updated child of: " + entity.getId());
                 }
             }
         }
@@ -475,9 +502,8 @@ public class AggregateEntitiesTest {
     @Builder(toBuilder = true)
     public static class Aggregate {
 
-        @EntityId
         @Default
-        String id = UUID.randomUUID().toString();
+        String id = "test";
 
         @Member
         @Default

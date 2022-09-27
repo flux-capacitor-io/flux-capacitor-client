@@ -18,6 +18,7 @@ import io.fluxcapacitor.common.MessageType;
 import io.fluxcapacitor.common.api.Metadata;
 import io.fluxcapacitor.common.api.SerializedMessage;
 import io.fluxcapacitor.common.serialization.JsonUtils;
+import io.fluxcapacitor.javaclient.common.HasMessage;
 import io.fluxcapacitor.javaclient.common.Message;
 import io.fluxcapacitor.javaclient.scheduling.Schedule;
 import io.fluxcapacitor.javaclient.tracking.IndexUtils;
@@ -51,7 +52,7 @@ import static java.util.stream.Collectors.toList;
 @Slf4j
 @AllArgsConstructor(access = AccessLevel.NONE)
 @NonFinal
-public class DeserializingMessage {
+public class DeserializingMessage implements HasMessage {
     public static MessageFormatter messageFormatter = MessageFormatter.DEFAULT;
 
     private static final ThreadLocal<Set<Consumer<Throwable>>> batchCompletionHandlers = new ThreadLocal<>();

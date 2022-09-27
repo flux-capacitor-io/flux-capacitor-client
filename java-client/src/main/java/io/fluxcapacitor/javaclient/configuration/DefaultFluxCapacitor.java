@@ -24,6 +24,7 @@ import io.fluxcapacitor.javaclient.common.serialization.DeserializingMessage;
 import io.fluxcapacitor.javaclient.common.serialization.Serializer;
 import io.fluxcapacitor.javaclient.common.serialization.jackson.JacksonSerializer;
 import io.fluxcapacitor.javaclient.configuration.client.Client;
+import io.fluxcapacitor.javaclient.modeling.EntityParameterResolver;
 import io.fluxcapacitor.javaclient.persisting.caching.Cache;
 import io.fluxcapacitor.javaclient.persisting.caching.DefaultCache;
 import io.fluxcapacitor.javaclient.persisting.caching.NamedCache;
@@ -550,7 +551,8 @@ public class DefaultFluxCapacitor implements FluxCapacitor {
                                               new MetadataParameterResolver(), new MessageParameterResolver(),
                                               new UserParameterResolver(userProvider),
                                               new WebPayloadParameterResolver(),
-                                              new PayloadParameterResolver()));
+                                              new PayloadParameterResolver(),
+                                              new EntityParameterResolver()));
 
             //event sourcing
             EventSourcingHandlerFactory eventSourcingHandlerFactory =

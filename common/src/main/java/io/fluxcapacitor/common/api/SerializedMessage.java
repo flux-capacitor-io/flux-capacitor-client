@@ -20,7 +20,7 @@ import lombok.With;
 
 @lombok.Data
 @AllArgsConstructor
-public class SerializedMessage implements SerializedObject<byte[], SerializedMessage> {
+public class SerializedMessage implements SerializedObject<byte[], SerializedMessage>, HasMetadata {
 
     @With
     @NonNull

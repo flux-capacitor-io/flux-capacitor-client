@@ -15,6 +15,7 @@
 package io.fluxcapacitor.javaclient.modeling;
 
 import com.google.common.collect.Sets;
+import io.fluxcapacitor.common.api.HasMetadata;
 import io.fluxcapacitor.common.api.Metadata;
 import io.fluxcapacitor.common.api.modeling.Relationship;
 import io.fluxcapacitor.common.reflection.ReflectionUtils;
@@ -53,11 +54,11 @@ public interface Entity<T> {
         return loading.get();
     }
 
-    static String getAggregateId(DeserializingMessage message) {
+    static String getAggregateId(HasMetadata message) {
         return message.getMetadata().get(AGGREGATE_ID_METADATA_KEY);
     }
 
-    static Class<?> getAggregateType(DeserializingMessage message) {
+    static Class<?> getAggregateType(HasMetadata message) {
         return Optional.ofNullable(message.getMetadata().get(AGGREGATE_TYPE_METADATA_KEY)).map(c -> {
             try {
                 return ReflectionUtils.classForName(c);

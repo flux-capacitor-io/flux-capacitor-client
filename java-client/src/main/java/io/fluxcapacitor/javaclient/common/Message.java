@@ -21,6 +21,7 @@ import io.fluxcapacitor.javaclient.common.serialization.Serializer;
 import lombok.Value;
 import lombok.With;
 import lombok.experimental.NonFinal;
+import lombok.extern.slf4j.Slf4j;
 
 import java.beans.ConstructorProperties;
 import java.time.Instant;
@@ -33,7 +34,8 @@ import static io.fluxcapacitor.javaclient.FluxCapacitor.currentIdentityProvider;
 @Value
 @JsonTypeInfo(use = JsonTypeInfo.Id.CLASS)
 @NonFinal
-public class Message {
+@Slf4j
+public class Message implements HasMessage {
 
     public static Message asMessage(Object object) {
         return object instanceof Message ? (Message) object : new Message(object);
@@ -72,6 +74,7 @@ public class Message {
         return payload == null ? Void.class : payload.getClass();
     }
 
+    @Override
     public Message toMessage() {
         return this;
     }
