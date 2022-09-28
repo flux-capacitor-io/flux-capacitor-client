@@ -217,7 +217,8 @@ public class TestFixture implements Given, When {
                             fluxCapacitor.eventGateway().registerHandler(h, handlerFilter),
                             fluxCapacitor.eventStore().registerHandler(h, handlerFilter),
                             fluxCapacitor.errorGateway().registerHandler(h, handlerFilter),
-                            fluxCapacitor.webRequestGateway().registerHandler(h, handlerFilter)))
+                            fluxCapacitor.webRequestGateway().registerHandler(h, handlerFilter),
+                            fluxCapacitor.metricsGateway().registerHandler(h, handlerFilter)))
                 .reduce(Registration::merge).orElse(Registration.noOp()));
         if (fluxCapacitor.scheduler() instanceof DefaultScheduler) {
             DefaultScheduler scheduler = (DefaultScheduler) fluxCapacitor.scheduler();

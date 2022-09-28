@@ -17,11 +17,12 @@ package io.fluxcapacitor.javaclient.publishing;
 import io.fluxcapacitor.common.Guarantee;
 import io.fluxcapacitor.common.api.Metadata;
 import io.fluxcapacitor.javaclient.common.Message;
+import io.fluxcapacitor.javaclient.tracking.handling.HasLocalHandlers;
 import lombok.SneakyThrows;
 
 import java.util.concurrent.CompletableFuture;
 
-public interface MetricsGateway {
+public interface MetricsGateway extends HasLocalHandlers {
 
     default void publish(Object metrics) {
         if (metrics instanceof Message) {
