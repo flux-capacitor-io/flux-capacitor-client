@@ -18,8 +18,8 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import io.fluxcapacitor.common.Registration;
 import io.fluxcapacitor.javaclient.FluxCapacitor;
 import io.fluxcapacitor.javaclient.common.serialization.Serializer;
+import io.fluxcapacitor.javaclient.common.serialization.casting.CastInspector;
 import io.fluxcapacitor.javaclient.common.serialization.jackson.JacksonSerializer;
-import io.fluxcapacitor.javaclient.common.serialization.upcasting.UpcastInspector;
 import io.fluxcapacitor.javaclient.configuration.DefaultFluxCapacitor;
 import io.fluxcapacitor.javaclient.configuration.FluxCapacitorBuilder;
 import io.fluxcapacitor.javaclient.configuration.client.Client;
@@ -93,7 +93,7 @@ public class FluxCapacitorSpringConfig implements BeanPostProcessor {
     public Serializer serializer() {
         List<Object> upcasters = new ArrayList<>();
         for (String beanName : context.getBeanDefinitionNames()) {
-            Optional.ofNullable(context.getType(beanName)).filter(UpcastInspector::hasAnnotatedMethods)
+            Optional.ofNullable(context.getType(beanName)).filter(CastInspector::hasCasterMethods)
                     .ifPresent(t -> upcasters.add(context.getAutowireCapableBeanFactory().getBean(beanName)));
         }
         return getBean(ObjectMapper.class).map(objectMapper -> new JacksonSerializer(objectMapper, upcasters))

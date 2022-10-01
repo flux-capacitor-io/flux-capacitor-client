@@ -111,4 +111,6 @@ public interface Serializer {
 
     String upcastType(String type);
 
+    Object downcast(Object object, int desiredRevision);
+
 }

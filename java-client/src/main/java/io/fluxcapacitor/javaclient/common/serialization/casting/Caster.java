@@ -12,13 +12,16 @@
  * limitations under the License.
  */
 
-package io.fluxcapacitor.javaclient.common.serialization.upcasting;
+package io.fluxcapacitor.javaclient.common.serialization.casting;
 
 import java.util.stream.Stream;
 
 @FunctionalInterface
-public interface Upcaster<T> {
+public interface Caster<T> {
 
-    Stream<T> upcast(Stream<T> input);
+    default Stream<T> cast(Stream<T> input) {
+        return cast(input, null);
+    }
+    Stream<T> cast(Stream<T> input, Integer desiredRevision);
 
 }

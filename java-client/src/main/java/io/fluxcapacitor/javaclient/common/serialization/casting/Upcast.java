@@ -12,7 +12,7 @@
  * limitations under the License.
  */
 
-package io.fluxcapacitor.javaclient.common.serialization.upcasting;
+package io.fluxcapacitor.javaclient.common.serialization.casting;
 
 import java.lang.annotation.Documented;
 import java.lang.annotation.ElementType;
@@ -23,6 +23,7 @@ import java.lang.annotation.Target;
 @Documented
 @Retention(RetentionPolicy.RUNTIME)
 @Target(ElementType.METHOD)
+@Cast(revisionDelta = 1)
 public @interface Upcast {
     String type();
     int revision();

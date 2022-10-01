@@ -12,34 +12,32 @@
  * limitations under the License.
  */
 
-package io.fluxcapacitor.javaclient.common.serialization.upcasting;
+package io.fluxcapacitor.javaclient.common.serialization.casting;
 
 import io.fluxcapacitor.common.api.SerializedObject;
+import lombok.Getter;
 
 import java.lang.reflect.Method;
 import java.util.function.Function;
 import java.util.stream.Stream;
 
-public class AnnotatedUpcaster<T> {
+public class AnnotatedCaster<T> {
     private final Method method;
-    private final Upcast annotation;
-    private final Function<SerializedObject<T, ?>, Stream<SerializedObject<T, ?>>> upcastFunction;
+    @Getter
+    private final CastParameters parameters;
+    private final Function<SerializedObject<T, ?>, Stream<SerializedObject<T, ?>>> castFunction;
 
-    public AnnotatedUpcaster(Method method,
-                             Function<SerializedObject<T, ?>, Stream<SerializedObject<T, ?>>> upcastFunction) {
+    public AnnotatedCaster(Method method, CastParameters castParameters,
+                           Function<SerializedObject<T, ?>, Stream<SerializedObject<T, ?>>> castFunction) {
         this.method = method;
-        this.annotation = method.getAnnotation(Upcast.class);
-        this.upcastFunction = upcastFunction;
+        this.parameters = castParameters;
+        this.castFunction = castFunction;
     }
 
     @SuppressWarnings("unchecked")
-    public <S extends SerializedObject<T, S>> Stream<S> upcast(S input) {
-        return annotation.type().equals(input.data().getType()) && annotation.revision() == input.data().getRevision()
-                ? (Stream<S>) upcastFunction.apply(input) : Stream.of(input);
-    }
-
-    public Upcast getAnnotation() {
-        return annotation;
+    public <S extends SerializedObject<T, S>> Stream<S> cast(S input) {
+        return parameters.type().equals(input.data().getType()) && parameters.revision() == input.data().getRevision()
+                ? (Stream<S>) castFunction.apply(input) : Stream.of(input);
     }
 
     @Override

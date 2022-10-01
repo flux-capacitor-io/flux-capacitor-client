@@ -15,12 +15,14 @@
 package io.fluxcapacitor.common.reflection;
 
 import com.fasterxml.jackson.databind.node.ObjectNode;
+import io.fluxcapacitor.common.serialization.JsonUtils;
 import lombok.NonNull;
 import lombok.SneakyThrows;
 import lombok.Value;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.reflect.FieldUtils;
 import org.apache.commons.lang3.reflect.MethodUtils;
+import org.jetbrains.annotations.Nullable;
 
 import java.beans.PropertyDescriptor;
 import java.lang.annotation.Annotation;
@@ -532,14 +534,47 @@ public class ReflectionUtils {
         return classForNameCache.apply(type);
     }
 
+    public static <A extends Annotation> Optional<A> getMethodAnnotation(Executable m, Class<A> a) {
+        return getMethodAnnotationParameters(m, a, a);
+    }
+
     /*
        Adopted from https://stackoverflow.com/questions/49105303/how-to-get-annotation-from-overridden-method-in-java/49164791
     */
+    @SneakyThrows
     @SuppressWarnings("unchecked")
-    public static <A extends Annotation> Optional<A> getMethodAnnotation(Executable m, Class<A> a) {
+    public static <T> Optional<T> getMethodAnnotationParameters(Executable m, Class<? extends Annotation> a,
+                                                                Class<T> returnType) {
         if (a == null) {
             return Optional.empty();
         }
+        Annotation result = findMatchingAnnotation(m, a);
+        if (a.equals(returnType) || result == null) {
+            return Optional.ofNullable((T) result);
+        }
+        Class<? extends Annotation> matchedType = result.annotationType();
+        Map<String, Object> params = new HashMap<>();
+        if (!matchedType.equals(a)) {
+            var typeAnnotation = matchedType.getAnnotation(a);
+            for (Method method : a.getDeclaredMethods()) {
+                params.put(method.getName(), method.invoke(typeAnnotation));
+            }
+        }
+        for (Method method : matchedType.getDeclaredMethods()) {
+            params.put(method.getName(), method.invoke(result));
+        }
+        if (Map.class.equals(returnType)) {
+            return Optional.of((T) params);
+        }
+        return Optional.of(JsonUtils.convertValue(params, returnType));
+    }
+
+    public static boolean has(Class<? extends Annotation> annotationClass, Method method) {
+        return findMatchingAnnotation(method, annotationClass) != null;
+    }
+
+    @Nullable
+    private static Annotation findMatchingAnnotation(Executable m, Class<? extends Annotation> a) {
         Annotation result = getTopLevelAnnotation(m, a);
         Class<?> c = m.getDeclaringClass();
 
@@ -556,7 +591,7 @@ public class ReflectionUtils {
                 }
             }
         }
-        return Optional.ofNullable((A) result);
+        return result;
     }
 
     private static Annotation getTopLevelAnnotation(Executable m, Class<? extends Annotation> a) {

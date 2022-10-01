@@ -17,7 +17,7 @@ package io.fluxcapacitor.javaclient.configuration.spring;
 import com.fasterxml.jackson.databind.node.TextNode;
 import io.fluxcapacitor.common.api.Metadata;
 import io.fluxcapacitor.javaclient.FluxCapacitor;
-import io.fluxcapacitor.javaclient.common.serialization.upcasting.Upcast;
+import io.fluxcapacitor.javaclient.common.serialization.casting.Upcast;
 import io.fluxcapacitor.javaclient.configuration.FluxCapacitorBuilder;
 import io.fluxcapacitor.javaclient.persisting.caching.DefaultCache;
 import io.fluxcapacitor.javaclient.persisting.eventsourcing.Apply;

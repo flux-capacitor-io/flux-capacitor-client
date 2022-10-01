@@ -20,16 +20,17 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.fasterxml.jackson.databind.node.TextNode;
 import io.fluxcapacitor.common.api.Data;
+import io.fluxcapacitor.common.serialization.JsonUtils;
 import io.fluxcapacitor.common.serialization.Revision;
 import io.fluxcapacitor.javaclient.common.serialization.DeserializingObject;
 import io.fluxcapacitor.javaclient.common.serialization.SerializationException;
-import io.fluxcapacitor.javaclient.common.serialization.upcasting.Upcast;
+import io.fluxcapacitor.javaclient.common.serialization.casting.Downcast;
+import io.fluxcapacitor.javaclient.common.serialization.casting.Upcast;
 import lombok.Value;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
 import java.util.Arrays;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -48,7 +49,7 @@ class JacksonSerializerTest {
             "io.fluxcapacitor.javaclient.common.serialization.jackson.JacksonSerializerTest$RevisedObject";
 
     private final ObjectMapper objectMapper = new ObjectMapper();
-    private JacksonSerializer serializer = new JacksonSerializer(Collections.singletonList(new RevisedObjectUpcaster()));
+    private final JacksonSerializer serializer = new JacksonSerializer(List.of(new CasterStub()));
 
     @Test
     void testSerialization() {
@@ -146,6 +147,21 @@ class JacksonSerializerTest {
         }
     }
 
+    @Nested
+    class DownCastingTests {
+        @Test
+        void downcastToIntermediateRevision() {
+            Object result = serializer.downcast(new RevisedObject("bla", 42), 1);
+            assertEquals(JsonUtils.valueToTree(Map.of("n", "bla", "someInteger", 42)), result);
+        }
+
+        @Test
+        void downcastAllTheWay() {
+            Object result = serializer.downcast(new RevisedObject("bla", 42), 0);
+            assertEquals(JsonUtils.valueToTree(Map.of("n", "bla")), result);
+        }
+    }
+
     @Value
     static class ComplexObject {
         Child child;
@@ -173,7 +189,7 @@ class JacksonSerializerTest {
         int someInteger;
     }
 
-    public static class RevisedObjectUpcaster {
+    public static class CasterStub {
         @Upcast(type = TYPE, revision = 0)
         public ObjectNode upcastFrom0(ObjectNode input) {
             return input.put("someInteger", 5);
@@ -187,6 +203,21 @@ class JacksonSerializerTest {
         @Upcast(type = TYPE, revision = 2)
         public Data<ObjectNode> upcastFrom2(Data<ObjectNode> input) {
             return new Data<>(input.getValue(), input.getType(), 3, "application/json");
+        }
+
+        @Downcast(type = TYPE, revision = 3)
+        public Data<ObjectNode> downcastFrom3(Data<ObjectNode> input) {
+            return new Data<>(input.getValue(), input.getType(), 2, "application/json");
+        }
+
+        @Downcast(type = TYPE, revision = 2)
+        public ObjectNode downcastFrom2(ObjectNode input) {
+            return input.put("n", input.remove("name").asText());
+        }
+
+        @Downcast(type = TYPE, revision = 1)
+        public ObjectNode downcastFrom1(ObjectNode input) {
+            return input.without("someInteger");
         }
     }
 

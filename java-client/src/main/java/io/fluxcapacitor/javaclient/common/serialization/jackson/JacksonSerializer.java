@@ -28,9 +28,9 @@ import io.fluxcapacitor.common.serialization.JsonUtils;
 import io.fluxcapacitor.javaclient.common.serialization.AbstractSerializer;
 import io.fluxcapacitor.javaclient.common.serialization.DeserializingObject;
 import io.fluxcapacitor.javaclient.common.serialization.SerializationException;
-import io.fluxcapacitor.javaclient.common.serialization.upcasting.Converter;
-import io.fluxcapacitor.javaclient.common.serialization.upcasting.Upcaster;
-import io.fluxcapacitor.javaclient.common.serialization.upcasting.UpcasterChain;
+import io.fluxcapacitor.javaclient.common.serialization.casting.Caster;
+import io.fluxcapacitor.javaclient.common.serialization.casting.CasterChain;
+import io.fluxcapacitor.javaclient.common.serialization.casting.Converter;
 import io.fluxcapacitor.javaclient.persisting.search.DocumentSerializer;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
@@ -46,14 +46,14 @@ import static io.fluxcapacitor.common.ObjectUtils.memoize;
 import static java.lang.String.format;
 
 @Slf4j
-public class JacksonSerializer extends AbstractSerializer implements DocumentSerializer {
+public class JacksonSerializer extends AbstractSerializer<JsonNode> implements DocumentSerializer {
     public static JsonMapper defaultObjectMapper = JsonUtils.writer;
 
     @Getter
     private final ObjectMapper objectMapper;
     private final Function<String, JavaType> typeCache = memoize(this::getJavaType);
     private final Function<Type, String> typeStringCache = memoize(this::getCanonicalType);
-    private final Upcaster<Data<JsonNode>> jsonNodeUpcaster;
+    private final Caster<Data<JsonNode>> jsonNodeUpcaster;
     private final Inverter<JsonNode> inverter;
 
     public JacksonSerializer() {
@@ -68,14 +68,14 @@ public class JacksonSerializer extends AbstractSerializer implements DocumentSer
         this(objectMapper, Collections.emptyList());
     }
 
-    public JacksonSerializer(ObjectMapper objectMapper, Collection<?> upcasters) {
-        this(objectMapper, upcasters, new ObjectNodeConverter(objectMapper));
+    public JacksonSerializer(ObjectMapper objectMapper, Collection<?> casterCandidates) {
+        this(objectMapper, casterCandidates, new ObjectNodeConverter(objectMapper));
     }
 
-    public JacksonSerializer(ObjectMapper objectMapper, Collection<?> upcasters, Converter<JsonNode> converter) {
-        super(UpcasterChain.createConverting(upcasters, converter), "application/json");
+    public JacksonSerializer(ObjectMapper objectMapper, Collection<?> casterCandidates, Converter<JsonNode> converter) {
+        super(casterCandidates, converter, "application/json");
         this.objectMapper = objectMapper;
-        this.jsonNodeUpcaster = UpcasterChain.create(upcasters, converter);
+        this.jsonNodeUpcaster = CasterChain.create(casterCandidates, JsonNode.class, false);
         this.inverter = new JacksonInverter(objectMapper);
     }
 
@@ -92,6 +92,11 @@ public class JacksonSerializer extends AbstractSerializer implements DocumentSer
     @Override
     protected Object doDeserialize(Data<byte[]> data, String type) throws Exception {
         return objectMapper.readValue(data.getValue(), typeCache.apply(type));
+    }
+
+    @Override
+    protected JsonNode asIntermediateValue(Object input) {
+        return objectMapper.valueToTree(input);
     }
 
     @Override
@@ -135,7 +140,7 @@ public class JacksonSerializer extends AbstractSerializer implements DocumentSer
     @Override
     public <T> T fromDocument(Document document) {
         JsonNode jsonNode = inverter.fromDocument(document);
-        return jsonNodeUpcaster.upcast(Stream.of(new Data<>(
+        return jsonNodeUpcaster.cast(Stream.of(new Data<>(
                         jsonNode, document.getType(), document.getRevision(), getFormat()))).findFirst()
                 .<T>map(d -> objectMapper.convertValue(d.getValue(), typeCache.apply(d.getType()))).orElse(null);
     }
@@ -143,7 +148,7 @@ public class JacksonSerializer extends AbstractSerializer implements DocumentSer
     @Override
     public <T> T fromDocument(Document document, Class<T> type) {
         JsonNode jsonNode = inverter.fromDocument(document);
-        return jsonNodeUpcaster.upcast(Stream.of(new Data<>(
+        return jsonNodeUpcaster.cast(Stream.of(new Data<>(
                         jsonNode, document.getType(), document.getRevision(), getFormat()))).findFirst()
                 .map(d -> objectMapper.convertValue(d.getValue(), type)).orElse(null);
     }

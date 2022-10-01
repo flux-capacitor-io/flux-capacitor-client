@@ -1,0 +1,9 @@
+{
+  "@class": "io.fluxcapacitor.common.api.Data",
+  "value": {
+    "@class": "io.fluxcapacitor.javaclient.common.serialization.casting.GivenWhenThenUpcasterChainTest$CreateModel",
+    "content": "someContent"
+  },
+  "type": "io.fluxcapacitor.javaclient.common.serialization.casting.GivenWhenThenUpcasterChainTest$CreateModel",
+  "revision": 0
+}

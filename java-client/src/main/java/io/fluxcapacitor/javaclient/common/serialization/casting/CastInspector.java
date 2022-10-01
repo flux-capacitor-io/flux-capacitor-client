@@ -12,12 +12,14 @@
  * limitations under the License.
  */
 
-package io.fluxcapacitor.javaclient.common.serialization.upcasting;
+package io.fluxcapacitor.javaclient.common.serialization.casting;
 
 import io.fluxcapacitor.common.api.Data;
 import io.fluxcapacitor.common.api.SerializedObject;
+import io.fluxcapacitor.common.reflection.ReflectionUtils;
 import io.fluxcapacitor.javaclient.common.serialization.SerializationException;
 
+import java.lang.annotation.Annotation;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.lang.reflect.ParameterizedType;
@@ -35,34 +37,42 @@ import java.util.stream.Stream;
 import static io.fluxcapacitor.common.reflection.ReflectionUtils.ensureAccessible;
 import static io.fluxcapacitor.common.reflection.ReflectionUtils.getAllMethods;
 
-public class UpcastInspector {
+public class CastInspector {
 
-    private static final Comparator<AnnotatedUpcaster<?>> upcasterComparator =
-            Comparator.<AnnotatedUpcaster<?>, Integer>comparing(u -> u.getAnnotation().revision())
-                    .thenComparing(u -> u.getAnnotation().type());
-
-    public static boolean hasAnnotatedMethods(Class<?> type) {
-        return getAllMethods(type).stream().anyMatch(m -> m.isAnnotationPresent(Upcast.class));
+    public static boolean hasCasterMethods(Class<?> type) {
+        return getAllMethods(type).stream().anyMatch(m -> ReflectionUtils.has(Cast.class, m));
     }
 
-    public static <T> List<AnnotatedUpcaster<T>> inspect(Collection<?> upcasters, Converter<T> patcher) {
-        List<AnnotatedUpcaster<T>> result = new ArrayList<>();
-        for (Object upcaster : upcasters) {
-            getAllMethods(upcaster.getClass()).stream().filter(m -> m.isAnnotationPresent(Upcast.class))
-                    .forEach(m -> result.add(createUpcaster(ensureAccessible(m), upcaster, patcher)));
+    public static <T> List<AnnotatedCaster<T>> getCasters(Class<? extends Annotation> castAnnotation,
+                                                          Collection<?> candidateTargets, Class<T> dataType,
+                                                          Comparator<AnnotatedCaster<?>> casterComparator) {
+        List<AnnotatedCaster<T>> result = new ArrayList<>();
+        for (Object caster : candidateTargets) {
+            getAllMethods(caster.getClass()).forEach(m -> createCaster(caster, m, dataType, castAnnotation)
+                    .ifPresent(result::add));
         }
-        result.sort(upcasterComparator);
+        result.sort(casterComparator);
         return result;
     }
 
-    private static <T> AnnotatedUpcaster<T> createUpcaster(Method method, Object target, Converter<T> patcher) {
-        if (method.getReturnType().equals(void.class)) {
-            return new AnnotatedUpcaster<>(method, i -> Stream.empty());
+    private static <T> Optional<AnnotatedCaster<T>> createCaster(Object target, Method m, Class<T> dataType,
+                                                                 Class<? extends Annotation> castAnnotation) {
+        if (!ReflectionUtils.has(castAnnotation, m)) {
+            return Optional.empty();
         }
-        Function<SerializedObject<T, ?>, Object> invokeFunction = invokeFunction(method, target, patcher.getDataType());
+        return ReflectionUtils.getMethodAnnotationParameters(m, Cast.class, CastParameters.class).map(
+                params -> createCaster(params, m, target, dataType));
+    }
+
+    private static <T> AnnotatedCaster<T> createCaster(CastParameters castParameters, Method method, Object target,
+                                                       Class<T> dataType) {
+        if (ensureAccessible(method).getReturnType().equals(void.class)) {
+            return new AnnotatedCaster<>(method, castParameters, i -> Stream.empty());
+        }
+        Function<SerializedObject<T, ?>, Object> invokeFunction = invokeFunction(method, target, dataType);
         BiFunction<SerializedObject<T, ?>, Supplier<Object>, Stream<SerializedObject<T, ?>>> resultMapper =
-                mapResult(method, patcher);
-        return new AnnotatedUpcaster<>(method, d -> resultMapper.apply(d, () -> invokeFunction.apply(d)));
+                mapResult(castParameters, method, dataType);
+        return new AnnotatedCaster<>(method, castParameters, d -> resultMapper.apply(d, () -> invokeFunction.apply(d)));
     }
 
     private static <T> Function<SerializedObject<T, ?>, Object> invokeFunction(Method method, Object target,
@@ -71,7 +81,7 @@ public class UpcastInspector {
         if (parameters.length > 1) {
             throw new SerializationException(
                     String.format("Upcaster method '%s' has unexpected number of parameters. Expected 1 or 0.",
-                            method));
+                                  method));
         }
         if (parameters.length == 0) {
             return s -> invokeMethod(method, null, target);
@@ -95,7 +105,7 @@ public class UpcastInspector {
 
     private static Object invokeMethod(Method method, Object argument, Object target) {
         try {
-            return argument==null? method.invoke(target) : method.invoke(target, argument);
+            return argument == null ? method.invoke(target) : method.invoke(target, argument);
         } catch (IllegalAccessException e) {
             throw new SerializationException("Not allowed to invoke method: " + method, e);
         } catch (InvocationTargetException e) {
@@ -105,12 +115,11 @@ public class UpcastInspector {
 
     @SuppressWarnings("unchecked")
     private static <T> BiFunction<SerializedObject<T, ?>, Supplier<Object>, Stream<SerializedObject<T, ?>>> mapResult(
-            Method method, Converter<T> patcher) {
-        Class<T> dataType = patcher.getDataType();
+            CastParameters annotation, Method method, Class<T> dataType) {
         if (dataType.isAssignableFrom(method.getReturnType())) {
-            Upcast annotation = method.getAnnotation(Upcast.class);
             return (s, o) -> Stream
-                    .of(s.withData(new Data<>((Supplier<T>) o, annotation.type(), annotation.revision() + 1,
+                    .of(s.withData(new Data<>((Supplier<T>) o, annotation.type(), annotation.revision()
+                                                                                  + annotation.revisionDelta(),
                                               s.data().getFormat())));
         }
         if (method.getReturnType().equals(Data.class)) {
@@ -121,12 +130,11 @@ public class UpcastInspector {
             if (parameterizedType.getActualTypeArguments()[0] instanceof Class<?>) {
                 Class<?> typeParameter = (Class<?>) parameterizedType.getActualTypeArguments()[0];
                 if (dataType.isAssignableFrom(typeParameter)) {
-                    Upcast annotation = method.getAnnotation(Upcast.class);
                     return (s, o) -> {
                         Optional<T> result = (Optional<T>) o.get();
-                        return result.stream()
-                                .map(t -> s.withData(new Data<>(t, annotation.type(), annotation.revision() + 1,
-                                                                s.data().getFormat())));
+                        return result.stream().map(t -> s.withData(new Data<>(
+                                t, annotation.type(), annotation.revision() + annotation.revisionDelta(),
+                                s.data().getFormat())));
                     };
                 }
             } else if (parameterizedType.getActualTypeArguments()[0] instanceof ParameterizedType) {

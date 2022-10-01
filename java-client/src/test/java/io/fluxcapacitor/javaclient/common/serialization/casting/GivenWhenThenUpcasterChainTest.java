@@ -12,7 +12,7 @@
  * limitations under the License.
  */
 
-package io.fluxcapacitor.javaclient.common.serialization.upcasting;
+package io.fluxcapacitor.javaclient.common.serialization.casting;
 
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import com.fasterxml.jackson.databind.node.ObjectNode;
@@ -34,30 +34,26 @@ import org.junit.jupiter.api.Test;
 
 import java.util.List;
 
-import static java.util.Collections.singletonList;
-
 public class GivenWhenThenUpcasterChainTest {
     private static final String aggregateId = "test";
 
-    static class WithJsonNode {
-        private final TestFixture testFixture = TestFixture.createAsync(
-                DefaultFluxCapacitor.builder().replaceSerializer(
-                        new JacksonSerializer(singletonList(new JsonNodeUpcaster()))), new Handler());
+    private final TestFixture testFixture = TestFixture.createAsync(
+            DefaultFluxCapacitor.builder().replaceSerializer(
+                    new JacksonSerializer(List.of(new JsonNodeUpcaster()))), new Handler());
 
-        @Test
-        void testUpcastingWithDataInput() {
-            testFixture.givenAppliedEvents(aggregateId, TestModel.class, JsonUtils
-                    .fromFile( "create-model-revision-0.json", Object.class))
-                    .whenQuery(new GetModel())
-                    .expectResult(new TestModel(singletonList(new CreateModel("patchedContent"))));
-        }
+    @Test
+    void testUpcastingWithDataInput() {
+        testFixture.givenAppliedEvents(aggregateId, TestModel.class, JsonUtils
+                        .fromFile( "create-model-revision-0.json", Object.class))
+                .whenQuery(new GetModel())
+                .expectResult(new TestModel(List.of(new CreateModel("patchedContent"))));
+    }
 
-        public static class JsonNodeUpcaster {
-            @Upcast(type = "io.fluxcapacitor.javaclient.common.serialization.upcasting.GivenWhenThenUpcasterChainTest$CreateModel",
-                    revision = 0)
-            public ObjectNode upcast(ObjectNode input) {
-                return input.put("content", "patchedContent");
-            }
+    public static class JsonNodeUpcaster {
+        @Upcast(type = "io.fluxcapacitor.javaclient.common.serialization.casting.GivenWhenThenUpcasterChainTest$CreateModel",
+                revision = 0)
+        public ObjectNode upcast(ObjectNode input) {
+            return input.put("content", "patchedContent");
         }
     }
 
@@ -103,7 +99,7 @@ public class GivenWhenThenUpcasterChainTest {
 
         @ApplyEvent
         public static TestModel handle(CreateModel event) {
-            return new TestModel(singletonList(event));
+            return new TestModel(List.of(event));
         }
 
         @ApplyEvent
