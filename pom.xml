@@ -110,6 +110,13 @@
                 <scope>import</scope>
                 <type>pom</type>
             </dependency>
+
+            <!--Version 3.8.7 has vulnerability CVE-2022-0084-->
+            <dependency>
+                <groupId>org.jboss.xnio</groupId>
+                <artifactId>xnio-api</artifactId>
+                <version>3.8.8.Final</version>
+            </dependency>
         </dependencies>
     </dependencyManagement>
 
