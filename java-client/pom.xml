@@ -30,7 +30,7 @@
     <url>https://flux-capacitor.io</url>
 
     <properties>
-        <hibernate-validator.version>7.0.5.Final</hibernate-validator.version>
+        <hibernate-validator.version>8.0.0.Final</hibernate-validator.version>
     </properties>
 
     <dependencies>
@@ -51,7 +51,7 @@
         <!--websocket client-->
         <dependency>
             <groupId>io.undertow</groupId>
-            <artifactId>undertow-websockets-jsr</artifactId>
+            <artifactId>undertow-websockets-jsr-jakarta</artifactId>
             <version>${undertow.version}</version>
         </dependency>
 
@@ -106,11 +106,10 @@
             </exclusions>
         </dependency>
 
-        <!--undertow server for testing of web forwarding. Upgrading to 6.0.0 gives jakarta/javax name space issues. -->
         <dependency>
             <groupId>org.jboss.resteasy</groupId>
             <artifactId>resteasy-undertow</artifactId>
-            <version>5.0.1.Final</version>
+            <version>6.2.0.Final</version>
             <scope>test</scope>
             <exclusions>
                 <exclusion>

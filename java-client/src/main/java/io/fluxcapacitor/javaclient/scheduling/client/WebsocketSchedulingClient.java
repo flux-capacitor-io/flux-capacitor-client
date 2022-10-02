@@ -24,8 +24,8 @@ import io.fluxcapacitor.common.api.scheduling.Schedule;
 import io.fluxcapacitor.common.api.scheduling.SerializedSchedule;
 import io.fluxcapacitor.javaclient.common.websocket.AbstractWebsocketClient;
 import io.fluxcapacitor.javaclient.configuration.client.WebSocketClient.ClientConfig;
+import jakarta.websocket.ClientEndpoint;
 
-import javax.websocket.ClientEndpoint;
 import java.net.URI;
 import java.util.List;
 

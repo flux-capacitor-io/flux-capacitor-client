@@ -42,8 +42,8 @@ import io.fluxcapacitor.common.search.Document;
 import io.fluxcapacitor.javaclient.common.websocket.AbstractWebsocketClient;
 import io.fluxcapacitor.javaclient.configuration.client.WebSocketClient;
 import io.fluxcapacitor.javaclient.persisting.search.SearchHit;
+import jakarta.websocket.ClientEndpoint;
 
-import javax.websocket.ClientEndpoint;
 import java.net.URI;
 import java.time.Instant;
 import java.util.Collection;
