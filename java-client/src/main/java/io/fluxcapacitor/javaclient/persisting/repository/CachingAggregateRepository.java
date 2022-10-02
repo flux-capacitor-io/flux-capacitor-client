@@ -59,11 +59,6 @@ public class CachingAggregateRepository implements AggregateRepository {
         return delegate.getAggregatesFor(entityId);
     }
 
-    @Override
-    public void applyEvents(String aggregateId, Object... events) {
-        delegate.applyEvents(aggregateId, events);
-    }
-
     protected void handleEvents(List<SerializedMessage> messages) {
         try {
             handleBatch(serializer.deserializeMessages(messages.stream(), EVENT)).forEach(this::handleEvent);

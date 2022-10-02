@@ -98,24 +98,6 @@ public class DefaultAggregateRepository implements AggregateRepository {
     }
 
     @Override
-    public void applyEvents(String aggregateId, Object... events) {
-        if (!Entity.isLoading()) {
-            getIfCached(aggregateId).ifPresentOrElse(
-                    a -> a.apply(events), () -> eventStore.storeEvents(aggregateId, events));
-        }
-    }
-
-    @SuppressWarnings({"unchecked", "rawtypes"})
-    protected Optional<ModifiableAggregateRoot<Object>> getIfCached(String aggregateId) {
-        return ModifiableAggregateRoot.getIfActive(aggregateId).or(
-                () -> {
-                    Entity<?> aggregate = cache.getIfPresent(aggregateId);
-                    return (Optional) ofNullable(aggregate).flatMap(
-                            aggregateRoot -> ofNullable(delegates.apply(aggregateRoot.type()).load(aggregateId)));
-                });
-    }
-
-    @Override
     public boolean cachingAllowed(Class<?> type) {
         return delegates.apply(type).isCached();
     }

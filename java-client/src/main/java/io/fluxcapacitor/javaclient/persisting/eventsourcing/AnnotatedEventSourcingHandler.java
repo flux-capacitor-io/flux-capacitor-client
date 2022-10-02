@@ -75,18 +75,24 @@ public class AnnotatedEventSourcingHandler<T> implements EventSourcingHandler<T>
                     @Override
                     public Object invoke(BiFunction<Object, Object, Object> combiner) {
                         return message.apply(m -> {
-                            Object entityValue = entity.get();
-                            Object result = delegate.invoke();
-                            if (entityValue == null) {
-                                return handlerType.cast(result);
+                            boolean wasApplying = Entity.isApplying();
+                            try {
+                                Entity.applying.set(true);
+                                Object entityValue = entity.get();
+                                Object result = delegate.invoke();
+                                if (entityValue == null) {
+                                    return handlerType.cast(result);
+                                }
+                                if (handlerType.isInstance(result)) {
+                                    return handlerType.cast(result);
+                                }
+                                if (result == null && delegate.expectResult()) {
+                                    return null; //this handler has deleted the entity on purpose
+                                }
+                                return entityValue; //Annotated method returned void - apparently the entity is mutable
+                            } finally {
+                                Entity.applying.set(wasApplying);
                             }
-                            if (handlerType.isInstance(result)) {
-                                return handlerType.cast(result);
-                            }
-                            if (result == null && delegate.expectResult()) {
-                                return null; //this handler has deleted the entity on purpose
-                            }
-                            return entityValue; //Annotated method returned void - apparently the entity is mutable
                         });
                     }
                 });

@@ -382,7 +382,7 @@ public interface FluxCapacitor extends AutoCloseable {
     private static <T> Entity<T> playbackToHandledEvent(Entity<T> aggregateRoot) {
         DeserializingMessage message = DeserializingMessage.getCurrent();
         if (message != null && (message.getMessageType() == EVENT || message.getMessageType() == NOTIFICATION)
-            && aggregateRoot.id().equals(Entity.getAggregateId(message))) {
+            && aggregateRoot.id().equals(Entity.getAggregateId(message)) && !Entity.isApplying()) {
             return aggregateRoot.playBackToEvent(message.getMessageId());
         }
         return aggregateRoot;
@@ -425,14 +425,6 @@ public interface FluxCapacitor extends AutoCloseable {
     @SuppressWarnings("unchecked")
     static <T> Optional<T> loadEntityValue(String entityId) {
         return loadAggregateFor(entityId).getEntity(entityId).map(e -> (T) e.get());
-    }
-
-    /**
-     * Convenience method to apply the given events to the aggregate with id {@code aggregateId} without loading the
-     * aggregate. Events may be {@link Message} instances or event message payloads.
-     */
-    static void applyEvents(String aggregateId, Object... events) {
-        get().aggregateRepository().applyEvents(aggregateId, events);
     }
 
     /**

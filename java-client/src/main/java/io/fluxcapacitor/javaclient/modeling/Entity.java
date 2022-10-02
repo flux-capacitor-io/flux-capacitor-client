@@ -47,11 +47,15 @@ import static java.util.Collections.emptyList;
 public interface Entity<T> {
 
     ThreadLocal<Boolean> loading = ThreadLocal.withInitial(() -> false);
+    ThreadLocal<Boolean> applying = ThreadLocal.withInitial(() -> false);
     String AGGREGATE_ID_METADATA_KEY = "$aggregateId";
     String AGGREGATE_TYPE_METADATA_KEY = "$aggregateType";
 
     static boolean isLoading() {
         return loading.get();
+    }
+    static boolean isApplying() {
+        return applying.get();
     }
 
     static String getAggregateId(HasMetadata message) {

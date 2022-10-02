@@ -189,7 +189,7 @@ class EventSourcingRepositoryTest {
         @Test
         void applyEventsWithoutLoadingAggregateUpdatesCache() {
             testFixture.givenCommands(new CreateModel())
-                    .given(fc -> FluxCapacitor.applyEvents(aggregateId, new UpdateModel()))
+                    .givenAppliedEvents(aggregateId, TestModel.class, new UpdateModel())
                     .whenQuery(new GetModel())
                     .expectResult(new TestModel(Arrays.asList(new CreateModel(), new UpdateModel()), Metadata.empty()));
         }
@@ -197,7 +197,7 @@ class EventSourcingRepositoryTest {
         @Test
         void applyMultipleEventsOutsideHandler() {
             testFixture.givenCommands(new CreateModel())
-                    .given(fc -> FluxCapacitor.applyEvents(aggregateId, new UpdateModel(), new UpdateModel()))
+                    .givenAppliedEvents(aggregateId, TestModel.class, new UpdateModel(), new UpdateModel())
                     .whenQuery(new GetModel())
                     .expectResult(new TestModel(Arrays.asList(new CreateModel(), new UpdateModel(), new UpdateModel()), Metadata.empty()));
         }
@@ -266,7 +266,7 @@ class EventSourcingRepositoryTest {
 
         @ApplyEvent
         void handle(ApplyWhileApplying event) {
-            FluxCapacitor.applyEvents(aggregateId, new UpdateModel());
+            FluxCapacitor.loadEntity(aggregateId).apply(new UpdateModel());
             events.add(event);
         }
     }
@@ -350,9 +350,8 @@ class EventSourcingRepositoryTest {
     }
 
     @Aggregate(eventSourced = false, snapshotPeriod = 3, cached = false)
-    @NoArgsConstructor
     @Value
-    @Builder
+    @NoArgsConstructor
     static class TestModelNotEventSourced {
         List<String> names = new ArrayList<>();
 
