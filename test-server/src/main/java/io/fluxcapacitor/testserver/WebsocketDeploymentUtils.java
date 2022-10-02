@@ -21,14 +21,14 @@ import io.undertow.server.handlers.PathHandler;
 import io.undertow.servlet.Servlets;
 import io.undertow.servlet.api.DeploymentManager;
 import io.undertow.websockets.jsr.WebSocketDeploymentInfo;
-import jakarta.websocket.Endpoint;
-import jakarta.websocket.server.ServerEndpointConfig;
 import lombok.SneakyThrows;
 import org.xnio.OptionMap;
 import org.xnio.Options;
 import org.xnio.Xnio;
 import org.xnio.XnioWorker;
 
+import javax.websocket.Endpoint;
+import javax.websocket.server.ServerEndpointConfig;
 import java.util.function.Function;
 
 import static io.undertow.servlet.Servlets.deployment;

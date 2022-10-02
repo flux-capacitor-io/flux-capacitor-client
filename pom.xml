@@ -38,7 +38,7 @@
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
         <undertow.version>2.2.19.Final</undertow.version>
-        <kotlin.version>1.7.20</kotlin.version>
+        <kotlin.version>1.7.20-RC</kotlin.version>
     </properties>
 
     <dependencies>
@@ -54,7 +54,7 @@
         <dependency>
             <groupId>org.junit.jupiter</groupId>
             <artifactId>junit-jupiter-engine</artifactId>
-            <version>5.9.1</version>
+            <version>5.9.0</version>
             <scope>test</scope>
         </dependency>
         <dependency>
@@ -68,7 +68,7 @@
         <dependency>
             <groupId>ch.qos.logback</groupId>
             <artifactId>logback-classic</artifactId>
-            <version>1.4.1</version>
+            <version>1.4.0</version>
             <optional>true</optional>
         </dependency>
 
@@ -106,7 +106,7 @@
             <dependency>
                 <groupId>org.springframework</groupId>
                 <artifactId>spring-framework-bom</artifactId>
-                <version>5.3.23</version>
+                <version>5.3.22</version>
                 <scope>import</scope>
                 <type>pom</type>
             </dependency>

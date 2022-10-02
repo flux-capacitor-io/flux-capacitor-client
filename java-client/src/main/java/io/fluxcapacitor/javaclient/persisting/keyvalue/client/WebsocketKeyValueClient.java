@@ -28,8 +28,8 @@ import io.fluxcapacitor.common.api.keyvalue.StoreValues;
 import io.fluxcapacitor.common.api.keyvalue.StoreValuesAndWait;
 import io.fluxcapacitor.javaclient.common.websocket.AbstractWebsocketClient;
 import io.fluxcapacitor.javaclient.configuration.client.WebSocketClient;
-import jakarta.websocket.ClientEndpoint;
 
+import javax.websocket.ClientEndpoint;
 import java.net.URI;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;

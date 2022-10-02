@@ -28,17 +28,17 @@ import io.fluxcapacitor.common.api.ResultBatch;
 import io.fluxcapacitor.javaclient.FluxCapacitor;
 import io.fluxcapacitor.javaclient.configuration.client.WebSocketClient;
 import io.fluxcapacitor.javaclient.configuration.client.WebSocketClient.ClientConfig;
-import jakarta.websocket.CloseReason;
-import jakarta.websocket.ContainerProvider;
-import jakarta.websocket.OnClose;
-import jakarta.websocket.OnError;
-import jakarta.websocket.OnMessage;
-import jakarta.websocket.Session;
-import jakarta.websocket.WebSocketContainer;
 import lombok.RequiredArgsConstructor;
 import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
 
+import javax.websocket.CloseReason;
+import javax.websocket.ContainerProvider;
+import javax.websocket.OnClose;
+import javax.websocket.OnError;
+import javax.websocket.OnMessage;
+import javax.websocket.Session;
+import javax.websocket.WebSocketContainer;
 import java.io.OutputStream;
 import java.net.URI;
 import java.time.Duration;
@@ -57,10 +57,10 @@ import static io.fluxcapacitor.common.serialization.compression.CompressionUtils
 import static io.fluxcapacitor.common.serialization.compression.CompressionUtils.decompress;
 import static io.fluxcapacitor.javaclient.FluxCapacitor.currentCorrelationData;
 import static io.fluxcapacitor.javaclient.FluxCapacitor.publishMetrics;
-import static jakarta.websocket.CloseReason.CloseCodes.NO_STATUS_CODE;
 import static java.lang.System.currentTimeMillis;
 import static java.lang.Thread.currentThread;
 import static java.lang.Thread.sleep;
+import static javax.websocket.CloseReason.CloseCodes.NO_STATUS_CODE;
 
 @Slf4j
 public abstract class AbstractWebsocketClient implements AutoCloseable {

@@ -14,9 +14,9 @@
 
 package io.fluxcapacitor.javaclient.common.websocket;
 
-import jakarta.websocket.Session;
 import lombok.extern.slf4j.Slf4j;
 
+import javax.websocket.Session;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;

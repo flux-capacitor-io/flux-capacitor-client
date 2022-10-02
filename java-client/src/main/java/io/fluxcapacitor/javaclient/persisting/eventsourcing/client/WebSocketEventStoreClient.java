@@ -30,8 +30,8 @@ import io.fluxcapacitor.javaclient.common.websocket.AbstractWebsocketClient;
 import io.fluxcapacitor.javaclient.configuration.client.WebSocketClient;
 import io.fluxcapacitor.javaclient.configuration.client.WebSocketClient.ClientConfig;
 import io.fluxcapacitor.javaclient.persisting.eventsourcing.AggregateEventStream;
-import jakarta.websocket.ClientEndpoint;
 
+import javax.websocket.ClientEndpoint;
 import java.net.URI;
 import java.util.List;
 import java.util.Map;
