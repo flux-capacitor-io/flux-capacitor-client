@@ -1,87 +1,84 @@
-/*
- * Copyright (c) 2016-2021 Flux Capacitor.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *     http://www.apache.org/licenses/LICENSE-2.0
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
-
 package io.fluxcapacitor.javaclient.persisting.caching;
 
-import com.google.common.cache.CacheBuilder;
-import lombok.AllArgsConstructor;
-import lombok.NonNull;
-import lombok.extern.slf4j.Slf4j;
 
-import java.util.concurrent.ConcurrentMap;
+import lombok.AllArgsConstructor;
+
+import java.lang.ref.SoftReference;
+import java.util.LinkedHashMap;
+import java.util.Map;
 import java.util.function.BiFunction;
 import java.util.function.Function;
 
-@Slf4j
+import static java.util.Collections.synchronizedMap;
+
 @AllArgsConstructor
 public class DefaultCache implements Cache {
-    private final ConcurrentMap<Object, Object> cache;
+    private final Map<Object, SoftReference<Object>> delegate;
 
     public DefaultCache() {
         this(1_000);
     }
 
     public DefaultCache(int maxSize) {
-        this.cache = CacheBuilder.newBuilder().maximumSize(maxSize).softValues().build().asMap();
+        this.delegate = synchronizedMap(new LinkedHashMap<>(16, 0.75f, true) {
+            @Override
+            protected boolean removeEldestEntry(Map.Entry<Object, SoftReference<Object>> eldest) {
+                return size() > maxSize;
+            }
+        });
     }
 
     @Override
-    public Object put(Object id, @NonNull Object value) {
-        return cache.put(id, value);
+    public Object put(Object id, Object value) {
+        return unwrap(delegate.put(id, new SoftReference<>(value)));
     }
 
     @Override
-    public Object putIfAbsent(Object id, @NonNull Object value) {
-        return cache.putIfAbsent(id, value);
+    public Object putIfAbsent(Object id, Object value) {
+        return computeIfAbsent(id, k -> value);
     }
 
-    @SuppressWarnings("unchecked")
     @Override
     public <T> T computeIfAbsent(Object id, Function<? super Object, T> mappingFunction) {
-        return (T) cache.computeIfAbsent(id, mappingFunction);
+        return unwrap(delegate.compute(id, (k, v) -> unwrap(v) == null ? new SoftReference<>(mappingFunction.apply(k)) : v));
     }
 
     @Override
-    @SuppressWarnings("unchecked")
     public <T> T computeIfPresent(Object id, BiFunction<? super Object, ? super T, ? extends T> mappingFunction) {
-        return (T) cache.computeIfPresent(id, (BiFunction<? super Object, ? super Object, ?>) mappingFunction);
+        return unwrap(
+                delegate.compute(id, (k, v) -> {
+                    T current = unwrap(v);
+                    return current == null ? null : new SoftReference<>(mappingFunction.apply(k, current));
+                }));
     }
 
     @Override
-    @SuppressWarnings("unchecked")
     public <T> T compute(Object id, BiFunction<? super Object, ? super T, ? extends T> mappingFunction) {
-        return (T) cache.compute(id, (BiFunction<? super Object, ? super Object, ?>) mappingFunction);
+        return unwrap(delegate.compute(id, (k, v) -> new SoftReference<>(mappingFunction.apply(k, unwrap(v)))));
     }
 
-    @SuppressWarnings("unchecked")
     @Override
     public <T> T getIfPresent(Object id) {
-        return (T) cache.get(id);
+        return unwrap(delegate.get(id));
     }
 
     @Override
     public void invalidate(Object id) {
-        cache.remove(id);
+        delegate.remove(id);
     }
 
     @Override
     public void invalidateAll() {
-        cache.clear();
+        delegate.clear();
     }
 
     @Override
     public int size() {
-        return cache.size();
+        return delegate.size();
+    }
+
+    @SuppressWarnings("unchecked")
+    protected <T> T unwrap(SoftReference<Object> ref) {
+        return ref == null ? null : (T) ref.get();
     }
 }

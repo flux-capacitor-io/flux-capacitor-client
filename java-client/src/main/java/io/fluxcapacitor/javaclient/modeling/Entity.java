@@ -14,7 +14,6 @@
 
 package io.fluxcapacitor.javaclient.modeling;
 
-import com.google.common.collect.Sets;
 import io.fluxcapacitor.common.api.HasMetadata;
 import io.fluxcapacitor.common.api.Metadata;
 import io.fluxcapacitor.common.api.modeling.Relationship;
@@ -27,6 +26,7 @@ import io.fluxcapacitor.javaclient.tracking.handling.validation.ValidationUtils;
 import java.time.Instant;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
@@ -152,11 +152,15 @@ public interface Entity<T> {
     }
 
     default Set<Relationship> associations(Entity<?> previous) {
-        return Sets.difference(relationships(), previous.relationships());
+        Set<Relationship> result = new HashSet<>(relationships());
+        result.removeAll(previous.relationships());
+        return result;
     }
 
     default Set<Relationship> dissociations(Entity<?> previous) {
-        return Sets.difference(previous.relationships(), relationships());
+        Set<Relationship> result = new HashSet<>(previous.relationships());
+        result.removeAll(relationships());
+        return result;
     }
 
     Entity<T> update(UnaryOperator<T> function);

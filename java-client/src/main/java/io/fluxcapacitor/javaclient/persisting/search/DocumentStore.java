@@ -20,7 +20,6 @@ import io.fluxcapacitor.common.api.search.SearchQuery;
 import io.fluxcapacitor.javaclient.modeling.EntityId;
 import lombok.SneakyThrows;
 
-import javax.annotation.Nullable;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.Arrays;
@@ -66,19 +65,19 @@ public interface DocumentStore {
     }
 
     @SneakyThrows
-    default void index(Collection<?> objects, String collection, @Nullable String idPath,
-                       @Nullable String timestampPath) {
+    default void index(Collection<?> objects, String collection, String idPath,
+                       String timestampPath) {
         index(objects, collection, idPath, timestampPath, timestampPath, Guarantee.STORED, false).get();
     }
 
     @SneakyThrows
-    default void index(Collection<?> objects, String collection, @Nullable String idPath,
-                       @Nullable String beginPath, @Nullable String endPath) {
+    default void index(Collection<?> objects, String collection, String idPath,
+                       String beginPath, String endPath) {
         index(objects, collection, idPath, beginPath, endPath, Guarantee.STORED, false).get();
     }
 
-    CompletableFuture<Void> index(Collection<?> objects, String collection, @Nullable String idPath,
-                                  @Nullable String beginPath, @Nullable String endPath, Guarantee guarantee,
+    CompletableFuture<Void> index(Collection<?> objects, String collection, String idPath,
+                                  String beginPath, String endPath, Guarantee guarantee,
                                   boolean ifNotExists);
 
     @SneakyThrows
@@ -128,14 +127,14 @@ public interface DocumentStore {
     }
 
     @SneakyThrows
-    default <T> void indexIfNotExists(Collection<? extends T> objects, String collection, @Nullable String idPath,
-                                      @Nullable String timestampPath) {
+    default <T> void indexIfNotExists(Collection<? extends T> objects, String collection, String idPath,
+                                      String timestampPath) {
         index(objects, collection, idPath, timestampPath, timestampPath, Guarantee.STORED, true).get();
     }
 
     @SneakyThrows
-    default <T> void indexIfNotExists(Collection<? extends T> objects, String collection, @Nullable String idPath,
-                                      @Nullable String beginPath, @Nullable String endPath) {
+    default <T> void indexIfNotExists(Collection<? extends T> objects, String collection, String idPath,
+                                      String beginPath, String endPath) {
         index(objects, collection, idPath, beginPath, endPath, Guarantee.STORED, true).get();
     }
 

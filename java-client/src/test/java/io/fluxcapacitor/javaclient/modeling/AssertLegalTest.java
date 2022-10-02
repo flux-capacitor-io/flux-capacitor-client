@@ -1,6 +1,7 @@
 package io.fluxcapacitor.javaclient.modeling;
 
 import io.fluxcapacitor.javaclient.MockException;
+import io.fluxcapacitor.javaclient.common.Nullable;
 import io.fluxcapacitor.javaclient.persisting.eventsourcing.Apply;
 import io.fluxcapacitor.javaclient.persisting.eventsourcing.ApplyEvent;
 import io.fluxcapacitor.javaclient.test.TestFixture;
@@ -8,7 +9,6 @@ import io.fluxcapacitor.javaclient.tracking.handling.HandleCommand;
 import lombok.Value;
 import org.junit.jupiter.api.Test;
 
-import javax.annotation.Nullable;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
 

@@ -14,16 +14,14 @@
 
 package io.fluxcapacitor.javaclient.persisting.caching;
 
-import lombok.NonNull;
-
 import java.util.Optional;
 import java.util.function.BiFunction;
 import java.util.function.Function;
 
 public interface Cache {
-    Object put(Object id, @NonNull Object value);
+    Object put(Object id, Object value);
 
-    Object putIfAbsent(Object id, @NonNull Object value);
+    Object putIfAbsent(Object id, Object value);
 
     <T> T computeIfAbsent(Object id, Function<? super Object, T> mappingFunction);
 

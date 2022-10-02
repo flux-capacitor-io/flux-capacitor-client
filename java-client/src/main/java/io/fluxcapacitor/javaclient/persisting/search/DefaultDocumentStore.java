@@ -35,7 +35,6 @@ import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
-import javax.annotation.Nullable;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
@@ -75,8 +74,8 @@ public class DefaultDocumentStore implements DocumentStore {
 
     @Override
     public CompletableFuture<Void> index(Collection<?> objects, String collection,
-                                         @Nullable String idPath, @Nullable String beginPath,
-                                         @Nullable String endPath, Guarantee guarantee, boolean ifNotExists) {
+                                         String idPath, String beginPath,
+                                         String endPath, Guarantee guarantee, boolean ifNotExists) {
         List<Document> documents = objects.stream().map(v -> serializer.toDocument(
                 v, currentIdentityProvider().nextTechnicalId(), collection, null, null)).map(d -> {
             Document.DocumentBuilder builder = d.toBuilder();

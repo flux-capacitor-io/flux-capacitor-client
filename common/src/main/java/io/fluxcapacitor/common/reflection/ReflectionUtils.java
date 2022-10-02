@@ -22,7 +22,6 @@ import lombok.Value;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.reflect.FieldUtils;
 import org.apache.commons.lang3.reflect.MethodUtils;
-import org.jetbrains.annotations.Nullable;
 
 import java.beans.PropertyDescriptor;
 import java.lang.annotation.Annotation;
@@ -573,7 +572,6 @@ public class ReflectionUtils {
         return findMatchingAnnotation(method, annotationClass) != null;
     }
 
-    @Nullable
     private static Annotation findMatchingAnnotation(Executable m, Class<? extends Annotation> a) {
         Annotation result = getTopLevelAnnotation(m, a);
         Class<?> c = m.getDeclaringClass();

@@ -51,7 +51,6 @@ import io.fluxcapacitor.javaclient.tracking.handling.HandleCommand;
 import io.fluxcapacitor.javaclient.tracking.handling.LocalHandler;
 import io.fluxcapacitor.javaclient.tracking.handling.authentication.UserProvider;
 
-import javax.annotation.Nullable;
 import java.time.Clock;
 import java.time.Instant;
 import java.util.Arrays;
@@ -455,7 +454,7 @@ public interface FluxCapacitor extends AutoCloseable {
      *
      * @see DocumentStore for more advanced uses.
      */
-    static void index(Object object, String id, String collection, @Nullable Instant timestamp) {
+    static void index(Object object, String id, String collection, Instant timestamp) {
         get().documentStore().index(object, id, collection, timestamp);
     }
 
@@ -464,7 +463,7 @@ public interface FluxCapacitor extends AutoCloseable {
      *
      * @see DocumentStore for more advanced uses.
      */
-    static void index(Object object, String id, String collection, @Nullable Instant begin, @Nullable Instant end) {
+    static void index(Object object, String id, String collection, Instant begin, Instant end) {
         get().documentStore().index(object, id, collection, begin, end);
     }
 

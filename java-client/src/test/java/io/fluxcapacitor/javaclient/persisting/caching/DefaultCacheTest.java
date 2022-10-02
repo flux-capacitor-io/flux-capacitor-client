@@ -4,11 +4,10 @@ import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
-import static org.junit.jupiter.api.Assertions.assertThrows;
 
 class DefaultCacheTest {
 
-    private final DefaultCache defaultCache = new DefaultCache();
+    private final Cache defaultCache = new DefaultCache();
 
     @Test
     void testPutAndGet() {
@@ -16,10 +15,10 @@ class DefaultCacheTest {
         assertEquals("bar", defaultCache.getIfPresent("foo"));
     }
 
-    @SuppressWarnings("ConstantConditions")
     @Test
-    void testAddingNullNotAllowed() {
-        assertThrows(NullPointerException.class, () -> defaultCache.put("id", null));
+    void testAddingNullAllowed() {
+        defaultCache.put("id", null);
+        assertNull(defaultCache.getIfPresent("id"));
     }
 
     @Test
