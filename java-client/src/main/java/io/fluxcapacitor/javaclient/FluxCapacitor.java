@@ -28,6 +28,7 @@ import io.fluxcapacitor.javaclient.configuration.client.Client;
 import io.fluxcapacitor.javaclient.configuration.spring.FluxCapacitorSpringConfig;
 import io.fluxcapacitor.javaclient.modeling.Aggregate;
 import io.fluxcapacitor.javaclient.modeling.Entity;
+import io.fluxcapacitor.javaclient.modeling.EntityId;
 import io.fluxcapacitor.javaclient.persisting.caching.Cache;
 import io.fluxcapacitor.javaclient.persisting.eventsourcing.EventStore;
 import io.fluxcapacitor.javaclient.persisting.keyvalue.KeyValueStore;
@@ -435,6 +436,20 @@ public interface FluxCapacitor extends AutoCloseable {
     }
 
     /**
+     * Index given object for search.
+     * <p>
+     * If the object has a property annotated with {@link EntityId}, it will be used as the id of the document.
+     * Otherwise, a random id will be assigned to the document.
+     * <p>
+     * This method returns once the object is stored.
+     *
+     * @see DocumentStore for more advanced uses.
+     */
+    static void index(Object object, String collection) {
+        get().documentStore().index(object, collection);
+    }
+
+    /**
      * Index given object for search. This method returns once the object is stored.
      *
      * @see DocumentStore for more advanced uses.
@@ -457,8 +472,8 @@ public interface FluxCapacitor extends AutoCloseable {
      *
      * @see DocumentStore for more advanced uses.
      */
-    static void index(Object object, String id, String collection, @Nullable Instant timestamp, @Nullable Instant end) {
-        get().documentStore().index(object, id, collection, timestamp, end);
+    static void index(Object object, String id, String collection, @Nullable Instant begin, @Nullable Instant end) {
+        get().documentStore().index(object, id, collection, begin, end);
     }
 
     /**

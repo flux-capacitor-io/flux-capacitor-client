@@ -67,35 +67,35 @@ public class DefaultDocumentStore implements DocumentStore {
                                          Instant end, Guarantee guarantee, boolean ifNotExists) {
         try {
             return client.index(singletonList(serializer.toDocument(object, id, collection, begin, end)),
-                    guarantee, ifNotExists).asCompletableFuture();
+                                guarantee, ifNotExists).asCompletableFuture();
         } catch (Exception e) {
             throw new DocumentStoreException(format("Could not store a document %s for id %s", object, id), e);
         }
     }
 
     @Override
-    public <T> CompletableFuture<Void> index(Collection<? extends T> objects, String collection,
-                                             @Nullable String idPath, @Nullable String beginPath,
-                                             @Nullable String endPath, Guarantee guarantee, boolean ifNotExists) {
+    public CompletableFuture<Void> index(Collection<?> objects, String collection,
+                                         @Nullable String idPath, @Nullable String beginPath,
+                                         @Nullable String endPath, Guarantee guarantee, boolean ifNotExists) {
         List<Document> documents = objects.stream().map(v -> serializer.toDocument(
                 v, currentIdentityProvider().nextTechnicalId(), collection, null, null)).map(d -> {
             Document.DocumentBuilder builder = d.toBuilder();
             if (idPath != null) {
                 builder.id(d.getEntryAtPath(idPath).filter(
-                        e -> e.getType() == Document.EntryType.TEXT || e.getType() == Document.EntryType.NUMERIC)
+                                e -> e.getType() == Document.EntryType.TEXT || e.getType() == Document.EntryType.NUMERIC)
                                    .map(Document.Entry::getValue).orElseThrow(
-                        () -> new IllegalArgumentException(
-                                "Could not determine the document id. Path does not exist on document: " + d)));
+                                () -> new IllegalArgumentException(
+                                        "Could not determine the document id. Path does not exist on document: " + d)));
             }
             if (beginPath != null) {
                 builder.timestamp(d.getEntryAtPath(beginPath).filter(e -> e.getType() == Document.EntryType.TEXT)
                                           .map(Document.Entry::getValue).map(Instant::parse)
-                        .orElse(null));
+                                          .orElse(null));
             }
             if (endPath != null) {
                 builder.end(d.getEntryAtPath(endPath).filter(e -> e.getType() == Document.EntryType.TEXT)
                                     .map(Document.Entry::getValue).map(Instant::parse)
-                        .orElse(null));
+                                    .orElse(null));
             }
             return builder.build();
         }).collect(toList());
@@ -128,8 +128,9 @@ public class DefaultDocumentStore implements DocumentStore {
     public CompletableFuture<Void> bulkUpdate(Collection<BulkUpdate> updates, Guarantee guarantee) {
         try {
             return client.bulkUpdate(updates.stream().map(this::serializeAction).filter(Objects::nonNull)
-                            .collect(toMap(a -> format("%s_%s", a.getCollection(), a.getId()), identity(), (a, b) -> b)).values(),
-                    guarantee).asCompletableFuture();
+                                             .collect(toMap(a -> format("%s_%s", a.getCollection(), a.getId()),
+                                                            identity(), (a, b) -> b)).values(),
+                                     guarantee).asCompletableFuture();
         } catch (Exception e) {
             throw new DocumentStoreException("Could not apply batch of search actions", e);
         }
@@ -302,7 +303,8 @@ public class DefaultDocumentStore implements DocumentStore {
             Function<Document, T> convertFunction = type == null
                     ? serializer::fromDocument : document -> serializer.fromDocument(document, type);
             return client.search(SearchDocuments.builder().query(queryBuilder.build()).maxSize(maxSize).sorting(sorting)
-                    .pathFilters(pathFilters).skip(skip).build()).map(hit -> hit.map(convertFunction));
+                                         .pathFilters(pathFilters).skip(skip).build())
+                    .map(hit -> hit.map(convertFunction));
         }
 
         @Override

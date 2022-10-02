@@ -17,6 +17,7 @@ package io.fluxcapacitor.javaclient.persisting.search;
 import io.fluxcapacitor.common.Guarantee;
 import io.fluxcapacitor.common.api.search.BulkUpdate;
 import io.fluxcapacitor.common.api.search.SearchQuery;
+import io.fluxcapacitor.javaclient.modeling.EntityId;
 import lombok.SneakyThrows;
 
 import javax.annotation.Nullable;
@@ -28,12 +29,14 @@ import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Function;
 
+import static io.fluxcapacitor.common.reflection.ReflectionUtils.getAnnotatedPropertyValue;
 import static io.fluxcapacitor.javaclient.FluxCapacitor.currentIdentityProvider;
+import static java.util.Collections.singletonList;
 
 public interface DocumentStore {
 
     default void index(Object object, String collection) {
-        index(object, currentIdentityProvider().nextTechnicalId(), collection);
+        index(object instanceof Collection<?> ? (Collection<?>) object : singletonList(object), collection);
     }
 
     default void index(Object object, String id, String collection) {
@@ -53,8 +56,9 @@ public interface DocumentStore {
     CompletableFuture<Void> index(Object object, String id, String collection, Instant begin, Instant end,
                                   Guarantee guarantee, boolean ifNotExists);
 
-    default <T> void index(Collection<? extends T> objects, String collection) {
-        index(objects, collection, v -> currentIdentityProvider().nextTechnicalId());
+    default void index(Collection<?> objects, String collection) {
+        index(objects, collection, v -> getAnnotatedPropertyValue(v, EntityId.class).map(Object::toString)
+                .orElseGet(() -> currentIdentityProvider().nextTechnicalId()));
     }
 
     default <T> void index(Collection<? extends T> objects, String collection, Function<? super T, String> idFunction) {
@@ -62,20 +66,20 @@ public interface DocumentStore {
     }
 
     @SneakyThrows
-    default <T> void index(Collection<? extends T> objects, String collection, @Nullable String idPath,
-                           @Nullable String timestampPath) {
+    default void index(Collection<?> objects, String collection, @Nullable String idPath,
+                       @Nullable String timestampPath) {
         index(objects, collection, idPath, timestampPath, timestampPath, Guarantee.STORED, false).get();
     }
 
     @SneakyThrows
-    default <T> void index(Collection<? extends T> objects, String collection, @Nullable String idPath,
-                           @Nullable String beginPath, @Nullable String endPath) {
+    default void index(Collection<?> objects, String collection, @Nullable String idPath,
+                       @Nullable String beginPath, @Nullable String endPath) {
         index(objects, collection, idPath, beginPath, endPath, Guarantee.STORED, false).get();
     }
 
-    <T> CompletableFuture<Void> index(Collection<? extends T> objects, String collection, @Nullable String idPath,
-                                      @Nullable String beginPath, @Nullable String endPath, Guarantee guarantee,
-                                      boolean ifNotExists);
+    CompletableFuture<Void> index(Collection<?> objects, String collection, @Nullable String idPath,
+                                  @Nullable String beginPath, @Nullable String endPath, Guarantee guarantee,
+                                  boolean ifNotExists);
 
     @SneakyThrows
     default <T> void index(Collection<? extends T> objects, String collection, Function<? super T, String> idFunction,
@@ -96,7 +100,7 @@ public interface DocumentStore {
                                       boolean ifNotExists);
 
     default void indexIfNotExists(Object object, String collection) {
-        indexIfNotExists(object, currentIdentityProvider().nextTechnicalId(), collection);
+        indexIfNotExists(object instanceof Collection<?> ? (Collection<?>) object : singletonList(object), collection);
     }
 
     default void indexIfNotExists(Object object, String id, String collection) {
@@ -114,7 +118,8 @@ public interface DocumentStore {
     }
 
     default <T> void indexIfNotExists(Collection<? extends T> objects, String collection) {
-        indexIfNotExists(objects, collection, v -> currentIdentityProvider().nextTechnicalId());
+        indexIfNotExists(objects, collection, v -> getAnnotatedPropertyValue(v, EntityId.class).map(Object::toString)
+                .orElseGet(() -> currentIdentityProvider().nextTechnicalId()));
     }
 
     default <T> void indexIfNotExists(Collection<? extends T> objects, String collection,
