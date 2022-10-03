@@ -109,7 +109,8 @@ public class ModifiableAggregateRoot<T> extends DelegatingEntity<T> {
 
     @Override
     public Entity<T> previous() {
-        return new ModifiableEntity<>(delegate.previous(), this);
+        Entity<T> previous = delegate.previous();
+        return previous == null ? null : new ModifiableEntity<>(previous, this);
     }
 
     protected void handleUpdate(UnaryOperator<Entity<T>> update) {
