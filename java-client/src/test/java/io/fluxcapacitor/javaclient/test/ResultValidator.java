@@ -18,6 +18,7 @@ import io.fluxcapacitor.common.reflection.ReflectionUtils;
 import io.fluxcapacitor.javaclient.FluxCapacitor;
 import io.fluxcapacitor.javaclient.common.Message;
 import io.fluxcapacitor.javaclient.scheduling.Schedule;
+import io.fluxcapacitor.javaclient.web.WebRequest;
 import lombok.AccessLevel;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
@@ -279,9 +280,9 @@ public class ResultValidator implements Then {
 
     protected boolean isComparableToActual(Object expected) {
         return result != null && expected != null && !isMatcher(expected)
-                && !(expected instanceof Collection<?> && result instanceof Collection<?>)
-                && !(expected instanceof Map<?, ?> && result instanceof Map<?, ?>)
-                && !Objects.equals(expected.getClass(), result.getClass());
+               && !(expected instanceof Collection<?> && result instanceof Collection<?>)
+               && !(expected instanceof Map<?, ?> && result instanceof Map<?, ?>)
+               && !Objects.equals(expected.getClass(), result.getClass());
     }
 
     protected ResultValidator expectScheduledMessages(Collection<?> expected, Collection<? extends Schedule> actual) {
@@ -413,6 +414,14 @@ public class ResultValidator implements Then {
             return ((Class<?>) expected).isInstance(actual.getPayload());
         }
         Message expectedMessage = asMessage(expected);
+        if (actual instanceof Schedule && expected instanceof Schedule && !Objects.equals(
+                ((Schedule) expected).getDeadline(), ((Schedule) actual).getDeadline())) {
+            return false;
+        }
+        if (actual instanceof WebRequest && expected instanceof WebRequest && !Objects.equals(
+                ((WebRequest) expected).getMethod(), ((WebRequest) actual).getMethod())) {
+            return false;
+        }
         return expectedMessage.getPayload().equals(actual.getPayload()) && actual.getMetadata().entrySet()
                 .containsAll(expectedMessage.getMetadata().entrySet());
     }
