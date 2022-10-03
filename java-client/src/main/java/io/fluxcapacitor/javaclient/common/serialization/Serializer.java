@@ -113,4 +113,6 @@ public interface Serializer {
 
     Object downcast(Object object, int desiredRevision);
 
+    Object downcast(Data<?> data, int desiredRevision);
+
 }

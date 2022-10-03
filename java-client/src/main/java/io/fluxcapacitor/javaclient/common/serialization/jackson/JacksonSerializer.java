@@ -33,6 +33,7 @@ import io.fluxcapacitor.javaclient.common.serialization.casting.CasterChain;
 import io.fluxcapacitor.javaclient.common.serialization.casting.Converter;
 import io.fluxcapacitor.javaclient.persisting.search.DocumentSerializer;
 import lombok.Getter;
+import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
 
 import java.lang.reflect.Type;
@@ -94,9 +95,12 @@ public class JacksonSerializer extends AbstractSerializer<JsonNode> implements D
         return objectMapper.readValue(data.getValue(), typeCache.apply(type));
     }
 
+    @SneakyThrows
     @Override
     protected JsonNode asIntermediateValue(Object input) {
-        return objectMapper.valueToTree(input);
+        return input instanceof byte[]
+                ? objectMapper.readTree((byte[]) input)
+                : objectMapper.convertValue(input, JsonNode.class);
     }
 
     @Override

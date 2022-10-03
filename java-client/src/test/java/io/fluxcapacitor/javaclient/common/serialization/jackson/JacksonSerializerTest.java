@@ -20,7 +20,6 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.fasterxml.jackson.databind.node.TextNode;
 import io.fluxcapacitor.common.api.Data;
-import io.fluxcapacitor.common.serialization.JsonUtils;
 import io.fluxcapacitor.common.serialization.Revision;
 import io.fluxcapacitor.javaclient.common.serialization.DeserializingObject;
 import io.fluxcapacitor.javaclient.common.serialization.SerializationException;
@@ -37,6 +36,7 @@ import java.util.Map;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
+import static io.fluxcapacitor.common.serialization.JsonUtils.valueToTree;
 import static java.util.Arrays.asList;
 import static java.util.Collections.singletonMap;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -83,14 +83,16 @@ class JacksonSerializerTest {
     @Test
     @SuppressWarnings("ResultOfMethodCallIgnored")
     void testFailOnUnknownType() {
-        assertThrows(SerializationException.class, () -> serializer.deserialize(Stream.of(new Data<>("bla".getBytes(), "unknownType", 0,
-                                                                                                     "application/json")), true)
-                .collect(Collectors.toList()));
+        assertThrows(SerializationException.class,
+                     () -> serializer.deserialize(Stream.of(new Data<>("bla".getBytes(), "unknownType", 0,
+                                                                       "application/json")), true)
+                             .collect(Collectors.toList()));
     }
 
     @Test
     void testReturnsJsonNodeIfTypeUnknownAndFailFlagIsOff() throws JsonProcessingException {
-        Data<byte[]> data = new Data<>(objectMapper.writeValueAsBytes(new Foo("bar")), "unknownType", 0, "application/json");
+        Data<byte[]> data =
+                new Data<>(objectMapper.writeValueAsBytes(new Foo("bar")), "unknownType", 0, "application/json");
         List<DeserializingObject<byte[], Data<byte[]>>> result = serializer.deserialize(Stream.of(data), false)
                 .collect(Collectors.toList());
         assertTrue(JsonNode.class.isAssignableFrom(result.get(0).getPayloadClass()));
@@ -125,7 +127,8 @@ class JacksonSerializerTest {
     @Test
     void testDeserializeMixedCollection() {
         List<?> input = Arrays.asList(new Foo("bla1"), "bla2");
-        assertEquals(objectMapper.convertValue(input, Object.class), serializer.deserialize(serializer.serialize(input)));
+        assertEquals(objectMapper.convertValue(input, Object.class),
+                     serializer.deserialize(serializer.serialize(input)));
     }
 
     @Nested
@@ -152,13 +155,21 @@ class JacksonSerializerTest {
         @Test
         void downcastToIntermediateRevision() {
             Object result = serializer.downcast(new RevisedObject("bla", 42), 1);
-            assertEquals(JsonUtils.valueToTree(Map.of("n", "bla", "someInteger", 42)), result);
+            assertEquals(valueToTree(Map.of("n", "bla", "someInteger", 42)), result);
         }
 
         @Test
         void downcastAllTheWay() {
             Object result = serializer.downcast(new RevisedObject("bla", 42), 0);
-            assertEquals(JsonUtils.valueToTree(Map.of("n", "bla")), result);
+            assertEquals(valueToTree(Map.of("n", "bla")), result);
+        }
+
+        @Test
+        void downcastData() {
+            Object result = serializer.downcast(
+                    new Data<>(valueToTree(Map.of("n", "bla", "someInteger", 42)),
+                               RevisedObject.class.getName(), 1), 0);
+            assertEquals(valueToTree(Map.of("n", "bla")), result);
         }
     }
 
@@ -173,7 +184,6 @@ class JacksonSerializerTest {
             int number;
         }
     }
-
 
 
     private Data<byte[]> createRev0Data(String name) throws JsonProcessingException {

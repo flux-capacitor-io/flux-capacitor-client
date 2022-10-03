@@ -39,6 +39,13 @@ public class Data<T> implements SerializedObject<T, Data<T>> {
         this.format = format;
     }
 
+    public Data(T value, String type, int revision) {
+        this.value = () -> value;
+        this.type = type;
+        this.revision = revision;
+        this.format = null;
+    }
+
     public Data(Supplier<T> value, String type, int revision, String format) {
         this.value = value;
         this.type = type;

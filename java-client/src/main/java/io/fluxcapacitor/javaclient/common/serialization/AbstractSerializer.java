@@ -25,6 +25,7 @@ import lombok.Getter;
 import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.reflect.TypeUtils;
+import org.jetbrains.annotations.Nullable;
 
 import java.io.ByteArrayInputStream;
 import java.io.InputStream;
@@ -238,14 +239,28 @@ public abstract class AbstractSerializer<I> implements Serializer {
 
     @Override
     public Object downcast(Object object, int desiredRevision) {
-        Data<I> data = new Data<>(asIntermediateValue(object), asString(getType(object)),
-                                  getRevision(object).map(Revision::value).orElse(0), format);
+        return downcastIntermediate(new Data<>(
+                asIntermediateValue(object), asString(getType(object)),
+                getRevision(object).map(Revision::value).orElse(0), format), desiredRevision);
+    }
+
+    @Override
+    public Object downcast(Data<?> object, int desiredRevision) {
+        return downcastIntermediate(new Data<>(asIntermediateValue(object.getValue()), object.getType(),
+                                               object.getRevision(), format), desiredRevision);
+    }
+
+    @Nullable
+    private Object downcastIntermediate(Data<I> data, int desiredRevision) {
         var result = downcasterChain.cast(Stream.of(data), desiredRevision).map(Data::getValue)
                 .collect(Collectors.toList());
         switch (result.size()) {
-            case 0: return null;
-            case 1: return result.get(0);
-            default: return result;
+            case 0:
+                return null;
+            case 1:
+                return result.get(0);
+            default:
+                return result;
         }
     }
 
