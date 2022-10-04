@@ -45,14 +45,15 @@ public class RetryingErrorHandler implements ErrorHandler {
     @Override
     public void handleError(Exception error, String errorMessage, Runnable retryFunction) throws Exception {
         if (!errorFilter.test(error)) {
-            logError(format("%s. Not retrying, %s", errorMessage, throwOnFailure ? "propagating error" : "continuing."),
-                     error);
+            logError(format("%s. Not retrying. %s", errorMessage, throwOnFailure
+                    ? "Propagating error." : "Continuing with next handler."), error);
             if (throwOnFailure) {
                 throw error;
             }
             return;
         }
-        logError(format("%s. Retrying up to %s times.", errorMessage, retries), error);
+
+        log.warn("{}. Retrying up to {} times.", errorMessage, retries, error);
         AtomicInteger remainingRetries = new AtomicInteger(retries);
         boolean success = retryOnFailure(retryFunction, delay,
                                          e -> errorFilter.test(e) && remainingRetries.decrementAndGet() > 0);
@@ -60,28 +61,27 @@ public class RetryingErrorHandler implements ErrorHandler {
             log.info("Message handling was successful on retry");
         } else {
             if (throwOnFailure) {
-                logMessage("Propagating error", isTechnicalError(error));
+                log.error("{}. Not retrying any further. Propagating error.", errorMessage, error);
                 throw error;
             } else {
-                logMessage(format("%s. Not retrying any further. Continuing with next handler.", errorMessage),
-                           isTechnicalError(error));
+                logError(errorMessage + ". Not retrying any further. Continuing with next handler.", error);
             }
         }
     }
 
-    protected void logError(String errorMessage, Exception error) {
+    private void logError(String message, Exception error) {
         if (isTechnicalError(error)) {
-            log.error("{}. Continuing...", errorMessage, error);
+            log.error(message, error);
         } else if (logFunctionalErrors) {
-            log.warn("{}. Continuing...", errorMessage, error);
+            log.warn(message, error);
         }
     }
 
-    protected void logMessage(String errorMessage, boolean severe) {
-        if (severe) {
-            log.error(errorMessage);
+    protected void logWarning(String errorMessage, Exception error) {
+        if (isTechnicalError(error)) {
+            log.error("{}", errorMessage, error);
         } else if (logFunctionalErrors) {
-            log.warn(errorMessage);
+            log.warn("{}", errorMessage, error);
         }
     }
 
