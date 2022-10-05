@@ -61,8 +61,8 @@ public class JacksonSerializer extends AbstractSerializer<JsonNode> implements D
         this(Collections.emptyList());
     }
 
-    public JacksonSerializer(Collection<?> upcasters) {
-        this(defaultObjectMapper, upcasters);
+    public JacksonSerializer(Collection<?> casterCandidates) {
+        this(defaultObjectMapper, casterCandidates);
     }
 
     public JacksonSerializer(ObjectMapper objectMapper) {

@@ -52,7 +52,6 @@ import java.util.function.Function;
 
 import static io.fluxcapacitor.common.ObjectUtils.memoize;
 import static io.fluxcapacitor.common.reflection.ReflectionUtils.getAnnotatedPropertyValues;
-import static io.fluxcapacitor.common.reflection.ReflectionUtils.getMethodAnnotation;
 import static io.fluxcapacitor.common.reflection.ReflectionUtils.getTypeAnnotations;
 import static java.lang.String.format;
 import static java.util.Optional.empty;
@@ -122,49 +121,35 @@ public class ValidationUtils {
         Check command / query legality
      */
 
-    protected static final Function<Class<?>, HandlerMatcher<Entity<?>>> assertLegalInvokerCache =
+    protected static final Function<Class<?>, HandlerMatcher<Object, Entity<?>>> assertLegalCache =
             memoize(type -> HandlerInspector.inspect(
-                    type, Arrays.asList(new DeserializingMessageParameterResolver(),
-                                        new MetadataParameterResolver(),
-                                        new MessageParameterResolver(),
-                                        new UserParameterResolver(NoOpUserProvider.getInstance()),
-                                        new EntityParameterResolver()),
+                    type, List.of(new DeserializingMessageParameterResolver(), new MetadataParameterResolver(),
+                                  new MessageParameterResolver(), new UserParameterResolver(
+                                          NoOpUserProvider.getInstance()), new EntityParameterResolver()),
                     HandlerConfiguration.builder().methodAnnotation(AssertLegal.class)
-                            .handlerFilter((owner, method) -> getMethodAnnotation(method, AssertLegal.class)
-                                    .map(a -> !a.afterHandler()).orElse(false))
-                            .invokeMultipleMethods(true).build()));
-
-    protected static final Function<Class<?>, HandlerMatcher<Entity<?>>> assertLegalAfterUpdateInvokerCache =
-            memoize(type -> HandlerInspector.inspect(
-                    type, Arrays.asList(new DeserializingMessageParameterResolver(),
-                                        new MetadataParameterResolver(),
-                                        new MessageParameterResolver(),
-                                        new UserParameterResolver(NoOpUserProvider.getInstance()),
-                                        new EntityParameterResolver()),
-                    HandlerConfiguration.builder().methodAnnotation(AssertLegal.class)
-                            .handlerFilter((owner, method) -> getMethodAnnotation(method, AssertLegal.class)
-                                    .map(AssertLegal::afterHandler).orElse(false))
                             .invokeMultipleMethods(true).build()));
 
     public static <E extends Exception> void assertLegal(Object object, Entity<?> entity) throws E {
-        Collection<Object> additionalProperties = assertLegal(object, entity, assertLegalInvokerCache);
+        Collection<Object> additionalProperties = assertLegal(object, entity, false);
         additionalProperties.forEach(p -> assertLegal(p, entity));
         Invocation.whenHandlerCompletes((r, e) -> {
             if (e == null) {
-                ValidationUtils.assertLegal(object, entity, assertLegalAfterUpdateInvokerCache);
+                ValidationUtils.assertLegal(object, entity, true);
             }
         });
     }
 
-    private static Collection<Object> assertLegal(
-            Object object, Entity<?> entity, Function<Class<?>, HandlerMatcher<Entity<?>>> invokerProvider) {
+    private static Collection<Object> assertLegal(Object object, Entity<?> entity, boolean afterHandler) {
         Object payload = object instanceof Message ? ((Message) object).getPayload() : object;
         if (payload == null) {
             return Collections.emptyList();
         }
-        HandlerMatcher<Entity<?>> invoker = invokerProvider.apply(payload.getClass());
+        HandlerMatcher<Object, Entity<?>> invoker = assertLegalCache.apply(payload.getClass());
         Collection<Object> additionalProperties = new HashSet<>(getAnnotatedPropertyValues(payload, AssertLegal.class));
-        invoker.findInvoker(payload, entity).ifPresent(s -> {
+        invoker.findInvoker(payload, entity)
+                .filter(i -> ReflectionUtils.getMethodAnnotation(i.getMethod(), AssertLegal.class)
+                        .map(a -> a.afterHandler() == afterHandler).orElse(false))
+                .ifPresent(s -> {
             Object additionalObject = s.invoke();
             if (additionalObject instanceof List<?>) {
                 additionalProperties.addAll((List<?>) additionalObject);
@@ -173,7 +158,7 @@ public class ValidationUtils {
             }
         });
         entity.possibleTargets(payload).forEach(
-                e -> additionalProperties.addAll(ValidationUtils.assertLegal(payload, e, invokerProvider)));
+                e -> additionalProperties.addAll(ValidationUtils.assertLegal(payload, e, afterHandler)));
         return additionalProperties;
     }
 

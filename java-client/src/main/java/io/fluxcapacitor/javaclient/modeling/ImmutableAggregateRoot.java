@@ -5,7 +5,6 @@ import io.fluxcapacitor.common.api.modeling.Relationship;
 import io.fluxcapacitor.javaclient.FluxCapacitor;
 import io.fluxcapacitor.javaclient.common.serialization.DeserializingMessage;
 import io.fluxcapacitor.javaclient.common.serialization.Serializer;
-import io.fluxcapacitor.javaclient.persisting.eventsourcing.EventSourcingHandlerFactory;
 import lombok.Builder;
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
@@ -49,13 +48,13 @@ public class ImmutableAggregateRoot<T> extends ImmutableEntity<T> {
     Set<Relationship> relationships = super.relationships();
 
     public static <T> ImmutableAggregateRoot<T> from(Entity<T> a,
-                                                     EventSourcingHandlerFactory handlerFactory,
+                                                     EntityMatcher entityMatcher,
                                                      Serializer serializer) {
         if (a == null) {
             return null;
         }
         return ImmutableAggregateRoot.<T>builder()
-                .handlerFactory(handlerFactory)
+                .entityMatcher(entityMatcher)
                 .serializer(serializer)
                 .id(a.id())
                 .value(a.get())
@@ -65,7 +64,7 @@ public class ImmutableAggregateRoot<T> extends ImmutableEntity<T> {
                 .lastEventIndex(a.lastEventIndex())
                 .timestamp(a.timestamp())
                 .sequenceNumber(a.sequenceNumber())
-                .previous(ImmutableAggregateRoot.from(a.previous(), handlerFactory, serializer))
+                .previous(ImmutableAggregateRoot.from(a.previous(), entityMatcher, serializer))
                 .build();
     }
 

@@ -24,15 +24,14 @@ import io.fluxcapacitor.javaclient.common.serialization.DeserializingMessage;
 import io.fluxcapacitor.javaclient.common.serialization.Serializer;
 import io.fluxcapacitor.javaclient.common.serialization.jackson.JacksonSerializer;
 import io.fluxcapacitor.javaclient.configuration.client.Client;
+import io.fluxcapacitor.javaclient.modeling.DefaultEntityMatcher;
 import io.fluxcapacitor.javaclient.modeling.EntityParameterResolver;
 import io.fluxcapacitor.javaclient.persisting.caching.Cache;
 import io.fluxcapacitor.javaclient.persisting.caching.DefaultCache;
 import io.fluxcapacitor.javaclient.persisting.caching.NamedCache;
 import io.fluxcapacitor.javaclient.persisting.caching.SelectiveCache;
-import io.fluxcapacitor.javaclient.persisting.eventsourcing.DefaultEventSourcingHandlerFactory;
 import io.fluxcapacitor.javaclient.persisting.eventsourcing.DefaultEventStore;
 import io.fluxcapacitor.javaclient.persisting.eventsourcing.DefaultSnapshotStore;
-import io.fluxcapacitor.javaclient.persisting.eventsourcing.EventSourcingHandlerFactory;
 import io.fluxcapacitor.javaclient.persisting.eventsourcing.EventStore;
 import io.fluxcapacitor.javaclient.persisting.keyvalue.DefaultKeyValueStore;
 import io.fluxcapacitor.javaclient.persisting.keyvalue.KeyValueStore;
@@ -394,7 +393,7 @@ public class DefaultFluxCapacitor implements FluxCapacitor {
         }
 
         @Override
-        public Builder addParameterResolver(@NonNull ParameterResolver<DeserializingMessage> parameterResolver) {
+        public Builder addParameterResolver(@NonNull ParameterResolver<? super DeserializingMessage> parameterResolver) {
             customParameterResolvers.add(parameterResolver);
             return this;
         }
@@ -555,8 +554,7 @@ public class DefaultFluxCapacitor implements FluxCapacitor {
                                               new EntityParameterResolver()));
 
             //event sourcing
-            EventSourcingHandlerFactory eventSourcingHandlerFactory =
-                    new DefaultEventSourcingHandlerFactory(parameterResolvers);
+            var entityMatcher = new DefaultEntityMatcher(parameterResolvers);
             EventStore eventStore = new DefaultEventStore(client.getEventStoreClient(),
                                                           serializer, dispatchInterceptors.get(EVENT),
                                                           localHandlerRegistry(EVENT, handlerInterceptors,
@@ -567,7 +565,7 @@ public class DefaultFluxCapacitor implements FluxCapacitor {
             Cache aggregateCache = new NamedCache(cache, id -> "$Aggregate:" + id);
             AggregateRepository aggregateRepository = new DefaultAggregateRepository(
                     eventStore, snapshotRepository, aggregateCache, relationshipsCache, documentStore,
-                    serializer, dispatchInterceptors.get(EVENT), eventSourcingHandlerFactory);
+                    serializer, dispatchInterceptors.get(EVENT), entityMatcher);
 
             if (!disableAutomaticAggregateCaching) {
                 aggregateRepository = new CachingAggregateRepository(

@@ -16,15 +16,15 @@ package io.fluxcapacitor.javaclient.web;
 
 import io.fluxcapacitor.common.handling.ParameterResolver;
 import io.fluxcapacitor.common.reflection.ReflectionUtils;
-import io.fluxcapacitor.javaclient.common.serialization.DeserializingMessage;
+import io.fluxcapacitor.javaclient.common.HasMessage;
 
 import java.lang.annotation.Annotation;
 import java.lang.reflect.Parameter;
 import java.util.function.Function;
 
-public class WebPayloadParameterResolver implements ParameterResolver<DeserializingMessage> {
+public class WebPayloadParameterResolver implements ParameterResolver<HasMessage> {
     @Override
-    public Function<DeserializingMessage, Object> resolve(Parameter p, Annotation methodAnnotation) {
+    public Function<HasMessage, Object> resolve(Parameter p, Annotation methodAnnotation) {
         return ReflectionUtils.isOrHas(methodAnnotation, HandleWeb.class) ? m -> m.getPayloadAs(p.getType()) : null;
     }
 }

@@ -265,8 +265,8 @@ public class TestFixture implements Given, When {
 
     @Override
     public TestFixture givenCommands(Object... commands) {
-        List<Message> messages = asMessages(commands);
-        return given(fc -> getDispatchResult(CompletableFuture.allOf(messages.stream().map(
+        Stream<Message> messages = asMessages(commands);
+        return given(fc -> getDispatchResult(CompletableFuture.allOf(messages.map(
                 c -> fc.commandGateway().send(c)).toArray(CompletableFuture[]::new))));
     }
 
@@ -277,13 +277,13 @@ public class TestFixture implements Given, When {
 
     @Override
     public TestFixture givenAppliedEvents(String aggregateId, Class<?> aggregateClass, Object... events) {
-        List<Message> messages = asMessages(events);
-        return given(fc -> applyEvents(aggregateId, aggregateClass, fc, messages));
+        Stream<Message> messages = asMessages(events);
+        return given(fc -> applyEvents(aggregateId, aggregateClass, fc, messages.collect(toList())));
     }
 
     @Override
     public TestFixture givenEvents(Object... events) {
-        List<Message> messages = asMessages(events);
+        Stream<Message> messages = asMessages(events);
         return given(fc -> messages.forEach(c -> runSilently(
                 () -> fc.eventGateway().publish(c, Guarantee.STORED).get())));
     }
@@ -365,8 +365,8 @@ public class TestFixture implements Given, When {
 
     @Override
     public Then whenEventsAreApplied(String aggregateId, Class<?> aggregateClass, Object... events) {
-        List<Message> messages = asMessages(events);
-        return whenExecuting(fc -> applyEvents(aggregateId, aggregateClass, fc, messages));
+        Stream<Message> messages = asMessages(events);
+        return whenExecuting(fc -> applyEvents(aggregateId, aggregateClass, fc, messages.collect(toList())));
     }
 
     @Override
@@ -551,7 +551,7 @@ public class TestFixture implements Given, When {
         }
     }
 
-    protected List<Message> asMessages(Object... messages) {
+    protected Stream<Message> asMessages(Object... messages) {
         Class<?> callerClass = ReflectionUtils.getCallerClass();
         return fluxCapacitor.apply(fc -> Arrays.stream(messages).flatMap(c -> {
             if (c instanceof Collection<?>) {
@@ -561,7 +561,7 @@ public class TestFixture implements Given, When {
                 return Arrays.stream((Object[]) c);
             }
             return Stream.of(c);
-        }).map(c -> parseObject(c, callerClass)).map(Message::asMessage)).collect(toList());
+        }).map(c -> parseObject(c, callerClass)).map(Message::asMessage));
     }
 
     protected Message trace(Object object) {
@@ -574,7 +574,7 @@ public class TestFixture implements Given, When {
         if (userProvider == null) {
             throw new IllegalStateException("UserProvider has not been configured");
         }
-        return asMessages(messages).stream().map(
+        return asMessages(messages).map(
                 m -> m.withMetadata(userProvider.addToMetadata(m.getMetadata(), user))).toArray();
     }
 

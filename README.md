@@ -338,12 +338,12 @@ Flux Capacitor Client comes with easy to use APIs to set up event sourcing for y
 class User {
     UserProfile userProfile;
 
-    @ApplyEvent
+    @Apply
     User(UserProfile userProfile) {
         this.userProfile = userProfile;
     }
     
-    @ApplyEvent
+    @Apply
     User apply(EmailChanged event) {
         return new User(this.userProfile.withEmail(event.getEmail()));
     }
@@ -352,7 +352,7 @@ class User {
 }
 ```
 
-Basically all you need to do is provide methods annotated by @ApplyEvent that describe how historical events need to be applied in order to rebuild the entity model. To create a new entity you’ll need to annotate either a constructor method (as in the above example) or a static factory method:
+Basically all you need to do is provide methods annotated by @Apply that describe how historical events need to be applied in order to rebuild the entity model. To create a new entity you’ll need to annotate either a constructor method (as in the above example) or a static factory method:
 
 ```java
 @EventSourced
@@ -363,7 +363,7 @@ class User {
         this.userProfile = userProfile;
     }
     
-    @ApplyEvent
+    @Apply
     static User createUser(UserProfile userProfile) {
         return new User(userProfile);
     }
@@ -405,7 +405,7 @@ EventSourced(cached = true, snapshotPeriod = 100)
 class User {
     UserProfile userProfile;
     
-    @ApplyEvent
+    @Apply
     User(UserProfile userProfile) {
         this.userProfile = userProfile;
     }

@@ -65,8 +65,13 @@ public class HandlerInspector {
         return new DefaultHandler<>(target, inspect(target.getClass(), parameterResolvers, config));
     }
 
-    public static <M> HandlerMatcher<M> inspect(Class<?> c, List<ParameterResolver<? super M>> parameterResolvers,
-                                                HandlerConfiguration<? super M> config) {
+    public static <M> HandlerMatcher<Object, M> inspect(Class<?> c, List<ParameterResolver<? super M>> parameterResolvers,
+                                                        Class<? extends Annotation> methodAnnotation) {
+        return inspect(c, parameterResolvers, HandlerConfiguration.builder().methodAnnotation(methodAnnotation).build());
+    }
+
+    public static <M> HandlerMatcher<Object, M> inspect(Class<?> c, List<ParameterResolver<? super M>> parameterResolvers,
+                                                        HandlerConfiguration<? super M> config) {
         return new ObjectHandlerMatcher<>(concat(getAllMethods(c).stream(), stream(c.getDeclaredConstructors()))
                 .filter(m -> config.methodMatches(c, m))
                 .flatMap(m -> Stream.of(new MethodHandlerMatcher<>(m, c, parameterResolvers, config)))
@@ -74,7 +79,7 @@ public class HandlerInspector {
     }
 
     @Getter
-    public static class MethodHandlerMatcher<M> implements HandlerMatcher<M> {
+    public static class MethodHandlerMatcher<M> implements HandlerMatcher<Object, M> {
         protected static final Comparator<MethodHandlerMatcher<?>> comparator = Comparator.comparing(
                         (Function<MethodHandlerMatcher<?>, Integer>) MethodHandlerMatcher::getPriority, reverseOrder())
                 .thenComparing(
@@ -255,15 +260,15 @@ public class HandlerInspector {
     }
 
     @AllArgsConstructor
-    public static class ObjectHandlerMatcher<M> implements HandlerMatcher<M> {
-        private final List<HandlerMatcher<M>> methodHandlers;
+    public static class ObjectHandlerMatcher<M> implements HandlerMatcher<Object, M> {
+        private final List<HandlerMatcher<Object, M>> methodHandlers;
         private final boolean invokeMultipleMethods;
 
         @Override
         public Optional<HandlerInvoker> findInvoker(Object target, M message) {
             if (invokeMultipleMethods) {
                 HandlerInvoker invoker = null;
-                for (HandlerMatcher<M> d : methodHandlers) {
+                for (HandlerMatcher<Object, M> d : methodHandlers) {
                     Optional<HandlerInvoker> s = d.findInvoker(target, message);
                     if (s.isPresent()) {
                         invoker = invoker == null ? s.get() : invoker.combine(s.get());
@@ -272,7 +277,7 @@ public class HandlerInspector {
                 return Optional.ofNullable(invoker);
             }
 
-            for (HandlerMatcher<M> d : methodHandlers) {
+            for (HandlerMatcher<Object, M> d : methodHandlers) {
                 Optional<HandlerInvoker> s = d.findInvoker(target, message);
                 if (s.isPresent()) {
                     return s;
@@ -287,7 +292,7 @@ public class HandlerInspector {
     @Slf4j
     public static class DefaultHandler<M> implements Handler<M> {
         private final Object target;
-        private final HandlerMatcher<M> invoker;
+        private final HandlerMatcher<Object, M> invoker;
 
         @Override
         public Object getTarget() {

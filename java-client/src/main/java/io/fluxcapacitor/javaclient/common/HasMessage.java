@@ -1,6 +1,7 @@
 package io.fluxcapacitor.javaclient.common;
 
 import io.fluxcapacitor.common.api.HasMetadata;
+import io.fluxcapacitor.common.serialization.JsonUtils;
 import io.fluxcapacitor.javaclient.publishing.routing.RoutingKey;
 import io.fluxcapacitor.javaclient.scheduling.Schedule;
 import org.slf4j.LoggerFactory;
@@ -11,6 +12,18 @@ import static io.fluxcapacitor.common.reflection.ReflectionUtils.getAnnotatedPro
 
 public interface HasMessage extends HasMetadata {
     Message toMessage();
+
+    default <R> R getPayload() {
+        return toMessage().getPayload();
+    }
+
+    default <R> R getPayloadAs(Class<R> type) {
+        return JsonUtils.convertValue(getPayload(), type);
+    }
+
+    default Class<?> getPayloadClass() {
+        return toMessage().getPayloadClass();
+    }
 
     default Optional<String> computeRoutingKey() {
         Message m = toMessage();

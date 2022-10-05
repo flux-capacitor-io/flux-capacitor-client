@@ -15,20 +15,20 @@
 package io.fluxcapacitor.javaclient.tracking.handling;
 
 import io.fluxcapacitor.common.handling.ParameterResolver;
-import io.fluxcapacitor.javaclient.common.serialization.DeserializingMessage;
+import io.fluxcapacitor.javaclient.common.HasMessage;
 
 import java.lang.annotation.Annotation;
 import java.lang.reflect.Parameter;
 import java.util.function.Function;
 
-public class PayloadParameterResolver implements ParameterResolver<DeserializingMessage> {
+public class PayloadParameterResolver implements ParameterResolver<HasMessage> {
     @Override
-    public Function<DeserializingMessage, Object> resolve(Parameter p, Annotation methodAnnotation) {
-        return DeserializingMessage::getPayload;
+    public Function<HasMessage, Object> resolve(Parameter p, Annotation methodAnnotation) {
+        return HasMessage::getPayload;
     }
 
     @Override
-    public boolean matches(Parameter p, Annotation methodAnnotation, DeserializingMessage value) {
+    public boolean matches(Parameter p, Annotation methodAnnotation, HasMessage value) {
         return p.getType().isAssignableFrom(value.getPayloadClass());
     }
 

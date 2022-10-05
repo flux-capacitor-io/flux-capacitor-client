@@ -6,8 +6,6 @@ import io.fluxcapacitor.common.handling.HandlerInvoker;
 import io.fluxcapacitor.javaclient.common.Message;
 import io.fluxcapacitor.javaclient.common.serialization.DeserializingMessage;
 import io.fluxcapacitor.javaclient.common.serialization.Serializer;
-import io.fluxcapacitor.javaclient.persisting.eventsourcing.EventSourcingHandler;
-import io.fluxcapacitor.javaclient.persisting.eventsourcing.EventSourcingHandlerFactory;
 import lombok.AllArgsConstructor;
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
@@ -41,6 +39,7 @@ public class ImmutableEntity<T> implements Entity<T> {
     Object id;
     @JsonProperty
     Class<T> type;
+    @ToString.Exclude
     @JsonProperty
     @JsonTypeInfo(use = JsonTypeInfo.Id.CLASS, property = "type")
     T value;
@@ -57,7 +56,7 @@ public class ImmutableEntity<T> implements Entity<T> {
 
     @ToString.Exclude
     @EqualsAndHashCode.Exclude
-    transient EventSourcingHandlerFactory handlerFactory;
+    transient EntityMatcher entityMatcher;
 
     @ToString.Exclude
     @EqualsAndHashCode.Exclude
@@ -82,7 +81,7 @@ public class ImmutableEntity<T> implements Entity<T> {
         Class<?> type = value == null ? type() : value.getClass();
         List<ImmutableEntity<?>> result = new ArrayList<>();
         for (AccessibleObject location : getAnnotatedProperties(type, Member.class)) {
-            result.addAll(getEntityHolder(type, location, handlerFactory, serializer)
+            result.addAll(getEntityHolder(type, location, entityMatcher, serializer)
                                   .getEntities(this).collect(toList()));
         }
         return result;
@@ -106,8 +105,7 @@ public class ImmutableEntity<T> implements Entity<T> {
 
     @SuppressWarnings("unchecked")
     ImmutableEntity<T> apply(DeserializingMessage message) {
-        EventSourcingHandler<T> handler = handlerFactory.forType(type());
-        Optional<HandlerInvoker> invoker = handler.findInvoker(this, message);
+        Optional<HandlerInvoker> invoker = entityMatcher.applyInvoker(this, message);
         if (invoker.isPresent()) {
             return toBuilder().value((T) invoker.get().invoke()).build();
         }

@@ -12,6 +12,7 @@ import java.util.stream.Collectors;
 import static java.util.Optional.ofNullable;
 
 @Value
+@ToString(callSuper = true)
 public class ModifiableEntity<T> extends DelegatingEntity<T> {
     public ModifiableEntity(Entity<T> delegate, ModifiableAggregateRoot<?> root) {
         super(delegate);

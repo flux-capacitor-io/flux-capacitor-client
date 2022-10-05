@@ -16,7 +16,7 @@ package io.fluxcapacitor.javaclient.persisting.caching;
 
 import io.fluxcapacitor.javaclient.configuration.DefaultFluxCapacitor;
 import io.fluxcapacitor.javaclient.modeling.Aggregate;
-import io.fluxcapacitor.javaclient.persisting.eventsourcing.ApplyEvent;
+import io.fluxcapacitor.javaclient.persisting.eventsourcing.Apply;
 import io.fluxcapacitor.javaclient.test.TestFixture;
 import io.fluxcapacitor.javaclient.tracking.handling.HandleCommand;
 import org.junit.jupiter.api.Test;
@@ -59,14 +59,14 @@ class SelectiveCacheTest {
 
     @Aggregate
     static class MockModel {
-        @ApplyEvent
+        @Apply
         MockModel(String event) {
         }
     }
 
     @Aggregate
     static class OtherModel {
-        @ApplyEvent
+        @Apply
         OtherModel(Integer event) {
         }
     }

@@ -17,7 +17,7 @@ package io.fluxcapacitor.javaclient.givenwhenthen;
 import io.fluxcapacitor.javaclient.FluxCapacitor;
 import io.fluxcapacitor.javaclient.MockException;
 import io.fluxcapacitor.javaclient.modeling.Aggregate;
-import io.fluxcapacitor.javaclient.persisting.eventsourcing.ApplyEvent;
+import io.fluxcapacitor.javaclient.persisting.eventsourcing.Apply;
 import io.fluxcapacitor.javaclient.test.TestFixture;
 import io.fluxcapacitor.javaclient.tracking.handling.HandleCommand;
 import io.fluxcapacitor.javaclient.tracking.handling.HandleEvent;
@@ -236,7 +236,7 @@ class GivenWhenThenTest {
 
     @Aggregate
     private static class MockAggregate {
-        @ApplyEvent
+        @Apply
         MockAggregate(MockAggregateEvent event) {
         }
     }

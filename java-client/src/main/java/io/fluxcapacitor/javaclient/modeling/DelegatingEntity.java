@@ -8,6 +8,7 @@ import lombok.ToString;
 import java.time.Instant;
 import java.util.Collection;
 
+@ToString
 public abstract class DelegatingEntity<T> implements Entity<T> {
     @ToString.Include
     @EqualsAndHashCode.Include

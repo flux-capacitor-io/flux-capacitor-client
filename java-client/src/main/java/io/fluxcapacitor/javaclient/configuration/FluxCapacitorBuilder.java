@@ -80,7 +80,7 @@ public interface FluxCapacitorBuilder {
 
     FluxCapacitorBuilder replaceIdentityProvider(UnaryOperator<IdentityProvider> replaceFunction);
 
-    FluxCapacitorBuilder addParameterResolver(ParameterResolver<DeserializingMessage> parameterResolver);
+    FluxCapacitorBuilder addParameterResolver(ParameterResolver<? super DeserializingMessage> parameterResolver);
 
     /**
      * Register a custom serializer. This serializer will also be used for aggregate snapshots unless a custom snapshot

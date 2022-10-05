@@ -17,7 +17,7 @@ package io.fluxcapacitor.javaclient.tracking;
 import io.fluxcapacitor.common.MessageType;
 import io.fluxcapacitor.common.api.SerializedMessage;
 import io.fluxcapacitor.javaclient.FluxCapacitor;
-import io.fluxcapacitor.javaclient.persisting.eventsourcing.ApplyEvent;
+import io.fluxcapacitor.javaclient.persisting.eventsourcing.Apply;
 import io.fluxcapacitor.javaclient.test.TestFixture;
 import io.fluxcapacitor.javaclient.tracking.handling.HandleCommand;
 import org.junit.jupiter.api.Test;
@@ -49,7 +49,7 @@ class LoggingErrorHandlerTest {
     }
 
     private static class Aggregate {
-        @ApplyEvent
+        @Apply
         static Aggregate create(String event) {
             throw new IllegalArgumentException();
         }

@@ -4,7 +4,6 @@ import io.fluxcapacitor.common.reflection.DefaultMemberInvoker;
 import io.fluxcapacitor.common.reflection.MemberInvoker;
 import io.fluxcapacitor.common.reflection.ReflectionUtils;
 import io.fluxcapacitor.javaclient.common.serialization.Serializer;
-import io.fluxcapacitor.javaclient.persisting.eventsourcing.EventSourcingHandlerFactory;
 import lombok.Getter;
 import lombok.SneakyThrows;
 import lombok.Value;
@@ -48,24 +47,24 @@ public class AnnotatedEntityHolder {
     private final Function<Object, Id> idProvider;
     private final Class<?> entityType;
 
-    private final EventSourcingHandlerFactory handlerFactory;
+    private final EntityMatcher entityMatcher;
     private final Serializer serializer;
 
     @SuppressWarnings({"unchecked", "rawtypes"})
     @Getter(lazy = true)
     private final ImmutableEntity<?> emptyEntity = ImmutableEntity.builder()
             .type((Class) entityType)
-            .handlerFactory(handlerFactory)
+            .entityMatcher(entityMatcher)
             .serializer(serializer)
             .holder(this)
             .idProperty(idProvider.apply(entityType).property())
             .build();
 
     public static AnnotatedEntityHolder getEntityHolder(Class<?> ownerType, AccessibleObject location,
-                                                        EventSourcingHandlerFactory handlerFactory,
+                                                        EntityMatcher entityMatcher,
                                                         Serializer serializer) {
         return cache.computeIfAbsent(location,
-                                     l -> new AnnotatedEntityHolder(ownerType, l, handlerFactory, serializer));
+                                     l -> new AnnotatedEntityHolder(ownerType, l, entityMatcher, serializer));
     }
 
     private static final Function<Class<?>, Optional<MemberInvoker>> entityIdInvokerCache = memoize(
@@ -73,8 +72,8 @@ public class AnnotatedEntityHolder {
                     entityType, EntityId.class).map(a -> DefaultMemberInvoker.asInvoker((java.lang.reflect.Member) a)));
 
     private AnnotatedEntityHolder(Class<?> ownerType, AccessibleObject location,
-                                  EventSourcingHandlerFactory handlerFactory, Serializer serializer) {
-        this.handlerFactory = handlerFactory;
+                                  EntityMatcher entityMatcher, Serializer serializer) {
+        this.entityMatcher = entityMatcher;
         this.serializer = serializer;
         this.location = location;
         this.ownerType = ownerType;
@@ -174,7 +173,7 @@ public class AnnotatedEntityHolder {
         }
         Id id = idProvider.apply(member);
         return Optional.of(new ImmutableEntity(
-                id.value(), member.getClass(), member, id.property(), parent, this, handlerFactory, serializer));
+                id.value(), member.getClass(), member, id.property(), parent, this, entityMatcher, serializer));
     }
 
     @SneakyThrows

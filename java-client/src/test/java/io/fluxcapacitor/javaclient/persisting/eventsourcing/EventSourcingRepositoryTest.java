@@ -242,29 +242,29 @@ class EventSourcingRepositoryTest {
         List<Object> events = new ArrayList<>();
         Metadata metadata = Metadata.empty();
 
-        @ApplyEvent
+        @Apply
         public TestModel(CreateModel command) {
             events.add(command);
         }
 
 
-        @ApplyEvent
+        @Apply
         public TestModel(FailToCreateModel command) {
             throw new MockException();
         }
 
-        @ApplyEvent
+        @Apply
         public TestModel(CreateModelWithMetadata event, Metadata metadata) {
             this.metadata = this.metadata.with(metadata);
             events.add(event);
         }
 
-        @ApplyEvent
+        @Apply
         void handle(UpdateModel event) {
             events.add(event);
         }
 
-        @ApplyEvent
+        @Apply
         void handle(ApplyWhileApplying event) {
             FluxCapacitor.loadEntity(aggregateId).apply(new UpdateModel());
             events.add(event);
@@ -315,7 +315,7 @@ class EventSourcingRepositoryTest {
     static class TestModelForSnapshotting {
         String content = "somecontent";
 
-        @ApplyEvent
+        @Apply
         public TestModelForSnapshotting(CreateModel event) {
         }
     }
@@ -355,12 +355,12 @@ class EventSourcingRepositoryTest {
     static class TestModelNotEventSourced {
         List<String> names = new ArrayList<>();
 
-        @ApplyEvent
+        @Apply
         public TestModelNotEventSourced(CreateModel event) {
             names.add(event.getClass().getSimpleName());
         }
 
-        @ApplyEvent
+        @Apply
         public TestModelNotEventSourced apply(UpdateModel event) {
             names.add(event.getClass().getSimpleName());
             return this;
@@ -388,7 +388,7 @@ class EventSourcingRepositoryTest {
 
     @Aggregate
     static class TestModelWithFactoryMethod {
-        @ApplyEvent
+        @Apply
         static TestModelWithFactoryMethod handle(CreateModel event) {
             return new TestModelWithFactoryMethod();
         }
@@ -419,12 +419,12 @@ class EventSourcingRepositoryTest {
 
     @Aggregate
     static class TestModelWithFactoryMethodAndSameInstanceMethod {
-        @ApplyEvent
+        @Apply
         static TestModelWithFactoryMethodAndSameInstanceMethod handleStatic(CreateModel event) {
             return new TestModelWithFactoryMethodAndSameInstanceMethod();
         }
 
-        @ApplyEvent
+        @Apply
         public TestModelWithFactoryMethodAndSameInstanceMethod handle(CreateModel event) {
             return this;
         }
@@ -446,7 +446,7 @@ class EventSourcingRepositoryTest {
 
     @Aggregate
     static class TestModelWithoutFactoryMethodOrConstructor {
-        @ApplyEvent
+        @Apply
         public TestModelWithoutFactoryMethodOrConstructor handle(CreateModel event) {
             return this;
         }

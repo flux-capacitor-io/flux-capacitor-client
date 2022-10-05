@@ -169,7 +169,7 @@ public class DeserializingMessage implements HasMessage {
                 .or(() -> ofNullable(message).map(Message::getPayload)).orElse(null);
     }
 
-    public <V> V getPayloadAs(Class<V> type) {
+    public <R> R getPayloadAs(Class<R> type) {
         return ofNullable(delegate).map(d -> d.getPayloadAs(type))
                 .or(() -> ofNullable(message).map(m -> JsonUtils.convertValue(m.getPayload(), type))).orElse(null);
     }

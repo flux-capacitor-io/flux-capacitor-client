@@ -3,7 +3,6 @@ package io.fluxcapacitor.javaclient.modeling;
 import io.fluxcapacitor.javaclient.MockException;
 import io.fluxcapacitor.javaclient.common.Nullable;
 import io.fluxcapacitor.javaclient.persisting.eventsourcing.Apply;
-import io.fluxcapacitor.javaclient.persisting.eventsourcing.ApplyEvent;
 import io.fluxcapacitor.javaclient.test.TestFixture;
 import io.fluxcapacitor.javaclient.tracking.handling.HandleCommand;
 import lombok.Value;
@@ -120,7 +119,7 @@ public class AssertLegalTest {
 
     @Aggregate
     private static class TestModel {
-        @ApplyEvent
+        @Apply
         public TestModel(Object command) {
         }
     }
@@ -203,7 +202,7 @@ public class AssertLegalTest {
     private static class Model2 {
         String event;
 
-        @ApplyEvent
+        @Apply
         static Model2 apply(String event) {
             return new Model2(event);
         }
