@@ -22,7 +22,8 @@ public interface HasMessage extends HasMetadata {
     }
 
     default Class<?> getPayloadClass() {
-        return toMessage().getPayloadClass();
+        Object payload = getPayload();
+        return payload == null ? Void.class : payload.getClass();
     }
 
     default Optional<String> computeRoutingKey() {

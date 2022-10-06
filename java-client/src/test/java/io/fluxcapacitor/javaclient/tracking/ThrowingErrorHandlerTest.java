@@ -15,6 +15,7 @@
 package io.fluxcapacitor.javaclient.tracking;
 
 import io.fluxcapacitor.common.MessageType;
+import io.fluxcapacitor.javaclient.MockException;
 import io.fluxcapacitor.javaclient.common.serialization.DeserializingMessage;
 import io.fluxcapacitor.javaclient.configuration.DefaultFluxCapacitor;
 import io.fluxcapacitor.javaclient.test.TestFixture;
@@ -66,7 +67,7 @@ class ThrowingErrorHandlerTest {
         @HandleEvent
         private void handle(String event, DeserializingMessage message) {
             secondIndex = message.getIndex();
-            throw new IllegalArgumentException();
+            throw new MockException();
         }
     }
 

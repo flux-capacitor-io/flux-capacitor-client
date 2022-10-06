@@ -216,9 +216,11 @@ public interface Entity<T> {
     }
 
     default Iterable<Entity<?>> possibleTargets(Object payload) {
-        for (Entity<?> e : entities()) {
-            if (e.isPossibleTarget(payload)) {
-                return List.of(e);
+        if (payload != null) {
+            for (Entity<?> e : entities()) {
+                if (e.isPossibleTarget(payload)) {
+                    return List.of(e);
+                }
             }
         }
         return emptyList();

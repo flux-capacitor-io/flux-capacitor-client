@@ -154,7 +154,7 @@ public class HandlerInspector {
                 Parameter p = parameters[i];
                 ParameterResolver<? super M> matchingResolver = null;
                 for (ParameterResolver<? super M> r : parameterResolvers) {
-                    if (r.matches(p, methodAnnotation, m)) {
+                    if (r.matches(p, methodAnnotation, m, target)) {
                         matchingResolver = r;
                         break;
                     }

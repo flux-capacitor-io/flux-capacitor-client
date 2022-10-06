@@ -38,7 +38,7 @@ import static io.fluxcapacitor.javaclient.FluxCapacitor.currentIdentityProvider;
 public class Message implements HasMessage {
 
     public static Message asMessage(Object object) {
-        return object instanceof Message ? (Message) object : new Message(object);
+        return object instanceof HasMessage ? ((HasMessage) object).toMessage() : new Message(object);
     }
 
     @With
@@ -68,10 +68,6 @@ public class Message implements HasMessage {
     @SuppressWarnings("unchecked")
     public <R> R getPayload() {
         return (R) payload;
-    }
-
-    public Class<?> getPayloadClass() {
-        return payload == null ? Void.class : payload.getClass();
     }
 
     @Override

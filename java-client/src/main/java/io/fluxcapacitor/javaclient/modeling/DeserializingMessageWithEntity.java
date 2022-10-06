@@ -4,7 +4,7 @@ import io.fluxcapacitor.javaclient.common.serialization.DeserializingMessage;
 import lombok.Value;
 
 @Value
-public class DeserializingMessageWithEntity extends DeserializingMessage {
+public class DeserializingMessageWithEntity extends DeserializingMessage implements HasEntity {
     Entity<?> entity;
 
     public DeserializingMessageWithEntity(DeserializingMessage message, Entity<?> entity) {

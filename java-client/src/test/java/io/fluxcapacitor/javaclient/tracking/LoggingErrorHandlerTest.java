@@ -17,6 +17,7 @@ package io.fluxcapacitor.javaclient.tracking;
 import io.fluxcapacitor.common.MessageType;
 import io.fluxcapacitor.common.api.SerializedMessage;
 import io.fluxcapacitor.javaclient.FluxCapacitor;
+import io.fluxcapacitor.javaclient.MockException;
 import io.fluxcapacitor.javaclient.persisting.eventsourcing.Apply;
 import io.fluxcapacitor.javaclient.test.TestFixture;
 import io.fluxcapacitor.javaclient.tracking.handling.HandleCommand;
@@ -51,7 +52,7 @@ class LoggingErrorHandlerTest {
     private static class Aggregate {
         @Apply
         static Aggregate create(String event) {
-            throw new IllegalArgumentException();
+            throw new MockException();
         }
     }
 

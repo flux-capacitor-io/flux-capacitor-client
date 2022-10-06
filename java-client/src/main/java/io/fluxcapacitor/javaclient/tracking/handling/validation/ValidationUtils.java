@@ -19,13 +19,15 @@ import io.fluxcapacitor.common.handling.HandlerInspector;
 import io.fluxcapacitor.common.handling.HandlerMatcher;
 import io.fluxcapacitor.common.handling.Invocation;
 import io.fluxcapacitor.common.reflection.ReflectionUtils;
-import io.fluxcapacitor.javaclient.common.Message;
+import io.fluxcapacitor.javaclient.common.HasMessage;
 import io.fluxcapacitor.javaclient.modeling.AssertLegal;
 import io.fluxcapacitor.javaclient.modeling.Entity;
 import io.fluxcapacitor.javaclient.modeling.EntityParameterResolver;
+import io.fluxcapacitor.javaclient.modeling.MessageWithEntity;
 import io.fluxcapacitor.javaclient.tracking.handling.DeserializingMessageParameterResolver;
 import io.fluxcapacitor.javaclient.tracking.handling.MessageParameterResolver;
 import io.fluxcapacitor.javaclient.tracking.handling.MetadataParameterResolver;
+import io.fluxcapacitor.javaclient.tracking.handling.PayloadParameterResolver;
 import io.fluxcapacitor.javaclient.tracking.handling.authentication.ForbidsRole;
 import io.fluxcapacitor.javaclient.tracking.handling.authentication.NoOpUserProvider;
 import io.fluxcapacitor.javaclient.tracking.handling.authentication.RequiresRole;
@@ -41,10 +43,10 @@ import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
-import java.util.Collections;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.ServiceLoader;
 import java.util.function.BiFunction;
@@ -52,6 +54,7 @@ import java.util.function.Function;
 
 import static io.fluxcapacitor.common.ObjectUtils.memoize;
 import static io.fluxcapacitor.common.reflection.ReflectionUtils.getAnnotatedPropertyValues;
+import static io.fluxcapacitor.common.reflection.ReflectionUtils.getMethodAnnotation;
 import static io.fluxcapacitor.common.reflection.ReflectionUtils.getTypeAnnotations;
 import static java.lang.String.format;
 import static java.util.Optional.empty;
@@ -121,45 +124,56 @@ public class ValidationUtils {
         Check command / query legality
      */
 
-    protected static final Function<Class<?>, HandlerMatcher<Object, Entity<?>>> assertLegalCache =
+    protected static final Function<Class<?>, HandlerMatcher<Object, HasMessage>> assertLegalCache =
             memoize(type -> HandlerInspector.inspect(
                     type, List.of(new DeserializingMessageParameterResolver(), new MetadataParameterResolver(),
-                                  new MessageParameterResolver(), new UserParameterResolver(
-                                          NoOpUserProvider.getInstance()), new EntityParameterResolver()),
+                                  new MessageParameterResolver(),
+                                  new UserParameterResolver(NoOpUserProvider.getInstance()),
+                                  new EntityParameterResolver(), new PayloadParameterResolver()),
                     HandlerConfiguration.builder().methodAnnotation(AssertLegal.class)
                             .invokeMultipleMethods(true).build()));
 
     public static <E extends Exception> void assertLegal(Object object, Entity<?> entity) throws E {
-        Collection<Object> additionalProperties = assertLegal(object, entity, false);
-        additionalProperties.forEach(p -> assertLegal(p, entity));
+        assertLegal(object, entity, false);
         Invocation.whenHandlerCompletes((r, e) -> {
             if (e == null) {
-                ValidationUtils.assertLegal(object, entity, true);
+                assertLegal(object, entity, true);
             }
         });
     }
 
-    private static Collection<Object> assertLegal(Object object, Entity<?> entity, boolean afterHandler) {
-        Object payload = object instanceof Message ? ((Message) object).getPayload() : object;
+    private static void assertLegal(Object payload, Entity<?> entity, boolean afterHandler) {
         if (payload == null) {
-            return Collections.emptyList();
+            return;
         }
-        HandlerMatcher<Object, Entity<?>> invoker = assertLegalCache.apply(payload.getClass());
-        Collection<Object> additionalProperties = new HashSet<>(getAnnotatedPropertyValues(payload, AssertLegal.class));
-        invoker.findInvoker(payload, entity)
-                .filter(i -> ReflectionUtils.getMethodAnnotation(i.getMethod(), AssertLegal.class)
-                        .map(a -> a.afterHandler() == afterHandler).orElse(false))
+        //check on payload
+        assertLegalValue(payload.getClass(), payload, payload, entity, afterHandler);
+        entity.possibleTargets(payload).forEach(e -> assertLegalValue(payload.getClass(), payload, payload, e, afterHandler));
+
+        //check on entity
+        assertLegalValue(entity.type(), entity.get(), payload, entity, afterHandler);
+        entity.possibleTargets(payload).forEach(e -> assertLegalValue(e.type(), e.get(), payload, e, afterHandler));
+    }
+
+    private static void assertLegalValue(Class<?> targetType, Object target, Object payload, Entity<?> entity, boolean afterHandler) {
+        if (payload == null) {
+            return;
+        }
+        MessageWithEntity message = new MessageWithEntity(payload, entity);
+        Collection<Object> additionalProperties = new HashSet<>(getAnnotatedPropertyValues(target, AssertLegal.class));
+        assertLegalCache.apply(targetType).findInvoker(target, message)
+                .filter(i -> getMethodAnnotation(i.getMethod(), AssertLegal.class).map(
+                        a -> a.afterHandler() == afterHandler).orElse(false))
                 .ifPresent(s -> {
             Object additionalObject = s.invoke();
-            if (additionalObject instanceof List<?>) {
-                additionalProperties.addAll((List<?>) additionalObject);
-            } else if (additionalObject != null) {
+            if (additionalObject instanceof Collection<?>) {
+                additionalProperties.addAll((Collection<?>) additionalObject);
+            } else {
                 additionalProperties.add(additionalObject);
             }
         });
-        entity.possibleTargets(payload).forEach(
-                e -> additionalProperties.addAll(ValidationUtils.assertLegal(payload, e, afterHandler)));
-        return additionalProperties;
+        additionalProperties.stream().filter(Objects::nonNull)
+                .forEach(p -> assertLegalValue(p.getClass(), p, payload, entity, afterHandler));
     }
 
     @SuppressWarnings("unchecked")

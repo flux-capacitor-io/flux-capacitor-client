@@ -171,6 +171,12 @@ public class AggregateEntitiesTest {
                     .expectExceptionalResult(IllegalCommandException.class).expectNoEvents();
         }
 
+        @Test
+        void testRouteToChildHandledByEntity() {
+            testFixture.whenCommand(new CommandWithRoutingKeyHandledByEntity("id"))
+                    .expectExceptionalResult(IllegalCommandException.class).expectNoEvents();
+        }
+
         class CommandHandler {
             @HandleCommand
             void handle(Object command) {
@@ -550,6 +556,11 @@ public class AggregateEntitiesTest {
         GrandChild grandChild;
         @With
         Object data;
+
+        @AssertLegal
+        void assertLegal(CommandWithRoutingKeyHandledByEntity child) {
+            throw new IllegalCommandException("Child already exists");
+        }
     }
 
     @Value
@@ -617,6 +628,12 @@ public class AggregateEntitiesTest {
                 throw new IllegalCommandException("Child is unauthorized");
             }
         }
+    }
+
+    @Value
+    static class CommandWithRoutingKeyHandledByEntity {
+        @RoutingKey
+        String target;
     }
 
     @Value

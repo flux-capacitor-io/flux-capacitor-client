@@ -5,6 +5,7 @@ import io.fluxcapacitor.javaclient.common.Nullable;
 import io.fluxcapacitor.javaclient.persisting.eventsourcing.Apply;
 import io.fluxcapacitor.javaclient.test.TestFixture;
 import io.fluxcapacitor.javaclient.tracking.handling.HandleCommand;
+import io.fluxcapacitor.javaclient.tracking.handling.IllegalCommandException;
 import lombok.Value;
 import org.junit.jupiter.api.Test;
 
@@ -104,6 +105,22 @@ public class AssertLegalTest {
         testFixture.whenCommand(new CommandWithAssertThatReturnsValue()).expectExceptionalResult(MockException.class);
     }
 
+    @Test
+    void assertInRootEntity() {
+        testFixture.givenCommands(new CreateModel()).whenCommand(12)
+                .expectExceptionalResult(IllegalCommandException.class);
+    }
+
+    @Test
+    void assertInRootEntity_allowed() {
+        testFixture.givenCommands(new CreateModel()).whenCommand(5).expectSuccessfulResult();
+    }
+
+    @Test
+    void assertInRootEntityBeforeCreate() {
+        testFixture.whenCommand(5).expectExceptionalResult(IllegalCommandException.class);
+    }
+
     private static class Handler {
         @HandleCommand
         void handle(Object command) {
@@ -121,6 +138,20 @@ public class AssertLegalTest {
     private static class TestModel {
         @Apply
         public TestModel(Object command) {
+        }
+
+        @AssertLegal
+        static void staticAssertNotLargerThan10(Integer number) {
+            if (number > 2) {
+                throw new IllegalCommandException("Number is larger than 2");
+            }
+        }
+
+        @AssertLegal
+        void assertNotLargerThan10(Integer number) {
+            if (number > 10) {
+                throw new IllegalCommandException("Number is larger than 10");
+            }
         }
     }
 
@@ -234,7 +265,8 @@ public class AssertLegalTest {
 
     @Value
     private static class CommandThatDelegatesToProperty {
-        @AssertLegal CommandWithAssertionInInterface field;
+        @AssertLegal
+        CommandWithAssertionInInterface field;
         CommandWithAssertionInInterface method;
 
         @AssertLegal

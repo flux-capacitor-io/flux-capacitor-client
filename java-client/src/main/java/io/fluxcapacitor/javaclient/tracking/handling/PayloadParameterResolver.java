@@ -28,8 +28,8 @@ public class PayloadParameterResolver implements ParameterResolver<HasMessage> {
     }
 
     @Override
-    public boolean matches(Parameter p, Annotation methodAnnotation, HasMessage value) {
-        return p.getType().isAssignableFrom(value.getPayloadClass());
+    public boolean matches(Parameter p, Annotation methodAnnotation, HasMessage value, Object target) {
+        return p.getType().isAssignableFrom(value.getPayloadClass()) && target != value.getPayload();
     }
 
     @Override

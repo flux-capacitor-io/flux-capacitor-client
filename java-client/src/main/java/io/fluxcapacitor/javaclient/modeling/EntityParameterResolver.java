@@ -23,15 +23,13 @@ public class EntityParameterResolver implements ParameterResolver<Object> {
     }
 
     @Override
-    public boolean matches(Parameter parameter, Annotation methodAnnotation, Object input) {
+    public boolean matches(Parameter parameter, Annotation methodAnnotation, Object input, Object target) {
         return matches(parameter, getMatchingEntity(input, parameter));
     }
 
     protected Entity<?> getMatchingEntity(Object input, Parameter parameter) {
-        if (input instanceof DeserializingMessageWithEntity) {
-            return ((DeserializingMessageWithEntity) input).getEntity();
-        } else if (input instanceof Entity<?>) {
-            return ((Entity<?>) input);
+        if (input instanceof HasEntity) {
+            return ((HasEntity) input).getEntity();
         } else if (input instanceof HasMessage) {
             if (Entity.class.isAssignableFrom(parameter.getType())
                 || Optional.ofNullable(Entity.getAggregateType((HasMessage) input)).map(

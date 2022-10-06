@@ -23,7 +23,7 @@ public interface ParameterResolver<M> {
 
     Function<M, Object> resolve(Parameter parameter, Annotation methodAnnotation);
 
-    default boolean matches(Parameter parameter, Annotation methodAnnotation, M value) {
+    default boolean matches(Parameter parameter, Annotation methodAnnotation, M value, Object target) {
         Function<M, Object> function = resolve(parameter, methodAnnotation);
         if (function == null) {
             return false;
