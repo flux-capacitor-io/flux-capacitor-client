@@ -65,7 +65,8 @@ public class WebsocketTrackingClient extends AbstractWebsocketClient implements 
         return this.<ReadResult>send(new Read(
                         consumer, trackerId, configuration.getMaxFetchBatchSize(),
                         configuration.getMaxWaitDuration().toMillis(), configuration.getTypeFilter(),
-                        configuration.ignoreMessageTarget(), configuration.ignoreSegment(), lastIndex,
+                        configuration.ignoreMessageTarget(), configuration.ignoreSegment(),
+                        configuration.singleTracker(), lastIndex,
                         Optional.ofNullable(configuration.getPurgeDelay()).map(Duration::toMillis).orElse(null)))
                 .thenApply(ReadResult::getMessageBatch);
     }

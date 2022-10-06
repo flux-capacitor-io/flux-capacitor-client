@@ -30,6 +30,7 @@ public class Read extends Request {
     String typeFilter;
     boolean ignoreMessageTarget;
     boolean ignoreSegment;
+    boolean singleTracker;
     Long lastIndex;
     Long purgeTimeout;
 }

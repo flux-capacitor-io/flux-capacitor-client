@@ -87,7 +87,7 @@ public class InMemoryMessageStore implements GatewayClient, TrackingClient {
     public CompletableFuture<int[]> claimSegment(TrackerRead trackerRead) {
         if (trackerRead.getMessageType() != MessageType.RESULT && !Objects.equals(
                 trackerRead.getTrackerId(), trackers.computeIfAbsent(
-                        trackerRead.getConsumerName(), c -> trackerRead).getTrackerId())) {
+                        trackerRead.getConsumer(), c -> trackerRead).getTrackerId())) {
             return CompletableFuture.supplyAsync(
                     () -> new int[]{0, 0},
                     CompletableFuture.delayedExecutor(trackerRead.getDeadline() - currentTimeMillis(), MILLISECONDS));
@@ -98,7 +98,7 @@ public class InMemoryMessageStore implements GatewayClient, TrackingClient {
     public CompletableFuture<MessageBatch> read(TrackerRead trackerRead) {
         if (trackerRead.getMessageType() != MessageType.RESULT && !Objects.equals(
                 trackerRead.getTrackerId(), trackers.computeIfAbsent(
-                        trackerRead.getConsumerName(), c -> trackerRead).getTrackerId())) {
+                        trackerRead.getConsumer(), c -> trackerRead).getTrackerId())) {
             return CompletableFuture.supplyAsync(
                     () -> new MessageBatch(new int[]{0, 0}, Collections.emptyList(), null),
                     CompletableFuture.delayedExecutor(trackerRead.getDeadline() - currentTimeMillis(), MILLISECONDS));
@@ -109,8 +109,8 @@ public class InMemoryMessageStore implements GatewayClient, TrackingClient {
                 Map<Long, SerializedMessage> tailMap = Collections.emptyMap();
                 while (currentTimeMillis() < trackerRead.getDeadline()
                         && shouldWait(tailMap = messageLog
-                        .tailMap(Optional.ofNullable(trackerRead.getLastTrackerIndex()).orElseGet(
-                                () -> getLastIndex(trackerRead.getConsumerName())), false))) {
+                        .tailMap(Optional.ofNullable(trackerRead.getLastIndex()).orElseGet(
+                                () -> getLastIndex(trackerRead.getConsumer())), false))) {
                     long duration = trackerRead.getDeadline() - currentTimeMillis();
                     if (duration > 0) {
                         try {

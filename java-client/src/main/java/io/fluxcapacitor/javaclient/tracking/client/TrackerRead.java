@@ -20,21 +20,21 @@ import io.fluxcapacitor.common.api.SerializedMessage;
 import java.util.Comparator;
 
 public interface TrackerRead extends Comparable<TrackerRead> {
-    Comparator<TrackerRead> comparator = Comparator.comparing(TrackerRead::getConsumerName).thenComparing(TrackerRead::getTrackerId);
+    Comparator<TrackerRead> comparator = Comparator.comparing(TrackerRead::getConsumer).thenComparing(TrackerRead::getTrackerId);
 
     MessageType getMessageType();
 
-    String getConsumerName();
+    String getConsumer();
 
     boolean canHandle(SerializedMessage message);
 
     String getTrackerId();
 
-    Long getLastTrackerIndex();
+    Long getLastIndex();
 
     long getDeadline();
 
-    Long getPurgeDelay();
+    Long getPurgeTimeout();
 
     int getMaxSize();
 

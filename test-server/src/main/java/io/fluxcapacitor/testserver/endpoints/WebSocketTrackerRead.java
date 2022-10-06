@@ -19,6 +19,7 @@ import io.fluxcapacitor.common.api.SerializedMessage;
 import io.fluxcapacitor.common.api.tracking.Read;
 import io.fluxcapacitor.javaclient.tracking.client.TrackerRead;
 import lombok.Value;
+import lombok.experimental.Delegate;
 
 import java.util.Objects;
 import java.util.function.Predicate;
@@ -26,29 +27,22 @@ import java.util.regex.Pattern;
 
 @Value
 public class WebSocketTrackerRead implements TrackerRead {
-    String consumerName;
+    @Delegate
+    Read read;
     String clientId;
     String sessionId;
-    String trackerId;
-    Long lastTrackerIndex;
     long deadline;
-    Long purgeDelay;
-    int maxSize;
     Predicate<String> typeFilter;
-    boolean ignoreMessageTarget;
     MessageType messageType;
 
     public WebSocketTrackerRead(Read read, String clientId, String sessionId, MessageType messageType) {
-        this.consumerName = read.getConsumer();
+        this.read = read;
+
+        this.typeFilter = toPredicate(read.getTypeFilter());
+        this.deadline = System.currentTimeMillis() + read.getMaxTimeout();
+
         this.clientId = clientId;
         this.sessionId = sessionId;
-        this.trackerId = read.getTrackerId();
-        this.lastTrackerIndex = read.getLastIndex();
-        this.deadline = System.currentTimeMillis() + read.getMaxTimeout();
-        this.purgeDelay = read.getPurgeTimeout();
-        this.maxSize = read.getMaxSize();
-        this.typeFilter = toPredicate(read.getTypeFilter());
-        this.ignoreMessageTarget = read.isIgnoreMessageTarget();
         this.messageType = messageType;
     }
 
@@ -60,7 +54,7 @@ public class WebSocketTrackerRead implements TrackerRead {
     }
 
     public boolean canHandle(SerializedMessage message) {
-        return (ignoreMessageTarget || message.getTarget() == null || clientId.equals(message.getTarget()))
+        return (isIgnoreMessageTarget() || message.getTarget() == null || clientId.equals(message.getTarget()))
                 && (message.getData().getType() == null || typeFilter.test(message.getData().getType()));
     }
 
@@ -73,21 +67,21 @@ public class WebSocketTrackerRead implements TrackerRead {
             return false;
         }
         WebSocketTrackerRead that = (WebSocketTrackerRead) o;
-        return Objects.equals(consumerName, that.consumerName) &&
-                Objects.equals(trackerId, that.trackerId);
+        return Objects.equals(getConsumer(), that.getConsumer()) &&
+               Objects.equals(getTrackerId(), that.getTrackerId());
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(consumerName, trackerId);
+        return Objects.hash(getConsumer(), getTrackerId());
     }
 
     @Override
     public String toString() {
         return "WebSocketTracker{" +
-                "consumerName='" + consumerName + '\'' +
-                ", clientId='" + clientId + '\'' +
-                ", trackerId='" + trackerId + '\'' +
-                '}';
+               "consumerName='" + getConsumer() + '\'' +
+               ", clientId='" + clientId + '\'' +
+               ", trackerId='" + getTrackerId() + '\'' +
+               '}';
     }
 }

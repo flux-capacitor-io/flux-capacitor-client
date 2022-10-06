@@ -59,6 +59,9 @@ public class ConsumerConfiguration {
     @Accessors(fluent = true)
     boolean ignoreSegment = false;
     @Default
+    @Accessors(fluent = true)
+    boolean singleTracker = false;
+    @Default
     Long minIndex = null;
     @Default
     Long maxIndexExclusive = null;

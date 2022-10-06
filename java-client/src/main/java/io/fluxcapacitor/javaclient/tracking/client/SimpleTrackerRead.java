@@ -27,11 +27,11 @@ import java.util.regex.Pattern;
 
 @Value
 public class SimpleTrackerRead implements TrackerRead {
-    String consumerName;
+    String consumer;
     String trackerId;
-    Long lastTrackerIndex;
+    Long lastIndex;
     long deadline;
-    Long purgeDelay;
+    Long purgeTimeout;
     int maxSize;
     Predicate<String> typeFilter;
     boolean ignoreMessageTarget;
@@ -39,11 +39,11 @@ public class SimpleTrackerRead implements TrackerRead {
 
     public SimpleTrackerRead(String consumer, String trackerId, Long previousLastIndex,
                              ConsumerConfiguration config) {
-        this.consumerName = consumer;
+        this.consumer = consumer;
         this.trackerId = trackerId;
-        this.lastTrackerIndex = previousLastIndex;
+        this.lastIndex = previousLastIndex;
         this.deadline = System.currentTimeMillis() + config.getMaxWaitDuration().toMillis();
-        this.purgeDelay = Optional.ofNullable(config.getPurgeDelay()).map(Duration::toMillis).orElse(null);
+        this.purgeTimeout = Optional.ofNullable(config.getPurgeDelay()).map(Duration::toMillis).orElse(null);
         this.maxSize = config.getMaxFetchBatchSize();
         this.typeFilter = toPredicate(config.getTypeFilter());
         this.ignoreMessageTarget = config.ignoreMessageTarget();
@@ -70,20 +70,20 @@ public class SimpleTrackerRead implements TrackerRead {
             return false;
         }
         SimpleTrackerRead that = (SimpleTrackerRead) o;
-        return Objects.equals(consumerName, that.consumerName) &&
-                Objects.equals(trackerId, that.trackerId);
+        return Objects.equals(consumer, that.consumer) &&
+               Objects.equals(trackerId, that.trackerId);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(consumerName, trackerId);
+        return Objects.hash(consumer, trackerId);
     }
 
     @Override
     public String toString() {
         return "WebSocketTracker{" +
-                "consumerName='" + consumerName + '\'' +
-                ", trackerId='" + trackerId + '\'' +
-                '}';
+               "consumerName='" + consumer + '\'' +
+               ", trackerId='" + trackerId + '\'' +
+               '}';
     }
 }

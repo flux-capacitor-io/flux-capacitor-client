@@ -26,7 +26,7 @@ public class ClaimSegment extends Read {
     public ClaimSegment(String consumer, String trackerId, long maxTimeout, String typeFilter,
                         boolean ignoreMessageTarget, Long lastIndex, Long purgeTimeout) {
         super(consumer, trackerId, 0, maxTimeout, typeFilter, ignoreMessageTarget, false,
-              lastIndex, purgeTimeout);
+              false, lastIndex, purgeTimeout);
     }
 
     public ClaimSegment(Read read) {
