@@ -58,7 +58,7 @@ public class TestServer {
     private static final Function<String, InMemoryClient> clients = memoize(projectId -> InMemoryClient.newInstance());
 
     public static void main(final String[] args) {
-        start(Integer.getInteger("port", 8888));
+        start(Integer.getInteger("port", 8080));
     }
 
     public static void start(int port) {

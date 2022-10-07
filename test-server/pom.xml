@@ -81,8 +81,7 @@
                     <plugin>
                         <groupId>org.apache.maven.plugins</groupId>
                         <artifactId>maven-shade-plugin</artifactId>
-                        <!--v3.3.0 gave issues deploying artifacts to maven central (Cannot add two different pieces of metadata for ... )-->
-                        <version>3.2.4</version>
+                        <version>3.4.0</version>
                         <executions>
                             <execution>
                                 <id>test-server</id>
