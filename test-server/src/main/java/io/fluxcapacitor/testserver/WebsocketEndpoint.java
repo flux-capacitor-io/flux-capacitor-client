@@ -72,12 +72,11 @@ public abstract class WebsocketEndpoint extends Endpoint {
     protected volatile boolean shutDown;
 
     protected WebsocketEndpoint() {
-        this(defaultObjectMapper, Executors.newWorkStealingPool(64),
-             Executors.newWorkStealingPool(8));
+        this(Executors.newFixedThreadPool(32));
     }
 
     protected WebsocketEndpoint(Executor requestExecutor) {
-        this(defaultObjectMapper, requestExecutor, Executors.newWorkStealingPool(8));
+        this(defaultObjectMapper, requestExecutor, requestExecutor);
     }
 
     protected WebsocketEndpoint(ObjectMapper objectMapper, Executor requestExecutor,

@@ -120,7 +120,7 @@ public class InMemoryMessageStore implements GatewayClient, TrackingClient {
                         }
                     }
                 }
-                List<SerializedMessage> messages = filterMessages(new ArrayList<>(tailMap.values()));
+                List<SerializedMessage> messages = new ArrayList<>(filterMessages(tailMap.values()));
                 messages = messages.subList(0, Math.min(messages.size(), trackerRead.getMaxSize()));
                 Long lastIndex = messages.isEmpty() ? null : messages.get(messages.size() - 1).getIndex();
                 messages = messages.stream().filter(trackerRead::canHandle).collect(toList());
@@ -134,11 +134,8 @@ public class InMemoryMessageStore implements GatewayClient, TrackingClient {
         return filterMessages(tailMap.values()).isEmpty();
     }
 
-    protected List<SerializedMessage> filterMessages(Collection<SerializedMessage> messages) {
-        if (messages.isEmpty()) {
-            return Collections.emptyList();
-        }
-        return messages instanceof List<?> ? (List<SerializedMessage>) messages : new ArrayList<>(messages);
+    protected Collection<SerializedMessage> filterMessages(Collection<SerializedMessage> messages) {
+        return messages;
     }
 
     @Override

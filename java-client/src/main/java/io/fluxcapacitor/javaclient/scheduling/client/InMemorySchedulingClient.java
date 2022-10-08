@@ -45,7 +45,7 @@ public class InMemorySchedulingClient extends InMemoryMessageStore implements Sc
     private volatile Clock clock = Clock.systemUTC();
 
     @Override
-    protected List<SerializedMessage> filterMessages(Collection<SerializedMessage> messages) {
+    protected Collection<SerializedMessage> filterMessages(Collection<SerializedMessage> messages) {
         long maximumIndex = indexFromMillis(clock.millis());
         return super.filterMessages(messages).stream()
                 .filter(m -> m.getIndex() <= maximumIndex && scheduleIdsByIndex.containsKey(m.getIndex()))
