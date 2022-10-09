@@ -14,6 +14,8 @@
 
 package io.fluxcapacitor.javaclient.tracking.handling;
 
+import io.fluxcapacitor.common.MessageType;
+
 import java.lang.annotation.Documented;
 import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;
@@ -23,6 +25,7 @@ import java.lang.annotation.Target;
 @Documented
 @Retention(RetentionPolicy.RUNTIME)
 @Target(ElementType.METHOD)
+@HandleMessage(MessageType.COMMAND)
 public @interface HandleCommand {
     boolean passive() default false;
 }

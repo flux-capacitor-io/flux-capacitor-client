@@ -54,7 +54,7 @@ import java.util.function.Function;
 
 import static io.fluxcapacitor.common.ObjectUtils.memoize;
 import static io.fluxcapacitor.common.reflection.ReflectionUtils.getAnnotatedPropertyValues;
-import static io.fluxcapacitor.common.reflection.ReflectionUtils.getMethodAnnotation;
+import static io.fluxcapacitor.common.reflection.ReflectionUtils.getAnnotation;
 import static io.fluxcapacitor.common.reflection.ReflectionUtils.getTypeAnnotations;
 import static java.lang.String.format;
 import static java.util.Optional.empty;
@@ -162,7 +162,7 @@ public class ValidationUtils {
         MessageWithEntity message = new MessageWithEntity(payload, entity);
         Collection<Object> additionalProperties = new HashSet<>(getAnnotatedPropertyValues(target, AssertLegal.class));
         assertLegalCache.apply(targetType).findInvoker(target, message)
-                .filter(i -> getMethodAnnotation(i.getMethod(), AssertLegal.class).map(
+                .filter(i -> getAnnotation(i.getMethod(), AssertLegal.class).map(
                         a -> a.afterHandler() == afterHandler).orElse(false))
                 .ifPresent(s -> {
             Object additionalObject = s.invoke();

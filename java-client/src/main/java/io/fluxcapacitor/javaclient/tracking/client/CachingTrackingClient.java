@@ -144,7 +144,7 @@ public class CachingTrackingClient implements TrackingClient {
 
     protected MessageBatch getMessageBatch(ConsumerConfiguration config, long minIndex, ClaimSegmentResult claim) {
         List<SerializedMessage> unfiltered = cache.tailMap(minIndex, false).values().stream().limit(
-                config.getMaxFetchBatchSize()).collect(toList());
+                config.getMaxFetchSize()).collect(toList());
         Long lastIndex = unfiltered.isEmpty() ? null : unfiltered.get(unfiltered.size() - 1).getIndex();
         return new MessageBatch(claim.getSegment(), filterMessages(
                 unfiltered, claim.getSegment(), claim.getPosition(), config), lastIndex);

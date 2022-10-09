@@ -60,7 +60,7 @@ public class CastInspector {
         if (!ReflectionUtils.has(castAnnotation, m)) {
             return Optional.empty();
         }
-        return ReflectionUtils.getMethodAnnotationParameters(m, Cast.class, CastParameters.class).map(
+        return ReflectionUtils.getAnnotationAs(m, Cast.class, CastParameters.class).map(
                 params -> createCaster(params, m, target, dataType));
     }
 

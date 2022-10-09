@@ -14,6 +14,9 @@
 
 package io.fluxcapacitor.javaclient.web;
 
+import io.fluxcapacitor.common.MessageType;
+import io.fluxcapacitor.javaclient.tracking.handling.HandleMessage;
+
 import java.lang.annotation.Documented;
 import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;
@@ -23,6 +26,7 @@ import java.lang.annotation.Target;
 @Documented
 @Retention(RetentionPolicy.RUNTIME)
 @Target({ElementType.METHOD, ElementType.ANNOTATION_TYPE})
+@HandleMessage(MessageType.WEBREQUEST)
 public @interface HandleWeb {
     String value();
     HttpRequestMethod method() default HttpRequestMethod.ANY;

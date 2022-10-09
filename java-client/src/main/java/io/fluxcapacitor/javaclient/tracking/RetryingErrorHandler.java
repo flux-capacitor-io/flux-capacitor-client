@@ -34,12 +34,20 @@ public class RetryingErrorHandler implements ErrorHandler {
     private final boolean throwOnFailure;
     private final boolean logFunctionalErrors;
 
-    public static RetryingErrorHandler forAnyError() {
-        return new RetryingErrorHandler(e -> true);
+    public RetryingErrorHandler() {
+        this(e -> true);
+    }
+
+    public RetryingErrorHandler(boolean throwOnFailure) {
+        this(e -> true, throwOnFailure);
     }
 
     public RetryingErrorHandler(Predicate<Exception> errorFilter) {
-        this(5, Duration.ofSeconds(2), errorFilter, false, true);
+        this(errorFilter, false);
+    }
+
+    public RetryingErrorHandler(Predicate<Exception> errorFilter, boolean throwOnFailure) {
+        this(5, Duration.ofSeconds(2), errorFilter, throwOnFailure, true);
     }
 
     @Override

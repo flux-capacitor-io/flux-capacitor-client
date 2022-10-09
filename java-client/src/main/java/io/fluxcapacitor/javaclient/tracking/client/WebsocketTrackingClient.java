@@ -63,7 +63,7 @@ public class WebsocketTrackingClient extends AbstractWebsocketClient implements 
     public CompletableFuture<MessageBatch> read(String consumer, String trackerId, Long lastIndex,
                                                 ConsumerConfiguration configuration) {
         return this.<ReadResult>send(new Read(
-                        consumer, trackerId, configuration.getMaxFetchBatchSize(),
+                        consumer, trackerId, configuration.getMaxFetchSize(),
                         configuration.getMaxWaitDuration().toMillis(), configuration.getTypeFilter(),
                         configuration.ignoreMessageTarget(), configuration.ignoreSegment(),
                         configuration.singleTracker(), lastIndex,

@@ -24,8 +24,7 @@ import java.lang.annotation.Target;
 
 @Documented
 @Retention(RetentionPolicy.RUNTIME)
-@Target(ElementType.METHOD)
-@HandleMessage(MessageType.QUERY)
-public @interface HandleQuery {
-    boolean passive() default false;
+@Target(ElementType.ANNOTATION_TYPE)
+public @interface HandleMessage {
+    MessageType value();
 }

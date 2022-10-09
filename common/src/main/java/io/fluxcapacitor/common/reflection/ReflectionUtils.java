@@ -446,17 +446,18 @@ public class ReflectionUtils {
         return isNullableCache.apply(parameter);
     }
 
-    public static Object asInstance(Object classOrInstance) {
+    @SuppressWarnings("unchecked")
+    public static <T> T asInstance(Object classOrInstance) {
         if (classOrInstance instanceof Class<?>) {
             try {
-                return ensureAccessible(((Class<?>) classOrInstance).getDeclaredConstructor()).newInstance();
+                return (T) ensureAccessible(((Class<?>) classOrInstance).getDeclaredConstructor()).newInstance();
             } catch (Exception e) {
                 throw new IllegalStateException(format(
                         "Failed to create an instance of class %s. Does it have an accessible default constructor?",
                         classOrInstance), e);
             }
         }
-        return classOrInstance;
+        return (T) classOrInstance;
     }
 
     @Value
@@ -533,23 +534,32 @@ public class ReflectionUtils {
         return classForNameCache.apply(type);
     }
 
-    public static <A extends Annotation> Optional<A> getMethodAnnotation(Executable m, Class<A> a) {
-        return getMethodAnnotationParameters(m, a, a);
+    /*
+        Returns meta annotation if desired
+     */
+    public static <A extends Annotation> Optional<A> getAnnotation(Executable m, Class<A> a) {
+        return getAnnotationAs(m, a, a);
     }
 
     /*
-       Adopted from https://stackoverflow.com/questions/49105303/how-to-get-annotation-from-overridden-method-in-java/49164791
-    */
+        Returns any object
+     */
     @SneakyThrows
     @SuppressWarnings("unchecked")
-    public static <T> Optional<T> getMethodAnnotationParameters(Executable m, Class<? extends Annotation> a,
-                                                                Class<T> returnType) {
+    public static <T> Optional<T> getAnnotationAs(Executable m, Class<? extends Annotation> a,
+                                                  Class<T> returnType) {
         if (a == null) {
             return Optional.empty();
         }
-        Annotation result = findMatchingAnnotation(m, a);
-        if (a.equals(returnType) || result == null) {
-            return Optional.ofNullable((T) result);
+        Annotation result = getMethodAnnotation(m, a).orElse(null);
+        if (result == null) {
+            return Optional.empty();
+        }
+        if (a.equals(returnType)) {
+            if (result.annotationType().equals(returnType)) {
+                return Optional.of((T) result);
+            }
+            return Optional.of((T) result.annotationType().getAnnotation(a));
         }
         Class<? extends Annotation> matchedType = result.annotationType();
         Map<String, Object> params = new HashMap<>();
@@ -569,10 +579,13 @@ public class ReflectionUtils {
     }
 
     public static boolean has(Class<? extends Annotation> annotationClass, Method method) {
-        return findMatchingAnnotation(method, annotationClass) != null;
+        return getMethodAnnotation(method, annotationClass).isPresent();
     }
 
-    private static Annotation findMatchingAnnotation(Executable m, Class<? extends Annotation> a) {
+    /*
+       Adopted from https://stackoverflow.com/questions/49105303/how-to-get-annotation-from-overridden-method-in-java/49164791
+    */
+    public static Optional<? extends Annotation> getMethodAnnotation(Executable m, Class<? extends Annotation> a) {
         Annotation result = getTopLevelAnnotation(m, a);
         Class<?> c = m.getDeclaringClass();
 
@@ -589,7 +602,7 @@ public class ReflectionUtils {
                 }
             }
         }
-        return result;
+        return Optional.ofNullable(result);
     }
 
     private static Annotation getTopLevelAnnotation(Executable m, Class<? extends Annotation> a) {

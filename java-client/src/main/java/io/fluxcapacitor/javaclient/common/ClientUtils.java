@@ -30,13 +30,13 @@ import java.util.concurrent.TimeoutException;
 import java.util.function.BiFunction;
 
 import static io.fluxcapacitor.common.ObjectUtils.memoize;
-import static io.fluxcapacitor.common.reflection.ReflectionUtils.getMethodAnnotation;
+import static io.fluxcapacitor.common.reflection.ReflectionUtils.getAnnotation;
 import static io.fluxcapacitor.common.reflection.ReflectionUtils.getTypeAnnotation;
 
 @Slf4j
 public class ClientUtils {
     private static final BiFunction<Class<?>, Executable, Optional<LocalHandler>> localHandlerCache = memoize(
-            (target, method) -> getMethodAnnotation(method, LocalHandler.class)
+            (target, method) -> getAnnotation(method, LocalHandler.class)
                     .or(() -> Optional.ofNullable(getTypeAnnotation(target, LocalHandler.class))));
 
     public static void waitForResults(Duration maxDuration, Collection<? extends Future<?>> futures) {

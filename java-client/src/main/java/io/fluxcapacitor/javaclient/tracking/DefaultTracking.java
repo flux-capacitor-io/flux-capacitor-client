@@ -42,6 +42,7 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
@@ -51,11 +52,13 @@ import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.BiPredicate;
 import java.util.function.Consumer;
+import java.util.function.Function;
 import java.util.stream.Stream;
 
 import static io.fluxcapacitor.common.reflection.ReflectionUtils.asInstance;
 import static io.fluxcapacitor.javaclient.common.ClientUtils.waitForResults;
 import static io.fluxcapacitor.javaclient.common.serialization.DeserializingMessage.handleBatch;
+import static io.fluxcapacitor.javaclient.tracking.ConsumerConfiguration.handlerConfigurations;
 import static java.lang.String.format;
 import static java.util.stream.Collectors.toList;
 import static java.util.stream.Collectors.toMap;
@@ -67,6 +70,7 @@ public class DefaultTracking implements Tracking {
     private final MessageType messageType;
     private final ResultGateway resultGateway;
     private final List<ConsumerConfiguration> configurations;
+    private final List<? extends BatchInterceptor> generalBatchInterceptors;
     private final Serializer serializer;
     private final HandlerFactory handlerFactory;
 
@@ -109,7 +113,18 @@ public class DefaultTracking implements Tracking {
 
     private Map<ConsumerConfiguration, List<Object>> assignHandlersToConsumers(List<?> handlers) {
         var unassignedHandlers = new ArrayList<Object>(handlers);
-        var assignedHandlers = configurations.stream().map(config -> {
+        var configurations = Stream.concat(
+                        handlers.stream().flatMap(
+                                h -> handlerConfigurations(h.getClass()).filter(c -> c.getMessageType() == messageType)),
+                        this.configurations.stream())
+                .map(config -> config.toBuilder().batchInterceptors(generalBatchInterceptors).build())
+                .collect(toMap(ConsumerConfiguration::getName, Function.identity(), (a, b) -> {
+                    if (a.equals(b)) {
+                        return a.toBuilder().handlerFilter(a.getHandlerFilter().or(b.getHandlerFilter())).build();
+                    }
+                    throw new IllegalStateException(format("Consumer name %s is already in use", a.getName()));
+                }, LinkedHashMap::new));
+        var result = configurations.values().stream().map(config -> {
             var matches =
                     unassignedHandlers.stream().filter(h -> config.getHandlerFilter().test(h)).collect(toList());
             if (config.exclusive()) {
@@ -118,11 +133,11 @@ public class DefaultTracking implements Tracking {
             return Map.entry(config, matches);
         }).collect(toMap(Entry::getKey, Entry::getValue));
         unassignedHandlers.removeAll(
-                assignedHandlers.values().stream().flatMap(Collection::stream).distinct().collect(toList()));
+                result.values().stream().flatMap(Collection::stream).distinct().collect(toList()));
         unassignedHandlers.forEach(h -> {
             throw new TrackingException(format("Failed to find consumer for %s", h));
         });
-        return assignedHandlers;
+        return result;
     }
 
     protected Registration startTracking(ConsumerConfiguration configuration,

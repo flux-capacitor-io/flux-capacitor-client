@@ -44,7 +44,7 @@ public class SimpleTrackerRead implements TrackerRead {
         this.lastIndex = previousLastIndex;
         this.deadline = System.currentTimeMillis() + config.getMaxWaitDuration().toMillis();
         this.purgeTimeout = Optional.ofNullable(config.getPurgeDelay()).map(Duration::toMillis).orElse(null);
-        this.maxSize = config.getMaxFetchBatchSize();
+        this.maxSize = config.getMaxFetchSize();
         this.typeFilter = toPredicate(config.getTypeFilter());
         this.ignoreMessageTarget = config.ignoreMessageTarget();
         this.messageType = config.getMessageType();

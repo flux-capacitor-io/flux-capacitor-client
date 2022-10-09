@@ -18,9 +18,9 @@ import io.fluxcapacitor.javaclient.FluxCapacitor;
 import io.fluxcapacitor.javaclient.MockException;
 import io.fluxcapacitor.javaclient.common.IgnoringErrorHandler;
 import io.fluxcapacitor.javaclient.common.exception.TechnicalException;
-import io.fluxcapacitor.javaclient.configuration.DefaultFluxCapacitor;
 import io.fluxcapacitor.javaclient.scheduling.Schedule;
 import io.fluxcapacitor.javaclient.test.TestFixture;
+import io.fluxcapacitor.javaclient.tracking.Consumer;
 import io.fluxcapacitor.javaclient.tracking.handling.HandleCommand;
 import io.fluxcapacitor.javaclient.tracking.handling.HandleEvent;
 import io.fluxcapacitor.javaclient.tracking.handling.HandleSchedule;
@@ -36,19 +36,15 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
-import static io.fluxcapacitor.common.MessageType.COMMAND;
+class GivenWhenThenAsyncTest {
 
-class GivenWhenThenStreamingTest {
-
-    private final TestFixture
-            subject = TestFixture.createAsync(DefaultFluxCapacitor.builder().configureDefaultConsumer(
-            COMMAND, config -> config.toBuilder().errorHandler(new IgnoringErrorHandler()).build()),
-                                                  new CommandHandler(), new EventHandler(), new AsyncCommandHandler(),
-                                                  new ScheduleHandler()).resultTimeout(Duration.ofSeconds(1));
+    private final TestFixture subject = TestFixture.createAsync(
+            new MixedHandler(), new AsyncCommandHandler(), new ScheduleHandler()).resultTimeout(Duration.ofSeconds(1));
 
     @Test
     void testExpectCommandsAndIndirectEvents() {
-        subject.whenEvent(123).expectNoResult().expectCommands(new YieldsEventAndResult())
+        subject.whenEvent(123).expectNoResult().expectNoErrors()
+                .expectCommands(new YieldsEventAndResult())
                 .expectEvents(new YieldsEventAndResult());
     }
 
@@ -74,7 +70,8 @@ class GivenWhenThenStreamingTest {
 
     @Test
     void testAsyncExceptionHandling2() {
-        subject.whenCommand(new YieldsAsyncExceptionSecondHand()).expectExceptionalResult(IllegalCommandException.class);
+        subject.whenCommand(new YieldsAsyncExceptionSecondHand())
+                .expectExceptionalResult(IllegalCommandException.class);
     }
 
     @Test
@@ -94,7 +91,8 @@ class GivenWhenThenStreamingTest {
                 .whenTimeAdvancesTo(deadline).expectOnlyCommands(new DelayedCommand()).expectNoNewSchedules();
     }
 
-    private static class CommandHandler {
+    @Consumer(name = "MixedHandler", customErrorHandler = IgnoringErrorHandler.class)
+    private static class MixedHandler {
         @HandleCommand
         public String handle(YieldsEventAndResult command) {
             FluxCapacitor.publishEvent(command);
@@ -121,9 +119,6 @@ class GivenWhenThenStreamingTest {
             FluxCapacitor.get().scheduler().schedule(command.getSchedule(), Duration.ofSeconds(10));
         }
 
-    }
-
-    private static class EventHandler {
         @HandleEvent
         public void handle(Integer event) throws Exception {
             FluxCapacitor.sendCommand(new YieldsEventAndResult()).get();
@@ -137,6 +132,7 @@ class GivenWhenThenStreamingTest {
         }
     }
 
+    @Consumer(name = "MixedHandler", customErrorHandler = IgnoringErrorHandler.class)
     private static class AsyncCommandHandler {
 
         private final ScheduledExecutorService scheduler = Executors.newSingleThreadScheduledExecutor();
@@ -151,7 +147,8 @@ class GivenWhenThenStreamingTest {
         @HandleCommand
         public CompletableFuture<?> handle(YieldsAsyncException command) {
             CompletableFuture<String> result = new CompletableFuture<>();
-            scheduler.schedule(() -> result.completeExceptionally(new IllegalCommandException("test")), 10, TimeUnit.MILLISECONDS);
+            scheduler.schedule(() -> result.completeExceptionally(new IllegalCommandException("test")), 10,
+                               TimeUnit.MILLISECONDS);
             return result;
         }
 

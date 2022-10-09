@@ -231,7 +231,7 @@ public class DefaultFluxCapacitor implements FluxCapacitor {
         private final Map<MessageType, List<DispatchInterceptor>> highPrioDispatchInterceptors = new HashMap<>();
         private final Map<MessageType, List<HandlerInterceptor>> lowPrioHandlerInterceptors = new HashMap<>();
         private final Map<MessageType, List<HandlerInterceptor>> highPrioHandlerInterceptors = new HashMap<>();
-        private final Map<MessageType, List<BatchInterceptor>> customBatchInterceptors = new HashMap<>();
+        private final Map<MessageType, List<BatchInterceptor>> generalBatchInterceptors = new HashMap<>();
         private DispatchInterceptor messageRoutingInterceptor = new MessageRoutingInterceptor();
         private SchedulingInterceptor schedulingInterceptor = new SchedulingInterceptor();
         private ForwardingWebConsumer forwardingWebConsumer;
@@ -324,7 +324,7 @@ public class DefaultFluxCapacitor implements FluxCapacitor {
         @Override
         public FluxCapacitorBuilder addBatchInterceptor(BatchInterceptor interceptor, MessageType... forTypes) {
             Arrays.stream(forTypes.length == 0 ? MessageType.values() : forTypes)
-                    .forEach(type -> customBatchInterceptors.computeIfAbsent(type, t -> new ArrayList<>())
+                    .forEach(type -> generalBatchInterceptors.computeIfAbsent(type, t -> new ArrayList<>())
                             .add(interceptor));
             return this;
         }
@@ -458,7 +458,6 @@ public class DefaultFluxCapacitor implements FluxCapacitor {
                     Arrays.stream(MessageType.values()).collect(toMap(identity(), m -> DispatchInterceptor.noOp()));
             Map<MessageType, HandlerInterceptor> handlerInterceptors =
                     Arrays.stream(MessageType.values()).collect(toMap(identity(), m -> HandlerInterceptor.noOp()));
-            Map<MessageType, List<BatchInterceptor>> batchInterceptors = new HashMap<>(this.customBatchInterceptors);
             Map<MessageType, List<ConsumerConfiguration>> consumerConfigurations =
                     new HashMap<>(this.consumerConfigurations);
 
@@ -624,13 +623,10 @@ public class DefaultFluxCapacitor implements FluxCapacitor {
             }
 
             //tracking
-            batchInterceptors.forEach((type, interceptors) -> consumerConfigurations.computeIfPresent(
-                    type, (t, configs) -> configs.stream().map(
-                            c -> c.toBuilder().batchInterceptors(interceptors).build()).collect(toList())));
             Map<MessageType, Tracking> trackingMap = stream(MessageType.values())
                     .collect(toMap(identity(), m -> new DefaultTracking(
                             m, m == WEBREQUEST ? webResponseGateway : resultGateway, consumerConfigurations.get(m),
-                            this.serializer,
+                            generalBatchInterceptors.getOrDefault(m, List.of()), this.serializer,
                             new DefaultHandlerFactory(m, handlerInterceptors.get(m == NOTIFICATION ? EVENT : m),
                                                       parameterResolvers))));
 
