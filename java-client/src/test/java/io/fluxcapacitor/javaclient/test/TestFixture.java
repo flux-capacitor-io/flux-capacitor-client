@@ -272,7 +272,7 @@ public class TestFixture implements Given, When {
 
     @Override
     public TestFixture givenCommandsByUser(User user, Object... commands) {
-        return givenCommands(addUser(user, commands));
+        return givenCommands(asMessages(commands).map(c -> addUser(user, c)).toArray());
     }
 
     @Override
@@ -343,7 +343,7 @@ public class TestFixture implements Given, When {
 
     @Override
     public Then whenCommandByUser(Object command, User user) {
-        return whenCommand(addUser(user, command)[0]);
+        return whenCommand(addUser(user, command));
     }
 
     @Override
@@ -354,7 +354,7 @@ public class TestFixture implements Given, When {
 
     @Override
     public Then whenQueryByUser(Object query, User user) {
-        return whenQuery(addUser(user, query)[0]);
+        return whenQuery(addUser(user, query));
     }
 
     @Override
@@ -569,13 +569,14 @@ public class TestFixture implements Given, When {
         return tracedMessage = fluxCapacitor.apply(fc -> asMessage(parseObject(object, callerClass)));
     }
 
-    protected Object[] addUser(User user, Object... messages) {
+    public Message addUser(User user, Object value) {
         UserProvider userProvider = fluxCapacitor.userProvider();
         if (userProvider == null) {
             throw new IllegalStateException("UserProvider has not been configured");
         }
-        return asMessages(messages).map(
-                m -> m.withMetadata(userProvider.addToMetadata(m.getMetadata(), user))).toArray();
+        Class<?> callerClass = ReflectionUtils.getCallerClass();
+        Message message = asMessage(parseObject(value, callerClass));
+        return message.withMetadata(userProvider.addToMetadata(message.getMetadata(), user));
     }
 
     public static Object parseObject(Object object, Class<?> callerClass) {
