@@ -16,9 +16,10 @@ package io.fluxcapacitor.javaclient.tracking.handling.validation;
 
 import io.fluxcapacitor.javaclient.test.TestFixture;
 import io.fluxcapacitor.javaclient.tracking.handling.HandleCommand;
-import jakarta.validation.constraints.NotNull;
 import lombok.Value;
 import org.junit.jupiter.api.Test;
+
+import javax.validation.constraints.NotNull;
 
 class ValidatingInterceptorTest {
     private final TestFixture testFixture = TestFixture.create(new MockHandler());

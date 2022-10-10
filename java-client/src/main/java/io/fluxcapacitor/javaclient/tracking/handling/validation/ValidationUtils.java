@@ -36,6 +36,7 @@ import io.fluxcapacitor.javaclient.tracking.handling.authentication.Unauthorized
 import io.fluxcapacitor.javaclient.tracking.handling.authentication.User;
 import io.fluxcapacitor.javaclient.tracking.handling.authentication.UserParameterResolver;
 import lombok.SneakyThrows;
+import lombok.extern.slf4j.Slf4j;
 
 import java.lang.annotation.Annotation;
 import java.lang.reflect.Executable;
@@ -59,10 +60,20 @@ import static io.fluxcapacitor.common.reflection.ReflectionUtils.getTypeAnnotati
 import static java.lang.String.format;
 import static java.util.Optional.empty;
 
+@Slf4j
 public class ValidationUtils {
     public static final Validator defaultValidator = Optional.of(ServiceLoader.load(Validator.class))
             .map(ServiceLoader::iterator).filter(Iterator::hasNext).map(Iterator::next)
-            .orElse(Jsr380Validator.createDefault());
+            .orElseGet(() -> {
+                try {
+                    Jsr380JakartaValidator validator = Jsr380JakartaValidator.createDefault();
+                    log.info("Using {} for validation", Jsr380JakartaValidator.class.getSimpleName());
+                    return validator;
+                } catch (Throwable ignored) {
+                    log.info("Using {} for validation", Jsr380JavaxValidator.class.getSimpleName());
+                    return Jsr380JavaxValidator.createDefault();
+                }
+            });
     private static final Function<Class<?>, Class<?>[]> validateWithGroups = memoize(type -> {
         ValidateWith annotation = type.getAnnotation(ValidateWith.class);
         if (annotation == null) {

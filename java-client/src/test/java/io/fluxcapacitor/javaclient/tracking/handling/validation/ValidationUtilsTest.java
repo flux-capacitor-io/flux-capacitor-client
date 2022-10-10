@@ -14,11 +14,12 @@
 
 package io.fluxcapacitor.javaclient.tracking.handling.validation;
 
-import jakarta.validation.Valid;
-import jakarta.validation.constraints.NotBlank;
 import lombok.Builder;
 import lombok.Value;
 import org.junit.jupiter.api.Test;
+
+import javax.validation.Valid;
+import javax.validation.constraints.NotBlank;
 
 import static io.fluxcapacitor.javaclient.tracking.handling.validation.ValidationUtils.isValid;
 import static org.junit.jupiter.api.Assertions.assertFalse;

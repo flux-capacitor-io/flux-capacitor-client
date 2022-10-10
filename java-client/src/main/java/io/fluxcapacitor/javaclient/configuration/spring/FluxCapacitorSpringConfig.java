@@ -14,7 +14,6 @@
 
 package io.fluxcapacitor.javaclient.configuration.spring;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import io.fluxcapacitor.common.Registration;
 import io.fluxcapacitor.javaclient.FluxCapacitor;
 import io.fluxcapacitor.javaclient.common.serialization.Serializer;
@@ -96,8 +95,7 @@ public class FluxCapacitorSpringConfig implements BeanPostProcessor {
             Optional.ofNullable(context.getType(beanName)).filter(CastInspector::hasCasterMethods)
                     .ifPresent(t -> upcasters.add(context.getAutowireCapableBeanFactory().getBean(beanName)));
         }
-        return getBean(ObjectMapper.class).map(objectMapper -> new JacksonSerializer(objectMapper, upcasters))
-                .orElse(new JacksonSerializer(upcasters));
+        return new JacksonSerializer(upcasters);
     }
 
     @Bean

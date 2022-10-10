@@ -14,8 +14,10 @@
 
 package io.fluxcapacitor.javaclient.common.logging;
 
+import com.fasterxml.jackson.annotation.JsonInclude;
 import lombok.Value;
 
 @Value
+@JsonInclude
 public class ConsoleWarning {
 }

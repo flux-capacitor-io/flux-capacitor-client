@@ -25,7 +25,7 @@ import java.lang.annotation.Target;
  * If this annotation is present, the validation will be carried out using the specified groups.
  * <p>
  * If no groups are specified or this annotation is missing validation will be carried out using the
- * {@link jakarta.validation.groups.Default default} group.
+ * default validation group.
  */
 @Target({ElementType.TYPE})
 @Retention(RetentionPolicy.RUNTIME)
