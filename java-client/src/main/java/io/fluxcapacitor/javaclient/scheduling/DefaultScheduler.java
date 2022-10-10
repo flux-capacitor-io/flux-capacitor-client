@@ -19,6 +19,7 @@ import io.fluxcapacitor.common.api.SerializedMessage;
 import io.fluxcapacitor.common.api.scheduling.SerializedSchedule;
 import io.fluxcapacitor.javaclient.common.serialization.DeserializingMessage;
 import io.fluxcapacitor.javaclient.common.serialization.Serializer;
+import io.fluxcapacitor.javaclient.modeling.Entity;
 import io.fluxcapacitor.javaclient.publishing.DispatchInterceptor;
 import io.fluxcapacitor.javaclient.scheduling.client.SchedulingClient;
 import io.fluxcapacitor.javaclient.tracking.handling.HandlerRegistry;
@@ -44,6 +45,9 @@ public class DefaultScheduler implements Scheduler {
     @Override
     public void schedule(Schedule message, boolean ifAbsent) {
         try {
+            if (Entity.isLoading()) {
+                return;
+            }
             message = (Schedule) dispatchInterceptor.interceptDispatch(message, SCHEDULE);
             SerializedMessage serializedMessage = dispatchInterceptor.modifySerializedMessage(
                     message.serialize(serializer), message, SCHEDULE);
@@ -65,6 +69,9 @@ public class DefaultScheduler implements Scheduler {
     @Override
     public void cancelSchedule(String scheduleId) {
         try {
+            if (Entity.isLoading()) {
+                return;
+            }
             client.cancelSchedule(scheduleId).await();
         } catch (Exception e) {
             throw new SchedulerException(String.format("Failed to cancel schedule with id %s", scheduleId), e);
