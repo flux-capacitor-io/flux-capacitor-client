@@ -105,6 +105,26 @@ public class WebRequest extends Message {
     }
 
     @Override
+    public WebRequest addMetadata(Metadata metadata) {
+        return (WebRequest) super.addMetadata(metadata);
+    }
+
+    @Override
+    public WebRequest addMetadata(String key, Object value) {
+        return (WebRequest) super.addMetadata(key, value);
+    }
+
+    @Override
+    public WebRequest addMetadata(Object... keyValues) {
+        return (WebRequest) super.addMetadata(keyValues);
+    }
+
+    @Override
+    public WebRequest addMetadata(Map<String, ?> values) {
+        return (WebRequest) super.addMetadata(values);
+    }
+
+    @Override
     public WebRequest withPayload(Object payload) {
         return new WebRequest(super.withPayload(payload));
     }

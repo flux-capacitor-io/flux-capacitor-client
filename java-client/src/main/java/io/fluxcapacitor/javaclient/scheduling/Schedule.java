@@ -25,6 +25,7 @@ import lombok.Value;
 import java.beans.ConstructorProperties;
 import java.time.Duration;
 import java.time.Instant;
+import java.util.Map;
 
 import static io.fluxcapacitor.javaclient.FluxCapacitor.currentClock;
 import static java.time.temporal.ChronoUnit.MILLIS;
@@ -75,6 +76,26 @@ public class Schedule extends Message {
     @Override
     public Schedule withMetadata(Metadata metadata) {
         return new Schedule(getPayload(), metadata, getMessageId(), getTimestamp(), scheduleId, deadline);
+    }
+
+    @Override
+    public Schedule addMetadata(Metadata metadata) {
+        return (Schedule) super.addMetadata(metadata);
+    }
+
+    @Override
+    public Schedule addMetadata(String key, Object value) {
+        return (Schedule) super.addMetadata(key, value);
+    }
+
+    @Override
+    public Schedule addMetadata(Object... keyValues) {
+        return (Schedule) super.addMetadata(keyValues);
+    }
+
+    @Override
+    public Schedule addMetadata(Map<String, ?> values) {
+        return (Schedule) super.addMetadata(values);
     }
 
     public Schedule reschedule(Duration duration) {

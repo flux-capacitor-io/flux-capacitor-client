@@ -58,4 +58,6 @@ public @interface Consumer {
     long minIndex() default -1L;
 
     long maxIndexExclusive() default -1L;
+
+    String typeFilter() default "";
 }

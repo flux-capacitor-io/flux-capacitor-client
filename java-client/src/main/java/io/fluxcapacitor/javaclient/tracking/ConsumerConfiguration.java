@@ -128,6 +128,7 @@ public class ConsumerConfiguration {
                                 .maxIndexExclusive(c.maxIndexExclusive() < 0 ? null : c.maxIndexExclusive())
                                 .exclusive(c.exclusive())
                                 .passive(c.passive())
+                                .typeFilter(c.typeFilter().isBlank() ? null : c.typeFilter())
 
                                 .build()))
                 .orElseGet(Stream::empty);

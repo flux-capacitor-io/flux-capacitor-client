@@ -70,6 +70,26 @@ public class WebResponse extends Message {
     }
 
     @Override
+    public WebResponse addMetadata(Metadata metadata) {
+        return (WebResponse) super.addMetadata(metadata);
+    }
+
+    @Override
+    public WebResponse addMetadata(String key, Object value) {
+        return (WebResponse) super.addMetadata(key, value);
+    }
+
+    @Override
+    public WebResponse addMetadata(Object... keyValues) {
+        return (WebResponse) super.addMetadata(keyValues);
+    }
+
+    @Override
+    public WebResponse addMetadata(Map<String, ?> values) {
+        return (WebResponse) super.addMetadata(values);
+    }
+
+    @Override
     public WebResponse withPayload(Object payload) {
         return new WebResponse(super.withPayload(payload));
     }

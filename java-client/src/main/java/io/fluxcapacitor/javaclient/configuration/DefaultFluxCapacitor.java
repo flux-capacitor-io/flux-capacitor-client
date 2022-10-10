@@ -66,7 +66,6 @@ import io.fluxcapacitor.javaclient.publishing.correlation.DefaultCorrelationData
 import io.fluxcapacitor.javaclient.publishing.dataprotection.DataProtectionInterceptor;
 import io.fluxcapacitor.javaclient.publishing.routing.MessageRoutingInterceptor;
 import io.fluxcapacitor.javaclient.scheduling.DefaultScheduler;
-import io.fluxcapacitor.javaclient.scheduling.ScheduledCommand;
 import io.fluxcapacitor.javaclient.scheduling.ScheduledCommandHandler;
 import io.fluxcapacitor.javaclient.scheduling.Scheduler;
 import io.fluxcapacitor.javaclient.scheduling.SchedulingInterceptor;
@@ -614,13 +613,6 @@ public class DefaultFluxCapacitor implements FluxCapacitor {
             ResultGateway webResponseGateway = new WebResponseGateway(client.getGatewayClient(WEBRESPONSE),
                                                                       serializer, dispatchInterceptors.get(WEBRESPONSE),
                                                                       webResponseMapper);
-
-            if (!disableScheduledCommandHandler) {
-                consumerConfigurations.get(SCHEDULE).add(0, ConsumerConfiguration.builder()
-                        .messageType(SCHEDULE).typeFilter(ScheduledCommand.class.getName())
-                        .handlerFilter(h -> ScheduledCommandHandler.class.equals(h.getClass()))
-                        .name(ScheduledCommandHandler.class.getSimpleName()).build());
-            }
 
             //tracking
             Map<MessageType, Tracking> trackingMap = stream(MessageType.values())
