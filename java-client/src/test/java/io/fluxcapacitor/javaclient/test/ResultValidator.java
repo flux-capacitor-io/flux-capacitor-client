@@ -48,7 +48,7 @@ public class ResultValidator implements Then {
     @Getter(AccessLevel.PROTECTED)
     private final FluxCapacitor fluxCapacitor;
     private final Object result;
-    private final List<Message> events, commands, webRequests;
+    private final List<Message> events, commands, webRequests, metrics;
     private final List<Schedule> newSchedules;
     private final List<Schedule> allSchedules;
     private final List<Throwable> errors;
@@ -249,6 +249,20 @@ public class ResultValidator implements Then {
                                                   errors.get(0));
         }
         return this;
+    }
+    @Override
+    public Then expectMetrics(Object... metrics) {
+        return expect(asMessages(this.metrics), this.metrics);
+    }
+
+    @Override
+    public Then expectOnlyMetrics(Object... metrics) {
+        return expectOnly(asMessages(metrics), this.metrics);
+    }
+
+    @Override
+    public Then expectNoMetricsLike(Object... metrics) {
+        return expectNothingLike(asMessages(metrics), this.metrics);
     }
 
     @Override

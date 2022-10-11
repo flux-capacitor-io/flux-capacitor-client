@@ -400,6 +400,52 @@ public interface Then {
      */
     Then expectNoErrors();
 
+    /**
+     * Test if the given metrics got published.
+     * <p>
+     * An metric may be an instance of {@link Message} in which case it will be tested against published metrics including
+     * any of the Message's metadata. Otherwise, the metric is tested against published metrics using the passed value as
+     * payload without additional metadata.
+     * <p>
+     * A metric may also be an instance of {@link Predicate}, hamcrest matcher, or Class. A metric may also refer to a
+     * json resource in the class path of the unit test by passing a string ending in `.json`, e.g.
+     * "expected/create-user.json".
+     */
+    Then expectMetrics(Object... metrics);
+
+    /**
+     * Test if the given metrics are the *only* events that got published.
+     * <p>
+     * An event may be an instance of {@link Message} in which case it will be tested against published metrics including
+     * any of the Message's metadata. Otherwise, the metric is tested against published events using the passed value as
+     * payload without additional metadata.
+     * <p>
+     * A metric may also be an instance of {@link Predicate}, hamcrest matcher, or Class. A metric may also refer to a
+     * json resource in the class path of the unit test by passing a string ending in `.json`, e.g.
+     * "expected/create-user.json".
+     */
+    Then expectOnlyMetrics(Object... metrics);
+
+    /**
+     * Assert that the given metrics did *not* get published.
+     * <p>
+     * A metric may be an instance of {@link Message} in which case it will be tested against published metrics including
+     * any of the Message's metadata. Otherwise, the metric is tested against published metrics using the passed value as
+     * payload without additional metadata.
+     * <p>
+     * A metric may also be an instance of {@link Predicate}, hamcrest matcher, or Class. A metric may also refer to a
+     * json resource in the class path of the unit test by passing a string ending in `.json`, e.g.
+     * "expected/create-user.json".
+     */
+    Then expectNoMetricsLike(Object... metrics);
+
+    /**
+     * Assert that no metrics got published.
+     */
+    default Then expectNoMetrics() {
+        return expectOnlyMetrics();
+    }
+
     /*
         Other
      */

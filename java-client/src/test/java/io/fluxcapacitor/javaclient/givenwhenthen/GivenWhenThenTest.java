@@ -14,6 +14,7 @@
 
 package io.fluxcapacitor.javaclient.givenwhenthen;
 
+import io.fluxcapacitor.common.api.tracking.Read;
 import io.fluxcapacitor.javaclient.FluxCapacitor;
 import io.fluxcapacitor.javaclient.MockException;
 import io.fluxcapacitor.javaclient.modeling.Aggregate;
@@ -184,6 +185,16 @@ class GivenWhenThenTest {
     @Test
     void testExpectAsJson() {
         subject.whenCommand("yields-result.json").expectResult("result.json");
+    }
+
+    @Test
+    void testExpectMetrics() {
+        TestFixture.createAsync(commandHandler).whenCommand(new YieldsNoResult()).expectMetrics(Read.class);
+    }
+
+    @Test
+    void testExpectNoMetricsLike() {
+        TestFixture.createAsync(commandHandler).whenCommand(new YieldsNoResult()).expectNoMetricsLike(String.class);
     }
 
     private static class CommandHandler {

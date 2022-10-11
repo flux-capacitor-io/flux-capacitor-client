@@ -160,7 +160,7 @@ public class TestFixture implements Given, When {
     private volatile Message tracedMessage;
     private final Map<ConsumerConfiguration, List<Message>> consumers = new ConcurrentHashMap<>();
     private final List<Message> commands = new CopyOnWriteArrayList<>(), events = new CopyOnWriteArrayList<>(),
-            webRequests = new CopyOnWriteArrayList<>();
+            webRequests = new CopyOnWriteArrayList<>(), metrics = new CopyOnWriteArrayList<>();
     private final List<Schedule> schedules = new CopyOnWriteArrayList<>();
     private final CopyOnWriteArrayList<Throwable> errors = new CopyOnWriteArrayList<>();
 
@@ -420,7 +420,7 @@ public class TestFixture implements Given, When {
                     result = e;
                 }
                 waitForConsumers();
-                return getResultValidator(result, commands, events, schedules, getFutureSchedules(), errors);
+                return getResultValidator(result, commands, events, schedules, getFutureSchedules(), errors, metrics);
             } finally {
                 handleExpiredSchedulesLocally();
                 registration.cancel();
@@ -434,8 +434,8 @@ public class TestFixture implements Given, When {
 
     protected Then getResultValidator(Object result, List<Message> commands, List<Message> events,
                                       List<Schedule> schedules, List<Schedule> allSchedules,
-                                      List<Throwable> errors) {
-        return new ResultValidator(getFluxCapacitor(), result, events, commands, webRequests, schedules,
+                                      List<Throwable> errors, List<Message> metrics) {
+        return new ResultValidator(getFluxCapacitor(), result, events, commands, webRequests, metrics, schedules,
                                    allSchedules.stream().filter(
                                            s -> s.getDeadline().isAfter(getClock().instant())).collect(toList()),
                                    errors);
@@ -519,6 +519,10 @@ public class TestFixture implements Given, When {
 
     protected void registerCommand(Message command) {
         commands.add(command);
+    }
+
+    protected void registerMetric(Message metric) {
+        metrics.add(metric);
     }
 
     protected void registerEvent(Message event) {
@@ -636,6 +640,9 @@ public class TestFixture implements Given, When {
                         break;
                     case WEBREQUEST:
                         registerWebRequest(message);
+                        break;
+                    case METRICS:
+                        registerMetric(message);
                         break;
                 }
             }
