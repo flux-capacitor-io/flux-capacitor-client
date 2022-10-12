@@ -210,7 +210,10 @@ public class DefaultAggregateRepository implements AggregateRepository {
                                     return model.toBuilder().sequenceNumber(
                                             eventStream.getLastSequenceNumber().orElse(model.sequenceNumber())).build();
                                 });
-                return delegate.get() != null ? cache.computeIfAbsent(id, i -> delegate) : delegate;
+                if (delegate.get() != null && !Entity.isLoading()) {
+                    cache.putIfAbsent(id, delegate);
+                }
+                return delegate;
             }, commitInBatch, serializer, dispatchInterceptor, this::commit);
         }
 
