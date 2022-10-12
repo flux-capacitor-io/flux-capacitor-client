@@ -378,13 +378,14 @@ public interface FluxCapacitor extends AutoCloseable {
         return playbackToHandledEvent(get().aggregateRepository().loadFor(entityId.toString(), defaultType));
     }
 
-    private static <T> Entity<T> playbackToHandledEvent(Entity<T> aggregateRoot) {
+    private static <T> Entity<T> playbackToHandledEvent(Entity<T> entity) {
         DeserializingMessage message = DeserializingMessage.getCurrent();
-        if (message != null && (message.getMessageType() == EVENT || message.getMessageType() == NOTIFICATION)
-            && aggregateRoot.id().equals(Entity.getAggregateId(message)) && !Entity.isApplying()) {
-            return aggregateRoot.playBackToEvent(message.getMessageId());
+        if (!Entity.isApplying()
+            && message != null && (message.getMessageType() == EVENT || message.getMessageType() == NOTIFICATION)
+            && entity.id().equals(Entity.getAggregateId(message))) {
+            return entity.playBackToEvent(message.getMessageId());
         }
-        return aggregateRoot;
+        return entity;
     }
 
     /**
