@@ -223,6 +223,16 @@ public class DefaultTracking implements Tracking {
         }
     }
 
+    protected Object doHandle(DeserializingMessage message, HandlerInvoker h, Handler<DeserializingMessage> handler) {
+        try {
+            return Invocation.performInvocation(h::invoke);
+        } catch (FunctionalException e) {
+            throw e;
+        } catch (Exception e) {
+            throw  new TechnicalException(format("Handler %s failed to handle a %s", handler, message), e);
+        }
+    }
+
     @SneakyThrows
     private boolean shouldSendResponse(HandlerInvoker invoker, DeserializingMessage message,
                                        ConsumerConfiguration config) {

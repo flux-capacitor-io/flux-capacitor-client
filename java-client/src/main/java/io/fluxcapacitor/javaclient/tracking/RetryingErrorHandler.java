@@ -35,11 +35,11 @@ public class RetryingErrorHandler implements ErrorHandler {
     private final boolean logFunctionalErrors;
 
     public RetryingErrorHandler() {
-        this(e -> true);
+        this(false);
     }
 
     public RetryingErrorHandler(boolean throwOnFailure) {
-        this(e -> true, throwOnFailure);
+        this(e -> !(e instanceof FunctionalException), throwOnFailure);
     }
 
     public RetryingErrorHandler(Predicate<Exception> errorFilter) {
@@ -61,10 +61,15 @@ public class RetryingErrorHandler implements ErrorHandler {
             return;
         }
 
-        log.warn("{}. Retrying up to {} times.", errorMessage, retries, error);
+        if (retries > 0) {
+            log.warn("{}. Retrying up to {} times.", errorMessage, retries, error);
+        } else {
+            log.warn("{}. Retrying until the errors stop.", errorMessage, error);
+        }
         AtomicInteger remainingRetries = new AtomicInteger(retries);
         boolean success = retryOnFailure(retryFunction, delay,
-                                         e -> errorFilter.test(e) && remainingRetries.decrementAndGet() > 0);
+                                         e -> errorFilter.test(e)
+                                              && (retries <= 0 || remainingRetries.decrementAndGet() > 0));
         if (success) {
             log.info("Message handling was successful on retry");
         } else {

@@ -39,11 +39,7 @@ public @interface Consumer {
 
     Class<? extends BatchInterceptor>[] batchInterceptors() default {};
 
-    boolean retryOnError() default false;
-
-    boolean stopAfterError() default false;
-
-    Class<? extends ErrorHandler> customErrorHandler() default ErrorHandler.class;
+    Class<? extends ErrorHandler> errorHandler() default LoggingErrorHandler.class;
 
     boolean ignoreMessageTarget() default false;
 

@@ -91,7 +91,7 @@ class GivenWhenThenAsyncTest {
                 .whenTimeAdvancesTo(deadline).expectOnlyCommands(new DelayedCommand()).expectNoNewSchedules();
     }
 
-    @Consumer(name = "MixedHandler", customErrorHandler = IgnoringErrorHandler.class)
+    @Consumer(name = "MixedHandler", errorHandler = IgnoringErrorHandler.class)
     private static class MixedHandler {
         @HandleCommand
         public String handle(YieldsEventAndResult command) {
@@ -132,7 +132,7 @@ class GivenWhenThenAsyncTest {
         }
     }
 
-    @Consumer(name = "MixedHandler", customErrorHandler = IgnoringErrorHandler.class)
+    @Consumer(name = "MixedHandler", errorHandler = IgnoringErrorHandler.class)
     private static class AsyncCommandHandler {
 
         private final ScheduledExecutorService scheduler = Executors.newSingleThreadScheduledExecutor();
