@@ -558,6 +558,9 @@ public class TestFixture implements Given, When {
     protected Stream<Message> asMessages(Object... messages) {
         Class<?> callerClass = ReflectionUtils.getCallerClass();
         return fluxCapacitor.apply(fc -> Arrays.stream(messages).flatMap(c -> {
+            if (c == null) {
+                return Stream.empty();
+            }
             if (c instanceof Collection<?>) {
                 return ((Collection<?>) c).stream();
             }
@@ -565,7 +568,13 @@ public class TestFixture implements Given, When {
                 return Arrays.stream((Object[]) c);
             }
             return Stream.of(c);
-        }).map(c -> parseObject(c, callerClass)).map(Message::asMessage));
+        }).flatMap(c -> {
+            Object parsed = parseObject(c, callerClass);
+            return parsed == null ? Stream.empty()
+                    : parsed instanceof Collection<?> ? ((Collection<?>) parsed).stream()
+                    : parsed.getClass().isArray() ? Arrays.stream((Object[]) parsed)
+                    : Stream.of(parsed);
+        }).map(Message::asMessage));
     }
 
     protected Message trace(Object object) {
