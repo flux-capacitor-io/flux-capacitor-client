@@ -14,75 +14,92 @@
 
 package io.fluxcapacitor.javaclient.tracking;
 
+import io.fluxcapacitor.common.RetryConfiguration;
 import io.fluxcapacitor.javaclient.common.exception.FunctionalException;
+import lombok.AccessLevel;
 import lombok.AllArgsConstructor;
+import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
 
 import java.time.Duration;
-import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.Callable;
+import java.util.function.Function;
 import java.util.function.Predicate;
 
 import static io.fluxcapacitor.common.TimingUtils.retryOnFailure;
 import static java.lang.String.format;
 
 @Slf4j
-@AllArgsConstructor
+@AllArgsConstructor(access = AccessLevel.PROTECTED)
 public class RetryingErrorHandler implements ErrorHandler {
-    private final int retries;
-    private final Duration delay;
-    private final Predicate<Exception> errorFilter;
-    private final boolean throwOnFailure;
+    private final Predicate<Throwable> errorFilter;
+    private final boolean stopConsumerOnFailure;
     private final boolean logFunctionalErrors;
+    private final RetryConfiguration retryConfiguration;
 
     public RetryingErrorHandler() {
         this(false);
     }
 
-    public RetryingErrorHandler(boolean throwOnFailure) {
-        this(e -> !(e instanceof FunctionalException), throwOnFailure);
+    public RetryingErrorHandler(boolean stopConsumerOnFailure) {
+        this(e -> !(e instanceof FunctionalException), stopConsumerOnFailure);
     }
 
-    public RetryingErrorHandler(Predicate<Exception> errorFilter) {
+    public RetryingErrorHandler(Predicate<Throwable> errorFilter) {
         this(errorFilter, false);
     }
 
-    public RetryingErrorHandler(Predicate<Exception> errorFilter, boolean throwOnFailure) {
-        this(5, Duration.ofSeconds(2), errorFilter, throwOnFailure, true);
+    public RetryingErrorHandler(Predicate<Throwable> errorFilter, boolean stopConsumerOnFailure) {
+        this(5, Duration.ofSeconds(2), errorFilter, stopConsumerOnFailure, true);
+    }
+
+    public RetryingErrorHandler(int maxRetries, Duration delay, Predicate<Throwable> errorFilter,
+                                boolean stopConsumerOnFailure, boolean logFunctionalErrors) {
+        this(maxRetries, delay, errorFilter, stopConsumerOnFailure, logFunctionalErrors, e -> e);
+    }
+
+    public RetryingErrorHandler(int maxRetries, Duration delay, Predicate<Throwable> errorFilter,
+                                boolean stopConsumerOnFailure, boolean logFunctionalErrors,
+                                Function<Throwable, ?> errorMapper) {
+        this(errorFilter, stopConsumerOnFailure, logFunctionalErrors,
+             RetryConfiguration.builder().delay(delay).maxRetries(maxRetries).errorMapper(errorMapper)
+                     .successLogger(s -> log.info("Message handling was successful on retry"))
+                     .exceptionLogger(s -> {}).build());
     }
 
     @Override
-    public void handleError(Exception error, String errorMessage, Runnable retryFunction) throws Exception {
+    @SneakyThrows
+    public Object handleError(Throwable error, String errorMessage, Callable<?> retryFunction) {
         if (!errorFilter.test(error)) {
-            logError(format("%s. Not retrying. %s", errorMessage, throwOnFailure
+            logError(format("%s. Not retrying. %s", errorMessage, stopConsumerOnFailure
                     ? "Propagating error." : "Continuing with next handler."), error);
-            if (throwOnFailure) {
+            if (stopConsumerOnFailure) {
                 throw error;
             }
-            return;
+            return retryConfiguration.getErrorMapper().apply(error);
         }
 
-        if (retries > 0) {
-            log.warn("{}. Retrying up to {} times.", errorMessage, retries, error);
-        } else {
-            log.warn("{}. Retrying until the errors stop.", errorMessage, error);
-        }
-        AtomicInteger remainingRetries = new AtomicInteger(retries);
-        boolean success = retryOnFailure(retryFunction, delay,
-                                         e -> errorFilter.test(e)
-                                              && (retries <= 0 || remainingRetries.decrementAndGet() > 0));
-        if (success) {
-            log.info("Message handling was successful on retry");
-        } else {
-            if (throwOnFailure) {
+        try {
+            if (retryConfiguration.getMaxRetries() == 0) {
+                throw error;
+            } else if (retryConfiguration.getMaxRetries() > 0) {
+                log.warn("{}. Retrying up to {} times.", errorMessage, retryConfiguration.getMaxRetries(), error);
+            } else {
+                log.warn("{}. Retrying until the errors stop.", errorMessage, error);
+            }
+            return retryOnFailure(retryFunction, retryConfiguration);
+        } catch (Throwable e) {
+            if (stopConsumerOnFailure) {
                 log.error("{}. Not retrying any further. Propagating error.", errorMessage, error);
                 throw error;
             } else {
                 logError(errorMessage + ". Not retrying any further. Continuing with next handler.", error);
             }
+            return retryConfiguration.getErrorMapper().apply(error);
         }
     }
 
-    private void logError(String message, Exception error) {
+    protected void logError(String message, Throwable error) {
         if (isTechnicalError(error)) {
             log.error(message, error);
         } else if (logFunctionalErrors) {
@@ -90,15 +107,7 @@ public class RetryingErrorHandler implements ErrorHandler {
         }
     }
 
-    protected void logWarning(String errorMessage, Exception error) {
-        if (isTechnicalError(error)) {
-            log.error("{}", errorMessage, error);
-        } else if (logFunctionalErrors) {
-            log.warn("{}", errorMessage, error);
-        }
-    }
-
-    protected boolean isTechnicalError(Exception error) {
+    protected boolean isTechnicalError(Throwable error) {
         return !(error instanceof FunctionalException);
     }
 }

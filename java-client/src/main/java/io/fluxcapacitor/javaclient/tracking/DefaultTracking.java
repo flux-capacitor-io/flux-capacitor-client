@@ -31,7 +31,6 @@ import io.fluxcapacitor.javaclient.publishing.ResultGateway;
 import io.fluxcapacitor.javaclient.tracking.client.DefaultTracker;
 import io.fluxcapacitor.javaclient.tracking.handling.HandlerFactory;
 import lombok.AllArgsConstructor;
-import lombok.SneakyThrows;
 import lombok.Synchronized;
 import lombok.extern.slf4j.Slf4j;
 
@@ -46,6 +45,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CopyOnWriteArrayList;
@@ -152,91 +152,70 @@ public class DefaultTracking implements Tracking {
                         .forEach(m -> handlers.forEach(h -> tryHandle(m, h, configuration)));
     }
 
-    @SneakyThrows
     protected void tryHandle(DeserializingMessage message, Handler<DeserializingMessage> handler,
                              ConsumerConfiguration config) {
         handler.findInvoker(message).ifPresent(h -> {
             try {
-                handle(message, h, handler, config);
-            } catch (BatchProcessingException e) {
-                throw new BatchProcessingException(format("Handler %s failed to handle a %s", handler, message),
-                                                   e.getCause(), e.getMessageIndex());
-            } catch (Exception e) {
-                try {
-                    config.getErrorHandler()
-                            .handleError(e, format("Handler %s failed to handle a %s", handler, message),
-                                         () -> handle(message, h, handler, config));
-                } catch (Exception thrown) {
-                    throw new BatchProcessingException(message.getIndex());
-                }
+                reportResult(handle(message, h, handler, config), h, message, config);
+            } catch (Throwable e) {
+                reportResult(e, h, message, config);
+                throw e instanceof BatchProcessingException
+                        ? new BatchProcessingException(format("Handler %s failed to handle a %s", handler, message),
+                                                       e.getCause(), ((BatchProcessingException) e).getMessageIndex())
+                        : new BatchProcessingException(message.getIndex());
             }
         });
     }
 
-    @SneakyThrows
-    protected void handle(DeserializingMessage message, HandlerInvoker h, Handler<DeserializingMessage> handler,
-                          ConsumerConfiguration config) {
-        Exception exception = null;
-        Object result;
+    @SuppressWarnings("unchecked")
+    protected Object handle(DeserializingMessage message, HandlerInvoker h, Handler<DeserializingMessage> handler,
+                            ConsumerConfiguration config) {
         try {
-            result = Invocation.performInvocation(h::invoke);
-        } catch (FunctionalException e) {
-            result = e;
-            exception = e;
+            Object result = Invocation.performInvocation(h::invoke);
+            return result instanceof CompletableFuture ? ((CompletableFuture<Object>) result)
+                    .exceptionally(e -> message.apply(m -> processError(e, message, h, handler, config))) : result;
         } catch (Exception e) {
-            result = new TechnicalException(format("Handler %s failed to handle a %s", handler, message), e);
-            exception = e;
+            return processError(e, message, h, handler, config);
         }
-        SerializedMessage serializedMessage = message.getSerializedObject();
-        boolean shouldSendResponse = shouldSendResponse(h, message, config);
+    }
+
+    protected Object processError(Throwable e, DeserializingMessage message, HandlerInvoker h,
+                                  Handler<DeserializingMessage> handler, ConsumerConfiguration config) {
+        return config.getErrorHandler().handleError(e, format("Handler %s failed to handle a %s", handler, message),
+                                                    () -> Invocation.performInvocation(h::invoke));
+    }
+
+    protected void reportResult(Object result, HandlerInvoker h, DeserializingMessage message,
+                                ConsumerConfiguration config) {
         if (result instanceof CompletableFuture<?>) {
-            CompletableFuture<?> future = ((CompletableFuture<?>) result).whenComplete((r, e) -> {
-                Throwable error = ObjectUtils.unwrapException(e);
-                Object asyncResult = error == null ? r : error instanceof FunctionalException
-                        ? error : new TechnicalException(
-                        format("Handler %s failed to handle a %s", handler, message), error);
-                message.run(m -> {
-                    try {
-                        if (shouldSendResponse) {
-                            resultGateway.respond(
-                                    asyncResult, serializedMessage.getSource(), serializedMessage.getRequestId());
-                        }
-                        if (error != null) {
-                            config.getErrorHandler().handleError((Exception) error, format(
-                                                                         "Handler %s failed to handle a %s", handler, message),
-                                                                 () -> handle(message, h, handler, config));
-                        }
-                    } catch (Exception exc) {
-                        log.warn("Did not stop consumer {} after async handler {} failed to handle a {}",
-                                 config.getName(), handler, message, exc);
+            ((CompletableFuture<?>) result).whenComplete((r, e) -> {
+                try {
+                    message.run(m -> reportResult(Optional.<Object>ofNullable(e).orElse(r), h, message, config));
+                } finally {
+                    if (e != null) {
+                        close();
                     }
-                });
+                }
             });
-            outstandingRequests.add(future);
-            future.whenComplete((r, e) -> outstandingRequests.remove(future));
-        } else if (shouldSendResponse) {
-            resultGateway.respond(result, serializedMessage.getSource(), serializedMessage.getRequestId());
-        }
-
-        if (exception != null) {
-            throw exception;
-        }
-    }
-
-    protected Object doHandle(DeserializingMessage message, HandlerInvoker h, Handler<DeserializingMessage> handler) {
-        try {
-            return Invocation.performInvocation(h::invoke);
-        } catch (FunctionalException e) {
-            throw e;
-        } catch (Exception e) {
-            throw  new TechnicalException(format("Handler %s failed to handle a %s", handler, message), e);
+        } else {
+            if (shouldSendResponse(h, message, config)) {
+                if (result instanceof Throwable) {
+                    result = ObjectUtils.unwrapException((Throwable) result);
+                    if (!(result instanceof FunctionalException)) {
+                        result = new TechnicalException(format("Handler %s failed to handle a %s",
+                                                               h.getMethod(), message), (Throwable) result);
+                    }
+                }
+                SerializedMessage serializedMessage = message.getSerializedObject();
+                resultGateway.respond(result, serializedMessage.getSource(), serializedMessage.getRequestId());
+            }
         }
     }
 
-    @SneakyThrows
-    private boolean shouldSendResponse(HandlerInvoker invoker, DeserializingMessage message,
-                                       ConsumerConfiguration config) {
-        return message.getSerializedObject().getRequestId() != null && !config.passive() && !invoker.isPassive();
+    protected boolean shouldSendResponse(HandlerInvoker invoker, DeserializingMessage message,
+                                         ConsumerConfiguration config) {
+        return message.getSerializedObject().getRequestId() != null && !config.passive() && !invoker.isPassive()
+               && message.getMessageType() != MessageType.RESULT && message.getMessageType() != MessageType.WEBRESPONSE;
     }
 
     @Override

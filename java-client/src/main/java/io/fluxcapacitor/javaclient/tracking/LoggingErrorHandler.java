@@ -18,6 +18,8 @@ import io.fluxcapacitor.javaclient.common.exception.FunctionalException;
 import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
+import java.util.concurrent.Callable;
+
 @Slf4j
 @AllArgsConstructor
 public class LoggingErrorHandler implements ErrorHandler {
@@ -29,11 +31,12 @@ public class LoggingErrorHandler implements ErrorHandler {
     }
 
     @Override
-    public void handleError(Exception error, String errorMessage, Runnable retryFunction) {
+    public Object handleError(Throwable error, String errorMessage, Callable<?> retryFunction) {
         if (!(error instanceof FunctionalException)) {
             log.error("{}. Continuing...", errorMessage, error);
         } else if (logFunctionalErrors) {
             log.warn("{}. Continuing...", errorMessage, error);
         }
+        return error;
     }
 }

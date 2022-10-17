@@ -14,12 +14,14 @@
 
 package io.fluxcapacitor.common;
 
+import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
 
 import java.time.Duration;
 import java.time.temporal.ChronoUnit;
 import java.time.temporal.TemporalUnit;
 import java.util.concurrent.Callable;
+import java.util.concurrent.CompletableFuture;
 import java.util.function.Consumer;
 import java.util.function.Predicate;
 
@@ -58,32 +60,35 @@ public class TimingUtils {
         }
     }
 
-    public static boolean retryOnFailure(Runnable task, Duration delay) {
-        return retryOnFailure(task, delay, e -> true);
+    public static void retryOnFailure(Runnable task, Duration delay) {
+        retryOnFailure(task, delay, e -> true);
+    }
+
+    public static void retryOnFailure(Runnable task, Duration delay, Predicate<Exception> predicate) {
+        retryOnFailure(() -> {
+            task.run();
+            return new Object();
+        }, delay, predicate);
     }
 
     public static <T> T retryOnFailure(Callable<T> task, Duration delay) {
         return retryOnFailure(task, delay, e -> true);
     }
 
-    public static boolean retryOnFailure(Runnable task, Duration delay, Predicate<Exception> predicate) {
-        Object result = retryOnFailure(() -> {
-            task.run();
-            return new Object();
-        }, delay, predicate);
-        return result != null;
+    public static <T> T retryOnFailure(Callable<T> task, Duration delay, Predicate<Exception> errorTest) {
+        return retryOnFailure(task, RetryConfiguration.builder().delay(delay).errorTest(errorTest).build());
     }
 
-    public static <T> T retryOnFailure(Callable<T> task, Duration delay, Predicate<Exception> predicate) {
-        return retryOnFailure(task, RetryConfiguration.builder().delay(delay).errorTest(predicate).build());
-    }
-
+    @SuppressWarnings("BusyWait")
+    @SneakyThrows
     public static <T> T retryOnFailure(Callable<T> task, RetryConfiguration configuration) {
-        T result = null;
         RetryStatus retryStatus = null;
-        while (result == null) {
+        while (true) {
             try {
-                result = task.call();
+                T result = task.call();
+                if (result instanceof CompletableFuture<?>) {
+                    ((CompletableFuture<?>) result).get();
+                }
                 if (retryStatus != null) {
                     configuration.getSuccessLogger().accept(retryStatus);
                 }
@@ -93,7 +98,10 @@ public class TimingUtils {
                         RetryStatus.builder().retryConfiguration(configuration).exception(e).task(task).build() :
                         retryStatus.afterRetry(e);
                 if (!configuration.getErrorTest().test(e)) {
-                    break;
+                    if (configuration.isThrowOnFailingErrorTest()) {
+                        throw retryStatus.getException();
+                    }
+                    return null;
                 }
                 configuration.getExceptionLogger().accept(retryStatus);
                 if (configuration.getMaxRetries() >= 0
@@ -112,7 +120,7 @@ public class TimingUtils {
                 throw e;
             }
         }
-        return null;
+        throw retryStatus.getException();
     }
 
     public static boolean isMissedDeadline(long deadline) {

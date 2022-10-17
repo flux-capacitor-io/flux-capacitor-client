@@ -21,10 +21,11 @@ import lombok.extern.slf4j.Slf4j;
 
 import java.time.Duration;
 import java.util.function.Consumer;
+import java.util.function.Function;
 import java.util.function.Predicate;
 
 @Value
-@Builder
+@Builder(builderClassName = "Builder")
 @Slf4j
 public class RetryConfiguration {
     @Default
@@ -33,6 +34,8 @@ public class RetryConfiguration {
     int maxRetries = -1;
     @Default
     Predicate<Exception> errorTest = e -> true;
+    @Default
+    boolean throwOnFailingErrorTest = false;
     @Default
     Consumer<RetryStatus> successLogger = status -> log.info("Task {} completed successfully on retry", status.getTask());
     @Default
@@ -44,4 +47,6 @@ public class RetryConfiguration {
             log.error("Task {} failed permanently. Not retrying.", status.getTask(), status.getException());
         }
     };
+    @Default
+    Function<Throwable, ?> errorMapper = e -> e;
 }

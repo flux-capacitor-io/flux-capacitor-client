@@ -16,7 +16,10 @@ package io.fluxcapacitor.javaclient.tracking;
 
 import io.fluxcapacitor.javaclient.common.exception.FunctionalException;
 import lombok.AllArgsConstructor;
+import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
+
+import java.util.concurrent.Callable;
 
 @Slf4j
 @AllArgsConstructor
@@ -30,12 +33,13 @@ public class ThrowingErrorHandler implements ErrorHandler {
     }
 
     @Override
-    public void handleError(Exception error, String errorMessage, Runnable retryFunction) throws Exception {
+    @SneakyThrows
+    public Object handleError(Throwable error, String errorMessage, Callable<?> retryFunction) {
         logError(error, errorMessage);
         throw error;
     }
 
-    protected void logError(Exception error, String errorMessage) {
+    protected void logError(Throwable error, String errorMessage) {
         if (!(error instanceof FunctionalException)) {
             if (logTechnicalErrors) {
                 log.error("{}. Propagating error...", errorMessage, error);

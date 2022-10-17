@@ -14,7 +14,16 @@
 
 package io.fluxcapacitor.javaclient.tracking;
 
+import java.util.concurrent.Callable;
+
 @FunctionalInterface
 public interface ErrorHandler {
-    void handleError(Exception error, String errorMessage, Runnable retryFunction) throws Exception;
+    Object handleError(Throwable error, String errorMessage, Callable<?> retryFunction);
+
+    default void handleError(Throwable error, String errorMessage, Runnable retryFunction) {
+        handleError(error, errorMessage, () -> {
+            retryFunction.run();
+            return null;
+        });
+    }
 }
