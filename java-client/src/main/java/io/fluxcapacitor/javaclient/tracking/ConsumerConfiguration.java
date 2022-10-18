@@ -28,7 +28,6 @@ import lombok.experimental.Accessors;
 
 import java.time.Duration;
 import java.util.Arrays;
-import java.util.EnumSet;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -71,7 +70,7 @@ public class ConsumerConfiguration {
     List<BatchInterceptor> batchInterceptors;
     @Default
     @Accessors(fluent = true)
-    boolean ignoreMessageTarget = false;
+    boolean filterMessageTarget = false;
     @Default
     @Accessors(fluent = true)
     boolean ignoreSegment = false;
@@ -97,7 +96,7 @@ public class ConsumerConfiguration {
     public static ConsumerConfiguration getDefault(MessageType messageType) {
         return ConsumerConfiguration.builder().messageType(messageType)
                 .name(DEFAULT_CONSUMER_NAME.apply(messageType))
-                .ignoreSegment(EnumSet.of(MessageType.NOTIFICATION, MessageType.RESULT).contains(messageType))
+                .ignoreSegment(messageType == MessageType.NOTIFICATION)
                 .build();
     }
 
@@ -118,7 +117,7 @@ public class ConsumerConfiguration {
                                 .maxWaitDuration(Duration.of(c.maxWaitDuration(), c.durationUnit()))
                                 .batchInterceptors(Arrays.stream(c.batchInterceptors()).map(
                                         ReflectionUtils::<BatchInterceptor>asInstance).collect(Collectors.toList()))
-                                .ignoreMessageTarget(c.ignoreMessageTarget())
+                                .filterMessageTarget(c.filterMessageTarget())
                                 .ignoreSegment(c.ignoreSegment())
                                 .singleTracker(c.singleTracker())
                                 .minIndex(c.minIndex() < 0 ? null : c.minIndex())

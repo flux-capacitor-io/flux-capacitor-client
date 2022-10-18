@@ -41,7 +41,7 @@ public @interface Consumer {
 
     Class<? extends ErrorHandler> errorHandler() default LoggingErrorHandler.class;
 
-    boolean ignoreMessageTarget() default false;
+    boolean filterMessageTarget() default false;
 
     boolean ignoreSegment() default false;
 

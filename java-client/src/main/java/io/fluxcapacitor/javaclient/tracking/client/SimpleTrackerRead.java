@@ -34,7 +34,7 @@ public class SimpleTrackerRead implements TrackerRead {
     Long purgeTimeout;
     int maxSize;
     Predicate<String> typeFilter;
-    boolean ignoreMessageTarget;
+    boolean filterMessageTarget;
     MessageType messageType;
 
     public SimpleTrackerRead(String consumer, String trackerId, Long previousLastIndex,
@@ -46,7 +46,7 @@ public class SimpleTrackerRead implements TrackerRead {
         this.purgeTimeout = Optional.ofNullable(config.getPurgeDelay()).map(Duration::toMillis).orElse(null);
         this.maxSize = config.getMaxFetchSize();
         this.typeFilter = toPredicate(config.getTypeFilter());
-        this.ignoreMessageTarget = config.ignoreMessageTarget();
+        this.filterMessageTarget = config.filterMessageTarget();
         this.messageType = config.getMessageType();
     }
 

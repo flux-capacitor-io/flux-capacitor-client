@@ -13,7 +13,7 @@
     "maxTimeout": 60000,
     "@type": "read",
     "requestId": 210551,
-    "ignoreMessageTarget": true,
+    "filterMessageTarget": false,
     "maxSize": 128,
     "lastIndex": 106187509441101820,
     "consumer": "audittrail:QUERY"

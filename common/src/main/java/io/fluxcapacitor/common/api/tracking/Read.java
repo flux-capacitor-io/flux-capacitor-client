@@ -28,9 +28,14 @@ public class Read extends Request {
     int maxSize;
     long maxTimeout;
     String typeFilter;
-    boolean ignoreMessageTarget;
+    boolean filterMessageTarget;
     boolean ignoreSegment;
     boolean singleTracker;
     Long lastIndex;
     Long purgeTimeout;
+
+    @SuppressWarnings("unused")
+    public boolean isIgnoreMessageTarget() {
+        return !filterMessageTarget;
+    }
 }
