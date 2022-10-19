@@ -78,6 +78,20 @@ public interface Entity<T> {
 
     T get();
 
+    default Entity<T> ifPresent(UnaryOperator<Entity<T>> action) {
+        if (get() == null) {
+            return this;
+        }
+        return action.apply(this);
+    }
+
+    default <U> Optional<U> mapIfPresent(Function<Entity<T>, U> action) {
+        if (get() == null) {
+            return Optional.empty();
+        }
+        return Optional.ofNullable(action.apply(this));
+    }
+
     String idProperty();
 
     Entity<?> parent();
