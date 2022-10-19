@@ -67,7 +67,8 @@ public class EntityParameterResolver implements ParameterResolver<Object> {
         Class<?> eType = entity.type();
         Class<?> pType = getEntityParameterType(parameter);
         return entity.get() == null
-                ? isNullable(parameter) && (pType.isAssignableFrom(eType) || eType.isAssignableFrom(pType))
+                ? (isNullable(parameter) || Entity.class.isAssignableFrom(parameter.getType()))
+                  && (pType.isAssignableFrom(eType) || eType.isAssignableFrom(pType))
                 : pType.isAssignableFrom(eType);
     }
 

@@ -460,6 +460,16 @@ public class ReflectionUtils {
         return (T) classOrInstance;
     }
 
+    public static int getParameterIndex(Parameter parameter) {
+        var executable = parameter.getDeclaringExecutable();
+        for (int i = 0; i < executable.getParameters().length; i++) {
+            if (executable.getParameters()[i].equals(parameter)) {
+                return i;
+            }
+        }
+        throw new IllegalStateException("Could not get parameter index of " + parameter);
+    }
+
     @Value
     private static class PropertyNotFoundException extends RuntimeException {
         @NonNull String propertyName;
