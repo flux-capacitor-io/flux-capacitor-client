@@ -23,17 +23,15 @@ public class SerializedSchedule {
     String scheduleId;
     long timestamp;
     SerializedMessage message;
-    boolean ifAbsent;
 
     @JsonIgnore
     public Metric toMetric() {
-        return new Metric(scheduleId, timestamp, ifAbsent);
+        return new Metric(scheduleId, timestamp);
     }
 
     @Value
     public static class Metric {
         String scheduleId;
         long timestamp;
-        boolean ifNotExists;
     }
 }

@@ -15,6 +15,7 @@
 package io.fluxcapacitor.javaclient.tracking.client;
 
 import io.fluxcapacitor.common.Awaitable;
+import io.fluxcapacitor.common.Guarantee;
 import io.fluxcapacitor.common.MessageType;
 import io.fluxcapacitor.common.api.SerializedMessage;
 import io.fluxcapacitor.common.api.tracking.ClaimSegment;
@@ -86,13 +87,13 @@ public class WebsocketTrackingClient extends AbstractWebsocketClient implements 
     }
 
     @Override
-    public Awaitable storePosition(String consumer, int[] segment, long lastIndex) {
-        return fromFuture(send(new StorePosition(consumer, segment, lastIndex)), Duration.ofSeconds(60));
+    public Awaitable storePosition(String consumer, int[] segment, long lastIndex, Guarantee guarantee) {
+        return fromFuture(send(new StorePosition(consumer, segment, lastIndex, guarantee)), Duration.ofSeconds(60));
     }
 
     @Override
-    public Awaitable resetPosition(String consumer, long lastIndex) {
-        return fromFuture(send(new ResetPosition(consumer, lastIndex)), Duration.ofSeconds(60));
+    public Awaitable resetPosition(String consumer, long lastIndex, Guarantee guarantee) {
+        return fromFuture(send(new ResetPosition(consumer, lastIndex, guarantee)), Duration.ofSeconds(60));
     }
 
     @Override
@@ -101,8 +102,9 @@ public class WebsocketTrackingClient extends AbstractWebsocketClient implements 
     }
 
     @Override
-    public Awaitable disconnectTracker(String consumer, String trackerId, boolean sendFinalEmptyBatch) {
-        return sendAndForget(new DisconnectTracker(consumer, trackerId, sendFinalEmptyBatch));
+    public Awaitable disconnectTracker(String consumer, String trackerId, boolean sendFinalEmptyBatch,
+                                       Guarantee guarantee) {
+        return fromFuture(send(new DisconnectTracker(consumer, trackerId, sendFinalEmptyBatch, guarantee)));
     }
 
     @Override

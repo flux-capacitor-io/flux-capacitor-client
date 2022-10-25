@@ -280,7 +280,7 @@ class EventSourcingRepositoryTest {
             testFixture.givenCommands(new CreateModel())
                     .whenCommand(new UpdateModel())
                     .expectThat(fc -> verify(testFixture.getFluxCapacitor().client().getKeyValueClient(), times(0))
-                            .putValue(anyString(), any(), any()));
+                            .storeValue(anyString(), any(), eq(false), any()));
         }
 
         @Test
@@ -288,7 +288,7 @@ class EventSourcingRepositoryTest {
             testFixture.givenCommands(new CreateModel(), new UpdateModel())
                     .whenCommand(new UpdateModel())
                     .expectThat(fc -> verify(testFixture.getFluxCapacitor().client().getKeyValueClient())
-                            .putValue(anyString(), any(), any()));
+                            .storeValue(anyString(), any(), eq(false), any()));
         }
 
         @Test
@@ -332,7 +332,7 @@ class EventSourcingRepositoryTest {
                         verify(testFixture.getFluxCapacitor().client().getEventStoreClient(),
                                times(0)).getEvents(anyString(), anyLong());
                         verify(testFixture.getFluxCapacitor().client().getKeyValueClient(), times(1))
-                                .putValue(anyString(), any(), any());
+                                .storeValue(anyString(), any(), eq(false), any());
                         TestModelNotEventSourced result =
                                 loadAggregate(aggregateId, TestModelNotEventSourced.class).get();
                         assertTrue(result.getNames().size() == 2

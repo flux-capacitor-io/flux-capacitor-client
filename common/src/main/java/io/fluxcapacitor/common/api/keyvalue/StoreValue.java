@@ -12,43 +12,34 @@
  * limitations under the License.
  */
 
-package io.fluxcapacitor.common.api.publishing;
+package io.fluxcapacitor.common.api.keyvalue;
 
-import com.fasterxml.jackson.annotation.JsonIgnore;
 import io.fluxcapacitor.common.Guarantee;
 import io.fluxcapacitor.common.api.Command;
-import io.fluxcapacitor.common.api.SerializedMessage;
+import lombok.EqualsAndHashCode;
 import lombok.Value;
 
-import java.util.List;
-
 @Value
-public class Append extends Command {
-    List<SerializedMessage> messages;
+@EqualsAndHashCode(callSuper = true)
+public class StoreValue extends Command {
+    KeyValuePair value;
+    boolean ifAbsent;
     Guarantee guarantee;
-
-    @JsonIgnore
-    public int getSize() {
-        return messages.size();
-    }
-
-    public Guarantee getGuarantee() {
-        return guarantee == null ? Guarantee.NONE : guarantee;
-    }
 
     @Override
     public String toString() {
-        return "Append of length " + messages.size();
+        return "StoreValue for key: " + value.getKey();
     }
 
     @Override
     public Metric toMetric() {
-        return new Metric(getSize(), getGuarantee());
+        return new Metric(value.getKey(), ifAbsent, guarantee);
     }
 
     @Value
     public static class Metric {
-        int size;
+        String key;
+        boolean ifAbsent;
         Guarantee guarantee;
     }
 }

@@ -15,31 +15,24 @@
 package io.fluxcapacitor.javaclient.persisting.keyvalue.client;
 
 import io.fluxcapacitor.common.Awaitable;
-import io.fluxcapacitor.common.Backlog;
 import io.fluxcapacitor.common.Guarantee;
-import io.fluxcapacitor.common.api.BooleanResult;
 import io.fluxcapacitor.common.api.Data;
 import io.fluxcapacitor.common.api.keyvalue.DeleteValue;
 import io.fluxcapacitor.common.api.keyvalue.GetValue;
 import io.fluxcapacitor.common.api.keyvalue.GetValueResult;
 import io.fluxcapacitor.common.api.keyvalue.KeyValuePair;
-import io.fluxcapacitor.common.api.keyvalue.StoreValueIfAbsent;
-import io.fluxcapacitor.common.api.keyvalue.StoreValues;
-import io.fluxcapacitor.common.api.keyvalue.StoreValuesAndWait;
+import io.fluxcapacitor.common.api.keyvalue.StoreValue;
 import io.fluxcapacitor.javaclient.common.websocket.AbstractWebsocketClient;
 import io.fluxcapacitor.javaclient.configuration.client.WebSocketClient;
 
 import javax.websocket.ClientEndpoint;
 import java.net.URI;
-import java.util.List;
-import java.util.concurrent.CompletableFuture;
 
-import static java.util.Collections.singletonList;
+import static io.fluxcapacitor.common.Awaitable.fromFuture;
 
 @ClientEndpoint
 public class WebsocketKeyValueClient extends AbstractWebsocketClient implements KeyValueClient {
 
-    private final Backlog<KeyValuePair> backlog;
 
     public WebsocketKeyValueClient(String endPointUrl, WebSocketClient.ClientConfig clientConfig) {
         this(URI.create(endPointUrl), clientConfig);
@@ -51,43 +44,20 @@ public class WebsocketKeyValueClient extends AbstractWebsocketClient implements 
 
     public WebsocketKeyValueClient(URI endpointUri, WebSocketClient.ClientConfig clientConfig, boolean sendMetrics) {
         super(endpointUri, clientConfig, sendMetrics, clientConfig.getKeyValueSessions());
-        backlog = new Backlog<>(this::storeValues);
-    }
-
-    protected Awaitable storeValues(List<KeyValuePair> keyValuePairs) {
-        return sendAndForget(new StoreValues(keyValuePairs));
     }
 
     @Override
-    public Awaitable putValue(String key, Data<byte[]> value, Guarantee guarantee) {
-        switch (guarantee) {
-            case NONE:
-                backlog.add(new KeyValuePair(key, value));
-                return Awaitable.ready();
-            case SENT:
-                return backlog.add(new KeyValuePair(key, value));
-            case STORED:
-                sendAndWait(new StoreValuesAndWait(singletonList(new KeyValuePair(key, value))));
-                return Awaitable.ready();
-            default:
-                throw new UnsupportedOperationException("Unrecognized guarantee: " + guarantee);
-        }
-    }
-
-    @Override
-    public CompletableFuture<Boolean> putValueIfAbsent(String key, Data<byte[]> value) {
-        return send(new StoreValueIfAbsent(new KeyValuePair(key, value)))
-                .thenApply(r -> ((BooleanResult) r).isSuccess());
+    public Awaitable storeValue(String key, Data<byte[]> value, boolean ifAbsent, Guarantee guarantee) {
+        return fromFuture(send(new StoreValue(new KeyValuePair(key, value), ifAbsent, guarantee)));
     }
 
     @Override
     public Data<byte[]> getValue(String key) {
-        GetValueResult result = sendAndWait(new GetValue(key));
-        return result.getValue();
+        return this.<GetValueResult>sendAndWait(new GetValue(key)).getValue();
     }
 
     @Override
-    public Awaitable deleteValue(String key) {
-        return sendAndForget(new DeleteValue(key));
+    public Awaitable deleteValue(String key, Guarantee guarantee) {
+        return fromFuture(send(new DeleteValue(key, guarantee)));
     }
 }

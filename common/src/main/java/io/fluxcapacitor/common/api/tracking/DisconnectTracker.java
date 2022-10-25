@@ -14,12 +14,17 @@
 
 package io.fluxcapacitor.common.api.tracking;
 
-import io.fluxcapacitor.common.api.JsonType;
+import io.fluxcapacitor.common.Guarantee;
+import io.fluxcapacitor.common.api.Command;
 import lombok.Value;
 
 @Value
-public class DisconnectTracker implements JsonType {
+public class DisconnectTracker extends Command {
     String consumer;
     String trackerId;
     boolean sendFinalEmptyBatch;
+    Guarantee guarantee;
+    public Guarantee getGuarantee() {
+        return guarantee == null ? Guarantee.NONE : guarantee;
+    }
 }

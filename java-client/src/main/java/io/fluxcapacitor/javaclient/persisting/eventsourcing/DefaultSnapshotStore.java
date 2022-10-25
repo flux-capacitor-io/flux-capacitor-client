@@ -37,8 +37,8 @@ public class DefaultSnapshotStore implements SnapshotStore {
     @Override
     public <T> void storeSnapshot(Entity<T> snapshot) {
         try {
-            keyValueClient.putValue(snapshotKey(snapshot.id()), serializer.serialize(ImmutableAggregateRoot.from(
-                    snapshot, null, null)), Guarantee.SENT);
+            keyValueClient.storeValue(snapshotKey(snapshot.id()), serializer.serialize(ImmutableAggregateRoot.from(
+                    snapshot, null, null)), false, Guarantee.SENT);
         } catch (Exception e) {
             throw new EventSourcingException(format("Failed to store a snapshot: %s", snapshot), e);
         }
@@ -60,7 +60,7 @@ public class DefaultSnapshotStore implements SnapshotStore {
     @Override
     public void deleteSnapshot(String aggregateId) {
         try {
-            keyValueClient.deleteValue(snapshotKey(aggregateId));
+            keyValueClient.deleteValue(snapshotKey(aggregateId), Guarantee.NONE);
         } catch (Exception e) {
             throw new EventSourcingException(format("Failed to delete snapshot for aggregate %s", aggregateId), e);
         }

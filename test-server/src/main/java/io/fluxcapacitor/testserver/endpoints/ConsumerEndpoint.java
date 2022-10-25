@@ -16,7 +16,6 @@ package io.fluxcapacitor.testserver.endpoints;
 
 import io.fluxcapacitor.common.MessageType;
 import io.fluxcapacitor.common.api.SerializedMessage;
-import io.fluxcapacitor.common.api.VoidResult;
 import io.fluxcapacitor.common.api.tracking.ClaimSegment;
 import io.fluxcapacitor.common.api.tracking.ClaimSegmentResult;
 import io.fluxcapacitor.common.api.tracking.DisconnectTracker;
@@ -38,6 +37,7 @@ import javax.websocket.CloseReason;
 import javax.websocket.Session;
 import java.util.List;
 import java.util.Objects;
+import java.util.concurrent.CompletableFuture;
 
 @Slf4j
 @AllArgsConstructor
@@ -47,46 +47,32 @@ public class ConsumerEndpoint extends WebsocketEndpoint {
     private final MessageType messageType;
 
     @Handle
-    public void handle(Read read, Session session) {
-        store.read(new WebSocketTrackerRead(read, getClientId(session), session.getId(), messageType)).whenComplete(
-                (b, e) -> {
-                    if (e != null) {
-                        log.error("Failed to complete read", e);
-                    } else {
-                        sendResult(session, new ReadResult(read.getRequestId(), b));
-                    }
-                });
+    public CompletableFuture<?> handle(Read read, Session session) {
+        return store.read(new WebSocketTrackerRead(read, getClientId(session), session.getId(), messageType))
+                .thenApply(b -> new ReadResult(read.getRequestId(), b));
     }
 
     @Handle
-    public void handle(ClaimSegment read, Session session) {
-        store.claimSegment(new WebSocketTrackerRead(read, getClientId(session), session.getId(), messageType))
-                .whenComplete((b, e) -> {
-                    if (e != null) {
-                        log.error("Failed to complete claim segment", e);
-                    } else {
-                        sendResult(session, new ClaimSegmentResult(read.getRequestId(),
+    public CompletableFuture<?> handle(ClaimSegment read, Session session) {
+        return store.claimSegment(new WebSocketTrackerRead(read, getClientId(session), session.getId(), messageType))
+                .thenApply(b -> new ClaimSegmentResult(read.getRequestId(),
                                                                    store.getPosition(read.getConsumer()), b));
-                    }
-                });
     }
 
     @Handle
-    public VoidResult handle(StorePosition storePosition) {
+    public void handle(StorePosition storePosition) {
         store.storePosition(storePosition.getConsumer(), storePosition.getSegment(), storePosition.getLastIndex());
-        return new VoidResult(storePosition.getRequestId());
     }
 
     @Handle
-    public VoidResult handle(ResetPosition resetPosition) {
+    public void handle(ResetPosition resetPosition) {
         store.resetPosition(resetPosition.getConsumer(), resetPosition.getLastIndex());
-        return new VoidResult(resetPosition.getRequestId());
     }
 
     @Handle
     public void handle(DisconnectTracker disconnectTracker) {
         store.disconnectTracker(disconnectTracker.getConsumer(), disconnectTracker.getTrackerId(),
-                                disconnectTracker.isSendFinalEmptyBatch());
+                                disconnectTracker.isSendFinalEmptyBatch(), disconnectTracker.getGuarantee());
     }
 
     @Handle

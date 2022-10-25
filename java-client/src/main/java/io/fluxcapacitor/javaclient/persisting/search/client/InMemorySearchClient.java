@@ -120,7 +120,7 @@ public class InMemorySearchClient implements SearchClient {
     }
 
     @Override
-    public Awaitable deleteCollection(String collection) {
+    public Awaitable deleteCollection(String collection, Guarantee guarantee) {
         documents.removeIf(d -> Objects.equals(collection, d.getCollection()));
         return Awaitable.ready();
     }

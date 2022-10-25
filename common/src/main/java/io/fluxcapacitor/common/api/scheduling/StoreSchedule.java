@@ -12,43 +12,32 @@
  * limitations under the License.
  */
 
-package io.fluxcapacitor.common.api.publishing;
+package io.fluxcapacitor.common.api.scheduling;
 
-import com.fasterxml.jackson.annotation.JsonIgnore;
 import io.fluxcapacitor.common.Guarantee;
 import io.fluxcapacitor.common.api.Command;
-import io.fluxcapacitor.common.api.SerializedMessage;
 import lombok.Value;
 
-import java.util.List;
-
 @Value
-public class Append extends Command {
-    List<SerializedMessage> messages;
+public class StoreSchedule extends Command {
+    SerializedSchedule schedule;
+    boolean ifAbsent;
     Guarantee guarantee;
-
-    @JsonIgnore
-    public int getSize() {
-        return messages.size();
-    }
-
-    public Guarantee getGuarantee() {
-        return guarantee == null ? Guarantee.NONE : guarantee;
-    }
 
     @Override
     public String toString() {
-        return "Append of length " + messages.size();
+        return "StoreSchedule";
     }
 
     @Override
-    public Metric toMetric() {
-        return new Metric(getSize(), getGuarantee());
+    public Object toMetric() {
+        return new Metric(schedule.toMetric(), ifAbsent, getGuarantee());
     }
 
     @Value
     public static class Metric {
-        int size;
+        SerializedSchedule.Metric schedule;
+        boolean ifAbsent;
         Guarantee guarantee;
     }
 }

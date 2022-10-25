@@ -25,7 +25,6 @@ import lombok.NonNull;
 import lombok.extern.slf4j.Slf4j;
 
 import java.time.Clock;
-import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
@@ -53,25 +52,21 @@ public class InMemorySchedulingClient extends InMemoryMessageStore implements Sc
     }
 
     @Override
-    public Awaitable schedule(SerializedSchedule... schedules) {
-        List<SerializedSchedule> filtered = Arrays.stream(schedules)
-                .filter(s -> !s.isIfAbsent() || !scheduleIdsByIndex.containsValue(s.getScheduleId()))
-                .collect(toList());
-        for (SerializedSchedule schedule : filtered) {
-            cancelSchedule(schedule.getScheduleId());
+    public Awaitable schedule(SerializedSchedule schedule, boolean ifAbsent, Guarantee guarantee) {
+        if (!ifAbsent || !scheduleIdsByIndex.containsValue(schedule.getScheduleId())) {
+            cancelSchedule(schedule.getScheduleId(), guarantee);
             long index = indexFromMillis(schedule.getTimestamp());
             while (scheduleIdsByIndex.putIfAbsent(index, schedule.getScheduleId()) != null) {
                 index++;
             }
             schedule.getMessage().setIndex(index);
+            super.send(Guarantee.SENT, schedule.getMessage());
         }
-        super.send(Guarantee.SENT,
-                   filtered.stream().map(SerializedSchedule::getMessage).toArray(SerializedMessage[]::new));
         return Awaitable.ready();
     }
 
     @Override
-    public Awaitable cancelSchedule(String scheduleId) {
+    public Awaitable cancelSchedule(String scheduleId, Guarantee guarantee) {
         scheduleIdsByIndex.values().removeIf(s -> s.equals(scheduleId));
         return Awaitable.ready();
     }
@@ -81,7 +76,7 @@ public class InMemorySchedulingClient extends InMemoryMessageStore implements Sc
         return scheduleIdsByIndex.entrySet().stream().filter(e -> scheduleId.equals(e.getValue())).findFirst()
                 .map(e -> {
                     SerializedMessage message = getMessage(e.getKey());
-                    return new SerializedSchedule(scheduleId, millisFromIndex(e.getKey()), message, false);
+                    return new SerializedSchedule(scheduleId, millisFromIndex(e.getKey()), message);
                 }).orElse(null);
     }
 

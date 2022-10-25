@@ -16,7 +16,6 @@ package io.fluxcapacitor.testserver.endpoints;
 
 import io.fluxcapacitor.common.Awaitable;
 import io.fluxcapacitor.common.Guarantee;
-import io.fluxcapacitor.common.api.BooleanResult;
 import io.fluxcapacitor.common.api.SerializedMessage;
 import io.fluxcapacitor.common.api.VoidResult;
 import io.fluxcapacitor.common.api.eventsourcing.AppendEvents;
@@ -44,7 +43,7 @@ public class EventSourcingEndpoint extends WebsocketEndpoint {
     private final EventStoreClient eventStore;
 
     @Handle
-    public VoidResult handle(AppendEvents appendEvents) throws Exception {
+    public void handle(AppendEvents appendEvents) throws Exception {
         List<Awaitable> results = appendEvents.getEventBatches().stream().map(b -> eventStore
                 .storeEvents(b.getAggregateId(), b.getEvents(),
                              b.isStoreOnly())).collect(
@@ -52,13 +51,11 @@ public class EventSourcingEndpoint extends WebsocketEndpoint {
         for (Awaitable awaitable : results) {
             awaitable.await();
         }
-        return new VoidResult(appendEvents.getRequestId());
     }
 
     @Handle
-    public BooleanResult handle(DeleteEvents deleteEvents) throws Exception {
-        return new BooleanResult(deleteEvents.getRequestId(),
-                                 eventStore.deleteEvents(deleteEvents.getAggregateId()).get());
+    public void handle(DeleteEvents deleteEvents) throws Exception {
+        eventStore.deleteEvents(deleteEvents.getAggregateId(), Guarantee.NONE);
     }
 
     @Handle

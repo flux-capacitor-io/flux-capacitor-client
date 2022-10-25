@@ -14,7 +14,7 @@
 
 package io.fluxcapacitor.common.api;
 
-public interface ClientEvent extends JsonType {
+public interface ClientEvent {
     String getClient();
     String getClientId();
     long getTimestamp();

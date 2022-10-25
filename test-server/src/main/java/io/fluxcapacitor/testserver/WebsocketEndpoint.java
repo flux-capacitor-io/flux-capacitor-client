@@ -18,11 +18,18 @@ package io.fluxcapacitor.testserver;
 import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.json.JsonMapper;
+import io.fluxcapacitor.common.Awaitable;
+import io.fluxcapacitor.common.Guarantee;
+import io.fluxcapacitor.common.api.BooleanResult;
+import io.fluxcapacitor.common.api.Command;
 import io.fluxcapacitor.common.api.JsonType;
+import io.fluxcapacitor.common.api.QueryResult;
+import io.fluxcapacitor.common.api.Request;
 import io.fluxcapacitor.common.api.RequestBatch;
+import io.fluxcapacitor.common.api.StringResult;
+import io.fluxcapacitor.common.api.VoidResult;
 import io.fluxcapacitor.common.handling.Handler;
 import io.fluxcapacitor.common.handling.HandlerInspector;
-import io.fluxcapacitor.common.handling.HandlerInvoker;
 import io.fluxcapacitor.common.handling.ParameterResolver;
 import io.fluxcapacitor.common.serialization.compression.CompressionAlgorithm;
 import io.undertow.util.SameThreadExecutor;
@@ -42,6 +49,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executor;
 import java.util.concurrent.Executors;
@@ -87,12 +95,12 @@ public abstract class WebsocketEndpoint extends Endpoint {
         Runtime.getRuntime().addShutdownHook(new Thread(this::shutDown));
     }
 
-    private final Handler<Request> handler =
+    private final Handler<ClientMessage> handler =
             HandlerInspector.createHandler(this, Handle.class, Arrays.asList(new ParameterResolver<>() {
                 @Override
-                public Function<Request, Object> resolve(Parameter p, Annotation methodAnnotation) {
+                public Function<ClientMessage, Object> resolve(Parameter p, Annotation methodAnnotation) {
                     if (Objects.equals(p.getDeclaringExecutable().getParameters()[0], p)) {
-                        return Request::getPayload;
+                        return ClientMessage::getPayload;
                     }
                     return null;
                 }
@@ -103,7 +111,7 @@ public abstract class WebsocketEndpoint extends Endpoint {
                 }
             }, (p, methodAnnotation) -> {
                 if (p.getType().equals(Session.class)) {
-                    return Request::getSession;
+                    return ClientMessage::getSession;
                 }
                 return null;
             }));
@@ -148,32 +156,60 @@ public abstract class WebsocketEndpoint extends Endpoint {
                      value, getClientName(session), getClientId(session));
             return;
         }
-        handleRequest(session, value);
+        handleMessage(session, value);
     }
 
-    private void handleRequest(Session session, JsonType value) {
-        if (value instanceof RequestBatch<?>) {
-            ((RequestBatch<?>) value).getRequests().forEach(r -> handleRequest(session, r));
+    protected void handleMessage(Session session, JsonType message) {
+        if (message instanceof RequestBatch<?>) {
+            ((RequestBatch<?>) message).getRequests().forEach(r -> handleMessage(session, r));
+        } else {
+            try {
+                Object result = handler.findInvoker(new ClientMessage(message, session)).orElseThrow().invoke();
+                if (message instanceof Request) {
+                    handleResult(result, (Request) message, session);
+                }
+            } catch (Throwable e) {
+                log.error("Could not handle request {}", message, e);
+            }
+        }
+    }
+
+    protected void handleResult(Object result, Request request, Session session) {
+        if (request instanceof Command && ((Command) request).getGuarantee() == Guarantee.NONE) {
             return;
         }
-        HandlerInvoker invoker = handler.findInvoker(new Request(value, session)).orElseThrow(
-                () -> new IllegalArgumentException("Could not find find a handler for request " + value));
-        Object result;
-        try {
-            result = invoker.invoke();
-        } catch (Exception e) {
-            throw new IllegalArgumentException("Could not handle request " + value, e);
-        }
-        if (result != null) {
-            sendResult(session, result);
+        if (result instanceof QueryResult) {
+            sendResult(session, (QueryResult) result);
+        } else if (result instanceof CompletableFuture<?>) {
+            ((CompletableFuture<?>) result).whenComplete((r, e) -> {
+                if (e != null) {
+                    log.error("Request {} failed. Not sending back result to client.", request, e);
+                } else {
+                    handleResult(r, request, session);
+                }
+            });
+        } else if (result instanceof Awaitable) {
+            ((Awaitable) result).asCompletableFuture().whenComplete((r, e) -> {
+                if (e != null) {
+                    log.error("Request {} failed. Not sending back result to client.", request, e);
+                } else {
+                    sendResult(session, new VoidResult(request.getRequestId()));
+                }
+            });
+        } else {
+            if (result == null) {
+                sendResult(session, new VoidResult(request.getRequestId()));
+            } else if (result instanceof Boolean) {
+                sendResult(session, new BooleanResult(request.getRequestId(), (Boolean) result));
+            } else if (result instanceof String) {
+                sendResult(session, new StringResult(request.getRequestId(), (String) result));
+            } else {
+                log.warn("Request {} did not receive a response! Result was: {}.", request, result);
+            }
         }
     }
 
-    protected Class<? extends JsonType> getRequestType() {
-        return JsonType.class;
-    }
-
-    protected void sendResult(Session session, Object result) {
+    protected void sendResult(Session session, QueryResult result) {
         responseExecutor.execute(() -> {
             if (session.isOpen()) {
                 try (OutputStream outputStream = session.getBasicRemote().getSendStream()) {
@@ -249,8 +285,13 @@ public abstract class WebsocketEndpoint extends Endpoint {
         return session.getRequestParameterMap().get("clientName").get(0);
     }
 
+    protected Class<? extends JsonType> getRequestType() {
+        return JsonType.class;
+    }
+
+
     @Value
-    private static class Request {
+    private static class ClientMessage {
         JsonType payload;
         Session session;
     }

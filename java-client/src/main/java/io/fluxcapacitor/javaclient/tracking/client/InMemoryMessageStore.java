@@ -17,7 +17,6 @@ package io.fluxcapacitor.javaclient.tracking.client;
 import io.fluxcapacitor.common.Awaitable;
 import io.fluxcapacitor.common.Guarantee;
 import io.fluxcapacitor.common.MessageType;
-import io.fluxcapacitor.common.Registration;
 import io.fluxcapacitor.common.api.SerializedMessage;
 import io.fluxcapacitor.common.api.tracking.MessageBatch;
 import io.fluxcapacitor.common.api.tracking.Position;
@@ -37,11 +36,9 @@ import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentSkipListMap;
-import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicLong;
-import java.util.function.Consumer;
 import java.util.function.Predicate;
 
 import static io.fluxcapacitor.javaclient.FluxCapacitor.currentClock;
@@ -58,8 +55,6 @@ public class InMemoryMessageStore implements GatewayClient, TrackingClient {
     private final ExecutorService executor = Executors.newCachedThreadPool();
     private final AtomicLong nextIndex = new AtomicLong();
     private final Map<String, TrackerRead> trackers = new ConcurrentHashMap<>();
-    private final List<Consumer<SerializedMessage>> monitors = new CopyOnWriteArrayList<>();
-
     private final ConcurrentSkipListMap<Long, SerializedMessage> messageLog = new ConcurrentSkipListMap<>();
     private final Map<String, Long> consumerTokens = new ConcurrentHashMap<>();
 
@@ -70,7 +65,6 @@ public class InMemoryMessageStore implements GatewayClient, TrackingClient {
                 m.setIndex(nextIndex.updateAndGet(i -> i <= 0 ? indexFromMillis(currentClock().millis()) : i + 1));
             }
             messageLog.put(m.getIndex(), m);
-            monitors.forEach(monitor -> monitor.accept(m));
         });
         synchronized (this) {
             this.notifyAll();
@@ -149,12 +143,12 @@ public class InMemoryMessageStore implements GatewayClient, TrackingClient {
     }
 
     @Override
-    public Awaitable storePosition(String consumer, int[] segment, long lastIndex) {
+    public Awaitable storePosition(String consumer, int[] segment, long lastIndex, Guarantee guarantee) {
         return resetPosition(consumer, lastIndex);
     }
 
     @Override
-    public Awaitable resetPosition(String consumer, long lastIndex) {
+    public Awaitable resetPosition(String consumer, long lastIndex, Guarantee guarantee) {
         consumerTokens.put(consumer, lastIndex);
         return Awaitable.ready();
     }
@@ -165,7 +159,8 @@ public class InMemoryMessageStore implements GatewayClient, TrackingClient {
     }
 
     @Override
-    public Awaitable disconnectTracker(String consumer, String trackerId, boolean sendFinalEmptyBatch) {
+    public Awaitable disconnectTracker(String consumer, String trackerId, boolean sendFinalEmptyBatch,
+                                       Guarantee guarantee) {
         disconnectTrackersMatching(t -> Objects.equals(trackerId, t.getTrackerId()));
         return Awaitable.ready();
     }
@@ -173,12 +168,6 @@ public class InMemoryMessageStore implements GatewayClient, TrackingClient {
     @SuppressWarnings("unchecked")
     public <T extends TrackerRead> void disconnectTrackersMatching(Predicate<T> predicate) {
         trackers.values().removeIf(t -> predicate.test((T) t));
-    }
-
-    @Override
-    public Registration registerMonitor(Consumer<SerializedMessage> monitor) {
-        monitors.add(monitor);
-        return () -> monitors.remove(monitor);
     }
 
     @Override
