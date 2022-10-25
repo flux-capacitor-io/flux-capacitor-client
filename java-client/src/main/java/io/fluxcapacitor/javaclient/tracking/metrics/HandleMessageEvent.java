@@ -14,10 +14,11 @@
 
 package io.fluxcapacitor.javaclient.tracking.metrics;
 
+import io.fluxcapacitor.common.api.JsonType;
 import lombok.Value;
 
 @Value
-public class HandleMessageEvent {
+public class HandleMessageEvent implements JsonType {
     String consumer;
     String handler;
     Long messageIndex;

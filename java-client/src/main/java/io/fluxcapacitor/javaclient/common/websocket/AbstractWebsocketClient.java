@@ -18,9 +18,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.json.JsonMapper;
 import io.fluxcapacitor.common.Awaitable;
 import io.fluxcapacitor.common.Backlog;
-import io.fluxcapacitor.common.Guarantee;
 import io.fluxcapacitor.common.RetryConfiguration;
-import io.fluxcapacitor.common.api.Command;
 import io.fluxcapacitor.common.api.JsonType;
 import io.fluxcapacitor.common.api.Metadata;
 import io.fluxcapacitor.common.api.QueryResult;
@@ -109,13 +107,6 @@ public abstract class AbstractWebsocketClient implements AutoCloseable {
                         }).build()));
     }
 
-    protected CompletableFuture<?> send(Command command) {
-        if (command.getGuarantee() == Guarantee.NONE) {
-            return send(command, sessionPool.get()).asCompletableFuture();
-        }
-        return new WebSocketRequest(command, currentCorrelationData()).send();
-    }
-
     protected <R extends QueryResult> CompletableFuture<R> send(Request request) {
         return new WebSocketRequest(request, currentCorrelationData()).send();
     }
@@ -126,7 +117,13 @@ public abstract class AbstractWebsocketClient implements AutoCloseable {
         return (R) send(request).get();
     }
 
-    private Awaitable send(JsonType object, Session session) {
+    @SneakyThrows
+    protected Awaitable sendAndForget(JsonType object) {
+        return send(object, sessionPool.get());
+    }
+
+    @SneakyThrows
+    protected Awaitable send(JsonType object, Session session) {
         try {
             return sessionBacklogs.computeIfAbsent(
                     session.getId(), id -> new Backlog<>(batch -> sendBatch(batch, session))).add(object);

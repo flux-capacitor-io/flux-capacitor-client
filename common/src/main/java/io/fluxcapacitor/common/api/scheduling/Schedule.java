@@ -22,7 +22,6 @@ import java.util.List;
 import static java.util.stream.Collectors.toList;
 
 @Value
-@Deprecated(forRemoval = true)
 public class Schedule implements JsonType {
     List<SerializedSchedule> messages;
 

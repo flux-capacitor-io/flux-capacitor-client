@@ -15,7 +15,6 @@
 package io.fluxcapacitor.javaclient.persisting.eventsourcing.client;
 
 import io.fluxcapacitor.common.Awaitable;
-import io.fluxcapacitor.common.Guarantee;
 import io.fluxcapacitor.common.api.SerializedMessage;
 import io.fluxcapacitor.common.api.modeling.GetAggregateIds;
 import io.fluxcapacitor.common.api.modeling.UpdateRelationships;
@@ -23,14 +22,11 @@ import io.fluxcapacitor.javaclient.persisting.eventsourcing.AggregateEventStream
 
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
 
 public interface EventStoreClient extends AutoCloseable {
 
-    default Awaitable storeEvents(String aggregateId, List<SerializedMessage> events, boolean storeOnly) {
-        return storeEvents(aggregateId, events, storeOnly, Guarantee.STORED);
-    }
-
-    Awaitable storeEvents(String aggregateId, List<SerializedMessage> events, boolean storeOnly, Guarantee guarantee);
+    Awaitable storeEvents(String aggregateId, List<SerializedMessage> events, boolean storeOnly);
 
     Awaitable updateRelationships(UpdateRelationships request);
 
@@ -40,7 +36,7 @@ public interface EventStoreClient extends AutoCloseable {
 
     AggregateEventStream<SerializedMessage> getEvents(String aggregateId, long lastSequenceNumber);
 
-    Awaitable deleteEvents(String aggregateId, Guarantee guarantee);
+    CompletableFuture<Boolean> deleteEvents(String aggregateId);
 
     default Map<String, String> getAggregateIds(String entityId) {
         return getAggregateIds(new GetAggregateIds(entityId));

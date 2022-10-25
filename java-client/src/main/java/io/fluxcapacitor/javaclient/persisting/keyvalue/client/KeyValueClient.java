@@ -18,20 +18,31 @@ import io.fluxcapacitor.common.Awaitable;
 import io.fluxcapacitor.common.Guarantee;
 import io.fluxcapacitor.common.api.Data;
 
+import java.util.concurrent.CompletableFuture;
+
 /**
  * Represents a service to store and retrieve a piece of serialized data by key.
  */
 public interface KeyValueClient extends AutoCloseable {
 
     /**
-     * Adds the given value in the key value store. If {@code ifAbsent} is false any existing value will be overwritten.
+     * Adds or replaces the given value in the key value store.
      *
      * @param key       The key associated with this value
      * @param value     The value to store
      * @param guarantee The guarantee for storing
      * @return a handle that enables clients to wait until the value was sent or stored depending on the guarantee
      */
-    Awaitable storeValue(String key, Data<byte[]> value, boolean ifAbsent, Guarantee guarantee);
+    Awaitable putValue(String key, Data<byte[]> value, Guarantee guarantee);
+
+    /**
+     * Adds the given value in the key value store if the key is not already mapped to a value.
+     *
+     * @param key       The key associated with this value
+     * @param value     The value to store
+     * @return a handle that enables clients to wait until the value was sent or stored depending on the guarantee
+     */
+    CompletableFuture<Boolean> putValueIfAbsent(String key, Data<byte[]> value);
 
     /**
      * Returns the {@link Data} object associated with the given key. Returns {@code null} if there is no associated
@@ -48,7 +59,7 @@ public interface KeyValueClient extends AutoCloseable {
      * @param key The key associated with this value
      * @return a handle that enables clients to wait until the command was safely sent to the store
      */
-    Awaitable deleteValue(String key, Guarantee guarantee);
+    Awaitable deleteValue(String key);
 
     @Override
     void close();

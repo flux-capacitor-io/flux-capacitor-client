@@ -24,7 +24,6 @@ import static java.util.stream.Collectors.toList;
 
 @Value
 @EqualsAndHashCode(callSuper = true)
-@Deprecated(forRemoval = true)
 public class StoreValuesAndWait extends Request {
     List<KeyValuePair> values;
 

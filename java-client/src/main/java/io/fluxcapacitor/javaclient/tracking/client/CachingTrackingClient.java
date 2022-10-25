@@ -15,7 +15,6 @@
 package io.fluxcapacitor.javaclient.tracking.client;
 
 import io.fluxcapacitor.common.Awaitable;
-import io.fluxcapacitor.common.Guarantee;
 import io.fluxcapacitor.common.Registration;
 import io.fluxcapacitor.common.api.SerializedMessage;
 import io.fluxcapacitor.common.api.tracking.ClaimSegmentResult;
@@ -192,13 +191,13 @@ public class CachingTrackingClient implements TrackingClient {
     }
 
     @Override
-    public Awaitable storePosition(String consumer, int[] segment, long lastIndex, Guarantee guarantee) {
-        return delegate.storePosition(consumer, segment, lastIndex, guarantee);
+    public Awaitable storePosition(String consumer, int[] segment, long lastIndex) {
+        return delegate.storePosition(consumer, segment, lastIndex);
     }
 
     @Override
-    public Awaitable resetPosition(String consumer, long lastIndex, Guarantee guarantee) {
-        return delegate.resetPosition(consumer, lastIndex, guarantee);
+    public Awaitable resetPosition(String consumer, long lastIndex) {
+        return delegate.resetPosition(consumer, lastIndex);
     }
 
     @Override
@@ -207,9 +206,8 @@ public class CachingTrackingClient implements TrackingClient {
     }
 
     @Override
-    public Awaitable disconnectTracker(String consumer, String trackerId, boolean sendFinalEmptyBatch,
-                                       Guarantee guarantee) {
-        return delegate.disconnectTracker(consumer, trackerId, sendFinalEmptyBatch, Guarantee.NONE);
+    public Awaitable disconnectTracker(String consumer, String trackerId, boolean sendFinalEmptyBatch) {
+        return delegate.disconnectTracker(consumer, trackerId, sendFinalEmptyBatch);
     }
 
     @Override

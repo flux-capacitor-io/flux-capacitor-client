@@ -14,18 +14,12 @@
 
 package io.fluxcapacitor.common.api.search;
 
-import io.fluxcapacitor.common.Guarantee;
-import io.fluxcapacitor.common.api.Command;
+import io.fluxcapacitor.common.api.Request;
 import lombok.EqualsAndHashCode;
 import lombok.Value;
 
 @EqualsAndHashCode(callSuper = true)
 @Value
-public class DeleteCollection extends Command {
+public class DeleteCollection extends Request {
     String collection;
-    Guarantee guarantee;
-
-    public Guarantee getGuarantee() {
-        return guarantee == null ? Guarantee.STORED : guarantee;
-    }
 }

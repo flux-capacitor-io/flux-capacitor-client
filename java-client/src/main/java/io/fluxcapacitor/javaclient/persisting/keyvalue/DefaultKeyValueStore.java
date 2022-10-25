@@ -20,6 +20,8 @@ import io.fluxcapacitor.javaclient.common.serialization.Serializer;
 import io.fluxcapacitor.javaclient.persisting.keyvalue.client.KeyValueClient;
 import lombok.AllArgsConstructor;
 
+import java.util.concurrent.TimeUnit;
+
 @AllArgsConstructor
 public class DefaultKeyValueStore implements KeyValueStore {
 
@@ -29,16 +31,16 @@ public class DefaultKeyValueStore implements KeyValueStore {
     @Override
     public void store(String key, Object value, Guarantee guarantee) {
         try {
-            client.storeValue(key, serializer.serialize(value), false, guarantee).await();
+            client.putValue(key, serializer.serialize(value), guarantee).await();
         } catch (Exception e) {
             throw new KeyValueStoreException(String.format("Could not store a value %s for key %s", value, key), e);
         }
     }
 
     @Override
-    public void storeIfAbsent(String key, Object value) {
+    public boolean storeIfAbsent(String key, Object value) {
         try {
-            client.storeValue(key, serializer.serialize(value), true, Guarantee.STORED).await();
+            return client.putValueIfAbsent(key, serializer.serialize(value)).get(5, TimeUnit.SECONDS);
         } catch (Exception e) {
             throw new KeyValueStoreException(String.format("Could not store a value %s for key %s", value, key), e);
         }
@@ -57,7 +59,7 @@ public class DefaultKeyValueStore implements KeyValueStore {
     @Override
     public void delete(String key) {
         try {
-            client.deleteValue(key, Guarantee.NONE).await();
+            client.deleteValue(key).await();
         } catch (Exception e) {
             throw new KeyValueStoreException(String.format("Could not delete the value at key %s", key), e);
         }

@@ -14,18 +14,12 @@
 
 package io.fluxcapacitor.common.api.tracking;
 
-import io.fluxcapacitor.common.Guarantee;
-import io.fluxcapacitor.common.api.Command;
+import io.fluxcapacitor.common.api.Request;
 import lombok.Value;
 
 @Value
-public class StorePosition extends Command {
+public class StorePosition extends Request {
     String consumer;
     int[] segment;
     long lastIndex;
-    Guarantee guarantee;
-
-    public Guarantee getGuarantee() {
-        return guarantee == null ? Guarantee.STORED : guarantee;
-    }
 }

@@ -15,7 +15,8 @@
 package io.fluxcapacitor.javaclient.persisting.eventsourcing.client;
 
 import io.fluxcapacitor.common.Awaitable;
-import io.fluxcapacitor.common.Guarantee;
+import io.fluxcapacitor.common.Backlog;
+import io.fluxcapacitor.common.api.BooleanResult;
 import io.fluxcapacitor.common.api.SerializedMessage;
 import io.fluxcapacitor.common.api.eventsourcing.AppendEvents;
 import io.fluxcapacitor.common.api.eventsourcing.DeleteEvents;
@@ -34,35 +35,47 @@ import javax.websocket.ClientEndpoint;
 import java.net.URI;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Stream;
 
-import static io.fluxcapacitor.common.Awaitable.fromFuture;
 import static io.fluxcapacitor.common.ObjectUtils.iterate;
 
 @ClientEndpoint
 public class WebSocketEventStoreClient extends AbstractWebsocketClient implements EventStoreClient {
 
+    private final Backlog<EventBatch> backlog;
     private final int fetchBatchSize;
 
     public WebSocketEventStoreClient(String endPointUrl, ClientConfig clientConfig) {
-        this(URI.create(endPointUrl), 8192, clientConfig);
+        this(URI.create(endPointUrl), 1024, 8192, clientConfig);
     }
 
-    public WebSocketEventStoreClient(URI endPointUri, int fetchBatchSize, WebSocketClient.ClientConfig clientConfig) {
-        this(endPointUri, fetchBatchSize, clientConfig, true);
+    public WebSocketEventStoreClient(String endPointUrl, int backlogSize, ClientConfig clientConfig) {
+        this(URI.create(endPointUrl), backlogSize, 1024, clientConfig);
     }
 
-    public WebSocketEventStoreClient(URI endPointUri, int fetchBatchSize, WebSocketClient.ClientConfig clientConfig,
-                                     boolean sendMetrics) {
+    public WebSocketEventStoreClient(URI endPointUri, int backlogSize, int fetchBatchSize,
+                                     WebSocketClient.ClientConfig clientConfig) {
+        this(endPointUri, backlogSize, fetchBatchSize, clientConfig, true);
+    }
+
+    public WebSocketEventStoreClient(URI endPointUri, int backlogSize, int fetchBatchSize,
+                                     WebSocketClient.ClientConfig clientConfig, boolean sendMetrics) {
         super(endPointUri, clientConfig, sendMetrics, clientConfig.getEventSourcingSessions());
+        this.backlog = new Backlog<>(this::doSend, backlogSize);
         this.fetchBatchSize = fetchBatchSize;
     }
 
     @Override
-    public Awaitable storeEvents(String aggregateId, List<SerializedMessage> events, boolean storeOnly,
-                                 Guarantee guarantee) {
-        return fromFuture(send(new AppendEvents(List.of(new EventBatch(aggregateId, events, storeOnly)), guarantee)));
+    public Awaitable storeEvents(String aggregateId,
+                                 List<SerializedMessage> events, boolean storeOnly) {
+        return backlog.add(new EventBatch(aggregateId, events, storeOnly));
+    }
+
+    private Awaitable doSend(List<EventBatch> batches) {
+        sendAndWait(new AppendEvents(batches));
+        return Awaitable.ready();
     }
 
     @Override
@@ -84,7 +97,15 @@ public class WebSocketEventStoreClient extends AbstractWebsocketClient implement
 
     @Override
     public Awaitable updateRelationships(UpdateRelationships request) {
-        return fromFuture(send(request));
+        switch (request.getGuarantee()) {
+            case NONE:
+                sendAndForget(request);
+                return Awaitable.ready();
+            case SENT:
+                return sendAndForget(request);
+            default:
+                return Awaitable.fromFuture(send(request));
+        }
     }
 
     @Override
@@ -93,8 +114,8 @@ public class WebSocketEventStoreClient extends AbstractWebsocketClient implement
     }
 
     @Override
-    public Awaitable deleteEvents(String aggregateId, Guarantee guarantee) {
-        return fromFuture(send(new DeleteEvents(aggregateId, guarantee)));
+    public CompletableFuture<Boolean> deleteEvents(String aggregateId) {
+        return send(new DeleteEvents(aggregateId)).thenApply(r -> ((BooleanResult) r).isSuccess());
     }
 
 }

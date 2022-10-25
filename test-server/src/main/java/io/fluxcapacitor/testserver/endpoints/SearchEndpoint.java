@@ -189,7 +189,7 @@ public class SearchEndpoint extends WebsocketEndpoint {
     @Handle
     public VoidResult handle(DeleteCollection request) throws Exception {
         try {
-            store.deleteCollection(request.getCollection(), Guarantee.STORED);
+            store.deleteCollection(request.getCollection());
         } catch (Exception e) {
             log.error("Failed to handle {}", request, e);
         }

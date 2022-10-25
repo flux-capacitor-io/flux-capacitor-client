@@ -15,7 +15,6 @@
 package io.fluxcapacitor.javaclient.persisting.search;
 
 import io.fluxcapacitor.common.Guarantee;
-import io.fluxcapacitor.common.ObjectUtils;
 import io.fluxcapacitor.common.api.search.BulkUpdate;
 import io.fluxcapacitor.common.api.search.Constraint;
 import io.fluxcapacitor.common.api.search.CreateAuditTrail;
@@ -48,9 +47,9 @@ import java.util.concurrent.CompletableFuture;
 import java.util.function.Function;
 import java.util.stream.Stream;
 
-import static io.fluxcapacitor.common.search.Document.identityFunction;
 import static io.fluxcapacitor.javaclient.FluxCapacitor.currentIdentityProvider;
 import static java.lang.String.format;
+import static java.util.Collections.singletonList;
 import static java.util.function.UnaryOperator.identity;
 import static java.util.stream.Collectors.toList;
 import static java.util.stream.Collectors.toMap;
@@ -65,7 +64,12 @@ public class DefaultDocumentStore implements DocumentStore {
     @Override
     public CompletableFuture<Void> index(Object object, String id, String collection, Instant begin,
                                          Instant end, Guarantee guarantee, boolean ifNotExists) {
-        return doIndex(List.of(serializer.toDocument(object, id, collection, begin, end)), ifNotExists, guarantee);
+        try {
+            return client.index(singletonList(serializer.toDocument(object, id, collection, begin, end)),
+                                guarantee, ifNotExists).asCompletableFuture();
+        } catch (Exception e) {
+            throw new DocumentStoreException(format("Could not store a document %s for id %s", object, id), e);
+        }
     }
 
     @Override
@@ -94,7 +98,12 @@ public class DefaultDocumentStore implements DocumentStore {
             }
             return builder.build();
         }).collect(toList());
-        return doIndex(documents, ifNotExists, guarantee);
+        try {
+            return client.index(documents, guarantee, ifNotExists).asCompletableFuture();
+        } catch (Exception e) {
+            throw new DocumentStoreException(
+                    format("Could not store a list of documents for collection %s", collection), e);
+        }
     }
 
     @Override
@@ -103,18 +112,14 @@ public class DefaultDocumentStore implements DocumentStore {
                                              Function<? super T, Instant> beginFunction,
                                              Function<? super T, Instant> endFunction, Guarantee guarantee,
                                              boolean ifNotExists) {
-        return doIndex(objects.stream().map(v -> serializer.toDocument(
+        List<Document> documents = objects.stream().map(v -> serializer.toDocument(
                 v, idFunction.apply(v), collection, beginFunction.apply(v),
-                endFunction.apply(v))).collect(toList()), ifNotExists, guarantee);
-    }
-
-    private CompletableFuture<Void> doIndex(List<Document> documents, boolean ifNotExists, Guarantee guarantee) {
+                endFunction.apply(v))).collect(toList());
         try {
-            return client.index(ObjectUtils.deduplicate(documents, identityFunction),
-                                guarantee, ifNotExists).asCompletableFuture();
+            return client.index(documents, guarantee, ifNotExists).asCompletableFuture();
         } catch (Exception e) {
             throw new DocumentStoreException(
-                    "Could not store documents: " + documents.stream().map(identityFunction).collect(toList()), e);
+                    format("Could not store a list of documents for collection %s", collection), e);
         }
     }
 
@@ -181,7 +186,7 @@ public class DefaultDocumentStore implements DocumentStore {
     @Override
     public CompletableFuture<Void> deleteCollection(String collection) {
         try {
-            return client.deleteCollection(collection, Guarantee.STORED).asCompletableFuture();
+            return client.deleteCollection(collection).asCompletableFuture();
         } catch (Exception e) {
             throw new DocumentStoreException(format("Could not delete collection %s", collection), e);
         }
@@ -191,8 +196,7 @@ public class DefaultDocumentStore implements DocumentStore {
     public CompletableFuture<Void> createAuditTrail(String collection, Duration retentionTime) {
         try {
             return client.createAuditTrail(new CreateAuditTrail(collection, Optional.ofNullable(
-                    retentionTime).map(Duration::getSeconds).orElse(null), Guarantee.STORED))
-                    .asCompletableFuture();
+                    retentionTime).map(Duration::getSeconds).orElse(null))).asCompletableFuture();
         } catch (Exception e) {
             throw new DocumentStoreException(format("Could not create audit trail %s", collection), e);
         }

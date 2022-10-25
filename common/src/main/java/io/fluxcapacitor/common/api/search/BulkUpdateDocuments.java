@@ -16,7 +16,7 @@ package io.fluxcapacitor.common.api.search;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import io.fluxcapacitor.common.Guarantee;
-import io.fluxcapacitor.common.api.Command;
+import io.fluxcapacitor.common.api.Request;
 import lombok.EqualsAndHashCode;
 import lombok.Value;
 
@@ -24,7 +24,7 @@ import java.util.Collection;
 
 @EqualsAndHashCode(callSuper = true)
 @Value
-public class BulkUpdateDocuments extends Command {
+public class BulkUpdateDocuments extends Request {
     Collection<SerializedDocumentUpdate> updates;
     Guarantee guarantee;
 

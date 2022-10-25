@@ -15,8 +15,10 @@
 package io.fluxcapacitor.javaclient.publishing.client;
 
 import io.fluxcapacitor.common.Awaitable;
+import io.fluxcapacitor.common.Backlog;
 import io.fluxcapacitor.common.Guarantee;
 import io.fluxcapacitor.common.MessageType;
+import io.fluxcapacitor.common.Registration;
 import io.fluxcapacitor.common.api.SerializedMessage;
 import io.fluxcapacitor.common.api.publishing.Append;
 import io.fluxcapacitor.javaclient.common.websocket.AbstractWebsocketClient;
@@ -25,29 +27,62 @@ import io.fluxcapacitor.javaclient.configuration.client.WebSocketClient.ClientCo
 
 import javax.websocket.ClientEndpoint;
 import java.net.URI;
-import java.util.Arrays;
+import java.util.List;
+import java.util.function.Consumer;
 
-import static io.fluxcapacitor.common.Awaitable.fromFuture;
 import static io.fluxcapacitor.common.MessageType.METRICS;
 
 @ClientEndpoint
 public class WebsocketGatewayClient extends AbstractWebsocketClient implements GatewayClient {
 
+    private final Backlog<SerializedMessage> sendBacklog;
+    private final Backlog<SerializedMessage> storeBacklog;
+
     public WebsocketGatewayClient(String endPointUrl, ClientConfig clientConfig, MessageType type) {
-        this(URI.create(endPointUrl), clientConfig, type);
+        this(URI.create(endPointUrl), 1024, clientConfig, type);
     }
 
-    public WebsocketGatewayClient(URI endPointUri, ClientConfig clientConfig, MessageType type) {
-        this(endPointUri, clientConfig, type, type != METRICS);
+    public WebsocketGatewayClient(String endPointUrl, int backlogSize, WebSocketClient.ClientConfig clientConfig, MessageType type) {
+        this(URI.create(endPointUrl), backlogSize, clientConfig, type);
     }
 
-    public WebsocketGatewayClient(URI endPointUri, WebSocketClient.ClientConfig clientConfig,
+    public WebsocketGatewayClient(URI endPointUri, int backlogSize, ClientConfig clientConfig, MessageType type) {
+        this(endPointUri, backlogSize, clientConfig, type, type != METRICS);
+    }
+
+    public WebsocketGatewayClient(URI endPointUri, int backlogSize, WebSocketClient.ClientConfig clientConfig,
                                   MessageType type, boolean sendMetrics) {
         super(endPointUri, clientConfig, sendMetrics, clientConfig.getGatewaySessions().get(type));
+        this.sendBacklog = new Backlog<>(this::doSend, backlogSize);
+        this.storeBacklog = new Backlog<>(this::doStore, backlogSize);
     }
 
     @Override
     public Awaitable send(Guarantee guarantee, SerializedMessage... messages) {
-        return fromFuture(send(new Append(Arrays.asList(messages), guarantee)));
+        switch (guarantee) {
+            case NONE:
+                Awaitable ignored = sendBacklog.add(messages);
+                return Awaitable.ready();
+            case SENT:
+                return sendBacklog.add(messages);
+            case STORED:
+                return storeBacklog.add(messages);
+            default:
+                throw new UnsupportedOperationException("Unrecognized guarantee: " + guarantee);
+        }
+    }
+
+    @Override
+    public Registration registerMonitor(Consumer<SerializedMessage> monitor) {
+        return sendBacklog.registerMonitor(messages -> messages.forEach(monitor));
+    }
+
+    private Awaitable doSend(List<SerializedMessage> messages) {
+        return sendAndForget(new Append(messages, Guarantee.SENT));
+    }
+
+    protected Awaitable doStore(List<SerializedMessage> messages) {
+        sendAndWait(new Append(messages, Guarantee.STORED));
+        return Awaitable.ready();
     }
 }

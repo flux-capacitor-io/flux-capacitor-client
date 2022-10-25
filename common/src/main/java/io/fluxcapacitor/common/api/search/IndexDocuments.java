@@ -16,7 +16,7 @@ package io.fluxcapacitor.common.api.search;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import io.fluxcapacitor.common.Guarantee;
-import io.fluxcapacitor.common.api.Command;
+import io.fluxcapacitor.common.api.Request;
 import lombok.EqualsAndHashCode;
 import lombok.Value;
 
@@ -25,7 +25,7 @@ import java.util.stream.Collectors;
 
 @EqualsAndHashCode(callSuper = true)
 @Value
-public class IndexDocuments extends Command {
+public class IndexDocuments extends Request {
     List<SerializedDocument> documents;
     boolean ifNotExists;
     Guarantee guarantee;

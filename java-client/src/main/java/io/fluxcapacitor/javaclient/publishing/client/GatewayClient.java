@@ -16,9 +16,10 @@ package io.fluxcapacitor.javaclient.publishing.client;
 
 import io.fluxcapacitor.common.Awaitable;
 import io.fluxcapacitor.common.Guarantee;
+import io.fluxcapacitor.common.Monitored;
 import io.fluxcapacitor.common.api.SerializedMessage;
 
-public interface GatewayClient extends AutoCloseable {
+public interface GatewayClient extends Monitored<SerializedMessage>, AutoCloseable {
 
     Awaitable send(Guarantee guarantee, SerializedMessage... messages);
 

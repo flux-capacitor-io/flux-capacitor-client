@@ -46,7 +46,7 @@ public interface SearchClient extends AutoCloseable {
 
     Awaitable createAuditTrail(CreateAuditTrail request);
 
-    Awaitable deleteCollection(String collection, Guarantee guarantee);
+    Awaitable deleteCollection(String collection);
 
     List<DocumentStats> fetchStatistics(SearchQuery query, List<String> fields, List<String> groupBy);
 

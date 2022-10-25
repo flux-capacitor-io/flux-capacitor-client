@@ -14,10 +14,11 @@
 
 package io.fluxcapacitor.javaclient.tracking.metrics;
 
+import io.fluxcapacitor.common.api.JsonType;
 import lombok.Value;
 
 @Value
-public class ProcessBatchEvent {
+public class ProcessBatchEvent implements JsonType {
     String consumer;
     String trackerId;
     Long lastIndex;

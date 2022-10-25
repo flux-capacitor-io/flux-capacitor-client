@@ -14,15 +14,10 @@
 
 package io.fluxcapacitor.common.api.scheduling;
 
-import io.fluxcapacitor.common.Guarantee;
-import io.fluxcapacitor.common.api.Command;
+import io.fluxcapacitor.common.api.JsonType;
 import lombok.Value;
 
 @Value
-public class CancelSchedule extends Command {
+public class CancelSchedule implements JsonType {
     String scheduleId;
-    Guarantee guarantee;
-    public Guarantee getGuarantee() {
-        return guarantee == null ? Guarantee.NONE : guarantee;
-    }
 }

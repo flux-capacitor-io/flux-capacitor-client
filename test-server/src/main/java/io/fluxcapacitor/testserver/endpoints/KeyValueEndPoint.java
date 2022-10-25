@@ -14,10 +14,16 @@
 
 package io.fluxcapacitor.testserver.endpoints;
 
+import io.fluxcapacitor.common.Guarantee;
+import io.fluxcapacitor.common.api.BooleanResult;
+import io.fluxcapacitor.common.api.VoidResult;
 import io.fluxcapacitor.common.api.keyvalue.DeleteValue;
 import io.fluxcapacitor.common.api.keyvalue.GetValue;
 import io.fluxcapacitor.common.api.keyvalue.GetValueResult;
-import io.fluxcapacitor.common.api.keyvalue.StoreValue;
+import io.fluxcapacitor.common.api.keyvalue.KeyValuePair;
+import io.fluxcapacitor.common.api.keyvalue.StoreValueIfAbsent;
+import io.fluxcapacitor.common.api.keyvalue.StoreValues;
+import io.fluxcapacitor.common.api.keyvalue.StoreValuesAndWait;
 import io.fluxcapacitor.javaclient.persisting.keyvalue.client.KeyValueClient;
 import io.fluxcapacitor.testserver.Handle;
 import io.fluxcapacitor.testserver.WebsocketEndpoint;
@@ -29,9 +35,24 @@ public class KeyValueEndPoint extends WebsocketEndpoint {
     private final KeyValueClient keyValueStore;
 
     @Handle
-    public void handle(StoreValue storeValue) {
-        keyValueStore.storeValue(storeValue.getValue().getKey(), storeValue.getValue().getValue(),
-                                 storeValue.isIfAbsent(), storeValue.getGuarantee());
+    public void handle(StoreValues storeValues) {
+        for (KeyValuePair value : storeValues.getValues()) {
+            keyValueStore.putValue(value.getKey(), value.getValue(), Guarantee.NONE);
+        }
+    }
+
+    @Handle
+    public VoidResult handle(StoreValuesAndWait storeValues) throws Exception {
+        for (KeyValuePair value : storeValues.getValues()) {
+            keyValueStore.putValue(value.getKey(), value.getValue(), Guarantee.STORED).await();
+        }
+        return new VoidResult(storeValues.getRequestId());
+    }
+
+    @Handle
+    public BooleanResult handle(StoreValueIfAbsent r) throws Exception {
+        return new BooleanResult(r.getRequestId(),
+                                 keyValueStore.putValueIfAbsent(r.getValue().getKey(), r.getValue().getValue()).get());
     }
 
     @Handle
@@ -41,7 +62,7 @@ public class KeyValueEndPoint extends WebsocketEndpoint {
 
     @Handle
     public void handle(DeleteValue deleteValue) {
-        keyValueStore.deleteValue(deleteValue.getKey(), deleteValue.getGuarantee());
+        keyValueStore.deleteValue(deleteValue.getKey());
     }
 
     @Override

@@ -14,8 +14,7 @@
 
 package io.fluxcapacitor.common.api.eventsourcing;
 
-import io.fluxcapacitor.common.Guarantee;
-import io.fluxcapacitor.common.api.Command;
+import io.fluxcapacitor.common.api.Request;
 import lombok.EqualsAndHashCode;
 import lombok.Value;
 
@@ -24,12 +23,8 @@ import java.util.stream.Collectors;
 
 @EqualsAndHashCode(callSuper = true)
 @Value
-public class AppendEvents extends Command {
+public class AppendEvents extends Request {
     List<EventBatch> eventBatches;
-    Guarantee guarantee;
-    public Guarantee getGuarantee() {
-        return guarantee == null ? Guarantee.STORED : guarantee;
-    }
 
     @Override
     public String toString() {
@@ -38,12 +33,11 @@ public class AppendEvents extends Command {
 
     @Override
     public Metric toMetric() {
-        return new Metric(eventBatches.stream().map(EventBatch::toMetric).collect(Collectors.toList()), getGuarantee());
+        return new Metric(eventBatches.stream().map(EventBatch::toMetric).collect(Collectors.toList()));
     }
 
     @Value
     public static class Metric {
         List<EventBatch.Metric> eventBatches;
-        Guarantee guarantee;
     }
 }

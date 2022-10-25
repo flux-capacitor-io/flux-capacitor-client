@@ -24,7 +24,6 @@ import io.fluxcapacitor.common.api.eventsourcing.GetEventsResult;
 import io.fluxcapacitor.common.api.keyvalue.DeleteValue;
 import io.fluxcapacitor.common.api.keyvalue.GetValue;
 import io.fluxcapacitor.common.api.keyvalue.GetValueResult;
-import io.fluxcapacitor.common.api.keyvalue.StoreValue;
 import io.fluxcapacitor.common.api.keyvalue.StoreValueIfAbsent;
 import io.fluxcapacitor.common.api.keyvalue.StoreValues;
 import io.fluxcapacitor.common.api.keyvalue.StoreValuesAndWait;
@@ -36,7 +35,6 @@ import io.fluxcapacitor.common.api.scheduling.CancelSchedule;
 import io.fluxcapacitor.common.api.scheduling.GetSchedule;
 import io.fluxcapacitor.common.api.scheduling.GetScheduleResult;
 import io.fluxcapacitor.common.api.scheduling.Schedule;
-import io.fluxcapacitor.common.api.scheduling.StoreSchedule;
 import io.fluxcapacitor.common.api.search.BulkUpdateDocuments;
 import io.fluxcapacitor.common.api.search.CreateAuditTrail;
 import io.fluxcapacitor.common.api.search.DeleteCollection;
@@ -69,6 +67,8 @@ import io.fluxcapacitor.common.api.tracking.StorePosition;
         @JsonSubTypes.Type(value = VoidResult.class, name = "void"),
         @JsonSubTypes.Type(value = BooleanResult.class, name = "boolean"),
         @JsonSubTypes.Type(value = StringResult.class, name = "string"),
+        @JsonSubTypes.Type(value = ConnectEvent.class, name = "connectEvent"),
+        @JsonSubTypes.Type(value = DisconnectEvent.class, name = "disconnectEvent"),
         @JsonSubTypes.Type(value = RequestBatch.class, name = "requestBatch"),
         @JsonSubTypes.Type(value = ResultBatch.class, name = "resultBatch"),
 
@@ -100,7 +100,6 @@ import io.fluxcapacitor.common.api.tracking.StorePosition;
         @JsonSubTypes.Type(value = GetAggregateIdsResult.class, name = "getAggregateIdsResult"),
 
         //scheduling
-        @JsonSubTypes.Type(value = StoreSchedule.class, name = "storeSchedule"),
         @JsonSubTypes.Type(value = Schedule.class, name = "schedule"),
         @JsonSubTypes.Type(value = CancelSchedule.class, name = "cancelSchedule"),
         @JsonSubTypes.Type(value = GetSchedule.class, name = "getSchedule"),
@@ -108,7 +107,6 @@ import io.fluxcapacitor.common.api.tracking.StorePosition;
 
         //key-value
         @JsonSubTypes.Type(value = StoreValues.class, name = "storeValues"),
-        @JsonSubTypes.Type(value = StoreValue.class, name = "storeValue"),
         @JsonSubTypes.Type(value = StoreValuesAndWait.class, name = "storeValuesAndWait"),
         @JsonSubTypes.Type(value = GetValue.class, name = "getValue"),
         @JsonSubTypes.Type(value = GetValueResult.class, name = "getValueResult"),

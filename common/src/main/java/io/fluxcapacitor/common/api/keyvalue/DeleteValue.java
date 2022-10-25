@@ -14,15 +14,10 @@
 
 package io.fluxcapacitor.common.api.keyvalue;
 
-import io.fluxcapacitor.common.Guarantee;
-import io.fluxcapacitor.common.api.Command;
+import io.fluxcapacitor.common.api.JsonType;
 import lombok.Value;
 
 @Value
-public class DeleteValue extends Command {
+public class DeleteValue implements JsonType {
     String key;
-    Guarantee guarantee;
-    public Guarantee getGuarantee() {
-        return guarantee == null ? Guarantee.NONE : guarantee;
-    }
 }
