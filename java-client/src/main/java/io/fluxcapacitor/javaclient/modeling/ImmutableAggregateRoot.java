@@ -48,13 +48,13 @@ public class ImmutableAggregateRoot<T> extends ImmutableEntity<T> {
     Set<Relationship> relationships = super.relationships();
 
     public static <T> ImmutableAggregateRoot<T> from(Entity<T> a,
-                                                     EntityMatcher entityMatcher,
+                                                     EntityHelper entityHelper,
                                                      Serializer serializer) {
         if (a == null) {
             return null;
         }
         return ImmutableAggregateRoot.<T>builder()
-                .entityMatcher(entityMatcher)
+                .entityHelper(entityHelper)
                 .serializer(serializer)
                 .id(a.id())
                 .value(a.get())
@@ -64,7 +64,7 @@ public class ImmutableAggregateRoot<T> extends ImmutableEntity<T> {
                 .lastEventIndex(a.lastEventIndex())
                 .timestamp(a.timestamp())
                 .sequenceNumber(a.sequenceNumber())
-                .previous(ImmutableAggregateRoot.from(a.previous(), entityMatcher, serializer))
+                .previous(ImmutableAggregateRoot.from(a.previous(), entityHelper, serializer))
                 .build();
     }
 

@@ -21,7 +21,6 @@ import io.fluxcapacitor.common.reflection.ReflectionUtils;
 import io.fluxcapacitor.javaclient.common.Message;
 import io.fluxcapacitor.javaclient.common.serialization.DeserializingMessage;
 import io.fluxcapacitor.javaclient.publishing.routing.RoutingKey;
-import io.fluxcapacitor.javaclient.tracking.handling.validation.ValidationUtils;
 
 import java.time.Instant;
 import java.util.Collection;
@@ -54,6 +53,7 @@ public interface Entity<T> {
     static boolean isLoading() {
         return loading.get();
     }
+
     static boolean isApplying() {
         return applying.get();
     }
@@ -204,9 +204,14 @@ public interface Entity<T> {
 
     Entity<T> apply(Message eventMessage);
 
-    default <E extends Exception> Entity<T> assertLegal(Object command) throws E {
-        ValidationUtils.assertLegal(command, root());
-        return this;
+    <E extends Exception> Entity<T> assertLegal(Object command) throws E;
+
+    default Entity<T> assertAndApply(Object payloadOrMessage) {
+        return assertLegal(payloadOrMessage).apply(payloadOrMessage);
+    }
+
+    default Entity<T> assertAndApply(Object payload, Metadata metadata) {
+        return assertAndApply(new Message(payload, metadata));
     }
 
     default <E extends Exception> Entity<T> assertThat(Validator<T, E> validator) throws E {
@@ -219,14 +224,6 @@ public interface Entity<T> {
             throw errorProvider.apply(get());
         }
         return this;
-    }
-
-    default Entity<T> assertAndApply(Object payload) {
-        return assertLegal(payload).apply(payload);
-    }
-
-    default Entity<T> assertAndApply(Object payload, Metadata metadata) {
-        return assertLegal(payload).apply(payload, metadata);
     }
 
     default Iterable<Entity<?>> possibleTargets(Object payload) {

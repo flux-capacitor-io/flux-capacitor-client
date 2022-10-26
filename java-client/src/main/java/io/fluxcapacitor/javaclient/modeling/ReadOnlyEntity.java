@@ -20,4 +20,9 @@ public class ReadOnlyEntity<T> extends DelegatingEntity<T> {
     public Entity<T> update(UnaryOperator<T> function) {
         throw new UnsupportedOperationException("This aggregate is read-only");
     }
+
+    @Override
+    public <E extends Exception> Entity<T> assertLegal(Object command) throws E {
+        return this;
+    }
 }

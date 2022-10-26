@@ -23,6 +23,12 @@ public class ModifiableEntity<T> extends DelegatingEntity<T> {
     @EqualsAndHashCode.Exclude
     ModifiableAggregateRoot<?> root;
 
+    @Override
+    public <E extends Exception> Entity<T> assertLegal(Object command) throws E {
+        root.assertLegal(command);
+        return this;
+    }
+
     @SuppressWarnings({"unchecked", "rawtypes"})
     @Override
     public Entity<T> update(UnaryOperator<T> function) {

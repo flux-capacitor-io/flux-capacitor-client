@@ -16,14 +16,15 @@ package io.fluxcapacitor.common;
 
 import lombok.AllArgsConstructor;
 import lombok.SneakyThrows;
-import lombok.Value;
 
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.ListIterator;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.Spliterators;
 import java.util.concurrent.Callable;
@@ -70,6 +71,22 @@ public class ObjectUtils {
             }
         }
         return list;
+    }
+
+    public static Stream<?> asStream(Object value) {
+        if (value == null) {
+            return Stream.empty();
+        }
+        if (value instanceof Collection<?>) {
+            return ((Collection<?>) value).stream();
+        }
+        if (value instanceof Stream<?>) {
+            return (Stream<?>) value;
+        }
+        if (value instanceof Optional<?>) {
+            return ((Optional<?>) value).stream();
+        }
+        return Stream.of(value);
     }
 
     public static <T> MemoizingSupplier<T> memoize(Supplier<T> supplier) {
@@ -173,7 +190,7 @@ public class ObjectUtils {
         private final MemoizingFunction<Pair<T, U>, R> function;
 
         public MemoizingBiFunction(BiFunction<T, U, R> delegate) {
-            this.function = ObjectUtils.memoize(p -> delegate.apply(p.first, p.second));
+            this.function = ObjectUtils.memoize(p -> delegate.apply(p.getFirst(), p.getSecond()));
         }
 
         @Override
@@ -185,11 +202,6 @@ public class ObjectUtils {
             return function.isCached(new Pair<>(t, u));
         }
 
-        @Value
-        private static class Pair<T, U> {
-            T first;
-            U second;
-        }
     }
 
     private static class BreakingSpliterator<T> extends Spliterators.AbstractSpliterator<T> {

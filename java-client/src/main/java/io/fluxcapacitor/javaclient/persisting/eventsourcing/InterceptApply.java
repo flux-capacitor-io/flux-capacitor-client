@@ -23,11 +23,13 @@ import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
 /**
- * Annotation to be placed on methods that modify an entity value. The methods can be declared in either entity or
- * event. The annotation can also be placed on a constructor of the entity or static method if the event creates a new
- * entity.
+ * Annotation on methods that intercept events before they are applied to an entity (and before any @AssertLegal methods
+ * are invoked).
  * <p>
- * Annotated  methods are also used if an entity is loaded using event sourcing.
+ * Methods may return {@code null} or {@code void} to indicate that the event should not be applied. Alternatively,
+ * a {@link java.util.stream.Stream}, {@link java.util.Collection} or {@link java.util.Optional} may be returned to map
+ * the event into 0 or more (different) events. Any other value that's returned will be applied instead of the input
+ * event.
  * <p>
  * Annotated methods may consist of any number of parameters. If any parameter type is assignable to the loaded
  * aggregate type or any matching child entities it will be injected. Other parameters like event {@link Message} will
@@ -35,6 +37,6 @@ import java.lang.annotation.Target;
  */
 @Documented
 @Retention(RetentionPolicy.RUNTIME)
-@Target({ElementType.METHOD, ElementType.CONSTRUCTOR})
-public @interface Apply {
+@Target(ElementType.METHOD)
+public @interface InterceptApply {
 }

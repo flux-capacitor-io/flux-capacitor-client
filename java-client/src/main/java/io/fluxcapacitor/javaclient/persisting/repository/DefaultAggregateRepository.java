@@ -7,8 +7,8 @@ import io.fluxcapacitor.javaclient.common.serialization.DeserializingMessage;
 import io.fluxcapacitor.javaclient.common.serialization.Serializer;
 import io.fluxcapacitor.javaclient.modeling.Aggregate;
 import io.fluxcapacitor.javaclient.modeling.Entity;
+import io.fluxcapacitor.javaclient.modeling.EntityHelper;
 import io.fluxcapacitor.javaclient.modeling.EntityId;
-import io.fluxcapacitor.javaclient.modeling.EntityMatcher;
 import io.fluxcapacitor.javaclient.modeling.ImmutableAggregateRoot;
 import io.fluxcapacitor.javaclient.modeling.ModifiableAggregateRoot;
 import io.fluxcapacitor.javaclient.modeling.NoOpEntity;
@@ -58,12 +58,12 @@ public class DefaultAggregateRepository implements AggregateRepository {
     private final DocumentStore documentStore;
     private final Serializer serializer;
     private final DispatchInterceptor dispatchInterceptor;
-    private final EntityMatcher entityMatcher;
+    private final EntityHelper entityHelper;
 
     private final Function<Class<?>, AnnotatedAggregateRepository<?>> delegates = memoize(
             type -> new AnnotatedAggregateRepository<>(type, serializer(), cache(), relationshipsCache(),
                                                        eventStore(), snapshotStore(),
-                                                       dispatchInterceptor(), entityMatcher(), documentStore()));
+                                                       dispatchInterceptor(), entityHelper(), documentStore()));
 
     @Override
     @SuppressWarnings("unchecked")
@@ -116,19 +116,19 @@ public class DefaultAggregateRepository implements AggregateRepository {
         private final Serializer serializer;
         private final EventStore eventStore;
         private final DispatchInterceptor dispatchInterceptor;
-        private final EntityMatcher entityMatcher;
+        private final EntityHelper entityHelper;
         private final DocumentStore documentStore;
         private final String idProperty;
 
         public AnnotatedAggregateRepository(Class<T> type, Serializer serializer, Cache cache, Cache relationshipsCache,
                                             EventStore eventStore, SnapshotStore snapshotStore,
                                             DispatchInterceptor dispatchInterceptor,
-                                            EntityMatcher entityMatcher, DocumentStore documentStore) {
+                                            EntityHelper entityHelper, DocumentStore documentStore) {
             this.serializer = serializer;
             this.relationshipsCache = relationshipsCache;
             this.eventStore = eventStore;
             this.dispatchInterceptor = dispatchInterceptor;
-            this.entityMatcher = entityMatcher;
+            this.entityHelper = entityHelper;
             this.documentStore = documentStore;
             Aggregate typeAnnotation = ReflectionUtils.getTypeAnnotation(type, Aggregate.class);
             int snapshotPeriod = ofNullable(typeAnnotation)
@@ -173,13 +173,13 @@ public class DefaultAggregateRepository implements AggregateRepository {
                                 .orElseGet(() -> {
                                     var builder =
                                             ImmutableAggregateRoot.<T>builder().id(id).type(type).idProperty(idProperty)
-                                                    .entityMatcher(entityMatcher).serializer(serializer);
+                                                    .entityHelper(entityHelper).serializer(serializer);
                                     ImmutableAggregateRoot<T> model =
                                             (searchable && !eventSourced
                                                     ? documentStore.<T>fetchDocument(id, collection)
                                                     .map(d -> builder.value(d).build())
                                                     : snapshotStore.<T>getSnapshot(id).map(
-                                                    a -> ImmutableAggregateRoot.from(a, entityMatcher, serializer)))
+                                                    a -> ImmutableAggregateRoot.from(a, entityHelper, serializer)))
                                                     .filter(a -> {
                                                         boolean assignable =
                                                                 a.get() == null

@@ -47,24 +47,24 @@ public class AnnotatedEntityHolder {
     private final Function<Object, Id> idProvider;
     private final Class<?> entityType;
 
-    private final EntityMatcher entityMatcher;
+    private final EntityHelper entityHelper;
     private final Serializer serializer;
 
     @SuppressWarnings({"unchecked", "rawtypes"})
     @Getter(lazy = true)
     private final ImmutableEntity<?> emptyEntity = ImmutableEntity.builder()
             .type((Class) entityType)
-            .entityMatcher(entityMatcher)
+            .entityHelper(entityHelper)
             .serializer(serializer)
             .holder(this)
             .idProperty(idProvider.apply(entityType).property())
             .build();
 
     public static AnnotatedEntityHolder getEntityHolder(Class<?> ownerType, AccessibleObject location,
-                                                        EntityMatcher entityMatcher,
+                                                        EntityHelper entityHelper,
                                                         Serializer serializer) {
         return cache.computeIfAbsent(location,
-                                     l -> new AnnotatedEntityHolder(ownerType, l, entityMatcher, serializer));
+                                     l -> new AnnotatedEntityHolder(ownerType, l, entityHelper, serializer));
     }
 
     private static final Function<Class<?>, Optional<MemberInvoker>> entityIdInvokerCache = memoize(
@@ -72,8 +72,8 @@ public class AnnotatedEntityHolder {
                     entityType, EntityId.class).map(a -> DefaultMemberInvoker.asInvoker((java.lang.reflect.Member) a)));
 
     private AnnotatedEntityHolder(Class<?> ownerType, AccessibleObject location,
-                                  EntityMatcher entityMatcher, Serializer serializer) {
-        this.entityMatcher = entityMatcher;
+                                  EntityHelper entityHelper, Serializer serializer) {
+        this.entityHelper = entityHelper;
         this.serializer = serializer;
         this.location = location;
         this.ownerType = ownerType;
@@ -173,7 +173,7 @@ public class AnnotatedEntityHolder {
         }
         Id id = idProvider.apply(member);
         return Optional.of(new ImmutableEntity(
-                id.value(), member.getClass(), member, id.property(), parent, this, entityMatcher, serializer));
+                id.value(), member.getClass(), member, id.property(), parent, this, entityHelper, serializer));
     }
 
     @SneakyThrows

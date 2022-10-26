@@ -2,8 +2,10 @@ package io.fluxcapacitor.javaclient.modeling;
 
 import io.fluxcapacitor.common.api.Metadata;
 import io.fluxcapacitor.javaclient.FluxCapacitor;
+import io.fluxcapacitor.javaclient.MockException;
 import io.fluxcapacitor.javaclient.common.Nullable;
 import io.fluxcapacitor.javaclient.persisting.eventsourcing.Apply;
+import io.fluxcapacitor.javaclient.persisting.eventsourcing.InterceptApply;
 import io.fluxcapacitor.javaclient.publishing.routing.RoutingKey;
 import io.fluxcapacitor.javaclient.test.TestFixture;
 import io.fluxcapacitor.javaclient.tracking.handling.HandleCommand;
@@ -13,6 +15,7 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Builder.Default;
 import lombok.Data;
+import lombok.Getter;
 import lombok.NonNull;
 import lombok.Value;
 import lombok.With;
@@ -26,6 +29,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.function.Predicate;
+import java.util.stream.Stream;
 
 import static io.fluxcapacitor.javaclient.FluxCapacitor.loadAggregate;
 import static io.fluxcapacitor.javaclient.FluxCapacitor.loadEntity;
@@ -186,6 +190,146 @@ public class AggregateEntitiesTest {
     }
 
     @Nested
+    class InterceptApplyTests {
+        @BeforeEach
+        void setUp() {
+            testFixture.registerHandlers(new Object() {
+                @HandleCommand
+                void handle(Object command) {
+                    loadAggregate("test", Aggregate.class).assertAndApply(command);
+                }
+            });
+        }
+
+        @Test
+        void commandWithoutInterceptTriggersException() {
+            testFixture.whenCommand(new FailingCommand()).expectExceptionalResult(MockException.class);
+        }
+
+        @Test
+        void ignoreApplyByReturningVoid() {
+            testFixture.whenCommand(new FailingCommand() {
+                @InterceptApply
+                void intercept() {
+                }
+            }).expectNoResult();
+        }
+
+        @Test
+        void ignoreApplyByReturningNull() {
+            testFixture.whenCommand(new FailingCommand() {
+                @InterceptApply
+                Object intercept() {
+                    return null;
+                }
+            }).expectNoResult();
+        }
+
+        @Test
+        void ignoreApplyByReturningEmptyStream() {
+            testFixture.whenCommand(new FailingCommand() {
+                @InterceptApply
+                Stream<?> intercept() {
+                    return Stream.empty();
+                }
+            }).expectNoResult();
+        }
+
+        @Test
+        void ignoreApplyByReturningEmptyCollection() {
+            testFixture.whenCommand(new FailingCommand() {
+                @InterceptApply
+                Collection<?> intercept() {
+                    return List.of();
+                }
+            }).expectNoResult().expectNoEvents();
+        }
+
+        @Test
+        void returnDifferentCommand() {
+            testFixture.whenCommand(new FailingCommand() {
+                @InterceptApply
+                Object intercept() {
+                    return new AddChild("missing");
+                }
+            }).expectThat(fc -> expectEntity(e -> e.get() instanceof MissingChild && "missing".equals(e.id())));
+        }
+
+        @Test
+        void returnTwoCommands() {
+            testFixture.whenCommand(new FailingCommand() {
+                @InterceptApply
+                List<?> intercept() {
+                    return List.of(new AddChild("missing"), new UpdateChild("id", "data"));
+                }
+            }).expectThat(fc -> expectEntity(
+                    e -> e.get() instanceof Child && ((Child) e.get()).getData().equals("data")));
+        }
+
+        @Test
+        void returnTwoCommandsSecondFails() {
+            testFixture.whenCommand(new FailingCommand() {
+                @InterceptApply
+                List<?> intercept() {
+                    return List.of(new AddChild("missing"), new FailingCommand());
+                }
+            }).expectExceptionalResult(MockException.class);
+        }
+
+        @Test
+        void returnNestedCommands() {
+            testFixture.whenCommand(new Object() {
+                @InterceptApply
+                Object intercept() {
+                    return new UpdateChildNested();
+                }
+            }).expectThat(fc -> expectEntity(
+                    e -> e.get() instanceof Child && ((Child) e.get()).getData().equals("data")));
+        }
+
+        class FailingCommand {
+            @Getter
+            private final String missingChildId = "123";
+
+            @AssertLegal
+            void apply(Aggregate aggregate) {
+                throw new MockException();
+            }
+        }
+
+        @Value
+        class AddChild {
+            String missingChildId;
+
+            @Apply
+            MissingChild apply() {
+                return MissingChild.builder().missingChildId(missingChildId).build();
+            }
+        }
+
+        @Value
+        class UpdateChild {
+            @RoutingKey
+            Object childId;
+            Object data;
+
+            @Apply
+            Object apply(Updatable child) {
+                return child.withData(data);
+            }
+        }
+
+        @Value
+        class UpdateChildNested {
+            @InterceptApply
+            List<?> intercept() {
+                return List.of(new AddChild("missing"), new UpdateChild("id", "data"));
+            }
+        }
+
+    }
+
+    @Nested
     class ApplyTests {
 
         @BeforeEach
@@ -247,14 +391,15 @@ public class AggregateEntitiesTest {
             @Test
             void addStringMember() {
                 testFixture.whenCommand(new Object() {
-                    @Apply
-                    Aggregate apply(Aggregate aggregate) {
-                        return aggregate.toBuilder().clientReference("clientRef").build();
-                    }
-                })
+                            @Apply
+                            Aggregate apply(Aggregate aggregate) {
+                                return aggregate.toBuilder().clientReference("clientRef").build();
+                            }
+                        })
                         .expectThat(fc -> expectEntity(e -> "clientRef".equals(e.id()) && "clientRef".equals(e.get())))
                         .expectTrue(fc -> "clientRef".equals(FluxCapacitor.loadEntity("clientRef").get()))
-                        .expectTrue(fc -> FluxCapacitor.loadEntityValue("clientRef").filter("clientRef"::equals).isPresent());
+                        .expectTrue(fc -> FluxCapacitor.loadEntityValue("clientRef").filter("clientRef"::equals)
+                                .isPresent());
             }
 
             @Test
@@ -319,7 +464,8 @@ public class AggregateEntitiesTest {
             @Test
             void testUpdateListChild() {
                 testFixture.whenCommand(new UpdateChild("list1", "data"))
-                        .expectTrue(fc -> loadAggregate("test", Aggregate.class).get().getList().get(1).getData().equals("data"));
+                        .expectTrue(fc -> loadAggregate("test", Aggregate.class).get().getList().get(1).getData()
+                                .equals("data"));
             }
 
             @Test
@@ -353,7 +499,8 @@ public class AggregateEntitiesTest {
             @Test
             void testUpdateMapChild() {
                 testFixture.whenCommand(new UpdateChild(new Key("map1"), "data"))
-                        .expectTrue(fc -> loadAggregate("test", Aggregate.class).get().getMap().get(new Key("map1")).getData().equals("data"));
+                        .expectTrue(fc -> loadAggregate("test", Aggregate.class).get().getMap().get(new Key("map1"))
+                                .getData().equals("data"));
             }
 
             @Test
@@ -421,7 +568,7 @@ public class AggregateEntitiesTest {
         void deleteMutableEntity() {
             testFixture.givenCommands(new CreateMutableEntity("childId"))
                     .whenCommand(new DeleteMutableEntity("childId")).expectThat(
-                    fc -> expectNoEntity(MutableAggregate.class, e -> "childId".equals(e.id())));
+                            fc -> expectNoEntity(MutableAggregate.class, e -> "childId".equals(e.id())));
         }
 
         class CommandHandler {

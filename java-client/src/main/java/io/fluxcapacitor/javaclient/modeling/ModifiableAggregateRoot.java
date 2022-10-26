@@ -1,5 +1,6 @@
 package io.fluxcapacitor.javaclient.modeling;
 
+import io.fluxcapacitor.common.Pair;
 import io.fluxcapacitor.common.handling.Invocation;
 import io.fluxcapacitor.javaclient.common.Message;
 import io.fluxcapacitor.javaclient.common.serialization.DeserializingMessage;
@@ -46,13 +47,14 @@ public class ModifiableAggregateRoot<T> extends DelegatingEntity<T> {
     private Entity<T> lastStable;
 
     private final boolean commitInBatch;
+    private final EntityHelper entityHelper;
     private final Serializer serializer;
     private final DispatchInterceptor dispatchInterceptor;
     private final CommitHandler commitHandler;
 
     private final AtomicBoolean waitingForHandlerEnd = new AtomicBoolean(), waitingForBatchEnd = new AtomicBoolean();
     private final List<DeserializingMessage> applied = new ArrayList<>(), uncommitted = new ArrayList<>();
-    private final List<Message> queued = new ArrayList<>();
+    private final List<Pair<Message, Boolean>> queued = new ArrayList<>();
 
     private volatile boolean applying;
 
@@ -60,6 +62,7 @@ public class ModifiableAggregateRoot<T> extends DelegatingEntity<T> {
                                       Serializer serializer, DispatchInterceptor dispatchInterceptor,
                                       CommitHandler commitHandler) {
         super(delegate);
+        this.entityHelper = delegate.entityHelper();
         this.lastCommitted = delegate;
         this.lastStable = delegate;
         this.commitInBatch = commitInBatch;
@@ -69,10 +72,30 @@ public class ModifiableAggregateRoot<T> extends DelegatingEntity<T> {
     }
 
     @Override
+    public <E extends Exception> ModifiableAggregateRoot<T> assertLegal(Object command) throws E {
+        entityHelper.intercept(command, this).forEach(c -> entityHelper.assertLegal(command, this));
+        return this;
+    }
+
+    @Override
+    public ModifiableAggregateRoot<T> assertAndApply(Object payloadOrMessage) {
+        entityHelper.intercept(payloadOrMessage, this).forEach(m -> apply(Message.asMessage(m), true));
+        return this;
+    }
+
+    @Override
     public ModifiableAggregateRoot<T> apply(Message message) {
+        entityHelper.intercept(message, this).forEach(m -> apply(Message.asMessage(m), false));
+        return this;
+    }
+
+    protected ModifiableAggregateRoot<T> apply(Message message, boolean assertLegal) {
         if (applying) {
-            queued.add(message);
+            queued.add(new Pair<>(message, assertLegal));
             return this;
+        }
+        if (assertLegal) {
+            entityHelper.assertLegal(message, this);
         }
         Message m = dispatchInterceptor.interceptDispatch(message, EVENT)
                 .addMetadata(Entity.AGGREGATE_ID_METADATA_KEY, id(),
@@ -91,7 +114,8 @@ public class ModifiableAggregateRoot<T> extends DelegatingEntity<T> {
             applying = false;
         }
         while (!queued.isEmpty()) {
-            apply(queued.remove(0));
+            Pair<Message, Boolean> value = queued.remove(0);
+            apply(value.getFirst(), value.getSecond());
         }
         return this;
     }

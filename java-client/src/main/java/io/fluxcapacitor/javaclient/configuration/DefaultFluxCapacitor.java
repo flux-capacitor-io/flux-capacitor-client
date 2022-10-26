@@ -24,7 +24,7 @@ import io.fluxcapacitor.javaclient.common.serialization.DeserializingMessage;
 import io.fluxcapacitor.javaclient.common.serialization.Serializer;
 import io.fluxcapacitor.javaclient.common.serialization.jackson.JacksonSerializer;
 import io.fluxcapacitor.javaclient.configuration.client.Client;
-import io.fluxcapacitor.javaclient.modeling.DefaultEntityMatcher;
+import io.fluxcapacitor.javaclient.modeling.DefaultEntityHelper;
 import io.fluxcapacitor.javaclient.modeling.EntityParameterResolver;
 import io.fluxcapacitor.javaclient.persisting.caching.Cache;
 import io.fluxcapacitor.javaclient.persisting.caching.DefaultCache;
@@ -552,7 +552,7 @@ public class DefaultFluxCapacitor implements FluxCapacitor {
                                               new EntityParameterResolver()));
 
             //event sourcing
-            var entityMatcher = new DefaultEntityMatcher(parameterResolvers);
+            var entityMatcher = new DefaultEntityHelper(parameterResolvers);
             EventStore eventStore = new DefaultEventStore(client.getEventStoreClient(),
                                                           serializer, dispatchInterceptors.get(EVENT),
                                                           localHandlerRegistry(EVENT, handlerInterceptors,

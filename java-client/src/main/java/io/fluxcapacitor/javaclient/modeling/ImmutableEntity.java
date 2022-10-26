@@ -56,7 +56,7 @@ public class ImmutableEntity<T> implements Entity<T> {
 
     @ToString.Exclude
     @EqualsAndHashCode.Exclude
-    transient EntityMatcher entityMatcher;
+    transient EntityHelper entityHelper;
 
     @ToString.Exclude
     @EqualsAndHashCode.Exclude
@@ -81,7 +81,7 @@ public class ImmutableEntity<T> implements Entity<T> {
         Class<?> type = value == null ? type() : value.getClass();
         List<ImmutableEntity<?>> result = new ArrayList<>();
         for (AccessibleObject location : getAnnotatedProperties(type, Member.class)) {
-            result.addAll(getEntityHolder(type, location, entityMatcher, serializer)
+            result.addAll(getEntityHolder(type, location, entityHelper, serializer)
                                   .getEntities(this).collect(toList()));
         }
         return result;
@@ -103,9 +103,15 @@ public class ImmutableEntity<T> implements Entity<T> {
                                               type -> serializer.convert(message.getPayload(), type), EVENT));
     }
 
+    @Override
+    public <E extends Exception> Entity<T> assertLegal(Object command) throws E {
+        entityHelper.assertLegal(command, root());
+        return this;
+    }
+
     @SuppressWarnings("unchecked")
     ImmutableEntity<T> apply(DeserializingMessage message) {
-        Optional<HandlerInvoker> invoker = entityMatcher.applyInvoker(this, message);
+        Optional<HandlerInvoker> invoker = entityHelper.applyInvoker(message, this);
         if (invoker.isPresent()) {
             return toBuilder().value((T) invoker.get().invoke()).build();
         }
