@@ -49,6 +49,7 @@ public interface Entity<T> {
     ThreadLocal<Boolean> applying = ThreadLocal.withInitial(() -> false);
     String AGGREGATE_ID_METADATA_KEY = "$aggregateId";
     String AGGREGATE_TYPE_METADATA_KEY = "$aggregateType";
+    String AGGREGATE_SN_METADATA_KEY = "$sequenceNumber";
 
     static boolean isLoading() {
         return loading.get();
@@ -70,6 +71,11 @@ public interface Entity<T> {
                 return null;
             }
         }).orElse(null);
+    }
+
+    static Long getSequenceNumber(HasMetadata message) {
+        return Optional.ofNullable(message.getMetadata().get(AGGREGATE_SN_METADATA_KEY))
+                .map(Long::parseLong).orElse(null);
     }
 
     Object id();

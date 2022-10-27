@@ -443,7 +443,9 @@ public class TestFixture implements Given, When {
 
     protected void applyEvents(String aggregateId, Class<?> aggregateClass, FluxCapacitor fc, List<Message> events) {
         List<Message> eventList = events.stream().map(
-                e -> e.withMetadata(e.getMetadata().with(Entity.AGGREGATE_ID_METADATA_KEY, aggregateId)))
+                e -> e.withMetadata(e.getMetadata().with(
+                        Entity.AGGREGATE_ID_METADATA_KEY, aggregateId,
+                        Entity.AGGREGATE_TYPE_METADATA_KEY, aggregateClass.getName())))
                 .map(m -> {
                     if (m.getPayload() instanceof Data<?>) {
                         Data<?> eventData = m.getPayload();
