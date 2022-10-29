@@ -30,6 +30,7 @@ import lombok.experimental.Delegate;
 import lombok.extern.slf4j.Slf4j;
 
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -112,6 +113,6 @@ public class DefaultEventStore implements EventStore {
                           e.getValue(), e.getKey(), entityId, error);
                 return Void.class;
             }
-        }));
+        }, (a, b) -> b, LinkedHashMap::new));
     }
 }
