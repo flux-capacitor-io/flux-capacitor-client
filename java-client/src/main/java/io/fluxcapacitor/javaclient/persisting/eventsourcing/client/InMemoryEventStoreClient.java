@@ -18,16 +18,21 @@ import io.fluxcapacitor.common.Awaitable;
 import io.fluxcapacitor.common.Guarantee;
 import io.fluxcapacitor.common.api.SerializedMessage;
 import io.fluxcapacitor.common.api.modeling.GetAggregateIds;
+import io.fluxcapacitor.common.api.modeling.Relationship;
 import io.fluxcapacitor.common.api.modeling.UpdateRelationships;
 import io.fluxcapacitor.javaclient.persisting.eventsourcing.AggregateEventStream;
 import io.fluxcapacitor.javaclient.tracking.client.InMemoryMessageStore;
 
 import java.util.Collections;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.function.Function;
+
+import static java.util.Collections.synchronizedMap;
 
 public class InMemoryEventStoreClient extends InMemoryMessageStore implements EventStoreClient {
 
@@ -45,11 +50,10 @@ public class InMemoryEventStoreClient extends InMemoryMessageStore implements Ev
 
     @Override
     public Awaitable updateRelationships(UpdateRelationships request) {
-        request.getDissociations().forEach(r -> relationships.computeIfAbsent(
-                r.getEntityId(), entityId -> new ConcurrentHashMap<>()).remove(r.getAggregateId()));
-        request.getAssociations().forEach(r -> relationships.computeIfAbsent(
-                r.getEntityId(), entityId -> new ConcurrentHashMap<>())
-                .put(r.getAggregateId(), r.getAggregateType()));
+        Function<Relationship, Map<String, String>> computeIfAbsent = r -> relationships.computeIfAbsent(
+                r.getEntityId(), entityId -> synchronizedMap(new LinkedHashMap<>()));
+        request.getDissociations().forEach(r -> computeIfAbsent.apply(r).remove(r.getAggregateId()));
+        request.getAssociations().forEach(r -> computeIfAbsent.apply(r).put(r.getAggregateId(), r.getAggregateType()));
         return Awaitable.ready();
     }
 
