@@ -15,7 +15,8 @@ public enum DefaultCorrelationDataProvider implements CorrelationDataProvider {
     INSTANCE;
 
     private final String clientIdKey = "$clientId", clientNameKey = "$clientName", consumerKey = "$consumer",
-            correlationIdKey = "$correlationId", traceIdKey = "$traceId", triggerKey = "$trigger";
+            correlationIdKey = "$correlationId", traceIdKey = "$traceId",
+            triggerKey = "$trigger", triggerTypeKey = "$triggerType";
 
     @Override
     public Map<String, String> getCorrelationData(DeserializingMessage currentMessage) {
@@ -30,6 +31,7 @@ public enum DefaultCorrelationDataProvider implements CorrelationDataProvider {
             result.put(this.correlationIdKey, correlationId);
             result.put(traceIdKey, currentMessage.getMetadata().getOrDefault(traceIdKey, correlationId));
             result.put(triggerKey, m.getType());
+            result.put(triggerTypeKey, m.getMessageType().name());
             result.putAll(currentMessage.getMetadata().getTraceEntries());
         });
         return result;

@@ -265,9 +265,8 @@ public class TestFixture implements Given, When {
 
     @Override
     public TestFixture givenCommands(Object... commands) {
-        Stream<Message> messages = asMessages(commands);
-        return given(fc -> getDispatchResult(CompletableFuture.allOf(messages.map(
-                c -> fc.commandGateway().send(c)).toArray(CompletableFuture[]::new))));
+        asMessages(commands).forEach(c -> given(fc -> getDispatchResult(fc.commandGateway().send(c))));
+        return this;
     }
 
     @Override
@@ -283,9 +282,8 @@ public class TestFixture implements Given, When {
 
     @Override
     public TestFixture givenEvents(Object... events) {
-        Stream<Message> messages = asMessages(events);
-        return given(fc -> messages.forEach(c -> runSilently(
-                () -> fc.eventGateway().publish(c, Guarantee.STORED).get())));
+        asMessages(events).forEach(e -> given(fc -> fc.eventGateway().publish(e)));
+        return this;
     }
 
     @Override

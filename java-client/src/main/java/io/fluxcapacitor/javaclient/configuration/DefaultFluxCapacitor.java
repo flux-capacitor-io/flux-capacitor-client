@@ -82,6 +82,7 @@ import io.fluxcapacitor.javaclient.tracking.handling.LocalHandlerRegistry;
 import io.fluxcapacitor.javaclient.tracking.handling.MessageParameterResolver;
 import io.fluxcapacitor.javaclient.tracking.handling.MetadataParameterResolver;
 import io.fluxcapacitor.javaclient.tracking.handling.PayloadParameterResolver;
+import io.fluxcapacitor.javaclient.tracking.handling.TriggerParameterResolver;
 import io.fluxcapacitor.javaclient.tracking.handling.authentication.AuthenticatingInterceptor;
 import io.fluxcapacitor.javaclient.tracking.handling.authentication.UserParameterResolver;
 import io.fluxcapacitor.javaclient.tracking.handling.authentication.UserProvider;
@@ -544,7 +545,8 @@ public class DefaultFluxCapacitor implements FluxCapacitor {
 
             List<ParameterResolver<? super DeserializingMessage>> parameterResolvers =
                     new ArrayList<>(customParameterResolvers);
-            parameterResolvers.addAll(List.of(new DeserializingMessageParameterResolver(),
+            parameterResolvers.addAll(List.of(new TriggerParameterResolver(client, serializer),
+                                              new DeserializingMessageParameterResolver(),
                                               new MetadataParameterResolver(), new MessageParameterResolver(),
                                               new UserParameterResolver(userProvider),
                                               new WebPayloadParameterResolver(),

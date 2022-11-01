@@ -592,6 +592,15 @@ public class ReflectionUtils {
         return getMethodAnnotation(method, annotationClass).isPresent();
     }
 
+    public static boolean has(Class<? extends Annotation> annotationClass, Parameter parameter) {
+        for (Annotation annotation : parameter.getAnnotations()) {
+            if (isOrHas(annotation, annotationClass)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     /*
        Adopted from https://stackoverflow.com/questions/49105303/how-to-get-annotation-from-overridden-method-in-java/49164791
     */

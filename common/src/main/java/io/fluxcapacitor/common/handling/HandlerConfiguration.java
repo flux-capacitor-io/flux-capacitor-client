@@ -32,7 +32,7 @@ public class HandlerConfiguration<M> {
     Class<? extends Annotation> methodAnnotation;
     @Default boolean invokeMultipleMethods = false;
     @Default BiPredicate<Class<?>, Executable> handlerFilter = (c, e) -> true;
-    @Default BiPredicate<M, Annotation> messageFilter = (m, a) -> true;
+    @Default BiPredicate<? super M, Executable> messageFilter = (m, e) -> true;
 
     public boolean methodMatches(Class<?> c, Executable e) {
         return Optional.ofNullable(methodAnnotation).map(a -> getAnnotation(e).isPresent()).orElse(true)

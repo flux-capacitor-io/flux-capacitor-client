@@ -133,7 +133,7 @@ public class HandlerInspector {
         @SuppressWarnings("unchecked")
         @Override
         public Optional<HandlerInvoker> findInvoker(Object target, M m) {
-            if (!config.messageFilter().test(m, methodAnnotation)
+            if (!config.messageFilter().test(m, executable)
                 || (target == null
                     ? !(executable instanceof Constructor) && !staticMethod
                     : !(executable instanceof Method) || staticMethod)) {
@@ -159,7 +159,7 @@ public class HandlerInspector {
                         break;
                     }
                 }
-                if (matchingResolver == null) {
+                if (matchingResolver == null || !matchingResolver.filterMessage(m, p)) {
                     return Optional.empty();
                 }
                 matchingResolvers[i] = matchingResolver.resolve(p, methodAnnotation);

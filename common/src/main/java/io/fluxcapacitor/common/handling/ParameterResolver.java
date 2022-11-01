@@ -36,4 +36,8 @@ public interface ParameterResolver<M> {
         return false;
     }
 
+    default boolean filterMessage(M message, Parameter parameter) {
+        return true;
+    }
+
 }

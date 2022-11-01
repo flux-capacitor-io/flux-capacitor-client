@@ -3,9 +3,8 @@ package io.fluxcapacitor.javaclient.web;
 import io.fluxcapacitor.common.SearchUtils;
 import io.fluxcapacitor.common.api.Metadata;
 import io.fluxcapacitor.common.api.SerializedMessage;
-import io.fluxcapacitor.common.reflection.ReflectionUtils;
+import io.fluxcapacitor.javaclient.common.HasMessage;
 import io.fluxcapacitor.javaclient.common.Message;
-import io.fluxcapacitor.javaclient.common.serialization.DeserializingMessage;
 import io.fluxcapacitor.javaclient.common.serialization.Serializer;
 import lombok.AccessLevel;
 import lombok.Data;
@@ -18,7 +17,7 @@ import lombok.experimental.Accessors;
 import lombok.experimental.FieldDefaults;
 
 import java.beans.ConstructorProperties;
-import java.lang.annotation.Annotation;
+import java.lang.reflect.Executable;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -31,7 +30,7 @@ import java.util.function.BiPredicate;
 import java.util.function.Predicate;
 import java.util.regex.Pattern;
 
-import static io.fluxcapacitor.common.reflection.ReflectionUtils.getTypeAnnotation;
+import static io.fluxcapacitor.common.reflection.ReflectionUtils.getAnnotationAs;
 import static io.fluxcapacitor.javaclient.web.HttpRequestMethod.ANY;
 import static java.util.Objects.requireNonNull;
 
@@ -39,22 +38,21 @@ import static java.util.Objects.requireNonNull;
 @EqualsAndHashCode(callSuper = true)
 @ToString(callSuper = true)
 public class WebRequest extends Message {
-    private static final Map<Annotation, Predicate<DeserializingMessage>> filterCache = new ConcurrentHashMap<>();
+    private static final Map<Executable, Predicate<HasMessage>> filterCache = new ConcurrentHashMap<>();
 
     public static Builder builder() {
         return new Builder();
     }
 
-    public static BiPredicate<DeserializingMessage, Annotation> getWebRequestFilter() {
-        return (message, annotation) -> filterCache.computeIfAbsent(annotation, a -> {
-            Annotation typeAnnotation = getTypeAnnotation(a.annotationType(), HandleWeb.class);
-            Predicate<String> pathTest = ReflectionUtils.<String>readProperty("value", a)
+    public static BiPredicate<HasMessage, Executable> getWebRequestFilter() {
+        return (message, executable) -> filterCache.computeIfAbsent(executable, e -> {
+            var handleWeb = getAnnotationAs(e, HandleWeb.class, HandleWebParams.class).orElseThrow();
+            Predicate<String> pathTest = Optional.of(handleWeb.getValue())
                     .map(url -> url.startsWith("/") ? url : "/" + url)
                     .map(SearchUtils::convertGlobToRegex).map(Pattern::asMatchPredicate)
                     .<Predicate<String>>map(p -> s -> p.test(s.startsWith("/") ? s : "/" + s))
                     .orElse(p -> true);
-            Predicate<String> methodTest = ReflectionUtils.<HttpRequestMethod>readProperty("method", a)
-                    .or(() -> ReflectionUtils.readProperty("method", typeAnnotation))
+            Predicate<String> methodTest = Optional.of(handleWeb.getMethod())
                     .<Predicate<String>>map(r -> r == ANY ? p -> true : p -> r.name().equals(p))
                     .orElse(p -> true);
             return msg -> {
@@ -65,6 +63,12 @@ public class WebRequest extends Message {
                 return pathTest.test(path) && methodTest.test(method);
             };
         }).test(message);
+    }
+
+    @Value
+    protected static class HandleWebParams {
+        String value;
+        HttpRequestMethod method;
     }
 
     @NonNull String path;

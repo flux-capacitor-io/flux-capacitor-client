@@ -36,7 +36,7 @@ import static io.fluxcapacitor.common.handling.HandlerInspector.hasHandlerMethod
 
 @RequiredArgsConstructor
 public class DefaultHandlerFactory implements HandlerFactory {
-    private static final Map<MessageType, BiPredicate<DeserializingMessage, Annotation>> messageFilterCache =
+    private static final Map<MessageType, BiPredicate<? super DeserializingMessage, Executable>> messageFilterCache =
             new ConcurrentHashMap<>();
     private final MessageType messageType;
     private final HandlerInterceptor handlerInterceptor;
@@ -80,7 +80,7 @@ public class DefaultHandlerFactory implements HandlerFactory {
         }
     }
 
-    private static BiPredicate<DeserializingMessage, Annotation> getMessageFilter(MessageType messageType) {
+    private static BiPredicate<? super DeserializingMessage, Executable> getMessageFilter(MessageType messageType) {
         return messageFilterCache.computeIfAbsent(messageType, t -> {
             if (t == MessageType.WEBREQUEST) {
                 return WebRequest.getWebRequestFilter();
