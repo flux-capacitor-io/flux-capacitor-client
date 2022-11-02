@@ -47,6 +47,10 @@ public class SerializedDocument {
         summary = document.summarize();
     }
 
+    public Long getEnd() {
+        return end == null || timestamp == null || end > timestamp ? end : timestamp;
+    }
+
     @Getter(lazy = true)
     @Accessors(fluent = true)
     @EqualsAndHashCode.Exclude
