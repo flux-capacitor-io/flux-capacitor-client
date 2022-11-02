@@ -90,6 +90,10 @@ public class Document {
         return toBuilder().entries(filteredEntries).build();
     }
 
+    public Instant getEnd() {
+        return end == null || timestamp == null || end.isAfter(timestamp) ? end : timestamp;
+    }
+
     public static Comparator<Document> createComparator(SearchDocuments searchDocuments) {
         return searchDocuments.getSorting().stream().map(s -> {
             switch (s) {
