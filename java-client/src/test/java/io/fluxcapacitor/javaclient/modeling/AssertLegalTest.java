@@ -162,7 +162,7 @@ public class AssertLegalTest {
     @Value
     private static class CreateModelWithAssertion {
         @AssertLegal
-        private void assertDoesNotExist(Object model) {
+        private void assertDoesNotExist(TestModel model) {
             if (model != null) {
                 throw new MockException("Model should not exist");
             }
@@ -172,7 +172,7 @@ public class AssertLegalTest {
     @Value
     private static class UpdateModelWithAssertion {
         @AssertLegal
-        private void assertExists(@Nullable Object model) {
+        private void assertExists(@Nullable TestModel model) {
             if (model == null) {
                 throw new MockException("Model should exist");
             }

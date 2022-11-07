@@ -22,9 +22,7 @@ import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
-import java.util.Collections;
 
-import static java.util.function.Function.identity;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -38,7 +36,7 @@ class HandlerInspectorTest {
     @BeforeEach
     void setUp() {
         foo = new Foo();
-        subject = HandlerInspector.createHandler(foo, Handle.class, Collections.singletonList((p, methodAnnotation) -> identity()));
+        subject = HandlerInspector.createHandler(foo, Handle.class);
     }
 
     @Test
@@ -75,8 +73,7 @@ class HandlerInspectorTest {
 
     @Test
     void testMetaAnnotationHandler() {
-        subject = HandlerInspector.createHandler(new Meta(), Handle.class, Collections.singletonList(
-                (p, methodAnnotation) -> identity()));
+        subject = HandlerInspector.createHandler(new Meta(), Handle.class);
         assertEquals("a", subject.findInvoker("a").orElseThrow().invoke());
     }
 

@@ -40,7 +40,6 @@ import java.lang.reflect.Parameter;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executor;
@@ -90,11 +89,13 @@ public abstract class WebsocketEndpoint extends Endpoint {
     private final Handler<Request> handler =
             HandlerInspector.createHandler(this, Handle.class, Arrays.asList(new ParameterResolver<>() {
                 @Override
+                public boolean matches(Parameter parameter, Annotation methodAnnotation, Request value, Object target) {
+                    return parameter.getType().isAssignableFrom(value.getPayload().getClass());
+                }
+
+                @Override
                 public Function<Request, Object> resolve(Parameter p, Annotation methodAnnotation) {
-                    if (Objects.equals(p.getDeclaringExecutable().getParameters()[0], p)) {
-                        return Request::getPayload;
-                    }
-                    return null;
+                    return Request::getPayload;
                 }
 
                 @Override

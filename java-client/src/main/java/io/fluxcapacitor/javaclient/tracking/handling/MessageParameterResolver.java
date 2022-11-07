@@ -14,7 +14,7 @@
 
 package io.fluxcapacitor.javaclient.tracking.handling;
 
-import io.fluxcapacitor.common.handling.ParameterResolver;
+import io.fluxcapacitor.common.handling.TypedParameterResolver;
 import io.fluxcapacitor.javaclient.common.Message;
 import io.fluxcapacitor.javaclient.common.serialization.DeserializingMessage;
 
@@ -24,13 +24,15 @@ import java.util.function.Function;
 
 import static java.util.Optional.ofNullable;
 
-public class MessageParameterResolver implements ParameterResolver<Object> {
+public class MessageParameterResolver extends TypedParameterResolver<Object> {
+
+    public MessageParameterResolver() {
+        super(Message.class);
+    }
+
     @Override
     public Function<Object, Object> resolve(Parameter p, Annotation methodAnnotation) {
-        if (Message.class.isAssignableFrom(p.getType())) {
-            return m -> m instanceof DeserializingMessage ? ((DeserializingMessage) m).toMessage()
-                    : ofNullable(DeserializingMessage.getCurrent()).map(DeserializingMessage::toMessage).orElse(null);
-        }
-        return null;
+        return m -> m instanceof DeserializingMessage ? ((DeserializingMessage) m).toMessage()
+                : ofNullable(DeserializingMessage.getCurrent()).map(DeserializingMessage::toMessage).orElse(null);
     }
 }

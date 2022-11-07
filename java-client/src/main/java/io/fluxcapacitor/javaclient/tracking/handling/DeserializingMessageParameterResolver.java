@@ -14,19 +14,20 @@
 
 package io.fluxcapacitor.javaclient.tracking.handling;
 
-import io.fluxcapacitor.common.handling.ParameterResolver;
+import io.fluxcapacitor.common.handling.TypedParameterResolver;
 import io.fluxcapacitor.javaclient.common.serialization.DeserializingMessage;
 
 import java.lang.annotation.Annotation;
 import java.lang.reflect.Parameter;
 import java.util.function.Function;
 
-public class DeserializingMessageParameterResolver implements ParameterResolver<Object> {
+public class DeserializingMessageParameterResolver extends TypedParameterResolver<Object> {
+
+    public DeserializingMessageParameterResolver() {
+        super(DeserializingMessage.class);
+    }
     @Override
     public Function<Object, Object> resolve(Parameter p, Annotation methodAnnotation) {
-        if (p.getType().equals(DeserializingMessage.class)) {
-            return m -> m instanceof DeserializingMessage ? m : DeserializingMessage.getCurrent();
-        }
-        return null;
+        return m -> m instanceof DeserializingMessage ? m : DeserializingMessage.getCurrent();
     }
 }

@@ -54,6 +54,10 @@ public class HandlerInspector {
                 .anyMatch(m -> handlerConfiguration.methodMatches(targetClass, m));
     }
 
+    public static <M> Handler<M> createHandler(Object target, Class<? extends Annotation> methodAnnotation) {
+        return createHandler(target, methodAnnotation, List.of((p, a) -> o -> o));
+    }
+
     public static <M> Handler<M> createHandler(Object target, Class<? extends Annotation> methodAnnotation,
                                                List<ParameterResolver<? super M>> parameterResolvers) {
         return createHandler(target, parameterResolvers,

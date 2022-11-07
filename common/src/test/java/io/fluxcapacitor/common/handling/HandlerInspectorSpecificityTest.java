@@ -17,8 +17,6 @@ package io.fluxcapacitor.common.handling;
 
 import org.junit.jupiter.api.Test;
 
-import java.util.Collections;
-
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -27,7 +25,7 @@ class HandlerInspectorSpecificityTest {
 
     private final Foo foo = new Foo();
     private final Handler<Object> subject =
-            HandlerInspector.createHandler(foo, Handle.class, Collections.singletonList((p, methodAnnotation) -> o -> o));
+            HandlerInspector.createHandler(foo, Handle.class);
 
     @Test
     void testFindInvoker() {

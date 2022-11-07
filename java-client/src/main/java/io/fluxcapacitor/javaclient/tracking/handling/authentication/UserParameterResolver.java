@@ -14,9 +14,8 @@
 
 package io.fluxcapacitor.javaclient.tracking.handling.authentication;
 
-import io.fluxcapacitor.common.handling.ParameterResolver;
+import io.fluxcapacitor.common.handling.TypedParameterResolver;
 import io.fluxcapacitor.javaclient.common.serialization.DeserializingMessage;
-import lombok.AllArgsConstructor;
 
 import java.lang.annotation.Annotation;
 import java.lang.reflect.Parameter;
@@ -25,17 +24,18 @@ import java.util.function.Function;
 
 import static java.util.Optional.ofNullable;
 
-@AllArgsConstructor
-public class UserParameterResolver implements ParameterResolver<Object> {
+public class UserParameterResolver extends TypedParameterResolver<Object> {
     private final UserProvider userProvider;
+
+    public UserParameterResolver(UserProvider userProvider) {
+        super(User.class);
+        this.userProvider = userProvider;
+    }
 
     @Override
     public Function<Object, Object> resolve(Parameter p, Annotation methodAnnotation) {
-        if (User.class.isAssignableFrom(p.getType())) {
-            return m -> (m instanceof DeserializingMessage
-                    ? Optional.of(((DeserializingMessage) m)) : ofNullable(DeserializingMessage.getCurrent()))
-                    .map(DeserializingMessage::getMetadata).map(userProvider::fromMetadata).orElseGet(User::getCurrent);
-        }
-        return null;
+        return m -> (m instanceof DeserializingMessage
+                ? Optional.of(((DeserializingMessage) m)) : ofNullable(DeserializingMessage.getCurrent()))
+                .map(DeserializingMessage::getMetadata).map(userProvider::fromMetadata).orElseGet(User::getCurrent);
     }
 }

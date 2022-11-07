@@ -66,7 +66,7 @@ public class TriggerParameterResolver implements ParameterResolver<HasMessage> {
 
     @Override
     public Function<HasMessage, Object> resolve(Parameter p, Annotation methodAnnotation) {
-        return m -> ofNullable(m.getMetadata().get(DefaultCorrelationDataProvider.INSTANCE.getCorrelationIdKey()))
+        return m -> ofNullable(m.getMetadata().get(correlationDataProvider.getCorrelationIdKey()))
                 .flatMap(s -> {
                     try {
                         return Optional.of(Long.valueOf(s));
@@ -88,7 +88,7 @@ public class TriggerParameterResolver implements ParameterResolver<HasMessage> {
     }
 
     protected Optional<Class<?>> getTriggerClass(HasMessage message) {
-        return ofNullable(message.getMetadata().get(DefaultCorrelationDataProvider.INSTANCE.getTriggerKey()))
+        return ofNullable(message.getMetadata().get(correlationDataProvider.getTriggerKey()))
                 .flatMap(s -> {
                     try {
                         return Optional.of(ReflectionUtils.classForName(s));
@@ -99,7 +99,7 @@ public class TriggerParameterResolver implements ParameterResolver<HasMessage> {
     }
 
     protected Optional<MessageType> getTriggerMessageType(HasMessage message) {
-        return ofNullable(message.getMetadata().get(DefaultCorrelationDataProvider.INSTANCE.getTriggerTypeKey()))
+        return ofNullable(message.getMetadata().get(correlationDataProvider.getTriggerTypeKey()))
                 .flatMap(s -> {
                     try {
                         return Optional.of(MessageType.valueOf(s));

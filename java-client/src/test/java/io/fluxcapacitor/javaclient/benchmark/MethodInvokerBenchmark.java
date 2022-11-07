@@ -16,10 +16,8 @@ import java.lang.invoke.MethodHandle;
 import java.lang.invoke.MethodHandles;
 import java.lang.reflect.Method;
 import java.time.temporal.ChronoUnit;
-import java.util.List;
 
 import static io.fluxcapacitor.common.handling.HandlerInspector.createHandler;
-import static java.util.function.Function.identity;
 
 class MethodInvokerBenchmark {
     private static final long iterations = 100_000_000L;
@@ -31,8 +29,7 @@ class MethodInvokerBenchmark {
         Method method = Person.class.getDeclaredMethod("name");
         MethodHandle realMethodHandle = lookup.unreflect(method);
         MemberInvoker invoker = DefaultMemberInvoker.asInvoker(method);
-        Handler<Object> fluxHandler = createHandler(target, Handle.class, List.of(
-                (parameter, methodAnnotation) -> identity()));
+        Handler<Object> fluxHandler = createHandler(target, Handle.class);
         HandlerInvoker fluxInvoker = fluxHandler.findInvoker(null).orElseThrow();
 
         System.out.println("Invocation result of lambda: " + invoker.invoke(target));

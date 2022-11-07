@@ -25,6 +25,11 @@ import java.util.function.Function;
 public class WebPayloadParameterResolver implements ParameterResolver<HasMessage> {
     @Override
     public Function<HasMessage, Object> resolve(Parameter p, Annotation methodAnnotation) {
-        return ReflectionUtils.isOrHas(methodAnnotation, HandleWeb.class) ? m -> m.getPayloadAs(p.getType()) : null;
+        return m -> m.getPayloadAs(p.getType());
+    }
+
+    @Override
+    public boolean matches(Parameter parameter, Annotation methodAnnotation, HasMessage value, Object target) {
+        return ReflectionUtils.isOrHas(methodAnnotation, HandleWeb.class);
     }
 }

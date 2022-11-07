@@ -249,7 +249,7 @@ public class AggregateEntitiesTest {
         void returnDifferentCommand() {
             testFixture.whenCommand(new FailingCommand() {
                 @InterceptApply
-                Object intercept() {
+                Object intercept(FailingCommand input) {
                     return new AddChild("missing");
                 }
             }).expectThat(fc -> expectEntity(e -> e.get() instanceof MissingChild && "missing".equals(e.id())));
@@ -788,10 +788,8 @@ public class AggregateEntitiesTest {
         String customId;
 
         @AssertLegal
-        void assertLegal(Object child) {
-            if (child != null && !(child instanceof Aggregate)) {
-                throw new IllegalCommandException("Child is unauthorized");
-            }
+        void assertLegal(Child child) {
+            throw new IllegalCommandException("Child should not have been targeted");
         }
     }
 
