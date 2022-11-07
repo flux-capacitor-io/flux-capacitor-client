@@ -39,6 +39,7 @@ import java.util.function.Function;
 
 import static io.fluxcapacitor.common.reflection.ReflectionUtils.ensureAccessible;
 import static io.fluxcapacitor.common.reflection.ReflectionUtils.getAnnotatedMethods;
+import static io.fluxcapacitor.javaclient.FluxCapacitor.currentIdentityProvider;
 import static io.fluxcapacitor.javaclient.tracking.IndexUtils.millisFromIndex;
 import static java.lang.String.format;
 import static java.time.Duration.between;
@@ -124,17 +125,16 @@ public class SchedulingInterceptor implements DispatchInterceptor, HandlerInterc
                     result = function.apply(m);
                 } catch (Exception e) {
                     if (periodic != null && periodic.continueOnError()) {
-                        reschedule(m, now.plusMillis(periodic.value()));
+                        schedule(m, now.plusMillis(periodic.value()));
                     }
                     throw e;
                 }
                 if (result instanceof TemporalAmount) {
-                    reschedule(m, now.plus((TemporalAmount) result));
+                    schedule(m, now.plus((TemporalAmount) result));
                 } else if (result instanceof TemporalAccessor) {
-                    reschedule(m, Instant.from((TemporalAccessor) result));
+                    schedule(m, Instant.from((TemporalAccessor) result));
                 } else if (result instanceof Schedule) {
-                    Schedule schedule = (Schedule) result;
-                    reschedule(schedule.getPayload(), schedule.getMetadata(), schedule.getDeadline());
+                    schedule((Schedule) result);
                 } else if (result != null) {
                     Metadata metadata = m.getMetadata();
                     Object nextPayload = result;
@@ -147,20 +147,20 @@ public class SchedulingInterceptor implements DispatchInterceptor, HandlerInterc
                             Instant dispatched = m.getTimestamp();
                             Duration previousDelay = between(dispatched, now);
                             if (previousDelay.compareTo(Duration.ZERO) > 0) {
-                                reschedule(nextPayload, metadata, now.plus(previousDelay));
+                                schedule(nextPayload, metadata, now.plus(previousDelay));
                             } else {
                                 log.info("Delay between the time this schedule was created and scheduled is <= 0, "
                                                  + "rescheduling with delay of 1 minute");
-                                reschedule(nextPayload, metadata, now.plus(Duration.of(1, MINUTES)));
+                                schedule(nextPayload, metadata, now.plus(Duration.of(1, MINUTES)));
                             }
                         } else {
-                            reschedule(nextPayload, metadata, now.plusMillis(periodic.value()));
+                            schedule(nextPayload, metadata, now.plusMillis(periodic.value()));
                         }
                     } else if (periodic != null) {
-                        reschedule(m, now.plusMillis(periodic.value()));
+                        schedule(m, now.plusMillis(periodic.value()));
                     }
                 } else if (periodic != null) {
-                    reschedule(m, now.plusMillis(periodic.value()));
+                    schedule(m, now.plusMillis(periodic.value()));
                 }
                 return result;
             }
@@ -168,16 +168,20 @@ public class SchedulingInterceptor implements DispatchInterceptor, HandlerInterc
         };
     }
 
-    private void reschedule(DeserializingMessage message, Instant instant) {
-        reschedule(message.getPayload(), message.getMetadata(), instant);
+    private void schedule(DeserializingMessage message, Instant instant) {
+        schedule(message.getPayload(), message.getMetadata(), instant);
     }
 
-    private void reschedule(Object payload, Metadata metadata, Instant instant) {
+    private void schedule(Object payload, Metadata metadata, Instant instant) {
+        schedule(new Schedule(payload, metadata, metadata.getOrDefault(
+                Schedule.scheduleIdMetadataKey, currentIdentityProvider().nextTechnicalId()), instant));
+    }
+
+    private void schedule(Schedule schedule) {
         try {
-            FluxCapacitor.get().scheduler().schedule(new Schedule(payload, metadata
-                    .getOrDefault(Schedule.scheduleIdMetadataKey, FluxCapacitor.currentIdentityProvider().nextTechnicalId()), instant));
+            FluxCapacitor.get().scheduler().schedule(schedule);
         } catch (Exception e) {
-            log.error("Failed to reschedule a {}", payload.getClass(), e);
+            log.error("Failed to reschedule a {}", schedule.getPayloadClass(), e);
         }
     }
 }

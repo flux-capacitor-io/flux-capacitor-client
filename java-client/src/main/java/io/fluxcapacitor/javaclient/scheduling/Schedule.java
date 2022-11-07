@@ -44,9 +44,7 @@ public class Schedule extends Message {
     }
 
     public Schedule(Object payload, String scheduleId, Instant deadline) {
-        super(payload);
-        this.scheduleId = scheduleId;
-        this.deadline = deadline.truncatedTo(MILLIS);
+        this(payload, Metadata.empty(), scheduleId, deadline);
     }
 
     public Schedule(Object payload, Metadata metadata, String scheduleId, Instant deadline) {

@@ -28,7 +28,7 @@ public class TestUserProvider implements UserProvider {
 
     @Override
     public User getActiveUser() {
-        return Optional.ofNullable(delegate.getActiveUser()).orElse(getSystemUser());
+        return Optional.ofNullable(delegate.getActiveUser()).orElseGet(this::getSystemUser);
     }
 
     private interface ExcludedMethods {
