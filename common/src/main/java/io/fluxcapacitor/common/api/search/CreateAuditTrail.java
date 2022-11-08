@@ -14,14 +14,16 @@
 
 package io.fluxcapacitor.common.api.search;
 
-import io.fluxcapacitor.common.api.Request;
+import io.fluxcapacitor.common.Guarantee;
+import io.fluxcapacitor.common.api.Command;
 import lombok.EqualsAndHashCode;
 import lombok.NonNull;
 import lombok.Value;
 
 @EqualsAndHashCode(callSuper = true)
 @Value
-public class CreateAuditTrail extends Request {
+public class CreateAuditTrail extends Command {
     @NonNull String collection;
     Long retentionTimeInSeconds;
+    Guarantee guarantee;
 }

@@ -14,12 +14,14 @@
 
 package io.fluxcapacitor.common.api.eventsourcing;
 
-import io.fluxcapacitor.common.api.Request;
+import io.fluxcapacitor.common.Guarantee;
+import io.fluxcapacitor.common.api.Command;
 import lombok.EqualsAndHashCode;
 import lombok.Value;
 
 @EqualsAndHashCode(callSuper = true)
 @Value
-public class DeleteEvents extends Request {
+public class DeleteEvents extends Command {
     String aggregateId;
+    Guarantee guarantee;
 }

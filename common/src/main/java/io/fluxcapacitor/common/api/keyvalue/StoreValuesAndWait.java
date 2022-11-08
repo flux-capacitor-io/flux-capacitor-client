@@ -14,7 +14,8 @@
 
 package io.fluxcapacitor.common.api.keyvalue;
 
-import io.fluxcapacitor.common.api.Request;
+import io.fluxcapacitor.common.Guarantee;
+import io.fluxcapacitor.common.api.Command;
 import lombok.EqualsAndHashCode;
 import lombok.Value;
 
@@ -24,8 +25,13 @@ import static java.util.stream.Collectors.toList;
 
 @Value
 @EqualsAndHashCode(callSuper = true)
-public class StoreValuesAndWait extends Request {
+public class StoreValuesAndWait extends Command {
     List<KeyValuePair> values;
+
+    @Override
+    public Guarantee getGuarantee() {
+        return Guarantee.STORED;
+    }
 
     @Override
     public String toString() {

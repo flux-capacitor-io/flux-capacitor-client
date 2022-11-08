@@ -59,7 +59,17 @@ public interface KeyValueClient extends AutoCloseable {
      * @param key The key associated with this value
      * @return a handle that enables clients to wait until the command was safely sent to the store
      */
-    Awaitable deleteValue(String key);
+    default Awaitable deleteValue(String key) {
+        return deleteValue(key, Guarantee.SENT);
+    }
+
+    /**
+     * Deletes the value associated with the given key.
+     *
+     * @param key The key associated with this value
+     * @return a handle that enables clients to wait until the command was safely sent to the store
+     */
+    Awaitable deleteValue(String key, Guarantee guarantee);
 
     @Override
     void close();

@@ -15,13 +15,22 @@
 package io.fluxcapacitor.javaclient.scheduling.client;
 
 import io.fluxcapacitor.common.Awaitable;
+import io.fluxcapacitor.common.Guarantee;
 import io.fluxcapacitor.common.api.scheduling.SerializedSchedule;
 
 public interface SchedulingClient extends AutoCloseable {
 
-    Awaitable schedule(SerializedSchedule... schedules);
+    default Awaitable schedule(SerializedSchedule... schedules) {
+        return schedule(Guarantee.SENT, schedules);
+    }
 
-    Awaitable cancelSchedule(String scheduleId);
+    Awaitable schedule(Guarantee guarantee, SerializedSchedule... schedules);
+
+    default Awaitable cancelSchedule(String scheduleId) {
+        return cancelSchedule(scheduleId, Guarantee.SENT);
+    }
+
+    Awaitable cancelSchedule(String scheduleId, Guarantee guarantee);
 
     SerializedSchedule getSchedule(String scheduleId);
 

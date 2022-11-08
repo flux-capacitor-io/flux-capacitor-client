@@ -14,14 +14,20 @@
 
 package io.fluxcapacitor.common.api.keyvalue;
 
-import io.fluxcapacitor.common.api.Request;
+import io.fluxcapacitor.common.Guarantee;
+import io.fluxcapacitor.common.api.Command;
 import lombok.EqualsAndHashCode;
 import lombok.Value;
 
 @Value
 @EqualsAndHashCode(callSuper = true)
-public class StoreValueIfAbsent extends Request {
+public class StoreValueIfAbsent extends Command {
     KeyValuePair value;
+
+    @Override
+    public Guarantee getGuarantee() {
+        return Guarantee.STORED;
+    }
 
     @Override
     public String toString() {

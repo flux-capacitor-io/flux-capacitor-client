@@ -14,32 +14,15 @@
 
 package io.fluxcapacitor.common.api;
 
-import java.util.Objects;
+import lombok.EqualsAndHashCode;
+import lombok.Getter;
+
 import java.util.concurrent.atomic.AtomicLong;
 
+@Getter
+@EqualsAndHashCode
 public abstract class Request implements JsonType {
     private static final AtomicLong nextRequestId = new AtomicLong();
 
     private final long requestId = nextRequestId.getAndIncrement();
-
-    public long getRequestId() {
-        return requestId;
-    }
-
-    @Override
-    public boolean equals(Object o) {
-        if (this == o) {
-            return true;
-        }
-        if (o == null || getClass() != o.getClass()) {
-            return false;
-        }
-        Request request = (Request) o;
-        return requestId == request.requestId;
-    }
-
-    @Override
-    public int hashCode() {
-        return Objects.hash(requestId);
-    }
 }

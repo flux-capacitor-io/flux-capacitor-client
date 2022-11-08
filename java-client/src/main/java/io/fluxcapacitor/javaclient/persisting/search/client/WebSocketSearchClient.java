@@ -15,10 +15,8 @@
 package io.fluxcapacitor.javaclient.persisting.search.client;
 
 import io.fluxcapacitor.common.Awaitable;
-import io.fluxcapacitor.common.Backlog;
 import io.fluxcapacitor.common.Guarantee;
 import io.fluxcapacitor.common.ObjectUtils;
-import io.fluxcapacitor.common.api.QueryResult;
 import io.fluxcapacitor.common.api.search.BulkUpdateDocuments;
 import io.fluxcapacitor.common.api.search.CreateAuditTrail;
 import io.fluxcapacitor.common.api.search.DeleteCollection;
@@ -49,23 +47,15 @@ import java.time.Instant;
 import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
-import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicInteger;
-import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import static io.fluxcapacitor.common.ObjectUtils.deduplicate;
+import static java.util.stream.Collectors.toList;
 
 @ClientEndpoint
 public class WebSocketSearchClient extends AbstractWebsocketClient implements SearchClient {
     public static int maxFetchSize = 10_000;
-
-    private final Backlog<Document> sendBacklog;
-    private final Backlog<Document> sendIfNotExistsBacklog;
-    private final Backlog<Document> storeBacklog;
-    private final Backlog<Document> storeIfNotExistsBacklog;
-    private final Backlog<SerializedDocumentUpdate> sendBatchBacklog;
-    private final Backlog<SerializedDocumentUpdate> storeBatchBacklog;
 
     public WebSocketSearchClient(String endPointUrl, WebSocketClient.ClientConfig clientConfig) {
         this(URI.create(endPointUrl), clientConfig);
@@ -77,58 +67,18 @@ public class WebSocketSearchClient extends AbstractWebsocketClient implements Se
 
     public WebSocketSearchClient(URI endpointUri, WebSocketClient.ClientConfig clientConfig, boolean sendMetrics) {
         super(endpointUri, clientConfig, sendMetrics, clientConfig.getSearchSessions());
-        sendBacklog = new Backlog<>(documents -> sendValues(documents, false));
-        sendIfNotExistsBacklog = new Backlog<>(documents -> sendValues(documents, true));
-        storeBacklog = new Backlog<>(documents -> storeValues(documents, false));
-        storeIfNotExistsBacklog = new Backlog<>(documents -> storeValues(documents, true));
-        sendBatchBacklog = new Backlog<>(actions -> sendAndForget(new BulkUpdateDocuments(actions, Guarantee.SENT)));
-        storeBatchBacklog = new Backlog<>(actions -> {
-            sendAndWait(new BulkUpdateDocuments(actions, Guarantee.STORED));
-            return Awaitable.ready();
-        });
-    }
-
-    protected Awaitable sendValues(List<Document> documents, boolean ifNotExists) {
-        return sendAndForget(new IndexDocuments(
-                deduplicate(documents, Document.identityFunction).stream().map(SerializedDocument::new)
-                        .collect(Collectors.toList()), ifNotExists, Guarantee.SENT));
-    }
-
-    protected Awaitable storeValues(List<Document> documents, boolean ifNotExists) {
-        sendAndWait(new IndexDocuments(
-                deduplicate(documents, Document.identityFunction).stream().map(SerializedDocument::new)
-                        .collect(Collectors.toList()), ifNotExists, Guarantee.STORED));
-        return Awaitable.ready();
     }
 
     @Override
     public Awaitable index(List<Document> documents, Guarantee guarantee, boolean ifNotExists) {
-        switch (guarantee) {
-            case NONE:
-                Awaitable ignored = ifNotExists ? sendIfNotExistsBacklog.add(documents) : sendBacklog.add(documents);
-                return Awaitable.ready();
-            case SENT:
-                return ifNotExists ? sendIfNotExistsBacklog.add(documents) : sendBacklog.add(documents);
-            case STORED:
-                return ifNotExists ? storeIfNotExistsBacklog.add(documents) : storeBacklog.add(documents);
-            default:
-                throw new UnsupportedOperationException("Unrecognized guarantee: " + guarantee);
-        }
+        return sendCommand(new IndexDocuments(deduplicate(documents, Document.identityFunction).stream()
+                                                 .map(SerializedDocument::new)
+                                                 .collect(toList()), ifNotExists, guarantee));
     }
 
     @Override
     public Awaitable bulkUpdate(Collection<SerializedDocumentUpdate> batch, Guarantee guarantee) {
-        switch (guarantee) {
-            case NONE:
-                sendBatchBacklog.add(batch);
-                return Awaitable.ready();
-            case SENT:
-                return sendBatchBacklog.add(batch);
-            case STORED:
-                return storeBatchBacklog.add(batch);
-            default:
-                throw new UnsupportedOperationException("Unrecognized guarantee: " + guarantee);
-        }
+        return sendCommand(new BulkUpdateDocuments(batch, guarantee));
     }
 
     @Override
@@ -175,49 +125,21 @@ public class WebSocketSearchClient extends AbstractWebsocketClient implements Se
 
     @Override
     public Awaitable delete(SearchQuery query, Guarantee guarantee) {
-        DeleteDocuments request = new DeleteDocuments(query, guarantee);
-        switch (guarantee) {
-            case NONE:
-                sendAndForget(request);
-                return Awaitable.ready();
-            case SENT:
-                send(request);
-                return Awaitable.ready();
-            case STORED:
-                CompletableFuture<QueryResult> future = send(request);
-                return future::get;
-            default:
-                throw new UnsupportedOperationException("Unrecognized guarantee: " + guarantee);
-        }
+        return sendCommand(new DeleteDocuments(query, guarantee));
     }
 
     @Override
     public Awaitable delete(String documentId, String collection, Guarantee guarantee) {
-        DeleteDocumentById request = new DeleteDocumentById(collection, documentId, guarantee);
-        switch (guarantee) {
-            case NONE:
-                sendAndForget(request);
-                return Awaitable.ready();
-            case SENT:
-                send(request);
-                return Awaitable.ready();
-            case STORED:
-                CompletableFuture<QueryResult> future = send(request);
-                return future::get;
-            default:
-                throw new UnsupportedOperationException("Unrecognized guarantee: " + guarantee);
-        }
+        return sendCommand(new DeleteDocumentById(collection, documentId, guarantee));
     }
 
     @Override
-    public Awaitable deleteCollection(String collection) {
-        CompletableFuture<QueryResult> future = send(new DeleteCollection(collection));
-        return future::get;
+    public Awaitable deleteCollection(String collection, Guarantee guarantee) {
+        return sendCommand(new DeleteCollection(collection, guarantee));
     }
 
     @Override
     public Awaitable createAuditTrail(CreateAuditTrail request) {
-        CompletableFuture<QueryResult> future = send(request);
-        return future::get;
+        return sendCommand(request);
     }
 }

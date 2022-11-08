@@ -14,11 +14,13 @@
 
 package io.fluxcapacitor.common.api.tracking;
 
-import io.fluxcapacitor.common.api.Request;
+import io.fluxcapacitor.common.Guarantee;
+import io.fluxcapacitor.common.api.Command;
 import lombok.Value;
 
 @Value
-public class ResetPosition extends Request {
+public class ResetPosition extends Command {
     String consumer;
     long lastIndex;
+    Guarantee guarantee;
 }

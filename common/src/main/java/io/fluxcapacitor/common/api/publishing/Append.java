@@ -16,7 +16,7 @@ package io.fluxcapacitor.common.api.publishing;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import io.fluxcapacitor.common.Guarantee;
-import io.fluxcapacitor.common.api.Request;
+import io.fluxcapacitor.common.api.Command;
 import io.fluxcapacitor.common.api.SerializedMessage;
 import lombok.Value;
 
@@ -25,7 +25,7 @@ import java.util.List;
 import static java.util.Optional.ofNullable;
 
 @Value
-public class Append extends Request {
+public class Append extends Command {
     List<SerializedMessage> messages;
     Guarantee guarantee;
 

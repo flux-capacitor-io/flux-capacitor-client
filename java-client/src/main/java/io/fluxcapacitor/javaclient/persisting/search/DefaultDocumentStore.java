@@ -196,7 +196,7 @@ public class DefaultDocumentStore implements DocumentStore {
     public CompletableFuture<Void> createAuditTrail(String collection, Duration retentionTime) {
         try {
             return client.createAuditTrail(new CreateAuditTrail(collection, Optional.ofNullable(
-                    retentionTime).map(Duration::getSeconds).orElse(null))).asCompletableFuture();
+                    retentionTime).map(Duration::getSeconds).orElse(null), Guarantee.STORED)).asCompletableFuture();
         } catch (Exception e) {
             throw new DocumentStoreException(format("Could not create audit trail %s", collection), e);
         }

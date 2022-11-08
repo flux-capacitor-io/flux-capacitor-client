@@ -16,7 +16,6 @@ package io.fluxcapacitor.testserver.endpoints;
 
 import io.fluxcapacitor.common.Awaitable;
 import io.fluxcapacitor.common.Guarantee;
-import io.fluxcapacitor.common.api.BooleanResult;
 import io.fluxcapacitor.common.api.SerializedMessage;
 import io.fluxcapacitor.common.api.VoidResult;
 import io.fluxcapacitor.common.api.eventsourcing.AppendEvents;
@@ -56,9 +55,9 @@ public class EventSourcingEndpoint extends WebsocketEndpoint {
     }
 
     @Handle
-    public BooleanResult handle(DeleteEvents deleteEvents) throws Exception {
-        return new BooleanResult(deleteEvents.getRequestId(),
-                                 eventStore.deleteEvents(deleteEvents.getAggregateId()).get());
+    public VoidResult handle(DeleteEvents deleteEvents) throws Exception {
+        eventStore.deleteEvents(deleteEvents.getAggregateId()).awaitSilently();
+        return new VoidResult(deleteEvents.getRequestId());
     }
 
     @Handle

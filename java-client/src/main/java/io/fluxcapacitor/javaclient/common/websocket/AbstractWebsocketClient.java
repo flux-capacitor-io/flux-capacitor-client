@@ -19,6 +19,7 @@ import com.fasterxml.jackson.databind.json.JsonMapper;
 import io.fluxcapacitor.common.Awaitable;
 import io.fluxcapacitor.common.Backlog;
 import io.fluxcapacitor.common.RetryConfiguration;
+import io.fluxcapacitor.common.api.Command;
 import io.fluxcapacitor.common.api.JsonType;
 import io.fluxcapacitor.common.api.Metadata;
 import io.fluxcapacitor.common.api.QueryResult;
@@ -120,6 +121,18 @@ public abstract class AbstractWebsocketClient implements AutoCloseable {
     @SneakyThrows
     protected Awaitable sendAndForget(JsonType object) {
         return send(object, sessionPool.get());
+    }
+
+    protected Awaitable sendCommand(Command command) {
+        switch (command.getGuarantee()) {
+            case NONE:
+                sendAndForget(command);
+                return Awaitable.ready();
+            case SENT:
+                return sendAndForget(command);
+            default:
+                return Awaitable.fromFuture(send(command));
+        }
     }
 
     @SneakyThrows

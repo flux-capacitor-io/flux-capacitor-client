@@ -15,6 +15,7 @@
 package io.fluxcapacitor.javaclient.tracking.client;
 
 import io.fluxcapacitor.common.Awaitable;
+import io.fluxcapacitor.common.Guarantee;
 import io.fluxcapacitor.common.api.SerializedMessage;
 import io.fluxcapacitor.common.api.tracking.MessageBatch;
 import io.fluxcapacitor.common.api.tracking.Position;
@@ -37,13 +38,25 @@ public interface TrackingClient extends AutoCloseable {
 
     List<SerializedMessage> readFromIndex(long minIndex, int maxSize);
 
-    Awaitable storePosition(String consumer, int[] segment, long lastIndex);
+    default Awaitable storePosition(String consumer, int[] segment, long lastIndex) {
+        return storePosition(consumer, segment, lastIndex, Guarantee.STORED);
+    }
 
-    Awaitable resetPosition(String consumer, long lastIndex);
+    Awaitable storePosition(String consumer, int[] segment, long lastIndex, Guarantee guarantee);
+
+    default Awaitable resetPosition(String consumer, long lastIndex) {
+        return resetPosition(consumer, lastIndex, Guarantee.STORED);
+    }
+
+    Awaitable resetPosition(String consumer, long lastIndex, Guarantee guarantee);
 
     Position getPosition(String consumer);
 
-    Awaitable disconnectTracker(String consumer, String trackerId, boolean sendFinalEmptyBatch);
+    default Awaitable disconnectTracker(String consumer, String trackerId, boolean sendFinalEmptyBatch) {
+        return disconnectTracker(consumer, trackerId, sendFinalEmptyBatch, Guarantee.SENT);
+    }
+
+    Awaitable disconnectTracker(String consumer, String trackerId, boolean sendFinalEmptyBatch, Guarantee guarantee);
 
     @Override
     void close();

@@ -51,7 +51,7 @@ public class InMemoryKeyValueClient implements KeyValueClient {
     }
 
     @Override
-    public Awaitable deleteValue(String key) {
+    public Awaitable deleteValue(String key, Guarantee guarantee) {
         values.remove(key);
         return Awaitable.ready();
     }

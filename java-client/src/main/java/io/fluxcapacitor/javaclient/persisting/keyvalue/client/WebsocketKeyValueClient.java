@@ -15,7 +15,6 @@
 package io.fluxcapacitor.javaclient.persisting.keyvalue.client;
 
 import io.fluxcapacitor.common.Awaitable;
-import io.fluxcapacitor.common.Backlog;
 import io.fluxcapacitor.common.Guarantee;
 import io.fluxcapacitor.common.api.BooleanResult;
 import io.fluxcapacitor.common.api.Data;
@@ -34,12 +33,8 @@ import java.net.URI;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 
-import static java.util.Collections.singletonList;
-
 @ClientEndpoint
 public class WebsocketKeyValueClient extends AbstractWebsocketClient implements KeyValueClient {
-
-    private final Backlog<KeyValuePair> backlog;
 
     public WebsocketKeyValueClient(String endPointUrl, WebSocketClient.ClientConfig clientConfig) {
         this(URI.create(endPointUrl), clientConfig);
@@ -51,26 +46,18 @@ public class WebsocketKeyValueClient extends AbstractWebsocketClient implements 
 
     public WebsocketKeyValueClient(URI endpointUri, WebSocketClient.ClientConfig clientConfig, boolean sendMetrics) {
         super(endpointUri, clientConfig, sendMetrics, clientConfig.getKeyValueSessions());
-        backlog = new Backlog<>(this::storeValues);
-    }
-
-    protected Awaitable storeValues(List<KeyValuePair> keyValuePairs) {
-        return sendAndForget(new StoreValues(keyValuePairs));
     }
 
     @Override
     public Awaitable putValue(String key, Data<byte[]> value, Guarantee guarantee) {
         switch (guarantee) {
             case NONE:
-                backlog.add(new KeyValuePair(key, value));
+                sendAndForget(new StoreValues(List.of(new KeyValuePair(key, value)), guarantee));
                 return Awaitable.ready();
             case SENT:
-                return backlog.add(new KeyValuePair(key, value));
-            case STORED:
-                sendAndWait(new StoreValuesAndWait(singletonList(new KeyValuePair(key, value))));
-                return Awaitable.ready();
+                return sendAndForget(new StoreValues(List.of(new KeyValuePair(key, value)), guarantee));
             default:
-                throw new UnsupportedOperationException("Unrecognized guarantee: " + guarantee);
+                return Awaitable.fromFuture(send(new StoreValuesAndWait(List.of(new KeyValuePair(key, value)))));
         }
     }
 
@@ -87,7 +74,7 @@ public class WebsocketKeyValueClient extends AbstractWebsocketClient implements 
     }
 
     @Override
-    public Awaitable deleteValue(String key) {
-        return sendAndForget(new DeleteValue(key));
+    public Awaitable deleteValue(String key, Guarantee guarantee) {
+        return sendCommand(new DeleteValue(key, guarantee));
     }
 }

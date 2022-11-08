@@ -14,7 +14,8 @@
 
 package io.fluxcapacitor.common.api.scheduling;
 
-import io.fluxcapacitor.common.api.JsonType;
+import io.fluxcapacitor.common.Guarantee;
+import io.fluxcapacitor.common.api.Command;
 import lombok.Value;
 
 import java.util.List;
@@ -22,8 +23,9 @@ import java.util.List;
 import static java.util.stream.Collectors.toList;
 
 @Value
-public class Schedule implements JsonType {
+public class Schedule extends Command {
     List<SerializedSchedule> messages;
+    Guarantee guarantee;
 
     @Override
     public String toString() {

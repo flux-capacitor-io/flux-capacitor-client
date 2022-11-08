@@ -53,7 +53,7 @@ public class InMemorySchedulingClient extends InMemoryMessageStore implements Sc
     }
 
     @Override
-    public Awaitable schedule(SerializedSchedule... schedules) {
+    public Awaitable schedule(Guarantee guarantee, SerializedSchedule... schedules) {
         List<SerializedSchedule> filtered = Arrays.stream(schedules)
                 .filter(s -> !s.isIfAbsent() || !scheduleIdsByIndex.containsValue(s.getScheduleId()))
                 .collect(toList());
@@ -71,7 +71,7 @@ public class InMemorySchedulingClient extends InMemoryMessageStore implements Sc
     }
 
     @Override
-    public Awaitable cancelSchedule(String scheduleId) {
+    public Awaitable cancelSchedule(String scheduleId, Guarantee guarantee) {
         scheduleIdsByIndex.values().removeIf(s -> s.equals(scheduleId));
         return Awaitable.ready();
     }

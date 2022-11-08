@@ -15,13 +15,13 @@
 package io.fluxcapacitor.common.api.search;
 
 import io.fluxcapacitor.common.Guarantee;
-import io.fluxcapacitor.common.api.Request;
+import io.fluxcapacitor.common.api.Command;
 import lombok.EqualsAndHashCode;
 import lombok.Value;
 
 @EqualsAndHashCode(callSuper = true)
 @Value
-public class DeleteDocumentById extends Request {
+public class DeleteDocumentById extends Command {
     String collection;
     String id;
     Guarantee guarantee;

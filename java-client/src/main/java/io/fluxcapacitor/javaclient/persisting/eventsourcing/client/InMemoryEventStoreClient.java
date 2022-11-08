@@ -27,7 +27,6 @@ import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.function.Function;
@@ -40,12 +39,13 @@ public class InMemoryEventStoreClient extends InMemoryMessageStore implements Ev
     private final Map<String, Map<String, String>> relationships = new ConcurrentHashMap<>();
 
     @Override
-    public Awaitable storeEvents(String aggregateId, List<SerializedMessage> events, boolean storeOnly) {
+    public Awaitable storeEvents(String aggregateId, List<SerializedMessage> events, boolean storeOnly,
+                                 Guarantee guarantee) {
         appliedEvents.computeIfAbsent(aggregateId, id -> new CopyOnWriteArrayList<>()).addAll(events);
         if (storeOnly) {
             return Awaitable.ready();
         }
-        return super.send(Guarantee.SENT, events.toArray(new SerializedMessage[0]));
+        return super.send(guarantee, events.toArray(new SerializedMessage[0]));
     }
 
     @Override
@@ -66,8 +66,9 @@ public class InMemoryEventStoreClient extends InMemoryMessageStore implements Ev
     }
 
     @Override
-    public CompletableFuture<Boolean> deleteEvents(String aggregateId) {
-        return CompletableFuture.completedFuture(appliedEvents.remove(aggregateId) != null);
+    public Awaitable deleteEvents(String aggregateId, Guarantee guarantee) {
+        appliedEvents.remove(aggregateId);
+        return Awaitable.ready();
     }
 
     @Override

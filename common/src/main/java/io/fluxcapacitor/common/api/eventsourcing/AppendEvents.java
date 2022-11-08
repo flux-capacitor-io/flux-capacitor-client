@@ -14,7 +14,8 @@
 
 package io.fluxcapacitor.common.api.eventsourcing;
 
-import io.fluxcapacitor.common.api.Request;
+import io.fluxcapacitor.common.Guarantee;
+import io.fluxcapacitor.common.api.Command;
 import lombok.EqualsAndHashCode;
 import lombok.Value;
 
@@ -23,8 +24,9 @@ import java.util.stream.Collectors;
 
 @EqualsAndHashCode(callSuper = true)
 @Value
-public class AppendEvents extends Request {
+public class AppendEvents extends Command {
     List<EventBatch> eventBatches;
+    Guarantee guarantee;
 
     @Override
     public String toString() {
