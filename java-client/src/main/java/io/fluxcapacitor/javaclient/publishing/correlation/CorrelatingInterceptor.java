@@ -31,7 +31,7 @@ public class CorrelatingInterceptor implements DispatchInterceptor {
         if (messageType == MessageType.EVENT) {
             DeserializingMessage currentMessage = DeserializingMessage.getCurrent();
             if (currentMessage != null) {
-                metadata = metadata.with(currentMessage.getMetadata());
+                metadata = currentMessage.getMetadata().with(metadata);
             }
         }
         return message.withMetadata(metadata.with(currentCorrelationData()));
