@@ -174,7 +174,7 @@ public class DefaultTracking implements Tracking {
             Object result = Invocation.performInvocation(h::invoke);
             return result instanceof CompletableFuture ? ((CompletableFuture<Object>) result)
                     .exceptionally(e -> message.apply(m -> processError(e, message, h, handler, config))) : result;
-        } catch (Exception e) {
+        } catch (Throwable e) {
             return processError(e, message, h, handler, config);
         }
     }
