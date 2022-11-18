@@ -40,6 +40,8 @@ import static io.fluxcapacitor.common.MessageType.NOTIFICATION;
 import static io.fluxcapacitor.common.MessageType.QUERY;
 import static io.fluxcapacitor.common.MessageType.RESULT;
 import static io.fluxcapacitor.common.MessageType.SCHEDULE;
+import static io.fluxcapacitor.common.MessageType.WEBREQUEST;
+import static io.fluxcapacitor.common.MessageType.WEBRESPONSE;
 import static io.fluxcapacitor.common.ObjectUtils.memoize;
 import static io.fluxcapacitor.common.ServicePathBuilder.consumerPath;
 import static io.fluxcapacitor.common.ServicePathBuilder.eventSourcingPath;
@@ -63,7 +65,7 @@ public class TestServer {
 
     public static void start(int port) {
         PathHandler pathHandler = path();
-        for (MessageType messageType : Arrays.asList(METRICS, EVENT, COMMAND, QUERY, RESULT, ERROR)) {
+        for (MessageType messageType : Arrays.asList(METRICS, EVENT, COMMAND, QUERY, RESULT, ERROR, WEBREQUEST, WEBRESPONSE)) {
             pathHandler = deploy(projectId -> new ProducerEndpoint(getMessageStore(projectId, messageType)),
                                  format("/%s/", producerPath(messageType)), pathHandler);
             pathHandler = deploy(projectId -> new ConsumerEndpoint(getMessageStore(projectId, messageType), messageType),
