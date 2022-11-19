@@ -18,32 +18,44 @@ import lombok.SneakyThrows;
 import org.springframework.beans.factory.BeanFactoryUtils;
 import org.springframework.context.annotation.ConditionContext;
 import org.springframework.context.annotation.Conditional;
+import org.springframework.core.annotation.Order;
 import org.springframework.core.type.AnnotatedTypeMetadata;
 import org.springframework.core.type.MethodMetadata;
-import org.springframework.util.ClassUtils;
 
 import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
+import static org.springframework.util.ClassUtils.forName;
+
 @Target({ElementType.METHOD, ElementType.TYPE})
 @Retention(RetentionPolicy.RUNTIME)
 @Conditional(ConditionalOnMissingBean.Condition.class)
 public @interface ConditionalOnMissingBean {
 
+    Class<?> value() default void.class;
+
     @SuppressWarnings({"NullableProblems", "ConstantConditions"})
+    @Order
     class Condition implements org.springframework.context.annotation.Condition {
         @Override
         @SneakyThrows
         public boolean matches(ConditionContext context, AnnotatedTypeMetadata metadata) {
             if (metadata instanceof MethodMetadata) {
-                Class<?> type =
-                        ClassUtils.forName(((MethodMetadata) metadata).getReturnTypeName(), context.getClassLoader());
+                Class<?> type = (Class<?>) metadata.getAllAnnotationAttributes(
+                        ConditionalOnMissingBean.class.getName()).getFirst("value");
+                if (void.class.equals(type)) {
+                    type = forName(((MethodMetadata) metadata).getReturnTypeName(), context.getClassLoader());
+                }
                 return BeanFactoryUtils.beanNamesForTypeIncludingAncestors(context.getBeanFactory(), type).length == 0;
             }
-            Class<?> type =
-                    ClassUtils.forName(metadata.getAnnotations().get(ConditionalOnMissingBean.class).getSource().toString(), context.getClassLoader());
+            Class<?> type = (Class<?>) metadata.getAllAnnotationAttributes(ConditionalOnMissingBean.class.getName())
+                    .getFirst("value");
+            if (void.class.equals(type)) {
+                type = forName(metadata.getAnnotations().get(ConditionalOnMissingBean.class).getSource().toString(),
+                               context.getClassLoader());
+            }
             String[] beanNames = BeanFactoryUtils.beanNamesForTypeIncludingAncestors(context.getBeanFactory(), type);
             return beanNames.length == 0;
         }

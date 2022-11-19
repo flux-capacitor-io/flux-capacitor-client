@@ -29,6 +29,7 @@ import io.fluxcapacitor.javaclient.tracking.handling.authentication.User;
 import io.fluxcapacitor.javaclient.tracking.handling.authentication.UserProvider;
 import lombok.Value;
 import lombok.extern.slf4j.Slf4j;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -68,6 +69,13 @@ public class FluxCapacitorSpringConfigTest {
     @BeforeAll
     static void beforeAll() {
         System.setProperty("existingProperty", "test");
+        System.setProperty("emptyProperty", "");
+    }
+
+    @AfterEach
+    void tearDown() {
+        System.clearProperty("existingProperty");
+        System.clearProperty("emptyProperty");
     }
 
     @Autowired
@@ -101,6 +109,11 @@ public class FluxCapacitorSpringConfigTest {
     @Test
     void testConditionalPropertyMissing() {
         assertThrows(NoSuchBeanDefinitionException.class, () -> beanFactory.getBean(ConditionalPropertyMissing.class));
+    }
+
+    @Test
+    void testConditionalPropertyEmpty() {
+        assertThrows(NoSuchBeanDefinitionException.class, () -> beanFactory.getBean(ConditionalPropertyEmpty.class));
     }
 
     @Test
@@ -159,7 +172,7 @@ public class FluxCapacitorSpringConfigTest {
         }
 
         @Bean
-        @ConditionalOnMissingBean
+        @ConditionalOnMissingBean(UserProvider.class)
         public UserProvider userProvider() {
             return mockUserProvider;
         }
@@ -190,6 +203,12 @@ public class FluxCapacitorSpringConfigTest {
     @ConditionalOnProperty("missingProperty")
     @Component
     public static class ConditionalPropertyMissing {
+    }
+
+    @Value
+    @ConditionalOnProperty("emptyProperty")
+    @Component
+    public static class ConditionalPropertyEmpty {
     }
 
     @Value

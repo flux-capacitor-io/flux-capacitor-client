@@ -28,12 +28,10 @@ import java.lang.annotation.Target;
 
 @Target({ElementType.METHOD, ElementType.TYPE})
 @Retention(RetentionPolicy.RUNTIME)
-@Conditional(ConditionalOnProperty.Condition.class)
-public @interface ConditionalOnProperty {
+@Conditional(ConditionalOnMissingProperty.Condition.class)
+public @interface ConditionalOnMissingProperty {
 
     String value();
-
-    String pattern() default ".+";
 
     @Order(Ordered.HIGHEST_PRECEDENCE)
     @SuppressWarnings("ConstantConditions")
@@ -42,12 +40,9 @@ public @interface ConditionalOnProperty {
         @SneakyThrows
         public boolean matches(ConditionContext context, AnnotatedTypeMetadata metadata) {
             String value = context.getEnvironment().getProperty(
-                    metadata.getAllAnnotationAttributes(ConditionalOnProperty.class.getName()).getFirst("value")
+                    metadata.getAllAnnotationAttributes(ConditionalOnMissingProperty.class.getName()).getFirst("value")
                             .toString());
-            String pattern =
-                    metadata.getAllAnnotationAttributes(ConditionalOnProperty.class.getName()).getFirst("pattern")
-                            .toString();
-            return value != null && value.matches(pattern);
+            return value == null || value.isEmpty();
         }
     }
 
