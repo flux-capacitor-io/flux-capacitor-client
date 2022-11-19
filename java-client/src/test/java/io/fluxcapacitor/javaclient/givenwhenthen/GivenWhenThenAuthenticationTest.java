@@ -20,10 +20,10 @@ import io.fluxcapacitor.javaclient.tracking.handling.HandleCommand;
 import io.fluxcapacitor.javaclient.tracking.handling.HandleQuery;
 import io.fluxcapacitor.javaclient.tracking.handling.authentication.AbstractUserProvider;
 import io.fluxcapacitor.javaclient.tracking.handling.authentication.ForbidsRole;
+import io.fluxcapacitor.javaclient.tracking.handling.authentication.MockUser;
 import io.fluxcapacitor.javaclient.tracking.handling.authentication.RequiresRole;
 import io.fluxcapacitor.javaclient.tracking.handling.authentication.UnauthorizedException;
 import io.fluxcapacitor.javaclient.tracking.handling.authentication.User;
-import lombok.AllArgsConstructor;
 import lombok.Value;
 import org.junit.jupiter.api.Test;
 
@@ -32,8 +32,6 @@ import java.lang.annotation.Inherited;
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
-import java.util.Arrays;
-import java.util.List;
 
 import static java.lang.annotation.ElementType.TYPE;
 
@@ -193,26 +191,6 @@ public class GivenWhenThenAuthenticationTest {
 
     public enum MockRole {
         modify, delete
-    }
-
-    @Value
-    @AllArgsConstructor
-    public static class MockUser implements User {
-        List<String> roles;
-
-        public MockUser(String... roles) {
-            this(Arrays.asList(roles));
-        }
-
-        @Override
-        public boolean hasRole(String role) {
-            return roles.contains(role);
-        }
-
-        @Override
-        public String getName() {
-            return "mockUser";
-        }
     }
 
     public class MockUserProvider extends AbstractUserProvider {

@@ -15,8 +15,11 @@
 package io.fluxcapacitor.javaclient.tracking.handling.authentication;
 
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
+import io.fluxcapacitor.common.ThrowingRunnable;
+import lombok.SneakyThrows;
 
 import java.security.Principal;
+import java.util.concurrent.Callable;
 
 @JsonTypeInfo(use = JsonTypeInfo.Id.CLASS)
 public interface User extends Principal {
@@ -26,6 +29,25 @@ public interface User extends Principal {
     @SuppressWarnings("unchecked")
     static <U extends User> U getCurrent() {
         return (U) current.get();
+    }
+
+    @SneakyThrows
+    default <T> T apply(Callable<T> f) {
+        User previousUser = User.getCurrent();
+        try {
+            User.current.set(this);
+            return f.call();
+        } finally {
+            User.current.set(previousUser);
+        }
+    }
+
+    @SneakyThrows
+    default void run(ThrowingRunnable f) {
+        apply(() -> {
+            f.run();
+            return null;
+        });
     }
 
     boolean hasRole(String role);

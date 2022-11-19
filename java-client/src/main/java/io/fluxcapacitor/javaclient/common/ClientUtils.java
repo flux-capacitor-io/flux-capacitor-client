@@ -14,11 +14,11 @@
 
 package io.fluxcapacitor.javaclient.common;
 
+import io.fluxcapacitor.common.ThrowingRunnable;
 import io.fluxcapacitor.javaclient.tracking.handling.LocalHandler;
 import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
 
-import java.lang.reflect.Executable;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.Collection;
@@ -35,7 +35,7 @@ import static io.fluxcapacitor.common.reflection.ReflectionUtils.getTypeAnnotati
 
 @Slf4j
 public class ClientUtils {
-    private static final BiFunction<Class<?>, Executable, Optional<LocalHandler>> localHandlerCache = memoize(
+    private static final BiFunction<Class<?>, java.lang.reflect.Executable, Optional<LocalHandler>> localHandlerCache = memoize(
             (target, method) -> getAnnotation(method, LocalHandler.class)
                     .or(() -> Optional.ofNullable(getTypeAnnotation(target, LocalHandler.class))));
 
@@ -69,21 +69,16 @@ public class ClientUtils {
         runnable.run();
     }
 
-    @FunctionalInterface
-    public interface ThrowingRunnable {
-        void run() throws Exception;
-    }
-
-    public static boolean isLocalHandler(Class<?> target, Executable method) {
+    public static boolean isLocalHandler(Class<?> target, java.lang.reflect.Executable method) {
         return getLocalHandlerAnnotation(target, method).map(LocalHandler::value).orElse(false);
     }
 
-    public static boolean isTrackingHandler(Class<?> target, Executable method) {
+    public static boolean isTrackingHandler(Class<?> target, java.lang.reflect.Executable method) {
         return getLocalHandlerAnnotation(target, method).map(l -> !l.value() || l.allowExternalMessages())
                 .orElse(true);
     }
 
-    public static Optional<LocalHandler> getLocalHandlerAnnotation(Class<?> target, Executable method) {
+    public static Optional<LocalHandler> getLocalHandlerAnnotation(Class<?> target, java.lang.reflect.Executable method) {
         return localHandlerCache.apply(target, method);
     }
 

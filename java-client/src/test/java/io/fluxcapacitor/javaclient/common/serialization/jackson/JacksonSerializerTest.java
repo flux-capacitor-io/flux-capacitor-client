@@ -22,9 +22,14 @@ import com.fasterxml.jackson.databind.node.TextNode;
 import io.fluxcapacitor.common.api.Data;
 import io.fluxcapacitor.common.serialization.Revision;
 import io.fluxcapacitor.javaclient.common.serialization.DeserializingObject;
+import io.fluxcapacitor.javaclient.common.serialization.FilterContent;
 import io.fluxcapacitor.javaclient.common.serialization.SerializationException;
 import io.fluxcapacitor.javaclient.common.serialization.casting.Downcast;
 import io.fluxcapacitor.javaclient.common.serialization.casting.Upcast;
+import io.fluxcapacitor.javaclient.tracking.handling.authentication.MockUser;
+import io.fluxcapacitor.javaclient.tracking.handling.authentication.User;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
 import lombok.Value;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -41,6 +46,7 @@ import static java.util.Arrays.asList;
 import static java.util.Collections.singletonMap;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotSame;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -173,15 +179,53 @@ class JacksonSerializerTest {
         }
     }
 
+    @Nested
+    class ContentFilterTests {
+
+        private final ComplexObject complex = new ComplexObject(new ComplexObject.Child("bar", 123), 0.23);
+
+        @Test
+        void filterFieldFromChild() {
+            var output = serializer.filterContent(complex, new MockUser("normal"));
+            assertEquals(123, output.getChild().getNumber());
+            assertNull(output.getChild().getFoo());
+        }
+
+        @Test
+        void removeNestedObject() {
+            var output = serializer.filterContent(complex, new MockUser("unfit"));
+            assertNull(output.getChild());
+        }
+
+        @Test
+        void dontFilterFieldIfAdmin() {
+            var output = serializer.filterContent(complex, new MockUser("admin"));
+            assertEquals(complex, output);
+        }
+
+        @Test
+        void removeFromArray() {
+            var output = serializer.filterContent(List.of(complex.getChild()), new MockUser("unfit"));
+            assertTrue(output.isEmpty());
+        }
+    }
+
     @Value
     static class ComplexObject {
         Child child;
         double dbl;
 
         @Value
+        @AllArgsConstructor
+        @Builder(toBuilder = true)
         static class Child {
             String foo;
             int number;
+
+            @FilterContent
+            Child removeFoo(User viewer) {
+                return viewer.hasRole("admin") ? this : viewer.hasRole("unfit") ? null : toBuilder().foo(null).build();
+            }
         }
     }
 

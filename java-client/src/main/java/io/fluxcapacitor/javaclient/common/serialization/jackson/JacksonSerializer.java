@@ -32,6 +32,7 @@ import io.fluxcapacitor.javaclient.common.serialization.casting.Caster;
 import io.fluxcapacitor.javaclient.common.serialization.casting.CasterChain;
 import io.fluxcapacitor.javaclient.common.serialization.casting.Converter;
 import io.fluxcapacitor.javaclient.persisting.search.DocumentSerializer;
+import io.fluxcapacitor.javaclient.tracking.handling.authentication.User;
 import lombok.Getter;
 import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
@@ -52,6 +53,7 @@ public class JacksonSerializer extends AbstractSerializer<JsonNode> implements D
 
     @Getter
     private final ObjectMapper objectMapper;
+    private final ObjectMapper filterContentObjectMapper;
     private final Function<String, JavaType> typeCache = memoize(this::getJavaType);
     private final Function<Type, String> typeStringCache = memoize(this::getCanonicalType);
     private final Caster<Data<JsonNode>> jsonNodeUpcaster;
@@ -76,6 +78,7 @@ public class JacksonSerializer extends AbstractSerializer<JsonNode> implements D
     public JacksonSerializer(ObjectMapper objectMapper, Collection<?> casterCandidates, Converter<JsonNode> converter) {
         super(casterCandidates, converter, "application/json");
         this.objectMapper = objectMapper;
+        this.filterContentObjectMapper = FilteringSerializer.installSerializer(objectMapper.copy());
         this.jsonNodeUpcaster = CasterChain.create(casterCandidates, JsonNode.class, false);
         this.inverter = new JacksonInverter(objectMapper);
     }
@@ -165,5 +168,16 @@ public class JacksonSerializer extends AbstractSerializer<JsonNode> implements D
     @Override
     public Object doClone(Object value) {
         return ReflectionUtils.copyFields(value, doConvert(objectMapper.createObjectNode(), value.getClass()));
+    }
+
+    @Override
+    @SuppressWarnings("unchecked")
+    public <T> T filterContent(T value, User viewer) {
+        try {
+            return viewer.apply(() -> filterContentObjectMapper.convertValue(value, (Class<T>) value.getClass()));
+        } catch (Exception e) {
+            log.warn("Failed to filter content (type {}) for viewer {}", value.getClass(), viewer, e);
+            return value;
+        }
     }
 }
