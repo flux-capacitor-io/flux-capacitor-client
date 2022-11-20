@@ -49,8 +49,16 @@ public @interface Trigger {
     Class<?>[] value() default {};
 
     /**
-     * Filter what trigger messages may be injected. Parameters are only injected if the trigger message type
-     * is contained in the returned array, or if the array is left empty.
+     * Filter what trigger messages may be injected. Parameters are only injected if the trigger message type is
+     * contained in the returned array, or if the array is left empty.
      */
     MessageType[] messageType() default {};
+
+    /**
+     * Filter on the name of the consumer that produced the handled message. If multiple values are given, the match is
+     * made if any of the mentioned consumers produced the message.
+     * <p>
+     * This makes it easy to e.g. track results or errors produced by one or more consumers.
+     */
+    String[] consumer() default {};
 }

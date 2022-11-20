@@ -6,6 +6,7 @@ import io.fluxcapacitor.javaclient.MockException;
 import io.fluxcapacitor.javaclient.common.Message;
 import io.fluxcapacitor.javaclient.common.serialization.DeserializingMessage;
 import io.fluxcapacitor.javaclient.test.TestFixture;
+import io.fluxcapacitor.javaclient.tracking.Consumer;
 import lombok.Value;
 import org.junit.jupiter.api.Test;
 
@@ -53,6 +54,12 @@ class TriggerParameterResolverTest {
         testFixture.whenQuery(new TriggerAsPayload("some result")).expectNoEvents();
     }
 
+    @Test
+    void consumerIsChecked() {
+        testFixture.whenCommand(new ThrowsOther("some error")).expectNoEvents();
+    }
+
+    @Consumer(name = "main")
     static class MainHandler {
         @HandleCommand
         String handle(HasResult command) {
@@ -67,6 +74,11 @@ class TriggerParameterResolverTest {
         @HandleCommand
         void handle(Throws command) {
             throw new MockException(command.getErrorMessage());
+        }
+
+        @HandleCommand
+        void handle(ThrowsOther command) {
+            throw new IllegalCommandException(command.getErrorMessage());
         }
     }
 
@@ -92,7 +104,12 @@ class TriggerParameterResolverTest {
         }
 
         @HandleError
-        void handle(Exception error, @Trigger Throws trigger) {
+        void handle(MockException error, @Trigger(consumer = "main") Throws trigger) {
+            FluxCapacitor.publishEvent(new ResultReceived(error.getMessage(), trigger.getClass()));
+        }
+
+        @HandleError
+        void handle(IllegalCommandException error, @Trigger(consumer = "wrongConsumer") Throws trigger) {
             FluxCapacitor.publishEvent(new ResultReceived(error.getMessage(), trigger.getClass()));
         }
     }
@@ -140,6 +157,11 @@ class TriggerParameterResolverTest {
 
     @Value
     static class Throws {
+        String errorMessage;
+    }
+
+    @Value
+    static class ThrowsOther {
         String errorMessage;
     }
 

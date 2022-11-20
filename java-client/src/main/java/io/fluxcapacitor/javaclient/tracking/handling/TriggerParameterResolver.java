@@ -54,6 +54,10 @@ public class TriggerParameterResolver implements ParameterResolver<HasMessage> {
                 .filter(type -> Arrays.stream(trigger.messageType()).anyMatch(t -> t == type)).isEmpty()) {
             return false;
         }
+        if (trigger.consumer().length > 0 && getConsumer(message)
+                .filter(type -> Arrays.asList(trigger.consumer()).contains(type)).isEmpty()) {
+            return false;
+        }
         return getTriggerClass(message).filter(triggerClass -> {
             var parameterType = HasMessage.class.isAssignableFrom(parameter.getType())
                     ? Object.class : parameter.getType();
@@ -107,6 +111,10 @@ public class TriggerParameterResolver implements ParameterResolver<HasMessage> {
                         return Optional.empty();
                     }
                 });
+    }
+
+    protected Optional<String> getConsumer(HasMessage message) {
+        return ofNullable(message.getMetadata().get(correlationDataProvider.getConsumerKey()));
     }
 
     protected Optional<DeserializingMessage> getTriggerMessage(long index, Class<?> type, MessageType messageType) {
