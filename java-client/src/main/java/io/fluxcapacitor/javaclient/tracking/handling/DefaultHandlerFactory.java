@@ -17,26 +17,28 @@ package io.fluxcapacitor.javaclient.tracking.handling;
 import io.fluxcapacitor.common.MessageType;
 import io.fluxcapacitor.common.handling.Handler;
 import io.fluxcapacitor.common.handling.HandlerConfiguration;
+import io.fluxcapacitor.common.handling.HandlerFilter;
 import io.fluxcapacitor.common.handling.HandlerInspector;
+import io.fluxcapacitor.common.handling.MessageFilter;
 import io.fluxcapacitor.common.handling.ParameterResolver;
+import io.fluxcapacitor.javaclient.common.HasMessage;
 import io.fluxcapacitor.javaclient.common.serialization.DeserializingMessage;
 import io.fluxcapacitor.javaclient.web.HandleWeb;
 import io.fluxcapacitor.javaclient.web.WebRequest;
 import lombok.RequiredArgsConstructor;
 
 import java.lang.annotation.Annotation;
-import java.lang.reflect.Executable;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.function.BiPredicate;
+import java.util.stream.Stream;
 
 import static io.fluxcapacitor.common.handling.HandlerInspector.hasHandlerMethods;
 
 @RequiredArgsConstructor
 public class DefaultHandlerFactory implements HandlerFactory {
-    private static final Map<MessageType, BiPredicate<? super DeserializingMessage, Executable>> messageFilterCache =
+    private static final Map<MessageType, MessageFilter<? super DeserializingMessage>> messageFilterCache =
             new ConcurrentHashMap<>();
     private final MessageType messageType;
     private final HandlerInterceptor handlerInterceptor;
@@ -44,11 +46,11 @@ public class DefaultHandlerFactory implements HandlerFactory {
 
     @Override
     public Optional<Handler<DeserializingMessage>> createHandler(Object target, String consumer,
-                                                                 BiPredicate<Class<?>, Executable> handlerFilter) {
+                                                                 HandlerFilter handlerFilter) {
         return Optional.ofNullable(getHandlerAnnotation(messageType))
                 .map(a -> HandlerConfiguration.<DeserializingMessage>builder()
                         .methodAnnotation(a).handlerFilter(handlerFilter)
-                        .messageFilter(getMessageFilter(messageType))
+                        .messageFilter(getMessageFilter(messageType, parameterResolvers))
                         .build())
                 .filter(config -> hasHandlerMethods(target.getClass(), config))
                 .map(config -> handlerInterceptor.wrap(
@@ -80,12 +82,17 @@ public class DefaultHandlerFactory implements HandlerFactory {
         }
     }
 
-    private static BiPredicate<? super DeserializingMessage, Executable> getMessageFilter(MessageType messageType) {
+    private static MessageFilter<? super DeserializingMessage> getMessageFilter(
+            MessageType messageType, List<ParameterResolver<? super DeserializingMessage>> parameterResolvers) {
         return messageFilterCache.computeIfAbsent(messageType, t -> {
+            @SuppressWarnings("unchecked")
+            var result = parameterResolvers.stream().flatMap(r -> r instanceof MessageFilter<?>
+                            ? Stream.of((MessageFilter<HasMessage>) r) : Stream.empty())
+                    .reduce(MessageFilter::and).orElseGet(() -> (m, a) -> true);
             if (t == MessageType.WEBREQUEST) {
-                return WebRequest.getWebRequestFilter();
+                result = WebRequest.getWebRequestFilter().and(result);
             }
-            return (m, a) -> true;
+            return result;
         });
     }
 }

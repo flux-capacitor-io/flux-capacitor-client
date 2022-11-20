@@ -25,8 +25,11 @@ import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
 /**
- * Annotation to be placed on a message handler parameter. If present, the message that triggered the handled message is
- * injected into the parameter if the parameter matches the trigger message.
+ * Annotation to be placed on a message handler parameter or message handler method. The handler is only invoked if the
+ * trigger for the message matches the requirements configured in the annotation.
+ * <p>
+ * If present on a parameter, the message that triggered the handled message is injected into the parameter if the
+ * parameter type is assignable from the trigger message type.
  * <p>
  * This is typically useful when handling results (using {@link HandleResult}) or errors (using {@link HandleError}). In
  * those handlers it is often useful to have access to the message that triggered the result or error.
@@ -35,9 +38,11 @@ import java.lang.annotation.Target;
  * {@link DeserializingMessage}. Using {@link #value()} it is possible to filter what trigger messages to listen for. If
  * {@link #value()} is left empty any trigger that matches the parameter is injected. Using {@link #messageType()} it is
  * possible to filter the {@link MessageType} of the trigger message.
+ * <p>
+ * It is also possible to only listen for messages that were triggered by a given consumer using {@link #consumer()}.
  */
 @Documented
-@Target(ElementType.PARAMETER)
+@Target({ElementType.PARAMETER, ElementType.METHOD})
 @Retention(RetentionPolicy.RUNTIME)
 public @interface Trigger {
     /**

@@ -18,6 +18,7 @@ import io.fluxcapacitor.common.Guarantee;
 import io.fluxcapacitor.common.MessageType;
 import io.fluxcapacitor.common.Registration;
 import io.fluxcapacitor.common.handling.Handler;
+import io.fluxcapacitor.common.handling.HandlerFilter;
 import io.fluxcapacitor.common.handling.HandlerInvoker;
 import io.fluxcapacitor.common.handling.Invocation;
 import io.fluxcapacitor.javaclient.FluxCapacitor;
@@ -26,12 +27,10 @@ import io.fluxcapacitor.javaclient.common.serialization.DeserializingMessage;
 import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
-import java.lang.reflect.Executable;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CopyOnWriteArrayList;
-import java.util.function.BiPredicate;
 
 import static io.fluxcapacitor.common.reflection.ReflectionUtils.asInstance;
 import static io.fluxcapacitor.javaclient.common.ClientUtils.getLocalHandlerAnnotation;
@@ -45,7 +44,7 @@ public class LocalHandlerRegistry implements HandlerRegistry {
 
     @SuppressWarnings("unchecked")
     @Override
-    public Registration registerHandler(Object target, BiPredicate<Class<?>, Executable> handlerFilter) {
+    public Registration registerHandler(Object target, HandlerFilter handlerFilter) {
         if (target instanceof Handler<?>) {
             localHandlers.add((Handler<DeserializingMessage>) target);
             return () -> localHandlers.remove(target);

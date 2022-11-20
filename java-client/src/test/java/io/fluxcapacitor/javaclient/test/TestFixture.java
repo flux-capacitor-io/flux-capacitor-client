@@ -20,6 +20,7 @@ import io.fluxcapacitor.common.Registration;
 import io.fluxcapacitor.common.api.Data;
 import io.fluxcapacitor.common.api.SerializedMessage;
 import io.fluxcapacitor.common.api.tracking.MessageBatch;
+import io.fluxcapacitor.common.handling.HandlerFilter;
 import io.fluxcapacitor.common.handling.HandlerInvoker;
 import io.fluxcapacitor.common.reflection.ReflectionUtils;
 import io.fluxcapacitor.common.serialization.JsonUtils;
@@ -52,7 +53,6 @@ import lombok.SneakyThrows;
 import lombok.experimental.Accessors;
 import lombok.extern.slf4j.Slf4j;
 
-import java.lang.reflect.Executable;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
@@ -71,7 +71,6 @@ import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeoutException;
-import java.util.function.BiPredicate;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.UnaryOperator;
@@ -210,7 +209,7 @@ public class TestFixture implements Given, When {
             return this;
         }
         FluxCapacitor fluxCapacitor = getFluxCapacitor();
-        BiPredicate<Class<?>, Executable> handlerFilter = (c, e) -> true;
+        HandlerFilter handlerFilter = (c, e) -> true;
         var registration = fluxCapacitor.apply(f -> handlers.stream().flatMap(h -> Stream
                         .of(fluxCapacitor.commandGateway().registerHandler(h, handlerFilter),
                             fluxCapacitor.queryGateway().registerHandler(h, handlerFilter),

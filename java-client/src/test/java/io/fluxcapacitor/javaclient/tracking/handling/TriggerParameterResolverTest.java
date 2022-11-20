@@ -35,7 +35,7 @@ class TriggerParameterResolverTest {
     @Test
     void triggerAsMessage_multipleTriggers() {
         testFixture.whenCommand(new TriggerAsMessage2("some result"))
-                .expectEvents(new ResultReceived("some result", TriggerAsMessage2.class));
+                .expectOnlyEvents(new ResultReceived("some result", TriggerAsMessage2.class));
     }
 
     @Test
@@ -57,6 +57,12 @@ class TriggerParameterResolverTest {
     @Test
     void consumerIsChecked() {
         testFixture.whenCommand(new ThrowsOther("some error")).expectNoEvents();
+    }
+
+    @Test
+    void triggerAsMethodAnnotation() {
+        testFixture.whenCommand(new TriggerOnMethod("some result"))
+                .expectOnlyEvents(new ResultReceived("some result", TriggerOnMethod.class));
     }
 
     @Consumer(name = "main")
@@ -112,6 +118,12 @@ class TriggerParameterResolverTest {
         void handle(IllegalCommandException error, @Trigger(consumer = "wrongConsumer") Throws trigger) {
             FluxCapacitor.publishEvent(new ResultReceived(error.getMessage(), trigger.getClass()));
         }
+
+        @HandleResult
+        @Trigger(value = TriggerOnMethod.class, consumer = "main")
+        void handle(String result) {
+            FluxCapacitor.publishEvent(new ResultReceived(result, TriggerOnMethod.class));
+        }
     }
 
 
@@ -152,6 +164,11 @@ class TriggerParameterResolverTest {
 
     @Value
     static class TriggerAsDeserializingMessage implements HasResult {
+        String result;
+    }
+
+    @Value
+    static class TriggerOnMethod implements HasResult {
         String result;
     }
 

@@ -15,6 +15,8 @@
 package io.fluxcapacitor.javaclient.tracking.handling;
 
 import io.fluxcapacitor.common.MessageType;
+import io.fluxcapacitor.common.ObjectUtils;
+import io.fluxcapacitor.common.handling.MessageFilter;
 import io.fluxcapacitor.common.handling.ParameterResolver;
 import io.fluxcapacitor.common.reflection.ReflectionUtils;
 import io.fluxcapacitor.javaclient.common.HasMessage;
@@ -25,19 +27,32 @@ import io.fluxcapacitor.javaclient.publishing.correlation.DefaultCorrelationData
 import lombok.AllArgsConstructor;
 
 import java.lang.annotation.Annotation;
+import java.lang.reflect.Executable;
 import java.lang.reflect.Parameter;
 import java.util.Arrays;
 import java.util.Optional;
 import java.util.function.Function;
+import java.util.function.Predicate;
 import java.util.stream.Stream;
 
+import static io.fluxcapacitor.common.ObjectUtils.memoize;
 import static java.util.Optional.ofNullable;
 
 @AllArgsConstructor
-public class TriggerParameterResolver implements ParameterResolver<HasMessage> {
+public class TriggerParameterResolver implements ParameterResolver<HasMessage>, MessageFilter<HasMessage> {
+    private final Function<Executable, Predicate<HasMessage>> messageFilterCache = memoize(
+            e -> ReflectionUtils.getAnnotation(e, Trigger.class)
+                    .<Predicate<HasMessage>>map(trigger -> (HasMessage m) -> filterMessage(m, trigger))
+                    .orElseGet(ObjectUtils::noOpPredicate));
+
     private final Client client;
     private final Serializer serializer;
     private final DefaultCorrelationDataProvider correlationDataProvider = DefaultCorrelationDataProvider.INSTANCE;
+
+    @Override
+    public boolean test(HasMessage message, Executable executable) {
+        return messageFilterCache.apply(executable).test(message);
+    }
 
     @Override
     public boolean matches(Parameter parameter, Annotation methodAnnotation, HasMessage value, Object target) {
@@ -47,6 +62,15 @@ public class TriggerParameterResolver implements ParameterResolver<HasMessage> {
     @Override
     public boolean filterMessage(HasMessage message, Parameter parameter) {
         Trigger trigger = parameter.getAnnotation(Trigger.class);
+        if (!filterMessage(message, trigger)) {
+            return false;
+        }
+        var parameterType = HasMessage.class.isAssignableFrom(parameter.getType())
+                ? Object.class : parameter.getType();
+        return getTriggerClass(message).filter(parameterType::isAssignableFrom).isPresent();
+    }
+
+    protected boolean filterMessage(HasMessage message, Trigger trigger) {
         if (trigger == null) {
             return false;
         }
@@ -59,11 +83,8 @@ public class TriggerParameterResolver implements ParameterResolver<HasMessage> {
             return false;
         }
         return getTriggerClass(message).filter(triggerClass -> {
-            var parameterType = HasMessage.class.isAssignableFrom(parameter.getType())
-                    ? Object.class : parameter.getType();
             var allowedTypes = trigger.value();
-            return parameterType.isAssignableFrom(triggerClass) &&
-                   (allowedTypes.length == 0
+            return (allowedTypes.length == 0
                     || Arrays.stream(allowedTypes).anyMatch(a -> a.isAssignableFrom(triggerClass)));
         }).isPresent();
     }

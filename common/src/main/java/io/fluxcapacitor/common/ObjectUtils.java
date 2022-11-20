@@ -32,6 +32,7 @@ import java.util.concurrent.CompletionException;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutionException;
 import java.util.function.BiFunction;
+import java.util.function.BiPredicate;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Predicate;
@@ -44,6 +45,18 @@ import static java.util.Optional.ofNullable;
 import static java.util.function.UnaryOperator.identity;
 
 public class ObjectUtils {
+    private static final Predicate<Object> noOpPredicate = v -> true;
+    private static final BiPredicate<Object, Object> noOpBiPredicate = (a, b) -> true;
+
+    @SuppressWarnings("unchecked")
+    public static <T> Predicate<T> noOpPredicate() {
+        return (Predicate<T>) noOpPredicate;
+    }
+
+    @SuppressWarnings("unchecked")
+    public static <T, U> BiPredicate<T, U> noOpBiPredicate() {
+        return (BiPredicate<T, U>) noOpBiPredicate;
+    }
 
     public static <T> Stream<T> iterate(T seed, UnaryOperator<T> f, Predicate<T> breakCondition) {
         return StreamSupport.stream(new BreakingSpliterator<>(Stream.iterate(seed, f), breakCondition), false);

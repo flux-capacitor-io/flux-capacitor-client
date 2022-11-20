@@ -23,7 +23,6 @@ import lombok.experimental.Accessors;
 import java.lang.annotation.Annotation;
 import java.lang.reflect.Executable;
 import java.util.Optional;
-import java.util.function.BiPredicate;
 
 @Value
 @Builder(toBuilder = true)
@@ -31,8 +30,8 @@ import java.util.function.BiPredicate;
 public class HandlerConfiguration<M> {
     Class<? extends Annotation> methodAnnotation;
     @Default boolean invokeMultipleMethods = false;
-    @Default BiPredicate<Class<?>, Executable> handlerFilter = (c, e) -> true;
-    @Default BiPredicate<? super M, Executable> messageFilter = (m, e) -> true;
+    @Default HandlerFilter handlerFilter = (c, e) -> true;
+    @Default MessageFilter<? super M> messageFilter = (m, e) -> true;
 
     public boolean methodMatches(Class<?> c, Executable e) {
         return Optional.ofNullable(methodAnnotation).map(a -> getAnnotation(e).isPresent()).orElse(true)

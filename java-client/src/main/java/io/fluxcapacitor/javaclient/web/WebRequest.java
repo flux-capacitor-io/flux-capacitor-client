@@ -3,6 +3,7 @@ package io.fluxcapacitor.javaclient.web;
 import io.fluxcapacitor.common.SearchUtils;
 import io.fluxcapacitor.common.api.Metadata;
 import io.fluxcapacitor.common.api.SerializedMessage;
+import io.fluxcapacitor.common.handling.MessageFilter;
 import io.fluxcapacitor.javaclient.common.HasMessage;
 import io.fluxcapacitor.javaclient.common.Message;
 import io.fluxcapacitor.javaclient.common.serialization.Serializer;
@@ -26,7 +27,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.function.BiPredicate;
 import java.util.function.Predicate;
 import java.util.regex.Pattern;
 
@@ -44,7 +44,7 @@ public class WebRequest extends Message {
         return new Builder();
     }
 
-    public static BiPredicate<HasMessage, Executable> getWebRequestFilter() {
+    public static MessageFilter<HasMessage> getWebRequestFilter() {
         return (message, executable) -> filterCache.computeIfAbsent(executable, e -> {
             var handleWeb = getAnnotationAs(e, HandleWeb.class, HandleWebParams.class).orElseThrow();
             Predicate<String> pathTest = Optional.of(handleWeb.getValue())

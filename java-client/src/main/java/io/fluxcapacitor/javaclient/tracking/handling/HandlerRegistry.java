@@ -15,14 +15,13 @@
 package io.fluxcapacitor.javaclient.tracking.handling;
 
 import io.fluxcapacitor.common.Registration;
+import io.fluxcapacitor.common.handling.HandlerFilter;
 import io.fluxcapacitor.javaclient.common.Message;
 import io.fluxcapacitor.javaclient.common.serialization.DeserializingMessage;
 import lombok.AllArgsConstructor;
 
-import java.lang.reflect.Executable;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
-import java.util.function.BiPredicate;
 
 public interface HandlerRegistry extends HasLocalHandlers {
 
@@ -50,7 +49,7 @@ public interface HandlerRegistry extends HasLocalHandlers {
         }
 
         @Override
-        public Registration registerHandler(Object target, BiPredicate<Class<?>, Executable> handlerFilter) {
+        public Registration registerHandler(Object target, HandlerFilter handlerFilter) {
             return first.registerHandler(target, handlerFilter).merge(second.registerHandler(target, handlerFilter));
         }
     }

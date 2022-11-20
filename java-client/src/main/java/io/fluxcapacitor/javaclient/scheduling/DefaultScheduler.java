@@ -17,6 +17,7 @@ package io.fluxcapacitor.javaclient.scheduling;
 import io.fluxcapacitor.common.Registration;
 import io.fluxcapacitor.common.api.SerializedMessage;
 import io.fluxcapacitor.common.api.scheduling.SerializedSchedule;
+import io.fluxcapacitor.common.handling.HandlerFilter;
 import io.fluxcapacitor.javaclient.common.serialization.DeserializingMessage;
 import io.fluxcapacitor.javaclient.common.serialization.Serializer;
 import io.fluxcapacitor.javaclient.modeling.Entity;
@@ -25,10 +26,8 @@ import io.fluxcapacitor.javaclient.scheduling.client.SchedulingClient;
 import io.fluxcapacitor.javaclient.tracking.handling.HandlerRegistry;
 import lombok.AllArgsConstructor;
 
-import java.lang.reflect.Executable;
 import java.time.Instant;
 import java.util.Optional;
-import java.util.function.BiPredicate;
 import java.util.stream.Stream;
 
 import static io.fluxcapacitor.common.MessageType.SCHEDULE;
@@ -91,7 +90,7 @@ public class DefaultScheduler implements Scheduler {
         Only used by the TestFixture to simulate scheduling in a single thread
      */
 
-    public Registration registerHandler(Object target, BiPredicate<Class<?>, Executable> handlerFilter) {
+    public Registration registerHandler(Object target, HandlerFilter handlerFilter) {
         return localHandlerRegistry.registerHandler(target, handlerFilter);
     }
 

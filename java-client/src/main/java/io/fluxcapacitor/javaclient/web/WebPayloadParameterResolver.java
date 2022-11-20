@@ -23,6 +23,7 @@ import java.lang.reflect.Parameter;
 import java.util.function.Function;
 
 public class WebPayloadParameterResolver implements ParameterResolver<HasMessage> {
+
     @Override
     public Function<HasMessage, Object> resolve(Parameter p, Annotation methodAnnotation) {
         return m -> m.getPayloadAs(p.getType());
