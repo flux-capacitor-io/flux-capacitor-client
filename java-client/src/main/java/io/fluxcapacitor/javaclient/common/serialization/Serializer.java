@@ -18,7 +18,6 @@ import io.fluxcapacitor.common.MessageType;
 import io.fluxcapacitor.common.api.Data;
 import io.fluxcapacitor.common.api.SerializedMessage;
 import io.fluxcapacitor.common.api.SerializedObject;
-import io.fluxcapacitor.javaclient.tracking.handling.authentication.User;
 
 import java.util.List;
 import java.util.stream.Stream;
@@ -28,7 +27,7 @@ import static java.util.stream.Collectors.toList;
 /**
  * Mechanism to convert objects to a byte array and vice versa.
  */
-public interface Serializer {
+public interface Serializer extends ContentFilter {
 
     /**
      * Serializes an object to a {@link Data} object containing a byte array.
@@ -115,11 +114,4 @@ public interface Serializer {
     Object downcast(Object object, int desiredRevision);
 
     Object downcast(Data<?> data, int desiredRevision);
-
-    /**
-     * Modify given value before it's passed to the given viewer. See {@link FilterContent} for info on how to filter
-     * the value.
-     */
-    <T> T filterContent(T value, User viewer);
-
 }
