@@ -9,6 +9,7 @@ import io.fluxcapacitor.javaclient.tracking.handling.validation.ValidationExcept
 
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.TimeoutException;
 
 import static java.util.stream.Collectors.toMap;
@@ -17,26 +18,27 @@ public class DefaultWebResponseMapper implements WebResponseMapper {
     @Override
     public WebResponse map(Object payload, Metadata metadata) {
         WebResponse.Builder builder = WebResponse.builder().headers(asHeaders(metadata));
+        var status = Optional.ofNullable(WebResponse.getStatusCode(metadata));
         if (payload instanceof Throwable) {
             if (payload instanceof ValidationException || payload instanceof SerializationException) {
-                builder.status(400);
+                builder.status(status.orElse(400));
                 builder.payload(((Exception) payload).getMessage());
             } else if (payload instanceof UnauthorizedException || payload instanceof UnauthenticatedException) {
-                builder.status(401);
+                builder.status(status.orElse(401));
                 builder.payload(((Exception) payload).getMessage());
             } else if (payload instanceof FunctionalException) {
-                builder.status(403);
+                builder.status(status.orElse(403));
                 builder.payload(((Exception) payload).getMessage());
             } else if (payload instanceof TimeoutException
                     || payload instanceof io.fluxcapacitor.javaclient.publishing.TimeoutException) {
-                builder.status(503);
+                builder.status(status.orElse(503));
                 builder.payload("The request has timed out. Please try again later.");
             } else {
-                builder.status(500);
+                builder.status(status.orElse(500));
                 builder.payload("An unexpected error occurred.");
             }
         } else {
-            builder.status(payload == null ? 204 : 200);
+            builder.status(status.orElse(payload == null ? 204 : 200));
             builder.payload(payload);
         }
         return builder.build();
