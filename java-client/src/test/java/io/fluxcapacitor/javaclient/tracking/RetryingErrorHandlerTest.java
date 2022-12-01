@@ -124,7 +124,7 @@ public class RetryingErrorHandlerTest {
                     .whenCommand(123).expectExceptionalResult(MockException.class);
         }
 
-        @Consumer(errorHandler = CustomErrorHandler.class)
+        @Consumer(name = "main", errorHandler = CustomErrorHandler.class)
         @AllArgsConstructor
         class Handler {
             AtomicInteger remainingFailures;

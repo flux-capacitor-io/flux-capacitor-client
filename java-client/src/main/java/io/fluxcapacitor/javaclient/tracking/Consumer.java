@@ -24,10 +24,10 @@ import java.time.temporal.ChronoUnit;
 import static java.time.temporal.ChronoUnit.SECONDS;
 
 @Retention(RetentionPolicy.RUNTIME)
-@Target(ElementType.TYPE)
+@Target({ElementType.TYPE, ElementType.PACKAGE})
 @Documented
 public @interface Consumer {
-    String name() default "";
+    String name();
 
     int threads() default 1;
 

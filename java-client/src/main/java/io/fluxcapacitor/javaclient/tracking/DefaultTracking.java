@@ -57,7 +57,6 @@ import java.util.stream.Stream;
 import static io.fluxcapacitor.common.reflection.ReflectionUtils.asInstance;
 import static io.fluxcapacitor.javaclient.common.ClientUtils.waitForResults;
 import static io.fluxcapacitor.javaclient.common.serialization.DeserializingMessage.handleBatch;
-import static io.fluxcapacitor.javaclient.tracking.ConsumerConfiguration.handlerConfigurations;
 import static java.lang.String.format;
 import static java.util.stream.Collectors.toList;
 import static java.util.stream.Collectors.toMap;
@@ -113,8 +112,8 @@ public class DefaultTracking implements Tracking {
     private Map<ConsumerConfiguration, List<Object>> assignHandlersToConsumers(List<?> handlers) {
         var unassignedHandlers = new ArrayList<Object>(handlers);
         var configurations = Stream.concat(
-                        handlers.stream().flatMap(
-                                h -> handlerConfigurations(h.getClass()).filter(c -> c.getMessageType() == messageType)),
+                        ConsumerConfiguration.configurations(handlers.stream().map(Object::getClass).collect(toList()))
+                                .filter(c -> c.getMessageType() == messageType),
                         this.configurations.stream())
                 .map(config -> config.toBuilder().batchInterceptors(generalBatchInterceptors).build())
                 .collect(toMap(ConsumerConfiguration::getName, Function.identity(), (a, b) -> {

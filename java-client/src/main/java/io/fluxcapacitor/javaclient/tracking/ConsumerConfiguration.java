@@ -28,6 +28,8 @@ import lombok.experimental.Accessors;
 
 import java.time.Duration;
 import java.util.Arrays;
+import java.util.Collection;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -100,33 +102,53 @@ public class ConsumerConfiguration {
                 .build();
     }
 
-    public static Stream<ConsumerConfiguration> handlerConfigurations(@NonNull Class<?> handlerClass) {
-        return Optional.ofNullable(ReflectionUtils.getTypeAnnotation(handlerClass, Consumer.class))
-                .map(c -> ReflectionUtils.getAllMethods(handlerClass).stream()
+    public static Stream<ConsumerConfiguration> configurations(Collection<Class<?>> handlerClasses) {
+        return Stream.concat(handlerClasses.stream().flatMap(ConsumerConfiguration::classConfigurations),
+                             handlerClasses.stream().map(Class::getPackage).distinct().flatMap(
+                                             p -> ReflectionUtils.getPackageAndParentPackages(p).stream()).distinct()
+                                     .sorted(Comparator.comparing(Package::getName).reversed()).flatMap(
+                                             ConsumerConfiguration::packageConfigurations));
+    }
+
+    private static Stream<ConsumerConfiguration> classConfigurations(Class<?> type) {
+        return Optional.ofNullable(ReflectionUtils.getTypeAnnotation(type, Consumer.class))
+                .map(c -> ReflectionUtils.getAllMethods(type).stream()
                         .flatMap(m -> ReflectionUtils.getAnnotation(m, HandleMessage.class).stream())
-                        .map(HandleMessage::value).distinct()
-                        .map(messageType -> ConsumerConfiguration.builder()
-                                .messageType(messageType)
-
-                                .name(c.name().isBlank() ? handlerClass.getName() : c.name())
-                                .prependApplicationName(false)
-                                .handlerFilter(o -> handlerClass.equals(o.getClass()))
-                                .errorHandler(asInstance(c.errorHandler()))
-                                .threads(c.threads())
-                                .maxFetchSize(c.maxFetchSize())
-                                .maxWaitDuration(Duration.of(c.maxWaitDuration(), c.durationUnit()))
-                                .batchInterceptors(Arrays.stream(c.batchInterceptors()).map(
-                                        ReflectionUtils::<BatchInterceptor>asInstance).collect(Collectors.toList()))
-                                .filterMessageTarget(c.filterMessageTarget())
-                                .ignoreSegment(c.ignoreSegment())
-                                .singleTracker(c.singleTracker())
-                                .minIndex(c.minIndex() < 0 ? null : c.minIndex())
-                                .maxIndexExclusive(c.maxIndexExclusive() < 0 ? null : c.maxIndexExclusive())
-                                .exclusive(c.exclusive())
-                                .passive(c.passive())
-                                .typeFilter(c.typeFilter().isBlank() ? null : c.typeFilter())
-
-                                .build()))
+                        .map(HandleMessage::value).distinct().map(messageType -> getConfiguration(
+                                c, h -> h.getClass().equals(type), messageType)))
                 .orElseGet(Stream::empty);
+    }
+
+    private static Stream<ConsumerConfiguration> packageConfigurations(Package p) {
+        return ReflectionUtils.getPackageAnnotation(p, Consumer.class)
+                .map(c -> Arrays.stream(MessageType.values()).map(messageType -> getConfiguration(
+                        c, h -> h.getClass().getPackage().equals(p)
+                                || h.getClass().getPackage().getName().startsWith(p.getName() + "."),
+                        messageType)))
+                .orElseGet(Stream::empty);
+    }
+
+    private static ConsumerConfiguration getConfiguration(
+            Consumer consumer, Predicate<Object> handlerFilter, MessageType messageType) {
+        return ConsumerConfiguration.builder()
+                .name(consumer.name())
+                .handlerFilter(handlerFilter)
+                .messageType(messageType)
+                .prependApplicationName(false)
+                .errorHandler(asInstance(consumer.errorHandler()))
+                .threads(consumer.threads())
+                .maxFetchSize(consumer.maxFetchSize())
+                .maxWaitDuration(Duration.of(consumer.maxWaitDuration(), consumer.durationUnit()))
+                .batchInterceptors(Arrays.stream(consumer.batchInterceptors()).map(
+                        ReflectionUtils::<BatchInterceptor>asInstance).collect(Collectors.toList()))
+                .filterMessageTarget(consumer.filterMessageTarget())
+                .ignoreSegment(consumer.ignoreSegment())
+                .singleTracker(consumer.singleTracker())
+                .minIndex(consumer.minIndex() < 0 ? null : consumer.minIndex())
+                .maxIndexExclusive(consumer.maxIndexExclusive() < 0 ? null : consumer.maxIndexExclusive())
+                .exclusive(consumer.exclusive())
+                .passive(consumer.passive())
+                .typeFilter(consumer.typeFilter().isBlank() ? null : consumer.typeFilter())
+                .build();
     }
 }

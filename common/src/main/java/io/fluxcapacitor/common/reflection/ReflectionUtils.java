@@ -228,6 +228,10 @@ public class ReflectionUtils {
         return result;
     }
 
+    public static <A extends Annotation> Optional<A> getPackageAnnotation(Package p, Class<A> annotationType) {
+        return Optional.ofNullable(p.getAnnotation(annotationType));
+    }
+
     /*
         Read a property
      */
@@ -468,6 +472,30 @@ public class ReflectionUtils {
             }
         }
         throw new IllegalStateException("Could not get parameter index of " + parameter);
+    }
+
+    public static List<Package> getPackageAndParentPackages(Package p) {
+        List<Package> result = new ArrayList<>();
+        while (p != null) {
+            result.add(p);
+            p = getParentPackage(p);
+        }
+        return result;
+    }
+
+    private static Package getParentPackage(Package p) {
+        String name = p.getName();
+        int lastIndex = name.lastIndexOf(".");
+        if (lastIndex < 0) {
+            return null;
+        }
+        String parentName = name.substring(0, lastIndex);
+        for (Package candidate : Package.getPackages()) {
+            if (candidate.getName().equals(parentName)) {
+                return candidate;
+            }
+        }
+        return null;
     }
 
     @Value
