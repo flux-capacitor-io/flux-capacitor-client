@@ -22,11 +22,11 @@ import java.util.concurrent.CompletableFuture;
 
 public interface ResultGateway {
 
-    default void respond(Object response, String target, int requestId) {
+    default CompletableFuture<Void> respond(Object response, String target, int requestId) {
         if (response instanceof Message) {
-            respond(((Message) response).getPayload(), ((Message) response).getMetadata(), target, requestId, Guarantee.NONE);
+            return respond(((Message) response).getPayload(), ((Message) response).getMetadata(), target, requestId, Guarantee.NONE);
         } else {
-            respond(response, Metadata.empty(), target, requestId, Guarantee.NONE);
+            return respond(response, Metadata.empty(), target, requestId, Guarantee.NONE);
         }
     }
 

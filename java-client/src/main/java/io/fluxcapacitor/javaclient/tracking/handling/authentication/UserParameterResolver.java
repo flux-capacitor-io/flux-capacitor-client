@@ -36,6 +36,6 @@ public class UserParameterResolver extends TypedParameterResolver<Object> {
     public Function<Object, Object> resolve(Parameter p, Annotation methodAnnotation) {
         return m -> (m instanceof DeserializingMessage
                 ? Optional.of(((DeserializingMessage) m)) : ofNullable(DeserializingMessage.getCurrent()))
-                .map(DeserializingMessage::getMetadata).map(userProvider::fromMetadata).orElseGet(User::getCurrent);
+                .map(userProvider::fromMessage).orElseGet(User::getCurrent);
     }
 }

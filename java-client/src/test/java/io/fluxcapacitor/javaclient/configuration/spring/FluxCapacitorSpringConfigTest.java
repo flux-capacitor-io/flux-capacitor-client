@@ -15,8 +15,8 @@
 package io.fluxcapacitor.javaclient.configuration.spring;
 
 import com.fasterxml.jackson.databind.node.TextNode;
-import io.fluxcapacitor.common.api.Metadata;
 import io.fluxcapacitor.javaclient.FluxCapacitor;
+import io.fluxcapacitor.javaclient.common.serialization.DeserializingMessage;
 import io.fluxcapacitor.javaclient.common.serialization.casting.Upcast;
 import io.fluxcapacitor.javaclient.configuration.FluxCapacitorBuilder;
 import io.fluxcapacitor.javaclient.persisting.caching.DefaultCache;
@@ -63,7 +63,7 @@ public class FluxCapacitorSpringConfigTest {
     private static final UserProvider mockUserProvider = mock(UserProvider.class);
 
     static {
-        when(mockUserProvider.fromMetadata(any(Metadata.class))).thenReturn(mockUser);
+        when(mockUserProvider.fromMessage(any(DeserializingMessage.class))).thenReturn(mockUser);
     }
 
     @BeforeAll

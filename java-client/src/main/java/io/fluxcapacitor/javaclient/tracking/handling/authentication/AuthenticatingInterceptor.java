@@ -55,10 +55,12 @@ public class AuthenticatingInterceptor implements DispatchInterceptor, HandlerIn
                                                                     String consumer) {
         return m -> {
             User previous = User.getCurrent();
-            User user = userProvider.fromMetadata(m.getMetadata());
+            User user = userProvider.fromMessage(m);
             try {
                 User.current.set(user);
-                assertAuthorized(m.getPayloadClass(), user);
+                if (m.getType() != null) {
+                    assertAuthorized(m.getPayloadClass(), user);
+                }
                 return function.apply(m);
             } finally {
                 User.current.set(previous);
@@ -81,7 +83,7 @@ public class AuthenticatingInterceptor implements DispatchInterceptor, HandlerIn
             var invoker = delegate.findInvoker(m);
             if (invoker.isEmpty() || isAuthorized(delegate.getTarget().getClass(),
                                                   invoker.get().getMethod(),
-                                                  userProvider.fromMetadata(m.getMetadata()))) {
+                                                  userProvider.fromMessage(m))) {
                 return invoker;
             }
             return Optional.empty();

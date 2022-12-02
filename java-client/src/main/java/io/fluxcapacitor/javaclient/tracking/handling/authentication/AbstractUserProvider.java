@@ -15,9 +15,8 @@
 package io.fluxcapacitor.javaclient.tracking.handling.authentication;
 
 import io.fluxcapacitor.common.api.Metadata;
+import io.fluxcapacitor.javaclient.common.serialization.DeserializingMessage;
 import lombok.AllArgsConstructor;
-
-import java.util.Optional;
 
 @AllArgsConstructor
 public abstract class AbstractUserProvider implements UserProvider {
@@ -30,8 +29,8 @@ public abstract class AbstractUserProvider implements UserProvider {
     }
 
     @Override
-    public User fromMetadata(Metadata metadata) {
-        return Optional.ofNullable(metadata.get(metadataKey, userClass)).orElse(null);
+    public User fromMessage(DeserializingMessage message) {
+        return message.getMetadata().get(metadataKey, userClass);
     }
 
     @Override

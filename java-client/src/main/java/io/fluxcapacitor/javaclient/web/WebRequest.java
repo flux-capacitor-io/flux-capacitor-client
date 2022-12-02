@@ -1,5 +1,6 @@
 package io.fluxcapacitor.javaclient.web;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import io.fluxcapacitor.common.SearchUtils;
 import io.fluxcapacitor.common.api.Metadata;
 import io.fluxcapacitor.common.api.SerializedMessage;
@@ -10,6 +11,7 @@ import io.fluxcapacitor.javaclient.common.serialization.Serializer;
 import lombok.AccessLevel;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
+import lombok.Getter;
 import lombok.NonNull;
 import lombok.Setter;
 import lombok.ToString;
@@ -19,16 +21,19 @@ import lombok.experimental.FieldDefaults;
 
 import java.beans.ConstructorProperties;
 import java.lang.reflect.Executable;
+import java.net.HttpCookie;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Predicate;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 
 import static io.fluxcapacitor.common.reflection.ReflectionUtils.getAnnotationAs;
 import static io.fluxcapacitor.javaclient.web.HttpRequestMethod.ANY;
@@ -74,6 +79,10 @@ public class WebRequest extends Message {
     @NonNull String path;
     @NonNull HttpRequestMethod method;
     @NonNull Map<String, List<String>> headers;
+
+    @Getter(lazy = true)
+    @JsonIgnore
+    List<HttpCookie> cookies = Optional.ofNullable(getHeader("Cookie")).map(HttpCookie::parse).orElse(Collections.emptyList());
 
     private WebRequest(Builder builder) {
         super(builder.payload(), Metadata.of("url", builder.url(), "method", builder.method().name(),
@@ -133,6 +142,18 @@ public class WebRequest extends Message {
         return new WebRequest(super.withPayload(payload));
     }
 
+    public String getHeader(String name) {
+        return getHeaders(name).stream().findFirst().orElse(null);
+    }
+
+    public List<String> getHeaders(String name) {
+        return headers.getOrDefault(name, Collections.emptyList());
+    }
+
+    public Optional<HttpCookie> getCookie(String name) {
+        return getCookies().stream().filter(c -> Objects.equals(name, c.getName())).findFirst();
+    }
+
     public static String getUrl(Metadata metadata) {
         return Optional.ofNullable(metadata.get("url")).map(u -> u.startsWith("/") ? u : "/" + u)
                 .orElseThrow(() -> new IllegalStateException("WebRequest is malformed: url is missing"));
@@ -153,18 +174,31 @@ public class WebRequest extends Message {
         return Optional.ofNullable(metadata.get("headers", Map.class)).orElse(Collections.emptyMap());
     }
 
+    public static Optional<HttpCookie> getCookie(Metadata metadata, String name) {
+        return getHeaders(metadata).getOrDefault("Cookie", Collections.emptyList()).stream().findFirst()
+                .flatMap(h -> HttpCookie.parse(h).stream().filter(c -> Objects.equals(name, c.getName())).findFirst());
+    }
+
     @Data
     @Accessors(fluent = true, chain = true)
     @FieldDefaults(level = AccessLevel.PRIVATE)
     public static class Builder {
         String url;
         HttpRequestMethod method;
-        @Setter(AccessLevel.NONE)
         Map<String, List<String>> headers = new HashMap<>();
+
+        @Setter(AccessLevel.NONE)
+        List<HttpCookie> cookies = new ArrayList<>();
+
         Object payload;
 
         public Builder header(String key, String value) {
             headers.computeIfAbsent(key, k -> new ArrayList<>()).add(value);
+            return this;
+        }
+
+        public Builder cookie(HttpCookie cookie) {
+            cookies.add(cookie);
             return this;
         }
 
@@ -183,6 +217,15 @@ public class WebRequest extends Message {
                 }
             }
             return this;
+        }
+
+        public Map<String, List<String>> headers() {
+            var result = headers;
+            if (!cookies.isEmpty()) {
+                result = new HashMap<>(headers);
+                result.put("Cookie", List.of(cookies.stream().map(HttpCookie::toString).collect(Collectors.joining("; "))));
+            }
+            return result;
         }
 
         public WebRequest build() {

@@ -478,7 +478,7 @@ public class DefaultFluxCapacitor implements FluxCapacitor {
             //enable authentication
             if (userProvider != null) {
                 AuthenticatingInterceptor interceptor = new AuthenticatingInterceptor(userProvider);
-                Stream.of(COMMAND, QUERY, SCHEDULE).forEach(type -> {
+                Stream.of(COMMAND, QUERY, SCHEDULE, WEBREQUEST).forEach(type -> {
                     dispatchInterceptors.computeIfPresent(type, (t, i) -> i.andThen(interceptor));
                     handlerInterceptors.computeIfPresent(type, (t, i) -> i.andThen(interceptor));
                 });

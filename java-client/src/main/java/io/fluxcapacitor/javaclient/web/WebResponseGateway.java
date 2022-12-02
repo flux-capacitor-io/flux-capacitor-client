@@ -38,17 +38,28 @@ public class WebResponseGateway implements ResultGateway {
     private final WebResponseMapper webResponseMapper;
 
     @Override
+    public CompletableFuture<Void> respond(Object response, String target, int requestId) {
+        if (response instanceof WebResponse) {
+            return respond((WebResponse) response, target, requestId, Guarantee.NONE);
+        }
+        return ResultGateway.super.respond(response, target, requestId);
+    }
+
+    @Override
     public CompletableFuture<Void> respond(Object payload, Metadata metadata, String target, int requestId, Guarantee guarantee) {
+        return respond(webResponseMapper.map(payload, metadata), target, requestId, guarantee);
+    }
+
+    private CompletableFuture<Void> respond(WebResponse response, String target, int requestId, Guarantee guarantee) {
         try {
-            Message message = dispatchInterceptor.interceptDispatch(
-                    webResponseMapper.map(payload, metadata), WEBRESPONSE);
+            Message message = dispatchInterceptor.interceptDispatch(response, WEBRESPONSE);
             SerializedMessage serializedMessage
                     = dispatchInterceptor.modifySerializedMessage(message.serialize(serializer), message, WEBRESPONSE);
             serializedMessage.setTarget(target);
             serializedMessage.setRequestId(requestId);
             return client.send(guarantee, serializedMessage).asCompletableFuture();
         } catch (Exception e) {
-            throw new GatewayException(String.format("Failed to send response %s", payload), e);
+            throw new GatewayException(String.format("Failed to send response %s", response.getPayload()), e);
         }
     }
 }

@@ -63,6 +63,7 @@ public class DeserializingObject<T, S extends SerializedObject<T, S>> {
     @SneakyThrows
     @SuppressWarnings("unused")
     public Class<?> getPayloadClass() {
-        return ReflectionUtils.classForName(getType());
+        String type = getType();
+        return type == null ? null : ReflectionUtils.classForName(type);
     }
 }

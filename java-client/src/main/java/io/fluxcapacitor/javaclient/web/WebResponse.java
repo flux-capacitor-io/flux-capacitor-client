@@ -8,12 +8,14 @@ import lombok.AccessLevel;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 import lombok.NonNull;
+import lombok.Setter;
 import lombok.ToString;
 import lombok.Value;
 import lombok.experimental.Accessors;
 import lombok.experimental.FieldDefaults;
 
 import java.beans.ConstructorProperties;
+import java.net.HttpCookie;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -21,6 +23,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
 @Value
 @EqualsAndHashCode(callSuper = true)
@@ -108,6 +111,8 @@ public class WebResponse extends Message {
     @FieldDefaults(level = AccessLevel.PRIVATE)
     public static class Builder {
         Map<String, List<String>> headers = new HashMap<>();
+        @Setter(AccessLevel.NONE)
+        List<HttpCookie> cookies = new ArrayList<>();
         Object payload;
         Integer status;
 
@@ -129,8 +134,26 @@ public class WebResponse extends Message {
             return this;
         }
 
+        public Builder cookie(HttpCookie cookie) {
+            cookies.add(cookie);
+            return this;
+        }
+
         public Builder contentType(String contentType) {
             return header("Content-Type", contentType);
+        }
+
+        public Map<String, List<String>> headers() {
+            var result = headers;
+            if (!cookies.isEmpty()) {
+                result = new HashMap<>(headers);
+                result.put("Set-Cookie", cookies.stream().map(WebUtils::toString).collect(Collectors.toList()));
+            }
+            return result;
+        }
+
+        public Integer status() {
+            return status == null ? (payload == null ? 204 : 200) : status;
         }
 
         public WebResponse build() {
