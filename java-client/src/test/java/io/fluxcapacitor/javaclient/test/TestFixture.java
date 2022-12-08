@@ -205,7 +205,7 @@ public class TestFixture implements Given, When {
             return a;
         }));
         if (!synchronous) {
-            getFluxCapacitor().registerHandlers(handlers);
+            this.registration = getFluxCapacitor().registerHandlers(handlers);
             return this;
         }
         FluxCapacitor fluxCapacitor = getFluxCapacitor();
