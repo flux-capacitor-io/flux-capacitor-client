@@ -603,8 +603,8 @@ public class TestFixture implements Given, When {
             return true;
         }
         synchronized (consumers) {
-            if (consumers.values().stream().allMatch(l -> l.stream().noneMatch(
-                    m -> !(m instanceof Schedule) || !((Schedule) m).getDeadline().isAfter(getClock().instant())))) {
+            if (consumers.values().stream().allMatch(l -> l.stream().allMatch(
+                    m -> m instanceof Schedule && ((Schedule) m).getDeadline().isAfter(getClock().instant())))) {
                 consumers.notifyAll();
                 return true;
             }

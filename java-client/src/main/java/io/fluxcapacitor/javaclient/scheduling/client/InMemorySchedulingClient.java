@@ -22,6 +22,7 @@ import io.fluxcapacitor.javaclient.common.serialization.Serializer;
 import io.fluxcapacitor.javaclient.scheduling.Schedule;
 import io.fluxcapacitor.javaclient.tracking.client.InMemoryMessageStore;
 import lombok.NonNull;
+import lombok.Synchronized;
 import lombok.extern.slf4j.Slf4j;
 
 import java.time.Clock;
@@ -53,6 +54,7 @@ public class InMemorySchedulingClient extends InMemoryMessageStore implements Sc
     }
 
     @Override
+    @Synchronized
     public Awaitable schedule(Guarantee guarantee, SerializedSchedule... schedules) {
         List<SerializedSchedule> filtered = Arrays.stream(schedules)
                 .filter(s -> !s.isIfAbsent() || !scheduleIdsByIndex.containsValue(s.getScheduleId()))
@@ -71,12 +73,14 @@ public class InMemorySchedulingClient extends InMemoryMessageStore implements Sc
     }
 
     @Override
+    @Synchronized
     public Awaitable cancelSchedule(String scheduleId, Guarantee guarantee) {
         scheduleIdsByIndex.values().removeIf(s -> s.equals(scheduleId));
         return Awaitable.ready();
     }
 
     @Override
+    @Synchronized
     public SerializedSchedule getSchedule(String scheduleId) {
         return scheduleIdsByIndex.entrySet().stream().filter(e -> scheduleId.equals(e.getValue())).findFirst()
                 .map(e -> {
@@ -90,6 +94,7 @@ public class InMemorySchedulingClient extends InMemoryMessageStore implements Sc
         throw new UnsupportedOperationException("Use method #schedule instead");
     }
 
+    @Synchronized
     public void setClock(@NonNull Clock clock) {
         synchronized (this) {
             this.clock = clock;
@@ -98,6 +103,7 @@ public class InMemorySchedulingClient extends InMemoryMessageStore implements Sc
     }
 
     @SuppressWarnings("OptionalGetWithoutIsPresent")
+    @Synchronized
     public List<Schedule> removeExpiredSchedules(Serializer serializer) {
         Map<Long, String> expiredEntries = scheduleIdsByIndex.headMap(indexFromMillis(clock.millis()), true);
         List<Schedule> result = expiredEntries.entrySet().stream().map(e -> {
@@ -111,6 +117,7 @@ public class InMemorySchedulingClient extends InMemoryMessageStore implements Sc
     }
 
     @SuppressWarnings("OptionalGetWithoutIsPresent")
+    @Synchronized
     public List<Schedule> getSchedules(Serializer serializer) {
         return scheduleIdsByIndex.entrySet().stream().map(e -> {
             SerializedMessage m = getMessage(e.getKey());
