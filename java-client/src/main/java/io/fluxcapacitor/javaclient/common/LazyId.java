@@ -9,7 +9,7 @@ import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 import com.fasterxml.jackson.databind.deser.std.StdScalarDeserializer;
 import com.fasterxml.jackson.databind.ser.std.StdScalarSerializer;
 import io.fluxcapacitor.javaclient.FluxCapacitor;
-import lombok.AllArgsConstructor;
+import lombok.NonNull;
 import lombok.Value;
 import lombok.experimental.NonFinal;
 
@@ -17,7 +17,6 @@ import java.io.IOException;
 
 @Value
 @NonFinal
-@AllArgsConstructor
 @JsonSerialize(using = LazyId.CustomSerializer.class)
 @JsonDeserialize(using = LazyId.CustomDeserializer.class)
 public class LazyId {
@@ -27,7 +26,11 @@ public class LazyId {
     public LazyId() {
     }
 
-    public String getId() {
+    public LazyId(@NonNull Object id) {
+        this.id = id.toString();
+    }
+
+    private String getId() {
         if (id == null) {
             synchronized (this) {
                 if (id == null) {
@@ -54,7 +57,7 @@ public class LazyId {
             if (value == null) {
                 gen.writeNull();
             } else {
-                gen.writeString(value.getId());
+                gen.writeString(value.toString());
             }
         }
     }

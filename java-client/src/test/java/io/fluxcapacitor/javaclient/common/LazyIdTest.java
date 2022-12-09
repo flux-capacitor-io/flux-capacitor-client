@@ -6,6 +6,8 @@ import lombok.Builder;
 import lombok.Value;
 import org.junit.jupiter.api.Test;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
+
 class LazyIdTest {
 
     @Test
@@ -33,6 +35,15 @@ class LazyIdTest {
 
         TestFixture.create().whenApplying(fc -> JsonUtils.convertValue(value.toBuilder().build(), Owner.class))
                 .expectResult(value).<Owner>expectResult(o -> new LazyId("0").equals(o.getId()));
+    }
+
+    @Test
+    void deserializeToOwnerObject() {
+        Owner value = new Owner("test");
+        var testFixture = TestFixture.create();
+        Owner copy = testFixture.getFluxCapacitor().apply(
+                fc -> JsonUtils.fromJson(JsonUtils.asJson(value), Owner.class));
+        assertEquals(value, copy);
     }
 
     @Test
