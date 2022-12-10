@@ -220,6 +220,18 @@ public interface Entity<T> {
         return assertAndApply(new Message(payload, metadata));
     }
 
+    default Entity<T> assertAndApply(Object... events) {
+        return assertAndApply(List.of(events));
+    }
+
+    default Entity<T> assertAndApply(Collection<?> events) {
+        Entity<T> result = this;
+        for (Object event : events) {
+            result = result.assertAndApply(event);
+        }
+        return result;
+    }
+
     default <E extends Exception> Entity<T> assertThat(Validator<T, E> validator) throws E {
         validator.validate(this.get());
         return this;
