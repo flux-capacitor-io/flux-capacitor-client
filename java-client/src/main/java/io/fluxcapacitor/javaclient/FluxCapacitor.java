@@ -456,7 +456,7 @@ public interface FluxCapacitor extends AutoCloseable {
      *
      * @see DocumentStore for more advanced uses.
      */
-    static void index(Object object, String collection) {
+    static void index(Object object, Object collection) {
         get().documentStore().index(object, collection);
     }
 
@@ -465,7 +465,7 @@ public interface FluxCapacitor extends AutoCloseable {
      *
      * @see DocumentStore for more advanced uses.
      */
-    static void index(Object object, String id, String collection) {
+    static void index(Object object, Object id, Object collection) {
         get().documentStore().index(object, id, collection);
     }
 
@@ -474,7 +474,7 @@ public interface FluxCapacitor extends AutoCloseable {
      *
      * @see DocumentStore for more advanced uses.
      */
-    static void index(Object object, String id, String collection, Instant timestamp) {
+    static void index(Object object, Object id, Object collection, Instant timestamp) {
         get().documentStore().index(object, id, collection, timestamp);
     }
 
@@ -483,7 +483,7 @@ public interface FluxCapacitor extends AutoCloseable {
      *
      * @see DocumentStore for more advanced uses.
      */
-    static void index(Object object, String id, String collection, Instant begin, Instant end) {
+    static void index(Object object, Object id, Object collection, Instant begin, Instant end) {
         get().documentStore().index(object, id, collection, begin, end);
     }
 
@@ -496,7 +496,7 @@ public interface FluxCapacitor extends AutoCloseable {
      *
      * @see DocumentStore for more advanced uses.
      */
-    static <T> void index(Collection<? extends T> objects, String collection, Function<? super T, String> idFunction,
+    static <T> void index(Collection<? extends T> objects, Object collection, Function<? super T, String> idFunction,
                           Function<? super T, Instant> timestampFunction, Function<? super T, Instant> endFunction) {
         get().documentStore().index(objects, collection, idFunction, timestampFunction, endFunction);
     }
@@ -506,7 +506,7 @@ public interface FluxCapacitor extends AutoCloseable {
      * <p>
      * Example usage: FluxCapacitor.search("myCollection", "myOtherCollection).query("foo !bar").fetch(100);
      */
-    static Search search(String... collections) {
+    static Search search(Object... collections) {
         return get().documentStore().search(collections);
     }
 
@@ -515,7 +515,7 @@ public interface FluxCapacitor extends AutoCloseable {
      * <p>
      * Example usage: FluxCapacitor.search("myCollection").query("foo !bar").fetch(100);
      */
-    static Search search(String collection) {
+    static Search search(Object collection) {
         return get().documentStore().search(collection);
     }
 

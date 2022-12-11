@@ -62,10 +62,10 @@ public class DefaultDocumentStore implements DocumentStore {
     private final DocumentSerializer serializer;
 
     @Override
-    public CompletableFuture<Void> index(Object object, String id, String collection, Instant begin,
+    public CompletableFuture<Void> index(Object object, Object id, Object collection, Instant begin,
                                          Instant end, Guarantee guarantee, boolean ifNotExists) {
         try {
-            return client.index(singletonList(serializer.toDocument(object, id, collection, begin, end)),
+            return client.index(singletonList(serializer.toDocument(object, id.toString(), collection.toString(), begin, end)),
                                 guarantee, ifNotExists).asCompletableFuture();
         } catch (Exception e) {
             throw new DocumentStoreException(format("Could not store a document %s for id %s", object, id), e);
@@ -73,11 +73,11 @@ public class DefaultDocumentStore implements DocumentStore {
     }
 
     @Override
-    public CompletableFuture<Void> index(Collection<?> objects, String collection,
+    public CompletableFuture<Void> index(Collection<?> objects, Object collection,
                                          String idPath, String beginPath,
                                          String endPath, Guarantee guarantee, boolean ifNotExists) {
         List<Document> documents = objects.stream().map(v -> serializer.toDocument(
-                v, currentIdentityProvider().nextTechnicalId(), collection, null, null)).map(d -> {
+                v, currentIdentityProvider().nextTechnicalId(), collection.toString(), null, null)).map(d -> {
             Document.DocumentBuilder builder = d.toBuilder();
             if (idPath != null) {
                 builder.id(d.getEntryAtPath(idPath).filter(
@@ -107,13 +107,13 @@ public class DefaultDocumentStore implements DocumentStore {
     }
 
     @Override
-    public <T> CompletableFuture<Void> index(Collection<? extends T> objects, String collection,
-                                             Function<? super T, String> idFunction,
+    public <T> CompletableFuture<Void> index(Collection<? extends T> objects, Object collection,
+                                             Function<? super T, ?> idFunction,
                                              Function<? super T, Instant> beginFunction,
                                              Function<? super T, Instant> endFunction, Guarantee guarantee,
                                              boolean ifNotExists) {
         List<Document> documents = objects.stream().map(v -> serializer.toDocument(
-                v, idFunction.apply(v), collection, beginFunction.apply(v),
+                v, idFunction.apply(v).toString(), collection.toString(), beginFunction.apply(v),
                 endFunction.apply(v))).collect(toList());
         try {
             return client.index(documents, guarantee, ifNotExists).asCompletableFuture();
@@ -157,45 +157,45 @@ public class DefaultDocumentStore implements DocumentStore {
     }
 
     @Override
-    public <T> Optional<T> fetchDocument(String id, String collection) {
+    public <T> Optional<T> fetchDocument(Object id, Object collection) {
         try {
-            return client.fetch(new GetDocument(id, collection)).map(serializer::fromDocument);
+            return client.fetch(new GetDocument(id.toString(), collection.toString())).map(serializer::fromDocument);
         } catch (Exception e) {
             throw new DocumentStoreException(format("Could not get document %s from collection %s", id, collection), e);
         }
     }
 
     @Override
-    public <T> Optional<T> fetchDocument(String id, String collection, Class<T> type) {
+    public <T> Optional<T> fetchDocument(Object id, Object collection, Class<T> type) {
         try {
-            return client.fetch(new GetDocument(id, collection)).map(d -> serializer.fromDocument(d, type));
+            return client.fetch(new GetDocument(id.toString(), collection.toString())).map(d -> serializer.fromDocument(d, type));
         } catch (Exception e) {
             throw new DocumentStoreException(format("Could not get document %s from collection %s", id, collection), e);
         }
     }
 
     @Override
-    public CompletableFuture<Void> deleteDocument(String id, String collection) {
+    public CompletableFuture<Void> deleteDocument(Object id, Object collection) {
         try {
-            return client.delete(id, collection, Guarantee.STORED).asCompletableFuture();
+            return client.delete(id.toString(), collection.toString(), Guarantee.STORED).asCompletableFuture();
         } catch (Exception e) {
             throw new DocumentStoreException(format("Could not delete document %s", collection), e);
         }
     }
 
     @Override
-    public CompletableFuture<Void> deleteCollection(String collection) {
+    public CompletableFuture<Void> deleteCollection(Object collection) {
         try {
-            return client.deleteCollection(collection).asCompletableFuture();
+            return client.deleteCollection(collection.toString()).asCompletableFuture();
         } catch (Exception e) {
             throw new DocumentStoreException(format("Could not delete collection %s", collection), e);
         }
     }
 
     @Override
-    public CompletableFuture<Void> createAuditTrail(String collection, Duration retentionTime) {
+    public CompletableFuture<Void> createAuditTrail(Object collection, Duration retentionTime) {
         try {
-            return client.createAuditTrail(new CreateAuditTrail(collection, Optional.ofNullable(
+            return client.createAuditTrail(new CreateAuditTrail(collection.toString(), Optional.ofNullable(
                     retentionTime).map(Duration::getSeconds).orElse(null), Guarantee.STORED)).asCompletableFuture();
         } catch (Exception e) {
             throw new DocumentStoreException(format("Could not create audit trail %s", collection), e);
