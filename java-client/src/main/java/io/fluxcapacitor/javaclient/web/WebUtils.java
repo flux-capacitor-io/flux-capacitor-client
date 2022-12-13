@@ -15,7 +15,7 @@ public class WebUtils {
             sb.append("; ").append("Domain=").append(cookie.getDomain());
         }
         if (!isBlank(cookie.getPath())) {
-            sb.append("; ").append("Path=").append(cookie.getDomain());
+            sb.append("; ").append("Path=").append(cookie.getPath());
         }
         if (cookie.getMaxAge() != -1) {
             sb.append("; ").append("Max-Age=").append(cookie.getMaxAge());
