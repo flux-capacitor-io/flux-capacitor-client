@@ -1,8 +1,13 @@
 package io.fluxcapacitor.javaclient.web;
 
+import lombok.NonNull;
+
 import java.net.HttpCookie;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
+import java.util.Arrays;
+import java.util.List;
+import java.util.stream.Collectors;
 
 import static org.apache.commons.lang3.StringUtils.isBlank;
 
@@ -29,4 +34,10 @@ public class WebUtils {
         return sb.toString();
     }
 
+    public static List<HttpCookie> parseRequestCookieHeader(@NonNull String cookieHeader) {
+        return Arrays.stream(cookieHeader.split(";")).map(c -> {
+            var parts = c.trim().split("=");
+            return new HttpCookie(parts[0].trim(), parts[1].trim());
+        }).collect(Collectors.toList());
+    }
 }

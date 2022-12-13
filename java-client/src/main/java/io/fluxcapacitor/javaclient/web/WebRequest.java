@@ -82,7 +82,8 @@ public class WebRequest extends Message {
 
     @Getter(lazy = true)
     @JsonIgnore
-    List<HttpCookie> cookies = Optional.ofNullable(getHeader("Cookie")).map(HttpCookie::parse).orElse(Collections.emptyList());
+    List<HttpCookie> cookies = Optional.ofNullable(getHeader("Cookie"))
+            .map(WebUtils::parseRequestCookieHeader).orElse(Collections.emptyList());
 
     private WebRequest(Builder builder) {
         super(builder.payload(), Metadata.of("url", builder.url(), "method", builder.method().name(),
@@ -175,8 +176,9 @@ public class WebRequest extends Message {
     }
 
     public static Optional<HttpCookie> getCookie(Metadata metadata, String name) {
-        return getHeaders(metadata).getOrDefault("Cookie", Collections.emptyList()).stream().findFirst()
-                .flatMap(h -> HttpCookie.parse(h).stream().filter(c -> Objects.equals(name, c.getName())).findFirst());
+        return getHeaders(metadata).getOrDefault("Cookie", Collections.emptyList())
+                .stream().findFirst().map(WebUtils::parseRequestCookieHeader).orElseGet(Collections::emptyList)
+                .stream().filter(c -> Objects.equals(c.getName(), name)).findFirst();
     }
 
     @Data
