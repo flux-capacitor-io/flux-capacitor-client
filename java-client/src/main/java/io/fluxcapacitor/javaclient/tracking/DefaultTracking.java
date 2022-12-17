@@ -150,9 +150,27 @@ public class DefaultTracking implements Tracking {
                         .forEach(m -> handlers.forEach(h -> tryHandle(m, h, configuration)));
     }
 
+    @SuppressWarnings("unchecked")
     protected void tryHandle(DeserializingMessage message, Handler<DeserializingMessage> handler,
                              ConsumerConfiguration config) {
-        handler.findInvoker(message).ifPresent(h -> {
+
+        Optional<HandlerInvoker> invoker;
+        try {
+            invoker = handler.findInvoker(message);
+        } catch (Throwable e) {
+            try {
+                Object retryResult = config.getErrorHandler().handleError(
+                        e, format("Failed to check if handler %s is able to handle %s", handler, message),
+                        () -> handler.findInvoker(message));
+                invoker = retryResult instanceof Optional<?> ? (Optional<HandlerInvoker>) retryResult : Optional.empty();
+            } catch (Throwable e2) {
+                throw e2 instanceof BatchProcessingException
+                        ? new BatchProcessingException(format("Handler %s failed to handle a %s", handler, message),
+                                                       e.getCause(), ((BatchProcessingException) e2).getMessageIndex())
+                        : new BatchProcessingException(message.getIndex());
+            }
+        }
+        invoker.ifPresent(h -> {
             try {
                 reportResult(handle(message, h, handler, config), h, message, config);
             } catch (Throwable e) {
