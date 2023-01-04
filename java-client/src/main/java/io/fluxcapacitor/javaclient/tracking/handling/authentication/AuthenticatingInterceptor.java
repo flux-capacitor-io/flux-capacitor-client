@@ -28,6 +28,7 @@ import java.util.Optional;
 import java.util.function.Function;
 import java.util.function.Supplier;
 
+import static io.fluxcapacitor.common.MessageType.WEBREQUEST;
 import static io.fluxcapacitor.javaclient.tracking.handling.validation.ValidationUtils.assertAuthorized;
 import static io.fluxcapacitor.javaclient.tracking.handling.validation.ValidationUtils.isAuthorized;
 import static java.util.Optional.ofNullable;
@@ -40,8 +41,10 @@ public class AuthenticatingInterceptor implements DispatchInterceptor, HandlerIn
     @Override
     public Message interceptDispatch(Message m, MessageType messageType) {
         if (!userProvider.containsUser(m.getMetadata())) {
-            User user = ofNullable(DeserializingMessage.getCurrent()).isPresent() ? userProvider.getSystemUser() :
-                    ofNullable(userProvider.getActiveUser()).orElseGet(userProvider::getSystemUser);
+            Optional<DeserializingMessage> currentMessage = ofNullable(DeserializingMessage.getCurrent());
+            User user = currentMessage.isPresent()
+                    ? currentMessage.get().getMessageType() == WEBREQUEST ? null : userProvider.getSystemUser()
+                    : ofNullable(userProvider.getActiveUser()).orElseGet(userProvider::getSystemUser);
             if (user != null) {
                 m = m.withMetadata(userProvider.addToMetadata(m.getMetadata(), user));
             }
