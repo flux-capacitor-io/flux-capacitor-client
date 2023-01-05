@@ -16,6 +16,7 @@ package io.fluxcapacitor.javaclient.tracking.handling.errorreporting;
 
 import io.fluxcapacitor.common.api.Metadata;
 import io.fluxcapacitor.common.handling.HandlerInvoker;
+import io.fluxcapacitor.javaclient.common.ClientUtils;
 import io.fluxcapacitor.javaclient.common.Message;
 import io.fluxcapacitor.javaclient.common.exception.FunctionalException;
 import io.fluxcapacitor.javaclient.common.exception.TechnicalException;
@@ -39,8 +40,10 @@ public class ErrorReportingInterceptor implements HandlerInterceptor {
 
     @Override
     public Function<DeserializingMessage, Object> interceptHandling(Function<DeserializingMessage, Object> function,
-                                                                    HandlerInvoker invoker,
-                                                                    String consumer) {
+                                                                    HandlerInvoker invoker, String consumer) {
+        if (ClientUtils.isLocalHandler(invoker)) {
+            return function;
+        }
         return message -> {
             try {
                 Object result = function.apply(message);

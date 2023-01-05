@@ -15,6 +15,7 @@
 package io.fluxcapacitor.javaclient.common;
 
 import io.fluxcapacitor.common.ThrowingRunnable;
+import io.fluxcapacitor.common.handling.HandlerInvoker;
 import io.fluxcapacitor.javaclient.tracking.handling.LocalHandler;
 import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
@@ -73,6 +74,11 @@ public class ClientUtils {
         return getLocalHandlerAnnotation(target, method).map(LocalHandler::value).orElse(false);
     }
 
+    public static boolean isLocalHandler(HandlerInvoker invoker) {
+        return invoker.getTarget() != null && invoker.getMethod() != null && isLocalHandler(
+                invoker.getTarget().getClass(), invoker.getMethod());
+    }
+
     public static boolean isTrackingHandler(Class<?> target, java.lang.reflect.Executable method) {
         return getLocalHandlerAnnotation(target, method).map(l -> !l.value() || l.allowExternalMessages())
                 .orElse(true);
@@ -81,5 +87,4 @@ public class ClientUtils {
     public static Optional<LocalHandler> getLocalHandlerAnnotation(Class<?> target, java.lang.reflect.Executable method) {
         return localHandlerCache.apply(target, method);
     }
-
 }
