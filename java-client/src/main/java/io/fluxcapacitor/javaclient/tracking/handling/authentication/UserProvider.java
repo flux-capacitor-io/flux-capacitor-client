@@ -15,7 +15,7 @@
 package io.fluxcapacitor.javaclient.tracking.handling.authentication;
 
 import io.fluxcapacitor.common.api.Metadata;
-import io.fluxcapacitor.javaclient.common.serialization.DeserializingMessage;
+import io.fluxcapacitor.javaclient.common.HasMessage;
 
 import java.util.Iterator;
 import java.util.Optional;
@@ -30,7 +30,7 @@ public interface UserProvider {
 
     User getSystemUser();
 
-    User fromMessage(DeserializingMessage message);
+    User fromMessage(HasMessage message);
 
     boolean containsUser(Metadata metadata);
 

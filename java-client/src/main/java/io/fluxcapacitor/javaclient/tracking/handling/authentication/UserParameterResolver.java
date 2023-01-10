@@ -15,6 +15,7 @@
 package io.fluxcapacitor.javaclient.tracking.handling.authentication;
 
 import io.fluxcapacitor.common.handling.TypedParameterResolver;
+import io.fluxcapacitor.javaclient.common.HasMessage;
 import io.fluxcapacitor.javaclient.common.serialization.DeserializingMessage;
 
 import java.lang.annotation.Annotation;
@@ -34,8 +35,8 @@ public class UserParameterResolver extends TypedParameterResolver<Object> {
 
     @Override
     public Function<Object, Object> resolve(Parameter p, Annotation methodAnnotation) {
-        return m -> (m instanceof DeserializingMessage
-                ? Optional.of(((DeserializingMessage) m)) : ofNullable(DeserializingMessage.getCurrent()))
+        return m -> (m instanceof HasMessage
+                ? Optional.of(((HasMessage) m)) : ofNullable(DeserializingMessage.getCurrent()))
                 .map(userProvider::fromMessage).orElseGet(User::getCurrent);
     }
 }

@@ -1,7 +1,7 @@
 package io.fluxcapacitor.javaclient.tracking.handling.authentication;
 
 import io.fluxcapacitor.common.api.Metadata;
-import io.fluxcapacitor.javaclient.common.serialization.DeserializingMessage;
+import io.fluxcapacitor.javaclient.common.HasMessage;
 import lombok.Getter;
 
 public class NoOpUserProvider implements UserProvider {
@@ -19,7 +19,7 @@ public class NoOpUserProvider implements UserProvider {
     }
 
     @Override
-    public User fromMessage(DeserializingMessage message) {
+    public User fromMessage(HasMessage message) {
         return null;
     }
 
