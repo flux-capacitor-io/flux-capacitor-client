@@ -264,13 +264,16 @@ public class TestFixture implements Given, When {
 
     @Override
     public TestFixture givenCommands(Object... commands) {
-        asMessages(commands).forEach(c -> given(fc -> getDispatchResult(fc.commandGateway().send(c))));
+        Stream<Message> messages = asMessages(commands);
+        given(fc -> messages.forEach(c -> getDispatchResult(fc.commandGateway().send(c))));
         return this;
     }
 
     @Override
     public TestFixture givenCommandsByUser(User user, Object... commands) {
-        return givenCommands(asMessages(commands).map(c -> addUser(user, c)).toArray());
+        Stream<Message> messages = asMessages(commands).map(c -> addUser(user, c));
+        given(fc -> messages.forEach(c -> getDispatchResult(fc.commandGateway().send(c))));
+        return this;
     }
 
     @Override
@@ -281,7 +284,8 @@ public class TestFixture implements Given, When {
 
     @Override
     public TestFixture givenEvents(Object... events) {
-        asMessages(events).forEach(e -> given(fc -> fc.eventGateway().publish(e)));
+        Stream<Message> messages = asMessages(events);
+        given(fc -> messages.collect(toList()).forEach(e -> fc.eventGateway().publish(e)));
         return this;
     }
 
