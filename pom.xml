@@ -37,8 +37,8 @@
         <maven.compiler.target>11</maven.compiler.target>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
-        <undertow.version>2.2.19.Final</undertow.version>
-        <kotlin.version>1.7.20</kotlin.version>
+        <undertow.version>2.2.22.Final</undertow.version>
+        <kotlin.version>1.8.0</kotlin.version>
     </properties>
 
     <dependencies>
@@ -54,13 +54,13 @@
         <dependency>
             <groupId>org.junit.jupiter</groupId>
             <artifactId>junit-jupiter-engine</artifactId>
-            <version>5.9.1</version>
+            <version>5.9.2</version>
             <scope>test</scope>
         </dependency>
         <dependency>
             <groupId>org.mockito</groupId>
             <artifactId>mockito-core</artifactId>
-            <version>4.8.0</version>
+            <version>5.0.0</version>
             <scope>test</scope>
         </dependency>
 
@@ -68,7 +68,7 @@
         <dependency>
             <groupId>ch.qos.logback</groupId>
             <artifactId>logback-classic</artifactId>
-            <version>1.4.3</version>
+            <version>1.4.5</version>
             <optional>true</optional>
         </dependency>
 
@@ -98,7 +98,7 @@
             <dependency>
                 <groupId>com.fasterxml.jackson</groupId>
                 <artifactId>jackson-bom</artifactId>
-                <version>2.13.4</version>
+                <version>2.14.1</version>
                 <scope>import</scope>
                 <type>pom</type>
             </dependency>
@@ -106,7 +106,7 @@
             <dependency>
                 <groupId>org.springframework</groupId>
                 <artifactId>spring-framework-bom</artifactId>
-                <version>5.3.23</version>
+                <version>6.0.4</version>
                 <scope>import</scope>
                 <type>pom</type>
             </dependency>

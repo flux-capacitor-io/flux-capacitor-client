@@ -6,7 +6,11 @@ import lombok.Builder;
 import lombok.Value;
 import org.junit.jupiter.api.Test;
 
+import java.util.concurrent.atomic.AtomicInteger;
+
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class LazyIdTest {
 
@@ -24,6 +28,30 @@ class LazyIdTest {
         TestFixture.create().whenApplying(fc -> JsonUtils.asJson(lazyId)).expectResult("\"123\"");
         TestFixture.create().whenApplying(fc -> JsonUtils.asJson(lazyId)).expectResult("\"123\"");
         TestFixture.create().whenApplying(fc -> JsonUtils.convertValue(lazyId, LazyId.class)).expectResult(lazyId);
+    }
+
+    @Test
+    void serializeLazyIdWithSupplier() {
+        LazyId lazyId = new LazyId(() -> "123");
+        TestFixture.create().whenApplying(fc -> JsonUtils.asJson(lazyId)).expectResult("\"123\"");
+        TestFixture.create().whenApplying(fc -> JsonUtils.asJson(lazyId)).expectResult("\"123\"");
+        TestFixture.create().whenApplying(fc -> JsonUtils.convertValue(lazyId, LazyId.class)).expectResult(lazyId);
+    }
+
+    @Test
+    void serializeLazyIdWithNull() {
+        AtomicInteger counter = new AtomicInteger();
+        LazyId lazyId = new LazyId(() -> {
+            counter.incrementAndGet();
+            return null;
+        });
+        assertFalse(lazyId.isComputed());
+        TestFixture.create().whenApplying(fc -> JsonUtils.asJson(lazyId)).expectResult("null");
+        assertTrue(lazyId.isComputed());
+        TestFixture.create().whenApplying(fc -> JsonUtils.asJson(lazyId)).expectResult("null");
+        TestFixture.create().whenApplying(fc -> JsonUtils.convertValue(lazyId, LazyId.class))
+                .<LazyId>expectResult(r -> r.equals(lazyId) && r.isComputed());
+        assertEquals(1, counter.get());
     }
 
     @Test
@@ -47,6 +75,15 @@ class LazyIdTest {
     }
 
     @Test
+    void deserializeNullLazyIdInOwner() {
+        var value = new OwnerWithConfigurableId(new LazyId((Object) null), "test");
+        var testFixture = TestFixture.create();
+        var copy = testFixture.getFluxCapacitor().apply(
+                fc -> JsonUtils.fromJson(JsonUtils.asJson(value), OwnerWithConfigurableId.class));
+        assertEquals(value, copy);
+    }
+
+    @Test
     void testToString() {
         LazyId lazyId = new LazyId();
         TestFixture.create().whenApplying(fc -> lazyId.toString()).expectResult("0");
@@ -65,6 +102,13 @@ class LazyIdTest {
     @Builder(toBuilder = true)
     private static class Owner {
         LazyId id = new LazyId();
+        String value;
+    }
+
+    @Value
+    @Builder(toBuilder = true)
+    private static class OwnerWithConfigurableId {
+        LazyId id;
         String value;
     }
 }

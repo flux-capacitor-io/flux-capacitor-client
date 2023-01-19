@@ -9,11 +9,14 @@ import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 import com.fasterxml.jackson.databind.deser.std.StdScalarDeserializer;
 import com.fasterxml.jackson.databind.ser.std.StdScalarSerializer;
 import io.fluxcapacitor.javaclient.FluxCapacitor;
-import lombok.NonNull;
+import lombok.EqualsAndHashCode;
 import lombok.Value;
 import lombok.experimental.NonFinal;
 
 import java.io.IOException;
+import java.util.function.Supplier;
+
+import static java.util.Objects.requireNonNull;
 
 @Value
 @NonFinal
@@ -22,19 +25,33 @@ import java.io.IOException;
 public class LazyId {
     @NonFinal
     volatile String id;
+    @NonFinal
+    @EqualsAndHashCode.Exclude
+    volatile boolean computed;
+
+    @EqualsAndHashCode.Exclude
+    Supplier<String> supplier;
 
     public LazyId() {
+        this(FluxCapacitor::generateId);
     }
 
-    public LazyId(@NonNull Object id) {
-        this.id = id.toString();
+    public LazyId(Supplier<String> supplier) {
+        this.supplier = requireNonNull(supplier);
+    }
+
+    public LazyId(Object id) {
+        this.id = id == null ? null : id.toString();
+        this.computed = true;
+        this.supplier = null;
     }
 
     private String getId() {
-        if (id == null) {
+        if (!computed) {
             synchronized (this) {
-                if (id == null) {
-                    id = FluxCapacitor.generateId();
+                if (!computed) {
+                    id = supplier.get();
+                    computed = true;
                 }
             }
         }
@@ -54,10 +71,11 @@ public class LazyId {
 
         @Override
         public void serialize(LazyId value, JsonGenerator gen, SerializerProvider provider) throws IOException {
-            if (value == null) {
+            String s = value == null ? null : value.getId();
+            if (s == null) {
                 gen.writeNull();
             } else {
-                gen.writeString(value.toString());
+                gen.writeString(s);
             }
         }
     }
@@ -66,6 +84,11 @@ public class LazyId {
 
         protected CustomDeserializer() {
             super(LazyId.class);
+        }
+
+        @Override
+        public LazyId getNullValue(DeserializationContext ctxt) {
+            return new LazyId((Object) null);
         }
 
         @Override
