@@ -100,7 +100,7 @@ public class CachingAggregateRepository implements AggregateRepository {
                                 return before;
                             });
                 }
-            } catch (Exception e) {
+            } catch (Throwable e) {
                 log.error("Failed to handle event {} for aggregate {} (id {})", m.getMessageId(), type, id, e);
             }
         }
