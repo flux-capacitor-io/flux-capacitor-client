@@ -125,6 +125,14 @@ public interface FluxCapacitor extends AutoCloseable {
     }
 
     /**
+     * Gets the time according to the current FluxCapacitor clock (obtained via {@link #currentClock()}).
+     * If there is no current FluxCapacitor instance the system's UTC time is returned.
+     */
+    static Instant currentTime() {
+        return currentClock().instant();
+    }
+
+    /**
      * Gets the {@link IdentityProvider} of the current FluxCapacitor to generate a unique identifier. If there is no
      * current FluxCapacitor instance a new UUID is generated.
      */
@@ -326,18 +334,18 @@ public interface FluxCapacitor extends AutoCloseable {
     }
 
     /**
-     * Schedules a command after given delay, returning the command schedule's id. The {@code command} parameter
-     * may be an instance of a {@link Message} in which case it will be scheduled as is. Otherwise, the command is
-     * scheduled using the passed value as payload without additional metadata.
+     * Schedules a command after given delay, returning the command schedule's id. The {@code command} parameter may be
+     * an instance of a {@link Message} in which case it will be scheduled as is. Otherwise, the command is scheduled
+     * using the passed value as payload without additional metadata.
      */
     static String scheduleCommand(Object command, Duration delay) {
         return get().scheduler().scheduleCommand(command, delay);
     }
 
     /**
-     * Schedules a command with given {@code scheduleId} after given delay. The {@code command} parameter may be
-     * an instance of a {@link Message} in which case it will be scheduled as is. Otherwise, the command is published
-     * using the passed value as payload without additional metadata.
+     * Schedules a command with given {@code scheduleId} after given delay. The {@code command} parameter may be an
+     * instance of a {@link Message} in which case it will be scheduled as is. Otherwise, the command is published using
+     * the passed value as payload without additional metadata.
      */
     static void scheduleCommand(Object command, String scheduleId, Duration delay) {
         get().scheduler().scheduleCommand(command, scheduleId, delay);

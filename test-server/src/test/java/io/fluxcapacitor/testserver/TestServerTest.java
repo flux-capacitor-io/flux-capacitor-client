@@ -85,7 +85,7 @@ class TestServerTest {
     @Test
     void testGetSchedule() {
         Schedule schedule = new Schedule("bla", "test",
-                                         testFixture.getClock().instant().plusSeconds(10));
+                                         testFixture.getCurrentTime().plusSeconds(10));
         testFixture.givenSchedules(schedule)
                 .given(fc -> sleepAWhile())
                 .whenApplying(fc -> fc.scheduler().getSchedule("test").orElse(null))

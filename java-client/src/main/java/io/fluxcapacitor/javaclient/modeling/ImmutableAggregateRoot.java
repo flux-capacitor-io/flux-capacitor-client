@@ -2,7 +2,6 @@ package io.fluxcapacitor.javaclient.modeling;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import io.fluxcapacitor.common.api.modeling.Relationship;
-import io.fluxcapacitor.javaclient.FluxCapacitor;
 import io.fluxcapacitor.javaclient.common.serialization.DeserializingMessage;
 import io.fluxcapacitor.javaclient.common.serialization.Serializer;
 import lombok.Builder;
@@ -19,7 +18,7 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.function.UnaryOperator;
 
-import static io.fluxcapacitor.javaclient.FluxCapacitor.currentClock;
+import static io.fluxcapacitor.javaclient.FluxCapacitor.currentTime;
 import static java.util.Optional.ofNullable;
 
 @Value
@@ -33,7 +32,7 @@ public class ImmutableAggregateRoot<T> extends ImmutableEntity<T> {
     Long lastEventIndex;
     @JsonProperty
     @Builder.Default
-    Instant timestamp = FluxCapacitor.currentClock().instant();
+    Instant timestamp = currentTime();
     @JsonProperty
     @Builder.Default
     long sequenceNumber = -1L;
@@ -84,7 +83,7 @@ public class ImmutableAggregateRoot<T> extends ImmutableEntity<T> {
         return ((ImmutableAggregateRoot<T>) super.update(function))
                 .toBuilder()
                 .previous(this)
-                .timestamp(currentClock().instant())
+                .timestamp(currentTime())
                 .build();
     }
 

@@ -39,7 +39,7 @@ class GivenWhenThenSchedulingTest {
     void testExpectCommandAfterDeadline() {
         Object command = "command";
         subject.givenSchedules(new Schedule(new YieldsCommand(command), "test",
-                                            subject.getClock().instant().plusSeconds(10)))
+                                            subject.getCurrentTime().plusSeconds(10)))
                 .whenTimeElapses(Duration.ofSeconds(10))
                 .expectCommands(command);
     }
@@ -47,7 +47,7 @@ class GivenWhenThenSchedulingTest {
     @Test
     void testExpectCommandAtTimestamp() {
         Object command = "command";
-        Instant deadline = subject.getClock().instant().plusSeconds(10);
+        Instant deadline = subject.getCurrentTime().plusSeconds(10);
         subject.givenSchedules(new Schedule(new YieldsCommand(command), "test", deadline))
                 .whenTimeAdvancesTo(deadline)
                 .expectCommands(command);
@@ -65,7 +65,7 @@ class GivenWhenThenSchedulingTest {
     @Test
     void testGivenScheduleWithTimeInPastExecuteBeforeTest() {
         Object command = "command";
-        Instant deadline = subject.getClock().instant().minusSeconds(10);
+        Instant deadline = subject.getCurrentTime().minusSeconds(10);
         subject.givenSchedules(new Schedule(new YieldsCommand(command), "test", deadline))
                 .whenExecuting(fc -> {
                 })
@@ -76,7 +76,7 @@ class GivenWhenThenSchedulingTest {
     void testExpectNoCommandBeforeDeadline() {
         Object command = "command";
         subject.givenSchedules(new Schedule(new YieldsCommand(command), "test",
-                                            subject.getClock().instant().plusSeconds(10)))
+                                            subject.getCurrentTime().plusSeconds(10)))
                 .whenTimeElapses(Duration.ofSeconds(10).minusMillis(1))
                 .expectNoCommands();
     }
@@ -85,7 +85,7 @@ class GivenWhenThenSchedulingTest {
     void testExpectNoCommandAfterCancel() {
         Object command = "command";
         subject.givenSchedules(new Schedule(new YieldsCommand(command), "test",
-                                            subject.getClock().instant().plusSeconds(10)))
+                                            subject.getCurrentTime().plusSeconds(10)))
                 .given(fc -> fc.scheduler().cancelSchedule("test"))
                 .whenTimeElapses(Duration.ofSeconds(10))
                 .expectNoCommands();
@@ -144,7 +144,7 @@ class GivenWhenThenSchedulingTest {
     void testNoRescheduleOnVoid() {
         Duration delay = Duration.ofSeconds(10);
         Object payload = new YieldsCommand("whatever");
-        subject.givenSchedules(new Schedule(payload, "test", subject.getClock().instant().plus(delay)))
+        subject.givenSchedules(new Schedule(payload, "test", subject.getCurrentTime().plus(delay)))
                 .whenTimeElapses(delay)
                 .expectNoNewSchedulesLike(YieldsCommand.class)
                 .expectNoSchedulesLike(YieldsCommand.class);
@@ -154,7 +154,7 @@ class GivenWhenThenSchedulingTest {
     void testReschedule() {
         Duration delay = Duration.ofSeconds(10);
         YieldsNewSchedule payload = new YieldsNewSchedule(delay.toMillis());
-        subject.givenSchedules(new Schedule(payload, "test", subject.getClock().instant().plus(delay)))
+        subject.givenSchedules(new Schedule(payload, "test", subject.getCurrentTime().plus(delay)))
                 .whenTimeElapses(delay).expectNewSchedules(payload);
     }
 
@@ -163,9 +163,9 @@ class GivenWhenThenSchedulingTest {
         Duration delay = Duration.ofSeconds(10);
         Object expected = new YieldsCommand("original");
         Object notExpected = new YieldsCommand("override");
-        subject.givenSchedules(new Schedule(expected, "test", subject.getClock().instant().plus(delay)))
+        subject.givenSchedules(new Schedule(expected, "test", subject.getCurrentTime().plus(delay)))
                 .givenSchedules(
-                        new Schedule(notExpected, "test", subject.getClock().instant().plus(delay).minusSeconds(1)))
+                        new Schedule(notExpected, "test", subject.getCurrentTime().plus(delay).minusSeconds(1)))
                 .whenTimeElapses(delay).expectOnlyCommands("override");
     }
 
@@ -208,7 +208,7 @@ class GivenWhenThenSchedulingTest {
     @Test
     void testAlteredPayloadNonPeriodic() {
         subject = TestFixture.create(new AlteredPayloadNonPeriodicHandler());
-        Instant deadline = subject.getClock().instant().plusSeconds(1);
+        Instant deadline = subject.getCurrentTime().plusSeconds(1);
         subject.givenSchedules(new Schedule(new YieldsAlteredSchedule(), "test", deadline))
                 .whenTimeAdvancesTo(deadline).expectOnlyNewSchedules(new YieldsAlteredSchedule(1));
     }
@@ -216,7 +216,7 @@ class GivenWhenThenSchedulingTest {
     @Test
     void testAlteredPayloadNonPeriodicReturningSchedule() {
         subject = TestFixture.create(new AlteredPayloadNonPeriodicHandlerReturningSchedule());
-        Instant deadline = subject.getClock().instant().plusSeconds(1);
+        Instant deadline = subject.getCurrentTime().plusSeconds(1);
         subject.givenSchedules(new Schedule(new YieldsAlteredSchedule(), "test", deadline))
                 .whenTimeAdvancesTo(deadline).expectOnlyNewSchedules(new YieldsAlteredSchedule(1));
     }
@@ -231,7 +231,7 @@ class GivenWhenThenSchedulingTest {
     @Test
     void testGetSchedule() {
         Schedule schedule = new Schedule(new YieldsCommand("bla"), "test",
-                                         subject.getClock().instant().plusSeconds(10));
+                                         subject.getCurrentTime().plusSeconds(10));
         subject.givenSchedules(schedule)
                 .whenApplying(fc -> fc.scheduler().getSchedule("test").orElse(null))
                 .expectResult(schedule);
@@ -335,7 +335,7 @@ class GivenWhenThenSchedulingTest {
 
         public YieldsSchedule() {
             this(new Schedule("schedule", UUID.randomUUID().toString(),
-                              subject.getClock().instant().plusSeconds(10)));
+                              subject.getCurrentTime().plusSeconds(10)));
         }
     }
 

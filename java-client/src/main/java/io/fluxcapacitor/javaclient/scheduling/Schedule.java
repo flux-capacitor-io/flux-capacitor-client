@@ -27,7 +27,7 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.Map;
 
-import static io.fluxcapacitor.javaclient.FluxCapacitor.currentClock;
+import static io.fluxcapacitor.javaclient.FluxCapacitor.currentTime;
 import static java.time.temporal.ChronoUnit.MILLIS;
 
 @Value
@@ -55,7 +55,7 @@ public class Schedule extends Message {
 
     public Schedule(Message m) {
         this(m.getPayload(), m.getMetadata(), m.getMessageId(), m.getTimestamp(),
-             m.getMetadata().get(Schedule.scheduleIdMetadataKey), currentClock().instant());
+             m.getMetadata().get(Schedule.scheduleIdMetadataKey), currentTime());
     }
 
     @ConstructorProperties({"payload", "metadata", "messageId", "timestamp", "scheduleId", "deadline"})
@@ -97,7 +97,7 @@ public class Schedule extends Message {
     }
 
     public Schedule reschedule(Duration duration) {
-        return new Schedule(getPayload(), getMetadata(), FluxCapacitor.currentIdentityProvider().nextTechnicalId(), currentClock().instant(),
+        return new Schedule(getPayload(), getMetadata(), FluxCapacitor.currentIdentityProvider().nextTechnicalId(), currentTime(),
                             scheduleId, deadline.plus(duration));
     }
 }

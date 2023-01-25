@@ -383,7 +383,7 @@ public class TestFixture implements Given, When {
     @Override
     public Then whenScheduleExpires(Object schedule) {
         Message message = trace(schedule);
-        return whenExecuting(fc -> fc.scheduler().schedule(message, getClock().instant()));
+        return whenExecuting(fc -> fc.scheduler().schedule(message, getCurrentTime()));
     }
 
     @Override
@@ -438,7 +438,7 @@ public class TestFixture implements Given, When {
                                       List<Throwable> errors, List<Message> metrics) {
         return new ResultValidator(getFluxCapacitor(), result, events, commands, webRequests, metrics, schedules,
                                    allSchedules.stream().filter(
-                                           s -> s.getDeadline().isAfter(getClock().instant())).collect(toList()),
+                                           s -> s.getDeadline().isAfter(getCurrentTime())).collect(toList()),
                                    errors);
     }
 
@@ -477,7 +477,7 @@ public class TestFixture implements Given, When {
         SchedulingClient schedulingClient = getFluxCapacitor().client().getSchedulingClient();
         if (schedulingClient instanceof InMemorySchedulingClient) {
             return ((InMemorySchedulingClient) schedulingClient).getSchedules(getFluxCapacitor().serializer())
-                    .stream().filter(s -> s.getDeadline().isAfter(getClock().instant())).collect(toList());
+                    .stream().filter(s -> s.getDeadline().isAfter(getCurrentTime())).collect(toList());
         }
         return emptyList();
     }
@@ -513,7 +513,7 @@ public class TestFixture implements Given, When {
     }
 
     protected void advanceTimeBy(Duration duration) {
-        advanceTimeTo(getClock().instant().plus(duration));
+        advanceTimeTo(getCurrentTime().plus(duration));
     }
 
     protected void advanceTimeTo(Instant instant) {
@@ -610,7 +610,7 @@ public class TestFixture implements Given, When {
         }
         synchronized (consumers) {
             if (consumers.values().stream().allMatch(l -> l.stream().allMatch(
-                    m -> m instanceof Schedule && ((Schedule) m).getDeadline().isAfter(getClock().instant())))) {
+                    m -> m instanceof Schedule && ((Schedule) m).getDeadline().isAfter(getCurrentTime())))) {
                 consumers.notifyAll();
                 return true;
             }

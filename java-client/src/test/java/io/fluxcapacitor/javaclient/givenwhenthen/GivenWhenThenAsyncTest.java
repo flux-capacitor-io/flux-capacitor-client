@@ -86,7 +86,7 @@ class GivenWhenThenAsyncTest {
 
     @Test
     void testScheduledCommand() {
-        Instant deadline = subject.getClock().instant().plusSeconds(1);
+        Instant deadline = subject.getCurrentTime().plusSeconds(1);
         subject.givenSchedules(new Schedule(new DelayedCommand(), "test", deadline))
                 .whenTimeAdvancesTo(deadline).expectOnlyCommands(new DelayedCommand()).expectNoNewSchedules();
     }

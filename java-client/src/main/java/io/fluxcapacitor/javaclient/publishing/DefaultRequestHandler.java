@@ -17,8 +17,10 @@ package io.fluxcapacitor.javaclient.publishing;
 import io.fluxcapacitor.common.MessageType;
 import io.fluxcapacitor.common.Registration;
 import io.fluxcapacitor.common.api.SerializedMessage;
+import io.fluxcapacitor.javaclient.FluxCapacitor;
 import io.fluxcapacitor.javaclient.configuration.client.Client;
 import io.fluxcapacitor.javaclient.tracking.ConsumerConfiguration;
+import io.fluxcapacitor.javaclient.tracking.IndexUtils;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
@@ -35,6 +37,7 @@ import java.util.stream.Collectors;
 
 import static io.fluxcapacitor.javaclient.common.ClientUtils.waitForResults;
 import static io.fluxcapacitor.javaclient.tracking.client.DefaultTracker.start;
+import static java.lang.String.format;
 
 @RequiredArgsConstructor
 @Slf4j
@@ -89,9 +92,15 @@ public class DefaultRequestHandler implements RequestHandler {
 
     protected void ensureStarted() {
         if (started.compareAndSet(false, true)) {
-            registration = start(this::handleMessages, ConsumerConfiguration.getDefault(resultType)
-                    .toBuilder().name("$request-handler")
-                    .ignoreSegment(true).filterMessageTarget(true).build(), client);
+            registration = start(this::handleMessages, ConsumerConfiguration.builder()
+                    .messageType(resultType)
+                    .name(format("%s_%s", client.name(), "$request-handler"))
+                    .prependApplicationName(false)
+                    .ignoreSegment(true)
+                    .filterMessageTarget(true)
+                    .minIndex(IndexUtils.indexFromTimestamp(
+                            FluxCapacitor.currentTime().minusSeconds(1)))
+                    .build(), client);
         }
     }
 

@@ -38,12 +38,14 @@ import java.util.function.Predicate;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
+import static io.fluxcapacitor.common.MessageType.NOTIFICATION;
 import static io.fluxcapacitor.common.reflection.ReflectionUtils.asInstance;
+import static io.fluxcapacitor.javaclient.FluxCapacitor.currentTime;
+import static io.fluxcapacitor.javaclient.tracking.IndexUtils.indexFromTimestamp;
 
 @Value
 @Builder(builderClassName = "Builder", toBuilder = true)
 public class ConsumerConfiguration {
-    public static Function<MessageType, String> DEFAULT_CONSUMER_NAME = Enum::name;
 
     @NonNull MessageType messageType;
     @NonNull String name;
@@ -97,8 +99,10 @@ public class ConsumerConfiguration {
 
     public static ConsumerConfiguration getDefault(MessageType messageType) {
         return ConsumerConfiguration.builder().messageType(messageType)
-                .name(DEFAULT_CONSUMER_NAME.apply(messageType))
-                .ignoreSegment(messageType == MessageType.NOTIFICATION)
+                .name(messageType.name())
+                .prependApplicationName(true)
+                .ignoreSegment(messageType == NOTIFICATION)
+                .minIndex(messageType == NOTIFICATION ? indexFromTimestamp(currentTime()) : null)
                 .build();
     }
 

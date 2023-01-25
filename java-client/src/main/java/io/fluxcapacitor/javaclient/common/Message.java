@@ -17,6 +17,7 @@ package io.fluxcapacitor.javaclient.common;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import io.fluxcapacitor.common.api.Metadata;
 import io.fluxcapacitor.common.api.SerializedMessage;
+import io.fluxcapacitor.javaclient.FluxCapacitor;
 import io.fluxcapacitor.javaclient.common.serialization.Serializer;
 import lombok.Value;
 import lombok.With;
@@ -28,7 +29,6 @@ import java.time.Instant;
 import java.util.Map;
 import java.util.Optional;
 
-import static io.fluxcapacitor.javaclient.FluxCapacitor.currentClock;
 import static io.fluxcapacitor.javaclient.FluxCapacitor.currentIdentityProvider;
 
 @Value
@@ -62,7 +62,7 @@ public class Message implements HasMessage {
         this.payload = payload;
         this.metadata = Optional.ofNullable(metadata).orElseGet(Metadata::empty);
         this.messageId = Optional.ofNullable(messageId).orElseGet(() -> currentIdentityProvider().nextTechnicalId());
-        this.timestamp = Optional.ofNullable(timestamp).orElseGet(() -> currentClock().instant());
+        this.timestamp = Optional.ofNullable(timestamp).orElseGet(FluxCapacitor::currentTime);
     }
 
     @SuppressWarnings("unchecked")

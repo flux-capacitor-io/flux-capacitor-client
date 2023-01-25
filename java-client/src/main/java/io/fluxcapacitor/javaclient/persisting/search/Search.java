@@ -54,11 +54,11 @@ public interface Search {
     }
 
     default Search beforeLast(Duration period) {
-        return before(FluxCapacitor.currentClock().instant().minus(period));
+        return before(FluxCapacitor.currentTime().minus(period));
     }
 
     default Search inLast(Duration period) {
-        return since(FluxCapacitor.currentClock().instant().minus(period));
+        return since(FluxCapacitor.currentTime().minus(period));
     }
 
     default Search inPeriod(Instant start, Instant endExclusive) {

@@ -2,6 +2,7 @@ package io.fluxcapacitor.javaclient.persisting.repository;
 
 import io.fluxcapacitor.common.api.SerializedMessage;
 import io.fluxcapacitor.common.api.modeling.Relationship;
+import io.fluxcapacitor.javaclient.FluxCapacitor;
 import io.fluxcapacitor.javaclient.common.serialization.DeserializingMessage;
 import io.fluxcapacitor.javaclient.common.serialization.Serializer;
 import io.fluxcapacitor.javaclient.configuration.client.Client;
@@ -154,7 +155,8 @@ public class CachingAggregateRepository implements AggregateRepository {
     protected void startTrackerIfNeeded() {
         if (started.compareAndSet(false, true)) {
             start(this::handleEvents, ConsumerConfiguration.builder().messageType(NOTIFICATION)
-                    .minIndex(lastEventIndex = IndexUtils.indexForCurrentTime())
+                    .ignoreSegment(true)
+                    .minIndex(lastEventIndex = IndexUtils.indexFromTimestamp(FluxCapacitor.currentTime()))
                     .name(CachingAggregateRepository.class.getSimpleName()).build(), client);
             synchronized (cache) {
                 cache.notifyAll();

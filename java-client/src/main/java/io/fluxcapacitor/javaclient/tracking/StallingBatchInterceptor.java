@@ -25,7 +25,7 @@ import java.util.Optional;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
 
-import static io.fluxcapacitor.javaclient.FluxCapacitor.currentClock;
+import static io.fluxcapacitor.javaclient.FluxCapacitor.currentTime;
 
 @Builder
 @Slf4j
@@ -55,11 +55,11 @@ public class StallingBatchInterceptor implements BatchInterceptor {
 
     protected boolean hasPassedDeadline() {
         return Optional.ofNullable(firstRefusal.get())
-                .filter(f -> !currentClock().instant().isBefore(f.plus(maximumStallingDuration))).isPresent();
+                .filter(f -> !currentTime().isBefore(f.plus(maximumStallingDuration))).isPresent();
     }
 
     protected void stall() {
-        firstRefusal.updateAndGet(f -> f == null ? currentClock().instant() : f);
+        firstRefusal.updateAndGet(f -> f == null ? currentTime() : f);
         try {
             Thread.sleep(retryFrequency.toMillis());
         } catch (InterruptedException ignored) {

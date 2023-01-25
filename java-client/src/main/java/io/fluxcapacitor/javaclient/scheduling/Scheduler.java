@@ -22,7 +22,7 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.Optional;
 
-import static io.fluxcapacitor.javaclient.FluxCapacitor.currentClock;
+import static io.fluxcapacitor.javaclient.FluxCapacitor.currentTime;
 
 public interface Scheduler {
 
@@ -33,11 +33,11 @@ public interface Scheduler {
     }
 
     default String schedule(Object schedule, Duration delay) {
-        return schedule(schedule, currentClock().instant().plus(delay));
+        return schedule(schedule, currentTime().plus(delay));
     }
 
     default void schedule(Object schedule, String scheduleId, Duration delay) {
-        schedule(schedule, scheduleId, currentClock().instant().plus(delay));
+        schedule(schedule, scheduleId, currentTime().plus(delay));
     }
 
     default void schedule(Object schedulePayload, Metadata metadata, String scheduleId, Instant deadline) {
@@ -71,11 +71,11 @@ public interface Scheduler {
     }
 
     default String scheduleCommand(Object schedule, Duration delay) {
-        return scheduleCommand(schedule, currentClock().instant().plus(delay));
+        return scheduleCommand(schedule, currentTime().plus(delay));
     }
 
     default void scheduleCommand(Object schedule, String scheduleId, Duration delay) {
-        scheduleCommand(schedule, scheduleId, currentClock().instant().plus(delay));
+        scheduleCommand(schedule, scheduleId, currentTime().plus(delay));
     }
 
     default void scheduleCommand(Object schedulePayload, Metadata metadata, String scheduleId, Instant deadline) {

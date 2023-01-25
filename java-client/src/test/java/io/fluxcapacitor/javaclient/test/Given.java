@@ -137,7 +137,7 @@ public interface Given extends When {
      */
     default Given givenExpiredSchedules(Object... schedules) {
         return givenSchedules(
-                Arrays.stream(schedules).map(p -> new Schedule(p, UUID.randomUUID().toString(), getClock().instant()))
+                Arrays.stream(schedules).map(p -> new Schedule(p, UUID.randomUUID().toString(), getCurrentTime()))
                         .toArray(Schedule[]::new));
     }
 
