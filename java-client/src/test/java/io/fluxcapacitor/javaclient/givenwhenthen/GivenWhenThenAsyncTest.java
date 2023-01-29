@@ -18,9 +18,12 @@ import io.fluxcapacitor.javaclient.FluxCapacitor;
 import io.fluxcapacitor.javaclient.MockException;
 import io.fluxcapacitor.javaclient.common.IgnoringErrorHandler;
 import io.fluxcapacitor.javaclient.common.exception.TechnicalException;
+import io.fluxcapacitor.javaclient.common.serialization.DeserializingMessage;
+import io.fluxcapacitor.javaclient.configuration.DefaultFluxCapacitor;
 import io.fluxcapacitor.javaclient.scheduling.Schedule;
 import io.fluxcapacitor.javaclient.test.TestFixture;
 import io.fluxcapacitor.javaclient.tracking.Consumer;
+import io.fluxcapacitor.javaclient.tracking.ForeverRetryingErrorHandler;
 import io.fluxcapacitor.javaclient.tracking.handling.HandleCommand;
 import io.fluxcapacitor.javaclient.tracking.handling.HandleEvent;
 import io.fluxcapacitor.javaclient.tracking.handling.HandleSchedule;
@@ -36,59 +39,84 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
+import static io.fluxcapacitor.common.MessageType.COMMAND;
+
 class GivenWhenThenAsyncTest {
 
-    private final TestFixture subject = TestFixture.createAsync(
+    private final TestFixture testFixture = TestFixture.createAsync(
             new MixedHandler(), new AsyncCommandHandler(), new ScheduleHandler()).resultTimeout(Duration.ofSeconds(1));
 
     @Test
     void testExpectCommandsAndIndirectEvents() {
-        subject.whenEvent(123).expectNoResult().expectNoErrors()
+        testFixture.whenEvent(123).expectNoResult().expectNoErrors()
                 .expectCommands(new YieldsEventAndResult())
                 .expectEvents(new YieldsEventAndResult());
     }
 
     @Test
     void testExpectFunctionalException() {
-        subject.whenCommand(new YieldsException()).expectExceptionalResult(MockException.class);
+        testFixture.whenCommand(new YieldsException()).expectExceptionalResult(MockException.class);
     }
 
     @Test
     void testExpectTechnicalException() {
-        subject.whenCommand(new YieldsRuntimeException()).expectExceptionalResult(TechnicalException.class);
+        testFixture.whenCommand(new YieldsRuntimeException()).expectExceptionalResult(TechnicalException.class);
     }
 
     @Test
     void testAsyncCommandHandling() {
-        subject.whenCommand(new YieldsAsyncResult()).expectResult("test");
+        testFixture.whenCommand(new YieldsAsyncResult()).expectResult("test");
     }
 
     @Test
     void testAsyncExceptionHandling() {
-        subject.whenCommand(new YieldsAsyncException()).expectExceptionalResult(IllegalCommandException.class);
+        testFixture.whenCommand(new YieldsAsyncException()).expectExceptionalResult(IllegalCommandException.class);
     }
 
     @Test
     void testAsyncExceptionHandling2() {
-        subject.whenCommand(new YieldsAsyncExceptionSecondHand())
+        testFixture.whenCommand(new YieldsAsyncExceptionSecondHand())
                 .expectExceptionalResult(IllegalCommandException.class);
     }
 
     @Test
     void testExpectPassiveHandling() {
-        subject.whenCommand(new PassivelyHandled()).expectExceptionalResult(TimeoutException.class);
+        testFixture.whenCommand(new PassivelyHandled()).expectExceptionalResult(TimeoutException.class);
     }
 
     @Test
     void testExpectSchedule() {
-        subject.whenCommand(new YieldsSchedule("test")).expectNewSchedules("test");
+        testFixture.whenCommand(new YieldsSchedule("test")).expectNewSchedules("test");
     }
 
     @Test
     void testScheduledCommand() {
-        Instant deadline = subject.getCurrentTime().plusSeconds(1);
-        subject.givenSchedules(new Schedule(new DelayedCommand(), "test", deadline))
+        Instant deadline = testFixture.getCurrentTime().plusSeconds(1);
+        testFixture.givenSchedules(new Schedule(new DelayedCommand(), "test", deadline))
                 .whenTimeAdvancesTo(deadline).expectOnlyCommands(new DelayedCommand()).expectNoNewSchedules();
+    }
+
+    @Test
+    void errorHandlerIsUsedAfterBatchCompletes() {
+        var handler = new Object() {
+            volatile boolean retried;
+
+            @HandleCommand
+            void handle(String payload) {
+                DeserializingMessage.whenBatchCompletes(e -> {
+                    if (retried) {
+                        FluxCapacitor.publishEvent(payload);
+                    } else {
+                        retried = true;
+                        throw new IllegalStateException();
+                    }
+                });
+            }
+        };
+        TestFixture.createAsync(DefaultFluxCapacitor.builder().configureDefaultConsumer(
+                        COMMAND, c -> c.toBuilder().errorHandler(new ForeverRetryingErrorHandler()).build()), handler)
+                .whenCommand("test")
+                .expectNoErrors().expectEvents("test");
     }
 
     @Consumer(name = "MixedHandler", errorHandler = IgnoringErrorHandler.class)

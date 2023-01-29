@@ -143,16 +143,26 @@ public class DefaultTracking implements Tracking {
         return DefaultTracker.start(createConsumer(configuration, handlers), configuration, fluxCapacitor);
     }
 
-    protected Consumer<List<SerializedMessage>> createConsumer(ConsumerConfiguration configuration,
+    protected Consumer<List<SerializedMessage>> createConsumer(ConsumerConfiguration config,
                                                                List<Handler<DeserializingMessage>> handlers) {
-        return serializedMessages ->
+        return serializedMessages -> {
+            try {
                 handleBatch(serializer.deserializeMessages(serializedMessages.stream(), messageType))
-                        .forEach(m -> handlers.forEach(h -> tryHandle(m, h, configuration)));
+                        .forEach(m -> handlers.forEach(h -> tryHandle(m, h, config, true)));
+            } catch (BatchProcessingException e) {
+                throw e;
+            } catch (Throwable e) {
+                config.getErrorHandler().handleError(
+                        e, format("Failed to handle batch of consumer %s", config.getName()),
+                        () -> handleBatch(serializer.deserializeMessages(serializedMessages.stream(), messageType))
+                                .forEach(m -> handlers.forEach(h -> tryHandle(m, h, config, false))));
+            }
+        };
     }
 
     @SuppressWarnings("unchecked")
     protected void tryHandle(DeserializingMessage message, Handler<DeserializingMessage> handler,
-                             ConsumerConfiguration config) {
+                             ConsumerConfiguration config, boolean reportResult) {
 
         Optional<HandlerInvoker> invoker;
         try {
@@ -172,9 +182,14 @@ public class DefaultTracking implements Tracking {
         }
         invoker.ifPresent(h -> {
             try {
-                reportResult(handle(message, h, handler, config), h, message, config);
+                Object result = handle(message, h, handler, config);
+                if (reportResult) {
+                    reportResult(result, h, message, config);
+                }
             } catch (Throwable e) {
-                reportResult(e, h, message, config);
+                if (reportResult) {
+                    reportResult(e, h, message, config);
+                }
                 throw e instanceof BatchProcessingException
                         ? new BatchProcessingException(format("Handler %s failed to handle a %s", handler, message),
                                                        e.getCause(), ((BatchProcessingException) e).getMessageIndex())
