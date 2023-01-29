@@ -142,7 +142,7 @@ public abstract class AbstractWebsocketClient implements AutoCloseable {
                     session.getId(), id -> new Backlog<>(batch -> sendBatch(batch, session))).add(object);
         } finally {
             tryPublishMetrics(object, object instanceof Request
-                    ? Metadata.of("requestId", ((Request) object).getRequestId()) : Metadata.empty());
+                    ? metricsMetadata().with("requestId", ((Request) object).getRequestId()) : metricsMetadata());
         }
     }
 
@@ -187,8 +187,9 @@ public abstract class AbstractWebsocketClient implements AutoCloseable {
                 log.warn("Could not find outstanding read request for id {}", result.getRequestId());
             } else {
                 try {
-                    Metadata metadata = Metadata.of("requestId", webSocketRequest.request.getRequestId(),
-                                                    "msDuration", currentTimeMillis() - webSocketRequest.sendTimestamp)
+                    Metadata metadata = metricsMetadata()
+                            .with("requestId", webSocketRequest.request.getRequestId(),
+                                  "msDuration", currentTimeMillis() - webSocketRequest.sendTimestamp)
                             .with(webSocketRequest.correlationData);
                     tryPublishMetrics(result, batchId == null ? metadata : metadata.with("batchId", batchId));
                 } finally {
@@ -251,6 +252,10 @@ public abstract class AbstractWebsocketClient implements AutoCloseable {
         if (sendMetrics && metric != null) {
             FluxCapacitor.getOptionally().ifPresent(f -> publishMetrics(metric, metadata));
         }
+    }
+
+    protected Metadata metricsMetadata() {
+        return Metadata.empty();
     }
 
     @RequiredArgsConstructor

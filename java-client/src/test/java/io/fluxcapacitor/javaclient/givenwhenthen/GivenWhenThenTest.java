@@ -17,6 +17,7 @@ package io.fluxcapacitor.javaclient.givenwhenthen;
 import io.fluxcapacitor.common.api.tracking.Read;
 import io.fluxcapacitor.javaclient.FluxCapacitor;
 import io.fluxcapacitor.javaclient.MockException;
+import io.fluxcapacitor.javaclient.common.Message;
 import io.fluxcapacitor.javaclient.modeling.Aggregate;
 import io.fluxcapacitor.javaclient.persisting.eventsourcing.Apply;
 import io.fluxcapacitor.javaclient.test.TestFixture;
@@ -26,6 +27,9 @@ import lombok.Value;
 import org.junit.jupiter.api.Test;
 import org.mockito.InOrder;
 
+import java.util.function.Predicate;
+
+import static io.fluxcapacitor.common.MessageType.COMMAND;
 import static io.fluxcapacitor.javaclient.FluxCapacitor.loadAggregate;
 import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.mock;
@@ -189,7 +193,8 @@ class GivenWhenThenTest {
 
     @Test
     void testExpectMetrics() {
-        TestFixture.createAsync(commandHandler).whenCommand(new YieldsNoResult()).expectMetrics(Read.class);
+        TestFixture.createAsync(commandHandler).whenCommand(new YieldsNoResult()).expectMetrics((Predicate<Message>) m
+                -> m.getPayload() instanceof Read && COMMAND.name().equals(m.getMetadata().get("messageType")));
     }
 
     @Test

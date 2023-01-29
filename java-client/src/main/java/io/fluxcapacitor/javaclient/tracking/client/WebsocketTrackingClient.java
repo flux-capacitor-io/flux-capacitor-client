@@ -17,6 +17,7 @@ package io.fluxcapacitor.javaclient.tracking.client;
 import io.fluxcapacitor.common.Awaitable;
 import io.fluxcapacitor.common.Guarantee;
 import io.fluxcapacitor.common.MessageType;
+import io.fluxcapacitor.common.api.Metadata;
 import io.fluxcapacitor.common.api.SerializedMessage;
 import io.fluxcapacitor.common.api.tracking.ClaimSegment;
 import io.fluxcapacitor.common.api.tracking.ClaimSegmentResult;
@@ -47,6 +48,8 @@ import static io.fluxcapacitor.common.MessageType.METRICS;
 @ClientEndpoint
 public class WebsocketTrackingClient extends AbstractWebsocketClient implements TrackingClient {
 
+    private final Metadata metricsMetadata;
+
     public WebsocketTrackingClient(String endPointUrl, ClientConfig clientConfig, MessageType type) {
         this(URI.create(endPointUrl), clientConfig, type);
     }
@@ -57,6 +60,7 @@ public class WebsocketTrackingClient extends AbstractWebsocketClient implements 
 
     public WebsocketTrackingClient(URI endPointUri, ClientConfig clientConfig, MessageType type, boolean sendMetrics) {
         super(endPointUri, clientConfig, sendMetrics, clientConfig.getTrackingConfigs().get(type).getSessions());
+        this.metricsMetadata = Metadata.of("messageType", type);
     }
 
     @Override
@@ -103,6 +107,11 @@ public class WebsocketTrackingClient extends AbstractWebsocketClient implements 
     @Override
     public Awaitable disconnectTracker(String consumer, String trackerId, boolean sendFinalEmptyBatch, Guarantee guarantee) {
         return sendCommand(new DisconnectTracker(consumer, trackerId, sendFinalEmptyBatch, guarantee));
+    }
+
+    @Override
+    protected Metadata metricsMetadata() {
+        return metricsMetadata;
     }
 
     @Override
