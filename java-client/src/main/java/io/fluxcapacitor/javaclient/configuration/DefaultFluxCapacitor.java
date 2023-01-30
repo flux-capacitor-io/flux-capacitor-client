@@ -130,11 +130,10 @@ import static io.fluxcapacitor.common.MessageType.RESULT;
 import static io.fluxcapacitor.common.MessageType.SCHEDULE;
 import static io.fluxcapacitor.common.MessageType.WEBREQUEST;
 import static io.fluxcapacitor.common.MessageType.WEBRESPONSE;
+import static io.fluxcapacitor.javaclient.tracking.IndexUtils.indexFromTimestamp;
 import static java.lang.Runtime.getRuntime;
 import static java.lang.String.format;
 import static java.util.Arrays.stream;
-import static java.util.Collections.singletonList;
-import static java.util.Collections.unmodifiableMap;
 import static java.util.function.Function.identity;
 import static java.util.stream.Collectors.toList;
 import static java.util.stream.Collectors.toMap;
@@ -224,7 +223,11 @@ public class DefaultFluxCapacitor implements FluxCapacitor {
         private Serializer snapshotSerializer = serializer;
         private CorrelationDataProvider correlationDataProvider = DefaultCorrelationDataProvider.INSTANCE;
         private DocumentSerializer documentSerializer = (JacksonSerializer) serializer;
-        private final Map<MessageType, List<ConsumerConfiguration>> consumerConfigurations = defaultConfigurations();
+
+        private final Map<MessageType, ConsumerConfiguration> defaultConsumerConfigurations =
+                stream(MessageType.values()).collect(toMap(identity(), this::getDefaultConsumerConfiguration));
+        private final Map<MessageType, List<ConsumerConfiguration>> customConsumerConfigurations =
+                stream(MessageType.values()).collect(toMap(identity(), messageType -> new ArrayList<>()));
         private final List<ParameterResolver<? super DeserializingMessage>> customParameterResolvers =
                 new ArrayList<>();
         private final Map<MessageType, List<DispatchInterceptor>> lowPrioDispatchInterceptors = new HashMap<>();
@@ -249,11 +252,6 @@ public class DefaultFluxCapacitor implements FluxCapacitor {
         private boolean makeApplicationInstance;
         private UserProvider userProvider = UserProvider.defaultUserSupplier;
         private IdentityProvider identityProvider = IdentityProvider.defaultIdentityProvider;
-
-        protected Map<MessageType, List<ConsumerConfiguration>> defaultConfigurations() {
-            return unmodifiableMap(stream(MessageType.values()).collect(toMap(identity(), messageType ->
-                    new ArrayList<>(singletonList(ConsumerConfiguration.getDefault(messageType))))));
-        }
 
         @Override
         public Builder replaceSerializer(@NonNull Serializer serializer) {
@@ -295,29 +293,22 @@ public class DefaultFluxCapacitor implements FluxCapacitor {
         @Override
         public Builder configureDefaultConsumer(@NonNull MessageType messageType,
                                                 @NonNull UnaryOperator<ConsumerConfiguration> updateFunction) {
-            List<ConsumerConfiguration> configurations = consumerConfigurations.get(messageType);
-            ConsumerConfiguration defaultConfiguration = configurations.get(configurations.size() - 1);
+            ConsumerConfiguration defaultConfiguration = defaultConsumerConfigurations.get(messageType);
             ConsumerConfiguration updatedConfiguration = updateFunction.apply(defaultConfiguration);
-            if (configurations.subList(0, configurations.size() - 1).stream()
-                    .map(ConsumerConfiguration::getName)
-                    .anyMatch(n -> Objects.equals(n, updatedConfiguration.getName()))) {
-                throw new IllegalArgumentException(
-                        format("Consumer name %s is already in use", updatedConfiguration.getName()));
-            }
-            configurations.set(configurations.size() - 1, updatedConfiguration);
+            defaultConsumerConfigurations.put(messageType, updatedConfiguration);
             return this;
         }
 
         @Override
-        public Builder addConsumerConfiguration(@NonNull ConsumerConfiguration consumerConfiguration) {
+        public Builder addConsumerConfiguration(@NonNull ConsumerConfiguration configuration) {
             List<ConsumerConfiguration> configurations =
-                    consumerConfigurations.get(consumerConfiguration.getMessageType());
+                    customConsumerConfigurations.get(configuration.getMessageType());
             if (configurations.stream().map(ConsumerConfiguration::getName)
-                    .anyMatch(n -> Objects.equals(n, consumerConfiguration.getName()))) {
+                    .anyMatch(n -> Objects.equals(n, configuration.getName()))) {
                 throw new IllegalArgumentException(
-                        format("Consumer name %s is already in use", consumerConfiguration.getName()));
+                        format("Consumer name %s is already in use", configuration.getName()));
             }
-            configurations.add(configurations.size() - 1, consumerConfiguration);
+            configurations.add(configuration);
             return this;
         }
 
@@ -364,7 +355,7 @@ public class DefaultFluxCapacitor implements FluxCapacitor {
                                                                     UnaryOperator<ConsumerConfiguration> consumerConfigurator) {
             forwardingWebConsumer =
                     new ForwardingWebConsumer(localServerConfig,
-                                              consumerConfigurator.apply(ConsumerConfiguration.getDefault(WEBREQUEST)));
+                                              consumerConfigurator.apply(getDefaultConsumerConfiguration(WEBREQUEST)));
             return this;
         }
 
@@ -459,7 +450,9 @@ public class DefaultFluxCapacitor implements FluxCapacitor {
             Map<MessageType, HandlerInterceptor> handlerInterceptors =
                     Arrays.stream(MessageType.values()).collect(toMap(identity(), m -> HandlerInterceptor.noOp()));
             Map<MessageType, List<ConsumerConfiguration>> consumerConfigurations =
-                    new HashMap<>(this.consumerConfigurations);
+                    new HashMap<>(this.customConsumerConfigurations);
+            this.defaultConsumerConfigurations.forEach((type, config) -> consumerConfigurations.get(type).add(
+                    config.toBuilder().name(String.format("%s_%s", client.name(), config.getName())).build()));
 
             KeyValueStore keyValueStore = new DefaultKeyValueStore(client.getKeyValueClient(), serializer);
             DocumentStore documentStore = new DefaultDocumentStore(client.getSearchClient(), documentSerializer);
@@ -693,6 +686,14 @@ public class DefaultFluxCapacitor implements FluxCapacitor {
                                             keyValueStore, documentStore,
                                             scheduler, userProvider, cache, serializer, correlationDataProvider,
                                             identityProvider, client, shutdownHandler);
+        }
+
+        protected ConsumerConfiguration getDefaultConsumerConfiguration(MessageType messageType) {
+            return ConsumerConfiguration.builder().messageType(messageType)
+                    .name(messageType.name())
+                    .ignoreSegment(messageType == NOTIFICATION)
+                    .minIndex(messageType == NOTIFICATION ? indexFromTimestamp(FluxCapacitor.currentTime()) : null)
+                    .build();
         }
 
         protected GenericGateway createRequestGateway(Client client, MessageType messageType,

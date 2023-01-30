@@ -40,7 +40,6 @@ import java.util.stream.Stream;
 
 import static io.fluxcapacitor.common.TimingUtils.retryOnFailure;
 import static io.fluxcapacitor.javaclient.tracking.BatchInterceptor.join;
-import static java.lang.String.format;
 import static java.lang.Thread.currentThread;
 import static java.util.Comparator.naturalOrder;
 import static java.util.Optional.ofNullable;
@@ -115,8 +114,7 @@ public class DefaultTracker implements Runnable, Registration {
                                      Client client) {
         List<DefaultTracker> instances = IntStream.range(0, config.getThreads())
                 .mapToObj(i -> new DefaultTracker(consumer, config, new Tracker(
-                        config.prependApplicationName() ? format("%s_%s", client.name(), config.getName()) :
-                                config.getName(), config.getTrackerIdFactory().apply(client), config, null),
+                        config.getName(), config.getTrackerIdFactory().apply(client), config, null),
                                                   client.getTrackingClient(config.getMessageType())))
                 .collect(toList());
         ExecutorService executor = newFixedThreadPool(config.getThreads());

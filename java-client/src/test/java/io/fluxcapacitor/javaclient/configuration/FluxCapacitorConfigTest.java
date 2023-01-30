@@ -16,27 +16,28 @@ package io.fluxcapacitor.javaclient.configuration;
 
 import io.fluxcapacitor.common.MessageType;
 import io.fluxcapacitor.javaclient.tracking.ConsumerConfiguration;
-import lombok.extern.slf4j.Slf4j;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
-
-@Slf4j
 public class FluxCapacitorConfigTest {
 
     @Test
     void testAddConsumerWithExistingNameNotAllowed() {
-        assertThrows(IllegalArgumentException.class, () -> DefaultFluxCapacitor.builder().addConsumerConfiguration(
-                ConsumerConfiguration.builder().messageType(MessageType.QUERY).name("QUERY").build()));
+        ConsumerConfiguration config1 =
+                ConsumerConfiguration.builder().messageType(MessageType.QUERY).name("test").build();
+        ConsumerConfiguration config2 =
+                ConsumerConfiguration.builder().messageType(MessageType.QUERY).name("test").build();
+        assertThrows(IllegalArgumentException.class, () -> DefaultFluxCapacitor.builder()
+                .addConsumerConfiguration(config1).addConsumerConfiguration(config2));
     }
 
     @Test
-    void testUpdateConsumerToUseExistingNameNotAllowed() {
-        assertThrows(IllegalArgumentException.class, () -> DefaultFluxCapacitor.builder()
-                .addConsumerConfiguration(ConsumerConfiguration.builder().messageType(MessageType.QUERY).name("foo").build())
-                .configureDefaultConsumer(MessageType.QUERY,
-                                          consumerConfiguration -> consumerConfiguration.toBuilder().name("foo")
-                                                  .build()));
+    void testAddConsumerWithExistingNameAllowedIfDifferentMessageType() {
+        ConsumerConfiguration config1 =
+                ConsumerConfiguration.builder().messageType(MessageType.QUERY).name("test").build();
+        ConsumerConfiguration config2 =
+                ConsumerConfiguration.builder().messageType(MessageType.COMMAND).name("test").build();
+        DefaultFluxCapacitor.builder().addConsumerConfiguration(config1).addConsumerConfiguration(config2);
     }
 }

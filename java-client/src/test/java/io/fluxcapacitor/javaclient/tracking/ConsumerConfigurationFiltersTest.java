@@ -18,18 +18,16 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 @Slf4j
 public class ConsumerConfigurationFiltersTest {
     private final Clock nowClock = Clock.fixed(Instant.parse("2022-01-01T00:00:00.000Z"), ZoneId.systemDefault());
-    private final Long nowIndex = 107544261427200000L;
 
     @Test
     void nonExclusiveConsumerLetsHandlerThrough() {
         TestFixture.createAsync(DefaultFluxCapacitor.builder()
                                         .addConsumerConfiguration(ConsumerConfiguration.builder().messageType(COMMAND)
                                                                           .name("nonExclusive")
-                                                                          .prependApplicationName(false)
                                                                           .exclusive(false).build())
                                         .addConsumerConfiguration(ConsumerConfiguration.builder().messageType(COMMAND)
                                                                           .name("exclusive")
-                                                                          .prependApplicationName(false).build())
+                                                                          .build())
                                         .configureDefaultConsumer(COMMAND, c -> c.toBuilder().name("default").build()),
                                 new Handler())
                 
@@ -42,9 +40,9 @@ public class ConsumerConfigurationFiltersTest {
         TestFixture.createAsync(DefaultFluxCapacitor.builder()
                                         .addConsumerConfiguration(ConsumerConfiguration.builder().messageType(COMMAND)
                                                                           .name("nonExclusivePassive")
-                                                                          .prependApplicationName(false)
                                                                           .exclusive(false).passive(true).build())
-                                        .configureDefaultConsumer(COMMAND, c -> c.toBuilder().name("default").build()),
+                                        .addConsumerConfiguration(ConsumerConfiguration.builder().messageType(COMMAND)
+                                                .name("default").build()),
                                 new Handler())
                 
                 .whenCommand(new Command())
@@ -71,14 +69,13 @@ public class ConsumerConfigurationFiltersTest {
 
     @Test
     void dontProcessMessageWhenMaxIndexIsReached() {
+        Long nowIndex = 107544261427200000L;
         TestFixture.createAsync(DefaultFluxCapacitor.builder()
                                         .addConsumerConfiguration(ConsumerConfiguration.builder().messageType(COMMAND)
                                                                           .name("minIndex")
-                                                                          .prependApplicationName(false)
                                                                           .exclusive(false).minIndex(nowIndex).build())
                                         .addConsumerConfiguration(ConsumerConfiguration.builder().messageType(COMMAND)
                                                                           .name("maxIndex")
-                                                                          .prependApplicationName(false)
                                                                           .maxIndexExclusive(nowIndex).build())
                                         .configureDefaultConsumer(COMMAND, c -> c.toBuilder().name("default").build()),
                                 new Handler())

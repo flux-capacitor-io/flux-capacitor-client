@@ -95,7 +95,6 @@ public class DefaultRequestHandler implements RequestHandler {
             registration = start(this::handleMessages, ConsumerConfiguration.builder()
                     .messageType(resultType)
                     .name(format("%s_%s", client.name(), "$request-handler"))
-                    .prependApplicationName(false)
                     .ignoreSegment(true)
                     .filterMessageTarget(true)
                     .minIndex(IndexUtils.indexFromTimestamp(

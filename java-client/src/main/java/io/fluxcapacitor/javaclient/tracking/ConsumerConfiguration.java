@@ -38,10 +38,7 @@ import java.util.function.Predicate;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
-import static io.fluxcapacitor.common.MessageType.NOTIFICATION;
 import static io.fluxcapacitor.common.reflection.ReflectionUtils.asInstance;
-import static io.fluxcapacitor.javaclient.FluxCapacitor.currentTime;
-import static io.fluxcapacitor.javaclient.tracking.IndexUtils.indexFromTimestamp;
 
 @Value
 @Builder(builderClassName = "Builder", toBuilder = true)
@@ -49,9 +46,6 @@ public class ConsumerConfiguration {
 
     @NonNull MessageType messageType;
     @NonNull String name;
-    @Default
-    @Accessors(fluent = true)
-    boolean prependApplicationName = true;
     @NonNull
     @Default
     @EqualsAndHashCode.Exclude
@@ -97,15 +91,6 @@ public class ConsumerConfiguration {
     @Default
     Duration purgeDelay = null;
 
-    public static ConsumerConfiguration getDefault(MessageType messageType) {
-        return ConsumerConfiguration.builder().messageType(messageType)
-                .name(messageType.name())
-                .prependApplicationName(true)
-                .ignoreSegment(messageType == NOTIFICATION)
-                .minIndex(messageType == NOTIFICATION ? indexFromTimestamp(currentTime()) : null)
-                .build();
-    }
-
     public static Stream<ConsumerConfiguration> configurations(Collection<Class<?>> handlerClasses) {
         return Stream.concat(handlerClasses.stream().flatMap(ConsumerConfiguration::classConfigurations),
                              handlerClasses.stream().map(Class::getPackage).distinct().flatMap(
@@ -138,7 +123,6 @@ public class ConsumerConfiguration {
                 .name(consumer.name())
                 .handlerFilter(handlerFilter)
                 .messageType(messageType)
-                .prependApplicationName(false)
                 .errorHandler(asInstance(consumer.errorHandler()))
                 .threads(consumer.threads())
                 .maxFetchSize(consumer.maxFetchSize())

@@ -28,6 +28,7 @@ import static io.fluxcapacitor.javaclient.common.serialization.DeserializingMess
 import static io.fluxcapacitor.javaclient.modeling.Entity.getAggregateId;
 import static io.fluxcapacitor.javaclient.modeling.Entity.getAggregateType;
 import static io.fluxcapacitor.javaclient.tracking.client.DefaultTracker.start;
+import static java.lang.String.format;
 
 @RequiredArgsConstructor
 @Slf4j
@@ -157,7 +158,8 @@ public class CachingAggregateRepository implements AggregateRepository {
             start(this::handleEvents, ConsumerConfiguration.builder().messageType(NOTIFICATION)
                     .ignoreSegment(true)
                     .minIndex(lastEventIndex = IndexUtils.indexFromTimestamp(FluxCapacitor.currentTime()))
-                    .name(CachingAggregateRepository.class.getSimpleName()).build(), client);
+                    .name(format("%s_%s", client.name(), CachingAggregateRepository.class.getSimpleName()))
+                    .build(), client);
             synchronized (cache) {
                 cache.notifyAll();
             }
