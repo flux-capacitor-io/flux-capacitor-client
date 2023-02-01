@@ -29,15 +29,17 @@ public interface Cache {
 
     <T> T compute(Object id, BiFunction<? super Object, ? super T, ? extends T> mappingFunction);
 
-    <T> T getIfPresent(Object id);
+    <T> T get(Object id);
 
     default <T> T getOrDefault(Object id, T defaultValue) {
-        return Optional.<T>ofNullable(getIfPresent(id)).orElse(defaultValue);
+        return Optional.<T>ofNullable(get(id)).orElse(defaultValue);
     }
 
-    void invalidate(Object id);
+    boolean containsKey(Object id);
 
-    void invalidateAll();
+    <T> T remove(Object id);
+
+    void clear();
 
     int size();
 
