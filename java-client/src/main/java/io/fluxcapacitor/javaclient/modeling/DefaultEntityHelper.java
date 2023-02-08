@@ -6,6 +6,7 @@ import io.fluxcapacitor.common.handling.HandlerMatcher;
 import io.fluxcapacitor.common.handling.Invocation;
 import io.fluxcapacitor.common.handling.ParameterResolver;
 import io.fluxcapacitor.javaclient.common.HasMessage;
+import io.fluxcapacitor.javaclient.common.Message;
 import io.fluxcapacitor.javaclient.common.serialization.DeserializingMessage;
 import io.fluxcapacitor.javaclient.persisting.eventsourcing.Apply;
 import io.fluxcapacitor.javaclient.persisting.eventsourcing.InterceptApply;
@@ -44,8 +45,14 @@ public class DefaultEntityHelper implements EntityHelper {
     public Stream<?> intercept(Object value, Entity<?> entity) {
         var m = new MessageWithEntity(value, entity);
         return interceptMatchers.apply(m.getPayloadClass()).findInvoker(m.getPayload(), m)
-                .map(i -> asStream(i.invoke()).flatMap(v -> Objects.equals(v, value)
-                        ? Stream.of(v) : intercept(v, entity))).orElseGet(() -> Stream.of(value));
+                .map(i -> asStream(i.invoke()).flatMap(v -> {
+                    Message result = Message.asMessage(v).withMetadata(m.getMetadata());
+                    if (result.getPayloadClass().equals(m.getPayloadClass())) {
+                        return Stream.of(result);
+                    }
+                    return intercept(result, entity);
+                }))
+                .orElseGet(() -> Stream.of(value));
     }
 
     @Override

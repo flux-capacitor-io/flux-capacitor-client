@@ -3,6 +3,7 @@ package io.fluxcapacitor.javaclient.modeling;
 import io.fluxcapacitor.common.api.Metadata;
 import io.fluxcapacitor.javaclient.FluxCapacitor;
 import io.fluxcapacitor.javaclient.MockException;
+import io.fluxcapacitor.javaclient.common.Message;
 import io.fluxcapacitor.javaclient.common.Nullable;
 import io.fluxcapacitor.javaclient.persisting.eventsourcing.Apply;
 import io.fluxcapacitor.javaclient.persisting.eventsourcing.InterceptApply;
@@ -247,12 +248,14 @@ public class AggregateEntitiesTest {
 
         @Test
         void returnDifferentCommand() {
-            testFixture.whenCommand(new FailingCommand() {
+            testFixture.whenEventsAreApplied("test", Aggregate.class, new Message(new FailingCommand() {
                 @InterceptApply
                 Object intercept(FailingCommand input) {
                     return new AddChild("missing");
                 }
-            }).expectThat(fc -> expectEntity(e -> e.get() instanceof MissingChild && "missing".equals(e.id())));
+            }, Metadata.of("foo", "bar")))
+                    .expectEvents((Predicate<Message>) m -> m.getMetadata().containsKey("foo"))
+                    .expectThat(fc -> expectEntity(e -> e.get() instanceof MissingChild && "missing".equals(e.id())));
         }
 
         @Test
