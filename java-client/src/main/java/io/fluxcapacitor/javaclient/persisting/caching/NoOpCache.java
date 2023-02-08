@@ -48,22 +48,17 @@ public enum NoOpCache implements Cache {
     }
 
     @Override
-    public <T> T get(Object id) {
+    public <T> T getIfPresent(Object id) {
         return null;
     }
 
     @Override
-    public boolean containsKey(Object id) {
-        return false;
+    public void invalidate(Object id) {
+        //no op
     }
 
     @Override
-    public <T> T remove(Object id) {
-        return null;
-    }
-
-    @Override
-    public void clear() {
+    public void invalidateAll() {
         //no op
     }
 

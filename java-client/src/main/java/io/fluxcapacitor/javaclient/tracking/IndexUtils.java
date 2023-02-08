@@ -52,8 +52,4 @@ public class IndexUtils {
     public static long indexForCurrentTime() {
         return FluxCapacitor.currentClock().millis() << 16;
     }
-
-    public static long nextIndex(Long lastIndex) {
-        return lastIndex == null ? indexForCurrentTime() : Math.max(indexForCurrentTime(), lastIndex + 1L);
-    }
 }

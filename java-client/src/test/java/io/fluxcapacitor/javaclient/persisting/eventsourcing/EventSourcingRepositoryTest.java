@@ -82,7 +82,7 @@ class EventSourcingRepositoryTest {
         @Test
         void testLoadingFromEventStoreAfterClearingCache() {
             testFixture.givenCommands(new CreateModel(), new UpdateModel())
-                    .given(fc -> fc.cache().clear())
+                    .given(fc -> fc.cache().invalidateAll())
                     .whenQuery(new GetModel())
                     .expectResult(new TestModel(Arrays.asList(new CreateModel(), new UpdateModel()), Metadata.empty()))
                     .expectThat(fc -> verify(eventStoreClient).getEvents(anyString(), anyLong()));
@@ -134,7 +134,7 @@ class EventSourcingRepositoryTest {
         @Test
         void testSkippedSequenceNumbers() {
             testFixture.givenCommands(new CreateModel())
-                    .given(fc -> fc.cache().clear())
+                    .given(fc -> fc.cache().invalidateAll())
                     .whenExecuting(fc -> {
                         when(eventStoreClient.getEvents(anyString(), anyLong())).thenAnswer(invocation -> {
                             AggregateEventStream<SerializedMessage> result =
@@ -163,7 +163,7 @@ class EventSourcingRepositoryTest {
         @Test
         void testApplyEventsDuringApplyIsIgnoredDuringReplay() {
             testFixture.givenCommands(new CreateModel(), new ApplyWhileApplying())
-                    .given(fc -> fc.cache().clear())
+                    .given(fc -> fc.cache().invalidateAll())
                     .whenExecuting(fc -> loadAggregate(aggregateId, TestModel.class))
                     .expectThat(fc -> verify(eventStoreClient, never()).storeEvents(anyString(), anyList(),
                                                                            eq(false)));
