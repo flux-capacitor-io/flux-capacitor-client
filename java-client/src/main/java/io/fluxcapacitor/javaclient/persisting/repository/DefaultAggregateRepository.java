@@ -166,35 +166,33 @@ public class DefaultAggregateRepository implements AggregateRepository {
         }
 
         protected ModifiableAggregateRoot<T> load(String id) {
-            return ModifiableAggregateRoot.load(id, () -> {
-                ImmutableAggregateRoot<T> delegate =
-                        Optional.<ImmutableAggregateRoot<T>>ofNullable(cache.getIfPresent(id))
-                                .filter(a -> a.get() == null || type.isAssignableFrom(a.get().getClass()))
-                                .orElseGet(() -> {
-                                    var builder =
-                                            ImmutableAggregateRoot.<T>builder().id(id).type(type).idProperty(idProperty)
-                                                    .entityHelper(entityHelper).serializer(serializer);
-                                    ImmutableAggregateRoot<T> model =
-                                            (searchable && !eventSourced
-                                                    ? documentStore.<T>fetchDocument(id, collection)
-                                                    .map(d -> builder.value(d).build())
-                                                    : snapshotStore.<T>getSnapshot(id).map(
-                                                    a -> ImmutableAggregateRoot.from(a, entityHelper, serializer)))
-                                                    .filter(a -> {
-                                                        boolean assignable =
-                                                                a.get() == null
-                                                                || type.isAssignableFrom(a.get().getClass());
-                                                        if (!assignable) {
-                                                            log.warn("Could not load aggregate {} because the requested"
-                                                                     + " type {} is not assignable to the stored type {}",
-                                                                     id, type, a.get().getClass());
-                                                        }
-                                                        return assignable;
-                                                    })
-                                                    .map(a -> (ImmutableAggregateRoot<T>) a).orElseGet(builder::build);
-                                    if (!eventSourced) {
-                                        return model;
-                                    }
+            return ModifiableAggregateRoot.load(
+                    id, () -> Optional.ofNullable(cache.computeIfAbsent(id, k -> {
+                                var builder =
+                                        ImmutableAggregateRoot.<T>builder().id(id).type(type)
+                                                .idProperty(idProperty)
+                                                .entityHelper(entityHelper).serializer(serializer);
+                                ImmutableAggregateRoot<T> model =
+                                        (searchable && !eventSourced
+                                                ? documentStore.<T>fetchDocument(id, collection)
+                                                .map(d -> builder.value(d).build())
+                                                : snapshotStore.<T>getSnapshot(id).map(
+                                                a -> ImmutableAggregateRoot.from(a, entityHelper, serializer)))
+                                                .filter(a -> {
+                                                    boolean assignable =
+                                                            a.get() == null
+                                                            || type.isAssignableFrom(a.get().getClass());
+                                                    if (!assignable) {
+                                                        log.warn(
+                                                                "Could not load aggregate {} because the requested"
+                                                                + " type {} is not assignable to the stored type {}",
+                                                                id, type, a.get().getClass());
+                                                    }
+                                                    return assignable;
+                                                })
+                                                .map(a -> (ImmutableAggregateRoot<T>) a)
+                                                .orElseGet(builder::build);
+                                if (eventSourced) {
                                     AggregateEventStream<DeserializingMessage> eventStream
                                             = eventStore.getEvents(id, model.sequenceNumber());
                                     Iterator<DeserializingMessage> iterator = eventStream.iterator();
@@ -207,14 +205,16 @@ public class DefaultAggregateRepository implements AggregateRepository {
                                     } finally {
                                         Entity.loading.set(wasLoading);
                                     }
-                                    return model.toBuilder().sequenceNumber(
+                                    model = model.toBuilder().sequenceNumber(
                                             eventStream.getLastSequenceNumber().orElse(model.sequenceNumber())).build();
-                                });
-                if (delegate.get() != null && !Entity.isLoading()) {
-                    cache.putIfAbsent(id, delegate);
-                }
-                return delegate;
-            }, commitInBatch, serializer, dispatchInterceptor, this::commit);
+                                    return model;
+                                }
+                                return model;
+                            }))
+                            .filter(a -> type.isAssignableFrom(a.type()))
+                            .orElseGet(() -> ImmutableAggregateRoot.<T>builder().id(id).type(type)
+                                    .idProperty(idProperty).entityHelper(entityHelper).serializer(serializer).build()),
+                    commitInBatch, serializer, dispatchInterceptor, this::commit);
         }
 
         protected void commit(Entity<?> after, List<DeserializingMessage> unpublishedEvents, Entity<?> before) {
@@ -253,7 +253,7 @@ public class DefaultAggregateRepository implements AggregateRepository {
                 }
             } catch (Exception e) {
                 log.error("Failed to commit aggregate {}", after.id(), e);
-                cache.invalidate(after.id());
+                cache.remove(after.id());
             }
         }
 

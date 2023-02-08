@@ -38,18 +38,23 @@ public class NamedCache implements Cache {
     }
 
     @Override
-    public <T> T getIfPresent(Object id) {
-        return delegate.getIfPresent(idFunction.apply(id));
+    public <T> T get(Object id) {
+        return delegate.get(idFunction.apply(id));
     }
 
     @Override
-    public void invalidate(Object id) {
-        delegate.invalidate(idFunction.apply(id));
+    public boolean containsKey(Object id) {
+        return delegate.containsKey(idFunction.apply(id));
     }
 
     @Override
-    public void invalidateAll() {
-        delegate.invalidateAll();
+    public <T> T remove(Object id) {
+        return delegate.remove(idFunction.apply(id));
+    }
+
+    @Override
+    public void clear() {
+        delegate.clear();
     }
 
     @Override

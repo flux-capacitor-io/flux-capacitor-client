@@ -16,9 +16,9 @@ package io.fluxcapacitor.javaclient.persisting.caching;
 
 import io.fluxcapacitor.javaclient.modeling.Entity;
 import lombok.AllArgsConstructor;
-import lombok.NonNull;
 
 import java.util.Optional;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.BiFunction;
 import java.util.function.Function;
 import java.util.function.Predicate;
@@ -45,51 +45,81 @@ public class SelectiveCache implements Cache {
     }
 
     @Override
-    public Object put(Object id, @NonNull Object value) {
-        return selector.test(value) ? delegate.put(id, value) : nextCache.put(id, value);
+    public Object put(Object id, Object value) {
+        if (selector.test(value)) {
+            Object delegateValue = delegate.put(id, value);
+            Object nextCacheValue = nextCache.remove(id);
+            return delegateValue == null ? nextCacheValue : delegateValue;
+        }
+        Object nextCacheValue = nextCache.put(id, value);
+        Object delegateValue = delegate.remove(id);
+        return nextCacheValue == null ? delegateValue : nextCacheValue;
     }
 
     @Override
-    public Object putIfAbsent(Object id, @NonNull Object value) {
-        return selector.test(value) ? delegate.putIfAbsent(id, value) : nextCache.putIfAbsent(id, value);
+    public Object putIfAbsent(Object id, Object value) {
+        if (selector.test(value)) {
+            Object delegateValue = delegate.putIfAbsent(id, value);
+            Object nextCacheValue = nextCache.remove(id);
+            return delegateValue == null ? nextCacheValue : delegateValue;
+        }
+        Object nextCacheValue = nextCache.putIfAbsent(id, value);
+        Object delegateValue = delegate.remove(id);
+        return nextCacheValue == null ? delegateValue : nextCacheValue;
     }
 
     @Override
     public <T> T computeIfAbsent(Object id, Function<? super Object, T> mappingFunction) {
-        T result = getIfPresent(id);
-        return result == null ? selector.test(mappingFunction.apply(id))
-                ? delegate.computeIfAbsent(id, mappingFunction) : nextCache.computeIfAbsent(id, mappingFunction)
-                : result;
+        return compute(id, (k, v) -> v == null ? mappingFunction.apply(id) : v);
     }
 
     @Override
     public <T> T computeIfPresent(Object id, BiFunction<? super Object, ? super T, ? extends T> mappingFunction) {
-        T result = getIfPresent(id);
-        return result == null ? null : selector.test(result) ? delegate.computeIfPresent(id, mappingFunction) :
-                nextCache.computeIfPresent(id, mappingFunction);
+        return compute(id, (k, v) -> v == null ? null : mappingFunction.apply(k, v));
     }
 
     @Override
     public <T> T compute(Object id, BiFunction<? super Object, ? super T, ? extends T> mappingFunction) {
-        T result = Optional.<T>ofNullable(getIfPresent(id)).orElseGet(() -> mappingFunction.apply(id, null));
-        return selector.test(result) ? delegate.compute(id, mappingFunction) : nextCache.compute(id, mappingFunction);
+        AtomicReference<T> result = new AtomicReference<>();
+        T nextCacheResult = nextCache.compute(id, (k, v) -> {
+            T delegateResult = delegate.compute(id, (k2, v2) -> {
+                T r = mappingFunction.apply(id, v2 == null ? v : v2);
+                result.set(r);
+                if (selector.test(r)) {
+                    return r;
+                }
+                return null;
+            });
+            if (selector.test(delegateResult)) {
+                result.set(delegateResult);
+                return null;
+            }
+            return result.get();
+        });
+        return nextCacheResult == null ? result.get() : nextCacheResult;
     }
 
     @Override
-    public <T> T getIfPresent(Object id) {
-        return Optional.<T>ofNullable(delegate.getIfPresent(id)).orElseGet(() -> nextCache.getIfPresent(id));
+    public <T> T get(Object id) {
+        return Optional.<T>ofNullable(delegate.get(id)).orElseGet(() -> nextCache.get(id));
     }
 
     @Override
-    public void invalidate(Object id) {
-        delegate.invalidate(id);
-        nextCache.invalidate(id);
+    public boolean containsKey(Object id) {
+        return delegate.containsKey(id) || nextCache.containsKey(id);
     }
 
     @Override
-    public void invalidateAll() {
-        delegate.invalidateAll();
-        nextCache.invalidateAll();
+    public <T> T remove(Object id) {
+        T delegateValue = delegate.remove(id);
+        T nextCacheValue = nextCache.remove(id);
+        return delegateValue == null ? nextCacheValue : delegateValue;
+    }
+
+    @Override
+    public void clear() {
+        delegate.clear();
+        nextCache.clear();
     }
 
     @Override
