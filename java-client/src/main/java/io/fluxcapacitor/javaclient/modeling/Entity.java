@@ -22,6 +22,7 @@ import io.fluxcapacitor.javaclient.common.Message;
 import io.fluxcapacitor.javaclient.common.serialization.DeserializingMessage;
 import io.fluxcapacitor.javaclient.publishing.routing.RoutingKey;
 
+import java.beans.Transient;
 import java.time.Instant;
 import java.util.Collection;
 import java.util.Collections;
@@ -83,6 +84,16 @@ public interface Entity<T> {
     Class<T> type();
 
     T get();
+
+    @Transient
+    default boolean isEmpty() {
+        return get() == null;
+    }
+
+    @Transient
+    default boolean isPresent() {
+        return get() != null;
+    }
 
     default Entity<T> ifPresent(UnaryOperator<Entity<T>> action) {
         if (get() == null) {

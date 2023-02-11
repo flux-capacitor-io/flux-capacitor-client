@@ -1,9 +1,15 @@
 package io.fluxcapacitor.javaclient.persisting.caching;
 
+import io.fluxcapacitor.common.ObjectUtils;
+import lombok.SneakyThrows;
 import org.junit.jupiter.api.Test;
+
+import java.util.Optional;
+import java.util.concurrent.CountDownLatch;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class DefaultCacheTest {
 
@@ -29,6 +35,12 @@ class DefaultCacheTest {
     @Test
     void testComputeIfAbsentWithNullReturnIsAllowed() {
         assertNull(subject.computeIfAbsent("foo", f -> null));
+    }
+
+    @Test
+    void testComputeIfAbsentWithEmptyOptionalReturnedIsStoredButResolvesAsNull() {
+        assertNull(subject.computeIfAbsent("foo", f -> Optional.empty()));
+        assertTrue(subject.containsKey("foo"));
     }
 
     @Test
@@ -76,5 +88,51 @@ class DefaultCacheTest {
             subject.compute("id1", (k2, v2) -> "bar");
             return "foo";
         }));
+    }
+
+    @SneakyThrows
+    @Test
+    void testLockingSameKey() {
+        var latch = new CountDownLatch(1);
+        var thread1 = new Thread(() -> subject.compute("foo", (k, v) -> ObjectUtils.safelyCall(() -> {
+            latch.await();
+            return "bar";
+        })));
+        thread1.start();
+        Thread.sleep(10);
+        var thread2 = new Thread(() -> subject.compute("foo", (k, v) -> "bar2"));
+        thread2.start();
+        Thread.sleep(10);
+        assertNull(subject.get("foo"));
+        assertEquals(Thread.State.WAITING, thread1.getState());
+        assertEquals(Thread.State.BLOCKED, thread2.getState());
+        latch.countDown();
+        thread2.join();
+        assertEquals("bar2", subject.get("foo"));
+        assertEquals(Thread.State.TERMINATED, thread1.getState());
+        assertEquals(Thread.State.TERMINATED, thread2.getState());
+    }
+
+    @SneakyThrows
+    @Test
+    void testNoLockIfDifferentKey() {
+        var latch = new CountDownLatch(1);
+        var thread1 = new Thread(() -> subject.compute("foo", (k, v) -> ObjectUtils.safelyCall(() -> {
+            latch.await();
+            return "bar";
+        })));
+        thread1.start();
+        Thread.sleep(10);
+        var thread2 = new Thread(() -> subject.compute("foo2", (k, v) -> "bar2"));
+        thread2.start();
+        thread2.join();
+        assertNull(subject.get("foo"));
+        assertEquals("bar2", subject.get("foo2"));
+        assertEquals(Thread.State.WAITING, thread1.getState());
+        assertEquals(Thread.State.TERMINATED, thread2.getState());
+        latch.countDown();
+        thread1.join();
+        assertEquals("bar", subject.get("foo"));
+        assertEquals(Thread.State.TERMINATED, thread1.getState());
     }
 }

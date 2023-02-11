@@ -269,12 +269,7 @@ public abstract class AbstractSerializer<I> implements Serializer {
     protected abstract <V> V doConvert(Object value, Class<V> type);
 
     protected boolean isKnownType(String type) {
-        try {
-            ReflectionUtils.classForName(type);
-            return true;
-        } catch (Exception e) {
-            return false;
-        }
+        return ReflectionUtils.classExists(type);
     }
 
     @SuppressWarnings({"unchecked", "rawtypes"})

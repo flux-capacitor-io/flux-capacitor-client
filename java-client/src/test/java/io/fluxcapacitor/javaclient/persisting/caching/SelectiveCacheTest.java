@@ -34,6 +34,7 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 
 class SelectiveCacheTest {
+    private static final String aggregateId = "test";
     private final Cache
             stringCache = spy(new DefaultCache()),
             booleanCache = spy(new DefaultCache()),
@@ -175,7 +176,8 @@ class SelectiveCacheTest {
                     .expectFalse(fc -> stringCache.isEmpty())
                     .expectTrue(fc -> booleanCache.isEmpty())
                     .expectTrue(fc -> defaultCache.isEmpty())
-                    .expectFalse(fc -> fc.cache().isEmpty());
+                    .expectFalse(fc -> fc.cache().isEmpty())
+                    .expectFalse(fc -> loadAggregate(aggregateId, StringModel.class).get() == null);
         }
 
         @Test
@@ -200,49 +202,66 @@ class SelectiveCacheTest {
         void testAggregateOnlySourcedOnceAfterClear_boolean() {
             testFixture.givenCommands(true)
                     .given(fc -> fc.cache().clear())
-                    .whenApplying(fc -> loadAggregateFor("test"))
+                    .whenApplying(fc -> loadAggregateFor(aggregateId))
                     .<Entity<?>>expectResult(e -> e.get() instanceof BooleanModel)
                     .expectFalse(fc -> booleanCache.isEmpty())
                     .expectThat(fc -> verify(fc.client().getEventStoreClient(), times(1))
-                            .getEvents("test", -1L));
+                            .getEvents(aggregateId, -1L));
         }
 
         @Test
         void testAggregateOnlySourcedOnceAfterClear_string() {
             testFixture.givenCommands("command")
                     .given(fc -> fc.cache().clear())
-                    .whenApplying(fc -> loadAggregateFor("test"))
+                    .whenApplying(fc -> loadAggregateFor(aggregateId))
                     .<Entity<?>>expectResult(e -> e.get() instanceof StringModel)
                     .expectFalse(fc -> stringCache.isEmpty())
                     .expectThat(fc -> verify(fc.client().getEventStoreClient(), times(1))
-                            .getEvents("test", -1L));
+                            .getEvents(aggregateId, -1L));
+        }
+
+        @Test
+        void testAggregateLoadingWrongType() {
+            testFixture.givenCommands("command")
+                    .whenApplying(fc -> loadAggregate(aggregateId, BooleanModel.class).get())
+                    .expectThat(fc -> verify(fc.client().getEventStoreClient(), times(1))
+                            .getEvents(aggregateId, -1L))
+                    .expectNoResult();
+        }
+
+        @Test
+        void testAggregateLoadingWrongTypeThenRightType() {
+            testFixture.givenCommands("command")
+                    .given(fc -> loadAggregate(aggregateId, BooleanModel.class).get())
+                    .whenApplying(fc -> loadAggregate(aggregateId, StringModel.class).get())
+                    .expectResult(StringModel.class);
         }
 
         @Test
         void testAggregateOnlySourcedOnceAfterClear_number() {
             testFixture.givenCommands(123)
                     .given(fc -> fc.cache().clear())
-                    .whenApplying(fc -> loadAggregateFor("test"))
+                    .whenApplying(fc -> loadAggregateFor(aggregateId))
                     .<Entity<?>>expectResult(e -> e.get() instanceof NumberModel)
                     .expectFalse(fc -> defaultCache.isEmpty())
                     .expectThat(fc -> verify(fc.client().getEventStoreClient(), times(1))
-                            .getEvents("test", -1L));
+                            .getEvents(aggregateId, -1L));
         }
 
         class MockCommandHandler {
             @HandleCommand
             void handle(String command) {
-                loadAggregate("test", StringModel.class).apply(command);
+                loadAggregate(aggregateId, StringModel.class).apply(command);
             }
 
             @HandleCommand
             void handle(Number command) {
-                loadAggregate("test", NumberModel.class).apply(command);
+                loadAggregate(aggregateId, NumberModel.class).apply(command);
             }
 
             @HandleCommand
             void handle(Boolean command) {
-                loadAggregate("test", BooleanModel.class).apply(command);
+                loadAggregate(aggregateId, BooleanModel.class).apply(command);
             }
         }
     }

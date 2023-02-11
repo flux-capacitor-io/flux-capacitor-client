@@ -568,10 +568,6 @@ public class ReflectionUtils {
                 .flatMap(i -> stream(i.getAnnotations()))).collect(toCollection(LinkedHashSet::new));
     }
 
-    public static Class<?> classForName(String type) {
-        return classForNameCache.apply(type);
-    }
-
     /*
         Returns meta annotation if desired
      */
@@ -692,15 +688,6 @@ public class ReflectionUtils {
         return compare(ACCESS_ORDER.indexOf(lhs & ACCESS_MODIFIERS), ACCESS_ORDER.indexOf(rhs & ACCESS_MODIFIERS));
     }
 
-    public static boolean classExists(String className) {
-        try {
-            ReflectionUtils.classForName(className);
-            return true;
-        } catch (Exception e) {
-            return false;
-        }
-    }
-
     @SneakyThrows
     public static <V> V copyFields(V source, V target) {
         if (target == null || source == null) {
@@ -720,6 +707,19 @@ public class ReflectionUtils {
             type = type.getSuperclass();
         }
         return target;
+    }
+
+    public static Class<?> classForName(String type) {
+        return classForNameCache.apply(type);
+    }
+
+    public static boolean classExists(String className) {
+        try {
+            classForNameCache.apply(className);
+            return true;
+        } catch (Exception e) {
+            return false;
+        }
     }
 
     @SneakyThrows
