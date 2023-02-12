@@ -274,26 +274,30 @@ public class DefaultTracker implements Runnable, Registration {
     @Override
     public void cancel() {
         if (running.compareAndSet(true, false)) {
-            //wait for processing to complete
-            if (processing) {
-                while (processing) {
+            if (!Thread.currentThread().equals(thread.get())) {
+                //wait for processing to complete
+                if (processing) {
+                    while (processing) {
+                        try {
+                            Thread.sleep(1);
+                        } catch (InterruptedException e) {
+                            currentThread().interrupt();
+                            return;
+                        }
+                    }
+                } else {
+                    //interrupt message fetching
                     try {
-                        Thread.sleep(1);
-                    } catch (InterruptedException e) {
-                        currentThread().interrupt();
-                        return;
+                        thread.get().interrupt();
+                    } catch (Exception e) {
+                        log.warn("Not allowed to cancel tracker {}", tracker.getName(), e);
+                    } finally {
+                        thread.set(null);
                     }
                 }
-            } else {
-                //interrupt message fetching
-                try {
-                    thread.get().interrupt();
-                } catch (Exception e) {
-                    log.warn("Not allowed to cancel tracker {}", tracker.getName(), e);
-                } finally {
-                    thread.set(null);
-                }
             }
+
+            //signal batch interceptors that this tracker goes away
             tracker.getConfiguration().getBatchInterceptors().forEach(i -> {
                 try {
                     i.shutdown(tracker);
