@@ -18,9 +18,17 @@ import io.fluxcapacitor.common.handling.Handler;
 import io.fluxcapacitor.common.handling.HandlerFilter;
 import io.fluxcapacitor.javaclient.common.serialization.DeserializingMessage;
 
+import java.util.Arrays;
+import java.util.List;
 import java.util.Optional;
 
 public interface HandlerFactory {
 
-    Optional<Handler<DeserializingMessage>> createHandler(Object target, String consumer, HandlerFilter handlerFilter);
+    default Optional<Handler<DeserializingMessage>> createHandler(Object target, String consumer, HandlerFilter handlerFilter,
+                                                          HandlerInterceptor... handlerInterceptors) {
+        return createHandler(target, consumer, handlerFilter, Arrays.asList(handlerInterceptors));
+    }
+
+    Optional<Handler<DeserializingMessage>> createHandler(Object target, String consumer, HandlerFilter handlerFilter,
+                                                          List<HandlerInterceptor> handlerInterceptors);
 }

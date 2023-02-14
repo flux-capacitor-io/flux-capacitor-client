@@ -16,7 +16,7 @@ import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
 @Slf4j
-public class ConsumerConfigurationFiltersTest {
+public class ConsumerConfigurationTest {
     private final Clock nowClock = Clock.fixed(Instant.parse("2022-01-01T00:00:00.000Z"), ZoneId.systemDefault());
 
     @Test
@@ -30,7 +30,7 @@ public class ConsumerConfigurationFiltersTest {
                                                                           .build())
                                         .configureDefaultConsumer(COMMAND, c -> c.toBuilder().name("default").build()),
                                 new Handler())
-                
+
                 .whenCommand(new Command())
                 .expectOnlyEvents("nonExclusive", "exclusive");
     }
@@ -42,9 +42,9 @@ public class ConsumerConfigurationFiltersTest {
                                                                           .name("nonExclusivePassive")
                                                                           .exclusive(false).passive(true).build())
                                         .addConsumerConfiguration(ConsumerConfiguration.builder().messageType(COMMAND)
-                                                .name("default").build()),
+                                                                          .name("default").build()),
                                 new Handler())
-                
+
                 .whenCommand(new Command())
                 .expectOnlyEvents("nonExclusivePassive", "default")
                 .expectResult("default");
@@ -80,10 +80,27 @@ public class ConsumerConfigurationFiltersTest {
                                         .configureDefaultConsumer(COMMAND, c -> c.toBuilder().name("default").build()),
                                 new Handler())
                 .withClock(nowClock)
-                
+
                 .whenCommand(new Command())
                 .expectEvents("minIndex")
                 .expectResult("minIndex");
+    }
+
+    @Test
+    void interceptorInConsumerTest() {
+        TestFixture.createAsync(
+                        DefaultFluxCapacitor.builder()
+                                .addHandlerInterceptor((f, i, c) -> m -> "first " + f.apply(m), COMMAND)
+                                .addConsumerConfiguration(
+                                        ConsumerConfiguration.builder().messageType(COMMAND).name("test")
+                                                .handlerInterceptor((f, i, c) -> m -> "second " + f.apply(m))
+                                                .handlerInterceptor((f, i, c) -> m -> "third " + f.apply(m))
+                                                .build()),
+                        new Handler())
+                .withClock(nowClock)
+                .whenCommand(new Command())
+                .expectEvents("test")
+                .expectResult("first second third test");
     }
 
     static class Handler {

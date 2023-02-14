@@ -87,8 +87,8 @@ public class DefaultTracking implements Tracking {
                             if (target instanceof Handler<?>) {
                                 return Stream.of((Handler<DeserializingMessage>) target);
                             }
-                            return handlerFactory.createHandler(asInstance(target), e.getKey().getName(), handlerFilter)
-                                    .stream();
+                            return handlerFactory.createHandler(asInstance(target), e.getKey().getName(), handlerFilter,
+                                                                e.getKey().getHandlerInterceptors()).stream();
                         }).collect(toList());
                         return converted.isEmpty() ? Stream.empty() :
                                 Stream.of(new SimpleEntry<>(e.getKey(), converted));

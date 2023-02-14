@@ -18,6 +18,7 @@ import io.fluxcapacitor.common.MessageType;
 import io.fluxcapacitor.common.reflection.ReflectionUtils;
 import io.fluxcapacitor.javaclient.configuration.client.Client;
 import io.fluxcapacitor.javaclient.tracking.handling.HandleMessage;
+import io.fluxcapacitor.javaclient.tracking.handling.HandlerInterceptor;
 import lombok.Builder;
 import lombok.Builder.Default;
 import lombok.EqualsAndHashCode;
@@ -66,6 +67,8 @@ public class ConsumerConfiguration {
     @NonNull Duration maxWaitDuration = Duration.ofSeconds(60);
     @Singular
     List<BatchInterceptor> batchInterceptors;
+    @Singular
+    List<HandlerInterceptor> handlerInterceptors;
     @Default
     @Accessors(fluent = true)
     boolean filterMessageTarget = false;

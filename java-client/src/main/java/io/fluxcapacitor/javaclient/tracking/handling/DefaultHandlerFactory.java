@@ -41,19 +41,22 @@ public class DefaultHandlerFactory implements HandlerFactory {
     private static final Map<MessageType, MessageFilter<? super DeserializingMessage>> messageFilterCache =
             new ConcurrentHashMap<>();
     private final MessageType messageType;
-    private final HandlerInterceptor handlerInterceptor;
+    private final HandlerInterceptor defaultInterceptor;
     private final List<ParameterResolver<? super DeserializingMessage>> parameterResolvers;
 
     @Override
     public Optional<Handler<DeserializingMessage>> createHandler(Object target, String consumer,
-                                                                 HandlerFilter handlerFilter) {
+                                                                 HandlerFilter handlerFilter,
+                                                                 List<HandlerInterceptor> handlerInterceptors) {
+        HandlerInterceptor interceptor = Stream.concat(Stream.of(defaultInterceptor), handlerInterceptors.stream())
+                .reduce(HandlerInterceptor::andThen).orElseThrow();
         return Optional.ofNullable(getHandlerAnnotation(messageType))
                 .map(a -> HandlerConfiguration.<DeserializingMessage>builder()
                         .methodAnnotation(a).handlerFilter(handlerFilter)
                         .messageFilter(getMessageFilter(messageType, parameterResolvers))
                         .build())
                 .filter(config -> hasHandlerMethods(target.getClass(), config))
-                .map(config -> handlerInterceptor.wrap(
+                .map(config -> interceptor.wrap(
                         HandlerInspector.createHandler(target, parameterResolvers, config), consumer));
     }
 
