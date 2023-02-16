@@ -160,42 +160,48 @@ public class DefaultTracking implements Tracking {
         };
     }
 
-    @SuppressWarnings("unchecked")
     protected void tryHandle(DeserializingMessage message, Handler<DeserializingMessage> handler,
                              ConsumerConfiguration config, boolean reportResult) {
+        getInvoker(message, handler, config).ifPresent(h -> {
+            Object result;
+            try {
+                result = handle(message, h, handler, config);
+            } catch (Throwable e) {
+                try {
+                    stopTracker(message, handler, e);
+                    return;
+                } finally {
+                    if (reportResult) {
+                        reportResult(e, h, message, config);
+                    }
+                }
+            }
+            try {
+                if (reportResult) {
+                    reportResult(result, h, message, config);
+                }
+            } catch (Throwable e) {
+                stopTracker(message, handler, e);
+            }
+        });
+    }
 
-        Optional<HandlerInvoker> invoker;
+    @SuppressWarnings("unchecked")
+    protected Optional<HandlerInvoker> getInvoker(DeserializingMessage message, Handler<DeserializingMessage> handler,
+                                                  ConsumerConfiguration config) {
         try {
-            invoker = handler.findInvoker(message);
+            return handler.findInvoker(message);
         } catch (Throwable e) {
             try {
                 Object retryResult = config.getErrorHandler().handleError(
                         e, format("Failed to check if handler %s is able to handle %s", handler, message),
                         () -> handler.findInvoker(message));
-                invoker = retryResult instanceof Optional<?> ? (Optional<HandlerInvoker>) retryResult : Optional.empty();
+                return retryResult instanceof Optional<?> ? (Optional<HandlerInvoker>) retryResult : Optional.empty();
             } catch (Throwable e2) {
-                throw e2 instanceof BatchProcessingException
-                        ? new BatchProcessingException(format("Handler %s failed to handle a %s", handler, message),
-                                                       e.getCause(), ((BatchProcessingException) e2).getMessageIndex())
-                        : new BatchProcessingException(message.getIndex());
+                stopTracker(message, handler, e2);
+                return Optional.empty();
             }
         }
-        invoker.ifPresent(h -> {
-            try {
-                Object result = handle(message, h, handler, config);
-                if (reportResult) {
-                    reportResult(result, h, message, config);
-                }
-            } catch (Throwable e) {
-                if (reportResult) {
-                    reportResult(e, h, message, config);
-                }
-                throw e instanceof BatchProcessingException
-                        ? new BatchProcessingException(format("Handler %s failed to handle a %s", handler, message),
-                                                       e.getCause(), ((BatchProcessingException) e).getMessageIndex())
-                        : new BatchProcessingException(message.getIndex());
-            }
-        });
     }
 
     @SuppressWarnings("unchecked")
@@ -237,8 +243,15 @@ public class DefaultTracking implements Tracking {
                                                                h.getMethod(), message), (Throwable) result);
                     }
                 }
-                SerializedMessage serializedMessage = message.getSerializedObject();
-                resultGateway.respond(result, serializedMessage.getSource(), serializedMessage.getRequestId());
+                SerializedMessage request = message.getSerializedObject();
+                try {
+                    resultGateway.respond(result, request.getSource(), request.getRequestId());
+                } catch (Throwable e) {
+                    Object response = result;
+                    config.getErrorHandler().handleError(
+                            e, format("Failed to send result of a %s from handler %s", message, h.getMethod()),
+                            () -> resultGateway.respond(response, request.getSource(), request.getRequestId()));
+                }
             }
         }
     }
@@ -247,6 +260,13 @@ public class DefaultTracking implements Tracking {
                                          ConsumerConfiguration config) {
         return message.getSerializedObject().getRequestId() != null && !config.passive() && !invoker.isPassive()
                && message.getMessageType() != MessageType.RESULT && message.getMessageType() != MessageType.WEBRESPONSE;
+    }
+
+    protected void stopTracker(DeserializingMessage message, Handler<DeserializingMessage> handler, Throwable e) {
+        throw e instanceof BatchProcessingException
+                ? new BatchProcessingException(format("Handler %s failed to handle a %s", handler, message),
+                                               e.getCause(), ((BatchProcessingException) e).getMessageIndex())
+                : new BatchProcessingException(message.getIndex());
     }
 
     @Override
