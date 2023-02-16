@@ -464,6 +464,12 @@ class EventSourcingRepositoryTest {
         }
 
         @Test
+        void testCreateViaEventInterfaceMethod() {
+            testFixture.givenCommands(new CreateModelFromEventConcrete()).whenQuery(new GetModel())
+                    .<TestModelWithoutApplyEvent>expectResult(r -> r.firstEvent.equals(new CreateModelFromEventConcrete()));
+        }
+
+        @Test
         void testUpdateViaEvent() {
             testFixture.givenCommands(new CreateModelFromEvent(), new UpdateModelFromEvent()).whenQuery(new GetModel())
                     .<TestModelWithoutApplyEvent>expectResult(r -> r.secondEvent.equals(new UpdateModelFromEvent()));
@@ -554,6 +560,19 @@ class EventSourcingRepositoryTest {
     @Value
     static class CreateModelFromEvent {
         @Apply
+        public TestModelWithoutApplyEvent apply() {
+            return TestModelWithoutApplyEvent.builder().firstEvent(this).build();
+        }
+    }
+
+    interface CreateModelFromEventInterface {
+        @Apply
+        TestModelWithoutApplyEvent apply();
+    }
+
+    @Value
+    static class CreateModelFromEventConcrete implements CreateModelFromEventInterface {
+        @Override
         public TestModelWithoutApplyEvent apply() {
             return TestModelWithoutApplyEvent.builder().firstEvent(this).build();
         }
