@@ -99,8 +99,8 @@ class JacksonSerializerTest {
     void testReturnsJsonNodeIfTypeUnknownAndFailFlagIsOff() throws JsonProcessingException {
         Data<byte[]> data =
                 new Data<>(objectMapper.writeValueAsBytes(new Foo("bar")), "unknownType", 0, "application/json");
-        List<DeserializingObject<byte[], Data<byte[]>>> result = serializer.deserialize(Stream.of(data), false)
-                .collect(Collectors.toList());
+        List<DeserializingObject<byte[], Data<byte[]>>> result =
+                serializer.deserialize(Stream.of(data), false).toList();
         assertTrue(JsonNode.class.isAssignableFrom(result.get(0).getPayloadClass()));
         assertEquals(new ObjectNode(objectMapper.getNodeFactory(), singletonMap("foo", TextNode.valueOf("bar"))),
                      result.get(0).getPayload());
@@ -110,8 +110,8 @@ class JacksonSerializerTest {
     void testConvertGetPayloadAs() throws JsonProcessingException {
         Foo foo = new Foo("bar");
         Data<byte[]> data = new Data<>(objectMapper.writeValueAsBytes(foo), "unknownType", 0, "application/json");
-        List<DeserializingObject<byte[], Data<byte[]>>> result = serializer.deserialize(Stream.of(data), false)
-                .collect(Collectors.toList());
+        List<DeserializingObject<byte[], Data<byte[]>>> result =
+                serializer.deserialize(Stream.of(data), false).toList();
         assertEquals(foo, result.get(0).getPayloadAs(Foo.class));
     }
 

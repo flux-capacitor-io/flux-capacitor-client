@@ -22,8 +22,6 @@ import io.fluxcapacitor.common.api.SerializedObject;
 import java.util.List;
 import java.util.stream.Stream;
 
-import static java.util.stream.Collectors.toList;
-
 /**
  * Mechanism to convert objects to a byte array and vice versa.
  */
@@ -61,7 +59,7 @@ public interface Serializer extends ContentFilter {
      */
     @SuppressWarnings("unchecked")
     default <T> T deserialize(Data<byte[]> data) {
-        List<T> list = deserialize(Stream.of(data), true).map(d -> (T) d.getPayload()).collect(toList());
+        List<T> list = deserialize(Stream.of(data), true).map(d -> (T) d.getPayload()).toList();
         if (list.size() != 1) {
             throw new SerializationException(
                     String.format("Invalid deserialization result for a '%s'. Expected a single object but got %s",

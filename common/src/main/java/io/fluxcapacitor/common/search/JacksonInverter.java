@@ -109,15 +109,9 @@ public class JacksonInverter implements Inverter<JsonNode> {
     protected JsonToken processToken(JsonToken token, Map<Entry, List<Path>> valueMap, String path,
                                      JsonParser parser) {
         switch (token) {
-            case START_ARRAY:
-                parseArray(parser, valueMap, path);
-                break;
-            case START_OBJECT:
-                parseObject(parser, valueMap, path);
-                break;
-            default:
-                registerValue(getEntryType(token), parser.getText(), path, valueMap);
-                break;
+            case START_ARRAY -> parseArray(parser, valueMap, path);
+            case START_OBJECT -> parseObject(parser, valueMap, path);
+            default -> registerValue(getEntryType(token), parser.getText(), path, valueMap);
         }
         return parser.nextToken();
     }
@@ -223,11 +217,11 @@ public class JacksonInverter implements Inverter<JsonNode> {
             return map.keySet().stream().findFirst().<JsonNode>map(firstKey -> firstKey instanceof Integer
                     ? new ArrayNode(nodeFactory, map.values().stream().map(this::toJsonNode).collect(toList()))
                     : new ObjectNode(nodeFactory, map.entrySet().stream().collect(
-                            toMap(e -> {
-                                String key = e.getKey().toString();
-                                key = Path.unescapeFieldName(key);
-                                return key;
-                            }, e -> toJsonNode(e.getValue()))))).orElse(NullNode.getInstance());
+                    toMap(e -> {
+                        String key = e.getKey().toString();
+                        key = Path.unescapeFieldName(key);
+                        return key;
+                    }, e -> toJsonNode(e.getValue()))))).orElse(NullNode.getInstance());
         }
         if (struct instanceof JsonNode) {
             return (JsonNode) struct;
@@ -236,20 +230,13 @@ public class JacksonInverter implements Inverter<JsonNode> {
     }
 
     protected JsonNode toJsonNode(Entry entry) {
-        switch (entry.getType()) {
-            case TEXT:
-                return new TextNode(entry.getValue());
-            case NUMERIC:
-                return new DecimalNode(new BigDecimal(entry.getValue()));
-            case BOOLEAN:
-                return BooleanNode.valueOf(Boolean.parseBoolean(entry.getValue()));
-            case NULL:
-                return NullNode.getInstance();
-            case EMPTY_ARRAY:
-                return new ArrayNode(nodeFactory);
-            case EMPTY_OBJECT:
-                return new ObjectNode(nodeFactory);
-        }
-        throw new IllegalArgumentException("Unrecognized entry type: " + entry.getType());
+        return switch (entry.getType()) {
+            case TEXT -> new TextNode(entry.getValue());
+            case NUMERIC -> new DecimalNode(new BigDecimal(entry.getValue()));
+            case BOOLEAN -> BooleanNode.valueOf(Boolean.parseBoolean(entry.getValue()));
+            case NULL -> NullNode.getInstance();
+            case EMPTY_ARRAY -> new ArrayNode(nodeFactory);
+            case EMPTY_OBJECT -> new ObjectNode(nodeFactory);
+        };
     }
 }

@@ -557,7 +557,7 @@ public class AggregateEntitiesTest {
 
     @Nested
     class MutableEntityTests {
-        private final TestFixture testFixture = (TestFixture) TestFixture.create(new CommandHandler()).given(
+        private final TestFixture testFixture = TestFixture.create(new CommandHandler()).given(
                 fc -> loadAggregate("test", MutableAggregate.class)
                         .update(s -> new MutableAggregate(null)));
 

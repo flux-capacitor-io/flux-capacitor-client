@@ -41,11 +41,11 @@ public class AllConstraint implements Constraint {
 
     public static Constraint all(Collection<Constraint> constraints) {
         var list = constraints.stream().distinct().collect(toList());
-        switch (list.size()) {
-            case 0: return NoOpConstraint.instance;
-            case 1: return list.get(0);
-            default: return new AllConstraint(list);
-        }
+        return switch (list.size()) {
+            case 0 -> NoOpConstraint.instance;
+            case 1 -> list.get(0);
+            default -> new AllConstraint(list);
+        };
     }
 
     List<Constraint> all;

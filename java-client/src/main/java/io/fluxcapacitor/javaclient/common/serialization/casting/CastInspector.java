@@ -86,8 +86,7 @@ public class CastInspector {
         if (parameters.length == 0) {
             return s -> invokeMethod(method, null, target);
         }
-        if (parameters[0] instanceof ParameterizedType) {
-            ParameterizedType parameterizedType = (ParameterizedType) parameters[0];
+        if (parameters[0] instanceof ParameterizedType parameterizedType) {
             if (parameterizedType.getRawType().equals(Data.class) && dataType
                     .isAssignableFrom((Class<?>) parameterizedType.getActualTypeArguments()[0])) {
                 return s -> invokeMethod(method, s.data(), target);
@@ -127,8 +126,7 @@ public class CastInspector {
         }
         if (method.getReturnType().equals(Optional.class)) {
             ParameterizedType parameterizedType = (ParameterizedType) method.getGenericReturnType();
-            if (parameterizedType.getActualTypeArguments()[0] instanceof Class<?>) {
-                Class<?> typeParameter = (Class<?>) parameterizedType.getActualTypeArguments()[0];
+            if (parameterizedType.getActualTypeArguments()[0] instanceof Class<?> typeParameter) {
                 if (dataType.isAssignableFrom(typeParameter)) {
                     return (s, o) -> {
                         Optional<T> result = (Optional<T>) o.get();

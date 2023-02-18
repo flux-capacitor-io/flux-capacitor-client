@@ -24,7 +24,6 @@ import java.io.FileInputStream;
 import java.io.FileWriter;
 import java.io.InputStream;
 import java.nio.charset.Charset;
-import java.nio.charset.StandardCharsets;
 import java.util.Scanner;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
@@ -54,7 +53,7 @@ public class FileUtils {
     @SneakyThrows
     public static String loadFile(Class<?> referencePoint, String fileName, Charset charset) {
         try (InputStream inputStream = referencePoint.getResourceAsStream(fileName)) {
-            return new Scanner(inputStream, charset.name()).useDelimiter("\\A").next();
+            return new Scanner(inputStream, charset).useDelimiter("\\A").next();
         } catch (NullPointerException e) {
             log.error("Resource {} not found in package {}", fileName, referencePoint.getPackageName());
             throw e;
@@ -64,7 +63,7 @@ public class FileUtils {
     @SneakyThrows
     public static String loadFile(File file) {
         try (InputStream inputStream = new FileInputStream(file)) {
-            return new Scanner(inputStream, StandardCharsets.UTF_8.name()).useDelimiter("\\A").next();
+            return new Scanner(inputStream, UTF_8).useDelimiter("\\A").next();
         } catch (Exception e) {
             log.error("File not found {}", file, e);
             throw e;

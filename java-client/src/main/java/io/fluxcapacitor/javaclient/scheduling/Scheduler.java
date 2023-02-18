@@ -49,8 +49,7 @@ public interface Scheduler {
     }
 
     default void schedule(Object schedule, String scheduleId, Instant deadline) {
-        if (schedule instanceof Message) {
-            Message message = (Message) schedule;
+        if (schedule instanceof Message message) {
             schedule(new Schedule(message.getPayload(), message.getMetadata(), message.getMessageId(),
                                   message.getTimestamp(), scheduleId, deadline));
         } else {
@@ -87,8 +86,7 @@ public interface Scheduler {
     }
 
     default void scheduleCommand(Object schedule, String scheduleId, Instant deadline) {
-        if (schedule instanceof Message) {
-            Message message = (Message) schedule;
+        if (schedule instanceof Message message) {
             scheduleCommand(new Schedule(message.getPayload(), message.getMetadata(), message.getMessageId(),
                                   message.getTimestamp(), scheduleId, deadline));
         } else {

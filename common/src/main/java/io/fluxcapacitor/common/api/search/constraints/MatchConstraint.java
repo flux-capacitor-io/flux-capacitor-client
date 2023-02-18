@@ -47,11 +47,11 @@ public class MatchConstraint extends PathConstraint {
                     ((Collection<?>) value).stream().filter(Objects::nonNull)
                             .map(v -> new MatchConstraint(v.toString(), List.of(paths), strict))
                             .collect(toList());
-            switch (constraints.size()) {
-                case 0: return NoOpConstraint.instance;
-                case 1: return constraints.get(0);
-                default: return AnyConstraint.any(constraints);
-            }
+            return switch (constraints.size()) {
+                case 0 -> NoOpConstraint.instance;
+                case 1 -> constraints.get(0);
+                default -> AnyConstraint.any(constraints);
+            };
         } else {
             return value == null
                     ? NoOpConstraint.instance : new MatchConstraint(value.toString(), List.of(paths), strict);

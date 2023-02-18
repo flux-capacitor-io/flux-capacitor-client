@@ -67,7 +67,6 @@ import static java.security.AccessController.doPrivileged;
 import static java.util.Arrays.stream;
 import static java.util.Collections.emptyList;
 import static java.util.stream.Collectors.toCollection;
-import static java.util.stream.Collectors.toList;
 import static org.apache.commons.lang3.ClassUtils.getAllInterfaces;
 import static org.apache.commons.lang3.StringUtils.isEmpty;
 import static org.apache.commons.lang3.reflect.MethodUtils.getMethodsListWithAnnotation;
@@ -178,7 +177,7 @@ public class ReflectionUtils {
         List<AccessibleObject> result =
                 new ArrayList<>(FieldUtils.getFieldsListWithAnnotation(target, annotation));
         result.addAll(getMethodsListWithAnnotation(target, annotation, true, true).stream()
-                              .filter(m -> m.getParameterCount() == 0).collect(toList()));
+                              .filter(m -> m.getParameterCount() == 0).toList());
         getAllInterfaces(target)
                 .forEach(i -> result.addAll(FieldUtils.getFieldsListWithAnnotation(i, annotation)));
         result.forEach(ReflectionUtils::ensureAccessible);

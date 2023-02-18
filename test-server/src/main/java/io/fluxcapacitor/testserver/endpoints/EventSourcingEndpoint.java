@@ -46,8 +46,7 @@ public class EventSourcingEndpoint extends WebsocketEndpoint {
     public VoidResult handle(AppendEvents appendEvents) throws Exception {
         List<Awaitable> results = appendEvents.getEventBatches().stream().map(b -> eventStore
                 .storeEvents(b.getAggregateId(), b.getEvents(),
-                             b.isStoreOnly())).collect(
-                Collectors.toList());
+                             b.isStoreOnly())).toList();
         for (Awaitable awaitable : results) {
             awaitable.await();
         }

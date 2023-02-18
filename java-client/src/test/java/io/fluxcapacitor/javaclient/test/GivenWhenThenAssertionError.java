@@ -55,13 +55,11 @@ public class GivenWhenThenAssertionError extends AssertionFailedError {
 
     @SneakyThrows
     private static Object formatForComparison(Object expectedOrActual) {
-        if (expectedOrActual instanceof Message) {
-            Message message = (Message) expectedOrActual;
+        if (expectedOrActual instanceof Message message) {
             Metadata metadata = message.getMetadata().withoutIf(key -> key.startsWith("$"));
             return new PayloadAndMetadata(message.getPayload(), metadata);
         }
-        if (expectedOrActual instanceof Collection) {
-            Collection<?> collection = (Collection<?>) expectedOrActual;
+        if (expectedOrActual instanceof Collection<?> collection) {
             return collection.stream().map(GivenWhenThenAssertionError::formatForComparison).collect(toList());
         }
         if (expectedOrActual instanceof Throwable) {

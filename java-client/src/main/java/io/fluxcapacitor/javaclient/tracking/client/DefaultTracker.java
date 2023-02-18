@@ -115,8 +115,7 @@ public class DefaultTracker implements Runnable, Registration {
         List<DefaultTracker> instances = IntStream.range(0, config.getThreads())
                 .mapToObj(i -> new DefaultTracker(consumer, config, new Tracker(
                         config.getName(), config.getTrackerIdFactory().apply(client), config, null),
-                                                  client.getTrackingClient(config.getMessageType())))
-                .collect(toList());
+                                                  client.getTrackingClient(config.getMessageType()))).toList();
         ExecutorService executor = newFixedThreadPool(config.getThreads());
         instances.forEach(executor::execute);
         return () -> {
@@ -129,8 +128,7 @@ public class DefaultTracker implements Runnable, Registration {
                                      TrackingClient trackingClient) {
         List<DefaultTracker> instances = IntStream.range(0, config.getThreads())
                 .mapToObj(i -> new DefaultTracker(consumer, config, new Tracker(
-                        config.getName(), UUID.randomUUID().toString(), config, null), trackingClient))
-                .collect(toList());
+                        config.getName(), UUID.randomUUID().toString(), config, null), trackingClient)).toList();
         ExecutorService executor = newFixedThreadPool(config.getThreads());
         instances.forEach(executor::execute);
         return () -> {

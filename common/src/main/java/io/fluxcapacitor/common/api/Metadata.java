@@ -122,8 +122,7 @@ public class Metadata {
             entries.remove(keyString);
             return entries;
         }
-        if (value instanceof Optional<?>) {
-            Optional<?> optional = (Optional<?>) value;
+        if (value instanceof Optional<?> optional) {
             if (optional.isEmpty()) {
                 return entries;
             }

@@ -21,7 +21,7 @@ package io.fluxcapacitor.common;
  * This produces exactly the same hash values as the final C++ version of MurmurHash3 and is thus suitable for producing
  * the same hash values across platforms.
  * <p>
- * See http://github.com/yonik/java_util for future updates to this file.
+ * See <a href="http://github.com/yonik/java_util">...</a> for future updates to this file.
  */
 public class Murmur3 {
 

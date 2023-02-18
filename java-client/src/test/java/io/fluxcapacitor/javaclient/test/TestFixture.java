@@ -154,7 +154,6 @@ public class TestFixture implements Given, When {
     private Duration consumerTimeout = defaultConsumerTimeout;
     private final boolean synchronous;
     private Registration registration = Registration.noOp();
-    private final GivenWhenThenInterceptor interceptor;
 
     private volatile Message tracedMessage;
     private final Map<ConsumerConfiguration, List<Message>> consumers = new ConcurrentHashMap<>();
@@ -178,7 +177,7 @@ public class TestFixture implements Given, When {
             fluxCapacitorBuilder.disableScheduledCommandHandler();
             handlers.add(new ScheduledCommandHandler());
         }
-        this.interceptor = new GivenWhenThenInterceptor();
+        GivenWhenThenInterceptor interceptor = new GivenWhenThenInterceptor();
         this.fluxCapacitor = new TestFluxCapacitor(
                 fluxCapacitorBuilder.disableShutdownHook().addDispatchInterceptor(interceptor)
                         .replaceIdentityProvider(p -> p == IdentityProvider.defaultIdentityProvider
@@ -219,8 +218,7 @@ public class TestFixture implements Given, When {
                             fluxCapacitor.webRequestGateway().registerHandler(h, handlerFilter),
                             fluxCapacitor.metricsGateway().registerHandler(h, handlerFilter)))
                 .reduce(Registration::merge).orElse(Registration.noOp()));
-        if (fluxCapacitor.scheduler() instanceof DefaultScheduler) {
-            DefaultScheduler scheduler = (DefaultScheduler) fluxCapacitor.scheduler();
+        if (fluxCapacitor.scheduler() instanceof DefaultScheduler scheduler) {
             registration.merge(fluxCapacitor.apply(fc -> handlers.stream().flatMap(h -> Stream
                             .of(scheduler.registerHandler(h, handlerFilter)))
                     .reduce(Registration::merge).orElse(Registration.noOp())));
@@ -285,7 +283,7 @@ public class TestFixture implements Given, When {
     @Override
     public TestFixture givenEvents(Object... events) {
         Stream<Message> messages = asMessages(events);
-        given(fc -> messages.collect(toList()).forEach(e -> fc.eventGateway().publish(e)));
+        given(fc -> messages.toList().forEach(e -> fc.eventGateway().publish(e)));
         return this;
     }
 
@@ -465,8 +463,7 @@ public class TestFixture implements Given, When {
             if (schedulingClient instanceof InMemorySchedulingClient) {
                 List<Schedule> expiredSchedules = ((InMemorySchedulingClient) schedulingClient)
                         .removeExpiredSchedules(getFluxCapacitor().serializer());
-                if (getFluxCapacitor().scheduler() instanceof DefaultScheduler) {
-                    DefaultScheduler scheduler = (DefaultScheduler) getFluxCapacitor().scheduler();
+                if (getFluxCapacitor().scheduler() instanceof DefaultScheduler scheduler) {
                     expiredSchedules.forEach(scheduler::handleLocally);
                 }
             }
@@ -643,21 +640,11 @@ public class TestFixture implements Given, When {
                 && Optional.ofNullable(tracedMessage)
                         .map(t -> !Objects.equals(t.getMessageId(), message.getMessageId())).orElse(true)) {
                 switch (messageType) {
-                    case COMMAND:
-                        registerCommand(message);
-                        break;
-                    case EVENT:
-                        registerEvent(message);
-                        break;
-                    case SCHEDULE:
-                        registerSchedule((Schedule) message);
-                        break;
-                    case WEBREQUEST:
-                        registerWebRequest(message);
-                        break;
-                    case METRICS:
-                        registerMetric(message);
-                        break;
+                    case COMMAND -> registerCommand(message);
+                    case EVENT -> registerEvent(message);
+                    case SCHEDULE -> registerSchedule((Schedule) message);
+                    case WEBREQUEST -> registerWebRequest(message);
+                    case METRICS -> registerMetric(message);
                 }
             }
 

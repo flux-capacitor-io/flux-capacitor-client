@@ -49,7 +49,7 @@ class BatchInterceptorTest {
                 };
             }
         };
-        Consumer<MessageBatch> function = new Consumer<MessageBatch>() {
+        Consumer<MessageBatch> function = new Consumer<>() {
             @Override
             public void accept(MessageBatch messages) {
                 invokedInstances.add(this);

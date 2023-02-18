@@ -124,14 +124,14 @@ public class DefaultTracking implements Tracking {
                 }, LinkedHashMap::new));
         var result = configurations.values().stream().map(config -> {
             var matches =
-                    unassignedHandlers.stream().filter(h -> config.getHandlerFilter().test(h)).collect(toList());
+                    unassignedHandlers.stream().filter(h -> config.getHandlerFilter().test(h)).toList();
             if (config.exclusive()) {
                 unassignedHandlers.removeAll(matches);
             }
             return Map.entry(config, matches);
         }).collect(toMap(Entry::getKey, Entry::getValue));
         unassignedHandlers.removeAll(
-                result.values().stream().flatMap(Collection::stream).distinct().collect(toList()));
+                result.values().stream().flatMap(Collection::stream).distinct().toList());
         unassignedHandlers.forEach(h -> {
             throw new TrackingException(format("Failed to find consumer for %s", h));
         });

@@ -42,15 +42,11 @@ public class InMemoryClient extends AbstractClient {
         Map<MessageType, InMemoryMessageStore> messageStores = new ConcurrentHashMap<>();
         return memoize(type -> messageStores.computeIfAbsent(
                 type, t -> {
-                    switch (t) {
-                        case NOTIFICATION:
-                        case EVENT:
-                            return eventStoreClient;
-                        case SCHEDULE:
-                            return schedulingClient;
-                        default:
-                            return new InMemoryMessageStore();
-                    }
+                    return switch (t) {
+                        case NOTIFICATION, EVENT -> eventStoreClient;
+                        case SCHEDULE -> schedulingClient;
+                        default -> new InMemoryMessageStore();
+                    };
                 }));
     }
 

@@ -138,12 +138,10 @@ public class DefaultDocumentStore implements DocumentStore {
     public SerializedDocumentUpdate serializeAction(BulkUpdate update) {
         SerializedDocumentUpdate.Builder builder = SerializedDocumentUpdate.builder()
                 .collection(update.getCollection()).id(update.getId()).type(update.getType());
-        if (update instanceof IndexDocument) {
-            IndexDocument u = (IndexDocument) update;
+        if (update instanceof IndexDocument u) {
             return builder.object(new SerializedDocument(serializer.toDocument(
                     u.getObject(), u.getId(), u.getCollection(), u.getTimestamp(), u.getEnd()))).build();
-        } else if (update instanceof IndexDocumentIfNotExists) {
-            IndexDocumentIfNotExists u = (IndexDocumentIfNotExists) update;
+        } else if (update instanceof IndexDocumentIfNotExists u) {
             return builder.object(new SerializedDocument(serializer.toDocument(
                     u.getObject(), u.getId(), u.getCollection(), u.getTimestamp(), u.getEnd()))).build();
         }
@@ -260,7 +258,7 @@ public class DefaultDocumentStore implements DocumentStore {
 
         @Override
         public Search exclude(String... paths) {
-            pathFilters.addAll(Arrays.stream(paths).map(p -> "-" + p).collect(toList()));
+            pathFilters.addAll(Arrays.stream(paths).map(p -> "-" + p).toList());
             return this;
         }
 
@@ -313,7 +311,7 @@ public class DefaultDocumentStore implements DocumentStore {
 
         @Override
         public List<DocumentStats> fetchStatistics(List<String> fields, String... groupBy) {
-            return client.fetchStatistics(queryBuilder.build(), fields, Arrays.<String>asList(groupBy));
+            return client.fetchStatistics(queryBuilder.build(), fields, Arrays.asList(groupBy));
         }
 
         @Override

@@ -194,7 +194,7 @@ public class ObjectUtils {
         }
 
         private enum NullObject {
-            INSTANCE;
+            INSTANCE
         }
     }
 

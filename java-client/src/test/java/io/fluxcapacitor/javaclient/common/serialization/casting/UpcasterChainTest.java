@@ -182,7 +182,7 @@ class UpcasterChainTest {
         MonitoringUpcaster upcaster = new MonitoringUpcaster();
         Caster<Data<String>> subject = create(Collections.singletonList(upcaster));
         Stream<Data<String>> resultStream = subject.cast(Stream.of(new Data<>("foo", "upcastLazily", 0, null)));
-        Data<String> result = resultStream.collect(toList()).get(0);
+        Data<String> result = resultStream.toList().get(0);
         assertFalse(upcaster.isInvoked());
         result.getValue();
         assertTrue(upcaster.isInvoked());

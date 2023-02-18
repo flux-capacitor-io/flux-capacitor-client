@@ -126,8 +126,7 @@ public class CachingAggregateRepository implements AggregateRepository {
         DeserializingMessage current = DeserializingMessage.getCurrent();
         if (current != null && !Entity.isLoading()) {
             switch (current.getMessageType()) {
-                case EVENT:
-                case NOTIFICATION:
+                case EVENT, NOTIFICATION -> {
                     Long eventIndex = current.getIndex();
                     if (eventIndex != null && lastEventIndex < eventIndex) {
                         synchronized (cache) {
@@ -143,11 +142,11 @@ public class CachingAggregateRepository implements AggregateRepository {
                             Duration fetchDuration = Duration.between(start, Instant.now());
                             if (fetchDuration.compareTo(slowTrackingThreshold) > 0) {
                                 log.warn("It took over {} for the aggregate repo tracking to get in sync. This may "
-                                                 + "indicate that the repo has trouble keeping up.", fetchDuration);
+                                         + "indicate that the repo has trouble keeping up.", fetchDuration);
                             }
                         }
                     }
-                    break;
+                }
             }
         }
     }

@@ -27,7 +27,7 @@ import static io.fluxcapacitor.common.TestUtils.createMessages;
 
 class InMemoryEventStoreClientTest {
 
-    private InMemoryEventStoreClient subject = new InMemoryEventStoreClient();
+    private final InMemoryEventStoreClient subject = new InMemoryEventStoreClient();
 
     @Test
     void returnsCorrectStreamWhenLastSnIsMidBatch() throws Exception {

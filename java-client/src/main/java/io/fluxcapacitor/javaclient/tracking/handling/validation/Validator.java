@@ -29,6 +29,6 @@ public interface Validator {
     }
 
     default boolean isValid(Object object, Class<?>... groups) {
-        return !checkValidity(object, groups).isPresent();
+        return checkValidity(object, groups).isEmpty();
     }
 }

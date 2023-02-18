@@ -121,7 +121,7 @@ public class DefaultGenericGateway implements GenericGateway {
                     } else {
                         return CompletableFuture.completedFuture(new Message(result, m.getMetadata()));
                     }
-                })).collect(Collectors.toList());
+                })).toList();
 
         return results.stream().map(r -> {
             if (r instanceof CompletableFuture<?>) {

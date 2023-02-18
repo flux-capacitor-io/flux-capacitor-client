@@ -46,7 +46,6 @@ import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 
 import static java.util.Optional.ofNullable;
-import static java.util.stream.Collectors.toList;
 
 @Value
 @Slf4j
@@ -112,7 +111,7 @@ public class DeserializingMessage implements HasMessage {
     }
 
     public <T> T apply(Function<DeserializingMessage, T> action) {
-        return handleBatch(Stream.of(this)).map(action).collect(toList()).get(0);
+        return handleBatch(Stream.of(this)).map(action).toList().get(0);
     }
 
     public Message toMessage() {
@@ -124,16 +123,12 @@ public class DeserializingMessage implements HasMessage {
 
     private Message asMessage() {
         Message message = new Message(getPayload(), getMetadata(), getMessageId(), getTimestamp());
-        switch (messageType) {
-            case SCHEDULE:
-                return new Schedule(message);
-            case WEBREQUEST:
-                return new WebRequest(message);
-            case WEBRESPONSE:
-                return new WebResponse(message);
-            default:
-                return message;
-        }
+        return switch (messageType) {
+            case SCHEDULE -> new Schedule(message);
+            case WEBREQUEST -> new WebRequest(message);
+            case WEBRESPONSE -> new WebResponse(message);
+            default -> message;
+        };
     }
 
     public Metadata getMetadata() {

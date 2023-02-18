@@ -455,7 +455,7 @@ class EventSourcingRepositoryTest {
     @Nested
     class WithoutApplyEvent {
 
-        private TestFixture testFixture = TestFixture.create(new Handler());
+        private final TestFixture testFixture = TestFixture.create(new Handler());
 
         @Test
         void testCreateViaEvent() {

@@ -61,28 +61,18 @@ public class DefaultHandlerFactory implements HandlerFactory {
     }
 
     private static Class<? extends Annotation> getHandlerAnnotation(MessageType messageType) {
-        switch (messageType) {
-            case COMMAND:
-                return HandleCommand.class;
-            case EVENT:
-                return HandleEvent.class;
-            case NOTIFICATION:
-                return HandleNotification.class;
-            case QUERY:
-                return HandleQuery.class;
-            case RESULT:
-                return HandleResult.class;
-            case ERROR:
-                return HandleError.class;
-            case SCHEDULE:
-                return HandleSchedule.class;
-            case METRICS:
-                return HandleMetrics.class;
-            case WEBREQUEST:
-                return HandleWeb.class;
-            default:
-                return null;
-        }
+        return switch (messageType) {
+            case COMMAND -> HandleCommand.class;
+            case EVENT -> HandleEvent.class;
+            case NOTIFICATION -> HandleNotification.class;
+            case QUERY -> HandleQuery.class;
+            case RESULT -> HandleResult.class;
+            case ERROR -> HandleError.class;
+            case SCHEDULE -> HandleSchedule.class;
+            case METRICS -> HandleMetrics.class;
+            case WEBREQUEST -> HandleWeb.class;
+            default -> null;
+        };
     }
 
     private static MessageFilter<? super DeserializingMessage> getMessageFilter(

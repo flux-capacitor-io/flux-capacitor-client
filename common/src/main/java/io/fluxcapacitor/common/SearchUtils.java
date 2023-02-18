@@ -39,9 +39,9 @@ public class SearchUtils {
      * Converts a standard POSIX Shell globbing pattern into a regular expression pattern. The result can be used with
      * the standard {@link java.util.regex} API to recognize strings which match the glob pattern.
      * <p>
-     * From https://stackoverflow.com/questions/1247772/is-there-an-equivalent-of-java-util-regex-for-glob-type-patterns
+     * From <a href="https://stackoverflow.com/questions/1247772/is-there-an-equivalent-of-java-util-regex-for-glob-type-patterns">...</a>
      * <p>
-     * See also, the POSIX Shell language: http://pubs.opengroup.org/onlinepubs/009695399/utilities/xcu_chap02.html#tag_02_13_01
+     * See also, the POSIX Shell language: <a href="http://pubs.opengroup.org/onlinepubs/009695399/utilities/xcu_chap02.html#tag_02_13_01">...</a>
      *
      * @param pattern A glob pattern.
      * @return A regex pattern to recognize the given glob pattern.

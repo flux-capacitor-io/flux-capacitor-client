@@ -32,6 +32,6 @@ public interface BulkUpdate {
     Type getType();
 
     enum Type {
-        index, indexIfNotExists, delete;
+        index, indexIfNotExists, delete
     }
 }

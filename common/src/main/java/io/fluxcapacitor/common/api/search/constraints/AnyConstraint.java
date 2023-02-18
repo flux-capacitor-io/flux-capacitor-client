@@ -40,11 +40,11 @@ public class AnyConstraint implements Constraint {
 
     public static Constraint any(Collection<Constraint> constraints) {
         var list = constraints.stream().distinct().collect(toList());
-        switch (list.size()) {
-            case 0: return NoOpConstraint.instance;
-            case 1: return list.get(0);
-            default: return new AnyConstraint(list);
-        }
+        return switch (list.size()) {
+            case 0 -> NoOpConstraint.instance;
+            case 1 -> list.get(0);
+            default -> new AnyConstraint(list);
+        };
     }
 
     List<Constraint> any;

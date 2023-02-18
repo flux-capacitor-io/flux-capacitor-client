@@ -73,8 +73,7 @@ public abstract class AbstractSerializer<I> implements Serializer {
             format = this.format;
         }
         try {
-            if (object instanceof Data<?>) {
-                Data<?> data = (Data<?>) object;
+            if (object instanceof Data<?> data) {
                 if (data.getValue() instanceof byte[]) {
                     return (Data<byte[]>) data;
                 }
@@ -196,8 +195,7 @@ public abstract class AbstractSerializer<I> implements Serializer {
         if (value == null || value.getClass().isPrimitive() || value instanceof String) {
             return null;
         }
-        if (value instanceof Collection<?>) {
-            Collection<?> collection = (Collection<?>) value;
+        if (value instanceof Collection<?> collection) {
             if (value instanceof List<?>) {
                 return (V) new ArrayList<>(collection);
             }
@@ -209,8 +207,7 @@ public abstract class AbstractSerializer<I> implements Serializer {
             }
             return (V) new LinkedList<>(collection);
         }
-        if (value instanceof Map<?, ?>) {
-            Map<?, ?> map = (Map<?, ?>) value;
+        if (value instanceof Map<?, ?> map) {
             if (value instanceof SortedMap<?, ?>) {
                 return (V) new TreeMap<>(map);
             }
@@ -254,14 +251,11 @@ public abstract class AbstractSerializer<I> implements Serializer {
     private Object downcastIntermediate(Data<I> data, int desiredRevision) {
         var result = downcasterChain.cast(Stream.of(data), desiredRevision).map(Data::getValue)
                 .collect(Collectors.toList());
-        switch (result.size()) {
-            case 0:
-                return null;
-            case 1:
-                return result.get(0);
-            default:
-                return result;
-        }
+        return switch (result.size()) {
+            case 0 -> null;
+            case 1 -> result.get(0);
+            default -> result;
+        };
     }
 
     protected abstract Object doClone(Object value);

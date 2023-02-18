@@ -41,7 +41,6 @@ public class AnnotatedEntityHolder {
     private static final Pattern getterPattern = Pattern.compile("(get|is)([A-Z].*)");
 
     private final AccessibleObject location;
-    private final Class<?> ownerType;
     private final BiFunction<Object, Object, Object> wither;
     private final Class<?> holderType;
     private final Function<Object, Id> idProvider;
@@ -76,7 +75,6 @@ public class AnnotatedEntityHolder {
         this.entityHelper = entityHelper;
         this.serializer = serializer;
         this.location = location;
-        this.ownerType = ownerType;
         this.holderType = ReflectionUtils.getPropertyType(location);
         this.entityType = getCollectionElementType(location).orElse(holderType);
         Member member = location.getAnnotation(Member.class);

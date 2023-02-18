@@ -26,7 +26,6 @@ import java.util.function.UnaryOperator;
 import static io.fluxcapacitor.common.MessageType.EVENT;
 import static io.fluxcapacitor.common.reflection.ReflectionUtils.getAnnotatedProperties;
 import static io.fluxcapacitor.javaclient.modeling.AnnotatedEntityHolder.getEntityHolder;
-import static java.util.stream.Collectors.toList;
 
 @Value
 @NonFinal
@@ -82,7 +81,7 @@ public class ImmutableEntity<T> implements Entity<T> {
         List<ImmutableEntity<?>> result = new ArrayList<>();
         for (AccessibleObject location : getAnnotatedProperties(type, Member.class)) {
             result.addAll(getEntityHolder(type, location, entityHelper, serializer)
-                                  .getEntities(this).collect(toList()));
+                                  .getEntities(this).toList());
         }
         return result;
     }

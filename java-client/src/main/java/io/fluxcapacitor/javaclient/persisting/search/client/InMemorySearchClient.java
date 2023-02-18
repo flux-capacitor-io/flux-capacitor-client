@@ -39,7 +39,6 @@ import java.util.Optional;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.function.Function;
 import java.util.function.Predicate;
-import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
@@ -104,7 +103,7 @@ public class InMemorySearchClient implements SearchClient {
 
     @Override
     public Awaitable delete(SearchQuery query, Guarantee guarantee) {
-        documents.removeAll(documents.stream().filter(query::matches).collect(Collectors.toList()));
+        documents.removeAll(documents.stream().filter(query::matches).toList());
         return Awaitable.ready();
     }
 
@@ -160,13 +159,10 @@ public class InMemorySearchClient implements SearchClient {
     public Awaitable bulkUpdate(Collection<SerializedDocumentUpdate> updates, Guarantee guarantee) {
         updates.forEach(action -> {
             switch (action.getType()) {
-                case delete:
-                    delete(action.getId(), action.getCollection(), guarantee);
-                    break;
-                case index:
-                case indexIfNotExists:
-                    index(singletonList(action.getObject().deserializeDocument()), guarantee,
-                          action.getType().equals(indexIfNotExists));
+                case delete -> delete(action.getId(), action.getCollection(), guarantee);
+                case index, indexIfNotExists ->
+                        index(singletonList(action.getObject().deserializeDocument()), guarantee,
+                              action.getType().equals(indexIfNotExists));
             }
         });
         return Awaitable.ready();

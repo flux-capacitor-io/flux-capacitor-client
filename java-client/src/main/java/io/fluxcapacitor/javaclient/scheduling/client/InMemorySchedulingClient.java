@@ -57,8 +57,7 @@ public class InMemorySchedulingClient extends InMemoryMessageStore implements Sc
     @Synchronized
     public Awaitable schedule(Guarantee guarantee, SerializedSchedule... schedules) {
         List<SerializedSchedule> filtered = Arrays.stream(schedules)
-                .filter(s -> !s.isIfAbsent() || !scheduleIdsByIndex.containsValue(s.getScheduleId()))
-                .collect(toList());
+                .filter(s -> !s.isIfAbsent() || !scheduleIdsByIndex.containsValue(s.getScheduleId())).toList();
         for (SerializedSchedule schedule : filtered) {
             cancelSchedule(schedule.getScheduleId());
             long index = indexFromMillis(schedule.getTimestamp());

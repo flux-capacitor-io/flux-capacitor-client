@@ -88,14 +88,12 @@ public interface Search {
     }
 
     default Search anyExist(String... paths) {
-        switch (paths.length) {
-            case 0:
-                return this;
-            case 1:
-                return constraint(ExistsConstraint.exists(paths[0]));
-            default:
-                return constraint(AnyConstraint.any(Arrays.stream(paths).map(ExistsConstraint::exists).collect(toList())));
-        }
+        return switch (paths.length) {
+            case 0 -> this;
+            case 1 -> constraint(ExistsConstraint.exists(paths[0]));
+            default ->
+                    constraint(AnyConstraint.any(Arrays.stream(paths).map(ExistsConstraint::exists).collect(toList())));
+        };
     }
 
     default Search atLeast(Number min, String path) {

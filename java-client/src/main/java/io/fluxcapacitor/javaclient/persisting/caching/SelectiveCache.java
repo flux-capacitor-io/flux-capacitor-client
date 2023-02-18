@@ -27,8 +27,7 @@ import java.util.function.Predicate;
 public class SelectiveCache implements Cache {
     public static Predicate<Object> aggregateSelector(Class<?> type) {
         return v -> {
-            if (v instanceof Entity<?>) {
-                Entity<?> aggregateRoot = (Entity<?>) v;
+            if (v instanceof Entity<?> aggregateRoot) {
                 return Optional.ofNullable(aggregateRoot.get()).map(r -> type.isAssignableFrom(r.getClass()))
                         .orElseGet(() -> type.isAssignableFrom(aggregateRoot.type()));
             }

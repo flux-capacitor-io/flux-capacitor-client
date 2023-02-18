@@ -60,12 +60,13 @@ class Jsr380JavaxValidatorTest {
 
         assertEquals(6, e.getViolations().size());
         assertTrue(e.getViolations().stream().anyMatch(v -> v.equals("member.aBoolean must be true")));
-        assertEquals("aBoolean must be true\n"
-                             + "aList element must not be blank\n"
-                             + "aNumber must be greater than or equal to 5\n"
-                             + "aString must not be null\n"
-                             + "custom message\n"
-                             + "member aBoolean must be true", e.getMessage());
+        assertEquals("""
+                             aBoolean must be true
+                             aList element must not be blank
+                             aNumber must be greater than or equal to 5
+                             aString must not be null
+                             custom message
+                             member aBoolean must be true""", e.getMessage());
     }
 
     @Test

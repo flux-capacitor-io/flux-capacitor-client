@@ -32,7 +32,7 @@ public class DefaultEntityHelper implements EntityHelper {
 
     private static final Aggregate defaultAggregateAnnotation = DefaultAggregate.class.getAnnotation(Aggregate.class);
     private static final Function<Class<?>, Aggregate> annotationCache = memoize(type -> Optional.ofNullable(
-            ReflectionUtils.getTypeAnnotation(type, Aggregate.class)).orElseGet(() -> defaultAggregateAnnotation));
+            ReflectionUtils.getTypeAnnotation(type, Aggregate.class)).orElse(defaultAggregateAnnotation));
     public static Aggregate getRootAnnotation(Class<?> type) {
         return annotationCache.apply(type);
     }
