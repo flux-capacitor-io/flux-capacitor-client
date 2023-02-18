@@ -134,6 +134,10 @@ public interface Entity<T> {
         return root().sequenceNumber();
     }
 
+    default Aggregate rootAnnotation() {
+        return DefaultEntityHelper.getRootAnnotation(root().type());
+    }
+
     @SuppressWarnings("unchecked")
     default Entity<T> previous() {
         return (Entity<T>) root().previous().allEntities().filter(

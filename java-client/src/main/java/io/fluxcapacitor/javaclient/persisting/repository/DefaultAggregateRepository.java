@@ -6,6 +6,7 @@ import io.fluxcapacitor.javaclient.FluxCapacitor;
 import io.fluxcapacitor.javaclient.common.serialization.DeserializingMessage;
 import io.fluxcapacitor.javaclient.common.serialization.Serializer;
 import io.fluxcapacitor.javaclient.modeling.Aggregate;
+import io.fluxcapacitor.javaclient.modeling.DefaultEntityHelper;
 import io.fluxcapacitor.javaclient.modeling.Entity;
 import io.fluxcapacitor.javaclient.modeling.EntityHelper;
 import io.fluxcapacitor.javaclient.modeling.EntityId;
@@ -36,14 +37,13 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Function;
 
 import static io.fluxcapacitor.common.ObjectUtils.memoize;
-import static io.fluxcapacitor.common.ObjectUtils.safelySupply;
 import static io.fluxcapacitor.common.reflection.ReflectionUtils.getAnnotatedProperty;
-import static java.util.Optional.ofNullable;
 
 @Slf4j
 @AllArgsConstructor
@@ -129,28 +129,22 @@ public class DefaultAggregateRepository implements AggregateRepository {
             this.dispatchInterceptor = dispatchInterceptor;
             this.entityHelper = entityHelper;
             this.documentStore = documentStore;
-            Aggregate typeAnnotation = ReflectionUtils.getTypeAnnotation(type, Aggregate.class);
-            int snapshotPeriod = ofNullable(typeAnnotation)
-                    .map(a -> a.eventSourced() || a.searchable() ? a.snapshotPeriod() : 1).orElseGet(safelySupply(
-                            () -> (int) Aggregate.class.getMethod("snapshotPeriod").getDefaultValue()));
-            AtomicBoolean warnedAboutMissingTimePath = new AtomicBoolean();
             this.type = type;
-            this.cache = ofNullable(typeAnnotation).map(Aggregate::cached).orElseGet(
-                    safelySupply(() -> (boolean) Aggregate.class.getMethod("cached").getDefaultValue()))
-                    ? cache : NoOpCache.INSTANCE;
-            this.eventSourced = ofNullable(typeAnnotation).map(Aggregate::eventSourced)
-                    .orElseGet(safelySupply(() -> (boolean) Aggregate.class.getMethod(
-                            "eventSourced").getDefaultValue()));
-            this.commitInBatch = ofNullable(typeAnnotation).map(Aggregate::commitInBatch).orElseGet(safelySupply(
-                    () -> (boolean) Aggregate.class.getMethod("commitInBatch").getDefaultValue()));
+
+            Aggregate annotation = DefaultEntityHelper.getRootAnnotation(type);
+            this.cache = annotation.cached() ? cache : NoOpCache.INSTANCE;
+            this.eventSourced = annotation.eventSourced();
+            this.commitInBatch = annotation.commitInBatch();
+            int snapshotPeriod = annotation.eventSourced() || annotation.searchable() ? annotation.snapshotPeriod() : 1;
             this.snapshotTrigger = snapshotPeriod > 0 ? new PeriodicSnapshotTrigger(snapshotPeriod) :
                     NoSnapshotTrigger.INSTANCE;
             this.snapshotStore = snapshotPeriod > 0 ? snapshotStore : NoOpSnapshotStore.INSTANCE;
-            this.searchable = ofNullable(typeAnnotation).map(Aggregate::searchable)
-                    .orElseGet(safelySupply(() -> (boolean) Aggregate.class.getMethod("searchable").getDefaultValue()));
-            this.collection = ofNullable(typeAnnotation).map(Aggregate::collection)
+            this.searchable = annotation.searchable();
+            this.collection = Optional.of(annotation).map(Aggregate::collection)
                     .filter(s -> !s.isEmpty()).orElse(type.getSimpleName());
-            this.timestampFunction = ofNullable(typeAnnotation).map(Aggregate::timestampPath)
+            this.idProperty = getAnnotatedProperty(type, EntityId.class).map(ReflectionUtils::getName).orElse(null);
+            AtomicBoolean warnedAboutMissingTimePath = new AtomicBoolean();
+            this.timestampFunction = Optional.of(annotation).map(Aggregate::timestampPath)
                     .filter(s -> !s.isBlank()).<Function<Entity<?>, Instant>>map(
                             s -> aggregateRoot -> ReflectionUtils.readProperty(s, aggregateRoot.get())
                                     .map(t -> Instant.from((TemporalAccessor) t)).orElseGet(() -> {
@@ -161,7 +155,6 @@ public class DefaultAggregateRepository implements AggregateRepository {
                                         return aggregateRoot.timestamp();
                                     }))
                     .orElse(Entity::timestamp);
-            this.idProperty = getAnnotatedProperty(type, EntityId.class).map(ReflectionUtils::getName).orElse(null);
         }
 
         public ModifiableAggregateRoot<T> load(String id) {

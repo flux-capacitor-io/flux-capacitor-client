@@ -409,6 +409,7 @@ public interface FluxCapacitor extends AutoCloseable {
         DeserializingMessage message = DeserializingMessage.getCurrent();
         if (!Entity.isApplying()
             && message != null && (message.getMessageType() == EVENT || message.getMessageType() == NOTIFICATION)
+            && entity.rootAnnotation().eventSourced()
             && entity.id().equals(Entity.getAggregateId(message))) {
             return entity.playBackToEvent(message.getMessageId());
         }

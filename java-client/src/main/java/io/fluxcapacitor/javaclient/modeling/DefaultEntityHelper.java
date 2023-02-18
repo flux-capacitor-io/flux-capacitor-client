@@ -5,6 +5,7 @@ import io.fluxcapacitor.common.handling.HandlerInvoker;
 import io.fluxcapacitor.common.handling.HandlerMatcher;
 import io.fluxcapacitor.common.handling.Invocation;
 import io.fluxcapacitor.common.handling.ParameterResolver;
+import io.fluxcapacitor.common.reflection.ReflectionUtils;
 import io.fluxcapacitor.javaclient.common.HasMessage;
 import io.fluxcapacitor.javaclient.common.Message;
 import io.fluxcapacitor.javaclient.common.serialization.DeserializingMessage;
@@ -28,6 +29,14 @@ import static io.fluxcapacitor.common.reflection.ReflectionUtils.getAnnotatedPro
 import static io.fluxcapacitor.common.reflection.ReflectionUtils.getAnnotation;
 
 public class DefaultEntityHelper implements EntityHelper {
+
+    private static final Aggregate defaultAggregateAnnotation = DefaultAggregate.class.getAnnotation(Aggregate.class);
+    private static final Function<Class<?>, Aggregate> annotationCache = memoize(type -> Optional.ofNullable(
+            ReflectionUtils.getTypeAnnotation(type, Aggregate.class)).orElseGet(() -> defaultAggregateAnnotation));
+    public static Aggregate getRootAnnotation(Class<?> type) {
+        return annotationCache.apply(type);
+    }
+
     private final Function<Class<?>, HandlerMatcher<Object, HasMessage>> interceptMatchers;
     private final Function<Class<?>, HandlerMatcher<Object, DeserializingMessage>> applyMatchers;
     private final Function<Class<?>, HandlerMatcher<Object, HasMessage>> assertLegalMatchers;
@@ -150,5 +159,9 @@ public class DefaultEntityHelper implements EntityHelper {
     @Override
     public boolean isLegal(Object value, Entity<?> entity) {
         return checkLegality(value, entity).isEmpty();
+    }
+
+    @Aggregate
+    static class DefaultAggregate {
     }
 }
