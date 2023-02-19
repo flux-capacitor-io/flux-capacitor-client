@@ -1,0 +1,17 @@
+{
+  "@class": "io.fluxcapacitor.common.api.SerializedMessage",
+  "data": {
+    "value": "eyJhIjogImIifQ==",
+    "type": "unknown.Type",
+    "revision": 0,
+    "format": "application/json"
+  },
+  "metadata": {},
+  "segment": 355,
+  "index": 108996621653508096,
+  "source": "a801a628-6a6c-4c50-93ab-857c7e862324",
+  "target": null,
+  "requestId": null,
+  "timestamp": 1663156457973,
+  "messageId": "a30b9d2e-7cb4-42a7-820e-a7bf1cf6ac61"
+}

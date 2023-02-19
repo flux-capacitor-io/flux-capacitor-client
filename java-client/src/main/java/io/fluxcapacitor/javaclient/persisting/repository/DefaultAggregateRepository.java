@@ -16,6 +16,7 @@ import io.fluxcapacitor.javaclient.modeling.NoOpEntity;
 import io.fluxcapacitor.javaclient.persisting.caching.Cache;
 import io.fluxcapacitor.javaclient.persisting.caching.NoOpCache;
 import io.fluxcapacitor.javaclient.persisting.eventsourcing.AggregateEventStream;
+import io.fluxcapacitor.javaclient.persisting.eventsourcing.EventSourcingException;
 import io.fluxcapacitor.javaclient.persisting.eventsourcing.EventStore;
 import io.fluxcapacitor.javaclient.persisting.eventsourcing.NoOpSnapshotStore;
 import io.fluxcapacitor.javaclient.persisting.eventsourcing.NoSnapshotTrigger;
@@ -119,6 +120,7 @@ public class DefaultAggregateRepository implements AggregateRepository {
         private final EntityHelper entityHelper;
         private final DocumentStore documentStore;
         private final String idProperty;
+        private boolean ignoreUnknownEvents;
 
         public AnnotatedAggregateRepository(Class<T> type, Serializer serializer, Cache cache, Cache relationshipsCache,
                                             EventStore eventStore, SnapshotStore snapshotStore,
@@ -156,6 +158,7 @@ public class DefaultAggregateRepository implements AggregateRepository {
                                         return aggregateRoot.timestamp();
                                     }))
                     .orElse(Entity::timestamp);
+            this.ignoreUnknownEvents = annotation.ignoreUnknownEvents();
         }
 
         public ModifiableAggregateRoot<T> load(String id) {
@@ -202,24 +205,30 @@ public class DefaultAggregateRepository implements AggregateRepository {
                     .orElseGet(builder::build);
         }
 
-        private ImmutableAggregateRoot<T> eventSourceModel(ImmutableAggregateRoot<T> model) {
-            if (eventSourced) {
-                AggregateEventStream<DeserializingMessage> eventStream
-                        = eventStore.getEvents(model.id().toString(), model.sequenceNumber());
-                Iterator<DeserializingMessage> iterator = eventStream.iterator();
-                boolean wasLoading = Entity.isLoading();
-                try {
-                    Entity.loading.set(true);
-                    while (iterator.hasNext()) {
-                        model = model.apply(iterator.next());
+        protected ImmutableAggregateRoot<T> eventSourceModel(ImmutableAggregateRoot<T> model) {
+            try {
+                if (eventSourced) {
+                    AggregateEventStream<DeserializingMessage> eventStream
+                            = eventStore.getEvents(model.id().toString(), model.sequenceNumber(), ignoreUnknownEvents);
+                    Iterator<DeserializingMessage> iterator = eventStream.iterator();
+                    boolean wasLoading = Entity.isLoading();
+                    try {
+                        Entity.loading.set(true);
+                        while (iterator.hasNext()) {
+                            model = model.apply(iterator.next());
+                        }
+                    } finally {
+                        Entity.loading.set(wasLoading);
                     }
-                } finally {
-                    Entity.loading.set(wasLoading);
+                    model = model.toBuilder().sequenceNumber(
+                            eventStream.getLastSequenceNumber().orElse(model.sequenceNumber())).build();
                 }
-                model = model.toBuilder().sequenceNumber(
-                        eventStream.getLastSequenceNumber().orElse(model.sequenceNumber())).build();
+                return model;
+            } catch (EventSourcingException e) {
+                throw e;
+            } catch (Throwable e) {
+                throw new EventSourcingException("Failed to apply events to aggregate " + model.id(), e);
             }
-            return model;
         }
 
         public void commit(Entity<?> after, List<DeserializingMessage> unpublishedEvents, Entity<?> before) {

@@ -44,10 +44,11 @@ public interface EventStore extends HasLocalHandlers {
     Awaitable storeEvents(String aggregateId, List<?> events, boolean storeOnly, boolean interceptBeforeStoring);
 
     default AggregateEventStream<DeserializingMessage> getEvents(String aggregateId) {
-        return getEvents(aggregateId, -1L);
+        return getEvents(aggregateId, -1L, false);
     }
 
-    AggregateEventStream<DeserializingMessage> getEvents(String aggregateId, long lastSequenceNumber);
+    AggregateEventStream<DeserializingMessage> getEvents(String aggregateId, long lastSequenceNumber,
+                                                         boolean ignoreUnknownType);
 
     Awaitable updateRelationships(UpdateRelationships updateRelationships);
 

@@ -28,6 +28,8 @@ import java.lang.annotation.Target;
 public @interface Aggregate {
     boolean eventSourced() default true;
 
+    boolean ignoreUnknownEvents() default false;
+
     int snapshotPeriod() default 0;
 
     boolean cached() default true;

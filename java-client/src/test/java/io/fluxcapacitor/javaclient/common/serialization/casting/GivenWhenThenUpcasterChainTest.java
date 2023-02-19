@@ -17,13 +17,15 @@ package io.fluxcapacitor.javaclient.common.serialization.casting;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import io.fluxcapacitor.common.api.Metadata;
-import io.fluxcapacitor.common.serialization.JsonUtils;
+import io.fluxcapacitor.common.api.SerializedMessage;
 import io.fluxcapacitor.common.serialization.Revision;
 import io.fluxcapacitor.javaclient.FluxCapacitor;
 import io.fluxcapacitor.javaclient.common.serialization.jackson.JacksonSerializer;
 import io.fluxcapacitor.javaclient.configuration.DefaultFluxCapacitor;
 import io.fluxcapacitor.javaclient.modeling.Aggregate;
+import io.fluxcapacitor.javaclient.modeling.Entity;
 import io.fluxcapacitor.javaclient.persisting.eventsourcing.Apply;
+import io.fluxcapacitor.javaclient.persisting.eventsourcing.EventSourcingException;
 import io.fluxcapacitor.javaclient.test.TestFixture;
 import io.fluxcapacitor.javaclient.tracking.handling.HandleCommand;
 import io.fluxcapacitor.javaclient.tracking.handling.HandleQuery;
@@ -34,6 +36,9 @@ import org.junit.jupiter.api.Test;
 
 import java.util.List;
 
+import static io.fluxcapacitor.common.serialization.JsonUtils.fromFile;
+import static org.wildfly.common.Assert.assertTrue;
+
 public class GivenWhenThenUpcasterChainTest {
     private static final String aggregateId = "test";
 
@@ -43,10 +48,29 @@ public class GivenWhenThenUpcasterChainTest {
 
     @Test
     void testUpcastingWithDataInput() {
-        testFixture.givenAppliedEvents(aggregateId, TestModel.class, JsonUtils
-                        .fromFile( "create-model-revision-0.json", Object.class))
+        testFixture.givenAppliedEvents(aggregateId, TestModel.class, fromFile( "create-model-revision-0.json", Object.class))
                 .whenQuery(new GetModel())
                 .expectResult(new TestModel(List.of(new CreateModel("patchedContent"))));
+    }
+
+    @Test
+    void testApplyingUnknownTypeThrows() {
+        testFixture
+                .given(fc -> fc.client().getEventStoreClient().storeEvents(
+                        "test", List.of((SerializedMessage) fromFile("create-model-unknown-type.json")), true))
+                .whenApplying(fc -> FluxCapacitor.loadAggregate("test", TestModel.class))
+                .expectExceptionalResult(EventSourcingException.class);
+    }
+
+    @Test
+    void testApplyingUnknownTypeIgnoredIfConfigured() {
+        testFixture
+                .given(fc -> fc.client().getEventStoreClient().storeEvents(
+                        "test", List.of((SerializedMessage) fromFile("create-model-unknown-type.json")), true))
+                .whenApplying(fc -> FluxCapacitor.loadAggregate("test", TestModelIgnoringUnknownEvent.class))
+                .<Entity<TestModelIgnoringUnknownEvent>>expectResult(
+                        e -> e != null && e.type().equals(TestModelIgnoringUnknownEvent.class)
+                             && assertTrue(e.isEmpty()) && e.sequenceNumber() == 0L);
     }
 
     public static class JsonNodeUpcaster {
@@ -106,5 +130,9 @@ public class GivenWhenThenUpcasterChainTest {
         public TestModel handle(UpdateModel event) {
             return toBuilder().event(event).build();
         }
+    }
+
+    @Aggregate(ignoreUnknownEvents = true)
+    public static class TestModelIgnoringUnknownEvent {
     }
 }
