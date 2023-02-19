@@ -712,6 +712,14 @@ public class ReflectionUtils {
         return classForNameCache.apply(type);
     }
 
+    public static Class<?> classForName(String type, Class<?> defaultClass) {
+        try {
+            return classForNameCache.apply(type);
+        } catch (Exception ignored) {
+            return defaultClass;
+        }
+    }
+
     public static boolean classExists(String className) {
         try {
             classForNameCache.apply(className);

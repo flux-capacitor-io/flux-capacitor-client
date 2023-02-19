@@ -114,13 +114,7 @@ public class TriggerParameterResolver implements ParameterResolver<HasMessage>, 
 
     protected Optional<Class<?>> getTriggerClass(HasMessage message) {
         return ofNullable(message.getMetadata().get(correlationDataProvider.getTriggerKey()))
-                .flatMap(s -> {
-                    try {
-                        return Optional.of(ReflectionUtils.classForName(s));
-                    } catch (Exception ignored) {
-                        return Optional.empty();
-                    }
-                });
+                .flatMap(s -> Optional.ofNullable(ReflectionUtils.classForName(s, null)));
     }
 
     protected Optional<MessageType> getTriggerMessageType(HasMessage message) {

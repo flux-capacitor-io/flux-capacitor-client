@@ -65,13 +65,8 @@ public interface Entity<T> {
     }
 
     static Class<?> getAggregateType(HasMetadata message) {
-        return Optional.ofNullable(message.getMetadata().get(AGGREGATE_TYPE_METADATA_KEY)).map(c -> {
-            try {
-                return ReflectionUtils.classForName(c);
-            } catch (Exception ignored) {
-                return null;
-            }
-        }).orElse(null);
+        return Optional.ofNullable(message.getMetadata().get(AGGREGATE_TYPE_METADATA_KEY))
+                .map(c -> ReflectionUtils.classForName(c, null)).orElse(null);
     }
 
     static Long getSequenceNumber(HasMetadata message) {

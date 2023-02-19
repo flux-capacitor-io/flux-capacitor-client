@@ -104,15 +104,8 @@ public class DefaultEventStore implements EventStore {
 
     @Override
     public Map<String, Class<?>> getAggregatesFor(String entityId) {
-        return client.getAggregateIds(entityId).entrySet().stream().collect(toMap(Map.Entry::getKey, e -> {
-            try {
-                return ReflectionUtils.classForName(serializer.upcastType(e.getValue()));
-            } catch (Exception error) {
-                log.error("Failed to get the aggregate class for type {} (aggregate id: {}, entity id: {})."
-                          + " Please register a type caster with the Serializer.",
-                          e.getValue(), e.getKey(), entityId, error);
-                return Void.class;
-            }
-        }, (a, b) -> b, LinkedHashMap::new));
+        return client.getAggregateIds(entityId).entrySet().stream().collect(toMap(
+                Map.Entry::getKey, e -> ReflectionUtils.classForName(serializer.upcastType(e.getValue()), Void.class),
+                (a, b) -> b, LinkedHashMap::new));
     }
 }
