@@ -21,11 +21,13 @@ import io.fluxcapacitor.common.api.scheduling.SerializedSchedule;
 import io.fluxcapacitor.javaclient.common.serialization.Serializer;
 import io.fluxcapacitor.javaclient.scheduling.Schedule;
 import io.fluxcapacitor.javaclient.tracking.client.InMemoryMessageStore;
+import lombok.NoArgsConstructor;
 import lombok.NonNull;
 import lombok.Synchronized;
 import lombok.extern.slf4j.Slf4j;
 
 import java.time.Clock;
+import java.time.Duration;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
@@ -40,10 +42,15 @@ import static io.fluxcapacitor.javaclient.tracking.IndexUtils.timestampFromIndex
 import static java.util.stream.Collectors.toList;
 
 @Slf4j
+@NoArgsConstructor
 public class InMemorySchedulingClient extends InMemoryMessageStore implements SchedulingClient {
 
     private final ConcurrentSkipListMap<Long, String> scheduleIdsByIndex = new ConcurrentSkipListMap<>();
     private volatile Clock clock = Clock.systemUTC();
+
+    public InMemorySchedulingClient(Duration messageExpiration) {
+        super(messageExpiration);
+    }
 
     @Override
     protected Collection<SerializedMessage> filterMessages(Collection<SerializedMessage> messages) {
@@ -101,28 +108,33 @@ public class InMemorySchedulingClient extends InMemoryMessageStore implements Sc
         }
     }
 
-    @SuppressWarnings("OptionalGetWithoutIsPresent")
+    @Synchronized
+    public List<Schedule> getSchedules(Serializer serializer) {
+        return asList(scheduleIdsByIndex, serializer);
+    }
+
     @Synchronized
     public List<Schedule> removeExpiredSchedules(Serializer serializer) {
         Map<Long, String> expiredEntries = scheduleIdsByIndex.headMap(indexFromMillis(clock.millis()), true);
-        List<Schedule> result = expiredEntries.entrySet().stream().map(e -> {
-            SerializedMessage m = getMessage(e.getKey());
-            return new Schedule(
-                    serializer.deserializeMessages(Stream.of(m), SCHEDULE).findFirst().get().getPayload(),
-                    m.getMetadata(), e.getValue(), timestampFromIndex(e.getKey()));
-        }).collect(toList());
+        List<Schedule> result = asList(expiredEntries, serializer);
         expiredEntries.clear();
         return result;
     }
 
     @SuppressWarnings("OptionalGetWithoutIsPresent")
-    @Synchronized
-    public List<Schedule> getSchedules(Serializer serializer) {
+    protected List<Schedule> asList(Map<Long, String> scheduleIdsByIndex, Serializer serializer) {
         return scheduleIdsByIndex.entrySet().stream().map(e -> {
             SerializedMessage m = getMessage(e.getKey());
             return new Schedule(
                     serializer.deserializeMessages(Stream.of(m), SCHEDULE).findFirst().get().getPayload(),
                     m.getMetadata(), e.getValue(), timestampFromIndex(e.getKey()));
-        }).collect(toList());
+        }).toList();
+    }
+
+    @Override
+    protected void purgeExpiredMessages(Duration messageExpiration) {
+        scheduleIdsByIndex.headMap(indexFromMillis(
+                clock.millis() - messageExpiration.toMillis())).clear();
+        super.purgeExpiredMessages(messageExpiration);
     }
 }

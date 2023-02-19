@@ -28,6 +28,7 @@ import io.fluxcapacitor.javaclient.tracking.client.InMemoryMessageStore;
 import io.fluxcapacitor.javaclient.tracking.client.TrackingClient;
 
 import java.lang.management.ManagementFactory;
+import java.time.Duration;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Function;
@@ -36,26 +37,28 @@ import static io.fluxcapacitor.common.ObjectUtils.memoize;
 
 public class InMemoryClient extends AbstractClient {
 
-    private static Function<MessageType, InMemoryMessageStore> messageStoreFactory() {
-        InMemorySchedulingClient schedulingClient = new InMemorySchedulingClient();
-        InMemoryEventStoreClient eventStoreClient = new InMemoryEventStoreClient();
+    private static Function<MessageType, InMemoryMessageStore> messageStoreFactory(Duration messageExpiration) {
+        InMemorySchedulingClient schedulingClient = new InMemorySchedulingClient(messageExpiration);
+        InMemoryEventStoreClient eventStoreClient = new InMemoryEventStoreClient(messageExpiration);
         Map<MessageType, InMemoryMessageStore> messageStores = new ConcurrentHashMap<>();
         return memoize(type -> messageStores.computeIfAbsent(
-                type, t -> {
-                    return switch (t) {
-                        case NOTIFICATION, EVENT -> eventStoreClient;
-                        case SCHEDULE -> schedulingClient;
-                        default -> new InMemoryMessageStore();
-                    };
+                type, t -> switch (t) {
+                    case NOTIFICATION, EVENT -> eventStoreClient;
+                    case SCHEDULE -> schedulingClient;
+                    default -> new InMemoryMessageStore(messageExpiration);
                 }));
     }
 
     public static InMemoryClient newInstance() {
-        return new InMemoryClient();
+        return new InMemoryClient(Duration.ofMinutes(2));
     }
 
-    protected InMemoryClient() {
-        this("inMemory", ManagementFactory.getRuntimeMXBean().getName(), messageStoreFactory(),
+    public static InMemoryClient newInstance(Duration messageExpiration) {
+        return new InMemoryClient(messageExpiration);
+    }
+
+    protected InMemoryClient(Duration messageExpiration) {
+        this("inMemory", ManagementFactory.getRuntimeMXBean().getName(), messageStoreFactory(messageExpiration),
              new InMemoryKeyValueClient(), new InMemorySearchClient());
     }
 

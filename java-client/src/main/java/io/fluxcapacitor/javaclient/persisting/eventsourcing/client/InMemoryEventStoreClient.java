@@ -22,7 +22,9 @@ import io.fluxcapacitor.common.api.modeling.Relationship;
 import io.fluxcapacitor.common.api.modeling.UpdateRelationships;
 import io.fluxcapacitor.javaclient.persisting.eventsourcing.AggregateEventStream;
 import io.fluxcapacitor.javaclient.tracking.client.InMemoryMessageStore;
+import lombok.NoArgsConstructor;
 
+import java.time.Duration;
 import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -33,10 +35,15 @@ import java.util.function.Function;
 
 import static java.util.Collections.synchronizedMap;
 
+@NoArgsConstructor
 public class InMemoryEventStoreClient extends InMemoryMessageStore implements EventStoreClient {
 
     private final Map<String, List<SerializedMessage>> appliedEvents = new ConcurrentHashMap<>();
     private final Map<String, Map<String, String>> relationships = new ConcurrentHashMap<>();
+
+    public InMemoryEventStoreClient(Duration messageExpiration) {
+        super(messageExpiration);
+    }
 
     @Override
     public Awaitable storeEvents(String aggregateId, List<SerializedMessage> events, boolean storeOnly,

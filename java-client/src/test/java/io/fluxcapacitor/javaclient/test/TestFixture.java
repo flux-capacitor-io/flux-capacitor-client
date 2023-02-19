@@ -110,7 +110,7 @@ public class TestFixture implements Given, When {
 
     public static TestFixture create(FluxCapacitorBuilder fluxCapacitorBuilder,
                                      Function<FluxCapacitor, List<?>> handlersFactory) {
-        return new TestFixture(fluxCapacitorBuilder, handlersFactory, InMemoryClient.newInstance(), true);
+        return new TestFixture(fluxCapacitorBuilder, handlersFactory, InMemoryClient.newInstance(null), true);
     }
 
     /*
@@ -131,7 +131,7 @@ public class TestFixture implements Given, When {
 
     public static TestFixture createAsync(FluxCapacitorBuilder fluxCapacitorBuilder,
                                           Function<FluxCapacitor, List<?>> handlersFactory) {
-        return new TestFixture(fluxCapacitorBuilder, handlersFactory, InMemoryClient.newInstance(), false);
+        return new TestFixture(fluxCapacitorBuilder, handlersFactory, InMemoryClient.newInstance(null), false);
     }
 
     public static TestFixture createAsync(FluxCapacitorBuilder fluxCapacitorBuilder, Client client,

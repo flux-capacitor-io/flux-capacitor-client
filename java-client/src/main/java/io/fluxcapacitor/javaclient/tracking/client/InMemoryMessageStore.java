@@ -20,11 +20,14 @@ import io.fluxcapacitor.common.MessageType;
 import io.fluxcapacitor.common.api.SerializedMessage;
 import io.fluxcapacitor.common.api.tracking.MessageBatch;
 import io.fluxcapacitor.common.api.tracking.Position;
+import io.fluxcapacitor.javaclient.FluxCapacitor;
 import io.fluxcapacitor.javaclient.publishing.client.GatewayClient;
 import io.fluxcapacitor.javaclient.tracking.ConsumerConfiguration;
+import io.fluxcapacitor.javaclient.tracking.IndexUtils;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -41,8 +44,6 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Predicate;
 
-import static io.fluxcapacitor.javaclient.FluxCapacitor.currentClock;
-import static io.fluxcapacitor.javaclient.tracking.IndexUtils.indexFromMillis;
 import static java.lang.System.currentTimeMillis;
 import static java.lang.Thread.currentThread;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
@@ -58,19 +59,32 @@ public class InMemoryMessageStore implements GatewayClient, TrackingClient {
 
     private final ConcurrentSkipListMap<Long, SerializedMessage> messageLog = new ConcurrentSkipListMap<>();
     private final Map<String, Long> consumerTokens = new ConcurrentHashMap<>();
+    private final Duration messageExpiration;
+
+    public InMemoryMessageStore() {
+        this(Duration.ofMinutes(2));
+    }
 
     @Override
     public Awaitable send(Guarantee guarantee, SerializedMessage... messages) {
         Arrays.stream(messages).forEach(m -> {
             if (m.getIndex() == null) {
-                m.setIndex(nextIndex.updateAndGet(i -> i <= 0 ? indexFromMillis(currentClock().millis()) : i + 1));
+                m.setIndex(nextIndex.updateAndGet(IndexUtils::nextIndex));
             }
             messageLog.put(m.getIndex(), m);
         });
+        if (messageExpiration != null) {
+            purgeExpiredMessages(messageExpiration);
+        }
         synchronized (this) {
             this.notifyAll();
         }
         return Awaitable.ready();
+    }
+
+    protected void purgeExpiredMessages(Duration messageExpiration) {
+        var threshold = FluxCapacitor.currentTime().minus(messageExpiration).toEpochMilli();
+        messageLog.headMap(IndexUtils.indexFromMillis(threshold)).clear();
     }
 
     @Override
