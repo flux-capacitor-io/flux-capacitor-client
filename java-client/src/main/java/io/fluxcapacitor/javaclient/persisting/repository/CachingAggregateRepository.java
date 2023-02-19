@@ -11,6 +11,7 @@ import io.fluxcapacitor.javaclient.modeling.ImmutableAggregateRoot;
 import io.fluxcapacitor.javaclient.persisting.caching.Cache;
 import io.fluxcapacitor.javaclient.tracking.ConsumerConfiguration;
 import io.fluxcapacitor.javaclient.tracking.IndexUtils;
+import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
@@ -45,19 +46,19 @@ public class CachingAggregateRepository implements AggregateRepository {
     private volatile long lastEventIndex = -1L;
 
     @Override
-    public <T> Entity<T> load(String aggregateId, Class<T> type) {
+    public <T> Entity<T> load(@NonNull String aggregateId, Class<T> type) {
         catchUpIfNeeded();
         return delegate.load(aggregateId, type);
     }
 
     @Override
-    public <T> Entity<T> loadFor(String entityId, Class<?> defaultType) {
+    public <T> Entity<T> loadFor(@NonNull String entityId, Class<?> defaultType) {
         catchUpIfNeeded();
         return delegate.loadFor(entityId, defaultType);
     }
 
     @Override
-    public Map<String, Class<?>> getAggregatesFor(String entityId) {
+    public Map<String, Class<?>> getAggregatesFor(@NonNull String entityId) {
         return delegate.getAggregatesFor(entityId);
     }
 
@@ -165,7 +166,7 @@ public class CachingAggregateRepository implements AggregateRepository {
     }
 
     @Override
-    public boolean cachingAllowed(Class<?> aggregateType) {
+    public boolean cachingAllowed(@NonNull Class<?> aggregateType) {
         return delegate.cachingAllowed(aggregateType);
     }
 

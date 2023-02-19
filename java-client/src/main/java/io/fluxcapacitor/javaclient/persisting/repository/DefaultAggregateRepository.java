@@ -27,6 +27,7 @@ import io.fluxcapacitor.javaclient.publishing.DispatchInterceptor;
 import lombok.AccessLevel;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
+import lombok.NonNull;
 import lombok.experimental.Accessors;
 import lombok.extern.slf4j.Slf4j;
 
@@ -66,7 +67,7 @@ public class DefaultAggregateRepository implements AggregateRepository {
 
     @Override
     @SuppressWarnings("unchecked")
-    public <T> Entity<T> load(String aggregateId, Class<T> type) {
+    public <T> Entity<T> load(@NonNull String aggregateId, Class<T> type) {
         if (Entity.isLoading()) {
             return new NoOpEntity<>(() -> (Entity<T>) delegates.apply(type).load(aggregateId));
         }
@@ -75,7 +76,7 @@ public class DefaultAggregateRepository implements AggregateRepository {
 
     @SuppressWarnings("unchecked")
     @Override
-    public <T> Entity<T> loadFor(String entityId, Class<?> defaultType) {
+    public <T> Entity<T> loadFor(@NonNull String entityId, Class<?> defaultType) {
         Map<String, Class<?>> aggregates = getAggregatesFor(entityId);
         if (aggregates.isEmpty()) {
             return (Entity<T>) load(entityId, defaultType);
@@ -92,12 +93,12 @@ public class DefaultAggregateRepository implements AggregateRepository {
     }
 
     @Override
-    public Map<String, Class<?>> getAggregatesFor(String entityId) {
+    public Map<String, Class<?>> getAggregatesFor(@NonNull String entityId) {
         return relationshipsCache.computeIfAbsent(entityId, id -> eventStore.getAggregatesFor(entityId));
     }
 
     @Override
-    public boolean cachingAllowed(Class<?> type) {
+    public boolean cachingAllowed(@NonNull Class<?> type) {
         return delegates.apply(type).isCached();
     }
 

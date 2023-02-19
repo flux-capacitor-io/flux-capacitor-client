@@ -26,6 +26,7 @@ import java.util.concurrent.Callable;
 import java.util.function.Function;
 import java.util.function.Predicate;
 
+import static io.fluxcapacitor.common.ObjectUtils.unwrapException;
 import static io.fluxcapacitor.common.TimingUtils.retryOnFailure;
 import static java.lang.String.format;
 
@@ -83,14 +84,14 @@ public class RetryingErrorHandler implements ErrorHandler {
             if (retryConfiguration.getMaxRetries() == 0) {
                 throw error;
             } else if (retryConfiguration.getMaxRetries() > 0) {
-                log.warn("{}. Retrying up to {} times.", errorMessage, retryConfiguration.getMaxRetries(), error);
+                log.warn("{}. Retrying up to {} times.", errorMessage, retryConfiguration.getMaxRetries(), unwrapException(error));
             } else {
-                log.warn("{}. Retrying until the errors stop.", errorMessage, error);
+                log.warn("{}. Retrying until the errors stop.", errorMessage, unwrapException(error));
             }
             return retryOnFailure(retryFunction, retryConfiguration);
         } catch (Throwable e) {
             if (stopConsumerOnFailure) {
-                log.error("{}. Not retrying any further. Propagating error.", errorMessage, error);
+                log.error("{}. Not retrying any further. Propagating error.", errorMessage, unwrapException(error));
                 throw error;
             } else {
                 logError(errorMessage + ". Not retrying any further. Continuing with next handler.", error);
@@ -100,6 +101,7 @@ public class RetryingErrorHandler implements ErrorHandler {
     }
 
     protected void logError(String message, Throwable error) {
+        error = unwrapException(error);
         if (isTechnicalError(error)) {
             log.error(message, error);
         } else if (logFunctionalErrors) {
@@ -107,7 +109,7 @@ public class RetryingErrorHandler implements ErrorHandler {
         }
     }
 
-    protected boolean isTechnicalError(Throwable error) {
+    protected static boolean isTechnicalError(Throwable error) {
         return !(error instanceof FunctionalException);
     }
 }
