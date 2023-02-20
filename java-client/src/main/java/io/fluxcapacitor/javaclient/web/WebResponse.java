@@ -7,6 +7,7 @@ import io.fluxcapacitor.javaclient.common.serialization.Serializer;
 import lombok.AccessLevel;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
+import lombok.NoArgsConstructor;
 import lombok.NonNull;
 import lombok.Setter;
 import lombok.ToString;
@@ -29,10 +30,6 @@ import java.util.stream.Collectors;
 @EqualsAndHashCode(callSuper = true)
 @ToString(callSuper = true)
 public class WebResponse extends Message {
-
-    public static Builder builder() {
-        return new Builder();
-    }
 
     @NonNull Map<String, List<String>> headers;
     Integer status;
@@ -94,7 +91,15 @@ public class WebResponse extends Message {
 
     @Override
     public WebResponse withPayload(Object payload) {
-        return new WebResponse(super.withPayload(payload));
+        return toBuilder().payload(payload).build();
+    }
+
+    public WebResponse.Builder toBuilder() {
+        return new Builder(this);
+    }
+
+    public static Builder builder() {
+        return new Builder();
     }
 
     @SuppressWarnings("unchecked")
@@ -107,6 +112,7 @@ public class WebResponse extends Message {
     }
 
     @Data
+    @NoArgsConstructor
     @Accessors(fluent = true, chain = true)
     @FieldDefaults(level = AccessLevel.PRIVATE)
     public static class Builder {
@@ -115,6 +121,13 @@ public class WebResponse extends Message {
         List<HttpCookie> cookies = new ArrayList<>();
         Object payload;
         Integer status;
+
+        protected Builder(WebResponse response) {
+            payload(response.getPayload());
+            status(response.getStatus());
+            response.getHeaders().forEach((k, v) -> headers.put(k, new ArrayList<>(v)));
+            cookies.addAll(WebUtils.parseResponseCookieHeader(headers.remove("Set-Cookie")));
+        }
 
         public Builder payload(Object payload) {
             this.payload = payload;

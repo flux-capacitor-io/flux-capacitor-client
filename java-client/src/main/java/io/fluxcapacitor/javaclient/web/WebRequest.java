@@ -12,6 +12,7 @@ import lombok.AccessLevel;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
+import lombok.NoArgsConstructor;
 import lombok.NonNull;
 import lombok.Setter;
 import lombok.ToString;
@@ -140,7 +141,7 @@ public class WebRequest extends Message {
 
     @Override
     public WebRequest withPayload(Object payload) {
-        return new WebRequest(super.withPayload(payload));
+        return toBuilder().payload(payload).build();
     }
 
     public String getHeader(String name) {
@@ -153,6 +154,10 @@ public class WebRequest extends Message {
 
     public Optional<HttpCookie> getCookie(String name) {
         return getCookies().stream().filter(c -> Objects.equals(name, c.getName())).findFirst();
+    }
+
+    public WebRequest.Builder toBuilder() {
+        return new Builder(this);
     }
 
     public static String getUrl(Metadata metadata) {
@@ -182,6 +187,7 @@ public class WebRequest extends Message {
     }
 
     @Data
+    @NoArgsConstructor
     @Accessors(fluent = true, chain = true)
     @FieldDefaults(level = AccessLevel.PRIVATE)
     public static class Builder {
@@ -193,6 +199,15 @@ public class WebRequest extends Message {
         List<HttpCookie> cookies = new ArrayList<>();
 
         Object payload;
+
+        protected Builder(WebRequest request) {
+            method(request.getMethod());
+            url(request.getPath());
+            payload(request.getPayload());
+            request.getHeaders().forEach((k, v) -> headers.put(k, new ArrayList<>(v)));
+            cookies.addAll(WebUtils.parseRequestCookieHeader(headers.remove("Cookie")
+                                                                     .stream().findFirst().orElse(null)));
+        }
 
         public Builder header(String key, String value) {
             headers.computeIfAbsent(key, k -> new ArrayList<>()).add(value);
@@ -231,6 +246,9 @@ public class WebRequest extends Message {
         }
 
         public WebRequest build() {
+            if (method == null) {
+                throw new IllegalStateException("HTTP request method not set");
+            }
             return new WebRequest(this);
         }
     }
