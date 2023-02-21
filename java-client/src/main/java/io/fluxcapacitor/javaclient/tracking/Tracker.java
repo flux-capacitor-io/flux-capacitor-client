@@ -14,7 +14,10 @@
 
 package io.fluxcapacitor.javaclient.tracking;
 
+import io.fluxcapacitor.common.MessageType;
 import io.fluxcapacitor.common.api.tracking.MessageBatch;
+import lombok.EqualsAndHashCode;
+import lombok.ToString;
 import lombok.Value;
 import lombok.With;
 
@@ -30,7 +33,11 @@ public class Tracker {
 
     String name;
     String trackerId;
+    MessageType messageType;
     ConsumerConfiguration configuration;
+
     @With
+    @EqualsAndHashCode.Exclude
+    @ToString.Exclude
     MessageBatch messageBatch;
 }

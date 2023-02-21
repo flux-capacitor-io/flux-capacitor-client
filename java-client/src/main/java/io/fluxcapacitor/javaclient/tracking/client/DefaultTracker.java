@@ -14,6 +14,7 @@
 
 package io.fluxcapacitor.javaclient.tracking.client;
 
+import io.fluxcapacitor.common.MessageType;
 import io.fluxcapacitor.common.Registration;
 import io.fluxcapacitor.common.api.SerializedMessage;
 import io.fluxcapacitor.common.api.tracking.MessageBatch;
@@ -94,10 +95,10 @@ public class DefaultTracker implements Runnable, Registration {
      * Each tracker started is using a single thread. To track in parallel configure the number of trackers using
      * {@link ConsumerConfiguration}.
      */
-    public static Registration start(Consumer<List<SerializedMessage>> consumer, ConsumerConfiguration config,
-                                     FluxCapacitor fluxCapacitor) {
+    public static Registration start(Consumer<List<SerializedMessage>> consumer, MessageType messageType,
+                                     ConsumerConfiguration config, FluxCapacitor fluxCapacitor) {
         return start(
-                consumer, config.toBuilder().clearBatchInterceptors().batchInterceptors(
+                consumer, messageType, config.toBuilder().clearBatchInterceptors().batchInterceptors(
                         Stream.concat(Stream.of(new FluxCapacitorInterceptor(fluxCapacitor)),
                                       config.getBatchInterceptors().stream()).collect(toList())).build(),
                 fluxCapacitor.client());
@@ -110,12 +111,12 @@ public class DefaultTracker implements Runnable, Registration {
      * Each tracker started is using a single thread. To track in parallel configure the number of trackers using
      * {@link ConsumerConfiguration}.
      */
-    public static Registration start(Consumer<List<SerializedMessage>> consumer, ConsumerConfiguration config,
-                                     Client client) {
+    public static Registration start(Consumer<List<SerializedMessage>> consumer, MessageType messageType,
+                                     ConsumerConfiguration config, Client client) {
         List<DefaultTracker> instances = IntStream.range(0, config.getThreads())
                 .mapToObj(i -> new DefaultTracker(consumer, config, new Tracker(
-                        config.getName(), config.getTrackerIdFactory().apply(client), config, null),
-                                                  client.getTrackingClient(config.getMessageType()))).toList();
+                        config.getName(), config.getTrackerIdFactory().apply(client), messageType, config, null),
+                                                  client.getTrackingClient(messageType))).toList();
         ExecutorService executor = newFixedThreadPool(config.getThreads());
         instances.forEach(executor::execute);
         return () -> {
@@ -128,7 +129,8 @@ public class DefaultTracker implements Runnable, Registration {
                                      TrackingClient trackingClient) {
         List<DefaultTracker> instances = IntStream.range(0, config.getThreads())
                 .mapToObj(i -> new DefaultTracker(consumer, config, new Tracker(
-                        config.getName(), UUID.randomUUID().toString(), config, null), trackingClient)).toList();
+                        config.getName(), UUID.randomUUID().toString(), trackingClient.getMessageType(),
+                        config, null), trackingClient)).toList();
         ExecutorService executor = newFixedThreadPool(config.getThreads());
         instances.forEach(executor::execute);
         return () -> {

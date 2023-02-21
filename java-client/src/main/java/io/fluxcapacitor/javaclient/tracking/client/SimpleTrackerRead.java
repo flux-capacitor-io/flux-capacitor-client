@@ -38,7 +38,7 @@ public class SimpleTrackerRead implements TrackerRead {
     MessageType messageType;
 
     public SimpleTrackerRead(String consumer, String trackerId, Long previousLastIndex,
-                             ConsumerConfiguration config) {
+                             ConsumerConfiguration config, MessageType messageType) {
         this.consumer = consumer;
         this.trackerId = trackerId;
         this.lastIndex = previousLastIndex;
@@ -47,7 +47,7 @@ public class SimpleTrackerRead implements TrackerRead {
         this.maxSize = config.getMaxFetchSize();
         this.typeFilter = toPredicate(config.getTypeFilter());
         this.filterMessageTarget = config.filterMessageTarget();
-        this.messageType = config.getMessageType();
+        this.messageType = messageType;
     }
 
     private static Predicate<String> toPredicate(String typeFilter) {

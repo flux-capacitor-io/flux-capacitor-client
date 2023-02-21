@@ -16,6 +16,7 @@ package io.fluxcapacitor.javaclient.tracking.client;
 
 import io.fluxcapacitor.common.Awaitable;
 import io.fluxcapacitor.common.Guarantee;
+import io.fluxcapacitor.common.MessageType;
 import io.fluxcapacitor.common.Registration;
 import io.fluxcapacitor.common.api.SerializedMessage;
 import io.fluxcapacitor.common.api.tracking.ClaimSegmentResult;
@@ -74,11 +75,12 @@ public class CachingTrackingClient implements TrackingClient {
                                                 ConsumerConfiguration config) {
         if (started.compareAndSet(false, true)) {
             ConsumerConfiguration cacheFillerConfig = ConsumerConfiguration.builder()
-                    .messageType(config.getMessageType()).ignoreSegment(true)
+                    .ignoreSegment(true)
                     .minIndex(IndexUtils.indexForCurrentTime())
                     .name(CachingTrackingClient.class.getSimpleName()).build();
             registration = FluxCapacitor.getOptionally()
-                    .map(fc -> DefaultTracker.start(this::cacheNewMessages, cacheFillerConfig, fc))
+                    .map(fc -> DefaultTracker.start(this::cacheNewMessages, delegate.getMessageType(),
+                                                    cacheFillerConfig, fc))
                     .orElseGet(() -> DefaultTracker.start(this::cacheNewMessages, cacheFillerConfig, delegate));
         }
         if (lastIndex != null && cache.containsKey(lastIndex)) {
@@ -209,6 +211,11 @@ public class CachingTrackingClient implements TrackingClient {
     @Override
     public Awaitable disconnectTracker(String consumer, String trackerId, boolean sendFinalEmptyBatch, Guarantee guarantee) {
         return delegate.disconnectTracker(consumer, trackerId, sendFinalEmptyBatch, guarantee);
+    }
+
+    @Override
+    public MessageType getMessageType() {
+        return delegate.getMessageType();
     }
 
     @Override

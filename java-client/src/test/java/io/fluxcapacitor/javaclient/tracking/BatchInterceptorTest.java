@@ -14,7 +14,6 @@
 
 package io.fluxcapacitor.javaclient.tracking;
 
-import io.fluxcapacitor.common.MessageType;
 import io.fluxcapacitor.common.api.tracking.MessageBatch;
 import org.junit.jupiter.api.Test;
 
@@ -23,6 +22,7 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.function.Consumer;
 
+import static io.fluxcapacitor.common.MessageType.COMMAND;
 import static java.util.Collections.emptyList;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
@@ -55,9 +55,9 @@ class BatchInterceptorTest {
                 invokedInstances.add(this);
             }
         };
-        var configuration = ConsumerConfiguration.builder().messageType(MessageType.COMMAND).name("test").build();
+        var configuration = ConsumerConfiguration.builder().name("test").build();
         Consumer<MessageBatch> invocation = BatchInterceptor.join(Arrays.asList(outerInterceptor, innerInterceptor))
-                .intercept(function, new Tracker("test", "0", configuration, null));
+                .intercept(function, new Tracker("test", "0", COMMAND, configuration, null));
         assertEquals(emptyList(), invokedInstances);
         invocation.accept(new MessageBatch(new int[]{0, 128}, emptyList(), 0L));
         assertEquals(Arrays.asList(outerInterceptor, innerInterceptor, function), invokedInstances);

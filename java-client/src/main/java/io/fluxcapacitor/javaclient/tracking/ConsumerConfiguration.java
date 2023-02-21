@@ -14,10 +14,8 @@
 
 package io.fluxcapacitor.javaclient.tracking;
 
-import io.fluxcapacitor.common.MessageType;
 import io.fluxcapacitor.common.reflection.ReflectionUtils;
 import io.fluxcapacitor.javaclient.configuration.client.Client;
-import io.fluxcapacitor.javaclient.tracking.handling.HandleMessage;
 import io.fluxcapacitor.javaclient.tracking.handling.HandlerInterceptor;
 import lombok.Builder;
 import lombok.Builder.Default;
@@ -45,7 +43,6 @@ import static io.fluxcapacitor.common.reflection.ReflectionUtils.asInstance;
 @Builder(builderClassName = "Builder", toBuilder = true)
 public class ConsumerConfiguration {
 
-    @NonNull MessageType messageType;
     @NonNull String name;
     @NonNull
     @Default
@@ -104,28 +101,21 @@ public class ConsumerConfiguration {
 
     private static Stream<ConsumerConfiguration> classConfigurations(Class<?> type) {
         return Optional.ofNullable(ReflectionUtils.getTypeAnnotation(type, Consumer.class))
-                .map(c -> ReflectionUtils.getAllMethods(type).stream()
-                        .flatMap(m -> ReflectionUtils.getAnnotation(m, HandleMessage.class).stream())
-                        .map(HandleMessage::value).distinct().map(messageType -> getConfiguration(
-                                c, h -> h.getClass().equals(type), messageType)))
-                .orElseGet(Stream::empty);
+                .map(c -> getConfiguration(c, h -> h.getClass().equals(type)))
+                .stream();
     }
 
     private static Stream<ConsumerConfiguration> packageConfigurations(Package p) {
         return ReflectionUtils.getPackageAnnotation(p, Consumer.class)
-                .map(c -> Arrays.stream(MessageType.values()).map(messageType -> getConfiguration(
-                        c, h -> h.getClass().getPackage().equals(p)
-                                || h.getClass().getPackage().getName().startsWith(p.getName() + "."),
-                        messageType)))
-                .orElseGet(Stream::empty);
+                .map(c -> getConfiguration(c, h -> h.getClass().getPackage().equals(p)
+                                                   || h.getClass().getPackage().getName().startsWith(p.getName() + ".")
+                )).stream();
     }
 
-    private static ConsumerConfiguration getConfiguration(
-            Consumer consumer, Predicate<Object> handlerFilter, MessageType messageType) {
+    private static ConsumerConfiguration getConfiguration(Consumer consumer, Predicate<Object> handlerFilter) {
         return ConsumerConfiguration.builder()
                 .name(consumer.name())
                 .handlerFilter(handlerFilter)
-                .messageType(messageType)
                 .errorHandler(asInstance(consumer.errorHandler()))
                 .threads(consumer.threads())
                 .maxFetchSize(consumer.maxFetchSize())

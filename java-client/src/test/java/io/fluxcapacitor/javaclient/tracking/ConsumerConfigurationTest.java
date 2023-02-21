@@ -1,5 +1,6 @@
 package io.fluxcapacitor.javaclient.tracking;
 
+import io.fluxcapacitor.common.MessageType;
 import io.fluxcapacitor.javaclient.FluxCapacitor;
 import io.fluxcapacitor.javaclient.configuration.DefaultFluxCapacitor;
 import io.fluxcapacitor.javaclient.test.TestFixture;
@@ -22,12 +23,13 @@ public class ConsumerConfigurationTest {
     @Test
     void nonExclusiveConsumerLetsHandlerThrough() {
         TestFixture.createAsync(DefaultFluxCapacitor.builder()
-                                        .addConsumerConfiguration(ConsumerConfiguration.builder().messageType(COMMAND)
+                                        .addConsumerConfiguration(ConsumerConfiguration.builder()
                                                                           .name("nonExclusive")
-                                                                          .exclusive(false).build())
-                                        .addConsumerConfiguration(ConsumerConfiguration.builder().messageType(COMMAND)
+                                                                          .exclusive(false).build(),
+                                                                  MessageType.COMMAND)
+                                        .addConsumerConfiguration(ConsumerConfiguration.builder()
                                                                           .name("exclusive")
-                                                                          .build())
+                                                                          .build(), MessageType.COMMAND)
                                         .configureDefaultConsumer(COMMAND, c -> c.toBuilder().name("default").build()),
                                 new Handler())
 
@@ -38,11 +40,12 @@ public class ConsumerConfigurationTest {
     @Test
     void passiveConsumerReturnsNothing() {
         TestFixture.createAsync(DefaultFluxCapacitor.builder()
-                                        .addConsumerConfiguration(ConsumerConfiguration.builder().messageType(COMMAND)
+                                        .addConsumerConfiguration(ConsumerConfiguration.builder()
                                                                           .name("nonExclusivePassive")
-                                                                          .exclusive(false).passive(true).build())
-                                        .addConsumerConfiguration(ConsumerConfiguration.builder().messageType(COMMAND)
-                                                                          .name("default").build()),
+                                                                          .exclusive(false).passive(true).build(),
+                                                                  MessageType.COMMAND)
+                                        .addConsumerConfiguration(ConsumerConfiguration.builder()
+                                                                          .name("default").build(), MessageType.COMMAND),
                                 new Handler())
 
                 .whenCommand(new Command())
@@ -71,12 +74,14 @@ public class ConsumerConfigurationTest {
     void dontProcessMessageWhenMaxIndexIsReached() {
         Long nowIndex = 107544261427200000L;
         TestFixture.createAsync(DefaultFluxCapacitor.builder()
-                                        .addConsumerConfiguration(ConsumerConfiguration.builder().messageType(COMMAND)
+                                        .addConsumerConfiguration(ConsumerConfiguration.builder()
                                                                           .name("minIndex")
-                                                                          .exclusive(false).minIndex(nowIndex).build())
-                                        .addConsumerConfiguration(ConsumerConfiguration.builder().messageType(COMMAND)
+                                                                          .exclusive(false).minIndex(nowIndex).build(),
+                                                                  MessageType.COMMAND)
+                                        .addConsumerConfiguration(ConsumerConfiguration.builder()
                                                                           .name("maxIndex")
-                                                                          .maxIndexExclusive(nowIndex).build())
+                                                                          .maxIndexExclusive(nowIndex).build(),
+                                                                  MessageType.COMMAND)
                                         .configureDefaultConsumer(COMMAND, c -> c.toBuilder().name("default").build()),
                                 new Handler())
                 .withClock(nowClock)
@@ -90,9 +95,9 @@ public class ConsumerConfigurationTest {
     void interceptorInConsumerTest() {
         TestFixture.createAsync(
                         DefaultFluxCapacitor.builder()
-                                .addHandlerInterceptor((f, i, c) -> m -> "first " + f.apply(m), COMMAND)
+                                .addHandlerInterceptor((f, i, c) -> m -> "first " + f.apply(m))
                                 .addConsumerConfiguration(
-                                        ConsumerConfiguration.builder().messageType(COMMAND).name("test")
+                                        ConsumerConfiguration.builder().name("test")
                                                 .handlerInterceptor((f, i, c) -> m -> "second " + f.apply(m))
                                                 .handlerInterceptor((f, i, c) -> m -> "third " + f.apply(m))
                                                 .build()),

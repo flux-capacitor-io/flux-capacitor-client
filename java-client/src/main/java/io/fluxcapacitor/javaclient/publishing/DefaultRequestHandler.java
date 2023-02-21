@@ -92,8 +92,7 @@ public class DefaultRequestHandler implements RequestHandler {
 
     protected void ensureStarted() {
         if (started.compareAndSet(false, true)) {
-            registration = start(this::handleMessages, ConsumerConfiguration.builder()
-                    .messageType(resultType)
+            registration = start(this::handleMessages, resultType, ConsumerConfiguration.builder()
                     .name(format("%s_%s", client.name(), "$request-handler"))
                     .ignoreSegment(true)
                     .filterMessageTarget(true)

@@ -21,7 +21,6 @@ import io.fluxcapacitor.common.api.scheduling.SerializedSchedule;
 import io.fluxcapacitor.javaclient.common.serialization.Serializer;
 import io.fluxcapacitor.javaclient.scheduling.Schedule;
 import io.fluxcapacitor.javaclient.tracking.client.InMemoryMessageStore;
-import lombok.NoArgsConstructor;
 import lombok.NonNull;
 import lombok.Synchronized;
 import lombok.extern.slf4j.Slf4j;
@@ -42,14 +41,17 @@ import static io.fluxcapacitor.javaclient.tracking.IndexUtils.timestampFromIndex
 import static java.util.stream.Collectors.toList;
 
 @Slf4j
-@NoArgsConstructor
 public class InMemorySchedulingClient extends InMemoryMessageStore implements SchedulingClient {
 
     private final ConcurrentSkipListMap<Long, String> scheduleIdsByIndex = new ConcurrentSkipListMap<>();
     private volatile Clock clock = Clock.systemUTC();
 
+    public InMemorySchedulingClient() {
+        super(SCHEDULE);
+    }
+
     public InMemorySchedulingClient(Duration messageExpiration) {
-        super(messageExpiration);
+        super(SCHEDULE, messageExpiration);
     }
 
     @Override

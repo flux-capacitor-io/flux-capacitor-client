@@ -22,7 +22,6 @@ import io.fluxcapacitor.common.api.modeling.Relationship;
 import io.fluxcapacitor.common.api.modeling.UpdateRelationships;
 import io.fluxcapacitor.javaclient.persisting.eventsourcing.AggregateEventStream;
 import io.fluxcapacitor.javaclient.tracking.client.InMemoryMessageStore;
-import lombok.NoArgsConstructor;
 
 import java.time.Duration;
 import java.util.Collections;
@@ -33,16 +32,20 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.function.Function;
 
+import static io.fluxcapacitor.common.MessageType.EVENT;
 import static java.util.Collections.synchronizedMap;
 
-@NoArgsConstructor
 public class InMemoryEventStoreClient extends InMemoryMessageStore implements EventStoreClient {
 
     private final Map<String, List<SerializedMessage>> appliedEvents = new ConcurrentHashMap<>();
     private final Map<String, Map<String, String>> relationships = new ConcurrentHashMap<>();
 
+    public InMemoryEventStoreClient() {
+        super(EVENT);
+    }
+
     public InMemoryEventStoreClient(Duration messageExpiration) {
-        super(messageExpiration);
+        super(EVENT, messageExpiration);
     }
 
     @Override

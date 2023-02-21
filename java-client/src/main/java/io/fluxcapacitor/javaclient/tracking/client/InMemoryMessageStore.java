@@ -24,6 +24,7 @@ import io.fluxcapacitor.javaclient.FluxCapacitor;
 import io.fluxcapacitor.javaclient.publishing.client.GatewayClient;
 import io.fluxcapacitor.javaclient.tracking.ConsumerConfiguration;
 import io.fluxcapacitor.javaclient.tracking.IndexUtils;
+import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
@@ -59,10 +60,13 @@ public class InMemoryMessageStore implements GatewayClient, TrackingClient {
 
     private final ConcurrentSkipListMap<Long, SerializedMessage> messageLog = new ConcurrentSkipListMap<>();
     private final Map<String, Long> consumerTokens = new ConcurrentHashMap<>();
+
+    @Getter
+    private final MessageType messageType;
     private final Duration messageExpiration;
 
-    public InMemoryMessageStore() {
-        this(Duration.ofMinutes(2));
+    public InMemoryMessageStore(MessageType messageType) {
+        this(messageType, Duration.ofMinutes(2));
     }
 
     @Override
@@ -90,7 +94,7 @@ public class InMemoryMessageStore implements GatewayClient, TrackingClient {
     @Override
     public CompletableFuture<MessageBatch> read(String consumer, String trackerId,
                                                 Long lastIndex, ConsumerConfiguration configuration) {
-        return read(new SimpleTrackerRead(consumer, trackerId, lastIndex, configuration));
+        return read(new SimpleTrackerRead(consumer, trackerId, lastIndex, configuration, messageType));
     }
 
     public CompletableFuture<int[]> claimSegment(TrackerRead trackerRead) {

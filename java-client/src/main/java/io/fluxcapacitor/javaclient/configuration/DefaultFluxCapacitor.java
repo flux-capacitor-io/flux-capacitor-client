@@ -300,15 +300,20 @@ public class DefaultFluxCapacitor implements FluxCapacitor {
         }
 
         @Override
-        public Builder addConsumerConfiguration(@NonNull ConsumerConfiguration configuration) {
-            List<ConsumerConfiguration> configurations =
-                    customConsumerConfigurations.get(configuration.getMessageType());
-            if (configurations.stream().map(ConsumerConfiguration::getName)
-                    .anyMatch(n -> Objects.equals(n, configuration.getName()))) {
-                throw new IllegalArgumentException(
-                        format("Consumer name %s is already in use", configuration.getName()));
+        public Builder addConsumerConfiguration(@NonNull ConsumerConfiguration configuration,
+                                                MessageType... messageTypes) {
+            if (messageTypes.length == 0) {
+                messageTypes = MessageType.values();
             }
-            configurations.add(configuration);
+            for (MessageType messageType : messageTypes) {
+                List<ConsumerConfiguration> configurations = customConsumerConfigurations.get(messageType);
+                if (configurations.stream().map(ConsumerConfiguration::getName)
+                        .anyMatch(n -> Objects.equals(n, configuration.getName()))) {
+                    throw new IllegalArgumentException(
+                            format("Consumer name %s is already in use", configuration.getName()));
+                }
+                configurations.add(configuration);
+            }
             return this;
         }
 
@@ -689,7 +694,7 @@ public class DefaultFluxCapacitor implements FluxCapacitor {
         }
 
         protected ConsumerConfiguration getDefaultConsumerConfiguration(MessageType messageType) {
-            return ConsumerConfiguration.builder().messageType(messageType)
+            return ConsumerConfiguration.builder()
                     .name(messageType.name())
                     .ignoreSegment(messageType == NOTIFICATION)
                     .minIndex(messageType == NOTIFICATION ? indexFromTimestamp(FluxCapacitor.currentTime()) : null)

@@ -14,10 +14,11 @@
 
 package io.fluxcapacitor.javaclient.configuration;
 
-import io.fluxcapacitor.common.MessageType;
 import io.fluxcapacitor.javaclient.tracking.ConsumerConfiguration;
 import org.junit.jupiter.api.Test;
 
+import static io.fluxcapacitor.common.MessageType.COMMAND;
+import static io.fluxcapacitor.common.MessageType.QUERY;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
 public class FluxCapacitorConfigTest {
@@ -25,19 +26,22 @@ public class FluxCapacitorConfigTest {
     @Test
     void testAddConsumerWithExistingNameNotAllowed() {
         ConsumerConfiguration config1 =
-                ConsumerConfiguration.builder().messageType(MessageType.QUERY).name("test").build();
+                ConsumerConfiguration.builder().name("test").build();
         ConsumerConfiguration config2 =
-                ConsumerConfiguration.builder().messageType(MessageType.QUERY).name("test").build();
+                ConsumerConfiguration.builder().name("test").build();
         assertThrows(IllegalArgumentException.class, () -> DefaultFluxCapacitor.builder()
-                .addConsumerConfiguration(config1).addConsumerConfiguration(config2));
+                .addConsumerConfiguration(config1, QUERY)
+                .addConsumerConfiguration(config2, QUERY));
     }
 
     @Test
     void testAddConsumerWithExistingNameAllowedIfDifferentMessageType() {
         ConsumerConfiguration config1 =
-                ConsumerConfiguration.builder().messageType(MessageType.QUERY).name("test").build();
+                ConsumerConfiguration.builder().name("test").build();
         ConsumerConfiguration config2 =
-                ConsumerConfiguration.builder().messageType(MessageType.COMMAND).name("test").build();
-        DefaultFluxCapacitor.builder().addConsumerConfiguration(config1).addConsumerConfiguration(config2);
+                ConsumerConfiguration.builder().name("test").build();
+        DefaultFluxCapacitor.builder()
+                .addConsumerConfiguration(config1, QUERY)
+                .addConsumerConfiguration(config2, COMMAND);
     }
 }

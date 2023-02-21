@@ -35,6 +35,7 @@ import io.fluxcapacitor.common.api.tracking.StorePosition;
 import io.fluxcapacitor.javaclient.common.websocket.AbstractWebsocketClient;
 import io.fluxcapacitor.javaclient.configuration.client.WebSocketClient.ClientConfig;
 import io.fluxcapacitor.javaclient.tracking.ConsumerConfiguration;
+import lombok.Getter;
 
 import javax.websocket.ClientEndpoint;
 import java.net.URI;
@@ -46,8 +47,10 @@ import java.util.concurrent.CompletableFuture;
 import static io.fluxcapacitor.common.MessageType.METRICS;
 
 @ClientEndpoint
+@Getter
 public class WebsocketTrackingClient extends AbstractWebsocketClient implements TrackingClient {
 
+    private final MessageType messageType;
     private final Metadata metricsMetadata;
 
     public WebsocketTrackingClient(String endPointUrl, ClientConfig clientConfig, MessageType type) {
@@ -60,6 +63,7 @@ public class WebsocketTrackingClient extends AbstractWebsocketClient implements 
 
     public WebsocketTrackingClient(URI endPointUri, ClientConfig clientConfig, MessageType type, boolean sendMetrics) {
         super(endPointUri, clientConfig, sendMetrics, clientConfig.getTrackingConfigs().get(type).getSessions());
+        this.messageType = type;
         this.metricsMetadata = Metadata.of("messageType", type);
     }
 

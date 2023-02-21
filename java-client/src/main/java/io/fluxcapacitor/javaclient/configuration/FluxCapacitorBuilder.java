@@ -41,7 +41,7 @@ public interface FluxCapacitorBuilder {
     FluxCapacitorBuilder configureDefaultConsumer(MessageType messageType,
                                                   UnaryOperator<ConsumerConfiguration> updateFunction);
 
-    FluxCapacitorBuilder addConsumerConfiguration(ConsumerConfiguration consumerConfiguration);
+    FluxCapacitorBuilder addConsumerConfiguration(ConsumerConfiguration consumerConfiguration, MessageType... messageTypes);
 
     FluxCapacitorBuilder addBatchInterceptor(BatchInterceptor interceptor, MessageType... forTypes);
 

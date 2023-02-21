@@ -154,7 +154,7 @@ public class CachingAggregateRepository implements AggregateRepository {
 
     protected void startTrackerIfNeeded() {
         if (started.compareAndSet(false, true)) {
-            start(this::handleEvents, ConsumerConfiguration.builder().messageType(NOTIFICATION)
+            start(this::handleEvents, NOTIFICATION, ConsumerConfiguration.builder()
                     .ignoreSegment(true)
                     .minIndex(lastEventIndex = IndexUtils.indexFromTimestamp(FluxCapacitor.currentTime()))
                     .name(format("%s_%s", client.name(), CachingAggregateRepository.class.getSimpleName()))

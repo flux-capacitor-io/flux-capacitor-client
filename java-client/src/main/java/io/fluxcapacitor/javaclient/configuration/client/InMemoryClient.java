@@ -45,7 +45,7 @@ public class InMemoryClient extends AbstractClient {
                 type, t -> switch (t) {
                     case NOTIFICATION, EVENT -> eventStoreClient;
                     case SCHEDULE -> schedulingClient;
-                    default -> new InMemoryMessageStore(messageExpiration);
+                    default -> new InMemoryMessageStore(t, messageExpiration);
                 }));
     }
 

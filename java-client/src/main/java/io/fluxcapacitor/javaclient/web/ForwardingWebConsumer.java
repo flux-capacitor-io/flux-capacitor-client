@@ -75,7 +75,8 @@ public class ForwardingWebConsumer implements AutoCloseable {
                 }
             }
         });
-        registration.getAndUpdate(r -> r == null ? DefaultTracker.start(consumer, configuration, fluxCapacitor) : r);
+        registration.getAndUpdate(r -> r == null ? DefaultTracker.start(consumer, MessageType.WEBREQUEST,
+                                                                        configuration, fluxCapacitor) : r);
     }
 
     protected Map<String, String> getCorrelationData(SerializedMessage m) {

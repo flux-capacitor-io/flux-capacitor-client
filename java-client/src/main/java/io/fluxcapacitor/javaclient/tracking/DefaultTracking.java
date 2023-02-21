@@ -112,8 +112,7 @@ public class DefaultTracking implements Tracking {
     private Map<ConsumerConfiguration, List<Object>> assignHandlersToConsumers(List<?> handlers) {
         var unassignedHandlers = new ArrayList<Object>(handlers);
         var configurations = Stream.concat(
-                        ConsumerConfiguration.configurations(handlers.stream().map(Object::getClass).collect(toList()))
-                                .filter(c -> c.getMessageType() == messageType),
+                        ConsumerConfiguration.configurations(handlers.stream().map(Object::getClass).collect(toList())),
                         this.configurations.stream())
                 .map(config -> config.toBuilder().batchInterceptors(generalBatchInterceptors).build())
                 .collect(toMap(ConsumerConfiguration::getName, Function.identity(), (a, b) -> {
@@ -140,7 +139,7 @@ public class DefaultTracking implements Tracking {
 
     protected Registration startTracking(ConsumerConfiguration configuration,
                                          List<Handler<DeserializingMessage>> handlers, FluxCapacitor fluxCapacitor) {
-        return DefaultTracker.start(createConsumer(configuration, handlers), configuration, fluxCapacitor);
+        return DefaultTracker.start(createConsumer(configuration, handlers), messageType, configuration, fluxCapacitor);
     }
 
     protected Consumer<List<SerializedMessage>> createConsumer(ConsumerConfiguration config,

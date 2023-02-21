@@ -16,6 +16,7 @@ package io.fluxcapacitor.javaclient.tracking.client;
 
 import io.fluxcapacitor.common.Awaitable;
 import io.fluxcapacitor.common.Guarantee;
+import io.fluxcapacitor.common.MessageType;
 import io.fluxcapacitor.common.api.SerializedMessage;
 import io.fluxcapacitor.common.api.tracking.MessageBatch;
 import io.fluxcapacitor.common.api.tracking.Position;
@@ -57,6 +58,8 @@ public interface TrackingClient extends AutoCloseable {
     }
 
     Awaitable disconnectTracker(String consumer, String trackerId, boolean sendFinalEmptyBatch, Guarantee guarantee);
+
+    MessageType getMessageType();
 
     @Override
     void close();
