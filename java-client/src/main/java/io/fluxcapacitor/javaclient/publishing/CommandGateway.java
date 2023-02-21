@@ -18,6 +18,7 @@ import io.fluxcapacitor.common.Guarantee;
 import io.fluxcapacitor.common.api.Metadata;
 import io.fluxcapacitor.javaclient.common.Message;
 import io.fluxcapacitor.javaclient.tracking.handling.HasLocalHandlers;
+import io.fluxcapacitor.javaclient.tracking.handling.Request;
 
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
@@ -47,6 +48,14 @@ public interface CommandGateway extends HasLocalHandlers {
     <R> R sendAndWait(Object command);
 
     <R> R sendAndWait(Object payload, Metadata metadata);
+
+    <R> CompletableFuture<R> send(Request<R> query);
+
+    <R> CompletableFuture<R> send(Request<R> payload, Metadata metadata);
+
+    <R> R sendAndWait(Request<R> query);
+
+    <R> R sendAndWait(Request<R> payload, Metadata metadata);
 
     void close();
 }

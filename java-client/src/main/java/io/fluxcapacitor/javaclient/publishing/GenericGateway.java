@@ -18,6 +18,7 @@ import io.fluxcapacitor.common.Guarantee;
 import io.fluxcapacitor.common.api.Metadata;
 import io.fluxcapacitor.javaclient.common.Message;
 import io.fluxcapacitor.javaclient.tracking.handling.HasLocalHandlers;
+import io.fluxcapacitor.javaclient.tracking.handling.Request;
 import lombok.SneakyThrows;
 
 import java.util.Arrays;
@@ -71,8 +72,16 @@ public interface GenericGateway extends HasLocalHandlers {
         return send(asMessage(message));
     }
 
+    default <R> CompletableFuture<R> send(Request<R> message) {
+        return send((Object) message);
+    }
+
     default <R> CompletableFuture<R> send(Object payload, Metadata metadata) {
         return send(new Message(payload, metadata));
+    }
+
+    default <R> CompletableFuture<R> send(Request<R> payload, Metadata metadata) {
+        return send((Object) payload, metadata);
     }
 
     default CompletableFuture<Message> sendForMessage(Message message) {
@@ -90,9 +99,17 @@ public interface GenericGateway extends HasLocalHandlers {
         return sendAndWait(asMessage(message));
     }
 
+    default <R> R sendAndWait(Request<R> message) {
+        return sendAndWait((Object) message);
+    }
+
     @SneakyThrows
     default <R> R sendAndWait(Object payload, Metadata metadata) {
         return sendAndWait(new Message(payload, metadata));
+    }
+
+    default <R> R sendAndWait(Request<R> payload, Metadata metadata) {
+        return sendAndWait((Object) payload, metadata);
     }
 
     @SneakyThrows

@@ -47,6 +47,10 @@ public interface EventStore extends HasLocalHandlers {
         return getEvents(aggregateId, -1L, false);
     }
 
+    default AggregateEventStream<DeserializingMessage> getEvents(String aggregateId, long lastSequenceNumber) {
+        return getEvents(aggregateId, lastSequenceNumber, false);
+    }
+
     AggregateEventStream<DeserializingMessage> getEvents(String aggregateId, long lastSequenceNumber,
                                                          boolean ignoreUnknownType);
 

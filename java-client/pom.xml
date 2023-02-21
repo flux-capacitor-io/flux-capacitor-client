@@ -123,6 +123,20 @@
                 </exclusion>
             </exclusions>
         </dependency>
+
+        <!--annotation processing-->
+        <dependency>
+            <groupId>com.google.auto.service</groupId>
+            <artifactId>auto-service</artifactId>
+            <version>1.0.1</version>
+            <scope>provided</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.jooq</groupId>
+            <artifactId>joor</artifactId>
+            <version>0.9.14</version>
+            <scope>test</scope>
+        </dependency>
     </dependencies>
 
     <build>

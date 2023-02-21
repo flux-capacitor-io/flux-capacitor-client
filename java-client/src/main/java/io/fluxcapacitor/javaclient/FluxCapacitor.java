@@ -49,6 +49,7 @@ import io.fluxcapacitor.javaclient.tracking.Tracker;
 import io.fluxcapacitor.javaclient.tracking.Tracking;
 import io.fluxcapacitor.javaclient.tracking.handling.HandleCommand;
 import io.fluxcapacitor.javaclient.tracking.handling.LocalHandler;
+import io.fluxcapacitor.javaclient.tracking.handling.Request;
 import io.fluxcapacitor.javaclient.tracking.handling.authentication.UserProvider;
 
 import java.time.Clock;
@@ -125,8 +126,8 @@ public interface FluxCapacitor extends AutoCloseable {
     }
 
     /**
-     * Gets the time according to the current FluxCapacitor clock (obtained via {@link #currentClock()}).
-     * If there is no current FluxCapacitor instance the system's UTC time is returned.
+     * Gets the time according to the current FluxCapacitor clock (obtained via {@link #currentClock()}). If there is no
+     * current FluxCapacitor instance the system's UTC time is returned.
      */
     static Instant currentTime() {
         return currentClock().instant();
@@ -231,6 +232,17 @@ public interface FluxCapacitor extends AutoCloseable {
     }
 
     /**
+     * Sends the given command and returns a future that will be completed with the command's result. The command may be
+     * an instance of a {@link Message} in which case it will be sent as is. Otherwise the command is published using
+     * the passed value as payload without additional metadata.
+     * <p>
+     * The return type is determined by the given command.
+     */
+    static <R> CompletableFuture<R> sendCommand(Request<R> command) {
+        return get().commandGateway().send(command);
+    }
+
+    /**
      * Sends the given commands and returns a list of futures that will be completed with the commands' results. The
      * commands may be instances of a {@link Message} in which case they will be sent as is. Otherwise, the commands are
      * published using the passed values as payload without additional metadata.
@@ -248,11 +260,32 @@ public interface FluxCapacitor extends AutoCloseable {
     }
 
     /**
+     * Sends a command with given payload and metadata and returns a future that will be completed with the command's
+     * result.
+     * <p>
+     * The return type is determined by the given command.
+     */
+    static <R> CompletableFuture<R> sendCommand(Request<R> payload, Metadata metadata) {
+        return get().commandGateway().send(payload, metadata);
+    }
+
+    /**
      * Sends the given command and returns the command's result. The command may be an instance of a {@link Message} in
-     * which case it will be sent as is. Otherwise the command is published using the passed value as payload without
+     * which case it will be sent as is. Otherwise, the command is published using the passed value as payload without
      * additional metadata.
      */
     static <R> R sendCommandAndWait(Object command) {
+        return get().commandGateway().sendAndWait(command);
+    }
+
+    /**
+     * Sends the given command and returns the command's result. The command may be an instance of a {@link Message} in
+     * which case it will be sent as is. Otherwise, the command is published using the passed value as payload without
+     * additional metadata.
+     * <p>
+     * The return type is determined by the given command.
+     */
+    static <R> R sendCommandAndWait(Request<R> command) {
         return get().commandGateway().sendAndWait(command);
     }
 
@@ -265,11 +298,32 @@ public interface FluxCapacitor extends AutoCloseable {
     }
 
     /**
+     * Sends a command with given payload and metadata and returns a future that will be completed with the command's
+     * result.
+     * <p>
+     * The return type is determined by the given command.
+     */
+    static <R> R sendCommandAndWait(Request<R> payload, Metadata metadata) {
+        return get().commandGateway().sendAndWait(payload, metadata);
+    }
+
+    /**
      * Sends the given query and returns a future that will be completed with the query's result. The query may be an
-     * instance of a {@link Message} in which case it will be sent as is. Otherwise the query is published using the
+     * instance of a {@link Message} in which case it will be sent as is. Otherwise, the query is published using the
      * passed value as payload without additional metadata.
      */
     static <R> CompletableFuture<R> query(Object query) {
+        return get().queryGateway().send(query);
+    }
+
+    /**
+     * Sends the given query and returns a future that will be completed with the query's result. The query may be an
+     * instance of a {@link Message} in which case it will be sent as is. Otherwise, the query is published using the
+     * passed value as payload without additional metadata.
+     * <p>
+     * The return type is determined by the given query.
+     */
+    static <R> CompletableFuture<R> query(Request<R> query) {
         return get().queryGateway().send(query);
     }
 
@@ -282,11 +336,32 @@ public interface FluxCapacitor extends AutoCloseable {
     }
 
     /**
+     * Sends a query with given payload and metadata and returns a future that will be completed with the query's
+     * result.
+     * <p>
+     * The return type is determined by the given query.
+     */
+    static <R> CompletableFuture<R> query(Request<R> payload, Metadata metadata) {
+        return get().queryGateway().send(payload, metadata);
+    }
+
+    /**
      * Sends the given query and returns the query's result. The query may be an instance of a {@link Message} in which
-     * case it will be sent as is. Otherwise the query is published using the passed value as payload without additional
-     * metadata.
+     * case it will be sent as is. Otherwise, the query is published using the passed value as payload without
+     * additional metadata.
      */
     static <R> R queryAndWait(Object query) {
+        return get().queryGateway().sendAndWait(query);
+    }
+
+    /**
+     * Sends the given query and returns the query's result. The query may be an instance of a {@link Message} in which
+     * case it will be sent as is. Otherwise, the query is published using the passed value as payload without
+     * additional metadata.
+     * <p>
+     * The return type is determined by the given query.
+     */
+    static <R> R queryAndWait(Request<R> query) {
         return get().queryGateway().sendAndWait(query);
     }
 
@@ -294,6 +369,15 @@ public interface FluxCapacitor extends AutoCloseable {
      * Sends a query with given payload and metadata and returns the query's result.
      */
     static <R> R queryAndWait(Object payload, Metadata metadata) {
+        return get().queryGateway().sendAndWait(payload, metadata);
+    }
+
+    /**
+     * Sends a query with given payload and metadata and returns the query's result.
+     * <p>
+     * The return type is determined by the given query.
+     */
+    static <R> R queryAndWait(Request<R> payload, Metadata metadata) {
         return get().queryGateway().sendAndWait(payload, metadata);
     }
 
