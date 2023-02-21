@@ -37,8 +37,8 @@ public class StripStringsModule extends SimpleModule {
         @Override
         @SneakyThrows
         public String deserialize(JsonParser parser, DeserializationContext context) {
-            String result = parser.getValueAsString().trim();
-            return result.isEmpty() ? null : result;
+            String result = parser.getValueAsString();
+            return result.isBlank() ? null : result;
         }
     }
 }
