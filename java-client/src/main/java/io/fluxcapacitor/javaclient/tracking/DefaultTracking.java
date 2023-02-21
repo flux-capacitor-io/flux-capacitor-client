@@ -15,7 +15,6 @@
 package io.fluxcapacitor.javaclient.tracking;
 
 import io.fluxcapacitor.common.MessageType;
-import io.fluxcapacitor.common.ObjectUtils;
 import io.fluxcapacitor.common.Registration;
 import io.fluxcapacitor.common.api.SerializedMessage;
 import io.fluxcapacitor.common.handling.Handler;
@@ -54,6 +53,7 @@ import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.stream.Stream;
 
+import static io.fluxcapacitor.common.ObjectUtils.unwrapException;
 import static io.fluxcapacitor.common.reflection.ReflectionUtils.asInstance;
 import static io.fluxcapacitor.javaclient.common.ClientUtils.waitForResults;
 import static io.fluxcapacitor.javaclient.common.serialization.DeserializingMessage.handleBatch;
@@ -218,8 +218,9 @@ public class DefaultTracking implements Tracking {
 
     protected Object processError(Throwable e, DeserializingMessage message, HandlerInvoker h,
                                   Handler<DeserializingMessage> handler, ConsumerConfiguration config) {
-        return config.getErrorHandler().handleError(e, format("Handler %s failed to handle a %s", handler, message),
-                                                    () -> Invocation.performInvocation(h::invoke));
+        return config.getErrorHandler().handleError(
+                unwrapException(e), format("Handler %s failed to handle a %s", handler, message),
+                () -> Invocation.performInvocation(h::invoke));
     }
 
     protected void reportResult(Object result, HandlerInvoker h, DeserializingMessage message,
@@ -237,7 +238,7 @@ public class DefaultTracking implements Tracking {
         } else {
             if (shouldSendResponse(h, message, config)) {
                 if (result instanceof Throwable) {
-                    result = ObjectUtils.unwrapException((Throwable) result);
+                    result = unwrapException((Throwable) result);
                     if (!(result instanceof FunctionalException)) {
                         result = new TechnicalException(format("Handler %s failed to handle a %s",
                                                                h.getMethod(), message), (Throwable) result);
