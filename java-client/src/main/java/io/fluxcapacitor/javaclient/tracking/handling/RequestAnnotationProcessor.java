@@ -16,6 +16,7 @@ import javax.lang.model.util.Elements;
 import javax.lang.model.util.Types;
 import javax.tools.Diagnostic;
 import java.util.List;
+import java.util.Optional;
 import java.util.Set;
 
 @SupportedAnnotationTypes({"io.fluxcapacitor.javaclient.tracking.handling.HandleQuery", "io.fluxcapacitor.javaclient.tracking.handling.HandleCommand"})
@@ -35,6 +36,9 @@ public class RequestAnnotationProcessor extends AbstractProcessor {
 
     protected void validateMethod(Element method, TypeMirror requestType) {
         ExecutableType methodType = (ExecutableType) method.asType();
+        if (isPassive(method)) {
+            return;
+        }
         for (TypeMirror p : methodType.getParameterTypes()) {
             if (getTypeUtils().isAssignable(p, requestType)) {
                 var interfaces = ((TypeElement) (((DeclaredType) p).asElement())).getInterfaces();
@@ -55,6 +59,19 @@ public class RequestAnnotationProcessor extends AbstractProcessor {
                 }
             }
         }
+    }
+
+    @SuppressWarnings("RedundantIfStatement")
+    private boolean isPassive(Element method) {
+        if (Optional.ofNullable(method.getAnnotation(HandleCommand.class))
+                .map(HandleCommand::passive).orElse(false)) {
+            return true;
+        }
+        if (Optional.ofNullable(method.getAnnotation(HandleQuery.class))
+                .map(HandleQuery::passive).orElse(false)) {
+            return true;
+        }
+        return false;
     }
 
     private Types getTypeUtils() {

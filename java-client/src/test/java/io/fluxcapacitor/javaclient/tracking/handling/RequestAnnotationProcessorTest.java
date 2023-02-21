@@ -23,7 +23,7 @@ public class RequestAnnotationProcessorTest {
     }
 
     @Test
-    void testRequestWithWrongCorrectType() {
+    void testRequestWithCorrectType() {
         RequestAnnotationProcessor p = new RequestAnnotationProcessor();
         Reflect.compile(
                 "io.fluxcapacitor.javaclient.tracking.handling.CorrectHandler",
@@ -33,6 +33,23 @@ public class RequestAnnotationProcessorTest {
                                 @io.fluxcapacitor.javaclient.tracking.handling.HandleQuery
                                 String handle(io.fluxcapacitor.javaclient.tracking.handling.RequestAnnotationProcessorTest.MockQuery query) {
                                     return "foo";
+                                }
+                            }
+                        """, new CompileOptions().processors(p)
+        ).create().get();
+    }
+
+    @Test
+    void testRequestWithWrongTypeAllowedIfPassive() {
+        RequestAnnotationProcessor p = new RequestAnnotationProcessor();
+        Reflect.compile(
+                "io.fluxcapacitor.javaclient.tracking.handling.PassiveHandler",
+                """
+                            package io.fluxcapacitor.javaclient.tracking.handling;
+                            public class PassiveHandler {
+                                @io.fluxcapacitor.javaclient.tracking.handling.HandleQuery(passive = true)
+                                Boolean handle(io.fluxcapacitor.javaclient.tracking.handling.RequestAnnotationProcessorTest.MockQuery query) {
+                                    return true;
                                 }
                             }
                         """, new CompileOptions().processors(p)
