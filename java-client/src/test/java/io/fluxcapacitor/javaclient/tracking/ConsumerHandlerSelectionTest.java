@@ -1,5 +1,6 @@
 package io.fluxcapacitor.javaclient.tracking;
 
+import io.fluxcapacitor.javaclient.configuration.DefaultFluxCapacitor;
 import io.fluxcapacitor.javaclient.test.TestFixture;
 import io.fluxcapacitor.javaclient.tracking.root.RootHandler;
 import io.fluxcapacitor.javaclient.tracking.root.level2.Level2Handler;
@@ -12,6 +13,8 @@ import static java.util.Collections.nCopies;
 public class ConsumerHandlerSelectionTest {
 
     private final TestFixture testFixture = TestFixture.createAsync(
+            DefaultFluxCapacitor.builder().addConsumerConfiguration(
+                    ConsumerConfiguration.builder().name("non-exclusive").passive(true).exclusive(false).build()),
             new RootHandler(), new Level2Handler(), new Level3Handler(), new Level3HandlerWithCustomConsumer());
 
     @Test
@@ -39,7 +42,13 @@ public class ConsumerHandlerSelectionTest {
     }
 
     @Test
+    void nonExclusiveConsumerGetsItAlso() {
+        testFixture.whenEvent("test").expectEvents(new EventReceived(
+                Level3HandlerWithCustomConsumer.class, "non-exclusive"));
+    }
+
+    @Test
     void sanityCheck() {
-        testFixture.whenEvent("test").expectOnlyEvents(nCopies(4, EventReceived.class).toArray());
+        testFixture.whenEvent("test").expectOnlyEvents(nCopies(8, EventReceived.class).toArray());
     }
 }

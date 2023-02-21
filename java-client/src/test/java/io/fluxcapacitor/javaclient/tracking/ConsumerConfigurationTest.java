@@ -25,6 +25,7 @@ public class ConsumerConfigurationTest {
         TestFixture.createAsync(DefaultFluxCapacitor.builder()
                                         .addConsumerConfiguration(ConsumerConfiguration.builder()
                                                                           .name("nonExclusive")
+                                                                          .passive(true)
                                                                           .exclusive(false).build(),
                                                                   MessageType.COMMAND)
                                         .addConsumerConfiguration(ConsumerConfiguration.builder()
@@ -35,6 +36,26 @@ public class ConsumerConfigurationTest {
 
                 .whenCommand(new Command())
                 .expectOnlyEvents("nonExclusive", "exclusive");
+    }
+
+    @Test
+    void orderOfExclusiveVsNonExclusiveDoesntMatter() {
+        TestFixture.createAsync(DefaultFluxCapacitor.builder()
+                                        .addConsumerConfiguration(ConsumerConfiguration.builder()
+                                                                          .name("exclusive1")
+                                                                          .build())
+                                        .addConsumerConfiguration(ConsumerConfiguration.builder()
+                                                                          .name("exclusive2")
+                                                                          .build())
+                                        .addConsumerConfiguration(ConsumerConfiguration.builder()
+                                                                          .name("nonExclusive")
+                                                                          .passive(true)
+                                                                          .exclusive(false).build())
+                                        .configureDefaultConsumer(COMMAND, c -> c.toBuilder().name("default").build()),
+                                new Handler())
+
+                .whenCommand(new Command())
+                .expectOnlyEvents("nonExclusive", "exclusive1");
     }
 
     @Test

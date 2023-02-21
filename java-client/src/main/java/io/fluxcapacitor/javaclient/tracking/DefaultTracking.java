@@ -39,6 +39,7 @@ import java.util.AbstractMap.SimpleEntry;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -114,6 +115,7 @@ public class DefaultTracking implements Tracking {
         var configurations = Stream.concat(
                         ConsumerConfiguration.configurations(handlers.stream().map(Object::getClass).collect(toList())),
                         this.configurations.stream())
+                .sorted(Comparator.comparing(ConsumerConfiguration::exclusive))
                 .map(config -> config.toBuilder().batchInterceptors(generalBatchInterceptors).build())
                 .collect(toMap(ConsumerConfiguration::getName, Function.identity(), (a, b) -> {
                     if (a.equals(b)) {
