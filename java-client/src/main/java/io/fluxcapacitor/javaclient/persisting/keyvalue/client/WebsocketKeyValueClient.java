@@ -50,15 +50,10 @@ public class WebsocketKeyValueClient extends AbstractWebsocketClient implements 
 
     @Override
     public Awaitable putValue(String key, Data<byte[]> value, Guarantee guarantee) {
-        switch (guarantee) {
-            case NONE:
-                sendAndForget(new StoreValues(List.of(new KeyValuePair(key, value)), guarantee));
-                return Awaitable.ready();
-            case SENT:
-                return sendAndForget(new StoreValues(List.of(new KeyValuePair(key, value)), guarantee));
-            default:
-                return Awaitable.fromFuture(send(new StoreValuesAndWait(List.of(new KeyValuePair(key, value)))));
-        }
+        return switch (guarantee) {
+            case NONE, SENT -> sendCommand(new StoreValues(List.of(new KeyValuePair(key, value)), guarantee));
+            default -> sendCommand(new StoreValuesAndWait(List.of(new KeyValuePair(key, value))));
+        };
     }
 
     @Override

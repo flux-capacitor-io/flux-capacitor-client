@@ -19,6 +19,7 @@ import io.fluxcapacitor.common.api.Metadata;
 import io.fluxcapacitor.common.api.SerializedMessage;
 import lombok.SneakyThrows;
 
+import java.net.ServerSocket;
 import java.nio.ByteBuffer;
 import java.time.Clock;
 import java.util.List;
@@ -57,5 +58,12 @@ public class TestUtils {
     @SneakyThrows
     public static void sleepAWhile(int millis) {
         Thread.sleep(millis);
+    }
+
+    @SneakyThrows
+    public static int getAvailablePort() {
+        try (ServerSocket socket = new ServerSocket(0)) {
+            return socket.getLocalPort();
+        }
     }
 }

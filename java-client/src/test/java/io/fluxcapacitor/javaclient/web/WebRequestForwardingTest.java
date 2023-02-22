@@ -1,6 +1,7 @@
 package io.fluxcapacitor.javaclient.web;
 
 import io.fluxcapacitor.common.MessageType;
+import io.fluxcapacitor.common.TestUtils;
 import io.fluxcapacitor.common.api.SerializedMessage;
 import io.fluxcapacitor.javaclient.common.serialization.jackson.JacksonSerializer;
 import io.fluxcapacitor.javaclient.configuration.DefaultFluxCapacitor;
@@ -30,7 +31,6 @@ import java.io.InputStream;
 import java.lang.annotation.Annotation;
 import java.lang.reflect.Type;
 import java.util.Set;
-import java.util.concurrent.atomic.AtomicInteger;
 
 import static javax.ws.rs.core.MediaType.APPLICATION_JSON;
 import static org.mockito.ArgumentMatchers.any;
@@ -41,13 +41,13 @@ import static org.mockito.Mockito.verify;
 public class WebRequestForwardingTest extends Application {
 
     private static final UndertowJaxrsServer server = new UndertowJaxrsServer();
-    private static final AtomicInteger port = new AtomicInteger(9000);
+    private static final int port = TestUtils.getAvailablePort();
 
     @BeforeAll
     @SneakyThrows
     static void beforeAll() {
         server.deploy(WebRequestForwardingTest.class);
-        server.start(Undertow.builder().addHttpListener(port.get(), "0.0.0.0"));
+        server.start(Undertow.builder().addHttpListener(port, "0.0.0.0"));
     }
 
     @AfterAll
@@ -56,7 +56,7 @@ public class WebRequestForwardingTest extends Application {
     }
 
     private final TestFixture testFixture = TestFixture.createAsync(
-            DefaultFluxCapacitor.builder().forwardWebRequestsToLocalServer(port.get()));
+            DefaultFluxCapacitor.builder().forwardWebRequestsToLocalServer(port));
 
     @Test
     void testGet() {

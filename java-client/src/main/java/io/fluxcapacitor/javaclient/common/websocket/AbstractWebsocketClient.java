@@ -118,11 +118,6 @@ public abstract class AbstractWebsocketClient implements AutoCloseable {
         return (R) send(request).get();
     }
 
-    @SneakyThrows
-    protected Awaitable sendAndForget(JsonType object) {
-        return send(object, sessionPool.get());
-    }
-
     protected Awaitable sendCommand(Command command) {
         switch (command.getGuarantee()) {
             case NONE:
@@ -136,7 +131,12 @@ public abstract class AbstractWebsocketClient implements AutoCloseable {
     }
 
     @SneakyThrows
-    protected Awaitable send(JsonType object, Session session) {
+    private Awaitable sendAndForget(JsonType object) {
+        return send(object, sessionPool.get());
+    }
+
+    @SneakyThrows
+    private Awaitable send(JsonType object, Session session) {
         try {
             return sessionBacklogs.computeIfAbsent(
                     session.getId(), id -> new Backlog<>(batch -> sendBatch(batch, session))).add(object);
@@ -147,7 +147,7 @@ public abstract class AbstractWebsocketClient implements AutoCloseable {
     }
 
     @SneakyThrows
-    protected Awaitable sendBatch(List<JsonType> requests, Session session) {
+    private Awaitable sendBatch(List<JsonType> requests, Session session) {
         JsonType object = requests.size() == 1 ? requests.get(0) : new RequestBatch<>(requests);
         try (OutputStream outputStream = session.getBasicRemote().getSendStream()) {
             byte[] bytes = objectMapper.writeValueAsBytes(object);

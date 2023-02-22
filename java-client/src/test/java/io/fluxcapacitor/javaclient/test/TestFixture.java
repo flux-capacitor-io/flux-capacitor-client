@@ -41,6 +41,7 @@ import io.fluxcapacitor.javaclient.scheduling.ScheduledCommandHandler;
 import io.fluxcapacitor.javaclient.scheduling.client.InMemorySchedulingClient;
 import io.fluxcapacitor.javaclient.scheduling.client.SchedulingClient;
 import io.fluxcapacitor.javaclient.tracking.BatchInterceptor;
+import io.fluxcapacitor.javaclient.tracking.ConsumerConfiguration;
 import io.fluxcapacitor.javaclient.tracking.Tracker;
 import io.fluxcapacitor.javaclient.tracking.handling.HandlerInterceptor;
 import io.fluxcapacitor.javaclient.tracking.handling.authentication.User;
@@ -49,7 +50,9 @@ import io.fluxcapacitor.javaclient.web.WebRequest;
 import lombok.Getter;
 import lombok.Setter;
 import lombok.SneakyThrows;
+import lombok.Value;
 import lombok.experimental.Accessors;
+import lombok.experimental.Delegate;
 import lombok.extern.slf4j.Slf4j;
 
 import java.time.Clock;
@@ -155,7 +158,7 @@ public class TestFixture implements Given, When {
     private Registration registration = Registration.noOp();
 
     private volatile Message tracedMessage;
-    private final Map<Tracker, List<Message>> consumers = new ConcurrentHashMap<>();
+    private final Map<ActiveConsumer, List<Message>> consumers = new ConcurrentHashMap<>();
     private final List<Message> commands = new CopyOnWriteArrayList<>(), events = new CopyOnWriteArrayList<>(),
             webRequests = new CopyOnWriteArrayList<>(), metrics = new CopyOnWriteArrayList<>();
     private final List<Schedule> schedules = new CopyOnWriteArrayList<>();
@@ -627,9 +630,9 @@ public class TestFixture implements Given, When {
             synchronized (consumers) {
                 consumers.entrySet().stream()
                         .filter(t -> {
-                            var tracker = t.getKey();
-                            return (tracker.getMessageType() == messageType && Optional
-                                    .ofNullable(tracker.getConfiguration().getTypeFilter())
+                            var configuration = t.getKey();
+                            return (configuration.getMessageType() == messageType && Optional
+                                    .ofNullable(configuration.getTypeFilter())
                                     .map(f -> message.getPayload().getClass().getName().matches(f))
                                     .orElse(true));
                         }).forEach(e -> addMessage(e.getValue(), message));
@@ -661,10 +664,10 @@ public class TestFixture implements Given, When {
         @Override
         public Consumer<MessageBatch> intercept(Consumer<MessageBatch> consumer, Tracker tracker) {
             List<Message> messages = consumers.computeIfAbsent(
-                            tracker,
+                            new ActiveConsumer(tracker.getConfiguration(), tracker.getMessageType()),
                             c -> (c.getMessageType() == SCHEDULE
                             ? publishedSchedules : Collections.<Message>emptyList()).stream().filter(
-                                    m -> Optional.ofNullable(c.getConfiguration().getTypeFilter()).map(f -> m.getPayload().getClass()
+                                    m -> Optional.ofNullable(c.getTypeFilter()).map(f -> m.getPayload().getClass()
                                             .getName().matches(f)).orElse(true))
                             .collect(toCollection(CopyOnWriteArrayList::new)));
             return b -> {
@@ -703,8 +706,15 @@ public class TestFixture implements Given, When {
 
         @Override
         public void shutdown(Tracker tracker) {
-            consumers.remove(tracker);
+            consumers.remove(new ActiveConsumer(tracker.getConfiguration(), tracker.getMessageType()));
             checkConsumers();
         }
+    }
+
+    @Value
+    protected static class ActiveConsumer {
+        @Delegate
+        ConsumerConfiguration configuration;
+        MessageType messageType;
     }
 }
