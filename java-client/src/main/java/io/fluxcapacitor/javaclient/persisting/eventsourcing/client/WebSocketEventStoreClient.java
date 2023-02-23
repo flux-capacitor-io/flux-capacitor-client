@@ -92,7 +92,7 @@ public class WebSocketEventStoreClient extends AbstractWebsocketClient implement
 
     @Override
     public Awaitable deleteEvents(String aggregateId, Guarantee guarantee) {
-        return Awaitable.fromFuture(send(new DeleteEvents(aggregateId, guarantee)));
+        return sendCommand(new DeleteEvents(aggregateId, guarantee));
     }
 
 }

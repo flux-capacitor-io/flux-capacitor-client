@@ -97,6 +97,16 @@ class GivenWhenThenAsyncTest {
     }
 
     @Test
+    void testErrorFromCompletableFutureResult() {
+        TestFixture.createAsync(new Object() {
+            @HandleCommand
+            CompletableFuture<Void> handle(String command) {
+                return CompletableFuture.failedFuture(new MockException());
+            }
+        }).whenCommand("test").expectExceptionalResult(MockException.class);
+    }
+
+    @Test
     void errorHandlerIsUsedAfterBatchCompletes() {
         var handler = new Object() {
             volatile boolean retried;

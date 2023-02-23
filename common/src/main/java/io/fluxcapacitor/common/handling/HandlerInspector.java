@@ -310,8 +310,10 @@ public class HandlerInspector {
 
         @Override
         public String toString() {
-            return Optional.ofNullable(target).map(o -> String.format("\"%s\"", o.getClass().getSimpleName()))
-                    .orElse("DefaultHandler");
+            return Optional.ofNullable(target).map(o -> {
+                        String simpleName = o.getClass().getSimpleName();
+                        return String.format("\"%s\"", simpleName.isEmpty() ? o.getClass() : simpleName);
+                    }).orElse("DefaultHandler");
         }
     }
 }

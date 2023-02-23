@@ -258,10 +258,10 @@ public class DefaultTracking implements Tracking {
         }
     }
 
-    protected boolean shouldSendResponse(HandlerInvoker invoker, DeserializingMessage message,
+    protected boolean shouldSendResponse(HandlerInvoker invoker, DeserializingMessage request,
                                          ConsumerConfiguration config) {
-        return message.getSerializedObject().getRequestId() != null && !config.passive() && !invoker.isPassive()
-               && message.getMessageType() != MessageType.RESULT && message.getMessageType() != MessageType.WEBRESPONSE;
+        return request.getSerializedObject().getRequestId() != null && !config.passive() && !invoker.isPassive()
+               && request.getMessageType() != MessageType.RESULT && request.getMessageType() != MessageType.WEBRESPONSE;
     }
 
     protected void stopTracker(DeserializingMessage message, Handler<DeserializingMessage> handler, Throwable e) {
