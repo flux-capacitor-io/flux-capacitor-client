@@ -36,7 +36,6 @@ import java.util.function.Predicate;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
-import static io.fluxcapacitor.common.reflection.ReflectionUtils.getAnnotationAs;
 import static io.fluxcapacitor.javaclient.web.HttpRequestMethod.ANY;
 import static java.util.Objects.requireNonNull;
 
@@ -52,9 +51,8 @@ public class WebRequest extends Message {
 
     public static MessageFilter<HasMessage> getWebRequestFilter() {
         return (message, executable) -> filterCache.computeIfAbsent(executable, e -> {
-            var handleWeb = getAnnotationAs(e, HandleWeb.class, HandleWebParams.class).orElseThrow();
-            Predicate<String> pathTest = Optional.of(handleWeb.getValue())
-                    .map(url -> url.startsWith("/") ? url : "/" + url)
+            var handleWeb = WebUtils.getWebParameters(e).orElseThrow();
+            Predicate<String> pathTest = Optional.of(handleWeb.getPath())
                     .map(SearchUtils::convertGlobToRegex).map(Pattern::asMatchPredicate)
                     .<Predicate<String>>map(p -> s -> p.test(s.startsWith("/") ? s : "/" + s))
                     .orElse(p -> true);
@@ -69,12 +67,6 @@ public class WebRequest extends Message {
                 return pathTest.test(path) && methodTest.test(method);
             };
         }).test(message);
-    }
-
-    @Value
-    protected static class HandleWebParams {
-        String value;
-        HttpRequestMethod method;
     }
 
     @NonNull String path;

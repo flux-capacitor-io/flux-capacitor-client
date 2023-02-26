@@ -24,43 +24,20 @@ import io.fluxcapacitor.common.handling.ParameterResolver;
 import io.fluxcapacitor.javaclient.common.HasMessage;
 import io.fluxcapacitor.javaclient.common.serialization.DeserializingMessage;
 import io.fluxcapacitor.javaclient.web.HandleWeb;
+import io.fluxcapacitor.javaclient.web.HandleWebResponse;
 import io.fluxcapacitor.javaclient.web.WebRequest;
 import lombok.RequiredArgsConstructor;
 
 import java.lang.annotation.Annotation;
 import java.util.List;
-import java.util.Map;
 import java.util.Optional;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Stream;
 
 import static io.fluxcapacitor.common.handling.HandlerInspector.hasHandlerMethods;
 
 @RequiredArgsConstructor
 public class DefaultHandlerFactory implements HandlerFactory {
-    private static final Map<MessageType, MessageFilter<? super DeserializingMessage>> messageFilterCache =
-            new ConcurrentHashMap<>();
-    private final MessageType messageType;
-    private final HandlerInterceptor defaultInterceptor;
-    private final List<ParameterResolver<? super DeserializingMessage>> parameterResolvers;
-
-    @Override
-    public Optional<Handler<DeserializingMessage>> createHandler(Object target, String consumer,
-                                                                 HandlerFilter handlerFilter,
-                                                                 List<HandlerInterceptor> handlerInterceptors) {
-        HandlerInterceptor interceptor = Stream.concat(Stream.of(defaultInterceptor), handlerInterceptors.stream())
-                .reduce(HandlerInterceptor::andThen).orElseThrow();
-        return Optional.ofNullable(getHandlerAnnotation(messageType))
-                .map(a -> HandlerConfiguration.<DeserializingMessage>builder()
-                        .methodAnnotation(a).handlerFilter(handlerFilter)
-                        .messageFilter(getMessageFilter(messageType, parameterResolvers))
-                        .build())
-                .filter(config -> hasHandlerMethods(target.getClass(), config))
-                .map(config -> interceptor.wrap(
-                        HandlerInspector.createHandler(target, parameterResolvers, config), consumer));
-    }
-
-    private static Class<? extends Annotation> getHandlerAnnotation(MessageType messageType) {
+    public static Class<? extends Annotation> getHandlerAnnotation(MessageType messageType) {
         return switch (messageType) {
             case COMMAND -> HandleCommand.class;
             case EVENT -> HandleEvent.class;
@@ -71,21 +48,42 @@ public class DefaultHandlerFactory implements HandlerFactory {
             case SCHEDULE -> HandleSchedule.class;
             case METRICS -> HandleMetrics.class;
             case WEBREQUEST -> HandleWeb.class;
-            default -> null;
+            case WEBRESPONSE -> HandleWebResponse.class;
         };
     }
 
-    private static MessageFilter<? super DeserializingMessage> getMessageFilter(
-            MessageType messageType, List<ParameterResolver<? super DeserializingMessage>> parameterResolvers) {
-        return messageFilterCache.computeIfAbsent(messageType, t -> {
-            @SuppressWarnings("unchecked")
-            var result = parameterResolvers.stream().flatMap(r -> r instanceof MessageFilter<?>
-                            ? Stream.of((MessageFilter<HasMessage>) r) : Stream.empty())
-                    .reduce(MessageFilter::and).orElseGet(() -> (m, a) -> true);
-            if (t == MessageType.WEBREQUEST) {
-                result = WebRequest.getWebRequestFilter().and(result);
-            }
-            return result;
-        });
+    private final MessageType messageType;
+    private final HandlerDecorator defaultDecorator;
+    private final List<ParameterResolver<? super DeserializingMessage>> parameterResolvers;
+    private final MessageFilter<? super DeserializingMessage> messageFilter;
+
+    public DefaultHandlerFactory(MessageType messageType, HandlerDecorator defaultDecorator,
+                                 List<ParameterResolver<? super DeserializingMessage>> parameterResolvers) {
+        this.messageType = messageType;
+        this.defaultDecorator = defaultDecorator;
+        this.parameterResolvers = parameterResolvers;
+        this.messageFilter = computeMessageFilter();
+    }
+
+    @Override
+    public Optional<Handler<DeserializingMessage>> createHandler(Object target, String consumer,
+                                                                 HandlerFilter handlerFilter,
+                                                                 List<HandlerInterceptor> handlerInterceptors) {
+        HandlerDecorator interceptor = Stream.concat(Stream.of(defaultDecorator), handlerInterceptors.stream())
+                .reduce(HandlerDecorator::andThen).orElseThrow();
+        return Optional.ofNullable(getHandlerAnnotation(messageType))
+                .map(a -> HandlerConfiguration.<DeserializingMessage>builder().methodAnnotation(a)
+                        .handlerFilter(handlerFilter).messageFilter(messageFilter).build())
+                .filter(config -> hasHandlerMethods(target.getClass(), config))
+                .map(config -> HandlerInspector.createHandler(target, parameterResolvers, config))
+                .map(handler -> interceptor.wrap(handler, consumer));
+    }
+
+    @SuppressWarnings("unchecked")
+    protected MessageFilter<? super DeserializingMessage> computeMessageFilter() {
+        var result = parameterResolvers.stream().flatMap(r -> r instanceof MessageFilter<?>
+                        ? Stream.of((MessageFilter<HasMessage>) r) : Stream.empty())
+                .reduce(MessageFilter::and).orElseGet(() -> (m, a) -> true);
+        return messageType == MessageType.WEBREQUEST ? WebRequest.getWebRequestFilter().and(result) : result;
     }
 }

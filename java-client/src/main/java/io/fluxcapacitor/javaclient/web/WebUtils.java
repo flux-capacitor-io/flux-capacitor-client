@@ -2,13 +2,16 @@ package io.fluxcapacitor.javaclient.web;
 
 import lombok.NonNull;
 
+import java.lang.reflect.Executable;
 import java.net.HttpCookie;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
+import static io.fluxcapacitor.common.reflection.ReflectionUtils.getAnnotationAs;
 import static org.apache.commons.lang3.StringUtils.isBlank;
 
 public class WebUtils {
@@ -44,5 +47,9 @@ public class WebUtils {
     public static List<HttpCookie> parseResponseCookieHeader(List<String> setCookieHeaders) {
         return setCookieHeaders == null ? List.of()
                 : setCookieHeaders.stream().flatMap(h -> HttpCookie.parse(h).stream()).toList();
+    }
+
+    public static Optional<WebParameters> getWebParameters(Executable method) {
+        return getAnnotationAs(method, HandleWeb.class, WebParameters.class);
     }
 }

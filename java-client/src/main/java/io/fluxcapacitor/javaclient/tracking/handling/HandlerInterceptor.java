@@ -26,20 +26,13 @@ import java.util.function.BiFunction;
 import java.util.function.Function;
 
 @FunctionalInterface
-public interface HandlerInterceptor {
-    static HandlerInterceptor noOp() {
-        return (f, h, c) -> f;
-    }
+public interface HandlerInterceptor extends HandlerDecorator {
 
     Function<DeserializingMessage, Object> interceptHandling(Function<DeserializingMessage, Object> function,
                                                              HandlerInvoker invoker, String consumer);
 
     default Handler<DeserializingMessage> wrap(Handler<DeserializingMessage> handler, String consumer) {
         return new InterceptedHandler(handler, this, consumer);
-    }
-
-    default HandlerInterceptor andThen(HandlerInterceptor nextInterceptor) {
-        return new MergedInterceptor(this, nextInterceptor);
     }
 
     @AllArgsConstructor
@@ -68,23 +61,6 @@ public interface HandlerInterceptor {
         @Override
         public String toString() {
             return delegate.toString();
-        }
-    }
-
-    @AllArgsConstructor
-    class MergedInterceptor implements HandlerInterceptor {
-        private final HandlerInterceptor first, second;
-
-        @Override
-        public Function<DeserializingMessage, Object> interceptHandling(Function<DeserializingMessage, Object> function,
-                                                                        HandlerInvoker invoker,
-                                                                        String consumer) {
-            return first.interceptHandling(second.interceptHandling(function, invoker, consumer), invoker, consumer);
-        }
-
-        @Override
-        public Handler<DeserializingMessage> wrap(Handler<DeserializingMessage> handler, String consumer) {
-            return first.wrap(second.wrap(handler, consumer), consumer);
         }
     }
 }
