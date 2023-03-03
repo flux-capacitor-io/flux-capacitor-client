@@ -30,6 +30,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Consumer;
@@ -45,6 +46,12 @@ public class DefaultRequestHandler implements RequestHandler {
 
     private final Client client;
     private final MessageType resultType;
+    private final Duration timeout;
+
+    public DefaultRequestHandler(Client client, MessageType resultType) {
+        this(client, resultType, Duration.ofSeconds(200));
+    }
+
     private final Map<Integer, CompletableFuture<SerializedMessage>> callbacks = new ConcurrentHashMap<>();
     private final AtomicInteger nextId = new AtomicInteger();
     private final AtomicBoolean started = new AtomicBoolean();
@@ -69,8 +76,10 @@ public class DefaultRequestHandler implements RequestHandler {
         ensureStarted();
         List<CompletableFuture<SerializedMessage>> futures = new ArrayList<>();
         requestSender.accept(requests.stream().peek(request -> {
-            CompletableFuture<SerializedMessage> result = new CompletableFuture<>();
             int requestId = nextId.getAndIncrement();
+            CompletableFuture<SerializedMessage> result = new CompletableFuture<SerializedMessage>()
+                    .orTimeout(timeout.getSeconds(), TimeUnit.SECONDS)
+                    .whenComplete((m, e) -> callbacks.remove(requestId));
             callbacks.put(requestId, result);
             request.setRequestId(requestId);
             request.setSource(client.id());
