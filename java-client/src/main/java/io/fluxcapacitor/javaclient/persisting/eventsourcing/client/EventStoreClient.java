@@ -18,6 +18,8 @@ import io.fluxcapacitor.common.Awaitable;
 import io.fluxcapacitor.common.Guarantee;
 import io.fluxcapacitor.common.api.SerializedMessage;
 import io.fluxcapacitor.common.api.modeling.GetAggregateIds;
+import io.fluxcapacitor.common.api.modeling.GetRelationships;
+import io.fluxcapacitor.common.api.modeling.Relationship;
 import io.fluxcapacitor.common.api.modeling.UpdateRelationships;
 import io.fluxcapacitor.javaclient.persisting.eventsourcing.AggregateEventStream;
 
@@ -51,6 +53,12 @@ public interface EventStoreClient extends AutoCloseable {
     }
 
     Map<String, String> getAggregateIds(GetAggregateIds request);
+
+    default List<Relationship> getRelationships(String entityId) {
+        return getRelationships(new GetRelationships(entityId));
+    }
+
+    List<Relationship> getRelationships(GetRelationships request);
 
     @Override
     void close();

@@ -18,6 +18,7 @@ import io.fluxcapacitor.common.Awaitable;
 import io.fluxcapacitor.common.Guarantee;
 import io.fluxcapacitor.common.api.SerializedMessage;
 import io.fluxcapacitor.common.api.modeling.GetAggregateIds;
+import io.fluxcapacitor.common.api.modeling.GetRelationships;
 import io.fluxcapacitor.common.api.modeling.Relationship;
 import io.fluxcapacitor.common.api.modeling.UpdateRelationships;
 import io.fluxcapacitor.javaclient.persisting.eventsourcing.AggregateEventStream;
@@ -72,7 +73,7 @@ public class InMemoryEventStoreClient extends InMemoryMessageStore implements Ev
         List<SerializedMessage> events = appliedEvents.getOrDefault(aggregateId, Collections.emptyList());
         return new AggregateEventStream<>(events.subList(
                 Math.min(1 + (int) lastSequenceNumber, events.size()), events.size()).stream(), aggregateId,
-                () -> (long) events.size() - 1L);
+                                          () -> (long) events.size() - 1L);
     }
 
     @Override
@@ -84,5 +85,12 @@ public class InMemoryEventStoreClient extends InMemoryMessageStore implements Ev
     @Override
     public Map<String, String> getAggregateIds(GetAggregateIds request) {
         return Map.copyOf(relationships.getOrDefault(request.getEntityId(), Collections.emptyMap()));
+    }
+
+    @Override
+    public List<Relationship> getRelationships(GetRelationships request) {
+        return relationships.getOrDefault(request.getEntityId(), Collections.emptyMap()).entrySet().stream()
+                .map(e -> Relationship.builder().entityId(request.getEntityId()).aggregateId(e.getKey())
+                        .aggregateType(e.getValue()).build()).toList();
     }
 }

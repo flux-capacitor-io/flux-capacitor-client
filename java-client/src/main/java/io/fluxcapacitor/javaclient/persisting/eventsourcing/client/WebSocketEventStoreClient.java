@@ -24,6 +24,9 @@ import io.fluxcapacitor.common.api.eventsourcing.GetEvents;
 import io.fluxcapacitor.common.api.eventsourcing.GetEventsResult;
 import io.fluxcapacitor.common.api.modeling.GetAggregateIds;
 import io.fluxcapacitor.common.api.modeling.GetAggregateIdsResult;
+import io.fluxcapacitor.common.api.modeling.GetRelationships;
+import io.fluxcapacitor.common.api.modeling.GetRelationshipsResult;
+import io.fluxcapacitor.common.api.modeling.Relationship;
 import io.fluxcapacitor.common.api.modeling.UpdateRelationships;
 import io.fluxcapacitor.javaclient.common.websocket.AbstractWebsocketClient;
 import io.fluxcapacitor.javaclient.configuration.client.WebSocketClient;
@@ -88,6 +91,11 @@ public class WebSocketEventStoreClient extends AbstractWebsocketClient implement
     @Override
     public Map<String, String> getAggregateIds(GetAggregateIds request) {
         return this.<GetAggregateIdsResult>sendAndWait(request).getAggregateIds();
+    }
+
+    @Override
+    public List<Relationship> getRelationships(GetRelationships request) {
+        return this.<GetRelationshipsResult>sendAndWait(request).getRelationships();
     }
 
     @Override
