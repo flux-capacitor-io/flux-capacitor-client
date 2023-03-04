@@ -20,6 +20,7 @@ import io.fluxcapacitor.common.api.SerializedMessage;
 import io.fluxcapacitor.common.api.modeling.GetAggregateIds;
 import io.fluxcapacitor.common.api.modeling.GetRelationships;
 import io.fluxcapacitor.common.api.modeling.Relationship;
+import io.fluxcapacitor.common.api.modeling.RepairRelationships;
 import io.fluxcapacitor.common.api.modeling.UpdateRelationships;
 import io.fluxcapacitor.javaclient.persisting.eventsourcing.AggregateEventStream;
 import io.fluxcapacitor.javaclient.tracking.client.InMemoryMessageStore;
@@ -65,6 +66,15 @@ public class InMemoryEventStoreClient extends InMemoryMessageStore implements Ev
                 r.getEntityId(), entityId -> synchronizedMap(new LinkedHashMap<>()));
         request.getDissociations().forEach(r -> computeIfAbsent.apply(r).remove(r.getAggregateId()));
         request.getAssociations().forEach(r -> computeIfAbsent.apply(r).put(r.getAggregateId(), r.getAggregateType()));
+        return Awaitable.ready();
+    }
+
+    @Override
+    public Awaitable repairRelationships(RepairRelationships request) {
+        relationships.values().forEach(mapping -> mapping.remove(request.getAggregateId()));
+        relationships.values().removeIf(Map::isEmpty);
+        request.getEntityIds().forEach(e -> relationships.computeIfAbsent(e, entityId -> synchronizedMap(
+                new LinkedHashMap<>())).put(request.getAggregateId(), request.getAggregateType()));
         return Awaitable.ready();
     }
 

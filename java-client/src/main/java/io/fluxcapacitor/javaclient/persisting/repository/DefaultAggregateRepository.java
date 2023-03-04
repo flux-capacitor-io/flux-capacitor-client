@@ -78,7 +78,8 @@ public class DefaultAggregateRepository implements AggregateRepository {
     @SuppressWarnings("unchecked")
     @Override
     public <T> Entity<T> loadFor(@NonNull String entityId, Class<?> defaultType) {
-        Map<String, Class<?>> aggregates = getAggregatesFor(entityId);
+        Map<String, Class<?>> aggregates =
+                relationshipsCache.computeIfAbsent(entityId, id -> eventStore.getAggregatesFor(entityId));
         if (aggregates.isEmpty()) {
             return (Entity<T>) load(entityId, defaultType);
         }
@@ -91,16 +92,6 @@ public class DefaultAggregateRepository implements AggregateRepository {
         return aggregates.entrySet().stream().filter(e -> !Void.class.equals(e.getValue()))
                 .reduce((a, b) -> b).map(e -> (Entity<T>) load(e.getKey(), e.getValue()))
                 .orElseGet(() -> (Entity<T>) load(entityId, defaultType));
-    }
-
-    @Override
-    public Map<String, Class<?>> getAggregatesFor(@NonNull String entityId) {
-        return relationshipsCache.computeIfAbsent(entityId, id -> eventStore.getAggregatesFor(entityId));
-    }
-
-    @Override
-    public boolean cachingAllowed(@NonNull Class<?> type) {
-        return delegates.apply(type).isCached();
     }
 
     public static class AnnotatedAggregateRepository<T> {

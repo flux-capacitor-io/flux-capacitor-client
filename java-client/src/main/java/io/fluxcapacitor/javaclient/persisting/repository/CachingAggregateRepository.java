@@ -57,11 +57,6 @@ public class CachingAggregateRepository implements AggregateRepository {
         return delegate.loadFor(entityId, defaultType);
     }
 
-    @Override
-    public Map<String, Class<?>> getAggregatesFor(@NonNull String entityId) {
-        return delegate.getAggregatesFor(entityId);
-    }
-
     protected void handleEvents(List<SerializedMessage> messages) {
         try {
             handleBatch(serializer.deserializeMessages(messages.stream(), EVENT)).forEach(this::handleEvent);
@@ -77,8 +72,7 @@ public class CachingAggregateRepository implements AggregateRepository {
 
     private void handleEvent(DeserializingMessage m) {
         String id = getAggregateId(m);
-        Class<?> type = getAggregateType(m);
-        if (id != null && type != null && cachingAllowed(type)) {
+        if (id != null) {
             try {
                 if (Objects.equals(client.id(), m.getSerializedObject().getSource())) {
                     cache.<ImmutableAggregateRoot<?>>computeIfPresent(id, (i, a) -> a.withEventIndex(
@@ -103,7 +97,8 @@ public class CachingAggregateRepository implements AggregateRepository {
                             });
                 }
             } catch (Throwable e) {
-                log.error("Failed to handle event {} for aggregate {} (id {})", m.getMessageId(), type, id, e);
+                log.error("Failed to handle event {} for aggregate {} (id {})", m.getMessageId(),
+                          getAggregateType(m), id, e);
             }
         }
     }
@@ -163,11 +158,6 @@ public class CachingAggregateRepository implements AggregateRepository {
                 cache.notifyAll();
             }
         }
-    }
-
-    @Override
-    public boolean cachingAllowed(@NonNull Class<?> aggregateType) {
-        return delegate.cachingAllowed(aggregateType);
     }
 
 }

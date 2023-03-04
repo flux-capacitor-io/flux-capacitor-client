@@ -27,6 +27,7 @@ import io.fluxcapacitor.common.api.modeling.GetAggregateIdsResult;
 import io.fluxcapacitor.common.api.modeling.GetRelationships;
 import io.fluxcapacitor.common.api.modeling.GetRelationshipsResult;
 import io.fluxcapacitor.common.api.modeling.Relationship;
+import io.fluxcapacitor.common.api.modeling.RepairRelationships;
 import io.fluxcapacitor.common.api.modeling.UpdateRelationships;
 import io.fluxcapacitor.javaclient.common.websocket.AbstractWebsocketClient;
 import io.fluxcapacitor.javaclient.configuration.client.WebSocketClient;
@@ -85,6 +86,11 @@ public class WebSocketEventStoreClient extends AbstractWebsocketClient implement
 
     @Override
     public Awaitable updateRelationships(UpdateRelationships request) {
+        return sendCommand(request);
+    }
+
+    @Override
+    public Awaitable repairRelationships(RepairRelationships request) {
         return sendCommand(request);
     }
 

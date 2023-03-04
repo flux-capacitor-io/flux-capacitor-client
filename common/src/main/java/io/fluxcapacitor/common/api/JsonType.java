@@ -31,6 +31,7 @@ import io.fluxcapacitor.common.api.modeling.GetAggregateIds;
 import io.fluxcapacitor.common.api.modeling.GetAggregateIdsResult;
 import io.fluxcapacitor.common.api.modeling.GetRelationships;
 import io.fluxcapacitor.common.api.modeling.GetRelationshipsResult;
+import io.fluxcapacitor.common.api.modeling.RepairRelationships;
 import io.fluxcapacitor.common.api.modeling.UpdateRelationships;
 import io.fluxcapacitor.common.api.publishing.Append;
 import io.fluxcapacitor.common.api.scheduling.CancelSchedule;
@@ -98,6 +99,7 @@ import io.fluxcapacitor.common.api.tracking.StorePosition;
 
         //modeling
         @JsonSubTypes.Type(value = UpdateRelationships.class, name = "updateRelationships"),
+        @JsonSubTypes.Type(value = RepairRelationships.class, name = "repairRelationships"),
         @JsonSubTypes.Type(value = GetAggregateIds.class, name = "getAggregateIds"),
         @JsonSubTypes.Type(value = GetAggregateIdsResult.class, name = "getAggregateIdsResult"),
         @JsonSubTypes.Type(value = GetRelationships.class, name = "getRelationships"),

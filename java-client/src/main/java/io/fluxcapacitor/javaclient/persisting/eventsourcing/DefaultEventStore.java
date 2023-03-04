@@ -17,6 +17,8 @@ package io.fluxcapacitor.javaclient.persisting.eventsourcing;
 import io.fluxcapacitor.common.Awaitable;
 import io.fluxcapacitor.common.ConsistentHashing;
 import io.fluxcapacitor.common.api.SerializedMessage;
+import io.fluxcapacitor.common.api.modeling.Relationship;
+import io.fluxcapacitor.common.api.modeling.RepairRelationships;
 import io.fluxcapacitor.common.api.modeling.UpdateRelationships;
 import io.fluxcapacitor.common.reflection.ReflectionUtils;
 import io.fluxcapacitor.javaclient.common.Message;
@@ -104,9 +106,19 @@ public class DefaultEventStore implements EventStore {
     }
 
     @Override
+    public Awaitable repairRelationships(RepairRelationships repairRelationships) {
+        return client.repairRelationships(repairRelationships);
+    }
+
+    @Override
     public Map<String, Class<?>> getAggregatesFor(String entityId) {
         return client.getAggregateIds(entityId).entrySet().stream().collect(toMap(
                 Map.Entry::getKey, e -> ReflectionUtils.classForName(serializer.upcastType(e.getValue()), Void.class),
                 (a, b) -> b, LinkedHashMap::new));
+    }
+
+    @Override
+    public List<Relationship> getRelationships(String entityId) {
+        return client.getRelationships(entityId);
     }
 }

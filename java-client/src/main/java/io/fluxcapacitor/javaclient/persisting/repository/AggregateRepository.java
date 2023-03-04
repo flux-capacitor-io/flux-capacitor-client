@@ -17,16 +17,10 @@ package io.fluxcapacitor.javaclient.persisting.repository;
 import io.fluxcapacitor.javaclient.modeling.Entity;
 import lombok.NonNull;
 
-import java.util.Map;
-
 public interface AggregateRepository {
 
     <T> Entity<T> load(@NonNull String aggregateId, Class<T> aggregateType);
 
     <T> Entity<T> loadFor(@NonNull String entityId, Class<?> defaultType);
-
-    boolean cachingAllowed(@NonNull Class<?> aggregateType);
-
-    Map<String, Class<?>> getAggregatesFor(@NonNull String entityId);
 
 }
