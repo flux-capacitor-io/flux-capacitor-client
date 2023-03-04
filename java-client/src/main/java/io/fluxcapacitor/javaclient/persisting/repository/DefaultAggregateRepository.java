@@ -1,6 +1,10 @@
 package io.fluxcapacitor.javaclient.persisting.repository;
 
+import io.fluxcapacitor.common.Awaitable;
+import io.fluxcapacitor.common.Guarantee;
 import io.fluxcapacitor.common.api.modeling.Relationship;
+import io.fluxcapacitor.common.api.modeling.RepairRelationships;
+import io.fluxcapacitor.common.api.modeling.UpdateRelationships;
 import io.fluxcapacitor.common.reflection.ReflectionUtils;
 import io.fluxcapacitor.javaclient.FluxCapacitor;
 import io.fluxcapacitor.javaclient.common.serialization.DeserializingMessage;
@@ -23,6 +27,7 @@ import io.fluxcapacitor.javaclient.persisting.eventsourcing.NoSnapshotTrigger;
 import io.fluxcapacitor.javaclient.persisting.eventsourcing.PeriodicSnapshotTrigger;
 import io.fluxcapacitor.javaclient.persisting.eventsourcing.SnapshotStore;
 import io.fluxcapacitor.javaclient.persisting.eventsourcing.SnapshotTrigger;
+import io.fluxcapacitor.javaclient.persisting.eventsourcing.client.EventStoreClient;
 import io.fluxcapacitor.javaclient.persisting.search.DocumentStore;
 import io.fluxcapacitor.javaclient.publishing.DispatchInterceptor;
 import lombok.AccessLevel;
@@ -36,6 +41,7 @@ import java.time.Instant;
 import java.time.temporal.TemporalAccessor;
 import java.util.ArrayList;
 import java.util.Iterator;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -43,9 +49,11 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Function;
+import java.util.stream.Collectors;
 
 import static io.fluxcapacitor.common.ObjectUtils.memoize;
 import static io.fluxcapacitor.common.reflection.ReflectionUtils.getAnnotatedProperty;
+import static java.util.stream.Collectors.toMap;
 
 @Slf4j
 @AllArgsConstructor
@@ -53,18 +61,16 @@ import static io.fluxcapacitor.common.reflection.ReflectionUtils.getAnnotatedPro
 @Accessors(fluent = true)
 public class DefaultAggregateRepository implements AggregateRepository {
     private final EventStore eventStore;
+    private final EventStoreClient eventStoreClient;
     private final SnapshotStore snapshotStore;
-    private final Cache cache;
+    private final Cache aggregateCache;
     private final Cache relationshipsCache;
     private final DocumentStore documentStore;
     private final Serializer serializer;
     private final DispatchInterceptor dispatchInterceptor;
     private final EntityHelper entityHelper;
 
-    private final Function<Class<?>, AnnotatedAggregateRepository<?>> delegates = memoize(
-            type -> new AnnotatedAggregateRepository<>(type, serializer(), cache(), relationshipsCache(),
-                                                       eventStore(), snapshotStore(),
-                                                       dispatchInterceptor(), entityHelper(), documentStore()));
+    private final Function<Class<?>, AnnotatedAggregateRepository<?>> delegates = memoize(AnnotatedAggregateRepository::new);
 
     @Override
     @SuppressWarnings("unchecked")
@@ -78,8 +84,7 @@ public class DefaultAggregateRepository implements AggregateRepository {
     @SuppressWarnings("unchecked")
     @Override
     public <T> Entity<T> loadFor(@NonNull String entityId, Class<?> defaultType) {
-        Map<String, Class<?>> aggregates =
-                relationshipsCache.computeIfAbsent(entityId, id -> eventStore.getAggregatesFor(entityId));
+        Map<String, Class<?>> aggregates = relationshipsCache.computeIfAbsent(entityId, this::getAggregatesForEntity);
         if (aggregates.isEmpty()) {
             return (Entity<T>) load(entityId, defaultType);
         }
@@ -94,9 +99,23 @@ public class DefaultAggregateRepository implements AggregateRepository {
                 .orElseGet(() -> (Entity<T>) load(entityId, defaultType));
     }
 
-    public static class AnnotatedAggregateRepository<T> {
+    @Override
+    public Awaitable repairRelationships(Entity<?> aggregate) {
+        aggregate = aggregate.root();
+        return eventStoreClient.repairRelationships(new RepairRelationships(
+                aggregate.id().toString(), aggregate.type().getName(), aggregate.allEntities()
+                .map(Entity::id).map(Object::toString).collect(Collectors.toSet()), Guarantee.STORED));
+    }
+
+    protected Map<String, Class<?>> getAggregatesForEntity(Object entityId) {
+        return eventStoreClient.getAggregateIds(entityId.toString()).entrySet().stream().collect(toMap(
+                Map.Entry::getKey, e -> ReflectionUtils.classForName(serializer.upcastType(e.getValue()), Void.class),
+                (a, b) -> b, LinkedHashMap::new));
+    }
+    public class AnnotatedAggregateRepository<T> {
+
         private final Class<T> type;
-        private final Cache cache;
+        private final Cache aggregateCache;
         private final Cache relationshipsCache;
         private final boolean eventSourced;
         private final boolean commitInBatch;
@@ -105,34 +124,24 @@ public class DefaultAggregateRepository implements AggregateRepository {
         private final boolean searchable;
         private final String collection;
         private final Function<Entity<?>, Instant> timestampFunction;
-        private final Serializer serializer;
-        private final EventStore eventStore;
-        private final DispatchInterceptor dispatchInterceptor;
-        private final EntityHelper entityHelper;
-        private final DocumentStore documentStore;
         private final String idProperty;
         private boolean ignoreUnknownEvents;
 
-        public AnnotatedAggregateRepository(Class<T> type, Serializer serializer, Cache cache, Cache relationshipsCache,
-                                            EventStore eventStore, SnapshotStore snapshotStore,
-                                            DispatchInterceptor dispatchInterceptor,
-                                            EntityHelper entityHelper, DocumentStore documentStore) {
-            this.serializer = serializer;
-            this.relationshipsCache = relationshipsCache;
-            this.eventStore = eventStore;
-            this.dispatchInterceptor = dispatchInterceptor;
-            this.entityHelper = entityHelper;
-            this.documentStore = documentStore;
+        public AnnotatedAggregateRepository(Class<T> type) {
             this.type = type;
 
             Aggregate annotation = DefaultEntityHelper.getRootAnnotation(type);
-            this.cache = annotation.cached() ? cache : NoOpCache.INSTANCE;
+            this.aggregateCache = annotation.cached()
+                    ? DefaultAggregateRepository.this.aggregateCache : NoOpCache.INSTANCE;
+            this.relationshipsCache = annotation.cached()
+                    ? DefaultAggregateRepository.this.relationshipsCache : NoOpCache.INSTANCE;
             this.eventSourced = annotation.eventSourced();
             this.commitInBatch = annotation.commitInBatch();
             int snapshotPeriod = annotation.eventSourced() || annotation.searchable() ? annotation.snapshotPeriod() : 1;
             this.snapshotTrigger = snapshotPeriod > 0 ? new PeriodicSnapshotTrigger(snapshotPeriod) :
                     NoSnapshotTrigger.INSTANCE;
-            this.snapshotStore = snapshotPeriod > 0 ? snapshotStore : NoOpSnapshotStore.INSTANCE;
+            this.snapshotStore = snapshotPeriod > 0
+                    ? DefaultAggregateRepository.this.snapshotStore : NoOpSnapshotStore.INSTANCE;
             this.searchable = annotation.searchable();
             this.collection = Optional.of(annotation).map(Aggregate::collection)
                     .filter(s -> !s.isEmpty()).orElse(type.getSimpleName());
@@ -154,7 +163,7 @@ public class DefaultAggregateRepository implements AggregateRepository {
 
         public ModifiableAggregateRoot<T> load(String id) {
             return ModifiableAggregateRoot.load(
-                    id, () -> cache.<ImmutableAggregateRoot<T>>compute(id, (k, v) -> {
+                    id, () -> aggregateCache.<ImmutableAggregateRoot<T>>compute(id, (k, v) -> {
                         if (v != null) {
                             if (type.isAssignableFrom(v.type())) {
                                 return v;
@@ -224,7 +233,7 @@ public class DefaultAggregateRepository implements AggregateRepository {
 
         public void commit(Entity<?> after, List<DeserializingMessage> unpublishedEvents, Entity<?> before) {
             try {
-                cache.<Entity<?>>compute(after.id(), (id, current) ->
+                aggregateCache.<Entity<?>>compute(after.id(), (id, current) ->
                         current == null || Objects.equals(before.lastEventId(), current.lastEventId())
                         || unpublishedEvents.isEmpty() ? after : current.apply(unpublishedEvents));
                 Set<Relationship> associations = after.associations(before), dissociations =
@@ -239,7 +248,11 @@ public class DefaultAggregateRepository implements AggregateRepository {
                             map.put(r.getAggregateId(), after.type());
                             return map;
                         }));
-                eventStore.updateRelationships(associations, dissociations).awaitSilently();
+                if (!associations.isEmpty() || !dissociations.isEmpty()) {
+                    eventStoreClient.updateRelationships(
+                                    new UpdateRelationships(associations, dissociations, Guarantee.STORED))
+                            .awaitSilently();
+                }
                 if (!unpublishedEvents.isEmpty()) {
                     FluxCapacitor.getOptionally().ifPresent(
                             fc -> unpublishedEvents.forEach(e -> e.getSerializedObject().setSource(fc.client().id())));
@@ -258,12 +271,12 @@ public class DefaultAggregateRepository implements AggregateRepository {
                 }
             } catch (Exception e) {
                 log.error("Failed to commit aggregate {}", after.id(), e);
-                cache.remove(after.id());
+                aggregateCache.remove(after.id());
             }
         }
 
         protected boolean isCached() {
-            return !(cache instanceof NoOpCache);
+            return !(aggregateCache instanceof NoOpCache);
         }
     }
 }

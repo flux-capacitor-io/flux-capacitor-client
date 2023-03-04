@@ -14,6 +14,7 @@
 
 package io.fluxcapacitor.javaclient.persisting.repository;
 
+import io.fluxcapacitor.common.Awaitable;
 import io.fluxcapacitor.javaclient.modeling.Entity;
 import lombok.NonNull;
 
@@ -22,5 +23,7 @@ public interface AggregateRepository {
     <T> Entity<T> load(@NonNull String aggregateId, Class<T> aggregateType);
 
     <T> Entity<T> loadFor(@NonNull String entityId, Class<?> defaultType);
+
+    Awaitable repairRelationships(Entity<?> aggregate);
 
 }

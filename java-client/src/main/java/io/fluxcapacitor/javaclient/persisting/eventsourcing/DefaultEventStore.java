@@ -17,10 +17,6 @@ package io.fluxcapacitor.javaclient.persisting.eventsourcing;
 import io.fluxcapacitor.common.Awaitable;
 import io.fluxcapacitor.common.ConsistentHashing;
 import io.fluxcapacitor.common.api.SerializedMessage;
-import io.fluxcapacitor.common.api.modeling.Relationship;
-import io.fluxcapacitor.common.api.modeling.RepairRelationships;
-import io.fluxcapacitor.common.api.modeling.UpdateRelationships;
-import io.fluxcapacitor.common.reflection.ReflectionUtils;
 import io.fluxcapacitor.javaclient.common.Message;
 import io.fluxcapacitor.javaclient.common.serialization.DeserializingMessage;
 import io.fluxcapacitor.javaclient.common.serialization.Serializer;
@@ -32,14 +28,11 @@ import lombok.experimental.Delegate;
 import lombok.extern.slf4j.Slf4j;
 
 import java.util.ArrayList;
-import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.Map;
 
 import static io.fluxcapacitor.common.MessageType.EVENT;
 import static java.lang.String.format;
 import static java.util.stream.Collectors.toList;
-import static java.util.stream.Collectors.toMap;
 
 @AllArgsConstructor
 @Slf4j
@@ -98,27 +91,5 @@ public class DefaultEventStore implements EventStore {
         } catch (Exception e) {
             throw new EventSourcingException(format("Failed to obtain events for aggregate %s", aggregateId), e);
         }
-    }
-
-    @Override
-    public Awaitable updateRelationships(UpdateRelationships updateRelationships) {
-        return client.updateRelationships(updateRelationships);
-    }
-
-    @Override
-    public Awaitable repairRelationships(RepairRelationships repairRelationships) {
-        return client.repairRelationships(repairRelationships);
-    }
-
-    @Override
-    public Map<String, Class<?>> getAggregatesFor(String entityId) {
-        return client.getAggregateIds(entityId).entrySet().stream().collect(toMap(
-                Map.Entry::getKey, e -> ReflectionUtils.classForName(serializer.upcastType(e.getValue()), Void.class),
-                (a, b) -> b, LinkedHashMap::new));
-    }
-
-    @Override
-    public List<Relationship> getRelationships(String entityId) {
-        return client.getRelationships(entityId);
     }
 }

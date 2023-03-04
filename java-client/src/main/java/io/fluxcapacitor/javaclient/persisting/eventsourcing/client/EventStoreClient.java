@@ -26,6 +26,7 @@ import io.fluxcapacitor.javaclient.persisting.eventsourcing.AggregateEventStream
 
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 public interface EventStoreClient extends AutoCloseable {
 
@@ -53,6 +54,10 @@ public interface EventStoreClient extends AutoCloseable {
 
     default Map<String, String> getAggregateIds(String entityId) {
         return getAggregateIds(new GetAggregateIds(entityId));
+    }
+
+    default Optional<String> getLatestAggregateId(String entityId) {
+        return getAggregateIds(entityId).keySet().stream().reduce((a, b) -> b);
     }
 
     Map<String, String> getAggregateIds(GetAggregateIds request);

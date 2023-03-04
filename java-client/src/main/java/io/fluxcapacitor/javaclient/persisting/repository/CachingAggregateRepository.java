@@ -13,6 +13,7 @@ import io.fluxcapacitor.javaclient.tracking.ConsumerConfiguration;
 import io.fluxcapacitor.javaclient.tracking.IndexUtils;
 import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
+import lombok.experimental.Delegate;
 import lombok.extern.slf4j.Slf4j;
 
 import java.time.Duration;
@@ -36,6 +37,7 @@ import static java.lang.String.format;
 public class CachingAggregateRepository implements AggregateRepository {
     public static Duration slowTrackingThreshold = Duration.ofSeconds(10L);
 
+    @Delegate(excludes = Excludes.class)
     private final AggregateRepository delegate;
     private final Client client;
     private final Cache cache;
@@ -158,6 +160,11 @@ public class CachingAggregateRepository implements AggregateRepository {
                 cache.notifyAll();
             }
         }
+    }
+
+    interface Excludes {
+        <T> Entity<T> load(@NonNull String aggregateId, Class<T> type);
+        <T> Entity<T> loadFor(@NonNull String entityId, Class<?> defaultType);
     }
 
 }
