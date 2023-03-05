@@ -1,6 +1,8 @@
 package io.fluxcapacitor.javaclient.modeling;
 
 import io.fluxcapacitor.common.api.Metadata;
+import io.fluxcapacitor.common.api.modeling.Relationship;
+import io.fluxcapacitor.common.api.modeling.UpdateRelationships;
 import io.fluxcapacitor.javaclient.FluxCapacitor;
 import io.fluxcapacitor.javaclient.MockException;
 import io.fluxcapacitor.javaclient.common.Message;
@@ -29,12 +31,16 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
+import java.util.Set;
 import java.util.function.Predicate;
 import java.util.stream.Stream;
 
+import static io.fluxcapacitor.common.Guarantee.STORED;
 import static io.fluxcapacitor.javaclient.FluxCapacitor.loadAggregate;
 import static io.fluxcapacitor.javaclient.FluxCapacitor.loadEntity;
 import static java.util.stream.Collectors.toList;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
 @Slf4j
 @SuppressWarnings({"rawtypes", "SameParameterValue", "unchecked"})
@@ -249,11 +255,11 @@ public class AggregateEntitiesTest {
         @Test
         void returnDifferentCommand() {
             testFixture.whenEventsAreApplied("test", Aggregate.class, new Message(new FailingCommand() {
-                @InterceptApply
-                Object intercept(FailingCommand input) {
-                    return new AddChild("missing");
-                }
-            }, Metadata.of("foo", "bar")))
+                        @InterceptApply
+                        Object intercept(FailingCommand input) {
+                            return new AddChild("missing");
+                        }
+                    }, Metadata.of("foo", "bar")))
                     .expectEvents((Predicate<Message>) m -> m.getMetadata().containsKey("foo"))
                     .expectThat(fc -> expectEntity(e -> e.get() instanceof MissingChild && "missing".equals(e.id())));
         }
@@ -651,6 +657,57 @@ public class AggregateEntitiesTest {
         void loadForNewEntityReturnsDefaultClass() {
             testFixture.whenApplying(fc -> FluxCapacitor.loadAggregateFor("unknown", MapChild.class))
                     .<Entity<MapChild>>expectResult(a -> a.get() == null && a.type().equals(MapChild.class));
+        }
+    }
+
+    @Nested
+    class RelationshipTests {
+
+        @Test
+        void getRelationships() {
+            testFixture.whenApplying(fc -> null)
+                    .expectThat(fc -> assertEquals(List.of(Relationship.builder().entityId("map0").aggregateId("test")
+                                                                   .aggregateType(Aggregate.class.getName()).build()),
+                                                   fc.client().getEventStoreClient().getRelationships("map0")));
+        }
+
+        @Test
+        void getLastAggregateId() {
+            testFixture.whenApplying(fc -> null)
+                    .expectThat(fc -> assertEquals(Optional.of("test"),
+                                                   fc.client().getEventStoreClient().getLatestAggregateId("map0")));
+        }
+
+        @Test
+        void getLastAggregateIdForUnknownEntity() {
+            testFixture.whenApplying(fc -> null)
+                    .expectThat(fc -> assertEquals(Optional.empty(),
+                                                   fc.client().getEventStoreClient().getLatestAggregateId("unknown")));
+        }
+
+        @Test
+        void updateRelationships() {
+            Relationship added = Relationship.builder().entityId("added").aggregateId("test")
+                    .aggregateType(Aggregate.class.getName()).build();
+            testFixture.whenExecuting(
+                            fc -> fc.client().getEventStoreClient().updateRelationships(new UpdateRelationships(
+                                    Set.of(added), Set.of(), STORED)).awaitSilently())
+                    .expectThat(fc -> assertEquals(List.of(added), fc.client().getEventStoreClient()
+                            .getRelationships("added")));
+        }
+
+        @Test
+        void repairRelationships() {
+            Relationship wrong = Relationship.builder().entityId("wrong").aggregateId("test")
+                    .aggregateType(Aggregate.class.getName()).build();
+            testFixture.given(fc -> fc.client().getEventStoreClient().updateRelationships(new UpdateRelationships(
+                                    Set.of(wrong), Set.of(), STORED))
+                            .awaitSilently())
+                    .whenExecuting(fc -> fc.aggregateRepository()
+                            .repairRelationships(loadAggregate("test", Aggregate.class)).awaitSilently())
+                    .expectThat(fc -> assertEquals(List.of(), fc.client().getEventStoreClient()
+                            .getRelationships("wrong")))
+                    .expectTrue(fc -> fc.client().getEventStoreClient().getLatestAggregateId("map0").isPresent());
         }
     }
 

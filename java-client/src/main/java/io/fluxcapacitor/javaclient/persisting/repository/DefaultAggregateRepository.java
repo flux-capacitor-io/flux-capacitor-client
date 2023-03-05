@@ -104,7 +104,8 @@ public class DefaultAggregateRepository implements AggregateRepository {
         aggregate = aggregate.root();
         return eventStoreClient.repairRelationships(new RepairRelationships(
                 aggregate.id().toString(), aggregate.type().getName(), aggregate.allEntities()
-                .map(Entity::id).map(Object::toString).collect(Collectors.toSet()), Guarantee.STORED));
+                .map(Entity::id).filter(Objects::nonNull)
+                .map(Object::toString).collect(Collectors.toSet()), Guarantee.STORED));
     }
 
     protected Map<String, Class<?>> getAggregatesForEntity(Object entityId) {
