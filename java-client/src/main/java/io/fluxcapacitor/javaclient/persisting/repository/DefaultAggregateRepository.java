@@ -52,6 +52,7 @@ import java.util.function.Function;
 import java.util.stream.Collectors;
 
 import static io.fluxcapacitor.common.ObjectUtils.memoize;
+import static io.fluxcapacitor.common.reflection.ReflectionUtils.classForName;
 import static io.fluxcapacitor.common.reflection.ReflectionUtils.getAnnotatedProperty;
 import static java.util.stream.Collectors.toMap;
 
@@ -70,7 +71,8 @@ public class DefaultAggregateRepository implements AggregateRepository {
     private final DispatchInterceptor dispatchInterceptor;
     private final EntityHelper entityHelper;
 
-    private final Function<Class<?>, AnnotatedAggregateRepository<?>> delegates = memoize(AnnotatedAggregateRepository::new);
+    private final Function<Class<?>, AnnotatedAggregateRepository<?>> delegates =
+            memoize(AnnotatedAggregateRepository::new);
 
     @Override
     @SuppressWarnings("unchecked")
@@ -84,7 +86,7 @@ public class DefaultAggregateRepository implements AggregateRepository {
     @SuppressWarnings("unchecked")
     @Override
     public <T> Entity<T> loadFor(@NonNull String entityId, Class<?> defaultType) {
-        Map<String, Class<?>> aggregates = relationshipsCache.computeIfAbsent(entityId, this::getAggregatesForEntity);
+        Map<String, Class<?>> aggregates = getAggregatesFor(entityId);
         if (aggregates.isEmpty()) {
             return (Entity<T>) load(entityId, defaultType);
         }
@@ -100,6 +102,14 @@ public class DefaultAggregateRepository implements AggregateRepository {
     }
 
     @Override
+    public Map<String, Class<?>> getAggregatesFor(@NonNull String entityId) {
+        return relationshipsCache.computeIfAbsent(entityId, id -> eventStoreClient.getAggregatesFor(entityId)
+                .entrySet().stream().collect(toMap(Map.Entry::getKey,
+                                                   e -> classForName(serializer.upcastType(e.getValue()), Void.class),
+                                                   (a, b) -> b, LinkedHashMap::new)));
+    }
+
+    @Override
     public Awaitable repairRelationships(Entity<?> aggregate) {
         aggregate = aggregate.root();
         return eventStoreClient.repairRelationships(new RepairRelationships(
@@ -108,11 +118,6 @@ public class DefaultAggregateRepository implements AggregateRepository {
                 .map(Object::toString).collect(Collectors.toSet()), Guarantee.STORED));
     }
 
-    protected Map<String, Class<?>> getAggregatesForEntity(Object entityId) {
-        return eventStoreClient.getAggregateIds(entityId.toString()).entrySet().stream().collect(toMap(
-                Map.Entry::getKey, e -> ReflectionUtils.classForName(serializer.upcastType(e.getValue()), Void.class),
-                (a, b) -> b, LinkedHashMap::new));
-    }
     public class AnnotatedAggregateRepository<T> {
 
         private final Class<T> type;
@@ -126,7 +131,7 @@ public class DefaultAggregateRepository implements AggregateRepository {
         private final String collection;
         private final Function<Entity<?>, Instant> timestampFunction;
         private final String idProperty;
-        private boolean ignoreUnknownEvents;
+        private final boolean ignoreUnknownEvents;
 
         public AnnotatedAggregateRepository(Class<T> type) {
             this.type = type;
@@ -206,6 +211,7 @@ public class DefaultAggregateRepository implements AggregateRepository {
                     .orElseGet(builder::build);
         }
 
+        @SuppressWarnings("unchecked")
         protected ImmutableAggregateRoot<T> eventSourceModel(ImmutableAggregateRoot<T> model) {
             try {
                 if (eventSourced) {
@@ -216,7 +222,14 @@ public class DefaultAggregateRepository implements AggregateRepository {
                     try {
                         Entity.loading.set(true);
                         while (iterator.hasNext()) {
-                            model = model.apply(iterator.next());
+                            DeserializingMessage next = iterator.next();
+                            if (model.isEmpty()) {
+                                var t = Entity.getAggregateType(next);
+                                if (t != null && !t.equals(this.type) && this.type.isAssignableFrom(t)) {
+                                    model = model.toBuilder().type((Class<T>) t).build();
+                                }
+                            }
+                            model = model.apply(next);
                         }
                     } finally {
                         Entity.loading.set(wasLoading);

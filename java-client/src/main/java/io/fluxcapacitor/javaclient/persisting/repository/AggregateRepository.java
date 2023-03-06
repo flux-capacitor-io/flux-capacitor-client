@@ -18,12 +18,25 @@ import io.fluxcapacitor.common.Awaitable;
 import io.fluxcapacitor.javaclient.modeling.Entity;
 import lombok.NonNull;
 
+import java.util.Map;
+import java.util.Optional;
+
 public interface AggregateRepository {
 
     <T> Entity<T> load(@NonNull String aggregateId, Class<T> aggregateType);
 
     <T> Entity<T> loadFor(@NonNull String entityId, Class<?> defaultType);
 
+    default Awaitable repairRelationships(String aggregateId) {
+        return repairRelationships(load(aggregateId, Object.class));
+    }
+
     Awaitable repairRelationships(Entity<?> aggregate);
+
+    Map<String, Class<?>> getAggregatesFor(String entityId);
+
+    default Optional<String> getLatestAggregateId(String entityId) {
+        return getAggregatesFor(entityId).keySet().stream().reduce((a, b) -> b);
+    }
 
 }
