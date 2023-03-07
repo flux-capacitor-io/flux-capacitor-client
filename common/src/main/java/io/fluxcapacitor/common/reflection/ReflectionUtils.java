@@ -19,6 +19,7 @@ import io.fluxcapacitor.common.serialization.JsonUtils;
 import lombok.NonNull;
 import lombok.SneakyThrows;
 import lombok.Value;
+import org.apache.commons.lang3.ClassUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.reflect.FieldUtils;
 import org.apache.commons.lang3.reflect.MethodUtils;
@@ -84,17 +85,29 @@ public class ReflectionUtils {
     private static final BiFunction<String, Class<?>, BiConsumer<Object, Object>> settersCache =
             memoize(ReflectionUtils::computeNestedSetter);
     private static final Function<Parameter, Boolean> isNullableCache = memoize(
-            parameter -> {
+            parameter -> getParameterOverrideHierarchy(parameter).anyMatch(p -> {
                 if (isKotlinReflectionSupported()) {
-                    var kotlinParameter = KotlinReflectionUtils.asKotlinParameter(parameter);
+                    var kotlinParameter = KotlinReflectionUtils.asKotlinParameter(p);
                     if (kotlinParameter != null && kotlinParameter.getType().isMarkedNullable()) {
                         return true;
                     }
                 }
-                return stream(parameter.getAnnotations()).anyMatch(
+                return stream(p.getAnnotations()).anyMatch(
                         a -> a.annotationType().getSimpleName().equals("Nullable"));
-            }
+            })
     );
+
+    public static Stream<Method> getMethodOverrideHierarchy(Method method) {
+        return MethodUtils.getOverrideHierarchy(method, ClassUtils.Interfaces.INCLUDE).stream();
+    }
+
+    public static Stream<Parameter> getParameterOverrideHierarchy(Parameter parameter) {
+        if (parameter.getDeclaringExecutable() instanceof Method method) {
+            return getMethodOverrideHierarchy(method).flatMap(m -> Arrays.stream(m.getParameters())
+                    .filter(p -> p.getName().equals(parameter.getName())));
+        }
+        return Stream.of(parameter);
+    }
 
     public static boolean isKotlinReflectionSupported() {
         return ReflectionUtils.classExists("kotlin.reflect.full.KClasses");

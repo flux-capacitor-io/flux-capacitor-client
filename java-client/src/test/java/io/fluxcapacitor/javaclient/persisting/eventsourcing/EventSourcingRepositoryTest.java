@@ -505,6 +505,12 @@ class EventSourcingRepositoryTest {
         }
 
         @Test
+        void testUpsertViaEventIfNotExists_nullableModelInterface() {
+            testFixture.givenCommands(new UpsertModelWithNullableClass()).whenQuery(new GetModel())
+                    .<TestModelWithoutApplyEvent>expectResult(r -> r.firstEvent.equals(new UpsertModelWithNullableClass()));
+        }
+
+        @Test
         void testUpsertViaEventIfExists_nullableModel() {
             testFixture.givenCommands(new UpsertModelWithNullable(), new UpsertModelWithNullable())
                     .whenQuery(new GetModel()).<TestModelWithoutApplyEvent>expectResult(r -> r.secondEvent.equals(new UpsertModelWithNullable()));
@@ -610,6 +616,20 @@ class EventSourcingRepositoryTest {
                     ? TestModelWithoutApplyEvent.builder().firstEvent(this).build()
                     : aggregate.toBuilder().secondEvent(this).build();
         }
+    }
+
+    @Value
+    static class UpsertModelWithNullableClass implements UpsertModelWithNullableInterface {
+        @Override
+        public TestModelWithoutApplyEvent apply(TestModelWithoutApplyEvent aggregate) {
+            return aggregate == null
+                    ? TestModelWithoutApplyEvent.builder().firstEvent(this).build()
+                    : aggregate.toBuilder().secondEvent(this).build();
+        }
+    }
+
+    interface UpsertModelWithNullableInterface {
+        @Apply TestModelWithoutApplyEvent apply(@Nullable TestModelWithoutApplyEvent aggregate);
     }
 
     @Value
