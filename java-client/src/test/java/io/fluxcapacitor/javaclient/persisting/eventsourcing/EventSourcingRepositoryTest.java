@@ -22,6 +22,7 @@ import io.fluxcapacitor.javaclient.common.Message;
 import io.fluxcapacitor.javaclient.common.Nullable;
 import io.fluxcapacitor.javaclient.configuration.DefaultFluxCapacitor;
 import io.fluxcapacitor.javaclient.modeling.Aggregate;
+import io.fluxcapacitor.javaclient.modeling.AggregateId;
 import io.fluxcapacitor.javaclient.modeling.Entity;
 import io.fluxcapacitor.javaclient.persisting.eventsourcing.client.EventStoreClient;
 import io.fluxcapacitor.javaclient.test.TestFixture;
@@ -197,7 +198,7 @@ class EventSourcingRepositoryTest {
         @Test
         void applyMultipleEventsOutsideHandler() {
             testFixture.givenCommands(new CreateModel())
-                    .givenAppliedEvents(aggregateId, TestModel.class, new UpdateModel(), new UpdateModel())
+                    .givenAppliedEvents(new TestModelId(aggregateId), new UpdateModel(), new UpdateModel())
                     .whenQuery(new GetModel())
                     .expectResult(new TestModel(Arrays.asList(new CreateModel(), new UpdateModel(), new UpdateModel()), Metadata.empty()));
         }
@@ -205,30 +206,30 @@ class EventSourcingRepositoryTest {
         private class Handler {
             @HandleCommand
             void handle(Object command, Metadata metadata) {
-                loadAggregate(aggregateId, TestModel.class).assertLegal(command).apply(command, metadata);
+                loadAggregate(new TestModelId(aggregateId)).assertLegal(command).apply(command, metadata);
             }
 
             @HandleCommand
             void handle(FailsAfterApply command, Metadata metadata) {
-                loadAggregate(aggregateId, TestModel.class).assertLegal(command).apply(command, metadata);
+                loadAggregate(new TestModelId(aggregateId)).assertLegal(command).apply(command, metadata);
                 throw new MockException();
             }
 
             @HandleQuery
             TestModel handle(GetModel query) {
-                return loadAggregate(aggregateId, TestModel.class).get();
+                return loadAggregate(new TestModelId(aggregateId)).get();
             }
 
             @HandleQuery
             TestModel handle(ApplyInQuery query) {
-                Entity<TestModel> testModelAggregateRoot = loadAggregate(aggregateId, TestModel.class);
+                Entity<TestModel> testModelAggregateRoot = loadAggregate(new TestModelId(aggregateId));
                 Entity<TestModel> testModelAggregateRoot1 = testModelAggregateRoot.apply(query);
                 return testModelAggregateRoot1.get();
             }
 
             @HandleCommand
             void handle(ApplyNonsense command) {
-                loadAggregate(aggregateId, TestModel.class).apply("nonsense");
+                loadAggregate(new TestModelId(aggregateId)).apply("nonsense");
             }
 
         }
@@ -268,6 +269,16 @@ class EventSourcingRepositoryTest {
         void handle(ApplyWhileApplying event) {
             FluxCapacitor.loadEntity(aggregateId).apply(new UpdateModel());
             events.add(event);
+        }
+    }
+
+    @Value
+    public static class TestModelId extends AggregateId<TestModel> {
+        String id;
+
+        @Override
+        public Class<TestModel> getType() {
+            return TestModel.class;
         }
     }
 

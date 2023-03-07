@@ -27,6 +27,7 @@ import io.fluxcapacitor.javaclient.configuration.DefaultFluxCapacitor;
 import io.fluxcapacitor.javaclient.configuration.client.Client;
 import io.fluxcapacitor.javaclient.configuration.spring.FluxCapacitorSpringConfig;
 import io.fluxcapacitor.javaclient.modeling.Aggregate;
+import io.fluxcapacitor.javaclient.modeling.AggregateId;
 import io.fluxcapacitor.javaclient.modeling.Entity;
 import io.fluxcapacitor.javaclient.modeling.EntityId;
 import io.fluxcapacitor.javaclient.persisting.caching.Cache;
@@ -468,6 +469,18 @@ public interface FluxCapacitor extends AutoCloseable {
      *
      * @see Aggregate for more info on how to define an event sourced aggregate root
      */
+    static <T> Entity<T> loadAggregate(AggregateId<T> aggregateId) {
+        return playbackToHandledEvent(get().aggregateRepository().load(aggregateId));
+    }
+
+    /**
+     * Loads the aggregate root of type {@code <T>} with given aggregateId.
+     * <p>
+     * If the aggregate is loaded while handling an event of the aggregate, the returned Aggregate will automatically be
+     * replayed back to the event currently being handled. Otherwise, the most recent state of the aggregate is loaded.
+     *
+     * @see Aggregate for more info on how to define an event sourced aggregate root
+     */
     static <T> Entity<T> loadAggregate(String aggregateId, Class<T> aggregateType) {
         return playbackToHandledEvent(get().aggregateRepository().load(aggregateId, aggregateType));
     }
@@ -535,7 +548,7 @@ public interface FluxCapacitor extends AutoCloseable {
      * no such entity exists an empty optional is returned.
      */
     @SuppressWarnings("unchecked")
-    static <T> Optional<T> loadEntityValue(String entityId) {
+    static <T> Optional<T> loadEntityValue(Object entityId) {
         return loadAggregateFor(entityId).getEntity(entityId).map(e -> (T) e.get());
     }
 
