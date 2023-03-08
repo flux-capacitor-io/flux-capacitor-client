@@ -54,6 +54,7 @@ import java.util.stream.Collectors;
 import static io.fluxcapacitor.common.ObjectUtils.memoize;
 import static io.fluxcapacitor.common.reflection.ReflectionUtils.classForName;
 import static io.fluxcapacitor.common.reflection.ReflectionUtils.getAnnotatedProperty;
+import static java.lang.String.format;
 import static java.util.stream.Collectors.toMap;
 
 @Slf4j
@@ -229,7 +230,12 @@ public class DefaultAggregateRepository implements AggregateRepository {
                                     model = model.toBuilder().type((Class<T>) t).build();
                                 }
                             }
-                            model = model.apply(next);
+                            try {
+                                model = model.apply(next);
+                            } catch (Throwable e) {
+                                throw new EventSourcingException(format(
+                                        "Failed to apply event %s to aggregate %s.", next.getIndex(), model.id()), e);
+                            }
                         }
                     } finally {
                         Entity.loading.set(wasLoading);
