@@ -8,30 +8,30 @@ import com.fasterxml.jackson.annotation.JsonIgnore;
  *
  * @param <T> the aggregate type.
  */
-public abstract class AggregateId<T> {
+public interface AggregateId<T> {
     /**
      * Returns the functional id of the aggregate
      */
-    public abstract String getId();
+    String getId();
+
+    /**
+     * Returns the aggregate's type. This may be a superclass of the actual aggregate.
+     */
+    Class<T> getType();
 
     /**
      * Returns the prefix that is prepended to {@link #getId()} to create the full id under which this aggregate will be
      * stored. Eg, if the prefix of an AggregateId is "user-", and the id is "pete123", the aggregate will be stored
      * under "user-pete123".
      */
-    public String getPrefix() {
+    default String getPrefix() {
         return "";
     }
 
     /**
-     * Returns the aggregate's type. This may be a superclass of the actual aggregate.
-     */
-    public abstract Class<T> getType();
-
-    /**
      * Returns true if the of this aggregate is case-sensitive. Defaults to true.
      */
-    public boolean isCaseSensitiveId() {
+    default boolean isCaseSensitiveId() {
         return true;
     }
 
@@ -39,7 +39,7 @@ public abstract class AggregateId<T> {
      * Returns the id under which the aggregate will be stored.
      */
     @JsonIgnore
-    public String getCompleteId() {
+    default String getCompleteId() {
         return isCaseSensitiveId() ? getPrefix() + getId() : getPrefix() + getId().toLowerCase();
     }
 }

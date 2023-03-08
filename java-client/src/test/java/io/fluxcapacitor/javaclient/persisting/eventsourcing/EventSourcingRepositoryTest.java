@@ -273,7 +273,7 @@ class EventSourcingRepositoryTest {
     }
 
     @Value
-    public static class TestModelId extends AggregateId<TestModel> {
+    public static class TestModelId implements AggregateId<TestModel> {
         String id;
 
         @Override
