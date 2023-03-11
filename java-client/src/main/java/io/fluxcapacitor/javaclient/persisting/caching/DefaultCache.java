@@ -1,40 +1,83 @@
 package io.fluxcapacitor.javaclient.persisting.caching;
 
 
+import io.fluxcapacitor.common.Registration;
 import lombok.AllArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 
 import java.lang.ref.SoftReference;
+import java.time.Duration;
+import java.util.Collection;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Optional;
+import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.Executor;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
 import java.util.function.BiFunction;
+import java.util.function.Consumer;
 import java.util.function.Function;
 
+import static io.fluxcapacitor.javaclient.persisting.caching.Cache.EvictionEvent.Reason.manual;
+import static io.fluxcapacitor.javaclient.persisting.caching.Cache.EvictionEvent.Reason.memoryPressure;
+import static io.fluxcapacitor.javaclient.persisting.caching.Cache.EvictionEvent.Reason.size;
+
 @AllArgsConstructor
+@Slf4j
 public class DefaultCache implements Cache {
     protected static final String mutexPrecursor = "$DC$";
 
-    private final Map<Object, SoftReference<Object>> valueMap;
+    final Map<Object, SoftReference<Object>> valueMap;
+
+    private final Executor evictionNotifier;
+    private final Collection<Consumer<EvictionEvent>> evictionListeners = new CopyOnWriteArrayList<>();
+
+    private final ScheduledExecutorService referencePurger = Executors.newSingleThreadScheduledExecutor();
 
     public DefaultCache() {
         this(1_000);
     }
 
     public DefaultCache(int maxSize) {
+        this(maxSize, Duration.ofSeconds(60));
+    }
+
+    public DefaultCache(int maxSize, Duration purgeDelay) {
+        this(maxSize, purgeDelay, Executors.newSingleThreadExecutor());
+    }
+
+    public DefaultCache(int maxSize, Duration purgeDelay, Executor evictionNotifier) {
         this.valueMap = new LinkedHashMap<>(Math.min(128, maxSize), 0.75f, true) {
             @Override
             protected boolean removeEldestEntry(Map.Entry<Object, SoftReference<Object>> eldest) {
-                return size() > maxSize;
+                boolean remove = size() > maxSize;
+                try {
+                    return remove;
+                } finally {
+                    if (remove) {
+                        DefaultCache.this.publishEvictionEvent(eldest.getKey(), size);
+                    }
+                }
             }
         };
+        this.evictionNotifier = evictionNotifier;
+        referencePurger.scheduleWithFixedDelay(this::purgeEmptyReferences, purgeDelay.toMillis(), purgeDelay.toMillis(),
+                                               TimeUnit.MILLISECONDS);
     }
 
     @Override
     public <T> T compute(Object id, BiFunction<? super Object, ? super T, ? extends T> mappingFunction) {
         synchronized ((mutexPrecursor + id).intern()) {
-            SoftReference<Object> next = wrap(mappingFunction.apply(id, unwrap(valueMap.get(id))));
+            SoftReference<Object> previous = valueMap.get(id);
+            SoftReference<Object> next = wrap(mappingFunction.apply(id, unwrap(previous)));
             if (next == null) {
                 valueMap.remove(id);
+                if (previous != null) {
+                    publishEvictionEvent(id, manual);
+                }
             } else {
                 valueMap.put(id, next);
             }
@@ -87,6 +130,23 @@ public class DefaultCache implements Cache {
         return valueMap.size();
     }
 
+    @Override
+    public Registration registerEvictionListener(Consumer<EvictionEvent> listener) {
+        evictionListeners.add(listener);
+        return () -> evictionListeners.remove(listener);
+    }
+
+    @Override
+    public void close() {
+        try {
+            if (evictionNotifier instanceof ExecutorService executorService) {
+                executorService.shutdownNow();
+            }
+            referencePurger.shutdownNow();
+        } catch (Throwable ignored) {
+        }
+    }
+
     protected SoftReference<Object> wrap(Object value) {
         return value == null ? null : new SoftReference<>(value);
     }
@@ -101,5 +161,25 @@ public class DefaultCache implements Cache {
             result = ((Optional<?>) result).orElse(null);
         }
         return (T) result;
+    }
+
+    protected void purgeEmptyReferences() {
+        try {
+            valueMap.entrySet().removeIf(e -> {
+                boolean remove = e.getValue().get() == null;
+                try {
+                    return remove;
+                } finally {
+                    publishEvictionEvent(e.getKey(), memoryPressure);
+                }
+            });
+        } catch (Throwable e) {
+            log.warn("Failed to evict empty references. This warning can probably be ignored.", e);
+        }
+    }
+
+    protected void publishEvictionEvent(Object id, EvictionEvent.Reason reason) {
+        var event = new EvictionEvent(id, reason);
+        evictionNotifier.execute(() -> evictionListeners.forEach(l -> l.accept(event)));
     }
 }

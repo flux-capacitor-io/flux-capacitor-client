@@ -34,7 +34,7 @@ public interface MetricsGateway extends HasLocalHandlers {
 
     @SneakyThrows
     default void publish(Object payload, Metadata metadata) {
-        publish(payload, metadata, Guarantee.NONE).get();
+        publish(payload, metadata, Guarantee.NONE);
     }
 
     CompletableFuture<Void> publish(Object payload, Metadata metadata, Guarantee guarantee);

@@ -112,7 +112,9 @@ public interface FluxCapacitorBuilder {
 
     FluxCapacitorBuilder disableScheduledCommandHandler();
 
-    FluxCapacitorBuilder enableTrackingMetrics();
+    FluxCapacitorBuilder disableTrackingMetrics();
+
+    FluxCapacitorBuilder disableCacheEvictionMetrics();
 
     FluxCapacitorBuilder makeApplicationInstance(boolean makeApplicationInstance);
 

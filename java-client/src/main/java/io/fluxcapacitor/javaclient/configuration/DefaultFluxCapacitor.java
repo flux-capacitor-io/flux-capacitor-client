@@ -27,6 +27,7 @@ import io.fluxcapacitor.javaclient.configuration.client.Client;
 import io.fluxcapacitor.javaclient.modeling.DefaultEntityHelper;
 import io.fluxcapacitor.javaclient.modeling.EntityParameterResolver;
 import io.fluxcapacitor.javaclient.persisting.caching.Cache;
+import io.fluxcapacitor.javaclient.persisting.caching.CacheEvictionsLogger;
 import io.fluxcapacitor.javaclient.persisting.caching.DefaultCache;
 import io.fluxcapacitor.javaclient.persisting.caching.NamedCache;
 import io.fluxcapacitor.javaclient.persisting.caching.SelectiveCache;
@@ -248,7 +249,8 @@ public class DefaultFluxCapacitor implements FluxCapacitor {
         private boolean disableAutomaticAggregateCaching;
         private boolean disableScheduledCommandHandler;
         private boolean disableShutdownHook;
-        private boolean collectTrackingMetrics;
+        private boolean disableTrackingMetrics;
+        private boolean disableCacheEvictionMetrics;
         private boolean makeApplicationInstance;
         private UserProvider userProvider = UserProvider.defaultUserSupplier;
         private IdentityProvider identityProvider = IdentityProvider.defaultIdentityProvider;
@@ -437,8 +439,14 @@ public class DefaultFluxCapacitor implements FluxCapacitor {
         }
 
         @Override
-        public FluxCapacitorBuilder enableTrackingMetrics() {
-            collectTrackingMetrics = true;
+        public FluxCapacitorBuilder disableTrackingMetrics() {
+            disableTrackingMetrics = true;
+            return this;
+        }
+
+        @Override
+        public FluxCapacitorBuilder disableCacheEvictionMetrics() {
+            disableCacheEvictionMetrics = true;
             return this;
         }
 
@@ -510,7 +518,7 @@ public class DefaultFluxCapacitor implements FluxCapacitor {
             handlerInterceptors.computeIfPresent(SCHEDULE, (t, i) -> i.andThen(schedulingInterceptor));
 
             //collect metrics about consumers and handlers
-            if (collectTrackingMetrics) {
+            if (!disableTrackingMetrics) {
                 BatchInterceptor batchInterceptor = new TrackerMonitor();
                 HandlerMonitor handlerMonitor = new HandlerMonitor();
                 Arrays.stream(MessageType.values()).forEach(type -> {
@@ -626,6 +634,10 @@ public class DefaultFluxCapacitor implements FluxCapacitor {
                                                        serializer, dispatchInterceptors.get(SCHEDULE),
                                                        localHandlerRegistry(SCHEDULE, handlerInterceptors,
                                                                             parameterResolvers));
+
+            if (!disableCacheEvictionMetrics) {
+                new CacheEvictionsLogger(metricsGateway).register(cache);
+            }
 
             Runnable shutdownHandler = () -> {
                 ForkJoinPool shutdownPool = new ForkJoinPool(MessageType.values().length);

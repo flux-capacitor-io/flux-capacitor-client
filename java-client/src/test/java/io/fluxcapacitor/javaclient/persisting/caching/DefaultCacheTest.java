@@ -1,19 +1,29 @@
 package io.fluxcapacitor.javaclient.persisting.caching;
 
 import io.fluxcapacitor.common.ObjectUtils;
+import io.fluxcapacitor.javaclient.common.DirectExecutor;
 import lombok.SneakyThrows;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
+import java.lang.ref.SoftReference;
+import java.time.Duration;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CountDownLatch;
 
+import static io.fluxcapacitor.javaclient.persisting.caching.Cache.EvictionEvent.Reason.manual;
+import static io.fluxcapacitor.javaclient.persisting.caching.Cache.EvictionEvent.Reason.memoryPressure;
+import static io.fluxcapacitor.javaclient.persisting.caching.Cache.EvictionEvent.Reason.size;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class DefaultCacheTest {
 
-    private final Cache subject = new DefaultCache(2);
+    private final DefaultCache subject = new DefaultCache(2, Duration.ofSeconds(10), DirectExecutor.INSTANCE);
 
     @Test
     void testPutAndGet() {
@@ -134,5 +144,40 @@ class DefaultCacheTest {
         thread1.join();
         assertEquals("bar", subject.get("foo"));
         assertEquals(Thread.State.TERMINATED, thread1.getState());
+    }
+
+    @Nested
+    class EvictionListenerTests {
+        List<Cache.EvictionEvent> evictionEvents = new ArrayList<>();
+        @BeforeEach
+        void setUp() {
+            subject.registerEvictionListener(evictionEvents::add);
+        }
+
+        @Test
+        void manualEviction() {
+            subject.put("a", "b");
+            subject.remove("a");
+            assertEquals(1, evictionEvents.size());
+            assertEquals(new Cache.EvictionEvent("a", manual), evictionEvents.get(0));
+        }
+
+        @Test
+        void sizeEviction() {
+            subject.put("k1", "value");
+            subject.put("k2", "value");
+            subject.put("k3", "value");
+            assertEquals(1, evictionEvents.size());
+            assertEquals(new Cache.EvictionEvent("k1", size), evictionEvents.get(0));
+        }
+
+        @Test
+        void simulatedMemoryEviction() {
+            subject.put("a", "b");
+            subject.valueMap.computeIfPresent("a", (k, v) -> new SoftReference<>(null));
+            subject.purgeEmptyReferences();
+            assertEquals(1, evictionEvents.size());
+            assertEquals(new Cache.EvictionEvent("a", memoryPressure), evictionEvents.get(0));
+        }
     }
 }

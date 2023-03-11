@@ -1,6 +1,5 @@
 package io.fluxcapacitor.javaclient.tracking.handling;
 
-import io.fluxcapacitor.javaclient.configuration.DefaultFluxCapacitor;
 import io.fluxcapacitor.javaclient.test.TestFixture;
 import org.junit.jupiter.api.Test;
 
@@ -12,9 +11,7 @@ import static org.mockito.Mockito.verify;
 
 public class LocalHandlerTest {
 
-    private final TestFixture testFixture =
-            TestFixture.createAsync(DefaultFluxCapacitor.builder().enableTrackingMetrics(),
-                                    new PublishingLocalHandler());
+    private final TestFixture testFixture = TestFixture.createAsync(new PublishingLocalHandler());
 
     @Test
     void testMessagePublication() {
