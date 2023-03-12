@@ -170,7 +170,9 @@ public class DefaultCache implements Cache {
                 try {
                     return remove;
                 } finally {
-                    publishEvictionEvent(e.getKey(), memoryPressure);
+                    if (remove) {
+                        publishEvictionEvent(e.getKey(), memoryPressure);
+                    }
                 }
             });
         } catch (Throwable e) {
