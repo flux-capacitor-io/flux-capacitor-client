@@ -5,8 +5,9 @@ import io.fluxcapacitor.common.Registration;
 import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
+import java.lang.ref.Reference;
+import java.lang.ref.ReferenceQueue;
 import java.lang.ref.SoftReference;
-import java.time.Duration;
 import java.util.Collection;
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -15,8 +16,6 @@ import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.Executor;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.TimeUnit;
 import java.util.function.BiFunction;
 import java.util.function.Consumer;
 import java.util.function.Function;
@@ -30,53 +29,50 @@ import static io.fluxcapacitor.javaclient.persisting.caching.Cache.EvictionEvent
 public class DefaultCache implements Cache {
     protected static final String mutexPrecursor = "$DC$";
 
-    final Map<Object, SoftReference<Object>> valueMap;
+    final Map<Object, CacheReference> valueMap;
 
     private final Executor evictionNotifier;
     private final Collection<Consumer<EvictionEvent>> evictionListeners = new CopyOnWriteArrayList<>();
 
-    private final ScheduledExecutorService referencePurger = Executors.newSingleThreadScheduledExecutor();
+    private final ExecutorService referencePurger = Executors.newSingleThreadExecutor();
+
+    private final ReferenceQueue<Object> referenceQueue = new ReferenceQueue<>();
 
     public DefaultCache() {
         this(1_000);
     }
 
     public DefaultCache(int maxSize) {
-        this(maxSize, Duration.ofSeconds(60));
+        this(maxSize, Executors.newSingleThreadExecutor());
     }
 
-    public DefaultCache(int maxSize, Duration purgeDelay) {
-        this(maxSize, purgeDelay, Executors.newSingleThreadExecutor());
-    }
-
-    public DefaultCache(int maxSize, Duration purgeDelay, Executor evictionNotifier) {
+    public DefaultCache(int maxSize, Executor evictionNotifier) {
         this.valueMap = new LinkedHashMap<>(Math.min(128, maxSize), 0.75f, true) {
             @Override
-            protected boolean removeEldestEntry(Map.Entry<Object, SoftReference<Object>> eldest) {
+            protected boolean removeEldestEntry(Map.Entry<Object, CacheReference> eldest) {
                 boolean remove = size() > maxSize;
                 try {
                     return remove;
                 } finally {
                     if (remove) {
-                        DefaultCache.this.publishEvictionEvent(eldest.getKey(), size);
+                        DefaultCache.this.notifyEvictionListeners(eldest.getKey(), size);
                     }
                 }
             }
         };
         this.evictionNotifier = evictionNotifier;
-        referencePurger.scheduleWithFixedDelay(this::purgeEmptyReferences, purgeDelay.toMillis(), purgeDelay.toMillis(),
-                                               TimeUnit.MILLISECONDS);
+        this.referencePurger.execute(this::pollReferenceQueue);
     }
 
     @Override
     public <T> T compute(Object id, BiFunction<? super Object, ? super T, ? extends T> mappingFunction) {
         synchronized ((mutexPrecursor + id).intern()) {
-            SoftReference<Object> previous = valueMap.get(id);
-            SoftReference<Object> next = wrap(mappingFunction.apply(id, unwrap(previous)));
+            CacheReference previous = valueMap.get(id);
+            CacheReference next = wrap(id, mappingFunction.apply(id, unwrap(previous)));
             if (next == null) {
                 valueMap.remove(id);
-                if (previous != null) {
-                    publishEvictionEvent(id, manual);
+                if (previous != null && previous.get() != null) {
+                    notifyEvictionListeners(id, manual);
                 }
             } else {
                 valueMap.put(id, next);
@@ -147,12 +143,12 @@ public class DefaultCache implements Cache {
         }
     }
 
-    protected SoftReference<Object> wrap(Object value) {
-        return value == null ? null : new SoftReference<>(value);
+    protected CacheReference wrap(Object id, Object value) {
+        return value == null ? null : new CacheReference(id, value);
     }
 
     @SuppressWarnings("unchecked")
-    protected <T> T unwrap(SoftReference<Object> ref) {
+    protected <T> T unwrap(CacheReference ref) {
         if (ref == null) {
             return null;
         }
@@ -163,25 +159,31 @@ public class DefaultCache implements Cache {
         return (T) result;
     }
 
-    protected void purgeEmptyReferences() {
+    protected void pollReferenceQueue() {
         try {
-            valueMap.entrySet().removeIf(e -> {
-                boolean remove = e.getValue().get() == null;
-                try {
-                    return remove;
-                } finally {
-                    if (remove) {
-                        publishEvictionEvent(e.getKey(), memoryPressure);
-                    }
+            Reference<?> reference;
+            while ((reference = referenceQueue.remove()) != null) {
+                if (reference instanceof CacheReference cacheReference) {
+                    remove(cacheReference.id);
+                    notifyEvictionListeners(cacheReference.id, memoryPressure);
                 }
-            });
-        } catch (Throwable e) {
-            log.warn("Failed to evict empty references. This warning can probably be ignored.", e);
+            }
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
         }
     }
 
-    protected void publishEvictionEvent(Object id, EvictionEvent.Reason reason) {
+    protected void notifyEvictionListeners(Object id, EvictionEvent.Reason reason) {
         var event = new EvictionEvent(id, reason);
         evictionNotifier.execute(() -> evictionListeners.forEach(l -> l.accept(event)));
+    }
+
+    protected class CacheReference extends SoftReference<Object> {
+        private final Object id;
+
+        public CacheReference(Object id, Object value) {
+            super(value, referenceQueue);
+            this.id = id;
+        }
     }
 }

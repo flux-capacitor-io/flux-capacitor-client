@@ -7,8 +7,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
-import java.lang.ref.SoftReference;
-import java.time.Duration;
+import java.lang.ref.Reference;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
@@ -23,7 +22,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class DefaultCacheTest {
 
-    private final DefaultCache subject = new DefaultCache(2, Duration.ofSeconds(10), DirectExecutor.INSTANCE);
+    private final DefaultCache subject = new DefaultCache(2, DirectExecutor.INSTANCE);
 
     @Test
     void testPutAndGet() {
@@ -156,7 +155,7 @@ class DefaultCacheTest {
 
         @Test
         void manualEviction() {
-            subject.put("a", "b");
+            subject.put("a", new Object());
             subject.remove("a");
             assertEquals(1, evictionEvents.size());
             assertEquals(new Cache.EvictionEvent("a", manual), evictionEvents.get(0));
@@ -164,20 +163,24 @@ class DefaultCacheTest {
 
         @Test
         void sizeEviction() {
-            subject.put("k1", "value");
-            subject.put("k2", "value");
-            subject.put("k3", "value");
+            subject.put("k1", new Object());
+            subject.put("k2", new Object());
+            subject.put("k3", new Object());
             assertEquals(1, evictionEvents.size());
             assertEquals(new Cache.EvictionEvent("k1", size), evictionEvents.get(0));
         }
 
+        @SneakyThrows
         @Test
         void simulatedMemoryEviction() {
-            subject.put("a", "b");
-            subject.valueMap.computeIfPresent("a", (k, v) -> new SoftReference<>(null));
-            subject.purgeEmptyReferences();
+            subject.put("a", new Object());
+            Reference<?> ref = subject.valueMap.get("a");
+            ref.clear();
+            ref.enqueue();
+            Thread.sleep(10);
             assertEquals(1, evictionEvents.size());
             assertEquals(new Cache.EvictionEvent("a", memoryPressure), evictionEvents.get(0));
+            assertTrue(subject.isEmpty());
         }
     }
 }
