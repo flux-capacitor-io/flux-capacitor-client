@@ -61,8 +61,10 @@ public class DefaultRequestHandler implements RequestHandler {
     public CompletableFuture<SerializedMessage> sendRequest(SerializedMessage request,
                                                             Consumer<SerializedMessage> requestSender) {
         ensureStarted();
-        CompletableFuture<SerializedMessage> result = new CompletableFuture<>();
         int requestId = nextId.getAndIncrement();
+        CompletableFuture<SerializedMessage> result = new CompletableFuture<SerializedMessage>()
+                .orTimeout(timeout.getSeconds(), TimeUnit.SECONDS)
+                .whenComplete((m, e) -> callbacks.remove(requestId));
         callbacks.put(requestId, result);
         request.setRequestId(requestId);
         request.setSource(client.id());
