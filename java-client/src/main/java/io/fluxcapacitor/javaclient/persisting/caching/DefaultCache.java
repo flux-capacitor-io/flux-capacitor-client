@@ -50,14 +50,11 @@ public class DefaultCache implements Cache {
         this.valueMap = new LinkedHashMap<>(Math.min(128, maxSize), 0.75f, true) {
             @Override
             protected boolean removeEldestEntry(Map.Entry<Object, CacheReference> eldest) {
-                boolean remove = size() > maxSize;
-                try {
-                    return remove;
-                } finally {
-                    if (remove) {
-                        DefaultCache.this.notifyEvictionListeners(eldest.getKey(), size);
-                    }
+                if (size() > maxSize) {
+                    remove(eldest.getKey());
+                    notifyEvictionListeners(eldest.getKey(), size);
                 }
+                return false;
             }
         };
         this.evictionNotifier = evictionNotifier;
