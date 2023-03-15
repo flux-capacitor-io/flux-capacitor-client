@@ -51,14 +51,18 @@ public class DefaultCache implements Cache {
             @Override
             protected boolean removeEldestEntry(Map.Entry<Object, CacheReference> eldest) {
                 if (size() > maxSize) {
-                    if (remove(eldest.getKey()) == null) {
-                        log.warn("Removing eldest entry with id {} had no effect. Key still exists: {}",
-                                 eldest.getKey(), containsKey(eldest.getKey()));
-                    } else if (containsKey(eldest.getKey())) {
-                        log.warn("Removing eldest entry with id {} had no effect. Map still contains key.",
-                                 eldest.getKey());
+                    if (!containsKey(eldest.getKey())) {
+                        Optional<Object> first = keySet().stream().findFirst();
+                        log.warn("Eldest entry with id {} does not exist in the map anymore. Removing first key: {}",
+                                 eldest.getKey(), first.orElse(null));
+                        first.ifPresent(key -> {
+                            remove(key);
+                            notifyEvictionListeners(key, size);
+                        });
+                    } else {
+                        remove(eldest.getKey());
+                        notifyEvictionListeners(eldest.getKey(), size);
                     }
-                    notifyEvictionListeners(eldest.getKey(), size);
                 }
                 return false;
             }
