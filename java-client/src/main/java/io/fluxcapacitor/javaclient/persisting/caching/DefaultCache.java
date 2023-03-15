@@ -9,6 +9,7 @@ import java.lang.ref.Reference;
 import java.lang.ref.ReferenceQueue;
 import java.lang.ref.SoftReference;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Optional;
@@ -47,26 +48,19 @@ public class DefaultCache implements Cache {
     }
 
     public DefaultCache(int maxSize, Executor evictionNotifier) {
-        this.valueMap = new LinkedHashMap<>(Math.min(128, maxSize), 0.75f, true) {
+        this.valueMap = Collections.synchronizedMap(new LinkedHashMap<>(Math.min(128, maxSize), 0.75f, true) {
             @Override
             protected boolean removeEldestEntry(Map.Entry<Object, CacheReference> eldest) {
-                if (size() > maxSize) {
-                    if (!containsKey(eldest.getKey())) {
-                        Optional<Object> first = keySet().stream().findFirst();
-                        log.warn("Eldest entry with id {} does not exist in the map anymore. Removing first key: {}",
-                                 eldest.getKey(), first.orElse(null));
-                        first.ifPresent(key -> {
-                            remove(key);
-                            notifyEvictionListeners(key, size);
-                        });
-                    } else {
-                        remove(eldest.getKey());
+                boolean remove = size() > maxSize;
+                try {
+                    return remove;
+                } finally {
+                    if (remove) {
                         notifyEvictionListeners(eldest.getKey(), size);
                     }
                 }
-                return false;
             }
-        };
+        });
         this.evictionNotifier = evictionNotifier;
         this.referencePurger.execute(this::pollReferenceQueue);
     }
@@ -126,6 +120,7 @@ public class DefaultCache implements Cache {
     @Override
     public void clear() {
         valueMap.clear();
+        notifyEvictionListeners(null, manual);
     }
 
     @Override

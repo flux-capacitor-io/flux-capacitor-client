@@ -162,6 +162,14 @@ class DefaultCacheTest {
         }
 
         @Test
+        void manualEvictionViaClear() {
+            subject.put("a", new Object());
+            subject.clear();
+            assertEquals(1, evictionEvents.size());
+            assertEquals(new Cache.EvictionEvent(null, manual), evictionEvents.get(0));
+        }
+
+        @Test
         void sizeEviction() {
             subject.put("k1", new Object());
             subject.put("k2", new Object());
