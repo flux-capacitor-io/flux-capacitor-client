@@ -40,7 +40,7 @@ public class DefaultCache implements Cache {
     private final ReferenceQueue<Object> referenceQueue = new ReferenceQueue<>();
 
     public DefaultCache() {
-        this(1_000);
+        this(1_000_000);
     }
 
     public DefaultCache(int maxSize) {
