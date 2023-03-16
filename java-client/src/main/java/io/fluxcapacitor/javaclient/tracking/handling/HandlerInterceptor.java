@@ -56,7 +56,15 @@ public interface HandlerInterceptor {
             return invoker.map(s -> new DelegatingHandlerInvoker(s) {
                 @Override
                 public Object invoke(BiFunction<Object, Object, Object> combiner) {
-                    return interceptor.interceptHandling(m -> s.invoke(), s, consumer).apply(message);
+                    return interceptor.interceptHandling(m -> {
+                        if (m != message) {
+                            var i = InterceptedHandler.this.delegate.findInvoker(m)
+                                    .orElseThrow(() -> new UnsupportedOperationException(
+                                            "Changing the payload type in a HandlerInterceptor is not supported."));
+                            return m.apply(msg -> i.invoke(combiner));
+                        }
+                        return s.invoke(combiner);
+                    }, s, consumer).apply(message);
                 }
             });
         }
