@@ -65,7 +65,7 @@ public class NamedCache implements Cache {
     }
 
     @Override
-    public Registration registerEvictionListener(Consumer<EvictionEvent> listener) {
+    public Registration registerEvictionListener(Consumer<CacheEvictionEvent> listener) {
         return delegate.registerEvictionListener(listener);
     }
 

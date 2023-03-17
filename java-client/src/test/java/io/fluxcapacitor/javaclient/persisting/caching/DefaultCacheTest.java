@@ -13,9 +13,9 @@ import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CountDownLatch;
 
-import static io.fluxcapacitor.javaclient.persisting.caching.Cache.EvictionEvent.Reason.manual;
-import static io.fluxcapacitor.javaclient.persisting.caching.Cache.EvictionEvent.Reason.memoryPressure;
-import static io.fluxcapacitor.javaclient.persisting.caching.Cache.EvictionEvent.Reason.size;
+import static io.fluxcapacitor.javaclient.persisting.caching.CacheEvictionEvent.Reason.manual;
+import static io.fluxcapacitor.javaclient.persisting.caching.CacheEvictionEvent.Reason.memoryPressure;
+import static io.fluxcapacitor.javaclient.persisting.caching.CacheEvictionEvent.Reason.size;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -147,7 +147,7 @@ class DefaultCacheTest {
 
     @Nested
     class EvictionListenerTests {
-        List<Cache.EvictionEvent> evictionEvents = new ArrayList<>();
+        List<CacheEvictionEvent> evictionEvents = new ArrayList<>();
         @BeforeEach
         void setUp() {
             subject.registerEvictionListener(evictionEvents::add);
@@ -158,7 +158,7 @@ class DefaultCacheTest {
             subject.put("a", new Object());
             subject.remove("a");
             assertEquals(1, evictionEvents.size());
-            assertEquals(new Cache.EvictionEvent("a", manual), evictionEvents.get(0));
+            assertEquals(new CacheEvictionEvent("a", manual), evictionEvents.get(0));
         }
 
         @Test
@@ -166,7 +166,7 @@ class DefaultCacheTest {
             subject.put("a", new Object());
             subject.clear();
             assertEquals(1, evictionEvents.size());
-            assertEquals(new Cache.EvictionEvent(null, manual), evictionEvents.get(0));
+            assertEquals(new CacheEvictionEvent(null, manual), evictionEvents.get(0));
         }
 
         @Test
@@ -175,7 +175,7 @@ class DefaultCacheTest {
             subject.put("k2", new Object());
             subject.put("k3", new Object());
             assertEquals(1, evictionEvents.size());
-            assertEquals(new Cache.EvictionEvent("k1", size), evictionEvents.get(0));
+            assertEquals(new CacheEvictionEvent("k1", size), evictionEvents.get(0));
         }
 
         @SneakyThrows
@@ -187,7 +187,7 @@ class DefaultCacheTest {
             ref.enqueue();
             Thread.sleep(10);
             assertEquals(1, evictionEvents.size());
-            assertEquals(new Cache.EvictionEvent("a", memoryPressure), evictionEvents.get(0));
+            assertEquals(new CacheEvictionEvent("a", memoryPressure), evictionEvents.get(0));
             assertTrue(subject.isEmpty());
         }
     }

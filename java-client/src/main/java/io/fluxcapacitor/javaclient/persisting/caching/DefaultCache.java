@@ -21,9 +21,9 @@ import java.util.function.BiFunction;
 import java.util.function.Consumer;
 import java.util.function.Function;
 
-import static io.fluxcapacitor.javaclient.persisting.caching.Cache.EvictionEvent.Reason.manual;
-import static io.fluxcapacitor.javaclient.persisting.caching.Cache.EvictionEvent.Reason.memoryPressure;
-import static io.fluxcapacitor.javaclient.persisting.caching.Cache.EvictionEvent.Reason.size;
+import static io.fluxcapacitor.javaclient.persisting.caching.CacheEvictionEvent.Reason.manual;
+import static io.fluxcapacitor.javaclient.persisting.caching.CacheEvictionEvent.Reason.memoryPressure;
+import static io.fluxcapacitor.javaclient.persisting.caching.CacheEvictionEvent.Reason.size;
 
 @AllArgsConstructor
 @Slf4j
@@ -33,7 +33,7 @@ public class DefaultCache implements Cache {
     final Map<Object, CacheReference> valueMap;
 
     private final Executor evictionNotifier;
-    private final Collection<Consumer<EvictionEvent>> evictionListeners = new CopyOnWriteArrayList<>();
+    private final Collection<Consumer<CacheEvictionEvent>> evictionListeners = new CopyOnWriteArrayList<>();
 
     private final ExecutorService referencePurger = Executors.newSingleThreadExecutor();
 
@@ -129,7 +129,7 @@ public class DefaultCache implements Cache {
     }
 
     @Override
-    public Registration registerEvictionListener(Consumer<EvictionEvent> listener) {
+    public Registration registerEvictionListener(Consumer<CacheEvictionEvent> listener) {
         evictionListeners.add(listener);
         return () -> evictionListeners.remove(listener);
     }
@@ -175,8 +175,8 @@ public class DefaultCache implements Cache {
         }
     }
 
-    protected void notifyEvictionListeners(Object id, EvictionEvent.Reason reason) {
-        var event = new EvictionEvent(id, reason);
+    protected void notifyEvictionListeners(Object id, CacheEvictionEvent.Reason reason) {
+        var event = new CacheEvictionEvent(id, reason);
         evictionNotifier.execute(() -> evictionListeners.forEach(l -> l.accept(event)));
     }
 

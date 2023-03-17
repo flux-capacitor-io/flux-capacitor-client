@@ -15,11 +15,7 @@
 package io.fluxcapacitor.javaclient.persisting.caching;
 
 import io.fluxcapacitor.common.Registration;
-import io.fluxcapacitor.javaclient.FluxCapacitor;
-import lombok.EqualsAndHashCode;
-import lombok.Value;
 
-import java.time.Instant;
 import java.util.Optional;
 import java.util.function.BiFunction;
 import java.util.function.Consumer;
@@ -54,20 +50,9 @@ public interface Cache extends AutoCloseable {
         return size() < 1;
     }
 
-    Registration registerEvictionListener(Consumer<EvictionEvent> listener);
+    Registration registerEvictionListener(Consumer<CacheEvictionEvent> listener);
 
     @Override
     void close();
 
-    @Value
-    class EvictionEvent {
-        Object id;
-        Reason reason;
-        @EqualsAndHashCode.Exclude
-        Instant timestamp = FluxCapacitor.currentTime();
-
-        enum Reason {
-            manual, size, memoryPressure
-        }
-    }
 }

@@ -7,7 +7,7 @@ import lombok.AllArgsConstructor;
 import java.util.function.Consumer;
 
 @AllArgsConstructor
-public class CacheEvictionsLogger implements Consumer<Cache.EvictionEvent> {
+public class CacheEvictionsLogger implements Consumer<CacheEvictionEvent> {
 
     private final MetricsGateway metricsGateway;
 
@@ -16,7 +16,7 @@ public class CacheEvictionsLogger implements Consumer<Cache.EvictionEvent> {
     }
 
     @Override
-    public void accept(Cache.EvictionEvent evictionEvent) {
+    public void accept(CacheEvictionEvent evictionEvent) {
         metricsGateway.publish(evictionEvent);
     }
 }
