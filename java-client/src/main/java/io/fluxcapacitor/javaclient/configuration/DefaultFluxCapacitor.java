@@ -708,6 +708,7 @@ public class DefaultFluxCapacitor implements FluxCapacitor {
             return ConsumerConfiguration.builder()
                     .name(messageType.name())
                     .ignoreSegment(messageType == NOTIFICATION)
+                    .clientControlledIndex(messageType == NOTIFICATION)
                     .minIndex(messageType == NOTIFICATION ? indexFromTimestamp(FluxCapacitor.currentTime()) : null)
                     .build();
         }

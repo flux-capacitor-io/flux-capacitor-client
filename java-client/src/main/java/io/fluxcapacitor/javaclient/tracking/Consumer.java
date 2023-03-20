@@ -47,6 +47,8 @@ public @interface Consumer {
 
     boolean singleTracker() default false;
 
+    boolean clientControlledIndex() default false;
+
     boolean exclusive() default true;
 
     boolean passive() default false;

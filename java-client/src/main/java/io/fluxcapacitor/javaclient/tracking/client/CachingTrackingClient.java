@@ -76,6 +76,7 @@ public class CachingTrackingClient implements TrackingClient {
         if (started.compareAndSet(false, true)) {
             ConsumerConfiguration cacheFillerConfig = ConsumerConfiguration.builder()
                     .ignoreSegment(true)
+                    .clientControlledIndex(true)
                     .minIndex(IndexUtils.indexForCurrentTime())
                     .name(CachingTrackingClient.class.getSimpleName()).build();
             registration = FluxCapacitor.getOptionally()

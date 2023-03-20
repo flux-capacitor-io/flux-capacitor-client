@@ -162,6 +162,7 @@ public class CachingAggregateRepository implements AggregateRepository {
         if (started.compareAndSet(false, true)) {
             start(this::handleEvents, NOTIFICATION, ConsumerConfiguration.builder()
                     .ignoreSegment(true)
+                    .clientControlledIndex(true)
                     .minIndex(lastEventIndex = IndexUtils.indexFromTimestamp(FluxCapacitor.currentTime()))
                     .name(format("%s_%s", client.name(), CachingAggregateRepository.class.getSimpleName()))
                     .build(), client);

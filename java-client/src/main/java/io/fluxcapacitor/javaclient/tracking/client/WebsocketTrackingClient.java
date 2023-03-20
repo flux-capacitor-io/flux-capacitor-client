@@ -74,7 +74,7 @@ public class WebsocketTrackingClient extends AbstractWebsocketClient implements 
                         consumer, trackerId, configuration.getMaxFetchSize(),
                         configuration.getMaxWaitDuration().toMillis(), configuration.getTypeFilter(),
                         configuration.filterMessageTarget(), configuration.ignoreSegment(),
-                        configuration.singleTracker(), lastIndex,
+                        configuration.singleTracker(), configuration.clientControlledIndex(), lastIndex,
                         Optional.ofNullable(configuration.getPurgeDelay()).map(Duration::toMillis).orElse(null)))
                 .thenApply(ReadResult::getMessageBatch);
     }
@@ -82,8 +82,8 @@ public class WebsocketTrackingClient extends AbstractWebsocketClient implements 
     public CompletableFuture<ClaimSegmentResult> claimSegment(String consumer, String trackerId, Long lastIndex,
                                            ConsumerConfiguration config) {
         return send(new ClaimSegment(
-                consumer, trackerId, config.getMaxWaitDuration().toMillis(), config.getTypeFilter(),
-                config.filterMessageTarget(), lastIndex,
+                consumer, trackerId, config.getMaxWaitDuration().toMillis(), config.clientControlledIndex(),
+                config.getTypeFilter(), config.filterMessageTarget(), lastIndex,
                 Optional.ofNullable(config.getPurgeDelay()).map(Duration::toMillis).orElse(null)));
     }
 

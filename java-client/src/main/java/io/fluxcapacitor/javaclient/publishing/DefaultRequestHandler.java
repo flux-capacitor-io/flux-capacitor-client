@@ -106,6 +106,7 @@ public class DefaultRequestHandler implements RequestHandler {
             registration = start(this::handleMessages, resultType, ConsumerConfiguration.builder()
                     .name(format("%s_%s", client.name(), "$request-handler"))
                     .ignoreSegment(true)
+                    .clientControlledIndex(true)
                     .filterMessageTarget(true)
                     .minIndex(IndexUtils.indexFromTimestamp(
                             FluxCapacitor.currentTime().minusSeconds(1)))
