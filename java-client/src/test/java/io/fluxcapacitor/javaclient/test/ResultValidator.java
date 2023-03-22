@@ -344,21 +344,25 @@ public class ResultValidator implements Then {
     }
 
     protected ResultValidator expectOnly(Collection<?> expected, Collection<?> actual) {
-        if (expected.size() != actual.size()) {
-            reportMismatch(expected, actual);
-        } else {
-            if (!containsAll(expected, actual)) {
+        return fluxCapacitor.apply(fc -> {
+            if (expected.size() != actual.size()) {
                 reportMismatch(expected, actual);
+            } else {
+                if (!containsAll(expected, actual)) {
+                    reportMismatch(expected, actual);
+                }
             }
-        }
-        return this;
+            return this;
+        });
     }
 
     protected ResultValidator expectNothingLike(Collection<?> expectedNotToGet, Collection<?> actual) {
-        if (containsAny(expectedNotToGet, actual)) {
-            reportUnwantedMatch(expectedNotToGet, actual);
-        }
-        return this;
+        return fluxCapacitor.apply(fc -> {
+            if (containsAny(expectedNotToGet, actual)) {
+                reportUnwantedMatch(expectedNotToGet, actual);
+            }
+            return this;
+        });
     }
 
     @SuppressWarnings("SuspiciousMethodCalls")
