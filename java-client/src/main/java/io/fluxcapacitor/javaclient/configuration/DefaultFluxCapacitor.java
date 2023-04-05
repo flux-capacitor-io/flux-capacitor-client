@@ -108,6 +108,7 @@ import java.time.Clock;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.EnumSet;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -521,12 +522,9 @@ public class DefaultFluxCapacitor implements FluxCapacitor {
             if (!disableTrackingMetrics) {
                 BatchInterceptor batchInterceptor = new TrackerMonitor();
                 HandlerMonitor handlerMonitor = new HandlerMonitor();
-                Arrays.stream(MessageType.values()).forEach(type -> {
-                    consumerConfigurations.computeIfPresent(type, (t, list) ->
-                            t == METRICS ? list :
-                                    list.stream().map(c -> c.toBuilder().batchInterceptor(batchInterceptor).build())
-                                            .collect(toList()));
-                    handlerInterceptors.compute(type, (t, i) -> t == METRICS ? i : handlerMonitor.andThen(i));
+                EnumSet.complementOf(EnumSet.of(METRICS)).forEach(type -> {
+                    generalBatchInterceptors.computeIfAbsent(type, t -> new ArrayList<>()).add(batchInterceptor);
+                    handlerInterceptors.compute(type, (t, i) -> handlerMonitor.andThen(i));
                 });
             }
 
