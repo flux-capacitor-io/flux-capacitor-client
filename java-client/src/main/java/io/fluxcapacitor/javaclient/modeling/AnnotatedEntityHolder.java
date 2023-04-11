@@ -79,13 +79,16 @@ public class AnnotatedEntityHolder {
         this.entityType = getCollectionElementType(location).orElse(holderType);
         Member member = location.getAnnotation(Member.class);
         String pathToId = member.idProperty();
-        this.idProvider = String.class.equals(holderType) ? v -> new Id(v, null) : pathToId.isBlank() ?
+        this.idProvider = pathToId.isBlank() ?
                 v -> (v == null ? Optional.<MemberInvoker>empty() : entityIdInvokerCache.apply(v.getClass())).map(
                                 p -> new Id(p.invoke(v), p.getMember().getName()))
                         .orElseGet(() -> {
                             if (v instanceof Class<?>) {
                                 return new Id(null, getAnnotatedProperty((Class<?>) v, EntityId.class)
                                         .map(ReflectionUtils::getName).orElse(null));
+                            }
+                            if (v instanceof String s) {
+                                return new Id(s, null);
                             }
                             return new Id(null, null);
                         }) :

@@ -20,6 +20,7 @@ import lombok.Builder.Default;
 import lombok.Data;
 import lombok.Getter;
 import lombok.NonNull;
+import lombok.Singular;
 import lombok.Value;
 import lombok.With;
 import lombok.extern.slf4j.Slf4j;
@@ -412,6 +413,21 @@ public class AggregateEntitiesTest {
             }
 
             @Test
+            void addStringMembers() {
+                testFixture.whenCommand(new Object() {
+                            @Apply
+                            Aggregate apply(Aggregate aggregate) {
+                                return aggregate.toBuilder()
+                                        .otherReference("clientRef1").otherReference("clientRef2").build();
+                            }
+                        })
+                        .expectThat(fc -> expectEntity(e -> "clientRef1".equals(e.id()) && "clientRef1".equals(e.get())))
+                        .expectTrue(fc -> "clientRef1".equals(FluxCapacitor.loadEntity("clientRef1").get()))
+                        .expectTrue(fc -> FluxCapacitor.loadEntityValue("clientRef1").filter("clientRef1"::equals)
+                                .isPresent());
+            }
+
+            @Test
             void checkIfEventHandlerGetsEntity() {
                 testFixture.registerHandlers(new EventHandler())
                         .whenCommand(new AddChild("missing"))
@@ -761,6 +777,10 @@ public class AggregateEntitiesTest {
 
         @Member
         String clientReference;
+
+        @Member
+        @Singular
+        List<String> otherReferences;
     }
 
     @Value
