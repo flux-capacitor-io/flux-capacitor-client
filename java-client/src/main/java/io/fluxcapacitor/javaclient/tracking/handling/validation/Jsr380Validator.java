@@ -14,13 +14,13 @@
 
 package io.fluxcapacitor.javaclient.tracking.handling.validation;
 
+import jakarta.validation.ConstraintViolation;
+import jakarta.validation.Path;
+import jakarta.validation.TraversableResolver;
+import jakarta.validation.Validation;
 import lombok.AllArgsConstructor;
 import org.hibernate.validator.internal.metadata.descriptor.ConstraintDescriptorImpl;
 
-import javax.validation.ConstraintViolation;
-import javax.validation.Path;
-import javax.validation.TraversableResolver;
-import javax.validation.Validation;
 import java.lang.annotation.ElementType;
 import java.lang.reflect.Method;
 import java.util.Collection;
@@ -34,6 +34,7 @@ import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
 
 import static io.fluxcapacitor.common.reflection.ReflectionUtils.declaresField;
+import static jakarta.validation.ElementKind.CONTAINER_ELEMENT;
 import static java.lang.String.CASE_INSENSITIVE_ORDER;
 import static java.lang.System.lineSeparator;
 import static java.lang.annotation.ElementType.FIELD;
@@ -41,7 +42,6 @@ import static java.lang.annotation.ElementType.TYPE_USE;
 import static java.util.stream.Collectors.joining;
 import static java.util.stream.Collectors.toCollection;
 import static java.util.stream.Collectors.toList;
-import static javax.validation.ElementKind.CONTAINER_ELEMENT;
 
 /**
  * This validator uses JSR 380 annotations. However, before attempting method and type validations it will first attempt
@@ -49,12 +49,12 @@ import static javax.validation.ElementKind.CONTAINER_ELEMENT;
  * fields but those fields are invalid.
  */
 @AllArgsConstructor
-public class Jsr380JavaxValidator implements Validator {
-    private final javax.validation.Validator fieldValidator;
-    private final javax.validation.Validator defaultValidator;
+public class Jsr380Validator implements Validator {
+    private final jakarta.validation.Validator fieldValidator;
+    private final jakarta.validation.Validator defaultValidator;
 
-    public static Jsr380JavaxValidator createDefault() {
-        return new Jsr380JavaxValidator(
+    public static Jsr380Validator createDefault() {
+        return new Jsr380Validator(
                 Validation.byDefaultProvider().configure().traversableResolver(new FieldResolver())
                         .buildValidatorFactory().getValidator(),
                 Validation.buildDefaultValidatorFactory().getValidator());

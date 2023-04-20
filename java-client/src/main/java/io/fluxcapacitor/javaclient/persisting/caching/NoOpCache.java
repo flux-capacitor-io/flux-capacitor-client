@@ -14,9 +14,11 @@
 
 package io.fluxcapacitor.javaclient.persisting.caching;
 
+import io.fluxcapacitor.common.Registration;
 import lombok.NonNull;
 
 import java.util.function.BiFunction;
+import java.util.function.Consumer;
 import java.util.function.Function;
 
 public enum NoOpCache implements Cache {
@@ -70,5 +72,14 @@ public enum NoOpCache implements Cache {
     @Override
     public int size() {
         return 0;
+    }
+
+    @Override
+    public Registration registerEvictionListener(Consumer<CacheEvictionEvent> listener) {
+        return Registration.noOp();
+    }
+
+    @Override
+    public void close() {
     }
 }

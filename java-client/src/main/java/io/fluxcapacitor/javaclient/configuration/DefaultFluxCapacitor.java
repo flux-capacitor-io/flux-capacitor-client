@@ -27,6 +27,7 @@ import io.fluxcapacitor.javaclient.configuration.client.Client;
 import io.fluxcapacitor.javaclient.modeling.DefaultEntityHelper;
 import io.fluxcapacitor.javaclient.modeling.EntityParameterResolver;
 import io.fluxcapacitor.javaclient.persisting.caching.Cache;
+import io.fluxcapacitor.javaclient.persisting.caching.CacheEvictionsLogger;
 import io.fluxcapacitor.javaclient.persisting.caching.DefaultCache;
 import io.fluxcapacitor.javaclient.persisting.caching.NamedCache;
 import io.fluxcapacitor.javaclient.persisting.caching.SelectiveCache;
@@ -108,6 +109,7 @@ import java.time.Clock;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.EnumSet;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -249,7 +251,8 @@ public class DefaultFluxCapacitor implements FluxCapacitor {
         private boolean disableAutomaticAggregateCaching;
         private boolean disableScheduledCommandHandler;
         private boolean disableShutdownHook;
-        private boolean collectTrackingMetrics;
+        private boolean disableTrackingMetrics;
+        private boolean disableCacheEvictionMetrics;
         private boolean makeApplicationInstance;
         private UserProvider userProvider = UserProvider.defaultUserSupplier;
         private IdentityProvider identityProvider = IdentityProvider.defaultIdentityProvider;
@@ -438,8 +441,14 @@ public class DefaultFluxCapacitor implements FluxCapacitor {
         }
 
         @Override
-        public FluxCapacitorBuilder enableTrackingMetrics() {
-            collectTrackingMetrics = true;
+        public FluxCapacitorBuilder disableTrackingMetrics() {
+            disableTrackingMetrics = true;
+            return this;
+        }
+
+        @Override
+        public FluxCapacitorBuilder disableCacheEvictionMetrics() {
+            disableCacheEvictionMetrics = true;
             return this;
         }
 
@@ -511,15 +520,12 @@ public class DefaultFluxCapacitor implements FluxCapacitor {
             handlerDecorators.computeIfPresent(SCHEDULE, (t, i) -> i.andThen(schedulingInterceptor));
 
             //collect metrics about consumers and handlers
-            if (collectTrackingMetrics) {
+            if (!disableTrackingMetrics) {
                 BatchInterceptor batchInterceptor = new TrackerMonitor();
                 HandlerMonitor handlerMonitor = new HandlerMonitor();
-                Arrays.stream(MessageType.values()).forEach(type -> {
-                    consumerConfigurations.computeIfPresent(type, (t, list) ->
-                            t == METRICS ? list :
-                                    list.stream().map(c -> c.toBuilder().batchInterceptor(batchInterceptor).build())
-                                            .collect(toList()));
-                    handlerDecorators.compute(type, (t, i) -> t == METRICS ? i : handlerMonitor.andThen(i));
+                EnumSet.complementOf(EnumSet.of(METRICS)).forEach(type -> {
+                    generalBatchInterceptors.computeIfAbsent(type, t -> new ArrayList<>()).add(batchInterceptor);
+                    handlerDecorators.compute(type, (t, i) -> handlerMonitor.andThen(i));
                 });
             }
 
@@ -561,13 +567,12 @@ public class DefaultFluxCapacitor implements FluxCapacitor {
                                                           serializer, dispatchInterceptors.get(EVENT),
                                                           localHandlerRegistry(EVENT, handlerDecorators,
                                                                                parameterResolvers));
-            DefaultSnapshotStore snapshotRepository =
-                    new DefaultSnapshotStore(client.getKeyValueClient(), snapshotSerializer);
+            var snapshotStore = new DefaultSnapshotStore(client.getKeyValueClient(), snapshotSerializer);
 
             Cache aggregateCache = new NamedCache(cache, id -> "$Aggregate:" + id);
             AggregateRepository aggregateRepository = new DefaultAggregateRepository(
-                    eventStore, snapshotRepository, aggregateCache, relationshipsCache, documentStore,
-                    serializer, dispatchInterceptors.get(EVENT), entityMatcher);
+                    eventStore, client.getEventStoreClient(), snapshotStore, aggregateCache,
+                    relationshipsCache, documentStore, serializer, dispatchInterceptors.get(EVENT), entityMatcher);
 
             if (!disableAutomaticAggregateCaching) {
                 aggregateRepository = new CachingAggregateRepository(
@@ -631,6 +636,10 @@ public class DefaultFluxCapacitor implements FluxCapacitor {
                                                        serializer, dispatchInterceptors.get(SCHEDULE),
                                                        localHandlerRegistry(SCHEDULE, handlerDecorators,
                                                                             parameterResolvers));
+
+            if (!disableCacheEvictionMetrics) {
+                new CacheEvictionsLogger(metricsGateway).register(cache);
+            }
 
             Runnable shutdownHandler = () -> {
                 ForkJoinPool shutdownPool = new ForkJoinPool(MessageType.values().length);
@@ -701,6 +710,7 @@ public class DefaultFluxCapacitor implements FluxCapacitor {
             return ConsumerConfiguration.builder()
                     .name(messageType.name())
                     .ignoreSegment(messageType == NOTIFICATION)
+                    .clientControlledIndex(messageType == NOTIFICATION)
                     .minIndex(messageType == NOTIFICATION ? indexFromTimestamp(FluxCapacitor.currentTime()) : null)
                     .build();
         }

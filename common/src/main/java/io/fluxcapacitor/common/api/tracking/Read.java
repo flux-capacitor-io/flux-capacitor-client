@@ -31,6 +31,7 @@ public class Read extends Request {
     boolean filterMessageTarget;
     boolean ignoreSegment;
     boolean singleTracker;
+    boolean clientControlledIndex;
     Long lastIndex;
     Long purgeTimeout;
 

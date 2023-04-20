@@ -76,6 +76,9 @@ public class ConsumerConfiguration {
     @Accessors(fluent = true)
     boolean singleTracker = false;
     @Default
+    @Accessors(fluent = true)
+    boolean clientControlledIndex = false;
+    @Default
     Long minIndex = null;
     @Default
     Long maxIndexExclusive = null;
@@ -124,6 +127,7 @@ public class ConsumerConfiguration {
                         ReflectionUtils::<BatchInterceptor>asInstance).collect(Collectors.toList()))
                 .filterMessageTarget(consumer.filterMessageTarget())
                 .ignoreSegment(consumer.ignoreSegment())
+                .clientControlledIndex(consumer.clientControlledIndex())
                 .singleTracker(consumer.singleTracker())
                 .minIndex(consumer.minIndex() < 0 ? null : consumer.minIndex())
                 .maxIndexExclusive(consumer.maxIndexExclusive() < 0 ? null : consumer.maxIndexExclusive())

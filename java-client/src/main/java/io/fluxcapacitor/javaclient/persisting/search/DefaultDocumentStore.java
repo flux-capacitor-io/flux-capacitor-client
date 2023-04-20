@@ -68,7 +68,8 @@ public class DefaultDocumentStore implements DocumentStore {
             return client.index(singletonList(serializer.toDocument(object, id.toString(), collection.toString(), begin, end)),
                                 guarantee, ifNotExists).asCompletableFuture();
         } catch (Exception e) {
-            throw new DocumentStoreException(format("Could not store a document %s for id %s", object, id), e);
+            throw new DocumentStoreException(format(
+                    "Failed to store a document %s to collection %s", id, collection), e);
         }
     }
 
@@ -177,7 +178,7 @@ public class DefaultDocumentStore implements DocumentStore {
         try {
             return client.delete(id.toString(), collection.toString(), Guarantee.STORED).asCompletableFuture();
         } catch (Exception e) {
-            throw new DocumentStoreException(format("Could not delete document %s", collection), e);
+            throw new DocumentStoreException(format("Could not delete document %s from collection %s", id, collection), e);
         }
     }
 

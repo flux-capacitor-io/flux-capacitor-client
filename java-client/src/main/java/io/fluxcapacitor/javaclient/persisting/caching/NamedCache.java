@@ -1,9 +1,11 @@
 package io.fluxcapacitor.javaclient.persisting.caching;
 
+import io.fluxcapacitor.common.Registration;
 import lombok.AllArgsConstructor;
 import lombok.NonNull;
 
 import java.util.function.BiFunction;
+import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.UnaryOperator;
 
@@ -60,5 +62,15 @@ public class NamedCache implements Cache {
     @Override
     public int size() {
         return delegate.size();
+    }
+
+    @Override
+    public Registration registerEvictionListener(Consumer<CacheEvictionEvent> listener) {
+        return delegate.registerEvictionListener(listener);
+    }
+
+    @Override
+    public void close() {
+        delegate.close();
     }
 }

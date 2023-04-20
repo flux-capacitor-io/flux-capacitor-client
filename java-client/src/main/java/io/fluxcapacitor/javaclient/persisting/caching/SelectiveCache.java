@@ -14,12 +14,14 @@
 
 package io.fluxcapacitor.javaclient.persisting.caching;
 
+import io.fluxcapacitor.common.Registration;
 import io.fluxcapacitor.javaclient.modeling.Entity;
 import lombok.AllArgsConstructor;
 
 import java.util.Optional;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.BiFunction;
+import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Predicate;
 
@@ -124,5 +126,16 @@ public class SelectiveCache implements Cache {
     @Override
     public int size() {
         return delegate.size() + nextCache.size();
+    }
+
+    @Override
+    public Registration registerEvictionListener(Consumer<CacheEvictionEvent> listener) {
+        return delegate.registerEvictionListener(listener).merge(nextCache.registerEvictionListener(listener));
+    }
+
+    @Override
+    public void close() {
+        delegate.close();
+        nextCache.close();
     }
 }

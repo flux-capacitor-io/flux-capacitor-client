@@ -24,13 +24,17 @@ import io.fluxcapacitor.common.api.eventsourcing.GetEvents;
 import io.fluxcapacitor.common.api.eventsourcing.GetEventsResult;
 import io.fluxcapacitor.common.api.modeling.GetAggregateIds;
 import io.fluxcapacitor.common.api.modeling.GetAggregateIdsResult;
+import io.fluxcapacitor.common.api.modeling.GetRelationships;
+import io.fluxcapacitor.common.api.modeling.GetRelationshipsResult;
+import io.fluxcapacitor.common.api.modeling.Relationship;
+import io.fluxcapacitor.common.api.modeling.RepairRelationships;
 import io.fluxcapacitor.common.api.modeling.UpdateRelationships;
 import io.fluxcapacitor.javaclient.common.websocket.AbstractWebsocketClient;
 import io.fluxcapacitor.javaclient.configuration.client.WebSocketClient;
 import io.fluxcapacitor.javaclient.configuration.client.WebSocketClient.ClientConfig;
 import io.fluxcapacitor.javaclient.persisting.eventsourcing.AggregateEventStream;
+import jakarta.websocket.ClientEndpoint;
 
-import javax.websocket.ClientEndpoint;
 import java.net.URI;
 import java.util.List;
 import java.util.Map;
@@ -86,8 +90,18 @@ public class WebSocketEventStoreClient extends AbstractWebsocketClient implement
     }
 
     @Override
+    public Awaitable repairRelationships(RepairRelationships request) {
+        return sendCommand(request);
+    }
+
+    @Override
     public Map<String, String> getAggregateIds(GetAggregateIds request) {
         return this.<GetAggregateIdsResult>sendAndWait(request).getAggregateIds();
+    }
+
+    @Override
+    public List<Relationship> getRelationships(GetRelationships request) {
+        return this.<GetRelationshipsResult>sendAndWait(request).getRelationships();
     }
 
     @Override

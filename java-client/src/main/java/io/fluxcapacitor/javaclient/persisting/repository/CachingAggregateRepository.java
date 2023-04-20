@@ -1,5 +1,6 @@
 package io.fluxcapacitor.javaclient.persisting.repository;
 
+import io.fluxcapacitor.common.Awaitable;
 import io.fluxcapacitor.common.api.SerializedMessage;
 import io.fluxcapacitor.common.api.modeling.Relationship;
 import io.fluxcapacitor.javaclient.FluxCapacitor;
@@ -58,7 +59,12 @@ public class CachingAggregateRepository implements AggregateRepository {
     }
 
     @Override
-    public Map<String, Class<?>> getAggregatesFor(@NonNull String entityId) {
+    public Awaitable repairRelationships(Entity<?> aggregate) {
+        return delegate.repairRelationships(aggregate);
+    }
+
+    @Override
+    public Map<String, Class<?>> getAggregatesFor(String entityId) {
         return delegate.getAggregatesFor(entityId);
     }
 
@@ -77,8 +83,7 @@ public class CachingAggregateRepository implements AggregateRepository {
 
     private void handleEvent(DeserializingMessage m) {
         String id = getAggregateId(m);
-        Class<?> type = getAggregateType(m);
-        if (id != null && type != null && cachingAllowed(type)) {
+        if (id != null) {
             try {
                 if (Objects.equals(client.id(), m.getSerializedObject().getSource())) {
                     cache.<ImmutableAggregateRoot<?>>computeIfPresent(id, (i, a) -> a.withEventIndex(
@@ -103,7 +108,8 @@ public class CachingAggregateRepository implements AggregateRepository {
                             });
                 }
             } catch (Throwable e) {
-                log.error("Failed to handle event {} for aggregate {} (id {})", m.getMessageId(), type, id, e);
+                log.error("Failed to handle event {} for aggregate {} (id {})", m.getMessageId(),
+                          getAggregateType(m), id, e);
             }
         }
     }
@@ -156,6 +162,7 @@ public class CachingAggregateRepository implements AggregateRepository {
         if (started.compareAndSet(false, true)) {
             start(this::handleEvents, NOTIFICATION, ConsumerConfiguration.builder()
                     .ignoreSegment(true)
+                    .clientControlledIndex(true)
                     .minIndex(lastEventIndex = IndexUtils.indexFromTimestamp(FluxCapacitor.currentTime()))
                     .name(format("%s_%s", client.name(), CachingAggregateRepository.class.getSimpleName()))
                     .build(), client);
@@ -163,11 +170,6 @@ public class CachingAggregateRepository implements AggregateRepository {
                 cache.notifyAll();
             }
         }
-    }
-
-    @Override
-    public boolean cachingAllowed(@NonNull Class<?> aggregateType) {
-        return delegate.cachingAllowed(aggregateType);
     }
 
 }

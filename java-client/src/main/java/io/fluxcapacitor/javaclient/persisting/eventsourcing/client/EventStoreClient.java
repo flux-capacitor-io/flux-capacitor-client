@@ -18,6 +18,9 @@ import io.fluxcapacitor.common.Awaitable;
 import io.fluxcapacitor.common.Guarantee;
 import io.fluxcapacitor.common.api.SerializedMessage;
 import io.fluxcapacitor.common.api.modeling.GetAggregateIds;
+import io.fluxcapacitor.common.api.modeling.GetRelationships;
+import io.fluxcapacitor.common.api.modeling.Relationship;
+import io.fluxcapacitor.common.api.modeling.RepairRelationships;
 import io.fluxcapacitor.common.api.modeling.UpdateRelationships;
 import io.fluxcapacitor.javaclient.persisting.eventsourcing.AggregateEventStream;
 
@@ -32,8 +35,6 @@ public interface EventStoreClient extends AutoCloseable {
 
     Awaitable storeEvents(String aggregateId, List<SerializedMessage> events, boolean storeOnly, Guarantee guarantee);
 
-    Awaitable updateRelationships(UpdateRelationships request);
-
     default AggregateEventStream<SerializedMessage> getEvents(String aggregateId) {
         return getEvents(aggregateId, -1L);
     }
@@ -46,11 +47,21 @@ public interface EventStoreClient extends AutoCloseable {
 
     Awaitable deleteEvents(String aggregateId, Guarantee guarantee);
 
-    default Map<String, String> getAggregateIds(String entityId) {
+    Awaitable updateRelationships(UpdateRelationships request);
+
+    Awaitable repairRelationships(RepairRelationships request);
+
+    default Map<String, String> getAggregatesFor(String entityId) {
         return getAggregateIds(new GetAggregateIds(entityId));
     }
 
     Map<String, String> getAggregateIds(GetAggregateIds request);
+
+    default List<Relationship> getRelationships(String entityId) {
+        return getRelationships(new GetRelationships(entityId));
+    }
+
+    List<Relationship> getRelationships(GetRelationships request);
 
     @Override
     void close();

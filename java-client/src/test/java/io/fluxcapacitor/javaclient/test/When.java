@@ -18,6 +18,7 @@ import io.fluxcapacitor.common.api.Data;
 import io.fluxcapacitor.common.api.search.Constraint;
 import io.fluxcapacitor.javaclient.FluxCapacitor;
 import io.fluxcapacitor.javaclient.common.Message;
+import io.fluxcapacitor.javaclient.modeling.AggregateId;
 import io.fluxcapacitor.javaclient.persisting.search.Search;
 import io.fluxcapacitor.javaclient.tracking.handling.authentication.User;
 import io.fluxcapacitor.javaclient.web.WebRequest;
@@ -76,6 +77,18 @@ public interface When {
      * issued using the passed value as payload without additional metadata.
      */
     Then whenEvent(Object event);
+
+    /**
+     * Test expected behavior of applying the given events on the given aggregate and then publishing those events,
+     * including any side effects.
+     * <p>
+     * The event may be an instance of {@link Message} in which case it will be applied as is. An event may also be an
+     * instance of serialized {@link Data}, which will automatically be upcasted and deserialized before applying.
+     * Otherwise, the event is applied using the passed value as payload without additional metadata.
+     */
+    default Then whenEventsAreApplied(AggregateId<?> aggregateId, Object... events) {
+        return whenEventsAreApplied(aggregateId.getCompleteId(), aggregateId.getType(), events);
+    }
 
     /**
      * Test expected behavior of applying the given events on the given aggregate and then publishing those events,

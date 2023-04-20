@@ -12,12 +12,19 @@
  * limitations under the License.
  */
 
-package io.fluxcapacitor.common.handling;
+package io.fluxcapacitor.javaclient.web;
 
-public class HandlerNotFoundException extends RuntimeException {
+import java.lang.annotation.Documented;
+import java.lang.annotation.ElementType;
+import java.lang.annotation.Retention;
+import java.lang.annotation.RetentionPolicy;
+import java.lang.annotation.Target;
 
-    public HandlerNotFoundException(String message) {
-        super(message);
-    }
-
+@Documented
+@Retention(RetentionPolicy.RUNTIME)
+@Target(ElementType.METHOD)
+@HandleWeb(value = "", method = HttpRequestMethod.OPTIONS)
+public @interface HandleOptions {
+    String value();
+    boolean passive() default false;
 }

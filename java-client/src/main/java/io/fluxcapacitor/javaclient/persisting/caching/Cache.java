@@ -14,11 +14,14 @@
 
 package io.fluxcapacitor.javaclient.persisting.caching;
 
+import io.fluxcapacitor.common.Registration;
+
 import java.util.Optional;
 import java.util.function.BiFunction;
+import java.util.function.Consumer;
 import java.util.function.Function;
 
-public interface Cache {
+public interface Cache extends AutoCloseable {
     Object put(Object id, Object value);
 
     Object putIfAbsent(Object id, Object value);
@@ -46,4 +49,10 @@ public interface Cache {
     default boolean isEmpty() {
         return size() < 1;
     }
+
+    Registration registerEvictionListener(Consumer<CacheEvictionEvent> listener);
+
+    @Override
+    void close();
+
 }

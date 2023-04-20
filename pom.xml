@@ -37,8 +37,8 @@
         <maven.compiler.target>17</maven.compiler.target>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
-        <undertow.version>2.2.22.Final</undertow.version>
-        <kotlin.version>1.8.10</kotlin.version>
+        <undertow.version>2.3.5.Final</undertow.version>
+        <kotlin.version>1.8.20</kotlin.version>
     </properties>
 
     <dependencies>
@@ -60,7 +60,7 @@
         <dependency>
             <groupId>org.mockito</groupId>
             <artifactId>mockito-core</artifactId>
-            <version>5.1.1</version>
+            <version>5.3.0</version>
             <scope>test</scope>
         </dependency>
 
@@ -68,7 +68,7 @@
         <dependency>
             <groupId>ch.qos.logback</groupId>
             <artifactId>logback-classic</artifactId>
-            <version>1.4.5</version>
+            <version>1.4.6</version>
             <optional>true</optional>
         </dependency>
 
@@ -106,7 +106,7 @@
             <dependency>
                 <groupId>org.springframework</groupId>
                 <artifactId>spring-framework-bom</artifactId>
-                <version>6.0.5</version>
+                <version>6.0.8</version>
                 <scope>import</scope>
                 <type>pom</type>
             </dependency>
@@ -115,7 +115,7 @@
             <dependency>
                 <groupId>org.jboss.xnio</groupId>
                 <artifactId>xnio-api</artifactId>
-                <version>3.8.8.Final</version>
+                <version>3.8.9.Final</version>
             </dependency>
         </dependencies>
     </dependencyManagement>

@@ -18,6 +18,7 @@ import io.fluxcapacitor.common.SearchUtils;
 import io.fluxcapacitor.common.api.Request;
 import io.fluxcapacitor.common.search.Document.Path;
 import lombok.Builder;
+import lombok.Builder.Default;
 import lombok.EqualsAndHashCode;
 import lombok.Value;
 
@@ -29,10 +30,10 @@ import java.util.function.Predicate;
 @Value
 @Builder(toBuilder = true)
 public class SearchDocuments extends Request {
-    SearchQuery query;
-    @Builder.Default List<String> sorting = Collections.emptyList();
+    @Default SearchQuery query = SearchQuery.builder().build();
+    @Default List<String> sorting = Collections.emptyList();
     Integer maxSize;
-    @Builder.Default List<String> pathFilters = Collections.emptyList();
+    @Default List<String> pathFilters = Collections.emptyList();
     int skip;
     SerializedDocument lastHit;
 

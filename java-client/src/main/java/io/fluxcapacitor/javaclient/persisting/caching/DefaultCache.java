@@ -1,40 +1,80 @@
 package io.fluxcapacitor.javaclient.persisting.caching;
 
 
+import io.fluxcapacitor.common.Registration;
 import lombok.AllArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 
+import java.lang.ref.Reference;
+import java.lang.ref.ReferenceQueue;
 import java.lang.ref.SoftReference;
+import java.util.Collection;
+import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Optional;
+import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.Executor;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.function.BiFunction;
+import java.util.function.Consumer;
 import java.util.function.Function;
 
+import static io.fluxcapacitor.javaclient.persisting.caching.CacheEvictionEvent.Reason.manual;
+import static io.fluxcapacitor.javaclient.persisting.caching.CacheEvictionEvent.Reason.memoryPressure;
+import static io.fluxcapacitor.javaclient.persisting.caching.CacheEvictionEvent.Reason.size;
+
 @AllArgsConstructor
+@Slf4j
 public class DefaultCache implements Cache {
     protected static final String mutexPrecursor = "$DC$";
 
-    private final Map<Object, SoftReference<Object>> valueMap;
+    final Map<Object, CacheReference> valueMap;
+
+    private final Executor evictionNotifier;
+    private final Collection<Consumer<CacheEvictionEvent>> evictionListeners = new CopyOnWriteArrayList<>();
+
+    private final ExecutorService referencePurger = Executors.newSingleThreadExecutor();
+
+    private final ReferenceQueue<Object> referenceQueue = new ReferenceQueue<>();
 
     public DefaultCache() {
-        this(1_000);
+        this(1_000_000);
     }
 
     public DefaultCache(int maxSize) {
-        this.valueMap = new LinkedHashMap<>(Math.min(128, maxSize), 0.75f, true) {
+        this(maxSize, Executors.newSingleThreadExecutor());
+    }
+
+    public DefaultCache(int maxSize, Executor evictionNotifier) {
+        this.valueMap = Collections.synchronizedMap(new LinkedHashMap<>(Math.min(128, maxSize), 0.75f, true) {
             @Override
-            protected boolean removeEldestEntry(Map.Entry<Object, SoftReference<Object>> eldest) {
-                return size() > maxSize;
+            protected boolean removeEldestEntry(Map.Entry<Object, CacheReference> eldest) {
+                boolean remove = size() > maxSize;
+                try {
+                    return remove;
+                } finally {
+                    if (remove) {
+                        notifyEvictionListeners(eldest.getKey(), size);
+                    }
+                }
             }
-        };
+        });
+        this.evictionNotifier = evictionNotifier;
+        this.referencePurger.execute(this::pollReferenceQueue);
     }
 
     @Override
     public <T> T compute(Object id, BiFunction<? super Object, ? super T, ? extends T> mappingFunction) {
         synchronized ((mutexPrecursor + id).intern()) {
-            SoftReference<Object> next = wrap(mappingFunction.apply(id, unwrap(valueMap.get(id))));
+            CacheReference previous = valueMap.get(id);
+            CacheReference next = wrap(id, mappingFunction.apply(id, unwrap(previous)));
             if (next == null) {
                 valueMap.remove(id);
+                if (previous != null && previous.get() != null) {
+                    notifyEvictionListeners(id, manual);
+                }
             } else {
                 valueMap.put(id, next);
             }
@@ -80,6 +120,7 @@ public class DefaultCache implements Cache {
     @Override
     public void clear() {
         valueMap.clear();
+        notifyEvictionListeners(null, manual);
     }
 
     @Override
@@ -87,12 +128,29 @@ public class DefaultCache implements Cache {
         return valueMap.size();
     }
 
-    protected SoftReference<Object> wrap(Object value) {
-        return value == null ? null : new SoftReference<>(value);
+    @Override
+    public Registration registerEvictionListener(Consumer<CacheEvictionEvent> listener) {
+        evictionListeners.add(listener);
+        return () -> evictionListeners.remove(listener);
+    }
+
+    @Override
+    public void close() {
+        try {
+            if (evictionNotifier instanceof ExecutorService executorService) {
+                executorService.shutdownNow();
+            }
+            referencePurger.shutdownNow();
+        } catch (Throwable ignored) {
+        }
+    }
+
+    protected CacheReference wrap(Object id, Object value) {
+        return value == null ? null : new CacheReference(id, value);
     }
 
     @SuppressWarnings("unchecked")
-    protected <T> T unwrap(SoftReference<Object> ref) {
+    protected <T> T unwrap(CacheReference ref) {
         if (ref == null) {
             return null;
         }
@@ -101,5 +159,33 @@ public class DefaultCache implements Cache {
             result = ((Optional<?>) result).orElse(null);
         }
         return (T) result;
+    }
+
+    protected void pollReferenceQueue() {
+        try {
+            Reference<?> reference;
+            while ((reference = referenceQueue.remove()) != null) {
+                if (reference instanceof CacheReference cacheReference) {
+                    remove(cacheReference.id);
+                    notifyEvictionListeners(cacheReference.id, memoryPressure);
+                }
+            }
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+        }
+    }
+
+    protected void notifyEvictionListeners(Object id, CacheEvictionEvent.Reason reason) {
+        var event = new CacheEvictionEvent(id, reason);
+        evictionNotifier.execute(() -> evictionListeners.forEach(l -> l.accept(event)));
+    }
+
+    protected class CacheReference extends SoftReference<Object> {
+        private final Object id;
+
+        public CacheReference(Object id, Object value) {
+            super(value, referenceQueue);
+            this.id = id;
+        }
     }
 }
