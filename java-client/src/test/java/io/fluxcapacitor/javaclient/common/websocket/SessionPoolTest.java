@@ -14,9 +14,8 @@
 
 package io.fluxcapacitor.javaclient.common.websocket;
 
+import jakarta.websocket.Session;
 import org.junit.jupiter.api.Test;
-
-import javax.websocket.Session;
 
 import static org.junit.jupiter.api.Assertions.assertNotSame;
 import static org.junit.jupiter.api.Assertions.assertSame;

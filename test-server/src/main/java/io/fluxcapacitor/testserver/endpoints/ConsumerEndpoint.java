@@ -31,11 +31,11 @@ import io.fluxcapacitor.common.api.tracking.StorePosition;
 import io.fluxcapacitor.javaclient.tracking.client.InMemoryMessageStore;
 import io.fluxcapacitor.testserver.Handle;
 import io.fluxcapacitor.testserver.WebsocketEndpoint;
+import jakarta.websocket.CloseReason;
+import jakarta.websocket.Session;
 import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
-import javax.websocket.CloseReason;
-import javax.websocket.Session;
 import java.util.List;
 import java.util.Objects;
 

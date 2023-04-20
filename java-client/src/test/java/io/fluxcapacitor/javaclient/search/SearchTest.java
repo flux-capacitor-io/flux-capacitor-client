@@ -21,6 +21,8 @@ import io.fluxcapacitor.common.api.search.bulkupdate.DeleteDocument;
 import io.fluxcapacitor.common.api.search.bulkupdate.IndexDocument;
 import io.fluxcapacitor.common.serialization.JsonUtils;
 import io.fluxcapacitor.javaclient.common.serialization.jackson.JacksonSerializer;
+import io.fluxcapacitor.javaclient.persisting.search.SearchHit;
+import io.fluxcapacitor.javaclient.test.Given;
 import io.fluxcapacitor.javaclient.test.TestFixture;
 import io.fluxcapacitor.javaclient.test.When;
 import lombok.AllArgsConstructor;
@@ -405,6 +407,34 @@ public class SearchTest {
                     .whenSearching("foobar",
                                    s -> s.inPeriod(documentStart.minusSeconds(1), documentEnd.plusSeconds(1), true)
                     ).<List<?>>expectResult(docs -> docs.size() == 0);
+        }
+    }
+
+    @Nested
+    class SortingTests {
+
+        private final Instant now = Instant.now();
+        private final Given testFixture = TestFixture.create().atFixedTime(now)
+                .givenDocument(new SomeDocument(), "id1", "test", now)
+                .givenDocument(new SomeDocument(), "id2", "test", now.plusSeconds(1));
+
+        @Test
+        void sortTimeDescending() {
+            testFixture.whenApplying(
+                    fc -> fc.documentStore().search("test").streamHits().toList())
+                    .<List<?>>expectResult(results -> results.size() == 2)
+                    .<List<SearchHit<?>>>expectResult(results -> "id2".equals(results.get(0).getId())
+                                                                        && "id1".equals(results.get(1).getId()));
+        }
+
+        @Test
+        void sortTimeAscending() {
+            testFixture.whenApplying(
+                            fc -> fc.documentStore().search("test")
+                                    .sortByTimestamp(false).streamHits().toList())
+                    .<List<?>>expectResult(results -> results.size() == 2)
+                    .<List<SearchHit<?>>>expectResult(results -> "id1".equals(results.get(0).getId())
+                                                                 && "id2".equals(results.get(1).getId()));
         }
     }
 

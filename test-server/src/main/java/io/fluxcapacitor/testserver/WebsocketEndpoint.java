@@ -26,13 +26,13 @@ import io.fluxcapacitor.common.handling.HandlerInvoker;
 import io.fluxcapacitor.common.handling.ParameterResolver;
 import io.fluxcapacitor.common.serialization.compression.CompressionAlgorithm;
 import io.undertow.util.SameThreadExecutor;
+import jakarta.websocket.CloseReason;
+import jakarta.websocket.Endpoint;
+import jakarta.websocket.EndpointConfig;
+import jakarta.websocket.Session;
 import lombok.Value;
 import lombok.extern.slf4j.Slf4j;
 
-import javax.websocket.CloseReason;
-import javax.websocket.Endpoint;
-import javax.websocket.EndpointConfig;
-import javax.websocket.Session;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.lang.annotation.Annotation;
@@ -50,10 +50,10 @@ import java.util.function.Function;
 import static com.fasterxml.jackson.databind.SerializationFeature.WRITE_DATES_AS_TIMESTAMPS;
 import static io.fluxcapacitor.common.serialization.compression.CompressionUtils.compress;
 import static io.fluxcapacitor.common.serialization.compression.CompressionUtils.decompress;
+import static jakarta.websocket.CloseReason.CloseCodes.NO_STATUS_CODE;
+import static jakarta.websocket.CloseReason.CloseCodes.UNEXPECTED_CONDITION;
 import static java.lang.String.format;
 import static java.util.concurrent.CompletableFuture.runAsync;
-import static javax.websocket.CloseReason.CloseCodes.NO_STATUS_CODE;
-import static javax.websocket.CloseReason.CloseCodes.UNEXPECTED_CONDITION;
 
 @Slf4j
 public abstract class WebsocketEndpoint extends Endpoint {

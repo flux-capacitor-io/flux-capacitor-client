@@ -35,9 +35,9 @@ import io.fluxcapacitor.common.api.tracking.StorePosition;
 import io.fluxcapacitor.javaclient.common.websocket.AbstractWebsocketClient;
 import io.fluxcapacitor.javaclient.configuration.client.WebSocketClient.ClientConfig;
 import io.fluxcapacitor.javaclient.tracking.ConsumerConfiguration;
+import jakarta.websocket.ClientEndpoint;
 import lombok.Getter;
 
-import javax.websocket.ClientEndpoint;
 import java.net.URI;
 import java.time.Duration;
 import java.util.List;
