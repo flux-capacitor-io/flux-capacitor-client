@@ -34,7 +34,7 @@ public class DefaultResultGateway implements ResultGateway {
     private final DispatchInterceptor dispatchInterceptor;
 
     @Override
-    public CompletableFuture<Void> respond(Object payload, Metadata metadata, String target, int requestId, Guarantee guarantee) {
+    public CompletableFuture<Void> respond(Object payload, Metadata metadata, String target, Integer requestId, Guarantee guarantee) {
         try {
             Message message = dispatchInterceptor.interceptDispatch(new Message(payload, metadata), RESULT);
             SerializedMessage serializedMessage

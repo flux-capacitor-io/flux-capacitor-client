@@ -38,7 +38,7 @@ public class WebResponseGateway implements ResultGateway {
     private final WebResponseMapper webResponseMapper;
 
     @Override
-    public CompletableFuture<Void> respond(Object response, String target, int requestId) {
+    public CompletableFuture<Void> respond(Object response, String target, Integer requestId) {
         if (response instanceof WebResponse) {
             return respond((WebResponse) response, target, requestId, Guarantee.NONE);
         }
@@ -46,11 +46,11 @@ public class WebResponseGateway implements ResultGateway {
     }
 
     @Override
-    public CompletableFuture<Void> respond(Object payload, Metadata metadata, String target, int requestId, Guarantee guarantee) {
+    public CompletableFuture<Void> respond(Object payload, Metadata metadata, String target, Integer requestId, Guarantee guarantee) {
         return respond(webResponseMapper.map(payload, metadata), target, requestId, guarantee);
     }
 
-    private CompletableFuture<Void> respond(WebResponse response, String target, int requestId, Guarantee guarantee) {
+    private CompletableFuture<Void> respond(WebResponse response, String target, Integer requestId, Guarantee guarantee) {
         try {
             Message message = dispatchInterceptor.interceptDispatch(response, WEBRESPONSE);
             SerializedMessage serializedMessage

@@ -22,7 +22,7 @@ import java.util.concurrent.CompletableFuture;
 
 public interface ResultGateway {
 
-    default CompletableFuture<Void> respond(Object response, String target, int requestId) {
+    default CompletableFuture<Void> respond(Object response, String target, Integer requestId) {
         if (response instanceof Message) {
             return respond(((Message) response).getPayload(), ((Message) response).getMetadata(), target, requestId, Guarantee.NONE);
         } else {
@@ -30,6 +30,6 @@ public interface ResultGateway {
         }
     }
 
-    CompletableFuture<Void> respond(Object payload, Metadata metadata, String target, int requestId, Guarantee guarantee);
+    CompletableFuture<Void> respond(Object payload, Metadata metadata, String target, Integer requestId, Guarantee guarantee);
 
 }

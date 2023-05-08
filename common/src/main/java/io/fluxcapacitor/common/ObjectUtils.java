@@ -17,6 +17,7 @@ package io.fluxcapacitor.common;
 import lombok.AllArgsConstructor;
 import lombok.SneakyThrows;
 
+import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashSet;
@@ -137,6 +138,13 @@ public class ObjectUtils {
 
     public static Runnable asRunnable(Callable<?> callable) {
         return () -> safelyCall(callable);
+    }
+
+    public static byte[] getBytes(ByteBuffer buffer) {
+        buffer = buffer.duplicate();
+        byte[] result = new byte[buffer.remaining()];
+        buffer.get(result);
+        return result;
     }
 
     public static Throwable unwrapException(Throwable e) {

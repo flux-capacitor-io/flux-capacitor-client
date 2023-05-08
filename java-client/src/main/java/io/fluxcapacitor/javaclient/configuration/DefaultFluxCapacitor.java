@@ -94,10 +94,12 @@ import io.fluxcapacitor.javaclient.tracking.metrics.TrackerMonitor;
 import io.fluxcapacitor.javaclient.web.DefaultWebResponseMapper;
 import io.fluxcapacitor.javaclient.web.ForwardingWebConsumer;
 import io.fluxcapacitor.javaclient.web.LocalServerConfig;
+import io.fluxcapacitor.javaclient.web.SocketSessionParameterResolver;
 import io.fluxcapacitor.javaclient.web.WebPayloadParameterResolver;
 import io.fluxcapacitor.javaclient.web.WebResponseGateway;
 import io.fluxcapacitor.javaclient.web.WebResponseMapper;
 import io.fluxcapacitor.javaclient.web.WebsocketHandlerDecorator;
+import io.fluxcapacitor.javaclient.web.WebsocketResponseInterceptor;
 import lombok.AccessLevel;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
@@ -543,13 +545,17 @@ public class DefaultFluxCapacitor implements FluxCapacitor {
                     interceptor -> handlerDecorators.computeIfPresent(messageType,
                                                                         (t, i) -> interceptor.andThen(i))));
 
-            //add websocket handler decorator
+            //add websocket handler decorator and dispatch interceptor
             handlerDecorators.computeIfPresent(WEBREQUEST, (t, i) -> i.andThen(new WebsocketHandlerDecorator()));
+            dispatchInterceptors.computeIfPresent(WEBRESPONSE, (t, i) -> new WebsocketResponseInterceptor().andThen(i));
 
             /*
                 Create components
              */
 
+            ResultGateway webResponseGateway = new WebResponseGateway(client.getGatewayClient(WEBRESPONSE),
+                                                                      serializer, dispatchInterceptors.get(WEBRESPONSE),
+                                                                      webResponseMapper);
 
             List<ParameterResolver<? super DeserializingMessage>> parameterResolvers =
                     new ArrayList<>(customParameterResolvers);
@@ -557,6 +563,7 @@ public class DefaultFluxCapacitor implements FluxCapacitor {
                                               new DeserializingMessageParameterResolver(),
                                               new MetadataParameterResolver(), new MessageParameterResolver(),
                                               new UserParameterResolver(userProvider),
+                                              new SocketSessionParameterResolver(webResponseGateway),
                                               new WebPayloadParameterResolver(),
                                               new PayloadParameterResolver(),
                                               new EntityParameterResolver()));
@@ -618,10 +625,6 @@ public class DefaultFluxCapacitor implements FluxCapacitor {
                     new DefaultWebRequestGateway(createRequestGateway(client, WEBREQUEST, webRequestHandler,
                                                                       dispatchInterceptors, handlerDecorators,
                                                                       parameterResolvers));
-
-            ResultGateway webResponseGateway = new WebResponseGateway(client.getGatewayClient(WEBRESPONSE),
-                                                                      serializer, dispatchInterceptors.get(WEBRESPONSE),
-                                                                      webResponseMapper);
 
             //tracking
             Map<MessageType, Tracking> trackingMap = stream(MessageType.values())

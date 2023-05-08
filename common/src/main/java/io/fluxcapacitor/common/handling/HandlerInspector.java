@@ -268,8 +268,10 @@ public class HandlerInspector {
         }
     }
 
-    public record ObjectHandlerMatcher<M>(List<MethodHandlerMatcher<M>> methodHandlers,
-                                          boolean invokeMultipleMethods) implements HandlerMatcher<Object, M> {
+    @AllArgsConstructor
+    public static class ObjectHandlerMatcher<M> implements HandlerMatcher<Object, M> {
+        private final List<HandlerMatcher<Object, M>> methodHandlers;
+        private final boolean invokeMultipleMethods;
         @Override
         public Optional<HandlerInvoker> findInvoker(Object target, M message) {
             if (invokeMultipleMethods) {

@@ -91,7 +91,7 @@ public class DefaultRequestHandler implements RequestHandler {
     }
 
     protected void handleMessages(List<SerializedMessage> messages) {
-        messages.forEach(m -> {
+        messages.stream().filter(m -> m.getRequestId() != null).forEach(m -> {
             CompletableFuture<SerializedMessage> future = callbacks.remove(m.getRequestId());
             if (future == null) {
                 log.warn("Received response with index {} for unknown request {}", m.getIndex(), m.getRequestId());

@@ -29,8 +29,6 @@ import io.fluxcapacitor.javaclient.tracking.client.TrackingClient;
 
 import java.lang.management.ManagementFactory;
 import java.time.Duration;
-import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Function;
 
 import static io.fluxcapacitor.common.ObjectUtils.memoize;
@@ -38,15 +36,12 @@ import static io.fluxcapacitor.common.ObjectUtils.memoize;
 public class InMemoryClient extends AbstractClient {
 
     private static Function<MessageType, InMemoryMessageStore> messageStoreFactory(Duration messageExpiration) {
-        InMemorySchedulingClient schedulingClient = new InMemorySchedulingClient(messageExpiration);
-        InMemoryEventStoreClient eventStoreClient = new InMemoryEventStoreClient(messageExpiration);
-        Map<MessageType, InMemoryMessageStore> messageStores = new ConcurrentHashMap<>();
-        return memoize(type -> messageStores.computeIfAbsent(
-                type, t -> switch (t) {
-                    case NOTIFICATION, EVENT -> eventStoreClient;
-                    case SCHEDULE -> schedulingClient;
-                    default -> new InMemoryMessageStore(t, messageExpiration);
-                }));
+        var eventStoreClient = new InMemoryEventStoreClient(messageExpiration);
+        return memoize(t -> switch (t) {
+            case NOTIFICATION, EVENT -> eventStoreClient;
+            case SCHEDULE -> new InMemorySchedulingClient(messageExpiration);
+            default -> new InMemoryMessageStore(t, messageExpiration);
+        });
     }
 
     public static InMemoryClient newInstance() {

@@ -17,6 +17,8 @@ package io.fluxcapacitor.javaclient.test;
 import io.fluxcapacitor.javaclient.FluxCapacitor;
 import io.fluxcapacitor.javaclient.common.Message;
 import io.fluxcapacitor.javaclient.scheduling.Schedule;
+import io.fluxcapacitor.javaclient.web.WebRequest;
+import io.fluxcapacitor.javaclient.web.WebResponse;
 import lombok.NonNull;
 
 import java.util.Collection;
@@ -131,6 +133,106 @@ public interface Then {
      */
     default Then expectNoCommands() {
         return expectOnlyCommands();
+    }
+
+    /*
+        Web requests
+     */
+
+    /**
+     * Assert that the given web requests got published.
+     * <p>
+     * A given web request may be an instance of {@link Message} or {@link WebRequest} in which case it will be tested
+     * against published web requests including any of the Message's metadata. Otherwise, the request is tested against
+     * published web requests using the passed value as payload without additional metadata.
+     * <p>
+     * A web request may also be an instance of {@link Predicate}, hamcrest matcher, or Class. A web request may also
+     * refer to a json resource in the class path of the unit test by passing a string ending in `.json`, e.g.
+     * "expected/send-mail-request.json".
+     */
+    Then expectWebRequests(Object... webRequests);
+
+    /**
+     * Assert that the given values are the *only* web requests that got published.
+     * <p>
+     * A web request may be an instance of {@link Message} or {@link WebRequest} in which case it will be tested against
+     * published web requests including any of the Message's metadata. Otherwise, the web request is tested against
+     * published web requests using the passed value as payload without additional metadata.
+     * <p>
+     * A web request may also be an instance of {@link Predicate}, hamcrest matcher, or Class. A request may also refer
+     * to a json resource in the class path of the unit test by passing a string ending in `.json`, e.g.
+     * "send-email-request.json".
+     */
+    Then expectOnlyWebRequests(Object... webRequests);
+
+    /**
+     * Assert that the given web requests did *not* get published.
+     * <p>
+     * A web request may be an instance of {@link Message} in which case it will be tested against published web
+     * requests including any of the Message's metadata. Otherwise, the value is tested against published web requests
+     * using the passed value as payload without additional metadata.
+     * <p>
+     * A web request may also be an instance of {@link Predicate}, hamcrest matcher, or Class. A web request may also
+     * refer to a json resource in the class path of the unit test by passing a string ending in `.json`, e.g.
+     * "send-email-request.json".
+     */
+    Then expectNoWebRequestsLike(Object... webResponses);
+
+    /**
+     * Assert that no web requests got published.
+     */
+    default Then expectNoWebRequests() {
+        return expectOnlyWebRequests();
+    }
+
+    /*
+        Web responses
+     */
+
+    /**
+     * Assert that the given web responses got published.
+     * <p>
+     * A given web response may be an instance of {@link Message} or {@link WebResponse} in which case it will be tested
+     * against published web responses including any of the Message's metadata. Otherwise, the command is tested against
+     * published web responses using the passed value as payload without additional metadata.
+     * <p>
+     * A web response may also be an instance of {@link Predicate}, hamcrest matcher, or Class. A web response may also
+     * refer to a json resource in the class path of the unit test by passing a string ending in `.json`, e.g.
+     * "expected/new-user-response.json".
+     */
+    Then expectWebResponses(Object... webResponses);
+
+    /**
+     * Assert that the given values are the *only* web responses that got published.
+     * <p>
+     * A web response may be an instance of {@link Message} or {@link WebResponse} in which case it will be tested
+     * against published web responses including any of the Message's metadata. Otherwise, the web response is tested
+     * against published web responses using the passed value as payload without additional metadata.
+     * <p>
+     * A web response may also be an instance of {@link Predicate}, hamcrest matcher, or Class. A command may also refer
+     * to a json resource in the class path of the unit test by passing a string ending in `.json`, e.g.
+     * "new-user-response.json".
+     */
+    Then expectOnlyWebResponses(Object... webResponses);
+
+    /**
+     * Assert that the given web responses did *not* get published.
+     * <p>
+     * A web response may be an instance of {@link Message} in which case it will be tested against published web
+     * responses including any of the Message's metadata. Otherwise, the value is tested against published web responses
+     * using the passed value as payload without additional metadata.
+     * <p>
+     * A web response may also be an instance of {@link Predicate}, hamcrest matcher, or Class. A web response may also
+     * refer to a json resource in the class path of the unit test by passing a string ending in `.json`, e.g.
+     * "new-user-response.json".
+     */
+    Then expectNoWebResponsesLike(Object... webResponses);
+
+    /**
+     * Assert that no web responses got published.
+     */
+    default Then expectNoWebResponses() {
+        return expectOnlyWebResponses();
     }
 
     /*
@@ -400,12 +502,16 @@ public interface Then {
      */
     Then expectNoErrors();
 
+    /*
+        Metrics
+     */
+
     /**
      * Test if the given metrics got published.
      * <p>
-     * An metric may be an instance of {@link Message} in which case it will be tested against published metrics including
-     * any of the Message's metadata. Otherwise, the metric is tested against published metrics using the passed value as
-     * payload without additional metadata.
+     * An metric may be an instance of {@link Message} in which case it will be tested against published metrics
+     * including any of the Message's metadata. Otherwise, the metric is tested against published metrics using the
+     * passed value as payload without additional metadata.
      * <p>
      * A metric may also be an instance of {@link Predicate}, hamcrest matcher, or Class. A metric may also refer to a
      * json resource in the class path of the unit test by passing a string ending in `.json`, e.g.
@@ -416,9 +522,9 @@ public interface Then {
     /**
      * Test if the given metrics are the *only* events that got published.
      * <p>
-     * An event may be an instance of {@link Message} in which case it will be tested against published metrics including
-     * any of the Message's metadata. Otherwise, the metric is tested against published events using the passed value as
-     * payload without additional metadata.
+     * An event may be an instance of {@link Message} in which case it will be tested against published metrics
+     * including any of the Message's metadata. Otherwise, the metric is tested against published events using the
+     * passed value as payload without additional metadata.
      * <p>
      * A metric may also be an instance of {@link Predicate}, hamcrest matcher, or Class. A metric may also refer to a
      * json resource in the class path of the unit test by passing a string ending in `.json`, e.g.
@@ -429,9 +535,9 @@ public interface Then {
     /**
      * Assert that the given metrics did *not* get published.
      * <p>
-     * A metric may be an instance of {@link Message} in which case it will be tested against published metrics including
-     * any of the Message's metadata. Otherwise, the metric is tested against published metrics using the passed value as
-     * payload without additional metadata.
+     * A metric may be an instance of {@link Message} in which case it will be tested against published metrics
+     * including any of the Message's metadata. Otherwise, the metric is tested against published metrics using the
+     * passed value as payload without additional metadata.
      * <p>
      * A metric may also be an instance of {@link Predicate}, hamcrest matcher, or Class. A metric may also refer to a
      * json resource in the class path of the unit test by passing a string ending in `.json`, e.g.
@@ -451,8 +557,8 @@ public interface Then {
      */
 
     /**
-     * Assert that the test fixture is in the correct state after the `when` phase. You can e.g. use this to verify
-     * that mocked methods were invoked correctly.
+     * Assert that the test fixture is in the correct state after the `when` phase. You can e.g. use this to verify that
+     * mocked methods were invoked correctly.
      */
     Then expectThat(Consumer<FluxCapacitor> check);
 
@@ -462,8 +568,8 @@ public interface Then {
     Then expectTrue(Predicate<FluxCapacitor> check);
 
     /**
-     * Assert that the test fixture is in the correct state after the `when` phase by checking that the given
-     * predicate returns false.
+     * Assert that the test fixture is in the correct state after the `when` phase by checking that the given predicate
+     * returns false.
      */
     default Then expectFalse(Predicate<FluxCapacitor> check) {
         return expectTrue(check.negate());

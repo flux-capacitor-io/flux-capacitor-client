@@ -36,7 +36,6 @@ import java.util.function.Predicate;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
-import static io.fluxcapacitor.javaclient.web.HttpRequestMethod.ANY;
 import static java.util.Objects.requireNonNull;
 
 @Value
@@ -57,7 +56,7 @@ public class WebRequest extends Message {
                     .<Predicate<String>>map(p -> s -> p.test(s.startsWith("/") ? s : "/" + s))
                     .orElse(p -> true);
             Predicate<String> methodTest = Optional.of(handleWeb.getMethod())
-                    .<Predicate<String>>map(r -> r == ANY ? p -> true : p -> r.name().equals(p))
+                    .<Predicate<String>>map(r -> p -> r.name().equals(p))
                     .orElse(p -> true);
             return msg -> {
                 String path = requireNonNull(msg.getMetadata().get("url"),
