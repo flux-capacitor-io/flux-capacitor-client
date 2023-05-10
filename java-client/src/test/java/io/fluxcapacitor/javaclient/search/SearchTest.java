@@ -438,7 +438,6 @@ public class SearchTest {
         }
     }
 
-
     @Value
     @Builder
     private static class MockObjectWithBulkUpdates {

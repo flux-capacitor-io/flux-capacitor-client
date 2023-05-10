@@ -612,8 +612,8 @@ public interface FluxCapacitor extends AutoCloseable {
      * <p>
      * Example usage: FluxCapacitor.search("myCollection", "myOtherCollection).query("foo !bar").fetch(100);
      */
-    static Search search(Object... collections) {
-        return get().documentStore().search(collections);
+    static Search search(Object collection, Object... additionalCollections) {
+        return get().documentStore().search(collection, additionalCollections);
     }
 
     /**
