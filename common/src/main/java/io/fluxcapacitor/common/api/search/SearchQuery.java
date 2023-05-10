@@ -14,6 +14,7 @@
 
 package io.fluxcapacitor.common.api.search;
 
+import com.fasterxml.jackson.annotation.JsonAlias;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import io.fluxcapacitor.common.api.search.constraints.AllConstraint;
 import io.fluxcapacitor.common.search.Document;
@@ -32,6 +33,7 @@ import java.util.stream.Collectors;
 @Value
 @lombok.Builder(toBuilder = true, builderClassName = "Builder")
 public class SearchQuery {
+    @JsonAlias("collections")
     @JsonProperty("collection")
     @Singular List<String> collections;
     Instant since, before;

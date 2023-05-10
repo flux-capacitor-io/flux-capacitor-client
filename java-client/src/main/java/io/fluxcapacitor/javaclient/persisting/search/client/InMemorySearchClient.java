@@ -71,8 +71,12 @@ public class InMemorySearchClient implements SearchClient {
         return Awaitable.ready();
     }
 
+    protected Stream<SearchHit<Document>> search(SearchDocuments searchDocuments) {
+        return search(searchDocuments, -1);
+    }
+
     @Override
-    public Stream<SearchHit<Document>> search(SearchDocuments searchDocuments) {
+    public Stream<SearchHit<Document>> search(SearchDocuments searchDocuments, int fetchSize) {
         SearchQuery query = searchDocuments.getQuery();
         Stream<Document> documentStream = documents.stream().filter(query::matches);
         documentStream = documentStream.sorted(Document.createComparator(searchDocuments));

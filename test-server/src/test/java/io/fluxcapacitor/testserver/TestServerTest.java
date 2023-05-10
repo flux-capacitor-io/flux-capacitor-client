@@ -17,7 +17,6 @@ package io.fluxcapacitor.testserver;
 import io.fluxcapacitor.javaclient.FluxCapacitor;
 import io.fluxcapacitor.javaclient.configuration.client.WebSocketClient;
 import io.fluxcapacitor.javaclient.persisting.search.DocumentStore;
-import io.fluxcapacitor.javaclient.persisting.search.client.WebSocketSearchClient;
 import io.fluxcapacitor.javaclient.scheduling.Schedule;
 import io.fluxcapacitor.javaclient.test.TestFixture;
 import io.fluxcapacitor.javaclient.test.spring.FluxCapacitorTestConfig;
@@ -68,18 +67,12 @@ class TestServerTest {
 
     @Test
     void testFetchLotsOfDocuments() {
-        int fetchSize = WebSocketSearchClient.maxFetchSize;
-        try {
-            WebSocketSearchClient.maxFetchSize = 2;
-            DocumentStore documentStore = testFixture.getFluxCapacitor().documentStore();
-            documentStore.index("bla1", "test");
-            documentStore.index("bla2", "test");
-            documentStore.index("bla3", "test");
-            List<Object> results = documentStore.search("test").lookAhead("bla").fetchAll();
-            assertEquals(3, results.size());
-        } finally {
-            WebSocketSearchClient.maxFetchSize = fetchSize;
-        }
+        DocumentStore documentStore = testFixture.getFluxCapacitor().documentStore();
+        documentStore.index("bla1", "test");
+        documentStore.index("bla2", "test");
+        documentStore.index("bla3", "test");
+        List<Object> results = documentStore.search("test").lookAhead("bla").stream(2).toList();
+        assertEquals(3, results.size());
     }
 
     @Test

@@ -36,7 +36,7 @@ public interface SearchClient extends AutoCloseable {
 
     Awaitable index(List<Document> documents, Guarantee guarantee, boolean ifNotExists);
 
-    Stream<SearchHit<Document>> search(SearchDocuments searchDocuments);
+    Stream<SearchHit<Document>> search(SearchDocuments searchDocuments, int fetchSize);
 
     Optional<Document> fetch(GetDocument request);
 

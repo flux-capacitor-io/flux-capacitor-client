@@ -202,7 +202,10 @@ public class DefaultDocumentStore implements DocumentStore {
     }
 
     @RequiredArgsConstructor
-    private class DefaultSearch implements Search {
+    protected class DefaultSearch implements Search {
+
+        public static int defaultFetchSize = 10_000;
+
         private final SearchQuery.Builder queryBuilder;
         private final List<String> sorting = new ArrayList<>();
         private final List<String> pathFilters = new ArrayList<>();
@@ -283,8 +286,18 @@ public class DefaultDocumentStore implements DocumentStore {
         }
 
         @Override
+        public <T> Stream<SearchHit<T>> streamHits(int fetchSize) {
+            return fetchHitStream(null, null, fetchSize);
+        }
+
+        @Override
         public <T> Stream<SearchHit<T>> streamHits(Class<T> type) {
             return fetchHitStream(null, type);
+        }
+
+        @Override
+        public <T> Stream<SearchHit<T>> streamHits(Class<T> type, int fetchSize) {
+            return fetchHitStream(null, type, fetchSize);
         }
 
         @Override
@@ -298,10 +311,15 @@ public class DefaultDocumentStore implements DocumentStore {
         }
 
         protected <T> Stream<SearchHit<T>> fetchHitStream(Integer maxSize, Class<T> type) {
+            return fetchHitStream(maxSize, type, maxSize == null
+                    ? defaultFetchSize : Math.min(maxSize, defaultFetchSize));
+        }
+
+        protected <T> Stream<SearchHit<T>> fetchHitStream(Integer maxSize, Class<T> type, int fetchSize) {
             Function<Document, T> convertFunction = type == null
                     ? serializer::fromDocument : document -> serializer.fromDocument(document, type);
             return client.search(SearchDocuments.builder().query(queryBuilder.build()).maxSize(maxSize).sorting(sorting)
-                                         .pathFilters(pathFilters).skip(skip).build())
+                                         .pathFilters(pathFilters).skip(skip).build(), fetchSize)
                     .map(hit -> hit.map(convertFunction));
         }
 
