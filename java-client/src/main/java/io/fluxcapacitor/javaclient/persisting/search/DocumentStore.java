@@ -18,6 +18,7 @@ import io.fluxcapacitor.common.Guarantee;
 import io.fluxcapacitor.common.api.search.BulkUpdate;
 import io.fluxcapacitor.common.api.search.SearchQuery;
 import io.fluxcapacitor.javaclient.modeling.EntityId;
+import lombok.NonNull;
 import lombok.SneakyThrows;
 
 import java.time.Duration;
@@ -28,6 +29,7 @@ import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Function;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import static io.fluxcapacitor.common.reflection.ReflectionUtils.getAnnotatedPropertyValue;
 import static io.fluxcapacitor.javaclient.FluxCapacitor.currentIdentityProvider;
@@ -160,9 +162,10 @@ public interface DocumentStore {
         bulkUpdate(updates, Guarantee.STORED).get();
     }
 
-    default Search search(Object... collections) {
-        return search(SearchQuery.builder().collections(Arrays.stream(collections).map(Object::toString).collect(
-                Collectors.toList())));
+    default Search search(@NonNull Object collection, Object... additionalCollections) {
+        return search(SearchQuery.builder().collections(
+                Stream.concat(Stream.of(collection), Arrays.stream(additionalCollections)).map(Object::toString)
+                        .collect(Collectors.toList())));
     }
 
     Search search(SearchQuery.Builder queryBuilder);

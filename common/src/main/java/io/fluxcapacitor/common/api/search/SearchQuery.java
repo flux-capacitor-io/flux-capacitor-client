@@ -14,24 +14,26 @@
 
 package io.fluxcapacitor.common.api.search;
 
+import com.fasterxml.jackson.annotation.JsonAlias;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import io.fluxcapacitor.common.api.search.constraints.AllConstraint;
 import io.fluxcapacitor.common.search.Document;
-import lombok.Builder;
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
 import lombok.Singular;
 import lombok.ToString;
 import lombok.Value;
 import lombok.experimental.Accessors;
+import lombok.extern.jackson.Jacksonized;
 
 import java.time.Instant;
 import java.util.List;
 import java.util.stream.Collectors;
 
 @Value
-@Builder(toBuilder = true, builderClassName = "Builder")
+@lombok.Builder(toBuilder = true, builderClassName = "Builder")
 public class SearchQuery {
+    @JsonAlias("collections")
     @JsonProperty("collection")
     @Singular List<String> collections;
     Instant since, before;
@@ -43,6 +45,20 @@ public class SearchQuery {
     @Getter(lazy = true) @Accessors(fluent = true)
     Constraint decomposeConstraints = AllConstraint.all(getConstraints().stream().map(Constraint::decompose).collect(
             Collectors.toList()));
+
+    @lombok.Builder(toBuilder = true, builderClassName = "Builder")
+    @Jacksonized
+    public SearchQuery(List<String> collections, Instant since, Instant before, boolean requireTimestamp,
+                       List<Constraint> constraints) {
+        if (collections.isEmpty()) {
+            throw new IllegalArgumentException("Collections should not be empty");
+        }
+        this.collections = collections;
+        this.since = since;
+        this.before = before;
+        this.requireTimestamp = requireTimestamp;
+        this.constraints = constraints;
+    }
 
     @SuppressWarnings("RedundantIfStatement")
     public boolean matches(Document d) {
@@ -58,7 +74,7 @@ public class SearchQuery {
         if (before != null && d.getTimestamp() != null && d.getTimestamp().compareTo(before) >= 0) {
             return false;
         }
-        if (!collections.isEmpty() && !collections.contains(d.getCollection())) {
+        if (!collections.contains(d.getCollection())) {
             return false;
         }
         return true;

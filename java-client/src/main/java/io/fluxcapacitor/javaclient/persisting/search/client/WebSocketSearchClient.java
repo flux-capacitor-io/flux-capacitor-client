@@ -55,7 +55,6 @@ import static java.util.stream.Collectors.toList;
 
 @ClientEndpoint
 public class WebSocketSearchClient extends AbstractWebsocketClient implements SearchClient {
-    public static int maxFetchSize = 10_000;
 
     public WebSocketSearchClient(String endPointUrl, WebSocketClient.ClientConfig clientConfig) {
         this(URI.create(endPointUrl), clientConfig);
@@ -82,17 +81,17 @@ public class WebSocketSearchClient extends AbstractWebsocketClient implements Se
     }
 
     @Override
-    public Stream<SearchHit<Document>> search(SearchDocuments searchDocuments) {
+    public Stream<SearchHit<Document>> search(SearchDocuments searchDocuments, int fetchSize) {
         AtomicInteger count = new AtomicInteger();
         Integer maxSize = searchDocuments.getMaxSize();
-        int fetchSize = maxSize == null ? maxFetchSize : Math.min(maxSize, maxFetchSize);
-        SearchDocuments request = searchDocuments.toBuilder().maxSize(fetchSize).build();
+        int maxFetchSize = maxSize == null ? fetchSize : Math.min(maxSize, fetchSize);
+        SearchDocuments request = searchDocuments.toBuilder().maxSize(maxFetchSize).build();
         Stream<SerializedDocument> documentStream = ObjectUtils.<SearchDocumentsResult>iterate(
                         sendAndWait(request),
                         result -> sendAndWait(request.toBuilder().maxSize(
-                                        maxSize == null ? fetchSize : Math.min(maxSize - count.get(), fetchSize))
+                                        maxSize == null ? maxFetchSize : Math.min(maxSize - count.get(), maxFetchSize))
                                                       .lastHit(result.lastMatch()).build()),
-                        result -> result.size() < fetchSize
+                        result -> result.size() < maxFetchSize
                                 || (maxSize != null && count.addAndGet(result.size()) >= maxSize))
                 .flatMap(r -> r.getMatches().stream());
         if (maxSize != null) {

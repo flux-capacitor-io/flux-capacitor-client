@@ -162,14 +162,6 @@ public interface Search {
         return this.stream(type).collect(toList());
     }
 
-    default <T> Stream<T> stream() {
-        return this.<T>streamHits().map(SearchHit::getValue);
-    }
-
-    default <T> Stream<T> stream(Class<T> type) {
-        return this.streamHits(type).map(SearchHit::getValue);
-    }
-
     default <T> Optional<T> fetchFirst() {
         return this.<T>fetch(1).stream().findFirst();
     }
@@ -178,9 +170,29 @@ public interface Search {
         return this.fetch(1, type).stream().findFirst();
     }
 
+    default <T> Stream<T> stream() {
+        return this.<T>streamHits().map(SearchHit::getValue);
+    }
+
+    default <T> Stream<T> stream(int fetchSize) {
+        return this.<T>streamHits(fetchSize).map(SearchHit::getValue);
+    }
+
+    default <T> Stream<T> stream(Class<T> type) {
+        return this.streamHits(type).map(SearchHit::getValue);
+    }
+
+    default <T> Stream<T> stream(Class<T> type, int fetchSize) {
+        return this.streamHits(type, fetchSize).map(SearchHit::getValue);
+    }
+
     <T> Stream<SearchHit<T>> streamHits();
 
+    <T> Stream<SearchHit<T>> streamHits(int fetchSize);
+
     <T> Stream<SearchHit<T>> streamHits(Class<T> type);
+
+    <T> Stream<SearchHit<T>> streamHits(Class<T> type, int fetchSize);
 
     SearchHistogram fetchHistogram(int resolution, int maxSize);
 

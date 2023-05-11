@@ -118,7 +118,7 @@ public class SearchEndpoint extends WebsocketEndpoint {
     @Handle
     public SearchDocumentsResult handle(SearchDocuments request) {
         try {
-            Stream<SearchHit<Document>> result = store.search(request);
+            Stream<SearchHit<Document>> result = store.search(request, -1);
             return new SearchDocumentsResult(request.getRequestId(),
                                              result.map(d -> new SerializedDocument(d.getValue())).collect(toList()));
         } catch (Exception e) {
