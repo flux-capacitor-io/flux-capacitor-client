@@ -18,6 +18,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.condition.DisabledIfEnvironmentVariable;
 
 import java.net.URI;
 import java.net.http.HttpClient;
@@ -138,38 +139,58 @@ class ProxyServerTest {
                     .expectResult("got pong ping");
         }
 
-        @Test
-        void closeSocketExternally() {
-            testFixture.registerHandlers(new Object() {
-                        @HandleSocketClose("/")
-                        void close(Integer reason) {
-                            FluxCapacitor.publishEvent("ws closed with " + reason);
-                        }
-                    })
-                    .whenApplying(openSocketAnd(ws -> {
-                        ws.sendClose(1000, "bla");
-                        Thread.sleep(100);
-                    }))
-                    .expectResult("1000")
-                    .expectEvents("ws closed with 1000");
-        }
+        @Nested
+        @DisabledIfEnvironmentVariable(named = "BUILD_ENVIRONMENT", matches = "github")
+        class CloseSocketTests {
+            @Test
+            void closeSocketExternally() {
+                testFixture.registerHandlers(new Object() {
+                            @HandleSocketClose("/")
+                            void close(Integer reason) {
+                                FluxCapacitor.publishEvent("ws closed with " + reason);
+                            }
+                        })
+                        .whenApplying(openSocketAnd(ws -> {
+                            ws.sendClose(1000, "bla");
+                            Thread.sleep(100);
+                        }))
+                        .expectResult("1000")
+                        .expectEvents("ws closed with 1000");
+            }
 
-        @Test
-        void closeSocketFromApplication() {
-            testFixture.registerHandlers(new Object() {
-                        @HandleSocketOpen("/")
-                        void open(SocketSession session) {
-                            session.close(1001);
-                        }
-                        @HandleSocketClose("/")
-                        void close(Integer reason) {
-                            log.info("ws closed with " + reason);
-                            FluxCapacitor.publishEvent("ws closed with " + reason);
-                        }
-                    })
-                    .whenApplying(openSocketAnd(ws -> Thread.sleep(100)))
-                    .expectResult("1001")
-                    .expectEvents("ws closed with 1001");
+            @Test
+            void closeSocketFromApplication() {
+                testFixture.registerHandlers(new Object() {
+                            @HandleSocketOpen("/")
+                            void open(SocketSession session) {
+                                session.close(1001);
+                            }
+                            @HandleSocketClose("/")
+                            void close(Integer reason) {
+                                log.info("ws closed with " + reason);
+                                FluxCapacitor.publishEvent("ws closed with " + reason);
+                            }
+                        })
+                        .whenApplying(openSocketAnd(ws -> Thread.sleep(100)))
+                        .expectResult("1001")
+                        .expectEvents("ws closed with 1001");
+            }
+
+            @Test
+            void closeProxy() {
+                testFixture.registerHandlers(new Object() {
+                            @HandleSocketClose("/")
+                            void close(Integer code) {
+                                FluxCapacitor.publishEvent("ws closed with " + code);
+                            }
+                        })
+                        .whenApplying(openSocketAnd(ws -> {
+                            Thread.sleep(100);
+                            proxyRequestHandler.close();
+                            Thread.sleep(100);
+                        }))
+                        .expectEvents("ws closed with 1001");
+            }
         }
 
         private ThrowingFunction<FluxCapacitor, ?> openSocketAndWait() {

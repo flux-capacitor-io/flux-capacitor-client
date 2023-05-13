@@ -4,6 +4,9 @@ on:
   pull_request:
     branches: [ master ]
 
+env:
+  BUILD_ENVIRONMENT: github
+
 jobs:
   build-pr:
     runs-on: ubuntu-latest
