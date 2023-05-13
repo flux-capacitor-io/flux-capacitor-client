@@ -78,7 +78,7 @@ class ProxyServerTest {
         }
 
         private URI baseUri() {
-            return URI.create(format("http://localhost:%s/", proxyPort));
+            return URI.create(format("http://127.0.0.1:%s/", proxyPort));
         }
     }
 
@@ -218,7 +218,7 @@ class ProxyServerTest {
         }
 
         private URI baseUri() {
-            return URI.create(format("ws://localhost:%s/", proxyPort));
+            return URI.create(format("ws://127.0.0.1:%s/", proxyPort));
         }
     }
 }
