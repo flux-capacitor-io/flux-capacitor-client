@@ -30,7 +30,6 @@ import java.util.concurrent.CompletionStage;
 import static java.lang.String.format;
 
 @Slf4j
-//@DisabledIfEnvironmentVariable(named = "BUILD_ENVIRONMENT", matches = "github")
 class ProxyServerTest {
 
     private final TestFixture testFixture = TestFixture.createAsync();
@@ -219,7 +218,7 @@ class ProxyServerTest {
         }
 
         private URI baseUri() {
-            return URI.create(format("ws://127.0.0.1:%s/", proxyPort));
+            return URI.create(format("ws://localhost:%s/", proxyPort));
         }
     }
 }
