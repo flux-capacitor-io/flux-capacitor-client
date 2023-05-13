@@ -1,6 +1,7 @@
 package io.fluxcapacitor.proxy;
 
 import io.fluxcapacitor.common.Registration;
+import io.fluxcapacitor.common.TestUtils;
 import io.fluxcapacitor.common.ThrowingConsumer;
 import io.fluxcapacitor.common.ThrowingFunction;
 import io.fluxcapacitor.javaclient.FluxCapacitor;
@@ -31,10 +32,11 @@ import java.util.concurrent.CompletionStage;
 import static java.lang.String.format;
 
 @Slf4j
+@DisabledIfEnvironmentVariable(named = "BUILD_ENVIRONMENT", matches = "github")
 class ProxyServerTest {
 
     private final TestFixture testFixture = TestFixture.createAsync();
-    private final int proxyPort = 8080;
+    private final int proxyPort = TestUtils.getAvailablePort();
     private final ProxyRequestHandler proxyRequestHandler =
             new ProxyRequestHandler(testFixture.getFluxCapacitor().client());
     private final Registration proxyServer = ProxyServer.start(proxyPort, proxyRequestHandler);
@@ -84,7 +86,6 @@ class ProxyServerTest {
     }
 
     @Nested
-    @DisabledIfEnvironmentVariable(named = "BUILD_ENVIRONMENT", matches = "github")
     class Websocket {
         @Test
         void openSocket() {
