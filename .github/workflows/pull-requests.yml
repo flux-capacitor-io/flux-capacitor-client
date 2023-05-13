@@ -10,6 +10,8 @@ env:
 jobs:
   build-pr:
     runs-on: ubuntu-latest
+    ports:
+      - 8080:8080
     steps:
       - name: Check out Git repository
         uses: actions/checkout@v2
