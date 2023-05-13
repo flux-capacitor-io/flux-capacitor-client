@@ -21,13 +21,12 @@ public class ProxyServer {
         Client client = Optional.ofNullable(System.getenv("FLUX_URL")).<Client>map(url -> WebSocketClient.newInstance(
                 WebSocketClient.ClientConfig.builder().name("$proxy").serviceBaseUrl(url).build()))
                 .orElseThrow(() -> new IllegalStateException("FLUX_URL environment variable is not set"));
-        start(port, client);
+        start(port, new ProxyRequestHandler(client));
         log.info("Flux Capacitor proxy server running on port {}", port);
     }
 
-    public static Registration start(int port, Client client) {
+    static Registration start(int port, ProxyRequestHandler proxyHandler) {
         Thread.setDefaultUncaughtExceptionHandler((t, e) -> log.error("Uncaught error", e));
-        ProxyRequestHandler proxyHandler = new ProxyRequestHandler(client);
         Undertow server = Undertow.builder().addHttpListener(port, "0.0.0.0").setHandler(
                 addShutdownHandler(path().addPrefixPath("/", proxyHandler), proxyHandler::close)).build();
         server.start();

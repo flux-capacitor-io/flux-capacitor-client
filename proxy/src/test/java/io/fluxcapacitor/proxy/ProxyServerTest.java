@@ -35,7 +35,9 @@ class ProxyServerTest {
 
     private final TestFixture testFixture = TestFixture.createAsync();
     private final int proxyPort = TestUtils.getAvailablePort();
-    private final Registration proxyServer = ProxyServer.start(proxyPort, testFixture.getFluxCapacitor().client());
+    private final ProxyRequestHandler proxyRequestHandler =
+            new ProxyRequestHandler(testFixture.getFluxCapacitor().client());
+    private final Registration proxyServer = ProxyServer.start(proxyPort, proxyRequestHandler);
 
     private final HttpClient httpClient = HttpClient.newBuilder().build();
 
@@ -174,16 +176,16 @@ class ProxyServerTest {
         void closeProxy() {
             testFixture.registerHandlers(new Object() {
                         @HandleSocketClose("/")
-                        void close() {
-                            FluxCapacitor.publishEvent("ws closed");
+                        void close(Integer code) {
+                            FluxCapacitor.publishEvent("ws closed with " + code);
                         }
                     })
                     .whenApplying(openSocketAnd(ws -> {
                         Thread.sleep(100);
-                        ProxyServerTest.this.proxyServer.cancel();
+                        proxyRequestHandler.close();
                         Thread.sleep(100);
                     }))
-                    .expectEvents("ws closed");
+                    .expectEvents("ws closed with 1012");
         }
 
         private ThrowingFunction<FluxCapacitor, ?> openSocketAndWait() {

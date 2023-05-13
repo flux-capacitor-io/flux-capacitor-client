@@ -202,7 +202,7 @@ public class WebsocketEndpoint extends Endpoint {
             openSessions.values().removeIf(s -> {
                 try {
                     if (s.isOpen()) {
-                        s.close(new CloseReason(CloseReason.CloseCodes.GOING_AWAY, null));
+                        s.close(new CloseReason(CloseReason.CloseCodes.SERVICE_RESTART, null));
                     }
                 } catch (Throwable e) {
                     log.warn("Failed to close session when leaving: {}", s.getId(), e);
