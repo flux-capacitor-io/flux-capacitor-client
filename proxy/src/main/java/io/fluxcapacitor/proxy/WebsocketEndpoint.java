@@ -46,6 +46,7 @@ import static io.fluxcapacitor.common.ObjectUtils.getBytes;
 import static io.fluxcapacitor.javaclient.tracking.client.DefaultTracker.start;
 import static jakarta.websocket.CloseReason.CloseCodes.getCloseCode;
 import static java.lang.String.format;
+import static java.nio.charset.StandardCharsets.UTF_8;
 
 @Slf4j
 @AllArgsConstructor
@@ -69,7 +70,8 @@ public class WebsocketEndpoint extends Endpoint {
         ensureStarted();
         openSessions.put(session.getId(), session);
         session.addMessageHandler(byte[].class, bytes -> sendRequest(session, HttpRequestMethod.WS_MESSAGE, bytes));
-        session.addMessageHandler(String.class, s -> sendRequest(session, HttpRequestMethod.WS_MESSAGE, s.getBytes()));
+        session.addMessageHandler(String.class, s -> sendRequest(session, HttpRequestMethod.WS_MESSAGE,
+                                                                 s.getBytes(UTF_8)));
         session.addMessageHandler(PongMessage.class, pong -> sendRequest(session, HttpRequestMethod.WS_PONG,
                                                                          getBytes(pong.getApplicationData())));
         sendRequest(session, HttpRequestMethod.WS_OPEN, null);
@@ -79,7 +81,7 @@ public class WebsocketEndpoint extends Endpoint {
     public void onClose(Session session, CloseReason closeReason) {
         openSessions.remove(session.getId());
         sendRequest(session, HttpRequestMethod.WS_CLOSE,
-                    String.valueOf(closeReason.getCloseCode().getCode()).getBytes());
+                    String.valueOf(closeReason.getCloseCode().getCode()).getBytes(UTF_8));
     }
 
     @Override
@@ -125,7 +127,7 @@ public class WebsocketEndpoint extends Endpoint {
             }
         } else {
             try (Writer writer = session.getBasicRemote().getSendWriter()) {
-                writer.write(new String(m.getData().getValue()));
+                writer.write(new String(m.getData().getValue(), UTF_8));
             }
         }
     }
@@ -137,7 +139,7 @@ public class WebsocketEndpoint extends Endpoint {
 
     @SneakyThrows
     private void sendClose(SerializedMessage m, Session session) {
-        session.close(new CloseReason(getCloseCode(Integer.parseInt(new String(m.getData().getValue()))), null));
+        session.close(new CloseReason(getCloseCode(Integer.parseInt(new String(m.getData().getValue(), UTF_8))), null));
     }
 
     protected void handleDisconnects(List<SerializedMessage> resultMessages) {
@@ -202,7 +204,7 @@ public class WebsocketEndpoint extends Endpoint {
             openSessions.values().removeIf(s -> {
                 try {
                     if (s.isOpen()) {
-                        s.close(new CloseReason(CloseReason.CloseCodes.SERVICE_RESTART, null));
+                        s.close(new CloseReason(CloseReason.CloseCodes.SERVICE_RESTART, "Redeployment"));
                     }
                 } catch (Throwable e) {
                     log.warn("Failed to close session when leaving: {}", s.getId(), e);

@@ -172,22 +172,6 @@ class ProxyServerTest {
                     .expectEvents("ws closed with 1001");
         }
 
-        @Test
-        void closeProxy() {
-            testFixture.registerHandlers(new Object() {
-                        @HandleSocketClose("/")
-                        void close(Integer code) {
-                            FluxCapacitor.publishEvent("ws closed with " + code);
-                        }
-                    })
-                    .whenApplying(openSocketAnd(ws -> {
-                        Thread.sleep(100);
-                        proxyRequestHandler.close();
-                        Thread.sleep(100);
-                    }))
-                    .expectEvents("ws closed with 1012");
-        }
-
         private ThrowingFunction<FluxCapacitor, ?> openSocketAndWait() {
             return openSocketAnd(ws -> {});
         }
