@@ -80,7 +80,7 @@ class ProxyServerTest {
         }
 
         private URI baseUri() {
-            return URI.create(format("http://localhost:%s/", proxyPort));
+            return URI.create(format("http://app:%s/", proxyPort));
         }
     }
 
