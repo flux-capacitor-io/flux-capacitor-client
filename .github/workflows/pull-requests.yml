@@ -27,5 +27,8 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-maven-
 
+      - name: Check open ports
+        run: netstat -lt
+
       - name: Run Maven build
         run: mvn -B install
