@@ -35,8 +35,9 @@ public class WebsocketResponseInterceptor implements DispatchInterceptor {
                             "clientId", FluxCapacitor.getOptionally().map(fc -> fc.client().id()).orElse(null),
                             "trackerId", Tracker.current().map(Tracker::getTrackerId).orElse(null));
                 } else {
-                    message = message.addMetadata("sessionId", currentMessage.getMetadata().get("sessionId"),
-                                                  "function", "message");
+                    return message.withMetadata(
+                            message.getMetadata().with("sessionId", currentMessage.getMetadata().get("sessionId"))
+                                                                  .addIfAbsent("function", "message"));
                 }
             }
         }

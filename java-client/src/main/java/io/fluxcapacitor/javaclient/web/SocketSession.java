@@ -24,6 +24,10 @@ public interface SocketSession {
         close(Guarantee.NONE);
     }
 
+    default void close(int closeReason) {
+        close(closeReason, Guarantee.NONE);
+    }
+
     default CompletableFuture<Void> close(Guarantee guarantee) {
         return close(1000, guarantee);
     }

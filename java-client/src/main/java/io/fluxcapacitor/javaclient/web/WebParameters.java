@@ -11,6 +11,6 @@ public class WebParameters {
     HttpRequestMethod method;
 
     public String getPath() {
-        return value.startsWith("/") ? value : "/" + value;
+        return value == null ? "/" : value.startsWith("/") ? value : "/" + value;
     }
 }

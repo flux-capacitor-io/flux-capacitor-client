@@ -196,8 +196,9 @@ public class WebRequest extends Message {
             url(request.getPath());
             payload(request.getPayload());
             request.getHeaders().forEach((k, v) -> headers.put(k, new ArrayList<>(v)));
-            cookies.addAll(WebUtils.parseRequestCookieHeader(headers.remove("Cookie")
-                                                                     .stream().findFirst().orElse(null)));
+            cookies.addAll(WebUtils.parseRequestCookieHeader(
+                    Optional.ofNullable(headers.remove("Cookie")).orElseGet(List::of)
+                            .stream().findFirst().orElse(null)));
         }
 
         public Builder header(String key, String value) {
@@ -231,7 +232,8 @@ public class WebRequest extends Message {
             var result = headers;
             if (!cookies.isEmpty()) {
                 result = new HashMap<>(headers);
-                result.put("Cookie", List.of(cookies.stream().map(HttpCookie::toString).collect(Collectors.joining("; "))));
+                result.put("Cookie",
+                           List.of(cookies.stream().map(HttpCookie::toString).collect(Collectors.joining("; "))));
             }
             return result;
         }

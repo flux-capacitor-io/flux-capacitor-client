@@ -14,6 +14,8 @@
 
 package io.fluxcapacitor.javaclient.test;
 
+import io.fluxcapacitor.common.ThrowingConsumer;
+import io.fluxcapacitor.common.ThrowingFunction;
 import io.fluxcapacitor.common.api.Data;
 import io.fluxcapacitor.common.api.search.Constraint;
 import io.fluxcapacitor.javaclient.FluxCapacitor;
@@ -25,8 +27,6 @@ import io.fluxcapacitor.javaclient.web.WebRequest;
 
 import java.time.Duration;
 import java.time.Instant;
-import java.util.function.Consumer;
-import java.util.function.Function;
 import java.util.function.UnaryOperator;
 
 /**
@@ -138,7 +138,7 @@ public interface When {
     /**
      * Test expected (side) effect of the given action.
      */
-    default Then whenExecuting(Consumer<FluxCapacitor> action) {
+    default Then whenExecuting(ThrowingConsumer<FluxCapacitor> action) {
         return whenApplying(fc -> {
             action.accept(fc);
             return null;
@@ -148,5 +148,5 @@ public interface When {
     /**
      * Test expected result and/or (side) effects of the given action.
      */
-    Then whenApplying(Function<FluxCapacitor, ?> action);
+    Then whenApplying(ThrowingFunction<FluxCapacitor, ?> action);
 }
