@@ -29,15 +29,3 @@ jobs:
 
       - name: Run Maven build
         run: mvn -B install
-
-      - name: Build test server docker
-        run: |
-          cd test-server
-          docker build .
-          cd ..
-
-      - name: Build proxy docker
-        run: |
-          cd proxy
-          docker build .
-          cd ..
