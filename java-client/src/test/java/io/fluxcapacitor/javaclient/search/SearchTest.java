@@ -414,9 +414,12 @@ public class SearchTest {
     class SortingTests {
 
         private final Instant now = Instant.now();
+
+        private final SomeDocument a = new SomeDocument().toBuilder().symbols("aaa").build();
+        private final SomeDocument b = new SomeDocument();
         private final Given testFixture = TestFixture.create().atFixedTime(now)
-                .givenDocument(new SomeDocument(), "id1", "test", now)
-                .givenDocument(new SomeDocument(), "id2", "test", now.plusSeconds(1));
+                .givenDocument(a, "id1", "test", now)
+                .givenDocument(b, "id2", "test", now.plusSeconds(1));
 
         @Test
         void sortTimeDescending() {
@@ -435,6 +438,27 @@ public class SearchTest {
                     .<List<?>>expectResult(results -> results.size() == 2)
                     .<List<SearchHit<?>>>expectResult(results -> "id1".equals(results.get(0).getId())
                                                                  && "id2".equals(results.get(1).getId()));
+        }
+
+        @Test
+        void sortOnField() {
+            testFixture.whenApplying(
+                            fc -> fc.documentStore().search("test").sortBy("symbols").fetchAll())
+                    .expectResult(List.of(a, b));
+        }
+
+        @Test
+        void sortOnFieldDesc() {
+            testFixture.whenApplying(
+                            fc -> fc.documentStore().search("test").sortBy("symbols", true).fetchAll())
+                    .expectResult(List.of(b, a));
+        }
+
+        @Test
+        void sortOnMissingFieldHasNoEffect() {
+            testFixture.whenApplying(
+                            fc -> fc.documentStore().search("test").sortBy("missing", true).fetchAll())
+                    .expectResult(List.of(a, b));
         }
     }
 

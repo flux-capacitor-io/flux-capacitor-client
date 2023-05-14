@@ -110,7 +110,7 @@ public class Document {
                                 Stream<Entry> matchingEntries = d.getMatchingEntries(pathPredicate);
                                 return (reversed ? matchingEntries.max(naturalOrder()) :
                                         matchingEntries.min(naturalOrder())).orElse(null);
-                            }));
+                            }, Comparator.nullsLast(naturalOrder())));
                     return reversed ? valueComparator.reversed() : valueComparator;
             }
         }).reduce(Comparator::thenComparing)
@@ -134,7 +134,7 @@ public class Document {
             if (type == NUMERIC && type == o.getType()) {
                 return asNumber().compareTo(o.asNumber());
             }
-            return getValue().compareTo(o.getValue());
+            return getValue().compareToIgnoreCase(o.getValue());
         }
     }
 
