@@ -11,25 +11,25 @@ import lombok.extern.slf4j.Slf4j;
 
 import java.util.Optional;
 
-import static io.undertow.Handlers.path;
 import static java.lang.Runtime.getRuntime;
 
 @Slf4j
 public class ProxyServer {
     public static void main(final String[] args) {
+        Thread.setDefaultUncaughtExceptionHandler((t, e) -> log.error("Uncaught error", e));
         int port = Integer.parseInt(Optional.ofNullable(System.getenv("PROXY_PORT")).orElse("80"));
         Client client = Optional.ofNullable(System.getenv("FLUX_URL")).<Client>map(url -> WebSocketClient.newInstance(
                 WebSocketClient.ClientConfig.builder().name("$proxy").serviceBaseUrl(url).build()))
                 .orElseThrow(() -> new IllegalStateException("FLUX_URL environment variable is not set"));
         start(port, new ProxyRequestHandler(client));
-        log.info("Flux Capacitor proxy server running on port {}", port);
     }
 
     static Registration start(int port, ProxyRequestHandler proxyHandler) {
-        Thread.setDefaultUncaughtExceptionHandler((t, e) -> log.error("Uncaught error", e));
-        Undertow server = Undertow.builder().addHttpListener(port, "0.0.0.0").setHandler(
-                addShutdownHandler(path().addPrefixPath("/", proxyHandler), proxyHandler::close)).build();
+        Undertow server = Undertow.builder().addHttpListener(port, "0.0.0.0")
+//                .setHandler(addShutdownHandler(path().addPrefixPath("/", proxyHandler), proxyHandler::close))
+                .build();
         server.start();
+        log.info("Flux Capacitor proxy server running on port {}", port);
         return server::stop;
     }
 

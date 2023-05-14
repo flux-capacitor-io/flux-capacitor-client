@@ -1,6 +1,7 @@
 package io.fluxcapacitor.proxy;
 
 import io.fluxcapacitor.common.Registration;
+import io.fluxcapacitor.common.TestUtils;
 import io.fluxcapacitor.common.ThrowingConsumer;
 import io.fluxcapacitor.common.ThrowingFunction;
 import io.fluxcapacitor.javaclient.FluxCapacitor;
@@ -25,7 +26,6 @@ import java.net.http.HttpResponse.BodyHandlers;
 import java.net.http.WebSocket;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
-import java.util.concurrent.atomic.AtomicInteger;
 
 import static java.lang.String.format;
 
@@ -33,10 +33,9 @@ import static java.lang.String.format;
 //@DisabledIfEnvironmentVariable(named = "BUILD_ENVIRONMENT", matches = "github")
 class ProxyServerTest {
 
-    private static final AtomicInteger nextPort = new AtomicInteger(9000);
 
     private final TestFixture testFixture = TestFixture.createAsync();
-    private final int proxyPort = nextPort.getAndIncrement();
+    private final int proxyPort = TestUtils.getAvailablePort();
     private final ProxyRequestHandler proxyRequestHandler =
             new ProxyRequestHandler(testFixture.getFluxCapacitor().client());
     private final Registration proxyServer = ProxyServer.start(proxyPort, proxyRequestHandler);
@@ -81,7 +80,7 @@ class ProxyServerTest {
         }
 
         private URI baseUri() {
-            return URI.create(format("http://localhost:%s/", proxyPort));
+            return URI.create(format("http://0.0.0.0:%s/", proxyPort));
         }
     }
 
@@ -222,7 +221,7 @@ class ProxyServerTest {
         }
 
         private URI baseUri() {
-            return URI.create(format("ws://localhost:%s/", proxyPort));
+            return URI.create(format("ws://0.0.0.0:%s/", proxyPort));
         }
     }
 }
