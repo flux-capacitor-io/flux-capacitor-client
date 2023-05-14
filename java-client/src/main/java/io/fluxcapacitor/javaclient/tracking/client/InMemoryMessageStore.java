@@ -118,7 +118,7 @@ public class InMemoryMessageStore implements GatewayClient, TrackingClient {
         }
         CompletableFuture<MessageBatch> result = new CompletableFuture<>();
         executor.execute(() -> {
-            synchronized (this) {
+            synchronized (InMemoryMessageStore.this) {
                 Map<Long, SerializedMessage> tailMap = Collections.emptyMap();
                 while (currentTimeMillis() < trackerRead.getDeadline()
                         && shouldWait(tailMap = messageLog
