@@ -11,6 +11,7 @@ import lombok.extern.slf4j.Slf4j;
 
 import java.util.Optional;
 
+import static io.undertow.Handlers.path;
 import static java.lang.Runtime.getRuntime;
 
 @Slf4j
@@ -26,11 +27,14 @@ public class ProxyServer {
 
     static Registration start(int port, ProxyRequestHandler proxyHandler) {
         Undertow server = Undertow.builder().addHttpListener(port, "0.0.0.0")
-//                .setHandler(addShutdownHandler(path().addPrefixPath("/", proxyHandler), proxyHandler::close))
+                .setHandler(path().addPrefixPath("/", proxyHandler))
                 .build();
         server.start();
         log.info("Flux Capacitor proxy server running on port {}", port);
-        return server::stop;
+        return () -> {
+            proxyHandler.close();
+            server.stop();
+        };
     }
 
     private static GracefulShutdownHandler addShutdownHandler(HttpHandler httpHandler, Runnable proxyShutdownHandler) {
