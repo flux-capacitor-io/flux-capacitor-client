@@ -7,6 +7,7 @@ import io.fluxcapacitor.common.ThrowingFunction;
 import io.fluxcapacitor.javaclient.FluxCapacitor;
 import io.fluxcapacitor.javaclient.test.TestFixture;
 import io.fluxcapacitor.javaclient.web.HandleGet;
+import io.fluxcapacitor.javaclient.web.HandlePost;
 import io.fluxcapacitor.javaclient.web.HandleSocketClose;
 import io.fluxcapacitor.javaclient.web.HandleSocketMessage;
 import io.fluxcapacitor.javaclient.web.HandleSocketOpen;
@@ -17,11 +18,11 @@ import lombok.extern.slf4j.Slf4j;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.condition.DisabledIfEnvironmentVariable;
 
 import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
+import java.net.http.HttpRequest.BodyPublishers;
 import java.net.http.HttpResponse.BodyHandlers;
 import java.net.http.WebSocket;
 import java.util.concurrent.CompletableFuture;
@@ -30,7 +31,6 @@ import java.util.concurrent.CompletionStage;
 import static java.lang.String.format;
 
 @Slf4j
-//@DisabledIfEnvironmentVariable(named = "BUILD_ENVIRONMENT", matches = "github")
 class ProxyServerTest {
 
 
@@ -62,18 +62,18 @@ class ProxyServerTest {
                     .expectResult("Hello World");
         }
 
-//        @Test
-//        void post() {
-//            testFixture.registerHandlers(new Object() {
-//                        @HandlePost("/")
-//                        String hello(String name) {
-//                            return "Hello " + name;
-//                        }
-//                    })
-//                    .whenApplying(fc -> httpClient.send(newRequest().POST(BodyPublishers.ofString("Flux")).build(),
-//                                                        BodyHandlers.ofString()).body())
-//                    .expectResult("Hello Flux");
-//        }
+        @Test
+        void post() {
+            testFixture.registerHandlers(new Object() {
+                        @HandlePost("/")
+                        String hello(String name) {
+                            return "Hello " + name;
+                        }
+                    })
+                    .whenApplying(fc -> httpClient.send(newRequest().POST(BodyPublishers.ofString("Flux")).build(),
+                                                        BodyHandlers.ofString()).body())
+                    .expectResult("Hello Flux");
+        }
 
         private HttpRequest.Builder newRequest() {
             return HttpRequest.newBuilder(baseUri());
@@ -85,7 +85,6 @@ class ProxyServerTest {
     }
 
     @Nested
-    @DisabledIfEnvironmentVariable(named = "BUILD_ENVIRONMENT", matches = "github")
     class Websocket {
         @Test
         void openSocket() {
