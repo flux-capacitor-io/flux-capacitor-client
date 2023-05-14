@@ -112,6 +112,7 @@ public class InMemoryMessageStore implements GatewayClient, TrackingClient {
         if (trackerRead.getMessageType() != MessageType.RESULT && !Objects.equals(
                 trackerRead.getTrackerId(), trackers.computeIfAbsent(
                         trackerRead.getConsumer(), c -> trackerRead).getTrackerId())) {
+            log.info("Delaying read of secondary tracker {} (message type {})", trackerRead.getConsumer(), messageType);
             return CompletableFuture.supplyAsync(
                     () -> new MessageBatch(new int[]{0, 0}, Collections.emptyList(), null),
                     CompletableFuture.delayedExecutor(trackerRead.getDeadline() - currentTimeMillis(), MILLISECONDS));
@@ -129,6 +130,7 @@ public class InMemoryMessageStore implements GatewayClient, TrackingClient {
                         try {
                             this.wait(duration);
                         } catch (InterruptedException e) {
+                            log.info("Interrupted read of primary tracker {} (message type {})", trackerRead.getConsumer(), messageType);
                             currentThread().interrupt();
                         }
                     }
