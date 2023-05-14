@@ -41,6 +41,7 @@ import org.xnio.Options;
 import org.xnio.Xnio;
 
 import java.nio.ByteBuffer;
+import java.time.Duration;
 import java.util.Arrays;
 import java.util.Optional;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -48,6 +49,7 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import static io.undertow.servlet.Servlets.deployment;
+import static java.lang.String.format;
 
 @Slf4j
 public class ProxyRequestHandler implements HttpHandler, AutoCloseable {
@@ -60,7 +62,8 @@ public class ProxyRequestHandler implements HttpHandler, AutoCloseable {
 
     public ProxyRequestHandler(Client client) {
         requestGateway = client.getGatewayClient(MessageType.WEBREQUEST);
-        requestHandler = new DefaultRequestHandler(client, MessageType.WEBRESPONSE);
+        requestHandler = new DefaultRequestHandler(client, MessageType.WEBRESPONSE, Duration.ofSeconds(200),
+                                                   format("%s_%s", client.name(), "$proxy-request-handler"));
         websocketEndpoint = new WebsocketEndpoint(client);
         websocketHandler = createWebsocketHandler();
     }
