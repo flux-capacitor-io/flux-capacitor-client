@@ -40,7 +40,7 @@ class ProxyServerTest {
             new ProxyRequestHandler(testFixture.getFluxCapacitor().client());
     private final Registration proxyServer = ProxyServer.start(proxyPort, proxyRequestHandler);
 
-    private final HttpClient httpClient = HttpClient.newBuilder().version(HttpClient.Version.HTTP_1_1).build();
+    private final HttpClient httpClient = HttpClient.newBuilder().build();
 
     @AfterEach
     void tearDown() {

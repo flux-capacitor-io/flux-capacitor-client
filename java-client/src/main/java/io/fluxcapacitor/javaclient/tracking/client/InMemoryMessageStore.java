@@ -71,16 +71,16 @@ public class InMemoryMessageStore implements GatewayClient, TrackingClient {
 
     @Override
     public Awaitable send(Guarantee guarantee, SerializedMessage... messages) {
-        Arrays.stream(messages).forEach(m -> {
-            if (m.getIndex() == null) {
-                m.setIndex(nextIndex.updateAndGet(IndexUtils::nextIndex));
-            }
-            messageLog.put(m.getIndex(), m);
-        });
-        if (messageExpiration != null) {
-            purgeExpiredMessages(messageExpiration);
-        }
         synchronized (this) {
+            Arrays.stream(messages).forEach(m -> {
+                if (m.getIndex() == null) {
+                    m.setIndex(nextIndex.updateAndGet(IndexUtils::nextIndex));
+                }
+                messageLog.put(m.getIndex(), m);
+            });
+            if (messageExpiration != null) {
+                purgeExpiredMessages(messageExpiration);
+            }
             this.notifyAll();
         }
         return Awaitable.ready();
