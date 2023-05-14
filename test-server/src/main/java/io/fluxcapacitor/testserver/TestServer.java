@@ -24,6 +24,9 @@ import io.fluxcapacitor.testserver.endpoints.KeyValueEndPoint;
 import io.fluxcapacitor.testserver.endpoints.ProducerEndpoint;
 import io.fluxcapacitor.testserver.endpoints.SchedulingEndpoint;
 import io.fluxcapacitor.testserver.endpoints.SearchEndpoint;
+import io.fluxcapacitor.testserver.endpoints.metrics.DefaultMetricsLog;
+import io.fluxcapacitor.testserver.endpoints.metrics.MetricsLog;
+import io.fluxcapacitor.testserver.endpoints.metrics.NoOpMetricsLog;
 import io.undertow.Undertow;
 import io.undertow.server.handlers.GracefulShutdownHandler;
 import io.undertow.server.handlers.PathHandler;
@@ -58,6 +61,8 @@ import static java.lang.String.format;
 @Slf4j
 public class TestServer {
     private static final Function<String, InMemoryClient> clients = memoize(projectId -> InMemoryClient.newInstance());
+    private static final Function<String, MetricsLog> metricsLogSupplier =
+            memoize(projectId -> new DefaultMetricsLog(getMessageStore(projectId, METRICS)));
 
     public static void main(final String[] args) {
         start(Integer.getInteger("port", 8080));
@@ -66,18 +71,26 @@ public class TestServer {
     public static void start(int port) {
         PathHandler pathHandler = path();
         for (MessageType messageType : Arrays.asList(METRICS, EVENT, COMMAND, QUERY, RESULT, ERROR, WEBREQUEST, WEBRESPONSE)) {
-            pathHandler = deploy(projectId -> new ProducerEndpoint(getMessageStore(projectId, messageType)),
+            pathHandler = deploy(projectId -> new ProducerEndpoint(getMessageStore(projectId, messageType))
+                                         .metricsLog(messageType == METRICS ? new NoOpMetricsLog() : metricsLogSupplier.apply(projectId)),
                                  format("/%s/", producerPath(messageType)), pathHandler);
-            pathHandler = deploy(projectId -> new ConsumerEndpoint(getMessageStore(projectId, messageType), messageType),
+            pathHandler = deploy(projectId -> new ConsumerEndpoint(getMessageStore(projectId, messageType), messageType)
+                                         .metricsLog(messageType == METRICS ? new NoOpMetricsLog() : metricsLogSupplier.apply(projectId)),
                                  format("/%s/", consumerPath(messageType)), pathHandler);
         }
-        pathHandler = deploy(projectId -> new ConsumerEndpoint(getMessageStore(projectId, NOTIFICATION), NOTIFICATION),
+        pathHandler = deploy(projectId -> new ConsumerEndpoint(getMessageStore(projectId, NOTIFICATION), NOTIFICATION)
+                                     .metricsLog(metricsLogSupplier.apply(projectId)),
                              format("/%s/", consumerPath(NOTIFICATION)), pathHandler);
-        pathHandler = deploy(projectId -> new EventSourcingEndpoint(clients.apply(projectId).getEventStoreClient()), format("/%s/", eventSourcingPath()), pathHandler);
-        pathHandler = deploy(projectId -> new KeyValueEndPoint(clients.apply(projectId).getKeyValueClient()), format("/%s/", keyValuePath()), pathHandler);
-        pathHandler = deploy(projectId -> new SearchEndpoint(clients.apply(projectId).getSearchClient()), format("/%s/", searchPath()), pathHandler);
-        pathHandler = deploy(projectId -> new SchedulingEndpoint(clients.apply(projectId).getSchedulingClient()), format("/%s/", schedulingPath()), pathHandler);
-        pathHandler = deploy(projectId -> new ConsumerEndpoint((InMemorySchedulingClient) clients.apply(projectId).getSchedulingClient(), SCHEDULE),
+        pathHandler = deploy(projectId -> new EventSourcingEndpoint(clients.apply(projectId).getEventStoreClient())
+                .metricsLog(metricsLogSupplier.apply(projectId)), format("/%s/", eventSourcingPath()), pathHandler);
+        pathHandler = deploy(projectId -> new KeyValueEndPoint(clients.apply(projectId).getKeyValueClient())
+                .metricsLog(metricsLogSupplier.apply(projectId)), format("/%s/", keyValuePath()), pathHandler);
+        pathHandler = deploy(projectId -> new SearchEndpoint(clients.apply(projectId).getSearchClient())
+                .metricsLog(metricsLogSupplier.apply(projectId)), format("/%s/", searchPath()), pathHandler);
+        pathHandler = deploy(projectId -> new SchedulingEndpoint(clients.apply(projectId).getSchedulingClient())
+                .metricsLog(metricsLogSupplier.apply(projectId)), format("/%s/", schedulingPath()), pathHandler);
+        pathHandler = deploy(projectId -> new ConsumerEndpoint((InMemorySchedulingClient) clients.apply(projectId).getSchedulingClient(), SCHEDULE)
+                                     .metricsLog(metricsLogSupplier.apply(projectId)),
                              format("/%s/", consumerPath(SCHEDULE)), pathHandler);
         pathHandler = pathHandler.addPrefixPath("/health", exchange -> {
             exchange.getResponseHeaders().put(CONTENT_TYPE, "text/plain");

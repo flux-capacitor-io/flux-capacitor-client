@@ -52,7 +52,7 @@ public class Metadata {
         return entries;
     }
 
-    public static Metadata of(@NonNull Object... keyValues) {
+    public static Metadata of(Object... keyValues) {
         return Metadata.empty().with(keyValues);
     }
 
@@ -94,7 +94,7 @@ public class Metadata {
         return new Metadata(map);
     }
 
-    public Metadata with(@NonNull Object... keyValues) {
+    public Metadata with(Object... keyValues) {
         if (keyValues.length % 2 == 1) {
             throw new IllegalArgumentException("Failed to create metadata for keys " + Arrays.toString(keyValues));
         }
@@ -116,7 +116,7 @@ public class Metadata {
     }
 
     @SneakyThrows
-    private static Map<String, String> with(Object key, Object value, Map<String, String> entries) {
+    private static Map<String, String> with(@NonNull Object key, Object value, Map<String, String> entries) {
         String keyString = key.toString();
         if (value == null) {
             entries.remove(keyString);

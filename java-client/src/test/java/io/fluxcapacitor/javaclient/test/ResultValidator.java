@@ -48,7 +48,7 @@ public class ResultValidator implements Then {
     @Getter(AccessLevel.PROTECTED)
     private final FluxCapacitor fluxCapacitor;
     private final Object result;
-    private final List<Message> events, commands, webRequests, metrics;
+    private final List<Message> events, commands, webRequests, webResponses, metrics;
     private final List<Schedule> newSchedules;
     private final List<Schedule> allSchedules;
     private final List<Throwable> errors;
@@ -65,7 +65,7 @@ public class ResultValidator implements Then {
 
     @Override
     public Then expectNoEventsLike(Object... events) {
-        return expectNothingLike(asMessages(events), this.events);
+        return expectNo(asMessages(events), this.events);
     }
 
     @Override
@@ -80,7 +80,37 @@ public class ResultValidator implements Then {
 
     @Override
     public Then expectNoCommandsLike(Object... commands) {
-        return expectNothingLike(asMessages(commands), this.commands);
+        return expectNo(asMessages(commands), this.commands);
+    }
+
+    @Override
+    public Then expectWebRequests(Object... webRequests) {
+        return expect(asMessages(webRequests), this.webRequests);
+    }
+
+    @Override
+    public Then expectOnlyWebRequests(Object... webRequests) {
+        return expectOnly(asMessages(webRequests), this.webRequests);
+    }
+
+    @Override
+    public Then expectNoWebRequestsLike(Object... webResponses) {
+        return expectNo(asMessages(webRequests), this.webRequests);
+    }
+
+    @Override
+    public Then expectWebResponses(Object... webResponses) {
+        return expect(asMessages(webResponses), this.webResponses);
+    }
+
+    @Override
+    public Then expectOnlyWebResponses(Object... webResponses) {
+        return expectOnly(asMessages(webResponses), this.webResponses);
+    }
+
+    @Override
+    public Then expectNoWebResponsesLike(Object... webResponses) {
+        return expectNo(asMessages(commands), this.commands);
     }
 
     @Override
@@ -95,7 +125,7 @@ public class ResultValidator implements Then {
 
     @Override
     public Then expectNoNewSchedulesLike(Object... schedules) {
-        return expectNothingLike(asMessages(schedules), this.newSchedules);
+        return expectNo(asMessages(schedules), this.newSchedules);
     }
 
     @Override
@@ -110,7 +140,7 @@ public class ResultValidator implements Then {
 
     @Override
     public Then expectNoSchedulesLike(Object... schedules) {
-        return expectNothingLike(asMessages(schedules), this.allSchedules);
+        return expectNo(asMessages(schedules), this.allSchedules);
     }
 
     @Override
@@ -262,7 +292,7 @@ public class ResultValidator implements Then {
 
     @Override
     public Then expectNoMetricsLike(Object... metrics) {
-        return expectNothingLike(asMessages(metrics), this.metrics);
+        return expectNo(asMessages(metrics), this.metrics);
     }
 
     @Override
@@ -356,7 +386,7 @@ public class ResultValidator implements Then {
         });
     }
 
-    protected ResultValidator expectNothingLike(Collection<?> expectedNotToGet, Collection<?> actual) {
+    protected ResultValidator expectNo(Collection<?> expectedNotToGet, Collection<?> actual) {
         return fluxCapacitor.apply(fc -> {
             if (containsAny(expectedNotToGet, actual)) {
                 reportUnwantedMatch(expectedNotToGet, actual);

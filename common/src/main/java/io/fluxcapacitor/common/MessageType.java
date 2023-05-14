@@ -14,6 +14,18 @@
 
 package io.fluxcapacitor.common;
 
+import lombok.AllArgsConstructor;
+import lombok.Getter;
+
+@Getter
+@AllArgsConstructor
 public enum MessageType {
-    COMMAND, EVENT, NOTIFICATION, QUERY, RESULT, SCHEDULE, ERROR, METRICS, WEBREQUEST, WEBRESPONSE
+    COMMAND(true, false), EVENT(false, false),
+    NOTIFICATION(false, false), QUERY(true, false),
+    RESULT(false, true), SCHEDULE(false, false), ERROR(false, false),
+    METRICS(false, false),
+    WEBREQUEST(true, false), WEBRESPONSE(false, true);
+
+    private final boolean request;
+    private final boolean response;
 }

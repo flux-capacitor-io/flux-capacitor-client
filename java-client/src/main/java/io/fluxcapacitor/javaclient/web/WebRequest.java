@@ -36,8 +36,6 @@ import java.util.function.Predicate;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
-import static io.fluxcapacitor.common.reflection.ReflectionUtils.getAnnotationAs;
-import static io.fluxcapacitor.javaclient.web.HttpRequestMethod.ANY;
 import static java.util.Objects.requireNonNull;
 
 @Value
@@ -52,14 +50,13 @@ public class WebRequest extends Message {
 
     public static MessageFilter<HasMessage> getWebRequestFilter() {
         return (message, executable) -> filterCache.computeIfAbsent(executable, e -> {
-            var handleWeb = getAnnotationAs(e, HandleWeb.class, HandleWebParams.class).orElseThrow();
-            Predicate<String> pathTest = Optional.of(handleWeb.getValue())
-                    .map(url -> url.startsWith("/") ? url : "/" + url)
+            var handleWeb = WebUtils.getWebParameters(e).orElseThrow();
+            Predicate<String> pathTest = Optional.of(handleWeb.getPath())
                     .map(SearchUtils::convertGlobToRegex).map(Pattern::asMatchPredicate)
                     .<Predicate<String>>map(p -> s -> p.test(s.startsWith("/") ? s : "/" + s))
                     .orElse(p -> true);
             Predicate<String> methodTest = Optional.of(handleWeb.getMethod())
-                    .<Predicate<String>>map(r -> r == ANY ? p -> true : p -> r.name().equals(p))
+                    .<Predicate<String>>map(r -> p -> r.name().equals(p))
                     .orElse(p -> true);
             return msg -> {
                 String path = requireNonNull(msg.getMetadata().get("url"),
@@ -69,12 +66,6 @@ public class WebRequest extends Message {
                 return pathTest.test(path) && methodTest.test(method);
             };
         }).test(message);
-    }
-
-    @Value
-    protected static class HandleWebParams {
-        String value;
-        HttpRequestMethod method;
     }
 
     @NonNull String path;
@@ -205,8 +196,9 @@ public class WebRequest extends Message {
             url(request.getPath());
             payload(request.getPayload());
             request.getHeaders().forEach((k, v) -> headers.put(k, new ArrayList<>(v)));
-            cookies.addAll(WebUtils.parseRequestCookieHeader(headers.remove("Cookie")
-                                                                     .stream().findFirst().orElse(null)));
+            cookies.addAll(WebUtils.parseRequestCookieHeader(
+                    Optional.ofNullable(headers.remove("Cookie")).orElseGet(List::of)
+                            .stream().findFirst().orElse(null)));
         }
 
         public Builder header(String key, String value) {
@@ -240,7 +232,8 @@ public class WebRequest extends Message {
             var result = headers;
             if (!cookies.isEmpty()) {
                 result = new HashMap<>(headers);
-                result.put("Cookie", List.of(cookies.stream().map(HttpCookie::toString).collect(Collectors.joining("; "))));
+                result.put("Cookie",
+                           List.of(cookies.stream().map(HttpCookie::toString).collect(Collectors.joining("; "))));
             }
             return result;
         }

@@ -54,8 +54,10 @@ public class WebSocketTrackerRead implements TrackerRead {
     }
 
     public boolean canHandle(SerializedMessage message) {
-        return (!isFilterMessageTarget() || message.getTarget() == null || clientId.equals(message.getTarget()))
-                && (message.getData().getType() == null || typeFilter.test(message.getData().getType()));
+        String target = message.getTarget();
+        return (!isFilterMessageTarget()
+                || target == null || target.equals(read.getTrackerId()) || target.equals(clientId))
+               && (message.getData().getType() == null || typeFilter.test(message.getData().getType()));
     }
 
     @Override

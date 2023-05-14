@@ -27,6 +27,7 @@ import io.fluxcapacitor.javaclient.publishing.DispatchInterceptor;
 import io.fluxcapacitor.javaclient.publishing.correlation.CorrelationDataProvider;
 import io.fluxcapacitor.javaclient.tracking.BatchInterceptor;
 import io.fluxcapacitor.javaclient.tracking.ConsumerConfiguration;
+import io.fluxcapacitor.javaclient.tracking.handling.HandlerDecorator;
 import io.fluxcapacitor.javaclient.tracking.handling.HandlerInterceptor;
 import io.fluxcapacitor.javaclient.tracking.handling.authentication.UserProvider;
 import io.fluxcapacitor.javaclient.web.LocalServerConfig;
@@ -52,10 +53,18 @@ public interface FluxCapacitorBuilder {
     FluxCapacitorBuilder addDispatchInterceptor(DispatchInterceptor interceptor, boolean highPriority, MessageType... forTypes);
 
     default FluxCapacitorBuilder addHandlerInterceptor(HandlerInterceptor interceptor, MessageType... forTypes) {
-        return addHandlerInterceptor(interceptor, false, forTypes);
+        return addHandlerDecorator(interceptor, forTypes);
     }
 
-    FluxCapacitorBuilder addHandlerInterceptor(HandlerInterceptor interceptor, boolean highPriority, MessageType... forTypes);
+    default FluxCapacitorBuilder addHandlerInterceptor(HandlerInterceptor interceptor, boolean highPriority, MessageType... forTypes) {
+        return addHandlerDecorator(interceptor, highPriority, forTypes);
+    }
+
+    default FluxCapacitorBuilder addHandlerDecorator(HandlerDecorator decorator, MessageType... forTypes) {
+        return addHandlerDecorator(decorator, false, forTypes);
+    }
+
+    FluxCapacitorBuilder addHandlerDecorator(HandlerDecorator decorator, boolean highPriority, MessageType... forTypes);
 
     FluxCapacitorBuilder replaceMessageRoutingInterceptor(DispatchInterceptor messageRoutingInterceptor);
 

@@ -17,6 +17,7 @@ package io.fluxcapacitor.javaclient.test;
 import io.fluxcapacitor.common.Guarantee;
 import io.fluxcapacitor.common.MessageType;
 import io.fluxcapacitor.common.Registration;
+import io.fluxcapacitor.common.ThrowingFunction;
 import io.fluxcapacitor.common.api.Data;
 import io.fluxcapacitor.common.api.SerializedMessage;
 import io.fluxcapacitor.common.api.tracking.MessageBatch;
@@ -146,11 +147,9 @@ public class TestFixture implements Given, When {
 
     @Getter
     private final FluxCapacitor fluxCapacitor;
-    @Getter
     @Setter
     @Accessors(chain = true, fluent = true)
     private Duration resultTimeout = defaultResultTimeout;
-    @Getter
     @Setter
     @Accessors(chain = true, fluent = true)
     private Duration consumerTimeout = defaultConsumerTimeout;
@@ -160,7 +159,7 @@ public class TestFixture implements Given, When {
     private volatile Message tracedMessage;
     private final Map<ActiveConsumer, List<Message>> consumers = new ConcurrentHashMap<>();
     private final List<Message> commands = new CopyOnWriteArrayList<>(), events = new CopyOnWriteArrayList<>(),
-            webRequests = new CopyOnWriteArrayList<>(), metrics = new CopyOnWriteArrayList<>();
+            webRequests = new CopyOnWriteArrayList<>(), webResponses = new CopyOnWriteArrayList<>(), metrics = new CopyOnWriteArrayList<>();
     private final List<Schedule> schedules = new CopyOnWriteArrayList<>();
     private final CopyOnWriteArrayList<Throwable> errors = new CopyOnWriteArrayList<>();
 
@@ -377,7 +376,9 @@ public class TestFixture implements Given, When {
 
     @Override
     public Then whenWebRequest(WebRequest request) {
-        return whenApplying(fc -> getDispatchResult(fc.webRequestGateway().send(trace(request))));
+        return whenApplying(fc -> request.getMethod().isWebsocket()
+                ? fc.webRequestGateway().sendAndForget(Guarantee.STORED, trace(request))
+                : getDispatchResult(fc.webRequestGateway().send(trace(request))));
     }
 
     @Override
@@ -399,7 +400,7 @@ public class TestFixture implements Given, When {
     }
 
     @Override
-    public Then whenApplying(Function<FluxCapacitor, ?> action) {
+    public Then whenApplying(ThrowingFunction<FluxCapacitor, ?> action) {
         return fluxCapacitor.apply(fc -> {
             try {
                 handleExpiredSchedulesLocally();
@@ -436,7 +437,7 @@ public class TestFixture implements Given, When {
     protected Then getResultValidator(Object result, List<Message> commands, List<Message> events,
                                       List<Schedule> schedules, List<Schedule> allSchedules,
                                       List<Throwable> errors, List<Message> metrics) {
-        return new ResultValidator(getFluxCapacitor(), result, events, commands, webRequests, metrics, schedules,
+        return new ResultValidator(getFluxCapacitor(), result, events, commands, webRequests, webResponses, metrics, schedules,
                                    allSchedules.stream().filter(
                                            s -> s.getDeadline().isAfter(getCurrentTime())).collect(toList()),
                                    errors);
@@ -533,6 +534,10 @@ public class TestFixture implements Given, When {
 
     protected void registerWebRequest(Message request) {
         webRequests.add(request);
+    }
+
+    protected void registerWebResponse(Message response) {
+        webResponses.add(response);
     }
 
     protected void registerSchedule(Schedule schedule) {
@@ -646,6 +651,7 @@ public class TestFixture implements Given, When {
                     case EVENT -> registerEvent(message);
                     case SCHEDULE -> registerSchedule((Schedule) message);
                     case WEBREQUEST -> registerWebRequest(message);
+                    case WEBRESPONSE -> registerWebResponse(message);
                     case METRICS -> registerMetric(message);
                 }
             }

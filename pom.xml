@@ -26,6 +26,7 @@
         <module>common</module>
         <module>java-client</module>
         <module>test-server</module>
+        <module>proxy</module>
     </modules>
 
     <name>Flux Capacitor</name>

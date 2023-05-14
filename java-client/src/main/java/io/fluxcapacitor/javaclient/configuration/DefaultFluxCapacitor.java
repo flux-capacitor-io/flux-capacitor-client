@@ -77,7 +77,7 @@ import io.fluxcapacitor.javaclient.tracking.Tracking;
 import io.fluxcapacitor.javaclient.tracking.TrackingException;
 import io.fluxcapacitor.javaclient.tracking.handling.DefaultHandlerFactory;
 import io.fluxcapacitor.javaclient.tracking.handling.DeserializingMessageParameterResolver;
-import io.fluxcapacitor.javaclient.tracking.handling.HandlerInterceptor;
+import io.fluxcapacitor.javaclient.tracking.handling.HandlerDecorator;
 import io.fluxcapacitor.javaclient.tracking.handling.HandlerRegistry;
 import io.fluxcapacitor.javaclient.tracking.handling.LocalHandlerRegistry;
 import io.fluxcapacitor.javaclient.tracking.handling.MessageParameterResolver;
@@ -94,9 +94,12 @@ import io.fluxcapacitor.javaclient.tracking.metrics.TrackerMonitor;
 import io.fluxcapacitor.javaclient.web.DefaultWebResponseMapper;
 import io.fluxcapacitor.javaclient.web.ForwardingWebConsumer;
 import io.fluxcapacitor.javaclient.web.LocalServerConfig;
+import io.fluxcapacitor.javaclient.web.SocketSessionParameterResolver;
 import io.fluxcapacitor.javaclient.web.WebPayloadParameterResolver;
 import io.fluxcapacitor.javaclient.web.WebResponseGateway;
 import io.fluxcapacitor.javaclient.web.WebResponseMapper;
+import io.fluxcapacitor.javaclient.web.WebsocketHandlerDecorator;
+import io.fluxcapacitor.javaclient.web.WebsocketResponseInterceptor;
 import lombok.AccessLevel;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
@@ -234,8 +237,8 @@ public class DefaultFluxCapacitor implements FluxCapacitor {
                 new ArrayList<>();
         private final Map<MessageType, List<DispatchInterceptor>> lowPrioDispatchInterceptors = new HashMap<>();
         private final Map<MessageType, List<DispatchInterceptor>> highPrioDispatchInterceptors = new HashMap<>();
-        private final Map<MessageType, List<HandlerInterceptor>> lowPrioHandlerInterceptors = new HashMap<>();
-        private final Map<MessageType, List<HandlerInterceptor>> highPrioHandlerInterceptors = new HashMap<>();
+        private final Map<MessageType, List<HandlerDecorator>> lowPrioHandlerDecorators = new HashMap<>();
+        private final Map<MessageType, List<HandlerDecorator>> highPrioHandlerDecorators = new HashMap<>();
         private final Map<MessageType, List<BatchInterceptor>> generalBatchInterceptors = new HashMap<>();
         private DispatchInterceptor messageRoutingInterceptor = new MessageRoutingInterceptor();
         private SchedulingInterceptor schedulingInterceptor = new SchedulingInterceptor();
@@ -338,10 +341,10 @@ public class DefaultFluxCapacitor implements FluxCapacitor {
         }
 
         @Override
-        public Builder addHandlerInterceptor(@NonNull HandlerInterceptor interceptor, boolean highPriority,
+        public Builder addHandlerDecorator(@NonNull HandlerDecorator interceptor, boolean highPriority,
                                              MessageType... forTypes) {
             Arrays.stream(forTypes.length == 0 ? MessageType.values() : forTypes)
-                    .forEach(type -> (highPriority ? highPrioHandlerInterceptors : lowPrioHandlerInterceptors)
+                    .forEach(type -> (highPriority ? highPrioHandlerDecorators : lowPrioHandlerDecorators)
                             .computeIfAbsent(type, t -> new ArrayList<>()).add(interceptor));
             return this;
         }
@@ -461,8 +464,8 @@ public class DefaultFluxCapacitor implements FluxCapacitor {
         public FluxCapacitor build(@NonNull Client client) {
             Map<MessageType, DispatchInterceptor> dispatchInterceptors =
                     Arrays.stream(MessageType.values()).collect(toMap(identity(), m -> DispatchInterceptor.noOp()));
-            Map<MessageType, HandlerInterceptor> handlerInterceptors =
-                    Arrays.stream(MessageType.values()).collect(toMap(identity(), m -> HandlerInterceptor.noOp()));
+            Map<MessageType, HandlerDecorator> handlerDecorators =
+                    Arrays.stream(MessageType.values()).collect(toMap(identity(), m -> HandlerDecorator.noOp()));
             Map<MessageType, List<ConsumerConfiguration>> consumerConfigurations =
                     new HashMap<>(this.customConsumerConfigurations);
             this.defaultConsumerConfigurations.forEach((type, config) -> consumerConfigurations.get(type).add(
@@ -487,7 +490,7 @@ public class DefaultFluxCapacitor implements FluxCapacitor {
                 AuthenticatingInterceptor interceptor = new AuthenticatingInterceptor(userProvider);
                 Stream.of(COMMAND, QUERY, SCHEDULE, WEBREQUEST).forEach(type -> {
                     dispatchInterceptors.computeIfPresent(type, (t, i) -> i.andThen(interceptor));
-                    handlerInterceptors.computeIfPresent(type, (t, i) -> i.andThen(interceptor));
+                    handlerDecorators.computeIfPresent(type, (t, i) -> i.andThen(interceptor));
                 });
             }
 
@@ -496,7 +499,7 @@ public class DefaultFluxCapacitor implements FluxCapacitor {
                 DataProtectionInterceptor interceptor = new DataProtectionInterceptor(keyValueStore, serializer);
                 Stream.of(COMMAND, EVENT, QUERY, RESULT, SCHEDULE).forEach(type -> {
                     dispatchInterceptors.computeIfPresent(type, (t, i) -> i.andThen(interceptor));
-                    handlerInterceptors.computeIfPresent(type, (t, i) -> i.andThen(interceptor));
+                    handlerDecorators.computeIfPresent(type, (t, i) -> i.andThen(interceptor));
                 });
             }
 
@@ -510,13 +513,13 @@ public class DefaultFluxCapacitor implements FluxCapacitor {
             //enable command and query validation before handling
             if (!disablePayloadValidation) {
                 ValidatingInterceptor interceptor = new ValidatingInterceptor();
-                Stream.of(COMMAND, QUERY).forEach(type -> handlerInterceptors.computeIfPresent(
+                Stream.of(COMMAND, QUERY).forEach(type -> handlerDecorators.computeIfPresent(
                         type, (t, i) -> i.andThen(interceptor)));
             }
 
             //enable scheduling interceptor
             dispatchInterceptors.computeIfPresent(SCHEDULE, (t, i) -> i.andThen(schedulingInterceptor));
-            handlerInterceptors.computeIfPresent(SCHEDULE, (t, i) -> i.andThen(schedulingInterceptor));
+            handlerDecorators.computeIfPresent(SCHEDULE, (t, i) -> i.andThen(schedulingInterceptor));
 
             //collect metrics about consumers and handlers
             if (!disableTrackingMetrics) {
@@ -524,7 +527,7 @@ public class DefaultFluxCapacitor implements FluxCapacitor {
                 HandlerMonitor handlerMonitor = new HandlerMonitor();
                 EnumSet.complementOf(EnumSet.of(METRICS)).forEach(type -> {
                     generalBatchInterceptors.computeIfAbsent(type, t -> new ArrayList<>()).add(batchInterceptor);
-                    handlerInterceptors.compute(type, (t, i) -> handlerMonitor.andThen(i));
+                    handlerDecorators.compute(type, (t, i) -> handlerMonitor.andThen(i));
                 });
             }
 
@@ -535,17 +538,24 @@ public class DefaultFluxCapacitor implements FluxCapacitor {
             highPrioDispatchInterceptors.forEach((messageType, interceptors) -> interceptors.forEach(
                     interceptor -> dispatchInterceptors.computeIfPresent(messageType,
                                                                          (t, i) -> interceptor.andThen(i))));
-            lowPrioHandlerInterceptors.forEach((messageType, interceptors) -> interceptors.forEach(
-                    interceptor -> handlerInterceptors.computeIfPresent(messageType,
+            lowPrioHandlerDecorators.forEach((messageType, interceptors) -> interceptors.forEach(
+                    interceptor -> handlerDecorators.computeIfPresent(messageType,
                                                                         (t, i) -> i.andThen(interceptor))));
-            highPrioHandlerInterceptors.forEach((messageType, interceptors) -> interceptors.forEach(
-                    interceptor -> handlerInterceptors.computeIfPresent(messageType,
+            highPrioHandlerDecorators.forEach((messageType, interceptors) -> interceptors.forEach(
+                    interceptor -> handlerDecorators.computeIfPresent(messageType,
                                                                         (t, i) -> interceptor.andThen(i))));
+
+            //add websocket handler decorator and dispatch interceptor
+            handlerDecorators.computeIfPresent(WEBREQUEST, (t, i) -> i.andThen(new WebsocketHandlerDecorator()));
+            dispatchInterceptors.computeIfPresent(WEBRESPONSE, (t, i) -> new WebsocketResponseInterceptor().andThen(i));
 
             /*
                 Create components
              */
 
+            ResultGateway webResponseGateway = new WebResponseGateway(client.getGatewayClient(WEBRESPONSE),
+                                                                      serializer, dispatchInterceptors.get(WEBRESPONSE),
+                                                                      webResponseMapper);
 
             List<ParameterResolver<? super DeserializingMessage>> parameterResolvers =
                     new ArrayList<>(customParameterResolvers);
@@ -553,6 +563,7 @@ public class DefaultFluxCapacitor implements FluxCapacitor {
                                               new DeserializingMessageParameterResolver(),
                                               new MetadataParameterResolver(), new MessageParameterResolver(),
                                               new UserParameterResolver(userProvider),
+                                              new SocketSessionParameterResolver(webResponseGateway),
                                               new WebPayloadParameterResolver(),
                                               new PayloadParameterResolver(),
                                               new EntityParameterResolver()));
@@ -561,7 +572,7 @@ public class DefaultFluxCapacitor implements FluxCapacitor {
             var entityMatcher = new DefaultEntityHelper(parameterResolvers);
             EventStore eventStore = new DefaultEventStore(client.getEventStoreClient(),
                                                           serializer, dispatchInterceptors.get(EVENT),
-                                                          localHandlerRegistry(EVENT, handlerInterceptors,
+                                                          localHandlerRegistry(EVENT, handlerDecorators,
                                                                                parameterResolvers));
             var snapshotStore = new DefaultSnapshotStore(client.getKeyValueClient(), snapshotSerializer);
 
@@ -581,56 +592,52 @@ public class DefaultFluxCapacitor implements FluxCapacitor {
             //enable error reporter as the outermost handler interceptor
             ErrorGateway errorGateway =
                     new DefaultErrorGateway(createRequestGateway(client, ERROR, defaultRequestHandler,
-                                                                 dispatchInterceptors, handlerInterceptors,
+                                                                 dispatchInterceptors, handlerDecorators,
                                                                  parameterResolvers));
             if (!disableErrorReporting) {
                 ErrorReportingInterceptor interceptor = new ErrorReportingInterceptor(errorGateway);
                 Arrays.stream(MessageType.values())
-                        .forEach(type -> handlerInterceptors.compute(type, (t, i) -> interceptor.andThen(i)));
+                        .forEach(type -> handlerDecorators.compute(type, (t, i) -> interceptor.andThen(i)));
             }
 
             ResultGateway resultGateway = new DefaultResultGateway(client.getGatewayClient(RESULT),
                                                                    serializer, dispatchInterceptors.get(RESULT));
             CommandGateway commandGateway =
                     new DefaultCommandGateway(createRequestGateway(client, COMMAND, defaultRequestHandler,
-                                                                   dispatchInterceptors, handlerInterceptors,
+                                                                   dispatchInterceptors, handlerDecorators,
                                                                    parameterResolvers));
             QueryGateway queryGateway =
                     new DefaultQueryGateway(createRequestGateway(client, QUERY, defaultRequestHandler,
-                                                                 dispatchInterceptors, handlerInterceptors,
+                                                                 dispatchInterceptors, handlerDecorators,
                                                                  parameterResolvers));
             EventGateway eventGateway =
                     new DefaultEventGateway(createRequestGateway(client, EVENT, defaultRequestHandler,
-                                                                 dispatchInterceptors, handlerInterceptors,
+                                                                 dispatchInterceptors, handlerDecorators,
                                                                  parameterResolvers));
 
             MetricsGateway metricsGateway =
                     new DefaultMetricsGateway(createRequestGateway(client, METRICS, defaultRequestHandler,
-                                                                   dispatchInterceptors, handlerInterceptors,
+                                                                   dispatchInterceptors, handlerDecorators,
                                                                    parameterResolvers));
 
             RequestHandler webRequestHandler = new DefaultRequestHandler(client, WEBRESPONSE);
             WebRequestGateway webRequestGateway =
                     new DefaultWebRequestGateway(createRequestGateway(client, WEBREQUEST, webRequestHandler,
-                                                                      dispatchInterceptors, handlerInterceptors,
+                                                                      dispatchInterceptors, handlerDecorators,
                                                                       parameterResolvers));
-
-            ResultGateway webResponseGateway = new WebResponseGateway(client.getGatewayClient(WEBRESPONSE),
-                                                                      serializer, dispatchInterceptors.get(WEBRESPONSE),
-                                                                      webResponseMapper);
 
             //tracking
             Map<MessageType, Tracking> trackingMap = stream(MessageType.values())
                     .collect(toMap(identity(), m -> new DefaultTracking(
                             m, m == WEBREQUEST ? webResponseGateway : resultGateway, consumerConfigurations.get(m),
                             generalBatchInterceptors.getOrDefault(m, List.of()), this.serializer,
-                            new DefaultHandlerFactory(m, handlerInterceptors.get(m == NOTIFICATION ? EVENT : m),
+                            new DefaultHandlerFactory(m, handlerDecorators.get(m == NOTIFICATION ? EVENT : m),
                                                       parameterResolvers))));
 
             //misc
             Scheduler scheduler = new DefaultScheduler(client.getSchedulingClient(),
                                                        serializer, dispatchInterceptors.get(SCHEDULE),
-                                                       localHandlerRegistry(SCHEDULE, handlerInterceptors,
+                                                       localHandlerRegistry(SCHEDULE, handlerDecorators,
                                                                             parameterResolvers));
 
             if (!disableCacheEvictionMetrics) {
@@ -714,21 +721,21 @@ public class DefaultFluxCapacitor implements FluxCapacitor {
         protected GenericGateway createRequestGateway(Client client, MessageType messageType,
                                                       RequestHandler requestHandler,
                                                       Map<MessageType, DispatchInterceptor> dispatchInterceptors,
-                                                      Map<MessageType, HandlerInterceptor> handlerInterceptors,
+                                                      Map<MessageType, HandlerDecorator> handlerDecorators,
                                                       List<ParameterResolver<? super DeserializingMessage>> parameterResolvers) {
             return new DefaultGenericGateway(client.getGatewayClient(messageType), requestHandler,
                                              this.serializer, dispatchInterceptors.get(messageType), messageType,
-                                             localHandlerRegistry(messageType, handlerInterceptors,
+                                             localHandlerRegistry(messageType, handlerDecorators,
                                                                   parameterResolvers));
         }
 
         protected HandlerRegistry localHandlerRegistry(MessageType messageType,
-                                                       Map<MessageType, HandlerInterceptor> handlerInterceptors,
+                                                       Map<MessageType, HandlerDecorator> handlerDecorators,
                                                        List<ParameterResolver<? super DeserializingMessage>> parameterResolvers) {
             LocalHandlerRegistry result = new LocalHandlerRegistry(messageType, new DefaultHandlerFactory(
-                    messageType, handlerInterceptors.get(messageType), parameterResolvers));
+                    messageType, handlerDecorators.get(messageType), parameterResolvers));
             return messageType == EVENT ? result.merge(new LocalHandlerRegistry(NOTIFICATION, new DefaultHandlerFactory(
-                    NOTIFICATION, handlerInterceptors.get(EVENT), parameterResolvers))) : result;
+                    NOTIFICATION, handlerDecorators.get(EVENT), parameterResolvers))) : result;
         }
     }
 

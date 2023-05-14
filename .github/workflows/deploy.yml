@@ -6,6 +6,9 @@ on:
     tags-ignore:
       - "[0-9]+.[0-9]+.[0-9]+"
 
+env:
+  BUILD_ENVIRONMENT: github
+
 jobs:
   deploy:
     runs-on: ubuntu-latest
@@ -60,13 +63,24 @@ jobs:
           DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
           DOCKER_PASSWORD: ${{ secrets.DOCKER_PASSWORD }}
 
-      - name: Docker build
+      - name: Build test server docker
         run: |
           cd test-server
           docker build -t fluxcapacitorio/flux-capacitor-test:${{ steps.tag_version.outputs.new_version }} -t fluxcapacitorio/flux-capacitor-test:latest .
           cd ..
 
-      - name: Push to docker hub
+      - name: Build proxy docker
+        run: |
+          cd proxy
+          docker build -t fluxcapacitorio/flux-capacitor-proxy:${{ steps.tag_version.outputs.new_version }} -t fluxcapacitorio/flux-capacitor-proxy:latest .
+          cd ..
+
+      - name: Push test server to docker hub
         uses: actions-hub/docker@master
         with:
           args: push fluxcapacitorio/flux-capacitor-test
+
+      - name: Push proxy to docker hub
+        uses: actions-hub/docker@master
+        with:
+          args: push fluxcapacitorio/flux-capacitor-proxy

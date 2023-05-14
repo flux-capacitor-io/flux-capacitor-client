@@ -18,6 +18,8 @@ package io.fluxcapacitor.testserver;
 import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.json.JsonMapper;
+import io.fluxcapacitor.common.api.ClientEvent;
+import io.fluxcapacitor.common.api.DisconnectEvent;
 import io.fluxcapacitor.common.api.JsonType;
 import io.fluxcapacitor.common.api.RequestBatch;
 import io.fluxcapacitor.common.handling.Handler;
@@ -25,12 +27,15 @@ import io.fluxcapacitor.common.handling.HandlerInspector;
 import io.fluxcapacitor.common.handling.HandlerInvoker;
 import io.fluxcapacitor.common.handling.ParameterResolver;
 import io.fluxcapacitor.common.serialization.compression.CompressionAlgorithm;
+import io.fluxcapacitor.testserver.endpoints.metrics.MetricsLog;
+import io.fluxcapacitor.testserver.endpoints.metrics.NoOpMetricsLog;
 import io.undertow.util.SameThreadExecutor;
 import jakarta.websocket.CloseReason;
 import jakarta.websocket.Endpoint;
 import jakarta.websocket.EndpointConfig;
 import jakarta.websocket.Session;
-import lombok.Value;
+import lombok.Setter;
+import lombok.experimental.Accessors;
 import lombok.extern.slf4j.Slf4j;
 
 import java.io.IOException;
@@ -66,6 +71,10 @@ public abstract class WebsocketEndpoint extends Endpoint {
     private final Executor requestExecutor;
     private final Executor responseExecutor;
 
+    @Setter
+    @Accessors(chain = true, fluent = true)
+    MetricsLog metricsLog = new NoOpMetricsLog();
+
     private final Map<String, Session> openSessions = new ConcurrentHashMap<>();
     protected final AtomicBoolean shuttingDown = new AtomicBoolean();
     protected volatile boolean shutDown;
@@ -90,12 +99,12 @@ public abstract class WebsocketEndpoint extends Endpoint {
             HandlerInspector.createHandler(this, Handle.class, Arrays.asList(new ParameterResolver<>() {
                 @Override
                 public boolean matches(Parameter parameter, Annotation methodAnnotation, Request value, Object target) {
-                    return parameter.getType().isAssignableFrom(value.getPayload().getClass());
+                    return parameter.getType().isAssignableFrom(value.payload().getClass());
                 }
 
                 @Override
                 public Function<Request, Object> resolve(Parameter p, Annotation methodAnnotation) {
-                    return Request::getPayload;
+                    return Request::payload;
                 }
 
                 @Override
@@ -104,7 +113,7 @@ public abstract class WebsocketEndpoint extends Endpoint {
                 }
             }, (p, methodAnnotation) -> {
                 if (p.getType().equals(Session.class)) {
-                    return Request::getSession;
+                    return Request::session;
                 }
                 return null;
             }));
@@ -189,13 +198,23 @@ public abstract class WebsocketEndpoint extends Endpoint {
     }
 
     @Override
+    @SuppressWarnings("resource")
     public void onClose(Session session, CloseReason closeReason) {
         openSessions.remove(session.getId());
-        if (closeReason.getCloseCode() != UNEXPECTED_CONDITION
+        if (!shuttingDown.get()) {
+            if (closeReason.getCloseCode() != UNEXPECTED_CONDITION
                 && closeReason.getCloseCode().getCode() > NO_STATUS_CODE.getCode()) {
-            log.warn("Websocket session for client {} with id {} closed abnormally: {}", getClientName(session),
-                     getClientId(session), closeReason);
+                log.warn("Websocket session to endpoint {} for client {} with id {} closed abnormally: {}",
+                         getClass().getSimpleName(), getClientName(session), getClientId(session), closeReason);
+            }
+            registerMetrics(new DisconnectEvent(
+                    getClientName(session), getClientId(session), session.getId(), toString(),
+                    closeReason.getCloseCode().getCode(), closeReason.getReasonPhrase()));
         }
+    }
+
+    protected void registerMetrics(ClientEvent event) {
+        metricsLog.registerMetrics(event);
     }
 
     @Override
@@ -208,8 +227,8 @@ public abstract class WebsocketEndpoint extends Endpoint {
     }
 
     /**
-     * Close all sessions on the websocket after an optional delay. During the delay we don't handle new requests
-     * but will be able to send back results.
+     * Close all sessions on the websocket after an optional delay. During the delay we don't handle new requests but
+     * will be able to send back results.
      */
     protected void shutDown() {
         if (shuttingDown.compareAndSet(false, true)) {
@@ -237,11 +256,6 @@ public abstract class WebsocketEndpoint extends Endpoint {
         return CompressionAlgorithm.valueOf(compression.get(0));
     }
 
-    protected String getProjectId(Session session) {
-        return Optional.ofNullable(session.getRequestParameterMap().get("projectId")).map(list -> list.get(0))
-                .orElse("public");
-    }
-
     protected String getClientId(Session session) {
         return session.getRequestParameterMap().get("clientId").get(0);
     }
@@ -250,9 +264,6 @@ public abstract class WebsocketEndpoint extends Endpoint {
         return session.getRequestParameterMap().get("clientName").get(0);
     }
 
-    @Value
-    private static class Request {
-        JsonType payload;
-        Session session;
+    private record Request(JsonType payload, Session session) {
     }
 }

@@ -48,8 +48,10 @@ public class DefaultRequestHandler implements RequestHandler {
     private final MessageType resultType;
     private final Duration timeout;
 
+    private final String responseConsumerName;
+
     public DefaultRequestHandler(Client client, MessageType resultType) {
-        this(client, resultType, Duration.ofSeconds(200));
+        this(client, resultType, Duration.ofSeconds(200), format("%s_%s", client.name(), "$request-handler"));
     }
 
     private final Map<Integer, CompletableFuture<SerializedMessage>> callbacks = new ConcurrentHashMap<>();
@@ -91,7 +93,7 @@ public class DefaultRequestHandler implements RequestHandler {
     }
 
     protected void handleMessages(List<SerializedMessage> messages) {
-        messages.forEach(m -> {
+        messages.stream().filter(m -> m.getRequestId() != null).forEach(m -> {
             CompletableFuture<SerializedMessage> future = callbacks.remove(m.getRequestId());
             if (future == null) {
                 log.warn("Received response with index {} for unknown request {}", m.getIndex(), m.getRequestId());
@@ -104,12 +106,12 @@ public class DefaultRequestHandler implements RequestHandler {
     protected void ensureStarted() {
         if (started.compareAndSet(false, true)) {
             registration = start(this::handleMessages, resultType, ConsumerConfiguration.builder()
-                    .name(format("%s_%s", client.name(), "$request-handler"))
+                    .name(responseConsumerName)
                     .ignoreSegment(true)
                     .clientControlledIndex(true)
                     .filterMessageTarget(true)
                     .minIndex(IndexUtils.indexFromTimestamp(
-                            FluxCapacitor.currentTime().minusSeconds(1)))
+                            FluxCapacitor.currentTime().minusSeconds(2)))
                     .build(), client);
         }
     }

@@ -30,6 +30,7 @@ import io.fluxcapacitor.javaclient.common.serialization.Serializer;
 import io.fluxcapacitor.javaclient.publishing.ResultGateway;
 import io.fluxcapacitor.javaclient.tracking.client.DefaultTracker;
 import io.fluxcapacitor.javaclient.tracking.handling.HandlerFactory;
+import io.fluxcapacitor.javaclient.web.WebRequest;
 import lombok.AllArgsConstructor;
 import lombok.Synchronized;
 import lombok.extern.slf4j.Slf4j;
@@ -237,7 +238,7 @@ public class DefaultTracking implements Tracking {
                 }
             });
         } else {
-            if (shouldSendResponse(h, message, config)) {
+            if (shouldSendResponse(h, message, result, config)) {
                 if (result instanceof Throwable) {
                     result = unwrapException((Throwable) result);
                     if (!(result instanceof FunctionalException)) {
@@ -259,9 +260,24 @@ public class DefaultTracking implements Tracking {
     }
 
     protected boolean shouldSendResponse(HandlerInvoker invoker, DeserializingMessage request,
-                                         ConsumerConfiguration config) {
-        return request.getSerializedObject().getRequestId() != null && !config.passive() && !invoker.isPassive()
-               && request.getMessageType() != MessageType.RESULT && request.getMessageType() != MessageType.WEBRESPONSE;
+                                         Object result, ConsumerConfiguration config) {
+        if (!request.getMessageType().isRequest() || config.passive() || invoker.isPassive()) {
+            return false;
+        }
+        if (request.getMessageType() == MessageType.WEBREQUEST) {
+            var requestMethod = WebRequest.getMethod(request.getMetadata());
+            if (requestMethod != null) {
+                switch (requestMethod) {
+                    case WS_HANDSHAKE -> {
+                        return true;
+                    }
+                    case WS_OPEN, WS_MESSAGE -> {
+                        return result != null;
+                    }
+                }
+            }
+        }
+        return request.getSerializedObject().getRequestId() != null;
     }
 
     protected void stopTracker(DeserializingMessage message, Handler<DeserializingMessage> handler, Throwable e) {

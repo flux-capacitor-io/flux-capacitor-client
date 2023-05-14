@@ -1,16 +1,25 @@
 package io.fluxcapacitor.javaclient.web;
 
 import com.fasterxml.jackson.databind.JsonNode;
+import io.fluxcapacitor.common.MessageType;
+import io.fluxcapacitor.common.api.SerializedMessage;
 import io.fluxcapacitor.common.serialization.JsonUtils;
 import io.fluxcapacitor.javaclient.test.TestFixture;
+import lombok.SneakyThrows;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
+import java.time.Duration;
 import java.util.Map;
 import java.util.concurrent.TimeoutException;
 
 import static io.fluxcapacitor.javaclient.web.HttpRequestMethod.GET;
 import static io.fluxcapacitor.javaclient.web.HttpRequestMethod.POST;
+import static io.fluxcapacitor.javaclient.web.HttpRequestMethod.WS_HANDSHAKE;
+import static io.fluxcapacitor.javaclient.web.HttpRequestMethod.WS_MESSAGE;
+import static io.fluxcapacitor.javaclient.web.HttpRequestMethod.WS_OPEN;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.verify;
 
 public class HandleWebTest {
 
@@ -114,6 +123,74 @@ public class HandleWebTest {
             @HandlePost("/string")
             String post(String body) {
                 return body;
+            }
+        }
+    }
+
+    @Nested
+    class WebSocketTests {
+        private final TestFixture testFixture = TestFixture.createAsync(new Handler())
+                .resultTimeout(Duration.ofSeconds(1)).consumerTimeout(Duration.ofSeconds(1));
+
+        @Test
+        void testAutoHandshake() {
+            testFixture.whenWebRequest(WebRequest.builder().method(WS_HANDSHAKE).url("/auto").build())
+                    .expectThat(fc -> verify(fc.client().getGatewayClient(MessageType.WEBRESPONSE)).send(
+                            any(), any(SerializedMessage.class)))
+                    .expectNoErrors();
+        }
+
+        @Test
+        void testOpen() {
+            testFixture.whenWebRequest(WebRequest.builder().method(WS_OPEN).url("/auto").build()
+                                               .addMetadata("sessionId", "someSession"))
+                    .expectWebResponses(WebResponse.builder().payload("open").build()
+                                                .addMetadata("sessionId", "someSession"));
+        }
+
+        @Test
+        void testResponse() {
+            testFixture.whenWebRequest(WebRequest.builder().method(WS_MESSAGE).url("/response").build())
+                    .expectWebResponses(WebResponse.builder().payload("response").build());
+        }
+
+        @Test
+        void testNoResponse() {
+            testFixture.whenWebRequest(WebRequest.builder().method(WS_MESSAGE).url("/noResponse").build())
+                    .expectNoWebResponses();
+        }
+
+        @Test
+        void testViaSession() {
+            testFixture.whenWebRequest(WebRequest.builder().method(WS_MESSAGE).url("/viaSession").build()
+                                               .addMetadata("sessionId", "someSession"))
+                    .expectWebResponses("viaSession");
+        }
+
+        private class Handler {
+            @HandleSocketHandshake("manual")
+            String handshake() {
+                return "handshake";
+            }
+
+            @HandleSocketOpen("auto")
+            String open() {
+                return "open";
+            }
+
+            @HandleSocketMessage("response")
+            String response() {
+                return "response";
+            }
+
+            @HandleSocketMessage("noResponse")
+            void noResponse() {
+            }
+
+            @HandleSocketMessage("viaSession")
+            @SneakyThrows
+            void viaSession(SocketSession session) {
+                session.sendMessage("viaSession");
             }
         }
     }

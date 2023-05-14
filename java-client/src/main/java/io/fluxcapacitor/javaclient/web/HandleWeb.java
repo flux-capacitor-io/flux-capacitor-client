@@ -29,6 +29,6 @@ import java.lang.annotation.Target;
 @HandleMessage(MessageType.WEBREQUEST)
 public @interface HandleWeb {
     String value();
-    HttpRequestMethod method() default HttpRequestMethod.ANY;
+    HttpRequestMethod method();
     boolean passive() default false;
 }

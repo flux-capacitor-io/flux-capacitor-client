@@ -71,16 +71,16 @@ public class InMemoryMessageStore implements GatewayClient, TrackingClient {
 
     @Override
     public Awaitable send(Guarantee guarantee, SerializedMessage... messages) {
-        Arrays.stream(messages).forEach(m -> {
-            if (m.getIndex() == null) {
-                m.setIndex(nextIndex.updateAndGet(IndexUtils::nextIndex));
-            }
-            messageLog.put(m.getIndex(), m);
-        });
-        if (messageExpiration != null) {
-            purgeExpiredMessages(messageExpiration);
-        }
         synchronized (this) {
+            Arrays.stream(messages).forEach(m -> {
+                if (m.getIndex() == null) {
+                    m.setIndex(nextIndex.updateAndGet(IndexUtils::nextIndex));
+                }
+                messageLog.put(m.getIndex(), m);
+            });
+            if (messageExpiration != null) {
+                purgeExpiredMessages(messageExpiration);
+            }
             this.notifyAll();
         }
         return Awaitable.ready();
@@ -112,13 +112,14 @@ public class InMemoryMessageStore implements GatewayClient, TrackingClient {
         if (trackerRead.getMessageType() != MessageType.RESULT && !Objects.equals(
                 trackerRead.getTrackerId(), trackers.computeIfAbsent(
                         trackerRead.getConsumer(), c -> trackerRead).getTrackerId())) {
+            log.debug("Delaying read by secondary tracker {} (message type {})", trackerRead.getConsumer(), messageType);
             return CompletableFuture.supplyAsync(
                     () -> new MessageBatch(new int[]{0, 0}, Collections.emptyList(), null),
                     CompletableFuture.delayedExecutor(trackerRead.getDeadline() - currentTimeMillis(), MILLISECONDS));
         }
         CompletableFuture<MessageBatch> result = new CompletableFuture<>();
         executor.execute(() -> {
-            synchronized (this) {
+            synchronized (InMemoryMessageStore.this) {
                 Map<Long, SerializedMessage> tailMap = Collections.emptyMap();
                 while (currentTimeMillis() < trackerRead.getDeadline()
                         && shouldWait(tailMap = messageLog
@@ -129,6 +130,8 @@ public class InMemoryMessageStore implements GatewayClient, TrackingClient {
                         try {
                             this.wait(duration);
                         } catch (InterruptedException e) {
+                            log.warn("Interrupted read of primary tracker {} (message type {})",
+                                     trackerRead.getConsumer(), messageType);
                             currentThread().interrupt();
                         }
                     }

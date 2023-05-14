@@ -69,17 +69,22 @@ public class HandlerInspector {
         return new DefaultHandler<>(target, inspect(target.getClass(), parameterResolvers, config));
     }
 
-    public static <M> HandlerMatcher<Object, M> inspect(Class<?> c, List<ParameterResolver<? super M>> parameterResolvers,
+    public static <M> HandlerMatcher<Object, M> inspect(Class<?> c,
+                                                        List<ParameterResolver<? super M>> parameterResolvers,
                                                         Class<? extends Annotation> methodAnnotation) {
-        return inspect(c, parameterResolvers, HandlerConfiguration.builder().methodAnnotation(methodAnnotation).build());
+        return inspect(c, parameterResolvers,
+                       HandlerConfiguration.builder().methodAnnotation(methodAnnotation).build());
     }
 
-    public static <M> HandlerMatcher<Object, M> inspect(Class<?> c, List<ParameterResolver<? super M>> parameterResolvers,
+    public static <M> HandlerMatcher<Object, M> inspect(Class<?> c,
+                                                        List<ParameterResolver<? super M>> parameterResolvers,
                                                         HandlerConfiguration<? super M> config) {
         return new ObjectHandlerMatcher<>(concat(getAllMethods(c).stream(), stream(c.getDeclaredConstructors()))
-                .filter(m -> config.methodMatches(c, m))
-                .flatMap(m -> Stream.of(new MethodHandlerMatcher<>(m, c, parameterResolvers, config)))
-                .sorted(comparator).collect(toList()), config.invokeMultipleMethods());
+                                                  .filter(m -> config.methodMatches(c, m))
+                                                  .flatMap(m -> Stream.of(
+                                                          new MethodHandlerMatcher<>(m, c, parameterResolvers, config)))
+                                                  .sorted(comparator).collect(toList()),
+                                          config.invokeMultipleMethods());
     }
 
     @Getter
@@ -267,7 +272,6 @@ public class HandlerInspector {
     public static class ObjectHandlerMatcher<M> implements HandlerMatcher<Object, M> {
         private final List<HandlerMatcher<Object, M>> methodHandlers;
         private final boolean invokeMultipleMethods;
-
         @Override
         public Optional<HandlerInvoker> findInvoker(Object target, M message) {
             if (invokeMultipleMethods) {
