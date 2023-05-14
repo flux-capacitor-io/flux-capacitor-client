@@ -69,16 +69,6 @@ public class InMemoryMessageStore implements GatewayClient, TrackingClient {
         this(messageType, Duration.ofMinutes(2));
     }
 
-    private boolean isProxy() {
-        if (!(messageType == MessageType.WEBRESPONSE || messageType == MessageType.WEBREQUEST)) {
-            return false;
-        }
-        if (consumerTokens.keySet().stream().anyMatch(consumer -> consumer.startsWith("$proxy"))) {
-            return true;
-        }
-        return false;
-    }
-
     @Override
     public Awaitable send(Guarantee guarantee, SerializedMessage... messages) {
         synchronized (this) {
@@ -90,9 +80,6 @@ public class InMemoryMessageStore implements GatewayClient, TrackingClient {
             });
             if (messageExpiration != null) {
                 purgeExpiredMessages(messageExpiration);
-            }
-            if (isProxy()) {
-                log.info("Stored messages {} (message type {}). Consumers: {}", Arrays.stream(messages).map(SerializedMessage::getIndex).toList(), messageType, consumerTokens.keySet());
             }
             this.notifyAll();
         }
@@ -125,7 +112,7 @@ public class InMemoryMessageStore implements GatewayClient, TrackingClient {
         if (trackerRead.getMessageType() != MessageType.RESULT && !Objects.equals(
                 trackerRead.getTrackerId(), trackers.computeIfAbsent(
                         trackerRead.getConsumer(), c -> trackerRead).getTrackerId())) {
-            log.info("Delaying read by secondary tracker {} (message type {})", trackerRead.getConsumer(), messageType);
+            log.debug("Delaying read by secondary tracker {} (message type {})", trackerRead.getConsumer(), messageType);
             return CompletableFuture.supplyAsync(
                     () -> new MessageBatch(new int[]{0, 0}, Collections.emptyList(), null),
                     CompletableFuture.delayedExecutor(trackerRead.getDeadline() - currentTimeMillis(), MILLISECONDS));
@@ -133,9 +120,6 @@ public class InMemoryMessageStore implements GatewayClient, TrackingClient {
         CompletableFuture<MessageBatch> result = new CompletableFuture<>();
         executor.execute(() -> {
             synchronized (InMemoryMessageStore.this) {
-                log.info("Read by primary tracker {} (message type {})", trackerRead.getConsumer(), messageType);
-                if (isProxy()) {
-                }
                 Map<Long, SerializedMessage> tailMap = Collections.emptyMap();
                 while (currentTimeMillis() < trackerRead.getDeadline()
                         && shouldWait(tailMap = messageLog
@@ -144,9 +128,6 @@ public class InMemoryMessageStore implements GatewayClient, TrackingClient {
                     long duration = trackerRead.getDeadline() - currentTimeMillis();
                     if (duration > 0) {
                         try {
-                            if (isProxy()) {
-                                log.info("Wait of primary tracker {} (message type {})", trackerRead.getConsumer(), messageType);
-                            }
                             this.wait(duration);
                         } catch (InterruptedException e) {
                             log.warn("Interrupted read of primary tracker {} (message type {})",

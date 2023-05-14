@@ -184,7 +184,7 @@ public class WebsocketEndpoint extends Endpoint {
                                          .name(format("%s_%s", client.name(), "$websocket-handler")).ignoreSegment(true)
                                          .clientControlledIndex(true).filterMessageTarget(true)
                                          .minIndex(IndexUtils.indexFromTimestamp(
-                                                 FluxCapacitor.currentTime().minusSeconds(1))).build(),
+                                                 FluxCapacitor.currentTime().minusSeconds(2))).build(),
                                  client).merge(start(this::handleDisconnects, MessageType.METRICS,
                                                      ConsumerConfiguration.builder()
                                                              .name(format("%s_%s", client.name(), "$websocket-handler"))

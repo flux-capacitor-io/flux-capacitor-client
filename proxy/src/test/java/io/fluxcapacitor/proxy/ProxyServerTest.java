@@ -16,7 +16,6 @@ import io.fluxcapacitor.javaclient.web.SocketSession;
 import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
 import org.junit.jupiter.api.AfterEach;
-import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
@@ -65,7 +64,6 @@ class ProxyServerTest {
         }
 
         @Test
-        @Disabled
         void post() {
             testFixture.registerHandlers(new Object() {
                         @HandlePost("/")
@@ -88,7 +86,6 @@ class ProxyServerTest {
     }
 
     @Nested
-    @Disabled
     class Websocket {
         @Test
         void openSocket() {

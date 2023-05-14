@@ -111,7 +111,7 @@ public class DefaultRequestHandler implements RequestHandler {
                     .clientControlledIndex(true)
                     .filterMessageTarget(true)
                     .minIndex(IndexUtils.indexFromTimestamp(
-                            FluxCapacitor.currentTime().minusSeconds(10)))
+                            FluxCapacitor.currentTime().minusSeconds(2)))
                     .build(), client);
         }
     }
