@@ -54,7 +54,6 @@ class ProxyServerTest {
             testFixture.registerHandlers(new Object() {
                         @HandleGet("/")
                         String hello() {
-                            log.info("Got request");
                             return "Hello World";
                         }
                     })
