@@ -33,11 +33,11 @@ jobs:
       - name: Build test server docker
         run: |
           cd test-server
-          docker build -t fluxcapacitorio/flux-capacitor-test:${{ steps.tag_version.outputs.new_version }} -t fluxcapacitorio/flux-capacitor-test:latest .
+          docker build .
           cd ..
 
       - name: Build proxy docker
         run: |
           cd proxy
-          docker build -t fluxcapacitorio/flux-capacitor-proxy:${{ steps.tag_version.outputs.new_version }} -t fluxcapacitorio/flux-capacitor-proxy:latest .
+          docker build .
           cd ..
