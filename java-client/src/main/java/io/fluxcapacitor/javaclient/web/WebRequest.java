@@ -40,7 +40,7 @@ import static java.util.Objects.requireNonNull;
 
 @Value
 @EqualsAndHashCode(callSuper = true)
-@ToString(callSuper = true)
+@ToString(exclude = {"headers", "cookies"})
 public class WebRequest extends Message {
     private static final Map<Executable, Predicate<HasMessage>> filterCache = new ConcurrentHashMap<>();
 
