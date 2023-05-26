@@ -1,6 +1,5 @@
 package io.fluxcapacitor.javaclient.modeling;
 
-import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonValue;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import lombok.Getter;
@@ -25,9 +24,9 @@ import java.util.Objects;
  */
 public abstract class Id<T> {
     @JsonValue
-    @Getter(onMethod = @__(@JsonIgnore))
+    @Getter
     String functionalId;
-    @Getter(onMethod = @__(@JsonIgnore))
+    @Getter
     Class<T> type;
     String repositoryId;
 
