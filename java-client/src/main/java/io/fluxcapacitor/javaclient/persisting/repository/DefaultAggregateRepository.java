@@ -77,7 +77,7 @@ public class DefaultAggregateRepository implements AggregateRepository {
 
     @Override
     @SuppressWarnings("unchecked")
-    public <T> Entity<T> load(@NonNull String aggregateId, Class<T> type) {
+    public <T> Entity<T> load(@NonNull Object aggregateId, Class<T> type) {
         if (Entity.isLoading()) {
             return new NoOpEntity<>(() -> (Entity<T>) delegates.apply(type).load(aggregateId));
         }
@@ -86,13 +86,13 @@ public class DefaultAggregateRepository implements AggregateRepository {
 
     @SuppressWarnings("unchecked")
     @Override
-    public <T> Entity<T> loadFor(@NonNull String entityId, Class<?> defaultType) {
+    public <T> Entity<T> loadFor(@NonNull Object entityId, Class<?> defaultType) {
         Map<String, Class<?>> aggregates = getAggregatesFor(entityId);
         if (aggregates.isEmpty()) {
             return (Entity<T>) load(entityId, defaultType);
         }
-        if (aggregates.containsKey(entityId)) {
-            return (Entity<T>) load(entityId, aggregates.get(entityId));
+        if (aggregates.containsKey(entityId.toString())) {
+            return (Entity<T>) load(entityId, aggregates.get(entityId.toString()));
         }
         if (aggregates.size() > 1) {
             log.info("Found multiple aggregates containing entity {}. Loading the most recent one.", entityId);
@@ -103,8 +103,9 @@ public class DefaultAggregateRepository implements AggregateRepository {
     }
 
     @Override
-    public Map<String, Class<?>> getAggregatesFor(@NonNull String entityId) {
-        return relationshipsCache.computeIfAbsent(entityId, id -> eventStoreClient.getAggregatesFor(entityId)
+    public Map<String, Class<?>> getAggregatesFor(@NonNull Object entityId) {
+        return relationshipsCache.computeIfAbsent(entityId.toString(),
+                                                  id -> eventStoreClient.getAggregatesFor(id.toString())
                 .entrySet().stream().collect(toMap(Map.Entry::getKey,
                                                    e -> classForName(serializer.upcastType(e.getValue()), Void.class),
                                                    (a, b) -> b, LinkedHashMap::new)));
@@ -168,9 +169,9 @@ public class DefaultAggregateRepository implements AggregateRepository {
             this.ignoreUnknownEvents = annotation.ignoreUnknownEvents();
         }
 
-        public ModifiableAggregateRoot<T> load(String id) {
+        public ModifiableAggregateRoot<T> load(Object id) {
             return ModifiableAggregateRoot.load(
-                    id, () -> aggregateCache.<ImmutableAggregateRoot<T>>compute(id, (k, v) -> {
+                    id, () -> aggregateCache.<ImmutableAggregateRoot<T>>compute(id.toString(), (stringId, v) -> {
                         if (v != null) {
                             if (type.isAssignableFrom(v.type())) {
                                 return v;
@@ -186,7 +187,7 @@ public class DefaultAggregateRepository implements AggregateRepository {
                     }), commitInBatch, serializer, dispatchInterceptor, this::commit);
         }
 
-        protected ImmutableAggregateRoot<T> loadSnapshot(String id) {
+        protected ImmutableAggregateRoot<T> loadSnapshot(Object id) {
             var builder =
                     ImmutableAggregateRoot.<T>builder().id(id).type(type)
                             .idProperty(idProperty)
@@ -253,7 +254,7 @@ public class DefaultAggregateRepository implements AggregateRepository {
 
         public void commit(Entity<?> after, List<DeserializingMessage> unpublishedEvents, Entity<?> before) {
             try {
-                aggregateCache.<Entity<?>>compute(after.id(), (id, current) ->
+                aggregateCache.<Entity<?>>compute(after.id().toString(), (stringId, current) ->
                         current == null || Objects.equals(before.lastEventId(), current.lastEventId())
                         || unpublishedEvents.isEmpty() ? after : current.apply(unpublishedEvents));
                 Set<Relationship> associations = after.associations(before), dissociations =
@@ -291,12 +292,8 @@ public class DefaultAggregateRepository implements AggregateRepository {
                 }
             } catch (Exception e) {
                 log.error("Failed to commit aggregate {}", after.id(), e);
-                aggregateCache.remove(after.id());
+                aggregateCache.remove(after.id().toString());
             }
-        }
-
-        protected boolean isCached() {
-            return !(aggregateCache instanceof NoOpCache);
         }
     }
 }

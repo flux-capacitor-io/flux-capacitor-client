@@ -27,8 +27,8 @@ import io.fluxcapacitor.common.search.JacksonInverter;
 import io.fluxcapacitor.common.serialization.JsonUtils;
 import io.fluxcapacitor.javaclient.common.serialization.AbstractSerializer;
 import io.fluxcapacitor.javaclient.common.serialization.ContentFilter;
+import io.fluxcapacitor.javaclient.common.serialization.DeserializationException;
 import io.fluxcapacitor.javaclient.common.serialization.DeserializingObject;
-import io.fluxcapacitor.javaclient.common.serialization.SerializationException;
 import io.fluxcapacitor.javaclient.common.serialization.casting.Caster;
 import io.fluxcapacitor.javaclient.common.serialization.casting.CasterChain;
 import io.fluxcapacitor.javaclient.common.serialization.casting.Converter;
@@ -127,8 +127,8 @@ public class JacksonSerializer extends AbstractSerializer<JsonNode> implements D
             try {
                 return convert(objectMapper.readTree(jsonNode.data().getValue()), type);
             } catch (Exception e) {
-                throw new SerializationException(format("Could not deserialize a %s to a %s. Invalid json?",
-                                                        type, s.data().getType()), e);
+                throw new DeserializationException(format("Could not deserialize a %s to a %s. Invalid json?",
+                                                          type, s.data().getType()), e);
             }
         }));
     }

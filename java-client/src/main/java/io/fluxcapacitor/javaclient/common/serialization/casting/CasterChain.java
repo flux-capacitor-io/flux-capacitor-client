@@ -16,7 +16,7 @@ package io.fluxcapacitor.javaclient.common.serialization.casting;
 
 import io.fluxcapacitor.common.api.Data;
 import io.fluxcapacitor.common.api.SerializedObject;
-import io.fluxcapacitor.javaclient.common.serialization.SerializationException;
+import io.fluxcapacitor.javaclient.common.serialization.DeserializationException;
 import lombok.AllArgsConstructor;
 import lombok.Value;
 import lombok.With;
@@ -74,7 +74,7 @@ public class CasterChain<T> {
     protected CasterChain(Collection<AnnotatedCaster<T>> casters) {
         this.casters =
                 casters.stream().collect(toMap(u -> new DataRevision(u.getParameters()), identity(), (a, b) -> {
-                    throw new SerializationException(
+                    throw new DeserializationException(
                             format("Failed to create caster chain. Methods '%s' and '%s' both apply to the same data revision.",
                                    a, b));
                 }));

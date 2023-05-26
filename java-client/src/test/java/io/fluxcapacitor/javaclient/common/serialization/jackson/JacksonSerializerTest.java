@@ -21,9 +21,9 @@ import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.fasterxml.jackson.databind.node.TextNode;
 import io.fluxcapacitor.common.api.Data;
 import io.fluxcapacitor.common.serialization.Revision;
+import io.fluxcapacitor.javaclient.common.serialization.DeserializationException;
 import io.fluxcapacitor.javaclient.common.serialization.DeserializingObject;
 import io.fluxcapacitor.javaclient.common.serialization.FilterContent;
-import io.fluxcapacitor.javaclient.common.serialization.SerializationException;
 import io.fluxcapacitor.javaclient.common.serialization.casting.Downcast;
 import io.fluxcapacitor.javaclient.common.serialization.casting.Upcast;
 import io.fluxcapacitor.javaclient.tracking.handling.authentication.MockUser;
@@ -89,7 +89,7 @@ class JacksonSerializerTest {
     @Test
     @SuppressWarnings("ResultOfMethodCallIgnored")
     void testFailOnUnknownType() {
-        assertThrows(SerializationException.class,
+        assertThrows(DeserializationException.class,
                      () -> serializer.deserialize(Stream.of(new Data<>("bla".getBytes(), "unknownType", 0,
                                                                        "application/json")), true)
                              .collect(Collectors.toList()));

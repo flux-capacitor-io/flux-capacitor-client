@@ -27,11 +27,12 @@ import io.fluxcapacitor.javaclient.configuration.DefaultFluxCapacitor;
 import io.fluxcapacitor.javaclient.configuration.client.Client;
 import io.fluxcapacitor.javaclient.configuration.spring.FluxCapacitorSpringConfig;
 import io.fluxcapacitor.javaclient.modeling.Aggregate;
-import io.fluxcapacitor.javaclient.modeling.AggregateId;
 import io.fluxcapacitor.javaclient.modeling.Entity;
 import io.fluxcapacitor.javaclient.modeling.EntityId;
+import io.fluxcapacitor.javaclient.modeling.Id;
 import io.fluxcapacitor.javaclient.persisting.caching.Cache;
 import io.fluxcapacitor.javaclient.persisting.eventsourcing.EventStore;
+import io.fluxcapacitor.javaclient.persisting.eventsourcing.SnapshotStore;
 import io.fluxcapacitor.javaclient.persisting.keyvalue.KeyValueStore;
 import io.fluxcapacitor.javaclient.persisting.repository.AggregateRepository;
 import io.fluxcapacitor.javaclient.persisting.search.DocumentStore;
@@ -469,7 +470,7 @@ public interface FluxCapacitor extends AutoCloseable {
      *
      * @see Aggregate for more info on how to define an event sourced aggregate root
      */
-    static <T> Entity<T> loadAggregate(AggregateId<T> aggregateId) {
+    static <T> Entity<T> loadAggregate(Id<T> aggregateId) {
         return playbackToHandledEvent(get().aggregateRepository().load(aggregateId));
     }
 
@@ -481,7 +482,7 @@ public interface FluxCapacitor extends AutoCloseable {
      *
      * @see Aggregate for more info on how to define an event sourced aggregate root
      */
-    static <T> Entity<T> loadAggregate(String aggregateId, Class<T> aggregateType) {
+    static <T> Entity<T> loadAggregate(Object aggregateId, Class<T> aggregateType) {
         return playbackToHandledEvent(get().aggregateRepository().load(aggregateId, aggregateType));
     }
 
@@ -499,7 +500,7 @@ public interface FluxCapacitor extends AutoCloseable {
      * @see Aggregate for more info on how to define an event sourced aggregate root
      */
     static <T> Entity<T> loadAggregateFor(Object entityId, Class<?> defaultType) {
-        return playbackToHandledEvent(get().aggregateRepository().loadFor(entityId.toString(), defaultType));
+        return playbackToHandledEvent(get().aggregateRepository().loadFor(entityId, defaultType));
     }
 
     private static <T> Entity<T> playbackToHandledEvent(Entity<T> entity) {
@@ -533,9 +534,8 @@ public interface FluxCapacitor extends AutoCloseable {
 
     /**
      * Loads the entity with given id. If the entity is not associated with any aggregate yet, a new aggregate root is
-     * loaded with the entityId as aggregate identifier. no such aggregate exists an empty aggregate root is returned of
-     * type {@code Object}. In case multiple entities are associated with the given entityId the most recent entity is
-     * returned.
+     * loaded with the entityId as aggregate identifier. In case multiple entities are associated with the given
+     * entityId the most recent entity is returned.
      */
     @SuppressWarnings("unchecked")
     static <T> Entity<T> loadEntity(Object entityId) {
@@ -544,11 +544,30 @@ public interface FluxCapacitor extends AutoCloseable {
     }
 
     /**
+     * Loads the entity with given id. If the entity is not associated with any aggregate yet, a new aggregate root is
+     * loaded with the entityId as aggregate identifier. In case multiple entities are associated with the given
+     * entityId the most recent entity is returned.
+     */
+    @SuppressWarnings("unchecked")
+    static <T> Entity<T> loadEntity(Id<T> entityId) {
+        return (Entity<T>) loadAggregateFor(entityId).getEntity(entityId).orElseGet(() -> loadAggregate(entityId));
+    }
+
+    /**
      * Loads the current entity value for given entity id. Entity may be the aggregate root or any ancestral entity. If
      * no such entity exists an empty optional is returned.
      */
     @SuppressWarnings("unchecked")
     static <T> Optional<T> loadEntityValue(Object entityId) {
+        return loadAggregateFor(entityId).getEntity(entityId).map(e -> (T) e.get());
+    }
+
+    /**
+     * Loads the current entity value for given entity id. Entity may be the aggregate root or any ancestral entity. If
+     * no such entity exists an empty optional is returned.
+     */
+    @SuppressWarnings("unchecked")
+    static <T> Optional<T> loadEntityValue(Id<T> entityId) {
         return loadAggregateFor(entityId).getEntity(entityId).map(e -> (T) e.get());
     }
 
@@ -680,9 +699,14 @@ public interface FluxCapacitor extends AutoCloseable {
     AggregateRepository aggregateRepository();
 
     /**
-     * Returns the event store client.
+     * Returns the store for aggregate events.
      */
     EventStore eventStore();
+
+    /**
+     * Returns the store for aggregate snapshots.
+     */
+    SnapshotStore snapshotStore();
 
     /**
      * Returns the message scheduling client.

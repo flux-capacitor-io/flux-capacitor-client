@@ -34,6 +34,7 @@ import io.fluxcapacitor.javaclient.persisting.caching.SelectiveCache;
 import io.fluxcapacitor.javaclient.persisting.eventsourcing.DefaultEventStore;
 import io.fluxcapacitor.javaclient.persisting.eventsourcing.DefaultSnapshotStore;
 import io.fluxcapacitor.javaclient.persisting.eventsourcing.EventStore;
+import io.fluxcapacitor.javaclient.persisting.eventsourcing.SnapshotStore;
 import io.fluxcapacitor.javaclient.persisting.keyvalue.DefaultKeyValueStore;
 import io.fluxcapacitor.javaclient.persisting.keyvalue.KeyValueStore;
 import io.fluxcapacitor.javaclient.persisting.repository.AggregateRepository;
@@ -158,6 +159,7 @@ public class DefaultFluxCapacitor implements FluxCapacitor {
     private final MetricsGateway metricsGateway;
     private final WebRequestGateway webRequestGateway;
     private final AggregateRepository aggregateRepository;
+    private final SnapshotStore snapshotStore;
     private final EventStore eventStore;
     private final KeyValueStore keyValueStore;
     private final DocumentStore documentStore;
@@ -668,7 +670,7 @@ public class DefaultFluxCapacitor implements FluxCapacitor {
             //and finally...
             FluxCapacitor fluxCapacitor = doBuild(trackingMap, commandGateway, queryGateway, eventGateway,
                                                   resultGateway, errorGateway, metricsGateway, webRequestGateway,
-                                                  aggregateRepository,
+                                                  aggregateRepository, snapshotStore,
                                                   eventStore, keyValueStore, documentStore, scheduler, userProvider,
                                                   cache, serializer, correlationDataProvider, identityProvider,
                                                   client, shutdownHandler);
@@ -696,14 +698,14 @@ public class DefaultFluxCapacitor implements FluxCapacitor {
                                         EventGateway eventGateway, ResultGateway resultGateway,
                                         ErrorGateway errorGateway, MetricsGateway metricsGateway,
                                         WebRequestGateway webRequestGateway,
-                                        AggregateRepository aggregateRepository,
+                                        AggregateRepository aggregateRepository, SnapshotStore snapshotStore,
                                         EventStore eventStore, KeyValueStore keyValueStore, DocumentStore documentStore,
                                         Scheduler scheduler, UserProvider userProvider, Cache cache,
                                         Serializer serializer, CorrelationDataProvider correlationDataProvider,
                                         IdentityProvider identityProvider, Client client, Runnable shutdownHandler) {
             return new DefaultFluxCapacitor(trackingSupplier, commandGateway, queryGateway, eventGateway, resultGateway,
                                             errorGateway, metricsGateway, webRequestGateway,
-                                            aggregateRepository, eventStore,
+                                            aggregateRepository, snapshotStore, eventStore,
                                             keyValueStore, documentStore,
                                             scheduler, userProvider, cache, serializer, correlationDataProvider,
                                             identityProvider, client, shutdownHandler);

@@ -17,7 +17,7 @@ package io.fluxcapacitor.javaclient.test;
 import io.fluxcapacitor.common.api.Data;
 import io.fluxcapacitor.javaclient.FluxCapacitor;
 import io.fluxcapacitor.javaclient.common.Message;
-import io.fluxcapacitor.javaclient.modeling.AggregateId;
+import io.fluxcapacitor.javaclient.modeling.Id;
 import io.fluxcapacitor.javaclient.scheduling.Schedule;
 import io.fluxcapacitor.javaclient.tracking.handling.authentication.User;
 import io.fluxcapacitor.javaclient.web.WebRequest;
@@ -62,8 +62,8 @@ public interface Given extends When {
      * instance of serialized {@link Data}, which will automatically be upcasted and deserialized before applying.
      * Otherwise, the event is applied using the passed value as payload without additional metadata.
      */
-    default Given givenAppliedEvents(AggregateId<?> aggregateId, Object... events) {
-        return givenAppliedEvents(aggregateId.getCompleteId(), aggregateId.getType(), events);
+    default Given givenAppliedEvents(Id<?> aggregateId, Object... events) {
+        return givenAppliedEvents(aggregateId.toString(), aggregateId.getType(), events);
     }
 
     /**

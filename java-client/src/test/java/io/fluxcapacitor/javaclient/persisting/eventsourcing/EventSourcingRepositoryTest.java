@@ -22,8 +22,8 @@ import io.fluxcapacitor.javaclient.common.Message;
 import io.fluxcapacitor.javaclient.common.Nullable;
 import io.fluxcapacitor.javaclient.configuration.DefaultFluxCapacitor;
 import io.fluxcapacitor.javaclient.modeling.Aggregate;
-import io.fluxcapacitor.javaclient.modeling.AggregateId;
 import io.fluxcapacitor.javaclient.modeling.Entity;
+import io.fluxcapacitor.javaclient.modeling.Id;
 import io.fluxcapacitor.javaclient.persisting.eventsourcing.client.EventStoreClient;
 import io.fluxcapacitor.javaclient.test.TestFixture;
 import io.fluxcapacitor.javaclient.tracking.handling.HandleCommand;
@@ -59,7 +59,7 @@ import static org.mockito.Mockito.when;
 @Slf4j
 class EventSourcingRepositoryTest {
 
-    static final String aggregateId = "test";
+    static final TestModelId aggregateId = new TestModelId("test");
 
     @Nested
     class Normal {
@@ -86,7 +86,7 @@ class EventSourcingRepositoryTest {
                     .given(fc -> fc.cache().clear())
                     .whenQuery(new GetModel())
                     .expectResult(new TestModel(Arrays.asList(new CreateModel(), new UpdateModel()), Metadata.empty()))
-                    .expectThat(fc -> verify(eventStoreClient).getEvents(anyString(), anyLong()));
+                    .expectThat(fc -> verify(eventStoreClient).getEvents(eq(aggregateId.toString()), anyLong()));
         }
 
         @Test
@@ -109,7 +109,7 @@ class EventSourcingRepositoryTest {
         void testEventsGetStoredWhenHandlingEnds() {
             testFixture.whenCommand(new CreateModel())
                     .expectThat(fc -> verify(eventStoreClient)
-                            .storeEvents(eq(aggregateId), anyList(),
+                            .storeEvents(eq(aggregateId.toString()), anyList(),
                                          eq(false)));
         }
 
@@ -118,7 +118,7 @@ class EventSourcingRepositoryTest {
             testFixture
                     .whenCommand(new FailToCreateModel())
                     .expectExceptionalResult(MockException.class)
-                    .expectThat(fc -> assertEquals(0, eventStoreClient.getEvents(aggregateId, -1L).count()));
+                    .expectThat(fc -> assertEquals(0, eventStoreClient.getEvents(aggregateId.toString(), -1L).count()));
         }
 
         @Test
@@ -127,7 +127,7 @@ class EventSourcingRepositoryTest {
                     .whenCommand(new ApplyNonsense())
                     .expectSuccessfulResult()
                     .expectThat(fc -> verify(eventStoreClient)
-                            .storeEvents(eq(aggregateId), anyList(),
+                            .storeEvents(eq(aggregateId.toString()), anyList(),
                                          eq(false)));
         }
 
@@ -155,7 +155,7 @@ class EventSourcingRepositoryTest {
                     .whenCommand(new ApplyWhileApplying())
                     .expectEvents(new ApplyWhileApplying(), new UpdateModel())
                     .expectTrue(fc -> {
-                        TestModel testModel = loadAggregate(aggregateId, TestModel.class).get();
+                        TestModel testModel = loadAggregate(aggregateId).get();
                         return testModel.events.equals(List.of(
                                 new CreateModel(), new ApplyWhileApplying(), new UpdateModel()));
                     });
@@ -165,7 +165,7 @@ class EventSourcingRepositoryTest {
         void testApplyEventsDuringApplyIsIgnoredDuringReplay() {
             testFixture.givenCommands(new CreateModel(), new ApplyWhileApplying())
                     .given(fc -> fc.cache().clear())
-                    .whenExecuting(fc -> loadAggregate(aggregateId, TestModel.class))
+                    .whenExecuting(fc -> loadAggregate(aggregateId))
                     .expectThat(fc -> verify(eventStoreClient, never()).storeEvents(anyString(), anyList(),
                                                                            eq(false)));
         }
@@ -198,7 +198,7 @@ class EventSourcingRepositoryTest {
         @Test
         void applyMultipleEventsOutsideHandler() {
             testFixture.givenCommands(new CreateModel())
-                    .givenAppliedEvents(new TestModelId(aggregateId), new UpdateModel(), new UpdateModel())
+                    .givenAppliedEvents(aggregateId, new UpdateModel(), new UpdateModel())
                     .whenQuery(new GetModel())
                     .expectResult(new TestModel(Arrays.asList(new CreateModel(), new UpdateModel(), new UpdateModel()), Metadata.empty()));
         }
@@ -206,36 +206,36 @@ class EventSourcingRepositoryTest {
         private class Handler {
             @HandleCommand
             void handle(Object command, Metadata metadata) {
-                loadAggregate(new TestModelId(aggregateId)).assertLegal(command).apply(command, metadata);
+                loadAggregate(aggregateId).assertLegal(command).apply(command, metadata);
             }
 
             @HandleCommand
             void handle(FailsAfterApply command, Metadata metadata) {
-                loadAggregate(new TestModelId(aggregateId)).assertLegal(command).apply(command, metadata);
+                loadAggregate(aggregateId).assertLegal(command).apply(command, metadata);
                 throw new MockException();
             }
 
             @HandleQuery
             TestModel handle(GetModel query) {
-                return loadAggregate(new TestModelId(aggregateId)).get();
+                return loadAggregate(aggregateId).get();
             }
 
             @HandleQuery
             TestModel handle(ApplyInQuery query) {
-                Entity<TestModel> testModelAggregateRoot = loadAggregate(new TestModelId(aggregateId));
+                Entity<TestModel> testModelAggregateRoot = loadAggregate(aggregateId);
                 Entity<TestModel> testModelAggregateRoot1 = testModelAggregateRoot.apply(query);
                 return testModelAggregateRoot1.get();
             }
 
             @HandleCommand
             void handle(ApplyNonsense command) {
-                loadAggregate(new TestModelId(aggregateId)).apply("nonsense");
+                loadAggregate(aggregateId).apply("nonsense");
             }
 
         }
     }
 
-    @Aggregate(cached = true, snapshotPeriod = 100)
+    @Aggregate(cached = true)
     @lombok.Data
     @NoArgsConstructor
     @AllArgsConstructor
@@ -272,31 +272,30 @@ class EventSourcingRepositoryTest {
         }
     }
 
-    @Value
-    public static class TestModelId implements AggregateId<TestModel> {
-        String id;
-
-        @Override
-        public Class<TestModel> getType() {
-            return TestModel.class;
+    static class TestModelId extends Id<TestModel> {
+        public TestModelId(String functionalId) {
+            super(functionalId, TestModel.class, "testId-", true);
         }
     }
 
     @Nested
     class SnapshotTests {
+        SnapshotTestModelId aggregateId = new SnapshotTestModelId("test");
+
         private final TestFixture testFixture = TestFixture.create(new Handler());
 
         @Test
         void testNoSnapshotStoredBeforeThreshold() {
-            testFixture.givenCommands(new CreateModel())
+            testFixture.givenCommands(new CreateSnapshotModel(aggregateId))
                     .whenCommand(new UpdateModel())
                     .expectThat(fc -> verify(testFixture.getFluxCapacitor().client().getKeyValueClient(), times(0))
-                            .putValue(anyString(), any(), any()));
+                            .putValue(anyString(), any(), any()))
+            ;
         }
 
         @Test
         void testSnapshotStoredAfterThreshold() {
-            testFixture.givenCommands(new CreateModel(), new UpdateModel())
+            testFixture.givenCommands(new CreateSnapshotModel(aggregateId), new UpdateModel())
                     .whenCommand(new UpdateModel())
                     .expectThat(fc -> verify(testFixture.getFluxCapacitor().client().getKeyValueClient())
                             .putValue(anyString(), any(), any()));
@@ -304,30 +303,44 @@ class EventSourcingRepositoryTest {
 
         @Test
         void testSnapshotRetrieved() {
-            testFixture.givenCommands(new CreateModel(), new UpdateModel(), new UpdateModel())
+            testFixture.givenCommands(new CreateSnapshotModel(aggregateId), new UpdateModel(), new UpdateModel())
                     .whenCommand(new UpdateModel())
                     .expectThat(fc -> verify(testFixture.getFluxCapacitor().client().getEventStoreClient(),
-                                             times(1)).getEvents(aggregateId, 2L));
+                                             times(1)).getEvents(aggregateId.toString(), 2L));
         }
 
         private class Handler {
             @HandleCommand
             void handle(Object command) {
-                loadAggregate(aggregateId, TestModelForSnapshotting.class).assertLegal(command)
-                        .apply(command);
+                loadAggregate(aggregateId).assertLegal(command).apply(command);
             }
 
         }
     }
 
+    static class SnapshotTestModelId extends Id<TestModelForSnapshotting> {
+        SnapshotTestModelId(String functionalId) {
+            super(functionalId, TestModelForSnapshotting.class, "testId-", true);
+        }
+    }
+
+    record CreateSnapshotModel(SnapshotTestModelId id) {
+    }
+
     @Aggregate(snapshotPeriod = 3, cached = false)
-    @NoArgsConstructor
     @Value
     static class TestModelForSnapshotting {
+        SnapshotTestModelId id;
         String content = "somecontent";
 
         @Apply
-        public TestModelForSnapshotting(CreateModel event) {
+        public static TestModelForSnapshotting create(CreateSnapshotModel event) {
+            return new TestModelForSnapshotting(event.id());
+        }
+
+        @Apply
+        TestModelForSnapshotting update(UpdateModel event) {
+            return this;
         }
     }
 
@@ -345,7 +358,7 @@ class EventSourcingRepositoryTest {
                         verify(testFixture.getFluxCapacitor().client().getKeyValueClient(), times(1))
                                 .putValue(anyString(), any(), any());
                         TestModelNotEventSourced result =
-                                loadAggregate(aggregateId, TestModelNotEventSourced.class).get();
+                                loadAggregate(aggregateId.toString(), TestModelNotEventSourced.class).get();
                         assertTrue(result.getNames().size() == 2
                                            && result.getNames().get(1).equals(UpdateModel.class.getSimpleName()));
                     });
@@ -354,7 +367,7 @@ class EventSourcingRepositoryTest {
         private class Handler {
             @HandleCommand
             void handle(Object command) {
-                loadAggregate(aggregateId, TestModelNotEventSourced.class).assertLegal(command)
+                loadAggregate(aggregateId.toString(), TestModelNotEventSourced.class).assertLegal(command)
                         .apply(command);
             }
         }
@@ -392,7 +405,7 @@ class EventSourcingRepositoryTest {
         private class Handler {
             @HandleCommand
             void handle(CreateModel command) {
-                loadAggregate(aggregateId, TestModelWithFactoryMethod.class).apply(command);
+                loadAggregate(aggregateId.toString(), TestModelWithFactoryMethod.class).apply(command);
             }
         }
     }
@@ -421,7 +434,7 @@ class EventSourcingRepositoryTest {
         private class Handler {
             @HandleCommand
             void handle(Object command) {
-                loadAggregate(aggregateId, TestModelWithFactoryMethodAndSameInstanceMethod.class)
+                loadAggregate(aggregateId.toString(), TestModelWithFactoryMethodAndSameInstanceMethod.class)
                         .assertLegal(command).apply(command);
             }
 
@@ -449,7 +462,7 @@ class EventSourcingRepositoryTest {
         private class Handler {
             @HandleCommand
             void handle(CreateModel command) {
-                loadAggregate(aggregateId, TestModelWithoutFactoryMethodOrConstructor.class)
+                loadAggregate(aggregateId.toString(), TestModelWithoutFactoryMethodOrConstructor.class)
                         .assertLegal(command).apply(command);
             }
         }
@@ -522,7 +535,7 @@ class EventSourcingRepositoryTest {
                     .expectThat(fc -> {
                         Entity<TestModelWithoutApplyEvent> aggregateRoot =
                                 testFixture.getFluxCapacitor().aggregateRepository()
-                                        .load(aggregateId, TestModelWithoutApplyEvent.class);
+                                        .load(aggregateId.toString(), TestModelWithoutApplyEvent.class);
                         assertEquals(aggregateRoot.get().firstEvent, aggregateRoot.previous().get().firstEvent);
                         assertEquals(aggregateRoot.get().secondEvent, new UpdateModelFromEvent());
                         assertNull(aggregateRoot.previous().get().secondEvent);
@@ -557,18 +570,18 @@ class EventSourcingRepositoryTest {
         private class Handler {
             @HandleCommand
             void handle(Object command) {
-                loadAggregate(aggregateId, TestModelWithoutApplyEvent.class).assertLegal(command)
+                loadAggregate(aggregateId.toString(), TestModelWithoutApplyEvent.class).assertLegal(command)
                         .apply(command);
             }
 
             @HandleQuery
             TestModelWithoutApplyEvent handle(GetModel query) {
-                return loadAggregate(aggregateId, TestModelWithoutApplyEvent.class).get();
+                return loadAggregate(aggregateId.toString(), TestModelWithoutApplyEvent.class).get();
             }
 
             @HandleQuery
             Optional<Entity<TestModelWithoutApplyEvent>> handle(GetPlayBackedAggregate query) {
-                return loadAggregate(aggregateId, TestModelWithoutApplyEvent.class)
+                return loadAggregate(aggregateId.toString(), TestModelWithoutApplyEvent.class)
                         .playBackToCondition(a -> false);
             }
         }

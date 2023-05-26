@@ -29,6 +29,7 @@ import java.lang.annotation.Annotation;
 import java.lang.invoke.MethodType;
 import java.lang.reflect.AccessibleObject;
 import java.lang.reflect.AnnotatedType;
+import java.lang.reflect.Constructor;
 import java.lang.reflect.Executable;
 import java.lang.reflect.Field;
 import java.lang.reflect.Member;
@@ -740,6 +741,11 @@ public class ReflectionUtils {
         } catch (Exception e) {
             return false;
         }
+    }
+
+    @SneakyThrows
+    public static <T> Constructor<? extends T> getConstructor(Class<? extends T> type, Class<?>... arguments) {
+        return type.getDeclaredConstructor(arguments);
     }
 
     @SneakyThrows

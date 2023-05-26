@@ -12,27 +12,15 @@
  * limitations under the License.
  */
 
-package io.fluxcapacitor.javaclient.persisting.eventsourcing;
+package io.fluxcapacitor.javaclient.common.serialization;
 
-import io.fluxcapacitor.javaclient.modeling.Entity;
+public class DeserializationException extends RuntimeException {
 
-import java.util.Optional;
-
-public enum NoOpSnapshotStore implements SnapshotStore {
-    INSTANCE;
-
-    @Override
-    public <T> void storeSnapshot(Entity<T> snapshot) {
-        //no op
+    public DeserializationException(String message) {
+        super(message);
     }
 
-    @Override
-    public <T> Optional<Entity<T>> getSnapshot(Object aggregateId) {
-        return Optional.empty();
-    }
-
-    @Override
-    public void deleteSnapshot(Object aggregateId) {
-        //no op
+    public DeserializationException(String message, Throwable cause) {
+        super(message, cause);
     }
 }

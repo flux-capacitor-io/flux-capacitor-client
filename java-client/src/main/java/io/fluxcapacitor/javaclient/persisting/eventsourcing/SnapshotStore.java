@@ -22,8 +22,8 @@ public interface SnapshotStore {
 
     <T> void storeSnapshot(Entity<T> snapshot);
 
-    <T> Optional<Entity<T>> getSnapshot(String aggregateId);
+    <T> Optional<Entity<T>> getSnapshot(Object aggregateId);
 
-    void deleteSnapshot(String aggregateId);
+    void deleteSnapshot(Object aggregateId);
 
 }

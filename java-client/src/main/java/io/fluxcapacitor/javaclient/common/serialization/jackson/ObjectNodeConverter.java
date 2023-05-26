@@ -17,6 +17,7 @@ package io.fluxcapacitor.javaclient.common.serialization.jackson;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import io.fluxcapacitor.javaclient.common.serialization.DeserializationException;
 import io.fluxcapacitor.javaclient.common.serialization.SerializationException;
 import io.fluxcapacitor.javaclient.common.serialization.casting.Converter;
 import lombok.AllArgsConstructor;
@@ -33,7 +34,7 @@ public class ObjectNodeConverter implements Converter<JsonNode> {
         try {
             return objectMapper.readTree(bytes);
         } catch (IOException e) {
-            throw new SerializationException("Could not read JsonNode from byte[]", e);
+            throw new DeserializationException("Could not read JsonNode from byte[]", e);
         }
     }
 

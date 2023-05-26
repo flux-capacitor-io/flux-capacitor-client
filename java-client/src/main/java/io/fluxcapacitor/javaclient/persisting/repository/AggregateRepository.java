@@ -15,8 +15,8 @@
 package io.fluxcapacitor.javaclient.persisting.repository;
 
 import io.fluxcapacitor.common.Awaitable;
-import io.fluxcapacitor.javaclient.modeling.AggregateId;
 import io.fluxcapacitor.javaclient.modeling.Entity;
+import io.fluxcapacitor.javaclient.modeling.Id;
 import lombok.NonNull;
 
 import java.util.Map;
@@ -24,27 +24,27 @@ import java.util.Optional;
 
 public interface AggregateRepository {
 
-    default <T> Entity<T> load(AggregateId<T> aggregateId) {
-        return load(aggregateId.getCompleteId(), aggregateId.getType());
+    default <T> Entity<T> load(Id<T> aggregateId) {
+        return load(aggregateId.toString(), aggregateId.getType());
     }
 
-    <T> Entity<T> load(@NonNull String aggregateId, Class<T> aggregateType);
+    <T> Entity<T> load(@NonNull Object aggregateId, Class<T> aggregateType);
 
-    <T> Entity<T> loadFor(@NonNull String entityId, Class<?> defaultType);
+    <T> Entity<T> loadFor(@NonNull Object entityId, Class<?> defaultType);
 
-    default Awaitable repairRelationships(AggregateId<?> aggregateId) {
+    default Awaitable repairRelationships(Id<?> aggregateId) {
         return repairRelationships(load(aggregateId));
     }
 
-    default Awaitable repairRelationships(String aggregateId) {
+    default Awaitable repairRelationships(Object aggregateId) {
         return repairRelationships(load(aggregateId, Object.class));
     }
 
     Awaitable repairRelationships(Entity<?> aggregate);
 
-    Map<String, Class<?>> getAggregatesFor(String entityId);
+    Map<String, Class<?>> getAggregatesFor(Object entityId);
 
-    default Optional<String> getLatestAggregateId(String entityId) {
+    default Optional<String> getLatestAggregateId(Object entityId) {
         return getAggregatesFor(entityId).keySet().stream().reduce((a, b) -> b);
     }
 }

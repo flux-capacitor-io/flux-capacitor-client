@@ -31,12 +31,12 @@ public class ModifiableAggregateRoot<T> extends DelegatingEntity<T> {
             ThreadLocal.withInitial(HashMap::new);
 
     @SuppressWarnings("unchecked")
-    public static <T> Optional<ModifiableAggregateRoot<T>> getIfActive(String aggregateId) {
+    public static <T> Optional<ModifiableAggregateRoot<T>> getIfActive(Object aggregateId) {
         return ofNullable((ModifiableAggregateRoot<T>) activeAggregates.get().get(aggregateId));
     }
 
     public static <T> ModifiableAggregateRoot<T> load(
-            String aggregateId, Supplier<ImmutableEntity<T>> loader, boolean commitInBatch,
+            Object aggregateId, Supplier<ImmutableEntity<T>> loader, boolean commitInBatch,
             Serializer serializer, DispatchInterceptor dispatchInterceptor, CommitHandler commitHandler) {
         return ModifiableAggregateRoot.<T>getIfActive(aggregateId).orElseGet(
                 () -> new ModifiableAggregateRoot<>(
@@ -98,7 +98,7 @@ public class ModifiableAggregateRoot<T> extends DelegatingEntity<T> {
             entityHelper.assertLegal(message, this);
         }
         Message m = dispatchInterceptor.interceptDispatch(message, EVENT)
-                .addMetadata(Entity.AGGREGATE_ID_METADATA_KEY, id(),
+                .addMetadata(Entity.AGGREGATE_ID_METADATA_KEY, id().toString(),
                              Entity.AGGREGATE_TYPE_METADATA_KEY, type().getName(),
                              Entity.AGGREGATE_SN_METADATA_KEY, String.valueOf(getDelegate().sequenceNumber() + 1L));
         DeserializingMessage eventMessage = new DeserializingMessage(

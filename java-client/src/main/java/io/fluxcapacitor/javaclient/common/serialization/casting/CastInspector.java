@@ -17,7 +17,7 @@ package io.fluxcapacitor.javaclient.common.serialization.casting;
 import io.fluxcapacitor.common.api.Data;
 import io.fluxcapacitor.common.api.SerializedObject;
 import io.fluxcapacitor.common.reflection.ReflectionUtils;
-import io.fluxcapacitor.javaclient.common.serialization.SerializationException;
+import io.fluxcapacitor.javaclient.common.serialization.DeserializationException;
 
 import java.lang.annotation.Annotation;
 import java.lang.reflect.InvocationTargetException;
@@ -79,7 +79,7 @@ public class CastInspector {
                                                                                Class<T> dataType) {
         Type[] parameters = method.getGenericParameterTypes();
         if (parameters.length > 1) {
-            throw new SerializationException(
+            throw new DeserializationException(
                     String.format("Upcaster method '%s' has unexpected number of parameters. Expected 1 or 0.",
                                   method));
         }
@@ -97,7 +97,7 @@ public class CastInspector {
         } else if (dataType.isAssignableFrom((Class<?>) parameters[0])) {
             return s -> invokeMethod(method, s.data().getValue(), target);
         }
-        throw new SerializationException(String.format(
+        throw new DeserializationException(String.format(
                 "First parameter in upcaster method '%s' is of unexpected type. Expected Data<%s> or %s.",
                 method, dataType.getName(), dataType.getName()));
     }
@@ -106,9 +106,9 @@ public class CastInspector {
         try {
             return argument == null ? method.invoke(target) : method.invoke(target, argument);
         } catch (IllegalAccessException e) {
-            throw new SerializationException("Not allowed to invoke method: " + method, e);
+            throw new DeserializationException("Not allowed to invoke method: " + method, e);
         } catch (InvocationTargetException e) {
-            throw new SerializationException("Exception while upcasting using method: " + method, e);
+            throw new DeserializationException("Exception while upcasting using method: " + method, e);
         }
     }
 
@@ -146,7 +146,7 @@ public class CastInspector {
             return (s, o) -> ((Stream<Data<T>>) o.get()).map(s::withData);
         }
 
-        throw new SerializationException(String.format(
+        throw new DeserializationException(String.format(
                 "Unexpected return type of upcaster method '%s'. Expected Data<%s>, %s, Optional<Data<%s>>, Optional<%s>, Stream<Data<%s>> or void",
                 method, dataType.getName(), dataType.getName(), dataType.getName(), dataType.getName(),
                 dataType.getName()));

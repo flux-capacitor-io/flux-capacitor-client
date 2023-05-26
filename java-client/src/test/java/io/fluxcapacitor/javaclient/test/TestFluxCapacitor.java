@@ -22,6 +22,7 @@ import io.fluxcapacitor.javaclient.common.serialization.Serializer;
 import io.fluxcapacitor.javaclient.configuration.client.Client;
 import io.fluxcapacitor.javaclient.persisting.caching.Cache;
 import io.fluxcapacitor.javaclient.persisting.eventsourcing.EventStore;
+import io.fluxcapacitor.javaclient.persisting.eventsourcing.SnapshotStore;
 import io.fluxcapacitor.javaclient.persisting.keyvalue.KeyValueStore;
 import io.fluxcapacitor.javaclient.persisting.repository.AggregateRepository;
 import io.fluxcapacitor.javaclient.persisting.search.DocumentStore;
@@ -66,6 +67,11 @@ public class TestFluxCapacitor implements FluxCapacitor {
     @Override
     public EventStore eventStore() {
         return decorate(delegate.eventStore());
+    }
+
+    @Override
+    public SnapshotStore snapshotStore() {
+        return decorate(delegate.snapshotStore());
     }
 
     @Override

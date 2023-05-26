@@ -24,28 +24,28 @@ import static java.util.Arrays.asList;
 
 public interface EventStore extends HasLocalHandlers {
 
-    default Awaitable storeEvents(String aggregateId, Object... events) {
+    default Awaitable storeEvents(Object aggregateId, Object... events) {
         return storeEvents(aggregateId, asList(events));
     }
 
-    default Awaitable storeEvents(String aggregateId, List<?> events) {
+    default Awaitable storeEvents(Object aggregateId, List<?> events) {
         return storeEvents(aggregateId, events, false);
     }
 
-    default Awaitable storeEvents(String aggregateId, List<?> events, boolean storeOnly) {
+    default Awaitable storeEvents(Object aggregateId, List<?> events, boolean storeOnly) {
         return storeEvents(aggregateId, events, storeOnly, true);
     }
 
-    Awaitable storeEvents(String aggregateId, List<?> events, boolean storeOnly, boolean interceptBeforeStoring);
+    Awaitable storeEvents(Object aggregateId, List<?> events, boolean storeOnly, boolean interceptBeforeStoring);
 
-    default AggregateEventStream<DeserializingMessage> getEvents(String aggregateId) {
+    default AggregateEventStream<DeserializingMessage> getEvents(Object aggregateId) {
         return getEvents(aggregateId, -1L, false);
     }
 
-    default AggregateEventStream<DeserializingMessage> getEvents(String aggregateId, long lastSequenceNumber) {
+    default AggregateEventStream<DeserializingMessage> getEvents(Object aggregateId, long lastSequenceNumber) {
         return getEvents(aggregateId, lastSequenceNumber, false);
     }
 
-    AggregateEventStream<DeserializingMessage> getEvents(String aggregateId, long lastSequenceNumber,
+    AggregateEventStream<DeserializingMessage> getEvents(Object aggregateId, long lastSequenceNumber,
                                                          boolean ignoreUnknownType);
 }

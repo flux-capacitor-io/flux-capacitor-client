@@ -44,12 +44,12 @@ public class DefaultEventStore implements EventStore {
     private final HandlerRegistry localHandlerRegistry;
 
     @Override
-    public Awaitable storeEvents(String aggregateId, List<?> events, boolean storeOnly,
+    public Awaitable storeEvents(Object aggregateId, List<?> events, boolean storeOnly,
                                  boolean interceptBeforeStoring) {
         Awaitable result;
         List<DeserializingMessage> messages = new ArrayList<>(events.size());
         try {
-            int segment = ConsistentHashing.computeSegment(aggregateId);
+            int segment = ConsistentHashing.computeSegment(aggregateId.toString());
             events.forEach(e -> {
                 DeserializingMessage deserializingMessage;
                 if (e instanceof DeserializingMessage) {
@@ -64,7 +64,7 @@ public class DefaultEventStore implements EventStore {
                 }
                 messages.add(deserializingMessage);
             });
-            result = client.storeEvents(aggregateId,
+            result = client.storeEvents(aggregateId.toString(),
                                         messages.stream().map(m -> m.getSerializedObject().getSegment() == null ?
                                                         m.getSerializedObject().withSegment(segment) : m.getSerializedObject())
                                                 .collect(toList()), storeOnly);
@@ -82,11 +82,11 @@ public class DefaultEventStore implements EventStore {
     }
 
     @Override
-    public AggregateEventStream<DeserializingMessage> getEvents(String aggregateId, long lastSequenceNumber,
+    public AggregateEventStream<DeserializingMessage> getEvents(Object aggregateId, long lastSequenceNumber,
                                                                 boolean ignoreUnknownType) {
         try {
             AggregateEventStream<SerializedMessage> serializedEvents =
-                    client.getEvents(aggregateId, lastSequenceNumber);
+                    client.getEvents(aggregateId.toString(), lastSequenceNumber);
             return serializedEvents.convert(stream -> serializer.deserializeMessages(stream, EVENT, !ignoreUnknownType));
         } catch (Exception e) {
             throw new EventSourcingException(format("Failed to obtain events for aggregate %s", aggregateId), e);

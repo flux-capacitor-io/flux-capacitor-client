@@ -20,7 +20,7 @@ import io.fluxcapacitor.common.api.Data;
 import io.fluxcapacitor.common.api.search.Constraint;
 import io.fluxcapacitor.javaclient.FluxCapacitor;
 import io.fluxcapacitor.javaclient.common.Message;
-import io.fluxcapacitor.javaclient.modeling.AggregateId;
+import io.fluxcapacitor.javaclient.modeling.Id;
 import io.fluxcapacitor.javaclient.persisting.search.Search;
 import io.fluxcapacitor.javaclient.tracking.handling.authentication.User;
 import io.fluxcapacitor.javaclient.web.WebRequest;
@@ -86,8 +86,8 @@ public interface When {
      * instance of serialized {@link Data}, which will automatically be upcasted and deserialized before applying.
      * Otherwise, the event is applied using the passed value as payload without additional metadata.
      */
-    default Then whenEventsAreApplied(AggregateId<?> aggregateId, Object... events) {
-        return whenEventsAreApplied(aggregateId.getCompleteId(), aggregateId.getType(), events);
+    default Then whenEventsAreApplied(Id<?> aggregateId, Object... events) {
+        return whenEventsAreApplied(aggregateId.toString(), aggregateId.getType(), events);
     }
 
     /**

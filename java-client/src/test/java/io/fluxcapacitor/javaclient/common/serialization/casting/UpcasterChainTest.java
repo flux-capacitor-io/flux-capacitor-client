@@ -16,7 +16,7 @@ package io.fluxcapacitor.javaclient.common.serialization.casting;
 
 import io.fluxcapacitor.common.api.Data;
 import io.fluxcapacitor.common.api.SerializedObject;
-import io.fluxcapacitor.javaclient.common.serialization.SerializationException;
+import io.fluxcapacitor.javaclient.common.serialization.DeserializationException;
 import lombok.Getter;
 import org.junit.jupiter.api.Test;
 
@@ -165,12 +165,12 @@ class UpcasterChainTest {
 
     @Test
     void testExceptionForUpcasterWithUnexpectedDataType() {
-        assertThrows(SerializationException.class, () -> CasterChain.createUpcaster(Collections.singleton(upcasterStub), new NoConverter()));
+        assertThrows(DeserializationException.class, () -> CasterChain.createUpcaster(Collections.singleton(upcasterStub), new NoConverter()));
     }
 
     @Test
     void testExceptionForConflictingUpcasters() {
-        assertThrows(SerializationException.class, () -> CasterChain.createUpcaster(List.of(upcasterStub, new ConflictingUpcaster()), new StringConverter()));
+        assertThrows(DeserializationException.class, () -> CasterChain.createUpcaster(List.of(upcasterStub, new ConflictingUpcaster()), new StringConverter()));
     }
 
     /*

@@ -15,7 +15,7 @@
 package io.fluxcapacitor.javaclient.persisting.eventsourcing;
 
 import io.fluxcapacitor.common.Guarantee;
-import io.fluxcapacitor.javaclient.common.serialization.SerializationException;
+import io.fluxcapacitor.javaclient.common.serialization.DeserializationException;
 import io.fluxcapacitor.javaclient.common.serialization.Serializer;
 import io.fluxcapacitor.javaclient.modeling.Entity;
 import io.fluxcapacitor.javaclient.modeling.ImmutableAggregateRoot;
@@ -45,10 +45,10 @@ public class DefaultSnapshotStore implements SnapshotStore {
     }
 
     @Override
-    public <T> Optional<Entity<T>> getSnapshot(String aggregateId) {
+    public <T> Optional<Entity<T>> getSnapshot(Object aggregateId) {
         try {
             return ofNullable(keyValueClient.getValue(snapshotKey(aggregateId))).map(serializer::deserialize);
-        } catch (SerializationException e) {
+        } catch (DeserializationException e) {
             log.warn("Failed to deserialize snapshot for {}. Deleting snapshot.", aggregateId, e);
             deleteSnapshot(aggregateId);
             return Optional.empty();
@@ -58,7 +58,7 @@ public class DefaultSnapshotStore implements SnapshotStore {
     }
 
     @Override
-    public void deleteSnapshot(String aggregateId) {
+    public void deleteSnapshot(Object aggregateId) {
         try {
             keyValueClient.deleteValue(snapshotKey(aggregateId));
         } catch (Exception e) {

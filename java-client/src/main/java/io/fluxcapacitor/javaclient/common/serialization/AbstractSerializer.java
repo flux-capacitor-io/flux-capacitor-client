@@ -160,7 +160,7 @@ public abstract class AbstractSerializer<I> implements Serializer {
                     }
                     if (!isKnownType(s.data().getType())) {
                         if (failOnUnknownType) {
-                            throw new SerializationException(
+                            throw new DeserializationException(
                                     format("Could not deserialize object. The serialized type is unknown: %s (rev. %d)",
                                            s.data().getType(), s.data().getRevision()));
                         }
@@ -173,8 +173,8 @@ public abstract class AbstractSerializer<I> implements Serializer {
                                             ? doDeserialize(s.data(), s.data().getType())
                                             : doDeserialize(s.data(), asString(type));
                                 } catch (Exception e) {
-                                    throw new SerializationException("Could not deserialize a " + s.data().getType(),
-                                                                     e);
+                                    throw new DeserializationException("Could not deserialize a " + s.data().getType(),
+                                                                       e);
                                 }
                             }));
                 });
@@ -287,7 +287,7 @@ public abstract class AbstractSerializer<I> implements Serializer {
                 }
                 return doDeserialize(s.data(), asString(type));
             } catch (Exception e) {
-                throw new SerializationException("Could not deserialize a " + s.data().getType(), e);
+                throw new DeserializationException("Could not deserialize a " + s.data().getType(), e);
             }
         }));
     }

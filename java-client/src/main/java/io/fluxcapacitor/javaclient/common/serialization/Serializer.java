@@ -50,18 +50,18 @@ public interface Serializer extends ContentFilter {
 
     /**
      * Upcasts and deserializes the given {@link Data} object to an object of type T. If the input data cannot be
-     * deserialized to a single result (due to upcasting) a {@link SerializationException} is thrown.
+     * deserialized to a single result (due to upcasting) a {@link DeserializationException} is thrown.
      *
      * @param data Data to deserialize
      * @param <T>  Type of object to deserialize to
      * @return Object resulting from the deserialization
-     * @throws SerializationException if deserialization fails
+     * @throws DeserializationException if deserialization fails
      */
     @SuppressWarnings("unchecked")
     default <T> T deserialize(Data<byte[]> data) {
         List<T> list = deserialize(Stream.of(data), true).map(d -> (T) d.getPayload()).toList();
         if (list.size() != 1) {
-            throw new SerializationException(
+            throw new DeserializationException(
                     String.format("Invalid deserialization result for a '%s'. Expected a single object but got %s",
                                   data, list));
         }
@@ -79,7 +79,7 @@ public interface Serializer extends ContentFilter {
      * deciding to go through with the deserialization.
      * <p>
      * You can specify whether deserialization of a result in the output stream should fail with a {@link
-     * SerializationException} if a type is unknown (not a class). It is up to the implementation to determine what
+     * DeserializationException} if a type is unknown (not a class). It is up to the implementation to determine what
      * should happen if a type is unknown but the {@code failOnUnknownType} flag is false.
      *
      * @param dataStream        data input stream to deserialize

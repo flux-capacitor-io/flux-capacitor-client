@@ -47,13 +47,13 @@ public class CachingAggregateRepository implements AggregateRepository {
     private volatile long lastEventIndex = -1L;
 
     @Override
-    public <T> Entity<T> load(@NonNull String aggregateId, Class<T> type) {
+    public <T> Entity<T> load(@NonNull Object aggregateId, Class<T> type) {
         catchUpIfNeeded();
         return delegate.load(aggregateId, type);
     }
 
     @Override
-    public <T> Entity<T> loadFor(@NonNull String entityId, Class<?> defaultType) {
+    public <T> Entity<T> loadFor(@NonNull Object entityId, Class<?> defaultType) {
         catchUpIfNeeded();
         return delegate.loadFor(entityId, defaultType);
     }
@@ -64,7 +64,7 @@ public class CachingAggregateRepository implements AggregateRepository {
     }
 
     @Override
-    public Map<String, Class<?>> getAggregatesFor(String entityId) {
+    public Map<String, Class<?>> getAggregatesFor(Object entityId) {
         return delegate.getAggregatesFor(entityId);
     }
 
