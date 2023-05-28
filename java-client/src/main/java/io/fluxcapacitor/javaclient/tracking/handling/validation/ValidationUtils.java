@@ -31,10 +31,12 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.ServiceLoader;
 import java.util.function.BiFunction;
 import java.util.function.Function;
+import java.util.stream.Stream;
 
 import static io.fluxcapacitor.common.ObjectUtils.memoize;
 import static io.fluxcapacitor.common.reflection.ReflectionUtils.getTypeAnnotations;
@@ -165,31 +167,37 @@ public class ValidationUtils {
         }
     }
 
+    protected static String[] getRequiredRoles(Collection<? extends Annotation> annotations) {
+        return annotations.stream().map(ValidationUtils::getRequiredRoles).filter(Objects::nonNull)
+                .reduce((a, b) -> Stream.concat(Arrays.stream(a), Arrays.stream(b)).toArray(String[]::new))
+                .orElse(null);
+    }
+
     @SneakyThrows
-    protected static String[] getRequiredRoles(Iterable<? extends Annotation> annotations) {
-        for (Annotation annotation : annotations) {
-            if (annotation instanceof RequiresRole) {
-                return ((RequiresRole) annotation).value();
-            }
-            if (annotation.annotationType().isAnnotationPresent(RequiresRole.class)) {
-                for (Method method : ReflectionUtils.getAllMethods(annotation.annotationType())) {
-                    if (method.getName().equalsIgnoreCase("value")) {
-                        Object[] result = (Object[]) method.invoke(annotation);
-                        return Arrays.stream(result).map(Object::toString).toArray(String[]::new);
-                    }
+    protected static String[] getRequiredRoles(Annotation annotation) {
+        if (annotation instanceof RequiresRole) {
+            return ((RequiresRole) annotation).value();
+        }
+        if (annotation.annotationType().isAnnotationPresent(RequiresRole.class)) {
+            for (Method method : ReflectionUtils.getAllMethods(annotation.annotationType())) {
+                if (method.getName().equalsIgnoreCase("value")) {
+                    Object[] result = (Object[]) method.invoke(annotation);
+                    return Arrays.stream(result).map(Object::toString).toArray(String[]::new);
                 }
             }
-            if (annotation instanceof ForbidsRole) {
-                return Arrays.stream(((ForbidsRole) annotation).value()).map(s -> "!" + s).toArray(String[]::new);
-            }
-            if (annotation.annotationType().isAnnotationPresent(ForbidsRole.class)) {
-                for (Method method : ReflectionUtils.getAllMethods(annotation.annotationType())) {
-                    if (method.getName().equalsIgnoreCase("value")) {
-                        Object[] result = (Object[]) method.invoke(annotation);
-                        return Arrays.stream(result).map(Object::toString).map(s -> "!" + s).toArray(String[]::new);
-                    }
+            return new String[0];
+        }
+        if (annotation instanceof ForbidsRole) {
+            return Arrays.stream(((ForbidsRole) annotation).value()).map(s -> "!" + s).toArray(String[]::new);
+        }
+        if (annotation.annotationType().isAnnotationPresent(ForbidsRole.class)) {
+            for (Method method : ReflectionUtils.getAllMethods(annotation.annotationType())) {
+                if (method.getName().equalsIgnoreCase("value")) {
+                    Object[] result = (Object[]) method.invoke(annotation);
+                    return Arrays.stream(result).map(Object::toString).map(s -> "!" + s).toArray(String[]::new);
                 }
             }
+            return new String[0];
         }
         return null;
     }

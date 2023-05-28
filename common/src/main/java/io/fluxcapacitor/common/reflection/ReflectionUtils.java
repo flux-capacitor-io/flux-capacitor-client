@@ -15,6 +15,7 @@
 package io.fluxcapacitor.common.reflection;
 
 import com.fasterxml.jackson.databind.node.ObjectNode;
+import io.fluxcapacitor.common.ObjectUtils;
 import io.fluxcapacitor.common.serialization.JsonUtils;
 import lombok.NonNull;
 import lombok.SneakyThrows;
@@ -578,7 +579,9 @@ public class ReflectionUtils {
                     }
                     return Stream.empty();
                 }).map(t -> (Class<?>) t)
-                .flatMap(i -> stream(i.getAnnotations()))).collect(toCollection(LinkedHashSet::new));
+                .flatMap(i -> stream(i.getAnnotations())))
+                .filter(ObjectUtils.distinctByKey(Annotation::annotationType))
+                .collect(toCollection(LinkedHashSet::new));
     }
 
     /*

@@ -22,6 +22,8 @@ import io.fluxcapacitor.javaclient.tracking.handling.authentication.AbstractUser
 import io.fluxcapacitor.javaclient.tracking.handling.authentication.ForbidsRole;
 import io.fluxcapacitor.javaclient.tracking.handling.authentication.MockUser;
 import io.fluxcapacitor.javaclient.tracking.handling.authentication.RequiresRole;
+import io.fluxcapacitor.javaclient.tracking.handling.authentication.RequiresUser;
+import io.fluxcapacitor.javaclient.tracking.handling.authentication.UnauthenticatedException;
 import io.fluxcapacitor.javaclient.tracking.handling.authentication.UnauthorizedException;
 import io.fluxcapacitor.javaclient.tracking.handling.authentication.User;
 import lombok.Value;
@@ -39,11 +41,30 @@ public class GivenWhenThenAuthenticationTest {
 
     private MockUser user = new MockUser("get", "create");
     private final TestFixture testFixture = TestFixture.create(
-            DefaultFluxCapacitor.builder().registerUserSupplier(new MockUserProvider()), new MockHandler(), new MockSystemHandler());
+            DefaultFluxCapacitor.builder().registerUserSupplier(new MockUserProvider()), new MockHandler(),
+            new RefdataHandler(), new MockSystemHandler());
+
+    @Test
+    void testQueryThatRequiresNoAuthentication() {
+        user = null;
+        testFixture.whenQuery(new RequiresNoAuthentication()).expectResult("success");
+    }
+
+    @Test
+    void testQueryThatRequiresNoRoles() {
+        user = new MockUser();
+        testFixture.whenQuery(new RequiresAuthentication()).expectResult("success");
+    }
+
+    @Test
+    void testQueryThatRequiresUserButNoRolesFailsWithoutUser() {
+        user = null;
+        testFixture.whenQuery(new RequiresAuthentication()).expectExceptionalResult(UnauthenticatedException.class);
+    }
 
     @Test
     void testAuthorizedQuery() {
-        testFixture.whenQuery(new Get()).expectResult("succes");
+        testFixture.whenQuery(new Get()).expectResult("success");
     }
 
     @Test
@@ -119,12 +140,24 @@ public class GivenWhenThenAuthenticationTest {
         user = new MockUser("create", "admin");
         testFixture.whenCommand(new Create()).expectExceptionalResult(UnauthorizedException.class);
     }
+    
+    private static class RefdataHandler {
+        @HandleQuery
+        String handle(RequiresNoAuthentication query) {
+            return "success";
+        }
+
+        @HandleQuery
+        String handle(RequiresAuthentication query) {
+            return "success";
+        }
+    }
 
     @ForbidsRole("system")
     private static class MockHandler {
         @HandleQuery
         String handle(Get query) {
-            return "succes";
+            return "success";
         }
 
         @HandleCommand
@@ -151,6 +184,15 @@ public class GivenWhenThenAuthenticationTest {
         @HandleCommand
         void handle(Update command) {
         }
+    }
+
+    @Value
+    private static class RequiresNoAuthentication {
+    }
+
+    @Value
+    @RequiresUser
+    private static class RequiresAuthentication {
     }
 
     @Value
