@@ -55,11 +55,12 @@ public class DefaultEntityHelper implements EntityHelper {
         var m = new MessageWithEntity(value, entity);
         return interceptMatchers.apply(m.getPayloadClass()).findInvoker(m.getPayload(), m)
                 .map(i -> asStream(i.invoke()).flatMap(v -> {
-                    Message result = Message.asMessage(v).withMetadata(m.getMetadata());
-                    if (result.getPayloadClass().equals(m.getPayloadClass())) {
-                        return Stream.of(result);
+                    Message message = Message.asMessage(v);
+                    message = message.withMetadata(m.getMetadata().with(message.getMetadata()));
+                    if (message.getPayloadClass().equals(m.getPayloadClass())) {
+                        return Stream.of(message);
                     }
-                    return intercept(result, entity);
+                    return intercept(message, entity);
                 }))
                 .orElseGet(() -> Stream.of(value));
     }

@@ -258,10 +258,12 @@ public class AggregateEntitiesTest {
             testFixture.whenEventsAreApplied("test", Aggregate.class, new Message(new FailingCommand() {
                         @InterceptApply
                         Object intercept(FailingCommand input) {
-                            return new AddChild("missing");
+                            return Message.asMessage(new AddChild("missing"))
+                                    .addMetadata("fooNew", "barNew");
                         }
                     }, Metadata.of("foo", "bar")))
                     .expectEvents((Predicate<Message>) m -> m.getMetadata().containsKey("foo"))
+                    .expectEvents((Predicate<Message>) m -> m.getMetadata().containsKey("fooNew"))
                     .expectThat(fc -> expectEntity(e -> e.get() instanceof MissingChild && "missing".equals(e.id())));
         }
 
