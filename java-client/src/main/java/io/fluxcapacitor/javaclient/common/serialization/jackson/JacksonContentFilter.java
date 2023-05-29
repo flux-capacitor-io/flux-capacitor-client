@@ -7,8 +7,10 @@ import com.fasterxml.jackson.databind.JsonSerializer;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationConfig;
 import com.fasterxml.jackson.databind.SerializerProvider;
+import com.fasterxml.jackson.databind.jsontype.TypeSerializer;
 import com.fasterxml.jackson.databind.module.SimpleModule;
 import com.fasterxml.jackson.databind.ser.BeanSerializerModifier;
+import io.fluxcapacitor.common.ThrowingConsumer;
 import io.fluxcapacitor.common.handling.HandlerInspector;
 import io.fluxcapacitor.common.handling.HandlerInvoker;
 import io.fluxcapacitor.common.handling.HandlerMatcher;
@@ -80,6 +82,19 @@ public class JacksonContentFilter implements ContentFilter {
         @Override
         @SneakyThrows
         public void serialize(Object input, JsonGenerator jsonGenerator, SerializerProvider provider) {
+            serializeAndThen(input, jsonGenerator, value -> defaultSerializer.serialize(
+                    value, jsonGenerator, provider));
+        }
+
+        @Override
+        public void serializeWithType(Object input, JsonGenerator jsonGenerator, SerializerProvider provider,
+                                      TypeSerializer typeSerializer) {
+            serializeAndThen(input, jsonGenerator, value -> defaultSerializer.serializeWithType(
+                    value, jsonGenerator, provider, typeSerializer));
+        }
+
+        @SneakyThrows
+        public void serializeAndThen(Object input, JsonGenerator jsonGenerator, ThrowingConsumer<Object> followUp) {
             Object value = input;
             try {
                 if (value != null) {
@@ -97,7 +112,7 @@ public class JacksonContentFilter implements ContentFilter {
             } catch (Exception e) {
                 log.warn("Failed to filter content (type {}) for viewer {}", input.getClass(), User.getCurrent(), e);
             }
-            defaultSerializer.serialize(value, jsonGenerator, provider);
+            followUp.accept(value);
         }
 
         @Override
