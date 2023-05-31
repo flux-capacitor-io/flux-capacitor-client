@@ -18,6 +18,7 @@
             <groupId>io.flux-capacitor</groupId>
             <artifactId>java-client</artifactId>
             <version>${project.version}</version>
+            <optional>true</optional>
         </dependency>
 
         <!--server-->
@@ -25,16 +26,19 @@
             <groupId>io.undertow</groupId>
             <artifactId>undertow-core</artifactId>
             <version>${undertow.version}</version>
+            <optional>true</optional>
         </dependency>
         <dependency>
             <groupId>io.undertow</groupId>
             <artifactId>undertow-servlet</artifactId>
             <version>${undertow.version}</version>
+            <optional>true</optional>
         </dependency>
         <dependency>
             <groupId>io.undertow</groupId>
             <artifactId>undertow-websockets-jsr</artifactId>
             <version>${undertow.version}</version>
+            <optional>true</optional>
         </dependency>
 
         <!-- test dependencies -->
