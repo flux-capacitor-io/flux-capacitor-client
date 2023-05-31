@@ -639,6 +639,7 @@ public class DefaultFluxCapacitor implements FluxCapacitor {
             //misc
             Scheduler scheduler = new DefaultScheduler(client.getSchedulingClient(),
                                                        serializer, dispatchInterceptors.get(SCHEDULE),
+                                                       dispatchInterceptors.get(COMMAND),
                                                        localHandlerRegistry(SCHEDULE, handlerDecorators,
                                                                             parameterResolvers));
 

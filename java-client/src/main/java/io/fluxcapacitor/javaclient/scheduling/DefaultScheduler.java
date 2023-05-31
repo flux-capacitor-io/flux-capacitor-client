@@ -30,6 +30,7 @@ import java.time.Instant;
 import java.util.Optional;
 import java.util.stream.Stream;
 
+import static io.fluxcapacitor.common.MessageType.COMMAND;
 import static io.fluxcapacitor.common.MessageType.SCHEDULE;
 import static io.fluxcapacitor.javaclient.tracking.IndexUtils.indexFromTimestamp;
 
@@ -39,6 +40,7 @@ public class DefaultScheduler implements Scheduler {
     private final SchedulingClient client;
     private final Serializer serializer;
     private final DispatchInterceptor dispatchInterceptor;
+    private final DispatchInterceptor commandDispatchInterceptor;
     private final HandlerRegistry localHandlerRegistry;
 
     @Override
@@ -61,7 +63,10 @@ public class DefaultScheduler implements Scheduler {
 
     @Override
     public void scheduleCommand(Schedule command, boolean ifAbsent) {
-        schedule(command.withPayload(new ScheduledCommand(command.serialize(serializer)))
+        var intercepted = commandDispatchInterceptor.interceptDispatch(command, COMMAND);
+        command = command.withPayload(intercepted.getPayload()).withMetadata(intercepted.getMetadata());
+        schedule(command.withPayload(new ScheduledCommand(commandDispatchInterceptor.modifySerializedMessage(
+                        command.serialize(serializer), command, COMMAND)))
                          .addMetadata("$commandType", command.getPayloadClass().getName()), ifAbsent);
     }
 

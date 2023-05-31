@@ -14,6 +14,9 @@
 
 package io.fluxcapacitor.javaclient.givenwhenthen;
 
+import io.fluxcapacitor.common.MessageType;
+import io.fluxcapacitor.common.api.Metadata;
+import io.fluxcapacitor.common.api.SerializedMessage;
 import io.fluxcapacitor.javaclient.FluxCapacitor;
 import io.fluxcapacitor.javaclient.scheduling.Periodic;
 import io.fluxcapacitor.javaclient.scheduling.Schedule;
@@ -30,6 +33,9 @@ import java.time.Instant;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.argThat;
+import static org.mockito.Mockito.verify;
 
 class GivenWhenThenSchedulingTest {
 
@@ -240,23 +246,38 @@ class GivenWhenThenSchedulingTest {
     @Test
     void testScheduledCommand() {
         Instant deadline = subject.getCurrentTime().plusSeconds(10);
-        subject.givenScheduledCommands(new Schedule("some command", "testId", deadline))
-                .whenTimeAdvancesTo(deadline).expectCommands("some command");
+        subject.givenScheduledCommands(
+                        new Schedule("some command", "testId", deadline).addMetadata("a", "b"))
+                .whenTimeAdvancesTo(deadline)
+                .expectThat(fc -> verify(fc.client().getGatewayClient(MessageType.COMMAND)).send(
+                        any(), argThat((SerializedMessage m) -> {
+                            Object payload = fc.serializer().deserialize(m.getData());
+                            Metadata metadata = m.getMetadata();
+                            return "some command".equals(payload) && metadata.contains(Metadata.of("a", "b"))
+                                   && metadata.containsKey("$clientId");
+                        })));
     }
 
     @Test
     void testScheduledCommand_async() {
         Instant deadline = Instant.now().plusSeconds(10);
         TestFixture.createAsync(new CommandHandler())
-                .givenScheduledCommands(new Schedule("some command", deadline))
-                .whenTimeAdvancesTo(deadline).expectCommands("some command");
+                .givenScheduledCommands(new Schedule("some command", deadline).addMetadata("a", "b"))
+                .whenTimeAdvancesTo(deadline)
+                .expectThat(fc -> verify(fc.client().getGatewayClient(MessageType.COMMAND)).send(
+                        any(), argThat((SerializedMessage m) -> {
+                            Object payload = fc.serializer().deserialize(m.getData());
+                            Metadata metadata = m.getMetadata();
+                            return "some command".equals(payload) && metadata.contains(Metadata.of("a", "b"))
+                                   && metadata.containsKey("$clientId");
+                        })));
     }
 
     @Test
     void testScheduledCommandCancellation() {
         Instant deadline = Instant.now().plusSeconds(10);
         String scheduleId = "testId";
-        subject.givenScheduledCommands(new Schedule("some command", scheduleId,  deadline))
+        subject.givenScheduledCommands(new Schedule("some command", scheduleId, deadline))
                 .given(fc -> FluxCapacitor.cancelSchedule(scheduleId))
                 .whenTimeAdvancesTo(deadline).expectNoCommands();
     }

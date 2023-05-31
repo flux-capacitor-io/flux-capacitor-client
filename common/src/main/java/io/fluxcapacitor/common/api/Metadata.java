@@ -215,6 +215,10 @@ public class Metadata {
         return Arrays.stream(keys).anyMatch(this::containsKey);
     }
 
+    public boolean contains(@NonNull Metadata metadata) {
+        return entries.entrySet().containsAll(metadata.entries.entrySet());
+    }
+
     public String getOrDefault(Object key, String defaultValue) {
         return entries.getOrDefault(key.toString(), defaultValue);
     }
