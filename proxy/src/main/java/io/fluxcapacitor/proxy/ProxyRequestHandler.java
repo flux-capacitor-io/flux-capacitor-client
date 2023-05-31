@@ -120,7 +120,8 @@ public class ProxyRequestHandler implements HttpHandler, AutoCloseable {
                         if (e == null) {
                             handleResponse(r, webRequest, se);
                         } else {
-                            log.error("Failed to forward request for path {}", webRequest, e);
+                            log.error("Failed to complete {} (messageId: {})",
+                                      webRequest, webRequest.getMessageId(), e);
                             sendServerError(se);
                         }
                     } catch (Throwable t) {
