@@ -49,13 +49,13 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Function;
-import java.util.stream.Collectors;
 
 import static io.fluxcapacitor.common.ObjectUtils.memoize;
 import static io.fluxcapacitor.common.reflection.ReflectionUtils.classForName;
 import static io.fluxcapacitor.common.reflection.ReflectionUtils.getAnnotatedProperty;
 import static java.lang.String.format;
 import static java.util.stream.Collectors.toMap;
+import static java.util.stream.Collectors.toSet;
 
 @Slf4j
 @AllArgsConstructor
@@ -115,9 +115,8 @@ public class DefaultAggregateRepository implements AggregateRepository {
     public Awaitable repairRelationships(Entity<?> aggregate) {
         aggregate = aggregate.root();
         return eventStoreClient.repairRelationships(new RepairRelationships(
-                aggregate.id().toString(), aggregate.type().getName(), aggregate.allEntities()
-                .map(Entity::id).filter(Objects::nonNull)
-                .map(Object::toString).collect(Collectors.toSet()), Guarantee.STORED));
+                aggregate.id().toString(), aggregate.type().getName(),
+                aggregate.relationships().stream().map(Relationship::getEntityId).collect(toSet()), Guarantee.STORED));
     }
 
     public class AnnotatedAggregateRepository<T> {

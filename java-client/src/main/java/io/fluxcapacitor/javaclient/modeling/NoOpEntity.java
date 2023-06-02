@@ -13,6 +13,7 @@ import java.util.function.Predicate;
 import java.util.function.Supplier;
 import java.util.function.UnaryOperator;
 
+import static java.util.Collections.emptyList;
 import static java.util.stream.Collectors.toList;
 
 @AllArgsConstructor
@@ -56,6 +57,11 @@ public class NoOpEntity<T> implements Entity<T> {
     @Override
     public Entity<?> parent() {
         return Optional.ofNullable(delegate().parent()).map(NoOpEntity::new).orElse(null);
+    }
+
+    @Override
+    public Collection<?> aliases() {
+        return emptyList();
     }
 
     @Override

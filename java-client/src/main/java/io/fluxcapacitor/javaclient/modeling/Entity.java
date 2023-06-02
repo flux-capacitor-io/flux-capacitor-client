@@ -14,6 +14,7 @@
 
 package io.fluxcapacitor.javaclient.modeling;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import io.fluxcapacitor.common.api.HasMetadata;
 import io.fluxcapacitor.common.api.Metadata;
 import io.fluxcapacitor.common.api.modeling.Relationship;
@@ -108,6 +109,13 @@ public interface Entity<T> {
 
     Entity<?> parent();
 
+    Collection<?> aliases();
+
+    @JsonIgnore
+    default boolean isRoot() {
+        return parent() == null;
+    }
+
     @SuppressWarnings("rawtypes")
     default Entity<?> root() {
         return Optional.<Entity>ofNullable(parent()).map(Entity::root).orElse(this);
@@ -136,7 +144,7 @@ public interface Entity<T> {
     @SuppressWarnings("unchecked")
     default Entity<T> previous() {
         return (Entity<T>) root().previous().allEntities().filter(
-                e -> Objects.equals(e.id(), id()) && Objects.equals(e.type(), type())).findFirst().orElse(null);
+                e -> Objects.equals(e.id(), id()) && e.type().isAssignableFrom(type())).findFirst().orElse(null);
     }
 
     default Entity<T> playBackToEvent(String eventId) {
@@ -161,7 +169,8 @@ public interface Entity<T> {
     }
 
     default Optional<Entity<?>> getEntity(Object entityId) {
-        return allEntities().filter(e -> entityId != null && entityId.equals(e.id())).findFirst();
+        return entityId == null ? Optional.empty() : allEntities().filter(
+                e -> entityId.equals(e.id()) || e.aliases().contains(entityId)).findFirst();
     }
 
     default Entity<T> makeReadOnly() {
@@ -172,12 +181,15 @@ public interface Entity<T> {
     }
 
     default Set<Relationship> relationships() {
+        if (get() == null) {
+            return Collections.emptySet();
+        }
         String id = id().toString();
         String type = type().getName();
-        return get() == null ? Collections.emptySet()
-                : allEntities().map(Entity::id).filter(Objects::nonNull)
-                .map(entityId -> Relationship.builder().entityId(entityId.toString()).aggregateType(type)
-                        .aggregateId(id).build())
+        return allEntities().filter(e -> e.id() != null)
+                .flatMap(e -> Stream.concat(Stream.of(e.id()), e.aliases().stream()))
+                .map(entityId -> Relationship.builder()
+                        .entityId(entityId.toString()).aggregateType(type).aggregateId(id).build())
                 .collect(Collectors.toSet());
     }
 

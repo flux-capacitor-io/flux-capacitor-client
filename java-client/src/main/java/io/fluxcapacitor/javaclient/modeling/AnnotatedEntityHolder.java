@@ -87,9 +87,6 @@ public class AnnotatedEntityHolder {
                                 return new Id(null, getAnnotatedProperty((Class<?>) v, EntityId.class)
                                         .map(ReflectionUtils::getName).orElse(null));
                             }
-                            if (v instanceof String s) {
-                                return new Id(s, null);
-                            }
                             return new Id(null, null);
                         }) :
                 v -> new Id(readProperty(pathToId, v).orElse(null), pathToId);

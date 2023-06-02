@@ -25,7 +25,9 @@ import java.util.function.UnaryOperator;
 
 import static io.fluxcapacitor.common.MessageType.EVENT;
 import static io.fluxcapacitor.common.reflection.ReflectionUtils.getAnnotatedProperties;
+import static io.fluxcapacitor.common.reflection.ReflectionUtils.getValue;
 import static io.fluxcapacitor.javaclient.modeling.AnnotatedEntityHolder.getEntityHolder;
+import static java.util.Collections.emptyList;
 
 @Value
 @NonFinal
@@ -66,6 +68,11 @@ public class ImmutableEntity<T> implements Entity<T> {
     @Getter(lazy = true)
     Collection<? extends Entity<?>> entities = computeEntities();
 
+    @ToString.Exclude
+    @EqualsAndHashCode.Exclude
+    @Getter(lazy = true)
+    Collection<?> aliases = computeAliases();
+
     @SuppressWarnings("unchecked")
     public Class<T> type() {
         return value == null ? type : (Class<T>) value.getClass();
@@ -74,16 +81,6 @@ public class ImmutableEntity<T> implements Entity<T> {
     @Override
     public T get() {
         return value;
-    }
-
-    private Collection<? extends ImmutableEntity<?>> computeEntities() {
-        Class<?> type = value == null ? type() : value.getClass();
-        List<ImmutableEntity<?>> result = new ArrayList<>();
-        for (AccessibleObject location : getAnnotatedProperties(type, Member.class)) {
-            result.addAll(getEntityHolder(type, location, entityHelper, serializer)
-                                  .getEntities(this).toList());
-        }
-        return result;
     }
 
     @SuppressWarnings({"unchecked", "rawtypes"})
@@ -125,5 +122,34 @@ public class ImmutableEntity<T> implements Entity<T> {
             }
         }
         return result;
+    }
+
+    protected Collection<? extends ImmutableEntity<?>> computeEntities() {
+        Class<?> type = value == null ? type() : value.getClass();
+        List<ImmutableEntity<?>> result = new ArrayList<>();
+        for (AccessibleObject location : getAnnotatedProperties(type, Member.class)) {
+            result.addAll(getEntityHolder(type, location, entityHelper, serializer)
+                                  .getEntities(this).toList());
+        }
+        return result;
+    }
+
+    protected Collection<?> computeAliases() {
+        Object target = get();
+        if (target == null) {
+            return emptyList();
+        }
+        List<Object> results = new ArrayList<>();
+        for (AccessibleObject location : getAnnotatedProperties(target.getClass(), Alias.class)) {
+            Object v = getValue(location, target, false);
+            if (v != null) {
+                if (v instanceof Collection<?> collection) {
+                    results.addAll(collection);
+                } else {
+                    results.add(v);
+                }
+            }
+        }
+        return results;
     }
 }

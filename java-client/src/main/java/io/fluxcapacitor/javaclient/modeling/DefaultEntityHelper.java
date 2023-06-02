@@ -1,5 +1,7 @@
 package io.fluxcapacitor.javaclient.modeling;
 
+import io.fluxcapacitor.common.api.HasMetadata;
+import io.fluxcapacitor.common.api.Metadata;
 import io.fluxcapacitor.common.handling.HandlerConfiguration;
 import io.fluxcapacitor.common.handling.HandlerInvoker;
 import io.fluxcapacitor.common.handling.HandlerMatcher;
@@ -11,6 +13,7 @@ import io.fluxcapacitor.javaclient.common.Message;
 import io.fluxcapacitor.javaclient.common.serialization.DeserializingMessage;
 import io.fluxcapacitor.javaclient.persisting.eventsourcing.Apply;
 import io.fluxcapacitor.javaclient.persisting.eventsourcing.InterceptApply;
+import lombok.Value;
 
 import java.lang.reflect.Method;
 import java.util.Collection;
@@ -164,5 +167,42 @@ public class DefaultEntityHelper implements EntityHelper {
 
     @Aggregate
     static class DefaultAggregate {
+    }
+
+    @Value
+    protected static class MessageWithEntity implements HasMessage, HasEntity {
+        Entity<?> entity;
+        Object payload;
+
+        public MessageWithEntity(Object payload, Entity<?> entity) {
+            this.payload = payload;
+            this.entity = entity;
+        }
+
+        @Override
+        public Metadata getMetadata() {
+            return payload instanceof HasMetadata ? ((HasMetadata) payload).getMetadata() : Metadata.empty();
+        }
+
+        @Override
+        public Message toMessage() {
+            return Message.asMessage(payload);
+        }
+
+        @SuppressWarnings("unchecked")
+        @Override
+        public <R> R getPayload() {
+            return payload instanceof HasMessage ? ((HasMessage) payload).getPayload() : (R) payload;
+        }
+    }
+
+    @Value
+    protected static class DeserializingMessageWithEntity extends DeserializingMessage implements HasEntity {
+        Entity<?> entity;
+
+        public DeserializingMessageWithEntity(DeserializingMessage message, Entity<?> entity) {
+            super(message);
+            this.entity = entity;
+        }
     }
 }

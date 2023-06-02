@@ -171,17 +171,6 @@ public class ReflectionUtils {
                              MethodType.methodType(m.getReturnType(), m.getParameterTypes()));
     }
 
-    public static List<?> getAnnotatedPropertyValues(Object target, Class<? extends Annotation> annotation) {
-        if (target == null) {
-            return emptyList();
-        }
-        List<Object> result = new ArrayList<>();
-        for (AccessibleObject property : getAnnotatedProperties(target.getClass(), annotation)) {
-            result.add(getValue(property, target));
-        }
-        return result;
-    }
-
     public static List<? extends AccessibleObject> getAnnotatedProperties(Class<?> target,
                                                                           Class<? extends Annotation> annotation) {
         return annotatedPropertiesCache.apply(target, annotation);
@@ -212,6 +201,20 @@ public class ReflectionUtils {
 
     public static Optional<?> getAnnotatedPropertyValue(Object target, Class<? extends Annotation> annotation) {
         return getAnnotatedProperty(target, annotation).map(m -> getValue(m, target, false));
+    }
+
+    public static Collection<?> getAnnotatedPropertyValues(Object target, Class<? extends Annotation> annotation) {
+        if (target == null) {
+            return emptyList();
+        }
+        List<Object> results = new ArrayList<>();
+        for (AccessibleObject location : getAnnotatedProperties(target.getClass(), annotation)) {
+            Object value = getValue(location, target, false);
+            if (value != null) {
+                results.add(value);
+            }
+        }
+        return results;
     }
 
     public static List<Method> getAnnotatedMethods(Object target, Class<? extends Annotation> annotation) {

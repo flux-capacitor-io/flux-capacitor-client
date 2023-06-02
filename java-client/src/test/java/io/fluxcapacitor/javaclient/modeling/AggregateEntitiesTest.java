@@ -103,6 +103,11 @@ public class AggregateEntitiesTest {
         void findGrandChild() {
             expectEntity(e -> e.entities().stream().findFirst().map(c -> "grandChild".equals(c.id())).orElse(false));
         }
+
+        @Test
+        void findByAlias() {
+            expectEntity(e -> e.getEntity(new GrandChildAlias()).isPresent());
+        }
     }
 
     @Nested
@@ -401,21 +406,21 @@ public class AggregateEntitiesTest {
             }
 
             @Test
-            void addStringMember() {
+            void addStringAlias() {
                 testFixture.whenCommand(new Object() {
                             @Apply
                             Aggregate apply(Aggregate aggregate) {
                                 return aggregate.toBuilder().clientReference("clientRef").build();
                             }
                         })
-                        .expectThat(fc -> expectEntity(e -> "clientRef".equals(e.id()) && "clientRef".equals(e.get())))
-                        .expectTrue(fc -> "clientRef".equals(FluxCapacitor.loadEntity("clientRef").get()))
-                        .expectTrue(fc -> FluxCapacitor.loadEntityValue("clientRef").filter("clientRef"::equals)
-                                .isPresent());
+                        .expectTrue(fc -> {
+                            Entity<Object> entity = loadEntity("clientRef");
+                            return entity.isPresent() && entity.isRoot();
+                        });
             }
 
             @Test
-            void addStringMembers() {
+            void addStringAliases() {
                 testFixture.whenCommand(new Object() {
                             @Apply
                             Aggregate apply(Aggregate aggregate) {
@@ -423,10 +428,9 @@ public class AggregateEntitiesTest {
                                         .otherReference("clientRef1").otherReference("clientRef2").build();
                             }
                         })
-                        .expectThat(fc -> expectEntity(e -> "clientRef1".equals(e.id()) && "clientRef1".equals(e.get())))
-                        .expectTrue(fc -> "clientRef1".equals(FluxCapacitor.loadEntity("clientRef1").get()))
-                        .expectTrue(fc -> FluxCapacitor.loadEntityValue("clientRef1").filter("clientRef1"::equals)
-                                .isPresent());
+                        .expectFalse(fc -> loadEntity("clientRef").isPresent())
+                        .expectTrue(fc -> loadEntity("clientRef1").isPresent())
+                        .expectTrue(fc -> loadEntity("clientRef2").isRoot());
             }
 
             @Test
@@ -777,10 +781,10 @@ public class AggregateEntitiesTest {
         @With
         ChildWithChild childWithGrandChild = ChildWithChild.builder().build();
 
-        @Member
+        @Alias
         String clientReference;
 
-        @Member
+        @Alias
         @Singular
         List<String> otherReferences;
     }
@@ -850,13 +854,21 @@ public class AggregateEntitiesTest {
         String withChildId = "withChild";
 
         @Member
-        GrandChild grandChild = new GrandChild("grandChild");
+        GrandChild grandChild = new GrandChild("grandChild", new GrandChildAlias());
     }
 
     @Value
     static class GrandChild {
         @EntityId
         String grandChildId;
+        @Alias
+        GrandChildAlias alias;
+    }
+
+    static class GrandChildAlias extends Id<GrandChild> {
+        protected GrandChildAlias() {
+            super("anyGrandChild", GrandChild.class);
+        }
     }
 
     @Value

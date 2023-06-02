@@ -25,6 +25,11 @@ public abstract class DelegatingEntity<T> implements Entity<T> {
     }
 
     @Override
+    public Collection<?> aliases() {
+        return delegate.aliases();
+    }
+
+    @Override
     public Class<T> type() {
         return delegate.type();
     }
