@@ -18,6 +18,8 @@ import io.fluxcapacitor.common.Guarantee;
 import io.fluxcapacitor.common.api.search.BulkUpdate;
 import io.fluxcapacitor.common.api.search.SearchQuery;
 import io.fluxcapacitor.javaclient.modeling.EntityId;
+import io.fluxcapacitor.javaclient.modeling.SearchParameters;
+import io.fluxcapacitor.javaclient.modeling.Searchable;
 import lombok.NonNull;
 import lombok.SneakyThrows;
 
@@ -28,10 +30,10 @@ import java.util.Collection;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Function;
-import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import static io.fluxcapacitor.common.reflection.ReflectionUtils.getAnnotatedPropertyValue;
+import static io.fluxcapacitor.common.reflection.ReflectionUtils.getAnnotationAs;
 import static io.fluxcapacitor.javaclient.FluxCapacitor.currentIdentityProvider;
 import static java.util.Collections.singletonList;
 
@@ -164,8 +166,12 @@ public interface DocumentStore {
 
     default Search search(@NonNull Object collection, Object... additionalCollections) {
         return search(SearchQuery.builder().collections(
-                Stream.concat(Stream.of(collection), Arrays.stream(additionalCollections)).map(Object::toString)
-                        .collect(Collectors.toList())));
+                Stream.concat(Stream.of(collection), Arrays.stream(additionalCollections))
+                        .map(c -> c instanceof Class<?> type ?
+                                getAnnotationAs(type, Searchable.class, SearchParameters.class)
+                                        .map(SearchParameters::getCollection)
+                                        .orElseThrow(() -> new IllegalArgumentException(
+                                                "Class is missing @Searchable: " + type)) : c.toString()).toList()));
     }
 
     Search search(SearchQuery.Builder queryBuilder);

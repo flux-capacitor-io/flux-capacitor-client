@@ -16,27 +16,14 @@ package io.fluxcapacitor.javaclient.modeling;
 
 import java.lang.annotation.Documented;
 import java.lang.annotation.ElementType;
-import java.lang.annotation.Inherited;
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
 @Documented
-@Target(ElementType.TYPE)
+@Target(ElementType.ANNOTATION_TYPE)
 @Retention(RetentionPolicy.RUNTIME)
-@Inherited
-@Searchable
-public @interface Aggregate {
-    boolean eventSourced() default true;
-
-    boolean ignoreUnknownEvents() default false;
-
-    int snapshotPeriod() default 0;
-
-    boolean cached() default true;
-
-    boolean commitInBatch() default true;
-
+public @interface Searchable {
     boolean searchable() default false;
 
     String collection() default "";

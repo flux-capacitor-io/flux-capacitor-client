@@ -99,6 +99,9 @@ public class ReflectionUtils {
             })
     );
 
+    private static final Function<Class<?>, Collection<? extends Annotation>> typeAnnotations = memoize(
+            ReflectionUtils::computeTypeAnnotations);
+
     public static Stream<Method> getMethodOverrideHierarchy(Method method) {
         return MethodUtils.getOverrideHierarchy(method, ClassUtils.Interfaces.INCLUDE).stream();
     }
@@ -245,18 +248,41 @@ public class ReflectionUtils {
         return getTypeAnnotation(type, annotationType) != null;
     }
 
+    @SuppressWarnings("unchecked")
     public static <A extends Annotation> A getTypeAnnotation(Class<?> type, Class<A> annotationType) {
-        A result = type.getAnnotation(annotationType);
-        if (result == null) {
-            for (Class<?> iFace : type.getInterfaces()) {
-                result = iFace.getAnnotation(annotationType);
-                if (result != null) {
-                    break;
+        for (Annotation annotation : getTypeAnnotations(type)) {
+            if (annotation.annotationType().equals(annotationType)) {
+                return (A) annotation;
+            }
+            for (Annotation metaAnnotation : getTypeAnnotations(annotation.annotationType())) {
+                if (metaAnnotation.annotationType().equals(annotationType)) {
+                    return (A) annotation;
                 }
             }
         }
-        return result;
+        return null;
     }
+
+    public static Collection<? extends Annotation> getTypeAnnotations(Class<?> type) {
+        return typeAnnotations.apply(type);
+    }
+
+    private static Collection<? extends Annotation> computeTypeAnnotations(Class<?> type) {
+        return Stream.concat(stream(type.getAnnotations()), stream(type.getAnnotatedInterfaces())
+                        .map(AnnotatedType::getType).flatMap(t -> {
+                            if (t instanceof ParameterizedType) {
+                                t = ((ParameterizedType) t).getRawType();
+                            }
+                            if (t instanceof Class<?>) {
+                                return Stream.of((Class<?>) t);
+                            }
+                            return Stream.empty();
+                        }).map(t -> (Class<?>) t)
+                        .flatMap(i -> stream(i.getAnnotations())))
+                .filter(ObjectUtils.distinctByKey(Annotation::annotationType))
+                .collect(toCollection(LinkedHashSet::new));
+    }
+
 
     public static <A extends Annotation> Optional<A> getPackageAnnotation(Package p, Class<A> annotationType) {
         return Optional.ofNullable(p.getAnnotation(annotationType));
@@ -584,25 +610,14 @@ public class ReflectionUtils {
         return member;
     }
 
-    public static Collection<? extends Annotation> getTypeAnnotations(Class<?> type) {
-        return Stream.concat(stream(type.getAnnotations()), stream(type.getAnnotatedInterfaces())
-                .map(AnnotatedType::getType).flatMap(t -> {
-                    if (t instanceof ParameterizedType) {
-                        t = ((ParameterizedType) t).getRawType();
-                    }
-                    if (t instanceof Class<?>) {
-                        return Stream.of((Class<?>) t);
-                    }
-                    return Stream.empty();
-                }).map(t -> (Class<?>) t)
-                .flatMap(i -> stream(i.getAnnotations())))
-                .filter(ObjectUtils.distinctByKey(Annotation::annotationType))
-                .collect(toCollection(LinkedHashSet::new));
-    }
-
     /*
         Returns meta annotation if desired
      */
+
+    public static <A extends Annotation> Optional<A> getAnnotation(Class<?> c, Class<A> a) {
+        return getAnnotationAs(c, a, a);
+    }
+
     public static <A extends Annotation> Optional<A> getAnnotation(Executable m, Class<A> a) {
         return getAnnotationAs(m, a, a);
     }
@@ -610,33 +625,41 @@ public class ReflectionUtils {
     /*
         Returns any object
      */
+    public static <T> Optional<T> getAnnotationAs(Class<?> target, Class<? extends Annotation> annotationType,
+                                                  Class<T> returnType) {
+        return getAnnotationAs(getTypeAnnotation(target, annotationType), annotationType, returnType);
+    }
+
+    public static <T> Optional<T> getAnnotationAs(Executable m, Class<? extends Annotation> a, Class<T> returnType) {
+        return getAnnotationAs(getMethodAnnotation(m, a).orElse(null), a, returnType);
+    }
+
     @SneakyThrows
     @SuppressWarnings("unchecked")
-    public static <T> Optional<T> getAnnotationAs(Executable m, Class<? extends Annotation> a,
-                                                  Class<T> returnType) {
-        if (a == null) {
+    public static <T> Optional<T> getAnnotationAs(Annotation annotation,
+                                                  Class<? extends Annotation> targetAnnotation, Class<T> returnType) {
+        if (targetAnnotation == null) {
             return Optional.empty();
         }
-        Annotation result = getMethodAnnotation(m, a).orElse(null);
-        if (result == null) {
+        if (annotation == null) {
             return Optional.empty();
         }
-        if (a.equals(returnType)) {
-            if (result.annotationType().equals(returnType)) {
-                return Optional.of((T) result);
+        if (targetAnnotation.equals(returnType)) {
+            if (annotation.annotationType().equals(returnType)) {
+                return Optional.of((T) annotation);
             }
-            return Optional.of((T) result.annotationType().getAnnotation(a));
+            return Optional.of((T) annotation.annotationType().getAnnotation(targetAnnotation));
         }
-        Class<? extends Annotation> matchedType = result.annotationType();
+        Class<? extends Annotation> matchedType = annotation.annotationType();
         Map<String, Object> params = new HashMap<>();
-        if (!matchedType.equals(a)) {
-            var typeAnnotation = matchedType.getAnnotation(a);
-            for (Method method : a.getDeclaredMethods()) {
+        if (!matchedType.equals(targetAnnotation)) {
+            var typeAnnotation = matchedType.getAnnotation(targetAnnotation);
+            for (Method method : targetAnnotation.getDeclaredMethods()) {
                 params.put(method.getName(), method.invoke(typeAnnotation));
             }
         }
         for (Method method : matchedType.getDeclaredMethods()) {
-            params.put(method.getName(), method.invoke(result));
+            params.put(method.getName(), method.invoke(annotation));
         }
         if (Map.class.equals(returnType)) {
             return Optional.of((T) params);

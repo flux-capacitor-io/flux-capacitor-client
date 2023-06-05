@@ -75,8 +75,8 @@ public class SearchableAggregateTest {
     void testAggregateWithCustomCollection() {
         testFixture.whenExecuting(fc -> loadAggregate("123", SearchableAggregateWithCustomCollection.class)
                         .update(a -> new SearchableAggregateWithCustomCollection("bar")))
-                .expectTrue(fc -> fc.documentStore().search("searchables").fetchAll().equals(List.of(new SearchableAggregateWithCustomCollection("bar"))))
-                .expectFalse(fc -> search("searchables").fetchAll().isEmpty());
+                .expectTrue(fc -> fc.documentStore().search(SearchableAggregateWithCustomCollection.class).fetchAll().equals(List.of(new SearchableAggregateWithCustomCollection("bar"))))
+                .expectFalse(fc -> search(SearchableAggregateWithCustomCollection.class).fetchAll().isEmpty());
     }
 
     @Test
