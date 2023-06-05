@@ -44,6 +44,7 @@ import io.fluxcapacitor.javaclient.scheduling.client.SchedulingClient;
 import io.fluxcapacitor.javaclient.tracking.BatchInterceptor;
 import io.fluxcapacitor.javaclient.tracking.ConsumerConfiguration;
 import io.fluxcapacitor.javaclient.tracking.Tracker;
+import io.fluxcapacitor.javaclient.tracking.handling.HandleSelf;
 import io.fluxcapacitor.javaclient.tracking.handling.HandlerInterceptor;
 import io.fluxcapacitor.javaclient.tracking.handling.authentication.User;
 import io.fluxcapacitor.javaclient.tracking.handling.authentication.UserProvider;
@@ -80,10 +81,9 @@ import java.util.function.UnaryOperator;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
-import static io.fluxcapacitor.common.MessageType.COMMAND;
-import static io.fluxcapacitor.common.MessageType.QUERY;
 import static io.fluxcapacitor.common.MessageType.SCHEDULE;
-import static io.fluxcapacitor.javaclient.common.ClientUtils.isLocalHandler;
+import static io.fluxcapacitor.javaclient.common.ClientUtils.getHandleSelfAnnotation;
+import static io.fluxcapacitor.javaclient.common.ClientUtils.getLocalHandlerAnnotation;
 import static io.fluxcapacitor.javaclient.common.ClientUtils.runSilently;
 import static io.fluxcapacitor.javaclient.common.Message.asMessage;
 import static java.util.Collections.emptyList;
@@ -159,7 +159,8 @@ public class TestFixture implements Given, When {
     private volatile Message tracedMessage;
     private final Map<ActiveConsumer, List<Message>> consumers = new ConcurrentHashMap<>();
     private final List<Message> commands = new CopyOnWriteArrayList<>(), events = new CopyOnWriteArrayList<>(),
-            webRequests = new CopyOnWriteArrayList<>(), webResponses = new CopyOnWriteArrayList<>(), metrics = new CopyOnWriteArrayList<>();
+            webRequests = new CopyOnWriteArrayList<>(), webResponses = new CopyOnWriteArrayList<>(), metrics =
+            new CopyOnWriteArrayList<>();
     private final List<Schedule> schedules = new CopyOnWriteArrayList<>();
     private final CopyOnWriteArrayList<Throwable> errors = new CopyOnWriteArrayList<>();
 
@@ -437,7 +438,8 @@ public class TestFixture implements Given, When {
     protected Then getResultValidator(Object result, List<Message> commands, List<Message> events,
                                       List<Schedule> schedules, List<Schedule> allSchedules,
                                       List<Throwable> errors, List<Message> metrics) {
-        return new ResultValidator(getFluxCapacitor(), result, events, commands, webRequests, webResponses, metrics, schedules,
+        return new ResultValidator(getFluxCapacitor(), result, events, commands, webRequests, webResponses, metrics,
+                                   schedules,
                                    allSchedules.stream().filter(
                                            s -> s.getDeadline().isAfter(getCurrentTime())).collect(toList()),
                                    errors);
@@ -445,9 +447,9 @@ public class TestFixture implements Given, When {
 
     protected void applyEvents(String aggregateId, Class<?> aggregateClass, FluxCapacitor fc, List<Message> events) {
         List<Message> eventList = events.stream().map(
-                e -> e.withMetadata(e.getMetadata().with(
-                        Entity.AGGREGATE_ID_METADATA_KEY, aggregateId,
-                        Entity.AGGREGATE_TYPE_METADATA_KEY, aggregateClass.getName())))
+                        e -> e.withMetadata(e.getMetadata().with(
+                                Entity.AGGREGATE_ID_METADATA_KEY, aggregateId,
+                                Entity.AGGREGATE_TYPE_METADATA_KEY, aggregateClass.getName())))
                 .map(m -> {
                     if (m.getPayload() instanceof Data<?>) {
                         Data<?> eventData = m.getPayload();
@@ -496,7 +498,7 @@ public class TestFixture implements Given, When {
             }
             if (!checkConsumers()) {
                 log.warn("Some consumers in the test fixture did not finish processing all messages. "
-                                 + "This may cause your test to fail. Waiting consumers: {}",
+                         + "This may cause your test to fail. Waiting consumers: {}",
                          consumers.entrySet().stream()
                                  .filter(e -> !e.getValue().isEmpty())
                                  .map(e -> e.getKey().getName() + " : " + e.getValue().stream()
@@ -558,7 +560,7 @@ public class TestFixture implements Given, When {
             throw e.getCause();
         } catch (TimeoutException e) {
             throw new TimeoutException("Test fixture did not receive a dispatch result in time. "
-                                               + "Perhaps some messages did not have handlers?");
+                                       + "Perhaps some messages did not have handlers?");
         }
     }
 
@@ -632,15 +634,17 @@ public class TestFixture implements Given, When {
                 addMessage(publishedSchedules, (Schedule) message);
             }
 
-            synchronized (consumers) {
-                consumers.entrySet().stream()
-                        .filter(t -> {
-                            var configuration = t.getKey();
-                            return (configuration.getMessageType() == messageType && Optional
-                                    .ofNullable(configuration.getTypeFilter())
-                                    .map(f -> message.getPayload().getClass().getName().matches(f))
-                                    .orElse(true));
-                        }).forEach(e -> addMessage(e.getValue(), message));
+            if (getHandleSelfAnnotation(message.getPayloadClass()).map(HandleSelf::logMessage).orElse(true)) {
+                synchronized (consumers) {
+                    consumers.entrySet().stream()
+                            .filter(t -> {
+                                var configuration = t.getKey();
+                                return (configuration.getMessageType() == messageType && Optional
+                                        .ofNullable(configuration.getTypeFilter())
+                                        .map(f -> message.getPayload().getClass().getName().matches(f))
+                                        .orElse(true));
+                            }).forEach(e -> addMessage(e.getValue(), message));
+                }
             }
 
             if (collectingResults
@@ -670,8 +674,8 @@ public class TestFixture implements Given, When {
         @Override
         public Consumer<MessageBatch> intercept(Consumer<MessageBatch> consumer, Tracker tracker) {
             List<Message> messages = consumers.computeIfAbsent(
-                            new ActiveConsumer(tracker.getConfiguration(), tracker.getMessageType()),
-                            c -> (c.getMessageType() == SCHEDULE
+                    new ActiveConsumer(tracker.getConfiguration(), tracker.getMessageType()),
+                    c -> (c.getMessageType() == SCHEDULE
                             ? publishedSchedules : Collections.<Message>emptyList()).stream().filter(
                                     m -> Optional.ofNullable(c.getTypeFilter()).map(f -> m.getPayload().getClass()
                                             .getName().matches(f)).orElse(true))
@@ -696,8 +700,9 @@ public class TestFixture implements Given, When {
                     registerError(e);
                     throw e;
                 } finally {
-                    if ((m.getMessageType() == COMMAND || m.getMessageType() == QUERY)
-                        && isLocalHandler(invoker.getTarget().getClass(), invoker.getMethod())) {
+                    if (m.getMessageType().isRequest()
+                        && getLocalHandlerAnnotation(invoker.getTarget().getClass(), invoker.getMethod())
+                                .map(l -> !l.logMessage()).orElse(false)) {
                         synchronized (consumers) {
                             consumers.entrySet().stream()
                                     .filter(t -> t.getKey().getMessageType() == m.getMessageType())

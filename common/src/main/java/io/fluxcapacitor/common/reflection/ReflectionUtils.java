@@ -217,8 +217,21 @@ public class ReflectionUtils {
         return results;
     }
 
+    public static List<Method> getAnnotatedMethods(Class<?> target, Class<? extends Annotation> annotation) {
+        return methodsCache.apply(target).stream().filter(m -> m.isAnnotationPresent(annotation)).toList();
+    }
+
     public static List<Method> getAnnotatedMethods(Object target, Class<? extends Annotation> annotation) {
-        return getMethodsListWithAnnotation(target.getClass(), annotation, true, true);
+        return target == null ? List.of() : getAnnotatedMethods(target.getClass(), annotation);
+    }
+
+    public static boolean isMethodAnnotationPresent(Class<?> target, Class<? extends Annotation> annotation) {
+        for (Method method : methodsCache.apply(target)) {
+            if (method.isAnnotationPresent(annotation)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     public static List<Field> getAnnotatedFields(Object target, Class<? extends Annotation> annotation) {

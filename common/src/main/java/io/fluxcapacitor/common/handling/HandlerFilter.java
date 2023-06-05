@@ -6,6 +6,9 @@ import java.lang.reflect.Executable;
 
 @FunctionalInterface
 public interface HandlerFilter {
+
+    HandlerFilter ALWAYS_HANDLE = (t, e) -> true;
+
     boolean test(Class<?> ownerType, Executable executable);
 
     default HandlerFilter and(@NonNull HandlerFilter other) {

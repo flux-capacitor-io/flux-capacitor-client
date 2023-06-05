@@ -36,6 +36,7 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.function.BiFunction;
 import java.util.function.Function;
+import java.util.function.Supplier;
 import java.util.stream.Stream;
 
 import static io.fluxcapacitor.common.handling.HandlerInspector.MethodHandlerMatcher.comparator;
@@ -64,9 +65,15 @@ public class HandlerInspector {
                              HandlerConfiguration.builder().methodAnnotation(methodAnnotation).build());
     }
 
+    public static <M> Handler<M> createHandler(Supplier<?> targetSupplier, Class<?> targetClass,
+                                               List<ParameterResolver<? super M>> parameterResolvers,
+                                               HandlerConfiguration<? super M> config) {
+        return new DefaultHandler<>(targetSupplier, inspect(targetClass, parameterResolvers, config));
+    }
+
     public static <M> Handler<M> createHandler(Object target, List<ParameterResolver<? super M>> parameterResolvers,
                                                HandlerConfiguration<? super M> config) {
-        return new DefaultHandler<>(target, inspect(target.getClass(), parameterResolvers, config));
+        return new DefaultHandler<>(() -> target, inspect(target.getClass(), parameterResolvers, config));
     }
 
     public static <M> HandlerMatcher<Object, M> inspect(Class<?> c,
@@ -256,6 +263,12 @@ public class HandlerInspector {
                 return executable;
             }
 
+            @SuppressWarnings("unchecked")
+            @Override
+            public <A extends Annotation> A getMethodAnnotation() {
+                return (A) methodAnnotation;
+            }
+
             @Override
             public boolean expectResult() {
                 return hasReturnValue;
@@ -264,6 +277,14 @@ public class HandlerInspector {
             @Override
             public boolean isPassive() {
                 return passive;
+            }
+
+            @Override
+            public String toString() {
+                return Optional.ofNullable(target).map(o -> {
+                    String simpleName = o.getClass().getSimpleName();
+                    return String.format("\"%s\"", simpleName.isEmpty() ? o.getClass() : simpleName);
+                }).orElse("MethodHandlerInvoker");
             }
         }
     }
@@ -299,22 +320,22 @@ public class HandlerInspector {
     @AllArgsConstructor
     @Slf4j
     public static class DefaultHandler<M> implements Handler<M> {
-        private final Object target;
+        private final Supplier<?> targetSupplier;
         private final HandlerMatcher<Object, M> invoker;
 
         @Override
         public Object getTarget() {
-            return target;
+            return targetSupplier.get();
         }
 
         @Override
         public Optional<HandlerInvoker> findInvoker(M message) {
-            return invoker.findInvoker(target, message);
+            return invoker.findInvoker(getTarget(), message);
         }
 
         @Override
         public String toString() {
-            return Optional.ofNullable(target).map(o -> {
+            return Optional.ofNullable(getTarget()).map(o -> {
                         String simpleName = o.getClass().getSimpleName();
                         return String.format("\"%s\"", simpleName.isEmpty() ? o.getClass() : simpleName);
                     }).orElse("DefaultHandler");

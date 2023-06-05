@@ -18,6 +18,7 @@ import io.fluxcapacitor.javaclient.configuration.DefaultFluxCapacitor;
 import io.fluxcapacitor.javaclient.test.TestFixture;
 import io.fluxcapacitor.javaclient.tracking.handling.HandleCommand;
 import io.fluxcapacitor.javaclient.tracking.handling.HandleQuery;
+import io.fluxcapacitor.javaclient.tracking.handling.HandleSelf;
 import io.fluxcapacitor.javaclient.tracking.handling.authentication.AbstractUserProvider;
 import io.fluxcapacitor.javaclient.tracking.handling.authentication.ForbidsRole;
 import io.fluxcapacitor.javaclient.tracking.handling.authentication.MockUser;
@@ -136,6 +137,11 @@ public class GivenWhenThenAuthenticationTest {
     }
 
     @Test
+    void testUnauthorizedDeleteSelf() {
+        testFixture.whenCommand(new DeleteSelf()).expectExceptionalResult(UnauthorizedException.class);
+    }
+
+    @Test
     void testUnauthorizedIfForbiddenRoleIsPresent() {
         user = new MockUser("create", "admin");
         testFixture.whenCommand(new Create()).expectExceptionalResult(UnauthorizedException.class);
@@ -216,6 +222,14 @@ public class GivenWhenThenAuthenticationTest {
     @MockRequiresRole(MockRole.delete)
     private static class Delete implements Modify {
 
+    }
+
+    @Value
+    @MockRequiresRole(MockRole.delete)
+    private static class DeleteSelf {
+        @HandleSelf
+        void handle() {
+        }
     }
 
     @MockRequiresRole(MockRole.modify)

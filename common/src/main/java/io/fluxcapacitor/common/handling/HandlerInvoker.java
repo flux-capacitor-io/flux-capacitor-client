@@ -2,6 +2,7 @@ package io.fluxcapacitor.common.handling;
 
 import lombok.AllArgsConstructor;
 
+import java.lang.annotation.Annotation;
 import java.lang.reflect.Executable;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -13,6 +14,8 @@ public interface HandlerInvoker {
     Object getTarget();
 
     Executable getMethod();
+
+    <A extends Annotation> A getMethodAnnotation();
 
     boolean expectResult();
 
@@ -59,6 +62,11 @@ public interface HandlerInvoker {
         }
 
         @Override
+        public <A extends Annotation> A getMethodAnnotation() {
+            return delegate.getMethodAnnotation();
+        }
+
+        @Override
         public boolean expectResult() {
             return delegate.expectResult();
         }
@@ -66,6 +74,11 @@ public interface HandlerInvoker {
         @Override
         public boolean isPassive() {
             return delegate.isPassive();
+        }
+
+        @Override
+        public String toString() {
+            return delegate.toString();
         }
     }
 

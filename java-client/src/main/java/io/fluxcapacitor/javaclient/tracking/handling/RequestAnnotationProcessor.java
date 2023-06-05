@@ -16,7 +16,10 @@ import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 
-@SupportedAnnotationTypes({"io.fluxcapacitor.javaclient.tracking.handling.HandleQuery", "io.fluxcapacitor.javaclient.tracking.handling.HandleCommand"})
+@SupportedAnnotationTypes({
+        "io.fluxcapacitor.javaclient.tracking.handling.HandleQuery",
+        "io.fluxcapacitor.javaclient.tracking.handling.HandleCommand",
+        "io.fluxcapacitor.javaclient.tracking.handling.HandleSelf"})
 public class RequestAnnotationProcessor extends AbstractProcessor {
     @Override
     public boolean process(Set<? extends TypeElement> annotations, RoundEnvironment roundEnv) {
@@ -65,6 +68,10 @@ public class RequestAnnotationProcessor extends AbstractProcessor {
         }
         if (Optional.ofNullable(method.getAnnotation(HandleQuery.class))
                 .map(HandleQuery::passive).orElse(false)) {
+            return true;
+        }
+        if (Optional.ofNullable(method.getAnnotation(HandleSelf.class))
+                .map(HandleSelf::passive).orElse(false)) {
             return true;
         }
         return false;

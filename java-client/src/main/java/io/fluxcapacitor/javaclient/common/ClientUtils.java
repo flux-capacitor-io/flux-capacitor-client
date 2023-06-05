@@ -16,6 +16,7 @@ package io.fluxcapacitor.javaclient.common;
 
 import io.fluxcapacitor.common.ThrowingRunnable;
 import io.fluxcapacitor.common.handling.HandlerInvoker;
+import io.fluxcapacitor.javaclient.tracking.handling.HandleSelf;
 import io.fluxcapacitor.javaclient.tracking.handling.LocalHandler;
 import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
@@ -29,8 +30,10 @@ import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.function.BiFunction;
+import java.util.function.Function;
 
 import static io.fluxcapacitor.common.ObjectUtils.memoize;
+import static io.fluxcapacitor.common.reflection.ReflectionUtils.getAnnotatedMethods;
 import static io.fluxcapacitor.common.reflection.ReflectionUtils.getAnnotation;
 import static io.fluxcapacitor.common.reflection.ReflectionUtils.getTypeAnnotation;
 
@@ -39,6 +42,10 @@ public class ClientUtils {
     private static final BiFunction<Class<?>, java.lang.reflect.Executable, Optional<LocalHandler>> localHandlerCache = memoize(
             (target, method) -> getAnnotation(method, LocalHandler.class)
                     .or(() -> Optional.ofNullable(getTypeAnnotation(target, LocalHandler.class))));
+
+    private static final Function<Class<?>, Optional<HandleSelf>> handleSelfCache = memoize(
+            target -> getAnnotatedMethods(target, HandleSelf.class).stream()
+                    .findFirst().map(m -> m.getAnnotation(HandleSelf.class)));
 
     public static void waitForResults(Duration maxDuration, Collection<? extends Future<?>> futures) {
         Instant deadline = Instant.now().plus(maxDuration);
@@ -86,5 +93,9 @@ public class ClientUtils {
 
     public static Optional<LocalHandler> getLocalHandlerAnnotation(Class<?> target, java.lang.reflect.Executable method) {
         return localHandlerCache.apply(target, method);
+    }
+
+    public static Optional<HandleSelf> getHandleSelfAnnotation(Class<?> target) {
+        return handleSelfCache.apply(target);
     }
 }

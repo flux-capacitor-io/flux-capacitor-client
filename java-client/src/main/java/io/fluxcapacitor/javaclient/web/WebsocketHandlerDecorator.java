@@ -9,6 +9,7 @@ import io.fluxcapacitor.javaclient.tracking.handling.HandlerDecorator;
 import lombok.RequiredArgsConstructor;
 import lombok.SneakyThrows;
 
+import java.lang.annotation.Annotation;
 import java.lang.reflect.Executable;
 import java.lang.reflect.Method;
 import java.util.Collection;
@@ -84,6 +85,11 @@ public class WebsocketHandlerDecorator implements HandlerDecorator {
         @Override
         public Executable getMethod() {
             return method;
+        }
+
+        @Override
+        public <A extends Annotation> A getMethodAnnotation() {
+            return null;
         }
 
         @Override

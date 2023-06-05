@@ -31,6 +31,7 @@ import lombok.RequiredArgsConstructor;
 import java.lang.annotation.Annotation;
 import java.util.List;
 import java.util.Optional;
+import java.util.function.Supplier;
 import java.util.stream.Stream;
 
 import static io.fluxcapacitor.common.handling.HandlerInspector.hasHandlerMethods;
@@ -68,14 +69,23 @@ public class DefaultHandlerFactory implements HandlerFactory {
     @Override
     public Optional<Handler<DeserializingMessage>> createHandler(Object target, String consumer,
                                                                  HandlerFilter handlerFilter,
-                                                                 List<HandlerInterceptor> handlerInterceptors) {
-        HandlerDecorator interceptor = Stream.concat(Stream.of(defaultDecorator), handlerInterceptors.stream())
-                .reduce(HandlerDecorator::andThen).orElseThrow();
-        return Optional.ofNullable(getHandlerAnnotation(messageType))
+                                                                 List<HandlerInterceptor> extraInterceptors) {
+        return createHandler(() -> target, target.getClass(), getHandlerAnnotation(messageType),
+                             consumer, handlerFilter, extraInterceptors);
+    }
+
+    @Override
+    public Optional<Handler<DeserializingMessage>> createHandler(
+            Supplier<?> targetSupplier, Class<?> targetClass, Class<? extends Annotation> handlerAnnotation,
+            String consumer, HandlerFilter handlerFilter, List<HandlerInterceptor> extraInterceptors) {
+        HandlerDecorator interceptor =
+                Stream.concat(Stream.of(defaultDecorator), extraInterceptors.stream())
+                        .reduce(HandlerDecorator::andThen).orElseThrow();
+        return Optional.ofNullable(handlerAnnotation)
                 .map(a -> HandlerConfiguration.<DeserializingMessage>builder().methodAnnotation(a)
                         .handlerFilter(handlerFilter).messageFilter(messageFilter).build())
-                .filter(config -> hasHandlerMethods(target.getClass(), config))
-                .map(config -> HandlerInspector.createHandler(target, parameterResolvers, config))
+                .filter(config -> hasHandlerMethods(targetClass, config))
+                .map(config -> HandlerInspector.createHandler(targetSupplier, targetClass, parameterResolvers, config))
                 .map(handler -> interceptor.wrap(handler, consumer));
     }
 
@@ -86,4 +96,5 @@ public class DefaultHandlerFactory implements HandlerFactory {
                 .reduce(MessageFilter::and).orElseGet(() -> (m, a) -> true);
         return messageType == MessageType.WEBREQUEST ? WebRequest.getWebRequestFilter().and(result) : result;
     }
+
 }

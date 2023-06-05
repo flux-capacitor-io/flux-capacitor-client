@@ -18,6 +18,7 @@ import io.fluxcapacitor.common.api.Metadata;
 import io.fluxcapacitor.common.handling.HandlerInvoker;
 import io.fluxcapacitor.javaclient.FluxCapacitor;
 import io.fluxcapacitor.javaclient.common.serialization.DeserializingMessage;
+import io.fluxcapacitor.javaclient.tracking.handling.HandleSelf;
 import io.fluxcapacitor.javaclient.tracking.handling.HandlerInterceptor;
 import io.fluxcapacitor.javaclient.tracking.handling.LocalHandler;
 import lombok.extern.slf4j.Slf4j;
@@ -53,9 +54,7 @@ public class HandlerMonitor implements HandlerInterceptor {
     protected void publishMetrics(HandlerInvoker invoker, String consumer, DeserializingMessage message,
                                   boolean exceptionalResult, Instant start, Object result) {
         try {
-            boolean logMetrics = getLocalHandlerAnnotation(invoker.getTarget().getClass(), invoker.getMethod())
-                    .map(LocalHandler::logMetrics).orElse(true);
-            if (logMetrics) {
+            if (logMetrics(invoker)) {
                 boolean completed =
                         !(result instanceof CompletableFuture<?>) || ((CompletableFuture<?>) result).isDone();
                 FluxCapacitor.getOptionally().ifPresent(fc -> fc.metricsGateway().publish(new HandleMessageEvent(
@@ -76,6 +75,12 @@ public class HandlerMonitor implements HandlerInterceptor {
         } catch (Exception e) {
             log.error("Failed to publish handler metrics", e);
         }
+    }
+
+    protected boolean logMetrics(HandlerInvoker invoker) {
+        return invoker.getMethodAnnotation() instanceof HandleSelf handleSelf ? handleSelf.logMetrics()
+                : getLocalHandlerAnnotation(invoker.getTarget().getClass(), invoker.getMethod())
+                .map(LocalHandler::logMetrics).orElse(true);
     }
 
 }
