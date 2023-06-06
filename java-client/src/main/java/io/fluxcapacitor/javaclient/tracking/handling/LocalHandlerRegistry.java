@@ -113,6 +113,13 @@ public class LocalHandlerRegistry implements HandlerRegistry {
     }
 
     protected List<HandlerInvoker> getLocalHandlers(DeserializingMessage message) {
+        if (!message.getMessageType().isRequest()) {
+            List<HandlerInvoker> result = new ArrayList<>();
+            for (Handler<DeserializingMessage> h : localHandlers) {
+                h.findInvoker(message).ifPresent(result::add);
+            }
+            return result;
+        }
         return message.apply(m -> selfHandlers.apply(m.getPayloadClass())
                 .flatMap(h -> Optional.ofNullable(h.findInvoker(m).orElseGet(() -> {
                     log.warn("@HandleSelf method on payload class {} could not be invoked. "
