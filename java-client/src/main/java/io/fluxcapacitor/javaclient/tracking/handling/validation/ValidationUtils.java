@@ -15,8 +15,8 @@
 package io.fluxcapacitor.javaclient.tracking.handling.validation;
 
 import io.fluxcapacitor.common.reflection.ReflectionUtils;
-import io.fluxcapacitor.javaclient.tracking.handling.authentication.ForbidsRole;
-import io.fluxcapacitor.javaclient.tracking.handling.authentication.RequiresRole;
+import io.fluxcapacitor.javaclient.tracking.handling.authentication.ForbidsAnyRole;
+import io.fluxcapacitor.javaclient.tracking.handling.authentication.RequiresAnyRole;
 import io.fluxcapacitor.javaclient.tracking.handling.authentication.UnauthenticatedException;
 import io.fluxcapacitor.javaclient.tracking.handling.authentication.UnauthorizedException;
 import io.fluxcapacitor.javaclient.tracking.handling.authentication.User;
@@ -175,10 +175,10 @@ public class ValidationUtils {
 
     @SneakyThrows
     protected static String[] getRequiredRoles(Annotation annotation) {
-        if (annotation instanceof RequiresRole) {
-            return ((RequiresRole) annotation).value();
+        if (annotation instanceof RequiresAnyRole) {
+            return ((RequiresAnyRole) annotation).value();
         }
-        if (annotation.annotationType().isAnnotationPresent(RequiresRole.class)) {
+        if (annotation.annotationType().isAnnotationPresent(RequiresAnyRole.class)) {
             for (Method method : ReflectionUtils.getAllMethods(annotation.annotationType())) {
                 if (method.getName().equalsIgnoreCase("value")) {
                     Object[] result = (Object[]) method.invoke(annotation);
@@ -187,10 +187,10 @@ public class ValidationUtils {
             }
             return new String[0];
         }
-        if (annotation instanceof ForbidsRole) {
-            return Arrays.stream(((ForbidsRole) annotation).value()).map(s -> "!" + s).toArray(String[]::new);
+        if (annotation instanceof ForbidsAnyRole) {
+            return Arrays.stream(((ForbidsAnyRole) annotation).value()).map(s -> "!" + s).toArray(String[]::new);
         }
-        if (annotation.annotationType().isAnnotationPresent(ForbidsRole.class)) {
+        if (annotation.annotationType().isAnnotationPresent(ForbidsAnyRole.class)) {
             for (Method method : ReflectionUtils.getAllMethods(annotation.annotationType())) {
                 if (method.getName().equalsIgnoreCase("value")) {
                     Object[] result = (Object[]) method.invoke(annotation);

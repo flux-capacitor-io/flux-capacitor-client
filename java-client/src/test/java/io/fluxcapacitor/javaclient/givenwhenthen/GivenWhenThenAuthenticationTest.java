@@ -20,9 +20,9 @@ import io.fluxcapacitor.javaclient.tracking.handling.HandleCommand;
 import io.fluxcapacitor.javaclient.tracking.handling.HandleQuery;
 import io.fluxcapacitor.javaclient.tracking.handling.HandleSelf;
 import io.fluxcapacitor.javaclient.tracking.handling.authentication.AbstractUserProvider;
-import io.fluxcapacitor.javaclient.tracking.handling.authentication.ForbidsRole;
+import io.fluxcapacitor.javaclient.tracking.handling.authentication.ForbidsAnyRole;
 import io.fluxcapacitor.javaclient.tracking.handling.authentication.MockUser;
-import io.fluxcapacitor.javaclient.tracking.handling.authentication.RequiresRole;
+import io.fluxcapacitor.javaclient.tracking.handling.authentication.RequiresAnyRole;
 import io.fluxcapacitor.javaclient.tracking.handling.authentication.RequiresUser;
 import io.fluxcapacitor.javaclient.tracking.handling.authentication.UnauthenticatedException;
 import io.fluxcapacitor.javaclient.tracking.handling.authentication.UnauthorizedException;
@@ -159,7 +159,7 @@ public class GivenWhenThenAuthenticationTest {
         }
     }
 
-    @ForbidsRole("system")
+    @ForbidsAnyRole("system")
     private static class MockHandler {
         @HandleQuery
         String handle(Get query) {
@@ -179,14 +179,14 @@ public class GivenWhenThenAuthenticationTest {
         }
     }
 
-    @RequiresRole("system")
+    @RequiresAnyRole("system")
     private static class MockSystemHandler {
         @HandleQuery
         String handle(Get query) {
             return "hi system";
         }
 
-        @RequiresRole("!admin")
+        @RequiresAnyRole("!admin")
         @HandleCommand
         void handle(Update command) {
         }
@@ -202,13 +202,13 @@ public class GivenWhenThenAuthenticationTest {
     }
 
     @Value
-    @RequiresRole("get")
+    @RequiresAnyRole("get")
     private static class Get {
 
     }
 
     @Value
-    @RequiresRole({"create", "!admin"})
+    @RequiresAnyRole({"create", "!admin"})
     private static class Create {
 
     }
@@ -240,7 +240,7 @@ public class GivenWhenThenAuthenticationTest {
     @Retention(RetentionPolicy.RUNTIME)
     @Documented
     @Inherited
-    @RequiresRole
+    @RequiresAnyRole
     public @interface MockRequiresRole {
         MockRole[] value() default {};
     }
