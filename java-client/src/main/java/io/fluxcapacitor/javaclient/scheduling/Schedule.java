@@ -17,6 +17,7 @@ package io.fluxcapacitor.javaclient.scheduling;
 import io.fluxcapacitor.common.api.Metadata;
 import io.fluxcapacitor.javaclient.FluxCapacitor;
 import io.fluxcapacitor.javaclient.common.Message;
+import io.fluxcapacitor.javaclient.tracking.handling.authentication.User;
 import lombok.EqualsAndHashCode;
 import lombok.NonNull;
 import lombok.ToString;
@@ -94,6 +95,11 @@ public class Schedule extends Message {
     @Override
     public Schedule addMetadata(Map<String, ?> values) {
         return (Schedule) super.addMetadata(values);
+    }
+
+    @Override
+    public Schedule addUser(User user) {
+        return (Schedule) super.addUser(user);
     }
 
     public Schedule reschedule(Duration duration) {

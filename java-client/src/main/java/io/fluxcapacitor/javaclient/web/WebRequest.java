@@ -8,6 +8,7 @@ import io.fluxcapacitor.common.handling.MessageFilter;
 import io.fluxcapacitor.javaclient.common.HasMessage;
 import io.fluxcapacitor.javaclient.common.Message;
 import io.fluxcapacitor.javaclient.common.serialization.Serializer;
+import io.fluxcapacitor.javaclient.tracking.handling.authentication.User;
 import lombok.AccessLevel;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
@@ -128,6 +129,11 @@ public class WebRequest extends Message {
     @Override
     public WebRequest addMetadata(Map<String, ?> values) {
         return (WebRequest) super.addMetadata(values);
+    }
+
+    @Override
+    public WebRequest addUser(User user) {
+        return (WebRequest) super.addUser(user);
     }
 
     @Override

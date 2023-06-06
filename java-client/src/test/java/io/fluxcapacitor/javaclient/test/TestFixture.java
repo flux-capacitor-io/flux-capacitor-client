@@ -593,14 +593,7 @@ public class TestFixture implements Given, When {
 
     public Message addUser(User user, Object value) {
         Class<?> callerClass = ReflectionUtils.getCallerClass();
-        return fluxCapacitor.apply(fc -> {
-            UserProvider userProvider = fc.userProvider();
-            if (userProvider == null) {
-                throw new IllegalStateException("UserProvider has not been configured");
-            }
-            Message message = asMessage(parseObject(value, callerClass));
-            return message.withMetadata(userProvider.addToMetadata(message.getMetadata(), user));
-        });
+        return fluxCapacitor.apply(fc -> asMessage(parseObject(value, callerClass)).addUser(user));
     }
 
     public static Object parseObject(Object object, Class<?> callerClass) {

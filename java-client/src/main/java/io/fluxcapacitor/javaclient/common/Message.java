@@ -19,6 +19,8 @@ import io.fluxcapacitor.common.api.Metadata;
 import io.fluxcapacitor.common.api.SerializedMessage;
 import io.fluxcapacitor.javaclient.FluxCapacitor;
 import io.fluxcapacitor.javaclient.common.serialization.Serializer;
+import io.fluxcapacitor.javaclient.tracking.handling.authentication.User;
+import io.fluxcapacitor.javaclient.tracking.handling.authentication.UserProvider;
 import lombok.Value;
 import lombok.With;
 import lombok.experimental.NonFinal;
@@ -89,6 +91,13 @@ public class Message implements HasMessage {
 
     public Message addMetadata(Map<String, ?> values) {
         return withMetadata(getMetadata().with(values));
+    }
+
+    public Message addUser(User user) {
+        return addMetadata(FluxCapacitor.getOptionally().map(FluxCapacitor::userProvider)
+                .or(() -> Optional.ofNullable(UserProvider.defaultUserSupplier))
+                .orElseThrow(() -> new IllegalStateException("User provider is not set"))
+                .addToMetadata(getMetadata(), user));
     }
 
     public SerializedMessage serialize(Serializer serializer) {

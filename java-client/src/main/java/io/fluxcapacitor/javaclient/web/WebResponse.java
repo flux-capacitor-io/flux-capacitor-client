@@ -4,6 +4,7 @@ import io.fluxcapacitor.common.api.Metadata;
 import io.fluxcapacitor.common.api.SerializedMessage;
 import io.fluxcapacitor.javaclient.common.Message;
 import io.fluxcapacitor.javaclient.common.serialization.Serializer;
+import io.fluxcapacitor.javaclient.tracking.handling.authentication.User;
 import lombok.AccessLevel;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
@@ -87,6 +88,11 @@ public class WebResponse extends Message {
     @Override
     public WebResponse addMetadata(Map<String, ?> values) {
         return (WebResponse) super.addMetadata(values);
+    }
+
+    @Override
+    public WebResponse addUser(User user) {
+        return (WebResponse) super.addUser(user);
     }
 
     @Override
