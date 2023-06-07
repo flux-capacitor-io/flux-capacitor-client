@@ -13,6 +13,7 @@ import io.fluxcapacitor.javaclient.common.Message;
 import io.fluxcapacitor.javaclient.common.serialization.DeserializingMessage;
 import io.fluxcapacitor.javaclient.persisting.eventsourcing.Apply;
 import io.fluxcapacitor.javaclient.persisting.eventsourcing.InterceptApply;
+import io.fluxcapacitor.javaclient.tracking.handling.validation.ValidationUtils;
 import lombok.Value;
 
 import java.lang.reflect.Method;
@@ -43,14 +44,17 @@ public class DefaultEntityHelper implements EntityHelper {
     private final Function<Class<?>, HandlerMatcher<Object, HasMessage>> interceptMatchers;
     private final Function<Class<?>, HandlerMatcher<Object, DeserializingMessage>> applyMatchers;
     private final Function<Class<?>, HandlerMatcher<Object, HasMessage>> assertLegalMatchers;
+    private final boolean disablePayloadValidation;
 
     @SuppressWarnings({"unchecked", "rawtypes"})
-    public DefaultEntityHelper(List<ParameterResolver<? super DeserializingMessage>> parameterResolvers) {
+    public DefaultEntityHelper(List<ParameterResolver<? super DeserializingMessage>> parameterResolvers,
+                               boolean disablePayloadValidation) {
         this.interceptMatchers = memoize(type -> inspect(type, (List) parameterResolvers, InterceptApply.class));
         this.applyMatchers = memoize(type -> inspect(type, parameterResolvers, Apply.class));
         this.assertLegalMatchers = memoize(type -> inspect(
                 type, (List) parameterResolvers, HandlerConfiguration.builder().methodAnnotation(AssertLegal.class)
                         .invokeMultipleMethods(true).build()));
+        this.disablePayloadValidation = disablePayloadValidation;
     }
 
     @Override
@@ -116,8 +120,14 @@ public class DefaultEntityHelper implements EntityHelper {
         if (value == null) {
             return;
         }
+
+        //value needs to be valid
+        if (!disablePayloadValidation) {
+            ValidationUtils.assertValid(value instanceof HasMessage hasMessage ? hasMessage.getPayload() : value);
+        }
+
         //check on value
-        Object payload = value instanceof HasMessage ? ((HasMessage) value).getPayload() : value;
+        Object payload = value instanceof HasMessage hasMessage ? hasMessage.getPayload() : value;
         assertLegalValue(payload.getClass(), payload, value, entity, afterHandler);
         entity.possibleTargets(payload).forEach(
                 e -> assertLegalValue(payload.getClass(), payload, value, e, afterHandler));

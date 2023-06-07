@@ -6,6 +6,8 @@ import io.fluxcapacitor.javaclient.persisting.eventsourcing.Apply;
 import io.fluxcapacitor.javaclient.test.TestFixture;
 import io.fluxcapacitor.javaclient.tracking.handling.HandleCommand;
 import io.fluxcapacitor.javaclient.tracking.handling.IllegalCommandException;
+import io.fluxcapacitor.javaclient.tracking.handling.validation.ValidationException;
+import jakarta.validation.constraints.Null;
 import lombok.Value;
 import org.junit.jupiter.api.Test;
 
@@ -24,6 +26,19 @@ public class AssertLegalTest {
     @Test
     void testCreateWithLegalCheckOnNonExistingModelSucceeds() {
         testFixture.whenCommand(new CreateModelWithAssertion()).expectSuccessfulResult();
+    }
+
+    @Test
+    void testCreateWithValidationCheckViaAssertAndApply() {
+        testFixture.whenApplying(fc -> loadAggregate(aggregateId, TestModel.class).assertAndApply(
+                new CreateModelWithValidation()))
+                .expectExceptionalResult(ValidationException.class);
+    }
+
+    @Test
+    void testCreateWithValidationCheckViaGivenEvents() {
+        testFixture.whenEventsAreApplied(aggregateId, TestModel.class, new CreateModelWithValidation())
+                .expectSuccessfulResult();
     }
 
     @Test
@@ -167,6 +182,11 @@ public class AssertLegalTest {
                 throw new MockException("Model should not exist");
             }
         }
+    }
+
+    @Value
+    private static class CreateModelWithValidation {
+        @Null String foo = "notNull";
     }
 
     @Value

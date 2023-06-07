@@ -476,12 +476,6 @@ public class DefaultFluxCapacitor implements FluxCapacitor {
             KeyValueStore keyValueStore = new DefaultKeyValueStore(client.getKeyValueClient(), serializer);
             DocumentStore documentStore = new DefaultDocumentStore(client.getSearchClient(), documentSerializer);
 
-            //enable event validation upon dispatch
-            if (!disablePayloadValidation) {
-                ValidatingInterceptor interceptor = new ValidatingInterceptor();
-                dispatchInterceptors.computeIfPresent(EVENT, (t, i) -> i.andThen(interceptor));
-            }
-
             //enable message routing
             Arrays.stream(MessageType.values()).forEach(
                     type -> dispatchInterceptors.computeIfPresent(type,
@@ -571,7 +565,7 @@ public class DefaultFluxCapacitor implements FluxCapacitor {
                                               new EntityParameterResolver()));
 
             //event sourcing
-            var entityMatcher = new DefaultEntityHelper(parameterResolvers);
+            var entityMatcher = new DefaultEntityHelper(parameterResolvers, disablePayloadValidation);
             EventStore eventStore = new DefaultEventStore(client.getEventStoreClient(),
                                                           serializer, dispatchInterceptors.get(EVENT),
                                                           localHandlerRegistry(EVENT, handlerDecorators,
