@@ -17,6 +17,7 @@ package io.fluxcapacitor.javaclient.persisting.search;
 import io.fluxcapacitor.common.api.search.Constraint;
 import io.fluxcapacitor.common.api.search.DocumentStats;
 import io.fluxcapacitor.common.api.search.SearchHistogram;
+import io.fluxcapacitor.common.api.search.constraints.AllConstraint;
 import io.fluxcapacitor.common.api.search.constraints.AnyConstraint;
 import io.fluxcapacitor.common.api.search.constraints.BetweenConstraint;
 import io.fluxcapacitor.common.api.search.constraints.ExistsConstraint;
@@ -106,6 +107,10 @@ public interface Search {
 
     default Search between(Number min, Number maxExclusive, String path) {
         return constraint(BetweenConstraint.between(min, maxExclusive, path));
+    }
+
+    default Search all(Constraint... constraints) {
+        return constraint(AllConstraint.all(constraints));
     }
 
     default Search any(Constraint... constraints) {
