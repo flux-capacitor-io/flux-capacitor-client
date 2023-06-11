@@ -6,7 +6,6 @@ import io.fluxcapacitor.common.handling.HandlerInvoker;
 import io.fluxcapacitor.javaclient.common.Message;
 import io.fluxcapacitor.javaclient.common.serialization.DeserializingMessage;
 import io.fluxcapacitor.javaclient.common.serialization.Serializer;
-import lombok.AllArgsConstructor;
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
 import lombok.ToString;
@@ -34,7 +33,6 @@ import static java.util.Collections.emptyList;
 @SuperBuilder(toBuilder = true)
 @Accessors(fluent = true)
 @Slf4j
-@AllArgsConstructor
 public class ImmutableEntity<T> implements Entity<T> {
     @JsonProperty
     Object id;
@@ -87,10 +85,8 @@ public class ImmutableEntity<T> implements Entity<T> {
     @Override
     public Entity<T> update(UnaryOperator<T> function) {
         ImmutableEntity<T> after = toBuilder().value(function.apply(get())).build();
-        if (parent == null) {
-            return after;
-        }
-        return parent.update((UnaryOperator) p -> holder.updateOwner(p, this, after));
+        return parent == null ? after : (Entity<T>) parent.update(
+                (UnaryOperator) p -> holder.updateOwner(p, this, after)).getEntity(id()).orElse(null);
     }
 
     @Override
@@ -115,7 +111,7 @@ public class ImmutableEntity<T> implements Entity<T> {
         Object payload = message.getPayload();
         for (Entity<?> entity : result.possibleTargets(payload)) {
             ImmutableEntity<?> immutableEntity = (ImmutableEntity<?>) entity;
-            Entity<?> updated = immutableEntity.apply(message);
+            ImmutableEntity<?> updated = immutableEntity.apply(message);
             if (immutableEntity.get() != updated.get()) {
                 result = result.toBuilder().value((T) immutableEntity
                         .holder().updateOwner(result.get(), entity, updated)).build();

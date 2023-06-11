@@ -163,15 +163,16 @@ public class AnnotatedEntityHolder {
     }
 
 
-    @SuppressWarnings({"unchecked", "rawtypes"})
+    @SuppressWarnings({"unchecked"})
     private Optional<ImmutableEntity<?>> createEntity(Object member, Function<Object, Id> idProvider,
                                                       Entity<?> parent) {
         if (member == null) {
             return empty();
         }
         Id id = idProvider.apply(member);
-        return Optional.of(new ImmutableEntity(
-                id.value(), member.getClass(), member, id.property(), parent, this, entityHelper, serializer));
+        return Optional.of(ImmutableEntity.builder().id(id.value()).type((Class<Object>) member.getClass())
+                                   .value(member).idProperty(id.property()).parent(parent).holder(this)
+                                   .entityHelper(entityHelper).serializer(serializer).build());
     }
 
     @SneakyThrows

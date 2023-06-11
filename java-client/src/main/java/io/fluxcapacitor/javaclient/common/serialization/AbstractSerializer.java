@@ -193,7 +193,7 @@ public abstract class AbstractSerializer<I> implements Serializer {
     @Override
     public <V> V clone(Object value) {
         if (value == null || value.getClass().isPrimitive() || value instanceof String) {
-            return null;
+            return (V) value;
         }
         if (value instanceof Collection<?> collection) {
             if (value instanceof List<?>) {
