@@ -49,14 +49,6 @@ public @interface HandleSelf {
     boolean passive() default false;
 
     /**
-     * If true, the message will be passed on to any registered local handlers. Depending on the setting of
-     * {@link #logMessage()} the message may be logged for external consumers as well.
-     *
-     * @see LocalHandler
-     */
-    boolean continueHandling() default true;
-
-    /**
      * Enables publication of the handled message for other consumers. If {@code true}, messages and their payloads are
      * logged as if they have not been handled yet. This is often desirable for self-handled queries and commands issued
      * by e.g. admins.
