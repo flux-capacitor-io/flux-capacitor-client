@@ -65,4 +65,9 @@ public class AllConstraint implements Constraint {
         return all.stream().anyMatch(Constraint::hasPathConstraint);
     }
 
+    @Override
+    public boolean hasTextConstraint() {
+        return all.stream().anyMatch(Constraint::hasTextConstraint);
+    }
+
 }

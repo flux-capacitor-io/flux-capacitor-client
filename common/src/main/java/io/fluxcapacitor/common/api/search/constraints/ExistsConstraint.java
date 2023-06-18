@@ -49,4 +49,9 @@ public class ExistsConstraint extends PathConstraint {
     public Constraint withPaths(List<String> paths) {
         return paths.isEmpty() ? NoOpConstraint.instance : exists(paths.get(0));
     }
+
+    @Override
+    public boolean hasTextConstraint() {
+        return false;
+    }
 }

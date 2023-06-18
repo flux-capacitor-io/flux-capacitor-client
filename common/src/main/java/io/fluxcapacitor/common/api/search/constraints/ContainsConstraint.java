@@ -69,4 +69,9 @@ public class ContainsConstraint extends PathConstraint {
             (prefixSearch ? "" : String.format("(?<=[^%s]|\\A)", letterOrNumber)) + Pattern.quote(
                     normalize(contains)) + (postfixSearch ? "" :
                     String.format("(?=[^%s]|\\Z)", letterOrNumber)));
+
+    @Override
+    public boolean hasTextConstraint() {
+        return true;
+    }
 }

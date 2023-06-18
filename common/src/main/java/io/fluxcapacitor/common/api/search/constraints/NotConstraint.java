@@ -49,4 +49,9 @@ public class NotConstraint implements Constraint {
         return not.hasPathConstraint();
     }
 
+    @Override
+    public boolean hasTextConstraint() {
+        return not.hasTextConstraint();
+    }
+
 }
