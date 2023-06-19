@@ -41,16 +41,23 @@ public class SearchDocuments extends Request {
     SerializedDocument lastHit;
 
     public Predicate<Path> computePathFilter() {
-        return pathFilters.stream()
+        Predicate<Path> excludeFilter = pathFilters.stream().filter(p -> p.startsWith("-"))
                 .<Predicate<Path>>map(path -> {
-                    boolean negate = path.startsWith("-");
-                    path = negate ? path.substring(1) : path;
+                    path = path.substring(1);
+                    path = dotPattern.matcher(path).replaceAll("/");
+                    Predicate<String> predicate = SearchUtils.convertGlobToRegex(path + "/**")
+                            .asMatchPredicate().or(SearchUtils.convertGlobToRegex(path).asMatchPredicate()).negate();
+                    return splitPattern.splitAsStream(path).anyMatch(SearchUtils::isInteger)
+                            ? p -> predicate.test(p.getLongValue()) : p -> predicate.test(p.getShortValue());
+                }).reduce(Predicate::and).orElse(p -> true);
+        Predicate<Path> includeFilter = pathFilters.stream().filter(p -> !p.startsWith("-"))
+                .<Predicate<Path>>map(path -> {
                     path = dotPattern.matcher(path).replaceAll("/");
                     Predicate<String> predicate = SearchUtils.convertGlobToRegex(path + "/**")
                             .asMatchPredicate().or(SearchUtils.convertGlobToRegex(path).asMatchPredicate());
-                    var finalPredicate = negate ? predicate.negate() : predicate;
                     return splitPattern.splitAsStream(path).anyMatch(SearchUtils::isInteger)
-                            ? p -> finalPredicate.test(p.getLongValue()) : p -> finalPredicate.test(p.getShortValue());
+                            ? p -> predicate.test(p.getLongValue()) : p -> predicate.test(p.getShortValue());
                 }).reduce(Predicate::or).orElse(p -> true);
+        return includeFilter.and(excludeFilter);
     }
 }

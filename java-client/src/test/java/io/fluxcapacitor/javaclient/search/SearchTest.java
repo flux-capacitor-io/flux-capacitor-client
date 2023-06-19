@@ -305,6 +305,35 @@ public class SearchTest {
                                                        && r.get(0).get("payload").get("array") != null
                                                        && r.get(0).get("payload").get("array").get(0).get("anotherArray") == null);
         }
+
+        @Test
+        void testMultipleExcludes() {
+            TestFixture.create().givenDocuments("test", jsonNode)
+                    .whenSearching("test", search -> search.exclude("payload/array/anotherArray", "payload/requestId"))
+                    .<List<JsonNode>>expectResult(r -> r.get(0).get("metadata") != null
+                                                       && r.get(0).get("payload").get("array") != null
+                                                       && r.get(0).get("payload").get("array").get(0).get("anotherArray") == null);
+        }
+
+        @Test
+        void testMultipleIncludes() {
+            TestFixture.create().givenDocuments("test", jsonNode)
+                    .whenSearching("test", search -> search.includeOnly("payload/array/anotherArray", "payload/requestId"))
+                    .<List<JsonNode>>expectResult(r -> r.get(0).get("metadata") == null
+                                                       && r.get(0).get("payload").get("array") != null
+                                                       && r.get(0).get("payload").get("array").get(0).get("anotherArray") != null
+                                                       && r.get(0).get("payload").get("requestId") != null);
+        }
+
+        @Test
+        void testIncludesAndExcludes() {
+            TestFixture.create().givenDocuments("test", jsonNode)
+                    .whenSearching("test", search -> search.includeOnly("payload/array", "payload/requestId").exclude("payload/array/anotherArray"))
+                    .<List<JsonNode>>expectResult(r -> r.get(0).get("metadata") == null
+                                                       && r.get(0).get("payload").get("array") != null
+                                                       && r.get(0).get("payload").get("array").get(0).get("anotherArray") == null
+                                                       && r.get(0).get("payload").get("requestId") != null);
+        }
     }
 
     @Nested
