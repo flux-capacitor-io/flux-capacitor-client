@@ -253,9 +253,10 @@ public class SearchTest {
 
     @Nested
     class IncludesAndExcludesTests {
+        final JsonNode jsonNode = JsonUtils.fromFile( "metrics-message.json", JsonNode.class);
+
         @Test
         void testExcludePaths() {
-            JsonNode jsonNode = JsonUtils.fromFile( "metrics-message.json", JsonNode.class);
             TestFixture.create().givenDocuments("test", jsonNode)
                     .whenSearching("test", search -> search.exclude("payload"))
                     .<List<JsonNode>>expectResult(r -> !r.isEmpty() && r.get(0).get("payload") == null
@@ -280,7 +281,6 @@ public class SearchTest {
 
         @Test
         void testIncludePaths() {
-            JsonNode jsonNode = JsonUtils.fromFile("metrics-message.json", JsonNode.class);
             TestFixture.create().givenDocuments("test", jsonNode)
                     .whenSearching("test", search -> search.includeOnly("payload"))
                     .<List<JsonNode>>expectResult(r -> !r.isEmpty()
@@ -295,6 +295,15 @@ public class SearchTest {
                             && r.get(0).get("payload").get("strategy") == null
                             && r.get(0).get("segment") == null
                             && r.get(0).get("metadata") == null);
+        }
+
+        @Test
+        void testExcludeMultiLevelArray() {
+            TestFixture.create().givenDocuments("test", jsonNode)
+                    .whenSearching("test", search -> search.exclude("payload/array/anotherArray"))
+                    .<List<JsonNode>>expectResult(r -> r.get(0).get("metadata") != null
+                                                       && r.get(0).get("payload").get("array") != null
+                                                       && r.get(0).get("payload").get("array").get(0).get("anotherArray") == null);
         }
     }
 

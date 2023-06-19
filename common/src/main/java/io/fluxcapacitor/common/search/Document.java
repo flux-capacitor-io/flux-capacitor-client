@@ -141,7 +141,7 @@ public class Document {
     @Value
     public static class Path {
         public static final Pattern splitPattern = Pattern.compile("(?<!\\\\)/");
-        private static final Pattern dotPattern = Pattern.compile("(?<!\\\\)\\.");
+        public static final Pattern dotPattern = Pattern.compile("(?<!\\\\)\\.");
 
         public static String escapeFieldName(String fieldName) {
             fieldName = fieldName.replace("/", "\\/");

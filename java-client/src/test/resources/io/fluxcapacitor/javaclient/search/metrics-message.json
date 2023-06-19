@@ -16,7 +16,15 @@
     "filterMessageTarget": false,
     "maxSize": 128,
     "lastIndex": 106187509441101820,
-    "consumer": "audittrail:QUERY"
+    "consumer": "audittrail:QUERY",
+    "array": [{
+      "arrayId": "123",
+      "anotherArray": [
+        {
+          "anotherArrayId": "456"
+        }
+      ]
+    }]
   },
   "created": "2021-05-07T10:44:04.210Z",
   "segment": 109,
