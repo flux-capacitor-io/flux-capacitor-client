@@ -79,9 +79,4 @@ public class MatchConstraint extends PathConstraint {
         String pattern = SearchUtils.normalize(getMatch());
         return entry -> entry.asPhrase().equals(pattern);
     }
-
-    @Override
-    public boolean hasTextConstraint() {
-        return true;
-    }
 }

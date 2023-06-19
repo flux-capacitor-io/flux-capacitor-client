@@ -49,11 +49,6 @@ public class LookAheadConstraint extends PathConstraint {
     }
 
     @Override
-    public boolean hasTextConstraint() {
-        return true;
-    }
-
-    @Override
     protected boolean matches(Document.Entry entry) {
         throw new UnsupportedOperationException();
     }

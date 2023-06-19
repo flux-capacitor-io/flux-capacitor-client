@@ -64,9 +64,4 @@ public class BetweenConstraint extends PathConstraint {
     Predicate<String> matcher =
             min == null ? max == null ? s -> true : s -> s.compareTo(max) < 0 : max == null
                     ? s -> s.compareTo(min) >= 0 : s -> s.compareTo(min) >= 0 && s.compareTo(max) < 0;
-
-    @Override
-    public boolean hasTextConstraint() {
-        return false;
-    }
 }

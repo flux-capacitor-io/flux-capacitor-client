@@ -34,9 +34,4 @@ public class NoOpConstraint implements Constraint {
         return false;
     }
 
-    @Override
-    public boolean hasTextConstraint() {
-        return false;
-    }
-
 }

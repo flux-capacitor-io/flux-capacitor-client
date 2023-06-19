@@ -40,8 +40,6 @@ public interface Constraint {
 
     boolean hasPathConstraint();
 
-    boolean hasTextConstraint();
-
     default Constraint decompose() {
         return this;
     }
