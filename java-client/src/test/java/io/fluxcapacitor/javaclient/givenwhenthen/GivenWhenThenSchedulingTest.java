@@ -14,9 +14,6 @@
 
 package io.fluxcapacitor.javaclient.givenwhenthen;
 
-import io.fluxcapacitor.common.MessageType;
-import io.fluxcapacitor.common.api.Metadata;
-import io.fluxcapacitor.common.api.SerializedMessage;
 import io.fluxcapacitor.javaclient.FluxCapacitor;
 import io.fluxcapacitor.javaclient.scheduling.Periodic;
 import io.fluxcapacitor.javaclient.scheduling.Schedule;
@@ -33,9 +30,6 @@ import java.time.Instant;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.argThat;
-import static org.mockito.Mockito.verify;
 
 class GivenWhenThenSchedulingTest {
 
@@ -249,13 +243,7 @@ class GivenWhenThenSchedulingTest {
         subject.givenScheduledCommands(
                         new Schedule("some command", "testId", deadline).addMetadata("a", "b"))
                 .whenTimeAdvancesTo(deadline)
-                .expectThat(fc -> verify(fc.client().getGatewayClient(MessageType.COMMAND)).send(
-                        any(), argThat((SerializedMessage m) -> {
-                            Object payload = fc.serializer().deserialize(m.getData());
-                            Metadata metadata = m.getMetadata();
-                            return "some command".equals(payload) && metadata.contains(Metadata.of("a", "b"))
-                                   && metadata.containsKey("$clientId");
-                        })));
+                .expectCommands("some command");
     }
 
     @Test
@@ -264,13 +252,7 @@ class GivenWhenThenSchedulingTest {
         TestFixture.createAsync(new CommandHandler())
                 .givenScheduledCommands(new Schedule("some command", deadline).addMetadata("a", "b"))
                 .whenTimeAdvancesTo(deadline)
-                .expectThat(fc -> verify(fc.client().getGatewayClient(MessageType.COMMAND)).send(
-                        any(), argThat((SerializedMessage m) -> {
-                            Object payload = fc.serializer().deserialize(m.getData());
-                            Metadata metadata = m.getMetadata();
-                            return "some command".equals(payload) && metadata.contains(Metadata.of("a", "b"))
-                                   && metadata.containsKey("$clientId");
-                        })));
+                .expectCommands("some command");
     }
 
     @Test

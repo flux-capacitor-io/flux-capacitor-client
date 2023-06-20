@@ -79,8 +79,8 @@ public class LocalHandlerRegistry implements HandlerRegistry {
                     var optionalInvoker = handler.findInvoker(m);
                     if (optionalInvoker.isPresent()) {
                         var invoker = optionalInvoker.get();
-                        boolean passive = invoker.isPassive();
-                        if (!handled || !request || passive) {
+                        boolean passive = invoker.isPassive() || !request;
+                        if (!handled || passive) {
                             try {
                                 Object result = Invocation.performInvocation(invoker::invoke);
                                 if (!passive && !future.isDone()) {
