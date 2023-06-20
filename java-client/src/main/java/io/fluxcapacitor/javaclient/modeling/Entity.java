@@ -281,11 +281,6 @@ public interface Entity<T> {
         if (message == null) {
             return false;
         }
-        for (Entity<?> e : entities()) {
-            if (e.isPossibleTarget(message)) {
-                return true;
-            }
-        }
         String idProperty = idProperty();
         Object id = id();
         if (idProperty == null) {
@@ -298,8 +293,18 @@ public interface Entity<T> {
         if (id == null) {
             return hasProperty(idProperty, payload);
         }
-        return readProperty(idProperty, payload)
-                .or(() -> getAnnotatedPropertyValue(payload, RoutingKey.class)).map(id::equals).orElse(false);
+        if (readProperty(idProperty, payload)
+                .or(() -> getAnnotatedPropertyValue(payload, RoutingKey.class)).map(id::equals).orElse(false)) {
+            return true;
+        }
+        if (!hasProperty(idProperty, payload)) {
+            for (Entity<?> e : entities()) {
+                if (e.isPossibleTarget(message)) {
+                    return true;
+                }
+            }
+        }
+        return false;
     }
 
     @FunctionalInterface
