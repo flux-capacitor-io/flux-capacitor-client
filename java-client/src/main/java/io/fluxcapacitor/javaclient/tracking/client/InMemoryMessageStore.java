@@ -17,11 +17,13 @@ package io.fluxcapacitor.javaclient.tracking.client;
 import io.fluxcapacitor.common.Awaitable;
 import io.fluxcapacitor.common.Guarantee;
 import io.fluxcapacitor.common.MessageType;
+import io.fluxcapacitor.common.Registration;
 import io.fluxcapacitor.common.api.SerializedMessage;
 import io.fluxcapacitor.common.api.tracking.MessageBatch;
 import io.fluxcapacitor.common.api.tracking.Position;
 import io.fluxcapacitor.javaclient.FluxCapacitor;
 import io.fluxcapacitor.javaclient.publishing.client.GatewayClient;
+import io.fluxcapacitor.javaclient.publishing.client.MessageDispatch;
 import io.fluxcapacitor.javaclient.tracking.ConsumerConfiguration;
 import io.fluxcapacitor.javaclient.tracking.IndexUtils;
 import lombok.Getter;
@@ -37,12 +39,15 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentSkipListMap;
+import java.util.concurrent.CopyOnWriteArraySet;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.function.Consumer;
 import java.util.function.Predicate;
 
 import static java.lang.System.currentTimeMillis;
@@ -54,6 +59,7 @@ import static java.util.stream.Collectors.toList;
 @RequiredArgsConstructor
 public class InMemoryMessageStore implements GatewayClient, TrackingClient {
 
+    private final Set<Consumer<MessageDispatch>> monitors = new CopyOnWriteArraySet<>();
     private final ExecutorService executor = Executors.newCachedThreadPool();
     private final AtomicLong nextIndex = new AtomicLong();
     private final Map<String, TrackerRead> trackers = new ConcurrentHashMap<>();
@@ -71,19 +77,28 @@ public class InMemoryMessageStore implements GatewayClient, TrackingClient {
 
     @Override
     public Awaitable send(Guarantee guarantee, SerializedMessage... messages) {
-        synchronized (this) {
-            Arrays.stream(messages).forEach(m -> {
-                if (m.getIndex() == null) {
-                    m.setIndex(nextIndex.updateAndGet(IndexUtils::nextIndex));
+        try {
+            var mgs = messages;
+            synchronized (this) {
+                Arrays.stream(messages).forEach(m -> {
+                    if (m.getIndex() == null) {
+                        m.setIndex(nextIndex.updateAndGet(IndexUtils::nextIndex));
+                    }
+                    messageLog.put(m.getIndex(), m);
+                });
+                if (messageExpiration != null) {
+                    purgeExpiredMessages(messageExpiration);
                 }
-                messageLog.put(m.getIndex(), m);
-            });
-            if (messageExpiration != null) {
-                purgeExpiredMessages(messageExpiration);
+                this.notifyAll();
             }
-            this.notifyAll();
+            return Awaitable.ready();
+        } finally {
+            if (!monitors.isEmpty()) {
+                var mgs = messages;
+                MessageDispatch dispatch = new MessageDispatch(Arrays.asList(messages), messageType);
+                monitors.forEach(m -> m.accept(dispatch));
+            }
         }
-        return Awaitable.ready();
     }
 
     protected void purgeExpiredMessages(Duration messageExpiration) {
@@ -198,5 +213,11 @@ public class InMemoryMessageStore implements GatewayClient, TrackingClient {
 
     protected SerializedMessage getMessage(long index) {
         return messageLog.get(index);
+    }
+
+    @Override
+    public Registration registerMonitor(Consumer<MessageDispatch> monitor) {
+        monitors.add(monitor);
+        return () -> monitors.remove(monitor);
     }
 }

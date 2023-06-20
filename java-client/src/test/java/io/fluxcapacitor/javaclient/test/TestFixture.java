@@ -36,6 +36,7 @@ import io.fluxcapacitor.javaclient.configuration.client.InMemoryClient;
 import io.fluxcapacitor.javaclient.modeling.Entity;
 import io.fluxcapacitor.javaclient.persisting.search.Search;
 import io.fluxcapacitor.javaclient.publishing.DispatchInterceptor;
+import io.fluxcapacitor.javaclient.publishing.client.MessageDispatch;
 import io.fluxcapacitor.javaclient.scheduling.DefaultScheduler;
 import io.fluxcapacitor.javaclient.scheduling.Schedule;
 import io.fluxcapacitor.javaclient.scheduling.ScheduledCommandHandler;
@@ -69,9 +70,11 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.CopyOnWriteArraySet;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeoutException;
@@ -180,6 +183,7 @@ public class TestFixture implements Given, When {
             handlers.add(new ScheduledCommandHandler());
         }
         GivenWhenThenInterceptor interceptor = new GivenWhenThenInterceptor();
+        Arrays.stream(MessageType.values()).forEach(type -> client.getGatewayClient(type).registerMonitor(interceptor));
         this.fluxCapacitor = new TestFluxCapacitor(
                 fluxCapacitorBuilder.disableShutdownHook().addDispatchInterceptor(interceptor)
                         .replaceIdentityProvider(p -> p == IdentityProvider.defaultIdentityProvider
@@ -617,12 +621,34 @@ public class TestFixture implements Given, When {
         return false;
     }
 
-    protected class GivenWhenThenInterceptor implements DispatchInterceptor, BatchInterceptor, HandlerInterceptor {
+    protected class GivenWhenThenInterceptor implements DispatchInterceptor, BatchInterceptor, HandlerInterceptor, Consumer<MessageDispatch> {
 
         private final List<Schedule> publishedSchedules = new CopyOnWriteArrayList<>();
+        private final Set<String> interceptedMessageIds = new CopyOnWriteArraySet<>();
+
+        @Override
+        public void accept(MessageDispatch messageDispatch) {
+            if (collectingResults) {
+                try {
+                    fluxCapacitor.serializer()
+                            .deserializeMessages(messageDispatch.getMessages().stream()
+                                                         .filter(m -> !interceptedMessageIds.contains(m.getMessageId())),
+                                                 messageDispatch.getMessageType())
+                            .map(DeserializingMessage::toMessage)
+                            .forEach(m -> interceptDispatch(m, messageDispatch.getMessageType()));
+                } catch (Exception ignored) {
+                    log.warn("Failed to intercept a published message. This may cause your test to fail.");
+                }
+            }
+        }
 
         @Override
         public Message interceptDispatch(Message message, MessageType messageType) {
+            if (collectingResults && Optional.ofNullable(tracedMessage)
+                    .map(t -> !Objects.equals(t.getMessageId(), message.getMessageId())).orElse(true)) {
+                interceptedMessageIds.add(message.getMessageId());
+            }
+
             if (messageType == SCHEDULE) {
                 addMessage(publishedSchedules, (Schedule) message);
             }

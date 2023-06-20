@@ -17,6 +17,7 @@ package io.fluxcapacitor.javaclient.publishing.client;
 import io.fluxcapacitor.common.Awaitable;
 import io.fluxcapacitor.common.Guarantee;
 import io.fluxcapacitor.common.MessageType;
+import io.fluxcapacitor.common.Registration;
 import io.fluxcapacitor.common.api.Metadata;
 import io.fluxcapacitor.common.api.SerializedMessage;
 import io.fluxcapacitor.common.api.publishing.Append;
@@ -27,13 +28,19 @@ import jakarta.websocket.ClientEndpoint;
 
 import java.net.URI;
 import java.util.Arrays;
+import java.util.Set;
+import java.util.concurrent.CopyOnWriteArraySet;
+import java.util.function.Consumer;
 
 import static io.fluxcapacitor.common.MessageType.METRICS;
 
 @ClientEndpoint
 public class WebsocketGatewayClient extends AbstractWebsocketClient implements GatewayClient {
 
+    private final Set<Consumer<MessageDispatch>> monitors = new CopyOnWriteArraySet<>();
+
     private final Metadata metricsMetadata;
+    private final MessageType messageType;
 
     public WebsocketGatewayClient(String endPointUrl, ClientConfig clientConfig, MessageType type) {
         this(URI.create(endPointUrl), clientConfig, type);
@@ -47,15 +54,29 @@ public class WebsocketGatewayClient extends AbstractWebsocketClient implements G
                                   MessageType type, boolean sendMetrics) {
         super(endPointUri, clientConfig, sendMetrics, clientConfig.getGatewaySessions().get(type));
         this.metricsMetadata = Metadata.of("messageType", type);
+        messageType = type;
     }
 
     @Override
     public Awaitable send(Guarantee guarantee, SerializedMessage... messages) {
-        return sendCommand(new Append(Arrays.asList(messages), guarantee));
+        try {
+            return sendCommand(new Append(Arrays.asList(messages), guarantee));
+        } finally {
+            if (!monitors.isEmpty()) {
+                MessageDispatch dispatch = new MessageDispatch(Arrays.asList(messages), messageType);
+                monitors.forEach(m -> m.accept(dispatch));
+            }
+        }
     }
 
     @Override
     protected Metadata metricsMetadata() {
         return metricsMetadata;
+    }
+
+    @Override
+    public Registration registerMonitor(Consumer<MessageDispatch> monitor) {
+        monitors.add(monitor);
+        return () -> monitors.remove(monitor);
     }
 }
