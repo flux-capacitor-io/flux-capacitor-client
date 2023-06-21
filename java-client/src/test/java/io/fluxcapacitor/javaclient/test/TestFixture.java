@@ -644,8 +644,7 @@ public class TestFixture implements Given, When {
 
         @Override
         public Message interceptDispatch(Message message, MessageType messageType) {
-            if (collectingResults && Optional.ofNullable(tracedMessage)
-                    .map(t -> !Objects.equals(t.getMessageId(), message.getMessageId())).orElse(true)) {
+            if (captureMessage(message)) {
                 interceptedMessageIds.add(message.getMessageId());
             }
 
@@ -666,9 +665,7 @@ public class TestFixture implements Given, When {
                 }
             }
 
-            if (collectingResults
-                && Optional.ofNullable(tracedMessage)
-                        .map(t -> !Objects.equals(t.getMessageId(), message.getMessageId())).orElse(true)) {
+            if (captureMessage(message)) {
                 switch (messageType) {
                     case COMMAND -> registerCommand(message);
                     case EVENT -> registerEvent(message);
@@ -680,6 +677,11 @@ public class TestFixture implements Given, When {
             }
 
             return message;
+        }
+
+        protected Boolean captureMessage(Message message) {
+            return collectingResults && Optional.ofNullable(tracedMessage)
+                    .map(t -> !Objects.equals(t.getMessageId(), message.getMessageId())).orElse(true);
         }
 
         protected <T extends Message> void addMessage(List<T> messages, T message) {
