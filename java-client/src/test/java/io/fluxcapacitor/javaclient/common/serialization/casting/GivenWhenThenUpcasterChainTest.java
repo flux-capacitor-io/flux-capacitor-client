@@ -48,9 +48,14 @@ public class GivenWhenThenUpcasterChainTest {
 
     @Test
     void testUpcastingWithDataInput() {
-        testFixture.givenAppliedEvents(aggregateId, TestModel.class, fromFile( "create-model-revision-0.json", Object.class))
-                .whenQuery(new GetModel())
-                .expectResult(new TestModel(List.of(new CreateModel("patchedContent"))));
+        testFixture.givenAppliedEvents(aggregateId, TestModel.class, "create-model-revision-0.json")
+                .whenQuery(new GetModel()).expectResult(new TestModel(List.of(new CreateModel("patchedContent"))));
+    }
+
+    @Test
+    void upcastCommand() {
+        testFixture.whenCommand("create-model-revision-0.json")
+                .expectEvents(new CreateModel("patchedContent"));
     }
 
     @Test
@@ -84,14 +89,12 @@ public class GivenWhenThenUpcasterChainTest {
 
     @Value
     @Revision(1)
-    @JsonTypeInfo(use = JsonTypeInfo.Id.CLASS)
     public static class CreateModel {
         String content;
     }
 
     @Value
     @Revision(3)
-    @JsonTypeInfo(use = JsonTypeInfo.Id.CLASS)
     public static class UpdateModel {
         String one, two;
     }
