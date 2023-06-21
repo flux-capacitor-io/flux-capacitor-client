@@ -143,7 +143,7 @@ public class SearchTest {
     }
 
     @Test
-    void testNumberMatching() {
+    void testBetween() {
         //at least
         expectMatch(atLeast(18.5, "someNumber"));
         expectMatch(atLeast(20.5, "someNumber"));
@@ -163,6 +163,12 @@ public class SearchTest {
         expectNoMatch(between(20, 20.5, "someNumber"));
 
         assertThrows(Throwable.class, () -> expectNoMatch(atLeast(18.5, null)), "Path should be required");
+    }
+
+    @Test
+    void betweenTimestamps() {
+        expectMatch(between(Instant.parse("2023-06-14T22:00:00Z"),
+                            Instant.parse("2023-06-16T22:00:00Z"), "status/sent/date"));
     }
 
     @Test
@@ -265,16 +271,16 @@ public class SearchTest {
 
     @Nested
     class IncludesAndExcludesTests {
-        final JsonNode jsonNode = JsonUtils.fromFile( "metrics-message.json", JsonNode.class);
+        final JsonNode jsonNode = JsonUtils.fromFile("metrics-message.json", JsonNode.class);
 
         @Test
         void testExcludePaths() {
             TestFixture.create().givenDocuments("test", jsonNode)
                     .whenSearching("test", search -> search.exclude("payload"))
                     .<List<JsonNode>>expectResult(r -> !r.isEmpty() && r.get(0).get("payload") == null
-                            && r.get(0).get("segment") != null
-                            && r.get(0).get("metadata") != null
-                            && r.get(0).get("metadata").get("requestId") != null);
+                                                       && r.get(0).get("segment") != null
+                                                       && r.get(0).get("metadata") != null
+                                                       && r.get(0).get("metadata").get("requestId") != null);
 
             TestFixture.create().givenDocuments("test", jsonNode)
                     .whenSearching("test", search -> search.exclude("segment"))
@@ -283,8 +289,8 @@ public class SearchTest {
             TestFixture.create().givenDocuments("test", jsonNode)
                     .whenSearching("test", search -> search.exclude("metadata/requestId"))
                     .<List<JsonNode>>expectResult(r -> r.get(0).get("metadata") != null
-                            && r.get(0).get("metadata").get("$consumer") != null
-                            && r.get(0).get("metadata").get("requestId") == null);
+                                                       && r.get(0).get("metadata").get("$consumer") != null
+                                                       && r.get(0).get("metadata").get("requestId") == null);
 
             TestFixture.create().givenDocuments("test", jsonNode)
                     .whenSearching("test", search -> search.exclude("metadata/**"))
@@ -296,17 +302,19 @@ public class SearchTest {
             TestFixture.create().givenDocuments("test", jsonNode)
                     .whenSearching("test", search -> search.includeOnly("payload"))
                     .<List<JsonNode>>expectResult(r -> !r.isEmpty()
-                            && r.get(0).get("payload") != null && r.get(0).get("payload").get("requestId") != null
-                            && r.get(0).get("segment") == null
-                            && r.get(0).get("metadata") == null);
+                                                       && r.get(0).get("payload") != null
+                                                       && r.get(0).get("payload").get("requestId") != null
+                                                       && r.get(0).get("segment") == null
+                                                       && r.get(0).get("metadata") == null);
 
             TestFixture.create().givenDocuments("test", jsonNode)
                     .whenSearching("test", search -> search.includeOnly("payload/requestId"))
                     .<List<JsonNode>>expectResult(r -> !r.isEmpty()
-                            && r.get(0).get("payload") != null && r.get(0).get("payload").get("requestId") != null
-                            && r.get(0).get("payload").get("strategy") == null
-                            && r.get(0).get("segment") == null
-                            && r.get(0).get("metadata") == null);
+                                                       && r.get(0).get("payload") != null
+                                                       && r.get(0).get("payload").get("requestId") != null
+                                                       && r.get(0).get("payload").get("strategy") == null
+                                                       && r.get(0).get("segment") == null
+                                                       && r.get(0).get("metadata") == null);
         }
 
         @Test
@@ -315,7 +323,9 @@ public class SearchTest {
                     .whenSearching("test", search -> search.exclude("payload/array/anotherArray"))
                     .<List<JsonNode>>expectResult(r -> r.get(0).get("metadata") != null
                                                        && r.get(0).get("payload").get("array") != null
-                                                       && r.get(0).get("payload").get("array").get(0).get("anotherArray") == null);
+                                                       &&
+                                                       r.get(0).get("payload").get("array").get(0).get("anotherArray")
+                                                       == null);
         }
 
         @Test
@@ -324,26 +334,34 @@ public class SearchTest {
                     .whenSearching("test", search -> search.exclude("payload/array/anotherArray", "payload/requestId"))
                     .<List<JsonNode>>expectResult(r -> r.get(0).get("metadata") != null
                                                        && r.get(0).get("payload").get("array") != null
-                                                       && r.get(0).get("payload").get("array").get(0).get("anotherArray") == null);
+                                                       &&
+                                                       r.get(0).get("payload").get("array").get(0).get("anotherArray")
+                                                       == null);
         }
 
         @Test
         void testMultipleIncludes() {
             TestFixture.create().givenDocuments("test", jsonNode)
-                    .whenSearching("test", search -> search.includeOnly("payload/array/anotherArray", "payload/requestId"))
+                    .whenSearching("test",
+                                   search -> search.includeOnly("payload/array/anotherArray", "payload/requestId"))
                     .<List<JsonNode>>expectResult(r -> r.get(0).get("metadata") == null
                                                        && r.get(0).get("payload").get("array") != null
-                                                       && r.get(0).get("payload").get("array").get(0).get("anotherArray") != null
+                                                       &&
+                                                       r.get(0).get("payload").get("array").get(0).get("anotherArray")
+                                                       != null
                                                        && r.get(0).get("payload").get("requestId") != null);
         }
 
         @Test
         void testIncludesAndExcludes() {
             TestFixture.create().givenDocuments("test", jsonNode)
-                    .whenSearching("test", search -> search.includeOnly("payload/array", "payload/requestId").exclude("payload/array/anotherArray"))
+                    .whenSearching("test", search -> search.includeOnly("payload/array", "payload/requestId")
+                            .exclude("payload/array/anotherArray"))
                     .<List<JsonNode>>expectResult(r -> r.get(0).get("metadata") == null
                                                        && r.get(0).get("payload").get("array") != null
-                                                       && r.get(0).get("payload").get("array").get(0).get("anotherArray") == null
+                                                       &&
+                                                       r.get(0).get("payload").get("array").get(0).get("anotherArray")
+                                                       == null
                                                        && r.get(0).get("payload").get("requestId") != null);
         }
     }
@@ -428,7 +446,7 @@ public class SearchTest {
             TestFixture.create().givenDocument(new SomeDocument(), "testId", "foobar", documentStart, null)
                     .whenSearching("foobar",
                                       s -> s.inPeriod(documentStart.minusSeconds(1), documentStart.plusSeconds(1))
-            ).<List<?>>expectResult(docs -> docs.size() == 1);
+                    ).<List<?>>expectResult(docs -> docs.size() == 1);
             TestFixture.create().givenDocument(new SomeDocument(), "testId", "foobar", documentStart, null)
                     .whenSearching("foobar",
                                    s -> s.inPeriod(documentStart.minusSeconds(1), documentStart)
@@ -474,10 +492,10 @@ public class SearchTest {
         @Test
         void sortTimeDescending() {
             testFixture.whenApplying(
-                    fc -> fc.documentStore().search("test").streamHits().toList())
+                            fc -> fc.documentStore().search("test").streamHits().toList())
                     .<List<?>>expectResult(results -> results.size() == 2)
                     .<List<SearchHit<?>>>expectResult(results -> "id2".equals(results.get(0).getId())
-                                                                        && "id1".equals(results.get(1).getId()));
+                                                                 && "id1".equals(results.get(1).getId()));
         }
 
         @Test
@@ -589,6 +607,7 @@ public class SearchTest {
         Map<String, Object> booleans;
         List<Map<String, Object>> mapList;
         String symbols, weirdChars;
+        Map<String, ?> status;
 
         public SomeDocument() {
             this.someId = ID;
@@ -602,6 +621,7 @@ public class SearchTest {
             this.symbols = "Can you find slash in mid\\dle or \\front, or find <xml>? Anne-gre";
             this.weirdChars =
                     "ẏṏṳṙ ẇḕḭṙḊ ṮḕẌṮ ÄäǞǟĄ̈ą̈B̈b̈C̈c̈ËëḦḧÏïḮḯJ̈j̈K̈k̈L̈l̈M̈m̈N̈n̈ÖöȪȫǪ̈ǫ̈ṎṏP̈p̈Q̈q̈Q̣̈q̣̈R̈r̈S̈s̈T̈ẗÜüǕǖǗǘǙǚǛǜṲṳṺṻṲ̄ṳ̄ᴞV̈v̈ẄẅẌẍŸÿZ̈z̈ΪϊῒΐῗΫϋῢΰῧϔӒӓЁёӚӛӜӝӞӟӤӥЇїӦӧӪӫӰӱӴӵӸӹӬӭ";
+            this.status = Map.of("sent", Map.of("date", "2023-06-15T22:00:00.180Z"));
         }
     }
 }

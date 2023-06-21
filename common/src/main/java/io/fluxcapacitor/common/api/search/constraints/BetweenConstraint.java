@@ -27,20 +27,22 @@ import lombok.experimental.Accessors;
 import java.util.List;
 import java.util.function.Predicate;
 
+import static io.fluxcapacitor.common.SearchUtils.formatValue;
+
 @Value
 @AllArgsConstructor(access = AccessLevel.PRIVATE)
 public class BetweenConstraint extends PathConstraint {
+
     public static BetweenConstraint between(Object min, Object maxExclusive, @NonNull String path) {
-        return new BetweenConstraint(min == null ? null : min.toString(),
-                                     maxExclusive == null ? null : maxExclusive.toString(), List.of(path));
+        return new BetweenConstraint(formatValue(min), formatValue(maxExclusive), List.of(path));
     }
 
     public static BetweenConstraint atLeast(@NonNull Object min, @NonNull String path) {
-        return new BetweenConstraint(min.toString(), null, List.of(path));
+        return new BetweenConstraint(formatValue(min), null, List.of(path));
     }
 
     public static BetweenConstraint below(@NonNull Object maxExclusive, @NonNull String path) {
-        return new BetweenConstraint(null, maxExclusive.toString(), List.of(path));
+        return new BetweenConstraint(null, formatValue(maxExclusive), List.of(path));
     }
 
     String min;
