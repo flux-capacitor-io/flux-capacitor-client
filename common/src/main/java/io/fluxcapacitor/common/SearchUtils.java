@@ -17,6 +17,9 @@ package io.fluxcapacitor.common;
 import lombok.NonNull;
 import org.apache.commons.lang3.StringUtils;
 
+import java.time.Instant;
+import java.time.format.DateTimeFormatter;
+import java.time.format.DateTimeFormatterBuilder;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -26,10 +29,23 @@ import java.util.regex.Pattern;
 
 public class SearchUtils {
 
+    private static final DateTimeFormatter ISO_FULL
+            = new DateTimeFormatterBuilder().appendInstant(3).toFormatter();
+
     public static final String letterOrNumber = "\\p{L}0-9";
     public static final Pattern termPattern =
             Pattern.compile(String.format("\"[^\"]*\"|[%1$s][^\\s]*[%1$s]|[%1$s]", letterOrNumber), Pattern.MULTILINE);
     private static final Map<String, Pattern> globPatternCache = new ConcurrentHashMap<>();
+
+    public static String formatValue(Object value) {
+        if (value == null) {
+            return null;
+        }
+        if (value instanceof Instant instant) {
+            return ISO_FULL.format(instant);
+        }
+        return value.toString();
+    }
 
     public static String normalize(@NonNull String text) {
         return StringUtils.stripAccents(text.trim().toLowerCase());
