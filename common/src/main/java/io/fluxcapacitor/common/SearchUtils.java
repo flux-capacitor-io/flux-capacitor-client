@@ -42,11 +42,11 @@ import static java.util.stream.Collectors.toMap;
 
 public class SearchUtils {
 
+    private static final DateTimeFormatter ISO_FULL
+            = new DateTimeFormatterBuilder().parseCaseInsensitive().appendInstant(3).toFormatter();
+
     private static final Map<String, Integer> arrayIndices =
             IntStream.range(0, 1000).boxed().collect(toMap(Object::toString, identity()));
-    private static final DateTimeFormatter ISO_FULL
-            = new DateTimeFormatterBuilder().appendInstant(3).toFormatter();
-
     public static final String letterOrNumber = "\\p{L}0-9";
     public static final Pattern termPattern =
             Pattern.compile(String.format("\"[^\"]*\"|[%1$s][^\\s]*[%1$s]|[%1$s]", letterOrNumber), Pattern.MULTILINE);
