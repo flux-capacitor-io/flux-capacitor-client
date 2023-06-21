@@ -122,6 +122,15 @@ public class ReflectionUtils {
         return methodsCache.apply(type);
     }
 
+    public static Optional<Method> getMethod(Class<?> type, String name) {
+        for (Method method : getAllMethods(type)) {
+            if (name.equals(method.getName())) {
+                return Optional.of(method);
+            }
+        }
+        return Optional.empty();
+    }
+
     /*
        Adopted from https://stackoverflow.com/questions/28400408/what-is-the-new-way-of-getting-all-methods-of-a-class-including-inherited-defau
     */
@@ -340,15 +349,20 @@ public class ReflectionUtils {
             return target -> ((ObjectNode) target).get(propertyName);
         }
         PropertyNotFoundException notFoundException = new PropertyNotFoundException(propertyName, type);
-        return Optional.<Member>ofNullable(
-                        MethodUtils.getMatchingMethod(type, "get" + StringUtils.capitalize(propertyName)))
-                .or(() -> Optional.ofNullable(MethodUtils.getMatchingMethod(type, propertyName)))
-                .or(() -> Optional.ofNullable(FieldUtils.getField(type, propertyName, true)))
+        return getMethod(type, "get" + StringUtils.capitalize(propertyName)).map(m -> (Member) m)
+                .or(() -> getMethod(type, propertyName))
+                .or(() -> getField(type, propertyName))
                 .map(DefaultMemberInvoker::asInvoker)
                 .<Function<Object, Object>>map(invoker -> invoker::invoke)
                 .orElseGet(() -> o -> {
                     throw notFoundException;
                 });
+    }
+
+    @SuppressWarnings("unchecked")
+    public static <T> Optional<T> getFieldValue(String fieldName, Object target) {
+        return target == null ? Optional.empty() : getField(target instanceof Class<?> type ? type : target.getClass(), fieldName)
+                .map(f -> (T) getValue(f, target, true));
     }
 
     @SneakyThrows
@@ -460,17 +474,6 @@ public class ReflectionUtils {
     public static boolean isOrHas(Annotation annotation, Class<? extends Annotation> annotationType) {
         return annotation != null && (Objects.equals(annotation.annotationType(), annotationType)
                                       || annotation.annotationType().isAnnotationPresent(annotationType));
-    }
-
-    @SneakyThrows
-    public static Class<?> getPropertyType(Class<?> target, String propertyName) {
-        Field field = FieldUtils.getField(target, propertyName);
-        return field != null ? field.getType() :
-                stream(getBeanInfo(target, Object.class).getPropertyDescriptors())
-                        .filter(d -> propertyName.equals(d.getName()))
-                        .map(PropertyDescriptor::getPropertyType).findFirst()
-                        .orElseThrow(() -> new IllegalStateException(
-                                format("Property %s could not be found on target class %s", propertyName, target)));
     }
 
     public static Optional<Field> getField(Class<?> owner, String name) {

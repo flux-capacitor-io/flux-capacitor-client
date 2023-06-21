@@ -450,20 +450,11 @@ public class TestFixture implements Given, When {
     }
 
     protected void applyEvents(String aggregateId, Class<?> aggregateClass, FluxCapacitor fc, List<Message> events) {
-        List<Message> eventList = events.stream().map(
+        fc.aggregateRepository().load(aggregateId, aggregateClass).apply(events.stream().map(
                         e -> e.withMetadata(e.getMetadata().with(
                                 Entity.AGGREGATE_ID_METADATA_KEY, aggregateId,
                                 Entity.AGGREGATE_TYPE_METADATA_KEY, aggregateClass.getName())))
-                .map(m -> {
-                    if (m.getPayload() instanceof Data<?>) {
-                        Data<?> eventData = m.getPayload();
-                        Data<byte[]> eventBytes = getFluxCapacitor().serializer().serialize(eventData);
-                        Object payload = getFluxCapacitor().serializer().deserialize(eventBytes);
-                        return m.withPayload(payload);
-                    }
-                    return m;
-                }).collect(toList());
-        fc.aggregateRepository().load(aggregateId, aggregateClass).apply(eventList);
+                .toList());
     }
 
     protected void handleExpiredSchedulesLocally() {
@@ -582,7 +573,7 @@ public class TestFixture implements Given, When {
             }
             return Stream.of(c);
         }).flatMap(c -> {
-            Object parsed = parseObject(c, callerClass);
+            Object parsed = parsePayload(c, callerClass);
             return parsed == null ? Stream.empty()
                     : parsed instanceof Collection<?> ? ((Collection<?>) parsed).stream()
                     : parsed.getClass().isArray() ? Arrays.stream((Object[]) parsed)
@@ -592,17 +583,26 @@ public class TestFixture implements Given, When {
 
     protected Message trace(Object object) {
         Class<?> callerClass = ReflectionUtils.getCallerClass();
-        return tracedMessage = fluxCapacitor.apply(fc -> asMessage(parseObject(object, callerClass)));
+        return tracedMessage = fluxCapacitor.apply(fc -> asMessage(parsePayload(object, callerClass)));
     }
 
     public Message addUser(User user, Object value) {
         Class<?> callerClass = ReflectionUtils.getCallerClass();
-        return fluxCapacitor.apply(fc -> asMessage(parseObject(value, callerClass)).addUser(user));
+        return fluxCapacitor.apply(fc -> asMessage(parsePayload(value, callerClass)).addUser(user));
+    }
+
+    public Object parsePayload(Object object, Class<?> callerClass) {
+        object = parseObject(object, callerClass);
+        if (object instanceof Data<?> data) {
+            Data<byte[]> eventBytes = fluxCapacitor.serializer().serialize(data);
+            object = fluxCapacitor.serializer().deserialize(eventBytes);
+        }
+        return object;
     }
 
     public static Object parseObject(Object object, Class<?> callerClass) {
         if (object instanceof String && ((String) object).endsWith(".json")) {
-            return JsonUtils.fromFile(callerClass, (String) object);
+            object = JsonUtils.fromFile(callerClass, (String) object);
         }
         return object;
     }

@@ -122,7 +122,7 @@ public class DefaultEntityHelper implements EntityHelper {
         }
 
         //value needs to be valid
-        if (!disablePayloadValidation) {
+        if (!disablePayloadValidation && !afterHandler) {
             ValidationUtils.assertValid(value instanceof HasMessage hasMessage ? hasMessage.getPayload() : value);
         }
 

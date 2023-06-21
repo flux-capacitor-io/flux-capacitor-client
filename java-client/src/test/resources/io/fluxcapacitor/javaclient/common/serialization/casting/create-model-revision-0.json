@@ -1,7 +1,7 @@
 {
   "@class": "io.fluxcapacitor.common.api.Data",
   "value": {
-    "@class": "io.fluxcapacitor.javaclient.common.serialization.casting.GivenWhenThenUpcasterChainTest$CreateModel",
+    "@class": "com.fasterxml.jackson.databind.JsonNode",
     "content": "someContent"
   },
   "type": "io.fluxcapacitor.javaclient.common.serialization.casting.GivenWhenThenUpcasterChainTest$CreateModel",
