@@ -27,7 +27,7 @@ import java.net.HttpCookie;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -190,7 +190,7 @@ public class WebRequest extends Message {
     public static class Builder {
         String url;
         HttpRequestMethod method;
-        Map<String, List<String>> headers = new HashMap<>();
+        Map<String, List<String>> headers = new LinkedHashMap<>();
 
         @Setter(AccessLevel.NONE)
         List<HttpCookie> cookies = new ArrayList<>();
@@ -223,21 +223,22 @@ public class WebRequest extends Message {
 
         public Builder payload(Object payload) {
             this.payload = payload;
-            if (!headers().containsKey("Content-Type")) {
-                if (payload instanceof String) {
-                    return contentType("text/plain");
-                }
-                if (payload instanceof byte[]) {
-                    return contentType("application/octet-stream");
-                }
-            }
             return this;
         }
 
         public Map<String, List<String>> headers() {
             var result = headers;
+            if (!result.containsKey("Content-Type")) {
+                if (payload instanceof String) {
+                    result = new LinkedHashMap<>(result);
+                    result.computeIfAbsent("Content-Type", k -> new ArrayList<>()).add("text/plain");
+                } else if (payload instanceof byte[]) {
+                    result = new LinkedHashMap<>(result);
+                    result.computeIfAbsent("Content-Type", k -> new ArrayList<>()).add("application/octet-stream");
+                }
+            }
             if (!cookies.isEmpty()) {
-                result = new HashMap<>(headers);
+                result = new LinkedHashMap<>(result);
                 result.put("Cookie",
                            List.of(cookies.stream().map(HttpCookie::toString).collect(Collectors.joining("; "))));
             }
