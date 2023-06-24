@@ -44,10 +44,12 @@ import java.nio.ByteBuffer;
 import java.time.Duration;
 import java.util.Arrays;
 import java.util.Optional;
+import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
+import static io.fluxcapacitor.common.ObjectUtils.unwrapException;
 import static io.undertow.servlet.Servlets.deployment;
 import static java.lang.String.format;
 
@@ -117,8 +119,13 @@ public class ProxyRequestHandler implements HttpHandler, AutoCloseable {
         requestHandler.sendRequest(requestMessage, m -> requestGateway.send(Guarantee.SENT, m))
                 .whenComplete((r, e) -> {
                     try {
+                        e = unwrapException(e);
                         if (e == null) {
                             handleResponse(r, webRequest, se);
+                        } else if (e instanceof TimeoutException) {
+                            log.warn("Request {} timed out (messageId: {}). This is possibly due to a missing handler.",
+                                      webRequest, webRequest.getMessageId(), e);
+                            sendGatewayTimeout(se);
                         } else {
                             log.error("Failed to complete {} (messageId: {})",
                                       webRequest, webRequest.getMessageId(), e);
@@ -159,6 +166,11 @@ public class ProxyRequestHandler implements HttpHandler, AutoCloseable {
     protected void sendServerError(HttpServerExchange se) {
         se.setStatusCode(500);
         se.getResponseSender().send("Request could not be handled due to a server side error");
+    }
+
+    protected void sendGatewayTimeout(HttpServerExchange se) {
+        se.setStatusCode(504);
+        se.getResponseSender().send("Did not receive a response in time");
     }
 
     @Override
