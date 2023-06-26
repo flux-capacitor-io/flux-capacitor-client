@@ -17,39 +17,71 @@ package io.fluxcapacitor.common.api.search;
 import io.fluxcapacitor.common.api.Data;
 import io.fluxcapacitor.common.search.DefaultDocumentSerializer;
 import io.fluxcapacitor.common.search.Document;
-import lombok.AllArgsConstructor;
+import lombok.AccessLevel;
 import lombok.Builder;
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
 import lombok.ToString;
 import lombok.Value;
-import lombok.experimental.Accessors;
+import lombok.With;
 
+import java.beans.ConstructorProperties;
 import java.time.Instant;
 import java.util.Optional;
+import java.util.function.Supplier;
+
+import static io.fluxcapacitor.common.ObjectUtils.memoize;
 
 @Value
 @Builder(toBuilder = true)
-@AllArgsConstructor
 public class SerializedDocument {
     String id;
     Long timestamp, end;
     String collection;
-    Data<byte[]> document;
-    String summary;
-
-    public SerializedDocument(Document document) {
-        id = document.getId();
-        timestamp = Optional.ofNullable(document.getTimestamp()).map(Instant::toEpochMilli).orElse(null);
-        end = Optional.ofNullable(document.getEnd()).map(Instant::toEpochMilli).orElse(null);
-        collection = document.getCollection();
-        this.document = DefaultDocumentSerializer.INSTANCE.serialize(document);
-        summary = document.summarize();
-    }
-
-    @Getter(lazy = true)
-    @Accessors(fluent = true)
+    @Getter(AccessLevel.NONE)
     @EqualsAndHashCode.Exclude
     @ToString.Exclude
-    Document deserializeDocument = DefaultDocumentSerializer.INSTANCE.deserialize(getDocument());
+    @With
+    Supplier<Data<byte[]>> data;
+    @Getter(AccessLevel.NONE)
+    @EqualsAndHashCode.Exclude
+    @ToString.Exclude
+    Supplier<Document> document;
+    String summary;
+
+    @ConstructorProperties({"id", "timestamp", "end", "collection", "document", "summary"})
+    public SerializedDocument(String id, Long timestamp, Long end, String collection, Data<byte[]> document,
+                              String summary) {
+        this(id, timestamp, end, collection, () -> document, null, summary);
+    }
+
+    public SerializedDocument(Document document) {
+        this(document.getId(), Optional.ofNullable(document.getTimestamp()).map(Instant::toEpochMilli).orElse(null),
+             Optional.ofNullable(document.getEnd()).map(Instant::toEpochMilli).orElse(null),
+             document.getCollection(), null, () -> document, document.summarize());
+    }
+
+    @SuppressWarnings("unused")
+    private SerializedDocument(String id, Long timestamp, Long end, String collection, Supplier<Data<byte[]>> data,
+                               Supplier<Document> document, String summary) {
+        if (data == null && document == null) {
+            throw new IllegalStateException("Either the serialized data or deserialized document should be supplied");
+        }
+        this.id = id;
+        this.timestamp = timestamp;
+        this.end = end;
+        this.collection = collection;
+        this.data = data == null ? memoize(() -> DefaultDocumentSerializer.INSTANCE.serialize(document.get())) : data;
+        this.document = document == null
+                ? memoize(() -> DefaultDocumentSerializer.INSTANCE.deserialize(data.get())) : document;
+        this.summary = summary;
+    }
+
+    public Data<byte[]> getDocument() {
+        return data.get();
+    }
+
+    public Document deserializeDocument() {
+        return document.get();
+    }
 }

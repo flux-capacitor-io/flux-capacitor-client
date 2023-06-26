@@ -19,13 +19,13 @@ import io.fluxcapacitor.common.api.search.BulkUpdate;
 import io.fluxcapacitor.common.api.search.Constraint;
 import io.fluxcapacitor.common.api.search.CreateAuditTrail;
 import io.fluxcapacitor.common.api.search.DocumentStats;
+import io.fluxcapacitor.common.api.search.DocumentUpdate;
 import io.fluxcapacitor.common.api.search.GetDocument;
 import io.fluxcapacitor.common.api.search.GetSearchHistogram;
 import io.fluxcapacitor.common.api.search.SearchDocuments;
 import io.fluxcapacitor.common.api.search.SearchHistogram;
 import io.fluxcapacitor.common.api.search.SearchQuery;
 import io.fluxcapacitor.common.api.search.SerializedDocument;
-import io.fluxcapacitor.common.api.search.SerializedDocumentUpdate;
 import io.fluxcapacitor.common.api.search.bulkupdate.IndexDocument;
 import io.fluxcapacitor.common.api.search.bulkupdate.IndexDocumentIfNotExists;
 import io.fluxcapacitor.common.search.Document;
@@ -49,7 +49,6 @@ import java.util.stream.Stream;
 
 import static io.fluxcapacitor.javaclient.FluxCapacitor.currentIdentityProvider;
 import static java.lang.String.format;
-import static java.util.Collections.singletonList;
 import static java.util.function.UnaryOperator.identity;
 import static java.util.stream.Collectors.toList;
 import static java.util.stream.Collectors.toMap;
@@ -65,7 +64,8 @@ public class DefaultDocumentStore implements DocumentStore {
     public CompletableFuture<Void> index(Object object, Object id, Object collection, Instant begin,
                                          Instant end, Guarantee guarantee, boolean ifNotExists) {
         try {
-            return client.index(singletonList(serializer.toDocument(object, id.toString(), collection.toString(), begin, end)),
+            return client.index(List.of(serializer.toDocument(
+                    object, id.toString(), collection.toString(), begin, end)),
                                 guarantee, ifNotExists).asCompletableFuture();
         } catch (Exception e) {
             throw new DocumentStoreException(format(
@@ -77,8 +77,9 @@ public class DefaultDocumentStore implements DocumentStore {
     public CompletableFuture<Void> index(Collection<?> objects, Object collection,
                                          String idPath, String beginPath,
                                          String endPath, Guarantee guarantee, boolean ifNotExists) {
-        List<Document> documents = objects.stream().map(v -> serializer.toDocument(
-                v, currentIdentityProvider().nextTechnicalId(), collection.toString(), null, null)).map(d -> {
+        var documents = objects.stream().map(v -> serializer.toDocument(
+                v, currentIdentityProvider().nextTechnicalId(), collection.toString(), null, null))
+                .map(SerializedDocument::deserializeDocument).map(d -> {
             Document.DocumentBuilder builder = d.toBuilder();
             if (idPath != null) {
                 builder.id(d.getEntryAtPath(idPath).filter(
@@ -98,7 +99,7 @@ public class DefaultDocumentStore implements DocumentStore {
                                     .orElse(null));
             }
             return builder.build();
-        }).collect(toList());
+        }).map(SerializedDocument::new).collect(toList());
         try {
             return client.index(documents, guarantee, ifNotExists).asCompletableFuture();
         } catch (Exception e) {
@@ -113,7 +114,7 @@ public class DefaultDocumentStore implements DocumentStore {
                                              Function<? super T, Instant> beginFunction,
                                              Function<? super T, Instant> endFunction, Guarantee guarantee,
                                              boolean ifNotExists) {
-        List<Document> documents = objects.stream().map(v -> serializer.toDocument(
+        var documents = objects.stream().map(v -> serializer.toDocument(
                 v, idFunction.apply(v).toString(), collection.toString(), beginFunction.apply(v),
                 endFunction.apply(v))).collect(toList());
         try {
@@ -136,15 +137,15 @@ public class DefaultDocumentStore implements DocumentStore {
         }
     }
 
-    public SerializedDocumentUpdate serializeAction(BulkUpdate update) {
-        SerializedDocumentUpdate.Builder builder = SerializedDocumentUpdate.builder()
+    public DocumentUpdate serializeAction(BulkUpdate update) {
+        DocumentUpdate.Builder builder = DocumentUpdate.builder()
                 .collection(update.getCollection()).id(update.getId()).type(update.getType());
         if (update instanceof IndexDocument u) {
-            return builder.object(new SerializedDocument(serializer.toDocument(
-                    u.getObject(), u.getId(), u.getCollection(), u.getTimestamp(), u.getEnd()))).build();
+            return builder.object(serializer.toDocument(
+                    u.getObject(), u.getId(), u.getCollection(), u.getTimestamp(), u.getEnd())).build();
         } else if (update instanceof IndexDocumentIfNotExists u) {
-            return builder.object(new SerializedDocument(serializer.toDocument(
-                    u.getObject(), u.getId(), u.getCollection(), u.getTimestamp(), u.getEnd()))).build();
+            return builder.object(serializer.toDocument(
+                    u.getObject(), u.getId(), u.getCollection(), u.getTimestamp(), u.getEnd())).build();
         }
         return builder.build();
     }
@@ -167,7 +168,8 @@ public class DefaultDocumentStore implements DocumentStore {
     @Override
     public <T> Optional<T> fetchDocument(Object id, Object collection, Class<T> type) {
         try {
-            return client.fetch(new GetDocument(id.toString(), collection.toString())).map(d -> serializer.fromDocument(d, type));
+            return client.fetch(new GetDocument(id.toString(), collection.toString()))
+                    .map(d -> serializer.fromDocument(d, type));
         } catch (Exception e) {
             throw new DocumentStoreException(format("Could not get document %s from collection %s", id, collection), e);
         }
@@ -316,7 +318,7 @@ public class DefaultDocumentStore implements DocumentStore {
         }
 
         protected <T> Stream<SearchHit<T>> fetchHitStream(Integer maxSize, Class<T> type, int fetchSize) {
-            Function<Document, T> convertFunction = type == null
+            Function<SerializedDocument, T> convertFunction = type == null
                     ? serializer::fromDocument : document -> serializer.fromDocument(document, type);
             return client.search(SearchDocuments.builder().query(queryBuilder.build()).maxSize(maxSize).sorting(sorting)
                                          .pathFilters(pathFilters).skip(skip).build(), fetchSize)

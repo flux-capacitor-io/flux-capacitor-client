@@ -18,13 +18,13 @@ import io.fluxcapacitor.common.Awaitable;
 import io.fluxcapacitor.common.Guarantee;
 import io.fluxcapacitor.common.api.search.CreateAuditTrail;
 import io.fluxcapacitor.common.api.search.DocumentStats;
+import io.fluxcapacitor.common.api.search.DocumentUpdate;
 import io.fluxcapacitor.common.api.search.GetDocument;
 import io.fluxcapacitor.common.api.search.GetSearchHistogram;
 import io.fluxcapacitor.common.api.search.SearchDocuments;
 import io.fluxcapacitor.common.api.search.SearchHistogram;
 import io.fluxcapacitor.common.api.search.SearchQuery;
-import io.fluxcapacitor.common.api.search.SerializedDocumentUpdate;
-import io.fluxcapacitor.common.search.Document;
+import io.fluxcapacitor.common.api.search.SerializedDocument;
 import io.fluxcapacitor.javaclient.persisting.search.SearchHit;
 
 import java.util.Collection;
@@ -34,11 +34,11 @@ import java.util.stream.Stream;
 
 public interface SearchClient extends AutoCloseable {
 
-    Awaitable index(List<Document> documents, Guarantee guarantee, boolean ifNotExists);
+    Awaitable index(List<SerializedDocument> documents, Guarantee guarantee, boolean ifNotExists);
 
-    Stream<SearchHit<Document>> search(SearchDocuments searchDocuments, int fetchSize);
+    Stream<SearchHit<SerializedDocument>> search(SearchDocuments searchDocuments, int fetchSize);
 
-    Optional<Document> fetch(GetDocument request);
+    Optional<SerializedDocument> fetch(GetDocument request);
 
     Awaitable delete(SearchQuery query, Guarantee guarantee);
 
@@ -56,7 +56,7 @@ public interface SearchClient extends AutoCloseable {
 
     SearchHistogram fetchHistogram(GetSearchHistogram request);
 
-    Awaitable bulkUpdate(Collection<SerializedDocumentUpdate> updates, Guarantee guarantee);
+    Awaitable bulkUpdate(Collection<DocumentUpdate> updates, Guarantee guarantee);
 
     @Override
     void close();

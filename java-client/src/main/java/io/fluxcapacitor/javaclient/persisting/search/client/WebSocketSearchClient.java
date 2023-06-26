@@ -23,6 +23,7 @@ import io.fluxcapacitor.common.api.search.DeleteCollection;
 import io.fluxcapacitor.common.api.search.DeleteDocumentById;
 import io.fluxcapacitor.common.api.search.DeleteDocuments;
 import io.fluxcapacitor.common.api.search.DocumentStats;
+import io.fluxcapacitor.common.api.search.DocumentUpdate;
 import io.fluxcapacitor.common.api.search.GetDocument;
 import io.fluxcapacitor.common.api.search.GetDocumentResult;
 import io.fluxcapacitor.common.api.search.GetDocumentStats;
@@ -35,8 +36,6 @@ import io.fluxcapacitor.common.api.search.SearchDocumentsResult;
 import io.fluxcapacitor.common.api.search.SearchHistogram;
 import io.fluxcapacitor.common.api.search.SearchQuery;
 import io.fluxcapacitor.common.api.search.SerializedDocument;
-import io.fluxcapacitor.common.api.search.SerializedDocumentUpdate;
-import io.fluxcapacitor.common.search.Document;
 import io.fluxcapacitor.javaclient.common.websocket.AbstractWebsocketClient;
 import io.fluxcapacitor.javaclient.configuration.client.WebSocketClient;
 import io.fluxcapacitor.javaclient.persisting.search.SearchHit;
@@ -49,9 +48,6 @@ import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Stream;
-
-import static io.fluxcapacitor.common.ObjectUtils.deduplicate;
-import static java.util.stream.Collectors.toList;
 
 @ClientEndpoint
 public class WebSocketSearchClient extends AbstractWebsocketClient implements SearchClient {
@@ -69,19 +65,17 @@ public class WebSocketSearchClient extends AbstractWebsocketClient implements Se
     }
 
     @Override
-    public Awaitable index(List<Document> documents, Guarantee guarantee, boolean ifNotExists) {
-        return sendCommand(new IndexDocuments(deduplicate(documents, Document.identityFunction).stream()
-                                                 .map(SerializedDocument::new)
-                                                 .collect(toList()), ifNotExists, guarantee));
+    public Awaitable index(List<SerializedDocument> documents, Guarantee guarantee, boolean ifNotExists) {
+        return sendCommand(new IndexDocuments(documents, ifNotExists, guarantee));
     }
 
     @Override
-    public Awaitable bulkUpdate(Collection<SerializedDocumentUpdate> batch, Guarantee guarantee) {
+    public Awaitable bulkUpdate(Collection<DocumentUpdate> batch, Guarantee guarantee) {
         return sendCommand(new BulkUpdateDocuments(batch, guarantee));
     }
 
     @Override
-    public Stream<SearchHit<Document>> search(SearchDocuments searchDocuments, int fetchSize) {
+    public Stream<SearchHit<SerializedDocument>> search(SearchDocuments searchDocuments, int fetchSize) {
         AtomicInteger count = new AtomicInteger();
         Integer maxSize = searchDocuments.getMaxSize();
         int maxFetchSize = maxSize == null ? fetchSize : Math.min(maxSize, fetchSize);
@@ -101,13 +95,12 @@ public class WebSocketSearchClient extends AbstractWebsocketClient implements Se
                                                        d.getTimestamp() == null ? null :
                                                                Instant.ofEpochMilli(d.getTimestamp()),
                                                        d.getEnd() == null ? null : Instant.ofEpochMilli(d.getEnd()),
-                                                       d::deserializeDocument));
+                                                       () -> d));
     }
 
     @Override
-    public Optional<Document> fetch(GetDocument request) {
-        return Optional.ofNullable(this.<GetDocumentResult>sendAndWait(request).getDocument())
-                .map(SerializedDocument::deserializeDocument);
+    public Optional<SerializedDocument> fetch(GetDocument request) {
+        return Optional.ofNullable(this.<GetDocumentResult>sendAndWait(request).getDocument());
     }
 
     @Override

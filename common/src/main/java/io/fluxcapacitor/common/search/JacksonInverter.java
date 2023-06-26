@@ -27,6 +27,7 @@ import com.fasterxml.jackson.databind.node.NullNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.fasterxml.jackson.databind.node.TextNode;
 import io.fluxcapacitor.common.api.Data;
+import io.fluxcapacitor.common.api.search.SerializedDocument;
 import io.fluxcapacitor.common.search.Document.Entry;
 import io.fluxcapacitor.common.search.Document.EntryType;
 import io.fluxcapacitor.common.search.Document.Path;
@@ -47,6 +48,8 @@ import java.util.Map;
 import java.util.SortedMap;
 import java.util.TreeMap;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import static io.fluxcapacitor.common.SearchUtils.asIntegerOrString;
 import static java.util.stream.Collectors.toList;
@@ -57,6 +60,7 @@ import static org.apache.commons.lang3.StringUtils.isBlank;
 @Getter(AccessLevel.PROTECTED)
 public class JacksonInverter implements Inverter<JsonNode> {
 
+    private static final String FORMAT = "application/json";
     private final ObjectMapper objectMapper;
     private final JsonFactory jsonFactory;
     private final JsonNodeFactory nodeFactory;
@@ -77,20 +81,27 @@ public class JacksonInverter implements Inverter<JsonNode> {
      */
 
     @Override
-    public Document toDocument(Data<byte[]> data, String id, String collection, Instant timestamp, Instant end) {
-        if (!"application/json".equals(data.getFormat())) {
+    public SerializedDocument toDocument(Data<byte[]> data, String id, String collection, Instant timestamp,
+                                         Instant end) {
+        if (!FORMAT.equals(data.getFormat())) {
             throw new IllegalArgumentException("Only json inversion is supported");
         }
-        return new Document(id, data.getType(), data.getRevision(), collection,
-                            timestamp, end, invert(data.getValue(), "", new LinkedHashMap<>()));
+        return new SerializedDocument(new Document(id, data.getType(), data.getRevision(), collection,
+                                                   timestamp, end, invert(data.getValue())));
+    }
+
+    protected String summarize(Map<Entry, List<Path>> entryMap, String id) {
+        return Stream.concat(Stream.of(id), entryMap.keySet().stream().map(Entry::asPhrase))
+                .collect(Collectors.joining(" "));
     }
 
     @SneakyThrows
-    protected Map<Entry, List<Path>> invert(byte[] json, String path, Map<Entry, List<Path>> valueMap) {
+    protected Map<Entry, List<Path>> invert(byte[] json) {
+        Map<Entry, List<Path>> valueMap = new LinkedHashMap<>();
         try (JsonParser parser = jsonFactory.createParser(json)) {
             JsonToken token = parser.nextToken();
             if (token != null) {
-                processToken(token, valueMap, path, parser);
+                processToken(token, valueMap, "", parser);
             }
         }
         return valueMap;
@@ -170,18 +181,22 @@ public class JacksonInverter implements Inverter<JsonNode> {
 
     @Override
     @SuppressWarnings("unchecked")
-    public JsonNode fromDocument(Document document) {
+    public Data<JsonNode> fromDocument(SerializedDocument serializedDocument) {
+        if (FORMAT.equals(serializedDocument.getDocument().getFormat())) {
+            return serializedDocument.getDocument().map(d -> getObjectMapper().readTree(d));
+        }
+        var document = serializedDocument.deserializeDocument();
         Pattern splitPattern = getSplitPattern();
         Map<Entry, List<Path>> entries = document.getEntries();
         if (entries.isEmpty()) {
-            return NullNode.getInstance();
+            return toData(NullNode.getInstance(), serializedDocument);
         }
         Map<Object, Object> tree = new TreeMap<>();
         for (Map.Entry<Entry, List<Path>> entry : entries.entrySet()) {
             JsonNode valueNode = toJsonNode(entry.getKey());
             List<Path> paths = entry.getValue();
             if (paths.isEmpty()) {
-                return valueNode;
+                return toData(valueNode, serializedDocument);
             }
             paths.forEach(path -> {
                 Map<Object, Object> parent = tree;
@@ -199,7 +214,12 @@ public class JacksonInverter implements Inverter<JsonNode> {
                 }
             });
         }
-        return toJsonNode(tree);
+        return toData(toJsonNode(tree), serializedDocument);
+    }
+
+    protected Data<JsonNode> toData(JsonNode node, SerializedDocument document) {
+        return new Data<>(node, document.getDocument().getType(),
+                          document.getDocument().getRevision(), FORMAT);
     }
 
     protected JsonNode toJsonNode(Object struct) {

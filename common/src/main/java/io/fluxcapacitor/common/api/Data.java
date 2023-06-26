@@ -14,6 +14,8 @@
 
 package io.fluxcapacitor.common.api;
 
+import io.fluxcapacitor.common.ThrowingFunction;
+import lombok.SneakyThrows;
 import lombok.ToString;
 import lombok.Value;
 import lombok.With;
@@ -33,17 +35,11 @@ public class Data<T> implements SerializedObject<T, Data<T>> {
 
     @ConstructorProperties({"value", "type", "revision", "format"})
     public Data(T value, String type, int revision, String format) {
-        this.value = () -> value;
-        this.type = type;
-        this.revision = revision;
-        this.format = format;
+        this(() -> value, type, revision, format);
     }
 
     public Data(T value, String type, int revision) {
-        this.value = () -> value;
-        this.type = type;
-        this.revision = revision;
-        this.format = null;
+        this(value, type, revision, null);
     }
 
     public Data(Supplier<T> value, String type, int revision, String format) {
@@ -89,5 +85,10 @@ public class Data<T> implements SerializedObject<T, Data<T>> {
     @Override
     public Data<T> withData(Data<T> data) {
         return data;
+    }
+
+    @SneakyThrows
+    public <M> Data<M> map(ThrowingFunction<T, M> mapper) {
+        return new Data<>(mapper.apply(getValue()), type, revision, format);
     }
 }

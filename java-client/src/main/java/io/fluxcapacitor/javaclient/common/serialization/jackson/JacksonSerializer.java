@@ -20,8 +20,8 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.json.JsonMapper;
 import io.fluxcapacitor.common.api.Data;
 import io.fluxcapacitor.common.api.SerializedObject;
+import io.fluxcapacitor.common.api.search.SerializedDocument;
 import io.fluxcapacitor.common.reflection.ReflectionUtils;
-import io.fluxcapacitor.common.search.Document;
 import io.fluxcapacitor.common.search.Inverter;
 import io.fluxcapacitor.common.search.JacksonInverter;
 import io.fluxcapacitor.common.serialization.JsonUtils;
@@ -142,23 +142,19 @@ public class JacksonSerializer extends AbstractSerializer<JsonNode> implements D
     }
 
     @Override
-    public Document toDocument(Object value, String id, String collection, Instant timestamp, Instant end) {
+    public SerializedDocument toDocument(Object value, String id, String collection, Instant timestamp, Instant end) {
         return inverter.toDocument(serialize(value), id, collection, timestamp, end);
     }
 
     @Override
-    public <T> T fromDocument(Document document) {
-        JsonNode jsonNode = inverter.fromDocument(document);
-        return jsonNodeUpcaster.cast(Stream.of(new Data<>(
-                        jsonNode, document.getType(), document.getRevision(), getFormat()))).findFirst()
+    public <T> T fromDocument(SerializedDocument document) {
+        return jsonNodeUpcaster.cast(Stream.of(inverter.fromDocument(document))).findFirst()
                 .<T>map(d -> objectMapper.convertValue(d.getValue(), typeCache.apply(d.getType()))).orElse(null);
     }
 
     @Override
-    public <T> T fromDocument(Document document, Class<T> type) {
-        JsonNode jsonNode = inverter.fromDocument(document);
-        return jsonNodeUpcaster.cast(Stream.of(new Data<>(
-                        jsonNode, document.getType(), document.getRevision(), getFormat()))).findFirst()
+    public <T> T fromDocument(SerializedDocument document, Class<T> type) {
+        return jsonNodeUpcaster.cast(Stream.of(inverter.fromDocument(document))).findFirst()
                 .map(d -> objectMapper.convertValue(d.getValue(), type)).orElse(null);
     }
 

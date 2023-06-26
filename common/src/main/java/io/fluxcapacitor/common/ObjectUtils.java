@@ -109,15 +109,16 @@ public class ObjectUtils {
     }
 
     public static <T> MemoizingSupplier<T> memoize(Supplier<T> supplier) {
-        return new MemoizingSupplier<>(supplier);
+        return supplier instanceof MemoizingSupplier<T> existing ? existing : new MemoizingSupplier<>(supplier);
     }
 
     public static <K, V> MemoizingFunction<K, V> memoize(Function<K, V> supplier) {
-        return new MemoizingFunction<>(supplier);
+        return supplier instanceof MemoizingFunction<K, V> existing ? existing : new MemoizingFunction<>(supplier);
     }
 
     public static <T, U, R> MemoizingBiFunction<T, U, R> memoize(BiFunction<T, U, R> supplier) {
-        return new MemoizingBiFunction<>(supplier);
+        return supplier instanceof MemoizingBiFunction<T, U, R> existing
+                ? existing : new MemoizingBiFunction<>(supplier);
     }
 
     public static Consumer<Runnable> ifTrue(boolean check) {

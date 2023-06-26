@@ -25,7 +25,7 @@ import java.util.Collection;
 @EqualsAndHashCode(callSuper = true)
 @Value
 public class BulkUpdateDocuments extends Command {
-    Collection<SerializedDocumentUpdate> updates;
+    Collection<DocumentUpdate> updates;
     Guarantee guarantee;
 
     @JsonIgnore

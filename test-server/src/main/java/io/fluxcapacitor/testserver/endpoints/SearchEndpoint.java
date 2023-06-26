@@ -23,6 +23,7 @@ import io.fluxcapacitor.common.api.search.CreateAuditTrail;
 import io.fluxcapacitor.common.api.search.DeleteCollection;
 import io.fluxcapacitor.common.api.search.DeleteDocumentById;
 import io.fluxcapacitor.common.api.search.DeleteDocuments;
+import io.fluxcapacitor.common.api.search.DocumentUpdate;
 import io.fluxcapacitor.common.api.search.GetDocument;
 import io.fluxcapacitor.common.api.search.GetDocumentResult;
 import io.fluxcapacitor.common.api.search.GetDocumentStats;
@@ -34,8 +35,6 @@ import io.fluxcapacitor.common.api.search.SearchDocuments;
 import io.fluxcapacitor.common.api.search.SearchDocumentsResult;
 import io.fluxcapacitor.common.api.search.SearchHistogram;
 import io.fluxcapacitor.common.api.search.SerializedDocument;
-import io.fluxcapacitor.common.api.search.SerializedDocumentUpdate;
-import io.fluxcapacitor.common.search.Document;
 import io.fluxcapacitor.javaclient.persisting.search.SearchHit;
 import io.fluxcapacitor.javaclient.persisting.search.client.SearchClient;
 import io.fluxcapacitor.testserver.Handle;
@@ -58,7 +57,6 @@ import static java.util.Collections.emptyList;
 import static java.util.Optional.ofNullable;
 import static java.util.function.UnaryOperator.identity;
 import static java.util.stream.Collectors.groupingBy;
-import static java.util.stream.Collectors.toList;
 import static java.util.stream.Collectors.toMap;
 
 @Slf4j
@@ -70,9 +68,7 @@ public class SearchEndpoint extends WebsocketEndpoint {
     @Handle
     public VoidResult handle(IndexDocuments request) throws Exception {
         try {
-            List<Document> documents =
-                    request.getDocuments().stream().map(SerializedDocument::deserializeDocument).collect(toList());
-            Awaitable awaitable = store.index(documents, request.getGuarantee(), request.isIfNotExists());
+            Awaitable awaitable = store.index(request.getDocuments(), request.getGuarantee(), request.isIfNotExists());
             if (request.getGuarantee().compareTo(Guarantee.STORED) >= 0) {
                 awaitable.await();
             }
@@ -84,21 +80,19 @@ public class SearchEndpoint extends WebsocketEndpoint {
 
     @Handle
     public VoidResult handle(BulkUpdateDocuments request) throws Exception {
-        Map<BulkUpdate.Type, List<SerializedDocumentUpdate>> updatesByType =
+        Map<BulkUpdate.Type, List<DocumentUpdate>> updatesByType =
                 request.getUpdates().stream().filter(Objects::nonNull)
                         .collect(toMap(a -> format("%s_%s", a.getCollection(), a.getId()), identity(), (a, b) -> b))
                         .values().stream()
-                        .collect(groupingBy(SerializedDocumentUpdate::getType));
+                        .collect(groupingBy(DocumentUpdate::getType));
         try {
             Collection<Awaitable> results = new ArrayList<>();
             ofNullable(updatesByType.get(index)).ifPresent(updates -> {
-                List<Document> documents =
-                        updates.stream().map(u -> u.getObject().deserializeDocument()).collect(toList());
+                var documents = updates.stream().map(DocumentUpdate::getObject).toList();
                 results.add(store.index(documents, request.getGuarantee(), false));
             });
             ofNullable(updatesByType.get(indexIfNotExists)).ifPresent(updates -> {
-                List<Document> documents =
-                        updates.stream().map(u -> u.getObject().deserializeDocument()).collect(toList());
+                var documents = updates.stream().map(DocumentUpdate::getObject).toList();
                 results.add(store.index(documents, request.getGuarantee(), true));
             });
             updatesByType.getOrDefault(delete, emptyList())
@@ -118,9 +112,8 @@ public class SearchEndpoint extends WebsocketEndpoint {
     @Handle
     public SearchDocumentsResult handle(SearchDocuments request) {
         try {
-            Stream<SearchHit<Document>> result = store.search(request, -1);
-            return new SearchDocumentsResult(request.getRequestId(),
-                                             result.map(d -> new SerializedDocument(d.getValue())).collect(toList()));
+            Stream<SearchHit<SerializedDocument>> result = store.search(request, -1);
+            return new SearchDocumentsResult(request.getRequestId(), result.map(SearchHit::getValue).toList());
         } catch (Exception e) {
             log.error("Failed to handle {}", request, e);
             return new SearchDocumentsResult(request.getRequestId(), emptyList());
@@ -155,8 +148,7 @@ public class SearchEndpoint extends WebsocketEndpoint {
     @Handle
     public GetDocumentResult handle(GetDocument request) {
         try {
-            return new GetDocumentResult(request.getRequestId(), store.fetch(request).map(
-                    SerializedDocument::new).orElse(null));
+            return new GetDocumentResult(request.getRequestId(), store.fetch(request).orElse(null));
         } catch (Exception e) {
             log.error("Failed to handle {}", request, e);
             return new GetDocumentResult(request.getRequestId(), null);
