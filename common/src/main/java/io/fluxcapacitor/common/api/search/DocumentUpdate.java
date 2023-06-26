@@ -5,7 +5,7 @@ import lombok.Value;
 
 @Value
 @Builder(builderClassName = "Builder")
-public class SerializedDocumentUpdate {
+public class DocumentUpdate {
     BulkUpdate.Type type;
     String id;
     String collection;

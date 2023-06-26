@@ -16,7 +16,6 @@ package io.fluxcapacitor.javaclient.common.serialization.jackson;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.fluxcapacitor.common.FileUtils;
-import io.fluxcapacitor.common.search.Document;
 import io.fluxcapacitor.common.serialization.JsonUtils;
 import lombok.Value;
 import org.junit.jupiter.api.Test;
@@ -85,14 +84,14 @@ class JacksonInverterTest {
     @Test
     void testLongList() {
         List<String> strings = IntStream.range(0, 11).mapToObj(i -> "i" + i).collect(toList());
-        Document document = subject.toDocument(strings, "id", "bla", null, null);
+        var document = subject.toDocument(strings, "id", "bla", null, null);
         assertEquals(strings, subject.fromDocument(document));
     }
 
     @Test
     void testNestedList() {
         var expected = Map.of("foo", IntStream.range(0, 11).mapToObj(i -> "i" + i).collect(toList()));
-        Document document = subject.toDocument(expected, "id", "bla", null, null);
+        var document = subject.toDocument(expected, "id", "bla", null, null);
         assertEquals(expected, subject.fromDocument(document));
     }
 
@@ -139,13 +138,13 @@ class JacksonInverterTest {
     @Test
     void testDocumentSerializationViaJackson() {
         Object value = JsonUtils.fromFile("mixed-object.json", MixedObject.class);
-        Document document = subject.toDocument(value, "test", "test", Instant.now(), Instant.now());
+        var document = subject.toDocument(value, "test", "test", Instant.now(), Instant.now());
         String json = JsonUtils.asPrettyJson(document);
 
     }
 
     private void testReversion(Object value) {
-        Document document = subject.toDocument(value, "test", "test", Instant.now(), Instant.now());
+        var document = subject.toDocument(value, "test", "test", Instant.now(), Instant.now());
         Object result = subject.fromDocument(document);
         if (value != null && value.getClass().isArray()) {
             if (!Objects.deepEquals(value, result)) {

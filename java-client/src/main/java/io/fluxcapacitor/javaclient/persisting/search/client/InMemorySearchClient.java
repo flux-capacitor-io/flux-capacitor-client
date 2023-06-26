@@ -19,12 +19,13 @@ import io.fluxcapacitor.common.Guarantee;
 import io.fluxcapacitor.common.api.search.CreateAuditTrail;
 import io.fluxcapacitor.common.api.search.DocumentStats;
 import io.fluxcapacitor.common.api.search.DocumentStats.FieldStats;
+import io.fluxcapacitor.common.api.search.DocumentUpdate;
 import io.fluxcapacitor.common.api.search.GetDocument;
 import io.fluxcapacitor.common.api.search.GetSearchHistogram;
 import io.fluxcapacitor.common.api.search.SearchDocuments;
 import io.fluxcapacitor.common.api.search.SearchHistogram;
 import io.fluxcapacitor.common.api.search.SearchQuery;
-import io.fluxcapacitor.common.api.search.SerializedDocumentUpdate;
+import io.fluxcapacitor.common.api.search.SerializedDocument;
 import io.fluxcapacitor.common.search.Document;
 import io.fluxcapacitor.javaclient.persisting.search.SearchHit;
 
@@ -44,7 +45,6 @@ import java.util.stream.Stream;
 
 import static io.fluxcapacitor.common.api.search.BulkUpdate.Type.indexIfNotExists;
 import static io.fluxcapacitor.common.search.Document.EntryType.NUMERIC;
-import static java.util.Collections.singletonList;
 import static java.util.function.Function.identity;
 import static java.util.stream.Collectors.groupingBy;
 import static java.util.stream.Collectors.toList;
@@ -54,11 +54,11 @@ public class InMemorySearchClient implements SearchClient {
     private final List<Document> documents = new CopyOnWriteArrayList<>();
 
     @Override
-    public synchronized Awaitable index(List<Document> documents, Guarantee guarantee, boolean ifNotExists) {
+    public synchronized Awaitable index(List<SerializedDocument> documents, Guarantee guarantee, boolean ifNotExists) {
         Function<Document, String> identify = d -> d.getCollection() + "/" + d.getId();
         Map<String, Document> existing = this.documents.stream().collect(toMap(identify, identity()));
-        Map<String, Document> updates =
-                documents.stream().collect(toMap(identify, identity(), (a, b) -> b, LinkedHashMap::new));
+        Map<String, Document> updates = documents.stream().map(SerializedDocument::deserializeDocument)
+                .collect(toMap(identify, identity(), (a, b) -> b, LinkedHashMap::new));
         if (ifNotExists) {
             updates.entrySet().stream().filter(e -> !existing.containsKey(e.getKey()))
                     .forEach(e -> this.documents.add(e.getValue()));
@@ -71,12 +71,8 @@ public class InMemorySearchClient implements SearchClient {
         return Awaitable.ready();
     }
 
-    protected Stream<SearchHit<Document>> search(SearchDocuments searchDocuments) {
-        return search(searchDocuments, -1);
-    }
-
     @Override
-    public Stream<SearchHit<Document>> search(SearchDocuments searchDocuments, int fetchSize) {
+    public Stream<SearchHit<SerializedDocument>> search(SearchDocuments searchDocuments, int fetchSize) {
         SearchQuery query = searchDocuments.getQuery();
         Stream<Document> documentStream = documents.stream().filter(query::matches);
         documentStream = documentStream.sorted(Document.createComparator(searchDocuments));
@@ -95,14 +91,15 @@ public class InMemorySearchClient implements SearchClient {
             documentStream = documentStream.limit(searchDocuments.getMaxSize());
         }
         return documentStream
-                .map(d -> new SearchHit<>(d.getId(), d.getCollection(), d.getTimestamp(), d.getEnd(), () -> d));
+                .map(d -> new SearchHit<>(d.getId(), d.getCollection(), d.getTimestamp(), d.getEnd(),
+                                          () -> new SerializedDocument(d)));
     }
 
     @Override
-    public Optional<Document> fetch(GetDocument r) {
+    public Optional<SerializedDocument> fetch(GetDocument r) {
         return documents.stream().filter(
                 d -> Objects.equals(r.getId(), d.getId()) && Objects.equals(r.getCollection(), d.getCollection()))
-                .findFirst();
+                .findFirst().map(SerializedDocument::new);
     }
 
     @Override
@@ -153,20 +150,20 @@ public class InMemorySearchClient implements SearchClient {
         long delta = query.getBefore().toEpochMilli() - min;
         long step = Math.min(1, delta / request.getResolution());
 
-        this.search(SearchDocuments.builder().query(query).build())
+        search(SearchDocuments.builder().query(query).build(), -1)
+                .map(h -> h.getValue().deserializeDocument())
                 .collect(groupingBy(d -> (d.getTimestamp().toEpochMilli() - min) / step))
                 .forEach((bucket, hits) -> results.set(bucket.intValue(), (long) hits.size()));
         return new SearchHistogram(query.getSince(), query.getBefore(), results);
     }
 
     @Override
-    public Awaitable bulkUpdate(Collection<SerializedDocumentUpdate> updates, Guarantee guarantee) {
+    public Awaitable bulkUpdate(Collection<DocumentUpdate> updates, Guarantee guarantee) {
         updates.forEach(action -> {
             switch (action.getType()) {
                 case delete -> delete(action.getId(), action.getCollection(), guarantee);
-                case index, indexIfNotExists ->
-                        index(singletonList(action.getObject().deserializeDocument()), guarantee,
-                              action.getType().equals(indexIfNotExists));
+                case index, indexIfNotExists -> index(List.of(action.getObject()), guarantee,
+                                                      action.getType().equals(indexIfNotExists));
             }
         });
         return Awaitable.ready();

@@ -15,7 +15,6 @@
 package io.fluxcapacitor.common.search;
 
 import io.fluxcapacitor.common.api.Data;
-import io.fluxcapacitor.common.api.search.SerializedDocument;
 import io.fluxcapacitor.common.search.Document.Entry;
 import io.fluxcapacitor.common.search.Document.Path;
 import lombok.SneakyThrows;
@@ -88,22 +87,6 @@ public enum DefaultDocumentSerializer {
             return new Document(id, document.getType(), document.getRevision(), collection, timestamp, end, map);
         } catch (Exception e) {
             throw new IllegalArgumentException("Could not deserialize document", e);
-        }
-    }
-
-    public SerializedDocument asSerializedDocument(Data<byte[]> document) {
-        try (MessageUnpacker unpacker = MessagePack.newDefaultUnpacker(decompress(document.getValue()))) {
-            int version = unpacker.unpackInt();
-            if (version != currentVersion) {
-                throw new IllegalArgumentException();
-            }
-            String id = unpacker.unpackString();
-            Long timestamp = unpackLong(unpacker);
-            Long end = unpackLong(unpacker);
-            String collection = unpacker.unpackString();
-            return new SerializedDocument(id, timestamp, end, collection, document, null);
-        } catch (Exception e) {
-            throw new IllegalArgumentException("Could not convert bytes to SerializedDocument", e);
         }
     }
 

@@ -14,14 +14,14 @@
 
 package io.fluxcapacitor.javaclient.persisting.search;
 
-import io.fluxcapacitor.common.search.Document;
+import io.fluxcapacitor.common.api.search.SerializedDocument;
 
 import java.time.Instant;
 
 public interface DocumentSerializer {
-    Document toDocument(Object value, String id, String collection, Instant timestamp, Instant end);
+    SerializedDocument toDocument(Object value, String id, String collection, Instant timestamp, Instant end);
 
-    <T> T fromDocument(Document document);
+    <T> T fromDocument(SerializedDocument document);
 
-    <T> T fromDocument(Document document, Class<T> type);
+    <T> T fromDocument(SerializedDocument document, Class<T> type);
 }
