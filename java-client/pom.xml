@@ -30,7 +30,7 @@
     <url>https://flux-capacitor.io</url>
 
     <properties>
-        <hibernate-validator.version>8.0.0.Final</hibernate-validator.version>
+        <hibernate-validator.version>8.0.1.Final</hibernate-validator.version>
     </properties>
 
     <dependencies>
@@ -99,11 +99,11 @@
             </exclusions>
         </dependency>
 
-        <!--undertow server for testing of web forwarding. Upgrading to 6.0.0 gives jakarta/javax name space issues. -->
+        <!--undertow server for testing of web forwarding-->
         <dependency>
             <groupId>org.jboss.resteasy</groupId>
             <artifactId>resteasy-undertow</artifactId>
-            <version>6.2.3.Final</version>
+            <version>6.2.4.Final</version>
             <scope>test</scope>
             <exclusions>
                 <exclusion>
