@@ -19,7 +19,6 @@ import com.fasterxml.jackson.core.JsonParser;
 import com.fasterxml.jackson.core.JsonToken;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.json.JsonMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.BooleanNode;
 import com.fasterxml.jackson.databind.node.DecimalNode;
@@ -31,7 +30,7 @@ import io.fluxcapacitor.common.api.Data;
 import io.fluxcapacitor.common.search.Document.Entry;
 import io.fluxcapacitor.common.search.Document.EntryType;
 import io.fluxcapacitor.common.search.Document.Path;
-import io.fluxcapacitor.common.serialization.NullCollectionsAsEmptyModule;
+import io.fluxcapacitor.common.serialization.JsonUtils;
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.SneakyThrows;
@@ -49,10 +48,6 @@ import java.util.SortedMap;
 import java.util.TreeMap;
 import java.util.regex.Pattern;
 
-import static com.fasterxml.jackson.databind.DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES;
-import static com.fasterxml.jackson.databind.SerializationFeature.FAIL_ON_EMPTY_BEANS;
-import static com.fasterxml.jackson.databind.SerializationFeature.WRITE_DATES_AS_TIMESTAMPS;
-import static com.fasterxml.jackson.databind.node.JsonNodeFactory.withExactBigDecimals;
 import static io.fluxcapacitor.common.SearchUtils.asIntegerOrString;
 import static java.util.stream.Collectors.toList;
 import static java.util.stream.Collectors.toMap;
@@ -61,10 +56,6 @@ import static org.apache.commons.lang3.StringUtils.isBlank;
 @Slf4j
 @Getter(AccessLevel.PROTECTED)
 public class JacksonInverter implements Inverter<JsonNode> {
-    public static JsonMapper defaultObjectMapper = JsonMapper.builder()
-            .findAndAddModules().addModule(new NullCollectionsAsEmptyModule())
-            .disable(FAIL_ON_EMPTY_BEANS).disable(WRITE_DATES_AS_TIMESTAMPS).disable(FAIL_ON_UNKNOWN_PROPERTIES)
-            .nodeFactory(withExactBigDecimals(true)).build();
 
     private final ObjectMapper objectMapper;
     private final JsonFactory jsonFactory;
@@ -72,7 +63,7 @@ public class JacksonInverter implements Inverter<JsonNode> {
     private final Pattern splitPattern = Path.splitPattern;
 
     public JacksonInverter() {
-        this(defaultObjectMapper);
+        this(JsonUtils.writer);
     }
 
     public JacksonInverter(ObjectMapper objectMapper) {
