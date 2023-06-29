@@ -16,6 +16,8 @@ package io.fluxcapacitor.javaclient.configuration.client;
 
 import io.fluxcapacitor.common.MessageType;
 import io.fluxcapacitor.common.ObjectUtils.MemoizingFunction;
+import io.fluxcapacitor.common.Registration;
+import io.fluxcapacitor.javaclient.common.ClientUtils;
 import io.fluxcapacitor.javaclient.persisting.eventsourcing.client.EventStoreClient;
 import io.fluxcapacitor.javaclient.persisting.keyvalue.client.KeyValueClient;
 import io.fluxcapacitor.javaclient.persisting.search.client.SearchClient;
@@ -23,12 +25,16 @@ import io.fluxcapacitor.javaclient.publishing.client.GatewayClient;
 import io.fluxcapacitor.javaclient.scheduling.client.SchedulingClient;
 import io.fluxcapacitor.javaclient.tracking.client.TrackingClient;
 import lombok.Getter;
+import lombok.extern.slf4j.Slf4j;
 
+import java.util.Set;
+import java.util.concurrent.CopyOnWriteArraySet;
 import java.util.function.Function;
 
 import static io.fluxcapacitor.common.ObjectUtils.memoize;
 import static java.util.Arrays.stream;
 
+@Slf4j
 public abstract class AbstractClient implements Client {
 
     private final String name;
@@ -39,6 +45,8 @@ public abstract class AbstractClient implements Client {
     @Getter private final SchedulingClient schedulingClient;
     @Getter private final KeyValueClient keyValueClient;
     @Getter private final SearchClient searchClient;
+
+    protected final Set<Runnable> shutdownTasks = new CopyOnWriteArraySet<>();
 
     public AbstractClient(String name, String id, Function<MessageType, ? extends GatewayClient> gatewayClients,
                           Function<MessageType, ? extends TrackingClient> trackingClients,
@@ -77,6 +85,7 @@ public abstract class AbstractClient implements Client {
 
     @Override
     public void shutDown() {
+        shutdownTasks.forEach(ClientUtils::tryRun);
         MessageType[] types = MessageType.values();
         stream(types).filter(trackingClients::isCached).map(trackingClients).forEach(TrackingClient::close);
         stream(types).filter(gatewayClients::isCached).map(gatewayClients).forEach(GatewayClient::close);
@@ -84,5 +93,11 @@ public abstract class AbstractClient implements Client {
         schedulingClient.close();
         keyValueClient.close();
         searchClient.close();
+    }
+
+    @Override
+    public Registration beforeShutdown(Runnable task) {
+        shutdownTasks.add(task);
+        return () -> shutdownTasks.remove(task);
     }
 }

@@ -31,7 +31,6 @@ import java.time.Duration;
 import java.util.Arrays;
 import java.util.List;
 import java.util.UUID;
-import java.util.concurrent.ExecutorService;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
@@ -41,10 +40,10 @@ import java.util.stream.Stream;
 
 import static io.fluxcapacitor.common.TimingUtils.retryOnFailure;
 import static io.fluxcapacitor.javaclient.tracking.BatchInterceptor.join;
+import static java.lang.String.format;
 import static java.lang.Thread.currentThread;
 import static java.util.Comparator.naturalOrder;
 import static java.util.Optional.ofNullable;
-import static java.util.concurrent.Executors.newFixedThreadPool;
 import static java.util.stream.Collectors.toList;
 
 /**
@@ -70,6 +69,8 @@ import static java.util.stream.Collectors.toList;
  */
 @Slf4j
 public class DefaultTracker implements Runnable, Registration {
+
+    private static final ThreadGroup threadGroup = new ThreadGroup("DefaultTracker");
 
     private final Consumer<List<SerializedMessage>> consumer;
     private final Tracker tracker;
@@ -113,30 +114,29 @@ public class DefaultTracker implements Runnable, Registration {
      */
     public static Registration start(Consumer<List<SerializedMessage>> consumer, MessageType messageType,
                                      ConsumerConfiguration config, Client client) {
-        List<DefaultTracker> instances = IntStream.range(0, config.getThreads())
+        List<DefaultTracker> trackers = IntStream.range(0, config.getThreads())
                 .mapToObj(i -> new DefaultTracker(consumer, config, new Tracker(
                         config.getName(), config.getTrackerIdFactory().apply(client), messageType, config, null),
                                                   client.getTrackingClient(messageType))).toList();
-        ExecutorService executor = newFixedThreadPool(config.getThreads());
-        instances.forEach(executor::execute);
-        return () -> {
-            instances.forEach(DefaultTracker::cancel);
-            executor.shutdownNow();
-        };
+        for (int i = 0; i < trackers.size(); i++) {
+            new Thread(threadGroup, trackers.get(i),
+                       format("tracker:%s%s-%d", config.getName(), config.getName(), i)).start();
+        }
+        client.beforeShutdown(() -> trackers.forEach(DefaultTracker::cancel));
+        return () -> trackers.forEach(DefaultTracker::cancel);
     }
 
     public static Registration start(Consumer<List<SerializedMessage>> consumer, ConsumerConfiguration config,
                                      TrackingClient trackingClient) {
-        List<DefaultTracker> instances = IntStream.range(0, config.getThreads())
+        List<DefaultTracker> trackers = IntStream.range(0, config.getThreads())
                 .mapToObj(i -> new DefaultTracker(consumer, config, new Tracker(
                         config.getName(), UUID.randomUUID().toString(), trackingClient.getMessageType(),
                         config, null), trackingClient)).toList();
-        ExecutorService executor = newFixedThreadPool(config.getThreads());
-        instances.forEach(executor::execute);
-        return () -> {
-            instances.forEach(DefaultTracker::cancel);
-            executor.shutdownNow();
-        };
+        for (int i = 0; i < trackers.size(); i++) {
+            new Thread(threadGroup, trackers.get(i),
+                       format("tracker:%s-%s-%d", config.getName(), trackingClient.getMessageType(), i)).start();
+        }
+        return () -> trackers.forEach(DefaultTracker::cancel);
     }
 
     private DefaultTracker(Consumer<List<SerializedMessage>> consumer, ConsumerConfiguration config, Tracker tracker,
@@ -164,6 +164,7 @@ public class DefaultTracker implements Runnable, Registration {
                 }
             }
             Tracker.current.remove();
+            thread.set(null);
         }
     }
 
@@ -263,7 +264,7 @@ public class DefaultTracker implements Runnable, Registration {
                             trackingClient.storePosition(tracker.getName(), segment, index).await();
                         } catch (Exception e) {
                             throw new TrackingException(
-                                    String.format("Failed to store position of segments %s for tracker %s to index %s",
+                                    format("Failed to store position of segments %s for tracker %s to index %s",
                                                   Arrays.toString(segment), tracker, index), e);
                         }
                     }, retryDelay, e2 -> running.get());

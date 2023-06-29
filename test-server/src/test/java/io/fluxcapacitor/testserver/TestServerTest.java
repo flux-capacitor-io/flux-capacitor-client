@@ -40,7 +40,7 @@ import java.util.List;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 @ExtendWith(SpringExtension.class)
-@DirtiesContext
+@DirtiesContext(classMode = DirtiesContext.ClassMode.AFTER_EACH_TEST_METHOD)
 @ContextConfiguration(classes = {FluxCapacitorTestConfig.class, TestServerTest.FooConfig.class, TestServerTest.BarConfig.class})
 @Slf4j
 class TestServerTest {
