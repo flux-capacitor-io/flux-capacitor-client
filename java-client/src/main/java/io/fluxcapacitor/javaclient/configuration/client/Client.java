@@ -15,6 +15,7 @@
 package io.fluxcapacitor.javaclient.configuration.client;
 
 import io.fluxcapacitor.common.MessageType;
+import io.fluxcapacitor.common.Registration;
 import io.fluxcapacitor.javaclient.persisting.eventsourcing.client.EventStoreClient;
 import io.fluxcapacitor.javaclient.persisting.keyvalue.client.KeyValueClient;
 import io.fluxcapacitor.javaclient.persisting.search.client.SearchClient;
@@ -41,4 +42,6 @@ public interface Client {
     SearchClient getSearchClient();
 
     void shutDown();
+
+    Registration beforeShutdown(Runnable task);
 }

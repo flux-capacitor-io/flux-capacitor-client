@@ -431,6 +431,7 @@ public class TestFixture implements Given, When {
             } finally {
                 handleExpiredSchedulesLocally();
                 registration.cancel();
+                fluxCapacitor.client().shutDown();
             }
         });
     }

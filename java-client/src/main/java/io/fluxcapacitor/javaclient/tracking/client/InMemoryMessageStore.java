@@ -78,7 +78,6 @@ public class InMemoryMessageStore implements GatewayClient, TrackingClient {
     @Override
     public Awaitable send(Guarantee guarantee, SerializedMessage... messages) {
         try {
-            var mgs = messages;
             synchronized (this) {
                 Arrays.stream(messages).forEach(m -> {
                     if (m.getIndex() == null) {
@@ -94,7 +93,6 @@ public class InMemoryMessageStore implements GatewayClient, TrackingClient {
             return Awaitable.ready();
         } finally {
             if (!monitors.isEmpty()) {
-                var mgs = messages;
                 MessageDispatch dispatch = new MessageDispatch(Arrays.asList(messages), messageType);
                 monitors.forEach(m -> m.accept(dispatch));
             }
@@ -134,10 +132,10 @@ public class InMemoryMessageStore implements GatewayClient, TrackingClient {
         }
         CompletableFuture<MessageBatch> result = new CompletableFuture<>();
         executor.execute(() -> {
-            synchronized (InMemoryMessageStore.this) {
-                Map<Long, SerializedMessage> tailMap = Collections.emptyMap();
+            Map<Long, SerializedMessage> tailMap = Collections.emptyMap();
+            synchronized (this) {
                 while (currentTimeMillis() < trackerRead.getDeadline()
-                        && shouldWait(tailMap = messageLog
+                       && shouldWait(tailMap = messageLog
                         .tailMap(Optional.ofNullable(trackerRead.getLastIndex()).orElseGet(
                                 () -> getLastIndex(trackerRead.getConsumer())), false))) {
                     long duration = trackerRead.getDeadline() - currentTimeMillis();
@@ -145,18 +143,17 @@ public class InMemoryMessageStore implements GatewayClient, TrackingClient {
                         try {
                             this.wait(duration);
                         } catch (InterruptedException e) {
-                            log.warn("Interrupted read of primary tracker {} (message type {})",
-                                     trackerRead.getConsumer(), messageType);
                             currentThread().interrupt();
+                            return;
                         }
                     }
                 }
-                List<SerializedMessage> messages = new ArrayList<>(filterMessages(tailMap.values()));
-                messages = messages.subList(0, Math.min(messages.size(), trackerRead.getMaxSize()));
-                Long lastIndex = messages.isEmpty() ? null : messages.get(messages.size() - 1).getIndex();
-                messages = messages.stream().filter(trackerRead::canHandle).collect(toList());
-                result.complete(new MessageBatch(new int[]{0, 128}, messages, lastIndex));
             }
+            List<SerializedMessage> messages = new ArrayList<>(filterMessages(tailMap.values()));
+            messages = messages.subList(0, Math.min(messages.size(), trackerRead.getMaxSize()));
+            Long lastIndex = messages.isEmpty() ? null : messages.get(messages.size() - 1).getIndex();
+            messages = messages.stream().filter(trackerRead::canHandle).collect(toList());
+            result.complete(new MessageBatch(new int[]{0, 128}, messages, lastIndex));
         });
         return result;
     }
@@ -208,7 +205,7 @@ public class InMemoryMessageStore implements GatewayClient, TrackingClient {
 
     @Override
     public void close() {
-        executor.shutdown();
+        executor.shutdownNow();
     }
 
     protected SerializedMessage getMessage(long index) {

@@ -81,7 +81,7 @@ public class SimpleTrackerRead implements TrackerRead {
 
     @Override
     public String toString() {
-        return "WebSocketTracker{" +
+        return "SimpleTrackerRead{" +
                "consumerName='" + consumer + '\'' +
                ", trackerId='" + trackerId + '\'' +
                '}';

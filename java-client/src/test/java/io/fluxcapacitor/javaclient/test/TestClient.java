@@ -15,6 +15,7 @@
 package io.fluxcapacitor.javaclient.test;
 
 import io.fluxcapacitor.common.MessageType;
+import io.fluxcapacitor.common.Registration;
 import io.fluxcapacitor.common.reflection.ReflectionUtils;
 import io.fluxcapacitor.javaclient.configuration.client.Client;
 import io.fluxcapacitor.javaclient.persisting.eventsourcing.client.EventStoreClient;
@@ -97,5 +98,10 @@ public class TestClient implements Client {
     @Override
     public void shutDown() {
         delegate.shutDown();
+    }
+
+    @Override
+    public Registration beforeShutdown(Runnable task) {
+        return delegate.beforeShutdown(task);
     }
 }
