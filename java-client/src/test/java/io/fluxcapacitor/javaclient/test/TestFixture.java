@@ -651,7 +651,7 @@ public class TestFixture implements Given, When {
 
         @Override
         public Message interceptDispatch(Message message, MessageType messageType) {
-            if (captureMessage(message)) {
+            if (collectingResults) {
                 interceptedMessageIds.add(message.getMessageId());
             }
 
