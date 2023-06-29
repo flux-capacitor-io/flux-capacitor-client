@@ -169,8 +169,20 @@ public class TestFixture implements Given, When {
 
     private volatile boolean collectingResults;
 
+    private static final ThreadLocal<TestFixture> currentFixture = new ThreadLocal<>();
+
+    public static void closeCurrentFixture() {
+        TestFixture current = currentFixture.get();
+        if (current != null) {
+            Optional.ofNullable(current.registration).ifPresent(Registration::cancel);
+            current.fluxCapacitor.client().shutDown();
+            currentFixture.remove();
+        }
+    }
+
     protected TestFixture(FluxCapacitorBuilder fluxCapacitorBuilder,
                           Function<FluxCapacitor, List<?>> handlerFactory, Client client, boolean synchronous) {
+        currentFixture.set(this);
         this.synchronous = synchronous;
         Optional<TestUserProvider> userProvider =
                 Optional.ofNullable(UserProvider.defaultUserSupplier).map(TestUserProvider::new);
@@ -234,10 +246,6 @@ public class TestFixture implements Given, When {
         this.registration = Optional.ofNullable(this.registration).map(r -> r.merge(registration)).orElse(registration);
         return this;
     }
-
-    /*
-        clock & identityProvider
-     */
 
     @Override
     public TestFixture withClock(Clock clock) {
@@ -430,8 +438,6 @@ public class TestFixture implements Given, When {
                 return getResultValidator(result, commands, events, schedules, getFutureSchedules(), errors, metrics);
             } finally {
                 handleExpiredSchedulesLocally();
-                registration.cancel();
-                fluxCapacitor.client().shutDown();
             }
         });
     }

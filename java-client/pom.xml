@@ -120,6 +120,12 @@
             <version>0.9.14</version>
             <scope>test</scope>
         </dependency>
+
+        <dependency>
+            <groupId>org.junit.platform</groupId>
+            <artifactId>junit-platform-launcher</artifactId>
+            <scope>test</scope>
+        </dependency>
     </dependencies>
 
     <build>
@@ -136,6 +142,7 @@
                             <includes>
                                 <include>**/test/**</include>
                                 <include>**/benchmark/**</include>
+                                <include>**/META-INF/services/**</include>
                             </includes>
                         </configuration>
                     </execution>
