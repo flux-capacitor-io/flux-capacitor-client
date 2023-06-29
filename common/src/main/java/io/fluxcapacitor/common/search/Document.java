@@ -98,9 +98,13 @@ public class Document {
         return searchDocuments.getSorting().stream().map(s -> {
             switch (s) {
                 case "-timestamp":
-                    return Comparator.comparing(Document::getTimestamp, Comparator.nullsLast(naturalOrder())).reversed();
+                    return Comparator.comparing(Document::getTimestamp, Comparator.nullsFirst(naturalOrder())).reversed();
                 case "timestamp":
                     return Comparator.comparing(Document::getTimestamp, Comparator.nullsFirst(naturalOrder()));
+                case "-end":
+                    return Comparator.comparing(Document::getEnd, Comparator.nullsLast(naturalOrder())).reversed();
+                case "end":
+                    return Comparator.comparing(Document::getEnd, Comparator.nullsLast(naturalOrder()));
                 default:
                     boolean reversed = s.startsWith("-");
                     String path = reversed ? s.substring(1) : s;
