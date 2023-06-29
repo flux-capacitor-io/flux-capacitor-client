@@ -90,8 +90,8 @@ public class DefaultTracker implements Runnable, Registration {
      * Starts one or more trackers. Messages will be passed to the given consumer. Once the consumer is done the
      * position of the tracker is automatically updated.
      * <p>
-     * {@link FluxCapacitorInterceptor} will be added to the list of batch interceptors in the given configuration.
-     * This ensures that a thread local {@link FluxCapacitor} instance will always be available during tracking.
+     * {@link FluxCapacitorInterceptor} will be added to the list of batch interceptors in the given configuration. This
+     * ensures that a thread local {@link FluxCapacitor} instance will always be available during tracking.
      * <p>
      * Each tracker started is using a single thread. To track in parallel configure the number of trackers using
      * {@link ConsumerConfiguration}.
@@ -120,7 +120,8 @@ public class DefaultTracker implements Runnable, Registration {
                                                   client.getTrackingClient(messageType))).toList();
         for (int i = 0; i < trackers.size(); i++) {
             new Thread(threadGroup, trackers.get(i),
-                       format("tracker:%s%s-%d", config.getName(), config.getName(), i)).start();
+                       format("%s%s-%d", config.getName(),
+                              config.getName().contains(messageType.name()) ? "" : "-" + messageType, i)).start();
         }
         client.beforeShutdown(() -> trackers.forEach(DefaultTracker::cancel));
         return () -> trackers.forEach(DefaultTracker::cancel);
@@ -134,7 +135,9 @@ public class DefaultTracker implements Runnable, Registration {
                         config, null), trackingClient)).toList();
         for (int i = 0; i < trackers.size(); i++) {
             new Thread(threadGroup, trackers.get(i),
-                       format("tracker:%s-%s-%d", config.getName(), trackingClient.getMessageType(), i)).start();
+                       format("%s%s-%d", config.getName(),
+                              config.getName().contains(trackingClient.getMessageType().name()) ? "" :
+                                      "-" + trackingClient.getMessageType(), i)).start();
         }
         return () -> trackers.forEach(DefaultTracker::cancel);
     }
@@ -265,7 +268,7 @@ public class DefaultTracker implements Runnable, Registration {
                         } catch (Exception e) {
                             throw new TrackingException(
                                     format("Failed to store position of segments %s for tracker %s to index %s",
-                                                  Arrays.toString(segment), tracker, index), e);
+                                           Arrays.toString(segment), tracker, index), e);
                         }
                     }, retryDelay, e2 -> running.get());
         }
