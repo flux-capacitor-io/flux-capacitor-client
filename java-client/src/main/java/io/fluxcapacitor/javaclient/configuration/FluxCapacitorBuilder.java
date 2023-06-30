@@ -105,7 +105,7 @@ public interface FluxCapacitorBuilder {
 
     FluxCapacitorBuilder replaceDocumentSerializer(DocumentSerializer documentSerializer);
 
-    FluxCapacitorBuilder registerUserSupplier(UserProvider userProvider);
+    FluxCapacitorBuilder registerUserProvider(UserProvider userProvider);
 
     FluxCapacitorBuilder disableErrorReporting();
 

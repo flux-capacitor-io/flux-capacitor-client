@@ -105,7 +105,7 @@ public class FluxCapacitorSpringConfig implements BeanPostProcessor {
                                                      Optional<Cache> cache) {
         FluxCapacitorBuilder builder = DefaultFluxCapacitor.builder().disableShutdownHook()
                 .replaceSerializer(serializer).replaceSnapshotSerializer(serializer).makeApplicationInstance(true);
-        userProvider.ifPresent(builder::registerUserSupplier);
+        userProvider.ifPresent(builder::registerUserProvider);
         cache.ifPresent(builder::replaceCache);
         return builder;
     }
