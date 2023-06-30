@@ -76,6 +76,8 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.CopyOnWriteArraySet;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.Executor;
+import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeoutException;
 import java.util.function.Consumer;
@@ -169,20 +171,23 @@ public class TestFixture implements Given, When {
 
     private volatile boolean collectingResults;
 
-    private static final ThreadLocal<TestFixture> currentFixture = new ThreadLocal<>();
+    private static final ThreadLocal<List<TestFixture>> activeFixtures = ThreadLocal.withInitial(ArrayList::new);
+    private static final Executor shutdownExecutor = Executors.newFixedThreadPool(16);
 
-    public static void closeCurrentFixture() {
-        TestFixture current = currentFixture.get();
-        if (current != null) {
-            Optional.ofNullable(current.registration).ifPresent(Registration::cancel);
-            current.fluxCapacitor.client().shutDown();
-            currentFixture.remove();
+    public static void shutDownActiveFixtures() {
+        var fixtures = activeFixtures.get();
+        if (!fixtures.isEmpty()) {
+            activeFixtures.remove();
+            fixtures.forEach(fixture -> shutdownExecutor.execute(() -> {
+                Optional.ofNullable(fixture.registration).ifPresent(Registration::cancel);
+                fixture.fluxCapacitor.client().shutDown();
+            }));
         }
     }
 
     protected TestFixture(FluxCapacitorBuilder fluxCapacitorBuilder,
                           Function<FluxCapacitor, List<?>> handlerFactory, Client client, boolean synchronous) {
-        currentFixture.set(this);
+        activeFixtures.get().add(this);
         this.synchronous = synchronous;
         Optional<TestUserProvider> userProvider =
                 Optional.ofNullable(UserProvider.defaultUserSupplier).map(TestUserProvider::new);
