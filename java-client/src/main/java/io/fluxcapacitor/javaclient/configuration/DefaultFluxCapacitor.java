@@ -293,7 +293,7 @@ public class DefaultFluxCapacitor implements FluxCapacitor {
         }
 
         @Override
-        public FluxCapacitorBuilder registerUserSupplier(@NonNull UserProvider userProvider) {
+        public FluxCapacitorBuilder registerUserProvider(@NonNull UserProvider userProvider) {
             this.userProvider = userProvider;
             return this;
         }
@@ -560,7 +560,7 @@ public class DefaultFluxCapacitor implements FluxCapacitor {
                                               new MetadataParameterResolver(), new MessageParameterResolver(),
                                               new UserParameterResolver(userProvider),
                                               new SocketSessionParameterResolver(webResponseGateway),
-                                              new WebPayloadParameterResolver(),
+                                              new WebPayloadParameterResolver(userProvider != null),
                                               new PayloadParameterResolver(),
                                               new EntityParameterResolver()));
 

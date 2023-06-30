@@ -42,7 +42,7 @@ public class GivenWhenThenAuthenticationTest {
 
     private MockUser user = new MockUser("get", "create");
     private final TestFixture testFixture = TestFixture.create(
-            DefaultFluxCapacitor.builder().registerUserSupplier(new MockUserProvider()), new MockHandler(),
+            DefaultFluxCapacitor.builder().registerUserProvider(new MockUserProvider()), new MockHandler(),
             new RefdataHandler(), new MockSystemHandler());
 
     @Test

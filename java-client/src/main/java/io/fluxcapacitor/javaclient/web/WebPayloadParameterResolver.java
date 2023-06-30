@@ -17,16 +17,31 @@ package io.fluxcapacitor.javaclient.web;
 import io.fluxcapacitor.common.handling.ParameterResolver;
 import io.fluxcapacitor.common.reflection.ReflectionUtils;
 import io.fluxcapacitor.javaclient.common.HasMessage;
+import io.fluxcapacitor.javaclient.tracking.handling.authentication.User;
+import lombok.AllArgsConstructor;
 
 import java.lang.annotation.Annotation;
 import java.lang.reflect.Parameter;
 import java.util.function.Function;
 
+import static io.fluxcapacitor.javaclient.tracking.handling.validation.ValidationUtils.assertAuthorized;
+
+@AllArgsConstructor
 public class WebPayloadParameterResolver implements ParameterResolver<HasMessage> {
+    private final boolean authoriseUser;
 
     @Override
     public Function<HasMessage, Object> resolve(Parameter p, Annotation methodAnnotation) {
-        return m -> m.getPayloadAs(p.getType());
+        return m -> {
+            Object payload = m.getPayloadAs(p.getType());
+            if (authoriseUser) {
+                User user = User.getCurrent();
+                if (payload != null && m.getPayloadClass() == null && user != null) {
+                    assertAuthorized(payload.getClass(), user);
+                }
+            }
+            return payload;
+        };
     }
 
     @Override

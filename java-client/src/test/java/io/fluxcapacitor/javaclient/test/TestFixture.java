@@ -192,7 +192,7 @@ public class TestFixture implements Given, When {
         Optional<TestUserProvider> userProvider =
                 Optional.ofNullable(UserProvider.defaultUserSupplier).map(TestUserProvider::new);
         if (userProvider.isPresent()) {
-            fluxCapacitorBuilder = fluxCapacitorBuilder.registerUserSupplier(userProvider.get());
+            fluxCapacitorBuilder = fluxCapacitorBuilder.registerUserProvider(userProvider.get());
         }
         List<Object> handlers = new ArrayList<>();
         if (synchronous) {
