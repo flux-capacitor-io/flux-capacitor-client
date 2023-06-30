@@ -10,6 +10,6 @@ public class TestFixtureExecutionListener implements TestExecutionListener {
 
     @Override
     public void executionFinished(TestIdentifier testIdentifier, TestExecutionResult testExecutionResult) {
-        TestFixture.closeCurrentFixture();
+        TestFixture.shutDownActiveFixtures();
     }
 }
