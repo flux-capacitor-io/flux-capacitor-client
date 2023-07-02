@@ -18,7 +18,6 @@ import io.fluxcapacitor.common.Awaitable;
 import io.fluxcapacitor.common.Guarantee;
 import io.fluxcapacitor.common.api.search.CreateAuditTrail;
 import io.fluxcapacitor.common.api.search.DocumentStats;
-import io.fluxcapacitor.common.api.search.DocumentStats.FieldStats;
 import io.fluxcapacitor.common.api.search.DocumentUpdate;
 import io.fluxcapacitor.common.api.search.GetDocument;
 import io.fluxcapacitor.common.api.search.GetSearchHistogram;
@@ -29,7 +28,6 @@ import io.fluxcapacitor.common.api.search.SerializedDocument;
 import io.fluxcapacitor.common.search.Document;
 import io.fluxcapacitor.javaclient.persisting.search.SearchHit;
 
-import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.Collection;
 import java.util.LinkedHashMap;
@@ -44,7 +42,6 @@ import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
 import static io.fluxcapacitor.common.api.search.BulkUpdate.Type.indexIfNotExists;
-import static io.fluxcapacitor.common.search.Document.EntryType.NUMERIC;
 import static java.util.function.Function.identity;
 import static java.util.stream.Collectors.groupingBy;
 import static java.util.stream.Collectors.toList;
@@ -127,13 +124,7 @@ public class InMemorySearchClient implements SearchClient {
 
     @Override
     public List<DocumentStats> fetchStatistics(SearchQuery query, List<String> fields, List<String> groupBy) {
-        Map<List<String>, List<Document>> groups = documents.stream().filter(query::matches).collect(
-                groupingBy(d -> groupBy.stream().map(
-                        g -> d.getEntryAtPath(g).map(Document.Entry::getValue).orElse(null)).collect(toList())));
-        Stream<DocumentStats> statsStream = groups.entrySet().stream().map(e -> new DocumentStats(
-                fields.stream().collect(toMap(identity(), f -> getFieldStats(f, e.getValue()), (a, b) -> b)),
-                asMap(groupBy, e.getKey())));
-        return statsStream.sorted(DocumentStats.getComparator(groupBy)).collect(toList());
+        return DocumentStats.compute(documents.stream().filter(query::matches), fields, groupBy);
     }
 
     @Override
@@ -167,31 +158,6 @@ public class InMemorySearchClient implements SearchClient {
             }
         });
         return Awaitable.ready();
-    }
-
-    private FieldStats getFieldStats(String path, List<Document> documents) {
-        FieldStats.FieldStatsBuilder builder = FieldStats.builder().count(documents.size());
-        if (path.isBlank()) {
-            return builder.build();
-        }
-        List<BigDecimal> values =
-                documents.stream().flatMap(d -> d.getEntryAtPath(path).stream())
-                        .filter(e -> e.getType() == NUMERIC).map(e -> new BigDecimal(e.getValue())).sorted()
-                        .collect(toList());
-        if (!values.isEmpty()) {
-            builder.min(values.get(0));
-            builder.max(values.get(values.size() - 1));
-            builder.average(FieldStats.getAverage(values));
-        }
-        return builder.build();
-    }
-
-    private Map<String, String> asMap(List<String> groupBy, List<String> values) {
-        Map<String, String> result = new LinkedHashMap<>();
-        for (int i = 0; i < groupBy.size(); i++) {
-            result.put(groupBy.get(i), values.get(i));
-        }
-        return result;
     }
 
     @Override

@@ -15,7 +15,8 @@
 package io.fluxcapacitor.javaclient.persisting.search;
 
 import io.fluxcapacitor.common.api.search.Constraint;
-import io.fluxcapacitor.common.api.search.DocumentStats;
+import io.fluxcapacitor.common.api.search.DocumentStats.FieldStats;
+import io.fluxcapacitor.common.api.search.Group;
 import io.fluxcapacitor.common.api.search.SearchHistogram;
 import io.fluxcapacitor.common.api.search.constraints.AllConstraint;
 import io.fluxcapacitor.common.api.search.constraints.AnyConstraint;
@@ -26,7 +27,6 @@ import io.fluxcapacitor.common.api.search.constraints.MatchConstraint;
 import io.fluxcapacitor.common.api.search.constraints.NotConstraint;
 import io.fluxcapacitor.common.api.search.constraints.QueryConstraint;
 import io.fluxcapacitor.javaclient.FluxCapacitor;
-import lombok.NonNull;
 
 import java.time.Duration;
 import java.time.Instant;
@@ -38,7 +38,6 @@ import java.util.concurrent.CompletableFuture;
 import java.util.stream.Stream;
 
 import static java.util.stream.Collectors.toList;
-import static java.util.stream.Collectors.toMap;
 
 public interface Search {
 
@@ -201,15 +200,14 @@ public interface Search {
 
     SearchHistogram fetchHistogram(int resolution, int maxSize);
 
-    default List<DocumentStats> fetchStatistics(@NonNull String field, String... groupBy) {
-        return fetchStatistics(List.of(field), groupBy);
+    GroupSearch groupBy(String... paths);
+
+    default Long count() {
+        return aggregate().values().stream().findFirst().map(FieldStats::getCount).orElse(0L);
     }
 
-    List<DocumentStats> fetchStatistics(List<String> fields, String... groupBy);
-
-    default Map<Map<String, String>, Long> getDocumentStatistics(String... groupBy) {
-        return fetchStatistics(List.of(""), groupBy).stream().collect(toMap(DocumentStats::getGroup, s ->
-                s.getFieldStats().values().stream().map(DocumentStats.FieldStats::getCount).findFirst().orElse(0L)));
+    default Map<String, FieldStats> aggregate(String... fields) {
+        return groupBy().aggregate(fields).get(Group.of());
     }
 
     CompletableFuture<Void> delete();

@@ -22,6 +22,7 @@ import io.fluxcapacitor.common.api.search.DocumentStats;
 import io.fluxcapacitor.common.api.search.DocumentUpdate;
 import io.fluxcapacitor.common.api.search.GetDocument;
 import io.fluxcapacitor.common.api.search.GetSearchHistogram;
+import io.fluxcapacitor.common.api.search.Group;
 import io.fluxcapacitor.common.api.search.SearchDocuments;
 import io.fluxcapacitor.common.api.search.SearchHistogram;
 import io.fluxcapacitor.common.api.search.SearchQuery;
@@ -41,6 +42,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
@@ -331,13 +333,24 @@ public class DefaultDocumentStore implements DocumentStore {
         }
 
         @Override
-        public List<DocumentStats> fetchStatistics(List<String> fields, String... groupBy) {
-            return client.fetchStatistics(queryBuilder.build(), fields, Arrays.asList(groupBy));
+        public GroupSearch groupBy(String... paths) {
+            return new DefaultGroupSearch(Arrays.asList(paths));
         }
 
         @Override
         public CompletableFuture<Void> delete() {
             return client.delete(queryBuilder.build(), Guarantee.STORED).asCompletableFuture();
+        }
+
+        @AllArgsConstructor
+        protected class DefaultGroupSearch implements GroupSearch {
+            private final List<String> groupBy;
+
+            @Override
+            public Map<Group, Map<String, DocumentStats.FieldStats>> aggregate(String... fields) {
+                return client.fetchStatistics(queryBuilder.build(), Arrays.asList(fields), groupBy).stream()
+                        .collect(toMap(DocumentStats::getGroup, DocumentStats::getFieldStats));
+            }
         }
     }
 }
