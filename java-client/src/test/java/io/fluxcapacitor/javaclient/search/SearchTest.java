@@ -17,6 +17,7 @@ package io.fluxcapacitor.javaclient.search;
 import com.fasterxml.jackson.databind.JsonNode;
 import io.fluxcapacitor.common.api.search.BulkUpdate;
 import io.fluxcapacitor.common.api.search.Constraint;
+import io.fluxcapacitor.common.api.search.Group;
 import io.fluxcapacitor.common.api.search.bulkupdate.DeleteDocument;
 import io.fluxcapacitor.common.api.search.bulkupdate.IndexDocument;
 import io.fluxcapacitor.common.serialization.JsonUtils;
@@ -207,6 +208,14 @@ public class SearchTest {
                                 .object(new SomeDocument().toBuilder().mapList(emptyList()).build()).build()).build();
         MockObjectWithBulkUpdates serialized = serializer.deserialize(serializer.serialize(object));
         assertEquals(object, serialized);
+    }
+
+    @Test
+    void testGroupSerialization() {
+        Group input = Group.of("foo", "bar", "flux", "capacitor");
+        String json = JsonUtils.asJson(input);
+        var output = JsonUtils.fromJson(json, Group.class);
+        assertEquals(input, output);
     }
 
     @Test
