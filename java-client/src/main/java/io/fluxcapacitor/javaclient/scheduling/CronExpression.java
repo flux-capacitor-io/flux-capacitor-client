@@ -32,64 +32,64 @@ import java.util.regex.Pattern;
 /**
  * This provides cron support for java8 using java-time.
  * <p>
- * <p>
  * Parser for unix-like cron expressions: Cron expressions allow specifying combinations of criteria for time such as:
  * &quot;Each Monday-Friday at 08:00&quot; or &quot;Every last friday of the month at 01:30&quot;
  * <p>
  * A cron expressions consists of 5 or 6 mandatory fields (seconds may be omitted) separated by space. <br> These are:
- * <p>
- * <table cellspacing="8">
+ * <table>
+ * <caption>Cron expression values</caption>
  * <tr>
- * <th align="left">Field</th>
- * <th align="left">&nbsp;</th>
- * <th align="left">Allowable values</th>
- * <th align="left">&nbsp;</th>
- * <th align="left">Special Characters</th>
+ * <th>Field</th>
+ * <th>&nbsp;</th>
+ * <th>Allowable values</th>
+ * <th>&nbsp;</th>
+ * <th>Special Characters</th>
+ * </tr>
+ * <tbody>
+ * <tr>
+ * <td><code>Seconds (may be omitted)</code></td>
+ * <td>&nbsp;</td>
+ * <td><code>0-59</code></td>
+ * <td>&nbsp;</td>
+ * <td><code>, - * /</code></td>
  * </tr>
  * <tr>
- * <td align="left"><code>Seconds (may be omitted)</code></td>
- * <td align="left">&nbsp;</th>
- * <td align="left"><code>0-59</code></td>
- * <td align="left">&nbsp;</th>
- * <td align="left"><code>, - * /</code></td>
+ * <td><code>Minutes</code></td>
+ * <td>&nbsp;</td>
+ * <td><code>0-59</code></td>
+ * <td>&nbsp;</td>
+ * <td><code>, - * /</code></td>
  * </tr>
  * <tr>
- * <td align="left"><code>Minutes</code></td>
- * <td align="left">&nbsp;</th>
- * <td align="left"><code>0-59</code></td>
- * <td align="left">&nbsp;</th>
- * <td align="left"><code>, - * /</code></td>
+ * <td><code>Hours</code></td>
+ * <td>&nbsp;</td>
+ * <td><code>0-23</code></td>
+ * <td>&nbsp;</td>
+ * <td><code>, - * /</code></td>
  * </tr>
  * <tr>
- * <td align="left"><code>Hours</code></td>
- * <td align="left">&nbsp;</th>
- * <td align="left"><code>0-23</code></td>
- * <td align="left">&nbsp;</th>
- * <td align="left"><code>, - * /</code></td>
+ * <td><code>Day of month</code></td>
+ * <td>&nbsp;</td>
+ * <td><code>1-31</code></td>
+ * <td>&nbsp;</td>
+ * <td><code>, - * ? / L W</code></td>
  * </tr>
  * <tr>
- * <td align="left"><code>Day of month</code></td>
- * <td align="left">&nbsp;</th>
- * <td align="left"><code>1-31</code></td>
- * <td align="left">&nbsp;</th>
- * <td align="left"><code>, - * ? / L W</code></td>
+ * <td><code>Month</code></td>
+ * <td>&nbsp;</td>
+ * <td><code>1-12 or JAN-DEC (note: english abbreviations)</code></td>
+ * <td>&nbsp;</td>
+ * <td><code>, - * /</code></td>
  * </tr>
  * <tr>
- * <td align="left"><code>Month</code></td>
- * <td align="left">&nbsp;</th>
- * <td align="left"><code>1-12 or JAN-DEC (note: english abbreviations)</code></td>
- * <td align="left">&nbsp;</th>
- * <td align="left"><code>, - * /</code></td>
+ * <td><code>Day of week</code></td>
+ * <td>&nbsp;</td>
+ * <td><code>1-7 or MON-SUN (note: english abbreviations)</code></td>
+ * <td>&nbsp;</td>
+ * <td><code>, - * ? / L #</code></td>
  * </tr>
- * <tr>
- * <td align="left"><code>Day of week</code></td>
- * <td align="left">&nbsp;</th>
- * <td align="left"><code>1-7 or MON-SUN (note: english abbreviations)</code></td>
- * <td align="left">&nbsp;</th>
- * <td align="left"><code>, - * ? / L #</code></td>
- * </tr>
+ * </tbody>
  * </table>
- * </p>
  * <p>
  * '*' Can be used in all fields and means 'for all values'. E.g. &quot;*&quot; in minutes, means 'for all minutes'
  * <p>
