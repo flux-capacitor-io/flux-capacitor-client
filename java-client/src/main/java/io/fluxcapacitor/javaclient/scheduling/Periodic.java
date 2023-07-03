@@ -22,9 +22,9 @@ import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
 /**
- * Annotation placed on the payload class of a Schedule handled by {@link io.fluxcapacitor.javaclient.tracking.handling.HandleSchedule}
- * annotated methods. If this annotation is present the same payload will be rescheduled after handling using a given
- * delay in ms.
+ * Annotation placed on the payload class of a Schedule handled by
+ * {@link io.fluxcapacitor.javaclient.tracking.handling.HandleSchedule} annotated methods. If this annotation is present
+ * the same payload will be rescheduled after handling using a given delay in ms.
  */
 @Documented
 @Target({ElementType.TYPE, ElementType.METHOD})
@@ -32,9 +32,27 @@ import java.lang.annotation.Target;
 @Inherited
 public @interface Periodic {
     /**
-     * Returns the schedule delay in milliseconds. Must be positive.
+     * Returns the schedule delay in milliseconds. Must be positive if {@link #cron()} is blank.
      */
-    long value();
+    long value() default -1L;
+
+    /**
+     * Define a unix-like cron expression. If a cron value is specified the {@link #value()} in milliseconds is ignored.
+     * <p>
+     * For example, {@code "0 * * * MON-FRI"} means at the start of every hour on weekdays.
+     * <p>
+     * The fields read from left to right are interpreted as follows.
+     * <ul>
+     * <li>minute</li>
+     * <li>hour</li>
+     * <li>day of month</li>
+     * <li>month</li>
+     * <li>day of week</li>
+     * </ul>
+     *
+     * @see CronExpression#create(String)
+     */
+    String cron() default "";
 
     /**
      * Returns true if this periodic schedule should be automatically started if it's not already active. Defaults to
@@ -43,7 +61,9 @@ public @interface Periodic {
     boolean autoStart() default true;
 
     /**
-     * Returns the initial schedule delay in milliseconds. Only relevant when {@link #autoStart()} is true.
+     * Returns the initial schedule delay in milliseconds. Only relevant when {@link #autoStart()} is true. If
+     * initialDelay is negative, the initial schedule will fire after the default delay (configured either via
+     * {@link #cron()} or {@link #value()}).
      */
     long initialDelay() default 0;
 
