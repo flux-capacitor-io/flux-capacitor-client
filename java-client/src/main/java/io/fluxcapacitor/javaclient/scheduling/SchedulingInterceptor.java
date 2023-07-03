@@ -37,6 +37,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.function.Function;
 
+import static io.fluxcapacitor.common.ObjectUtils.memoize;
 import static io.fluxcapacitor.common.reflection.ReflectionUtils.ensureAccessible;
 import static io.fluxcapacitor.common.reflection.ReflectionUtils.getAnnotatedMethods;
 import static io.fluxcapacitor.javaclient.FluxCapacitor.currentIdentityProvider;
@@ -48,6 +49,9 @@ import static java.time.temporal.ChronoUnit.MINUTES;
 
 @Slf4j
 public class SchedulingInterceptor implements DispatchInterceptor, HandlerInterceptor {
+
+    private static final Function<String, CronExpression> cronExpression
+            = memoize(CronExpression::createWithoutSeconds);
 
     @Override
     public Handler<DeserializingMessage> wrap(Handler<DeserializingMessage> handler, String consumer) {
@@ -73,7 +77,7 @@ public class SchedulingInterceptor implements DispatchInterceptor, HandlerInterc
     }
 
     protected void initializePeriodicSchedule(Class<?> payloadType, Periodic periodic) {
-        if (periodic.value() <= 0) {
+        if (periodic.cron().isBlank() && periodic.value() <= 0) {
             throw new IllegalStateException(format(
                     "Periodic annotation on type %s is invalid. "
                             + "Period should be a positive number of  milliseconds.", payloadType));
@@ -90,13 +94,22 @@ public class SchedulingInterceptor implements DispatchInterceptor, HandlerInterc
                           payloadType, e);
                 return;
             }
-            Clock clock = fluxCapacitor.clock();
             Metadata metadata = Optional.ofNullable(fluxCapacitor.userProvider()).flatMap(
                             p -> Optional.ofNullable(p.getSystemUser()).map(u -> p.addToMetadata(Metadata.empty(), u)))
                     .orElse(Metadata.empty());
-            fluxCapacitor.scheduler().schedule(new Schedule(
-                    payload, metadata, scheduleId, clock.instant().plusMillis(periodic.initialDelay())), true);
+            Instant now = fluxCapacitor.clock().instant();
+            Instant firstDeadline = periodic.initialDelay() >= 0
+                    ? now.plusMillis(periodic.initialDelay()) : nextDeadline(periodic, now);
+            fluxCapacitor.scheduler().schedule(new Schedule(payload, metadata, scheduleId, firstDeadline), true);
         }
+    }
+
+    protected Instant nextDeadline(Periodic periodic, Instant now) {
+        if (periodic.cron().isBlank()) {
+            return now.plusMillis(periodic.value());
+        }
+        var expression = cronExpression.apply(periodic.cron());
+        return expression.nextTimeAfter(now.atZone(Clock.systemUTC().getZone())).toInstant();
     }
 
     @Override
@@ -125,7 +138,7 @@ public class SchedulingInterceptor implements DispatchInterceptor, HandlerInterc
                     result = function.apply(m);
                 } catch (Exception e) {
                     if (periodic != null && periodic.continueOnError()) {
-                        schedule(m, now.plusMillis(periodic.value()));
+                        schedule(m, nextDeadline(periodic, now));
                     }
                     throw e;
                 }
@@ -154,13 +167,13 @@ public class SchedulingInterceptor implements DispatchInterceptor, HandlerInterc
                                 schedule(nextPayload, metadata, now.plus(Duration.of(1, MINUTES)));
                             }
                         } else {
-                            schedule(nextPayload, metadata, now.plusMillis(periodic.value()));
+                            schedule(nextPayload, metadata, nextDeadline(periodic, now));
                         }
                     } else if (periodic != null) {
-                        schedule(m, now.plusMillis(periodic.value()));
+                        schedule(m, nextDeadline(periodic, now));
                     }
                 } else if (periodic != null) {
-                    schedule(m, now.plusMillis(periodic.value()));
+                    schedule(m, nextDeadline(periodic, now));
                 }
                 return result;
             }

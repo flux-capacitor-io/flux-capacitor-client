@@ -15,6 +15,7 @@
 package io.fluxcapacitor.javaclient.givenwhenthen;
 
 import io.fluxcapacitor.javaclient.FluxCapacitor;
+import io.fluxcapacitor.javaclient.common.Message;
 import io.fluxcapacitor.javaclient.scheduling.Periodic;
 import io.fluxcapacitor.javaclient.scheduling.Schedule;
 import io.fluxcapacitor.javaclient.test.GivenWhenThenAssertionError;
@@ -23,10 +24,12 @@ import io.fluxcapacitor.javaclient.tracking.handling.HandleCommand;
 import io.fluxcapacitor.javaclient.tracking.handling.HandleSchedule;
 import lombok.AllArgsConstructor;
 import lombok.Value;
+import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
 import java.time.Duration;
 import java.time.Instant;
+import java.time.temporal.ChronoUnit;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -89,6 +92,39 @@ class GivenWhenThenSchedulingTest {
                 .given(fc -> fc.scheduler().cancelSchedule("test"))
                 .whenTimeElapses(Duration.ofSeconds(10))
                 .expectNoCommands();
+    }
+
+    @Nested
+    class CronSchedules {
+        private final Instant now = Instant.parse("2023-07-01T12:10:00Z");
+        private final Instant afterOneHour = now.truncatedTo(ChronoUnit.HOURS).plus(Duration.ofHours(1));
+
+        private final TestFixture testFixture = TestFixture.create().atFixedTime(now)
+                .registerHandlers(new Object() {
+                    @HandleSchedule
+                    @Periodic(cron = "0 * * * *")
+                    void handleSchedule(CronSchedule schedule, Message message) {
+                        FluxCapacitor.publishEvent(message.getTimestamp());
+                    }
+                });
+
+        @Test
+        void testPeriodicCronSchedule() {
+            testFixture.whenTimeAdvancesTo(afterOneHour).expectOnlyEvents(afterOneHour);
+        }
+
+        @Test
+        void testSecondPeriodicCronSchedule() {
+            testFixture.givenTimeAdvancedTo(afterOneHour)
+                    .whenTimeElapses(Duration.ofHours(1))
+                    .expectOnlyEvents(afterOneHour.plus(Duration.ofHours(1)));
+        }
+
+        @Test
+        void testNoScheduleBeforeDeadline() {
+            testFixture.whenTimeAdvancesTo(afterOneHour.minus(Duration.ofMinutes(1))).expectNoEvents();
+        }
+
     }
 
     /*
@@ -365,6 +401,10 @@ class GivenWhenThenSchedulingTest {
     @Value
     @Periodic(1000)
     static class PeriodicSchedule {
+    }
+
+    @Value
+    static class CronSchedule {
     }
 
     @Value
