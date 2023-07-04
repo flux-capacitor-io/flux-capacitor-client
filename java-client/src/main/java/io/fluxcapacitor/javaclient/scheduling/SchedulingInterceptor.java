@@ -18,7 +18,6 @@ import io.fluxcapacitor.common.MessageType;
 import io.fluxcapacitor.common.api.Metadata;
 import io.fluxcapacitor.common.handling.Handler;
 import io.fluxcapacitor.common.handling.HandlerInvoker;
-import io.fluxcapacitor.common.reflection.ReflectionUtils;
 import io.fluxcapacitor.javaclient.FluxCapacitor;
 import io.fluxcapacitor.javaclient.common.Message;
 import io.fluxcapacitor.javaclient.common.serialization.DeserializingMessage;
@@ -34,18 +33,19 @@ import java.time.Instant;
 import java.time.temporal.TemporalAccessor;
 import java.time.temporal.TemporalAmount;
 import java.util.List;
-import java.util.Optional;
 import java.util.function.Function;
 
 import static io.fluxcapacitor.common.ObjectUtils.memoize;
 import static io.fluxcapacitor.common.reflection.ReflectionUtils.ensureAccessible;
 import static io.fluxcapacitor.common.reflection.ReflectionUtils.getAnnotatedMethods;
+import static io.fluxcapacitor.common.reflection.ReflectionUtils.getTypeAnnotation;
 import static io.fluxcapacitor.javaclient.FluxCapacitor.currentIdentityProvider;
 import static io.fluxcapacitor.javaclient.tracking.IndexUtils.millisFromIndex;
 import static java.lang.String.format;
 import static java.time.Duration.between;
 import static java.time.Instant.ofEpochMilli;
 import static java.time.temporal.ChronoUnit.MINUTES;
+import static java.util.Optional.ofNullable;
 
 @Slf4j
 public class SchedulingInterceptor implements DispatchInterceptor, HandlerInterceptor {
@@ -61,15 +61,11 @@ public class SchedulingInterceptor implements DispatchInterceptor, HandlerInterc
             Periodic periodic = method.getAnnotation(Periodic.class);
             if (method.getParameterCount() > 0) {
                 Class<?> type = method.getParameters()[0].getType();
-                if (periodic == null) {
-                    periodic = ReflectionUtils.getTypeAnnotation(type, Periodic.class);
-                }
-                if (periodic != null) {
-                    try {
-                        initializePeriodicSchedule(type, periodic);
-                    } catch (Exception e) {
-                        log.error("Failed to initialize periodic schedule on method {}. Continuing...", method, e);
-                    }
+                periodic = periodic == null ? getTypeAnnotation(type, Periodic.class) : periodic;
+                try {
+                    initializePeriodicSchedule(type, periodic);
+                } catch (Exception e) {
+                    log.error("Failed to initialize periodic schedule on method {}. Continuing...", method, e);
                 }
             }
         }
@@ -77,10 +73,13 @@ public class SchedulingInterceptor implements DispatchInterceptor, HandlerInterc
     }
 
     protected void initializePeriodicSchedule(Class<?> payloadType, Periodic periodic) {
-        if (periodic.cron().isBlank() && periodic.value() <= 0) {
+        if (periodic == null || Periodic.DISABLED.equals(periodic.cron())) {
+            return;
+        }
+        if (periodic.cron().isBlank() && periodic.delay() <= 0) {
             throw new IllegalStateException(format(
                     "Periodic annotation on type %s is invalid. "
-                            + "Period should be a positive number of  milliseconds.", payloadType));
+                    + "Period should be a positive number of  milliseconds.", payloadType));
         }
         if (periodic.autoStart()) {
             String scheduleId = periodic.scheduleId().isEmpty() ? payloadType.getName() : periodic.scheduleId();
@@ -90,23 +89,28 @@ public class SchedulingInterceptor implements DispatchInterceptor, HandlerInterc
                 payload = ensureAccessible(payloadType.getConstructor()).newInstance();
             } catch (Exception e) {
                 log.error("No default constructor found on @Periodic type: {}. "
-                                  + "Add a public default constructor or initialize this periodic schedule by hand",
+                          + "Add a public default constructor or initialize this periodic schedule by hand",
                           payloadType, e);
                 return;
             }
-            Metadata metadata = Optional.ofNullable(fluxCapacitor.userProvider()).flatMap(
-                            p -> Optional.ofNullable(p.getSystemUser()).map(u -> p.addToMetadata(Metadata.empty(), u)))
+            Metadata metadata = ofNullable(fluxCapacitor.userProvider()).flatMap(
+                            p -> ofNullable(p.getSystemUser()).map(u -> p.addToMetadata(Metadata.empty(), u)))
                     .orElse(Metadata.empty());
-            Instant now = fluxCapacitor.clock().instant();
-            Instant firstDeadline = periodic.initialDelay() >= 0
-                    ? now.plusMillis(periodic.initialDelay()) : nextDeadline(periodic, now);
-            fluxCapacitor.scheduler().schedule(new Schedule(payload, metadata, scheduleId, firstDeadline), true);
+            fluxCapacitor.scheduler().schedule(new Schedule(
+                    payload, metadata, scheduleId, firstDeadline(periodic, fluxCapacitor.clock().instant())), true);
         }
+    }
+
+    protected Instant firstDeadline(Periodic periodic, Instant now) {
+        if (periodic.initialDelay() >= 0) {
+            return now.plusMillis(periodic.timeUnit().toMillis(periodic.initialDelay()));
+        }
+        return nextDeadline(periodic, now);
     }
 
     protected Instant nextDeadline(Periodic periodic, Instant now) {
         if (periodic.cron().isBlank()) {
-            return now.plusMillis(periodic.value());
+            return now.plusMillis(periodic.timeUnit().toMillis(periodic.delay()));
         }
         var expression = cronExpression.apply(periodic.cron());
         return expression.nextTimeAfter(now.atZone(Clock.systemUTC().getZone())).toInstant();
@@ -129,9 +133,9 @@ public class SchedulingInterceptor implements DispatchInterceptor, HandlerInterc
         return m -> {
             if (m.getMessageType() == MessageType.SCHEDULE) {
                 long deadline = millisFromIndex(m.getIndex());
-                Periodic periodic =
-                        Optional.ofNullable(invoker.getMethod()).map(method -> method.getAnnotation(Periodic.class))
-                                .orElse(ReflectionUtils.getTypeAnnotation(m.getPayloadClass(), Periodic.class));
+                Periodic periodic = ofNullable(invoker.getMethod()).map(method -> method.getAnnotation(Periodic.class))
+                        .or(() -> ofNullable(getTypeAnnotation(m.getPayloadClass(), Periodic.class)))
+                        .filter(p -> !Periodic.DISABLED.equals(p.cron())).orElse(null);
                 Object result;
                 Instant now = ofEpochMilli(deadline);
                 try {
@@ -163,7 +167,7 @@ public class SchedulingInterceptor implements DispatchInterceptor, HandlerInterc
                                 schedule(nextPayload, metadata, now.plus(previousDelay));
                             } else {
                                 log.info("Delay between the time this schedule was created and scheduled is <= 0, "
-                                                 + "rescheduling with delay of 1 minute");
+                                         + "rescheduling with delay of 1 minute");
                                 schedule(nextPayload, metadata, now.plus(Duration.of(1, MINUTES)));
                             }
                         } else {
