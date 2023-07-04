@@ -17,6 +17,7 @@ package io.fluxcapacitor.common;
 import lombok.AllArgsConstructor;
 import lombok.SneakyThrows;
 
+import java.io.StringReader;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -26,6 +27,7 @@ import java.util.List;
 import java.util.ListIterator;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Properties;
 import java.util.Set;
 import java.util.Spliterators;
 import java.util.concurrent.Callable;
@@ -161,6 +163,13 @@ public class ObjectUtils {
             return unwrapException(e.getCause());
         }
         return e;
+    }
+
+    @SneakyThrows
+    public static Properties asProperties(String content) {
+        Properties result = new Properties();
+        result.load(new StringReader(content));
+        return result;
     }
 
     public static class MemoizingSupplier<T> implements Supplier<T> {

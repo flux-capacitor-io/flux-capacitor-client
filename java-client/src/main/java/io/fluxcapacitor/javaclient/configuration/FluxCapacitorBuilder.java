@@ -15,6 +15,7 @@
 package io.fluxcapacitor.javaclient.configuration;
 
 import io.fluxcapacitor.common.MessageType;
+import io.fluxcapacitor.common.application.PropertySource;
 import io.fluxcapacitor.common.handling.ParameterResolver;
 import io.fluxcapacitor.javaclient.FluxCapacitor;
 import io.fluxcapacitor.javaclient.common.IdentityProvider;
@@ -106,6 +107,12 @@ public interface FluxCapacitorBuilder {
     FluxCapacitorBuilder replaceDocumentSerializer(DocumentSerializer documentSerializer);
 
     FluxCapacitorBuilder registerUserProvider(UserProvider userProvider);
+
+    default FluxCapacitorBuilder addPropertySource(PropertySource propertySource) {
+        return replacePropertySource(existing -> existing.merge(propertySource));
+    }
+
+    FluxCapacitorBuilder replacePropertySource(UnaryOperator<PropertySource> replacer);
 
     FluxCapacitorBuilder disableErrorReporting();
 
