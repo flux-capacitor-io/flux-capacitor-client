@@ -31,6 +31,7 @@ import java.time.Duration;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.UUID;
+import java.util.concurrent.TimeUnit;
 
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
@@ -125,6 +126,18 @@ class GivenWhenThenSchedulingTest {
             testFixture.whenTimeAdvancesTo(afterOneHour.minus(Duration.ofMinutes(1))).expectNoEvents();
         }
 
+        @Test
+        void disablePeriodicUsingSpecialExpression() {
+            TestFixture.create().atFixedTime(now)
+                    .registerHandlers(new Object() {
+                        @HandleSchedule
+                        @Periodic(cron = Periodic.DISABLED)
+                        void handleSchedule(CronSchedule schedule, Message message) {
+                            FluxCapacitor.publishEvent(message.getTimestamp());
+                        }
+                    }).whenTimeElapses(Duration.ofMinutes(10))
+                    .expectNoEvents().expectNoSchedules();
+        }
     }
 
     /*
@@ -339,14 +352,14 @@ class GivenWhenThenSchedulingTest {
 
     static class MethodPeriodicHandler {
         @HandleSchedule
-        @Periodic(1000)
+        @Periodic(delay = 1000)
         void handle(MethodPeriodicSchedule schedule) {
         }
     }
 
     static class AlteredPayloadPeriodicHandler {
         @HandleSchedule
-        @Periodic(1000)
+        @Periodic(delay = 1000)
         YieldsAlteredSchedule handle(YieldsAlteredSchedule schedule) {
             return new YieldsAlteredSchedule(schedule.getSequence() + 1);
         }
@@ -399,7 +412,7 @@ class GivenWhenThenSchedulingTest {
     }
 
     @Value
-    @Periodic(1000)
+    @Periodic(delay = 1, timeUnit = TimeUnit.SECONDS)
     static class PeriodicSchedule {
     }
 
@@ -412,7 +425,7 @@ class GivenWhenThenSchedulingTest {
     }
 
     @Value
-    @Periodic(value = 1000, autoStart = false)
+    @Periodic(delay = 1000, autoStart = false)
     static class NonAutomaticPeriodicSchedule {
     }
 
@@ -420,7 +433,7 @@ class GivenWhenThenSchedulingTest {
     static class PeriodicScheduleFromInterface implements PeriodicInterface {
     }
 
-    @Periodic(1000)
+    @Periodic(delay = 1000)
     interface PeriodicInterface {
     }
 
