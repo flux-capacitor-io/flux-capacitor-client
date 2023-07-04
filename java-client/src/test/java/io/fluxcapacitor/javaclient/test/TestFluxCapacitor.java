@@ -16,6 +16,7 @@ package io.fluxcapacitor.javaclient.test;
 
 import io.fluxcapacitor.common.MessageType;
 import io.fluxcapacitor.common.Registration;
+import io.fluxcapacitor.common.application.PropertySource;
 import io.fluxcapacitor.javaclient.FluxCapacitor;
 import io.fluxcapacitor.javaclient.common.IdentityProvider;
 import io.fluxcapacitor.javaclient.common.serialization.Serializer;
@@ -162,6 +163,11 @@ public class TestFluxCapacitor implements FluxCapacitor {
     @Override
     public IdentityProvider identityProvider() {
         return delegate.identityProvider();
+    }
+
+    @Override
+    public PropertySource propertySource() {
+        return delegate.propertySource();
     }
 
     @Override

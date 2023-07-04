@@ -18,6 +18,7 @@ import io.fluxcapacitor.common.Guarantee;
 import io.fluxcapacitor.common.MessageType;
 import io.fluxcapacitor.common.Registration;
 import io.fluxcapacitor.common.api.Metadata;
+import io.fluxcapacitor.common.application.PropertySource;
 import io.fluxcapacitor.javaclient.common.IdentityProvider;
 import io.fluxcapacitor.javaclient.common.Message;
 import io.fluxcapacitor.javaclient.common.UuidFactory;
@@ -795,6 +796,11 @@ public interface FluxCapacitor extends AutoCloseable {
      * Returns the factory used by Flux Capacitor to generate identifiers.
      */
     IdentityProvider identityProvider();
+
+    /**
+     * Returns the {@link PropertySource} configured for this FluxCapacitor instance.
+     */
+    PropertySource propertySource();
 
     /**
      * Returns the low level client used by this FluxCapacitor instance to interface with the Flux Capacitor service. Of

@@ -66,4 +66,14 @@ public class TestUtils {
             return socket.getLocalPort();
         }
     }
+
+    @SneakyThrows
+    public static void runWithSystemProperty(ThrowingRunnable runnable, String propertyName, String propertyValue) {
+        try {
+            System.setProperty(propertyName, propertyValue);
+            runnable.run();
+        } finally {
+            System.clearProperty(propertyName);
+        }
+    }
 }

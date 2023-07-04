@@ -16,6 +16,8 @@ package io.fluxcapacitor.javaclient.configuration;
 
 import io.fluxcapacitor.common.MessageType;
 import io.fluxcapacitor.common.Registration;
+import io.fluxcapacitor.common.application.DefaultPropertySource;
+import io.fluxcapacitor.common.application.PropertySource;
 import io.fluxcapacitor.common.handling.ParameterResolver;
 import io.fluxcapacitor.javaclient.FluxCapacitor;
 import io.fluxcapacitor.javaclient.common.ClientUtils;
@@ -169,6 +171,7 @@ public class DefaultFluxCapacitor implements FluxCapacitor {
     private final Serializer serializer;
     private final CorrelationDataProvider correlationDataProvider;
     private final IdentityProvider identityProvider;
+    private final PropertySource propertySource;
     private final AtomicReference<Clock> clock = new AtomicReference<>(Clock.systemUTC());
     private final Client client;
     private final Runnable shutdownHandler;
@@ -193,11 +196,6 @@ public class DefaultFluxCapacitor implements FluxCapacitor {
 
     public Clock clock() {
         return clock.get();
-    }
-
-    @Override
-    public IdentityProvider identityProvider() {
-        return identityProvider;
     }
 
     @Override
@@ -260,6 +258,7 @@ public class DefaultFluxCapacitor implements FluxCapacitor {
         private boolean makeApplicationInstance;
         private UserProvider userProvider = UserProvider.defaultUserSupplier;
         private IdentityProvider identityProvider = IdentityProvider.defaultIdentityProvider;
+        private PropertySource propertySource = new DefaultPropertySource();
 
         @Override
         public Builder replaceSerializer(@NonNull Serializer serializer) {
@@ -295,6 +294,12 @@ public class DefaultFluxCapacitor implements FluxCapacitor {
         @Override
         public FluxCapacitorBuilder registerUserProvider(@NonNull UserProvider userProvider) {
             this.userProvider = userProvider;
+            return this;
+        }
+
+        @Override
+        public FluxCapacitorBuilder replacePropertySource(UnaryOperator<PropertySource> replacer) {
+            propertySource = replacer.apply(propertySource);
             return this;
         }
 
@@ -668,7 +673,7 @@ public class DefaultFluxCapacitor implements FluxCapacitor {
                                                   aggregateRepository, snapshotStore,
                                                   eventStore, keyValueStore, documentStore, scheduler, userProvider,
                                                   cache, serializer, correlationDataProvider, identityProvider,
-                                                  client, shutdownHandler);
+                                                  propertySource, client, shutdownHandler);
 
             if (makeApplicationInstance) {
                 FluxCapacitor.applicationInstance.set(fluxCapacitor);
@@ -697,13 +702,14 @@ public class DefaultFluxCapacitor implements FluxCapacitor {
                                         EventStore eventStore, KeyValueStore keyValueStore, DocumentStore documentStore,
                                         Scheduler scheduler, UserProvider userProvider, Cache cache,
                                         Serializer serializer, CorrelationDataProvider correlationDataProvider,
-                                        IdentityProvider identityProvider, Client client, Runnable shutdownHandler) {
+                                        IdentityProvider identityProvider, PropertySource propertySource,
+                                        Client client, Runnable shutdownHandler) {
             return new DefaultFluxCapacitor(trackingSupplier, commandGateway, queryGateway, eventGateway, resultGateway,
                                             errorGateway, metricsGateway, webRequestGateway,
                                             aggregateRepository, snapshotStore, eventStore,
                                             keyValueStore, documentStore,
                                             scheduler, userProvider, cache, serializer, correlationDataProvider,
-                                            identityProvider, client, shutdownHandler);
+                                            identityProvider, propertySource, client, shutdownHandler);
         }
 
         protected ConsumerConfiguration getDefaultConsumerConfiguration(MessageType messageType) {

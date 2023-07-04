@@ -24,6 +24,7 @@ import java.io.FileInputStream;
 import java.io.FileWriter;
 import java.io.InputStream;
 import java.nio.charset.Charset;
+import java.util.Optional;
 import java.util.Scanner;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
@@ -50,6 +51,7 @@ public class FileUtils {
         return loadFile(ReflectionUtils.getCallerClass(), fileName, charset);
     }
 
+    @SuppressWarnings("ConstantConditions")
     @SneakyThrows
     public static String loadFile(Class<?> referencePoint, String fileName, Charset charset) {
         try (InputStream inputStream = referencePoint.getResourceAsStream(fileName)) {
@@ -67,6 +69,37 @@ public class FileUtils {
         } catch (Exception e) {
             log.error("File not found {}", file, e);
             throw e;
+        }
+    }
+
+    public static Optional<String> tryLoadFile(String fileName) {
+        return tryLoadFile(ReflectionUtils.getCallerClass(), fileName, UTF_8);
+    }
+
+    public static Optional<String> tryLoadFile(Class<?> referencePoint, String fileName) {
+        return tryLoadFile(referencePoint, fileName, UTF_8);
+    }
+
+    public static Optional<String> tryLoadFile(String fileName, Charset charset) {
+        return tryLoadFile(ReflectionUtils.getCallerClass(), fileName, charset);
+    }
+
+    @SuppressWarnings("ConstantConditions")
+    @SneakyThrows
+    public static Optional<String> tryLoadFile(Class<?> referencePoint, String fileName, Charset charset) {
+        try (InputStream inputStream = referencePoint.getResourceAsStream(fileName)) {
+            return Optional.ofNullable(new Scanner(inputStream, charset).useDelimiter("\\A").next());
+        } catch (Exception ignored) {
+            return Optional.empty();
+        }
+    }
+
+    @SneakyThrows
+    public static Optional<String> tryLoadFile(File file) {
+        try (InputStream inputStream = new FileInputStream(file)) {
+            return Optional.ofNullable(new Scanner(inputStream, UTF_8).useDelimiter("\\A").next());
+        } catch (Exception ignored) {
+            return Optional.empty();
         }
     }
 

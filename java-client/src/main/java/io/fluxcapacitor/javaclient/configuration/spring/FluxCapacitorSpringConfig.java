@@ -46,6 +46,7 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.context.event.ContextRefreshedEvent;
 import org.springframework.context.event.EventListener;
 import org.springframework.context.support.GenericApplicationContext;
+import org.springframework.core.env.Environment;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -102,11 +103,12 @@ public class FluxCapacitorSpringConfig implements BeanPostProcessor {
     @ConditionalOnMissingBean
     @SuppressWarnings("OptionalUsedAsFieldOrParameterType")
     public FluxCapacitorBuilder fluxCapacitorBuilder(Serializer serializer, Optional<UserProvider> userProvider,
-                                                     Optional<Cache> cache) {
+                                                     Optional<Cache> cache, Environment environment) {
         FluxCapacitorBuilder builder = DefaultFluxCapacitor.builder().disableShutdownHook()
                 .replaceSerializer(serializer).replaceSnapshotSerializer(serializer).makeApplicationInstance(true);
         userProvider.ifPresent(builder::registerUserProvider);
         cache.ifPresent(builder::replaceCache);
+        builder.addPropertySource(new SpringPropertySource(environment));
         return builder;
     }
 
