@@ -172,6 +172,18 @@ public class ObjectUtils {
         return result;
     }
 
+    public static Properties copyOf(Properties properties) {
+        Properties result = new Properties();
+        result.putAll(properties);
+        return result;
+    }
+
+    public static Properties merge(Properties a, Properties b) {
+        Properties result = copyOf(a);
+        result.putAll(b);
+        return result;
+    }
+
     public static class MemoizingSupplier<T> implements Supplier<T> {
         private final MemoizingFunction<Object, T> delegate;
         private final Object singleton = new Object();

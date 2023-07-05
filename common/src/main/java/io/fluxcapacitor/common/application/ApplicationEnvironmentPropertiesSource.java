@@ -16,26 +16,42 @@ package io.fluxcapacitor.common.application;
 
 import io.fluxcapacitor.common.FileUtils;
 import io.fluxcapacitor.common.ObjectUtils;
-import lombok.Getter;
+import io.fluxcapacitor.common.encryption.Encryption;
 
+import java.util.Optional;
 import java.util.Properties;
 
 import static java.util.Optional.ofNullable;
 
-public class ApplicationEnvironmentPropertiesSource implements PropertySource {
-    @Getter(lazy = true)
-    private final Properties properties = loadProperties();
-    protected static Properties loadProperties() {
+public class ApplicationEnvironmentPropertiesSource extends DecryptingPropertySource {
+    public ApplicationEnvironmentPropertiesSource() {
+        this(getEnvironment());
+    }
+
+    public ApplicationEnvironmentPropertiesSource(String environment) {
+        super(loadProperties(environment));
+    }
+
+    public ApplicationEnvironmentPropertiesSource(Encryption encryption) {
+        this(getEnvironment(), encryption);
+    }
+
+    public ApplicationEnvironmentPropertiesSource(String environment, Encryption encryption) {
+        super(loadProperties(environment), encryption);
+    }
+
+    protected static Properties loadProperties(String environment) {
+        return Optional.ofNullable(environment)
+                .map(e -> String.format("/application-%s.properties", e))
+                .flatMap(FileUtils::tryLoadFile).map(ObjectUtils::asProperties)
+                .orElseGet(Properties::new);
+    }
+
+    protected static String getEnvironment() {
         return ofNullable(System.getenv("ENVIRONMENT"))
                 .or(() -> ofNullable(System.getenv("environment")))
                 .or(() -> ofNullable(System.getProperty("ENVIRONMENT")))
                 .or(() -> ofNullable(System.getProperty("environment")))
-                .map(environment -> String.format("/application-%s.properties", environment))
-                .flatMap(FileUtils::tryLoadFile).map(ObjectUtils::asProperties).orElseGet(Properties::new);
-    }
-
-    @Override
-    public String get(String name) {
-        return (String) getProperties().get(name);
+                .orElse(null);
     }
 }

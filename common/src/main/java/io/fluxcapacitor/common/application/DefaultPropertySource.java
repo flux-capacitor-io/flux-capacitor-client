@@ -14,15 +14,36 @@
 
 package io.fluxcapacitor.common.application;
 
+import io.fluxcapacitor.common.encryption.DefaultEncryption;
+import io.fluxcapacitor.common.encryption.Encryption;
 import lombok.Getter;
-import lombok.experimental.Delegate;
 
 public class DefaultPropertySource implements PropertySource {
     @Getter
     private static final DefaultPropertySource instance = new DefaultPropertySource();
 
-    @Delegate
-    private final PropertySource delegate = PropertySource.join(
-            EnvironmentVariablesSource.instance, new ApplicationEnvironmentPropertiesSource(),
-            new ApplicationPropertiesSource(), SystemPropertiesSource.instance);
+    public DefaultPropertySource() {
+        this(Encryption.getEncryptionForEnvironment());
+    }
+
+    public DefaultPropertySource(String encodedSecretKey) {
+        this(new DefaultEncryption(encodedSecretKey));
+    }
+
+    public DefaultPropertySource(Encryption encryption) {
+        this.encryption = encryption;
+        this.delegate = PropertySource.join(
+                EnvironmentVariablesSource.instance, new SystemPropertiesSource(encryption),
+                new ApplicationEnvironmentPropertiesSource(encryption),
+                new ApplicationPropertiesSource(encryption));
+    }
+
+    @Getter
+    private final Encryption encryption;
+    private final PropertySource delegate;
+
+    @Override
+    public String get(String name) {
+        return delegate.get(name);
+    }
 }

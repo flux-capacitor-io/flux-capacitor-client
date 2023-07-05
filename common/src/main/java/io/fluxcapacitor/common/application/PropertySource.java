@@ -43,7 +43,7 @@ public interface PropertySource {
     }
 
     default PropertySource merge(PropertySource next) {
-        return name -> Optional.ofNullable(get(name)).orElseGet(() -> next.get(name));
+        return name -> Optional.ofNullable(PropertySource.this.get(name)).orElseGet(() -> next.get(name));
     }
 
     static PropertySource join(PropertySource... propertySources) {
