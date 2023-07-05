@@ -14,18 +14,13 @@
 
 package io.fluxcapacitor.common.application;
 
+import io.fluxcapacitor.common.encryption.DefaultEncryption;
 import org.junit.jupiter.api.Test;
 
 import static io.fluxcapacitor.common.TestUtils.runWithSystemProperty;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 class DefaultPropertySourceTest {
-
-    @Test
-    void fromEnvironmentVariable() {
-        runWithSystemProperty(() -> assertEquals("bar", new DefaultPropertySource().get("foo")),
-                              "foo", "bar");
-    }
 
     @Test
     void fromSystemProperty() {
@@ -35,8 +30,11 @@ class DefaultPropertySourceTest {
 
     @Test
     void fromApplicationPropertiesFile() {
-        runWithSystemProperty(() -> assertEquals("bar", new DefaultPropertySource().get("propertiesFile.foo")),
-                              "propertiesFile.foo", "someOtherValue");
+        runWithSystemProperty(() -> {
+            DefaultPropertySource source = new DefaultPropertySource();
+            assertEquals("bar", source.get("propertiesFile.foo"));
+            assertEquals("someOtherValue", source.get("foo"));
+        }, "foo", "someOtherValue");
     }
 
     @Test
@@ -48,4 +46,11 @@ class DefaultPropertySourceTest {
         }, "environment", "test");
     }
 
+    @Test
+    void decryptProperty() {
+        DefaultEncryption encryption = new DefaultEncryption();
+        var source = new DefaultPropertySource(encryption);
+        runWithSystemProperty(() -> assertEquals("foo_encrypted", source.get("encrypted")),
+                              "encrypted", encryption.encrypt("foo_encrypted"));
+    }
 }

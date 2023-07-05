@@ -12,24 +12,18 @@
  * limitations under the License.
  */
 
-package io.fluxcapacitor.common.application;
+package io.fluxcapacitor.common.encryption;
 
-import io.fluxcapacitor.common.encryption.Encryption;
+public enum NoOpEncryption implements Encryption {
+    instance;
 
-import java.util.Optional;
-
-public class SystemPropertiesSource extends DecryptingPropertySource {
-
-    public SystemPropertiesSource() {
-        super(System.getProperties());
-    }
-
-    public SystemPropertiesSource(Encryption encryption) {
-        super(System.getProperties(), encryption);
+    @Override
+    public String encrypt(String value) {
+        throw new UnsupportedOperationException();
     }
 
     @Override
-    public String get(String name) {
-        return Optional.ofNullable(super.get(name)).orElseGet(() -> decrypt(System.getProperty(name)));
+    public String decrypt(String value) {
+        return value;
     }
 }
