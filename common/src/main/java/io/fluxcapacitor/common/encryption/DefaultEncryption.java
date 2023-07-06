@@ -23,6 +23,8 @@ import javax.crypto.SecretKey;
 @AllArgsConstructor
 public class DefaultEncryption implements Encryption {
 
+    private static final String ChaCha20 = "ChaCha20";
+
     public static String generateSecretKeyString() {
         return ChaCha20Poly1305Encryption.generateSecretKeyString();
     }
@@ -49,13 +51,13 @@ public class DefaultEncryption implements Encryption {
 
     @Override
     public String encrypt(String value) {
-        return "encrypted|" + ChaCha20Poly1305Encryption.encrypt(value, secretKey);
+        return ChaCha20 + "|" + ChaCha20Poly1305Encryption.encrypt(value, secretKey);
     }
 
     @Override
     public String decrypt(String value) {
-        if (value != null && value.startsWith("encrypted|")) {
-            return ChaCha20Poly1305Encryption.decrypt(value.split("encrypted\\|")[1], secretKey);
+        if (value != null && value.startsWith(ChaCha20 + "|")) {
+            return ChaCha20Poly1305Encryption.decrypt(value.split(ChaCha20 + "\\|")[1], secretKey);
         }
         return value;
     }
