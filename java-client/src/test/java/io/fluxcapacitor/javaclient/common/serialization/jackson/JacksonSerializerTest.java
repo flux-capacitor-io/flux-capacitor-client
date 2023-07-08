@@ -91,14 +91,14 @@ class JacksonSerializerTest {
     void testFailOnUnknownType() {
         assertThrows(DeserializationException.class,
                      () -> serializer.deserialize(Stream.of(new Data<>("bla".getBytes(), "unknownType", 0,
-                                                                       "application/json")), true)
+                                                                       Data.JSON_FORMAT)), true)
                              .collect(Collectors.toList()));
     }
 
     @Test
     void testReturnsJsonNodeIfTypeUnknownAndFailFlagIsOff() throws JsonProcessingException {
         Data<byte[]> data =
-                new Data<>(objectMapper.writeValueAsBytes(new Foo("bar")), "unknownType", 0, "application/json");
+                new Data<>(objectMapper.writeValueAsBytes(new Foo("bar")), "unknownType", 0, Data.JSON_FORMAT);
         List<DeserializingObject<byte[], Data<byte[]>>> result =
                 serializer.deserialize(Stream.of(data), false).toList();
         assertTrue(JsonNode.class.isAssignableFrom(result.get(0).getPayloadClass()));
@@ -109,7 +109,7 @@ class JacksonSerializerTest {
     @Test
     void testConvertGetPayloadAs() throws JsonProcessingException {
         Foo foo = new Foo("bar");
-        Data<byte[]> data = new Data<>(objectMapper.writeValueAsBytes(foo), "unknownType", 0, "application/json");
+        Data<byte[]> data = new Data<>(objectMapper.writeValueAsBytes(foo), "unknownType", 0, Data.JSON_FORMAT);
         List<DeserializingObject<byte[], Data<byte[]>>> result =
                 serializer.deserialize(Stream.of(data), false).toList();
         assertEquals(foo, result.get(0).getPayloadAs(Foo.class));
@@ -233,7 +233,7 @@ class JacksonSerializerTest {
     private Data<byte[]> createRev0Data(String name) throws JsonProcessingException {
         ObjectNode rev0Payload = new ObjectNode(objectMapper.getNodeFactory());
         rev0Payload.put("n", name);
-        return new Data<>(objectMapper.writeValueAsBytes(rev0Payload), TYPE, 0, "application/json");
+        return new Data<>(objectMapper.writeValueAsBytes(rev0Payload), TYPE, 0, Data.JSON_FORMAT);
     }
 
     @Revision(3)
@@ -256,12 +256,12 @@ class JacksonSerializerTest {
 
         @Upcast(type = TYPE, revision = 2)
         public Data<ObjectNode> upcastFrom2(Data<ObjectNode> input) {
-            return new Data<>(input.getValue(), input.getType(), 3, "application/json");
+            return new Data<>(input.getValue(), input.getType(), 3, Data.JSON_FORMAT);
         }
 
         @Downcast(type = TYPE, revision = 3)
         public Data<ObjectNode> downcastFrom3(Data<ObjectNode> input) {
-            return new Data<>(input.getValue(), input.getType(), 2, "application/json");
+            return new Data<>(input.getValue(), input.getType(), 2, Data.JSON_FORMAT);
         }
 
         @Downcast(type = TYPE, revision = 2)

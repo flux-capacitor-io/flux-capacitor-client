@@ -25,7 +25,7 @@ public class DataSerializationTest {
     @Test
     public void testSerializationIfValueIsSupplied() throws Exception {
         ObjectMapper objectMapper = new ObjectMapper();
-        TestData testData = new TestData(new Data<>(() -> "foo", "test", 1, "application/json"));
+        TestData testData = new TestData(new Data<>(() -> "foo", "test", 1, Data.JSON_FORMAT));
         String serializedObject = objectMapper.writeValueAsString(testData);
         assertEquals(objectMapper.readValue(serializedObject, TestData.class), testData);
     }

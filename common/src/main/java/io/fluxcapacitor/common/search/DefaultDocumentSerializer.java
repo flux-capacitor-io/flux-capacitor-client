@@ -54,14 +54,14 @@ public enum DefaultDocumentSerializer {
                     packer.packString(key.getValue());
                 }
             }
-            return new Data<>(compress(packer.toByteArray()), document.getType(), document.getRevision(), "document");
+            return new Data<>(compress(packer.toByteArray()), document.getType(), document.getRevision(), Data.DOCUMENT_FORMAT);
         } catch (Exception e) {
             throw new IllegalArgumentException("Could not serialize document", e);
         }
     }
 
     public Document deserialize(Data<byte[]> document) {
-        if (!"document".equals(document.getFormat())) {
+        if (!Data.DOCUMENT_FORMAT.equals(document.getFormat())) {
             throw new IllegalArgumentException("Unsupported data format: " + document.getFormat());
         }
         try (MessageUnpacker unpacker = MessagePack.newDefaultUnpacker(decompress(document.getValue()))) {

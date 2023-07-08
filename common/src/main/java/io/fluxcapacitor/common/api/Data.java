@@ -27,6 +27,9 @@ import java.util.function.Supplier;
 @Value
 @ToString(exclude = "value")
 public class Data<T> implements SerializedObject<T, Data<T>> {
+    public static final String JSON_FORMAT = "application/json";
+    public static final String DOCUMENT_FORMAT = "document";
+
     Supplier<T> value;
     @With
     String type;
@@ -54,7 +57,7 @@ public class Data<T> implements SerializedObject<T, Data<T>> {
     }
 
     public String getFormat() {
-        return format == null || "json".equals(format) ? "application/json" : format;
+        return format == null || "json".equals(format) ? JSON_FORMAT : format;
     }
 
     @Override
