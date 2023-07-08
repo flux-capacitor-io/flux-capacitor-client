@@ -18,6 +18,7 @@ import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.JavaType;
 import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.cfg.JsonNodeFeature;
 import com.fasterxml.jackson.databind.json.JsonMapper;
 import com.fasterxml.jackson.databind.jsontype.impl.LaissezFaireSubTypeValidator;
 import com.fasterxml.jackson.databind.type.TypeFactory;
@@ -38,13 +39,12 @@ import static com.fasterxml.jackson.databind.ObjectMapper.DefaultTyping.JAVA_LAN
 import static com.fasterxml.jackson.databind.SerializationFeature.FAIL_ON_EMPTY_BEANS;
 import static com.fasterxml.jackson.databind.SerializationFeature.WRITE_DATES_AS_TIMESTAMPS;
 import static com.fasterxml.jackson.databind.SerializationFeature.WRITE_DURATIONS_AS_TIMESTAMPS;
-import static com.fasterxml.jackson.databind.node.JsonNodeFactory.withExactBigDecimals;
 
 public class JsonUtils {
     public static JsonMapper writer = JsonMapper.builder()
             .findAndAddModules().addModule(new StripStringsModule()).addModule(new NullCollectionsAsEmptyModule())
             .disable(FAIL_ON_EMPTY_BEANS).disable(WRITE_DATES_AS_TIMESTAMPS).disable(WRITE_DURATIONS_AS_TIMESTAMPS)
-            .disable(FAIL_ON_UNKNOWN_PROPERTIES).nodeFactory(withExactBigDecimals(true))
+            .disable(FAIL_ON_UNKNOWN_PROPERTIES).disable(JsonNodeFeature.STRIP_TRAILING_BIGDECIMAL_ZEROES)
             .serializationInclusion(JsonInclude.Include.NON_NULL)
             .enable(DeserializationFeature.ACCEPT_SINGLE_VALUE_AS_ARRAY)
             .build();
@@ -158,18 +158,18 @@ public class JsonUtils {
     }
 
     @SneakyThrows
-    public static JsonNode readTree(byte[] readEntity) {
-        return writer.readTree(readEntity);
+    public static JsonNode readTree(byte[] jsonContent) {
+        return writer.readTree(jsonContent);
     }
 
     @SneakyThrows
-    public static JsonNode readTree(String readEntity) {
-        return writer.readTree(readEntity);
+    public static JsonNode readTree(String jsonContent) {
+        return writer.readTree(jsonContent);
     }
 
     @SneakyThrows
-    public static JsonNode readTree(InputStream readEntity) {
-        return writer.readTree(readEntity);
+    public static JsonNode readTree(InputStream jsonContent) {
+        return writer.readTree(jsonContent);
     }
 
     @SneakyThrows

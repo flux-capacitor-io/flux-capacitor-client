@@ -25,7 +25,6 @@ import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.ListIterator;
-import java.util.Map;
 import java.util.Optional;
 import java.util.Properties;
 import java.util.Set;
@@ -127,7 +126,8 @@ public class ObjectUtils {
         if (check) {
             return Runnable::run;
         }
-        return r -> {};
+        return r -> {
+        };
     }
 
     @SneakyThrows
@@ -185,8 +185,8 @@ public class ObjectUtils {
     }
 
     public static class MemoizingSupplier<T> implements Supplier<T> {
+        private static final Object singleton = new Object();
         private final MemoizingFunction<Object, T> delegate;
-        private final Object singleton = new Object();
 
         public MemoizingSupplier(Supplier<T> delegate) {
             this.delegate = new MemoizingFunction<>(o -> delegate.get());
@@ -204,32 +204,21 @@ public class ObjectUtils {
 
     @AllArgsConstructor
     public static class MemoizingFunction<K, V> implements Function<K, V> {
-        private final Map<Object, Object> map = new ConcurrentHashMap<>();
+        private static final Object nullObject = new Object();
+        private final ConcurrentHashMap<Object, Object> map = new ConcurrentHashMap<>();
         private final Function<K, V> delegate;
 
         @SuppressWarnings("unchecked")
         @Override
         public V apply(K key) {
-            Object storedKey = key == null ? NullObject.INSTANCE : key;
-            Object v = map.get(storedKey);
-            if (v == null) {
-                synchronized (delegate) {
-                    v = map.get(storedKey);
-                    if (v == null) {
-                        v = map.computeIfAbsent(storedKey, k -> ofNullable((Object) delegate.apply(
-                                k == NullObject.INSTANCE ? null : key)).orElse(NullObject.INSTANCE));
-                    }
-                }
-            }
-            return v == NullObject.INSTANCE ? null : (V) v;
+            Object result = map.computeIfAbsent(
+                    Optional.<Object>ofNullable(key).orElse(nullObject),
+                    k -> ofNullable((Object) delegate.apply(k == nullObject ? null : key)).orElse(nullObject));
+            return result == nullObject ? null : (V) result;
         }
 
         public boolean isCached(K key) {
             return key == null || map.containsKey(key);
-        }
-
-        private enum NullObject {
-            INSTANCE
         }
     }
 

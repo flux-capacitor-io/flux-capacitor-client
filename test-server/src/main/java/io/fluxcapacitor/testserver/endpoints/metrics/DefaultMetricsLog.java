@@ -54,7 +54,7 @@ public class DefaultMetricsLog implements MetricsLog {
                 Revision revision = event.getClass().getAnnotation(Revision.class);
                 byte[] payload = objectMapper.writeValueAsBytes(event);
                 store.send(Guarantee.NONE, new SerializedMessage(
-                        new Data<>(payload, event.getClass().getName(), revision == null ? 0 : revision.value(), "application/json"),
+                        new Data<>(payload, event.getClass().getName(), revision == null ? 0 : revision.value(), Data.JSON_FORMAT),
                         metadata, randomUUID().toString(), currentTimeMillis()));
             } catch (JsonProcessingException e) {
                 log.error("Failed to serialize metrics {}", event, e);

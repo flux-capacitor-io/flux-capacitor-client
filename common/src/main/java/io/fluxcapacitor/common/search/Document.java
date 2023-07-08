@@ -40,6 +40,7 @@ import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
+import static io.fluxcapacitor.common.ObjectUtils.memoize;
 import static io.fluxcapacitor.common.search.Document.EntryType.NUMERIC;
 import static java.util.Comparator.naturalOrder;
 import static java.util.stream.Collectors.toMap;
@@ -146,6 +147,12 @@ public class Document {
     public static class Path {
         public static final Pattern splitPattern = Pattern.compile("(?<!\\\\)/");
         public static final Pattern dotPattern = Pattern.compile("(?<!\\\\)\\.");
+
+        private static final Function<String, String[]> splitFunction = memoize(in -> splitPattern.split(in));
+
+        public static String[] split(String path) {
+            return splitFunction.apply(path);
+        }
 
         public static String escapeFieldName(String fieldName) {
             fieldName = fieldName.replace("/", "\\/");

@@ -14,9 +14,16 @@
 
 package io.fluxcapacitor.common;
 
+import com.fasterxml.jackson.core.JsonEncoding;
+import com.fasterxml.jackson.core.JsonGenerator;
+import com.fasterxml.jackson.core.JsonParser;
+import com.fasterxml.jackson.core.JsonToken;
+import io.fluxcapacitor.common.serialization.JsonUtils;
 import lombok.NonNull;
+import lombok.SneakyThrows;
 import org.apache.commons.lang3.StringUtils;
 
+import java.io.ByteArrayOutputStream;
 import java.time.Instant;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeFormatterBuilder;
@@ -26,9 +33,15 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import java.util.stream.IntStream;
+
+import static java.util.function.Function.identity;
+import static java.util.stream.Collectors.toMap;
 
 public class SearchUtils {
 
+    private static final Map<String, Integer> arrayIndices =
+            IntStream.range(0, 1000).boxed().collect(toMap(Object::toString, identity()));
     private static final DateTimeFormatter ISO_FULL
             = new DateTimeFormatterBuilder().appendInstant(3).toFormatter();
 
@@ -49,6 +62,22 @@ public class SearchUtils {
 
     public static String normalize(@NonNull String text) {
         return StringUtils.stripAccents(text.trim().toLowerCase());
+    }
+
+    @SneakyThrows
+    public static byte[] normalizeJson(byte[] data) {
+        ByteArrayOutputStream stream = new ByteArrayOutputStream();
+        try (JsonParser p = JsonUtils.writer.createParser(data);
+             JsonGenerator generator = JsonUtils.writer.createGenerator(stream, JsonEncoding.UTF8)) {
+            for (JsonToken token = p.nextToken(); token != null; token = p.nextToken()) {
+                if (token == JsonToken.VALUE_STRING) {
+                    generator.writeString(SearchUtils.normalize(p.getText()));
+                } else {
+                    generator.copyCurrentEventExact(p);
+                }
+            }
+        }
+        return stream.toByteArray();
     }
 
     /**
@@ -171,6 +200,10 @@ public class SearchUtils {
 
     public static Object asIntegerOrString(String fieldName) {
         if (StringUtils.isNumeric(fieldName)) {
+            Object result = arrayIndices.get(fieldName);
+            if (result != null) {
+                return result;
+            }
             try {
                 return Integer.valueOf(fieldName);
             } catch (Exception ignored) {
@@ -193,5 +226,12 @@ public class SearchUtils {
             }
         }
         return parts;
+    }
+
+    public static Object asPrimitive(Object value) {
+        if (value instanceof String || value instanceof Number || value instanceof Boolean || value == null) {
+            return value;
+        }
+        return value.toString();
     }
 }

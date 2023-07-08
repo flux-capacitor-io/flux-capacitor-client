@@ -47,11 +47,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.SortedMap;
 import java.util.TreeMap;
-import java.util.regex.Pattern;
-import java.util.stream.Collectors;
-import java.util.stream.Stream;
 
 import static io.fluxcapacitor.common.SearchUtils.asIntegerOrString;
+import static io.fluxcapacitor.common.api.Data.JSON_FORMAT;
 import static java.util.stream.Collectors.toList;
 import static java.util.stream.Collectors.toMap;
 import static org.apache.commons.lang3.StringUtils.isBlank;
@@ -60,11 +58,9 @@ import static org.apache.commons.lang3.StringUtils.isBlank;
 @Getter(AccessLevel.PROTECTED)
 public class JacksonInverter implements Inverter<JsonNode> {
 
-    private static final String FORMAT = "application/json";
     private final ObjectMapper objectMapper;
     private final JsonFactory jsonFactory;
     private final JsonNodeFactory nodeFactory;
-    private final Pattern splitPattern = Path.splitPattern;
 
     public JacksonInverter() {
         this(JsonUtils.writer);
@@ -83,16 +79,11 @@ public class JacksonInverter implements Inverter<JsonNode> {
     @Override
     public SerializedDocument toDocument(Data<byte[]> data, String id, String collection, Instant timestamp,
                                          Instant end) {
-        if (!FORMAT.equals(data.getFormat())) {
+        if (!JSON_FORMAT.equals(data.getFormat())) {
             throw new IllegalArgumentException("Only json inversion is supported");
         }
         return new SerializedDocument(new Document(id, data.getType(), data.getRevision(), collection,
                                                    timestamp, end, invert(data.getValue())));
-    }
-
-    protected String summarize(Map<Entry, List<Path>> entryMap, String id) {
-        return Stream.concat(Stream.of(id), entryMap.keySet().stream().map(Entry::asPhrase))
-                .collect(Collectors.joining(" "));
     }
 
     @SneakyThrows
@@ -182,11 +173,10 @@ public class JacksonInverter implements Inverter<JsonNode> {
     @Override
     @SuppressWarnings("unchecked")
     public Data<JsonNode> fromDocument(SerializedDocument serializedDocument) {
-        if (FORMAT.equals(serializedDocument.getDocument().getFormat())) {
+        if (JSON_FORMAT.equals(serializedDocument.getDocument().getFormat())) {
             return serializedDocument.getDocument().map(d -> getObjectMapper().readTree(d));
         }
         var document = serializedDocument.deserializeDocument();
-        Pattern splitPattern = getSplitPattern();
         Map<Entry, List<Path>> entries = document.getEntries();
         if (entries.isEmpty()) {
             return toData(NullNode.getInstance(), serializedDocument);
@@ -200,7 +190,7 @@ public class JacksonInverter implements Inverter<JsonNode> {
             }
             paths.forEach(path -> {
                 Map<Object, Object> parent = tree;
-                Iterator<String> iterator = Arrays.stream(splitPattern.split(path.getValue())).iterator();
+                Iterator<String> iterator = Arrays.stream(Path.split(path.getValue())).iterator();
                 while (iterator.hasNext()) {
                     var segment = asIntegerOrString(iterator.next());
                     if (iterator.hasNext()) {
@@ -219,7 +209,7 @@ public class JacksonInverter implements Inverter<JsonNode> {
 
     protected Data<JsonNode> toData(JsonNode node, SerializedDocument document) {
         return new Data<>(node, document.getDocument().getType(),
-                          document.getDocument().getRevision(), FORMAT);
+                          document.getDocument().getRevision(), JSON_FORMAT);
     }
 
     protected JsonNode toJsonNode(Object struct) {

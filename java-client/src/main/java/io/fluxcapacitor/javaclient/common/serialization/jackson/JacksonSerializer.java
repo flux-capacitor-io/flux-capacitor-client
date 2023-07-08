@@ -78,7 +78,7 @@ public class JacksonSerializer extends AbstractSerializer<JsonNode> implements D
     }
 
     public JacksonSerializer(ObjectMapper objectMapper, Collection<?> casterCandidates, Converter<JsonNode> converter) {
-        super(casterCandidates, converter, "application/json");
+        super(casterCandidates, converter, Data.JSON_FORMAT);
         this.objectMapper = objectMapper;
         this.contentFilter = new JacksonContentFilter(objectMapper.copy());
         this.jsonNodeUpcaster = CasterChain.create(casterCandidates, JsonNode.class, false);
