@@ -318,6 +318,13 @@ public class AggregateEntitiesTest {
                     e -> e.get() instanceof Child && ((Child) e.get()).getData().equals("data")));
         }
 
+        @Test
+        void secondAddChildNotAllowed() {
+            AddChild command = new AddChild("missing");
+            testFixture.givenCommands(command).whenCommand(command)
+                    .expectNoEvents().expectNoErrors();
+        }
+
         class FailingCommand {
             @Getter
             private final String missingChildId = "123";
@@ -331,6 +338,11 @@ public class AggregateEntitiesTest {
         @Value
         class AddChild {
             String missingChildId;
+
+            @InterceptApply
+            Object intercept(MissingChild child) {
+                return null;
+            }
 
             @Apply
             MissingChild apply() {
