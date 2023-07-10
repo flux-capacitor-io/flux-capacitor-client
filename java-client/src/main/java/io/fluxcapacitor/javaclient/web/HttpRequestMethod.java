@@ -17,6 +17,9 @@ package io.fluxcapacitor.javaclient.web;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 
+import java.util.Arrays;
+import java.util.Collection;
+
 @Getter
 @AllArgsConstructor
 public enum HttpRequestMethod {
@@ -28,4 +31,8 @@ public enum HttpRequestMethod {
     }
 
     private final boolean websocket;
+
+    @Getter
+    private static final Collection<HttpRequestMethod> standardMethods
+            = Arrays.stream(HttpRequestMethod.values()).filter(m -> !m.isWebsocket()).toList();
 }
