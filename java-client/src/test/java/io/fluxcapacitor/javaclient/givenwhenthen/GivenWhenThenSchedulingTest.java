@@ -15,7 +15,6 @@
 package io.fluxcapacitor.javaclient.givenwhenthen;
 
 import io.fluxcapacitor.javaclient.FluxCapacitor;
-import io.fluxcapacitor.javaclient.common.Message;
 import io.fluxcapacitor.javaclient.scheduling.Periodic;
 import io.fluxcapacitor.javaclient.scheduling.Schedule;
 import io.fluxcapacitor.javaclient.test.GivenWhenThenAssertionError;
@@ -33,10 +32,12 @@ import java.time.temporal.ChronoUnit;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 
+import static io.fluxcapacitor.javaclient.FluxCapacitor.publishEvent;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
 class GivenWhenThenSchedulingTest {
 
+    private static final String atStartOfDay = "0 0 * * *";
     private TestFixture subject = TestFixture.create(new CommandHandler(), new ScheduleHandler());
 
     @Test
@@ -97,15 +98,15 @@ class GivenWhenThenSchedulingTest {
 
     @Nested
     class CronSchedules {
-        private final Instant now = Instant.parse("2023-07-01T12:10:00Z");
-        private final Instant afterOneHour = now.truncatedTo(ChronoUnit.HOURS).plus(Duration.ofHours(1));
+        private final Instant start = Instant.parse("2023-07-01T12:10:00Z");
+        private final Instant afterOneHour = start.truncatedTo(ChronoUnit.HOURS).plus(Duration.ofHours(1));
 
-        private final TestFixture testFixture = TestFixture.create().atFixedTime(now)
+        private final TestFixture testFixture = TestFixture.create().atFixedTime(start)
                 .registerHandlers(new Object() {
                     @HandleSchedule
                     @Periodic(cron = "0 * * * *")
-                    void handleSchedule(CronSchedule schedule, Message message) {
-                        FluxCapacitor.publishEvent(message.getTimestamp());
+                    void handleSchedule(CronSchedule schedule, Schedule message) {
+                        publishEvent(message.getDeadline());
                     }
                 });
 
@@ -128,15 +129,28 @@ class GivenWhenThenSchedulingTest {
 
         @Test
         void disablePeriodicUsingSpecialExpression() {
-            TestFixture.create().atFixedTime(now)
+            TestFixture.create().atFixedTime(start)
                     .registerHandlers(new Object() {
                         @HandleSchedule
                         @Periodic(cron = Periodic.DISABLED)
-                        void handleSchedule(CronSchedule schedule, Message message) {
-                            FluxCapacitor.publishEvent(message.getTimestamp());
+                        void handleSchedule(CronSchedule schedule, Schedule message) {
+                            publishEvent(message.getDeadline());
                         }
                     }).whenTimeElapses(Duration.ofMinutes(10))
                     .expectNoEvents().expectNoSchedules();
+        }
+
+        @Test
+        void useCronWithTimeZone() {
+            TestFixture.create().atFixedTime(Instant.parse("2023-07-01T12:00:00+02:00"))
+                    .registerHandlers(new Object() {
+                        @HandleSchedule
+                        @Periodic(cron = atStartOfDay, timeZone = "Europe/Amsterdam")
+                        void handleSchedule(CronSchedule schedule, Schedule message) {
+                            publishEvent(message.getDeadline());
+                        }
+                    }).whenTimeElapses(Duration.ofDays(1))
+                    .expectOnlyEvents(Instant.parse("2023-07-02T00:00:00+02:00"));
         }
     }
 
