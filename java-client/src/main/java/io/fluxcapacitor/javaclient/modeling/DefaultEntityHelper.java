@@ -73,8 +73,9 @@ public class DefaultEntityHelper implements EntityHelper {
 
     @Override
     public Stream<?> intercept(Object value, Entity<?> entity) {
-        var m = new MessageWithEntity(value, entity);
-        return interceptMatchers.apply(m.getPayloadClass()).findInvoker(m.getPayload(), m)
+        MessageWithEntity m = new MessageWithEntity(value, entity);
+        Optional<HandlerInvoker> invoker = getInterceptInvoker(m);
+        return invoker
                 .map(i -> asStream(i.invoke()).flatMap(v -> {
                     Message message = Message.asMessage(v);
                     message = message.withMetadata(m.getMetadata().with(message.getMetadata()));
@@ -84,6 +85,19 @@ public class DefaultEntityHelper implements EntityHelper {
                     return intercept(message, entity);
                 }))
                 .orElseGet(() -> Stream.of(value));
+    }
+
+    protected Optional<HandlerInvoker> getInterceptInvoker(MessageWithEntity m) {
+        Optional<HandlerInvoker> invoker = interceptMatchers.apply(m.getPayloadClass()).findInvoker(m.getPayload(), m);
+        if (invoker.isEmpty()) {
+            for (Entity<?> possibleTarget : m.getEntity().possibleTargets(m.getPayload())) {
+                Optional<HandlerInvoker> childInvoker = getInterceptInvoker(m.withEntity(possibleTarget));
+                if (childInvoker.isPresent()) {
+                    return childInvoker;
+                }
+            }
+        }
+        return invoker;
     }
 
     @Override
@@ -201,6 +215,10 @@ public class DefaultEntityHelper implements EntityHelper {
         public MessageWithEntity(Object payload, Entity<?> entity) {
             this.payload = payload;
             this.entity = entity;
+        }
+
+        public MessageWithEntity withEntity(Entity<?> entity) {
+            return new MessageWithEntity(payload, entity);
         }
 
         @Override
