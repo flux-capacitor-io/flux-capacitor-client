@@ -27,9 +27,9 @@ import io.fluxcapacitor.javaclient.tracking.handling.HandlerInterceptor;
 import lombok.extern.slf4j.Slf4j;
 
 import java.lang.reflect.Method;
-import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
+import java.time.ZoneId;
 import java.time.temporal.TemporalAccessor;
 import java.time.temporal.TemporalAmount;
 import java.util.List;
@@ -113,7 +113,7 @@ public class SchedulingInterceptor implements DispatchInterceptor, HandlerInterc
             return now.plusMillis(periodic.timeUnit().toMillis(periodic.delay()));
         }
         var expression = cronExpression.apply(periodic.cron());
-        return expression.nextTimeAfter(now.atZone(Clock.systemUTC().getZone())).toInstant();
+        return expression.nextTimeAfter(now.atZone(ZoneId.of(periodic.timeZone()))).toInstant();
     }
 
     @Override

@@ -18,6 +18,7 @@ import io.fluxcapacitor.common.MessageType;
 import io.fluxcapacitor.common.api.Metadata;
 import io.fluxcapacitor.common.api.SerializedMessage;
 import io.fluxcapacitor.common.serialization.JsonUtils;
+import io.fluxcapacitor.javaclient.FluxCapacitor;
 import io.fluxcapacitor.javaclient.common.HasMessage;
 import io.fluxcapacitor.javaclient.common.Message;
 import io.fluxcapacitor.javaclient.scheduling.Schedule;
@@ -122,12 +123,15 @@ public class DeserializingMessage implements HasMessage {
     }
 
     private Message asMessage() {
-        Message message = new Message(getPayload(), getMetadata(), getMessageId(), getTimestamp());
+        Message m = new Message(getPayload(), getMetadata(), getMessageId(), getTimestamp());
         return switch (messageType) {
-            case SCHEDULE -> new Schedule(message);
-            case WEBREQUEST -> new WebRequest(message);
-            case WEBRESPONSE -> new WebResponse(message);
-            default -> message;
+            case SCHEDULE -> new Schedule(
+                    m.getPayload(), m.getMetadata(), m.getMessageId(), m.getTimestamp(),
+                    m.getMetadata().get(Schedule.scheduleIdMetadataKey),
+                    ofNullable(getIndex()).map(IndexUtils::timestampFromIndex).orElseGet(FluxCapacitor::currentTime));
+            case WEBREQUEST -> new WebRequest(m);
+            case WEBRESPONSE -> new WebResponse(m);
+            default -> m;
         };
     }
 

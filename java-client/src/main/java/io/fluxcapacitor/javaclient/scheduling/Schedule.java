@@ -54,11 +54,6 @@ public class Schedule extends Message {
         this.deadline = deadline.truncatedTo(MILLIS);
     }
 
-    public Schedule(Message m) {
-        this(m.getPayload(), m.getMetadata(), m.getMessageId(), m.getTimestamp(),
-             m.getMetadata().get(Schedule.scheduleIdMetadataKey), currentTime());
-    }
-
     @ConstructorProperties({"payload", "metadata", "messageId", "timestamp", "scheduleId", "deadline"})
     public Schedule(Object payload, Metadata metadata, String messageId, Instant timestamp,
                     String scheduleId, Instant deadline) {

@@ -62,6 +62,11 @@ public @interface Periodic {
     String cron() default "";
 
     /**
+     * A time zone id for which the cron expression will be resolved. Defaults to UTC.
+     */
+    String timeZone() default "UTC";
+
+    /**
      * Returns the id of the periodic schedule. Defaults to the fully qualified name of the schedule class.
      */
     String scheduleId() default "";
