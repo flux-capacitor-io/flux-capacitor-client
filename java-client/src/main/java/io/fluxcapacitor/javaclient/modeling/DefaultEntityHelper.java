@@ -74,8 +74,7 @@ public class DefaultEntityHelper implements EntityHelper {
     @Override
     public Stream<?> intercept(Object value, Entity<?> entity) {
         MessageWithEntity m = new MessageWithEntity(value, entity);
-        Optional<HandlerInvoker> invoker = getInterceptInvoker(m);
-        return invoker
+        return getInterceptInvoker(m)
                 .map(i -> asStream(i.invoke()).flatMap(v -> {
                     Message message = Message.asMessage(v);
                     message = message.withMetadata(m.getMetadata().with(message.getMetadata()));
@@ -83,21 +82,20 @@ public class DefaultEntityHelper implements EntityHelper {
                         return Stream.of(message);
                     }
                     return intercept(message, entity);
-                }))
-                .orElseGet(() -> Stream.of(value));
+                })).orElseGet(() -> Stream.of(value));
     }
 
     protected Optional<HandlerInvoker> getInterceptInvoker(MessageWithEntity m) {
-        Optional<HandlerInvoker> invoker = interceptMatchers.apply(m.getPayloadClass()).findInvoker(m.getPayload(), m);
-        if (invoker.isEmpty()) {
-            for (Entity<?> possibleTarget : m.getEntity().possibleTargets(m.getPayload())) {
-                Optional<HandlerInvoker> childInvoker = getInterceptInvoker(m.withEntity(possibleTarget));
-                if (childInvoker.isPresent()) {
-                    return childInvoker;
-                }
-            }
-        }
-        return invoker;
+        return interceptMatchers.apply(m.getPayloadClass()).findInvoker(m.getPayload(), m)
+                .or(() -> {
+                    for (Entity<?> child : m.getEntity().possibleTargets(m.getPayload())) {
+                        var childInvoker = getInterceptInvoker(m.withEntity(child));
+                        if (childInvoker.isPresent()) {
+                            return childInvoker;
+                        }
+                    }
+                    return Optional.empty();
+                });
     }
 
     @Override
