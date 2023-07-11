@@ -14,7 +14,7 @@
 
 package io.fluxcapacitor.javaclient.modeling;
 
-import io.fluxcapacitor.javaclient.common.Message;
+import io.fluxcapacitor.javaclient.common.HasMessage;
 import lombok.Value;
 
 import java.util.function.UnaryOperator;
@@ -26,7 +26,7 @@ public class ReadOnlyEntity<T> extends DelegatingEntity<T> {
     }
 
     @Override
-    public Entity<T> apply(Message eventMessage) {
+    public Entity<T> apply(HasMessage eventMessage) {
         throw new UnsupportedOperationException("This aggregate is read-only");
     }
 

@@ -15,14 +15,13 @@
 package io.fluxcapacitor.javaclient.modeling;
 
 import io.fluxcapacitor.common.handling.HandlerInvoker;
-import io.fluxcapacitor.javaclient.common.serialization.DeserializingMessage;
 
 import java.util.Optional;
 import java.util.stream.Stream;
 
 public interface EntityHelper {
     Stream<?> intercept(Object value, Entity<?> entity);
-    Optional<HandlerInvoker> applyInvoker(DeserializingMessage message, Entity<?> entity);
+    Optional<HandlerInvoker> applyInvoker(Object event, Entity<?> entity);
     <E extends Exception> void assertLegal(Object value, Entity<?> entity) throws E;
     <E extends Exception> Optional<E> checkLegality(Object value, Entity<?> entity);
     boolean isLegal(Object value, Entity<?> entity);

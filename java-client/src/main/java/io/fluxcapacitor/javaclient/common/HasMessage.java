@@ -20,6 +20,7 @@ import io.fluxcapacitor.javaclient.publishing.routing.RoutingKey;
 import io.fluxcapacitor.javaclient.scheduling.Schedule;
 import org.slf4j.LoggerFactory;
 
+import java.time.Instant;
 import java.util.Optional;
 
 import static io.fluxcapacitor.common.reflection.ReflectionUtils.getAnnotatedPropertyValue;
@@ -38,6 +39,14 @@ public interface HasMessage extends HasMetadata {
     default Class<?> getPayloadClass() {
         Object payload = getPayload();
         return payload == null ? Void.class : payload.getClass();
+    }
+
+    default Instant getTimestamp() {
+        return toMessage().getTimestamp();
+    }
+
+    default String getMessageId() {
+        return toMessage().getMessageId();
     }
 
     default Optional<String> computeRoutingKey() {
