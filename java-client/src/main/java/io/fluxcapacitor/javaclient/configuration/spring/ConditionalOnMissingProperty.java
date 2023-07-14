@@ -14,7 +14,9 @@
 
 package io.fluxcapacitor.javaclient.configuration.spring;
 
+import io.fluxcapacitor.javaclient.configuration.ApplicationProperties;
 import lombok.SneakyThrows;
+import org.jetbrains.annotations.NotNull;
 import org.springframework.context.annotation.ConditionContext;
 import org.springframework.context.annotation.Conditional;
 import org.springframework.core.Ordered;
@@ -38,8 +40,8 @@ public @interface ConditionalOnMissingProperty {
     class Condition implements org.springframework.context.annotation.Condition {
         @Override
         @SneakyThrows
-        public boolean matches(ConditionContext context, AnnotatedTypeMetadata metadata) {
-            String value = context.getEnvironment().getProperty(
+        public boolean matches(@NotNull ConditionContext context, AnnotatedTypeMetadata metadata) {
+            String value = ApplicationProperties.getProperty(
                     metadata.getAllAnnotationAttributes(ConditionalOnMissingProperty.class.getName()).getFirst("value")
                             .toString());
             return value == null || value.isEmpty();
