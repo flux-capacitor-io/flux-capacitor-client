@@ -38,14 +38,6 @@ public class WebResponseGateway implements ResultGateway {
     private final WebResponseMapper webResponseMapper;
 
     @Override
-    public CompletableFuture<Void> respond(Object response, String target, Integer requestId) {
-        if (response instanceof WebResponse) {
-            return respond((WebResponse) response, target, requestId, Guarantee.NONE);
-        }
-        return ResultGateway.super.respond(response, target, requestId);
-    }
-
-    @Override
     public CompletableFuture<Void> respond(Object payload, Metadata metadata, String target, Integer requestId, Guarantee guarantee) {
         return respond(webResponseMapper.map(payload, metadata), target, requestId, guarantee);
     }
