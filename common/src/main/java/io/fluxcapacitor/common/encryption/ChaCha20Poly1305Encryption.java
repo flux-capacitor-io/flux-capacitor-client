@@ -14,6 +14,8 @@
 
 package io.fluxcapacitor.common.encryption;
 
+import lombok.AccessLevel;
+import lombok.AllArgsConstructor;
 import lombok.SneakyThrows;
 
 import javax.crypto.Cipher;
@@ -30,39 +32,32 @@ import java.util.Base64;
  * Adopted from <a href="https://github.com/java-crypto/cross_platform_crypto">
  *     https://github.com/java-crypto/cross_platform_crypto</a>
  */
-public class ChaCha20Poly1305Encryption {
+@AllArgsConstructor(access = AccessLevel.PRIVATE)
+public class ChaCha20Poly1305Encryption implements Encryption {
 
-    private static final SecureRandom secureRandom = new SecureRandom();
     public static final String ALGORITHM = "ChaCha20";
-    public static final String TRANSFORMATION = "ChaCha20-Poly1305/None/NoPadding";
-    public static final int NONCE_LENGTH = 12;
-    public static final int KEY_SIZE = 256;
-    public static final int TAG_LENGTH = 16;
+    private static final SecureRandom secureRandom = new SecureRandom();
+    private static final String TRANSFORMATION = "ChaCha20-Poly1305/None/NoPadding";
+    private static final int NONCE_LENGTH = 12;
+    private static final int KEY_SIZE = 256;
+    private static final int TAG_LENGTH = 16;
 
-    public static String generateSecretKeyString() {
-        return encodeKey(generateSecretKey());
+    private final SecretKey encryptionKey;
+
+    public ChaCha20Poly1305Encryption() {
+        this(generateEncryptionKey());
     }
 
-    public static String encodeKey(SecretKey secretKey) {
-        return encode(secretKey.getEncoded());
+    public ChaCha20Poly1305Encryption(String encryptionKey) {
+        this(new SecretKeySpec(decode(encryptionKey), ALGORITHM));
     }
 
+    @Override
     @SneakyThrows
-    public static SecretKey generateSecretKey() {
-        KeyGenerator keyGenerator = KeyGenerator.getInstance(ALGORITHM);
-        keyGenerator.init(KEY_SIZE);
-        return keyGenerator.generateKey();
-    }
-
-    public static SecretKey decodeKey(String encodedKey) {
-        return new SecretKeySpec(decode(encodedKey), ALGORITHM);
-    }
-
-    @SneakyThrows
-    public static String encrypt(String value, SecretKey key) {
+    public String encrypt(String value) {
         IvParameterSpec ivParameterSpec = new IvParameterSpec(nextNonce());
         Cipher cipher = Cipher.getInstance(TRANSFORMATION);
-        cipher.init(Cipher.ENCRYPT_MODE, key, ivParameterSpec);
+        cipher.init(Cipher.ENCRYPT_MODE, encryptionKey, ivParameterSpec);
         byte[] ciphertextWithTag = cipher.doFinal(value.getBytes(StandardCharsets.UTF_8));
         byte[] ciphertext = new byte[(ciphertextWithTag.length - TAG_LENGTH)];
         byte[] tag = new byte[TAG_LENGTH];
@@ -71,12 +66,30 @@ public class ChaCha20Poly1305Encryption {
         return encode(ivParameterSpec.getIV()) + ":" + encode(ciphertext) + ":" + encode(tag);
     }
 
+    @Override
     @SneakyThrows
-    public static String decrypt(String cipherText, SecretKey key) {
-        String[] parts = cipherText.split(":", 0);
+    public String decrypt(String value) {
+        String[] parts = value.split(":", 0);
         Cipher cipher = Cipher.getInstance(TRANSFORMATION);
-        cipher.init(Cipher.DECRYPT_MODE, key, new IvParameterSpec(decode(parts[0])));
+        cipher.init(Cipher.DECRYPT_MODE, encryptionKey, new IvParameterSpec(decode(parts[0])));
         return new String(cipher.doFinal(concatenate(decode(parts[1]), decode(parts[2]))));
+    }
+
+    @Override
+    public String getAlgorithm() {
+        return ALGORITHM;
+    }
+
+    @Override
+    public String getEncryptionKey() {
+        return encode(encryptionKey.getEncoded());
+    }
+
+    @SneakyThrows
+    private static SecretKey generateEncryptionKey() {
+        KeyGenerator keyGenerator = KeyGenerator.getInstance(ALGORITHM);
+        keyGenerator.init(KEY_SIZE);
+        return keyGenerator.generateKey();
     }
 
     private static byte[] nextNonce() {
@@ -96,5 +109,4 @@ public class ChaCha20Poly1305Encryption {
     private static byte[] concatenate(byte[] a, byte[] b) {
         return ByteBuffer.allocate(a.length + b.length).put(a).put(b).array();
     }
-
 }

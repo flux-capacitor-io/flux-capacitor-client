@@ -24,13 +24,6 @@ import java.util.Properties;
 import static java.util.Optional.ofNullable;
 
 public class ApplicationEnvironmentPropertiesSource extends DecryptingPropertySource {
-    public ApplicationEnvironmentPropertiesSource() {
-        this(getEnvironment());
-    }
-
-    public ApplicationEnvironmentPropertiesSource(String environment) {
-        super(loadProperties(environment));
-    }
 
     public ApplicationEnvironmentPropertiesSource(Encryption encryption) {
         this(getEnvironment(), encryption);

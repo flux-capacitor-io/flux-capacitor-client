@@ -15,54 +15,56 @@
 package io.fluxcapacitor.common.encryption;
 
 import lombok.AllArgsConstructor;
-import lombok.Getter;
-import lombok.SneakyThrows;
+import lombok.NonNull;
+import lombok.extern.slf4j.Slf4j;
 
-import javax.crypto.SecretKey;
-
+@Slf4j
 @AllArgsConstructor
 public class DefaultEncryption implements Encryption {
 
-    private static final String ChaCha20 = "ChaCha20";
-
-    public static String generateSecretKeyString() {
-        return ChaCha20Poly1305Encryption.generateSecretKeyString();
+    public static String generateNewEncryptionKey() {
+        return new DefaultEncryption().getEncryptionKey();
     }
 
-    @SneakyThrows
-    public static SecretKey generateSecretKey() {
-        return ChaCha20Poly1305Encryption.generateSecretKey();
+    @SuppressWarnings("SwitchStatementWithTooFewBranches")
+    public static Encryption fromEncryptionKey(@NonNull String encryptionKey) {
+        var algorithmAndKey = encryptionKey.split("\\|", 2);
+        if (algorithmAndKey.length != 2) {
+            throw new IllegalArgumentException("Encryption key is missing algorithm");
+        }
+        return switch (algorithmAndKey[0]) {
+            case ChaCha20Poly1305Encryption.ALGORITHM -> new DefaultEncryption(
+                    new ChaCha20Poly1305Encryption(algorithmAndKey[1]));
+            default -> throw new IllegalArgumentException("Unknown encryption algorithm: " + algorithmAndKey[0]);
+        };
     }
-
-    public static SecretKey decodeKey(String encodedKey) {
-        return ChaCha20Poly1305Encryption.decodeKey(encodedKey);
-    }
-
-    @Getter
-    private final SecretKey secretKey;
 
     public DefaultEncryption() {
-        this(generateSecretKey());
+        this(new ChaCha20Poly1305Encryption());
     }
 
-    public DefaultEncryption(String encodedKey) {
-        this(ChaCha20Poly1305Encryption.decodeKey(encodedKey));
-    }
+    private final Encryption delegate;
 
     @Override
     public String encrypt(String value) {
-        return ChaCha20 + "|" + ChaCha20Poly1305Encryption.encrypt(value, secretKey);
+        return String.format("%s|%s", getAlgorithm(), delegate.encrypt(value));
     }
 
     @Override
     public String decrypt(String value) {
-        if (value != null && value.startsWith(ChaCha20 + "|")) {
-            return ChaCha20Poly1305Encryption.decrypt(value.split(ChaCha20 + "\\|")[1], secretKey);
+        if (value != null && value.startsWith(getAlgorithm() + "|")) {
+            return delegate.decrypt(value.split(getAlgorithm() + "\\|")[1]);
         }
         return value;
     }
 
-    public String getSecretKeyString() {
-        return ChaCha20Poly1305Encryption.encodeKey(secretKey);
+    @Override
+    public String getAlgorithm() {
+        return delegate.getAlgorithm();
+    }
+
+    @Override
+    public String getEncryptionKey() {
+        return getAlgorithm() + "|" + delegate.getEncryptionKey();
     }
 }

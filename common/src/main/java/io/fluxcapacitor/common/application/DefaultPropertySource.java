@@ -16,18 +16,32 @@ package io.fluxcapacitor.common.application;
 
 import io.fluxcapacitor.common.encryption.DefaultEncryption;
 import io.fluxcapacitor.common.encryption.Encryption;
+import io.fluxcapacitor.common.encryption.NoOpEncryption;
 import lombok.Getter;
+import lombok.extern.slf4j.Slf4j;
 
+import static java.util.Optional.ofNullable;
+
+@Slf4j
 public class DefaultPropertySource implements PropertySource {
     @Getter
     private static final DefaultPropertySource instance = new DefaultPropertySource();
 
     public DefaultPropertySource() {
-        this(Encryption.getEncryptionForEnvironment());
+        this(ofNullable(System.getenv("ENCRYPT_KEY"))
+                     .or(() -> ofNullable(System.getenv("encrypt_key")))
+                     .map(encodedKey -> {
+                         try {
+                             return DefaultEncryption.fromEncryptionKey(encodedKey);
+                         } catch (Exception e) {
+                             log.error("Could not construct DefaultEncryption from environment variable `ENCRYPT_KEY`");
+                             return NoOpEncryption.instance;
+                         }
+                     }).orElse(NoOpEncryption.instance));
     }
 
-    public DefaultPropertySource(String encodedSecretKey) {
-        this(new DefaultEncryption(encodedSecretKey));
+    public DefaultPropertySource(String encryptionKey) {
+        this(DefaultEncryption.fromEncryptionKey(encryptionKey));
     }
 
     public DefaultPropertySource(Encryption encryption) {

@@ -14,15 +14,15 @@
 
 package io.fluxcapacitor.common.encryption;
 
-class ChaCha20Poly1305EncryptionTest extends AbstractEncryptionTest {
+class DefaultEncryptionTest extends AbstractEncryptionTest {
 
     @Override
     protected Encryption createSubject() {
-        return new ChaCha20Poly1305Encryption();
+        return new DefaultEncryption();
     }
 
     @Override
     protected Encryption createSubject(String encryptionKey) {
-        return new ChaCha20Poly1305Encryption(encryptionKey);
+        return DefaultEncryption.fromEncryptionKey(encryptionKey);
     }
 }
