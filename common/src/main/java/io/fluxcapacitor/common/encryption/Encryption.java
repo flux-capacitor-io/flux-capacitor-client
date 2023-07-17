@@ -14,28 +14,14 @@
 
 package io.fluxcapacitor.common.encryption;
 
-import org.slf4j.LoggerFactory;
-
-import static java.util.Optional.ofNullable;
-
 public interface Encryption {
-
-    static Encryption getEncryptionForEnvironment() {
-        return ofNullable(System.getenv("ENCRYPT_KEY"))
-                .or(() -> ofNullable(System.getenv("encrypt_key")))
-                .<Encryption>map(encodedKey -> {
-                    try {
-                        return new DefaultEncryption(encodedKey);
-                    } catch (Exception e) {
-                        LoggerFactory.getLogger(Encryption.class).warn(
-                                "Could not construct DefaultEncryption from environment variable `ENCRYPT_KEY`");
-                        return null;
-                    }
-                }).orElse(NoOpEncryption.instance);
-    }
 
     String encrypt(String value);
 
     String decrypt(String value);
+
+    String getAlgorithm();
+
+    String getEncryptionKey();
 
 }

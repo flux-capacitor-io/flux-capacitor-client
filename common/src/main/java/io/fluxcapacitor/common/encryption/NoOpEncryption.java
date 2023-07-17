@@ -26,4 +26,14 @@ public enum NoOpEncryption implements Encryption {
     public String decrypt(String value) {
         return value;
     }
+
+    @Override
+    public String getAlgorithm() {
+        return "no-op";
+    }
+
+    @Override
+    public String getEncryptionKey() {
+        return "no-op";
+    }
 }

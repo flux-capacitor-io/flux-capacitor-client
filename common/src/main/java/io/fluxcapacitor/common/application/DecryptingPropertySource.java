@@ -27,10 +27,6 @@ public abstract class DecryptingPropertySource implements PropertySource {
     private final Properties properties;
     private final Encryption encryption;
 
-    public DecryptingPropertySource(Properties properties) {
-        this(properties, Encryption.getEncryptionForEnvironment());
-    }
-
     @SneakyThrows
     public DecryptingPropertySource(Properties properties, Encryption encryption) {
         this.properties = ObjectUtils.copyOf(properties);
