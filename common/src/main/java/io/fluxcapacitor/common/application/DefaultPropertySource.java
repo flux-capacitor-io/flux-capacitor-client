@@ -30,6 +30,8 @@ public class DefaultPropertySource implements PropertySource {
     public DefaultPropertySource() {
         this(ofNullable(System.getenv("ENCRYPTION_KEY"))
                      .or(() -> ofNullable(System.getenv("encryption_key")))
+                     .or(() -> ofNullable(System.getProperty("ENCRYPTION_KEY")))
+                     .or(() -> ofNullable(System.getProperty("encryption_key")))
                      .map(encodedKey -> {
                          try {
                              return DefaultEncryption.fromEncryptionKey(encodedKey);
