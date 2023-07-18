@@ -5,7 +5,7 @@
 Flux Capacitor java client
 ======================
 
-This is the 'official' Java library for the Flux Capacitor service.
+This repository contains the 'official' Java client for Flux Capacitor service.
 
 Installation
 ======================
