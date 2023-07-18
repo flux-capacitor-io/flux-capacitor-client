@@ -15,6 +15,11 @@
 package io.fluxcapacitor.javaclient.givenwhenthen;
 
 import io.fluxcapacitor.javaclient.configuration.DefaultFluxCapacitor;
+import io.fluxcapacitor.javaclient.givenwhenthen.forbidsadmin.ForbidsAdminViaPackage;
+import io.fluxcapacitor.javaclient.givenwhenthen.requiresadmin.RequiresAdminViaPackage;
+import io.fluxcapacitor.javaclient.givenwhenthen.requiresadmin.subpackage.RequiresAdminViaParentPackage;
+import io.fluxcapacitor.javaclient.givenwhenthen.requiresuser.RequiresAdminOverride;
+import io.fluxcapacitor.javaclient.givenwhenthen.requiresuser.RequiresUserViaPackage;
 import io.fluxcapacitor.javaclient.test.TestFixture;
 import io.fluxcapacitor.javaclient.tracking.handling.HandleCommand;
 import io.fluxcapacitor.javaclient.tracking.handling.HandleQuery;
@@ -28,6 +33,7 @@ import io.fluxcapacitor.javaclient.tracking.handling.authentication.Unauthentica
 import io.fluxcapacitor.javaclient.tracking.handling.authentication.UnauthorizedException;
 import io.fluxcapacitor.javaclient.tracking.handling.authentication.User;
 import lombok.Value;
+import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
 import java.lang.annotation.Documented;
@@ -44,6 +50,67 @@ public class GivenWhenThenAuthenticationTest {
     private final TestFixture testFixture = TestFixture.create(
             DefaultFluxCapacitor.builder().registerUserProvider(new MockUserProvider()), new MockHandler(),
             new RefdataHandler(), new MockSystemHandler());
+
+    @Nested
+    class PackageAnnotation {
+        @Test
+        void requiresAdmin() {
+            testFixture.whenQuery(new RequiresAdminViaPackage()).expectExceptionalResult(UnauthorizedException.class);
+        }
+
+        @Test
+        void requiresAdminSuccess() {
+            user = new MockUser("admin");
+            testFixture.whenQuery(new RequiresAdminViaPackage()).expectResult("success");
+        }
+
+        @Test
+        void requiresUser() {
+            user = null;
+            testFixture.whenQuery(new RequiresUserViaPackage()).expectExceptionalResult(UnauthenticatedException.class);
+        }
+
+        @Test
+        void requiresUserSuccess() {
+            testFixture.whenQuery(new RequiresUserViaPackage()).expectResult("success");
+        }
+
+        @Test
+        void requiresAdminOverride() {
+            testFixture.whenQuery(new RequiresAdminOverride()).expectExceptionalResult(UnauthorizedException.class);
+        }
+
+        @Test
+        void requiresAdminOverrideSuccess() {
+            user = new MockUser("admin");
+            testFixture.whenQuery(new RequiresAdminOverride()).expectResult("success");
+        }
+
+        @Test
+        void forbidsAdminSuccess() {
+            testFixture.whenQuery(new ForbidsAdminViaPackage()).expectResult("success");
+        }
+
+        @Test
+        void forbidsAdmin() {
+            user = new MockUser("admin");
+            testFixture.whenQuery(new ForbidsAdminViaPackage()).expectExceptionalResult(UnauthorizedException.class);
+        }
+
+        @Nested
+        class ViaParent {
+            @Test
+            void requiresAdminViaParent() {
+                testFixture.whenQuery(new RequiresAdminViaParentPackage()).expectExceptionalResult(UnauthorizedException.class);
+            }
+
+            @Test
+            void requiresAdminSuccessViaParent() {
+                user = new MockUser("admin");
+                testFixture.whenQuery(new RequiresAdminViaParentPackage()).expectResult("success");
+            }
+        }
+    }
 
     @Test
     void testQueryThatRequiresNoAuthentication() {

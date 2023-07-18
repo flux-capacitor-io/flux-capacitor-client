@@ -36,12 +36,13 @@ import java.util.Optional;
 import java.util.ServiceLoader;
 import java.util.function.BiFunction;
 import java.util.function.Function;
-import java.util.stream.Stream;
 
 import static io.fluxcapacitor.common.ObjectUtils.memoize;
+import static io.fluxcapacitor.common.reflection.ReflectionUtils.getPackageAnnotations;
 import static io.fluxcapacitor.common.reflection.ReflectionUtils.getTypeAnnotations;
 import static java.lang.String.format;
 import static java.util.Optional.empty;
+import static java.util.stream.Stream.concat;
 
 @Slf4j
 public class ValidationUtils {
@@ -110,11 +111,13 @@ public class ValidationUtils {
      */
 
     private static final Function<Class<?>, String[]> requiredRolesCache = memoize(
-            payloadClass -> getRequiredRoles(getTypeAnnotations(payloadClass)));
+            payloadClass -> Optional.ofNullable(getRequiredRoles(getTypeAnnotations(payloadClass)))
+                    .orElseGet(() -> getRequiredRoles(getPackageAnnotations(payloadClass.getPackage()))));
 
     private static final BiFunction<Class<?>, Executable, String[]> requiredRolesForMethodCache = memoize(
             (target, executable) -> Optional.ofNullable(getRequiredRoles(Arrays.asList(executable.getAnnotations())))
-                    .orElseGet(() -> getRequiredRoles(getTypeAnnotations(target))));
+                    .or(() -> Optional.ofNullable(getRequiredRoles(getTypeAnnotations(target))))
+                    .orElseGet(() -> getRequiredRoles(getPackageAnnotations(target.getPackage()))));
 
     public static void assertAuthorized(Class<?> payloadType,
                                         User user) throws UnauthenticatedException, UnauthorizedException {
@@ -169,7 +172,7 @@ public class ValidationUtils {
 
     protected static String[] getRequiredRoles(Collection<? extends Annotation> annotations) {
         return annotations.stream().map(ValidationUtils::getRequiredRoles).filter(Objects::nonNull)
-                .reduce((a, b) -> Stream.concat(Arrays.stream(a), Arrays.stream(b)).toArray(String[]::new))
+                .reduce((a, b) -> concat(Arrays.stream(a), Arrays.stream(b)).toArray(String[]::new))
                 .orElse(null);
     }
 
