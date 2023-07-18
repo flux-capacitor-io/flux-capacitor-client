@@ -28,13 +28,13 @@ public class DefaultPropertySource implements PropertySource {
     private static final DefaultPropertySource instance = new DefaultPropertySource();
 
     public DefaultPropertySource() {
-        this(ofNullable(System.getenv("ENCRYPT_KEY"))
-                     .or(() -> ofNullable(System.getenv("encrypt_key")))
+        this(ofNullable(System.getenv("ENCRYPTION_KEY"))
+                     .or(() -> ofNullable(System.getenv("encryption_key")))
                      .map(encodedKey -> {
                          try {
                              return DefaultEncryption.fromEncryptionKey(encodedKey);
                          } catch (Exception e) {
-                             log.error("Could not construct DefaultEncryption from environment variable `ENCRYPT_KEY`");
+                             log.error("Could not construct DefaultEncryption from environment variable `ENCRYPTION_KEY`");
                              return NoOpEncryption.instance;
                          }
                      }).orElse(NoOpEncryption.instance));
