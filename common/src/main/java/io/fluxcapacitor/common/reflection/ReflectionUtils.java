@@ -298,17 +298,16 @@ public class ReflectionUtils {
     }
 
     public static Collection<? extends Annotation> getPackageAnnotations(Package p) {
-        Collection<? extends Annotation> packageAnnotations = getPackageAnnotations(p, true);
-        return packageAnnotations;
+        return getPackageAnnotations(p, true);
     }
 
     public static Collection<? extends Annotation> getPackageAnnotations(Package p, boolean recursive) {
+        if (p == null) {
+            return emptyList();
+        }
         Stream<Annotation> stream = stream(p.getAnnotations());
         if (recursive) {
-            var parent = getParentPackage(p);
-            if (parent != null) {
-                stream = Stream.concat(stream, getPackageAnnotations(parent, true).stream());
-            }
+            stream = Stream.concat(stream, getPackageAnnotations(getParentPackage(p), true).stream());
         }
         return stream.toList();
     }

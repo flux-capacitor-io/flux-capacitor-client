@@ -565,7 +565,8 @@ public class DefaultFluxCapacitor implements FluxCapacitor {
                                               new MetadataParameterResolver(), new MessageParameterResolver(),
                                               new UserParameterResolver(userProvider),
                                               new SocketSessionParameterResolver(webResponseGateway),
-                                              new WebPayloadParameterResolver(userProvider != null),
+                                              new WebPayloadParameterResolver(
+                                                      !disablePayloadValidation, userProvider != null),
                                               new PayloadParameterResolver(),
                                               new EntityParameterResolver()));
 

@@ -25,19 +25,23 @@ import java.lang.reflect.Parameter;
 import java.util.function.Function;
 
 import static io.fluxcapacitor.javaclient.tracking.handling.validation.ValidationUtils.assertAuthorized;
+import static io.fluxcapacitor.javaclient.tracking.handling.validation.ValidationUtils.assertValid;
 
 @AllArgsConstructor
 public class WebPayloadParameterResolver implements ParameterResolver<HasMessage> {
+    private final boolean validatePayload;
     private final boolean authoriseUser;
 
     @Override
     public Function<HasMessage, Object> resolve(Parameter p, Annotation methodAnnotation) {
         return m -> {
             Object payload = m.getPayloadAs(p.getType());
+            if (validatePayload) {
+                assertValid(payload);
+            }
             if (authoriseUser) {
-                User user = User.getCurrent();
-                if (payload != null && m.getPayloadClass() == null && user != null) {
-                    assertAuthorized(payload.getClass(), user);
+                if (payload != null) {
+                    assertAuthorized(payload.getClass(), User.getCurrent());
                 }
             }
             return payload;
