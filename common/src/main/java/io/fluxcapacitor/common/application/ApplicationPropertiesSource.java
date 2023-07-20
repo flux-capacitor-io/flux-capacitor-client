@@ -23,10 +23,6 @@ import static io.fluxcapacitor.common.FileUtils.tryLoadFile;
 
 public class ApplicationPropertiesSource extends DecryptingPropertySource {
 
-    public ApplicationPropertiesSource() {
-        super(loadProperties());
-    }
-
     public ApplicationPropertiesSource(Encryption encryption) {
         super(loadProperties(), encryption);
     }

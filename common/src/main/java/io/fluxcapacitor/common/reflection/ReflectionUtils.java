@@ -297,6 +297,21 @@ public class ReflectionUtils {
         return Optional.ofNullable(p.getAnnotation(annotationType));
     }
 
+    public static Collection<? extends Annotation> getPackageAnnotations(Package p) {
+        return getPackageAnnotations(p, true);
+    }
+
+    public static Collection<? extends Annotation> getPackageAnnotations(Package p, boolean recursive) {
+        if (p == null) {
+            return emptyList();
+        }
+        Stream<Annotation> stream = stream(p.getAnnotations());
+        if (recursive) {
+            stream = Stream.concat(stream, getPackageAnnotations(getParentPackage(p), true).stream());
+        }
+        return stream.toList();
+    }
+
     /*
         Read a property
      */
@@ -549,12 +564,7 @@ public class ReflectionUtils {
             return null;
         }
         String parentName = name.substring(0, lastIndex);
-        for (Package candidate : Package.getPackages()) {
-            if (candidate.getName().equals(parentName)) {
-                return candidate;
-            }
-        }
-        return null;
+        return ReflectionUtils.class.getClassLoader().getDefinedPackage(parentName);
     }
 
     @Value

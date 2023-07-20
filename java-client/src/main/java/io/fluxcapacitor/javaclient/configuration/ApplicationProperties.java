@@ -47,4 +47,8 @@ public class ApplicationProperties {
         return getProperty(name) != null;
     }
 
+    public static String encryptValue(String value) {
+        return DefaultPropertySource.getInstance().getEncryption().encrypt(value);
+    }
+
 }

@@ -20,10 +20,6 @@ import java.util.Optional;
 
 public class SystemPropertiesSource extends DecryptingPropertySource {
 
-    public SystemPropertiesSource() {
-        super(System.getProperties());
-    }
-
     public SystemPropertiesSource(Encryption encryption) {
         super(System.getProperties(), encryption);
     }
