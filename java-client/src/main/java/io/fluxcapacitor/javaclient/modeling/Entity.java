@@ -19,6 +19,7 @@ import io.fluxcapacitor.common.api.HasMetadata;
 import io.fluxcapacitor.common.api.Metadata;
 import io.fluxcapacitor.common.api.modeling.Relationship;
 import io.fluxcapacitor.common.reflection.ReflectionUtils;
+import io.fluxcapacitor.javaclient.common.HasMessage;
 import io.fluxcapacitor.javaclient.common.Message;
 import io.fluxcapacitor.javaclient.common.serialization.DeserializingMessage;
 import io.fluxcapacitor.javaclient.publishing.routing.RoutingKey;
@@ -230,7 +231,7 @@ public interface Entity<T> {
         return apply(new Message(event, metadata));
     }
 
-    Entity<T> apply(Message eventMessage);
+    Entity<T> apply(HasMessage eventMessage);
 
     <E extends Exception> Entity<T> assertLegal(Object command) throws E;
 
