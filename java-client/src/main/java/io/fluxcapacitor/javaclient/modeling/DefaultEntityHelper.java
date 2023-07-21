@@ -56,7 +56,7 @@ public class DefaultEntityHelper implements EntityHelper {
     }
 
     private final Function<Class<?>, HandlerMatcher<Object, HasMessage>> interceptMatchers;
-    private final Function<Class<?>, HandlerMatcher<Object, HasMessage>> applyMatchers;
+    private final Function<Class<?>, HandlerMatcher<Object, DeserializingMessage>> applyMatchers;
     private final Function<Class<?>, HandlerMatcher<Object, HasMessage>> assertLegalMatchers;
     private final boolean disablePayloadValidation;
 
@@ -64,7 +64,7 @@ public class DefaultEntityHelper implements EntityHelper {
     public DefaultEntityHelper(List<ParameterResolver<? super DeserializingMessage>> parameterResolvers,
                                boolean disablePayloadValidation) {
         this.interceptMatchers = memoize(type -> inspect(type, (List) parameterResolvers, InterceptApply.class));
-        this.applyMatchers = memoize(type -> inspect(type, (List) parameterResolvers, Apply.class));
+        this.applyMatchers = memoize(type -> inspect(type, parameterResolvers, Apply.class));
         this.assertLegalMatchers = memoize(type -> inspect(
                 type, (List) parameterResolvers, HandlerConfiguration.builder().methodAnnotation(AssertLegal.class)
                         .invokeMultipleMethods(true).build()));
@@ -99,8 +99,8 @@ public class DefaultEntityHelper implements EntityHelper {
     }
 
     @Override
-    public Optional<HandlerInvoker> applyInvoker(Object event, Entity<?> entity) {
-        var message = new MessageWithEntity(event, entity);
+    public Optional<HandlerInvoker> applyInvoker(DeserializingMessage event, Entity<?> entity) {
+        var message = new DeserializingMessageWithEntity(event, entity);
         Class<?> entityType = entity.type();
         return applyMatchers.apply(entityType).findInvoker(entity.get(), message)
                 .or(() -> applyMatchers.apply(message.getPayloadClass()).findInvoker(message.getPayload(), message)
@@ -115,17 +115,19 @@ public class DefaultEntityHelper implements EntityHelper {
                 .map(i -> new HandlerInvoker.DelegatingHandlerInvoker(i) {
                     @Override
                     public Object invoke(BiFunction<Object, Object, Object> combiner) {
-                        boolean wasApplying = Entity.isApplying();
-                        try {
-                            Entity.applying.set(true);
-                            Object result = delegate.invoke();
-                            if (result == null && !delegate.expectResult()) {
-                                return entity.get(); //Annotated method returned void - apparently the entity is mutable
+                        return message.apply(m -> {
+                            boolean wasApplying = Entity.isApplying();
+                            try {
+                                Entity.applying.set(true);
+                                Object result = delegate.invoke();
+                                if (result == null && !delegate.expectResult()) {
+                                    return entity.get(); //Annotated method returned void - apparently the entity is mutable
+                                }
+                                return result;
+                            } finally {
+                                Entity.applying.set(wasApplying);
                             }
-                            return result;
-                        } finally {
-                            Entity.applying.set(wasApplying);
-                        }
+                        });
                     }
                 });
     }

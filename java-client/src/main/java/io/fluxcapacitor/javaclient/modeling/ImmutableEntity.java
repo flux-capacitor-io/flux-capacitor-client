@@ -17,7 +17,8 @@ package io.fluxcapacitor.javaclient.modeling;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import io.fluxcapacitor.common.handling.HandlerInvoker;
-import io.fluxcapacitor.javaclient.common.HasMessage;
+import io.fluxcapacitor.javaclient.common.Message;
+import io.fluxcapacitor.javaclient.common.serialization.DeserializingMessage;
 import io.fluxcapacitor.javaclient.common.serialization.Serializer;
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
@@ -35,6 +36,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.function.UnaryOperator;
 
+import static io.fluxcapacitor.common.MessageType.EVENT;
 import static io.fluxcapacitor.common.reflection.ReflectionUtils.getAnnotatedProperties;
 import static io.fluxcapacitor.common.reflection.ReflectionUtils.getValue;
 import static io.fluxcapacitor.javaclient.modeling.AnnotatedEntityHolder.getEntityHolder;
@@ -102,8 +104,19 @@ public class ImmutableEntity<T> implements Entity<T> {
     }
 
     @Override
+    public ImmutableEntity<T> apply(Message message) {
+        return apply(new DeserializingMessage(message.serialize(serializer),
+                                              type -> serializer.convert(message.getPayload(), type), EVENT));
+    }
+
+    @Override
+    public <E extends Exception> Entity<T> assertLegal(Object command) throws E {
+        entityHelper.assertLegal(command, root());
+        return this;
+    }
+
     @SuppressWarnings("unchecked")
-    public ImmutableEntity<T> apply(HasMessage message) {
+    ImmutableEntity<T> apply(DeserializingMessage message) {
         Optional<HandlerInvoker> invoker = entityHelper.applyInvoker(message, this);
         if (invoker.isPresent()) {
             return toBuilder().value((T) invoker.get().invoke()).build();
@@ -119,12 +132,6 @@ public class ImmutableEntity<T> implements Entity<T> {
             }
         }
         return result;
-    }
-
-    @Override
-    public <E extends Exception> Entity<T> assertLegal(Object command) throws E {
-        entityHelper.assertLegal(command, root());
-        return this;
     }
 
     protected Collection<? extends ImmutableEntity<?>> computeEntities() {

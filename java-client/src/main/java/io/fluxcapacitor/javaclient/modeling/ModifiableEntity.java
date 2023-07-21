@@ -14,7 +14,7 @@
 
 package io.fluxcapacitor.javaclient.modeling;
 
-import io.fluxcapacitor.javaclient.common.HasMessage;
+import io.fluxcapacitor.javaclient.common.Message;
 import lombok.EqualsAndHashCode;
 import lombok.ToString;
 import lombok.Value;
@@ -52,7 +52,7 @@ public class ModifiableEntity<T> extends DelegatingEntity<T> {
 
     @SuppressWarnings("unchecked")
     @Override
-    public Entity<T> apply(HasMessage eventMessage) {
+    public Entity<T> apply(Message eventMessage) {
         return (Entity<T>) root.apply(eventMessage).getEntity(id()).orElse(null);
     }
 
