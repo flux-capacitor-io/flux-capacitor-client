@@ -16,6 +16,7 @@ package io.fluxcapacitor.javaclient.modeling;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import io.fluxcapacitor.common.api.modeling.Relationship;
+import io.fluxcapacitor.javaclient.common.HasMessage;
 import io.fluxcapacitor.javaclient.common.serialization.DeserializingMessage;
 import io.fluxcapacitor.javaclient.common.serialization.Serializer;
 import lombok.Builder;
@@ -81,13 +82,14 @@ public class ImmutableAggregateRoot<T> extends ImmutableEntity<T> {
                 .build();
     }
 
-    public ImmutableAggregateRoot<T> apply(DeserializingMessage message) {
+    @Override
+    public ImmutableAggregateRoot<T> apply(HasMessage message) {
         return ((ImmutableAggregateRoot<T>) super.apply(message))
                 .toBuilder()
                 .previous(this)
                 .timestamp(message.getTimestamp())
                 .lastEventId(message.getMessageId())
-                .lastEventIndex(message.getIndex())
+                .lastEventIndex(message instanceof DeserializingMessage dm ? dm.getIndex() : null)
                 .sequenceNumber(sequenceNumber() + 1L)
                 .build();
     }

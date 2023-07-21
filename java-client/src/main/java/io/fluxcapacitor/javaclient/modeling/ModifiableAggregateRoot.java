@@ -16,6 +16,7 @@ package io.fluxcapacitor.javaclient.modeling;
 
 import io.fluxcapacitor.common.Pair;
 import io.fluxcapacitor.common.handling.Invocation;
+import io.fluxcapacitor.javaclient.common.HasMessage;
 import io.fluxcapacitor.javaclient.common.Message;
 import io.fluxcapacitor.javaclient.common.serialization.DeserializingMessage;
 import io.fluxcapacitor.javaclient.common.serialization.Serializer;
@@ -87,7 +88,7 @@ public class ModifiableAggregateRoot<T> extends DelegatingEntity<T> {
 
     @Override
     public <E extends Exception> ModifiableAggregateRoot<T> assertLegal(Object command) throws E {
-        entityHelper.intercept(command, this).forEach(c -> entityHelper.assertLegal(command, this));
+        entityHelper.intercept(command, this).forEach(c -> entityHelper.assertLegal(c, this));
         return this;
     }
 
@@ -98,7 +99,7 @@ public class ModifiableAggregateRoot<T> extends DelegatingEntity<T> {
     }
 
     @Override
-    public ModifiableAggregateRoot<T> apply(Message message) {
+    public ModifiableAggregateRoot<T> apply(HasMessage message) {
         entityHelper.intercept(message, this).forEach(m -> apply(Message.asMessage(m), false));
         return this;
     }
@@ -111,18 +112,18 @@ public class ModifiableAggregateRoot<T> extends DelegatingEntity<T> {
         if (assertLegal) {
             entityHelper.assertLegal(message, this);
         }
-        Message m = dispatchInterceptor.interceptDispatch(message, EVENT)
-                .addMetadata(Entity.AGGREGATE_ID_METADATA_KEY, id().toString(),
-                             Entity.AGGREGATE_TYPE_METADATA_KEY, type().getName(),
-                             Entity.AGGREGATE_SN_METADATA_KEY, String.valueOf(getDelegate().sequenceNumber() + 1L));
-        DeserializingMessage eventMessage = new DeserializingMessage(
-                dispatchInterceptor.modifySerializedMessage(m.serialize(serializer), m, EVENT),
-                type -> serializer.convert(m.getPayload(), type), EVENT);
         try {
             applying = true;
             handleUpdate(a -> {
-                Entity<T> result = a.apply(eventMessage);
-                applied.add(eventMessage);
+                Entity<T> result = a.apply(message);
+                Message m = dispatchInterceptor.interceptDispatch(message, EVENT)
+                        .addMetadata(Entity.AGGREGATE_ID_METADATA_KEY, id().toString(),
+                                     Entity.AGGREGATE_TYPE_METADATA_KEY, type().getName(),
+                                     Entity.AGGREGATE_SN_METADATA_KEY,
+                                     String.valueOf(getDelegate().sequenceNumber() + 1L));
+                applied.add(new DeserializingMessage(
+                        dispatchInterceptor.modifySerializedMessage(m.serialize(serializer), m, EVENT),
+                        type -> serializer.convert(m.getPayload(), type), EVENT));
                 return result;
             });
         } finally {

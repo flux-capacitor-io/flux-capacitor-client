@@ -14,7 +14,7 @@
 
 package io.fluxcapacitor.javaclient.modeling;
 
-import io.fluxcapacitor.javaclient.common.Message;
+import io.fluxcapacitor.javaclient.common.HasMessage;
 import lombok.AccessLevel;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
@@ -44,7 +44,7 @@ public class NoOpEntity<T> implements Entity<T> {
     }
 
     @Override
-    public NoOpEntity<T> apply(Message eventMessage) {
+    public NoOpEntity<T> apply(HasMessage eventMessage) {
         return this;
     }
 
