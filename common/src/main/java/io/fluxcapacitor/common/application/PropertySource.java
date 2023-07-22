@@ -14,11 +14,20 @@
 
 package io.fluxcapacitor.common.application;
 
+import org.slf4j.LoggerFactory;
+
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.List;
 import java.util.Optional;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 @FunctionalInterface
 public interface PropertySource {
+
+    Pattern substitutionPattern = Pattern.compile("[$][{]([^${}]+)}");
+
     String get(String name);
 
     default boolean getBoolean(String name) {
@@ -40,6 +49,33 @@ public interface PropertySource {
 
     default boolean containsProperty(String name) {
         return get(name) != null;
+    }
+
+    default String substituteProperties(String template) {
+        Matcher matcher = substitutionPattern.matcher(template);
+        StringBuilder resultBuilder = new StringBuilder(template);
+        List<Object> valueList = new ArrayList<>();
+        while (matcher.find()) {
+            String key = matcher.group(1);
+            String paramName = "${" + key + "}";
+            int index = resultBuilder.indexOf(paramName);
+            if (index != -1) {
+                resultBuilder.replace(index, index + paramName.length(), "%s");
+                var keyWithDefault = key.split(":", 2);
+                String value;
+                if (keyWithDefault.length == 1) {
+                    value = get(key);
+                    if (value == null) {
+                        LoggerFactory.getLogger(getClass()).warn("Property named \"{}\" hasn't been set", key);
+                    }
+                } else {
+                    value = get(keyWithDefault[0], keyWithDefault[1]);
+                }
+                valueList.add(value == null ? "" : value);
+            }
+        }
+        String result = String.format(resultBuilder.toString(), valueList.toArray());
+        return result.equals(template) ? result : substituteProperties(result);
     }
 
     default PropertySource merge(PropertySource next) {

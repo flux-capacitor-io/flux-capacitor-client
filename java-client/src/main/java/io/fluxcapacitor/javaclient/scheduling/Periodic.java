@@ -38,7 +38,9 @@ import static java.util.concurrent.TimeUnit.MILLISECONDS;
 @Inherited
 public @interface Periodic {
     /**
-     * Special expression that can be used to disable automatic periodic scheduling if passed to {@link #cron()}.
+     * Special expression that can be used to disable automatic periodic scheduling if passed to {@link #cron()}. If
+     * the schedule was already running and is disabled later on using this expression, any previously scheduled
+     * messages will be ignored.
      */
     String DISABLED = "-";
 
@@ -56,6 +58,9 @@ public @interface Periodic {
      * </ul>
      * <p>
      * For example, {@code "0 * * * MON-FRI"} means at the start of every hour on weekdays.
+     * <p>
+     * It is possible to refer to an application property, e.g. by specifying `${someFetchSchedule}` as cron value. To
+     * disable the schedule altogether if the property is *not* set, specify `${someFetchSchedule:-}`.
      *
      * @see CronExpression for more info on how the string is parsed.
      */

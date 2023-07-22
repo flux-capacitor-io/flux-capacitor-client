@@ -68,12 +68,19 @@ public class TestUtils {
     }
 
     @SneakyThrows
-    public static void runWithSystemProperty(ThrowingRunnable runnable, String propertyName, String propertyValue) {
+    public static void runWithSystemProperties(ThrowingRunnable runnable, String... propertyKeysAndValues) {
+        if (propertyKeysAndValues.length %2 != 0) {
+            throw new IllegalArgumentException("Expected pairs of keys and values");
+        }
         try {
-            System.setProperty(propertyName, propertyValue);
+            for (int i = 0; i < propertyKeysAndValues.length; i += 2) {
+                System.setProperty(propertyKeysAndValues[i], propertyKeysAndValues[i + 1]);
+            }
             runnable.run();
         } finally {
-            System.clearProperty(propertyName);
+            for (int i = 0; i < propertyKeysAndValues.length; i += 2) {
+                System.clearProperty(propertyKeysAndValues[i]);
+            }
         }
     }
 }
