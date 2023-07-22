@@ -14,6 +14,7 @@
 
 package io.fluxcapacitor.javaclient.givenwhenthen;
 
+import io.fluxcapacitor.common.TestUtils;
 import io.fluxcapacitor.javaclient.FluxCapacitor;
 import io.fluxcapacitor.javaclient.scheduling.Periodic;
 import io.fluxcapacitor.javaclient.scheduling.Schedule;
@@ -123,6 +124,20 @@ class GivenWhenThenSchedulingTest {
         }
 
         @Test
+        void testPeriodicCronScheduleViaProperty() {
+            TestUtils.runWithSystemProperties(() -> {
+                TestFixture.create().atFixedTime(start)
+                        .registerHandlers(new Object() {
+                            @HandleSchedule
+                            @Periodic(cron = "${cronSchedule:-}")
+                            void handleSchedule(CronSchedule schedule, Schedule message) {
+                                publishEvent(message.getDeadline());
+                            }
+                        }).whenTimeAdvancesTo(afterOneHour).expectOnlyEvents(afterOneHour);
+            }, "cronSchedule", "0 * * * *");
+        }
+
+        @Test
         void testNoScheduleBeforeDeadline() {
             testFixture.whenTimeAdvancesTo(afterOneHour.minus(Duration.ofMinutes(1))).expectNoEvents();
         }
@@ -151,6 +166,19 @@ class GivenWhenThenSchedulingTest {
                         }
                     }).whenTimeElapses(Duration.ofDays(1))
                     .expectOnlyEvents(Instant.parse("2023-07-02T00:00:00+02:00"));
+        }
+
+        @Test
+        void disablePeriodicUsingSpecialExpression_viaMissingProperty() {
+            TestFixture.create().atFixedTime(start)
+                    .registerHandlers(new Object() {
+                        @HandleSchedule
+                        @Periodic(cron = "${someMissingProperty:-}")
+                        void handleSchedule(CronSchedule schedule, Schedule message) {
+                            publishEvent(message.getDeadline());
+                        }
+                    }).whenTimeElapses(Duration.ofMinutes(10))
+                    .expectNoEvents().expectNoSchedules();
         }
     }
 

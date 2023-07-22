@@ -47,6 +47,11 @@ public class ApplicationProperties {
         return getProperty(name) != null;
     }
 
+    public static String substituteProperties(String template) {
+        return FluxCapacitor.getOptionally().map(FluxCapacitor::propertySource)
+                .orElseGet(DefaultPropertySource::getInstance).substituteProperties(template);
+    }
+
     public static String encryptValue(String value) {
         return DefaultPropertySource.getInstance().getEncryption().encrypt(value);
     }

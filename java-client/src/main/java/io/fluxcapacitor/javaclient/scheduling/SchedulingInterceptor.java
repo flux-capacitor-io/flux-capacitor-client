@@ -21,6 +21,7 @@ import io.fluxcapacitor.common.handling.HandlerInvoker;
 import io.fluxcapacitor.javaclient.FluxCapacitor;
 import io.fluxcapacitor.javaclient.common.Message;
 import io.fluxcapacitor.javaclient.common.serialization.DeserializingMessage;
+import io.fluxcapacitor.javaclient.configuration.ApplicationProperties;
 import io.fluxcapacitor.javaclient.publishing.DispatchInterceptor;
 import io.fluxcapacitor.javaclient.tracking.handling.HandleSchedule;
 import io.fluxcapacitor.javaclient.tracking.handling.HandlerInterceptor;
@@ -33,6 +34,7 @@ import java.time.ZoneId;
 import java.time.temporal.TemporalAccessor;
 import java.time.temporal.TemporalAmount;
 import java.util.List;
+import java.util.Optional;
 import java.util.function.Function;
 
 import static io.fluxcapacitor.common.ObjectUtils.memoize;
@@ -40,6 +42,7 @@ import static io.fluxcapacitor.common.reflection.ReflectionUtils.ensureAccessibl
 import static io.fluxcapacitor.common.reflection.ReflectionUtils.getAnnotatedMethods;
 import static io.fluxcapacitor.common.reflection.ReflectionUtils.getTypeAnnotation;
 import static io.fluxcapacitor.javaclient.FluxCapacitor.currentIdentityProvider;
+import static io.fluxcapacitor.javaclient.scheduling.CronExpression.createWithoutSeconds;
 import static io.fluxcapacitor.javaclient.tracking.IndexUtils.millisFromIndex;
 import static java.lang.String.format;
 import static java.time.Duration.between;
@@ -50,8 +53,10 @@ import static java.util.Optional.ofNullable;
 @Slf4j
 public class SchedulingInterceptor implements DispatchInterceptor, HandlerInterceptor {
 
-    private static final Function<String, CronExpression> cronExpression
-            = memoize(CronExpression::createWithoutSeconds);
+    private static final Function<String, Optional<CronExpression>> cronExpression = memoize(pattern -> {
+        pattern = ApplicationProperties.substituteProperties(pattern);
+        return Periodic.DISABLED.equals(pattern) ? Optional.empty() : Optional.of(createWithoutSeconds(pattern));
+    });
 
     @Override
     public Handler<DeserializingMessage> wrap(Handler<DeserializingMessage> handler, String consumer) {
@@ -73,7 +78,7 @@ public class SchedulingInterceptor implements DispatchInterceptor, HandlerInterc
     }
 
     protected void initializePeriodicSchedule(Class<?> payloadType, Periodic periodic) {
-        if (periodic == null || Periodic.DISABLED.equals(periodic.cron())) {
+        if (periodic == null) {
             return;
         }
         if (periodic.cron().isBlank() && periodic.delay() <= 0) {
@@ -82,8 +87,12 @@ public class SchedulingInterceptor implements DispatchInterceptor, HandlerInterc
                     + "Period should be a positive number of  milliseconds.", payloadType));
         }
         if (periodic.autoStart()) {
-            String scheduleId = periodic.scheduleId().isEmpty() ? payloadType.getName() : periodic.scheduleId();
             FluxCapacitor fluxCapacitor = FluxCapacitor.get();
+            Instant firstDeadline = firstDeadline(periodic, fluxCapacitor.clock().instant());
+            if (firstDeadline == null) {
+                return; //cron schedule is disabled
+            }
+            String scheduleId = periodic.scheduleId().isEmpty() ? payloadType.getName() : periodic.scheduleId();
             Object payload;
             try {
                 payload = ensureAccessible(payloadType.getConstructor()).newInstance();
@@ -97,7 +106,7 @@ public class SchedulingInterceptor implements DispatchInterceptor, HandlerInterc
                             p -> ofNullable(p.getSystemUser()).map(u -> p.addToMetadata(Metadata.empty(), u)))
                     .orElse(Metadata.empty());
             fluxCapacitor.scheduler().schedule(new Schedule(
-                    payload, metadata, scheduleId, firstDeadline(periodic, fluxCapacitor.clock().instant())), true);
+                    payload, metadata, scheduleId, firstDeadline), true);
         }
     }
 
@@ -112,8 +121,8 @@ public class SchedulingInterceptor implements DispatchInterceptor, HandlerInterc
         if (periodic.cron().isBlank()) {
             return now.plusMillis(periodic.timeUnit().toMillis(periodic.delay()));
         }
-        var expression = cronExpression.apply(periodic.cron());
-        return expression.nextTimeAfter(now.atZone(ZoneId.of(periodic.timeZone()))).toInstant();
+        return cronExpression.apply(periodic.cron())
+                .map(e -> e.nextTimeAfter(now.atZone(ZoneId.of(periodic.timeZone()))).toInstant()).orElse(null);
     }
 
     @Override
@@ -128,14 +137,16 @@ public class SchedulingInterceptor implements DispatchInterceptor, HandlerInterc
 
     @Override
     public Function<DeserializingMessage, Object> interceptHandling(Function<DeserializingMessage, Object> function,
-                                                                    HandlerInvoker invoker,
-                                                                    String consumer) {
+                                                                    HandlerInvoker invoker, String consumer) {
         return m -> {
             if (m.getMessageType() == MessageType.SCHEDULE) {
                 long deadline = millisFromIndex(m.getIndex());
                 Periodic periodic = ofNullable(invoker.getMethod()).map(method -> method.getAnnotation(Periodic.class))
                         .or(() -> ofNullable(getTypeAnnotation(m.getPayloadClass(), Periodic.class)))
-                        .filter(p -> !Periodic.DISABLED.equals(p.cron())).orElse(null);
+                        .orElse(null);
+                if (periodic != null && !periodic.cron().isBlank() && cronExpression.apply(periodic.cron()).isEmpty()) {
+                    return null; //schedule is disabled. Don't invoke handler anymore.
+                }
                 Object result;
                 Instant now = ofEpochMilli(deadline);
                 try {
@@ -190,8 +201,10 @@ public class SchedulingInterceptor implements DispatchInterceptor, HandlerInterc
     }
 
     private void schedule(Object payload, Metadata metadata, Instant instant) {
-        schedule(new Schedule(payload, metadata, metadata.getOrDefault(
-                Schedule.scheduleIdMetadataKey, currentIdentityProvider().nextTechnicalId()), instant));
+        if (instant != null) {
+            schedule(new Schedule(payload, metadata, metadata.getOrDefault(
+                    Schedule.scheduleIdMetadataKey, currentIdentityProvider().nextTechnicalId()), instant));
+        }
     }
 
     private void schedule(Schedule schedule) {

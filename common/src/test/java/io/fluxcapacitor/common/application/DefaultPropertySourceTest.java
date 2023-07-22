@@ -15,22 +15,23 @@
 package io.fluxcapacitor.common.application;
 
 import io.fluxcapacitor.common.encryption.DefaultEncryption;
+import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
-import static io.fluxcapacitor.common.TestUtils.runWithSystemProperty;
+import static io.fluxcapacitor.common.TestUtils.runWithSystemProperties;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 class DefaultPropertySourceTest {
 
     @Test
     void fromSystemProperty() {
-        runWithSystemProperty(() -> assertEquals("bar", new DefaultPropertySource().get("foo")),
+        runWithSystemProperties(() -> assertEquals("bar", new DefaultPropertySource().get("foo")),
                               "foo", "bar");
     }
 
     @Test
     void fromApplicationPropertiesFile() {
-        runWithSystemProperty(() -> {
+        runWithSystemProperties(() -> {
             DefaultPropertySource source = new DefaultPropertySource();
             assertEquals("bar", source.get("propertiesFile.foo"));
             assertEquals("someOtherValue", source.get("foo"));
@@ -39,7 +40,7 @@ class DefaultPropertySourceTest {
 
     @Test
     void fromApplicationEnvironmentPropertiesFile() {
-        runWithSystemProperty(() -> {
+        runWithSystemProperties(() -> {
             var source = new DefaultPropertySource();
             assertEquals("envbar", source.get("propertiesFile.foo"));
             assertEquals("bar", source.get("envFile.foo"));
@@ -50,7 +51,52 @@ class DefaultPropertySourceTest {
     void decryptProperty() {
         DefaultEncryption encryption = new DefaultEncryption();
         var source = new DefaultPropertySource(encryption);
-        runWithSystemProperty(() -> assertEquals("foo_encrypted", source.get("encrypted")),
+        runWithSystemProperties(() -> assertEquals("foo_encrypted", source.get("encrypted")),
                               "encrypted", encryption.encrypt("foo_encrypted"));
+    }
+
+    @Nested
+    class PropertySubstitutions {
+        @Test
+        void noQuotes() {
+            runWithSystemProperties(() -> assertEquals("Template with foo", new DefaultPropertySource()
+                    .substituteProperties("Template with ${aba}")), "aba", "foo", "abb", "bar");
+        }
+
+        @Test
+        void propertyMissing() {
+            runWithSystemProperties(() -> assertEquals("Template with ", new DefaultPropertySource()
+                    .substituteProperties("Template with ${aba}")), "abb", "bar");
+        }
+
+        @Test
+        void nested() {
+            runWithSystemProperties(() -> assertEquals("Template with foo", new DefaultPropertySource()
+                    .substituteProperties("Template with ${aba${abb}}")), "abb", "bar", "ababar", "foo");
+        }
+
+        @Test
+        void referToOtherProperty() {
+            runWithSystemProperties(() -> assertEquals("Template with bar", new DefaultPropertySource()
+                    .substituteProperties("Template with ${aba}")), "aba", "${abb}", "abb", "bar");
+        }
+
+        @Test
+        void defaultValue_missing() {
+            runWithSystemProperties(() -> assertEquals("Template with foo:bar", new DefaultPropertySource()
+                    .substituteProperties("Template with ${aba:foo:bar}")));
+        }
+
+        @Test
+        void defaultValue_notMissing() {
+            runWithSystemProperties(() -> assertEquals("Template with bar", new DefaultPropertySource()
+                    .substituteProperties("Template with ${aba:foo}")), "aba", "bar");
+        }
+
+        @Test
+        void defaultValue_otherProperty() {
+            runWithSystemProperties(() -> assertEquals("Template with bar", new DefaultPropertySource()
+                    .substituteProperties("Template with ${aba:${abb}}")), "abb", "bar");
+        }
     }
 }
