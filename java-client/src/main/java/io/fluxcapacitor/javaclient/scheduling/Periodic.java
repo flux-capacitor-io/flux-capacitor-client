@@ -38,9 +38,9 @@ import static java.util.concurrent.TimeUnit.MILLISECONDS;
 @Inherited
 public @interface Periodic {
     /**
-     * Special expression that can be used to disable automatic periodic scheduling if passed to {@link #cron()}. If
-     * the schedule was already running and is disabled later on using this expression, any previously scheduled
-     * messages will be ignored.
+     * Special expression that can be used to disable automatic periodic scheduling if passed to {@link #cron()}. If the
+     * schedule was already running and is disabled later on using this expression, any previously scheduled messages
+     * will be ignored.
      */
     String DISABLED = "-";
 
@@ -83,15 +83,24 @@ public @interface Periodic {
     boolean autoStart() default true;
 
     /**
+     * Returns the schedule delay in {@link #timeUnit()} units. Only used if {@link #cron()} is blank, in which case
+     * this value should be a positive number.
+     */
+    long delay() default -1L;
+
+    /**
      * Returns true if the schedule should continue after an error. Defaults to {@code true}.
      */
     boolean continueOnError() default true;
 
     /**
-     * Returns the schedule delay in {@link #timeUnit()} units. Only used if {@link #cron()} is blank, in which case
-     * this value should be a positive number.
+     * Returns the schedule delay in {@link #timeUnit()} units after handling of the last schedule gave rise to an
+     * exception.
+     * <p>
+     * If this value is smaller than 0 (the default) this setting is ignored and the schedule will continue as if the
+     * exception hadn't been triggered. If {@link #continueOnError()} is false, this setting is ignored as well.
      */
-    long delay() default -1L;
+    long delayAfterError() default -1L;
 
     /**
      * Returns the unit for {@link #delay()} and {@link #initialDelay()}. Defaults to {@link TimeUnit#MILLISECONDS}.

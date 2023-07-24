@@ -151,9 +151,13 @@ public class SchedulingInterceptor implements DispatchInterceptor, HandlerInterc
                 Instant now = ofEpochMilli(deadline);
                 try {
                     result = function.apply(m);
-                } catch (Exception e) {
+                } catch (Throwable e) {
                     if (periodic != null && periodic.continueOnError()) {
-                        schedule(m, nextDeadline(periodic, now));
+                        if (periodic.delayAfterError() >= 0) {
+                            schedule(m, now.plusMillis(periodic.timeUnit().toMillis(periodic.delayAfterError())));
+                        } else {
+                            schedule(m, nextDeadline(periodic, now));
+                        }
                     }
                     throw e;
                 }

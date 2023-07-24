@@ -16,6 +16,7 @@ package io.fluxcapacitor.javaclient.givenwhenthen;
 
 import io.fluxcapacitor.common.TestUtils;
 import io.fluxcapacitor.javaclient.FluxCapacitor;
+import io.fluxcapacitor.javaclient.MockException;
 import io.fluxcapacitor.javaclient.scheduling.Periodic;
 import io.fluxcapacitor.javaclient.scheduling.Schedule;
 import io.fluxcapacitor.javaclient.test.GivenWhenThenAssertionError;
@@ -179,6 +180,59 @@ class GivenWhenThenSchedulingTest {
                         }
                     }).whenTimeElapses(Duration.ofMinutes(10))
                     .expectNoEvents().expectNoSchedules();
+        }
+    }
+
+    @Nested
+    class SchedulingErrorTests {
+        @Test
+        void stopAfterError() {
+            TestFixture.create(new Object() {
+                        @HandleSchedule
+                        @Periodic(continueOnError = false, delay = 60, timeUnit = TimeUnit.MINUTES)
+                        void handleSchedule(Object schedule) {
+                            throw new MockException();
+                        }
+                    })
+                    .whenTimeElapses(Duration.ofMinutes(10))
+                    .expectNoSchedules();
+        }
+
+        @Test
+        void continueAfterError() {
+            TestFixture.create(new Object() {
+                        private int count = 0;
+                        @HandleSchedule
+                        @Periodic(delay = 60, timeUnit = TimeUnit.MINUTES)
+                        void handleSchedule(Object schedule) {
+                            if (++count == 1) {
+                                throw new MockException();
+                            } else {
+                                FluxCapacitor.publishEvent("success");
+                            }
+                        }
+                    })
+                    .whenTimeElapses(Duration.ofMinutes(10))
+                    .expectSchedules(Object.class).expectNoEvents();
+        }
+
+        @Test
+        void otherDelayAfterError() {
+            TestFixture.create(new Object() {
+                        private int count = 0;
+
+                        @HandleSchedule
+                        @Periodic(delayAfterError = 10, delay = 60, timeUnit = TimeUnit.MINUTES)
+                        void handleSchedule(Object schedule) {
+                            if (++count == 1) {
+                                throw new MockException();
+                            } else {
+                                FluxCapacitor.publishEvent("success");
+                            }
+                        }
+                    })
+                    .whenTimeElapses(Duration.ofMinutes(10))
+                    .expectEvents("success");
         }
     }
 
