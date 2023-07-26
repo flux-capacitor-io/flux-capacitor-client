@@ -38,7 +38,7 @@
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
         <undertow.version>2.3.7.Final</undertow.version>
-        <kotlin.version>1.8.22</kotlin.version>
+        <kotlin.version>1.9.0</kotlin.version>
     </properties>
 
     <dependencies>
@@ -105,22 +105,15 @@
             <dependency>
                 <groupId>org.springframework</groupId>
                 <artifactId>spring-framework-bom</artifactId>
-                <version>6.0.10</version>
+                <version>6.0.11</version>
                 <scope>import</scope>
                 <type>pom</type>
-            </dependency>
-
-            <!--Version 3.8.7 has vulnerability CVE-2022-0084-->
-            <dependency>
-                <groupId>org.jboss.xnio</groupId>
-                <artifactId>xnio-api</artifactId>
-                <version>3.8.9.Final</version>
             </dependency>
 
             <dependency>
                 <groupId>org.junit</groupId>
                 <artifactId>junit-bom</artifactId>
-                <version>5.9.3</version>
+                <version>5.10.0</version>
                 <scope>import</scope>
                 <type>pom</type>
             </dependency>
