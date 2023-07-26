@@ -14,8 +14,13 @@
 
 package io.fluxcapacitor.javaclient.common;
 
+import io.fluxcapacitor.common.MemoizingBiFunction;
+import io.fluxcapacitor.common.MemoizingFunction;
+import io.fluxcapacitor.common.MemoizingSupplier;
+import io.fluxcapacitor.common.ObjectUtils;
 import io.fluxcapacitor.common.ThrowingRunnable;
 import io.fluxcapacitor.common.handling.HandlerInvoker;
+import io.fluxcapacitor.javaclient.FluxCapacitor;
 import io.fluxcapacitor.javaclient.tracking.handling.HandleSelf;
 import io.fluxcapacitor.javaclient.tracking.handling.LocalHandler;
 import lombok.SneakyThrows;
@@ -31,16 +36,16 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.function.BiFunction;
 import java.util.function.Function;
+import java.util.function.Supplier;
 
-import static io.fluxcapacitor.common.ObjectUtils.memoize;
 import static io.fluxcapacitor.common.reflection.ReflectionUtils.getAnnotatedMethods;
 import static io.fluxcapacitor.common.reflection.ReflectionUtils.getAnnotation;
 import static io.fluxcapacitor.common.reflection.ReflectionUtils.getTypeAnnotation;
 
 @Slf4j
 public class ClientUtils {
-    private static final BiFunction<Class<?>, java.lang.reflect.Executable, Optional<LocalHandler>> localHandlerCache = memoize(
-            (target, method) -> getAnnotation(method, LocalHandler.class)
+    private static final BiFunction<Class<?>, java.lang.reflect.Executable, Optional<LocalHandler>> localHandlerCache =
+            memoize((target, method) -> getAnnotation(method, LocalHandler.class)
                     .or(() -> Optional.ofNullable(getTypeAnnotation(target, LocalHandler.class))));
 
     private static final Function<Class<?>, Optional<HandleSelf>> handleSelfCache = memoize(
@@ -91,11 +96,37 @@ public class ClientUtils {
                 .orElse(true);
     }
 
-    public static Optional<LocalHandler> getLocalHandlerAnnotation(Class<?> target, java.lang.reflect.Executable method) {
+    public static Optional<LocalHandler> getLocalHandlerAnnotation(Class<?> target,
+                                                                   java.lang.reflect.Executable method) {
         return localHandlerCache.apply(target, method);
     }
 
     public static Optional<HandleSelf> getHandleSelfAnnotation(Class<?> target) {
         return handleSelfCache.apply(target);
+    }
+
+    public static <T> MemoizingSupplier<T> memoize(Supplier<T> supplier) {
+        return ObjectUtils.memoize(supplier);
+    }
+
+    public static <K, V> MemoizingFunction<K, V> memoize(Function<K, V> supplier) {
+        return ObjectUtils.memoize(supplier);
+    }
+
+    public static <T, U, R> MemoizingBiFunction<T, U, R> memoize(BiFunction<T, U, R> supplier) {
+        return ObjectUtils.memoize(supplier);
+    }
+
+    public static <T> MemoizingSupplier<T> memoize(Supplier<T> supplier, Duration lifespan) {
+        return new MemoizingSupplier<>(supplier, lifespan, FluxCapacitor::currentClock);
+    }
+
+    public static <K, V> MemoizingFunction<K, V> memoize(Function<K, V> supplier, Duration lifespan) {
+        return new MemoizingFunction<>(supplier, lifespan, FluxCapacitor::currentClock);
+    }
+
+    public static <T, U, R> MemoizingBiFunction<T, U, R> memoize(BiFunction<T, U, R> supplier,
+                                                                 Duration lifespan) {
+        return new MemoizingBiFunction<>(supplier, lifespan, FluxCapacitor::currentClock);
     }
 }

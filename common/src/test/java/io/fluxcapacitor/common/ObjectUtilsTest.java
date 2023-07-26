@@ -47,7 +47,7 @@ class ObjectUtilsTest {
     void memoizeAllowsNullKeys() {
         Function<Object, Object> mockFunction = mock(Function.class);
         when(mockFunction.apply(any())).thenReturn("foo");
-        ObjectUtils.MemoizingFunction<Object, Object> memoizingFunction = memoize(mockFunction);
+        MemoizingFunction<Object, Object> memoizingFunction = memoize(mockFunction);
         assertEquals("foo", memoizingFunction.apply(null));
         assertTrue(memoizingFunction.isCached(null));
         memoizingFunction.apply(null);
@@ -58,7 +58,7 @@ class ObjectUtilsTest {
     @Test
     void memoizeAllowsNullValues() {
         Function<Object, Object> mockFunction = mock(Function.class);
-        ObjectUtils.MemoizingFunction<Object, Object> memoizingFunction = memoize(mockFunction);
+        MemoizingFunction<Object, Object> memoizingFunction = memoize(mockFunction);
         assertNull(memoizingFunction.apply("foo"));
         assertTrue(memoizingFunction.isCached("foo"));
         memoizingFunction.apply("foo");

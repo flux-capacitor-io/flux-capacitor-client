@@ -14,7 +14,7 @@
 
 package io.fluxcapacitor.testserver;
 
-import io.fluxcapacitor.common.ObjectUtils;
+import io.fluxcapacitor.common.MemoizingFunction;
 import jakarta.websocket.CloseReason;
 import jakarta.websocket.Endpoint;
 import jakarta.websocket.EndpointConfig;
@@ -29,7 +29,7 @@ import static io.fluxcapacitor.common.ObjectUtils.memoize;
 @Slf4j
 public class MultiClientEndpoint extends Endpoint {
 
-    private final ObjectUtils.MemoizingFunction<String, Endpoint> endpointSupplier;
+    private final MemoizingFunction<String, Endpoint> endpointSupplier;
 
     public MultiClientEndpoint(Function<String, Endpoint> endpointSupplier) {
         this.endpointSupplier = memoize(endpointSupplier);

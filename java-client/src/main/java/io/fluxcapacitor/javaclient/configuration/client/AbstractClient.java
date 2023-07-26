@@ -14,8 +14,8 @@
 
 package io.fluxcapacitor.javaclient.configuration.client;
 
+import io.fluxcapacitor.common.MemoizingFunction;
 import io.fluxcapacitor.common.MessageType;
-import io.fluxcapacitor.common.ObjectUtils.MemoizingFunction;
 import io.fluxcapacitor.common.Registration;
 import io.fluxcapacitor.javaclient.common.ClientUtils;
 import io.fluxcapacitor.javaclient.persisting.eventsourcing.client.EventStoreClient;

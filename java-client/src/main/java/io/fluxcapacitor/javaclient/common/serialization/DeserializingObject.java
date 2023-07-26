@@ -14,7 +14,7 @@
 
 package io.fluxcapacitor.javaclient.common.serialization;
 
-import io.fluxcapacitor.common.ObjectUtils;
+import io.fluxcapacitor.common.MemoizingFunction;
 import io.fluxcapacitor.common.api.SerializedObject;
 import io.fluxcapacitor.common.reflection.ReflectionUtils;
 import lombok.SneakyThrows;
@@ -27,7 +27,7 @@ import static io.fluxcapacitor.common.ObjectUtils.memoize;
 @ToString(exclude = "object")
 public class DeserializingObject<T, S extends SerializedObject<T, S>> {
     private final S serializedObject;
-    private final ObjectUtils.MemoizingFunction<Class<?>, Object> object;
+    private final MemoizingFunction<Class<?>, Object> object;
 
     public DeserializingObject(S serializedObject, Function<Class<?>, Object> payload) {
         this.serializedObject = serializedObject;

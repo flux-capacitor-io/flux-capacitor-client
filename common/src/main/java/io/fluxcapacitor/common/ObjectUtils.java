@@ -14,7 +14,6 @@
 
 package io.fluxcapacitor.common;
 
-import lombok.AllArgsConstructor;
 import lombok.SneakyThrows;
 
 import java.io.StringReader;
@@ -43,7 +42,6 @@ import java.util.function.UnaryOperator;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 
-import static java.util.Optional.ofNullable;
 import static java.util.function.UnaryOperator.identity;
 
 public class ObjectUtils {
@@ -109,25 +107,8 @@ public class ObjectUtils {
         return Stream.of(value);
     }
 
-    public static <T> MemoizingSupplier<T> memoize(Supplier<T> supplier) {
-        return supplier instanceof MemoizingSupplier<T> existing ? existing : new MemoizingSupplier<>(supplier);
-    }
-
-    public static <K, V> MemoizingFunction<K, V> memoize(Function<K, V> supplier) {
-        return supplier instanceof MemoizingFunction<K, V> existing ? existing : new MemoizingFunction<>(supplier);
-    }
-
-    public static <T, U, R> MemoizingBiFunction<T, U, R> memoize(BiFunction<T, U, R> supplier) {
-        return supplier instanceof MemoizingBiFunction<T, U, R> existing
-                ? existing : new MemoizingBiFunction<>(supplier);
-    }
-
     public static Consumer<Runnable> ifTrue(boolean check) {
-        if (check) {
-            return Runnable::run;
-        }
-        return r -> {
-        };
+        return check ? Runnable::run : (r -> {});
     }
 
     @SneakyThrows
@@ -184,61 +165,16 @@ public class ObjectUtils {
         return result;
     }
 
-    public static class MemoizingSupplier<T> implements Supplier<T> {
-        private static final Object singleton = new Object();
-        private final MemoizingFunction<Object, T> delegate;
-
-        public MemoizingSupplier(Supplier<T> delegate) {
-            this.delegate = new MemoizingFunction<>(o -> delegate.get());
-        }
-
-        @Override
-        public T get() {
-            return delegate.apply(singleton);
-        }
-
-        public boolean isCached() {
-            return delegate.isCached(singleton);
-        }
+    public static <T> MemoizingSupplier<T> memoize(Supplier<T> supplier) {
+        return supplier instanceof MemoizingSupplier<T> existing ? existing : new MemoizingSupplier<>(supplier);
     }
 
-    @AllArgsConstructor
-    public static class MemoizingFunction<K, V> implements Function<K, V> {
-        private static final Object nullObject = new Object();
-        private final ConcurrentHashMap<Object, Object> map = new ConcurrentHashMap<>();
-        private final Function<K, V> delegate;
-
-        @SuppressWarnings("unchecked")
-        @Override
-        public V apply(K key) {
-            Object result = map.computeIfAbsent(
-                    Optional.<Object>ofNullable(key).orElse(nullObject),
-                    k -> ofNullable((Object) delegate.apply(k == nullObject ? null : key)).orElse(nullObject));
-            return result == nullObject ? null : (V) result;
-        }
-
-        public boolean isCached(K key) {
-            return key == null || map.containsKey(key);
-        }
+    public static <K, V> MemoizingFunction<K, V> memoize(Function<K, V> supplier) {
+        return supplier instanceof MemoizingFunction<K, V> existing ? existing : new MemoizingFunction<>(supplier);
     }
 
-    @AllArgsConstructor
-    public static class MemoizingBiFunction<T, U, R> implements BiFunction<T, U, R> {
-        private final MemoizingFunction<Pair<T, U>, R> function;
-
-        public MemoizingBiFunction(BiFunction<T, U, R> delegate) {
-            this.function = ObjectUtils.memoize(p -> delegate.apply(p.getFirst(), p.getSecond()));
-        }
-
-        @Override
-        public R apply(T t, U u) {
-            return function.apply(new Pair<>(t, u));
-        }
-
-        public boolean isCached(T t, U u) {
-            return function.isCached(new Pair<>(t, u));
-        }
-
+    public static <T, U, R> MemoizingBiFunction<T, U, R> memoize(BiFunction<T, U, R> supplier) {
+        return supplier instanceof MemoizingBiFunction<T, U, R> existing ? existing : new MemoizingBiFunction<>(supplier);
     }
 
     private static class BreakingSpliterator<T> extends Spliterators.AbstractSpliterator<T> {
