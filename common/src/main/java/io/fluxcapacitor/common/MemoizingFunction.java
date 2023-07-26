@@ -44,16 +44,12 @@ public class MemoizingFunction<K, V> implements Function<K, V> {
     public V apply(K key) {
         Entry result = map.compute(
                 Optional.<Object>ofNullable(key).orElse(nullValue),
-                (k, v) -> {
-                    Entry entry =
-                            v == null || (v.expiry != null && v.expiry.isBefore(clock.get().instant())) ? ofNullable(
-                                    delegate.apply(k == nullValue ? null : key))
-                                    .map(value -> new Entry(value,
-                                                            lifespan == null ? null :
-                                                                    clock.get().instant().plus(lifespan)))
-                                    .orElse(nullValue) : v;
-                    return entry;
-                });
+                (k, v) -> v == null || (v.expiry != null && v.expiry.isBefore(clock.get().instant())) ? ofNullable(
+                        delegate.apply(k == nullValue ? null : key))
+                        .map(value -> new Entry(value,
+                                                lifespan == null ? null :
+                                                        clock.get().instant().plus(lifespan)))
+                        .orElse(nullValue) : v);
         return (V) result.getValue();
     }
 
