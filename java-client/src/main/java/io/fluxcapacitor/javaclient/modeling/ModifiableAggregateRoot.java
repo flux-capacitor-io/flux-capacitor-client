@@ -111,18 +111,17 @@ public class ModifiableAggregateRoot<T> extends DelegatingEntity<T> {
         if (assertLegal) {
             entityHelper.assertLegal(message, this);
         }
-        Message m = dispatchInterceptor.interceptDispatch(message, EVENT)
-                .addMetadata(Entity.AGGREGATE_ID_METADATA_KEY, id().toString(),
-                             Entity.AGGREGATE_TYPE_METADATA_KEY, type().getName(),
-                             Entity.AGGREGATE_SN_METADATA_KEY, String.valueOf(getDelegate().sequenceNumber() + 1L));
-        DeserializingMessage eventMessage = new DeserializingMessage(
-                dispatchInterceptor.modifySerializedMessage(m.serialize(serializer), m, EVENT),
-                type -> serializer.convert(m.getPayload(), type), EVENT);
         try {
             applying = true;
             handleUpdate(a -> {
-                Entity<T> result = a.apply(eventMessage);
-                applied.add(eventMessage);
+                Entity<T> result = a.apply(new DeserializingMessage(message, EVENT, serializer));
+                Message m = dispatchInterceptor.interceptDispatch(message, EVENT)
+                        .addMetadata(Entity.AGGREGATE_ID_METADATA_KEY, id().toString(),
+                                     Entity.AGGREGATE_TYPE_METADATA_KEY, type().getName(),
+                                     Entity.AGGREGATE_SN_METADATA_KEY, String.valueOf(getDelegate().sequenceNumber() + 1L));
+                applied.add(new DeserializingMessage(
+                        dispatchInterceptor.modifySerializedMessage(m.serialize(serializer), m, EVENT),
+                        type -> serializer.convert(m.getPayload(), type), EVENT));
                 return result;
             });
         } finally {
