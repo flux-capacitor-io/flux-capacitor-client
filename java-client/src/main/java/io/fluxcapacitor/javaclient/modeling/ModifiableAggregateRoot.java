@@ -28,6 +28,7 @@ import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Supplier;
@@ -35,6 +36,7 @@ import java.util.function.UnaryOperator;
 import java.util.stream.Collectors;
 
 import static io.fluxcapacitor.common.MessageType.EVENT;
+import static io.fluxcapacitor.javaclient.modeling.EventPublication.IF_MODIFIED;
 import static java.util.Optional.ofNullable;
 
 @ToString(onlyExplicitlyIncluded = true)
@@ -51,16 +53,18 @@ public class ModifiableAggregateRoot<T> extends DelegatingEntity<T> {
 
     public static <T> ModifiableAggregateRoot<T> load(
             Object aggregateId, Supplier<ImmutableEntity<T>> loader, boolean commitInBatch,
-            Serializer serializer, DispatchInterceptor dispatchInterceptor, CommitHandler commitHandler) {
+            EventPublication eventPublication, Serializer serializer, DispatchInterceptor dispatchInterceptor,
+            CommitHandler commitHandler) {
         return ModifiableAggregateRoot.<T>getIfActive(aggregateId).orElseGet(
                 () -> new ModifiableAggregateRoot<>(
-                        loader.get(), commitInBatch, serializer, dispatchInterceptor, commitHandler));
+                        loader.get(), commitInBatch, eventPublication, serializer, dispatchInterceptor, commitHandler));
     }
 
     private Entity<T> lastCommitted;
     private Entity<T> lastStable;
-
     private final boolean commitInBatch;
+
+    private final EventPublication eventPublication;
     private final EntityHelper entityHelper;
     private final Serializer serializer;
     private final DispatchInterceptor dispatchInterceptor;
@@ -73,13 +77,14 @@ public class ModifiableAggregateRoot<T> extends DelegatingEntity<T> {
     private volatile boolean applying;
 
     protected ModifiableAggregateRoot(ImmutableEntity<T> delegate, boolean commitInBatch,
-                                      Serializer serializer, DispatchInterceptor dispatchInterceptor,
-                                      CommitHandler commitHandler) {
+                                      EventPublication eventPublication, Serializer serializer,
+                                      DispatchInterceptor dispatchInterceptor, CommitHandler commitHandler) {
         super(delegate);
         this.entityHelper = delegate.entityHelper();
         this.lastCommitted = delegate;
         this.lastStable = delegate;
         this.commitInBatch = commitInBatch;
+        this.eventPublication = eventPublication;
         this.serializer = serializer;
         this.dispatchInterceptor = dispatchInterceptor;
         this.commitHandler = commitHandler;
@@ -114,14 +119,24 @@ public class ModifiableAggregateRoot<T> extends DelegatingEntity<T> {
         try {
             applying = true;
             handleUpdate(a -> {
+                int hashCodeBefore = eventPublication == IF_MODIFIED ? a.get() == null ? -1 : a.get().hashCode() : -1;
                 Entity<T> result = a.apply(new DeserializingMessage(message, EVENT, serializer));
-                Message m = dispatchInterceptor.interceptDispatch(message, EVENT)
-                        .addMetadata(Entity.AGGREGATE_ID_METADATA_KEY, id().toString(),
-                                     Entity.AGGREGATE_TYPE_METADATA_KEY, type().getName(),
-                                     Entity.AGGREGATE_SN_METADATA_KEY, String.valueOf(getDelegate().sequenceNumber() + 1L));
-                applied.add(new DeserializingMessage(
-                        dispatchInterceptor.modifySerializedMessage(m.serialize(serializer), m, EVENT),
-                        type -> serializer.convert(m.getPayload(), type), EVENT));
+                if (switch (eventPublication) {
+                    case ALWAYS -> true;
+                    case IF_MODIFIED -> !Objects.equals(a.get(), result.get())
+                                        || (result.get() != null && result.get().hashCode() != hashCodeBefore);
+                    case NEVER -> false;
+                }) {
+                    Message m = dispatchInterceptor.interceptDispatch(message, EVENT)
+                            .addMetadata(Entity.AGGREGATE_ID_METADATA_KEY, id().toString(),
+                                         Entity.AGGREGATE_TYPE_METADATA_KEY, type().getName(),
+                                         Entity.AGGREGATE_SN_METADATA_KEY,
+                                         String.valueOf(getDelegate().sequenceNumber() + 1L));
+                    var serializedEvent =
+                            dispatchInterceptor.modifySerializedMessage(m.serialize(serializer), m, EVENT);
+                    applied.add(new DeserializingMessage(
+                            serializedEvent, type -> serializer.convert(m.getPayload(), type), EVENT));
+                }
                 return result;
             });
         } finally {

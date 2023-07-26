@@ -37,9 +37,9 @@ public class DefaultPropertySource implements PropertySource {
                              return DefaultEncryption.fromEncryptionKey(encodedKey);
                          } catch (Exception e) {
                              log.error("Could not construct DefaultEncryption from environment variable `ENCRYPTION_KEY`");
-                             return NoOpEncryption.instance;
+                             return NoOpEncryption.INSTANCE;
                          }
-                     }).orElse(NoOpEncryption.instance));
+                     }).orElse(NoOpEncryption.INSTANCE));
     }
 
     public DefaultPropertySource(String encryptionKey) {
@@ -49,7 +49,7 @@ public class DefaultPropertySource implements PropertySource {
     public DefaultPropertySource(Encryption encryption) {
         this.encryption = encryption;
         this.delegate = PropertySource.join(
-                EnvironmentVariablesSource.instance, new SystemPropertiesSource(encryption),
+                EnvironmentVariablesSource.INSTANCE, new SystemPropertiesSource(encryption),
                 new ApplicationEnvironmentPropertiesSource(encryption),
                 new ApplicationPropertiesSource(encryption));
     }

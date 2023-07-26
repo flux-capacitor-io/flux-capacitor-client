@@ -28,6 +28,7 @@ import io.fluxcapacitor.javaclient.modeling.DefaultEntityHelper;
 import io.fluxcapacitor.javaclient.modeling.Entity;
 import io.fluxcapacitor.javaclient.modeling.EntityHelper;
 import io.fluxcapacitor.javaclient.modeling.EntityId;
+import io.fluxcapacitor.javaclient.modeling.EventPublication;
 import io.fluxcapacitor.javaclient.modeling.ImmutableAggregateRoot;
 import io.fluxcapacitor.javaclient.modeling.ModifiableAggregateRoot;
 import io.fluxcapacitor.javaclient.modeling.NoOpEntity;
@@ -140,6 +141,7 @@ public class DefaultAggregateRepository implements AggregateRepository {
         private final Cache relationshipsCache;
         private final boolean eventSourced;
         private final boolean commitInBatch;
+        private final EventPublication eventPublication;
         private final SnapshotTrigger snapshotTrigger;
         private final SnapshotStore snapshotStore;
         private final boolean searchable;
@@ -158,6 +160,7 @@ public class DefaultAggregateRepository implements AggregateRepository {
                     ? DefaultAggregateRepository.this.relationshipsCache : NoOpCache.INSTANCE;
             this.eventSourced = annotation.eventSourced();
             this.commitInBatch = annotation.commitInBatch();
+            this.eventPublication = annotation.eventPublication();
             int snapshotPeriod = annotation.eventSourced() || annotation.searchable() ? annotation.snapshotPeriod() : 1;
             this.snapshotTrigger = snapshotPeriod > 0 ? new PeriodicSnapshotTrigger(snapshotPeriod) :
                     NoSnapshotTrigger.INSTANCE;
@@ -197,7 +200,7 @@ public class DefaultAggregateRepository implements AggregateRepository {
                             }
                         }
                         return eventSourceModel(loadSnapshot(id));
-                    }), commitInBatch, serializer, dispatchInterceptor, this::commit);
+                    }), commitInBatch, eventPublication, serializer, dispatchInterceptor, this::commit);
         }
 
         protected ImmutableAggregateRoot<T> loadSnapshot(Object id) {
