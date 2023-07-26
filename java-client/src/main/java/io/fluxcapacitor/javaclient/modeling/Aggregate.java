@@ -14,6 +14,8 @@
 
 package io.fluxcapacitor.javaclient.modeling;
 
+import io.fluxcapacitor.javaclient.persisting.eventsourcing.InterceptApply;
+
 import java.lang.annotation.Documented;
 import java.lang.annotation.ElementType;
 import java.lang.annotation.Inherited;
@@ -37,9 +39,21 @@ public @interface Aggregate {
 
     boolean commitInBatch() default true;
 
+    /**
+     * Setting to control event publication.
+     * <p>
+     * Use {@code @Aggregate(eventPublication = IF_MODIFIED)} to stop events from being published if the aggregate does
+     * not change, removing the need for dedicated {@link InterceptApply} methods for this.
+     * <p>
+     * Use {@code @Aggregate(eventPublication = NEVER)} to prevent event publication altogether. This is useful because
+     * it allows command application on aggregates with {@code eventSourcing = false} without giving rise to events.
+     */
+    EventPublication eventPublication() default EventPublication.ALWAYS;
+
     boolean searchable() default false;
 
     String collection() default "";
 
     String timestampPath() default "";
+
 }

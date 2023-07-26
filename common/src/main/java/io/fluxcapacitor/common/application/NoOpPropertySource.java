@@ -15,7 +15,7 @@
 package io.fluxcapacitor.common.application;
 
 public enum NoOpPropertySource implements PropertySource {
-    instance;
+    INSTANCE;
 
     @Override
     public String get(String name) {

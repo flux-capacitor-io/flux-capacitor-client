@@ -15,7 +15,7 @@
 package io.fluxcapacitor.common.encryption;
 
 public enum NoOpEncryption implements Encryption {
-    instance;
+    INSTANCE;
 
     @Override
     public String encrypt(String value) {

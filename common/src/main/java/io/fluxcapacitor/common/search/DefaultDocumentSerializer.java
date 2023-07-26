@@ -33,7 +33,6 @@ import static io.fluxcapacitor.common.serialization.compression.CompressionUtils
 import static io.fluxcapacitor.common.serialization.compression.CompressionUtils.decompress;
 
 public enum DefaultDocumentSerializer {
-
     INSTANCE;
 
     private static final int currentVersion = 0;

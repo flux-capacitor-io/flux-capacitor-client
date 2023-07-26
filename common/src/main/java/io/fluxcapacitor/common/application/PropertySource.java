@@ -83,6 +83,6 @@ public interface PropertySource {
     }
 
     static PropertySource join(PropertySource... propertySources) {
-        return Arrays.stream(propertySources).reduce(PropertySource::merge).orElse(NoOpPropertySource.instance);
+        return Arrays.stream(propertySources).reduce(PropertySource::merge).orElse(NoOpPropertySource.INSTANCE);
     }
 }

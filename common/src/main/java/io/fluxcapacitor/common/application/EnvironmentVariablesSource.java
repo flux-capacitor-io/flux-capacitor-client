@@ -15,7 +15,7 @@
 package io.fluxcapacitor.common.application;
 
 public enum EnvironmentVariablesSource implements PropertySource {
-    instance;
+    INSTANCE;
 
     @Override
     public String get(String name) {

@@ -28,6 +28,7 @@ import io.fluxcapacitor.javaclient.persisting.eventsourcing.client.EventStoreCli
 import io.fluxcapacitor.javaclient.test.TestFixture;
 import io.fluxcapacitor.javaclient.tracking.handling.HandleCommand;
 import io.fluxcapacitor.javaclient.tracking.handling.HandleQuery;
+import io.fluxcapacitor.javaclient.tracking.handling.HandleSelf;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.NoArgsConstructor;
@@ -42,7 +43,11 @@ import java.util.List;
 import java.util.Optional;
 
 import static io.fluxcapacitor.javaclient.FluxCapacitor.loadAggregate;
+import static io.fluxcapacitor.javaclient.modeling.EventPublication.ALWAYS;
+import static io.fluxcapacitor.javaclient.modeling.EventPublication.IF_MODIFIED;
+import static io.fluxcapacitor.javaclient.modeling.EventPublication.NEVER;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
@@ -232,6 +237,120 @@ class EventSourcingRepositoryTest {
                 loadAggregate(aggregateId).apply("nonsense");
             }
 
+        }
+    }
+
+    @Nested
+    class EventPublicationTests {
+
+        final TestFixture testFixture = TestFixture.create();;
+
+        @Test
+        void publishIfModified_newAggregate() {
+            testFixture.whenCommand(new SelfApplyingCommand(PublishIfModifiedModel.class))
+                    .expectEvents(SelfApplyingCommand.class);
+        }
+
+        @Test
+        void publishIfModified_unmodified() {
+            var command = new SelfApplyingCommand(PublishIfModifiedModel.class);
+            testFixture.givenCommands(command).whenCommand(command).expectNoEvents();
+        }
+
+        @Test
+        void publishIfModified_modified() {
+            SelfApplyingCommand a = new SelfApplyingCommand(PublishIfModifiedModel.class);
+            SelfApplyingCommand b = new SelfApplyingCommand(PublishIfModifiedModel.class);
+            assertNotEquals(a, b);
+            testFixture.givenCommands(a).whenCommand(b).expectEvents(b);
+        }
+
+        @Test
+        void publishAlways_newAggregate() {
+            testFixture.whenCommand(new SelfApplyingCommand(PublishAlwaysModel.class))
+                    .expectEvents(SelfApplyingCommand.class);
+        }
+
+        @Test
+        void publishAlways_unmodified() {
+            var command = new SelfApplyingCommand(PublishAlwaysModel.class);
+            testFixture.givenCommands(command).whenCommand(command).expectEvents(SelfApplyingCommand.class);
+        }
+
+        @Test
+        void publishAlways_modified() {
+            SelfApplyingCommand a = new SelfApplyingCommand(PublishIfModifiedModel.class);
+            SelfApplyingCommand b = new SelfApplyingCommand(PublishIfModifiedModel.class);
+            testFixture.givenCommands(a).whenCommand(b).expectEvents(b);
+        }
+
+        @Test
+        void publishNever_newAggregate() {
+            testFixture.whenCommand(new SelfApplyingCommand(PublishNeverModel.class))
+                    .expectNoEvents();
+        }
+
+        @Test
+        void publishNever_unmodified() {
+            var command = new SelfApplyingCommand(PublishNeverModel.class);
+            testFixture.givenCommands(command).whenCommand(command).expectNoEvents();
+        }
+
+        @Test
+        void publishNever_modified() {
+            SelfApplyingCommand a = new SelfApplyingCommand(PublishNeverModel.class);
+            SelfApplyingCommand b = new SelfApplyingCommand(PublishNeverModel.class);
+            testFixture.givenCommands(a).whenCommand(b).expectNoEvents();
+        }
+
+
+        @AllArgsConstructor
+        class SelfApplyingCommand {
+            Class<?> aggregateClass;
+
+            @HandleSelf
+            void handle() {
+                loadAggregate("test", aggregateClass).assertAndApply(this);
+            }
+        }
+    }
+
+
+    @Aggregate(eventPublication = IF_MODIFIED)
+    @Value
+    static class PublishIfModifiedModel {
+        Object event;
+
+        @Apply
+        PublishIfModifiedModel(Object event) {
+            this.event = event;
+        }
+
+        @Apply
+        PublishIfModifiedModel apply(Object event) {
+            return new PublishIfModifiedModel(event);
+        }
+    }
+
+    @Aggregate(eventPublication = ALWAYS)
+    @Value
+    static class PublishAlwaysModel {
+        Object event;
+
+        @Apply
+        PublishAlwaysModel(Object event) {
+            this.event = event;
+        }
+    }
+
+    @Aggregate(eventPublication = NEVER)
+    @Value
+    static class PublishNeverModel {
+        Object event;
+
+        @Apply
+        PublishNeverModel(Object event) {
+            this.event = event;
         }
     }
 
