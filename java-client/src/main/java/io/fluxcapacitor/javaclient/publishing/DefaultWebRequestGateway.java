@@ -14,11 +14,52 @@
 
 package io.fluxcapacitor.javaclient.publishing;
 
+import io.fluxcapacitor.common.Guarantee;
+import io.fluxcapacitor.javaclient.web.WebRequest;
+import io.fluxcapacitor.javaclient.web.WebRequestSettings;
+import io.fluxcapacitor.javaclient.web.WebResponse;
 import lombok.AllArgsConstructor;
+import lombok.SneakyThrows;
 import lombok.experimental.Delegate;
+
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
+
+import static java.lang.String.format;
+import static java.lang.Thread.currentThread;
+import static java.util.concurrent.TimeUnit.MILLISECONDS;
 
 @AllArgsConstructor
 public class DefaultWebRequestGateway implements WebRequestGateway {
     @Delegate
     private final GenericGateway delegate;
+
+    @Override
+    public CompletableFuture<Void> sendAndForget(Guarantee guarantee, WebRequest... requests) {
+        return delegate.sendAndForget(guarantee, requests);
+    }
+
+    @SuppressWarnings({"unchecked", "rawtypes"})
+    @Override
+    public CompletableFuture<WebResponse> send(WebRequest request) {
+        return (CompletableFuture) delegate.sendForMessage(request);
+    }
+
+    @Override
+    @SneakyThrows
+    public WebResponse sendAndWait(WebRequest request, WebRequestSettings settings) {
+        try {
+            return (WebResponse) delegate.send(request).get(settings.getTimeout().toMillis() + 1000L, MILLISECONDS);
+        } catch (java.util.concurrent.TimeoutException e) {
+            throw new TimeoutException(format("Request %s (url %s) has timed out", request.getMessageId(),
+                                              WebRequest.getUrl(request.getMetadata())));
+        } catch (InterruptedException e) {
+            currentThread().interrupt();
+            throw new GatewayException(
+                    format("Thread interrupted while waiting for result of %s (url %s)",
+                           request.getMessageId(), WebRequest.getUrl(request.getMetadata())), e);
+        } catch (ExecutionException e) {
+            throw e.getCause();
+        }
+    }
 }

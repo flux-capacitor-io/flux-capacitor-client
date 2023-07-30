@@ -76,6 +76,7 @@ public class WebRequestForwardingTest extends Application {
     void testGet() {
         testFixture.whenWebRequest(WebRequest.builder().method(HttpRequestMethod.GET).url("/get").build())
                 .expectThat(fc -> verify(fc.client().getGatewayClient(MessageType.WEBRESPONSE)).send(any(), any()))
+                .<WebResponse>mapResult(WebResponse::getPayload)
                 .expectResult("get".getBytes());
     }
 
@@ -84,6 +85,7 @@ public class WebRequestForwardingTest extends Application {
         testFixture.whenWebRequest(WebRequest.builder().method(HttpRequestMethod.POST).url("/string").payload("test").build())
                 .expectThat(fc -> verify(fc.client().getGatewayClient(MessageType.WEBRESPONSE)).send(
                         any(), ArgumentMatchers.<SerializedMessage>argThat(message -> "200".equals(message.getMetadata().get("status")))))
+                .<WebResponse>mapResult(WebResponse::getPayload)
                 .expectResult("test".getBytes());
     }
 
@@ -92,6 +94,7 @@ public class WebRequestForwardingTest extends Application {
         testFixture.whenWebRequest(WebRequest.builder().method(HttpRequestMethod.POST).url("/object").payload(new Foo("bar")).build())
                 .expectThat(fc -> verify(fc.client().getGatewayClient(MessageType.WEBRESPONSE)).send(
                         any(), ArgumentMatchers.<SerializedMessage>argThat(message -> "200".equals(message.getMetadata().get("status")))))
+                .<WebResponse>mapResult(WebResponse::getPayload)
                 .expectResult("object".getBytes());
     }
 

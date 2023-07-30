@@ -34,6 +34,14 @@ public class ApplicationProperties {
         return Optional.ofNullable(getProperty(name)).map("true"::equalsIgnoreCase).orElse(defaultValue);
     }
 
+    public static Integer getIntegerProperty(String name) {
+        return getIntegerProperty(name, null);
+    }
+
+    public static Integer getIntegerProperty(String name, Integer defaultValue) {
+        return Optional.ofNullable(getProperty(name)).map(Integer::valueOf).orElse(defaultValue);
+    }
+
     public static String getProperty(String name, String defaultValue) {
         return Optional.ofNullable(getProperty(name)).orElse(defaultValue);
     }

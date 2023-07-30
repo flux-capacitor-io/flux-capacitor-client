@@ -14,25 +14,37 @@
 
 package io.fluxcapacitor.proxy;
 
+import io.fluxcapacitor.common.MessageType;
 import io.fluxcapacitor.common.Registration;
 import io.fluxcapacitor.javaclient.configuration.client.Client;
 import io.fluxcapacitor.javaclient.configuration.client.WebSocketClient;
+import io.fluxcapacitor.javaclient.tracking.ConsumerConfiguration;
+import io.fluxcapacitor.javaclient.tracking.client.DefaultTracker;
 import io.undertow.Undertow;
 import lombok.extern.slf4j.Slf4j;
 
 import java.util.Optional;
 
+import static io.fluxcapacitor.javaclient.configuration.ApplicationProperties.getIntegerProperty;
+import static io.fluxcapacitor.javaclient.configuration.ApplicationProperties.getProperty;
 import static io.undertow.Handlers.path;
 
 @Slf4j
 public class ProxyServer {
     public static void main(final String[] args) {
         Thread.setDefaultUncaughtExceptionHandler((t, e) -> log.error("Uncaught error", e));
-        int port = Integer.parseInt(Optional.ofNullable(System.getenv("PROXY_PORT")).orElse("80"));
-        Client client = Optional.ofNullable(System.getenv("FLUX_URL")).<Client>map(url -> WebSocketClient.newInstance(
-                WebSocketClient.ClientConfig.builder().name("$proxy").serviceBaseUrl(url).build()))
+        int port = getIntegerProperty("PROXY_PORT", 80);
+        Client client = Optional.ofNullable(getProperty("FLUX_URL")).<Client>map(url -> WebSocketClient.newInstance(
+                        WebSocketClient.ClientConfig.builder().name("$proxy").serviceBaseUrl(url).build()))
                 .orElseThrow(() -> new IllegalStateException("FLUX_URL environment variable is not set"));
-        start(port, new ProxyRequestHandler(client));
+        Registration registration =
+                start(port, new ProxyRequestHandler(client)).merge(startTrackingExternalRequests(client));
+        log.info("Flux Capacitor proxy server running on port {}", port);
+
+        Runtime.getRuntime().addShutdownHook(new Thread(() -> {
+            log.info("Stopping Flux Capacitor proxy server");
+            registration.cancel();
+        }));
     }
 
     public static Registration start(int port, ProxyRequestHandler proxyHandler) {
@@ -40,10 +52,15 @@ public class ProxyServer {
                 .setHandler(path().addPrefixPath("/", proxyHandler))
                 .build();
         server.start();
-        log.info("Flux Capacitor proxy server running on port {}", port);
         return () -> {
             proxyHandler.close();
             server.stop();
         };
+    }
+
+    public static Registration startTrackingExternalRequests(Client client) {
+        return DefaultTracker.start(new ExternalRequestConsumer(client), MessageType.WEBREQUEST,
+                                    ConsumerConfiguration.builder().name("external-request-consumer").threads(4)
+                                            .build(), client);
     }
 }

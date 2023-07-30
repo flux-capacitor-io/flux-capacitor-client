@@ -395,8 +395,8 @@ public class TestFixture implements Given, When {
     @Override
     public Then whenWebRequest(WebRequest request) {
         return whenApplying(fc -> request.getMethod().isWebsocket()
-                ? fc.webRequestGateway().sendAndForget(Guarantee.STORED, trace(request))
-                : getDispatchResult(fc.webRequestGateway().send(trace(request))));
+                ? fc.webRequestGateway().sendAndForget(Guarantee.STORED, (WebRequest) trace(request))
+                : getDispatchResult(fc.webRequestGateway().send((WebRequest) trace(request))));
     }
 
     @Override

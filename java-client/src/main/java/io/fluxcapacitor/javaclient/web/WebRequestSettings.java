@@ -14,17 +14,15 @@
 
 package io.fluxcapacitor.javaclient.web;
 
-import lombok.AccessLevel;
-import lombok.Getter;
+import lombok.Builder;
+import lombok.Builder.Default;
 import lombok.Value;
 
-@Value
-public class WebParameters {
-    @Getter(AccessLevel.NONE)
-    String value;
-    HttpRequestMethod method;
+import java.time.Duration;
 
-    public String getPath() {
-        return value.startsWith("/") || value.contains("://") ? value : "/" + value;
-    }
+@Value
+@Builder(toBuilder = true)
+public class WebRequestSettings {
+    @Default HttpVersion httpVersion = HttpVersion.HTTP_1_1;
+    @Default Duration timeout = Duration.ofMinutes(1);
 }

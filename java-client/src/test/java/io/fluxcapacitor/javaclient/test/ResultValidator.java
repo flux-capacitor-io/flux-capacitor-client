@@ -24,6 +24,7 @@ import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NonNull;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang3.builder.EqualsBuilder;
 import org.hamcrest.Matcher;
 
 import java.util.ArrayList;
@@ -33,6 +34,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.function.Consumer;
+import java.util.function.Function;
 import java.util.function.Predicate;
 import java.util.stream.Stream;
 
@@ -47,15 +49,17 @@ public class ResultValidator implements Then {
 
     @Getter(AccessLevel.PROTECTED)
     private final FluxCapacitor fluxCapacitor;
-    private final Object result;
+    private Object result;
     private final List<Message> events, commands, webRequests, webResponses, metrics;
     private final List<Schedule> newSchedules;
     private final List<Schedule> allSchedules;
     private final List<Throwable> errors;
 
     @Override
-    public Then expectOnlyEvents(Object... events) {
-        return expectOnly(asMessages(events), this.events);
+    @SuppressWarnings("unchecked")
+    public <R> Then mapResult(Function<R, Object> resultMapper) {
+        result = resultMapper.apply((R) result);
+        return this;
     }
 
     @Override
@@ -64,18 +68,23 @@ public class ResultValidator implements Then {
     }
 
     @Override
+    public Then expectOnlyEvents(Object... events) {
+        return expectOnly(asMessages(events), this.events);
+    }
+
+    @Override
     public Then expectNoEventsLike(Object... events) {
         return expectNo(asMessages(events), this.events);
     }
 
     @Override
-    public Then expectOnlyCommands(Object... commands) {
-        return expectOnly(asMessages(commands), this.commands);
+    public Then expectCommands(Object... commands) {
+        return expect(asMessages(commands), this.commands);
     }
 
     @Override
-    public Then expectCommands(Object... commands) {
-        return expect(asMessages(commands), this.commands);
+    public Then expectOnlyCommands(Object... commands) {
+        return expectOnly(asMessages(commands), this.commands);
     }
 
     @Override
@@ -470,8 +479,10 @@ public class ResultValidator implements Then {
                 ((WebRequest) expected).getMethod(), ((WebRequest) actual).getMethod())) {
             return false;
         }
-        return expectedMessage.getPayload().equals(actual.getPayload()) && actual.getMetadata().entrySet()
-                .containsAll(expectedMessage.getMetadata().entrySet());
+        if (!actual.getMetadata().entrySet().containsAll(expectedMessage.getMetadata().entrySet())) {
+            return false;
+        }
+        return new EqualsBuilder().append(expectedMessage.getPayload(), (Object) actual.getPayload()).isEquals();
     }
 
     protected Collection<?> asMessages(Object... expectedMessages) {

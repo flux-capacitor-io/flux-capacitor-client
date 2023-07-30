@@ -22,6 +22,7 @@ import io.fluxcapacitor.javaclient.common.serialization.DeserializingMessage;
 import io.fluxcapacitor.javaclient.common.serialization.Serializer;
 import io.fluxcapacitor.javaclient.publishing.client.GatewayClient;
 import io.fluxcapacitor.javaclient.tracking.handling.HandlerRegistry;
+import io.fluxcapacitor.javaclient.web.WebResponse;
 import lombok.AllArgsConstructor;
 import lombok.SneakyThrows;
 import lombok.experimental.Delegate;
@@ -94,6 +95,9 @@ public class DefaultGenericGateway implements GenericGateway {
                     = localHandlerRegistry.handle(new DeserializingMessage(message, messageType, serializer));
             if (localResult.isPresent()) {
                 CompletableFuture<Message> c = localResult.get();
+                if (messageType == MessageType.WEBREQUEST) {
+                    c = c.thenApply(WebResponse::new);
+                }
                 String messageId = message.getMessageId();
                 callbacks.put(messageId, c);
                 results.add(c.whenComplete((m, e) -> callbacks.remove(messageId)));
@@ -119,7 +123,11 @@ public class DefaultGenericGateway implements GenericGateway {
                     if (result instanceof Throwable) {
                         return CompletableFuture.failedFuture((Throwable) result);
                     } else {
-                        return CompletableFuture.completedFuture(new Message(result, m.getMetadata()));
+                        Message message = new Message(result, m.getMetadata());
+                        if (messageType == MessageType.WEBREQUEST) {
+                            message = new WebResponse(message);
+                        }
+                        return CompletableFuture.completedFuture(message);
                     }
                 })).toList();
 

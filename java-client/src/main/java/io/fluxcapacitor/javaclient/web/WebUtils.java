@@ -30,6 +30,7 @@ import static org.apache.commons.lang3.StringUtils.isBlank;
 
 public class WebUtils {
 
+
     public static String toString(@NonNull HttpCookie cookie) {
         StringBuilder sb = new StringBuilder();
         sb.append(cookie.getName()).append("=").append(URLEncoder.encode(cookie.getValue(), StandardCharsets.UTF_8));

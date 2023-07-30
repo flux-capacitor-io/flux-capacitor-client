@@ -15,38 +15,21 @@
 package io.fluxcapacitor.javaclient.publishing;
 
 import io.fluxcapacitor.common.Guarantee;
-import io.fluxcapacitor.common.api.Metadata;
-import io.fluxcapacitor.javaclient.common.Message;
 import io.fluxcapacitor.javaclient.tracking.handling.HasLocalHandlers;
+import io.fluxcapacitor.javaclient.web.WebRequest;
+import io.fluxcapacitor.javaclient.web.WebRequestSettings;
+import io.fluxcapacitor.javaclient.web.WebResponse;
 
-import java.util.List;
 import java.util.concurrent.CompletableFuture;
 
 public interface WebRequestGateway extends HasLocalHandlers {
+    WebRequestSettings defaultSettings = WebRequestSettings.builder().build();
 
-    void sendAndForget(Object request);
-
-    void sendAndForget(Object payload, Metadata metadata);
-
-    void sendAndForget(Object payload, Metadata metadata, Guarantee guarantee);
-
-    void sendAndForget(Object... messages);
-
-    CompletableFuture<Void> sendAndForget(Guarantee guarantee, Object... messages);
-
-    <R> CompletableFuture<R> send(Object request);
-
-    <R> CompletableFuture<R> send(Object payload, Metadata metadata);
-
-    CompletableFuture<Message> sendForMessage(Message message);
-
-    <R> List<CompletableFuture<R>> send(Object... messages);
-
-    List<CompletableFuture<Message>> sendForMessages(Message... messages);
-
-    <R> R sendAndWait(Object request);
-
-    <R> R sendAndWait(Object payload, Metadata metadata);
-
+    CompletableFuture<Void> sendAndForget(Guarantee guarantee, WebRequest... requests);
+    CompletableFuture<WebResponse> send(WebRequest request);
+    default WebResponse sendAndWait(WebRequest request) {
+        return sendAndWait(request, defaultSettings);
+    }
+    WebResponse sendAndWait(WebRequest request, WebRequestSettings settings);
     void close();
 }

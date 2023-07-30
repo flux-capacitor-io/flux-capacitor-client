@@ -1,0 +1,110 @@
+/*
+ * Copyright (c) Flux Capacitor IP B.V. or its affiliates. All Rights Reserved.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+package io.fluxcapacitor.proxy;
+
+import io.fluxcapacitor.common.Guarantee;
+import io.fluxcapacitor.common.MessageType;
+import io.fluxcapacitor.common.api.SerializedMessage;
+import io.fluxcapacitor.javaclient.common.serialization.Serializer;
+import io.fluxcapacitor.javaclient.configuration.client.Client;
+import io.fluxcapacitor.javaclient.web.WebRequest;
+import io.fluxcapacitor.javaclient.web.WebRequestSettings;
+import io.fluxcapacitor.javaclient.web.WebResponse;
+import lombok.AllArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+
+import java.net.URI;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
+import java.time.Duration;
+import java.util.List;
+import java.util.Optional;
+import java.util.function.Consumer;
+
+import static io.fluxcapacitor.javaclient.web.WebRequest.getHeaders;
+import static java.util.Optional.ofNullable;
+
+@AllArgsConstructor
+@Slf4j
+public class ExternalRequestConsumer implements Consumer<List<SerializedMessage>> {
+    private static final HttpClient httpClient = HttpClient.newBuilder()
+            .followRedirects(HttpClient.Redirect.NORMAL).connectTimeout(Duration.ofSeconds(5)).build();
+    private static final WebRequestSettings defaultSettings = WebRequestSettings.builder().build();
+    private static final Serializer serializer = new ProxySerializer();
+
+    private final Client client;
+
+    @Override
+    public void accept(List<SerializedMessage> serializedMessages) {
+        for (SerializedMessage s : serializedMessages) {
+            URI uri = URI.create(WebRequest.getUrl(s.getMetadata()));
+            if (uri.isAbsolute()) {
+                handle(s, uri);
+            }
+        }
+    }
+
+    void handle(SerializedMessage request, URI uri) {
+        try {
+            HttpRequest httpRequest = asHttpRequest(request, uri);
+            WebResponse webResponse = executeRequest(httpRequest);
+            SerializedMessage serializedResponse = webResponse.serialize(serializer);
+            serializedResponse.setRequestId(request.getRequestId());
+            serializedResponse.setTarget(request.getSource());
+            client.getGatewayClient(MessageType.WEBRESPONSE).send(Guarantee.NONE, serializedResponse);
+        } catch (Throwable e) {
+            log.error("Failed to handle external request", e);
+        }
+    }
+
+    HttpRequest asHttpRequest(SerializedMessage request, URI uri) {
+        var settings = Optional.ofNullable(
+                request.getMetadata().get("settings", WebRequestSettings.class)).orElse(defaultSettings);
+        var builder = HttpRequest.newBuilder()
+                .version(HttpClient.Version.valueOf(settings.getHttpVersion().name()))
+                .timeout(settings.getTimeout());
+        getHeaders(request.getMetadata()).forEach((name, values) -> values.forEach(v -> builder.header(name, v)));
+        builder.uri(uri).method(WebRequest.getMethod(request.getMetadata()).name(), getBodyPublisher(request));
+        return builder.build();
+    }
+
+    WebResponse executeRequest(HttpRequest httpRequest) {
+        try {
+            var response = httpClient.send(httpRequest, HttpResponse.BodyHandlers.ofByteArray());
+            return asWebResponse(response);
+        } catch (Throwable e) {
+            log.error("Failed to handle external request. Returning error.. ", e);
+            return WebResponse.builder().status(502).payload(
+                    ofNullable(e.getMessage()).orElse("Exception while handling request in proxy")
+                            .getBytes()).build();
+        }
+    }
+
+    WebResponse asWebResponse(HttpResponse<byte[]> response) {
+        WebResponse.Builder builder = WebResponse.builder().status(response.statusCode())
+                .payload(response.body());
+        response.headers().map().forEach((name, values) -> values.forEach(v -> builder.header(name, v)));
+        return builder.build();
+    }
+
+    HttpRequest.BodyPublisher getBodyPublisher(SerializedMessage request) {
+        String type = request.getData().getType();
+        if (type == null || Void.class.getName().equals(type)) {
+            return HttpRequest.BodyPublishers.noBody();
+        }
+        return HttpRequest.BodyPublishers.ofByteArray(request.getData().getValue());
+    }
+}
