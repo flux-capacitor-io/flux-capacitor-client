@@ -53,6 +53,12 @@ public class HandleWebTest {
         }
 
         @Test
+        void testGetFullUrl() {
+            testFixture.whenWebRequest(WebRequest.builder().method(GET).url("http://localhost:8080/get").build())
+                    .expectResult("get8080");
+        }
+
+        @Test
         void testPostString() {
             testFixture.whenWebRequest(WebRequest.builder().method(POST).url("/string").payload("payload").build())
                     .expectResult("payload");
@@ -120,6 +126,11 @@ public class HandleWebTest {
             @HandleWeb(value = "/get", method = GET)
             String get() {
                 return "get";
+            }
+
+            @HandleWeb(value = "http://localhost:8080/get", method = GET)
+            String getWithProtocol() {
+                return "get8080";
             }
 
             @HandleWeb(value = "/string", method = POST)

@@ -68,7 +68,7 @@ public class WebRequest extends Message {
             var handleWeb = WebUtils.getWebParameters(e).orElseThrow();
             Predicate<String> pathTest = Optional.of(handleWeb.getPath())
                     .map(SearchUtils::convertGlobToRegex).map(Pattern::asMatchPredicate)
-                    .<Predicate<String>>map(p -> s -> p.test(s.startsWith("/") ? s : "/" + s))
+                    .<Predicate<String>>map(p -> s -> p.test(s.startsWith("/") || s.contains("://") ? s : "/" + s))
                     .orElse(p -> true);
             Predicate<String> methodTest = Optional.of(handleWeb.getMethod())
                     .<Predicate<String>>map(r -> p -> r.name().equals(p))
@@ -172,7 +172,7 @@ public class WebRequest extends Message {
     }
 
     public static String getUrl(Metadata metadata) {
-        return Optional.ofNullable(metadata.get("url")).map(u -> u.startsWith("/") ? u : "/" + u)
+        return Optional.ofNullable(metadata.get("url")).map(u -> u.startsWith("/") || u.contains("://") ? u : "/" + u)
                 .orElseThrow(() -> new IllegalStateException("WebRequest is malformed: url is missing"));
     }
 

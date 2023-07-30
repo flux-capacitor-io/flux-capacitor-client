@@ -25,6 +25,7 @@ import java.util.Collection;
 import java.util.Map;
 import java.util.Objects;
 import java.util.function.Consumer;
+import java.util.function.Function;
 import java.util.function.Predicate;
 
 import static java.lang.String.format;
@@ -34,6 +35,8 @@ import static java.lang.String.format;
  * `when` phase.
  */
 public interface Then {
+
+    <R> Then mapResult(Function<R, Object> resultMapper);
 
     /*
         Events

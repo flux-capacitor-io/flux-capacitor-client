@@ -16,16 +16,11 @@ package io.fluxcapacitor.proxy;
 
 import io.fluxcapacitor.common.Guarantee;
 import io.fluxcapacitor.common.MessageType;
-import io.fluxcapacitor.common.api.Data;
 import io.fluxcapacitor.common.api.SerializedMessage;
-import io.fluxcapacitor.common.api.SerializedObject;
-import io.fluxcapacitor.javaclient.common.serialization.DeserializingObject;
-import io.fluxcapacitor.javaclient.common.serialization.Serializer;
 import io.fluxcapacitor.javaclient.configuration.client.Client;
 import io.fluxcapacitor.javaclient.publishing.DefaultRequestHandler;
 import io.fluxcapacitor.javaclient.publishing.RequestHandler;
 import io.fluxcapacitor.javaclient.publishing.client.GatewayClient;
-import io.fluxcapacitor.javaclient.tracking.handling.authentication.User;
 import io.fluxcapacitor.javaclient.web.HttpRequestMethod;
 import io.fluxcapacitor.javaclient.web.WebRequest;
 import io.fluxcapacitor.javaclient.web.WebResponse;
@@ -55,7 +50,6 @@ import java.util.Optional;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Collectors;
-import java.util.stream.Stream;
 
 import static io.fluxcapacitor.common.ObjectUtils.unwrapException;
 import static io.undertow.servlet.Servlets.deployment;
@@ -63,7 +57,7 @@ import static java.lang.String.format;
 
 @Slf4j
 public class ProxyRequestHandler implements HttpHandler, AutoCloseable {
-    private final WebRequestSerializer serializer = new WebRequestSerializer();
+    private final ProxySerializer serializer = new ProxySerializer();
     private final GatewayClient requestGateway;
     private final RequestHandler requestHandler;
     private final WebsocketEndpoint websocketEndpoint;
@@ -215,51 +209,4 @@ public class ProxyRequestHandler implements HttpHandler, AutoCloseable {
         return deploymentManager.start();
     }
 
-    protected static class WebRequestSerializer implements Serializer {
-        @Override
-        public Data<byte[]> serialize(Object object, String format) {
-            return new Data<>((byte[]) object, null, 0, format);
-        }
-
-        @Override
-        public <I extends SerializedObject<byte[], I>> Stream<DeserializingObject<byte[], I>> deserialize(
-                Stream<I> stream, boolean b) {
-            throw new UnsupportedOperationException();
-        }
-
-        @Override
-        public <V> V convert(Object o, Class<V> aClass) {
-            throw new UnsupportedOperationException();
-        }
-
-        @Override
-        public <V> V clone(Object o) {
-            throw new UnsupportedOperationException();
-        }
-
-        @Override
-        public Serializer registerTypeCaster(String s, String s1) {
-            throw new UnsupportedOperationException();
-        }
-
-        @Override
-        public String upcastType(String s) {
-            throw new UnsupportedOperationException();
-        }
-
-        @Override
-        public Object downcast(Object o, int i) {
-            throw new UnsupportedOperationException();
-        }
-
-        @Override
-        public Object downcast(Data<?> data, int i) {
-            throw new UnsupportedOperationException();
-        }
-
-        @Override
-        public <T> T filterContent(T t, User user) {
-            throw new UnsupportedOperationException();
-        }
-    }
 }
