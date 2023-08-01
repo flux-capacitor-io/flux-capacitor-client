@@ -34,6 +34,13 @@
     </properties>
 
     <dependencies>
+        <dependency>
+            <groupId>com.google.auto.service</groupId>
+            <artifactId>auto-service</artifactId>
+            <version>1.1.1</version>
+            <scope>provided</scope>
+        </dependency>
+
         <!--flux-capacitor common-->
         <dependency>
             <groupId>io.flux-capacitor</groupId>

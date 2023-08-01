@@ -14,7 +14,10 @@
 
 package io.fluxcapacitor.javaclient.tracking.handling;
 
+import com.google.auto.service.AutoService;
+
 import javax.annotation.processing.AbstractProcessor;
+import javax.annotation.processing.Processor;
 import javax.annotation.processing.RoundEnvironment;
 import javax.annotation.processing.SupportedAnnotationTypes;
 import javax.lang.model.SourceVersion;
@@ -34,6 +37,7 @@ import java.util.Set;
         "io.fluxcapacitor.javaclient.tracking.handling.HandleQuery",
         "io.fluxcapacitor.javaclient.tracking.handling.HandleCommand",
         "io.fluxcapacitor.javaclient.tracking.handling.HandleSelf"})
+@AutoService(Processor.class)
 public class RequestAnnotationProcessor extends AbstractProcessor {
     @Override
     public boolean process(Set<? extends TypeElement> annotations, RoundEnvironment roundEnv) {
@@ -48,26 +52,34 @@ public class RequestAnnotationProcessor extends AbstractProcessor {
     }
 
     protected void validateMethod(Element method, TypeMirror requestType) {
-        ExecutableType methodType = (ExecutableType) method.asType();
         if (isPassive(method)) {
             return;
         }
-        for (TypeMirror p : methodType.getParameterTypes()) {
-            if (getTypeUtils().isAssignable(p, requestType)) {
-                var interfaces = ((TypeElement) (((DeclaredType) p).asElement())).getInterfaces();
-                for (TypeMirror i : interfaces) {
-                    if (getTypeUtils().isAssignable(p, requestType)) {
-                        List<? extends TypeMirror> typeArguments = ((DeclaredType) i).getTypeArguments();
-                        if (!typeArguments.isEmpty()) {
-                            TypeMirror expectedReturnType = typeArguments.get(0);
-                            if (!getTypeUtils().isAssignable(methodType.getReturnType(), expectedReturnType)) {
-                                processingEnv.getMessager().printMessage(
-                                        Diagnostic.Kind.ERROR,
-                                        "Return type of request handler is invalid. Should be " + expectedReturnType,
-                                        method);
-                                return;
-                            }
-                        }
+        if (method.getAnnotation(HandleSelf.class) != null) {
+            validateReturnType(method, method.getEnclosingElement().asType(), requestType);
+        } else {
+            for (TypeMirror p : ((ExecutableType) method.asType()).getParameterTypes()) {
+                validateReturnType(method, p, requestType);
+            }
+        }
+    }
+
+    protected void validateReturnType(Element method, TypeMirror payloadType, TypeMirror requestType) {
+        if (!getTypeUtils().isAssignable(payloadType, requestType)) {
+            return;
+        }
+        ExecutableType methodType = (ExecutableType) method.asType();
+        for (TypeMirror i : ((TypeElement) (((DeclaredType) payloadType).asElement())).getInterfaces()) {
+            if (getTypeUtils().isAssignable(payloadType, requestType)) {
+                List<? extends TypeMirror> typeArguments = ((DeclaredType) i).getTypeArguments();
+                if (!typeArguments.isEmpty()) {
+                    TypeMirror expectedReturnType = typeArguments.get(0);
+                    if (!getTypeUtils().isAssignable(methodType.getReturnType(), expectedReturnType)) {
+                        processingEnv.getMessager().printMessage(
+                                Diagnostic.Kind.ERROR,
+                                "Return type of request handler is invalid. Should be " + expectedReturnType,
+                                method);
+                        return;
                     }
                 }
             }
