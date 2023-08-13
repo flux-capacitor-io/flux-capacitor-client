@@ -28,6 +28,7 @@ import lombok.SneakyThrows;
 
 import java.io.InputStream;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Function;
@@ -56,28 +57,12 @@ public class JsonUtils {
 
     @SneakyThrows
     public static Object fromFile(String fileName) {
-        return reader.readValue(FileUtils.loadFile(ReflectionUtils.getCallerClass(), fileName), Object.class);
+        return fromFile(ReflectionUtils.getCallerClass(), fileName);
     }
 
     public static List<?> fromFile(String... fileNames) {
         Class<?> callerClass = ReflectionUtils.getCallerClass();
         return Arrays.stream(fileNames).map(f -> JsonUtils.fromFile(callerClass, f)).collect(Collectors.toList());
-    }
-
-    @SneakyThrows
-    public static <T> T fromFile(String fileName, Class<T> type) {
-        return reader.readValue(FileUtils.loadFile(ReflectionUtils.getCallerClass(), fileName), type);
-    }
-
-    @SneakyThrows
-    public static <T> T fromFile(String fileName, JavaType javaType) {
-        return reader.readValue(FileUtils.loadFile(ReflectionUtils.getCallerClass(), fileName), javaType);
-    }
-
-    @SneakyThrows
-    public static <T> T fromFile(String fileName, Function<TypeFactory, JavaType> typeFunction) {
-        return reader.readValue(FileUtils.loadFile(ReflectionUtils.getCallerClass(), fileName),
-                                typeFunction.apply(typeFactory()));
     }
 
     @SuppressWarnings("unchecked")
@@ -87,19 +72,36 @@ public class JsonUtils {
     }
 
     @SneakyThrows
+    public static <T> T fromFile(String fileName, Class<T> type) {
+        return fromFile(ReflectionUtils.getCallerClass(), fileName, type);
+    }
+
+    @SneakyThrows
+    public static <T> T fromFile(String fileName, JavaType javaType) {
+        return writer.readValue(FileUtils.loadFile(ReflectionUtils.getCallerClass(), fileName), javaType);
+    }
+
+    @SneakyThrows
+    public static <T> T fromFile(String fileName, Function<TypeFactory, JavaType> typeFunction) {
+        return writer.readValue(FileUtils.loadFile(ReflectionUtils.getCallerClass(), fileName),
+                                typeFunction.apply(typeFactory()));
+    }
+
+    @SneakyThrows
     public static <T> T fromFile(Class<?> referencePoint, String fileName, Class<T> type) {
-        return reader.readValue(FileUtils.loadFile(referencePoint, fileName), type);
+        JsonMapper mapper = Collection.class.isAssignableFrom(type) ? reader : writer;
+        return mapper.readValue(FileUtils.loadFile(referencePoint, fileName), type);
     }
 
     @SneakyThrows
     public static <T> T fromFile(Class<?> referencePoint, String fileName, JavaType javaType) {
-        return reader.readValue(FileUtils.loadFile(referencePoint, fileName), javaType);
+        return writer.readValue(FileUtils.loadFile(referencePoint, fileName), javaType);
     }
 
     @SneakyThrows
     public static <T> T fromFile(Class<?> referencePoint, String fileName,
                                  Function<TypeFactory, JavaType> typeFunction) {
-        return reader.readValue(FileUtils.loadFile(referencePoint, fileName), typeFunction.apply(typeFactory()));
+        return writer.readValue(FileUtils.loadFile(referencePoint, fileName), typeFunction.apply(typeFactory()));
     }
 
     public static <T> T fromFileAs(String fileName) {
@@ -115,27 +117,29 @@ public class JsonUtils {
     @SuppressWarnings("unchecked")
     @SneakyThrows
     public static <T> T fromJson(String json) {
-        return (T) fromJson(json, Object.class);
+        return (T) reader.readValue(json, Object.class);
     }
 
     @SneakyThrows
     public static <T> T fromJson(String json, Class<T> type) {
-        return reader.readValue(json, type);
+        JsonMapper mapper = Collection.class.isAssignableFrom(type) ? reader : writer;
+        return mapper.readValue(json, type);
     }
 
     @SneakyThrows
     public static <T> T fromJson(String json, JavaType type) {
-        return reader.readValue(json, type);
+        return writer.readValue(json, type);
     }
 
     @SneakyThrows
     public static <T> T fromJson(String json, Function<TypeFactory, JavaType> typeFunction) {
-        return reader.readValue(json, typeFunction.apply(typeFactory()));
+        return writer.readValue(json, typeFunction.apply(typeFactory()));
     }
 
     @SneakyThrows
     public static <T> T fromJson(byte[] json, Class<T> type) {
-        return reader.readValue(json, type);
+        JsonMapper mapper = Collection.class.isAssignableFrom(type) ? reader : writer;
+        return mapper.readValue(json, type);
     }
 
     @SneakyThrows
@@ -188,6 +192,6 @@ public class JsonUtils {
     }
 
     public static TypeFactory typeFactory() {
-        return reader.getTypeFactory();
+        return writer.getTypeFactory();
     }
 }
