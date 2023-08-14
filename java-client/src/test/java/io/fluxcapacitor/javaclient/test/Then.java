@@ -36,8 +36,6 @@ import static java.lang.String.format;
  */
 public interface Then {
 
-    <R> Then mapResult(Function<R, Object> resultMapper);
-
     /*
         Events
      */
@@ -54,6 +52,13 @@ public interface Then {
      * "expected/create-user.json".
      */
     Then expectEvents(Object... events);
+
+    /**
+     * Test if an event got published that matches the given predicate.
+     */
+    default <T> Then expectEvent(Predicate<T> predicate) {
+        return expectEvents(predicate);
+    }
 
     /**
      * Test if the given events are the *only* events that got published.
@@ -106,6 +111,13 @@ public interface Then {
     Then expectCommands(Object... commands);
 
     /**
+     * Test if a command got published that matches the given predicate.
+     */
+    default <T> Then expectCommand(Predicate<T> predicate) {
+        return expectCommands(predicate);
+    }
+
+    /**
      * Test if the given commands are the *only* commands that got published.
      * <p>
      * A command may be an instance of {@link Message} in which case it will be tested against published commands
@@ -156,6 +168,13 @@ public interface Then {
     Then expectWebRequests(Object... webRequests);
 
     /**
+     * Test if a web request got published that matches the given predicate.
+     */
+    default Then expectWebRequest(Predicate<WebRequest> predicate) {
+        return expectWebRequests(predicate);
+    }
+
+    /**
      * Assert that the given values are the *only* web requests that got published.
      * <p>
      * A web request may be an instance of {@link Message} or {@link WebRequest} in which case it will be tested against
@@ -204,6 +223,13 @@ public interface Then {
      * "expected/new-user-response.json".
      */
     Then expectWebResponses(Object... webResponses);
+
+    /**
+     * Test if a web response got published that matches the given predicate.
+     */
+    default Then expectWebResponse(Predicate<WebResponse> predicate) {
+        return expectWebResponses(predicate);
+    }
 
     /**
      * Assert that the given values are the *only* web responses that got published.
@@ -257,6 +283,13 @@ public interface Then {
     Then expectNewSchedules(Object... schedules);
 
     /**
+     * Test if a schedule got published that matches the given predicate.
+     */
+    default Then expectNewSchedule(Predicate<Schedule> predicate) {
+        return expectNewSchedules(predicate);
+    }
+
+    /**
      * Test if the given schedules are the *only* new schedules that got published.
      * <p>
      * A schedule may be an instance of {@link Message} in which case it will be tested against published schedules
@@ -306,6 +339,13 @@ public interface Then {
     Then expectSchedules(Object... schedules);
 
     /**
+     * Test if a schedule is still active that matches the given predicate.
+     */
+    default Then expectSchedule(Predicate<Schedule> predicate) {
+        return expectSchedules(predicate);
+    }
+
+    /**
      * Test if the given schedules are the *only* schedules that are still active.
      * <p>
      * A schedule may be an instance of {@link Message} in which case it will be tested against published schedules
@@ -343,6 +383,12 @@ public interface Then {
     /*
         Normal result
      */
+
+    /**
+     * Maps the expected result of the test fixture to something else using the given {@code resultMapper}. This is
+     * typically used to simplify result checks.
+     */
+    <R> Then mapResult(Function<R, Object> resultMapper);
 
     /**
      * Test if the actual result of the test fixture matches the given result.
@@ -468,6 +514,15 @@ public interface Then {
     Then expectError(Object expectedError);
 
     /**
+     * Assert that the test fixture handler yielded an exception anywhere and that the exception matches the given
+     * predicate. This error does not need to be the returned result of the action in the `when` phase. To assert that
+     * use methods that test for exceptional results.
+     */
+    default <T extends Throwable> Then expectError(Predicate<T> predicate) {
+        return expectError(predicate, "Predicate matcher");
+    }
+
+    /**
      * Assert that the test fixture handler yielded an exception anywhere. This error does not need to be the returned
      * result of the action in the `when` phase. To assert that use methods that test for exceptional results.
      */
@@ -482,15 +537,6 @@ public interface Then {
      */
     default Then expectError(@NonNull Class<? extends Throwable> errorClass) {
         return expectError(errorClass::isInstance, format("an instance of %s", errorClass.getSimpleName()));
-    }
-
-    /**
-     * Assert that the test fixture handler yielded an exception anywhere and that the exception matches the given
-     * predicate. This error does not need to be the returned result of the action in the `when` phase. To assert that
-     * use methods that test for exceptional results.
-     */
-    default <T extends Throwable> Then expectError(Predicate<T> predicate) {
-        return expectError(predicate, "Predicate matcher");
     }
 
     /**
@@ -521,6 +567,13 @@ public interface Then {
      * "expected/create-user.json".
      */
     Then expectMetrics(Object... metrics);
+
+    /**
+     * Test if a metric got published that matches the given predicate.
+     */
+    default <T> Then expectMetric(Predicate<T> predicate) {
+        return expectMetrics(predicate);
+    }
 
     /**
      * Test if the given metrics are the *only* events that got published.
