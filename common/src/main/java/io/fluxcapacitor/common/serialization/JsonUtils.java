@@ -89,8 +89,7 @@ public class JsonUtils {
 
     @SneakyThrows
     public static <T> T fromFile(Class<?> referencePoint, String fileName, Class<T> type) {
-        JsonMapper mapper = Collection.class.isAssignableFrom(type) ? reader : writer;
-        return mapper.readValue(FileUtils.loadFile(referencePoint, fileName), type);
+        return fromJson(FileUtils.loadFile(referencePoint, fileName), type);
     }
 
     @SneakyThrows
@@ -122,8 +121,7 @@ public class JsonUtils {
 
     @SneakyThrows
     public static <T> T fromJson(String json, Class<T> type) {
-        JsonMapper mapper = Collection.class.isAssignableFrom(type) ? reader : writer;
-        return mapper.readValue(json, type);
+        return selectMapper(type).readValue(json, type);
     }
 
     @SneakyThrows
@@ -138,8 +136,12 @@ public class JsonUtils {
 
     @SneakyThrows
     public static <T> T fromJson(byte[] json, Class<T> type) {
-        JsonMapper mapper = Collection.class.isAssignableFrom(type) ? reader : writer;
-        return mapper.readValue(json, type);
+        return selectMapper(type).readValue(json, type);
+    }
+
+    static JsonMapper selectMapper(Class<?> type) {
+        return Object.class.equals(type)
+               || Collection.class.isAssignableFrom(type) ? reader : writer;
     }
 
     @SneakyThrows
