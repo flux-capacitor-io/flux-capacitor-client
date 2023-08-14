@@ -50,7 +50,7 @@ public class DefaultWebRequestGateway implements WebRequestGateway {
     public WebResponse sendAndWait(WebRequest request, WebRequestSettings settings) {
         try {
             request = request.addMetadata("settings", settings);
-            return (WebResponse) delegate.send(request).get(settings.getTimeout().toMillis() + 1000L, MILLISECONDS);
+            return (WebResponse) delegate.sendForMessage(request).get(settings.getTimeout().toMillis() + 1000L, MILLISECONDS);
         } catch (java.util.concurrent.TimeoutException e) {
             throw new TimeoutException(format("Request %s (url %s) has timed out", request.getMessageId(),
                                               WebRequest.getUrl(request.getMetadata())));
