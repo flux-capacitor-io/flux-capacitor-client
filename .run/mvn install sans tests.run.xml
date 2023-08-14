@@ -26,7 +26,7 @@
             <list>
               <option value="clean" />
               <option value="install" />
-              <option value="-Dmaven.test.skip" />
+              <option value="-DskipTests" />
             </list>
           </option>
           <option name="pomFileName" />
