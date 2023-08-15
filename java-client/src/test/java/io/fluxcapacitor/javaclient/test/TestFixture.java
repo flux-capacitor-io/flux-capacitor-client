@@ -21,6 +21,7 @@ import io.fluxcapacitor.common.ThrowingFunction;
 import io.fluxcapacitor.common.api.Data;
 import io.fluxcapacitor.common.api.SerializedMessage;
 import io.fluxcapacitor.common.api.tracking.MessageBatch;
+import io.fluxcapacitor.common.application.SimplePropertySource;
 import io.fluxcapacitor.common.handling.HandlerFilter;
 import io.fluxcapacitor.common.handling.HandlerInvoker;
 import io.fluxcapacitor.common.reflection.ReflectionUtils;
@@ -66,6 +67,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -169,6 +171,8 @@ public class TestFixture implements Given, When {
     private final List<Schedule> schedules = new CopyOnWriteArrayList<>();
     private final CopyOnWriteArrayList<Throwable> errors = new CopyOnWriteArrayList<>();
 
+    private final Map<String, String> testProperties = new HashMap<>();
+
     private volatile boolean collectingResults;
 
     private static final ThreadLocal<List<TestFixture>> activeFixtures = ThreadLocal.withInitial(ArrayList::new);
@@ -199,6 +203,7 @@ public class TestFixture implements Given, When {
             fluxCapacitorBuilder.disableScheduledCommandHandler();
             handlers.add(new ScheduledCommandHandler());
         }
+        fluxCapacitorBuilder.addPropertySource(new SimplePropertySource(testProperties));
         GivenWhenThenInterceptor interceptor = new GivenWhenThenInterceptor();
         Arrays.stream(MessageType.values()).forEach(type -> client.getGatewayClient(type).registerMonitor(interceptor));
         this.fluxCapacitor = new TestFluxCapacitor(
@@ -273,6 +278,11 @@ public class TestFixture implements Given, When {
 
     public Clock getClock() {
         return getFluxCapacitor().clock();
+    }
+
+    public TestFixture withProperty(String name, Object value) {
+        testProperties.compute(name, (k, v) -> value == null ? null : value.toString());
+        return this;
     }
 
     /*
