@@ -132,6 +132,8 @@ public interface FluxCapacitorBuilder {
 
     FluxCapacitorBuilder disableCacheEvictionMetrics();
 
+    FluxCapacitorBuilder disableWebResponseCompression();
+
     FluxCapacitorBuilder makeApplicationInstance(boolean makeApplicationInstance);
 
     FluxCapacitor build(Client client);

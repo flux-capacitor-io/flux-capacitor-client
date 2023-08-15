@@ -35,6 +35,7 @@ import java.util.Optional;
 import java.util.function.Consumer;
 
 import static io.fluxcapacitor.javaclient.web.WebRequest.getHeaders;
+import static io.fluxcapacitor.javaclient.web.WebUtils.fixHeaderName;
 import static java.util.Optional.ofNullable;
 
 @AllArgsConstructor
@@ -96,7 +97,7 @@ public class ExternalRequestConsumer implements Consumer<List<SerializedMessage>
     WebResponse asWebResponse(HttpResponse<byte[]> response) {
         WebResponse.Builder builder = WebResponse.builder().status(response.statusCode())
                 .payload(response.body());
-        response.headers().map().forEach((name, values) -> values.forEach(v -> builder.header(name, v)));
+        response.headers().map().forEach((name, values) -> values.forEach(v -> builder.header(fixHeaderName(name), v)));
         return builder.build();
     }
 

@@ -27,6 +27,7 @@ import io.fluxcapacitor.javaclient.web.HandleSocketMessage;
 import io.fluxcapacitor.javaclient.web.HandleSocketOpen;
 import io.fluxcapacitor.javaclient.web.HandleSocketPong;
 import io.fluxcapacitor.javaclient.web.SocketSession;
+import io.fluxcapacitor.javaclient.web.WebRequest;
 import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
 import org.junit.jupiter.api.AfterEach;
@@ -67,7 +68,7 @@ class ProxyServerTest {
         void get() {
             testFixture.registerHandlers(new Object() {
                         @HandleGet("/")
-                        String hello() {
+                        String hello(WebRequest request) {
                             return "Hello World";
                         }
                     })

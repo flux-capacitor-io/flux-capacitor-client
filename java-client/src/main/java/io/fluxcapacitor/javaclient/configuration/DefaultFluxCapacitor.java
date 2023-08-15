@@ -99,6 +99,7 @@ import io.fluxcapacitor.javaclient.web.ForwardingWebConsumer;
 import io.fluxcapacitor.javaclient.web.LocalServerConfig;
 import io.fluxcapacitor.javaclient.web.SocketSessionParameterResolver;
 import io.fluxcapacitor.javaclient.web.WebPayloadParameterResolver;
+import io.fluxcapacitor.javaclient.web.WebResponseCompressingInterceptor;
 import io.fluxcapacitor.javaclient.web.WebResponseGateway;
 import io.fluxcapacitor.javaclient.web.WebResponseMapper;
 import io.fluxcapacitor.javaclient.web.WebsocketHandlerDecorator;
@@ -255,6 +256,7 @@ public class DefaultFluxCapacitor implements FluxCapacitor {
         private boolean disableShutdownHook;
         private boolean disableTrackingMetrics;
         private boolean disableCacheEvictionMetrics;
+        private boolean disableWebResponseCompression;
         private boolean makeApplicationInstance;
         private UserProvider userProvider = UserProvider.defaultUserSupplier;
         private IdentityProvider identityProvider = IdentityProvider.defaultIdentityProvider;
@@ -462,6 +464,12 @@ public class DefaultFluxCapacitor implements FluxCapacitor {
         }
 
         @Override
+        public FluxCapacitorBuilder disableWebResponseCompression() {
+            disableWebResponseCompression = true;
+            return this;
+        }
+
+        @Override
         public FluxCapacitorBuilder makeApplicationInstance(boolean makeApplicationInstance) {
             this.makeApplicationInstance = makeApplicationInstance;
             return this;
@@ -549,6 +557,11 @@ public class DefaultFluxCapacitor implements FluxCapacitor {
             //add websocket handler decorator and dispatch interceptor
             handlerDecorators.computeIfPresent(WEBREQUEST, (t, i) -> i.andThen(new WebsocketHandlerDecorator()));
             dispatchInterceptors.computeIfPresent(WEBRESPONSE, (t, i) -> new WebsocketResponseInterceptor().andThen(i));
+
+            if (!disableWebResponseCompression) {
+                dispatchInterceptors.computeIfPresent(
+                        WEBRESPONSE, (t, i) -> new WebResponseCompressingInterceptor().andThen(i));
+            }
 
             /*
                 Create components

@@ -24,14 +24,12 @@ import jakarta.servlet.ServletResponse;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletRequestWrapper;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.commons.lang3.StringUtils;
 
 import java.io.IOException;
-import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.stream.Collectors;
 
+import static io.fluxcapacitor.javaclient.web.WebUtils.fixHeaderName;
 import static io.fluxcapacitor.proxy.WebsocketEndpoint.metadataPrefix;
 
 @Slf4j
@@ -58,9 +56,5 @@ public class WebsocketFilter implements Filter {
                 return result;
             }
         }, response);
-    }
-
-    protected String fixHeaderName(String name) {
-        return Arrays.stream(name.split("-")).map(StringUtils::capitalize).collect(Collectors.joining("-"));
     }
 }

@@ -87,7 +87,7 @@ public class WebSocketClient extends AbstractClient {
         @NonNull String serviceBaseUrl;
         @NonNull String name;
         @NonNull @Default String id = UUID.randomUUID().toString();
-        @Default CompressionAlgorithm compression = LZ4;
+        @NonNull @Default CompressionAlgorithm compression = LZ4;
         @Default int eventSourcingSessions = 2;
         @Default int keyValueSessions = 2;
         @Default int searchSessions = 2;
