@@ -101,7 +101,6 @@ public class Message implements HasMessage {
     }
 
     public SerializedMessage serialize(Serializer serializer) {
-        return new SerializedMessage(serializer.serialize(getPayload()), getMetadata(), getMessageId(),
-                                     getTimestamp().toEpochMilli());
+        return new SerializedMessage(serializer.serialize(payload), metadata, messageId, timestamp.toEpochMilli());
     }
 }

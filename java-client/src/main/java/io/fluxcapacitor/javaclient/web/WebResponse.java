@@ -16,15 +16,19 @@ package io.fluxcapacitor.javaclient.web;
 
 import io.fluxcapacitor.common.api.Metadata;
 import io.fluxcapacitor.common.api.SerializedMessage;
+import io.fluxcapacitor.common.serialization.compression.CompressionAlgorithm;
+import io.fluxcapacitor.common.serialization.compression.CompressionUtils;
 import io.fluxcapacitor.javaclient.common.Message;
 import io.fluxcapacitor.javaclient.common.serialization.Serializer;
 import io.fluxcapacitor.javaclient.tracking.handling.authentication.User;
 import lombok.AccessLevel;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
+import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.NonNull;
 import lombok.Setter;
+import lombok.SneakyThrows;
 import lombok.ToString;
 import lombok.Value;
 import lombok.experimental.Accessors;
@@ -38,6 +42,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
@@ -45,9 +50,12 @@ import java.util.stream.Collectors;
 @EqualsAndHashCode(callSuper = true)
 @ToString(callSuper = true)
 public class WebResponse extends Message {
-
+    private static final List<String> gzipEncoding = List.of("gzip");
     @NonNull Map<String, List<String>> headers;
     Integer status;
+
+    @Getter(lazy = true, value = AccessLevel.PRIVATE)
+    Object decodedPayload = decodePayload();
 
     private WebResponse(Builder builder) {
         super(builder.payload(), Metadata.of("status", builder.status(), "headers", builder.headers()));
@@ -70,7 +78,7 @@ public class WebResponse extends Message {
     @Override
     public SerializedMessage serialize(Serializer serializer) {
         return headers.getOrDefault("Content-Type", List.of()).stream().findFirst().map(
-                        format -> new SerializedMessage(serializer.serialize(getPayload(), format), getMetadata(),
+                        format -> new SerializedMessage(serializer.serialize(getEncodedPayload(), format), getMetadata(),
                                                         getMessageId(), getTimestamp().toEpochMilli()))
                 .orElseGet(() -> super.serialize(serializer));
     }
@@ -131,6 +139,25 @@ public class WebResponse extends Message {
         return Optional.ofNullable(metadata.get("status")).map(Integer::valueOf).orElse(null);
     }
 
+    @SuppressWarnings("unchecked")
+    @Override
+    public <R> R getPayload() {
+        return (R) getDecodedPayload();
+    }
+
+    Object getEncodedPayload() {
+        return super.getPayload();
+    }
+
+    @SneakyThrows
+    Object decodePayload() {
+        Object result = getEncodedPayload();
+        if (result instanceof byte[] bytes && Objects.equals(getHeaders().get("Content-Encoding"), gzipEncoding)) {
+            return CompressionUtils.decompress(bytes, CompressionAlgorithm.GZIP);
+        }
+        return result;
+    }
+
     @Data
     @NoArgsConstructor
     @Accessors(fluent = true, chain = true)
@@ -143,7 +170,7 @@ public class WebResponse extends Message {
         Integer status;
 
         protected Builder(WebResponse response) {
-            payload(response.getPayload());
+            payload(response.getEncodedPayload());
             status(response.getStatus());
             response.getHeaders().forEach((k, v) -> headers.put(k, new ArrayList<>(v)));
             cookies.addAll(WebUtils.parseResponseCookieHeader(headers.remove("Set-Cookie")));

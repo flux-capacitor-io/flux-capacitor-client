@@ -15,6 +15,7 @@
 package io.fluxcapacitor.javaclient.web;
 
 import lombok.NonNull;
+import org.apache.commons.lang3.StringUtils;
 
 import java.lang.reflect.Executable;
 import java.net.HttpCookie;
@@ -29,7 +30,6 @@ import static io.fluxcapacitor.common.reflection.ReflectionUtils.getAnnotationAs
 import static org.apache.commons.lang3.StringUtils.isBlank;
 
 public class WebUtils {
-
 
     public static String toString(@NonNull HttpCookie cookie) {
         StringBuilder sb = new StringBuilder();
@@ -66,5 +66,9 @@ public class WebUtils {
 
     public static Optional<WebParameters> getWebParameters(Executable method) {
         return getAnnotationAs(method, HandleWeb.class, WebParameters.class);
+    }
+
+    public static String fixHeaderName(String name) {
+        return Arrays.stream(name.split("-")).map(StringUtils::capitalize).collect(Collectors.joining("-"));
     }
 }

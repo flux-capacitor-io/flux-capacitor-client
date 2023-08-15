@@ -38,20 +38,18 @@ import jakarta.servlet.DispatcherType;
 import jakarta.websocket.server.ServerEndpointConfig;
 import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.commons.lang3.StringUtils;
 import org.xnio.OptionMap;
 import org.xnio.Options;
 import org.xnio.Xnio;
 
 import java.nio.ByteBuffer;
 import java.time.Duration;
-import java.util.Arrays;
 import java.util.Optional;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.stream.Collectors;
 
 import static io.fluxcapacitor.common.ObjectUtils.unwrapException;
+import static io.fluxcapacitor.javaclient.web.WebUtils.fixHeaderName;
 import static io.undertow.servlet.Servlets.deployment;
 import static java.lang.String.format;
 
@@ -100,7 +98,8 @@ public class ProxyRequestHandler implements HttpHandler, AutoCloseable {
     protected WebRequest createWebRequest(HttpServerExchange se, byte[] payload) {
         var builder = WebRequest.builder()
                 .url(se.getRelativePath() + (se.getQueryString().isBlank() ? "" : ("?" + se.getQueryString())))
-                .method(HttpRequestMethod.valueOf(se.getRequestMethod().toString())).payload(payload);
+                .method(HttpRequestMethod.valueOf(se.getRequestMethod().toString())).payload(payload)
+                .acceptGzipEncoding(false);
         se.getRequestHeaders().forEach(
                 header -> header.forEach(value -> builder.header(fixHeaderName(
                         header.getHeaderName().toString()), value)));
@@ -159,10 +158,6 @@ public class ProxyRequestHandler implements HttpHandler, AutoCloseable {
         Optional.ofNullable(responseMessage.getData().getFormat()).ifPresent(
                 format -> se.getResponseHeaders().add(new HttpString("Content-Type"), format));
         se.getResponseSender().send(ByteBuffer.wrap(responseMessage.getData().getValue()));
-    }
-
-    protected String fixHeaderName(String name) {
-        return Arrays.stream(name.split("-")).map(StringUtils::capitalize).collect(Collectors.joining("-"));
     }
 
     protected void sendServerError(HttpServerExchange se) {

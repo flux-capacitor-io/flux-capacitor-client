@@ -14,11 +14,18 @@
 
 package io.fluxcapacitor.common.serialization.compression;
 
+import lombok.NonNull;
+import lombok.SneakyThrows;
 import net.jpountz.lz4.LZ4Compressor;
 import net.jpountz.lz4.LZ4Factory;
 import net.jpountz.lz4.LZ4FastDecompressor;
 
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
 import java.nio.ByteBuffer;
+import java.util.zip.GZIPInputStream;
+import java.util.zip.GZIPOutputStream;
+import java.util.zip.ZipException;
 
 public class CompressionUtils {
 
@@ -29,32 +36,46 @@ public class CompressionUtils {
         return compress(uncompressed, CompressionAlgorithm.LZ4);
     }
 
-    public static byte[] compress(byte[] uncompressed, CompressionAlgorithm algorithm) {
-        if (algorithm == null) {
-            return uncompressed;
-        }
-        if (algorithm == CompressionAlgorithm.LZ4) {
-            byte[] compressed = lz4Compressor.compress(uncompressed);
-            return ByteBuffer.allocate(compressed.length + 4).putInt(uncompressed.length).put(compressed).array();
-        }
-        throw new UnsupportedOperationException("Unsupported compression algorithm: " + algorithm);
+    @SneakyThrows
+    public static byte[] compress(byte[] uncompressed, @NonNull CompressionAlgorithm algorithm) {
+        return switch (algorithm) {
+            case NONE -> uncompressed;
+            case LZ4 -> {
+                byte[] compressed = lz4Compressor.compress(uncompressed);
+                yield ByteBuffer.allocate(compressed.length + 4).putInt(uncompressed.length).put(compressed).array();
+            }
+            case GZIP -> {
+                ByteArrayOutputStream byteStream = new ByteArrayOutputStream();
+                try (GZIPOutputStream zipStream = new GZIPOutputStream(byteStream)) {
+                    zipStream.write(uncompressed);
+                }
+                yield byteStream.toByteArray();
+            }
+        };
     }
 
     public static byte[] decompress(byte[] compressed) {
         return decompress(compressed, CompressionAlgorithm.LZ4);
     }
 
-    public static byte[] decompress(byte[] compressed, CompressionAlgorithm algorithm) {
-        if (algorithm == null) {
-            return compressed;
-        }
-        if (algorithm == CompressionAlgorithm.LZ4) {
-            ByteBuffer buffer = ByteBuffer.wrap(compressed);
-            ByteBuffer result = ByteBuffer.allocate(buffer.getInt());
-            lz4Decompressor.decompress(buffer, result);
-            return result.array();
-        }
-        throw new UnsupportedOperationException("Unsupported compression algorithm: " + algorithm);
+    @SneakyThrows
+    public static byte[] decompress(byte[] compressed, @NonNull CompressionAlgorithm algorithm) {
+        return switch (algorithm) {
+            case NONE -> compressed;
+            case LZ4 -> {
+                ByteBuffer buffer = ByteBuffer.wrap(compressed);
+                ByteBuffer result = ByteBuffer.allocate(buffer.getInt());
+                lz4Decompressor.decompress(buffer, result);
+                yield result.array();
+            }
+            case GZIP -> {
+                try (var gzipStream = new GZIPInputStream(new ByteArrayInputStream(compressed))) {
+                    yield gzipStream.readAllBytes();
+                } catch (ZipException ignored) {
+                    yield compressed;
+                }
+            }
+        };
     }
 
 }

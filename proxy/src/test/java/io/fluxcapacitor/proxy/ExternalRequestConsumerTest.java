@@ -18,6 +18,8 @@ import com.sun.net.httpserver.HttpContext;
 import com.sun.net.httpserver.HttpServer;
 import io.fluxcapacitor.common.Registration;
 import io.fluxcapacitor.common.TestUtils;
+import io.fluxcapacitor.common.serialization.compression.CompressionAlgorithm;
+import io.fluxcapacitor.common.serialization.compression.CompressionUtils;
 import io.fluxcapacitor.javaclient.test.TestFixture;
 import io.fluxcapacitor.javaclient.web.WebRequest;
 import io.fluxcapacitor.javaclient.web.WebResponse;
@@ -73,6 +75,22 @@ class ExternalRequestConsumerTest {
                 String response = "test";
                 exchange.sendResponseHeaders(200, response.length());
                 outputStream.write(response.getBytes());
+                outputStream.flush();
+            }
+        });
+        testFixture.whenWebRequest(WebRequest.builder().url("http://localhost:" + port).method(GET).build())
+                .<WebResponse>expectResult(r -> r.getStatus() == 200
+                                                && "test".equals(new String(r.<byte[]>getPayload())));
+    }
+
+    @Test
+    void getRequestZipped() {
+        serverContext.setHandler(exchange -> {
+            try (OutputStream outputStream = exchange.getResponseBody()) {
+                exchange.getResponseHeaders().add("Content-Encoding", "gzip");
+                byte[] compressed = CompressionUtils.compress("test".getBytes(), CompressionAlgorithm.GZIP);
+                exchange.sendResponseHeaders(200, compressed.length);
+                outputStream.write(compressed);
                 outputStream.flush();
             }
         });

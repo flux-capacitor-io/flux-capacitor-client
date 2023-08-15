@@ -87,13 +87,14 @@ public class GivenWhenThenWebTest {
 
         @Test
         void testGet() {
-            testFixture.whenWebRequest(WebRequest.builder().method(GET).url("/get").build()).expectResult("get");
+            testFixture.whenWebRequest(WebRequest.builder().method(GET).url("/get").build())
+                    .expectResult("get".getBytes());
         }
 
         @Test
         void testPostString() {
             testFixture.whenWebRequest(WebRequest.builder().method(POST).url("/string").payload("payload").build())
-                    .expectResult("payload");
+                    .expectResult("payload".getBytes());
         }
 
         private class Handler {

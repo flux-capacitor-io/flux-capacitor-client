@@ -205,6 +205,7 @@ public class WebRequest extends Message {
         String url;
         HttpRequestMethod method;
         Map<String, List<String>> headers = new LinkedHashMap<>();
+        boolean acceptGzipEncoding = true;
 
         @Setter(AccessLevel.NONE)
         List<HttpCookie> cookies = new ArrayList<>();
@@ -241,18 +242,18 @@ public class WebRequest extends Message {
         }
 
         public Map<String, List<String>> headers() {
-            var result = headers;
+            var result = new LinkedHashMap<>(headers);
+            if (acceptGzipEncoding) {
+                result.computeIfAbsent("Accept-Encoding", k -> List.of("gzip"));
+            }
             if (!result.containsKey("Content-Type")) {
                 if (payload instanceof String) {
-                    result = new LinkedHashMap<>(result);
-                    result.computeIfAbsent("Content-Type", k -> new ArrayList<>()).add("text/plain");
+                    result.put("Content-Type", List.of("text/plain"));
                 } else if (payload instanceof byte[]) {
-                    result = new LinkedHashMap<>(result);
-                    result.computeIfAbsent("Content-Type", k -> new ArrayList<>()).add("application/octet-stream");
+                    result.put("Content-Type", List.of("application/octet-stream"));
                 }
             }
             if (!cookies.isEmpty()) {
-                result = new LinkedHashMap<>(result);
                 result.put("Cookie",
                            List.of(cookies.stream().map(HttpCookie::toString).collect(Collectors.joining("; "))));
             }

@@ -15,5 +15,5 @@
 package io.fluxcapacitor.common.serialization.compression;
 
 public enum CompressionAlgorithm {
-    LZ4
+    NONE, LZ4, GZIP
 }

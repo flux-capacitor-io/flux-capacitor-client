@@ -251,7 +251,7 @@ public abstract class WebsocketEndpoint extends Endpoint {
     protected CompressionAlgorithm getCompressionAlgorithm(Session session) {
         List<String> compression = session.getRequestParameterMap().get("compression");
         if (compression == null) {
-            return null;
+            return CompressionAlgorithm.NONE;
         }
         return CompressionAlgorithm.valueOf(compression.get(0));
     }
