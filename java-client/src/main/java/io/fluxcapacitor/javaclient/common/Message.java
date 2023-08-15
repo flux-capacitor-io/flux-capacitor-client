@@ -28,6 +28,7 @@ import lombok.extern.slf4j.Slf4j;
 
 import java.beans.ConstructorProperties;
 import java.time.Instant;
+import java.time.temporal.ChronoUnit;
 import java.util.Map;
 import java.util.Optional;
 
@@ -64,7 +65,8 @@ public class Message implements HasMessage {
         this.payload = payload;
         this.metadata = Optional.ofNullable(metadata).orElseGet(Metadata::empty);
         this.messageId = Optional.ofNullable(messageId).orElseGet(() -> currentIdentityProvider().nextTechnicalId());
-        this.timestamp = Optional.ofNullable(timestamp).orElseGet(FluxCapacitor::currentTime);
+        this.timestamp = Optional.ofNullable(timestamp)
+                .orElseGet(() -> FluxCapacitor.currentTime().truncatedTo(ChronoUnit.MILLIS));
     }
 
     @SuppressWarnings("unchecked")
