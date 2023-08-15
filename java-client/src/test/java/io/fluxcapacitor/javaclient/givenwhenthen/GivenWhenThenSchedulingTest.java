@@ -14,7 +14,6 @@
 
 package io.fluxcapacitor.javaclient.givenwhenthen;
 
-import io.fluxcapacitor.common.TestUtils;
 import io.fluxcapacitor.javaclient.FluxCapacitor;
 import io.fluxcapacitor.javaclient.MockException;
 import io.fluxcapacitor.javaclient.scheduling.Periodic;
@@ -126,16 +125,16 @@ class GivenWhenThenSchedulingTest {
 
         @Test
         void testPeriodicCronScheduleViaProperty() {
-            TestUtils.runWithSystemProperties(() -> {
-                TestFixture.create().atFixedTime(start)
-                        .registerHandlers(new Object() {
-                            @HandleSchedule
-                            @Periodic(cron = "${cronSchedule:-}")
-                            void handleSchedule(CronSchedule schedule, Schedule message) {
-                                publishEvent(message.getDeadline());
-                            }
-                        }).whenTimeAdvancesTo(afterOneHour).expectOnlyEvents(afterOneHour);
-            }, "cronSchedule", "0 * * * *");
+            TestFixture.create()
+                    .withProperty("cronSchedule", "0 * * * *")
+                    .atFixedTime(start)
+                    .registerHandlers(new Object() {
+                        @HandleSchedule
+                        @Periodic(cron = "${cronSchedule:-}")
+                        void handleSchedule(CronSchedule schedule, Schedule message) {
+                            publishEvent(message.getDeadline());
+                        }
+                    }).whenTimeAdvancesTo(afterOneHour).expectOnlyEvents(afterOneHour);
         }
 
         @Test
@@ -202,6 +201,7 @@ class GivenWhenThenSchedulingTest {
         void continueAfterError() {
             TestFixture.create(new Object() {
                         private int count = 0;
+
                         @HandleSchedule
                         @Periodic(delay = 60, timeUnit = TimeUnit.MINUTES)
                         void handleSchedule(Object schedule) {
