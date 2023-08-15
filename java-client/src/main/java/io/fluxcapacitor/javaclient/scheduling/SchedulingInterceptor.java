@@ -145,6 +145,8 @@ public class SchedulingInterceptor implements DispatchInterceptor, HandlerInterc
                         .or(() -> ofNullable(getTypeAnnotation(m.getPayloadClass(), Periodic.class)))
                         .orElse(null);
                 if (periodic != null && !periodic.cron().isBlank() && cronExpression.apply(periodic.cron()).isEmpty()) {
+                    log.warn("Periodic scheduling is disabled for {}. Ignoring schedule {}.",
+                             m.getPayloadClass(), m.getMessageId());
                     return null; //schedule is disabled. Don't invoke handler anymore.
                 }
                 Object result;
