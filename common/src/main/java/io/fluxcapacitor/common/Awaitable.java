@@ -23,10 +23,12 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 
+import static io.fluxcapacitor.common.ObjectUtils.newThreadFactory;
+
 @FunctionalInterface
 public interface Awaitable {
 
-    Executor executor = Executors.newCachedThreadPool();
+    Executor executor = Executors.newCachedThreadPool(newThreadFactory("Awaitable"));
 
     void await() throws Exception;
 

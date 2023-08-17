@@ -53,6 +53,8 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Function;
 
 import static com.fasterxml.jackson.databind.SerializationFeature.WRITE_DATES_AS_TIMESTAMPS;
+import static io.fluxcapacitor.common.ObjectUtils.newThreadFactory;
+import static io.fluxcapacitor.common.ObjectUtils.newThreadName;
 import static io.fluxcapacitor.common.serialization.compression.CompressionUtils.compress;
 import static io.fluxcapacitor.common.serialization.compression.CompressionUtils.decompress;
 import static jakarta.websocket.CloseReason.CloseCodes.NO_STATUS_CODE;
@@ -80,19 +82,17 @@ public abstract class WebsocketEndpoint extends Endpoint {
     protected volatile boolean shutDown;
 
     protected WebsocketEndpoint() {
-        this(Executors.newFixedThreadPool(32));
+        this.objectMapper = defaultObjectMapper;
+        this.requestExecutor = Executors.newFixedThreadPool(32, newThreadFactory(getClass().getSimpleName() + "-request"));
+        this.responseExecutor = Executors.newFixedThreadPool(32, newThreadFactory(getClass().getSimpleName() + "-response"));
+        Runtime.getRuntime().addShutdownHook(new Thread(this::shutDown, newThreadName(getClass().getSimpleName() + "-shutdown")));
     }
 
-    protected WebsocketEndpoint(Executor requestExecutor) {
-        this(defaultObjectMapper, requestExecutor, requestExecutor);
-    }
-
-    protected WebsocketEndpoint(ObjectMapper objectMapper, Executor requestExecutor,
-                                Executor responseExecutor) {
+    protected WebsocketEndpoint(ObjectMapper objectMapper, Executor requestExecutor, Executor responseExecutor) {
         this.objectMapper = objectMapper;
         this.requestExecutor = Optional.ofNullable(requestExecutor).orElse(SameThreadExecutor.INSTANCE);
         this.responseExecutor = Optional.ofNullable(responseExecutor).orElse(SameThreadExecutor.INSTANCE);
-        Runtime.getRuntime().addShutdownHook(new Thread(this::shutDown));
+        Runtime.getRuntime().addShutdownHook(new Thread(this::shutDown, newThreadName(getClass().getSimpleName() + "-shutdown")));
     }
 
     private final Handler<Request> handler =

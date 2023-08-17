@@ -53,6 +53,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 
 import static com.fasterxml.jackson.databind.DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES;
 import static com.fasterxml.jackson.databind.SerializationFeature.WRITE_DATES_AS_TIMESTAMPS;
+import static io.fluxcapacitor.common.ObjectUtils.newThreadFactory;
 import static io.fluxcapacitor.common.TimingUtils.retryOnFailure;
 import static io.fluxcapacitor.common.serialization.compression.CompressionUtils.compress;
 import static io.fluxcapacitor.common.serialization.compression.CompressionUtils.decompress;
@@ -75,7 +76,8 @@ public abstract class AbstractWebsocketClient implements AutoCloseable {
     private final Map<Long, WebSocketRequest> requests = new ConcurrentHashMap<>();
     private final Map<String, Backlog<JsonType>> sessionBacklogs = new ConcurrentHashMap<>();
     private final AtomicBoolean closed = new AtomicBoolean();
-    private final ExecutorService resultExecutor = Executors.newFixedThreadPool(8);
+    private final ExecutorService resultExecutor = Executors.newFixedThreadPool(
+            8, newThreadFactory(getClass().getSimpleName() + "-onMessage"));
     private final boolean sendMetrics;
 
     public AbstractWebsocketClient(URI endpointUri, ClientConfig clientConfig, boolean sendMetrics) {

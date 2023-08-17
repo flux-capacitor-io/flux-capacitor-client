@@ -24,6 +24,7 @@ import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.ListIterator;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Properties;
 import java.util.Set;
@@ -32,6 +33,11 @@ import java.util.concurrent.Callable;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.ForkJoinPool;
+import java.util.concurrent.ForkJoinWorkerThread;
+import java.util.concurrent.ThreadFactory;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.BiFunction;
 import java.util.function.BiPredicate;
 import java.util.function.Consumer;
@@ -175,6 +181,47 @@ public class ObjectUtils {
 
     public static <T, U, R> MemoizingBiFunction<T, U, R> memoize(BiFunction<T, U, R> supplier) {
         return supplier instanceof MemoizingBiFunction<T, U, R> existing ? existing : new MemoizingBiFunction<>(supplier);
+    }
+
+    private static final AtomicInteger threadNumber = new AtomicInteger(1);
+
+    public static String newThreadName(String prefix) {
+        return prefix + "-" + threadNumber.getAndIncrement();
+    }
+
+    public static ThreadFactory newThreadFactory(String prefix) {
+        return new PrefixedThreadFactory(prefix);
+    }
+
+    public static ExecutorService newNamedWorkStealingPool(int parallelism, String prefix) {
+        return new ForkJoinPool(parallelism, pool -> {
+            final ForkJoinWorkerThread worker = ForkJoinPool.defaultForkJoinWorkerThreadFactory.newThread(pool);
+            worker.setName(prefix + "-pool-" + worker.getPoolIndex());
+            return worker;
+        }, null, true);
+    }
+
+    private static class PrefixedThreadFactory implements ThreadFactory {
+        private static final Map<String, AtomicInteger> poolCount = new ConcurrentHashMap<>();
+        private final ThreadGroup group = Thread.currentThread().getThreadGroup();
+        private final AtomicInteger threadNumber = new AtomicInteger(1);
+        private final String namePrefix;
+
+        public PrefixedThreadFactory(String poolPrefix) {
+            namePrefix = poolPrefix + "-pool-" + poolCount.computeIfAbsent(poolPrefix, k -> new AtomicInteger(1)).getAndIncrement() + "-thread-";
+        }
+
+        @SuppressWarnings("NullableProblems")
+        public Thread newThread(Runnable task) {
+            Thread t = new Thread(group, task, namePrefix + threadNumber.getAndIncrement(), 0);
+            if (t.isDaemon()) {
+                t.setDaemon(false);
+            }
+            if (t.getPriority() != Thread.NORM_PRIORITY) {
+                t.setPriority(Thread.NORM_PRIORITY);
+            }
+            return t;
+        }
     }
 
     private static class BreakingSpliterator<T> extends Spliterators.AbstractSpliterator<T> {
