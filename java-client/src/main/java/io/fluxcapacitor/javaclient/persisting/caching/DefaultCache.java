@@ -35,6 +35,7 @@ import java.util.function.BiFunction;
 import java.util.function.Consumer;
 import java.util.function.Function;
 
+import static io.fluxcapacitor.common.ObjectUtils.newThreadFactory;
 import static io.fluxcapacitor.javaclient.persisting.caching.CacheEvictionEvent.Reason.manual;
 import static io.fluxcapacitor.javaclient.persisting.caching.CacheEvictionEvent.Reason.memoryPressure;
 import static io.fluxcapacitor.javaclient.persisting.caching.CacheEvictionEvent.Reason.size;
@@ -49,7 +50,8 @@ public class DefaultCache implements Cache {
     private final Executor evictionNotifier;
     private final Collection<Consumer<CacheEvictionEvent>> evictionListeners = new CopyOnWriteArrayList<>();
 
-    private final ExecutorService referencePurger = Executors.newSingleThreadExecutor();
+    private final ExecutorService referencePurger = Executors.newSingleThreadExecutor(
+            newThreadFactory("DefaultCache-referencePurger"));
 
     private final ReferenceQueue<Object> referenceQueue = new ReferenceQueue<>();
 
@@ -58,7 +60,7 @@ public class DefaultCache implements Cache {
     }
 
     public DefaultCache(int maxSize) {
-        this(maxSize, Executors.newSingleThreadExecutor());
+        this(maxSize, Executors.newSingleThreadExecutor(newThreadFactory("DefaultCache-evictionNotifier")));
     }
 
     public DefaultCache(int maxSize, Executor evictionNotifier) {

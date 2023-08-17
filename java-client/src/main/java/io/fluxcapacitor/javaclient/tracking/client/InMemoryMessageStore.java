@@ -50,6 +50,7 @@ import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Consumer;
 import java.util.function.Predicate;
 
+import static io.fluxcapacitor.common.ObjectUtils.newThreadFactory;
 import static java.lang.System.currentTimeMillis;
 import static java.lang.Thread.currentThread;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
@@ -60,7 +61,7 @@ import static java.util.stream.Collectors.toList;
 public class InMemoryMessageStore implements GatewayClient, TrackingClient {
 
     private final Set<Consumer<MessageDispatch>> monitors = new CopyOnWriteArraySet<>();
-    private final ExecutorService executor = Executors.newCachedThreadPool();
+    private final ExecutorService executor = Executors.newCachedThreadPool(newThreadFactory("InMemoryMessageStore"));
     private final AtomicLong nextIndex = new AtomicLong();
     private final Map<String, TrackerRead> trackers = new ConcurrentHashMap<>();
 

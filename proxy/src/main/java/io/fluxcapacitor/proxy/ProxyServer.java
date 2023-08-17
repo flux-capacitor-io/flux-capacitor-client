@@ -25,6 +25,7 @@ import lombok.extern.slf4j.Slf4j;
 
 import java.util.Optional;
 
+import static io.fluxcapacitor.common.ObjectUtils.newThreadName;
 import static io.fluxcapacitor.javaclient.configuration.ApplicationProperties.getIntegerProperty;
 import static io.fluxcapacitor.javaclient.configuration.ApplicationProperties.getProperty;
 import static io.undertow.Handlers.path;
@@ -44,7 +45,7 @@ public class ProxyServer {
         Runtime.getRuntime().addShutdownHook(new Thread(() -> {
             log.info("Stopping Flux Capacitor proxy server");
             registration.cancel();
-        }));
+        }, newThreadName("ProxyServer-shutdown")));
     }
 
     public static Registration start(int port, ProxyRequestHandler proxyHandler) {

@@ -139,6 +139,7 @@ import static io.fluxcapacitor.common.MessageType.RESULT;
 import static io.fluxcapacitor.common.MessageType.SCHEDULE;
 import static io.fluxcapacitor.common.MessageType.WEBREQUEST;
 import static io.fluxcapacitor.common.MessageType.WEBRESPONSE;
+import static io.fluxcapacitor.common.ObjectUtils.newThreadName;
 import static io.fluxcapacitor.javaclient.tracking.IndexUtils.indexFromTimestamp;
 import static java.lang.Runtime.getRuntime;
 import static java.lang.String.format;
@@ -701,7 +702,7 @@ public class DefaultFluxCapacitor implements FluxCapacitor {
 
             //perform a controlled shutdown when the vm exits
             if (!disableShutdownHook) {
-                getRuntime().addShutdownHook(new Thread(fluxCapacitor::close));
+                getRuntime().addShutdownHook(new Thread(fluxCapacitor::close, newThreadName("DefaultFluxCapacitor-shutdown")));
             }
 
             return fluxCapacitor;

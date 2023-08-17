@@ -46,6 +46,7 @@ import static io.fluxcapacitor.common.MessageType.SCHEDULE;
 import static io.fluxcapacitor.common.MessageType.WEBREQUEST;
 import static io.fluxcapacitor.common.MessageType.WEBRESPONSE;
 import static io.fluxcapacitor.common.ObjectUtils.memoize;
+import static io.fluxcapacitor.common.ObjectUtils.newThreadName;
 import static io.fluxcapacitor.common.ServicePathBuilder.consumerPath;
 import static io.fluxcapacitor.common.ServicePathBuilder.eventSourcingPath;
 import static io.fluxcapacitor.common.ServicePathBuilder.keyValuePath;
@@ -111,7 +112,7 @@ public class TestServer {
                 log.warn("Thread to kill server was interrupted");
                 Thread.currentThread().interrupt();
             }
-        }));
+        }, newThreadName("TestServer-shutdown")));
 
         log.info("Flux Capacitor test server running on port {}", port);
     }

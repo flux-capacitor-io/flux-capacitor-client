@@ -30,6 +30,7 @@ import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
 
+import static io.fluxcapacitor.common.ObjectUtils.newThreadFactory;
 import static java.util.concurrent.TimeUnit.SECONDS;
 
 @Slf4j
@@ -60,7 +61,7 @@ public class Backlog<T> implements Monitored<List<T>> {
     public Backlog(BatchConsumer<T> consumer, int maxBatchSize, int threads, ErrorHandler<List<T>> errorHandler) {
         this.maxBatchSize = maxBatchSize;
         this.consumer = consumer;
-        this.executorService = Executors.newFixedThreadPool(threads);
+        this.executorService = Executors.newFixedThreadPool(threads, newThreadFactory("Backlog"));
         this.errorHandler = errorHandler;
     }
 

@@ -29,6 +29,7 @@ import lombok.extern.slf4j.Slf4j;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
+import static io.fluxcapacitor.common.ObjectUtils.newThreadFactory;
 import static java.lang.System.currentTimeMillis;
 import static java.util.UUID.randomUUID;
 
@@ -40,7 +41,7 @@ public class DefaultMetricsLog implements MetricsLog {
     private final ExecutorService workerPool;
 
     public DefaultMetricsLog(GatewayClient store) {
-        this(store, Executors.newSingleThreadExecutor());
+        this(store, Executors.newSingleThreadExecutor(newThreadFactory("DefaultMetricsLog")));
     }
 
     public DefaultMetricsLog(GatewayClient store, ExecutorService workerPool) {
