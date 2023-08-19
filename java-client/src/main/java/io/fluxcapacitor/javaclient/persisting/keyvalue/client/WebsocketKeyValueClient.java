@@ -14,7 +14,6 @@
 
 package io.fluxcapacitor.javaclient.persisting.keyvalue.client;
 
-import io.fluxcapacitor.common.Awaitable;
 import io.fluxcapacitor.common.Guarantee;
 import io.fluxcapacitor.common.api.BooleanResult;
 import io.fluxcapacitor.common.api.Data;
@@ -49,7 +48,7 @@ public class WebsocketKeyValueClient extends AbstractWebsocketClient implements 
     }
 
     @Override
-    public Awaitable putValue(String key, Data<byte[]> value, Guarantee guarantee) {
+    public CompletableFuture<Void> putValue(String key, Data<byte[]> value, Guarantee guarantee) {
         return switch (guarantee) {
             case NONE, SENT -> sendCommand(new StoreValues(List.of(new KeyValuePair(key, value)), guarantee));
             default -> sendCommand(new StoreValuesAndWait(List.of(new KeyValuePair(key, value))));
@@ -69,7 +68,7 @@ public class WebsocketKeyValueClient extends AbstractWebsocketClient implements 
     }
 
     @Override
-    public Awaitable deleteValue(String key, Guarantee guarantee) {
+    public CompletableFuture<Void> deleteValue(String key, Guarantee guarantee) {
         return sendCommand(new DeleteValue(key, guarantee));
     }
 }

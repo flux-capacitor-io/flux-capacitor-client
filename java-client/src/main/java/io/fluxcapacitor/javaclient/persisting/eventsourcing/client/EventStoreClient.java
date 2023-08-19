@@ -14,7 +14,6 @@
 
 package io.fluxcapacitor.javaclient.persisting.eventsourcing.client;
 
-import io.fluxcapacitor.common.Awaitable;
 import io.fluxcapacitor.common.Guarantee;
 import io.fluxcapacitor.common.api.SerializedMessage;
 import io.fluxcapacitor.common.api.modeling.GetAggregateIds;
@@ -26,14 +25,15 @@ import io.fluxcapacitor.javaclient.persisting.eventsourcing.AggregateEventStream
 
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
 
 public interface EventStoreClient extends AutoCloseable {
 
-    default Awaitable storeEvents(String aggregateId, List<SerializedMessage> events, boolean storeOnly) {
+    default CompletableFuture<Void> storeEvents(String aggregateId, List<SerializedMessage> events, boolean storeOnly) {
         return storeEvents(aggregateId, events, storeOnly, Guarantee.STORED);
     }
 
-    Awaitable storeEvents(String aggregateId, List<SerializedMessage> events, boolean storeOnly, Guarantee guarantee);
+    CompletableFuture<Void> storeEvents(String aggregateId, List<SerializedMessage> events, boolean storeOnly, Guarantee guarantee);
 
     default AggregateEventStream<SerializedMessage> getEvents(String aggregateId) {
         return getEvents(aggregateId, -1L);
@@ -41,15 +41,15 @@ public interface EventStoreClient extends AutoCloseable {
 
     AggregateEventStream<SerializedMessage> getEvents(String aggregateId, long lastSequenceNumber);
 
-    default Awaitable deleteEvents(String aggregateId) {
+    default CompletableFuture<Void> deleteEvents(String aggregateId) {
         return deleteEvents(aggregateId, Guarantee.STORED);
     }
 
-    Awaitable deleteEvents(String aggregateId, Guarantee guarantee);
+    CompletableFuture<Void> deleteEvents(String aggregateId, Guarantee guarantee);
 
-    Awaitable updateRelationships(UpdateRelationships request);
+    CompletableFuture<Void> updateRelationships(UpdateRelationships request);
 
-    Awaitable repairRelationships(RepairRelationships request);
+    CompletableFuture<Void> repairRelationships(RepairRelationships request);
 
     default Map<String, String> getAggregatesFor(String entityId) {
         return getAggregateIds(new GetAggregateIds(entityId));

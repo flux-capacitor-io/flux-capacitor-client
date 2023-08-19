@@ -14,7 +14,6 @@
 
 package io.fluxcapacitor.javaclient.scheduling.client;
 
-import io.fluxcapacitor.common.Awaitable;
 import io.fluxcapacitor.common.Guarantee;
 import io.fluxcapacitor.common.api.SerializedMessage;
 import io.fluxcapacitor.common.api.scheduling.SerializedSchedule;
@@ -31,6 +30,7 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentSkipListMap;
 import java.util.stream.Stream;
 
@@ -64,7 +64,7 @@ public class InMemorySchedulingClient extends InMemoryMessageStore implements Sc
 
     @Override
     @Synchronized
-    public Awaitable schedule(Guarantee guarantee, SerializedSchedule... schedules) {
+    public CompletableFuture<Void> schedule(Guarantee guarantee, SerializedSchedule... schedules) {
         List<SerializedSchedule> filtered = Arrays.stream(schedules)
                 .filter(s -> !s.isIfAbsent() || !scheduleIdsByIndex.containsValue(s.getScheduleId())).toList();
         for (SerializedSchedule schedule : filtered) {
@@ -77,14 +77,14 @@ public class InMemorySchedulingClient extends InMemoryMessageStore implements Sc
         }
         super.send(Guarantee.SENT,
                    filtered.stream().map(SerializedSchedule::getMessage).toArray(SerializedMessage[]::new));
-        return Awaitable.ready();
+        return CompletableFuture.completedFuture(null);
     }
 
     @Override
     @Synchronized
-    public Awaitable cancelSchedule(String scheduleId, Guarantee guarantee) {
+    public CompletableFuture<Void> cancelSchedule(String scheduleId, Guarantee guarantee) {
         scheduleIdsByIndex.values().removeIf(s -> s.equals(scheduleId));
-        return Awaitable.ready();
+        return CompletableFuture.completedFuture(null);
     }
 
     @Override
@@ -98,7 +98,7 @@ public class InMemorySchedulingClient extends InMemoryMessageStore implements Sc
     }
 
     @Override
-    public Awaitable send(Guarantee guarantee, SerializedMessage... messages) {
+    public CompletableFuture<Void> send(Guarantee guarantee, SerializedMessage... messages) {
         throw new UnsupportedOperationException("Use method #schedule instead");
     }
 

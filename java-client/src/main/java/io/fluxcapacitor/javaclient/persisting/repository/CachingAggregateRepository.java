@@ -14,7 +14,6 @@
 
 package io.fluxcapacitor.javaclient.persisting.repository;
 
-import io.fluxcapacitor.common.Awaitable;
 import io.fluxcapacitor.common.api.SerializedMessage;
 import io.fluxcapacitor.common.api.modeling.Relationship;
 import io.fluxcapacitor.javaclient.FluxCapacitor;
@@ -36,6 +35,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import static io.fluxcapacitor.common.MessageType.EVENT;
@@ -73,7 +73,7 @@ public class CachingAggregateRepository implements AggregateRepository {
     }
 
     @Override
-    public Awaitable repairRelationships(Entity<?> aggregate) {
+    public CompletableFuture<Void> repairRelationships(Entity<?> aggregate) {
         return delegate.repairRelationships(aggregate);
     }
 

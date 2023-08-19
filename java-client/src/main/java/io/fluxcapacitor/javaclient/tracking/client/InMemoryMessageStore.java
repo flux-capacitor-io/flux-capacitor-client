@@ -14,7 +14,6 @@
 
 package io.fluxcapacitor.javaclient.tracking.client;
 
-import io.fluxcapacitor.common.Awaitable;
 import io.fluxcapacitor.common.Guarantee;
 import io.fluxcapacitor.common.MessageType;
 import io.fluxcapacitor.common.Registration;
@@ -77,7 +76,7 @@ public class InMemoryMessageStore implements GatewayClient, TrackingClient {
     }
 
     @Override
-    public Awaitable send(Guarantee guarantee, SerializedMessage... messages) {
+    public CompletableFuture<Void> send(Guarantee guarantee, SerializedMessage... messages) {
         try {
             synchronized (this) {
                 Arrays.stream(messages).forEach(m -> {
@@ -91,7 +90,7 @@ public class InMemoryMessageStore implements GatewayClient, TrackingClient {
                 }
                 this.notifyAll();
             }
-            return Awaitable.ready();
+            return CompletableFuture.completedFuture(null);
         } finally {
             if (!monitors.isEmpty()) {
                 MessageDispatch dispatch = new MessageDispatch(Arrays.asList(messages), messageType);
@@ -178,14 +177,14 @@ public class InMemoryMessageStore implements GatewayClient, TrackingClient {
     }
 
     @Override
-    public Awaitable storePosition(String consumer, int[] segment, long lastIndex, Guarantee guarantee) {
+    public CompletableFuture<Void> storePosition(String consumer, int[] segment, long lastIndex, Guarantee guarantee) {
         return resetPosition(consumer, lastIndex, guarantee);
     }
 
     @Override
-    public Awaitable resetPosition(String consumer, long lastIndex, Guarantee guarantee) {
+    public CompletableFuture<Void> resetPosition(String consumer, long lastIndex, Guarantee guarantee) {
         consumerTokens.put(consumer, lastIndex);
-        return Awaitable.ready();
+        return CompletableFuture.completedFuture(null);
     }
 
     @Override
@@ -194,9 +193,9 @@ public class InMemoryMessageStore implements GatewayClient, TrackingClient {
     }
 
     @Override
-    public Awaitable disconnectTracker(String consumer, String trackerId, boolean sendFinalEmptyBatch, Guarantee guarantee) {
+    public CompletableFuture<Void> disconnectTracker(String consumer, String trackerId, boolean sendFinalEmptyBatch, Guarantee guarantee) {
         disconnectTrackersMatching(t -> Objects.equals(trackerId, t.getTrackerId()));
-        return Awaitable.ready();
+        return CompletableFuture.completedFuture(null);
     }
 
     @SuppressWarnings("unchecked")

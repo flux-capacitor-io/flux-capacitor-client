@@ -739,7 +739,7 @@ public class AggregateEntitiesTest {
                     .aggregateType(Aggregate.class.getName()).build();
             testFixture.whenExecuting(
                             fc -> fc.client().getEventStoreClient().updateRelationships(new UpdateRelationships(
-                                    Set.of(added), Set.of(), STORED)).awaitSilently())
+                                    Set.of(added), Set.of(), STORED)).get())
                     .expectThat(fc -> assertEquals(List.of(added), fc.client().getEventStoreClient()
                             .getRelationships("added")));
         }
@@ -750,9 +750,9 @@ public class AggregateEntitiesTest {
                     .aggregateType(Aggregate.class.getName()).build();
             testFixture.given(fc -> fc.client().getEventStoreClient().updateRelationships(new UpdateRelationships(
                                     Set.of(wrong), Set.of(), STORED))
-                            .awaitSilently())
+                            .get())
                     .whenExecuting(fc -> fc.aggregateRepository()
-                            .repairRelationships(loadAggregate("test", Aggregate.class)).awaitSilently())
+                            .repairRelationships(loadAggregate("test", Aggregate.class)).get())
                     .expectThat(fc -> assertEquals(List.of(), fc.client().getEventStoreClient()
                             .getRelationships("wrong")))
                     .expectTrue(fc -> fc.aggregateRepository().getLatestAggregateId("map0").isPresent());
@@ -764,8 +764,8 @@ public class AggregateEntitiesTest {
                     .aggregateType(Aggregate.class.getName()).build();
             testFixture.given(fc -> fc.client().getEventStoreClient().updateRelationships(new UpdateRelationships(
                                     Set.of(wrong), Set.of(), STORED))
-                            .awaitSilently())
-                    .whenExecuting(fc -> fc.aggregateRepository().repairRelationships("test").awaitSilently())
+                            .get())
+                    .whenExecuting(fc -> fc.aggregateRepository().repairRelationships("test").get())
                     .expectThat(fc -> assertEquals(List.of(), fc.client().getEventStoreClient()
                             .getRelationships("wrong")))
                     .expectTrue(fc -> fc.aggregateRepository().getLatestAggregateId("map0").isPresent());

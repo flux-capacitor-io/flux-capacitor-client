@@ -14,14 +14,15 @@
 
 package io.fluxcapacitor.javaclient.publishing.client;
 
-import io.fluxcapacitor.common.Awaitable;
 import io.fluxcapacitor.common.Guarantee;
 import io.fluxcapacitor.common.Monitored;
 import io.fluxcapacitor.common.api.SerializedMessage;
 
+import java.util.concurrent.CompletableFuture;
+
 public interface GatewayClient extends AutoCloseable, Monitored<MessageDispatch> {
 
-    Awaitable send(Guarantee guarantee, SerializedMessage... messages);
+    CompletableFuture<Void> send(Guarantee guarantee, SerializedMessage... messages);
 
     @Override
     void close();

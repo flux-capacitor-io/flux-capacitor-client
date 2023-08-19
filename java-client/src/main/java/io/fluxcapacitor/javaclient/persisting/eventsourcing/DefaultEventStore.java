@@ -14,7 +14,6 @@
 
 package io.fluxcapacitor.javaclient.persisting.eventsourcing;
 
-import io.fluxcapacitor.common.Awaitable;
 import io.fluxcapacitor.common.ConsistentHashing;
 import io.fluxcapacitor.common.api.SerializedMessage;
 import io.fluxcapacitor.javaclient.common.Message;
@@ -29,6 +28,7 @@ import lombok.extern.slf4j.Slf4j;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
 
 import static io.fluxcapacitor.common.MessageType.EVENT;
 import static java.lang.String.format;
@@ -44,9 +44,9 @@ public class DefaultEventStore implements EventStore {
     private final HandlerRegistry localHandlerRegistry;
 
     @Override
-    public Awaitable storeEvents(Object aggregateId, List<?> events, boolean storeOnly,
-                                 boolean interceptBeforeStoring) {
-        Awaitable result;
+    public CompletableFuture<Void> storeEvents(Object aggregateId, List<?> events, boolean storeOnly,
+                                               boolean interceptBeforeStoring) {
+        CompletableFuture<Void> result;
         List<DeserializingMessage> messages = new ArrayList<>(events.size());
         try {
             int segment = ConsistentHashing.computeSegment(aggregateId.toString());

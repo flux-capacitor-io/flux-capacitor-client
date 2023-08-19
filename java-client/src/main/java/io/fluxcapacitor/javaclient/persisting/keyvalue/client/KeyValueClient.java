@@ -14,7 +14,6 @@
 
 package io.fluxcapacitor.javaclient.persisting.keyvalue.client;
 
-import io.fluxcapacitor.common.Awaitable;
 import io.fluxcapacitor.common.Guarantee;
 import io.fluxcapacitor.common.api.Data;
 
@@ -33,7 +32,7 @@ public interface KeyValueClient extends AutoCloseable {
      * @param guarantee The guarantee for storing
      * @return a handle that enables clients to wait until the value was sent or stored depending on the guarantee
      */
-    Awaitable putValue(String key, Data<byte[]> value, Guarantee guarantee);
+    CompletableFuture<Void> putValue(String key, Data<byte[]> value, Guarantee guarantee);
 
     /**
      * Adds the given value in the key value store if the key is not already mapped to a value.
@@ -59,7 +58,7 @@ public interface KeyValueClient extends AutoCloseable {
      * @param key The key associated with this value
      * @return a handle that enables clients to wait until the command was safely sent to the store
      */
-    default Awaitable deleteValue(String key) {
+    default CompletableFuture<Void> deleteValue(String key) {
         return deleteValue(key, Guarantee.SENT);
     }
 
@@ -69,7 +68,7 @@ public interface KeyValueClient extends AutoCloseable {
      * @param key The key associated with this value
      * @return a handle that enables clients to wait until the command was safely sent to the store
      */
-    Awaitable deleteValue(String key, Guarantee guarantee);
+    CompletableFuture<Void> deleteValue(String key, Guarantee guarantee);
 
     @Override
     void close();

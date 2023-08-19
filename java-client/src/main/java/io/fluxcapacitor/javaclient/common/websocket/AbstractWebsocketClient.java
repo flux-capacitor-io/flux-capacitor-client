@@ -16,7 +16,6 @@ package io.fluxcapacitor.javaclient.common.websocket;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.json.JsonMapper;
-import io.fluxcapacitor.common.Awaitable;
 import io.fluxcapacitor.common.Backlog;
 import io.fluxcapacitor.common.RetryConfiguration;
 import io.fluxcapacitor.common.api.Command;
@@ -120,28 +119,28 @@ public abstract class AbstractWebsocketClient implements AutoCloseable {
         return (R) send(request).get();
     }
 
-    protected Awaitable sendCommand(Command command) {
+    protected CompletableFuture<Void> sendCommand(Command command) {
         switch (command.getGuarantee()) {
             case NONE:
                 sendAndForget(command);
-                return Awaitable.ready();
+                return CompletableFuture.completedFuture(null);
             case SENT:
                 return sendAndForget(command);
             default:
-                return Awaitable.fromFuture(send(command));
+                return send(command).thenApply(r -> null);
         }
     }
 
     @SneakyThrows
-    private Awaitable sendAndForget(JsonType object) {
+    private CompletableFuture<Void> sendAndForget(JsonType object) {
         return send(object, sessionPool.get());
     }
 
     @SneakyThrows
-    private Awaitable send(JsonType object, Session session) {
+    private CompletableFuture<Void> send(JsonType object, Session session) {
         try {
             return sessionBacklogs.computeIfAbsent(
-                    session.getId(), id -> new Backlog<>(batch -> sendBatch(batch, session))).add(object);
+                    session.getId(), id -> Backlog.forConsumer(batch -> sendBatch(batch, session))).add(object);
         } finally {
             tryPublishMetrics(object, object instanceof Request
                     ? metricsMetadata().with("requestId", ((Request) object).getRequestId()) : metricsMetadata());
@@ -149,7 +148,7 @@ public abstract class AbstractWebsocketClient implements AutoCloseable {
     }
 
     @SneakyThrows
-    private Awaitable sendBatch(List<JsonType> requests, Session session) {
+    private void sendBatch(List<JsonType> requests, Session session) {
         JsonType object = requests.size() == 1 ? requests.get(0) : new RequestBatch<>(requests);
         try (OutputStream outputStream = session.getBasicRemote().getSendStream()) {
             byte[] bytes = objectMapper.writeValueAsBytes(object);
@@ -158,7 +157,6 @@ public abstract class AbstractWebsocketClient implements AutoCloseable {
             log.error("Failed to send request {}", object, e);
             throw e;
         }
-        return Awaitable.ready();
     }
 
     @OnMessage

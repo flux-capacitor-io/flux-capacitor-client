@@ -49,7 +49,7 @@ public class WebResponseGateway implements ResultGateway {
                     = dispatchInterceptor.modifySerializedMessage(message.serialize(serializer), message, WEBRESPONSE);
             serializedMessage.setTarget(target);
             serializedMessage.setRequestId(requestId);
-            return client.send(guarantee, serializedMessage).asCompletableFuture();
+            return client.send(guarantee, serializedMessage);
         } catch (Exception e) {
             throw new GatewayException(String.format("Failed to send response %s", response.getPayload()), e);
         }

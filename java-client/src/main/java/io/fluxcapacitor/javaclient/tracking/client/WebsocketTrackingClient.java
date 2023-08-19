@@ -14,7 +14,6 @@
 
 package io.fluxcapacitor.javaclient.tracking.client;
 
-import io.fluxcapacitor.common.Awaitable;
 import io.fluxcapacitor.common.Guarantee;
 import io.fluxcapacitor.common.MessageType;
 import io.fluxcapacitor.common.api.Metadata;
@@ -94,12 +93,12 @@ public class WebsocketTrackingClient extends AbstractWebsocketClient implements 
     }
 
     @Override
-    public Awaitable storePosition(String consumer, int[] segment, long lastIndex, Guarantee guarantee) {
+    public CompletableFuture<Void> storePosition(String consumer, int[] segment, long lastIndex, Guarantee guarantee) {
         return sendCommand(new StorePosition(consumer, segment, lastIndex, guarantee));
     }
 
     @Override
-    public Awaitable resetPosition(String consumer, long lastIndex, Guarantee guarantee) {
+    public CompletableFuture<Void> resetPosition(String consumer, long lastIndex, Guarantee guarantee) {
         return sendCommand(new ResetPosition(consumer, lastIndex, guarantee));
     }
 
@@ -109,7 +108,7 @@ public class WebsocketTrackingClient extends AbstractWebsocketClient implements 
     }
 
     @Override
-    public Awaitable disconnectTracker(String consumer, String trackerId, boolean sendFinalEmptyBatch, Guarantee guarantee) {
+    public CompletableFuture<Void> disconnectTracker(String consumer, String trackerId, boolean sendFinalEmptyBatch, Guarantee guarantee) {
         return sendCommand(new DisconnectTracker(consumer, trackerId, sendFinalEmptyBatch, guarantee));
     }
 

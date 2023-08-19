@@ -14,7 +14,6 @@
 
 package io.fluxcapacitor.javaclient.persisting.eventsourcing.client;
 
-import io.fluxcapacitor.common.Awaitable;
 import io.fluxcapacitor.common.Guarantee;
 import io.fluxcapacitor.common.api.SerializedMessage;
 import io.fluxcapacitor.common.api.eventsourcing.AppendEvents;
@@ -38,6 +37,7 @@ import jakarta.websocket.ClientEndpoint;
 import java.net.URI;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Stream;
 
@@ -62,8 +62,8 @@ public class WebSocketEventStoreClient extends AbstractWebsocketClient implement
     }
 
     @Override
-    public Awaitable storeEvents(String aggregateId, List<SerializedMessage> events, boolean storeOnly,
-                                 Guarantee guarantee) {
+    public CompletableFuture<Void> storeEvents(String aggregateId, List<SerializedMessage> events, boolean storeOnly,
+                                               Guarantee guarantee) {
         return sendCommand(new AppendEvents(List.of(new EventBatch(aggregateId, events, storeOnly)), guarantee));
     }
 
@@ -85,12 +85,12 @@ public class WebSocketEventStoreClient extends AbstractWebsocketClient implement
     }
 
     @Override
-    public Awaitable updateRelationships(UpdateRelationships request) {
+    public CompletableFuture<Void> updateRelationships(UpdateRelationships request) {
         return sendCommand(request);
     }
 
     @Override
-    public Awaitable repairRelationships(RepairRelationships request) {
+    public CompletableFuture<Void> repairRelationships(RepairRelationships request) {
         return sendCommand(request);
     }
 
@@ -105,7 +105,7 @@ public class WebSocketEventStoreClient extends AbstractWebsocketClient implement
     }
 
     @Override
-    public Awaitable deleteEvents(String aggregateId, Guarantee guarantee) {
+    public CompletableFuture<Void> deleteEvents(String aggregateId, Guarantee guarantee) {
         return sendCommand(new DeleteEvents(aggregateId, guarantee));
     }
 

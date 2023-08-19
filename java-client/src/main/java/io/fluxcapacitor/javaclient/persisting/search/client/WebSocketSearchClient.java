@@ -14,7 +14,6 @@
 
 package io.fluxcapacitor.javaclient.persisting.search.client;
 
-import io.fluxcapacitor.common.Awaitable;
 import io.fluxcapacitor.common.Guarantee;
 import io.fluxcapacitor.common.ObjectUtils;
 import io.fluxcapacitor.common.api.search.BulkUpdateDocuments;
@@ -46,6 +45,7 @@ import java.time.Instant;
 import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Stream;
 
@@ -65,12 +65,12 @@ public class WebSocketSearchClient extends AbstractWebsocketClient implements Se
     }
 
     @Override
-    public Awaitable index(List<SerializedDocument> documents, Guarantee guarantee, boolean ifNotExists) {
+    public CompletableFuture<Void> index(List<SerializedDocument> documents, Guarantee guarantee, boolean ifNotExists) {
         return sendCommand(new IndexDocuments(documents, ifNotExists, guarantee));
     }
 
     @Override
-    public Awaitable bulkUpdate(Collection<DocumentUpdate> batch, Guarantee guarantee) {
+    public CompletableFuture<Void> bulkUpdate(Collection<DocumentUpdate> batch, Guarantee guarantee) {
         return sendCommand(new BulkUpdateDocuments(batch, guarantee));
     }
 
@@ -116,22 +116,22 @@ public class WebSocketSearchClient extends AbstractWebsocketClient implements Se
     }
 
     @Override
-    public Awaitable delete(SearchQuery query, Guarantee guarantee) {
+    public CompletableFuture<Void> delete(SearchQuery query, Guarantee guarantee) {
         return sendCommand(new DeleteDocuments(query, guarantee));
     }
 
     @Override
-    public Awaitable delete(String documentId, String collection, Guarantee guarantee) {
+    public CompletableFuture<Void> delete(String documentId, String collection, Guarantee guarantee) {
         return sendCommand(new DeleteDocumentById(collection, documentId, guarantee));
     }
 
     @Override
-    public Awaitable deleteCollection(String collection, Guarantee guarantee) {
+    public CompletableFuture<Void> deleteCollection(String collection, Guarantee guarantee) {
         return sendCommand(new DeleteCollection(collection, guarantee));
     }
 
     @Override
-    public Awaitable createAuditTrail(CreateAuditTrail request) {
+    public CompletableFuture<Void> createAuditTrail(CreateAuditTrail request) {
         return sendCommand(request);
     }
 }

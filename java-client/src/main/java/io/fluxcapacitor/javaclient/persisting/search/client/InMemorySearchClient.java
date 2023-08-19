@@ -14,7 +14,6 @@
 
 package io.fluxcapacitor.javaclient.persisting.search.client;
 
-import io.fluxcapacitor.common.Awaitable;
 import io.fluxcapacitor.common.Guarantee;
 import io.fluxcapacitor.common.api.search.CreateAuditTrail;
 import io.fluxcapacitor.common.api.search.DocumentStats;
@@ -35,6 +34,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.function.Function;
 import java.util.function.Predicate;
@@ -51,7 +51,7 @@ public class InMemorySearchClient implements SearchClient {
     private final List<Document> documents = new CopyOnWriteArrayList<>();
 
     @Override
-    public synchronized Awaitable index(List<SerializedDocument> documents, Guarantee guarantee, boolean ifNotExists) {
+    public synchronized CompletableFuture<Void> index(List<SerializedDocument> documents, Guarantee guarantee, boolean ifNotExists) {
         Function<Document, String> identify = d -> d.getCollection() + "/" + d.getId();
         Map<String, Document> existing = this.documents.stream().collect(toMap(identify, identity()));
         Map<String, Document> updates = documents.stream().map(SerializedDocument::deserializeDocument)
@@ -65,7 +65,7 @@ public class InMemorySearchClient implements SearchClient {
                 this.documents.add(value);
             });
         }
-        return Awaitable.ready();
+        return CompletableFuture.completedFuture(null);
     }
 
     @Override
@@ -100,26 +100,26 @@ public class InMemorySearchClient implements SearchClient {
     }
 
     @Override
-    public Awaitable delete(SearchQuery query, Guarantee guarantee) {
+    public CompletableFuture<Void> delete(SearchQuery query, Guarantee guarantee) {
         documents.removeAll(documents.stream().filter(query::matches).toList());
-        return Awaitable.ready();
+        return CompletableFuture.completedFuture(null);
     }
 
     @Override
-    public Awaitable delete(String documentId, String collection, Guarantee guarantee) {
+    public CompletableFuture<Void> delete(String documentId, String collection, Guarantee guarantee) {
         documents.removeIf(d -> Objects.equals(documentId, d.getId()) && Objects.equals(collection, d.getCollection()));
-        return Awaitable.ready();
+        return CompletableFuture.completedFuture(null);
     }
 
     @Override
-    public Awaitable createAuditTrail(CreateAuditTrail request) {
-        return Awaitable.ready();
+    public CompletableFuture<Void> createAuditTrail(CreateAuditTrail request) {
+        return CompletableFuture.completedFuture(null);
     }
 
     @Override
-    public Awaitable deleteCollection(String collection, Guarantee guarantee) {
+    public CompletableFuture<Void> deleteCollection(String collection, Guarantee guarantee) {
         documents.removeIf(d -> Objects.equals(collection, d.getCollection()));
-        return Awaitable.ready();
+        return CompletableFuture.completedFuture(null);
     }
 
     @Override
@@ -149,7 +149,7 @@ public class InMemorySearchClient implements SearchClient {
     }
 
     @Override
-    public Awaitable bulkUpdate(Collection<DocumentUpdate> updates, Guarantee guarantee) {
+    public CompletableFuture<Void> bulkUpdate(Collection<DocumentUpdate> updates, Guarantee guarantee) {
         updates.forEach(action -> {
             switch (action.getType()) {
                 case delete -> delete(action.getId(), action.getCollection(), guarantee);
@@ -157,7 +157,7 @@ public class InMemorySearchClient implements SearchClient {
                                                       action.getType().equals(indexIfNotExists));
             }
         });
-        return Awaitable.ready();
+        return CompletableFuture.completedFuture(null);
     }
 
     @Override

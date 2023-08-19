@@ -14,7 +14,6 @@
 
 package io.fluxcapacitor.javaclient.tracking.client;
 
-import io.fluxcapacitor.common.Awaitable;
 import io.fluxcapacitor.common.Guarantee;
 import io.fluxcapacitor.common.MessageType;
 import io.fluxcapacitor.common.Registration;
@@ -124,7 +123,7 @@ public class CachingTrackingClient implements TrackingClient {
                 } finally {
                     if (atomicIndex.get() > minIndex) {
                         try {
-                            storePosition(consumer, claimResult.getSegment(), atomicIndex.get()).await();
+                            storePosition(consumer, claimResult.getSegment(), atomicIndex.get()).get();
                         } catch (Exception e) {
                             log.error("Failed to update position of {}", consumer, e);
                         }
@@ -195,12 +194,12 @@ public class CachingTrackingClient implements TrackingClient {
     }
 
     @Override
-    public Awaitable storePosition(String consumer, int[] segment, long lastIndex, Guarantee guarantee) {
+    public CompletableFuture<Void> storePosition(String consumer, int[] segment, long lastIndex, Guarantee guarantee) {
         return delegate.storePosition(consumer, segment, lastIndex, guarantee);
     }
 
     @Override
-    public Awaitable resetPosition(String consumer, long lastIndex, Guarantee guarantee) {
+    public CompletableFuture<Void> resetPosition(String consumer, long lastIndex, Guarantee guarantee) {
         return delegate.resetPosition(consumer, lastIndex, guarantee);
     }
 
@@ -210,7 +209,7 @@ public class CachingTrackingClient implements TrackingClient {
     }
 
     @Override
-    public Awaitable disconnectTracker(String consumer, String trackerId, boolean sendFinalEmptyBatch, Guarantee guarantee) {
+    public CompletableFuture<Void> disconnectTracker(String consumer, String trackerId, boolean sendFinalEmptyBatch, Guarantee guarantee) {
         return delegate.disconnectTracker(consumer, trackerId, sendFinalEmptyBatch, guarantee);
     }
 

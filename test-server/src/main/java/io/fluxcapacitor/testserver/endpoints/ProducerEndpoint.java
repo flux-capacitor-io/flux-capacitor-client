@@ -14,7 +14,6 @@
 
 package io.fluxcapacitor.testserver.endpoints;
 
-import io.fluxcapacitor.common.Awaitable;
 import io.fluxcapacitor.common.Guarantee;
 import io.fluxcapacitor.common.api.SerializedMessage;
 import io.fluxcapacitor.common.api.publishing.Append;
@@ -24,6 +23,8 @@ import io.fluxcapacitor.testserver.WebsocketEndpoint;
 import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
+import java.util.concurrent.CompletableFuture;
+
 @Slf4j
 @AllArgsConstructor
 public class ProducerEndpoint extends WebsocketEndpoint {
@@ -31,13 +32,13 @@ public class ProducerEndpoint extends WebsocketEndpoint {
     private final InMemoryMessageStore store;
 
     @Handle
-    public Awaitable handle(Append request) {
-        Awaitable awaitable = Awaitable.ready();
+    public CompletableFuture<Void> handle(Append request) {
+        CompletableFuture<Void> future = CompletableFuture.completedFuture(null);
         try {
-            awaitable = store.send(Guarantee.SENT, request.getMessages().toArray(SerializedMessage[]::new));
+            future = store.send(Guarantee.SENT, request.getMessages().toArray(SerializedMessage[]::new));
         } catch (Exception e) {
             log.error("Failed to handle {}", request, e);
         }
-        return request.getGuarantee().compareTo(Guarantee.STORED) >= 0 ? awaitable : null;
+        return request.getGuarantee().compareTo(Guarantee.STORED) >= 0 ? future : null;
     }
 }

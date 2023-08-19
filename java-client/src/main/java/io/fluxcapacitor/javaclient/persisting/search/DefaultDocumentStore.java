@@ -68,7 +68,7 @@ public class DefaultDocumentStore implements DocumentStore {
         try {
             return client.index(List.of(serializer.toDocument(
                     object, id.toString(), collection.toString(), begin, end)),
-                                guarantee, ifNotExists).asCompletableFuture();
+                                guarantee, ifNotExists);
         } catch (Exception e) {
             throw new DocumentStoreException(format(
                     "Failed to store a document %s to collection %s", id, collection), e);
@@ -103,7 +103,7 @@ public class DefaultDocumentStore implements DocumentStore {
             return builder.build();
         }).map(SerializedDocument::new).collect(toList());
         try {
-            return client.index(documents, guarantee, ifNotExists).asCompletableFuture();
+            return client.index(documents, guarantee, ifNotExists);
         } catch (Exception e) {
             throw new DocumentStoreException(
                     format("Could not store a list of documents for collection %s", collection), e);
@@ -120,7 +120,7 @@ public class DefaultDocumentStore implements DocumentStore {
                 v, idFunction.apply(v).toString(), collection.toString(), beginFunction.apply(v),
                 endFunction.apply(v))).collect(toList());
         try {
-            return client.index(documents, guarantee, ifNotExists).asCompletableFuture();
+            return client.index(documents, guarantee, ifNotExists);
         } catch (Exception e) {
             throw new DocumentStoreException(
                     format("Could not store a list of documents for collection %s", collection), e);
@@ -133,7 +133,7 @@ public class DefaultDocumentStore implements DocumentStore {
             return client.bulkUpdate(updates.stream().map(this::serializeAction).filter(Objects::nonNull)
                                              .collect(toMap(a -> format("%s_%s", a.getCollection(), a.getId()),
                                                             identity(), (a, b) -> b)).values(),
-                                     guarantee).asCompletableFuture();
+                                     guarantee);
         } catch (Exception e) {
             throw new DocumentStoreException("Could not apply batch of search actions", e);
         }
@@ -180,7 +180,7 @@ public class DefaultDocumentStore implements DocumentStore {
     @Override
     public CompletableFuture<Void> deleteDocument(Object id, Object collection) {
         try {
-            return client.delete(id.toString(), collection.toString(), Guarantee.STORED).asCompletableFuture();
+            return client.delete(id.toString(), collection.toString(), Guarantee.STORED);
         } catch (Exception e) {
             throw new DocumentStoreException(format("Could not delete document %s from collection %s", id, collection), e);
         }
@@ -189,7 +189,7 @@ public class DefaultDocumentStore implements DocumentStore {
     @Override
     public CompletableFuture<Void> deleteCollection(Object collection) {
         try {
-            return client.deleteCollection(collection.toString()).asCompletableFuture();
+            return client.deleteCollection(collection.toString());
         } catch (Exception e) {
             throw new DocumentStoreException(format("Could not delete collection %s", collection), e);
         }
@@ -199,7 +199,7 @@ public class DefaultDocumentStore implements DocumentStore {
     public CompletableFuture<Void> createAuditTrail(Object collection, Duration retentionTime) {
         try {
             return client.createAuditTrail(new CreateAuditTrail(collection.toString(), Optional.ofNullable(
-                    retentionTime).map(Duration::getSeconds).orElse(null), Guarantee.STORED)).asCompletableFuture();
+                    retentionTime).map(Duration::getSeconds).orElse(null), Guarantee.STORED));
         } catch (Exception e) {
             throw new DocumentStoreException(format("Could not create audit trail %s", collection), e);
         }
@@ -339,7 +339,7 @@ public class DefaultDocumentStore implements DocumentStore {
 
         @Override
         public CompletableFuture<Void> delete() {
-            return client.delete(queryBuilder.build(), Guarantee.STORED).asCompletableFuture();
+            return client.delete(queryBuilder.build(), Guarantee.STORED);
         }
 
         @AllArgsConstructor
