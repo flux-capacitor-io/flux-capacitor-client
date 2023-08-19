@@ -319,12 +319,12 @@ public class TestFixture implements Given, When {
 
     @Override
     public TestFixture givenDocument(Object document, String id, String collection, Instant timestamp, Instant end) {
-        return given(fc -> fc.documentStore().index(document, id, collection, timestamp, end));
+        return given(fc -> fc.documentStore().index(document, id, collection, timestamp, end).get());
     }
 
     @Override
     public TestFixture givenDocuments(String collection, Object... documents) {
-        return given(fc -> fc.documentStore().index(Arrays.asList(documents), collection));
+        return given(fc -> fc.documentStore().index(Arrays.asList(documents), collection).get());
     }
 
     @Override
