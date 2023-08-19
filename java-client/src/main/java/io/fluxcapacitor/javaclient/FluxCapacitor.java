@@ -582,8 +582,8 @@ public interface FluxCapacitor extends AutoCloseable {
      *
      * @see DocumentStore for more advanced uses.
      */
-    static void index(Object object, Object collection) {
-        get().documentStore().index(object, collection);
+    static CompletableFuture<Void> index(Object object, Object collection) {
+        return get().documentStore().index(object, collection);
     }
 
     /**
@@ -591,8 +591,8 @@ public interface FluxCapacitor extends AutoCloseable {
      *
      * @see DocumentStore for more advanced uses.
      */
-    static void index(Object object, Object id, Object collection) {
-        get().documentStore().index(object, id, collection);
+    static CompletableFuture<Void> index(Object object, Object id, Object collection) {
+        return get().documentStore().index(object, id, collection);
     }
 
     /**
@@ -600,8 +600,8 @@ public interface FluxCapacitor extends AutoCloseable {
      *
      * @see DocumentStore for more advanced uses.
      */
-    static void index(Object object, Object id, Object collection, Instant timestamp) {
-        get().documentStore().index(object, id, collection, timestamp);
+    static CompletableFuture<Void> index(Object object, Object id, Object collection, Instant timestamp) {
+        return get().documentStore().index(object, id, collection, timestamp);
     }
 
     /**
@@ -609,8 +609,8 @@ public interface FluxCapacitor extends AutoCloseable {
      *
      * @see DocumentStore for more advanced uses.
      */
-    static void index(Object object, Object id, Object collection, Instant begin, Instant end) {
-        get().documentStore().index(object, id, collection, begin, end);
+    static CompletableFuture<Void> index(Object object, Object id, Object collection, Instant begin, Instant end) {
+        return get().documentStore().index(object, id, collection, begin, end);
     }
 
     /**
@@ -622,9 +622,9 @@ public interface FluxCapacitor extends AutoCloseable {
      *
      * @see DocumentStore for more advanced uses.
      */
-    static <T> void index(Collection<? extends T> objects, Object collection, Function<? super T, String> idFunction,
+    static <T> CompletableFuture<Void> index(Collection<? extends T> objects, Object collection, Function<? super T, String> idFunction,
                           Function<? super T, Instant> timestampFunction, Function<? super T, Instant> endFunction) {
-        get().documentStore().index(objects, collection, idFunction, timestampFunction, endFunction);
+        return get().documentStore().index(objects, collection, idFunction, timestampFunction, endFunction);
     }
 
     /**

@@ -39,45 +39,45 @@ import static java.util.Collections.singletonList;
 
 public interface DocumentStore {
 
-    default void index(Object object, Object collection) {
-        index(object instanceof Collection<?> ? (Collection<?>) object : singletonList(object), collection);
+    default CompletableFuture<Void> index(Object object, Object collection) {
+        return index(object instanceof Collection<?> ? (Collection<?>) object : singletonList(object), collection);
     }
 
-    default void index(Object object, Object id, Object collection) {
-        index(object, id, collection, null);
-    }
-
-    @SneakyThrows
-    default void index(Object object, Object id, Object collection, Instant timestamp) {
-        index(object, id, collection, timestamp, timestamp, Guarantee.STORED, false).get();
+    default CompletableFuture<Void> index(Object object, Object id, Object collection) {
+        return index(object, id, collection, null);
     }
 
     @SneakyThrows
-    default void index(Object object, Object id, Object collection, Instant begin, Instant end) {
-        index(object, id, collection, begin, end, Guarantee.STORED, false).get();
+    default CompletableFuture<Void> index(Object object, Object id, Object collection, Instant timestamp) {
+        return index(object, id, collection, timestamp, timestamp, Guarantee.STORED, false);
+    }
+
+    @SneakyThrows
+    default CompletableFuture<Void> index(Object object, Object id, Object collection, Instant begin, Instant end) {
+        return index(object, id, collection, begin, end, Guarantee.STORED, false);
     }
 
     CompletableFuture<Void> index(Object object, Object id, Object collection, Instant begin, Instant end,
                                   Guarantee guarantee, boolean ifNotExists);
 
-    default void index(Collection<?> objects, Object collection) {
-        index(objects, collection, v -> getAnnotatedPropertyValue(v, EntityId.class).map(Object::toString)
+    default CompletableFuture<Void> index(Collection<?> objects, Object collection) {
+        return index(objects, collection, v -> getAnnotatedPropertyValue(v, EntityId.class).map(Object::toString)
                 .orElseGet(() -> currentIdentityProvider().nextTechnicalId()));
     }
 
-    default <T> void index(Collection<? extends T> objects, Object collection, Function<? super T, ?> idFunction) {
-        index(objects, collection, idFunction, v -> null);
+    default <T> CompletableFuture<Void> index(Collection<? extends T> objects, Object collection, Function<? super T, ?> idFunction) {
+        return index(objects, collection, idFunction, v -> null);
     }
 
     @SneakyThrows
-    default void index(Collection<?> objects, Object collection, String idPath, String timestampPath) {
-        index(objects, collection, idPath, timestampPath, timestampPath, Guarantee.STORED, false).get();
+    default CompletableFuture<Void> index(Collection<?> objects, Object collection, String idPath, String timestampPath) {
+        return index(objects, collection, idPath, timestampPath, timestampPath, Guarantee.STORED, false);
     }
 
     @SneakyThrows
-    default void index(Collection<?> objects, Object collection, String idPath,
+    default CompletableFuture<Void> index(Collection<?> objects, Object collection, String idPath,
                        String beginPath, String endPath) {
-        index(objects, collection, idPath, beginPath, endPath, Guarantee.STORED, false).get();
+        return index(objects, collection, idPath, beginPath, endPath, Guarantee.STORED, false);
     }
 
     CompletableFuture<Void> index(Collection<?> objects, Object collection, String idPath,
@@ -85,15 +85,15 @@ public interface DocumentStore {
                                   boolean ifNotExists);
 
     @SneakyThrows
-    default <T> void index(Collection<? extends T> objects, Object collection, Function<? super T, ?> idFunction,
+    default <T> CompletableFuture<Void> index(Collection<? extends T> objects, Object collection, Function<? super T, ?> idFunction,
                            Function<? super T, Instant> timestampFunction) {
-        index(objects, collection, idFunction, timestampFunction, timestampFunction, Guarantee.STORED, false).get();
+        return index(objects, collection, idFunction, timestampFunction, timestampFunction, Guarantee.STORED, false);
     }
 
     @SneakyThrows
-    default <T> void index(Collection<? extends T> objects, Object collection, Function<? super T, ?> idFunction,
+    default <T> CompletableFuture<Void> index(Collection<? extends T> objects, Object collection, Function<? super T, ?> idFunction,
                            Function<? super T, Instant> beginFunction, Function<? super T, Instant> endFunction) {
-        index(objects, collection, idFunction, beginFunction, endFunction, Guarantee.STORED, false).get();
+        return index(objects, collection, idFunction, beginFunction, endFunction, Guarantee.STORED, false);
     }
 
     <T> CompletableFuture<Void> index(Collection<? extends T> objects, Object collection,
@@ -102,66 +102,66 @@ public interface DocumentStore {
                                       Function<? super T, Instant> endFunction, Guarantee guarantee,
                                       boolean ifNotExists);
 
-    default void indexIfNotExists(Object object, Object collection) {
-        indexIfNotExists(object instanceof Collection<?> ? (Collection<?>) object : singletonList(object), collection);
+    default CompletableFuture<Void> indexIfNotExists(Object object, Object collection) {
+        return indexIfNotExists(object instanceof Collection<?> ? (Collection<?>) object : singletonList(object), collection);
     }
 
-    default void indexIfNotExists(Object object, Object id, Object collection) {
-        indexIfNotExists(object, id, collection, null);
-    }
-
-    @SneakyThrows
-    default void indexIfNotExists(Object object, Object id, Object collection, Instant timestamp) {
-        index(object, id, collection, timestamp, timestamp, Guarantee.STORED, true).get();
+    default CompletableFuture<Void> indexIfNotExists(Object object, Object id, Object collection) {
+        return indexIfNotExists(object, id, collection, null);
     }
 
     @SneakyThrows
-    default void indexIfNotExists(Object object, Object id, Object collection, Instant begin, Instant end) {
-        index(object, id, collection, begin, end, Guarantee.STORED, true).get();
+    default CompletableFuture<Void> indexIfNotExists(Object object, Object id, Object collection, Instant timestamp) {
+        return index(object, id, collection, timestamp, timestamp, Guarantee.STORED, true);
     }
 
-    default <T> void indexIfNotExists(Collection<? extends T> objects, Object collection) {
-        indexIfNotExists(objects, collection, v -> getAnnotatedPropertyValue(v, EntityId.class).map(Object::toString)
+    @SneakyThrows
+    default CompletableFuture<Void> indexIfNotExists(Object object, Object id, Object collection, Instant begin, Instant end) {
+        return index(object, id, collection, begin, end, Guarantee.STORED, true);
+    }
+
+    default <T> CompletableFuture<Void> indexIfNotExists(Collection<? extends T> objects, Object collection) {
+        return indexIfNotExists(objects, collection, v -> getAnnotatedPropertyValue(v, EntityId.class).map(Object::toString)
                 .orElseGet(() -> currentIdentityProvider().nextTechnicalId()));
     }
 
-    default <T> void indexIfNotExists(Collection<? extends T> objects, Object collection,
+    default <T> CompletableFuture<Void> indexIfNotExists(Collection<? extends T> objects, Object collection,
                                       Function<? super T, ?> idFunction) {
-        indexIfNotExists(objects, collection, idFunction, v -> null);
+        return indexIfNotExists(objects, collection, idFunction, v -> null);
     }
 
     @SneakyThrows
-    default <T> void indexIfNotExists(Collection<? extends T> objects, Object collection, String idPath,
+    default <T> CompletableFuture<Void> indexIfNotExists(Collection<? extends T> objects, Object collection, String idPath,
                                       String timestampPath) {
-        index(objects, collection, idPath, timestampPath, timestampPath, Guarantee.STORED, true).get();
+        return index(objects, collection, idPath, timestampPath, timestampPath, Guarantee.STORED, true);
     }
 
     @SneakyThrows
-    default <T> void indexIfNotExists(Collection<? extends T> objects, Object collection, String idPath,
+    default <T> CompletableFuture<Void> indexIfNotExists(Collection<? extends T> objects, Object collection, String idPath,
                                       String beginPath, String endPath) {
-        index(objects, collection, idPath, beginPath, endPath, Guarantee.STORED, true).get();
+        return index(objects, collection, idPath, beginPath, endPath, Guarantee.STORED, true);
     }
 
     @SneakyThrows
-    default <T> void indexIfNotExists(Collection<? extends T> objects, Object collection,
+    default <T> CompletableFuture<Void> indexIfNotExists(Collection<? extends T> objects, Object collection,
                                       Function<? super T, ?> idFunction,
                                       Function<? super T, Instant> timestampFunction) {
-        index(objects, collection, idFunction, timestampFunction, timestampFunction, Guarantee.STORED, true).get();
+        return index(objects, collection, idFunction, timestampFunction, timestampFunction, Guarantee.STORED, true);
     }
 
     @SneakyThrows
-    default <T> void indexIfNotExists(Collection<? extends T> objects, Object collection,
+    default <T> CompletableFuture<Void> indexIfNotExists(Collection<? extends T> objects, Object collection,
                                       Function<? super T, ?> idFunction,
                                       Function<? super T, Instant> beginFunction,
                                       Function<? super T, Instant> endFunction) {
-        index(objects, collection, idFunction, beginFunction, endFunction, Guarantee.STORED, true).get();
+        return index(objects, collection, idFunction, beginFunction, endFunction, Guarantee.STORED, true);
     }
 
     CompletableFuture<Void> bulkUpdate(Collection<BulkUpdate> updates, Guarantee guarantee);
 
     @SneakyThrows
-    default void bulkUpdate(Collection<BulkUpdate> updates) {
-        bulkUpdate(updates, Guarantee.STORED).get();
+    default CompletableFuture<Void> bulkUpdate(Collection<BulkUpdate> updates) {
+        return bulkUpdate(updates, Guarantee.STORED);
     }
 
     default Search search(@NonNull Object collection, Object... additionalCollections) {

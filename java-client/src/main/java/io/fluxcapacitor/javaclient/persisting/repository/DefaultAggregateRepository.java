@@ -302,7 +302,8 @@ public class DefaultAggregateRepository implements AggregateRepository {
                     if (value == null) {
                         documentStore.deleteDocument(after.id().toString(), collection);
                     } else {
-                        documentStore.index(value, after.id().toString(), collection, timestampFunction.apply(after));
+                        documentStore.index(
+                                value, after.id().toString(), collection, timestampFunction.apply(after)).get();
                     }
                 }
             } catch (Exception e) {
