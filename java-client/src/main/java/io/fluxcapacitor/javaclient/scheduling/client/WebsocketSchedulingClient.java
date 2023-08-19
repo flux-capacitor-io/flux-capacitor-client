@@ -14,7 +14,6 @@
 
 package io.fluxcapacitor.javaclient.scheduling.client;
 
-import io.fluxcapacitor.common.Awaitable;
 import io.fluxcapacitor.common.Guarantee;
 import io.fluxcapacitor.common.MessageType;
 import io.fluxcapacitor.common.api.scheduling.CancelSchedule;
@@ -28,6 +27,7 @@ import jakarta.websocket.ClientEndpoint;
 
 import java.net.URI;
 import java.util.Arrays;
+import java.util.concurrent.CompletableFuture;
 
 @ClientEndpoint
 public class WebsocketSchedulingClient extends AbstractWebsocketClient implements SchedulingClient {
@@ -45,12 +45,12 @@ public class WebsocketSchedulingClient extends AbstractWebsocketClient implement
     }
 
     @Override
-    public Awaitable schedule(Guarantee guarantee, SerializedSchedule... schedules) {
+    public CompletableFuture<Void> schedule(Guarantee guarantee, SerializedSchedule... schedules) {
         return sendCommand(new Schedule(Arrays.asList(schedules), guarantee));
     }
 
     @Override
-    public Awaitable cancelSchedule(String scheduleId, Guarantee guarantee) {
+    public CompletableFuture<Void> cancelSchedule(String scheduleId, Guarantee guarantee) {
         return sendCommand(new CancelSchedule(scheduleId, guarantee));
     }
 

@@ -21,13 +21,14 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 import java.util.Queue;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.concurrent.ConcurrentSkipListMap;
 import java.util.concurrent.CopyOnWriteArraySet;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
-import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
 
 import static io.fluxcapacitor.common.ObjectUtils.newThreadFactory;
@@ -38,57 +39,79 @@ public class Backlog<T> implements Monitored<List<T>> {
 
     private final int maxBatchSize;
     private final Queue<T> queue = new ConcurrentLinkedQueue<>();
-    private final BatchConsumer<T> consumer;
+    private final ThrowingFunction<List<T>, CompletableFuture<?>> consumer;
     private final ErrorHandler<List<T>> errorHandler;
     private final ExecutorService executorService;
     private final AtomicBoolean flushing = new AtomicBoolean();
 
     private final AtomicLong insertPosition = new AtomicLong();
     private final AtomicLong flushPosition = new AtomicLong();
-    private final AtomicReference<Awaitable> syncObject = new AtomicReference<>();
+
+    private final ConcurrentSkipListMap<Long, CompletableFuture<Void>> results = new ConcurrentSkipListMap<>();
 
     private final Collection<Consumer<List<T>>> monitors = new CopyOnWriteArraySet<>();
 
-    public Backlog(BatchConsumer<T> consumer) {
+    public static <T> Backlog<T> forConsumer(ThrowingConsumer<List<T>> consumer) {
+        return forConsumer(consumer, 1024);
+    }
+
+    public static <T> Backlog<T> forConsumer(ThrowingConsumer<List<T>> consumer, int maxBatchSize) {
+        return forConsumer(consumer, maxBatchSize, (e, batch) -> log.error("Consumer {} failed to handle batch of size {}. Continuing with next batch.", consumer, batch.size(), e));
+    }
+
+    public static <T> Backlog<T> forConsumer(ThrowingConsumer<List<T>> consumer, int maxBatchSize, ErrorHandler<List<T>> errorHandler) {
+        return new Backlog<>(list -> {
+            consumer.accept(list);
+            return null;
+        }, maxBatchSize, errorHandler);
+    }
+
+    public static <T> Backlog<T> forAsyncConsumer(ThrowingFunction<List<T>, CompletableFuture<?>> consumer) {
+        return forAsyncConsumer(consumer, 1024);
+    }
+
+    public static <T> Backlog<T> forAsyncConsumer(ThrowingFunction<List<T>, CompletableFuture<?>> consumer, int maxBatchSize) {
+        return forAsyncConsumer(consumer, maxBatchSize, (e, batch) -> log.error("Consumer {} failed to handle batch of size {}. Continuing with next batch.", consumer, batch.size(), e));
+    }
+
+    public static <T> Backlog<T> forAsyncConsumer(ThrowingFunction<List<T>, CompletableFuture<?>> consumer, int maxBatchSize, ErrorHandler<List<T>> errorHandler) {
+        return new Backlog<>(consumer, maxBatchSize, errorHandler);
+    }
+
+    protected Backlog(ThrowingFunction<List<T>, CompletableFuture<?>> consumer) {
         this(consumer, 1024);
     }
 
-    public Backlog(BatchConsumer<T> consumer, int maxBatchSize) {
-        this(consumer, maxBatchSize, 1,
+    protected Backlog(ThrowingFunction<List<T>, CompletableFuture<?>> consumer, int maxBatchSize) {
+        this(consumer, maxBatchSize,
              (e, batch) -> log.error("Consumer {} failed to handle batch {}. Continuing with next batch.", consumer, batch, e));
     }
 
-    public Backlog(BatchConsumer<T> consumer, int maxBatchSize, int threads, ErrorHandler<List<T>> errorHandler) {
+    protected Backlog(ThrowingFunction<List<T>, CompletableFuture<?>> consumer, int maxBatchSize, ErrorHandler<List<T>> errorHandler) {
         this.maxBatchSize = maxBatchSize;
         this.consumer = consumer;
-        this.executorService = Executors.newFixedThreadPool(threads, newThreadFactory("Backlog"));
+        this.executorService = Executors.newSingleThreadExecutor(newThreadFactory("Backlog"));
         this.errorHandler = errorHandler;
     }
 
     @SafeVarargs
-    public final Awaitable add(T... values) {
+    public final CompletableFuture<Void> add(T... values) {
         Collections.addAll(queue, values);
-        return values.length == 0 ? Awaitable.ready() : awaitFlush(insertPosition.updateAndGet(p -> p + values.length));
+        return values.length == 0 ? CompletableFuture.completedFuture(null)
+                : awaitFlush(insertPosition.updateAndGet(p -> p + values.length));
     }
 
-    public Awaitable add(Collection<? extends T> values) {
+    public CompletableFuture<Void> add(Collection<? extends T> values) {
         queue.addAll(values);
-        return values.isEmpty() ? Awaitable.ready() : awaitFlush(insertPosition.updateAndGet(p -> p + values.size()));
+        return values.isEmpty() ? CompletableFuture.completedFuture(null)
+                : awaitFlush(insertPosition.updateAndGet(p -> p + values.size()));
     }
 
-    private Awaitable awaitFlush(long position) {
+    private CompletableFuture<Void> awaitFlush(long untilPosition) {
         flushIfNotFlushing();
-        return () -> {
-            synchronized (syncObject) {
-                while (position > flushPosition.get()) {
-                    syncObject.wait();
-                }
-                Awaitable externalProcess = syncObject.get();
-                if (externalProcess != null) {
-                    externalProcess.await();
-                }
-            }
-        };
+        CompletableFuture<Void> result = new CompletableFuture<>();
+        results.put(untilPosition, result);
+        return result;
     }
 
     private void flushIfNotFlushing() {
@@ -108,17 +131,18 @@ public class Backlog<T> implements Monitored<List<T>> {
                     }
                     batch.add(value);
                 }
-                Awaitable awaitable;
+                CompletableFuture<?> future;
                 try {
-                    awaitable = consumer.accept(batch);
-                } catch (Exception e) {
-                    awaitable = Awaitable.failed(e);
+                    future = consumer.apply(batch);
+                } catch (Throwable e) {
+                    future = CompletableFuture.failedFuture(e);
                     errorHandler.handleError(e, batch);
                 }
-                syncObject.set(awaitable);
-                flushPosition.addAndGet(batch.size());
-                synchronized (syncObject) {
-                    syncObject.notifyAll();
+                long lastPosition = flushPosition.addAndGet(batch.size());
+                if (future == null) {
+                    completeResults(lastPosition, null);
+                } else {
+                    future.whenComplete((r, e) -> completeResults(lastPosition, e));
                 }
                 monitors.forEach(m -> m.accept(batch));
             }
@@ -126,11 +150,23 @@ public class Backlog<T> implements Monitored<List<T>> {
             if (!queue.isEmpty()) { //a value could've been added after the while loop before flushing was set to false
                 flushIfNotFlushing();
             }
-        } catch (Exception e) {
+        } catch (Throwable e) {
             log.error("Failed to flush the backlog", e);
             flushing.set(false);
             throw e;
         }
+    }
+
+    protected void completeResults(long untilPosition, Throwable e) {
+        var futures = results.headMap(untilPosition, true);
+        futures.forEach((k, v) -> {
+            if (e == null) {
+                v.complete(null);
+            } else {
+                v.completeExceptionally(e);
+            }
+        });
+        futures.clear();
     }
 
     @Override
@@ -151,6 +187,6 @@ public class Backlog<T> implements Monitored<List<T>> {
 
     @FunctionalInterface
     public interface BatchConsumer<T> {
-        Awaitable accept(List<T> batch) throws Exception;
+        CompletableFuture<Void> accept(List<T> batch) throws Exception;
     }
 }

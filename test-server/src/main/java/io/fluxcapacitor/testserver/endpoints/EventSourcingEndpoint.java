@@ -14,7 +14,6 @@
 
 package io.fluxcapacitor.testserver.endpoints;
 
-import io.fluxcapacitor.common.Awaitable;
 import io.fluxcapacitor.common.Guarantee;
 import io.fluxcapacitor.common.api.SerializedMessage;
 import io.fluxcapacitor.common.api.VoidResult;
@@ -33,7 +32,7 @@ import io.fluxcapacitor.testserver.WebsocketEndpoint;
 import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
-import java.util.List;
+import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
 
 @Slf4j
@@ -44,18 +43,15 @@ public class EventSourcingEndpoint extends WebsocketEndpoint {
 
     @Handle
     public VoidResult handle(AppendEvents appendEvents) throws Exception {
-        List<Awaitable> results = appendEvents.getEventBatches().stream().map(b -> eventStore
-                .storeEvents(b.getAggregateId(), b.getEvents(),
-                             b.isStoreOnly())).toList();
-        for (Awaitable awaitable : results) {
-            awaitable.await();
-        }
+        var results = appendEvents.getEventBatches().stream().map(b -> eventStore
+                .storeEvents(b.getAggregateId(), b.getEvents(), b.isStoreOnly())).toArray(CompletableFuture[]::new);
+        CompletableFuture.allOf(results).get();
         return new VoidResult(appendEvents.getRequestId());
     }
 
     @Handle
     public VoidResult handle(DeleteEvents deleteEvents) throws Exception {
-        eventStore.deleteEvents(deleteEvents.getAggregateId()).awaitSilently();
+        eventStore.deleteEvents(deleteEvents.getAggregateId()).get();
         return new VoidResult(deleteEvents.getRequestId());
     }
 
@@ -69,10 +65,10 @@ public class EventSourcingEndpoint extends WebsocketEndpoint {
     }
 
     @Handle
-    public VoidResult handle(UpdateRelationships request) {
-        Awaitable awaitable = eventStore.updateRelationships(request);
+    public VoidResult handle(UpdateRelationships request) throws Exception {
+        CompletableFuture<?> future = eventStore.updateRelationships(request);
         if (request.getGuarantee().compareTo(Guarantee.STORED) >= 0) {
-            awaitable.awaitSilently();
+            future.get();
             return new VoidResult(request.getRequestId());
         }
         return null;

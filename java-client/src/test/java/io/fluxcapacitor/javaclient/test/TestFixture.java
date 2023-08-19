@@ -17,6 +17,7 @@ package io.fluxcapacitor.javaclient.test;
 import io.fluxcapacitor.common.Guarantee;
 import io.fluxcapacitor.common.MessageType;
 import io.fluxcapacitor.common.Registration;
+import io.fluxcapacitor.common.ThrowingConsumer;
 import io.fluxcapacitor.common.ThrowingFunction;
 import io.fluxcapacitor.common.api.Data;
 import io.fluxcapacitor.common.api.SerializedMessage;
@@ -342,7 +343,7 @@ public class TestFixture implements Given, When {
     }
 
     @Override
-    public TestFixture given(Consumer<FluxCapacitor> condition) {
+    public TestFixture given(ThrowingConsumer<FluxCapacitor> condition) {
         return fluxCapacitor.apply(fc -> {
             try {
                 handleExpiredSchedulesLocally();

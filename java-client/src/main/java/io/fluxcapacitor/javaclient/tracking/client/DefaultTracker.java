@@ -264,7 +264,7 @@ public class DefaultTracker implements Runnable, Registration {
             retryOnFailure(
                     () -> {
                         try {
-                            trackingClient.storePosition(tracker.getName(), segment, index).await();
+                            trackingClient.storePosition(tracker.getName(), segment, index).get();
                         } catch (Exception e) {
                             throw new TrackingException(
                                     format("Failed to store position of segments %s for tracker %s to index %s",

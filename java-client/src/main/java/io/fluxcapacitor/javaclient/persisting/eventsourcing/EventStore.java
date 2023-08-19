@@ -14,29 +14,29 @@
 
 package io.fluxcapacitor.javaclient.persisting.eventsourcing;
 
-import io.fluxcapacitor.common.Awaitable;
 import io.fluxcapacitor.javaclient.common.serialization.DeserializingMessage;
 import io.fluxcapacitor.javaclient.tracking.handling.HasLocalHandlers;
 
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
 
 import static java.util.Arrays.asList;
 
 public interface EventStore extends HasLocalHandlers {
 
-    default Awaitable storeEvents(Object aggregateId, Object... events) {
+    default CompletableFuture<Void> storeEvents(Object aggregateId, Object... events) {
         return storeEvents(aggregateId, asList(events));
     }
 
-    default Awaitable storeEvents(Object aggregateId, List<?> events) {
+    default CompletableFuture<Void> storeEvents(Object aggregateId, List<?> events) {
         return storeEvents(aggregateId, events, false);
     }
 
-    default Awaitable storeEvents(Object aggregateId, List<?> events, boolean storeOnly) {
+    default CompletableFuture<Void> storeEvents(Object aggregateId, List<?> events, boolean storeOnly) {
         return storeEvents(aggregateId, events, storeOnly, true);
     }
 
-    Awaitable storeEvents(Object aggregateId, List<?> events, boolean storeOnly, boolean interceptBeforeStoring);
+    CompletableFuture<Void> storeEvents(Object aggregateId, List<?> events, boolean storeOnly, boolean interceptBeforeStoring);
 
     default AggregateEventStream<DeserializingMessage> getEvents(Object aggregateId) {
         return getEvents(aggregateId, -1L, false);

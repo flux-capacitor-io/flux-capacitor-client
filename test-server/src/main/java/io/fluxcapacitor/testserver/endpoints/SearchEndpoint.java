@@ -14,7 +14,6 @@
 
 package io.fluxcapacitor.testserver.endpoints;
 
-import io.fluxcapacitor.common.Awaitable;
 import io.fluxcapacitor.common.Guarantee;
 import io.fluxcapacitor.common.api.VoidResult;
 import io.fluxcapacitor.common.api.search.BulkUpdate;
@@ -47,6 +46,7 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.concurrent.CompletableFuture;
 import java.util.stream.Stream;
 
 import static io.fluxcapacitor.common.api.search.BulkUpdate.Type.delete;
@@ -68,9 +68,9 @@ public class SearchEndpoint extends WebsocketEndpoint {
     @Handle
     public VoidResult handle(IndexDocuments request) throws Exception {
         try {
-            Awaitable awaitable = store.index(request.getDocuments(), request.getGuarantee(), request.isIfNotExists());
+            CompletableFuture<?> future = store.index(request.getDocuments(), request.getGuarantee(), request.isIfNotExists());
             if (request.getGuarantee().compareTo(Guarantee.STORED) >= 0) {
-                awaitable.await();
+                future.get();
             }
         } catch (Exception e) {
             log.error("Failed to handle {}", request, e);
@@ -86,7 +86,7 @@ public class SearchEndpoint extends WebsocketEndpoint {
                         .values().stream()
                         .collect(groupingBy(DocumentUpdate::getType));
         try {
-            Collection<Awaitable> results = new ArrayList<>();
+            Collection<CompletableFuture<Void>> results = new ArrayList<>();
             ofNullable(updatesByType.get(index)).ifPresent(updates -> {
                 var documents = updates.stream().map(DocumentUpdate::getObject).toList();
                 results.add(store.index(documents, request.getGuarantee(), false));
@@ -99,8 +99,8 @@ public class SearchEndpoint extends WebsocketEndpoint {
                     .forEach(delete -> store.delete(delete.getId(), delete.getCollection(), request.getGuarantee()));
 
             if (request.getGuarantee().compareTo(Guarantee.STORED) >= 0) {
-                for (Awaitable result : results) {
-                    result.await();
+                for (CompletableFuture<?> result : results) {
+                    result.get();
                 }
             }
         } catch (Exception e) {
@@ -158,9 +158,9 @@ public class SearchEndpoint extends WebsocketEndpoint {
     @Handle
     public VoidResult handle(DeleteDocuments request) throws Exception {
         try {
-            Awaitable awaitable = store.delete(request.getQuery(), request.getGuarantee());
+            CompletableFuture<?> future = store.delete(request.getQuery(), request.getGuarantee());
             if (request.getGuarantee().compareTo(Guarantee.STORED) >= 0) {
-                awaitable.await();
+                future.get();
             }
         } catch (Exception e) {
             log.error("Failed to handle {}", request, e);

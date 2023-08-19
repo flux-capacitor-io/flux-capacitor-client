@@ -44,7 +44,7 @@ public class KeyValueEndPoint extends WebsocketEndpoint {
     @Handle
     public VoidResult handle(StoreValuesAndWait storeValues) throws Exception {
         for (KeyValuePair value : storeValues.getValues()) {
-            keyValueStore.putValue(value.getKey(), value.getValue(), Guarantee.STORED).await();
+            keyValueStore.putValue(value.getKey(), value.getValue(), Guarantee.STORED).get();
         }
         return new VoidResult(storeValues.getRequestId());
     }

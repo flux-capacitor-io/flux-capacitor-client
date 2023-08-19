@@ -14,7 +14,6 @@
 
 package io.fluxcapacitor.javaclient.publishing.client;
 
-import io.fluxcapacitor.common.Awaitable;
 import io.fluxcapacitor.common.Guarantee;
 import io.fluxcapacitor.common.MessageType;
 import io.fluxcapacitor.common.Registration;
@@ -29,6 +28,7 @@ import jakarta.websocket.ClientEndpoint;
 import java.net.URI;
 import java.util.Arrays;
 import java.util.Set;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CopyOnWriteArraySet;
 import java.util.function.Consumer;
 
@@ -58,7 +58,7 @@ public class WebsocketGatewayClient extends AbstractWebsocketClient implements G
     }
 
     @Override
-    public Awaitable send(Guarantee guarantee, SerializedMessage... messages) {
+    public CompletableFuture<Void> send(Guarantee guarantee, SerializedMessage... messages) {
         try {
             return sendCommand(new Append(Arrays.asList(messages), guarantee));
         } finally {

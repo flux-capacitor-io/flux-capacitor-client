@@ -14,13 +14,13 @@
 
 package io.fluxcapacitor.javaclient.persisting.repository;
 
-import io.fluxcapacitor.common.Awaitable;
 import io.fluxcapacitor.javaclient.modeling.Entity;
 import io.fluxcapacitor.javaclient.modeling.Id;
 import lombok.NonNull;
 
 import java.util.Map;
 import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
 
 public interface AggregateRepository {
 
@@ -32,15 +32,15 @@ public interface AggregateRepository {
 
     <T> Entity<T> loadFor(@NonNull Object entityId, Class<?> defaultType);
 
-    default Awaitable repairRelationships(Id<?> aggregateId) {
+    default CompletableFuture<Void> repairRelationships(Id<?> aggregateId) {
         return repairRelationships(load(aggregateId));
     }
 
-    default Awaitable repairRelationships(Object aggregateId) {
+    default CompletableFuture<Void> repairRelationships(Object aggregateId) {
         return repairRelationships(load(aggregateId, Object.class));
     }
 
-    Awaitable repairRelationships(Entity<?> aggregate);
+    CompletableFuture<Void> repairRelationships(Entity<?> aggregate);
 
     Map<String, Class<?>> getAggregatesFor(Object entityId);
 

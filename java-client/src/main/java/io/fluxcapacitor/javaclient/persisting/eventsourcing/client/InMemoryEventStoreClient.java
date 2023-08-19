@@ -14,7 +14,6 @@
 
 package io.fluxcapacitor.javaclient.persisting.eventsourcing.client;
 
-import io.fluxcapacitor.common.Awaitable;
 import io.fluxcapacitor.common.Guarantee;
 import io.fluxcapacitor.common.api.SerializedMessage;
 import io.fluxcapacitor.common.api.modeling.GetAggregateIds;
@@ -30,6 +29,7 @@ import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.function.Function;
@@ -51,31 +51,31 @@ public class InMemoryEventStoreClient extends InMemoryMessageStore implements Ev
     }
 
     @Override
-    public Awaitable storeEvents(String aggregateId, List<SerializedMessage> events, boolean storeOnly,
-                                 Guarantee guarantee) {
+    public CompletableFuture<Void> storeEvents(String aggregateId, List<SerializedMessage> events, boolean storeOnly,
+                                               Guarantee guarantee) {
         appliedEvents.computeIfAbsent(aggregateId, id -> new CopyOnWriteArrayList<>()).addAll(events);
         if (storeOnly) {
-            return Awaitable.ready();
+            return CompletableFuture.completedFuture(null);
         }
         return super.send(guarantee, events.toArray(new SerializedMessage[0]));
     }
 
     @Override
-    public Awaitable updateRelationships(UpdateRelationships request) {
+    public CompletableFuture<Void> updateRelationships(UpdateRelationships request) {
         Function<Relationship, Map<String, String>> computeIfAbsent = r -> relationships.computeIfAbsent(
                 r.getEntityId(), entityId -> synchronizedMap(new LinkedHashMap<>()));
         request.getDissociations().forEach(r -> computeIfAbsent.apply(r).remove(r.getAggregateId()));
         request.getAssociations().forEach(r -> computeIfAbsent.apply(r).put(r.getAggregateId(), r.getAggregateType()));
-        return Awaitable.ready();
+        return CompletableFuture.completedFuture(null);
     }
 
     @Override
-    public Awaitable repairRelationships(RepairRelationships request) {
+    public CompletableFuture<Void> repairRelationships(RepairRelationships request) {
         relationships.values().forEach(mapping -> mapping.remove(request.getAggregateId()));
         relationships.values().removeIf(Map::isEmpty);
         request.getEntityIds().forEach(e -> relationships.computeIfAbsent(e, entityId -> synchronizedMap(
                 new LinkedHashMap<>())).put(request.getAggregateId(), request.getAggregateType()));
-        return Awaitable.ready();
+        return CompletableFuture.completedFuture(null);
     }
 
     @Override
@@ -87,9 +87,9 @@ public class InMemoryEventStoreClient extends InMemoryMessageStore implements Ev
     }
 
     @Override
-    public Awaitable deleteEvents(String aggregateId, Guarantee guarantee) {
+    public CompletableFuture<Void> deleteEvents(String aggregateId, Guarantee guarantee) {
         appliedEvents.remove(aggregateId);
-        return Awaitable.ready();
+        return CompletableFuture.completedFuture(null);
     }
 
     @Override

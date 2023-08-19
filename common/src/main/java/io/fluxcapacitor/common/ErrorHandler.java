@@ -17,6 +17,6 @@ package io.fluxcapacitor.common;
 @FunctionalInterface
 public interface ErrorHandler<T> {
 
-    void handleError(Exception e, T context);
+    void handleError(Throwable e, T context);
 
 }

@@ -54,7 +54,7 @@ public class DefaultScheduler implements Scheduler {
                     message.serialize(serializer), message, SCHEDULE);
             client.schedule(new SerializedSchedule(message.getScheduleId(),
                                                    message.getDeadline().toEpochMilli(),
-                                                   serializedMessage, ifAbsent)).await();
+                                                   serializedMessage, ifAbsent)).get();
         } catch (Exception e) {
             throw new SchedulerException(String.format("Failed to schedule message %s for %s", message.getPayload(),
                                                        message.getDeadline()), e);
@@ -76,7 +76,7 @@ public class DefaultScheduler implements Scheduler {
             if (Entity.isLoading()) {
                 return;
             }
-            client.cancelSchedule(scheduleId).await();
+            client.cancelSchedule(scheduleId).get();
         } catch (Exception e) {
             throw new SchedulerException(String.format("Failed to cancel schedule with id %s", scheduleId), e);
         }

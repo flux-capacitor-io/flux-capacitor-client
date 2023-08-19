@@ -31,7 +31,7 @@ public class DefaultKeyValueStore implements KeyValueStore {
     @Override
     public void store(String key, Object value, Guarantee guarantee) {
         try {
-            client.putValue(key, serializer.serialize(value), guarantee).await();
+            client.putValue(key, serializer.serialize(value), guarantee).get();
         } catch (Exception e) {
             throw new KeyValueStoreException(String.format("Could not store a value %s for key %s", value, key), e);
         }
@@ -59,7 +59,7 @@ public class DefaultKeyValueStore implements KeyValueStore {
     @Override
     public void delete(String key) {
         try {
-            client.deleteValue(key).await();
+            client.deleteValue(key).get();
         } catch (Exception e) {
             throw new KeyValueStoreException(String.format("Could not delete the value at key %s", key), e);
         }

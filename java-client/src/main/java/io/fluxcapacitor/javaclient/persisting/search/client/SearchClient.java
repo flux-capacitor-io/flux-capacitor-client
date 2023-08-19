@@ -14,7 +14,6 @@
 
 package io.fluxcapacitor.javaclient.persisting.search.client;
 
-import io.fluxcapacitor.common.Awaitable;
 import io.fluxcapacitor.common.Guarantee;
 import io.fluxcapacitor.common.api.search.CreateAuditTrail;
 import io.fluxcapacitor.common.api.search.DocumentStats;
@@ -30,33 +29,34 @@ import io.fluxcapacitor.javaclient.persisting.search.SearchHit;
 import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
 import java.util.stream.Stream;
 
 public interface SearchClient extends AutoCloseable {
 
-    Awaitable index(List<SerializedDocument> documents, Guarantee guarantee, boolean ifNotExists);
+    CompletableFuture<Void> index(List<SerializedDocument> documents, Guarantee guarantee, boolean ifNotExists);
 
     Stream<SearchHit<SerializedDocument>> search(SearchDocuments searchDocuments, int fetchSize);
 
     Optional<SerializedDocument> fetch(GetDocument request);
 
-    Awaitable delete(SearchQuery query, Guarantee guarantee);
+    CompletableFuture<Void> delete(SearchQuery query, Guarantee guarantee);
 
-    Awaitable delete(String documentId, String collection, Guarantee guarantee);
+    CompletableFuture<Void> delete(String documentId, String collection, Guarantee guarantee);
 
-    Awaitable createAuditTrail(CreateAuditTrail request);
+    CompletableFuture<Void> createAuditTrail(CreateAuditTrail request);
 
-    default Awaitable deleteCollection(String collection) {
+    default CompletableFuture<Void> deleteCollection(String collection) {
         return deleteCollection(collection, Guarantee.STORED);
     }
 
-    Awaitable deleteCollection(String collection, Guarantee guarantee);
+    CompletableFuture<Void> deleteCollection(String collection, Guarantee guarantee);
 
     List<DocumentStats> fetchStatistics(SearchQuery query, List<String> fields, List<String> groupBy);
 
     SearchHistogram fetchHistogram(GetSearchHistogram request);
 
-    Awaitable bulkUpdate(Collection<DocumentUpdate> updates, Guarantee guarantee);
+    CompletableFuture<Void> bulkUpdate(Collection<DocumentUpdate> updates, Guarantee guarantee);
 
     @Override
     void close();

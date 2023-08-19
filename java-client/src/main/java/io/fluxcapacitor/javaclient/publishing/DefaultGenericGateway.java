@@ -78,8 +78,7 @@ public class DefaultGenericGateway implements GenericGateway {
             }
         }
         try {
-            return gatewayClient.send(guarantee, serializedMessages.toArray(new SerializedMessage[0]))
-                    .asCompletableFuture();
+            return gatewayClient.send(guarantee, serializedMessages.toArray(new SerializedMessage[0]));
         } catch (Exception e) {
             throw new GatewayException(format("Failed to send and forget %s messages", messages.length), e);
         }

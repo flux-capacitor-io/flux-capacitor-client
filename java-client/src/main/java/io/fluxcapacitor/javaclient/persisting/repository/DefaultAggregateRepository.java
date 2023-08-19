@@ -14,7 +14,6 @@
 
 package io.fluxcapacitor.javaclient.persisting.repository;
 
-import io.fluxcapacitor.common.Awaitable;
 import io.fluxcapacitor.common.Guarantee;
 import io.fluxcapacitor.common.api.modeling.Relationship;
 import io.fluxcapacitor.common.api.modeling.RepairRelationships;
@@ -62,6 +61,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Function;
 
@@ -127,7 +127,7 @@ public class DefaultAggregateRepository implements AggregateRepository {
     }
 
     @Override
-    public Awaitable repairRelationships(Entity<?> aggregate) {
+    public CompletableFuture<Void> repairRelationships(Entity<?> aggregate) {
         aggregate = aggregate.root();
         return eventStoreClient.repairRelationships(new RepairRelationships(
                 aggregate.id().toString(), aggregate.type().getName(),
@@ -287,13 +287,12 @@ public class DefaultAggregateRepository implements AggregateRepository {
                         }));
                 if (!associations.isEmpty() || !dissociations.isEmpty()) {
                     eventStoreClient.updateRelationships(
-                                    new UpdateRelationships(associations, dissociations, Guarantee.STORED))
-                            .awaitSilently();
+                                    new UpdateRelationships(associations, dissociations, Guarantee.STORED)).get();
                 }
                 if (!unpublishedEvents.isEmpty()) {
                     FluxCapacitor.getOptionally().ifPresent(
                             fc -> unpublishedEvents.forEach(e -> e.getSerializedObject().setSource(fc.client().id())));
-                    eventStore.storeEvents(after.id().toString(), new ArrayList<>(unpublishedEvents)).awaitSilently();
+                    eventStore.storeEvents(after.id().toString(), new ArrayList<>(unpublishedEvents)).get();
                     if (snapshotTrigger.shouldCreateSnapshot(after, unpublishedEvents)) {
                         snapshotStore.storeSnapshot(after);
                     }

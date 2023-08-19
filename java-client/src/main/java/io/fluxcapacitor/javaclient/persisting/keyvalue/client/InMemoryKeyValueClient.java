@@ -14,7 +14,6 @@
 
 package io.fluxcapacitor.javaclient.persisting.keyvalue.client;
 
-import io.fluxcapacitor.common.Awaitable;
 import io.fluxcapacitor.common.Guarantee;
 import io.fluxcapacitor.common.api.Data;
 
@@ -35,9 +34,9 @@ public class InMemoryKeyValueClient implements KeyValueClient {
     }
 
     @Override
-    public Awaitable putValue(String key, Data<byte[]> value, Guarantee guarantee) {
+    public CompletableFuture<Void> putValue(String key, Data<byte[]> value, Guarantee guarantee) {
         values.put(key, value);
-        return Awaitable.ready();
+        return CompletableFuture.completedFuture(null);
     }
 
     @Override
@@ -51,9 +50,9 @@ public class InMemoryKeyValueClient implements KeyValueClient {
     }
 
     @Override
-    public Awaitable deleteValue(String key, Guarantee guarantee) {
+    public CompletableFuture<Void> deleteValue(String key, Guarantee guarantee) {
         values.remove(key);
-        return Awaitable.ready();
+        return CompletableFuture.completedFuture(null);
     }
 
     @Override

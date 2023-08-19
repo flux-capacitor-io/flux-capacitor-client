@@ -14,6 +14,7 @@
 
 package io.fluxcapacitor.javaclient.test;
 
+import io.fluxcapacitor.common.ThrowingConsumer;
 import io.fluxcapacitor.common.api.Data;
 import io.fluxcapacitor.javaclient.FluxCapacitor;
 import io.fluxcapacitor.javaclient.common.Message;
@@ -27,7 +28,6 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.Arrays;
 import java.util.UUID;
-import java.util.function.Consumer;
 
 /**
  * Interface of the `given` phase of a behavioral given-when-then test. Here you specify everything that happened prior
@@ -175,7 +175,7 @@ public interface Given extends When {
     /**
      * Specify any action that has happened prior to the behavior you want to test.
      */
-    Given given(Consumer<FluxCapacitor> condition);
+    Given given(ThrowingConsumer<FluxCapacitor> condition);
 
     /**
      * Get the clock used by this test fixture.
