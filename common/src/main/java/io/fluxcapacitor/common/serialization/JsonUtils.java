@@ -21,6 +21,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.cfg.JsonNodeFeature;
 import com.fasterxml.jackson.databind.json.JsonMapper;
 import com.fasterxml.jackson.databind.jsontype.impl.LaissezFaireSubTypeValidator;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.fasterxml.jackson.databind.type.TypeFactory;
 import io.fluxcapacitor.common.FileUtils;
 import io.fluxcapacitor.common.reflection.ReflectionUtils;
@@ -29,8 +30,10 @@ import lombok.SneakyThrows;
 import java.io.InputStream;
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
@@ -185,12 +188,26 @@ public class JsonUtils {
 
     @SuppressWarnings("unchecked")
     @SneakyThrows
-    public static <T> T merge(T value, Object update) {
-        if (value == null) {
+    public static <T> T merge(T base, Object update) {
+        if (update == null) {
+            return base;
+        }
+        if (base == null) {
             return (T) update;
         }
-        return update == null ? value
-                : writer.readerForUpdating(value).readValue(convertValue(update, JsonNode.class));
+        if (Objects.equals(base, update)) {
+            return base;
+        }
+        ObjectNode result = valueToTree(base);
+        ObjectNode toAdd = valueToTree(update);
+        Iterator<JsonNode> iterator = toAdd.iterator();
+        while (iterator.hasNext()) {
+            if (iterator.next().isNull()) {
+                iterator.remove();
+            }
+        }
+        result.setAll(toAdd);
+        return (T) convertValue(result, base.getClass());
     }
 
     public static TypeFactory typeFactory() {
