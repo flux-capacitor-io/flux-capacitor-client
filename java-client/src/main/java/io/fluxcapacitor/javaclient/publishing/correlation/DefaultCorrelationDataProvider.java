@@ -29,7 +29,7 @@ public enum DefaultCorrelationDataProvider implements CorrelationDataProvider {
     INSTANCE;
 
     private final String clientIdKey = "$clientId", clientNameKey = "$clientName", consumerKey = "$consumer",
-            correlationIdKey = "$correlationId", traceIdKey = "$traceId",
+            trackerKey = "$tracker", correlationIdKey = "$correlationId", traceIdKey = "$traceId",
             triggerKey = "$trigger", triggerTypeKey = "$triggerType";
 
     @Override
@@ -39,7 +39,10 @@ public enum DefaultCorrelationDataProvider implements CorrelationDataProvider {
             result.put(clientIdKey, f.client().id());
             result.put(clientNameKey, f.client().name());
         });
-        Tracker.current().ifPresent(t -> result.put(consumerKey, t.getName()));
+        Tracker.current().ifPresent(t -> {
+            result.put(consumerKey, t.getName());
+            result.put(trackerKey, t.getTrackerId());
+        });
         ofNullable(currentMessage).ifPresent(m -> {
             String correlationId = ofNullable(m.getIndex()).map(Object::toString).orElse(m.getMessageId());
             result.put(this.correlationIdKey, correlationId);
