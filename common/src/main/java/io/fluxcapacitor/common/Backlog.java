@@ -108,9 +108,9 @@ public class Backlog<T> implements Monitored<List<T>> {
     }
 
     private CompletableFuture<Void> awaitFlush(long untilPosition) {
-        flushIfNotFlushing();
         CompletableFuture<Void> result = new CompletableFuture<>();
         results.put(untilPosition, result);
+        flushIfNotFlushing();
         return result;
     }
 
