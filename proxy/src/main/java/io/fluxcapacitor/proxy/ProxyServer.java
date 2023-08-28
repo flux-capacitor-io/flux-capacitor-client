@@ -36,7 +36,8 @@ public class ProxyServer {
         Thread.setDefaultUncaughtExceptionHandler((t, e) -> log.error("Uncaught error", e));
         int port = getIntegerProperty("PROXY_PORT", 80);
         Client client = Optional.ofNullable(getProperty("FLUX_URL")).<Client>map(url -> WebSocketClient.newInstance(
-                        WebSocketClient.ClientConfig.builder().name("$proxy").serviceBaseUrl(url).build()))
+                        WebSocketClient.ClientConfig.builder().name("$proxy").serviceBaseUrl(url)
+                                .projectId(getProperty("PROJECT_ID")).build()))
                 .orElseThrow(() -> new IllegalStateException("FLUX_URL environment variable is not set"));
         Registration registration =
                 start(port, new ProxyRequestHandler(client)).merge(startTrackingExternalRequests(client));
