@@ -29,6 +29,7 @@ import static io.fluxcapacitor.common.ObjectUtils.newThreadName;
 import static io.fluxcapacitor.javaclient.configuration.ApplicationProperties.getIntegerProperty;
 import static io.fluxcapacitor.javaclient.configuration.ApplicationProperties.getProperty;
 import static io.undertow.Handlers.path;
+import static io.undertow.util.Headers.CONTENT_TYPE;
 
 @Slf4j
 public class ProxyServer {
@@ -51,8 +52,14 @@ public class ProxyServer {
 
     public static Registration start(int port, ProxyRequestHandler proxyHandler) {
         Undertow server = Undertow.builder().addHttpListener(port, "0.0.0.0")
-                .setHandler(path().addPrefixPath("/", proxyHandler))
+                .setHandler(path()
+                        .addPrefixPath("/", proxyHandler)
+                        .addExactPath(getProperty("PROXY_HEALTH_PATH", "/proxy/health"), exchange -> {
+                            exchange.getResponseHeaders().put(CONTENT_TYPE, "text/plain");
+                            exchange.getResponseSender().send("Healthy");
+                        }))
                 .build();
+
         server.start();
         return () -> {
             proxyHandler.close();

@@ -44,6 +44,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 
 import static java.lang.String.format;
+import static java.net.http.HttpRequest.newBuilder;
 
 @Slf4j
 class ProxyServerTest {
@@ -64,6 +65,15 @@ class ProxyServerTest {
 
     @Nested
     class Basic {
+
+        @Test
+        void healthCheck() {
+            testFixture.whenApplying(fc -> httpClient.send(
+                            newBuilder(URI.create(format("http://0.0.0.0:%s/proxy/health", proxyPort))).GET()
+                                    .build(), BodyHandlers.ofString()).body())
+                    .expectResult("Healthy");
+        }
+
         @Test
         void get() {
             testFixture.registerHandlers(new Object() {
@@ -91,7 +101,7 @@ class ProxyServerTest {
         }
 
         private HttpRequest.Builder newRequest() {
-            return HttpRequest.newBuilder(baseUri());
+            return newBuilder(baseUri());
         }
 
         private URI baseUri() {
@@ -177,6 +187,7 @@ class ProxyServerTest {
                         void open(SocketSession session) {
                             session.close(1001);
                         }
+
                         @HandleSocketClose("/")
                         void close(Integer reason) {
                             log.info("ws closed with " + reason);
@@ -205,7 +216,8 @@ class ProxyServerTest {
         }
 
         private ThrowingFunction<FluxCapacitor, ?> openSocketAndWait() {
-            return openSocketAnd(ws -> {});
+            return openSocketAnd(ws -> {
+            });
         }
 
         private ThrowingFunction<FluxCapacitor, ?> openSocketAnd(ThrowingConsumer<WebSocket> followUp) {
