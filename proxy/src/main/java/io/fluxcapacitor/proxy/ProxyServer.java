@@ -54,7 +54,7 @@ public class ProxyServer {
         Undertow server = Undertow.builder().addHttpListener(port, "0.0.0.0")
                 .setHandler(path()
                         .addPrefixPath("/", proxyHandler)
-                        .addExactPath(getProperty("PROXY_HEALTH_PATH", "/proxy/health"), exchange -> {
+                        .addExactPath(getProperty("PROXY_HEALTH_ENDPOINT", "/proxy/health"), exchange -> {
                             exchange.getResponseHeaders().put(CONTENT_TYPE, "text/plain");
                             exchange.getResponseSender().send("Healthy");
                         }))
