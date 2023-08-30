@@ -127,13 +127,19 @@ public class ModifiableAggregateRoot<T> extends DelegatingEntity<T> {
                                         || (result.get() != null && result.get().hashCode() != hashCodeBefore);
                     case NEVER -> false;
                 }) {
-                    Message m = dispatchInterceptor.interceptDispatch(message, EVENT)
-                            .addMetadata(Entity.AGGREGATE_ID_METADATA_KEY, id().toString(),
-                                         Entity.AGGREGATE_TYPE_METADATA_KEY, type().getName(),
-                                         Entity.AGGREGATE_SN_METADATA_KEY,
-                                         String.valueOf(getDelegate().sequenceNumber() + 1L));
+                    Message intercepted = dispatchInterceptor.interceptDispatch(message, EVENT);
+                    if (intercepted == null) {
+                        return a;
+                    }
+                    Message m = intercepted.addMetadata(Entity.AGGREGATE_ID_METADATA_KEY, id().toString(),
+                                                        Entity.AGGREGATE_TYPE_METADATA_KEY, type().getName(),
+                                                        Entity.AGGREGATE_SN_METADATA_KEY,
+                                                        String.valueOf(getDelegate().sequenceNumber() + 1L));
                     var serializedEvent =
                             dispatchInterceptor.modifySerializedMessage(m.serialize(serializer), m, EVENT);
+                    if (serializedEvent == null) {
+                        return a;
+                    }
                     applied.add(new DeserializingMessage(
                             serializedEvent, type -> serializer.convert(m.getPayload(), type), EVENT));
                 }

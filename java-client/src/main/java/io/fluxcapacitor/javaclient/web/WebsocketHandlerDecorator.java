@@ -36,7 +36,7 @@ public class WebsocketHandlerDecorator implements HandlerDecorator {
     private final Set<String> websocketPaths = new CopyOnWriteArraySet<>();
 
     @Override
-    public Handler<DeserializingMessage> wrap(Handler<DeserializingMessage> handler, String consumer) {
+    public Handler<DeserializingMessage> wrap(Handler<DeserializingMessage> handler) {
         var methods = ReflectionUtils.getAllMethods(handler.getTarget().getClass()).stream()
                 .flatMap(m -> WebUtils.getWebParameters(m).stream()).filter(p -> p.getMethod().isWebsocket()).toList();
         if (!methods.isEmpty()) {

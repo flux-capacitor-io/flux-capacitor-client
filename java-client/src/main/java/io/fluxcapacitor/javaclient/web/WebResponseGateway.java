@@ -44,14 +44,21 @@ public class WebResponseGateway implements ResultGateway {
 
     private CompletableFuture<Void> respond(WebResponse response, String target, Integer requestId, Guarantee guarantee) {
         try {
-            Message message = dispatchInterceptor.interceptDispatch(response, WEBRESPONSE);
-            SerializedMessage serializedMessage
-                    = dispatchInterceptor.modifySerializedMessage(message.serialize(serializer), message, WEBRESPONSE);
+            SerializedMessage serializedMessage = interceptDispatch(response);
+            if (serializedMessage == null) {
+                return CompletableFuture.completedFuture(null);
+            }
             serializedMessage.setTarget(target);
             serializedMessage.setRequestId(requestId);
             return client.send(guarantee, serializedMessage);
         } catch (Exception e) {
             throw new GatewayException(String.format("Failed to send response %s", response.getPayload()), e);
         }
+    }
+
+    protected SerializedMessage interceptDispatch(WebResponse response) {
+        Message message = dispatchInterceptor.interceptDispatch(response, WEBRESPONSE);
+        return message == null ? null
+                : dispatchInterceptor.modifySerializedMessage(message.serialize(serializer), message, WEBRESPONSE);
     }
 }

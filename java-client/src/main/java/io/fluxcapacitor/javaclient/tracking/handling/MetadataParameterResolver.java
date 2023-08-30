@@ -33,7 +33,7 @@ public class MetadataParameterResolver extends TypedParameterResolver<Object> {
 
     @Override
     public Function<Object, Object> resolve(Parameter p, Annotation methodAnnotation) {
-        return m -> m instanceof HasMetadata ? ((HasMetadata) m).getMetadata()
+        return m -> m instanceof HasMetadata hasMetadata ? hasMetadata.getMetadata()
                 : ofNullable(DeserializingMessage.getCurrent()).map(DeserializingMessage::getMetadata).orElse(null);
     }
 }

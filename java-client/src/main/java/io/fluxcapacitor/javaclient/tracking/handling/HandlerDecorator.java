@@ -21,10 +21,10 @@ import lombok.AllArgsConstructor;
 @FunctionalInterface
 public interface HandlerDecorator {
     static HandlerDecorator noOp() {
-        return (h, c) -> h;
+        return h -> h;
     }
 
-    Handler<DeserializingMessage> wrap(Handler<DeserializingMessage> handler, String consumer);
+    Handler<DeserializingMessage> wrap(Handler<DeserializingMessage> handler);
 
     default HandlerDecorator andThen(HandlerDecorator next) {
         return new MergedDecorator(this, next);
@@ -35,8 +35,8 @@ public interface HandlerDecorator {
         private final HandlerDecorator first, second;
 
         @Override
-        public Handler<DeserializingMessage> wrap(Handler<DeserializingMessage> handler, String consumer) {
-            return first.wrap(second.wrap(handler, consumer), consumer);
+        public Handler<DeserializingMessage> wrap(Handler<DeserializingMessage> handler) {
+            return first.wrap(second.wrap(handler));
         }
     }
 }

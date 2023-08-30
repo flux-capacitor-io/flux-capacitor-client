@@ -18,6 +18,7 @@ import io.fluxcapacitor.common.api.Metadata;
 import io.fluxcapacitor.common.handling.HandlerInvoker;
 import io.fluxcapacitor.javaclient.FluxCapacitor;
 import io.fluxcapacitor.javaclient.common.serialization.DeserializingMessage;
+import io.fluxcapacitor.javaclient.tracking.Tracker;
 import io.fluxcapacitor.javaclient.tracking.handling.HandleSelf;
 import io.fluxcapacitor.javaclient.tracking.handling.HandlerInterceptor;
 import io.fluxcapacitor.javaclient.tracking.handling.LocalHandler;
@@ -36,25 +37,26 @@ import static java.time.temporal.ChronoUnit.NANOS;
 public class HandlerMonitor implements HandlerInterceptor {
     @Override
     public Function<DeserializingMessage, Object> interceptHandling(Function<DeserializingMessage, Object> function,
-                                                                    HandlerInvoker invoker,
-                                                                    String consumer) {
+                                                                    HandlerInvoker invoker) {
         return message -> {
             Instant start = Instant.now();
             try {
                 Object result = function.apply(message);
-                publishMetrics(invoker, consumer, message, false, start, result);
+                publishMetrics(invoker, message, false, start, result);
                 return result;
             } catch (Throwable e) {
-                publishMetrics(invoker, consumer, message, true, start, e);
+                publishMetrics(invoker, message, true, start, e);
                 throw e;
             }
         };
     }
 
-    protected void publishMetrics(HandlerInvoker invoker, String consumer, DeserializingMessage message,
+    protected void publishMetrics(HandlerInvoker invoker, DeserializingMessage message,
                                   boolean exceptionalResult, Instant start, Object result) {
         try {
             if (logMetrics(invoker)) {
+                String consumer = Tracker.current().map(Tracker::getName)
+                        .orElseGet(() -> "local-" + message.getMessageType());
                 boolean completed =
                         !(result instanceof CompletableFuture<?>) || ((CompletableFuture<?>) result).isDone();
                 FluxCapacitor.getOptionally().ifPresent(fc -> fc.metricsGateway().publish(new HandleMessageEvent(

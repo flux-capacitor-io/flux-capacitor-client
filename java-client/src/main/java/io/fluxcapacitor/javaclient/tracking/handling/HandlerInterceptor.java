@@ -25,14 +25,29 @@ import java.util.Optional;
 import java.util.function.BiFunction;
 import java.util.function.Function;
 
+/**
+ * Mechanism that enables modification of a message before it is handled by a handler. A {@link HandlerInterceptor} can
+ * also be used to monitor handled messages, block message handling altogether, and/or inspect or modify the return
+ * value of a handler.
+ */
 @FunctionalInterface
 public interface HandlerInterceptor extends HandlerDecorator {
 
+    /**
+     * Intercepts a message before it's handled. The underlying handler can be invoked using the given {@code function}.
+     * <p>
+     * Before invoking the handler it is possible to inspect or modify the message. It is also possible to block a
+     * message simply by returning a function that returns without invoking the handler.
+     * <p>
+     * After invoking the handler it is possible to inspect or modify the response.
+     * <p>
+     * The given {@code invoker} contains information about the underlying handler.
+     */
     Function<DeserializingMessage, Object> interceptHandling(Function<DeserializingMessage, Object> function,
-                                                             HandlerInvoker invoker, String consumer);
+                                                             HandlerInvoker invoker);
 
-    default Handler<DeserializingMessage> wrap(Handler<DeserializingMessage> handler, String consumer) {
-        return new InterceptedHandler(handler, this, consumer);
+    default Handler<DeserializingMessage> wrap(Handler<DeserializingMessage> handler) {
+        return new InterceptedHandler(handler, this);
     }
 
     @AllArgsConstructor
@@ -41,7 +56,6 @@ public interface HandlerInterceptor extends HandlerDecorator {
         @Delegate(excludes = ExcludedMethods.class)
         private final Handler<DeserializingMessage> delegate;
         private final HandlerInterceptor interceptor;
-        private final String consumer;
 
         @Override
         public Optional<HandlerInvoker> findInvoker(DeserializingMessage message) {
@@ -57,7 +71,7 @@ public interface HandlerInterceptor extends HandlerDecorator {
                             return m.apply(msg -> i.invoke(combiner));
                         }
                         return s.invoke(combiner);
-                    }, s, consumer).apply(message);
+                    }, s).apply(message);
                 }
             });
         }
