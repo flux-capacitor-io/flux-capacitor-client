@@ -33,7 +33,7 @@ public class ValidatingInterceptor implements HandlerInterceptor {
 
     @Override
     public Function<DeserializingMessage, Object> interceptHandling(Function<DeserializingMessage, Object> function,
-                                                                    HandlerInvoker invoker, String consumer) {
+                                                                    HandlerInvoker invoker) {
         return m -> {
             ValidationUtils.assertValid(m.getPayload(), validator);
             return function.apply(m);

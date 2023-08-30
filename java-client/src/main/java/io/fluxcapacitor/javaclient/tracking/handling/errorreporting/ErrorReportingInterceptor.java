@@ -40,7 +40,7 @@ public class ErrorReportingInterceptor implements HandlerInterceptor {
 
     @Override
     public Function<DeserializingMessage, Object> interceptHandling(Function<DeserializingMessage, Object> function,
-                                                                    HandlerInvoker invoker, String consumer) {
+                                                                    HandlerInvoker invoker) {
         if (ClientUtils.isLocalHandler(invoker)) {
             return function;
         }

@@ -50,8 +50,14 @@ public class DefaultScheduler implements Scheduler {
                 return;
             }
             message = (Schedule) dispatchInterceptor.interceptDispatch(message, SCHEDULE);
+            if (message == null) {
+                return;
+            }
             SerializedMessage serializedMessage = dispatchInterceptor.modifySerializedMessage(
                     message.serialize(serializer), message, SCHEDULE);
+            if (serializedMessage == null) {
+                return;
+            }
             client.schedule(new SerializedSchedule(message.getScheduleId(),
                                                    message.getDeadline().toEpochMilli(),
                                                    serializedMessage, ifAbsent)).get();
@@ -62,12 +68,19 @@ public class DefaultScheduler implements Scheduler {
     }
 
     @Override
-    public void scheduleCommand(Schedule command, boolean ifAbsent) {
-        var intercepted = commandDispatchInterceptor.interceptDispatch(command, COMMAND);
-        command = command.withPayload(intercepted.getPayload()).withMetadata(intercepted.getMetadata());
-        schedule(command.withPayload(new ScheduledCommand(commandDispatchInterceptor.modifySerializedMessage(
-                        command.serialize(serializer), command, COMMAND)))
-                         .addMetadata("$commandType", command.getPayloadClass().getName()), ifAbsent);
+    public void scheduleCommand(Schedule schedule, boolean ifAbsent) {
+        var intercepted = commandDispatchInterceptor.interceptDispatch(schedule, COMMAND);
+        if (intercepted == null) {
+            return;
+        }
+        schedule = schedule.withPayload(intercepted.getPayload()).withMetadata(intercepted.getMetadata());
+        SerializedMessage serializedCommand = commandDispatchInterceptor.modifySerializedMessage(
+                schedule.serialize(serializer), schedule, COMMAND);
+        if (serializedCommand == null) {
+            return;
+        }
+        schedule(schedule.withPayload(new ScheduledCommand(serializedCommand))
+                         .addMetadata("$commandType", schedule.getPayloadClass().getName()), ifAbsent);
     }
 
     @Override

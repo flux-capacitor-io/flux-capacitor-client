@@ -57,7 +57,10 @@ public class DefaultEventStore implements EventStore {
                 } else if (interceptBeforeStoring) {
                     Message m = dispatchInterceptor.interceptDispatch(Message.asMessage(e), EVENT);
                     SerializedMessage serializedMessage
-                            = dispatchInterceptor.modifySerializedMessage(m.serialize(serializer), m, EVENT);
+                            = m == null ? null : dispatchInterceptor.modifySerializedMessage(m.serialize(serializer), m, EVENT);
+                    if (serializedMessage == null) {
+                        return;
+                    }
                     deserializingMessage = new DeserializingMessage(serializedMessage, type -> m.getPayload(), EVENT);
                 } else {
                     deserializingMessage = new DeserializingMessage(Message.asMessage(e), EVENT, serializer);

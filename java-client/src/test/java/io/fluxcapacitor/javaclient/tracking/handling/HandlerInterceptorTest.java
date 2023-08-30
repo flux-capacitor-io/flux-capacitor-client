@@ -29,45 +29,40 @@ class HandlerInterceptorTest {
     @Test
     void modifyResult() {
         TestFixture.create(DefaultFluxCapacitor.builder().addHandlerInterceptor(
-                (f, i, c) -> m -> f.apply(m) + "bar", COMMAND), MockCommandHandler.class)
-                .whenCommand("foo")
-                .expectEvents("foo").expectResult("foobar").expectNoErrors();
+                (f, i) -> m -> f.apply(m) + "bar", COMMAND), MockCommandHandler.class)
+                .whenCommand("foo").expectEvents("foo").expectResult("foobar").expectNoErrors();
     }
 
     @Test
     void blockCommand() {
         TestFixture.create(DefaultFluxCapacitor.builder().addHandlerInterceptor(
-                        (f, i, c) -> m -> null, COMMAND), MockCommandHandler.class)
-                .whenCommand("foo")
-                .expectNoResult().expectNoEvents().expectNoErrors();
+                        (f, i) -> m -> null, COMMAND), MockCommandHandler.class)
+                .whenCommand("foo").expectNoResult().expectNoEvents().expectNoErrors();
     }
 
     @Test
     void throwException() {
         TestFixture.create(DefaultFluxCapacitor.builder().addHandlerInterceptor(
-                        (f, i, c) -> m -> { throw new MockException(); }, COMMAND), MockCommandHandler.class)
-                .whenCommand("foo")
-                .expectExceptionalResult(MockException.class).expectNoEvents();
+                        (f, i) -> m -> { throw new MockException(); }, COMMAND), MockCommandHandler.class)
+                .whenCommand("foo").expectExceptionalResult(MockException.class).expectNoEvents();
     }
 
     @Test
     void changePayload() {
         TestFixture.create(DefaultFluxCapacitor.builder().addHandlerInterceptor(
-                        (f, i, c) -> m -> f.apply(new DeserializingMessage(
+                        (f, i) -> m -> f.apply(new DeserializingMessage(
                                 m.toMessage().withPayload("foobar"), COMMAND, new JacksonSerializer())),
                         COMMAND), MockCommandHandler.class)
-                .whenCommand("foo")
-                .expectEvents("foobar").expectResult("foobar").expectNoErrors();
+                .whenCommand("foo").expectEvents("foobar").expectResult("foobar").expectNoErrors();
     }
 
     @Test
     void changePayloadTypeNotSupported() {
         TestFixture.create(DefaultFluxCapacitor.builder().addHandlerInterceptor(
-                        (f, i, c) -> m -> f.apply(new DeserializingMessage(
+                        (f, i) -> m -> f.apply(new DeserializingMessage(
                                 m.toMessage().withPayload(123), COMMAND, new JacksonSerializer())),
                         COMMAND), MockCommandHandler.class)
-                .whenCommand("foo")
-                .expectExceptionalResult(UnsupportedOperationException.class);
+                .whenCommand("foo").expectExceptionalResult(UnsupportedOperationException.class);
     }
 
     static class MockCommandHandler {

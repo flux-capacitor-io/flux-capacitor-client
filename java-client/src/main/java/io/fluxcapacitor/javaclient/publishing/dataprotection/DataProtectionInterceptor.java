@@ -73,8 +73,7 @@ public class DataProtectionInterceptor implements DispatchInterceptor, HandlerIn
     @Override
     @SuppressWarnings("unchecked")
     public Function<DeserializingMessage, Object> interceptHandling(Function<DeserializingMessage, Object> function,
-                                                                    HandlerInvoker invoker,
-                                                                    String consumer) {
+                                                                    HandlerInvoker invoker) {
         return m -> {
             if (m.getMetadata().containsKey(METADATA_KEY)) {
                 Object payload = m.getPayload();

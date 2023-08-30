@@ -86,7 +86,7 @@ public class DefaultHandlerFactory implements HandlerFactory {
                         .handlerFilter(handlerFilter).messageFilter(messageFilter).build())
                 .filter(config -> hasHandlerMethods(targetClass, config))
                 .map(config -> HandlerInspector.createHandler(targetSupplier, targetClass, parameterResolvers, config))
-                .map(handler -> interceptor.wrap(handler, consumer));
+                .map(handler -> interceptor.wrap(handler));
     }
 
     @SuppressWarnings("unchecked")

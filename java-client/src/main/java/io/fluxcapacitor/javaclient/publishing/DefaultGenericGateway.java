@@ -62,11 +62,17 @@ public class DefaultGenericGateway implements GenericGateway {
         List<SerializedMessage> serializedMessages = new ArrayList<>();
         for (Message message : messages) {
             message = dispatchInterceptor.interceptDispatch(message, messageType);
+            if (message == null) {
+                continue;
+            }
             Optional<CompletableFuture<Message>> localResult
                     = localHandlerRegistry.handle(new DeserializingMessage(message, messageType, serializer));
             if (localResult.isEmpty()) {
                 SerializedMessage serializedMessage = dispatchInterceptor.modifySerializedMessage(
                         message.serialize(serializer), message, messageType);
+                if (serializedMessage == null) {
+                    continue;
+                }
                 serializedMessages.add(serializedMessage);
             } else if (localResult.get().isCompletedExceptionally()) {
                 try {
@@ -90,6 +96,10 @@ public class DefaultGenericGateway implements GenericGateway {
         List<Object> results = new ArrayList<>(messages.length);
         for (Message message : messages) {
             message = dispatchInterceptor.interceptDispatch(message, messageType);
+            if (message == null) {
+                results.add(emptyReturnMessage());
+                continue;
+            }
             Optional<CompletableFuture<Message>> localResult
                     = localHandlerRegistry.handle(new DeserializingMessage(message, messageType, serializer));
             if (localResult.isPresent()) {
@@ -103,6 +113,10 @@ public class DefaultGenericGateway implements GenericGateway {
             } else {
                 SerializedMessage serializedMessage = dispatchInterceptor.modifySerializedMessage(
                         message.serialize(serializer), message, messageType);
+                if (serializedMessage == null) {
+                    results.add(emptyReturnMessage());
+                    continue;
+                }
                 results.add(serializedMessage);
             }
         }
@@ -140,6 +154,14 @@ public class DefaultGenericGateway implements GenericGateway {
                 return future.whenComplete((v, e) -> callbacks.remove(m.getMessageId()));
             }
         }).collect(Collectors.toList());
+    }
+
+    protected CompletableFuture<Message> emptyReturnMessage() {
+        CompletableFuture<Message> c = CompletableFuture.completedFuture(Message.asMessage(null));
+        if (messageType == MessageType.WEBREQUEST) {
+            c = c.thenApply(WebResponse::new);
+        }
+        return c;
     }
 
     @Override

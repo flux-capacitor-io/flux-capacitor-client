@@ -55,8 +55,7 @@ public class AuthenticatingInterceptor implements DispatchInterceptor, HandlerIn
 
     @Override
     public Function<DeserializingMessage, Object> interceptHandling(Function<DeserializingMessage, Object> function,
-                                                                    HandlerInvoker invoker,
-                                                                    String consumer) {
+                                                                    HandlerInvoker invoker) {
         return m -> {
             User previous = User.getCurrent();
             User user = userProvider.fromMessage(m);
@@ -73,8 +72,8 @@ public class AuthenticatingInterceptor implements DispatchInterceptor, HandlerIn
     }
 
     @Override
-    public Handler<DeserializingMessage> wrap(Handler<DeserializingMessage> handler, String consumer) {
-        return new AuthorizingHandler(HandlerInterceptor.super.wrap(handler, consumer));
+    public Handler<DeserializingMessage> wrap(Handler<DeserializingMessage> handler) {
+        return new AuthorizingHandler(HandlerInterceptor.super.wrap(handler));
     }
 
     @AllArgsConstructor

@@ -58,7 +58,7 @@ public class SchedulingInterceptor implements DispatchInterceptor, HandlerInterc
     });
 
     @Override
-    public Handler<DeserializingMessage> wrap(Handler<DeserializingMessage> handler, String consumer) {
+    public Handler<DeserializingMessage> wrap(Handler<DeserializingMessage> handler) {
         Object target = handler.getTarget();
         List<Method> methods = getAnnotatedMethods(target, HandleSchedule.class);
         for (Method method : methods) {
@@ -73,7 +73,7 @@ public class SchedulingInterceptor implements DispatchInterceptor, HandlerInterc
                 }
             }
         }
-        return HandlerInterceptor.super.wrap(handler, consumer);
+        return HandlerInterceptor.super.wrap(handler);
     }
 
     protected void initializePeriodicSchedule(Class<?> payloadType, Periodic periodic) {
@@ -136,7 +136,7 @@ public class SchedulingInterceptor implements DispatchInterceptor, HandlerInterc
 
     @Override
     public Function<DeserializingMessage, Object> interceptHandling(Function<DeserializingMessage, Object> function,
-                                                                    HandlerInvoker invoker, String consumer) {
+                                                                    HandlerInvoker invoker) {
         return m -> {
             if (m.getMessageType() == MessageType.SCHEDULE) {
                 long deadline = millisFromIndex(m.getIndex());

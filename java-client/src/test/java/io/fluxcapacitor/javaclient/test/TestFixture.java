@@ -735,8 +735,7 @@ public class TestFixture implements Given, When {
 
         @Override
         public Function<DeserializingMessage, Object> interceptHandling(
-                Function<DeserializingMessage, Object> function, HandlerInvoker invoker,
-                String consumer) {
+                Function<DeserializingMessage, Object> function, HandlerInvoker invoker) {
             return m -> {
                 try {
                     return function.apply(m);

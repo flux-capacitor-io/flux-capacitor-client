@@ -130,11 +130,11 @@ public class ConsumerConfigurationTest {
     void interceptorInConsumerTest() {
         TestFixture.createAsync(
                         DefaultFluxCapacitor.builder()
-                                .addHandlerInterceptor((f, i, c) -> m -> "first " + f.apply(m))
+                                .addHandlerInterceptor((f, i) -> m -> "first " + f.apply(m))
                                 .addConsumerConfiguration(
                                         ConsumerConfiguration.builder().name("test")
-                                                .handlerInterceptor((f, i, c) -> m -> "second " + f.apply(m))
-                                                .handlerInterceptor((f, i, c) -> m -> "third " + f.apply(m))
+                                                .handlerInterceptor((f, i) -> m -> "second " + f.apply(m))
+                                                .handlerInterceptor((f, i) -> m -> "third " + f.apply(m))
                                                 .build()),
                         new Handler())
                 .withClock(nowClock)
@@ -146,7 +146,7 @@ public class ConsumerConfigurationTest {
     static class Handler {
         @HandleCommand
         String handle(Command command) {
-            String consumerName = Tracker.current().get().getConfiguration().getName();
+            String consumerName = Tracker.current().orElseThrow().getConfiguration().getName();
             FluxCapacitor.publishEvent(consumerName);
             return consumerName;
         }

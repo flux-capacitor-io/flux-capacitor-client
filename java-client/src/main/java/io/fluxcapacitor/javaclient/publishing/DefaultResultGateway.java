@@ -34,16 +34,24 @@ public class DefaultResultGateway implements ResultGateway {
     private final DispatchInterceptor dispatchInterceptor;
 
     @Override
-    public CompletableFuture<Void> respond(Object payload, Metadata metadata, String target, Integer requestId, Guarantee guarantee) {
+    public CompletableFuture<Void> respond(Object payload, Metadata metadata, String target, Integer requestId,
+                                           Guarantee guarantee) {
         try {
-            Message message = dispatchInterceptor.interceptDispatch(new Message(payload, metadata), RESULT);
-            SerializedMessage serializedMessage
-                    = dispatchInterceptor.modifySerializedMessage(message.serialize(serializer), message, RESULT);
+            SerializedMessage serializedMessage = interceptDispatch(payload, metadata);
+            if (serializedMessage == null) {
+                return CompletableFuture.completedFuture(null);
+            }
             serializedMessage.setTarget(target);
             serializedMessage.setRequestId(requestId);
             return client.send(guarantee, serializedMessage);
         } catch (Exception e) {
             throw new GatewayException(String.format("Failed to send response %s", payload), e);
         }
+    }
+
+    protected SerializedMessage interceptDispatch(Object payload, Metadata metadata) {
+        Message message = dispatchInterceptor.interceptDispatch(new Message(payload, metadata), RESULT);
+        return message == null ? null
+                : dispatchInterceptor.modifySerializedMessage(message.serialize(serializer), message, RESULT);
     }
 }
