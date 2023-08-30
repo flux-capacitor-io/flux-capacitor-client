@@ -105,6 +105,9 @@ public abstract class AbstractWebsocketClient implements AutoCloseable {
                                 log.warn("Failed to connect to endpoint {}; reason: {}. Retrying every {} ms...",
                                          endpointUri, status.getException().getMessage(),
                                          status.getRetryConfiguration().getDelay().toMillis());
+                            } else if (status.getNumberOfTimesRetried() % 100 == 0) {
+                                log.warn("Still trying to connect to endpoint {}. Last error: {}.",
+                                         endpointUri, status.getException().getMessage());
                             }
                         }).build()));
     }
