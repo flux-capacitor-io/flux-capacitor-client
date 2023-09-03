@@ -48,7 +48,6 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Predicate;
-import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 import static java.util.Objects.requireNonNull;
@@ -67,7 +66,7 @@ public class WebRequest extends Message {
         return (message, executable) -> filterCache.computeIfAbsent(executable, e -> {
             var handleWeb = WebUtils.getWebParameters(e).orElseThrow();
             Predicate<String> pathTest = Optional.of(handleWeb.getPath())
-                    .map(SearchUtils::convertGlobToRegex).map(Pattern::asMatchPredicate)
+                    .map(SearchUtils::getGlobMatcher)
                     .<Predicate<String>>map(p -> s -> p.test(s.startsWith("/") || s.contains("://") ? s : "/" + s))
                     .orElse(p -> true);
             Predicate<String> methodTest = Optional.of(handleWeb.getMethod())
