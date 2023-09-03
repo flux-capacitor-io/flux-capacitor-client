@@ -181,7 +181,7 @@ public class Document {
                 return p -> true;
             }
             path = dotPattern.matcher(path).replaceAll("/");
-            Predicate<String> predicate = SearchUtils.convertGlobToRegex(path).asMatchPredicate();
+            Predicate<String> predicate = SearchUtils.getGlobMatcher(path);
             return splitPattern.splitAsStream(path).anyMatch(SearchUtils::isInteger)
                     ? p -> predicate.test(p.getLongValue()) : p -> predicate.test(p.getShortValue());
         }

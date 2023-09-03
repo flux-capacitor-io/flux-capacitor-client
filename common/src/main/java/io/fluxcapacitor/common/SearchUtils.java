@@ -27,7 +27,9 @@ import java.io.ByteArrayOutputStream;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.function.Predicate;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.IntStream;
@@ -42,7 +44,7 @@ public class SearchUtils {
     public static final String letterOrNumber = "\\p{L}0-9";
     public static final Pattern termPattern =
             Pattern.compile(String.format("\"[^\"]*\"|[%1$s][^\\s]*[%1$s]|[%1$s]", letterOrNumber), Pattern.MULTILINE);
-    private static final Map<String, Pattern> globPatternCache = new ConcurrentHashMap<>();
+    private static final Map<String, Predicate<String>> globPatternCache = new ConcurrentHashMap<>();
 
     public static String normalize(@NonNull String text) {
         return StringUtils.stripAccents(text.trim().toLowerCase());
@@ -68,15 +70,17 @@ public class SearchUtils {
      * Converts a standard POSIX Shell globbing pattern into a regular expression pattern. The result can be used with
      * the standard {@link java.util.regex} API to recognize strings which match the glob pattern.
      * <p>
-     * From <a href="https://stackoverflow.com/questions/1247772/is-there-an-equivalent-of-java-util-regex-for-glob-type-patterns">...</a>
+     * From <a
+     * href="https://stackoverflow.com/questions/1247772/is-there-an-equivalent-of-java-util-regex-for-glob-type-patterns">...</a>
      * <p>
-     * See also, the POSIX Shell language: <a href="http://pubs.opengroup.org/onlinepubs/009695399/utilities/xcu_chap02.html#tag_02_13_01">...</a>
+     * See also, the POSIX Shell language: <a
+     * href="http://pubs.opengroup.org/onlinepubs/009695399/utilities/xcu_chap02.html#tag_02_13_01">...</a>
      *
      * @param pattern A glob pattern.
      * @return A regex pattern to recognize the given glob pattern.
      */
-    public static Pattern convertGlobToRegex(String pattern) {
-        return globPatternCache.computeIfAbsent(pattern, p -> {
+    public static Predicate<String> getGlobMatcher(String pattern) {
+        return globPatternCache.computeIfAbsent(pattern, p -> tryGetSimpleGlobMatcher(pattern).orElseGet(() -> {
             StringBuilder sb = new StringBuilder(p.length());
             int inGroup = 0;
             int inClass = 0;
@@ -167,8 +171,23 @@ public class SearchUtils {
                         sb.append(ch);
                 }
             }
-            return Pattern.compile(sb.toString());
-        });
+            return Pattern.compile(sb.toString()).asMatchPredicate();
+        }));
+    }
+
+    private static Optional<Predicate<String>> tryGetSimpleGlobMatcher(String pattern) {
+        boolean postfix = pattern.endsWith("**");
+        pattern = postfix ? pattern.substring(0, pattern.length() - 2) : pattern;
+        boolean prefix = pattern.startsWith("**");
+        String finalPattern = prefix ? pattern.substring(2) : pattern;
+        for (char globCharacter : "*?{\\".toCharArray()) {
+            if (finalPattern.indexOf(globCharacter) >= 0) {
+                return Optional.empty();
+            }
+        }
+        return postfix ?
+                prefix ? Optional.of(s -> s.contains(finalPattern)) : Optional.of(s -> s.startsWith(finalPattern)) :
+                prefix ? Optional.of(s -> s.endsWith(finalPattern)) : Optional.of(s -> s.equals(finalPattern));
     }
 
     public static boolean isInteger(String fieldName) {

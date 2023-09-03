@@ -45,16 +45,16 @@ public class SearchDocuments extends Request {
                 .<Predicate<Path>>map(path -> {
                     path = path.substring(1);
                     path = dotPattern.matcher(path).replaceAll("/");
-                    Predicate<String> predicate = SearchUtils.convertGlobToRegex(path + "/**")
-                            .asMatchPredicate().or(SearchUtils.convertGlobToRegex(path).asMatchPredicate()).negate();
+                    Predicate<String> predicate = SearchUtils.getGlobMatcher(path + "/**")
+                            .or(SearchUtils.getGlobMatcher(path)).negate();
                     return splitPattern.splitAsStream(path).anyMatch(SearchUtils::isInteger)
                             ? p -> predicate.test(p.getLongValue()) : p -> predicate.test(p.getShortValue());
                 }).reduce(Predicate::and).orElse(p -> true);
         Predicate<Path> includeFilter = pathFilters.stream().filter(p -> !p.startsWith("-"))
                 .<Predicate<Path>>map(path -> {
                     path = dotPattern.matcher(path).replaceAll("/");
-                    Predicate<String> predicate = SearchUtils.convertGlobToRegex(path + "/**")
-                            .asMatchPredicate().or(SearchUtils.convertGlobToRegex(path).asMatchPredicate());
+                    Predicate<String> predicate = SearchUtils.getGlobMatcher(path + "/**")
+                            .or(SearchUtils.getGlobMatcher(path));
                     return splitPattern.splitAsStream(path).anyMatch(SearchUtils::isInteger)
                             ? p -> predicate.test(p.getLongValue()) : p -> predicate.test(p.getShortValue());
                 }).reduce(Predicate::or).orElse(p -> true);
