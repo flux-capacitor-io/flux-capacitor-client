@@ -574,10 +574,12 @@ public class DefaultFluxCapacitor implements FluxCapacitor {
 
             List<ParameterResolver<? super DeserializingMessage>> parameterResolvers =
                     new ArrayList<>(customParameterResolvers);
+            if (userProvider != null) {
+                parameterResolvers.add(new UserParameterResolver(userProvider));
+            }
             parameterResolvers.addAll(List.of(new TriggerParameterResolver(client, serializer),
                                               new DeserializingMessageParameterResolver(),
                                               new MetadataParameterResolver(), new MessageParameterResolver(),
-                                              new UserParameterResolver(userProvider),
                                               new SocketSessionParameterResolver(webResponseGateway),
                                               new WebPayloadParameterResolver(
                                                       !disablePayloadValidation, userProvider != null),
