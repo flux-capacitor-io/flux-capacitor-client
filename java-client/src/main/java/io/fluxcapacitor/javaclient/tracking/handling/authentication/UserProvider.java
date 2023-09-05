@@ -24,7 +24,8 @@ import java.util.ServiceLoader;
 public interface UserProvider {
 
     UserProvider defaultUserSupplier = Optional.of(ServiceLoader.load(UserProvider.class)).map(
-                ServiceLoader::iterator).filter(Iterator::hasNext).map(Iterator::next).orElse(null);
+                ServiceLoader::iterator).filter(Iterator::hasNext).map(Iterator::next)
+            .orElseGet(NoOpUserProvider::getInstance);
 
     default User getActiveUser() {
         return User.getCurrent();
