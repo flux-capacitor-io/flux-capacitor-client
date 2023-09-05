@@ -17,6 +17,7 @@ package io.fluxcapacitor.javaclient.tracking.handling.authentication;
 import io.fluxcapacitor.common.handling.TypedParameterResolver;
 import io.fluxcapacitor.javaclient.common.HasMessage;
 import io.fluxcapacitor.javaclient.common.serialization.DeserializingMessage;
+import lombok.NonNull;
 
 import java.lang.annotation.Annotation;
 import java.lang.reflect.Parameter;
@@ -28,7 +29,7 @@ import static java.util.Optional.ofNullable;
 public class UserParameterResolver extends TypedParameterResolver<Object> {
     private final UserProvider userProvider;
 
-    public UserParameterResolver(UserProvider userProvider) {
+    public UserParameterResolver(@NonNull UserProvider userProvider) {
         super(User.class);
         this.userProvider = userProvider;
     }
