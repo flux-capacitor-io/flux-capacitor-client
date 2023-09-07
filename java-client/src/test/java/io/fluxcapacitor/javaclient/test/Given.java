@@ -18,6 +18,7 @@ import io.fluxcapacitor.common.ThrowingConsumer;
 import io.fluxcapacitor.common.api.Data;
 import io.fluxcapacitor.javaclient.FluxCapacitor;
 import io.fluxcapacitor.javaclient.common.Message;
+import io.fluxcapacitor.javaclient.configuration.ApplicationProperties;
 import io.fluxcapacitor.javaclient.modeling.Id;
 import io.fluxcapacitor.javaclient.scheduling.Schedule;
 import io.fluxcapacitor.javaclient.tracking.handling.authentication.User;
@@ -178,9 +179,16 @@ public interface Given extends When {
     Given given(ThrowingConsumer<FluxCapacitor> condition);
 
     /**
+     * Returns the {@link FluxCapacitor} instance used by the test fixture.
+     */
+    FluxCapacitor getFluxCapacitor();
+
+    /**
      * Get the clock used by this test fixture.
      */
-    Clock getClock();
+    default Clock getClock() {
+        return getFluxCapacitor().clock();
+    }
 
     /**
      * Get the current time of this test fixture.
@@ -202,5 +210,11 @@ public interface Given extends When {
      * method.
      */
     Given atFixedTime(Instant time);
+
+    /**
+     * Sets a property for the duration of the test fixture, assuming that components obtain their properties via
+     * {@link ApplicationProperties}.
+     */
+    Given withProperty(String name, Object value);
 
 }

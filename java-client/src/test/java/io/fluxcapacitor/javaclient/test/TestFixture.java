@@ -53,10 +53,8 @@ import io.fluxcapacitor.javaclient.tracking.handling.authentication.User;
 import io.fluxcapacitor.javaclient.tracking.handling.authentication.UserProvider;
 import io.fluxcapacitor.javaclient.web.WebRequest;
 import lombok.Getter;
-import lombok.Setter;
 import lombok.SneakyThrows;
 import lombok.Value;
-import lombok.experimental.Accessors;
 import lombok.experimental.Delegate;
 import lombok.extern.slf4j.Slf4j;
 
@@ -81,7 +79,6 @@ import java.util.concurrent.CopyOnWriteArraySet;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executor;
 import java.util.concurrent.Executors;
-import java.util.concurrent.Future;
 import java.util.concurrent.TimeoutException;
 import java.util.function.Consumer;
 import java.util.function.Function;
@@ -155,11 +152,8 @@ public class TestFixture implements Given, When {
 
     @Getter
     private final FluxCapacitor fluxCapacitor;
-    @Setter
-    @Accessors(chain = true, fluent = true)
+    private final FluxCapacitorBuilder fluxCapacitorBuilder;
     private Duration resultTimeout = defaultResultTimeout;
-    @Setter
-    @Accessors(chain = true, fluent = true)
     private Duration consumerTimeout = defaultConsumerTimeout;
     private final boolean synchronous;
     private Registration registration = Registration.noOp();
@@ -173,9 +167,8 @@ public class TestFixture implements Given, When {
     private final CopyOnWriteArrayList<Throwable> errors = new CopyOnWriteArrayList<>();
 
     private final Map<String, String> testProperties = new HashMap<>();
-
     private volatile boolean collectingResults;
-
+    private final List<ThrowingConsumer<TestFixture>> modifiers = new CopyOnWriteArrayList<>();
     private static final ThreadLocal<List<TestFixture>> activeFixtures = ThreadLocal.withInitial(ArrayList::new);
     private static final Executor shutdownExecutor = Executors.newFixedThreadPool(16);
 
@@ -199,77 +192,151 @@ public class TestFixture implements Given, When {
         if (userProvider.isPresent()) {
             fluxCapacitorBuilder = fluxCapacitorBuilder.registerUserProvider(userProvider.get());
         }
-        List<Object> handlers = new ArrayList<>();
         if (synchronous) {
             fluxCapacitorBuilder.disableScheduledCommandHandler();
-            handlers.add(new ScheduledCommandHandler());
         }
         fluxCapacitorBuilder.addPropertySource(new SimplePropertySource(testProperties));
         GivenWhenThenInterceptor interceptor = new GivenWhenThenInterceptor();
         Arrays.stream(MessageType.values()).forEach(type -> client.getGatewayClient(type).registerMonitor(interceptor));
-        this.fluxCapacitor = new TestFluxCapacitor(
-                fluxCapacitorBuilder.disableShutdownHook().addDispatchInterceptor(interceptor)
-                        .replaceIdentityProvider(p -> p == IdentityProvider.defaultIdentityProvider
-                                ? new PredictableIdFactory() : p)
-                        .addBatchInterceptor(interceptor).addHandlerInterceptor(interceptor, true)
-                        .build(new TestClient(client)));
+        fluxCapacitorBuilder = fluxCapacitorBuilder.disableShutdownHook().addDispatchInterceptor(interceptor)
+                .replaceIdentityProvider(p -> p == IdentityProvider.defaultIdentityProvider
+                        ? new PredictableIdFactory() : p)
+                .addBatchInterceptor(interceptor).addHandlerInterceptor(interceptor, true);
+        this.fluxCapacitorBuilder = fluxCapacitorBuilder;
+        this.fluxCapacitor = new TestFluxCapacitor(fluxCapacitorBuilder.build(new TestClient(client)));
         withClock(Clock.fixed(Instant.now(), ZoneId.systemDefault()));
+        List<Object> handlers = new ArrayList<>();
+        if (synchronous) {
+            handlers.add(new ScheduledCommandHandler());
+        }
         handlers.addAll(handlerFactory.apply(fluxCapacitor));
         registerHandlers(handlers);
     }
 
+    protected TestFixture(TestFixture currentFixture, boolean synchronous) {
+        activeFixtures.get().add(this);
+        this.synchronous = synchronous;
+        this.fluxCapacitorBuilder = currentFixture.fluxCapacitorBuilder;
+        var currentClient = ((TestClient) currentFixture.fluxCapacitor.client()).getDelegate();
+        var newClient = currentClient instanceof InMemoryClient
+                ? InMemoryClient.newInstance(null) : currentClient;
+        this.fluxCapacitor = new TestFluxCapacitor(fluxCapacitorBuilder.build(new TestClient(newClient)));
+    }
+
+    /*
+        Modifications
+     */
+
+    /**
+     * Sets the maximum duration this test fixture will wait for a response of a request passed in the given- or
+     * when-phase.
+     * <p>
+     * This is only relevant if the test fixture is asynchronous.
+     */
+    public TestFixture resultTimeout(Duration resultTimeout) {
+        return modifyFixture(fixture -> fixture.resultTimeout = resultTimeout);
+    }
+
+    /**
+     * Sets the maximum duration this test fixture will wait for a consumer to finish handling messages dispatched
+     * during the given- or when-phase.
+     * <p>
+     * This is only relevant if the test fixture is asynchronous.
+     */
+    public TestFixture consumerTimeout(Duration consumerTimeout) {
+        return modifyFixture(fixture -> fixture.consumerTimeout = consumerTimeout);
+    }
+
+    /**
+     * Returns an asynchronous version of this test fixture. If the current fixture is asynchronous already, it is
+     * returned unmodified.
+     * <p>
+     * The returned test fixture will have a nearly identical state, i.e. it will have the same handlers, clock,
+     * properties and 'given' conditions as the source fixture.
+     */
+    public TestFixture async() {
+        if (synchronous) {
+            TestFixture result = new TestFixture(this, false);
+            this.modifiers.forEach(result::modifyFixture);
+            return result;
+        }
+        return this;
+    }
+
+    /**
+     * Returns a synchronous version of this test fixture. If the current fixture is synchronous already, it is returned
+     * unmodified.
+     * <p>
+     * The returned test fixture will have a nearly identical state, i.e. it will have the same handlers, clock,
+     * properties and 'given' conditions as the source fixture.
+     */
+    public TestFixture sync() {
+        if (!synchronous) {
+            TestFixture result = new TestFixture(this, true);
+            this.modifiers.forEach(result::modifyFixture);
+            return result;
+        }
+        return this;
+    }
+
+    /**
+     * Register additional handlers with the test fixture.
+     * <p>
+     * For async test fixtures, make sure all handlers of the same consumer are registered together, i.e. either via one
+     * of the test fixture creator methods, or all at the same time via registerHandlers. If handlers that share the
+     * same consumer are registered separately, an exception will be raised.
+     */
+    @SuppressWarnings("ResultOfMethodCallIgnored")
+    public TestFixture registerHandlers(List<?> handlers) {
+        return modifyFixture(fixture -> {
+            FluxCapacitor fc = fixture.getFluxCapacitor();
+            if (handlers.isEmpty()) {
+                return;
+            }
+            handlers.stream().collect(toMap(Object::getClass, Function.identity(), (a, b) -> {
+                log.warn("Handler of type {} is registered more than once. Please make sure this is intentional.",
+                         a.getClass());
+                return a;
+            }));
+            if (!fixture.synchronous) {
+                fixture.registration = fixture.registration.merge(fc.registerHandlers(handlers));
+                return;
+            }
+            HandlerFilter handlerFilter = (c, e) -> true;
+            var registration = fc.apply(f -> handlers.stream().flatMap(h -> Stream
+                            .of(fc.commandGateway().registerHandler(h, handlerFilter),
+                                fc.queryGateway().registerHandler(h, handlerFilter),
+                                fc.eventGateway().registerHandler(h, handlerFilter),
+                                fc.eventStore().registerHandler(h, handlerFilter),
+                                fc.errorGateway().registerHandler(h, handlerFilter),
+                                fc.webRequestGateway().registerHandler(h, handlerFilter),
+                                fc.metricsGateway().registerHandler(h, handlerFilter)))
+                    .reduce(Registration::merge).orElse(Registration.noOp()));
+            if (fc.scheduler() instanceof DefaultScheduler scheduler) {
+                registration.merge(handlers.stream().flatMap(h -> Stream
+                                .of(scheduler.registerHandler(h, handlerFilter)))
+                                           .reduce(Registration::merge).orElse(Registration.noOp()));
+            } else {
+                log.warn("Could not register local schedule handlers");
+            }
+            fixture.registration = fixture.registration.merge(registration);
+        });
+    }
+
+    /**
+     * Register additional handlers with the test fixture.
+     * <p>
+     * For async test fixtures, make sure all handlers of the same consumer are registered together, i.e. either via one
+     * of the test fixture creator methods, or all at the same time via registerHandlers. If handlers that share the
+     * same consumer are registered separately, an exception will be raised.
+     */
     public TestFixture registerHandlers(Object... handlers) {
         return registerHandlers(Arrays.asList(handlers));
     }
 
-    @SuppressWarnings("ResultOfMethodCallIgnored")
-    public TestFixture registerHandlers(List<?> handlers) {
-        if (handlers.isEmpty()) {
-            return this;
-        }
-        handlers.stream().collect(toMap(Object::getClass, Function.identity(), (a, b) -> {
-            log.warn("Handler of type {} is registered more than once. Please make sure this is intentional.",
-                     a.getClass());
-            return a;
-        }));
-        if (!synchronous) {
-            this.registration = getFluxCapacitor().registerHandlers(handlers);
-            return this;
-        }
-        FluxCapacitor fluxCapacitor = getFluxCapacitor();
-        HandlerFilter handlerFilter = (c, e) -> true;
-        var registration = fluxCapacitor.apply(f -> handlers.stream().flatMap(h -> Stream
-                        .of(fluxCapacitor.commandGateway().registerHandler(h, handlerFilter),
-                            fluxCapacitor.queryGateway().registerHandler(h, handlerFilter),
-                            fluxCapacitor.eventGateway().registerHandler(h, handlerFilter),
-                            fluxCapacitor.eventStore().registerHandler(h, handlerFilter),
-                            fluxCapacitor.errorGateway().registerHandler(h, handlerFilter),
-                            fluxCapacitor.webRequestGateway().registerHandler(h, handlerFilter),
-                            fluxCapacitor.metricsGateway().registerHandler(h, handlerFilter)))
-                .reduce(Registration::merge).orElse(Registration.noOp()));
-        if (fluxCapacitor.scheduler() instanceof DefaultScheduler scheduler) {
-            registration.merge(fluxCapacitor.apply(fc -> handlers.stream().flatMap(h -> Stream
-                            .of(scheduler.registerHandler(h, handlerFilter)))
-                    .reduce(Registration::merge).orElse(Registration.noOp())));
-        } else {
-            log.warn("Could not register local schedule handlers");
-        }
-        this.registration = Optional.ofNullable(this.registration).map(r -> r.merge(registration)).orElse(registration);
-        return this;
-    }
-
     @Override
     public TestFixture withClock(Clock clock) {
-        return getFluxCapacitor().apply(fc -> {
-            fc.withClock(clock);
-            SchedulingClient schedulingClient = fc.client().getSchedulingClient();
-            if (schedulingClient instanceof InMemorySchedulingClient) {
-                ((InMemorySchedulingClient) schedulingClient).setClock(clock);
-            } else {
-                log.warn("Could not update clock of scheduling client. Timing tests may not work.");
-            }
-            return this;
-        });
+        return modifyFixture(fixture -> fixture.setClock(clock));
     }
 
     @Override
@@ -277,13 +344,18 @@ public class TestFixture implements Given, When {
         return withClock(Clock.fixed(time, ZoneId.systemDefault()));
     }
 
-    public Clock getClock() {
-        return getFluxCapacitor().clock();
+    @Override
+    public TestFixture withProperty(String name, Object value) {
+        return modifyFixture(
+                fixture -> fixture.testProperties.compute(name, (k, v) -> value == null ? null : value.toString()));
     }
 
-    public TestFixture withProperty(String name, Object value) {
-        testProperties.compute(name, (k, v) -> value == null ? null : value.toString());
-        return this;
+    protected TestFixture modifyFixture(ThrowingConsumer<TestFixture> modifier) {
+        modifiers.add(modifier);
+        return fluxCapacitor.apply(fc -> {
+            modifier.accept(this);
+            return this;
+        });
     }
 
     /*
@@ -292,69 +364,76 @@ public class TestFixture implements Given, When {
 
     @Override
     public TestFixture givenCommands(Object... commands) {
-        Stream<Message> messages = asMessages(commands);
-        given(fc -> messages.forEach(c -> getDispatchResult(fc.commandGateway().send(c))));
+        Class<?> callerClass = ReflectionUtils.getCallerClass();
+        givenModification(fixture -> fixture.asMessages(callerClass, commands).forEach(
+                c -> fixture.getDispatchResult(fixture.getFluxCapacitor().commandGateway().send(c))));
         return this;
     }
 
     @Override
     public TestFixture givenCommandsByUser(User user, Object... commands) {
-        Stream<Message> messages = asMessages(commands).map(c -> addUser(user, c));
-        given(fc -> messages.forEach(c -> getDispatchResult(fc.commandGateway().send(c))));
+        Class<?> callerClass = ReflectionUtils.getCallerClass();
+        givenModification(fixture -> fixture.asMessages(callerClass, commands).map(c -> fixture.addUser(user, c))
+                .forEach(c -> fixture.getDispatchResult(fixture.getFluxCapacitor().commandGateway().send(c))));
         return this;
     }
 
     @Override
     public TestFixture givenAppliedEvents(String aggregateId, Class<?> aggregateClass, Object... events) {
-        Stream<Message> messages = asMessages(events);
-        return given(fc -> applyEvents(aggregateId, aggregateClass, fc, messages.collect(toList())));
+        Class<?> callerClass = ReflectionUtils.getCallerClass();
+        return givenModification(fixture -> fixture.applyEvents(aggregateId, aggregateClass, fixture.getFluxCapacitor(),
+                                                                fixture.asMessages(callerClass, events).toList()));
     }
 
     @Override
     public TestFixture givenEvents(Object... events) {
-        Stream<Message> messages = asMessages(events);
-        given(fc -> messages.toList().forEach(e -> fc.eventGateway().publish(e)));
+        Class<?> callerClass = ReflectionUtils.getCallerClass();
+        givenModification(fixture -> fixture.asMessages(callerClass, events)
+                .forEach(e -> fixture.getFluxCapacitor().eventGateway().publish(e)));
         return this;
     }
 
     @Override
     public TestFixture givenDocument(Object document, String id, String collection, Instant timestamp, Instant end) {
-        return given(fc -> fc.documentStore().index(document, id, collection, timestamp, end).get());
+        return givenModification(fixture -> fixture.getFluxCapacitor().documentStore()
+                .index(document, id, collection, timestamp, end).get());
     }
 
     @Override
     public TestFixture givenDocuments(String collection, Object... documents) {
-        return given(fc -> fc.documentStore().index(Arrays.asList(documents), collection).get());
+        return givenModification(fixture -> fixture.getFluxCapacitor().documentStore().index(
+                List.of(documents), collection).get());
     }
 
     @Override
     public TestFixture givenWebRequest(WebRequest webRequest) {
-        return given(fc -> getDispatchResult(fc.webRequestGateway().send(webRequest)));
+        return givenModification(fixture -> fixture.getDispatchResult(
+                fixture.getFluxCapacitor().webRequestGateway().send(webRequest)));
     }
 
     @Override
     public TestFixture givenTimeAdvancedTo(Instant instant) {
-        return given(fc -> advanceTimeTo(instant));
+        return givenModification(fixture -> fixture.advanceTimeTo(instant));
     }
 
     @Override
     public TestFixture givenElapsedTime(Duration duration) {
-        return given(fc -> advanceTimeBy(duration));
+        return givenModification(fixture -> fixture.advanceTimeBy(duration));
     }
 
     @Override
     public TestFixture given(ThrowingConsumer<FluxCapacitor> condition) {
-        return fluxCapacitor.apply(fc -> {
+        return givenModification(fixture -> condition.accept(fixture.getFluxCapacitor()));
+    }
+
+    protected TestFixture givenModification(ThrowingConsumer<TestFixture> modifier) {
+        return modifyFixture(fixture -> {
             try {
-                handleExpiredSchedulesLocally();
-                condition.accept(fc);
-                try {
-                    return this;
-                } finally {
-                    handleExpiredSchedulesLocally();
-                    waitForConsumers();
-                }
-            } catch (Exception e) {
+                fixture.handleExpiredSchedulesLocally();
+                modifier.accept(fixture);
+                fixture.handleExpiredSchedulesLocally();
+                fixture.waitForConsumers();
+            } catch (Throwable e) {
                 throw new IllegalStateException("Failed to execute given", e);
             }
         });
@@ -394,8 +473,9 @@ public class TestFixture implements Given, When {
 
     @Override
     public Then whenEventsAreApplied(String aggregateId, Class<?> aggregateClass, Object... events) {
-        Stream<Message> messages = asMessages(events);
-        return whenExecuting(fc -> applyEvents(aggregateId, aggregateClass, fc, messages.collect(toList())));
+        Class<?> callerClass = ReflectionUtils.getCallerClass();
+        return whenExecuting(fc -> applyEvents(aggregateId, aggregateClass, fc,
+                                               asMessages(callerClass, events).collect(toList())));
     }
 
     @Override
@@ -439,12 +519,8 @@ public class TestFixture implements Given, When {
                 Object result;
                 try {
                     result = action.apply(fc);
-                    if (result instanceof Future<?>) {
-                        try {
-                            result = ((Future<?>) result).get(consumerTimeout.toMillis(), MILLISECONDS);
-                        } catch (ExecutionException e) {
-                            throw e.getCause();
-                        }
+                    if (result instanceof CompletableFuture<?> future) {
+                        result = getDispatchResult(future);
                     }
                 } catch (Throwable e) {
                     registerError(e);
@@ -477,7 +553,7 @@ public class TestFixture implements Given, When {
                         e -> e.withMetadata(e.getMetadata().with(
                                 Entity.AGGREGATE_ID_METADATA_KEY, aggregateId,
                                 Entity.AGGREGATE_TYPE_METADATA_KEY, aggregateClass.getName())))
-                .toList());
+                                                                                 .toList());
     }
 
     protected void handleExpiredSchedulesLocally() {
@@ -537,7 +613,17 @@ public class TestFixture implements Given, When {
     }
 
     protected void advanceTimeTo(Instant instant) {
-        withClock(Clock.fixed(instant, ZoneId.systemDefault()));
+        setClock(Clock.fixed(instant, ZoneId.systemDefault()));
+    }
+
+    protected void setClock(Clock clock) {
+        getFluxCapacitor().withClock(clock);
+        SchedulingClient schedulingClient = getFluxCapacitor().client().getSchedulingClient();
+        if (schedulingClient instanceof InMemorySchedulingClient) {
+            ((InMemorySchedulingClient) schedulingClient).setClock(clock);
+        } else {
+            log.warn("Could not update clock of scheduling client. Timing tests may not work.");
+        }
     }
 
     protected void registerCommand(Message command) {
@@ -582,9 +668,8 @@ public class TestFixture implements Given, When {
         }
     }
 
-    protected Stream<Message> asMessages(Object... messages) {
-        Class<?> callerClass = ReflectionUtils.getCallerClass();
-        return fluxCapacitor.apply(fc -> Arrays.stream(messages).flatMap(c -> {
+    protected Stream<Message> asMessages(Class<?> callerClass, Object... messages) {
+        return Arrays.stream(messages).flatMap(c -> {
             if (c == null) {
                 return Stream.empty();
             }
@@ -601,7 +686,7 @@ public class TestFixture implements Given, When {
                     : parsed instanceof Collection<?> ? ((Collection<?>) parsed).stream()
                     : parsed.getClass().isArray() ? Arrays.stream((Object[]) parsed)
                     : Stream.of(parsed);
-        }).map(Message::asMessage));
+        }).map(Message::asMessage);
     }
 
     protected Message trace(Object object) {
@@ -655,7 +740,8 @@ public class TestFixture implements Given, When {
                 try {
                     fluxCapacitor.serializer()
                             .deserializeMessages(messageDispatch.getMessages().stream()
-                                                         .filter(m -> !interceptedMessageIds.contains(m.getMessageId())),
+                                                         .filter(m -> !interceptedMessageIds.contains(
+                                                                 m.getMessageId())),
                                                  messageDispatch.getMessageType())
                             .map(DeserializingMessage::toMessage)
                             .forEach(m -> interceptDispatch(m, messageDispatch.getMessageType()));
