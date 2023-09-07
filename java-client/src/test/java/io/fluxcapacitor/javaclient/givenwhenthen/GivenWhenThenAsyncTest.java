@@ -29,6 +29,7 @@ import io.fluxcapacitor.javaclient.tracking.handling.HandleEvent;
 import io.fluxcapacitor.javaclient.tracking.handling.HandleSchedule;
 import io.fluxcapacitor.javaclient.tracking.handling.IllegalCommandException;
 import lombok.Value;
+import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
 import java.time.Duration;
@@ -40,6 +41,8 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
 import static io.fluxcapacitor.common.MessageType.COMMAND;
+import static org.junit.jupiter.api.Assertions.assertNotSame;
+import static org.junit.jupiter.api.Assertions.assertSame;
 
 class GivenWhenThenAsyncTest {
 
@@ -104,6 +107,44 @@ class GivenWhenThenAsyncTest {
                 return CompletableFuture.failedFuture(new MockException());
             }
         }).whenCommand("test").expectExceptionalResult(MockException.class);
+    }
+
+    @Nested
+    class MakeAsyncLater {
+        final TestFixture syncFixture = TestFixture.create(
+                new MixedHandler(), new AsyncCommandHandler(), new ScheduleHandler());
+
+        @Test
+        void afterHandlerRegistration() {
+            syncFixture.async().whenCommand(new YieldsAsyncResult()).expectResult("test");
+        }
+
+        @Test
+        void afterGivenCommand() {
+            syncFixture.givenCommands(new YieldsSchedule("test")).async()
+                    .whenExecuting(fc -> {}).expectSchedules(String.class);
+        }
+
+        @Test
+        void noEffectIfFixtureIsAsyncAlready() {
+            assertNotSame(syncFixture, syncFixture.async());
+            assertSame(testFixture, testFixture.async());
+            assertSame(syncFixture, syncFixture.sync());
+        }
+    }
+
+    @Nested
+    class MakeSyncLater {
+        @Test
+        void afterHandlerRegistration() {
+            testFixture.sync().whenCommand(new YieldsEventAndResult()).expectResult("result");
+        }
+
+        @Test
+        void afterGivenCommand() {
+            testFixture.givenCommands(new YieldsSchedule("test")).sync()
+                    .whenExecuting(fc -> {}).expectSchedules(String.class);
+        }
     }
 
     @Test

@@ -17,6 +17,8 @@ package io.fluxcapacitor.javaclient;
 import io.fluxcapacitor.common.Guarantee;
 import io.fluxcapacitor.common.MessageType;
 import io.fluxcapacitor.common.Registration;
+import io.fluxcapacitor.common.ThrowingConsumer;
+import io.fluxcapacitor.common.ThrowingFunction;
 import io.fluxcapacitor.common.api.Metadata;
 import io.fluxcapacitor.common.application.PropertySource;
 import io.fluxcapacitor.javaclient.common.IdentityProvider;
@@ -54,6 +56,7 @@ import io.fluxcapacitor.javaclient.tracking.handling.HandleCommand;
 import io.fluxcapacitor.javaclient.tracking.handling.LocalHandler;
 import io.fluxcapacitor.javaclient.tracking.handling.Request;
 import io.fluxcapacitor.javaclient.tracking.handling.authentication.UserProvider;
+import lombok.SneakyThrows;
 
 import java.time.Clock;
 import java.time.Duration;
@@ -65,7 +68,6 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicReference;
-import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.stream.Stream;
 
@@ -811,7 +813,8 @@ public interface FluxCapacitor extends AutoCloseable {
     /**
      * Applies the given function with this Flux Capacitor set as current threadlocal instance.
      */
-    default <R> R apply(Function<FluxCapacitor, R> function) {
+    @SneakyThrows
+    default <R> R apply(ThrowingFunction<FluxCapacitor, R> function) {
         FluxCapacitor current = FluxCapacitor.instance.get();
         try {
             FluxCapacitor.instance.set(this);
@@ -824,7 +827,8 @@ public interface FluxCapacitor extends AutoCloseable {
     /**
      * Executes the given task with this Flux Capacitor set as current threadlocal instance.
      */
-    default void execute(Consumer<FluxCapacitor> task) {
+    @SneakyThrows
+    default void execute(ThrowingConsumer<FluxCapacitor> task) {
         FluxCapacitor current = FluxCapacitor.instance.get();
         try {
             FluxCapacitor.instance.set(this);
