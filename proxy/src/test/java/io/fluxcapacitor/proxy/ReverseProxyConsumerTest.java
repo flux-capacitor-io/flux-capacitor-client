@@ -38,7 +38,7 @@ import static io.fluxcapacitor.javaclient.web.HttpRequestMethod.GET;
 import static io.fluxcapacitor.javaclient.web.HttpRequestMethod.POST;
 
 @Slf4j
-class ExternalRequestConsumerTest {
+class ReverseProxyConsumerTest {
     private final TestFixture testFixture = TestFixture.createAsync();
     private final int port = TestUtils.getAvailablePort();
 
@@ -48,8 +48,7 @@ class ExternalRequestConsumerTest {
     @BeforeEach
     @SneakyThrows
     void setUp() {
-        registration = ProxyServer.startTrackingExternalRequests(testFixture.getFluxCapacitor().client());
-
+        registration = ReverseProxyConsumer.start(testFixture.getFluxCapacitor().client());
         HttpServer server = HttpServer.create(
                 new InetSocketAddress("localhost", port), 0);
         serverContext = server.createContext("/");
