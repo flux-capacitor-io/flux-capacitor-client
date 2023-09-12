@@ -25,4 +25,5 @@ import java.time.Duration;
 public class WebRequestSettings {
     @Default HttpVersion httpVersion = HttpVersion.HTTP_1_1;
     @Default Duration timeout = Duration.ofMinutes(1);
+    @Default String consumer = "reverse-proxy";
 }

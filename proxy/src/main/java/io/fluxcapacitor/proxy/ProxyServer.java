@@ -14,12 +14,9 @@
 
 package io.fluxcapacitor.proxy;
 
-import io.fluxcapacitor.common.MessageType;
 import io.fluxcapacitor.common.Registration;
 import io.fluxcapacitor.javaclient.configuration.client.Client;
 import io.fluxcapacitor.javaclient.configuration.client.WebSocketClient;
-import io.fluxcapacitor.javaclient.tracking.ConsumerConfiguration;
-import io.fluxcapacitor.javaclient.tracking.client.DefaultTracker;
 import io.undertow.Undertow;
 import lombok.extern.slf4j.Slf4j;
 
@@ -40,8 +37,8 @@ public class ProxyServer {
                         WebSocketClient.ClientConfig.builder().name("$proxy").serviceBaseUrl(url)
                                 .projectId(getProperty("PROJECT_ID")).build()))
                 .orElseThrow(() -> new IllegalStateException("FLUX_URL environment variable is not set"));
-        Registration registration =
-                start(port, new ProxyRequestHandler(client)).merge(startTrackingExternalRequests(client));
+        Registration registration = start(port, new ProxyRequestHandler(client))
+                .merge(ReverseProxyConsumer.start(client));
         log.info("Flux Capacitor proxy server running on port {}", port);
 
         Runtime.getRuntime().addShutdownHook(new Thread(() -> {
@@ -67,9 +64,4 @@ public class ProxyServer {
         };
     }
 
-    public static Registration startTrackingExternalRequests(Client client) {
-        return DefaultTracker.start(new ExternalRequestConsumer(client), MessageType.WEBREQUEST,
-                                    ConsumerConfiguration.builder().name("external-request-consumer").threads(4)
-                                            .build(), client);
-    }
 }

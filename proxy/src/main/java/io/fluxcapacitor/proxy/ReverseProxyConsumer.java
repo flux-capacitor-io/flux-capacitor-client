@@ -16,13 +16,18 @@ package io.fluxcapacitor.proxy;
 
 import io.fluxcapacitor.common.Guarantee;
 import io.fluxcapacitor.common.MessageType;
+import io.fluxcapacitor.common.Registration;
 import io.fluxcapacitor.common.api.SerializedMessage;
 import io.fluxcapacitor.javaclient.common.serialization.Serializer;
 import io.fluxcapacitor.javaclient.configuration.client.Client;
+import io.fluxcapacitor.javaclient.tracking.ConsumerConfiguration;
+import io.fluxcapacitor.javaclient.tracking.client.DefaultTracker;
 import io.fluxcapacitor.javaclient.web.WebRequest;
 import io.fluxcapacitor.javaclient.web.WebRequestSettings;
 import io.fluxcapacitor.javaclient.web.WebResponse;
+import lombok.AccessLevel;
 import lombok.AllArgsConstructor;
+import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 
 import java.net.URI;
@@ -30,37 +35,69 @@ import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.time.Duration;
+import java.util.Collection;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Consumer;
 
 import static io.fluxcapacitor.javaclient.web.WebRequest.getHeaders;
 import static io.fluxcapacitor.javaclient.web.WebUtils.fixHeaderName;
 import static java.util.Optional.ofNullable;
 
-@AllArgsConstructor
+@AllArgsConstructor(access = AccessLevel.PRIVATE)
 @Slf4j
-public class ExternalRequestConsumer implements Consumer<List<SerializedMessage>> {
+public class ReverseProxyConsumer implements Consumer<List<SerializedMessage>> {
     private static final HttpClient httpClient = HttpClient.newBuilder()
             .followRedirects(HttpClient.Redirect.NORMAL).connectTimeout(Duration.ofSeconds(5)).build();
-    private static final WebRequestSettings defaultSettings = WebRequestSettings.builder().build();
-    private static final Serializer serializer = new ProxySerializer();
+    protected static final WebRequestSettings defaultSettings = WebRequestSettings.builder().build();
+    protected static final Serializer serializer = new ProxySerializer();
+
+    protected final Map<String, Registration> runningConsumers = new ConcurrentHashMap<>();
 
     private final Client client;
+    private final String consumerName;
+    private final Long minIndex;
+    @Getter(lazy = true, value = AccessLevel.PROTECTED)
+    private final boolean mainConsumer = minIndex == null;
+
+    public static Registration start(Client client) {
+        var consumer = new ReverseProxyConsumer(client, defaultSettings.getConsumer(), null);
+        consumer.runningConsumers.computeIfAbsent(defaultSettings.getConsumer(), c -> consumer.start());
+        return () -> {
+            Collection<Registration> running = consumer.runningConsumers.values();
+            running.forEach(Registration::cancel);
+            running.clear();
+        };
+    }
+
+    protected Registration start() {
+        log.info(isMainConsumer() ? "Starting consumer {}" : "Starting consumer {} at {}", consumerName, minIndex);
+        return DefaultTracker.start(this, MessageType.WEBREQUEST,
+                                    ConsumerConfiguration.builder().name(consumerName).minIndex(minIndex).threads(4)
+                                            .build(), client);
+    }
 
     @Override
     public void accept(List<SerializedMessage> serializedMessages) {
         for (SerializedMessage s : serializedMessages) {
-            URI uri = URI.create(WebRequest.getUrl(s.getMetadata()));
-            if (uri.isAbsolute()) {
-                handle(s, uri);
+            var settings = getSettings(s);
+            if (consumerName.equals(settings.getConsumer())) {
+                URI uri = URI.create(WebRequest.getUrl(s.getMetadata()));
+                if (uri.isAbsolute()) {
+                    handle(s, uri, settings);
+                }
+            } else if (isMainConsumer()) {
+                runningConsumers.computeIfAbsent(
+                        settings.getConsumer(), c -> new ReverseProxyConsumer(client, c, s.getIndex()).start());
             }
         }
     }
 
-    void handle(SerializedMessage request, URI uri) {
+    void handle(SerializedMessage request, URI uri, WebRequestSettings settings) {
         try {
-            HttpRequest httpRequest = asHttpRequest(request, uri);
+            HttpRequest httpRequest = asHttpRequest(request, uri, settings);
             WebResponse webResponse = executeRequest(httpRequest);
             SerializedMessage serializedResponse = webResponse.serialize(serializer);
             serializedResponse.setRequestId(request.getRequestId());
@@ -71,15 +108,18 @@ public class ExternalRequestConsumer implements Consumer<List<SerializedMessage>
         }
     }
 
-    HttpRequest asHttpRequest(SerializedMessage request, URI uri) {
-        var settings = Optional.ofNullable(
-                request.getMetadata().get("settings", WebRequestSettings.class)).orElse(defaultSettings);
+    HttpRequest asHttpRequest(SerializedMessage request, URI uri, WebRequestSettings settings) {
         var builder = HttpRequest.newBuilder()
                 .version(HttpClient.Version.valueOf(settings.getHttpVersion().name()))
                 .timeout(settings.getTimeout());
         getHeaders(request.getMetadata()).forEach((name, values) -> values.forEach(v -> builder.header(name, v)));
         builder.uri(uri).method(WebRequest.getMethod(request.getMetadata()).name(), getBodyPublisher(request));
         return builder.build();
+    }
+
+    protected WebRequestSettings getSettings(SerializedMessage request) {
+        return Optional.ofNullable(request.getMetadata().get("settings", WebRequestSettings.class))
+                .orElse(defaultSettings);
     }
 
     WebResponse executeRequest(HttpRequest httpRequest) {
