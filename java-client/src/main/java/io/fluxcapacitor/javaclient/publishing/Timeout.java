@@ -20,11 +20,31 @@ import java.lang.annotation.Inherited;
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeUnit;
 
+import static java.util.concurrent.TimeUnit.MILLISECONDS;
+
+/**
+ * Annotation to be placed on requests (i.e. queries and commands). Configures the time before such request will time
+ * out when sent using sendAndWait-like methods.
+ * <p>
+ * Note that non-blocking requests sent using send-methods that return a {@link CompletableFuture} will *not* time out
+ * automatically. If a timeout is desired on non-blocking requests this needs to be manually configured, e.g. via
+ * {@link CompletableFuture#orTimeout(long, TimeUnit)}.
+ */
 @Documented
 @Target(ElementType.TYPE)
 @Retention(RetentionPolicy.RUNTIME)
 @Inherited
 public @interface Timeout {
-    int millis();
+    /**
+     * Configures the maximum number of time units before a request with this annotation will time out.
+     */
+    int value();
+
+    /**
+     * Returns the time unit for {@link #value()}. Defaults to {@link TimeUnit#MILLISECONDS}.
+     */
+    TimeUnit timeUnit() default MILLISECONDS;
 }

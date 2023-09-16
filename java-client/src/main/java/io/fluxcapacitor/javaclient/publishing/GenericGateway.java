@@ -118,7 +118,7 @@ public interface GenericGateway extends HasLocalHandlers {
         try {
             Timeout timeout = message.getPayload().getClass().getAnnotation(Timeout.class);
             if (timeout != null) {
-                return future.get(timeout.millis(), TimeUnit.MILLISECONDS);
+                return future.get(timeout.value(), timeout.timeUnit());
             }
             return future.get(1, TimeUnit.MINUTES);
         } catch (java.util.concurrent.TimeoutException e) {
