@@ -33,11 +33,13 @@ import java.lang.reflect.AccessibleObject;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.function.UnaryOperator;
 
 import static io.fluxcapacitor.common.MessageType.EVENT;
 import static io.fluxcapacitor.common.reflection.ReflectionUtils.getAnnotatedProperties;
+import static io.fluxcapacitor.common.reflection.ReflectionUtils.getAnnotationAs;
 import static io.fluxcapacitor.common.reflection.ReflectionUtils.getValue;
 import static io.fluxcapacitor.javaclient.modeling.AnnotatedEntityHolder.getEntityHolder;
 import static java.util.Collections.emptyList;
@@ -153,11 +155,15 @@ public class ImmutableEntity<T> implements Entity<T> {
         for (AccessibleObject location : getAnnotatedProperties(target.getClass(), Alias.class)) {
             Object v = getValue(location, target, false);
             if (v != null) {
-                if (v instanceof Collection<?> collection) {
-                    results.addAll(collection);
-                } else {
-                    results.add(v);
-                }
+                getAnnotationAs(location, Alias.class, Alias.class).ifPresent(alias -> {
+                    UnaryOperator<Object> aliasFunction = id -> "".equals(alias.prefix()) && "".equals(alias.postfix())
+                            ? id : alias.prefix() + id + alias.postfix();
+                    if (v instanceof Collection<?> collection) {
+                        results.addAll(collection.stream().filter(Objects::nonNull).map(aliasFunction).toList());
+                    } else {
+                        results.add(aliasFunction.apply(v));
+                    }
+                });
             }
         }
         return results;

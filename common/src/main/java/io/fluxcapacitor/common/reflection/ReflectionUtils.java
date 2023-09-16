@@ -635,6 +635,10 @@ public class ReflectionUtils {
         return getAnnotationAs(m, a, a);
     }
 
+    public static <A extends Annotation> Optional<A> getAnnotation(AccessibleObject m, Class<A> a) {
+        return getAnnotationAs(m, a, a);
+    }
+
     /*
         Returns any object
      */
@@ -643,8 +647,19 @@ public class ReflectionUtils {
         return getAnnotationAs(getTypeAnnotation(target, annotationType), annotationType, returnType);
     }
 
-    public static <T> Optional<T> getAnnotationAs(Executable m, Class<? extends Annotation> a, Class<T> returnType) {
-        return getAnnotationAs(getMethodAnnotation(m, a).orElse(null), a, returnType);
+    public static <T> Optional<T> getAnnotationAs(AccessibleObject member,
+                                                  Class<? extends Annotation> annotationType, Class<T> returnType) {
+        Annotation annotation;
+        if (member instanceof Method method) {
+            annotation = getMethodAnnotation(method, annotationType).orElse(null);
+        } else if (member instanceof Field field) {
+            annotation = field.getAnnotation(annotationType);
+        } else if (member instanceof Constructor<?> constructor) {
+            annotation = constructor.getAnnotation(annotationType);
+        } else {
+            annotation = null;
+        }
+        return getAnnotationAs(annotation, annotationType, returnType);
     }
 
     @SneakyThrows
