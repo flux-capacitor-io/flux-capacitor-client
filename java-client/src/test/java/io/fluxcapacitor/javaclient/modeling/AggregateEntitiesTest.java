@@ -451,12 +451,14 @@ public class AggregateEntitiesTest {
                             @Apply
                             Aggregate apply(Aggregate aggregate) {
                                 return aggregate.toBuilder()
-                                        .otherReference("clientRef1").otherReference("clientRef2").build();
+                                        .otherReference("clientRef1").otherReference("clientRef2")
+                                        .otherReference(null).build();
                             }
                         })
-                        .expectFalse(fc -> loadEntity("clientRef").isPresent())
-                        .expectTrue(fc -> loadEntity("clientRef1").isPresent())
-                        .expectTrue(fc -> loadEntity("clientRef2").isRoot());
+                        .expectFalse(fc -> loadEntity("other-clientRef").isPresent())
+                        .expectFalse(fc -> loadEntity("other-null").isPresent())
+                        .expectTrue(fc -> loadEntity("other-clientRef1").isPresent())
+                        .expectTrue(fc -> loadEntity("other-clientRef2").isRoot());
             }
 
             @Test
@@ -810,7 +812,7 @@ public class AggregateEntitiesTest {
         @Alias
         String clientReference;
 
-        @Alias
+        @Alias(prefix = "other-")
         @Singular
         List<String> otherReferences;
     }

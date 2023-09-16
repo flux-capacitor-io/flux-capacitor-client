@@ -36,4 +36,15 @@ import java.lang.annotation.Target;
 @Target({ElementType.FIELD, ElementType.METHOD})
 @Retention(RetentionPolicy.RUNTIME)
 public @interface Alias {
+    /**
+     * Adds given string as a prefix to the alias (if the property value is non-null). Useful to prevent clashes with
+     * other entity ids.
+     */
+    String prefix() default "";
+
+    /**
+     * Adds given string as a postfix to the alias (if the property value is non-null). Useful to prevent clashes with
+     * other entity ids.
+     */
+    String postfix() default "";
 }
