@@ -20,6 +20,7 @@ import io.fluxcapacitor.javaclient.common.Message;
 
 import java.time.Duration;
 import java.time.Instant;
+import java.time.ZoneId;
 import java.util.Optional;
 
 import static io.fluxcapacitor.javaclient.FluxCapacitor.currentTime;
@@ -36,8 +37,16 @@ public interface Scheduler {
         return schedule(schedule, currentTime().plus(delay));
     }
 
+    default String schedule(Object schedule, String cronSchedule) {
+        return schedule(schedule, nextDeadline(cronSchedule));
+    }
+
     default void schedule(Object schedule, String scheduleId, Duration delay) {
         schedule(schedule, scheduleId, currentTime().plus(delay));
+    }
+
+    default void schedule(Object schedule, String scheduleId, String cronSchedule) {
+        schedule(schedule, scheduleId, nextDeadline(cronSchedule));
     }
 
     default void schedule(Object schedulePayload, Metadata metadata, String scheduleId, Instant deadline) {
@@ -46,6 +55,10 @@ public interface Scheduler {
 
     default void schedule(Object schedulePayload, Metadata metadata, String scheduleId, Duration delay) {
         schedule(new Message(schedulePayload, metadata), scheduleId, delay);
+    }
+
+    default void schedule(Object schedulePayload, Metadata metadata, String scheduleId, String cronSchedule) {
+        schedule(new Message(schedulePayload, metadata), scheduleId, nextDeadline(cronSchedule));
     }
 
     default void schedule(Object schedule, String scheduleId, Instant deadline) {
@@ -73,8 +86,16 @@ public interface Scheduler {
         return scheduleCommand(schedule, currentTime().plus(delay));
     }
 
+    default String scheduleCommand(Object schedule, String cronSchedule) {
+        return scheduleCommand(schedule, nextDeadline(cronSchedule));
+    }
+
     default void scheduleCommand(Object schedule, String scheduleId, Duration delay) {
         scheduleCommand(schedule, scheduleId, currentTime().plus(delay));
+    }
+
+    default void scheduleCommand(Object schedule, String scheduleId, String cronSchedule) {
+        scheduleCommand(schedule, scheduleId, nextDeadline(cronSchedule));
     }
 
     default void scheduleCommand(Object schedulePayload, Metadata metadata, String scheduleId, Instant deadline) {
@@ -83,6 +104,10 @@ public interface Scheduler {
 
     default void scheduleCommand(Object schedulePayload, Metadata metadata, String scheduleId, Duration delay) {
         scheduleCommand(new Message(schedulePayload, metadata), scheduleId, delay);
+    }
+
+    default void scheduleCommand(Object schedulePayload, Metadata metadata, String scheduleId, String cronSchedule) {
+        scheduleCommand(new Message(schedulePayload, metadata), scheduleId, nextDeadline(cronSchedule));
     }
 
     default void scheduleCommand(Object schedule, String scheduleId, Instant deadline) {
@@ -103,4 +128,9 @@ public interface Scheduler {
     void cancelSchedule(String scheduleId);
 
     Optional<Schedule> getSchedule(String scheduleId);
+
+    private static Instant nextDeadline(String cronSchedule) {
+        return CronExpression.parseCronExpression(cronSchedule).nextTimeAfter(
+                FluxCapacitor.currentTime().atZone(ZoneId.of("UTC"))).toInstant();
+    }
 }

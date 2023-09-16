@@ -42,6 +42,7 @@ import static io.fluxcapacitor.common.reflection.ReflectionUtils.ensureAccessibl
 import static io.fluxcapacitor.common.reflection.ReflectionUtils.getAnnotatedMethods;
 import static io.fluxcapacitor.common.reflection.ReflectionUtils.getTypeAnnotation;
 import static io.fluxcapacitor.javaclient.FluxCapacitor.currentIdentityProvider;
+import static io.fluxcapacitor.javaclient.scheduling.CronExpression.parseCronExpression;
 import static io.fluxcapacitor.javaclient.tracking.IndexUtils.millisFromIndex;
 import static java.lang.String.format;
 import static java.time.Duration.between;
@@ -54,7 +55,7 @@ public class SchedulingInterceptor implements DispatchInterceptor, HandlerInterc
 
     private static final Function<String, Optional<CronExpression>> cronExpression = memoize(pattern -> {
         pattern = ApplicationProperties.substituteProperties(pattern);
-        return Periodic.DISABLED.equals(pattern) ? Optional.empty() : Optional.of(new CronExpression(pattern));
+        return Periodic.DISABLED.equals(pattern) ? Optional.empty() : Optional.of(parseCronExpression(pattern));
     });
 
     @Override

@@ -26,8 +26,11 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Locale;
+import java.util.function.BiFunction;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+
+import static io.fluxcapacitor.javaclient.common.ClientUtils.memoize;
 
 /**
  * This provides cron support for java8 using java-time.
@@ -131,6 +134,17 @@ import java.util.regex.Pattern;
  */
 public class CronExpression {
 
+    private static final BiFunction<String, Boolean, CronExpression> cache = memoize(
+            (expression, withSeconds) -> new CronExpression(expression, withSeconds));
+
+    public static CronExpression parseCronExpression(String expression) {
+        return cache.apply(expression, false);
+    }
+
+    public static CronExpression parseCronExpression(String expression, boolean withSeconds) {
+        return cache.apply(expression, withSeconds);
+    }
+
     private final String expr;
     private final SimpleField secondField;
     private final SimpleField minuteField;
@@ -139,11 +153,11 @@ public class CronExpression {
     private final SimpleField monthField;
     private final DayOfMonthField dayOfMonthField;
 
-    public CronExpression(final String expr) {
+    private CronExpression(final String expr) {
         this(expr, false);
     }
 
-    public CronExpression(final String expr, final boolean withSeconds) {
+    private CronExpression(final String expr, final boolean withSeconds) {
         if (expr == null) {
             throw new IllegalArgumentException("expr is null"); //$NON-NLS-1$
         }
