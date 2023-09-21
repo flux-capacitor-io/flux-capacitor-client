@@ -588,7 +588,7 @@ public class DefaultFluxCapacitor implements FluxCapacitor {
 
             //event sourcing
             var entityMatcher = new DefaultEntityHelper(parameterResolvers, disablePayloadValidation);
-            EventStore eventStore = new DefaultEventStore(client.getEventStoreClient(),
+            EventStore eventStore = new DefaultEventStore(client.getEventStoreClient(), client.getGatewayClient(EVENT),
                                                           serializer, dispatchInterceptors.get(EVENT),
                                                           localHandlerRegistry(EVENT, handlerDecorators,
                                                                                parameterResolvers));

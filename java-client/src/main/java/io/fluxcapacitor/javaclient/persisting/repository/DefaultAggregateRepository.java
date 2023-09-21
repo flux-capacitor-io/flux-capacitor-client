@@ -28,6 +28,7 @@ import io.fluxcapacitor.javaclient.modeling.Entity;
 import io.fluxcapacitor.javaclient.modeling.EntityHelper;
 import io.fluxcapacitor.javaclient.modeling.EntityId;
 import io.fluxcapacitor.javaclient.modeling.EventPublication;
+import io.fluxcapacitor.javaclient.modeling.EventPublicationStrategy;
 import io.fluxcapacitor.javaclient.modeling.ImmutableAggregateRoot;
 import io.fluxcapacitor.javaclient.modeling.ModifiableAggregateRoot;
 import io.fluxcapacitor.javaclient.modeling.NoOpEntity;
@@ -142,6 +143,7 @@ public class DefaultAggregateRepository implements AggregateRepository {
         private final boolean eventSourced;
         private final boolean commitInBatch;
         private final EventPublication eventPublication;
+        private final EventPublicationStrategy publicationStrategy;
         private final SnapshotTrigger snapshotTrigger;
         private final SnapshotStore snapshotStore;
         private final boolean searchable;
@@ -161,6 +163,7 @@ public class DefaultAggregateRepository implements AggregateRepository {
             this.eventSourced = annotation.eventSourced();
             this.commitInBatch = annotation.commitInBatch();
             this.eventPublication = annotation.eventPublication();
+            this.publicationStrategy = annotation.publicationStrategy();
             int snapshotPeriod = annotation.eventSourced() || annotation.searchable() ? annotation.snapshotPeriod() : 1;
             this.snapshotTrigger = snapshotPeriod > 0 ? new PeriodicSnapshotTrigger(snapshotPeriod) :
                     NoSnapshotTrigger.INSTANCE;
@@ -292,7 +295,7 @@ public class DefaultAggregateRepository implements AggregateRepository {
                 if (!unpublishedEvents.isEmpty()) {
                     FluxCapacitor.getOptionally().ifPresent(
                             fc -> unpublishedEvents.forEach(e -> e.getSerializedObject().setSource(fc.client().id())));
-                    eventStore.storeEvents(after.id().toString(), new ArrayList<>(unpublishedEvents)).get();
+                    eventStore.storeEvents(after.id().toString(), new ArrayList<>(unpublishedEvents), publicationStrategy).get();
                     if (snapshotTrigger.shouldCreateSnapshot(after, unpublishedEvents)) {
                         snapshotStore.storeSnapshot(after);
                     }

@@ -15,6 +15,7 @@
 package io.fluxcapacitor.javaclient.persisting.eventsourcing;
 
 import io.fluxcapacitor.javaclient.common.serialization.DeserializingMessage;
+import io.fluxcapacitor.javaclient.modeling.EventPublicationStrategy;
 import io.fluxcapacitor.javaclient.tracking.handling.HasLocalHandlers;
 
 import java.util.List;
@@ -29,14 +30,10 @@ public interface EventStore extends HasLocalHandlers {
     }
 
     default CompletableFuture<Void> storeEvents(Object aggregateId, List<?> events) {
-        return storeEvents(aggregateId, events, false);
+        return storeEvents(aggregateId, events, EventPublicationStrategy.STORE_AND_PUBLISH);
     }
 
-    default CompletableFuture<Void> storeEvents(Object aggregateId, List<?> events, boolean storeOnly) {
-        return storeEvents(aggregateId, events, storeOnly, true);
-    }
-
-    CompletableFuture<Void> storeEvents(Object aggregateId, List<?> events, boolean storeOnly, boolean interceptBeforeStoring);
+    CompletableFuture<Void> storeEvents(Object aggregateId, List<?> events, EventPublicationStrategy strategy);
 
     default AggregateEventStream<DeserializingMessage> getEvents(Object aggregateId) {
         return getEvents(aggregateId, -1L, false);

@@ -50,6 +50,13 @@ public @interface Aggregate {
      */
     EventPublication eventPublication() default EventPublication.ALWAYS;
 
+    /**
+     * Setting that determines what happens to published events. Note that {@link #eventPublication()} is checked first
+     * to determine if an applied event should be published at all. Only then is checked how the events are to be
+     * published given the strategy.
+     */
+    EventPublicationStrategy publicationStrategy() default EventPublicationStrategy.STORE_AND_PUBLISH;
+
     boolean searchable() default false;
 
     String collection() default "";

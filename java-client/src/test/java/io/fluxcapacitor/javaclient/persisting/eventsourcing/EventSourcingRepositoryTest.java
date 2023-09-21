@@ -14,6 +14,7 @@
 
 package io.fluxcapacitor.javaclient.persisting.eventsourcing;
 
+import io.fluxcapacitor.common.MessageType;
 import io.fluxcapacitor.common.api.Metadata;
 import io.fluxcapacitor.common.api.SerializedMessage;
 import io.fluxcapacitor.javaclient.FluxCapacitor;
@@ -23,10 +24,12 @@ import io.fluxcapacitor.javaclient.common.Nullable;
 import io.fluxcapacitor.javaclient.configuration.DefaultFluxCapacitor;
 import io.fluxcapacitor.javaclient.modeling.Aggregate;
 import io.fluxcapacitor.javaclient.modeling.Entity;
+import io.fluxcapacitor.javaclient.modeling.EventPublicationStrategy;
 import io.fluxcapacitor.javaclient.modeling.Id;
 import io.fluxcapacitor.javaclient.persisting.eventsourcing.client.EventStoreClient;
 import io.fluxcapacitor.javaclient.test.TestFixture;
 import io.fluxcapacitor.javaclient.tracking.handling.HandleCommand;
+import io.fluxcapacitor.javaclient.tracking.handling.HandleEvent;
 import io.fluxcapacitor.javaclient.tracking.handling.HandleQuery;
 import io.fluxcapacitor.javaclient.tracking.handling.HandleSelf;
 import lombok.AllArgsConstructor;
@@ -51,6 +54,7 @@ import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
@@ -243,7 +247,7 @@ class EventSourcingRepositoryTest {
     @Nested
     class EventPublicationTests {
 
-        final TestFixture testFixture = TestFixture.create();;
+        final TestFixture testFixture = TestFixture.create();
 
         @Test
         void publishIfModified_newAggregate() {
@@ -302,23 +306,12 @@ class EventSourcingRepositoryTest {
             SelfApplyingCommand b = new SelfApplyingCommand(PublishNeverModel.class);
             testFixture.givenCommands(a).whenCommand(b).expectNoEvents();
         }
-
-
-        @AllArgsConstructor
-        class SelfApplyingCommand {
-            Class<?> aggregateClass;
-
-            @HandleSelf
-            void handle() {
-                loadAggregate("test", aggregateClass).assertAndApply(this);
-            }
-        }
     }
-
 
     @Aggregate(eventPublication = IF_MODIFIED)
     @Value
     static class PublishIfModifiedModel {
+
         Object event;
 
         @Apply
@@ -350,6 +343,61 @@ class EventSourcingRepositoryTest {
 
         @Apply
         PublishNeverModel(Object event) {
+            this.event = event;
+        }
+    }
+
+    @Nested
+    class PublicationStrategyTests {
+
+        final TestFixture testFixture = TestFixture.create();
+
+        @Test
+        void storeOnly() {
+            testFixture
+                    .registerHandlers(new Object() {
+                        @HandleEvent
+                        void handle(Object event) {
+                            throw new MockException();
+                        }
+                    })
+                    .whenCommand(new SelfApplyingCommand(StoreOnlyModel.class)).expectNoErrors()
+                    .expectThat(fc -> verify(fc.client().getEventStoreClient()).storeEvents(any(), anyList(), eq(true)));
+        }
+
+        @Test
+        void publishOnly() {
+            testFixture
+                    .registerHandlers(new Object() {
+                        @HandleEvent
+                        void handle(Object event) {
+                            FluxCapacitor.publishMetrics("success");
+                        }
+                    })
+                    .whenCommand(new SelfApplyingCommand(PublishOnlyModel.class))
+                    .expectMetrics("success")
+                    .expectThat(fc -> verify(fc.client().getGatewayClient(MessageType.EVENT)).send(any(), any()))
+                    .expectThat(fc -> verify(fc.client().getEventStoreClient(), never()).storeEvents(any(), anyList(), anyBoolean()));
+        }
+
+    }
+
+    @Aggregate(publicationStrategy = EventPublicationStrategy.STORE_ONLY)
+    @Value
+    static class StoreOnlyModel {
+        Object event;
+        @Apply
+        StoreOnlyModel(Object event) {
+            this.event = event;
+        }
+    }
+
+    @Aggregate(publicationStrategy = EventPublicationStrategy.PUBLISH_ONLY)
+    @Value
+    static class PublishOnlyModel {
+        Object event;
+        @Apply
+        PublishOnlyModel(Object event) {
             this.event = event;
         }
     }
@@ -819,5 +867,15 @@ class EventSourcingRepositoryTest {
 
     @Value
     static class CreateModelWithMetadata {
+    }
+
+    @AllArgsConstructor
+    static class SelfApplyingCommand {
+        Class<?> aggregateClass;
+
+        @HandleSelf
+        void handle() {
+            loadAggregate("test", aggregateClass).assertAndApply(this);
+        }
     }
 }

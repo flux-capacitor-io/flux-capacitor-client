@@ -15,12 +15,15 @@
 package io.fluxcapacitor.javaclient.persisting.eventsourcing;
 
 import io.fluxcapacitor.common.ConsistentHashing;
+import io.fluxcapacitor.common.Guarantee;
 import io.fluxcapacitor.common.api.SerializedMessage;
 import io.fluxcapacitor.javaclient.common.Message;
 import io.fluxcapacitor.javaclient.common.serialization.DeserializingMessage;
 import io.fluxcapacitor.javaclient.common.serialization.Serializer;
+import io.fluxcapacitor.javaclient.modeling.EventPublicationStrategy;
 import io.fluxcapacitor.javaclient.persisting.eventsourcing.client.EventStoreClient;
 import io.fluxcapacitor.javaclient.publishing.DispatchInterceptor;
+import io.fluxcapacitor.javaclient.publishing.client.GatewayClient;
 import io.fluxcapacitor.javaclient.tracking.handling.HandlerRegistry;
 import lombok.AllArgsConstructor;
 import lombok.experimental.Delegate;
@@ -29,6 +32,7 @@ import lombok.extern.slf4j.Slf4j;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
+import java.util.stream.Stream;
 
 import static io.fluxcapacitor.common.MessageType.EVENT;
 import static java.lang.String.format;
@@ -38,14 +42,14 @@ import static java.util.stream.Collectors.toList;
 @Slf4j
 public class DefaultEventStore implements EventStore {
     private final EventStoreClient client;
+    private final GatewayClient eventGateway;
     private final Serializer serializer;
     private final DispatchInterceptor dispatchInterceptor;
     @Delegate
     private final HandlerRegistry localHandlerRegistry;
 
     @Override
-    public CompletableFuture<Void> storeEvents(Object aggregateId, List<?> events, boolean storeOnly,
-                                               boolean interceptBeforeStoring) {
+    public CompletableFuture<Void> storeEvents(Object aggregateId, List<?> events, EventPublicationStrategy strategy) {
         CompletableFuture<Void> result;
         List<DeserializingMessage> messages = new ArrayList<>(events.size());
         try {
@@ -54,7 +58,7 @@ public class DefaultEventStore implements EventStore {
                 DeserializingMessage deserializingMessage;
                 if (e instanceof DeserializingMessage) {
                     deserializingMessage = (DeserializingMessage) e;
-                } else if (interceptBeforeStoring) {
+                } else {
                     Message m = dispatchInterceptor.interceptDispatch(Message.asMessage(e), EVENT);
                     SerializedMessage serializedMessage
                             = m == null ? null : dispatchInterceptor.modifySerializedMessage(m.serialize(serializer), m, EVENT);
@@ -62,20 +66,25 @@ public class DefaultEventStore implements EventStore {
                         return;
                     }
                     deserializingMessage = new DeserializingMessage(serializedMessage, type -> m.getPayload(), EVENT);
-                } else {
-                    deserializingMessage = new DeserializingMessage(Message.asMessage(e), EVENT, serializer);
                 }
                 messages.add(deserializingMessage);
             });
-            result = client.storeEvents(aggregateId.toString(),
-                                        messages.stream().map(m -> m.getSerializedObject().getSegment() == null ?
-                                                        m.getSerializedObject().withSegment(segment) : m.getSerializedObject())
-                                                .collect(toList()), storeOnly);
+
+            Stream<SerializedMessage> serializedEvents
+                    = messages.stream().map(m -> m.getSerializedObject().getSegment() == null ?
+                            m.getSerializedObject().withSegment(segment) : m.getSerializedObject());
+            result = switch (strategy) {
+                case STORE_AND_PUBLISH -> client.storeEvents(aggregateId.toString(), serializedEvents.toList(), false);
+                case STORE_ONLY -> client.storeEvents(aggregateId.toString(), serializedEvents.toList(), true);
+                case PUBLISH_ONLY -> eventGateway.send(Guarantee.STORED, serializedEvents.toArray(SerializedMessage[]::new));
+            };
         } catch (Exception e) {
             throw new EventSourcingException(format("Failed to store events %s for aggregate %s", events.stream().map(
                     DefaultEventStore::payloadName).collect(toList()), aggregateId), e);
         }
-        messages.forEach(localHandlerRegistry::handle);
+        switch (strategy) {
+            case STORE_AND_PUBLISH, PUBLISH_ONLY -> messages.forEach(localHandlerRegistry::handle);
+        }
         return result;
     }
 
