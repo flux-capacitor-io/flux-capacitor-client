@@ -23,8 +23,6 @@ import io.fluxcapacitor.testserver.WebsocketEndpoint;
 import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
-import java.util.concurrent.CompletableFuture;
-
 @Slf4j
 @AllArgsConstructor
 public class ProducerEndpoint extends WebsocketEndpoint {
@@ -32,13 +30,11 @@ public class ProducerEndpoint extends WebsocketEndpoint {
     private final InMemoryMessageStore store;
 
     @Handle
-    public CompletableFuture<Void> handle(Append request) {
-        CompletableFuture<Void> future = CompletableFuture.completedFuture(null);
+    public void handle(Append request) {
         try {
-            future = store.send(Guarantee.SENT, request.getMessages().toArray(SerializedMessage[]::new));
+            store.send(Guarantee.SENT, request.getMessages().toArray(SerializedMessage[]::new));
         } catch (Exception e) {
             log.error("Failed to handle {}", request, e);
         }
-        return request.getGuarantee().compareTo(Guarantee.STORED) >= 0 ? future : null;
     }
 }
