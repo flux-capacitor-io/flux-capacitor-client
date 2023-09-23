@@ -57,6 +57,12 @@ public class ModifiableEntity<T> extends DelegatingEntity<T> {
     }
 
     @Override
+    @SuppressWarnings("unchecked")
+    public Entity<T> assertAndApply(Object payloadOrMessage) {
+        return (Entity<T>) root.assertAndApply(payloadOrMessage).getEntity(id()).orElse(null);
+    }
+
+    @Override
     public Collection<? extends Entity<?>> entities() {
         return super.entities().stream().map(e -> new ModifiableEntity<>(e, root)).collect(Collectors.toList());
     }

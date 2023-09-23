@@ -92,7 +92,7 @@ public class ModifiableAggregateRoot<T> extends DelegatingEntity<T> {
 
     @Override
     public <E extends Exception> ModifiableAggregateRoot<T> assertLegal(Object command) throws E {
-        entityHelper.intercept(command, this).forEach(c -> entityHelper.assertLegal(command, this));
+        entityHelper.intercept(command, this).forEach(c -> entityHelper.assertLegal(c, this));
         return this;
     }
 
