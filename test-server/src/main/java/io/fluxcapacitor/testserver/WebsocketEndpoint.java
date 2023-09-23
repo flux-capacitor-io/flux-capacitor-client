@@ -18,10 +18,13 @@ package io.fluxcapacitor.testserver;
 import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.json.JsonMapper;
+import io.fluxcapacitor.common.Guarantee;
 import io.fluxcapacitor.common.api.ClientEvent;
+import io.fluxcapacitor.common.api.Command;
 import io.fluxcapacitor.common.api.DisconnectEvent;
 import io.fluxcapacitor.common.api.JsonType;
 import io.fluxcapacitor.common.api.RequestBatch;
+import io.fluxcapacitor.common.api.VoidResult;
 import io.fluxcapacitor.common.handling.Handler;
 import io.fluxcapacitor.common.handling.HandlerInspector;
 import io.fluxcapacitor.common.handling.HandlerInvoker;
@@ -173,6 +176,9 @@ public abstract class WebsocketEndpoint extends Endpoint {
             result = invoker.invoke();
         } catch (Exception e) {
             throw new IllegalArgumentException("Could not handle request " + value, e);
+        }
+        if (result == null && value instanceof Command command && command.getGuarantee().compareTo(Guarantee.STORED) >= 0) {
+            result = new VoidResult(command.getRequestId());
         }
         if (result != null) {
             sendResult(session, result);
