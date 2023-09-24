@@ -35,35 +35,35 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Function;
 import java.util.function.Predicate;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
-import static io.fluxcapacitor.common.api.search.BulkUpdate.Type.indexIfNotExists;
 import static java.util.function.Function.identity;
 import static java.util.stream.Collectors.groupingBy;
 import static java.util.stream.Collectors.toList;
 import static java.util.stream.Collectors.toMap;
 
 public class InMemorySearchClient implements SearchClient {
-    private final List<Document> documents = new CopyOnWriteArrayList<>();
+    protected static final Function<Document, String> identifier = d -> asIdentifier(d.getCollection(), d.getId());
+
+    protected static String asIdentifier(String collection, String documentId) {
+        return collection + "/" + documentId;
+    }
+
+    private final Map<String, Document> documents = new ConcurrentHashMap<>();
 
     @Override
     public synchronized CompletableFuture<Void> index(List<SerializedDocument> documents, Guarantee guarantee, boolean ifNotExists) {
-        Function<Document, String> identify = d -> d.getCollection() + "/" + d.getId();
-        Map<String, Document> existing = this.documents.stream().collect(toMap(identify, identity()));
         Map<String, Document> updates = documents.stream().map(SerializedDocument::deserializeDocument)
-                .collect(toMap(identify, identity(), (a, b) -> b, LinkedHashMap::new));
+                .collect(toMap(identifier, identity(), (a, b) -> b, LinkedHashMap::new));
         if (ifNotExists) {
-            updates.entrySet().stream().filter(e -> !existing.containsKey(e.getKey()))
-                    .forEach(e -> this.documents.add(e.getValue()));
+            updates.keySet().removeAll(this.documents.keySet());
+            this.documents.putAll(updates);
         } else {
-            updates.forEach((key, value) -> {
-                Optional.ofNullable(existing.get(key)).ifPresent(this.documents::remove);
-                this.documents.add(value);
-            });
+            this.documents.putAll(updates);
         }
         return CompletableFuture.completedFuture(null);
     }
@@ -71,7 +71,7 @@ public class InMemorySearchClient implements SearchClient {
     @Override
     public Stream<SearchHit<SerializedDocument>> search(SearchDocuments searchDocuments, int fetchSize) {
         SearchQuery query = searchDocuments.getQuery();
-        Stream<Document> documentStream = documents.stream().filter(query::matches);
+        Stream<Document> documentStream = documents.values().stream().filter(query::matches);
         documentStream = documentStream.sorted(Document.createComparator(searchDocuments));
         if (!searchDocuments.getPathFilters().isEmpty()) {
             Predicate<Document.Path> pathFilter = searchDocuments.computePathFilter();
@@ -94,20 +94,19 @@ public class InMemorySearchClient implements SearchClient {
 
     @Override
     public Optional<SerializedDocument> fetch(GetDocument r) {
-        return documents.stream().filter(
-                d -> Objects.equals(r.getId(), d.getId()) && Objects.equals(r.getCollection(), d.getCollection()))
-                .findFirst().map(SerializedDocument::new);
+        return Optional.ofNullable(documents.get(asIdentifier(r.getCollection(), r.getId())))
+                .map(SerializedDocument::new);
     }
 
     @Override
     public CompletableFuture<Void> delete(SearchQuery query, Guarantee guarantee) {
-        documents.removeAll(documents.stream().filter(query::matches).toList());
+        documents.values().removeIf(query::matches);
         return CompletableFuture.completedFuture(null);
     }
 
     @Override
     public CompletableFuture<Void> delete(String documentId, String collection, Guarantee guarantee) {
-        documents.removeIf(d -> Objects.equals(documentId, d.getId()) && Objects.equals(collection, d.getCollection()));
+        documents.remove(asIdentifier(collection, documentId));
         return CompletableFuture.completedFuture(null);
     }
 
@@ -118,13 +117,13 @@ public class InMemorySearchClient implements SearchClient {
 
     @Override
     public CompletableFuture<Void> deleteCollection(String collection, Guarantee guarantee) {
-        documents.removeIf(d -> Objects.equals(collection, d.getCollection()));
+        documents.values().removeIf(d -> Objects.equals(collection, d.getCollection()));
         return CompletableFuture.completedFuture(null);
     }
 
     @Override
     public List<DocumentStats> fetchStatistics(SearchQuery query, List<String> fields, List<String> groupBy) {
-        return DocumentStats.compute(documents.stream().filter(query::matches), fields, groupBy);
+        return DocumentStats.compute(documents.values().stream().filter(query::matches), fields, groupBy);
     }
 
     @Override
@@ -150,11 +149,11 @@ public class InMemorySearchClient implements SearchClient {
 
     @Override
     public CompletableFuture<Void> bulkUpdate(Collection<DocumentUpdate> updates, Guarantee guarantee) {
-        updates.forEach(action -> {
-            switch (action.getType()) {
-                case delete -> delete(action.getId(), action.getCollection(), guarantee);
-                case index, indexIfNotExists -> index(List.of(action.getObject()), guarantee,
-                                                      action.getType().equals(indexIfNotExists));
+        updates.stream().collect(groupingBy(DocumentUpdate::getType)).forEach((type, list) -> {
+            switch (type) {
+                case delete -> list.forEach(u -> delete(u.getId(), u.getCollection(), guarantee));
+                case index -> index(list.stream().map(DocumentUpdate::getObject).toList(), guarantee, false);
+                case indexIfNotExists -> index(list.stream().map(DocumentUpdate::getObject).toList(), guarantee, true);
             }
         });
         return CompletableFuture.completedFuture(null);
