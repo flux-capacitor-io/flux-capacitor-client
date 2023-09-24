@@ -43,7 +43,6 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Function;
@@ -130,7 +129,7 @@ public class DefaultDocumentStore implements DocumentStore {
     @Override
     public CompletableFuture<Void> bulkUpdate(Collection<BulkUpdate> updates, Guarantee guarantee) {
         try {
-            return client.bulkUpdate(updates.stream().map(this::serializeAction).filter(Objects::nonNull)
+            return client.bulkUpdate(updates.stream().map(this::serializeAction)
                                              .collect(toMap(a -> format("%s_%s", a.getCollection(), a.getId()),
                                                             identity(), (a, b) -> b)).values(),
                                      guarantee);

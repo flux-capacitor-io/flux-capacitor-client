@@ -167,21 +167,18 @@ public class JsonUtils {
     }
 
     @SneakyThrows
-    @SuppressWarnings("unchecked")
-    public static <T extends JsonNode> T readTree(byte[] jsonContent) {
-        return (T) writer.readTree(jsonContent);
+    public static JsonNode readTree(byte[] jsonContent) {
+        return writer.readTree(jsonContent);
     }
 
     @SneakyThrows
-    @SuppressWarnings("unchecked")
-    public static <T extends JsonNode> T readTree(String jsonContent) {
-        return (T) writer.readTree(jsonContent);
+    public static JsonNode readTree(String jsonContent) {
+        return writer.readTree(jsonContent);
     }
 
     @SneakyThrows
-    @SuppressWarnings("unchecked")
-    public static <T extends JsonNode> T readTree(InputStream jsonContent) {
-        return (T) writer.readTree(jsonContent);
+    public static JsonNode readTree(InputStream jsonContent) {
+        return writer.readTree(jsonContent);
     }
 
     @SneakyThrows
