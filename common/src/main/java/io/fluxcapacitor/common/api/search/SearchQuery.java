@@ -35,14 +35,17 @@ import java.util.stream.Collectors;
 public class SearchQuery {
     @JsonAlias("collections")
     @JsonProperty("collection")
-    @Singular List<String> collections;
+    @Singular
+    List<String> collections;
     Instant since, before;
     boolean requireTimestamp;
-    @Singular List<Constraint> constraints;
+    @Singular
+    List<Constraint> constraints;
 
     @ToString.Exclude
     @EqualsAndHashCode.Exclude
-    @Getter(lazy = true) @Accessors(fluent = true)
+    @Getter(lazy = true)
+    @Accessors(fluent = true)
     Constraint decomposeConstraints = AllConstraint.all(getConstraints().stream().map(Constraint::decompose).collect(
             Collectors.toList()));
 
@@ -71,7 +74,8 @@ public class SearchQuery {
         if (since != null && d.getEnd() != null && d.getEnd().compareTo(since) < 0) {
             return false;
         }
-        if (before != null && d.getTimestamp() != null && d.getTimestamp().compareTo(before) >= 0) {
+        if (before != null && d.getTimestamp() != null &&
+            (before.equals(since) ? d.getTimestamp().compareTo(before) > 0 : d.getTimestamp().compareTo(before) >= 0)) {
             return false;
         }
         if (!collections.contains(d.getCollection())) {
