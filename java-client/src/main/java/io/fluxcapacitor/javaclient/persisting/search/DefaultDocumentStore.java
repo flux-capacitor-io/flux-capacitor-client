@@ -127,7 +127,7 @@ public class DefaultDocumentStore implements DocumentStore {
     }
 
     @Override
-    public CompletableFuture<Void> bulkUpdate(Collection<BulkUpdate> updates, Guarantee guarantee) {
+    public CompletableFuture<Void> bulkUpdate(Collection<? extends BulkUpdate> updates, Guarantee guarantee) {
         try {
             return client.bulkUpdate(updates.stream().map(this::serializeAction)
                                              .collect(toMap(a -> format("%s_%s", a.getCollection(), a.getId()),
