@@ -157,12 +157,12 @@ public interface DocumentStore {
         return index(objects, collection, idFunction, beginFunction, endFunction, Guarantee.STORED, true);
     }
 
-    CompletableFuture<Void> bulkUpdate(Collection<BulkUpdate> updates, Guarantee guarantee);
-
     @SneakyThrows
-    default CompletableFuture<Void> bulkUpdate(Collection<BulkUpdate> updates) {
+    default CompletableFuture<Void> bulkUpdate(Collection<? extends BulkUpdate> updates) {
         return bulkUpdate(updates, Guarantee.STORED);
     }
+
+    CompletableFuture<Void> bulkUpdate(Collection<? extends BulkUpdate> updates, Guarantee guarantee);
 
     default Search search(@NonNull Object collection, Object... additionalCollections) {
         return search(SearchQuery.builder().collections(
