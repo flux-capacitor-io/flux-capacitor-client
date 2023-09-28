@@ -416,9 +416,16 @@ public interface Then {
     }
 
     /**
-     * Test if the actual result of the test fixture matches the given predicate summarized by given description.
+     * Assert that the actual result of the test fixture matches the given predicate summarized by given description.
      */
     <T> Then expectResult(Predicate<T> predicate, String description);
+
+    /**
+     * Assert that the result of the test fixture is non-null.
+     */
+    default Then expectNonNullResult() {
+        return expectResult(Objects::nonNull);
+    }
 
     /**
      * Assert that the test fixture did not yield a result or exception (i.e. actual result is {@code null}).

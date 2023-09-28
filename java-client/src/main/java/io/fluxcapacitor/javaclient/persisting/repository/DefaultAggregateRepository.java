@@ -120,11 +120,10 @@ public class DefaultAggregateRepository implements AggregateRepository {
 
     @Override
     public Map<String, Class<?>> getAggregatesFor(@NonNull Object entityId) {
-        return relationshipsCache.computeIfAbsent(entityId.toString(),
-                                                  id -> eventStoreClient.getAggregatesFor(id.toString())
-                .entrySet().stream().collect(toMap(Map.Entry::getKey,
-                                                   e -> classForName(serializer.upcastType(e.getValue()), Void.class),
-                                                   (a, b) -> b, LinkedHashMap::new)));
+        return relationshipsCache.computeIfAbsent(
+                entityId.toString(), id -> eventStoreClient.getAggregatesFor(id.toString())
+                        .entrySet().stream().collect(toMap(Map.Entry::getKey, e -> classForName(
+                                serializer.upcastType(e.getValue()), Void.class), (a, b) -> b, LinkedHashMap::new)));
     }
 
     @Override
@@ -188,9 +187,9 @@ public class DefaultAggregateRepository implements AggregateRepository {
             this.ignoreUnknownEvents = annotation.ignoreUnknownEvents();
         }
 
-        public ModifiableAggregateRoot<T> load(Object id) {
+        public Entity<T> load(Object id) {
             return ModifiableAggregateRoot.load(
-                    id, () -> aggregateCache.<ImmutableAggregateRoot<T>>compute(id.toString(), (stringId, v) -> {
+                    id, () -> aggregateCache.compute(id.toString(), (stringId, v) -> {
                         if (v != null) {
                             if (type.isAssignableFrom(v.type())) {
                                 return v;
@@ -203,19 +202,20 @@ public class DefaultAggregateRepository implements AggregateRepository {
                             }
                         }
                         return eventSourceModel(loadSnapshot(id));
-                    }), commitInBatch, eventPublication, serializer, dispatchInterceptor, this::commit);
+                    }), commitInBatch, eventPublication, entityHelper, serializer, dispatchInterceptor, this::commit);
         }
 
-        protected ImmutableAggregateRoot<T> loadSnapshot(Object id) {
+        protected Entity<T> loadSnapshot(Object id) {
             var builder =
                     ImmutableAggregateRoot.<T>builder().id(id).type(type)
                             .idProperty(idProperty)
-                            .entityHelper(entityHelper).serializer(serializer);
+                            .entityHelper(entityHelper).serializer(serializer)
+                            .eventStore(eventStore);
             return (searchable && !eventSourced
                     ? documentStore.<T>fetchDocument(id, collection)
                     .map(d -> builder.value(d).build())
                     : snapshotStore.<T>getSnapshot(id).map(
-                    a -> ImmutableAggregateRoot.from(a, entityHelper, serializer)))
+                    a -> ImmutableAggregateRoot.from(a, entityHelper, serializer, eventStore)))
                     .filter(a -> {
                         boolean assignable =
                                 a.get() == null
@@ -228,16 +228,17 @@ public class DefaultAggregateRepository implements AggregateRepository {
                         }
                         return assignable;
                     })
-                    .map(a -> (ImmutableAggregateRoot<T>) a)
+                    .map(a -> (Entity<T>) a)
                     .orElseGet(builder::build);
         }
 
         @SuppressWarnings("unchecked")
-        protected ImmutableAggregateRoot<T> eventSourceModel(ImmutableAggregateRoot<T> model) {
+        protected Entity<T> eventSourceModel(Entity<T> model) {
             try {
                 if (eventSourced) {
                     AggregateEventStream<DeserializingMessage> eventStream
-                            = eventStore.getEvents(model.id().toString(), model.sequenceNumber(), ignoreUnknownEvents);
+                            = eventStore.getEvents(model.id().toString(), model.sequenceNumber(), -1,
+                                                   ignoreUnknownEvents);
                     Iterator<DeserializingMessage> iterator = eventStream.iterator();
                     boolean wasLoading = Entity.isLoading();
                     try {
@@ -247,7 +248,7 @@ public class DefaultAggregateRepository implements AggregateRepository {
                             if (model.isEmpty()) {
                                 var t = Entity.getAggregateType(next);
                                 if (t != null && !t.equals(this.type) && this.type.isAssignableFrom(t)) {
-                                    model = model.toBuilder().type((Class<T>) t).build();
+                                    model = model.withType((Class<T>) t);
                                 }
                             }
                             try {
@@ -260,8 +261,8 @@ public class DefaultAggregateRepository implements AggregateRepository {
                     } finally {
                         Entity.loading.set(wasLoading);
                     }
-                    model = model.toBuilder().sequenceNumber(
-                            eventStream.getLastSequenceNumber().orElse(model.sequenceNumber())).build();
+                    model = model.withSequenceNumber(
+                            eventStream.getLastSequenceNumber().orElse(model.sequenceNumber()));
                 }
                 return model;
             } catch (EventSourcingException e) {
@@ -290,12 +291,13 @@ public class DefaultAggregateRepository implements AggregateRepository {
                         }));
                 if (!associations.isEmpty() || !dissociations.isEmpty()) {
                     eventStoreClient.updateRelationships(
-                                    new UpdateRelationships(associations, dissociations, Guarantee.STORED)).get();
+                            new UpdateRelationships(associations, dissociations, Guarantee.STORED)).get();
                 }
                 if (!unpublishedEvents.isEmpty()) {
                     FluxCapacitor.getOptionally().ifPresent(
                             fc -> unpublishedEvents.forEach(e -> e.getSerializedObject().setSource(fc.client().id())));
-                    eventStore.storeEvents(after.id().toString(), new ArrayList<>(unpublishedEvents), publicationStrategy).get();
+                    eventStore.storeEvents(after.id().toString(), new ArrayList<>(unpublishedEvents),
+                                           publicationStrategy).get();
                     if (snapshotTrigger.shouldCreateSnapshot(after, unpublishedEvents)) {
                         snapshotStore.storeSnapshot(after);
                     }

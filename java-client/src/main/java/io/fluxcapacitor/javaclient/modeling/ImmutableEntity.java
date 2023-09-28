@@ -20,6 +20,7 @@ import io.fluxcapacitor.common.handling.HandlerInvoker;
 import io.fluxcapacitor.javaclient.common.Message;
 import io.fluxcapacitor.javaclient.common.serialization.DeserializingMessage;
 import io.fluxcapacitor.javaclient.common.serialization.Serializer;
+import lombok.AccessLevel;
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
 import lombok.ToString;
@@ -57,6 +58,7 @@ public class ImmutableEntity<T> implements Entity<T> {
     @ToString.Exclude
     @JsonProperty
     @JsonTypeInfo(use = JsonTypeInfo.Id.CLASS, property = "type")
+    @Getter(AccessLevel.PROTECTED)
     T value;
     @JsonProperty
     String idProperty;
@@ -89,7 +91,16 @@ public class ImmutableEntity<T> implements Entity<T> {
 
     @SuppressWarnings("unchecked")
     public Class<T> type() {
+        T value = get();
         return value == null ? type : (Class<T>) value.getClass();
+    }
+
+    @Override
+    public Entity<T> withType(Class<T> type) {
+        if (!type().isAssignableFrom(type)) {
+            throw new IllegalArgumentException("Given type is not assignable to entity type");
+        }
+        return toBuilder().type(type).build();
     }
 
     @Override
@@ -106,9 +117,8 @@ public class ImmutableEntity<T> implements Entity<T> {
     }
 
     @Override
-    public ImmutableEntity<T> apply(Message message) {
-        return apply(new DeserializingMessage(message.serialize(serializer),
-                                              type -> serializer.convert(message.getPayload(), type), EVENT));
+    public Entity<T> apply(Message message) {
+        return apply(new DeserializingMessage(message, EVENT, serializer));
     }
 
     @Override
@@ -118,7 +128,8 @@ public class ImmutableEntity<T> implements Entity<T> {
     }
 
     @SuppressWarnings("unchecked")
-    ImmutableEntity<T> apply(DeserializingMessage message) {
+    @Override
+    public Entity<T> apply(DeserializingMessage message) {
         Optional<HandlerInvoker> invoker = entityHelper.applyInvoker(message, this);
         if (invoker.isPresent()) {
             return toBuilder().value((T) invoker.get().invoke()).build();
@@ -127,7 +138,7 @@ public class ImmutableEntity<T> implements Entity<T> {
         Object payload = message.getPayload();
         for (Entity<?> entity : result.possibleTargets(payload)) {
             ImmutableEntity<?> immutableEntity = (ImmutableEntity<?>) entity;
-            ImmutableEntity<?> updated = immutableEntity.apply(message);
+            Entity<?> updated = immutableEntity.apply(message);
             if (immutableEntity.get() != updated.get()) {
                 result = result.toBuilder().value((T) immutableEntity
                         .holder().updateOwner(result.get(), entity, updated)).build();
@@ -137,7 +148,7 @@ public class ImmutableEntity<T> implements Entity<T> {
     }
 
     protected Collection<? extends ImmutableEntity<?>> computeEntities() {
-        Class<?> type = value == null ? type() : value.getClass();
+        Class<?> type = type();
         List<ImmutableEntity<?>> result = new ArrayList<>();
         for (AccessibleObject location : getAnnotatedProperties(type, Member.class)) {
             result.addAll(getEntityHolder(type, location, entityHelper, serializer)

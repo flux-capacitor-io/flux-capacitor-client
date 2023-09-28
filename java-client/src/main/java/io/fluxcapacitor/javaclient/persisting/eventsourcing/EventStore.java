@@ -36,13 +36,18 @@ public interface EventStore extends HasLocalHandlers {
     CompletableFuture<Void> storeEvents(Object aggregateId, List<?> events, EventPublicationStrategy strategy);
 
     default AggregateEventStream<DeserializingMessage> getEvents(Object aggregateId) {
-        return getEvents(aggregateId, -1L, false);
+        return getEvents(aggregateId, -1L);
     }
 
     default AggregateEventStream<DeserializingMessage> getEvents(Object aggregateId, long lastSequenceNumber) {
-        return getEvents(aggregateId, lastSequenceNumber, false);
+        return getEvents(aggregateId, lastSequenceNumber, -1);
     }
 
-    AggregateEventStream<DeserializingMessage> getEvents(Object aggregateId, long lastSequenceNumber,
+    default AggregateEventStream<DeserializingMessage> getEvents(Object aggregateId, long lastSequenceNumber,
+                                                                 int maxSize) {
+        return getEvents(aggregateId, lastSequenceNumber, maxSize, false);
+    }
+
+    AggregateEventStream<DeserializingMessage> getEvents(Object aggregateId, long lastSequenceNumber, int maxSize,
                                                          boolean ignoreUnknownType);
 }

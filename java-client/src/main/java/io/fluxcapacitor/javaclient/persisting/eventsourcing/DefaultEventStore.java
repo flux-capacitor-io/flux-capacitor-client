@@ -95,10 +95,10 @@ public class DefaultEventStore implements EventStore {
 
     @Override
     public AggregateEventStream<DeserializingMessage> getEvents(Object aggregateId, long lastSequenceNumber,
-                                                                boolean ignoreUnknownType) {
+                                                                int maxSize, boolean ignoreUnknownType) {
         try {
             AggregateEventStream<SerializedMessage> serializedEvents =
-                    client.getEvents(aggregateId.toString(), lastSequenceNumber);
+                    client.getEvents(aggregateId.toString(), lastSequenceNumber, maxSize);
             return serializedEvents.convert(stream -> serializer.deserializeMessages(stream, EVENT, !ignoreUnknownType));
         } catch (Exception e) {
             throw new EventSourcingException(format("Failed to obtain events for aggregate %s", aggregateId), e);

@@ -99,6 +99,11 @@ public class NoOpEntity<T> implements Entity<T> {
     }
 
     @Override
+    public Entity<T> withType(Class<T> type) {
+        return delegate().withType(type);
+    }
+
+    @Override
     public T get() {
         return delegate().get();
     }

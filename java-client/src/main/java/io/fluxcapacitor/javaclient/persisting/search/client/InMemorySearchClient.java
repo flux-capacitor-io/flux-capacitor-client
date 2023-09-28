@@ -29,13 +29,13 @@ import io.fluxcapacitor.javaclient.persisting.search.SearchHit;
 
 import java.time.Instant;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Function;
 import java.util.function.Predicate;
 import java.util.stream.IntStream;
@@ -53,7 +53,7 @@ public class InMemorySearchClient implements SearchClient {
         return collection + "/" + documentId;
     }
 
-    private final Map<String, Document> documents = new ConcurrentHashMap<>();
+    private final Map<String, Document> documents = Collections.synchronizedMap(new LinkedHashMap<>());
 
     @Override
     public synchronized CompletableFuture<Void> index(List<SerializedDocument> documents, Guarantee guarantee, boolean ifNotExists) {

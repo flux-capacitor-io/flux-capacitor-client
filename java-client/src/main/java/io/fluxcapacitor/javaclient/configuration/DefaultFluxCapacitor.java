@@ -592,7 +592,7 @@ public class DefaultFluxCapacitor implements FluxCapacitor {
                                                           serializer, dispatchInterceptors.get(EVENT),
                                                           localHandlerRegistry(EVENT, handlerDecorators,
                                                                                parameterResolvers));
-            var snapshotStore = new DefaultSnapshotStore(client.getKeyValueClient(), snapshotSerializer);
+            var snapshotStore = new DefaultSnapshotStore(client.getKeyValueClient(), snapshotSerializer, eventStore);
 
             Cache aggregateCache = new NamedCache(cache, id -> "$Aggregate:" + id);
             AggregateRepository aggregateRepository = new DefaultAggregateRepository(

@@ -68,9 +68,10 @@ public class WebSocketEventStoreClient extends AbstractWebsocketClient implement
     }
 
     @Override
-    public AggregateEventStream<SerializedMessage> getEvents(String aggregateId, long lastSequenceNumber) {
+    public AggregateEventStream<SerializedMessage> getEvents(String aggregateId, long lastSequenceNumber, int maxSize) {
         AtomicReference<Long> highestSequenceNumber = new AtomicReference<>();
-        GetEventsResult firstBatch = sendAndWait(new GetEvents(aggregateId, lastSequenceNumber, fetchBatchSize));
+        GetEventsResult firstBatch = sendAndWait(new GetEvents(
+                aggregateId, lastSequenceNumber, maxSize < 0 ? fetchBatchSize : maxSize));
         Stream<SerializedMessage> eventStream = iterate(firstBatch,
                                                         r -> sendAndWait(new GetEvents(aggregateId, r
                                                                 .getLastSequenceNumber(), fetchBatchSize)),
@@ -81,7 +82,11 @@ public class WebSocketEventStoreClient extends AbstractWebsocketClient implement
                     }
                     return r.getEventBatch().getEvents().stream();
                 });
-        return new AggregateEventStream<>(eventStream, aggregateId, highestSequenceNumber::get);
+        var result = new AggregateEventStream<>(eventStream, aggregateId, highestSequenceNumber::get);
+        if (maxSize >= 0) {
+            result = result.limit(maxSize);
+        }
+        return result;
     }
 
     @Override

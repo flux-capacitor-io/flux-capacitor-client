@@ -206,7 +206,7 @@ class SelectiveCacheTest {
                     .<Entity<?>>expectResult(e -> e.get() instanceof BooleanModel)
                     .expectFalse(fc -> booleanCache.isEmpty())
                     .expectThat(fc -> verify(fc.client().getEventStoreClient(), times(1))
-                            .getEvents(aggregateId, -1L));
+                            .getEvents(aggregateId, -1L, -1));
         }
 
         @Test
@@ -217,7 +217,7 @@ class SelectiveCacheTest {
                     .<Entity<?>>expectResult(e -> e.get() instanceof StringModel)
                     .expectFalse(fc -> stringCache.isEmpty())
                     .expectThat(fc -> verify(fc.client().getEventStoreClient(), times(1))
-                            .getEvents(aggregateId, -1L));
+                            .getEvents(aggregateId, -1L, -1));
         }
 
         @Test
@@ -225,7 +225,7 @@ class SelectiveCacheTest {
             testFixture.givenCommands("command")
                     .whenApplying(fc -> loadAggregate(aggregateId, BooleanModel.class).get())
                     .expectThat(fc -> verify(fc.client().getEventStoreClient(), times(1))
-                            .getEvents(aggregateId, -1L))
+                            .getEvents(aggregateId, -1L, -1))
                     .expectNoResult();
         }
 
@@ -245,7 +245,7 @@ class SelectiveCacheTest {
                     .<Entity<?>>expectResult(e -> e.get() instanceof NumberModel)
                     .expectFalse(fc -> defaultCache.isEmpty())
                     .expectThat(fc -> verify(fc.client().getEventStoreClient(), times(1))
-                            .getEvents(aggregateId, -1L));
+                            .getEvents(aggregateId, -1L, -1));
         }
 
         class MockCommandHandler {
