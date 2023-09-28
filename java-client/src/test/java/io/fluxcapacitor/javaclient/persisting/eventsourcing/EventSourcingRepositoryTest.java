@@ -55,6 +55,7 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
+import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
@@ -95,7 +96,7 @@ class EventSourcingRepositoryTest {
                     .given(fc -> fc.cache().clear())
                     .whenQuery(new GetModel())
                     .expectResult(new TestModel(Arrays.asList(new CreateModel(), new UpdateModel()), Metadata.empty()))
-                    .expectThat(fc -> verify(eventStoreClient).getEvents(eq(aggregateId.toString()), anyLong()));
+                    .expectThat(fc -> verify(eventStoreClient).getEvents(eq(aggregateId.toString()), anyLong(), anyInt()));
         }
 
         @Test
@@ -308,6 +309,44 @@ class EventSourcingRepositoryTest {
         }
     }
 
+    @Nested
+    class DepthTests {
+        final TestFixture testFixture = TestFixture.create();
+
+        @Test
+        void reloadLazilyAfterDepth() {
+            SelfApplyingCommand command = new SelfApplyingCommand(ZeroDepthModel.class);
+            testFixture.givenCommands(command, command, command)
+                    .whenApplying(fc -> {
+                        Entity<Object> test = FluxCapacitor.loadEntity("test");
+                        return test.previous().get();
+                    }).expectNonNullResult()
+                    .expectThat(fc -> verify(fc.client().getEventStoreClient()).getEvents("test", 0L, 1));
+        }
+
+        @Test
+        void dontReloadOnCheckpoint() {
+            SelfApplyingCommand command = new SelfApplyingCommand(CheckpointModel.class);
+            testFixture.givenCommands(command, command, command, command, command)
+                    .whenApplying(fc -> {
+                        Entity<Object> test = FluxCapacitor.loadEntity("test");
+                        return test.previous().get();
+                    }).expectNonNullResult()
+                    .expectThat(fc -> verify(fc.client().getEventStoreClient(), never()).getEvents(eq("test"), anyLong(), anyInt()));
+        }
+
+        @Test
+        void reloadBeforeCheckpoint() {
+            SelfApplyingCommand command = new SelfApplyingCommand(CheckpointModel.class);
+            testFixture.givenCommands(command, command, command, command, command)
+                    .whenApplying(fc -> {
+                        Entity<Object> test = FluxCapacitor.loadEntity("test");
+                        return test.previous().previous().get();
+                    }).expectNonNullResult()
+                    .expectThat(fc -> verify(fc.client().getEventStoreClient()).getEvents("test", 0L, 2));
+        }
+    }
+
     @Aggregate(eventPublication = IF_MODIFIED)
     @Value
     static class PublishIfModifiedModel {
@@ -343,6 +382,28 @@ class EventSourcingRepositoryTest {
 
         @Apply
         PublishNeverModel(Object event) {
+            this.event = event;
+        }
+    }
+
+    @Aggregate(cachingDepth = 0)
+    @Value
+    static class ZeroDepthModel {
+        Object event;
+
+        @Apply
+        ZeroDepthModel(Object event) {
+            this.event = event;
+        }
+    }
+
+    @Aggregate(cachingDepth = 0, checkpointPeriod = 3)
+    @Value
+    static class CheckpointModel {
+        Object event;
+
+        @Apply
+        CheckpointModel(Object event) {
             this.event = event;
         }
     }
@@ -473,7 +534,7 @@ class EventSourcingRepositoryTest {
             testFixture.givenCommands(new CreateSnapshotModel(aggregateId), new UpdateModel(), new UpdateModel())
                     .whenCommand(new UpdateModel())
                     .expectThat(fc -> verify(testFixture.getFluxCapacitor().client().getEventStoreClient(),
-                                             times(1)).getEvents(aggregateId.toString(), 2L));
+                                             times(1)).getEvents(aggregateId.toString(), 2L, -1));
         }
 
         private class Handler {

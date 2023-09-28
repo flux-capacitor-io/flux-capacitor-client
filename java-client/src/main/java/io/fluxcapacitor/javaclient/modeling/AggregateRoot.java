@@ -14,29 +14,35 @@
 
 package io.fluxcapacitor.javaclient.modeling;
 
-import io.fluxcapacitor.javaclient.common.Message;
-import lombok.Value;
+import java.time.Instant;
 
-import java.util.function.UnaryOperator;
+public interface AggregateRoot<T> extends Entity<T> {
 
-@Value
-public class ReadOnlyEntity<T> extends DelegatingEntity<T> {
-    public ReadOnlyEntity(Entity<T> delegate) {
-        super(delegate);
+    @Override
+    default Entity<?> parent() {
+        return null;
     }
 
     @Override
-    public Entity<T> apply(Message eventMessage) {
-        throw new UnsupportedOperationException("This aggregate is read-only");
-    }
+    String lastEventId();
 
     @Override
-    public Entity<T> update(UnaryOperator<T> function) {
-        throw new UnsupportedOperationException("This aggregate is read-only");
-    }
+    Long lastEventIndex();
 
     @Override
-    public <E extends Exception> Entity<T> assertLegal(Object command) throws E {
-        return this;
-    }
+    Entity<T> withEventIndex(Long index, String messageId);
+
+    @Override
+    long sequenceNumber();
+
+    @Override
+    Entity<T> withSequenceNumber(long sequenceNumber);
+
+    @Override
+    Instant timestamp();
+
+    @Override
+    Entity<T> previous();
+
+
 }

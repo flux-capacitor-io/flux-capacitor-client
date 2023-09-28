@@ -37,6 +37,36 @@ public @interface Aggregate {
 
     boolean cached() default true;
 
+    /**
+     * Setting to control how many versions of the aggregate will be stored in the cache. I.e. how many times
+     * {@link Entity#previous()} can be invoked on the aggregate before event sourcing is necessary.
+     * <p>
+     * Note that loading an aggregate inside an event handler will automatically play back the aggregate to the moment
+     * of the event. I.e. even if your code does not invoke {@link Entity#previous()} anywhere, this setting will still
+     * be relevant.
+     * <p>
+     * A depth < 0 implies that every version of the aggregate will be cached. For event sourced aggregates that can
+     * become quite large (n >> 100) it is therefore advisable to select a depth >= 0. Note that a depth of 0 only
+     * caches the most recent version of the aggregate.
+     * <p>
+     * This setting does nothing if {@link #cached()} or {@link #eventSourced()} is {@code false}.
+     */
+    int cachingDepth() default -1;
+
+    /**
+     * Setting to control after which number of applied events the state of an aggregate should be stored in the cache
+     * to serve as checkpoint for event sourcing when requesting later version of the aggregate.
+     * <p>
+     * Note that this setting only applies for older versions of the aggregate, i.e. for sequence numbers <= than the
+     * most recent sequence number minus the {@link #cachingDepth()}.
+     * <p>
+     * This period should be >= 1. For a period of 1 all versions of the aggregate will be cached, which can also be
+     * achieved by selecting a {@link #cachingDepth()} < 0 (the default).
+     * <p>
+     * This setting does nothing if {@link #cached()} or {@link #eventSourced()} is {@code false}.
+     */
+    int checkpointPeriod() default 100;
+
     boolean commitInBatch() default true;
 
     /**
@@ -62,5 +92,4 @@ public @interface Aggregate {
     String collection() default "";
 
     String timestampPath() default "";
-
 }

@@ -39,7 +39,11 @@ public interface EventStoreClient extends AutoCloseable {
         return getEvents(aggregateId, -1L);
     }
 
-    AggregateEventStream<SerializedMessage> getEvents(String aggregateId, long lastSequenceNumber);
+    default AggregateEventStream<SerializedMessage> getEvents(String aggregateId, long lastSequenceNumber) {
+        return getEvents(aggregateId, lastSequenceNumber, -1);
+    }
+
+    AggregateEventStream<SerializedMessage> getEvents(String aggregateId, long lastSequenceNumber, int maxSize);
 
     default CompletableFuture<Void> deleteEvents(String aggregateId) {
         return deleteEvents(aggregateId, Guarantee.STORED);

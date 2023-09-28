@@ -41,7 +41,7 @@ import static java.util.Optional.ofNullable;
 
 @ToString(onlyExplicitlyIncluded = true)
 @EqualsAndHashCode(onlyExplicitlyIncluded = true)
-public class ModifiableAggregateRoot<T> extends DelegatingEntity<T> {
+public class ModifiableAggregateRoot<T> extends DelegatingEntity<T> implements AggregateRoot<T> {
 
     private static final ThreadLocal<Map<Object, ModifiableAggregateRoot<?>>> activeAggregates =
             ThreadLocal.withInitial(HashMap::new);
@@ -51,13 +51,13 @@ public class ModifiableAggregateRoot<T> extends DelegatingEntity<T> {
         return ofNullable((ModifiableAggregateRoot<T>) activeAggregates.get().get(aggregateId));
     }
 
-    public static <T> ModifiableAggregateRoot<T> load(
-            Object aggregateId, Supplier<ImmutableEntity<T>> loader, boolean commitInBatch,
-            EventPublication eventPublication, Serializer serializer, DispatchInterceptor dispatchInterceptor,
+    public static <T> Entity<T> load(
+            Object aggregateId, Supplier<Entity<T>> loader, boolean commitInBatch, EventPublication eventPublication,
+            EntityHelper entityHelper, Serializer serializer, DispatchInterceptor dispatchInterceptor,
             CommitHandler commitHandler) {
         return ModifiableAggregateRoot.<T>getIfActive(aggregateId).orElseGet(
-                () -> new ModifiableAggregateRoot<>(
-                        loader.get(), commitInBatch, eventPublication, serializer, dispatchInterceptor, commitHandler));
+                () -> new ModifiableAggregateRoot<>(loader.get(), commitInBatch, eventPublication,
+                                                    entityHelper, serializer, dispatchInterceptor, commitHandler));
     }
 
     private Entity<T> lastCommitted;
@@ -76,11 +76,12 @@ public class ModifiableAggregateRoot<T> extends DelegatingEntity<T> {
 
     private volatile boolean applying;
 
-    protected ModifiableAggregateRoot(ImmutableEntity<T> delegate, boolean commitInBatch,
-                                      EventPublication eventPublication, Serializer serializer,
-                                      DispatchInterceptor dispatchInterceptor, CommitHandler commitHandler) {
+    protected ModifiableAggregateRoot(Entity<T> delegate, boolean commitInBatch,
+                                      EventPublication eventPublication, EntityHelper entityHelper,
+                                      Serializer serializer, DispatchInterceptor dispatchInterceptor,
+                                      CommitHandler commitHandler) {
         super(delegate);
-        this.entityHelper = delegate.entityHelper();
+        this.entityHelper = entityHelper;
         this.lastCommitted = delegate;
         this.lastStable = delegate;
         this.commitInBatch = commitInBatch;
@@ -91,24 +92,24 @@ public class ModifiableAggregateRoot<T> extends DelegatingEntity<T> {
     }
 
     @Override
-    public <E extends Exception> ModifiableAggregateRoot<T> assertLegal(Object command) throws E {
+    public <E extends Exception> Entity<T> assertLegal(Object command) throws E {
         entityHelper.intercept(command, this).forEach(c -> entityHelper.assertLegal(c, this));
         return this;
     }
 
     @Override
-    public ModifiableAggregateRoot<T> assertAndApply(Object payloadOrMessage) {
+    public Entity<T> assertAndApply(Object payloadOrMessage) {
         entityHelper.intercept(payloadOrMessage, this).forEach(m -> apply(Message.asMessage(m), true));
         return this;
     }
 
     @Override
-    public ModifiableAggregateRoot<T> apply(Message message) {
+    public Entity<T> apply(Message message) {
         entityHelper.intercept(message, this).forEach(m -> apply(Message.asMessage(m), false));
         return this;
     }
 
-    protected ModifiableAggregateRoot<T> apply(Message message, boolean assertLegal) {
+    protected Entity<T> apply(Message message, boolean assertLegal) {
         if (applying) {
             queued.add(new Pair<>(message, assertLegal));
             return this;
@@ -120,7 +121,7 @@ public class ModifiableAggregateRoot<T> extends DelegatingEntity<T> {
             applying = true;
             handleUpdate(a -> {
                 int hashCodeBefore = eventPublication == IF_MODIFIED ? a.get() == null ? -1 : a.get().hashCode() : -1;
-                Entity<T> result = a.apply(new DeserializingMessage(message, EVENT, serializer));
+                Entity<T> result = a.apply(message);
                 if (switch (eventPublication) {
                     case ALWAYS -> true;
                     case IF_MODIFIED -> !Objects.equals(a.get(), result.get())
@@ -156,7 +157,7 @@ public class ModifiableAggregateRoot<T> extends DelegatingEntity<T> {
     }
 
     @Override
-    public ModifiableAggregateRoot<T> update(UnaryOperator<T> function) {
+    public Entity<T> update(UnaryOperator<T> function) {
         handleUpdate(a -> a.update(function));
         return this;
     }
@@ -168,7 +169,7 @@ public class ModifiableAggregateRoot<T> extends DelegatingEntity<T> {
 
     @Override
     public Entity<T> previous() {
-        Entity<T> previous = delegate.previous();
+        Entity<T> previous = getDelegate().previous();
         return previous == null ? null : new ModifiableEntity<>(previous, this);
     }
 

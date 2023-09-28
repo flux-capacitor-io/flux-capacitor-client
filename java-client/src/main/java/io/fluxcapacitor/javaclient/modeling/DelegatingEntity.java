@@ -92,4 +92,19 @@ public abstract class DelegatingEntity<T> implements Entity<T> {
     public Entity<?> parent() {
         return delegate.parent();
     }
+
+    @Override
+    public Entity<T> withEventIndex(Long index, String messageId) {
+        return delegate.withEventIndex(index, messageId);
+    }
+
+    @Override
+    public Entity<T> withType(Class<T> type) {
+        return delegate.withType(type);
+    }
+
+    @Override
+    public Entity<T> withSequenceNumber(long sequenceNumber) {
+        return delegate.withSequenceNumber(sequenceNumber);
+    }
 }

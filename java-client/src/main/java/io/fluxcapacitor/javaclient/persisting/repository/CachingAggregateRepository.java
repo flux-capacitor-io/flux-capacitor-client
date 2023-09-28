@@ -21,7 +21,6 @@ import io.fluxcapacitor.javaclient.common.serialization.DeserializingMessage;
 import io.fluxcapacitor.javaclient.common.serialization.Serializer;
 import io.fluxcapacitor.javaclient.configuration.client.Client;
 import io.fluxcapacitor.javaclient.modeling.Entity;
-import io.fluxcapacitor.javaclient.modeling.ImmutableAggregateRoot;
 import io.fluxcapacitor.javaclient.persisting.caching.Cache;
 import io.fluxcapacitor.javaclient.tracking.ConsumerConfiguration;
 import io.fluxcapacitor.javaclient.tracking.IndexUtils;
@@ -100,18 +99,17 @@ public class CachingAggregateRepository implements AggregateRepository {
         if (id != null) {
             try {
                 if (Objects.equals(client.id(), m.getSerializedObject().getSource())) {
-                    cache.<ImmutableAggregateRoot<?>>computeIfPresent(id, (i, a) -> a.withEventIndex(
-                            m.getIndex(), m.getMessageId()));
+                    cache.<Entity<?>>computeIfPresent(id, (i, a) -> a.withEventIndex(m.getIndex(), m.getMessageId()));
                 } else {
                     long index = m.getIndex();
-                    cache.<ImmutableAggregateRoot<?>>computeIfPresent(
+                    cache.<Entity<?>>computeIfPresent(
                             id, (i, before) -> {
                                 Long lastIndex = before.highestEventIndex();
                                 if (lastIndex == null || lastIndex < index) {
                                     boolean wasLoading = Entity.isLoading();
                                     try {
                                         Entity.loading.set(true);
-                                        ImmutableAggregateRoot<?> after = before.apply(m);
+                                        Entity<?> after = before.apply(m);
                                         updateRelationships(before, after);
                                         return after;
                                     } finally {
@@ -128,7 +126,7 @@ public class CachingAggregateRepository implements AggregateRepository {
         }
     }
 
-    protected void updateRelationships(ImmutableAggregateRoot<?> before, ImmutableAggregateRoot<?> after) {
+    protected void updateRelationships(Entity<?> before, Entity<?> after) {
         Set<Relationship> associations = after.associations(before), dissociations = after.dissociations(before);
         dissociations.forEach(
                 r -> relationshipsCache.<Map<String, String>>computeIfPresent(r.getEntityId(), (id, map) -> {

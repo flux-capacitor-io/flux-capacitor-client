@@ -18,12 +18,14 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import io.fluxcapacitor.common.api.modeling.Relationship;
 import io.fluxcapacitor.javaclient.common.serialization.DeserializingMessage;
 import io.fluxcapacitor.javaclient.common.serialization.Serializer;
+import io.fluxcapacitor.javaclient.persisting.eventsourcing.EventStore;
 import lombok.Builder;
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
 import lombok.ToString;
 import lombok.Value;
 import lombok.experimental.Accessors;
+import lombok.experimental.NonFinal;
 import lombok.experimental.SuperBuilder;
 import lombok.extern.jackson.Jacksonized;
 
@@ -36,10 +38,11 @@ import static io.fluxcapacitor.javaclient.FluxCapacitor.currentTime;
 import static java.util.Optional.ofNullable;
 
 @Value
+@NonFinal
 @SuperBuilder(toBuilder = true)
 @Accessors(fluent = true)
 @Jacksonized
-public class ImmutableAggregateRoot<T> extends ImmutableEntity<T> {
+public class ImmutableAggregateRoot<T> extends ImmutableEntity<T> implements AggregateRoot<T> {
     @JsonProperty
     String lastEventId;
     @JsonProperty
@@ -53,20 +56,18 @@ public class ImmutableAggregateRoot<T> extends ImmutableEntity<T> {
 
     @ToString.Exclude
     @EqualsAndHashCode.Exclude
-    transient ImmutableAggregateRoot<T> previous;
+    transient Entity<T> previous;
 
     @ToString.Exclude
     @EqualsAndHashCode.Exclude
     @Getter(lazy = true)
     Set<Relationship> relationships = super.relationships();
 
-    public static <T> ImmutableAggregateRoot<T> from(Entity<T> a,
-                                                     EntityHelper entityHelper,
-                                                     Serializer serializer) {
-        if (a == null) {
-            return null;
-        }
-        return ImmutableAggregateRoot.<T>builder()
+    transient EventStore eventStore;
+
+    public static <T> ImmutableAggregateRoot<T> from(Entity<T> a, EntityHelper entityHelper, Serializer serializer,
+                                                     EventStore eventStore) {
+        return a == null ? null : ImmutableAggregateRoot.<T>builder()
                 .entityHelper(entityHelper)
                 .serializer(serializer)
                 .id(a.id())
@@ -77,39 +78,56 @@ public class ImmutableAggregateRoot<T> extends ImmutableEntity<T> {
                 .lastEventIndex(a.lastEventIndex())
                 .timestamp(a.timestamp())
                 .sequenceNumber(a.sequenceNumber())
-                .previous(ImmutableAggregateRoot.from(a.previous(), entityHelper, serializer))
+                .eventStore(eventStore)
+                .previous(ofNullable(from(a.previous(), entityHelper, serializer, eventStore))
+                                  .map(p -> p.asPrevious(a.sequenceNumber())).orElse(null))
                 .build();
     }
 
-    public ImmutableAggregateRoot<T> apply(DeserializingMessage message) {
+    public Entity<T> apply(DeserializingMessage message) {
+        long newSequenceNumber = sequenceNumber() + 1L;
         return ((ImmutableAggregateRoot<T>) super.apply(message))
                 .toBuilder()
-                .previous(this)
+                .previous(asPrevious(newSequenceNumber))
                 .timestamp(message.getTimestamp())
                 .lastEventId(message.getMessageId())
                 .lastEventIndex(message.getIndex())
-                .sequenceNumber(sequenceNumber() + 1L)
+                .sequenceNumber(newSequenceNumber)
                 .build();
     }
 
+    Entity<T> asPrevious(long highestSequenceNumber) {
+        if (rootAnnotation().cachingDepth() < 0 || !rootAnnotation().eventSourced() || !rootAnnotation().cached()
+            || sequenceNumber() <= 0 || sequenceNumber() == highestSequenceNumber
+            || rootAnnotation().checkpointPeriod() <= 1) {
+            return this;
+        }
+        if (highestSequenceNumber - sequenceNumber() >= rootAnnotation().cachingDepth()
+            && sequenceNumber() % rootAnnotation().checkpointPeriod() != 0) {
+            return LazyAggregateRoot.from(this);
+        }
+        return previous() instanceof ImmutableAggregateRoot<T> p ?
+                toBuilder().previous(p.asPrevious(highestSequenceNumber)).build() : this;
+    }
+
     @Override
-    public ImmutableAggregateRoot<T> update(UnaryOperator<T> function) {
+    public Entity<T> update(UnaryOperator<T> function) {
         return ((ImmutableAggregateRoot<T>) super.update(function))
                 .toBuilder()
-                .previous(this)
                 .timestamp(currentTime())
                 .build();
     }
 
-    public ImmutableAggregateRoot<T> withEventIndex(Long index, String messageId) {
-        if (Objects.equals(messageId, lastEventId)) {
-            return lastEventIndex == null ? toBuilder().lastEventIndex(index).build() : this;
+    @Override
+    public Entity<T> withEventIndex(Long index, String messageId) {
+        if (Objects.equals(messageId, lastEventId())) {
+            return lastEventIndex() == null ? toBuilder().lastEventIndex(index).build() : this;
         }
-        return toBuilder().previous(previous.withEventIndex(index, messageId)).build();
+        return toBuilder().previous(previous().withEventIndex(index, messageId)).build();
     }
 
-    public Long highestEventIndex() {
-        return ofNullable(lastEventIndex).or(
-                () -> ofNullable(previous).map(ImmutableAggregateRoot::highestEventIndex)).orElse(null);
+    @Override
+    public Entity<T> withSequenceNumber(long sequenceNumber) {
+        return toBuilder().sequenceNumber(sequenceNumber).build();
     }
 }

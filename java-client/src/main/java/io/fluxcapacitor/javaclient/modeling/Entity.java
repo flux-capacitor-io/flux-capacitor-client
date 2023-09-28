@@ -44,6 +44,7 @@ import static io.fluxcapacitor.common.reflection.ReflectionUtils.readProperty;
 import static io.fluxcapacitor.javaclient.common.Message.asMessage;
 import static java.lang.String.format;
 import static java.util.Collections.emptyList;
+import static java.util.Optional.ofNullable;
 
 public interface Entity<T> {
 
@@ -78,6 +79,8 @@ public interface Entity<T> {
     Object id();
 
     Class<T> type();
+
+    Entity<T> withType(Class<T> type);
 
     T get();
 
@@ -138,6 +141,19 @@ public interface Entity<T> {
         return root().lastEventIndex();
     }
 
+    default Long highestEventIndex() {
+        return ofNullable(lastEventIndex()).or(
+                () -> ofNullable(previous()).map(Entity::highestEventIndex)).orElse(null);
+    }
+
+    default Entity<T> withEventIndex(Long index, String messageId) {
+        return root().withEventIndex(index, messageId).findEntity(id(), type());
+    }
+
+    default Entity<T> withSequenceNumber(long sequenceNumber) {
+        return root().withSequenceNumber(sequenceNumber).findEntity(id(), type());
+    }
+
     default Instant timestamp() {
         return root().timestamp();
     }
@@ -150,10 +166,8 @@ public interface Entity<T> {
         return DefaultEntityHelper.getRootAnnotation(root().type());
     }
 
-    @SuppressWarnings("unchecked")
     default Entity<T> previous() {
-        return (Entity<T>) root().previous().allEntities().filter(
-                e -> Objects.equals(e.id(), id()) && e.type().isAssignableFrom(type())).findFirst().orElse(null);
+        return root().previous().findEntity(id(), type());
     }
 
     default Entity<T> playBackToEvent(String eventId) {
@@ -180,13 +194,6 @@ public interface Entity<T> {
     default Optional<Entity<?>> getEntity(Object entityId) {
         return entityId == null ? Optional.empty() : allEntities().filter(
                 e -> entityId.equals(e.id()) || e.aliases().contains(entityId)).findFirst();
-    }
-
-    default Entity<T> makeReadOnly() {
-        if (this instanceof ReadOnlyEntity<?>) {
-            return this;
-        }
-        return new ReadOnlyEntity<>(this);
     }
 
     default Set<Relationship> relationships() {
@@ -229,14 +236,15 @@ public interface Entity<T> {
     }
 
     default Entity<T> apply(Object event) {
-        if (event instanceof DeserializingMessage) {
-            return apply(((DeserializingMessage) event).toMessage());
-        }
-        return apply(asMessage(event));
+        return event instanceof DeserializingMessage d ? apply(d) : apply(asMessage(event));
     }
 
     default Entity<T> apply(Object event, Metadata metadata) {
         return apply(new Message(event, metadata));
+    }
+
+    default Entity<T> apply(DeserializingMessage eventMessage) {
+        return apply(eventMessage.toMessage());
     }
 
     Entity<T> apply(Message eventMessage);
@@ -314,6 +322,12 @@ public interface Entity<T> {
             }
         }
         return false;
+    }
+
+    @SuppressWarnings("unchecked")
+    private <U> Entity<U> findEntity(Object id, Class<U> type) {
+        return (Entity<U>) allEntities().filter(e -> Objects.equals(e.id(), id) && e.type().isAssignableFrom(type))
+                .findFirst().orElse(null);
     }
 
     @FunctionalInterface

@@ -365,16 +365,20 @@ public class TestFixture implements Given, When {
     @Override
     public TestFixture givenCommands(Object... commands) {
         Class<?> callerClass = ReflectionUtils.getCallerClass();
-        givenModification(fixture -> fixture.asMessages(callerClass, commands).forEach(
-                c -> fixture.getDispatchResult(fixture.getFluxCapacitor().commandGateway().send(c))));
+        for (Object command : commands) {
+            givenModification(fixture -> fixture.asMessages(callerClass, command).forEach(
+                    c -> fixture.getDispatchResult(fixture.getFluxCapacitor().commandGateway().send(c))));
+        }
         return this;
     }
 
     @Override
     public TestFixture givenCommandsByUser(User user, Object... commands) {
         Class<?> callerClass = ReflectionUtils.getCallerClass();
-        givenModification(fixture -> fixture.asMessages(callerClass, commands).map(c -> fixture.addUser(user, c))
-                .forEach(c -> fixture.getDispatchResult(fixture.getFluxCapacitor().commandGateway().send(c))));
+        for (Object command : commands) {
+            givenModification(fixture -> fixture.asMessages(callerClass, command).map(c -> fixture.addUser(user, c))
+                    .forEach(c -> fixture.getDispatchResult(fixture.getFluxCapacitor().commandGateway().send(c))));
+        }
         return this;
     }
 
@@ -388,8 +392,10 @@ public class TestFixture implements Given, When {
     @Override
     public TestFixture givenEvents(Object... events) {
         Class<?> callerClass = ReflectionUtils.getCallerClass();
-        givenModification(fixture -> fixture.asMessages(callerClass, events)
-                .forEach(e -> fixture.getFluxCapacitor().eventGateway().publish(e)));
+        for (Object event : events) {
+            givenModification(fixture -> fixture.asMessages(callerClass, event)
+                    .forEach(e -> fixture.getFluxCapacitor().eventGateway().publish(e)));
+        }
         return this;
     }
 
@@ -401,8 +407,10 @@ public class TestFixture implements Given, When {
 
     @Override
     public TestFixture givenDocuments(String collection, Object... documents) {
-        return givenModification(fixture -> fixture.getFluxCapacitor().documentStore().index(
-                List.of(documents), collection).get());
+        for (Object document : documents) {
+            givenModification(fixture -> fixture.getFluxCapacitor().documentStore().index(document, collection).get());
+        }
+        return this;
     }
 
     @Override

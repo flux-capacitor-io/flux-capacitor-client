@@ -33,12 +33,13 @@ import static java.util.Optional.ofNullable;
 public class DefaultSnapshotStore implements SnapshotStore {
     private final KeyValueClient keyValueClient;
     private final Serializer serializer;
+    private final EventStore eventStore;
 
     @Override
     public <T> void storeSnapshot(Entity<T> snapshot) {
         try {
-            keyValueClient.putValue(snapshotKey(snapshot.id()), serializer.serialize(ImmutableAggregateRoot.from(
-                    snapshot, null, null)), Guarantee.SENT);
+            keyValueClient.putValue(snapshotKey(snapshot.id()), serializer.serialize(
+                    ImmutableAggregateRoot.from(snapshot, null, null, eventStore)), Guarantee.SENT);
         } catch (Exception e) {
             throw new EventSourcingException(format("Failed to store a snapshot: %s", snapshot), e);
         }
