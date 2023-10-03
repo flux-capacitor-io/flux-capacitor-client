@@ -81,8 +81,7 @@ public abstract class AbstractSerializer<I> implements Serializer {
                                   format);
             }
             if (Objects.equals(this.format, format)) {
-                return new Data<>(doSerialize(object), asString(getType(object)),
-                                  getRevision(object).map(Revision::value).orElse(0), format);
+                return new Data<>(doSerialize(object), getTypeString(object), getRevisionNumber(object), format);
             } else {
                 return serializeToOtherFormat(object, format);
             }
@@ -135,8 +134,16 @@ public abstract class AbstractSerializer<I> implements Serializer {
         return type.getTypeName();
     }
 
+    protected String getTypeString(Object object) {
+        return asString(getType(object));
+    }
+
     protected Optional<Revision> getRevision(Object object) {
         return Optional.ofNullable(object).map(o -> o.getClass().getAnnotation(Revision.class));
+    }
+
+    protected int getRevisionNumber(Object object) {
+        return getRevision(object).map(Revision::value).orElse(0);
     }
 
     protected abstract byte[] doSerialize(Object object) throws Exception;

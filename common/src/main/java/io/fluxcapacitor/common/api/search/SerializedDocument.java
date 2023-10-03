@@ -58,7 +58,8 @@ public class SerializedDocument {
     public SerializedDocument(Document document) {
         this(document.getId(), Optional.ofNullable(document.getTimestamp()).map(Instant::toEpochMilli).orElse(null),
              Optional.ofNullable(document.getEnd()).map(Instant::toEpochMilli).orElse(null),
-             document.getCollection(), null, () -> document, document.summarize());
+             document.getCollection(), null, () -> document,
+             Optional.ofNullable(document.getSummary()).map(Supplier::get).orElse(null));
     }
 
     @SuppressWarnings("unused")
