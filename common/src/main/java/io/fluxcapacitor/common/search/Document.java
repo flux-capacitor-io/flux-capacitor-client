@@ -43,6 +43,7 @@ import java.util.stream.Stream;
 import static io.fluxcapacitor.common.ObjectUtils.memoize;
 import static io.fluxcapacitor.common.search.Document.EntryType.NUMERIC;
 import static java.util.Comparator.naturalOrder;
+import static java.util.stream.Collectors.joining;
 import static java.util.stream.Collectors.toMap;
 
 @Value
@@ -65,8 +66,8 @@ public class Document {
     String summarize = doSummarize();
 
     private String doSummarize() {
-        return Stream.concat(Stream.of(type, id), getEntries().keySet().stream().map(Entry::asPhrase))
-                .collect(Collectors.joining(" "));
+        return Stream.concat(Stream.of(id), getEntries().keySet().stream().map(Entry::asPhrase)).distinct()
+                .collect(joining(" "));
     }
 
     public Optional<Entry> getEntryAtPath(String path) {
@@ -195,7 +196,7 @@ public class Document {
         String shortValue = splitPattern.splitAsStream(getValue())
                 .filter(p -> !SearchUtils.isInteger(p))
                 .map(Path::unescapeFieldName)
-                .collect(Collectors.joining("/"));
+                .collect(joining("/"));
 
         @JsonIgnore
         @Getter(lazy = true)
@@ -203,7 +204,7 @@ public class Document {
         @ToString.Exclude
         String longValue = splitPattern.splitAsStream(getValue())
                 .map(Path::unescapeFieldName)
-                .collect(Collectors.joining("/"));
+                .collect(joining("/"));
 
     }
 
