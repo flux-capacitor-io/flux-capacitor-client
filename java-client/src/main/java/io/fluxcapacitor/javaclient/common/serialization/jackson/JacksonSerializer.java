@@ -69,15 +69,15 @@ public class JacksonSerializer extends AbstractSerializer<JsonNode> implements D
         this(defaultObjectMapper, casterCandidates);
     }
 
-    public JacksonSerializer(ObjectMapper objectMapper) {
+    public JacksonSerializer(JsonMapper objectMapper) {
         this(objectMapper, Collections.emptyList());
     }
 
-    public JacksonSerializer(ObjectMapper objectMapper, Collection<?> casterCandidates) {
+    public JacksonSerializer(JsonMapper objectMapper, Collection<?> casterCandidates) {
         this(objectMapper, casterCandidates, new ObjectNodeConverter(objectMapper));
     }
 
-    public JacksonSerializer(ObjectMapper objectMapper, Collection<?> casterCandidates, Converter<JsonNode> converter) {
+    public JacksonSerializer(JsonMapper objectMapper, Collection<?> casterCandidates, Converter<JsonNode> converter) {
         super(casterCandidates, converter, Data.JSON_FORMAT);
         this.objectMapper = objectMapper;
         this.contentFilter = new JacksonContentFilter(objectMapper.copy());
@@ -143,7 +143,8 @@ public class JacksonSerializer extends AbstractSerializer<JsonNode> implements D
 
     @Override
     public SerializedDocument toDocument(Object value, String id, String collection, Instant timestamp, Instant end) {
-        return inverter.toDocument(serialize(value), id, collection, timestamp, end);
+        return inverter.toDocument(value, getTypeString(value), getRevisionNumber(value), id, collection, timestamp,
+                                   end);
     }
 
     @Override

@@ -36,6 +36,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.function.Function;
 import java.util.function.Predicate;
+import java.util.function.Supplier;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -59,16 +60,9 @@ public class Document {
     Instant timestamp, end;
     Map<Entry, List<Path>> entries;
     @JsonIgnore
-    @Getter(lazy = true)
-    @Accessors(fluent = true)
     @EqualsAndHashCode.Exclude
     @ToString.Exclude
-    String summarize = doSummarize();
-
-    private String doSummarize() {
-        return Stream.concat(Stream.of(id), getEntries().keySet().stream().map(Entry::asPhrase)).distinct()
-                .collect(joining(" "));
-    }
+    Supplier<String> summary;
 
     public Optional<Entry> getEntryAtPath(String path) {
         return getMatchingEntries(Path.pathPredicate(path)).findFirst();

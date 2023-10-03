@@ -14,18 +14,19 @@
 
 package io.fluxcapacitor.common.search;
 
-import com.fasterxml.jackson.core.JsonFactory;
 import com.fasterxml.jackson.core.JsonParser;
 import com.fasterxml.jackson.core.JsonToken;
 import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.introspect.AnnotatedMember;
+import com.fasterxml.jackson.databind.introspect.JacksonAnnotationIntrospector;
+import com.fasterxml.jackson.databind.json.JsonMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.BooleanNode;
 import com.fasterxml.jackson.databind.node.DecimalNode;
-import com.fasterxml.jackson.databind.node.JsonNodeFactory;
 import com.fasterxml.jackson.databind.node.NullNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.fasterxml.jackson.databind.node.TextNode;
+import io.fluxcapacitor.common.ThrowingFunction;
 import io.fluxcapacitor.common.api.Data;
 import io.fluxcapacitor.common.api.search.SerializedDocument;
 import io.fluxcapacitor.common.search.Document.Entry;
@@ -33,6 +34,7 @@ import io.fluxcapacitor.common.search.Document.EntryType;
 import io.fluxcapacitor.common.search.Document.Path;
 import io.fluxcapacitor.common.serialization.JsonUtils;
 import lombok.AccessLevel;
+import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
@@ -50,26 +52,54 @@ import java.util.TreeMap;
 
 import static io.fluxcapacitor.common.SearchUtils.asIntegerOrString;
 import static io.fluxcapacitor.common.api.Data.JSON_FORMAT;
+import static java.util.Optional.ofNullable;
+import static java.util.stream.Collectors.joining;
 import static java.util.stream.Collectors.toList;
 import static java.util.stream.Collectors.toMap;
 import static org.apache.commons.lang3.StringUtils.isBlank;
 
 @Slf4j
 @Getter(AccessLevel.PROTECTED)
+@AllArgsConstructor
 public class JacksonInverter implements Inverter<JsonNode> {
 
-    private final ObjectMapper objectMapper;
-    private final JsonFactory jsonFactory;
-    private final JsonNodeFactory nodeFactory;
+    private final JsonMapper objectMapper;
+    private final ThrowingFunction<Object, String> summarizer;
 
+    @SuppressWarnings("unused")
     public JacksonInverter() {
         this(JsonUtils.writer);
     }
 
-    public JacksonInverter(ObjectMapper objectMapper) {
-        this.jsonFactory = objectMapper.getFactory();
-        this.nodeFactory = objectMapper.getNodeFactory();
+    public JacksonInverter(JsonMapper objectMapper) {
         this.objectMapper = objectMapper;
+        this.summarizer = createSummarizer(this);
+    }
+
+    /*
+        Summarize
+     */
+
+    protected static ThrowingFunction<Object, String> createSummarizer(JacksonInverter inverter) {
+        JacksonInverter summarizer = new JacksonInverter(inverter.objectMapper.rebuild().annotationIntrospector(
+                new JacksonAnnotationIntrospector() {
+                    @Override
+                    public boolean hasIgnoreMarker(AnnotatedMember m) {
+                        return super.hasIgnoreMarker(m) || ofNullable(_findAnnotation(m, SearchIgnore.class))
+                                .map(SearchIgnore::value).orElse(false);
+                    }
+                }).build(), o -> {
+            throw new UnsupportedOperationException();
+        });
+        return value -> {
+          var entries = summarizer.invert(summarizer.objectMapper.writeValueAsBytes(value));
+          return entries.keySet().stream().map(Entry::asPhrase).distinct().collect(joining(" "));
+        };
+    }
+
+    @SneakyThrows
+    public String summarize(Object value) {
+        return summarizer.apply(value);
     }
 
     /*
@@ -77,19 +107,18 @@ public class JacksonInverter implements Inverter<JsonNode> {
      */
 
     @Override
-    public SerializedDocument toDocument(Data<byte[]> data, String id, String collection, Instant timestamp,
-                                         Instant end) {
-        if (!JSON_FORMAT.equals(data.getFormat())) {
-            throw new IllegalArgumentException("Only json inversion is supported");
-        }
-        return new SerializedDocument(new Document(id, data.getType(), data.getRevision(), collection,
-                                                   timestamp, end, invert(data.getValue())));
+    @SneakyThrows
+    public SerializedDocument toDocument(Object value, String type, int revision, String id, String collection,
+                                         Instant timestamp, Instant end) {
+        byte[] data = objectMapper.writeValueAsBytes(value);
+        return new SerializedDocument(new Document(id, type, revision, collection,
+                                                   timestamp, end, invert(data), () -> summarize(value)));
     }
 
     @SneakyThrows
     protected Map<Entry, List<Path>> invert(byte[] json) {
         Map<Entry, List<Path>> valueMap = new LinkedHashMap<>();
-        try (JsonParser parser = jsonFactory.createParser(json)) {
+        try (JsonParser parser = objectMapper.getFactory().createParser(json)) {
             JsonToken token = parser.nextToken();
             if (token != null) {
                 processToken(token, valueMap, "", parser);
@@ -216,8 +245,9 @@ public class JacksonInverter implements Inverter<JsonNode> {
         if (struct instanceof Map<?, ?>) {
             @SuppressWarnings("unchecked") SortedMap<Object, Object> map = (SortedMap<Object, Object>) struct;
             return map.keySet().stream().findFirst().<JsonNode>map(firstKey -> firstKey instanceof Integer
-                    ? new ArrayNode(nodeFactory, map.values().stream().map(this::toJsonNode).collect(toList()))
-                    : new ObjectNode(nodeFactory, map.entrySet().stream().collect(
+                    ? new ArrayNode(objectMapper.getNodeFactory(),
+                                    map.values().stream().map(this::toJsonNode).collect(toList()))
+                    : new ObjectNode(objectMapper.getNodeFactory(), map.entrySet().stream().collect(
                     toMap(e -> {
                         String key = e.getKey().toString();
                         key = Path.unescapeFieldName(key);
@@ -236,8 +266,8 @@ public class JacksonInverter implements Inverter<JsonNode> {
             case NUMERIC -> new DecimalNode(new BigDecimal(entry.getValue()));
             case BOOLEAN -> BooleanNode.valueOf(Boolean.parseBoolean(entry.getValue()));
             case NULL -> NullNode.getInstance();
-            case EMPTY_ARRAY -> new ArrayNode(nodeFactory);
-            case EMPTY_OBJECT -> new ObjectNode(nodeFactory);
+            case EMPTY_ARRAY -> new ArrayNode(objectMapper.getNodeFactory());
+            case EMPTY_OBJECT -> new ObjectNode(objectMapper.getNodeFactory());
         };
     }
 }

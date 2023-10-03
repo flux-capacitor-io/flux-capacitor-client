@@ -20,16 +20,7 @@ import io.fluxcapacitor.common.api.search.SerializedDocument;
 import java.time.Instant;
 
 public interface Inverter<T> {
-
-    default SerializedDocument toDocument(Data<byte[]> data, String id, String collection) {
-        return toDocument(data, id, collection, null, null);
-    }
-
-    default SerializedDocument toDocument(Data<byte[]> data, String id, String collection, Instant timestamp) {
-        return toDocument(data, id, collection, timestamp, timestamp);
-    }
-
-    SerializedDocument toDocument(Data<byte[]> data, String id, String collection, Instant timestamp, Instant end);
+    SerializedDocument toDocument(Object object, String type, int revision, String id, String collection, Instant timestamp, Instant end);
 
     Data<T> fromDocument(SerializedDocument document);
 }
