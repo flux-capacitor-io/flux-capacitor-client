@@ -45,25 +45,7 @@ import io.fluxcapacitor.javaclient.persisting.repository.DefaultAggregateReposit
 import io.fluxcapacitor.javaclient.persisting.search.DefaultDocumentStore;
 import io.fluxcapacitor.javaclient.persisting.search.DocumentSerializer;
 import io.fluxcapacitor.javaclient.persisting.search.DocumentStore;
-import io.fluxcapacitor.javaclient.publishing.CommandGateway;
-import io.fluxcapacitor.javaclient.publishing.DefaultCommandGateway;
-import io.fluxcapacitor.javaclient.publishing.DefaultErrorGateway;
-import io.fluxcapacitor.javaclient.publishing.DefaultEventGateway;
-import io.fluxcapacitor.javaclient.publishing.DefaultGenericGateway;
-import io.fluxcapacitor.javaclient.publishing.DefaultMetricsGateway;
-import io.fluxcapacitor.javaclient.publishing.DefaultQueryGateway;
-import io.fluxcapacitor.javaclient.publishing.DefaultRequestHandler;
-import io.fluxcapacitor.javaclient.publishing.DefaultResultGateway;
-import io.fluxcapacitor.javaclient.publishing.DefaultWebRequestGateway;
-import io.fluxcapacitor.javaclient.publishing.DispatchInterceptor;
-import io.fluxcapacitor.javaclient.publishing.ErrorGateway;
-import io.fluxcapacitor.javaclient.publishing.EventGateway;
-import io.fluxcapacitor.javaclient.publishing.GenericGateway;
-import io.fluxcapacitor.javaclient.publishing.MetricsGateway;
-import io.fluxcapacitor.javaclient.publishing.QueryGateway;
-import io.fluxcapacitor.javaclient.publishing.RequestHandler;
-import io.fluxcapacitor.javaclient.publishing.ResultGateway;
-import io.fluxcapacitor.javaclient.publishing.WebRequestGateway;
+import io.fluxcapacitor.javaclient.publishing.*;
 import io.fluxcapacitor.javaclient.publishing.correlation.CorrelatingInterceptor;
 import io.fluxcapacitor.javaclient.publishing.correlation.CorrelationDataProvider;
 import io.fluxcapacitor.javaclient.publishing.correlation.DefaultCorrelationDataProvider;
@@ -258,6 +240,7 @@ public class DefaultFluxCapacitor implements FluxCapacitor {
         private boolean disableTrackingMetrics;
         private boolean disableCacheEvictionMetrics;
         private boolean disableWebResponseCompression;
+        private boolean disableAdhocDispatchInterceptor;
         private boolean makeApplicationInstance;
         private UserProvider userProvider = UserProvider.defaultUserSupplier;
         private IdentityProvider identityProvider = IdentityProvider.defaultIdentityProvider;
@@ -352,7 +335,7 @@ public class DefaultFluxCapacitor implements FluxCapacitor {
 
         @Override
         public Builder addHandlerDecorator(@NonNull HandlerDecorator interceptor, boolean highPriority,
-                                             MessageType... forTypes) {
+                                           MessageType... forTypes) {
             Arrays.stream(forTypes.length == 0 ? MessageType.values() : forTypes)
                     .forEach(type -> (highPriority ? highPrioHandlerDecorators : lowPrioHandlerDecorators)
                             .computeIfAbsent(type, t -> new ArrayList<>()).add(interceptor));
@@ -405,7 +388,8 @@ public class DefaultFluxCapacitor implements FluxCapacitor {
         }
 
         @Override
-        public Builder addParameterResolver(@NonNull ParameterResolver<? super DeserializingMessage> parameterResolver) {
+        public Builder addParameterResolver(
+                @NonNull ParameterResolver<? super DeserializingMessage> parameterResolver) {
             customParameterResolvers.add(parameterResolver);
             return this;
         }
@@ -471,6 +455,12 @@ public class DefaultFluxCapacitor implements FluxCapacitor {
         }
 
         @Override
+        public FluxCapacitorBuilder disableAdhocDispatchInterceptor() {
+            disableAdhocDispatchInterceptor = true;
+            return this;
+        }
+
+        @Override
         public FluxCapacitorBuilder makeApplicationInstance(boolean makeApplicationInstance) {
             this.makeApplicationInstance = makeApplicationInstance;
             return this;
@@ -479,9 +469,9 @@ public class DefaultFluxCapacitor implements FluxCapacitor {
         @Override
         public FluxCapacitor build(@NonNull Client client) {
             Map<MessageType, DispatchInterceptor> dispatchInterceptors =
-                    Arrays.stream(MessageType.values()).collect(toMap(identity(), m -> DispatchInterceptor.noOp()));
+                    Arrays.stream(MessageType.values()).collect(toMap(identity(), m -> DispatchInterceptor.noOp));
             Map<MessageType, HandlerDecorator> handlerDecorators =
-                    Arrays.stream(MessageType.values()).collect(toMap(identity(), m -> HandlerDecorator.noOp()));
+                    Arrays.stream(MessageType.values()).collect(toMap(identity(), m -> HandlerDecorator.noOp));
             Map<MessageType, List<ConsumerConfiguration>> consumerConfigurations =
                     new HashMap<>(this.customConsumerConfigurations);
             this.defaultConsumerConfigurations.forEach((type, config) -> consumerConfigurations.get(type).add(
@@ -550,10 +540,10 @@ public class DefaultFluxCapacitor implements FluxCapacitor {
                                                                          (t, i) -> interceptor.andThen(i))));
             lowPrioHandlerDecorators.forEach((messageType, interceptors) -> interceptors.forEach(
                     interceptor -> handlerDecorators.computeIfPresent(messageType,
-                                                                        (t, i) -> i.andThen(interceptor))));
+                                                                      (t, i) -> i.andThen(interceptor))));
             highPrioHandlerDecorators.forEach((messageType, interceptors) -> interceptors.forEach(
                     interceptor -> handlerDecorators.computeIfPresent(messageType,
-                                                                        (t, i) -> interceptor.andThen(i))));
+                                                                      (t, i) -> interceptor.andThen(i))));
 
             //add websocket handler decorator and dispatch interceptor
             handlerDecorators.computeIfPresent(WEBREQUEST, (t, i) -> i.andThen(new WebsocketHandlerDecorator()));
@@ -562,6 +552,13 @@ public class DefaultFluxCapacitor implements FluxCapacitor {
             if (!disableWebResponseCompression) {
                 dispatchInterceptors.computeIfPresent(
                         WEBRESPONSE, (t, i) -> new WebResponseCompressingInterceptor().andThen(i));
+            }
+
+            if (!disableAdhocDispatchInterceptor) {
+                AdhocDispatchInterceptor adhocInterceptor = new AdhocDispatchInterceptor();
+                EnumSet.allOf(MessageType.class).forEach(
+                        messageType -> dispatchInterceptors.computeIfPresent(messageType,
+                                                                             (t, i) -> adhocInterceptor.andThen(i)));
             }
 
             /*
@@ -704,7 +701,8 @@ public class DefaultFluxCapacitor implements FluxCapacitor {
 
             //perform a controlled shutdown when the vm exits
             if (!disableShutdownHook) {
-                getRuntime().addShutdownHook(new Thread(fluxCapacitor::close, newThreadName("DefaultFluxCapacitor-shutdown")));
+                getRuntime().addShutdownHook(
+                        new Thread(fluxCapacitor::close, newThreadName("DefaultFluxCapacitor-shutdown")));
             }
 
             return fluxCapacitor;

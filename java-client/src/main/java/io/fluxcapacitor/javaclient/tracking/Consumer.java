@@ -14,6 +14,8 @@
 
 package io.fluxcapacitor.javaclient.tracking;
 
+import io.fluxcapacitor.javaclient.tracking.handling.HandlerInterceptor;
+
 import java.lang.annotation.Documented;
 import java.lang.annotation.ElementType;
 import java.lang.annotation.Inherited;
@@ -38,6 +40,8 @@ public @interface Consumer {
     long maxWaitDuration() default 60;
 
     ChronoUnit durationUnit() default SECONDS;
+
+    Class<? extends HandlerInterceptor>[] handlerInterceptors() default {};
 
     Class<? extends BatchInterceptor>[] batchInterceptors() default {};
 

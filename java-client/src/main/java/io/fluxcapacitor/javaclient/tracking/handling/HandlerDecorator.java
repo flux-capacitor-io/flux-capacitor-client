@@ -20,9 +20,7 @@ import lombok.AllArgsConstructor;
 
 @FunctionalInterface
 public interface HandlerDecorator {
-    static HandlerDecorator noOp() {
-        return h -> h;
-    }
+    HandlerDecorator noOp = h -> h;
 
     Handler<DeserializingMessage> wrap(Handler<DeserializingMessage> handler);
 

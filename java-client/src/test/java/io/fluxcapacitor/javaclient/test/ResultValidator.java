@@ -291,7 +291,7 @@ public class ResultValidator implements Then {
     }
     @Override
     public Then expectMetrics(Object... metrics) {
-        return expect(asMessages(this.metrics), this.metrics);
+        return expect(asMessages(metrics), this.metrics);
     }
 
     @Override

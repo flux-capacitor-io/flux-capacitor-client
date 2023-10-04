@@ -26,9 +26,10 @@ import static java.util.Optional.ofNullable;
  */
 @FunctionalInterface
 public interface DispatchInterceptor {
-    static DispatchInterceptor noOp() {
-        return (m, messageType) -> m;
-    }
+
+    DispatchInterceptor noOp = (m, messageType) -> m;
+
+
 
     /**
      * Intercepts the publication of a message. Implementers can use this to modify the contents of a message or block

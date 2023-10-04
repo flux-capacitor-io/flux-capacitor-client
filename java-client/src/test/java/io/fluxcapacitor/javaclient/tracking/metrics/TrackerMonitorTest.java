@@ -19,21 +19,43 @@ import io.fluxcapacitor.javaclient.tracking.Consumer;
 import io.fluxcapacitor.javaclient.tracking.handling.HandleEvent;
 import org.junit.jupiter.api.Test;
 
-import java.util.function.Predicate;
-
 class TrackerMonitorTest {
-    final TestFixture testFixture = TestFixture.createAsync(new Handler());
+    @Test
+    void trackerMetricsPublished() {
+        @Consumer(name = "custom-consumer")
+        class Handler {
+            @HandleEvent
+            void handle(String ignored) {
+            }
+        }
+        TestFixture.createAsync(new Handler()).whenEvent("test")
+                .<ProcessBatchEvent>expectMetric(
+                        e -> e.getConsumer().equals("custom-consumer") && e.getBatchSize() == 1)
+                .expectMetrics(HandleMessageEvent.class);
+    }
 
     @Test
-    void processBatchMetricPublished() {
-        testFixture.whenEvent("test").expectMetrics((Predicate<ProcessBatchEvent>) e ->
-                e.getConsumer().equals("custom-consumer") && e.getBatchSize() == 1);
+    void blockHandlerMetrics() {
+        @Consumer(name = "MetricsBlocked-consumer", handlerInterceptors = DisableMetrics.class)
+        class Handler {
+            @HandleEvent
+            void handle(String ignored) {
+            }
+        }
+        TestFixture.createAsync(new Handler()).whenEvent("test").expectNoMetricsLike(HandleMessageEvent.class);
     }
 
-    @Consumer(name = "custom-consumer")
-    static class Handler {
-        @HandleEvent
-        void handle(String ignored) {
+    @Test
+    void blockBatchMetrics() {
+        @Consumer(name = "MetricsBlocked-consumer", batchInterceptors = DisableMetrics.class)
+        class Handler {
+            @HandleEvent
+            void handle(String ignored) {
+            }
         }
+        TestFixture.createAsync(new Handler()).whenEvent("test")
+                .expectNoMetricsLike(HandleMessageEvent.class)
+                .expectNoMetricsLike(ProcessBatchEvent.class);
     }
+
 }

@@ -14,22 +14,18 @@
 
 package io.fluxcapacitor.javaclient.givenwhenthen;
 
-import io.fluxcapacitor.common.api.tracking.Read;
 import io.fluxcapacitor.javaclient.FluxCapacitor;
 import io.fluxcapacitor.javaclient.MockException;
-import io.fluxcapacitor.javaclient.common.Message;
 import io.fluxcapacitor.javaclient.modeling.Aggregate;
 import io.fluxcapacitor.javaclient.persisting.eventsourcing.Apply;
 import io.fluxcapacitor.javaclient.test.TestFixture;
 import io.fluxcapacitor.javaclient.tracking.handling.HandleCommand;
 import io.fluxcapacitor.javaclient.tracking.handling.HandleEvent;
+import io.fluxcapacitor.javaclient.tracking.metrics.ProcessBatchEvent;
 import lombok.Value;
 import org.junit.jupiter.api.Test;
 import org.mockito.InOrder;
 
-import java.util.function.Predicate;
-
-import static io.fluxcapacitor.common.MessageType.COMMAND;
 import static io.fluxcapacitor.javaclient.FluxCapacitor.loadAggregate;
 import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.mock;
@@ -165,7 +161,8 @@ class GivenWhenThenTest {
     @Test
     void testGivenCondition() {
         Runnable mockCondition = mock(Runnable.class);
-        subject.given(fc -> mockCondition.run()).whenCommand(new YieldsNoResult()).expectThat(fc -> verify(mockCondition).run());
+        subject.given(fc -> mockCondition.run()).whenCommand(new YieldsNoResult())
+                .expectThat(fc -> verify(mockCondition).run());
     }
 
     @Test
@@ -193,8 +190,8 @@ class GivenWhenThenTest {
 
     @Test
     void testExpectMetrics() {
-        TestFixture.createAsync(commandHandler).whenCommand(new YieldsNoResult()).expectMetrics((Predicate<Message>) m
-                -> m.getPayload() instanceof Read && COMMAND.name().equals(m.getMetadata().get("messageType")));
+        TestFixture.createAsync(commandHandler).whenCommand(new YieldsNoResult())
+                .expectMetrics(ProcessBatchEvent.class);
     }
 
     @Test

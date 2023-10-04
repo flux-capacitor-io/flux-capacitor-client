@@ -14,14 +14,18 @@
 
 package io.fluxcapacitor.testserver;
 
+import io.fluxcapacitor.common.api.search.SearchDocuments;
+import io.fluxcapacitor.common.api.search.SearchDocumentsResult;
 import io.fluxcapacitor.javaclient.FluxCapacitor;
 import io.fluxcapacitor.javaclient.configuration.client.WebSocketClient;
-import io.fluxcapacitor.javaclient.persisting.search.DocumentStore;
 import io.fluxcapacitor.javaclient.scheduling.Schedule;
 import io.fluxcapacitor.javaclient.test.TestFixture;
 import io.fluxcapacitor.javaclient.test.spring.FluxCapacitorTestConfig;
+import io.fluxcapacitor.javaclient.tracking.Consumer;
 import io.fluxcapacitor.javaclient.tracking.handling.HandleCommand;
 import io.fluxcapacitor.javaclient.tracking.handling.HandleEvent;
+import io.fluxcapacitor.javaclient.tracking.metrics.DisableMetrics;
+import io.fluxcapacitor.javaclient.tracking.metrics.ProcessBatchEvent;
 import lombok.SneakyThrows;
 import lombok.Value;
 import lombok.extern.slf4j.Slf4j;
@@ -36,8 +40,6 @@ import org.springframework.test.context.ContextConfiguration;
 import org.springframework.test.context.junit.jupiter.SpringExtension;
 
 import java.util.List;
-
-import static org.junit.jupiter.api.Assertions.assertEquals;
 
 @ExtendWith(SpringExtension.class)
 @DirtiesContext(classMode = DirtiesContext.ClassMode.AFTER_EACH_TEST_METHOD)
@@ -67,12 +69,12 @@ class TestServerTest {
 
     @Test
     void testFetchLotsOfDocuments() {
-        DocumentStore documentStore = testFixture.getFluxCapacitor().documentStore();
-        documentStore.index("bla1", "test");
-        documentStore.index("bla2", "test");
-        documentStore.index("bla3", "test");
-        List<Object> results = documentStore.search("test").lookAhead("bla").stream(2).toList();
-        assertEquals(3, results.size());
+        testFixture.given(fc -> {
+            fc.documentStore().index("bla1", "test");
+            fc.documentStore().index("bla2", "test");
+            fc.documentStore().index("bla3", "test");
+        }).whenApplying(fc -> fc.documentStore().search("test").lookAhead("bla").stream(2).toList())
+                .<List<?>>expectResult(list -> list.size() == 3);
     }
 
     @Test
@@ -83,6 +85,37 @@ class TestServerTest {
                 .given(fc -> sleepAWhile())
                 .whenApplying(fc -> fc.scheduler().getSchedule("test").orElse(null))
                 .expectResult(schedule);
+    }
+
+    @Test
+    void allowMetrics() {
+        final String consumerName = "MetricsBlocked-consumer";
+        @Consumer(name = consumerName)
+        class Handler {
+            @HandleEvent
+            void handle(String ignored) {
+                FluxCapacitor.search("mock").fetchAll();
+            }
+        }
+        testFixture.registerHandlers(new Handler()).whenEvent("test")
+                .expectMetrics(SearchDocumentsResult.Metric.class, SearchDocuments.class)
+                .<ProcessBatchEvent>expectMetric(e -> consumerName.equals(e.getConsumer()));
+    }
+
+    @Test
+    void blockHandlerMetrics() {
+        final String consumerName = "MetricsBlocked-consumer";
+        @Consumer(name = consumerName, handlerInterceptors = DisableMetrics.class)
+        class Handler {
+            @HandleEvent
+            void handle(String ignored) {
+                FluxCapacitor.search("mock").fetchAll();
+            }
+        }
+        testFixture.registerHandlers(new Handler()).whenEvent("test")
+                .expectNoMetricsLike(SearchDocumentsResult.Metric.class)
+                .expectNoMetricsLike(SearchDocuments.class)
+                .<ProcessBatchEvent>expectMetric(e -> consumerName.equals(e.getConsumer()));
     }
 
     @Configuration
