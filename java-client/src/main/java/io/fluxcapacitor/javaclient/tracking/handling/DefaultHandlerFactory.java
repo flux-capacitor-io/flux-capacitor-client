@@ -78,15 +78,15 @@ public class DefaultHandlerFactory implements HandlerFactory {
     public Optional<Handler<DeserializingMessage>> createHandler(
             Supplier<?> targetSupplier, Class<?> targetClass, Class<? extends Annotation> handlerAnnotation,
             String consumer, HandlerFilter handlerFilter, List<HandlerInterceptor> extraInterceptors) {
-        HandlerDecorator interceptor =
-                Stream.concat(Stream.of(defaultDecorator), extraInterceptors.stream())
+        HandlerDecorator handlerDecorator =
+                Stream.concat(extraInterceptors.stream(), Stream.of(defaultDecorator))
                         .reduce(HandlerDecorator::andThen).orElseThrow();
         return Optional.ofNullable(handlerAnnotation)
                 .map(a -> HandlerConfiguration.<DeserializingMessage>builder().methodAnnotation(a)
                         .handlerFilter(handlerFilter).messageFilter(messageFilter).build())
                 .filter(config -> hasHandlerMethods(targetClass, config))
                 .map(config -> HandlerInspector.createHandler(targetSupplier, targetClass, parameterResolvers, config))
-                .map(handler -> interceptor.wrap(handler));
+                .map(handlerDecorator::wrap);
     }
 
     @SuppressWarnings("unchecked")

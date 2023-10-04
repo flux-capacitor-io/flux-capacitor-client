@@ -134,6 +134,8 @@ public interface FluxCapacitorBuilder {
 
     FluxCapacitorBuilder disableWebResponseCompression();
 
+    FluxCapacitorBuilder disableAdhocDispatchInterceptor();
+
     FluxCapacitorBuilder makeApplicationInstance(boolean makeApplicationInstance);
 
     FluxCapacitor build(Client client);

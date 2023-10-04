@@ -130,17 +130,17 @@ public class ConsumerConfigurationTest {
     void interceptorInConsumerTest() {
         TestFixture.createAsync(
                         DefaultFluxCapacitor.builder()
-                                .addHandlerInterceptor((f, i) -> m -> "first " + f.apply(m))
+                                .addHandlerInterceptor((f, i) -> m -> "common " + f.apply(m))
                                 .addConsumerConfiguration(
                                         ConsumerConfiguration.builder().name("test")
-                                                .handlerInterceptor((f, i) -> m -> "second " + f.apply(m))
-                                                .handlerInterceptor((f, i) -> m -> "third " + f.apply(m))
+                                                .handlerInterceptor((f, i) -> m -> "consumer-1 " + f.apply(m))
+                                                .handlerInterceptor((f, i) -> m -> "consumer-2 " + f.apply(m))
                                                 .build()),
                         new Handler())
                 .withClock(nowClock)
                 .whenCommand(new Command())
                 .expectEvents("test")
-                .expectResult("first second third test");
+                .expectResult("consumer-1 consumer-2 common test");
     }
 
     static class Handler {

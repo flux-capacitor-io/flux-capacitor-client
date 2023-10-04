@@ -125,6 +125,8 @@ public class ConsumerConfiguration {
                 .maxWaitDuration(Duration.of(consumer.maxWaitDuration(), consumer.durationUnit()))
                 .batchInterceptors(Arrays.stream(consumer.batchInterceptors()).map(
                         ReflectionUtils::<BatchInterceptor>asInstance).collect(Collectors.toList()))
+                .handlerInterceptors(Arrays.stream(consumer.handlerInterceptors()).map(
+                        ReflectionUtils::<HandlerInterceptor>asInstance).collect(Collectors.toList()))
                 .filterMessageTarget(consumer.filterMessageTarget())
                 .ignoreSegment(consumer.ignoreSegment())
                 .clientControlledIndex(consumer.clientControlledIndex())
