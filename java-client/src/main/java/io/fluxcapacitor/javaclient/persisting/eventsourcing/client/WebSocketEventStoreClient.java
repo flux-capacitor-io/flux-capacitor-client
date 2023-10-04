@@ -38,6 +38,7 @@ import java.net.URI;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Stream;
 
@@ -70,23 +71,23 @@ public class WebSocketEventStoreClient extends AbstractWebsocketClient implement
     @Override
     public AggregateEventStream<SerializedMessage> getEvents(String aggregateId, long lastSequenceNumber, int maxSize) {
         AtomicReference<Long> highestSequenceNumber = new AtomicReference<>();
+        AtomicInteger fetchedSize = new AtomicInteger();
         GetEventsResult firstBatch = sendAndWait(new GetEvents(
                 aggregateId, lastSequenceNumber, maxSize < 0 ? fetchBatchSize : maxSize));
-        Stream<SerializedMessage> eventStream = iterate(firstBatch,
-                                                        r -> sendAndWait(new GetEvents(aggregateId, r
-                                                                .getLastSequenceNumber(), fetchBatchSize)),
-                                                        r -> r.getEventBatch().getEvents().size() < fetchBatchSize)
+        Stream<SerializedMessage> eventStream = iterate(
+                firstBatch,
+                r -> sendAndWait(
+                        new GetEvents(aggregateId, r.getLastSequenceNumber(),
+                                      maxSize < 0 ? fetchBatchSize : maxSize - fetchedSize.get())),
+                r -> r.getEventBatch().getEvents().size() < fetchBatchSize)
                 .flatMap(r -> {
                     if (!r.getEventBatch().isEmpty()) {
+                        fetchedSize.addAndGet(r.getEventBatch().getSize());
                         highestSequenceNumber.set(r.getLastSequenceNumber());
                     }
                     return r.getEventBatch().getEvents().stream();
                 });
-        var result = new AggregateEventStream<>(eventStream, aggregateId, highestSequenceNumber::get);
-        if (maxSize >= 0) {
-            result = result.limit(maxSize);
-        }
-        return result;
+        return new AggregateEventStream<>(eventStream, aggregateId, highestSequenceNumber::get);
     }
 
     @Override

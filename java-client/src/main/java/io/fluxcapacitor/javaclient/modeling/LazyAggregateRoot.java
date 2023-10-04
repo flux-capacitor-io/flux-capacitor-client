@@ -16,11 +16,13 @@ package io.fluxcapacitor.javaclient.modeling;
 
 import io.fluxcapacitor.javaclient.common.Message;
 import io.fluxcapacitor.javaclient.common.serialization.DeserializingMessage;
+import io.fluxcapacitor.javaclient.persisting.eventsourcing.AggregateEventStream;
 import lombok.With;
 
 import java.time.Instant;
 import java.util.Collection;
 import java.util.Iterator;
+import java.util.Objects;
 import java.util.function.UnaryOperator;
 
 public class LazyAggregateRoot<T> implements AggregateRoot<T> {
@@ -65,12 +67,23 @@ public class LazyAggregateRoot<T> implements AggregateRoot<T> {
     @Override
     public T get() {
         var start = getLastCheckpoint();
-        Iterator<DeserializingMessage> iterator = delegate.eventStore().getEvents(
+        String targetEventId = lastEventId();
+        AggregateEventStream<DeserializingMessage> events = delegate.eventStore().getEvents(
                 id(), start.sequenceNumber(), (int) (sequenceNumber() - start.sequenceNumber()),
-                rootAnnotation().ignoreUnknownEvents()).iterator();
+                rootAnnotation().ignoreUnknownEvents());
+        Iterator<DeserializingMessage> iterator = events.iterator();
         Entity<T> result = start;
+        boolean eventReached = false;
         while (iterator.hasNext()) {
-            result = result.apply(iterator.next());
+            DeserializingMessage nextEvent = iterator.next();
+            boolean lastEventId = Objects.equals(targetEventId, nextEvent.getMessageId());
+            if (eventReached && !lastEventId) {
+                break;
+            }
+            if (lastEventId) {
+                eventReached = true;
+            }
+            result = result.apply(nextEvent);
         }
         return result.get();
     }
