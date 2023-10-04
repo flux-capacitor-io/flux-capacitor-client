@@ -26,7 +26,7 @@ import java.util.stream.Stream;
 @Getter
 @AllArgsConstructor
 public class AggregateEventStream<T> implements Stream<T> {
-    @Delegate(excludes = StreamExcludes.class)
+    @Delegate
     private final Stream<T> eventStream;
     private final String aggregateId;
     private final Supplier<Long> lastSequenceNumber;
@@ -37,14 +37,5 @@ public class AggregateEventStream<T> implements Stream<T> {
 
     public Optional<Long> getLastSequenceNumber() {
         return Optional.ofNullable(lastSequenceNumber.get());
-    }
-
-    @Override
-    public AggregateEventStream<T> limit(long maxSize) {
-        return new AggregateEventStream<>(eventStream.limit(maxSize), aggregateId, lastSequenceNumber);
-    }
-
-    interface StreamExcludes {
-        <T> Stream<T> limit(long maxSize);
     }
 }
