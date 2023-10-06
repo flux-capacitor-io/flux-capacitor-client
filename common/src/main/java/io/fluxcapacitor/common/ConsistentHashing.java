@@ -14,6 +14,8 @@
 
 package io.fluxcapacitor.common;
 
+import io.fluxcapacitor.common.api.tracking.Position;
+
 import java.util.function.Function;
 
 public class ConsistentHashing {
@@ -21,15 +23,31 @@ public class ConsistentHashing {
     private static final Function<String, Integer> defaultHashFunction = Murmur3::murmurhash3_x86_32;
 
     public static int computeSegment(String routingKey) {
-        return computeSegment(routingKey, defaultHashFunction, 1024);
+        return computeSegment(routingKey, defaultHashFunction, Position.MAX_SEGMENT);
     }
 
     public static int computeSegment(String routingKey, int maxSegments) {
         return computeSegment(routingKey, defaultHashFunction, maxSegments);
     }
 
-    public static int computeSegment(String routingKey, Function<String, Integer> hashFunction, int segments) {
-        return Math.abs(hashFunction.apply(routingKey)) % segments;
+    public static int computeSegment(String routingKey, Function<String, Integer> hashFunction, int maxSegments) {
+        return Math.abs(hashFunction.apply(routingKey)) % maxSegments;
+    }
+
+    public static boolean fallsInRange(String routingKey, int[] segmentRange) {
+        return fallsInRange(computeSegment(routingKey), segmentRange);
+    }
+
+    public static boolean fallsInRange(String routingKey, int[] segmentRange, int maxSegments) {
+        return fallsInRange(computeSegment(routingKey, maxSegments), segmentRange);
+    }
+
+    public static boolean fallsInRange(int segment, int[] segmentRange) {
+        return segment >= segmentRange[0] && segment < segmentRange[1];
+    }
+
+    public static boolean isEmptyRange(int[] segmentRange) {
+        return segmentRange[0] == segmentRange[1];
     }
 
 }
