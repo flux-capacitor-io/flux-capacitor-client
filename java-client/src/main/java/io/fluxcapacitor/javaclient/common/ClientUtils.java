@@ -20,6 +20,7 @@ import io.fluxcapacitor.common.MemoizingSupplier;
 import io.fluxcapacitor.common.ObjectUtils;
 import io.fluxcapacitor.common.ThrowingRunnable;
 import io.fluxcapacitor.common.handling.HandlerInvoker;
+import io.fluxcapacitor.common.reflection.ReflectionUtils;
 import io.fluxcapacitor.javaclient.FluxCapacitor;
 import io.fluxcapacitor.javaclient.tracking.handling.HandleSelf;
 import io.fluxcapacitor.javaclient.tracking.handling.LocalHandler;
@@ -50,7 +51,7 @@ public class ClientUtils {
 
     private static final Function<Class<?>, Optional<HandleSelf>> handleSelfCache = memoize(
             target -> getAnnotatedMethods(target, HandleSelf.class).stream()
-                    .findFirst().map(m -> m.getAnnotation(HandleSelf.class)));
+                    .findFirst().flatMap(m -> ReflectionUtils.getMethodAnnotation(m, HandleSelf.class)));
 
     public static void waitForResults(Duration maxDuration, Collection<? extends Future<?>> futures) {
         Instant deadline = Instant.now().plus(maxDuration);

@@ -230,7 +230,7 @@ public class ReflectionUtils {
     }
 
     public static List<Method> getAnnotatedMethods(Class<?> target, Class<? extends Annotation> annotation) {
-        return methodsCache.apply(target).stream().filter(m -> m.isAnnotationPresent(annotation)).toList();
+        return methodsCache.apply(target).stream().filter(m -> getMethodAnnotation(m, annotation).isPresent()).toList();
     }
 
     public static List<Method> getAnnotatedMethods(Object target, Class<? extends Annotation> annotation) {
@@ -239,7 +239,7 @@ public class ReflectionUtils {
 
     public static boolean isMethodAnnotationPresent(Class<?> target, Class<? extends Annotation> annotation) {
         for (Method method : methodsCache.apply(target)) {
-            if (method.isAnnotationPresent(annotation)) {
+            if (getMethodAnnotation(method, annotation).isPresent()) {
                 return true;
             }
         }
@@ -711,8 +711,8 @@ public class ReflectionUtils {
     /*
        Adopted from https://stackoverflow.com/questions/49105303/how-to-get-annotation-from-overridden-method-in-java/49164791
     */
-    public static Optional<? extends Annotation> getMethodAnnotation(Executable m, Class<? extends Annotation> a) {
-        Annotation result = getTopLevelAnnotation(m, a);
+    public static <A extends Annotation> Optional<A> getMethodAnnotation(Executable m, Class<A> a) {
+        A result = getTopLevelAnnotation(m, a);
         Class<?> c = m.getDeclaringClass();
 
         if (result == null) {
@@ -731,12 +731,13 @@ public class ReflectionUtils {
         return Optional.ofNullable(result);
     }
 
-    private static Annotation getTopLevelAnnotation(Executable m, Class<? extends Annotation> a) {
-        return Optional.<Annotation>ofNullable(m.getAnnotation(a)).orElseGet(() -> stream(m.getAnnotations())
+    @SuppressWarnings("unchecked")
+    private static <A extends Annotation> A getTopLevelAnnotation(Executable m, Class<A> a) {
+        return Optional.ofNullable(m.getAnnotation(a)).orElseGet(() -> (A) stream(m.getAnnotations())
                 .filter(other -> other.annotationType().isAnnotationPresent(a)).findFirst().orElse(null));
     }
 
-    private static Annotation getAnnotationOnSuper(Executable m, Class<?> s, Class<? extends Annotation> a) {
+    private static <A extends Annotation> A getAnnotationOnSuper(Executable m, Class<?> s, Class<A> a) {
         try {
             Method n = s.getDeclaredMethod(m.getName(), m.getParameterTypes());
             return overrides(m, n) ? getTopLevelAnnotation(n, a) : null;
