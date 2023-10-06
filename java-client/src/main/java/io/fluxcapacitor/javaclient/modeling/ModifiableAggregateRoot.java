@@ -21,11 +21,12 @@ import io.fluxcapacitor.javaclient.common.serialization.DeserializingMessage;
 import io.fluxcapacitor.javaclient.common.serialization.Serializer;
 import io.fluxcapacitor.javaclient.publishing.DispatchInterceptor;
 import lombok.EqualsAndHashCode;
+import lombok.NonNull;
 import lombok.ToString;
 
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -38,17 +39,23 @@ import java.util.stream.Collectors;
 import static io.fluxcapacitor.common.MessageType.EVENT;
 import static io.fluxcapacitor.javaclient.modeling.EventPublication.IF_MODIFIED;
 import static java.util.Optional.ofNullable;
+import static java.util.stream.Collectors.toMap;
 
 @ToString(onlyExplicitlyIncluded = true)
 @EqualsAndHashCode(onlyExplicitlyIncluded = true)
 public class ModifiableAggregateRoot<T> extends DelegatingEntity<T> implements AggregateRoot<T> {
 
     private static final ThreadLocal<Map<Object, ModifiableAggregateRoot<?>>> activeAggregates =
-            ThreadLocal.withInitial(HashMap::new);
+            ThreadLocal.withInitial(LinkedHashMap::new);
 
     @SuppressWarnings("unchecked")
     public static <T> Optional<ModifiableAggregateRoot<T>> getIfActive(Object aggregateId) {
         return ofNullable((ModifiableAggregateRoot<T>) activeAggregates.get().get(aggregateId));
+    }
+
+    public static Map<String, Class<?>> getActiveAggregatesFor(@NonNull Object entityId) {
+        return activeAggregates.get().values().stream().filter(a -> a.getEntity(entityId).isPresent())
+                .collect(toMap(e -> e.id().toString(), Entity::type));
     }
 
     public static <T> Entity<T> load(

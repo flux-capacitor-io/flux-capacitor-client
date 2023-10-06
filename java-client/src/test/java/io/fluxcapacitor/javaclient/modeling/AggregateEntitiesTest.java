@@ -391,6 +391,21 @@ public class AggregateEntitiesTest {
             }
 
             @Test
+            void findChildJustAfterAdding() {
+                TestFixture.create().given(
+                                fc -> loadAggregate("test", Aggregate.class).update(s -> Aggregate.builder().build()))
+                        .registerHandlers(new Object() {
+                            @HandleCommand
+                            Entity<?> handle(AddChild command) {
+                                loadAggregate("test", Aggregate.class).apply(command);
+                                return loadEntity(command.getMissingChildId());
+                            }
+                        })
+                        .whenCommand(new AddChild("missing"))
+                        .<Entity<?>>expectResult(e -> e.get() instanceof MissingChild && "missing".equals(e.id()));
+            }
+
+            @Test
             void testAddChildAndGrandChild() {
                 testFixture.whenCommand(new AddChildAndGrandChild("missing", "missingGc"))
                         .expectThat(fc -> {

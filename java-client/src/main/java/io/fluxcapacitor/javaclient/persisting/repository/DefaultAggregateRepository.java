@@ -69,6 +69,7 @@ import java.util.function.Function;
 import static io.fluxcapacitor.common.ObjectUtils.memoize;
 import static io.fluxcapacitor.common.reflection.ReflectionUtils.classForName;
 import static io.fluxcapacitor.common.reflection.ReflectionUtils.getAnnotatedProperty;
+import static io.fluxcapacitor.javaclient.modeling.ModifiableAggregateRoot.getActiveAggregatesFor;
 import static java.lang.String.format;
 import static java.util.stream.Collectors.toMap;
 import static java.util.stream.Collectors.toSet;
@@ -120,10 +121,13 @@ public class DefaultAggregateRepository implements AggregateRepository {
 
     @Override
     public Map<String, Class<?>> getAggregatesFor(@NonNull Object entityId) {
-        return relationshipsCache.computeIfAbsent(
+        LinkedHashMap<String, Class<?>> result = new LinkedHashMap<>(getActiveAggregatesFor(entityId));
+        relationshipsCache.computeIfAbsent(
                 entityId.toString(), id -> eventStoreClient.getAggregatesFor(id.toString())
                         .entrySet().stream().collect(toMap(Map.Entry::getKey, e -> classForName(
-                                serializer.upcastType(e.getValue()), Void.class), (a, b) -> b, LinkedHashMap::new)));
+                                serializer.upcastType(e.getValue()), Void.class), (a, b) -> b, LinkedHashMap::new)))
+                .forEach(result::putIfAbsent);
+        return result;
     }
 
     @Override
