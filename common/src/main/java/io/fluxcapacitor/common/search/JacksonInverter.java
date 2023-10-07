@@ -39,6 +39,7 @@ import lombok.Getter;
 import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
 
+import java.lang.reflect.Member;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.ArrayList;
@@ -49,9 +50,13 @@ import java.util.List;
 import java.util.Map;
 import java.util.SortedMap;
 import java.util.TreeMap;
+import java.util.function.Function;
 
+import static io.fluxcapacitor.common.ObjectUtils.memoize;
 import static io.fluxcapacitor.common.SearchUtils.asIntegerOrString;
 import static io.fluxcapacitor.common.api.Data.JSON_FORMAT;
+import static io.fluxcapacitor.common.reflection.ReflectionUtils.getMemberAnnotation;
+import static io.fluxcapacitor.common.reflection.ReflectionUtils.getTypeAnnotation;
 import static java.util.Optional.ofNullable;
 import static java.util.stream.Collectors.joining;
 import static java.util.stream.Collectors.toList;
@@ -80,20 +85,24 @@ public class JacksonInverter implements Inverter<JsonNode> {
         Summarize
      */
 
+    protected static Function<Member, Boolean> searchIgnoreCache = memoize(
+            m -> getMemberAnnotation(m.getDeclaringClass(), m.getName(), SearchExclude.class)
+                    .or(() -> ofNullable(getTypeAnnotation(m.getDeclaringClass(), SearchExclude.class)))
+                    .map(SearchExclude::value).orElse(false));
+
     protected static ThrowingFunction<Object, String> createSummarizer(JacksonInverter inverter) {
         JacksonInverter summarizer = new JacksonInverter(inverter.objectMapper.rebuild().annotationIntrospector(
                 new JacksonAnnotationIntrospector() {
                     @Override
                     public boolean hasIgnoreMarker(AnnotatedMember m) {
-                        return super.hasIgnoreMarker(m) || ofNullable(_findAnnotation(m, SearchIgnore.class))
-                                .map(SearchIgnore::value).orElse(false);
+                        return super.hasIgnoreMarker(m) || searchIgnoreCache.apply(m.getMember());
                     }
                 }).build(), o -> {
             throw new UnsupportedOperationException();
         });
         return value -> {
-          var entries = summarizer.invert(summarizer.objectMapper.writeValueAsBytes(value));
-          return entries.keySet().stream().map(Entry::asPhrase).distinct().collect(joining(" "));
+            var entries = summarizer.invert(summarizer.objectMapper.writeValueAsBytes(value));
+            return entries.keySet().stream().map(Entry::asPhrase).distinct().collect(joining(" "));
         };
     }
 

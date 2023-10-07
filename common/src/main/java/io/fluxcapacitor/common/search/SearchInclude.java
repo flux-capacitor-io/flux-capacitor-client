@@ -21,21 +21,19 @@ import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
 /**
- * Marker annotation that indicates that the property is to be ignored when indexing a document for search. When a
- * property is ignored, the document can't be matched using this property.
+ * Marker annotation that indicates that a property is to be included when indexing a document for search. When a
+ * property is included, the document can be matched using this property. Note that inclusion is the default for
+ * properties, so this annotation is only useful to override the effects of {@link SearchExclude(true)} on a parent or
+ * ancestor.
  * <p>
- * Note that the property is not lost when the document is serialized or deserialized. If that is the intention, make
- * the property transient instead, e.g. using an annotation like {@link java.beans.Transient} or
- * {@link com.fasterxml.jackson.annotation.JsonIgnore}.
+ * When this annotation is present on a type, all properties of the class will be included when indexing, unless they
+ * are individually annotated with {@link SearchExclude(true)}.
  * <p>
- * Subclasses can re-enable indexing by specifying a {@link #value()} of {@code false} on the overridden property.
+ * Note that this annotation is an alias for {@link SearchExclude(false)} and has the same effect.
  */
-@Target({ElementType.ANNOTATION_TYPE, ElementType.METHOD, ElementType.FIELD})
+@Target({ElementType.ANNOTATION_TYPE, ElementType.METHOD, ElementType.FIELD, ElementType.TYPE})
 @Retention(RetentionPolicy.RUNTIME)
 @Documented
-public @interface SearchIgnore {
-    /**
-     * Optional argument that defines whether this annotation is active ({@code true}) or not ({@code false}).
-     */
-    boolean value() default true;
+@SearchExclude(false)
+public @interface SearchInclude {
 }
