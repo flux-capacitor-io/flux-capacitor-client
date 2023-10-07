@@ -246,11 +246,14 @@ public class ReflectionUtils {
         return false;
     }
 
+    public static List<Field> getAnnotatedFields(Class<?> target, Class<? extends Annotation> annotation) {
+        return FieldUtils.getAllFieldsList(target).stream().filter(f -> getFieldAnnotation(f, annotation).isPresent())
+                .toList();
+    }
+
     public static List<Field> getAnnotatedFields(Object target, Class<? extends Annotation> annotation) {
-        if (target == null) {
-            return emptyList();
-        }
-        return new ArrayList<>(FieldUtils.getFieldsListWithAnnotation(target.getClass(), annotation));
+        return target == null ? emptyList() :
+                getAnnotatedFields(target instanceof Class<?> t ? t : target.getClass(), annotation);
     }
 
     public static boolean isAnnotationPresent(Class<?> type, Class<? extends Annotation> annotationType) {
@@ -329,6 +332,19 @@ public class ReflectionUtils {
         }
     }
 
+    @SuppressWarnings("unchecked")
+    public static <T> Optional<T> getPropertyAnnotation(String propertyPath, Object target) {
+        if (target == null) {
+            return Optional.empty();
+        }
+        try {
+            return Optional.ofNullable(gettersCache.apply(target.getClass(), propertyPath).apply(target))
+                    .map(v -> (T) v);
+        } catch (PropertyNotFoundException ignored) {
+            return Optional.empty();
+        }
+    }
+
     public static boolean hasProperty(String propertyPath, Object target) {
         if (target == null) {
             return false;
@@ -376,8 +392,9 @@ public class ReflectionUtils {
 
     @SuppressWarnings("unchecked")
     public static <T> Optional<T> getFieldValue(String fieldName, Object target) {
-        return target == null ? Optional.empty() : getField(target instanceof Class<?> type ? type : target.getClass(), fieldName)
-                .map(f -> (T) getValue(f, target, true));
+        return target == null ? Optional.empty() :
+                getField(target instanceof Class<?> type ? type : target.getClass(), fieldName)
+                        .map(f -> (T) getValue(f, target, true));
     }
 
     @SneakyThrows
@@ -567,6 +584,18 @@ public class ReflectionUtils {
         return ReflectionUtils.class.getClassLoader().getDefinedPackage(parentName);
     }
 
+    public static <A extends Annotation> Optional<A> getMemberAnnotation(Class<?> type, String memberName, Class<A> a) {
+        return getAnnotatedMethods(type, a).stream().filter(m -> m.getName().equals(memberName)).findFirst()
+                .flatMap(m -> getMethodAnnotation(m, a)).or(() -> {
+                    String alias = memberName.startsWith("get") ? memberName.substring(3) :
+                            memberName.startsWith("is") ? memberName.substring(2) : memberName;
+                    return getAnnotatedFields(type, a).stream()
+                            .filter(f -> f.getName().equalsIgnoreCase(memberName) || f.getName()
+                                    .equalsIgnoreCase(alias)).findFirst()
+                            .flatMap(f -> ReflectionUtils.getFieldAnnotation(f, a));
+                });
+    }
+
     @Value
     private static class PropertyNotFoundException extends RuntimeException {
         @NonNull String propertyName;
@@ -708,8 +737,16 @@ public class ReflectionUtils {
         return false;
     }
 
+    public static <A extends Annotation> Optional<A> getFieldAnnotation(Field f, Class<A> a) {
+        return Optional.ofNullable(f.getAnnotation(a)).or(() -> stream(f.getAnnotations())
+                .map(metaAnnotation -> metaAnnotation.annotationType().getAnnotation(a))
+                .filter(Objects::nonNull).findFirst());
+    }
+
     /*
        Adopted from https://stackoverflow.com/questions/49105303/how-to-get-annotation-from-overridden-method-in-java/49164791
+       
+       Returns annotation or meta annotation.
     */
     public static <A extends Annotation> Optional<A> getMethodAnnotation(Executable m, Class<A> a) {
         A result = getTopLevelAnnotation(m, a);
@@ -734,7 +771,8 @@ public class ReflectionUtils {
     @SuppressWarnings("unchecked")
     private static <A extends Annotation> A getTopLevelAnnotation(Executable m, Class<A> a) {
         return Optional.ofNullable(m.getAnnotation(a)).orElseGet(() -> (A) stream(m.getAnnotations())
-                .filter(other -> other.annotationType().isAnnotationPresent(a)).findFirst().orElse(null));
+                .filter(metaAnnotation -> metaAnnotation.annotationType().isAnnotationPresent(a)).findFirst()
+                .orElse(null));
     }
 
     private static <A extends Annotation> A getAnnotationOnSuper(Executable m, Class<?> s, Class<A> a) {
