@@ -25,7 +25,7 @@ import java.lang.annotation.Target;
  * property is ignored, the document can't be matched using this property.
  * <p>
  * When this annotation is present on a type, all properties of the class will be ignored when indexing, unless they
- * are individually annotated with {@link SearchExclude(false) or {@link SearchInclude}}.
+ * are individually annotated with {@link SearchExclude}(false) or {@link SearchInclude}.
  * <p>
  * Note that the property is not lost when the document is serialized or deserialized. If that is the intention, make
  * the property transient instead, e.g. using an annotation like {@link java.beans.Transient} or
