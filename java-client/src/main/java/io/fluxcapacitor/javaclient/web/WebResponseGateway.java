@@ -52,7 +52,7 @@ public class WebResponseGateway implements ResultGateway {
             serializedMessage.setRequestId(requestId);
             return client.send(guarantee, serializedMessage);
         } catch (Exception e) {
-            throw new GatewayException(String.format("Failed to send response %s", response.getPayload()), e);
+            throw new GatewayException("Failed to send response " + response.getPayloadClass(), e);
         }
     }
 
