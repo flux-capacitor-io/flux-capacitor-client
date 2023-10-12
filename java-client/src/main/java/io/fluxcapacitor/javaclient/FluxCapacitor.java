@@ -20,6 +20,7 @@ import io.fluxcapacitor.common.Registration;
 import io.fluxcapacitor.common.ThrowingConsumer;
 import io.fluxcapacitor.common.ThrowingFunction;
 import io.fluxcapacitor.common.api.Metadata;
+import io.fluxcapacitor.common.api.search.SearchQuery;
 import io.fluxcapacitor.common.application.PropertySource;
 import io.fluxcapacitor.javaclient.common.IdentityProvider;
 import io.fluxcapacitor.javaclient.common.Message;
@@ -624,27 +625,35 @@ public interface FluxCapacitor extends AutoCloseable {
      *
      * @see DocumentStore for more advanced uses.
      */
-    static <T> CompletableFuture<Void> index(Collection<? extends T> objects, Object collection, Function<? super T, String> idFunction,
-                          Function<? super T, Instant> timestampFunction, Function<? super T, Instant> endFunction) {
+    static <T> CompletableFuture<Void> index(Collection<? extends T> objects, Object collection,
+                                             Function<? super T, String> idFunction,
+                                             Function<? super T, Instant> timestampFunction,
+                                             Function<? super T, Instant> endFunction) {
         return get().documentStore().index(objects, collection, idFunction, timestampFunction, endFunction);
     }
 
     /**
-     * Search the given collections for documents.
+     * Search the given collection for documents. Usually collection is the String name of the collection. However, it
+     * is also possible to call it with a {@link Collection} containing one or multiple collection names.
      * <p>
-     * Example usage: FluxCapacitor.search("myCollection", "myOtherCollection).query("foo !bar").fetch(100);
-     */
-    static Search search(Object collection, Object... additionalCollections) {
-        return get().documentStore().search(collection, additionalCollections);
-    }
-
-    /**
-     * Search the given collection for documents.
+     * If collection is of type {@link Class} it is expected that the class is annotated with
+     * {@link io.fluxcapacitor.javaclient.modeling.Searchable}. It will then use the collection configured there.
+     * <p>
+     * For all other inputs, the collection name will be obtained by calling {@link Object#toString()} on the input.
      * <p>
      * Example usage: FluxCapacitor.search("myCollection").query("foo !bar").fetch(100);
      */
     static Search search(Object collection) {
         return get().documentStore().search(collection);
+    }
+
+    /**
+     * Search documents using given reusable query builder.
+     * <p>
+     * Example usage: FluxCapacitor.search(SearchQuery.builder().search("myCollection").query("foo !bar")).fetch(100);
+     */
+    static Search search(SearchQuery.Builder queryBuilder) {
+        return get().documentStore().search(queryBuilder);
     }
 
     /**

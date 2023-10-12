@@ -25,8 +25,8 @@ import lombok.SneakyThrows;
 
 import java.time.Duration;
 import java.time.Instant;
-import java.util.Arrays;
 import java.util.Collection;
+import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Function;
@@ -164,14 +164,14 @@ public interface DocumentStore {
 
     CompletableFuture<Void> bulkUpdate(Collection<? extends BulkUpdate> updates, Guarantee guarantee);
 
-    default Search search(@NonNull Object collection, Object... additionalCollections) {
-        return search(SearchQuery.builder().collections(
-                Stream.concat(Stream.of(collection), Arrays.stream(additionalCollections))
-                        .map(c -> c instanceof Class<?> type ?
-                                getAnnotationAs(type, Searchable.class, SearchParameters.class)
-                                        .map(SearchParameters::getCollection)
-                                        .orElseThrow(() -> new IllegalArgumentException(
-                                                "Class is missing @Searchable: " + type)) : c.toString()).toList()));
+    default Search search(@NonNull Object collection) {
+        List<String> collections = (collection instanceof Collection<?> list ? list.stream() : Stream.of(collection))
+                .map(c -> c instanceof Class<?> type ?
+                        getAnnotationAs(type, Searchable.class, SearchParameters.class)
+                                .map(SearchParameters::getCollection)
+                                .orElseThrow(() -> new IllegalArgumentException(
+                                        "Class is missing @Searchable: " + type)) : c.toString()).toList();
+        return search(SearchQuery.builder().collections(collections));
     }
 
     Search search(SearchQuery.Builder queryBuilder);
