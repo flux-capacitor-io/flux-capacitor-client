@@ -648,6 +648,20 @@ public interface FluxCapacitor extends AutoCloseable {
     }
 
     /**
+     * Search the given collections for documents.
+     * <p>
+     * If collection is of type {@link Class} it is expected that the class is annotated with *
+     * {@link io.fluxcapacitor.javaclient.modeling.Searchable}. It will then use the collection configured there. For
+     * all other inputs, the collection name will be obtained by calling {@link Object#toString()} on the input.
+     * <p>
+     * Example usage: FluxCapacitor.search("myCollection", "myOtherCollection).query("foo !bar").fetch(100);
+     */
+    static Search search(Object collection, Object... additionalCollections) {
+        return get().documentStore()
+                .search(Stream.concat(Stream.of(collection), stream(additionalCollections)).toList());
+    }
+
+    /**
      * Search documents using given reusable query builder.
      * <p>
      * Example usage: FluxCapacitor.search(SearchQuery.builder().search("myCollection").query("foo !bar")).fetch(100);
