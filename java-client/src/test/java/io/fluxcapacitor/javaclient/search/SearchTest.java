@@ -21,7 +21,9 @@ import io.fluxcapacitor.common.api.search.Group;
 import io.fluxcapacitor.common.api.search.bulkupdate.DeleteDocument;
 import io.fluxcapacitor.common.api.search.bulkupdate.IndexDocument;
 import io.fluxcapacitor.common.serialization.JsonUtils;
+import io.fluxcapacitor.javaclient.FluxCapacitor;
 import io.fluxcapacitor.javaclient.common.serialization.jackson.JacksonSerializer;
+import io.fluxcapacitor.javaclient.modeling.Searchable;
 import io.fluxcapacitor.javaclient.persisting.search.SearchHit;
 import io.fluxcapacitor.javaclient.test.Given;
 import io.fluxcapacitor.javaclient.test.TestFixture;
@@ -36,6 +38,7 @@ import org.junit.jupiter.api.Test;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -506,6 +509,51 @@ public class SearchTest {
             testFixture.whenApplying(
                             fc -> fc.documentStore().search("test").sortBy("missing", true).fetchAll())
                     .expectResult(List.of(a, b));
+        }
+    }
+
+    @Nested
+    class MultipleCollections {
+        private final SomeDocument a = new SomeDocument().toBuilder().symbols("aaa").build();
+        private final SomeDocument b = new SomeDocument();
+
+        private final Given testFixture = TestFixture.create()
+                .givenDocument(a, "id1", "c1")
+                .givenDocument(b, "id2", "c2");
+
+        @Test
+        void searchListOfCollections() {
+            testFixture.whenApplying(fc -> FluxCapacitor.search(List.of("c1", "c2")).fetchAll())
+                    .<Collection<?>>expectResult(result -> result.contains(a) && result.contains(b));
+        }
+
+        @Test
+        void searchViaSearchable() {
+            @Searchable(collection = "c1")
+            class Annotated {
+            }
+            testFixture.whenApplying(fc -> FluxCapacitor.search(List.of(Annotated.class, "c2")).fetchAll())
+                    .<Collection<?>>expectResult(result -> result.contains(a) && result.contains(b));
+        }
+
+        @Test
+        void classWithoutSearchable() {
+            class NotAnnotated {
+            }
+            testFixture.whenApplying(
+                    fc -> FluxCapacitor.search(List.of(NotAnnotated.class, "c2")).fetchAll()).expectError();
+        }
+
+        @Test
+        void toStringIfOther() {
+            class C1 {
+                @Override
+                public String toString() {
+                    return "c1";
+                }
+            }
+            testFixture.whenApplying(fc -> FluxCapacitor.search(List.of(new C1(), "c2")).fetchAll())
+                    .<Collection<?>>expectResult(result -> result.contains(a) && result.contains(b));
         }
     }
 
