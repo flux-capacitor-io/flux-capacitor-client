@@ -73,12 +73,12 @@ public class WebSocketEventStoreClient extends AbstractWebsocketClient implement
         AtomicReference<Long> highestSequenceNumber = new AtomicReference<>();
         AtomicInteger fetchedSize = new AtomicInteger();
         GetEventsResult firstBatch = sendAndWait(new GetEvents(
-                aggregateId, lastSequenceNumber, maxSize < 0 ? fetchBatchSize : maxSize));
+                aggregateId, lastSequenceNumber, maxSize <= 0 ? fetchBatchSize : maxSize));
         Stream<SerializedMessage> eventStream = iterate(
                 firstBatch,
                 r -> sendAndWait(
                         new GetEvents(aggregateId, r.getLastSequenceNumber(),
-                                      maxSize < 0 ? fetchBatchSize : maxSize - fetchedSize.get())),
+                                      maxSize <= 0 ? fetchBatchSize : maxSize - fetchedSize.get())),
                 r -> r.getEventBatch().getEvents().size() < fetchBatchSize)
                 .flatMap(r -> {
                     if (!r.getEventBatch().isEmpty()) {
