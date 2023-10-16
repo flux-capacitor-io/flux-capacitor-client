@@ -82,7 +82,7 @@ public class InMemoryEventStoreClient extends InMemoryMessageStore implements Ev
     public AggregateEventStream<SerializedMessage> getEvents(String aggregateId, long lastSequenceNumber, int maxSize) {
         List<SerializedMessage> allEvents = appliedEvents.getOrDefault(aggregateId, Collections.emptyList());
         var section = allEvents.subList(Math.min(1 + (int) lastSequenceNumber, allEvents.size()), allEvents.size());
-        if (maxSize >= 0) {
+        if (maxSize > 0) {
             section = section.stream().limit(maxSize).toList();
         }
         long maxSequenceNumber = lastSequenceNumber + section.size();
