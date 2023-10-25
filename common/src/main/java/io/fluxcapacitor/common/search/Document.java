@@ -29,8 +29,9 @@ import org.apache.commons.lang3.StringUtils;
 
 import java.math.BigDecimal;
 import java.time.Instant;
-import java.util.AbstractMap;
+import java.util.Arrays;
 import java.util.Comparator;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -38,14 +39,12 @@ import java.util.function.Function;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
 import java.util.regex.Pattern;
-import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import static io.fluxcapacitor.common.ObjectUtils.memoize;
 import static io.fluxcapacitor.common.search.Document.EntryType.NUMERIC;
 import static java.util.Comparator.naturalOrder;
 import static java.util.stream.Collectors.joining;
-import static java.util.stream.Collectors.toMap;
 
 @Value
 @Builder(toBuilder = true)
@@ -75,15 +74,14 @@ public class Document {
     }
 
     public Document filterPaths(Predicate<Path> pathFilter) {
-        Map<Entry, List<Path>> filteredEntries = entries.entrySet().stream().flatMap(e -> {
-            List<Path> filtered = e.getValue().stream().filter(pathFilter).collect(Collectors.toList());
-            if (filtered.isEmpty()) {
-                return Stream.empty();
+        Map<Entry, List<Path>> result = new LinkedHashMap<>();
+        for (Map.Entry<Entry, List<Path>> e : entries.entrySet()) {
+            List<Path> filtered = e.getValue().stream().filter(pathFilter).toList();
+            if (!filtered.isEmpty()) {
+                result.put(e.getKey(), filtered);
             }
-            return Stream.of(e.getValue().size() == filtered.size()
-                                     ? e : new AbstractMap.SimpleEntry<>(e.getKey(), filtered));
-        }).collect(toMap(Map.Entry::getKey, Map.Entry::getValue));
-        return toBuilder().entries(filteredEntries).build();
+        }
+        return toBuilder().entries(result).build();
     }
 
     public Instant getEnd() {
@@ -144,9 +142,16 @@ public class Document {
         public static final Pattern dotPattern = Pattern.compile("(?<!\\\\)\\.");
 
         private static final Function<String, String[]> splitFunction = memoize(in -> splitPattern.split(in));
+        private static final Function<String, String> shortValueFunction = memoize(in -> split(in)
+                .filter(p -> !SearchUtils.isInteger(p))
+                .map(Path::unescapeFieldName)
+                .collect(joining("/")));
+        private static final Function<String, String> longValueFunction = memoize(in -> split(in)
+                .map(Path::unescapeFieldName)
+                .collect(joining("/")));
 
-        public static String[] split(String path) {
-            return splitFunction.apply(path);
+        public static Stream<String> split(String path) {
+            return Arrays.stream(splitFunction.apply(path));
         }
 
         public static String escapeFieldName(String fieldName) {
@@ -177,7 +182,7 @@ public class Document {
             }
             path = dotPattern.matcher(path).replaceAll("/");
             Predicate<String> predicate = SearchUtils.getGlobMatcher(path);
-            return splitPattern.splitAsStream(path).anyMatch(SearchUtils::isInteger)
+            return split(path).anyMatch(SearchUtils::isInteger)
                     ? p -> predicate.test(p.getLongValue()) : p -> predicate.test(p.getShortValue());
         }
 
@@ -187,18 +192,13 @@ public class Document {
         @Getter(lazy = true)
         @EqualsAndHashCode.Exclude
         @ToString.Exclude
-        String shortValue = splitPattern.splitAsStream(getValue())
-                .filter(p -> !SearchUtils.isInteger(p))
-                .map(Path::unescapeFieldName)
-                .collect(joining("/"));
+        String shortValue = shortValueFunction.apply(getValue());
 
         @JsonIgnore
         @Getter(lazy = true)
         @EqualsAndHashCode.Exclude
         @ToString.Exclude
-        String longValue = splitPattern.splitAsStream(getValue())
-                .map(Path::unescapeFieldName)
-                .collect(joining("/"));
+        String longValue = longValueFunction.apply(getValue());
 
     }
 

@@ -193,7 +193,7 @@ public class SearchUtils {
     public static boolean isInteger(String fieldName) {
         if (StringUtils.isNumeric(fieldName)) {
             try {
-                Integer.valueOf(fieldName);
+                Integer.parseInt(fieldName);
                 return true;
             } catch (Exception ignored) {
             }
