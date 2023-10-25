@@ -19,6 +19,6 @@ import java.util.UUID;
 public class UuidFactory implements IdentityProvider {
     @Override
     public String nextFunctionalId() {
-        return UUID.randomUUID().toString();
+        return UUID.randomUUID().toString().replace("-", "");
     }
 }

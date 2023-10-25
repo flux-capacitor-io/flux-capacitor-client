@@ -27,6 +27,6 @@ public interface IdentityProvider {
     String nextFunctionalId();
 
     default String nextTechnicalId(){
-        return UUID.randomUUID().toString();
+        return UUID.randomUUID().toString().replace("-", "");
     }
 }
