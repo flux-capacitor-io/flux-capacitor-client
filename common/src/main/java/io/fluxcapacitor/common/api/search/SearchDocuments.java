@@ -27,7 +27,7 @@ import java.util.List;
 import java.util.function.Predicate;
 
 import static io.fluxcapacitor.common.search.Document.Path.dotPattern;
-import static io.fluxcapacitor.common.search.Document.Path.splitPattern;
+import static io.fluxcapacitor.common.search.Document.Path.split;
 
 @EqualsAndHashCode(callSuper = true)
 @Value
@@ -47,7 +47,7 @@ public class SearchDocuments extends Request {
                     path = dotPattern.matcher(path).replaceAll("/");
                     Predicate<String> predicate = SearchUtils.getGlobMatcher(path + "/**")
                             .or(SearchUtils.getGlobMatcher(path)).negate();
-                    return splitPattern.splitAsStream(path).anyMatch(SearchUtils::isInteger)
+                    return split(path).anyMatch(SearchUtils::isInteger)
                             ? p -> predicate.test(p.getLongValue()) : p -> predicate.test(p.getShortValue());
                 }).reduce(Predicate::and).orElse(p -> true);
         Predicate<Path> includeFilter = pathFilters.stream().filter(p -> !p.startsWith("-"))
@@ -55,7 +55,7 @@ public class SearchDocuments extends Request {
                     path = dotPattern.matcher(path).replaceAll("/");
                     Predicate<String> predicate = SearchUtils.getGlobMatcher(path + "/**")
                             .or(SearchUtils.getGlobMatcher(path));
-                    return splitPattern.splitAsStream(path).anyMatch(SearchUtils::isInteger)
+                    return split(path).anyMatch(SearchUtils::isInteger)
                             ? p -> predicate.test(p.getLongValue()) : p -> predicate.test(p.getShortValue());
                 }).reduce(Predicate::or).orElse(p -> true);
         return includeFilter.and(excludeFilter);

@@ -43,7 +43,6 @@ import java.lang.reflect.Member;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -228,7 +227,7 @@ public class JacksonInverter implements Inverter<JsonNode> {
             }
             paths.forEach(path -> {
                 Map<Object, Object> parent = tree;
-                Iterator<String> iterator = Arrays.stream(Path.split(path.getValue())).iterator();
+                Iterator<String> iterator = Path.split(path.getValue()).iterator();
                 while (iterator.hasNext()) {
                     var segment = asIntegerOrString(iterator.next());
                     if (iterator.hasNext()) {
