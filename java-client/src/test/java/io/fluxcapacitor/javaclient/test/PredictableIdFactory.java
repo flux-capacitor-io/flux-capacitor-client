@@ -16,6 +16,7 @@ package io.fluxcapacitor.javaclient.test;
 
 import io.fluxcapacitor.javaclient.common.IdentityProvider;
 
+import java.util.UUID;
 import java.util.concurrent.atomic.AtomicInteger;
 
 public class PredictableIdFactory implements IdentityProvider {
@@ -25,5 +26,10 @@ public class PredictableIdFactory implements IdentityProvider {
     @Override
     public String nextFunctionalId() {
         return Integer.toString(next.getAndIncrement());
+    }
+
+    @Override
+    public String nextTechnicalId() {
+        return UUID.randomUUID().toString();
     }
 }

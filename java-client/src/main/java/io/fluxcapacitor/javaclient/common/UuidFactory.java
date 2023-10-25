@@ -14,11 +14,21 @@
 
 package io.fluxcapacitor.javaclient.common;
 
+import lombok.AllArgsConstructor;
+
 import java.util.UUID;
 
+@AllArgsConstructor
 public class UuidFactory implements IdentityProvider {
+    private final boolean removeDashes;
+
+    public UuidFactory() {
+        this(true);
+    }
+
     @Override
     public String nextFunctionalId() {
-        return UUID.randomUUID().toString().replace("-", "");
+        String id = UUID.randomUUID().toString();
+        return removeDashes ? id.replace("-", "") : id;
     }
 }
