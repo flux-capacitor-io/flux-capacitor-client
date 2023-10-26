@@ -14,6 +14,7 @@
 
 package io.fluxcapacitor.javaclient.persisting.caching;
 
+import io.fluxcapacitor.common.caching.DefaultCache;
 import io.fluxcapacitor.javaclient.common.DirectExecutor;
 import lombok.SneakyThrows;
 import org.junit.jupiter.api.Assertions;

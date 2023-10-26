@@ -15,6 +15,8 @@
 package io.fluxcapacitor.javaclient.persisting.caching;
 
 import io.fluxcapacitor.common.ObjectUtils;
+import io.fluxcapacitor.common.caching.CacheEvictionEvent;
+import io.fluxcapacitor.common.caching.DefaultCache;
 import io.fluxcapacitor.javaclient.common.DirectExecutor;
 import lombok.SneakyThrows;
 import org.junit.jupiter.api.BeforeEach;
@@ -27,9 +29,9 @@ import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CountDownLatch;
 
-import static io.fluxcapacitor.javaclient.persisting.caching.CacheEvictionEvent.Reason.manual;
-import static io.fluxcapacitor.javaclient.persisting.caching.CacheEvictionEvent.Reason.memoryPressure;
-import static io.fluxcapacitor.javaclient.persisting.caching.CacheEvictionEvent.Reason.size;
+import static io.fluxcapacitor.common.caching.CacheEvictionEvent.Reason.manual;
+import static io.fluxcapacitor.common.caching.CacheEvictionEvent.Reason.memoryPressure;
+import static io.fluxcapacitor.common.caching.CacheEvictionEvent.Reason.size;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -196,7 +198,7 @@ class DefaultCacheTest {
         @Test
         void simulatedMemoryEviction() {
             subject.put("a", new Object());
-            Reference<?> ref = subject.valueMap.get("a");
+            Reference<?> ref = subject.getValueMap().get("a");
             ref.clear();
             ref.enqueue();
             Thread.sleep(10);

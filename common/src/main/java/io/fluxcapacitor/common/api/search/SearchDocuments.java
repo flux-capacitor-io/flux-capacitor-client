@@ -26,36 +26,38 @@ import java.util.Collections;
 import java.util.List;
 import java.util.function.Predicate;
 
-import static io.fluxcapacitor.common.search.Document.Path.dotPattern;
-import static io.fluxcapacitor.common.search.Document.Path.split;
+import static io.fluxcapacitor.common.search.Document.Path.isLongPath;
+import static io.fluxcapacitor.common.search.Document.Path.normalizeQueryPath;
 
 @EqualsAndHashCode(callSuper = true)
 @Value
 @Builder(toBuilder = true)
 public class SearchDocuments extends Request {
-    @Default SearchQuery query = SearchQuery.builder().build();
-    @Default List<String> sorting = Collections.emptyList();
+    @Default
+    SearchQuery query = SearchQuery.builder().build();
+    @Default
+    List<String> sorting = Collections.emptyList();
     Integer maxSize;
-    @Default List<String> pathFilters = Collections.emptyList();
+    @Default
+    List<String> pathFilters = Collections.emptyList();
     int skip;
     SerializedDocument lastHit;
 
     public Predicate<Path> computePathFilter() {
         Predicate<Path> excludeFilter = pathFilters.stream().filter(p -> p.startsWith("-"))
                 .<Predicate<Path>>map(path -> {
-                    path = path.substring(1);
-                    path = dotPattern.matcher(path).replaceAll("/");
+                    path = normalizeQueryPath(path.substring(1));
                     Predicate<String> predicate = SearchUtils.getGlobMatcher(path + "/**")
                             .or(SearchUtils.getGlobMatcher(path)).negate();
-                    return split(path).anyMatch(SearchUtils::isInteger)
+                    return isLongPath(path)
                             ? p -> predicate.test(p.getLongValue()) : p -> predicate.test(p.getShortValue());
                 }).reduce(Predicate::and).orElse(p -> true);
         Predicate<Path> includeFilter = pathFilters.stream().filter(p -> !p.startsWith("-"))
                 .<Predicate<Path>>map(path -> {
-                    path = dotPattern.matcher(path).replaceAll("/");
+                    path = normalizeQueryPath(path);
                     Predicate<String> predicate = SearchUtils.getGlobMatcher(path + "/**")
                             .or(SearchUtils.getGlobMatcher(path));
-                    return split(path).anyMatch(SearchUtils::isInteger)
+                    return isLongPath(path)
                             ? p -> predicate.test(p.getLongValue()) : p -> predicate.test(p.getShortValue());
                 }).reduce(Predicate::or).orElse(p -> true);
         return includeFilter.and(excludeFilter);
