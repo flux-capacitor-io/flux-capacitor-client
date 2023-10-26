@@ -63,8 +63,8 @@ public class Document {
     @ToString.Exclude
     Supplier<String> summary;
 
-    public Optional<Entry> getEntryAtPath(String path) {
-        return getMatchingEntries(Path.pathPredicate(path)).findFirst();
+    public Optional<Entry> getEntryAtPath(String queryPath) {
+        return getMatchingEntries(Path.pathPredicate(queryPath)).findFirst();
     }
 
     public Stream<Entry> getMatchingEntries(Predicate<Path> pathPredicate) {
@@ -101,8 +101,8 @@ public class Document {
                     return Comparator.comparing(Document::getEnd, Comparator.nullsLast(naturalOrder()));
                 default:
                     boolean reversed = s.startsWith("-");
-                    String path = reversed ? s.substring(1) : s;
-                    Predicate<Path> pathPredicate = Path.pathPredicate(path);
+                    String queryPath = reversed ? s.substring(1) : s;
+                    Predicate<Path> pathPredicate = Path.pathPredicate(queryPath);
                     Comparator<Document> valueComparator =
                             Comparator.nullsLast(Comparator.comparing(d -> {
                                 Stream<Entry> matchingEntries = d.getMatchingEntries(pathPredicate);
@@ -138,20 +138,24 @@ public class Document {
 
     @Value
     public static class Path {
-        public static final Pattern splitPattern = Pattern.compile("(?<!\\\\)/");
-        public static final Pattern dotPattern = Pattern.compile("(?<!\\\\)\\.");
+        private static final Pattern splitPattern = Pattern.compile("(?<!\\\\)/");
+        private static final Pattern dotPattern = Pattern.compile("(?<!\\\\)\\.");
 
         private static final Function<String, String[]> splitFunction = memoize(in -> splitPattern.split(in));
-        private static final Function<String, String> shortValueFunction = memoize(in -> split(in)
-                .filter(p -> !SearchUtils.isInteger(p))
-                .map(Path::unescapeFieldName)
-                .collect(joining("/")));
-        private static final Function<String, String> longValueFunction = memoize(in -> split(in)
-                .map(Path::unescapeFieldName)
-                .collect(joining("/")));
+        private static final Function<String, String> shortValueFunction = memoize(in -> Arrays.stream(
+                splitPattern.split(in))
+                .filter(p -> !SearchUtils.isInteger(p)).map(Path::unescapeFieldName).collect(joining("/")));
 
         public static Stream<String> split(String path) {
             return Arrays.stream(splitFunction.apply(path));
+        }
+
+        public static String normalizeQueryPath(String queryPath) {
+            return queryPath == null ? null : dotPattern.matcher(queryPath).replaceAll("/");
+        }
+
+        public static boolean isLongPath(String queryPath) {
+            return split(queryPath).anyMatch(SearchUtils::isInteger);
         }
 
         public static String escapeFieldName(String fieldName) {
@@ -176,13 +180,13 @@ public class Document {
             return fieldName;
         }
 
-        public static Predicate<Path> pathPredicate(String path) {
-            if (path == null) {
+        public static Predicate<Path> pathPredicate(String queryPath) {
+            if (queryPath == null) {
                 return p -> true;
             }
-            path = dotPattern.matcher(path).replaceAll("/");
-            Predicate<String> predicate = SearchUtils.getGlobMatcher(path);
-            return split(path).anyMatch(SearchUtils::isInteger)
+            queryPath = normalizeQueryPath(queryPath);
+            Predicate<String> predicate = SearchUtils.getGlobMatcher(queryPath);
+            return isLongPath(queryPath)
                     ? p -> predicate.test(p.getLongValue()) : p -> predicate.test(p.getShortValue());
         }
 
@@ -198,7 +202,8 @@ public class Document {
         @Getter(lazy = true)
         @EqualsAndHashCode.Exclude
         @ToString.Exclude
-        String longValue = longValueFunction.apply(getValue());
+        String longValue = Arrays.stream(splitPattern.split(getValue())).map(Path::unescapeFieldName)
+                .collect(joining("/"));
 
     }
 

@@ -16,13 +16,13 @@ package io.fluxcapacitor.javaclient.configuration;
 
 import io.fluxcapacitor.common.MessageType;
 import io.fluxcapacitor.common.application.PropertySource;
+import io.fluxcapacitor.common.caching.Cache;
 import io.fluxcapacitor.common.handling.ParameterResolver;
 import io.fluxcapacitor.javaclient.FluxCapacitor;
 import io.fluxcapacitor.javaclient.common.IdentityProvider;
 import io.fluxcapacitor.javaclient.common.serialization.DeserializingMessage;
 import io.fluxcapacitor.javaclient.common.serialization.Serializer;
 import io.fluxcapacitor.javaclient.configuration.client.Client;
-import io.fluxcapacitor.javaclient.persisting.caching.Cache;
 import io.fluxcapacitor.javaclient.persisting.search.DocumentSerializer;
 import io.fluxcapacitor.javaclient.publishing.DispatchInterceptor;
 import io.fluxcapacitor.javaclient.publishing.correlation.CorrelationDataProvider;

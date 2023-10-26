@@ -12,11 +12,12 @@
  * limitations under the License.
  */
 
-package io.fluxcapacitor.javaclient.persisting.caching;
+package io.fluxcapacitor.common.caching;
 
 
 import io.fluxcapacitor.common.Registration;
 import lombok.AllArgsConstructor;
+import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 
 import java.lang.ref.Reference;
@@ -36,16 +37,17 @@ import java.util.function.Consumer;
 import java.util.function.Function;
 
 import static io.fluxcapacitor.common.ObjectUtils.newThreadFactory;
-import static io.fluxcapacitor.javaclient.persisting.caching.CacheEvictionEvent.Reason.manual;
-import static io.fluxcapacitor.javaclient.persisting.caching.CacheEvictionEvent.Reason.memoryPressure;
-import static io.fluxcapacitor.javaclient.persisting.caching.CacheEvictionEvent.Reason.size;
+import static io.fluxcapacitor.common.caching.CacheEvictionEvent.Reason.manual;
+import static io.fluxcapacitor.common.caching.CacheEvictionEvent.Reason.memoryPressure;
+import static io.fluxcapacitor.common.caching.CacheEvictionEvent.Reason.size;
 
 @AllArgsConstructor
 @Slf4j
 public class DefaultCache implements Cache {
     protected static final String mutexPrecursor = "$DC$";
 
-    final Map<Object, CacheReference> valueMap;
+    @Getter
+    private final Map<Object, CacheReference> valueMap;
 
     private final Executor evictionNotifier;
     private final Collection<Consumer<CacheEvictionEvent>> evictionListeners = new CopyOnWriteArrayList<>();

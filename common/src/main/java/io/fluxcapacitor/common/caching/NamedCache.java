@@ -12,7 +12,7 @@
  * limitations under the License.
  */
 
-package io.fluxcapacitor.javaclient.persisting.caching;
+package io.fluxcapacitor.common.caching;
 
 import io.fluxcapacitor.common.Registration;
 import lombok.AllArgsConstructor;
