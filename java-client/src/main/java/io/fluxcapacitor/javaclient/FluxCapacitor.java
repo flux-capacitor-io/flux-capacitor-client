@@ -406,6 +406,24 @@ public interface FluxCapacitor extends AutoCloseable {
     }
 
     /**
+     * Schedules a message after the given delay, returning the schedule's id. The {@code schedule} parameter may be
+     * an instance of a {@link Message} in which case it will be scheduled as is. Otherwise, the schedule is published
+     * using the passed value as payload without additional metadata.
+     */
+    static String schedule(Object schedule, Duration delay) {
+        return get().scheduler().schedule(schedule, delay);
+    }
+
+    /**
+     * Schedules a message with given {@code scheduleId} after given delay. The {@code schedule} parameter may be
+     * an instance of a {@link Message} in which case it will be scheduled as is. Otherwise, the schedule is published
+     * using the passed value as payload without additional metadata.
+     */
+    static void schedule(Object schedule, String scheduleId, Duration delay) {
+        get().scheduler().schedule(schedule, scheduleId, delay);
+    }
+
+    /**
      * Schedules a command for the given timestamp, returning the command schedule's id. The {@code command} parameter
      * may be an instance of a {@link Message} in which case it will be scheduled as is. Otherwise, the command is
      * scheduled using the passed value as payload without additional metadata.
