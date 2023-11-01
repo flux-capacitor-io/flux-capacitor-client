@@ -219,14 +219,21 @@ public class DefaultDocumentStore implements DocumentStore {
         }
 
         @Override
-        public Search inPeriod(Instant start, Instant endExclusive, boolean requireTimestamp) {
-            if (start != null) {
-                queryBuilder.since(start);
-            }
-            if (endExclusive != null) {
-                queryBuilder.before(endExclusive);
-            }
-            queryBuilder.requireTimestamp(requireTimestamp);
+        public Search since(Instant start) {
+            queryBuilder.since(start);
+            return this;
+        }
+
+        @Override
+        public Search before(Instant endExclusive) {
+            queryBuilder.before(endExclusive);
+            return this;
+        }
+
+        @Override
+        public Search inPeriod(Instant start, Instant endExclusive) {
+            queryBuilder.since(start);
+            queryBuilder.before(endExclusive);
             return this;
         }
 

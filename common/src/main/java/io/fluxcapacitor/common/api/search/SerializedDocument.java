@@ -78,6 +78,10 @@ public class SerializedDocument {
         this.summary = summary;
     }
 
+    public Long getEnd() {
+        return end == null || timestamp == null || end > timestamp ? end : timestamp;
+    }
+
     public Data<byte[]> getDocument() {
         return data.get();
     }

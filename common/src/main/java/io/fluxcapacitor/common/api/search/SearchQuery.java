@@ -38,7 +38,6 @@ public class SearchQuery {
     @Singular
     List<String> collections;
     Instant since, before;
-    boolean requireTimestamp;
     @Singular
     List<Constraint> constraints;
 
@@ -51,7 +50,7 @@ public class SearchQuery {
 
     @lombok.Builder(toBuilder = true, builderClassName = "Builder")
     @Jacksonized
-    public SearchQuery(List<String> collections, Instant since, Instant before, boolean requireTimestamp,
+    public SearchQuery(List<String> collections, Instant since, Instant before,
                        List<Constraint> constraints) {
         if (collections.isEmpty()) {
             throw new IllegalArgumentException("Collections should not be empty");
@@ -59,16 +58,16 @@ public class SearchQuery {
         this.collections = collections;
         this.since = since;
         this.before = before;
-        this.requireTimestamp = requireTimestamp;
         this.constraints = constraints;
+    }
+
+    public Instant getBefore() {
+        return before == null || since == null || before.isAfter(since) ? before : since;
     }
 
     @SuppressWarnings("RedundantIfStatement")
     public boolean matches(Document d) {
         if (!decomposeConstraints().matches(d)) {
-            return false;
-        }
-        if (requireTimestamp && d.getEnd() == null && d.getTimestamp() == null) {
             return false;
         }
         if (since != null && d.getEnd() != null && d.getEnd().compareTo(since) < 0) {

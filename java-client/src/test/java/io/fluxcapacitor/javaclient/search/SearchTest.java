@@ -370,80 +370,80 @@ public class SearchTest {
         @Test
         void searchPeriodBeforeAndAfterDocument() {
             testFixture.whenSearching("foobar",
-                                      s -> s.inPeriod(documentStart.minusSeconds(1), documentEnd.plusSeconds(1), true)
+                                      s -> s.inPeriod(documentStart.minusSeconds(1), documentEnd.plusSeconds(1))
             ).<List<?>>expectResult(docs -> docs.size() == 1);
         }
 
         @Test
         void searchPeriodStartsBeforeDocument() {
             testFixture.whenSearching("foobar",
-                                      s -> s.inPeriod(documentStart.minusSeconds(1), documentEnd.minusSeconds(1), true)
+                                      s -> s.inPeriod(documentStart.minusSeconds(1), documentEnd.minusSeconds(1))
             ).<List<?>>expectResult(docs -> docs.size() == 1);
         }
 
         @Test
         void searchPeriodEndsAfterDocument() {
             testFixture.whenSearching("foobar",
-                                      s -> s.inPeriod(documentStart.plusSeconds(1), documentEnd.plusSeconds(1), true)
+                                      s -> s.inPeriod(documentStart.plusSeconds(1), documentEnd.plusSeconds(1))
             ).<List<?>>expectResult(docs -> docs.size() == 1);
         }
 
         @Test
         void searchPeriodFallsWithinThatOfDocument() {
             testFixture.whenSearching("foobar",
-                                      s -> s.inPeriod(documentStart.plusSeconds(1), documentEnd.minusSeconds(1), true)
+                                      s -> s.inPeriod(documentStart.plusSeconds(1), documentEnd.minusSeconds(1))
             ).<List<?>>expectResult(docs -> docs.size() == 1);
         }
 
         @Test
         void searchPeriodBeforeThatOfDocument() {
             testFixture.whenSearching("foobar",
-                                      s -> s.inPeriod(documentStart.minusSeconds(5), documentStart.minusSeconds(1), true)
-            ).<List<?>>expectResult(docs -> docs.size() == 0);
+                                      s -> s.inPeriod(documentStart.minusSeconds(5), documentStart.minusSeconds(1))
+            ).<List<?>>expectResult(List::isEmpty);
         }
 
         @Test
         void searchPeriodAfterThatOfDocument() {
             testFixture.whenSearching("foobar",
-                                      s -> s.inPeriod(documentEnd.plusSeconds(1), documentEnd.plusSeconds(5), true)
-            ).<List<?>>expectResult(docs -> docs.size() == 0);
+                                      s -> s.inPeriod(documentEnd.plusSeconds(1), documentEnd.plusSeconds(5))
+            ).<List<?>>expectResult(List::isEmpty);
         }
 
         @Test
         void searchPeriodStartsAtEndOfDocument() {
             testFixture.whenSearching("foobar",
-                                      s -> s.inPeriod(documentEnd, documentEnd.plusSeconds(5), true)
+                                      s -> s.inPeriod(documentEnd, documentEnd.plusSeconds(5))
             ).<List<?>>expectResult(docs -> docs.size() == 1);
         }
 
         @Test
         void searchPeriodEndsAtStartOfDocument() {
             testFixture.whenSearching("foobar",
-                                      s -> s.inPeriod(documentStart.minusSeconds(1), documentStart, true)
-            ).<List<?>>expectResult(docs -> docs.size() == 0);
+                                      s -> s.inPeriod(documentStart.minusSeconds(1), documentStart)
+            ).<List<?>>expectResult(List::isEmpty);
         }
 
         @Test
         void noDocumentEndTimestamp() {
             TestFixture.create().givenDocument(new SomeDocument(), "testId", "foobar", documentStart, null)
                     .whenSearching("foobar",
-                                      s -> s.inPeriod(documentStart.minusSeconds(1), documentStart.plusSeconds(1), true)
+                                      s -> s.inPeriod(documentStart.minusSeconds(1), documentStart.plusSeconds(1))
             ).<List<?>>expectResult(docs -> docs.size() == 1);
             TestFixture.create().givenDocument(new SomeDocument(), "testId", "foobar", documentStart, null)
                     .whenSearching("foobar",
-                                   s -> s.inPeriod(documentStart.minusSeconds(1), documentStart, true)
-                    ).<List<?>>expectResult(docs -> docs.size() == 0);
+                                   s -> s.inPeriod(documentStart.minusSeconds(1), documentStart)
+                    ).<List<?>>expectResult(List::isEmpty);
         }
 
         @Test
         void noDocumentStartTimestamp() {
             TestFixture.create().givenDocument(new SomeDocument(), "testId", "foobar", null, documentEnd)
                     .whenSearching("foobar",
-                                   s -> s.inPeriod(documentStart.minusSeconds(1), documentEnd.plusSeconds(1), false)
+                                   s -> s.inPeriod(documentStart.minusSeconds(1), documentEnd.plusSeconds(1))
                     ).<List<?>>expectResult(docs -> docs.size() == 1);
             TestFixture.create().givenDocument(new SomeDocument(), "testId", "foobar", null, documentEnd)
                     .whenSearching("foobar",
-                                   s -> s.inPeriod(documentStart.minusSeconds(1), documentEnd.plusSeconds(1), true)
+                                   s -> s.inPeriod(documentStart.minusSeconds(1), documentEnd.plusSeconds(1))
                     ).<List<?>>expectResult(docs -> docs.size() == 1);
         }
 
@@ -451,12 +451,12 @@ public class SearchTest {
         void noDocumentStartAndEndTimestamp() {
             TestFixture.create().givenDocument(new SomeDocument(), "testId", "foobar", null, null)
                     .whenSearching("foobar",
-                                   s -> s.inPeriod(documentStart.minusSeconds(1), documentEnd.plusSeconds(1), false)
+                                   s -> s.inPeriod(documentStart.minusSeconds(1), documentEnd.plusSeconds(1))
                     ).<List<?>>expectResult(docs -> docs.size() == 1);
             TestFixture.create().givenDocument(new SomeDocument(), "testId", "foobar", null, null)
                     .whenSearching("foobar",
-                                   s -> s.inPeriod(documentStart.minusSeconds(1), documentEnd.plusSeconds(1), true)
-                    ).<List<?>>expectResult(docs -> docs.size() == 0);
+                                   s -> s.inPeriod(documentStart.minusSeconds(1), documentEnd.plusSeconds(1))
+                    ).<List<?>>expectResult(l -> !l.isEmpty());
         }
     }
 
