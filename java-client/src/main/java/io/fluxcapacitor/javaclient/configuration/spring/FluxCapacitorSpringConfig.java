@@ -109,6 +109,7 @@ public class FluxCapacitorSpringConfig implements BeanPostProcessor {
         userProvider.ifPresent(builder::registerUserProvider);
         cache.ifPresent(builder::replaceCache);
         builder.addPropertySource(new SpringPropertySource(environment));
+        builder.addParameterResolver(new SpringBeanParameterResolver(context));
         return builder;
     }
 
