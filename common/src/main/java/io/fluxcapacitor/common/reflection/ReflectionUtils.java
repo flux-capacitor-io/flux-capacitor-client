@@ -29,6 +29,7 @@ import java.beans.PropertyDescriptor;
 import java.lang.annotation.Annotation;
 import java.lang.invoke.MethodType;
 import java.lang.reflect.AccessibleObject;
+import java.lang.reflect.AnnotatedElement;
 import java.lang.reflect.AnnotatedType;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Executable;
@@ -676,8 +677,8 @@ public class ReflectionUtils {
         return getAnnotationAs(getTypeAnnotation(target, annotationType), annotationType, returnType);
     }
 
-    public static <T> Optional<T> getAnnotationAs(AccessibleObject member,
-                                                  Class<? extends Annotation> annotationType, Class<T> returnType) {
+    public static <T> Optional<T> getAnnotationAs(AnnotatedElement member,
+                                                  Class<? extends Annotation> annotationType, Class<? extends T> returnType) {
         Annotation annotation;
         if (member instanceof Method method) {
             annotation = getMethodAnnotation(method, annotationType).orElse(null);
@@ -685,6 +686,8 @@ public class ReflectionUtils {
             annotation = field.getAnnotation(annotationType);
         } else if (member instanceof Constructor<?> constructor) {
             annotation = constructor.getAnnotation(annotationType);
+        } else if (member instanceof Parameter parameter) {
+            annotation = parameter.getAnnotation(annotationType);
         } else {
             annotation = null;
         }
@@ -694,7 +697,7 @@ public class ReflectionUtils {
     @SneakyThrows
     @SuppressWarnings("unchecked")
     public static <T> Optional<T> getAnnotationAs(Annotation annotation,
-                                                  Class<? extends Annotation> targetAnnotation, Class<T> returnType) {
+                                                  Class<? extends Annotation> targetAnnotation, Class<? extends T> returnType) {
         if (targetAnnotation == null) {
             return Optional.empty();
         }

@@ -140,7 +140,8 @@ public class FluxCapacitorSpringConfigTest {
         }
 
         @HandleCommand
-        void handle(AggregateCommand command) {
+        void handle(AggregateCommand command, @Autowired UserProvider userProvider) {
+            assertNotNull(userProvider, "User provider should have been injected");
             FluxCapacitor.loadAggregate("whatever", Object.class).assertAndApply(command);
         }
     }
