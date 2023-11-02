@@ -15,16 +15,16 @@
 package io.fluxcapacitor.javaclient.configuration.spring;
 
 import io.fluxcapacitor.common.handling.ParameterResolver;
+import io.fluxcapacitor.common.reflection.ReflectionUtils;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.config.ConfigurableListableBeanFactory;
 import org.springframework.context.ApplicationContext;
 
 import java.lang.annotation.Annotation;
 import java.lang.reflect.Parameter;
-import java.util.Arrays;
-import java.util.List;
 import java.util.function.Function;
 import java.util.function.UnaryOperator;
 
@@ -34,7 +34,6 @@ import static org.springframework.beans.factory.annotation.BeanFactoryAnnotation
 @RequiredArgsConstructor
 @Slf4j
 public class SpringBeanParameterResolver implements ParameterResolver<Object> {
-    private static final List<String> annotationNames = List.of("Inject", "Autowired");
     private final Function<Parameter, UnaryOperator<Object>> resolverFunction = memoize(this::computeParameterResolver);
 
     private final ApplicationContext applicationContext;
@@ -46,15 +45,13 @@ public class SpringBeanParameterResolver implements ParameterResolver<Object> {
 
     @Override
     public boolean matches(Parameter parameter, Annotation methodAnnotation, Object value, Object target) {
-        return Arrays.stream(parameter.getAnnotations())
-                       .anyMatch(a -> annotationNames.contains(a.annotationType().getSimpleName()))
-               && resolverFunction.apply(parameter) != null;
+        return ReflectionUtils.has(Autowired.class, parameter);
     }
 
     protected UnaryOperator<Object> computeParameterResolver(Parameter p) {
         String[] beanNames = applicationContext.getBeanNamesForType(p.getType());
         return switch (beanNames.length) {
-            case 0 -> null;
+            case 0 -> v -> null;
             case 1 -> {
                 String beanName = beanNames[0];
                 yield v -> applicationContext.getAutowireCapableBeanFactory().getBean(beanName);
@@ -78,7 +75,7 @@ public class SpringBeanParameterResolver implements ParameterResolver<Object> {
                 log.warn("{} beans of type {} were detected. However, none of them were designated as primary, "
                          + "and the parameter lacks @Qualifier. Consequently, this parameter will not be injected.",
                          beanNames.length, p.getType().getSimpleName());
-                yield null;
+                yield v -> null;
             }
         };
     }
