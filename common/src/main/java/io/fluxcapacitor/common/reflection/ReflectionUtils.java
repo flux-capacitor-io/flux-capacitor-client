@@ -780,11 +780,15 @@ public class ReflectionUtils {
 
     private static <A extends Annotation> A getAnnotationOnSuper(Executable m, Class<?> s, Class<A> a) {
         try {
-            Method n = s.getDeclaredMethod(m.getName(), m.getParameterTypes());
-            return overrides(m, n) ? getTopLevelAnnotation(n, a) : null;
+            for (Method n : s.getDeclaredMethods()) {
+                if (n.getName().equals(m.getName()) && n.getParameterCount() == m.getParameterCount()) {
+                    n = s.getDeclaredMethod(m.getName(), m.getParameterTypes());
+                    return overrides(m, n) ? getTopLevelAnnotation(n, a) : null;
+                }
+            }
         } catch (NoSuchMethodException ignored) {
-            return null;
         }
+        return null;
     }
 
     private static boolean overrides(Executable a, Executable b) {
