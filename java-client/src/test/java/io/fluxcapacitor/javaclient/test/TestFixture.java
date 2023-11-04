@@ -160,7 +160,8 @@ public class TestFixture implements Given, When {
 
     private volatile Message tracedMessage;
     private final Map<ActiveConsumer, List<Message>> consumers = new ConcurrentHashMap<>();
-    private final List<Message> commands = new CopyOnWriteArrayList<>(), events = new CopyOnWriteArrayList<>(),
+    private final List<Message> commands = new CopyOnWriteArrayList<>(), queries = new CopyOnWriteArrayList<>(),
+            events = new CopyOnWriteArrayList<>(),
             webRequests = new CopyOnWriteArrayList<>(), webResponses = new CopyOnWriteArrayList<>(), metrics =
             new CopyOnWriteArrayList<>();
     private final List<Schedule> schedules = new CopyOnWriteArrayList<>();
@@ -535,7 +536,7 @@ public class TestFixture implements Given, When {
                     result = e;
                 }
                 waitForConsumers();
-                return getResultValidator(result, commands, events, schedules, getFutureSchedules(), errors, metrics);
+                return getResultValidator(result, commands, queries, events, schedules, getFutureSchedules(), errors, metrics);
             } finally {
                 handleExpiredSchedulesLocally();
             }
@@ -546,10 +547,11 @@ public class TestFixture implements Given, When {
         helper
      */
 
-    protected Then getResultValidator(Object result, List<Message> commands, List<Message> events,
-                                      List<Schedule> schedules, List<Schedule> allSchedules,
+    protected Then getResultValidator(Object result, List<Message> commands, List<Message> queries,
+                                      List<Message> events, List<Schedule> schedules, List<Schedule> allSchedules,
                                       List<Throwable> errors, List<Message> metrics) {
-        return new ResultValidator(getFluxCapacitor(), result, events, commands, webRequests, webResponses, metrics,
+        return new ResultValidator(getFluxCapacitor(), result, events, commands, queries,
+                                   webRequests, webResponses, metrics,
                                    schedules,
                                    allSchedules.stream().filter(
                                            s -> s.getDeadline().isAfter(getCurrentTime())).collect(toList()),
@@ -636,6 +638,10 @@ public class TestFixture implements Given, When {
 
     protected void registerCommand(Message command) {
         commands.add(command);
+    }
+
+    protected void registerQuery(Message query) {
+        queries.add(query);
     }
 
     protected void registerMetric(Message metric) {
@@ -785,6 +791,7 @@ public class TestFixture implements Given, When {
             if (captureMessage(message)) {
                 switch (messageType) {
                     case COMMAND -> registerCommand(message);
+                    case QUERY -> registerQuery(message);
                     case EVENT -> registerEvent(message);
                     case SCHEDULE -> registerSchedule((Schedule) message);
                     case WEBREQUEST -> registerWebRequest(message);
