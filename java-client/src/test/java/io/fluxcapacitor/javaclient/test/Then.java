@@ -149,6 +149,63 @@ public interface Then {
     default Then expectNoCommands() {
         return expectOnlyCommands();
     }
+    
+    /*
+        Queries
+     */
+
+    /**
+     * Test if the given queries got published.
+     * <p>
+     * A query may be an instance of {@link Message} in which case it will be tested against published queries
+     * including any of the Message's metadata. Otherwise, the query is tested against published queries using the
+     * passed value as payload without additional metadata.
+     * <p>
+     * A query may also be an instance of {@link Predicate}, hamcrest matcher, or Class. A query may also refer to a
+     * json resource in the class path of the unit test by passing a string ending in `.json`, e.g.
+     * "expected/create-user.json".
+     */
+    Then expectQueries(Object... queries);
+
+    /**
+     * Test if a query got published that matches the given predicate.
+     */
+    default <T> Then expectQuery(Predicate<T> predicate) {
+        return expectQueries(predicate);
+    }
+
+    /**
+     * Test if the given queries are the *only* queries that got published.
+     * <p>
+     * A query may be an instance of {@link Message} in which case it will be tested against published queries
+     * including any of the Message's metadata. Otherwise, the query is tested against published queries using the
+     * passed value as payload without additional metadata.
+     * <p>
+     * A query may also be an instance of {@link Predicate}, hamcrest matcher, or Class. A query may also refer to a
+     * json resource in the class path of the unit test by passing a string ending in `.json`, e.g.
+     * "expected/create-user.json".
+     */
+    Then expectOnlyQueries(Object... queries);
+
+    /**
+     * Assert that the given queries did *not* get published.
+     * <p>
+     * A query may be an instance of {@link Message} in which case it will be tested against published queries
+     * including any of the Message's metadata. Otherwise, the query is tested against published queries using the
+     * passed value as payload without additional metadata.
+     * <p>
+     * A query may also be an instance of {@link Predicate}, hamcrest matcher, or Class. A query may also refer to a
+     * json resource in the class path of the unit test by passing a string ending in `.json`, e.g.
+     * "expected/create-user.json".
+     */
+    Then expectNoQueriesLike(Object... queries);
+
+    /**
+     * Assert that no queries got published.
+     */
+    default Then expectNoQueries() {
+        return expectOnlyQueries();
+    }
 
     /*
         Web requests

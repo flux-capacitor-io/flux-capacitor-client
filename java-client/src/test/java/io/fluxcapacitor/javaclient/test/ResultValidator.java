@@ -50,7 +50,7 @@ public class ResultValidator implements Then {
     @Getter(AccessLevel.PROTECTED)
     private final FluxCapacitor fluxCapacitor;
     private Object result;
-    private final List<Message> events, commands, webRequests, webResponses, metrics;
+    private final List<Message> events, commands, queries, webRequests, webResponses, metrics;
     private final List<Schedule> newSchedules;
     private final List<Schedule> allSchedules;
     private final List<Throwable> errors;
@@ -90,6 +90,21 @@ public class ResultValidator implements Then {
     @Override
     public Then expectNoCommandsLike(Object... commands) {
         return expectNo(asMessages(commands), this.commands);
+    }
+
+    @Override
+    public Then expectQueries(Object... queries) {
+        return expect(asMessages(queries), this.queries);
+    }
+
+    @Override
+    public Then expectOnlyQueries(Object... queries) {
+        return expectOnly(asMessages(queries), this.queries);
+    }
+
+    @Override
+    public Then expectNoQueriesLike(Object... queries) {
+        return expectNo(asMessages(queries), this.queries);
     }
 
     @Override
