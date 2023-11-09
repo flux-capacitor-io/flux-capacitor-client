@@ -170,7 +170,7 @@ class SelectiveCacheTest {
                         .replaceCache(defaultCache)
                         .withAggregateCache(StringModel.class, stringCache)
                         .withAggregateCache(BooleanModel.class, booleanCache),
-                new MockCommandHandler());
+                new MockCommandHandler()).spy();
 
         @Test
         void testAggregateStoredInDedicatedStringCache() {

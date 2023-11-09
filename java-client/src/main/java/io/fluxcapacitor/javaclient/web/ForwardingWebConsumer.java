@@ -63,6 +63,7 @@ public class ForwardingWebConsumer implements AutoCloseable {
 
     @Synchronized
     public void start(FluxCapacitor fluxCapacitor) {
+        close();
         GatewayClient gatewayClient = fluxCapacitor.client().getGatewayClient(MessageType.WEBRESPONSE);
         BiConsumer<SerializedMessage, SerializedMessage> gateway = (request, response) -> {
             response.setTarget(request.getSource());

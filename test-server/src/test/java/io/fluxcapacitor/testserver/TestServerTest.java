@@ -70,9 +70,9 @@ class TestServerTest {
     @Test
     void testFetchLotsOfDocuments() {
         testFixture.given(fc -> {
-            fc.documentStore().index("bla1", "test");
-            fc.documentStore().index("bla2", "test");
-            fc.documentStore().index("bla3", "test");
+            fc.documentStore().index("bla1", "test").get();
+            fc.documentStore().index("bla2", "test").get();
+            fc.documentStore().index("bla3", "test").get();
         }).whenApplying(fc -> fc.documentStore().search("test").lookAhead("bla").stream(2).toList())
                 .<List<?>>expectResult(list -> list.size() == 3);
     }

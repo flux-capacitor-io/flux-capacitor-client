@@ -36,7 +36,7 @@ class ThrowingErrorHandlerTest {
     private final TestFixture testFixture = TestFixture.createAsync(
             DefaultFluxCapacitor.builder().disableAutomaticAggregateCaching()
                     .configureDefaultConsumer(MessageType.EVENT, c -> c.toBuilder()
-                    .errorHandler(new ThrowingErrorHandler()).build()), eventHandler);
+                    .errorHandler(new ThrowingErrorHandler()).build()), eventHandler).spy();
 
     @Test
     void testTrackingStoppedDuringFirstEvent() {

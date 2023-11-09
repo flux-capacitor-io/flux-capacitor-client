@@ -25,7 +25,7 @@ import static org.mockito.Mockito.verify;
 
 public class LocalHandlerTest {
 
-    private final TestFixture testFixture = TestFixture.createAsync(new PublishingLocalHandler());
+    private final TestFixture testFixture = TestFixture.createAsync(new PublishingLocalHandler()).spy();
 
     @Test
     void testMessagePublication() {

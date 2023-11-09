@@ -34,7 +34,7 @@ import static org.mockito.Mockito.verify;
 
 @Slf4j
 class EventSourcingIntegrationTest {
-    private final TestFixture testFixture = TestFixture.createAsync(new CommandHandler(), new EventHandler());
+    private final TestFixture testFixture = TestFixture.createAsync(new CommandHandler(), new EventHandler()).spy();
 
     @Test
     void testHandleBatch() {

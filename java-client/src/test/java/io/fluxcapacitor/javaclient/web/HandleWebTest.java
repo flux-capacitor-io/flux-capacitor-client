@@ -205,7 +205,7 @@ public class HandleWebTest {
     @Nested
     class WebSocketTests {
         private final TestFixture testFixture = TestFixture.createAsync(new Handler())
-                .resultTimeout(Duration.ofSeconds(1)).consumerTimeout(Duration.ofSeconds(1));
+                .resultTimeout(Duration.ofSeconds(1)).consumerTimeout(Duration.ofSeconds(1)).spy();
 
         @Test
         void testAutoHandshake() {
