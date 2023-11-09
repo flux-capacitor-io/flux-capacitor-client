@@ -74,7 +74,8 @@ class EventSourcingRepositoryTest {
     @Nested
     class Normal {
         private final TestFixture testFixture =
-                TestFixture.create(DefaultFluxCapacitor.builder().disableAutomaticAggregateCaching(), new Handler());
+                TestFixture.create(DefaultFluxCapacitor.builder().disableAutomaticAggregateCaching(), new Handler())
+                        .spy();
         private final EventStoreClient eventStoreClient = testFixture.getFluxCapacitor().client().getEventStoreClient();
 
         @Test
@@ -311,7 +312,7 @@ class EventSourcingRepositoryTest {
 
     @Nested
     class DepthTests {
-        final TestFixture testFixture = TestFixture.create();
+        final TestFixture testFixture = TestFixture.create().spy();
 
         @Test
         void reloadLazilyAfterDepth() {
@@ -411,7 +412,7 @@ class EventSourcingRepositoryTest {
     @Nested
     class PublicationStrategyTests {
 
-        final TestFixture testFixture = TestFixture.create();
+        final TestFixture testFixture = TestFixture.create().spy();
 
         @Test
         void storeOnly() {
@@ -510,7 +511,7 @@ class EventSourcingRepositoryTest {
     class SnapshotTests {
         SnapshotTestModelId aggregateId = new SnapshotTestModelId("test");
 
-        private final TestFixture testFixture = TestFixture.create(new Handler());
+        private final TestFixture testFixture = TestFixture.create(new Handler()).spy();
 
         @Test
         void testNoSnapshotStoredBeforeThreshold() {
@@ -574,7 +575,7 @@ class EventSourcingRepositoryTest {
 
     @Nested
     class NotEventSourced {
-        private final TestFixture testFixture = TestFixture.create(new Handler());
+        private final TestFixture testFixture = TestFixture.create(new Handler()).spy();
 
         @Test
         void testIgnoreSnapshotPeriodWhenNotEventSourced() {
@@ -621,7 +622,7 @@ class EventSourcingRepositoryTest {
 
     @Nested
     class WithFactoryMethod {
-        private final TestFixture testFixture = TestFixture.create(new Handler());
+        private final TestFixture testFixture = TestFixture.create(new Handler()).spy();
 
         @Test
         void testCreateUsingFactoryMethod() {
@@ -649,7 +650,7 @@ class EventSourcingRepositoryTest {
     @Nested
     class WithFactoryMethodAndSameInstanceMethod {
 
-        private final TestFixture testFixture = TestFixture.create(new Handler());
+        private final TestFixture testFixture = TestFixture.create(new Handler()).spy();
 
         @Test
         void testCreateUsingFactoryMethodIfInstanceMethodForSamePayloadExists() {

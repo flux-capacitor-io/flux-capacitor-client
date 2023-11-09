@@ -52,6 +52,7 @@ import io.fluxcapacitor.javaclient.tracking.handling.HandlerInterceptor;
 import io.fluxcapacitor.javaclient.tracking.handling.authentication.User;
 import io.fluxcapacitor.javaclient.tracking.handling.authentication.UserProvider;
 import io.fluxcapacitor.javaclient.web.WebRequest;
+import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.SneakyThrows;
 import lombok.Value;
@@ -153,9 +154,11 @@ public class TestFixture implements Given, When {
     @Getter
     private final FluxCapacitor fluxCapacitor;
     private final FluxCapacitorBuilder fluxCapacitorBuilder;
+    private final GivenWhenThenInterceptor interceptor;
     private Duration resultTimeout = defaultResultTimeout;
     private Duration consumerTimeout = defaultConsumerTimeout;
     private final boolean synchronous;
+    private final boolean spying;
     private Registration registration = Registration.noOp();
 
     private volatile Message tracedMessage;
@@ -188,6 +191,7 @@ public class TestFixture implements Given, When {
                           Function<FluxCapacitor, List<?>> handlerFactory, Client client, boolean synchronous) {
         activeFixtures.get().add(this);
         this.synchronous = synchronous;
+        this.spying = false;
         Optional<TestUserProvider> userProvider =
                 Optional.ofNullable(UserProvider.defaultUserSupplier).map(TestUserProvider::new);
         if (userProvider.isPresent()) {
@@ -197,14 +201,14 @@ public class TestFixture implements Given, When {
             fluxCapacitorBuilder.disableScheduledCommandHandler();
         }
         fluxCapacitorBuilder.addPropertySource(new SimplePropertySource(testProperties));
-        GivenWhenThenInterceptor interceptor = new GivenWhenThenInterceptor();
+        this.interceptor = new GivenWhenThenInterceptor(this);
         Arrays.stream(MessageType.values()).forEach(type -> client.getGatewayClient(type).registerMonitor(interceptor));
         fluxCapacitorBuilder = fluxCapacitorBuilder.disableShutdownHook().addDispatchInterceptor(interceptor)
                 .replaceIdentityProvider(p -> p == IdentityProvider.defaultIdentityProvider
                         ? new PredictableIdFactory() : p)
                 .addBatchInterceptor(interceptor).addHandlerInterceptor(interceptor, true);
         this.fluxCapacitorBuilder = fluxCapacitorBuilder;
-        this.fluxCapacitor = new TestFluxCapacitor(fluxCapacitorBuilder.build(new TestClient(client)));
+        this.fluxCapacitor = fluxCapacitorBuilder.build(client);
         withClock(Clock.fixed(Instant.now(), ZoneId.systemDefault()));
         List<Object> handlers = new ArrayList<>();
         if (synchronous) {
@@ -214,14 +218,23 @@ public class TestFixture implements Given, When {
         registerHandlers(handlers);
     }
 
-    protected TestFixture(TestFixture currentFixture, boolean synchronous) {
+    protected TestFixture(TestFixture currentFixture, boolean synchronous, boolean spying) {
+        shutDownActiveFixtures();
         activeFixtures.get().add(this);
         this.synchronous = synchronous;
+        this.spying = spying;
         this.fluxCapacitorBuilder = currentFixture.fluxCapacitorBuilder;
-        var currentClient = ((TestClient) currentFixture.fluxCapacitor.client()).getDelegate();
+        (this.interceptor = currentFixture.interceptor).testFixture = this;
+        var currentClient = currentFixture.fluxCapacitor.client().unwrap();
         var newClient = currentClient instanceof InMemoryClient
                 ? InMemoryClient.newInstance(null) : currentClient;
-        this.fluxCapacitor = new TestFluxCapacitor(fluxCapacitorBuilder.build(new TestClient(newClient)));
+        {
+            Arrays.stream(MessageType.values()).forEach(type -> newClient.getGatewayClient(type).registerMonitor(interceptor));
+        }
+        this.fluxCapacitor = spying
+                ? new TestFluxCapacitor(fluxCapacitorBuilder.build(new TestClient(newClient)))
+                : fluxCapacitorBuilder.build(newClient);
+        currentFixture.modifiers.forEach(this::modifyFixture);
     }
 
     /*
@@ -256,12 +269,7 @@ public class TestFixture implements Given, When {
      * properties and 'given' conditions as the source fixture.
      */
     public TestFixture async() {
-        if (synchronous) {
-            TestFixture result = new TestFixture(this, false);
-            this.modifiers.forEach(result::modifyFixture);
-            return result;
-        }
-        return this;
+        return synchronous ? new TestFixture(this, false, spying) : this;
     }
 
     /**
@@ -272,12 +280,21 @@ public class TestFixture implements Given, When {
      * properties and 'given' conditions as the source fixture.
      */
     public TestFixture sync() {
-        if (!synchronous) {
-            TestFixture result = new TestFixture(this, true);
-            this.modifiers.forEach(result::modifyFixture);
-            return result;
-        }
-        return this;
+        return !synchronous ? new TestFixture(this, true, spying) : this;
+    }
+
+    /**
+     * Returns a version of this test fixture in which Flux components like e.g.
+     * {@link io.fluxcapacitor.javaclient.publishing.EventGateway} and
+     * {@link io.fluxcapacitor.javaclient.persisting.eventsourcing.client.EventStoreClient} are Mockito spies.
+     * <p>
+     * The returned test fixture will have a nearly identical state, i.e. it will have the same handlers, clock,
+     * properties and 'given' conditions as the source fixture.
+     *
+     * @see org.mockito.Mockito#spy(Object[])
+     */
+    public TestFixture spy() {
+        return spying ? this : new TestFixture(this, synchronous, true);
     }
 
     /**
@@ -536,7 +553,8 @@ public class TestFixture implements Given, When {
                     result = e;
                 }
                 waitForConsumers();
-                return getResultValidator(result, commands, queries, events, schedules, getFutureSchedules(), errors, metrics);
+                return getResultValidator(result, commands, queries, events, schedules, getFutureSchedules(), errors,
+                                          metrics);
             } finally {
                 handleExpiredSchedulesLocally();
             }
@@ -614,8 +632,10 @@ public class TestFixture implements Given, When {
     }
 
     protected void resetMocks() {
-        ((TestClient) fluxCapacitor.client()).resetMocks();
-        ((TestFluxCapacitor) fluxCapacitor).resetMocks();
+        if (spying) {
+            ((TestClient) fluxCapacitor.client()).resetMocks();
+            ((TestFluxCapacitor) fluxCapacitor).resetMocks();
+        }
     }
 
     protected void advanceTimeBy(Duration duration) {
@@ -743,16 +763,18 @@ public class TestFixture implements Given, When {
         return false;
     }
 
-    protected class GivenWhenThenInterceptor implements DispatchInterceptor, BatchInterceptor, HandlerInterceptor, Consumer<MessageDispatch> {
+    @AllArgsConstructor
+    protected static class GivenWhenThenInterceptor implements DispatchInterceptor, BatchInterceptor, HandlerInterceptor, Consumer<MessageDispatch> {
+        private TestFixture testFixture;
 
         private final List<Schedule> publishedSchedules = new CopyOnWriteArrayList<>();
         private final Set<String> interceptedMessageIds = new CopyOnWriteArraySet<>();
 
         @Override
         public void accept(MessageDispatch messageDispatch) {
-            if (collectingResults) {
+            if (testFixture.collectingResults) {
                 try {
-                    fluxCapacitor.serializer()
+                    testFixture.fluxCapacitor.serializer()
                             .deserializeMessages(messageDispatch.getMessages().stream()
                                                          .filter(m -> !interceptedMessageIds.contains(
                                                                  m.getMessageId())),
@@ -767,7 +789,7 @@ public class TestFixture implements Given, When {
 
         @Override
         public Message interceptDispatch(Message message, MessageType messageType) {
-            if (collectingResults) {
+            if (testFixture.collectingResults) {
                 interceptedMessageIds.add(message.getMessageId());
             }
 
@@ -776,8 +798,8 @@ public class TestFixture implements Given, When {
             }
 
             if (getHandleSelfAnnotation(message.getPayloadClass()).map(HandleSelf::logMessage).orElse(true)) {
-                synchronized (consumers) {
-                    consumers.entrySet().stream()
+                synchronized (testFixture.consumers) {
+                    testFixture.consumers.entrySet().stream()
                             .filter(t -> {
                                 var configuration = t.getKey();
                                 return (configuration.getMessageType() == messageType && Optional
@@ -790,13 +812,13 @@ public class TestFixture implements Given, When {
 
             if (captureMessage(message)) {
                 switch (messageType) {
-                    case COMMAND -> registerCommand(message);
-                    case QUERY -> registerQuery(message);
-                    case EVENT -> registerEvent(message);
-                    case SCHEDULE -> registerSchedule((Schedule) message);
-                    case WEBREQUEST -> registerWebRequest(message);
-                    case WEBRESPONSE -> registerWebResponse(message);
-                    case METRICS -> registerMetric(message);
+                    case COMMAND -> testFixture.registerCommand(message);
+                    case QUERY -> testFixture.registerQuery(message);
+                    case EVENT -> testFixture.registerEvent(message);
+                    case SCHEDULE -> testFixture.registerSchedule((Schedule) message);
+                    case WEBREQUEST -> testFixture.registerWebRequest(message);
+                    case WEBRESPONSE -> testFixture.registerWebResponse(message);
+                    case METRICS -> testFixture.registerMetric(message);
                 }
             }
 
@@ -804,7 +826,7 @@ public class TestFixture implements Given, When {
         }
 
         protected Boolean captureMessage(Message message) {
-            return collectingResults && Optional.ofNullable(tracedMessage)
+            return testFixture.collectingResults && Optional.ofNullable(testFixture.tracedMessage)
                     .map(t -> !Objects.equals(t.getMessageId(), message.getMessageId())).orElse(true);
         }
 
@@ -818,7 +840,7 @@ public class TestFixture implements Given, When {
 
         @Override
         public Consumer<MessageBatch> intercept(Consumer<MessageBatch> consumer, Tracker tracker) {
-            List<Message> messages = consumers.computeIfAbsent(
+            List<Message> messages = testFixture.consumers.computeIfAbsent(
                     new ActiveConsumer(tracker.getConfiguration(), tracker.getMessageType()),
                     c -> (c.getMessageType() == SCHEDULE
                             ? publishedSchedules : Collections.<Message>emptyList()).stream().filter(
@@ -830,7 +852,7 @@ public class TestFixture implements Given, When {
                 Collection<String> messageIds =
                         b.getMessages().stream().map(SerializedMessage::getMessageId).collect(toSet());
                 messages.removeIf(m -> messageIds.contains(m.getMessageId()));
-                checkConsumers();
+                testFixture.checkConsumers();
             };
         }
 
@@ -841,19 +863,19 @@ public class TestFixture implements Given, When {
                 try {
                     return function.apply(m);
                 } catch (Exception e) {
-                    registerError(e);
+                    testFixture.registerError(e);
                     throw e;
                 } finally {
                     if (m.getMessageType().isRequest()
                         && getLocalHandlerAnnotation(invoker.getTarget().getClass(), invoker.getMethod())
                                 .map(l -> !l.logMessage()).orElse(false)) {
-                        synchronized (consumers) {
-                            consumers.entrySet().stream()
+                        synchronized (testFixture.consumers) {
+                            testFixture.consumers.entrySet().stream()
                                     .filter(t -> t.getKey().getMessageType() == m.getMessageType())
                                     .forEach(e -> e.getValue().removeIf(
                                             m2 -> m2.getMessageId().equals(m.getMessageId())));
                         }
-                        checkConsumers();
+                        testFixture.checkConsumers();
                     }
                 }
             };
@@ -861,8 +883,8 @@ public class TestFixture implements Given, When {
 
         @Override
         public void shutdown(Tracker tracker) {
-            consumers.remove(new ActiveConsumer(tracker.getConfiguration(), tracker.getMessageType()));
-            checkConsumers();
+            testFixture.consumers.remove(new ActiveConsumer(tracker.getConfiguration(), tracker.getMessageType()));
+            testFixture.checkConsumers();
         }
     }
 

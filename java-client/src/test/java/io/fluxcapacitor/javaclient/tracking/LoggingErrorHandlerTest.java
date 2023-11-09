@@ -30,7 +30,7 @@ import static org.mockito.Mockito.verify;
 class LoggingErrorHandlerTest {
 
     private final ThrowingHandler handler = new ThrowingHandler();
-    private final TestFixture testFixture = TestFixture.createAsync(handler);
+    private final TestFixture testFixture = TestFixture.createAsync(handler).spy();
 
     @Test
     void loggedHandlerErrorHasTraceId() {

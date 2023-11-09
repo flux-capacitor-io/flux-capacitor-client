@@ -32,7 +32,7 @@ import static org.mockito.Mockito.verify;
 @Slf4j
 class FluxCapacitorLogbackAppenderTest {
 
-    private final FluxCapacitor fluxCapacitor = TestFixture.create().getFluxCapacitor();
+    private final FluxCapacitor fluxCapacitor = TestFixture.create().spy().getFluxCapacitor();
 
     @BeforeEach
     void setUp() {

@@ -70,7 +70,7 @@ public class WebRequestForwardingTest extends Application {
     }
 
     private final TestFixture testFixture = TestFixture.createAsync(
-            DefaultFluxCapacitor.builder().forwardWebRequestsToLocalServer(port));
+            DefaultFluxCapacitor.builder().forwardWebRequestsToLocalServer(port)).spy();
 
     @Test
     void testGet() {

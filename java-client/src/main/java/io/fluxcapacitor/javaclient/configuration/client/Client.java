@@ -44,4 +44,8 @@ public interface Client {
     void shutDown();
 
     Registration beforeShutdown(Runnable task);
+
+    default Client unwrap() {
+        return this;
+    }
 }
