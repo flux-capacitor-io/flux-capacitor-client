@@ -178,6 +178,9 @@ public class SearchTest {
         expectMatch(not(query("see wh*", "wrongField").and(below(21.5, "someNumber"))));
         expectMatch(any(query("see wh*", "wrongField").or(below(21.5, "someNumber"))));
         expectNoMatch(not(exists("someId")));
+        expectMatch(query("see wh* OR someId"));
+        expectNoMatch(query("see wh* AND someId"));
+        expectMatch(query("see wh* AND slash"));
     }
 
     @Test
