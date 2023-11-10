@@ -46,11 +46,15 @@ public class QueryConstraint extends PathConstraint {
     private static final Pattern splitOnInnerAsterisk = Pattern.compile(String.format("(?<=[%1$s])\\*(?=[%1$s])", letterOrNumber));
 
     public static Constraint query(String query, String... paths) {
-        return isBlank(query) ? NoOpConstraint.instance : new QueryConstraint(query, List.of(paths));
+        return query(query, false, paths);
     }
 
+    public static Constraint query(String query, boolean lookaheadForAllTerms, String... paths) {
+        return isBlank(query) ? NoOpConstraint.instance : new QueryConstraint(query, lookaheadForAllTerms, List.of(paths));
+    }
 
     @NonNull String query;
+    @With boolean lookaheadForAllTerms;
     @With List<String> paths;
 
     @Override
@@ -131,7 +135,7 @@ public class QueryConstraint extends PathConstraint {
     private void handleTerm(String term, List<Constraint> constraints) {
         if (term.startsWith("\"") && term.endsWith("\"")) {
             constraints.add(ContainsConstraint.contains(term.substring(1, term.length() - 1),
-                    false, false, paths.toArray(String[]::new)));
+                    false, lookaheadForAllTerms, paths.toArray(String[]::new)));
             return;
         }
 
@@ -141,7 +145,7 @@ public class QueryConstraint extends PathConstraint {
             boolean prefixSearch = i != 0;
             boolean postfixSearch = i != parts.length - 1;
             String part = parts[i];
-            if (part.endsWith("*")) {
+            if (part.endsWith("*") || lookaheadForAllTerms) {
                 part = part.substring(0, part.length() - 1);
                 postfixSearch = true;
             }
