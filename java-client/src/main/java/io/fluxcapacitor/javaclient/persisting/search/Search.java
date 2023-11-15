@@ -45,9 +45,17 @@ public interface Search {
         Timing
      */
 
-    Search since(Instant start);
+    default Search since(Instant start) {
+        return since(start, true);
+    }
 
-    Search before(Instant endExclusive);
+    Search since(Instant start, boolean inclusive);
+
+    default Search before(Instant endExclusive) {
+        return before(endExclusive, false);
+    }
+
+    Search before(Instant end, boolean inclusive);
 
     default Search beforeLast(Duration period) {
         return before(FluxCapacitor.currentTime().minus(period));
@@ -57,7 +65,11 @@ public interface Search {
         return since(FluxCapacitor.currentTime().minus(period));
     }
 
-    Search inPeriod(Instant start, Instant endExclusive);
+    default Search inPeriod(Instant start, Instant endExclusive) {
+        return inPeriod(start, true, endExclusive, false);
+    }
+
+    Search inPeriod(Instant start, boolean startInclusive, Instant end, boolean endInclusive);
 
     /*
         Other constraints

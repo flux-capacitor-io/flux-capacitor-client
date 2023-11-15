@@ -219,21 +219,20 @@ public class DefaultDocumentStore implements DocumentStore {
         }
 
         @Override
-        public Search since(Instant start) {
-            queryBuilder.since(start);
+        public Search since(Instant start, boolean inclusive) {
+            queryBuilder.since(start).sinceExclusive(!inclusive);
             return this;
         }
 
         @Override
-        public Search before(Instant endExclusive) {
-            queryBuilder.before(endExclusive);
+        public Search before(Instant end, boolean inclusive) {
+            queryBuilder.before(end).beforeInclusive(inclusive);
             return this;
         }
 
         @Override
-        public Search inPeriod(Instant start, Instant endExclusive) {
-            queryBuilder.since(start);
-            queryBuilder.before(endExclusive);
+        public Search inPeriod(Instant start, boolean startInclusive, Instant end, boolean endInclusive) {
+            queryBuilder.since(start).sinceExclusive(!startInclusive).before(end).beforeInclusive(endInclusive);
             return this;
         }
 

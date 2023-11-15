@@ -444,9 +444,14 @@ public class SearchTest {
 
         @Test
         void searchPeriodEndsAtStartOfDocument() {
-            testFixture.whenSearching("foobar",
-                                      s -> s.inPeriod(documentStart.minusSeconds(1), documentStart)
+            testFixture.whenSearching("foobar", s -> s.before(documentStart)
             ).<List<?>>expectResult(List::isEmpty);
+        }
+
+        @Test
+        void searchPeriodEndsAtStartOfDocument_inclusive() {
+            testFixture.whenSearching("foobar", s -> s.before(documentStart, true)
+            ).<List<?>>expectResult(docs -> docs.size() == 1);
         }
 
         @Test

@@ -38,6 +38,8 @@ public class SearchQuery {
     @Singular
     List<String> collections;
     Instant since, before;
+    boolean sinceExclusive;
+    boolean beforeInclusive;
     @Singular
     List<Constraint> constraints;
 
@@ -50,8 +52,10 @@ public class SearchQuery {
 
     @lombok.Builder(toBuilder = true, builderClassName = "Builder")
     @Jacksonized
-    public SearchQuery(List<String> collections, Instant since, Instant before,
-                       List<Constraint> constraints) {
+    public SearchQuery(List<String> collections, Instant since, Instant before, boolean sinceExclusive,
+                       boolean beforeInclusive, List<Constraint> constraints) {
+        this.sinceExclusive = sinceExclusive;
+        this.beforeInclusive = beforeInclusive;
         if (collections.isEmpty()) {
             throw new IllegalArgumentException("Collections should not be empty");
         }
@@ -70,11 +74,14 @@ public class SearchQuery {
         if (!decomposeConstraints().matches(d)) {
             return false;
         }
-        if (since != null && d.getEnd() != null && d.getEnd().compareTo(since) < 0) {
+        if (since != null && d.getEnd() != null
+            && (sinceExclusive ? d.getEnd().compareTo(since) <= 0 : d.getEnd().compareTo(since) < 0)) {
             return false;
         }
         if (before != null && d.getTimestamp() != null &&
-            (before.equals(since) ? d.getTimestamp().compareTo(before) > 0 : d.getTimestamp().compareTo(before) >= 0)) {
+            (before.equals(since) ? d.getTimestamp().compareTo(before) > 0 :
+                    (beforeInclusive ? d.getTimestamp().compareTo(before) > 0 :
+                            d.getTimestamp().compareTo(before) >= 0))) {
             return false;
         }
         if (!collections.contains(d.getCollection())) {
