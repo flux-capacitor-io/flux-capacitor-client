@@ -190,7 +190,7 @@ public class SearchTest {
         expectMatch(query("see wh* & slash"));
         expectMatch(query("see wh & slash", true));
         expectNoMatch(query("see wh & slash", false));
-        expectMatch(query("\"slas\"", true));
+        expectNoMatch(query("\"slas\"", true));
         expectNoMatch(query("\"slas\"", false));
     }
 

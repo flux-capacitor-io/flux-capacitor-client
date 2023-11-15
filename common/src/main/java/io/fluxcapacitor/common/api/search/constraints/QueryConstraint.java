@@ -135,7 +135,7 @@ public class QueryConstraint extends PathConstraint {
     private void handleTerm(String term, List<Constraint> constraints) {
         if (term.startsWith("\"") && term.endsWith("\"")) {
             constraints.add(ContainsConstraint.contains(term.substring(1, term.length() - 1),
-                    false, lookAheadForAllTerms, paths.toArray(String[]::new)));
+                    false, false, paths.toArray(String[]::new)));
             return;
         }
 
