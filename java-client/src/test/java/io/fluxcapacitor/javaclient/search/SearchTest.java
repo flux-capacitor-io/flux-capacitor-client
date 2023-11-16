@@ -192,6 +192,7 @@ public class SearchTest {
         expectNoMatch(query("see wh & slash", false));
         expectNoMatch(query("\"slas\"", true));
         expectNoMatch(query("\"slas\"", false));
+        expectNoMatch(query("see wh & slashx", true));
     }
 
     @Test

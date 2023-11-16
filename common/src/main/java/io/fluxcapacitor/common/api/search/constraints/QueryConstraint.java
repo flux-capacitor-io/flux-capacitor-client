@@ -143,9 +143,9 @@ public class QueryConstraint extends PathConstraint {
         String[] parts = splitOnInnerAsterisk.split(term);
         for (int i = 0; i < parts.length; i++) {
             boolean prefixSearch = i != 0;
-            boolean postfixSearch = i != parts.length - 1;
+            boolean postfixSearch = (i != parts.length - 1) || lookAheadForAllTerms;
             String part = parts[i];
-            if (part.endsWith("*") || lookAheadForAllTerms) {
+            if (part.endsWith("*")) {
                 part = part.substring(0, part.length() - 1);
                 postfixSearch = true;
             }
