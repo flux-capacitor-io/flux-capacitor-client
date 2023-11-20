@@ -82,30 +82,33 @@ public class ReverseProxyConsumer implements Consumer<List<SerializedMessage>> {
     @Override
     public void accept(List<SerializedMessage> serializedMessages) {
         for (SerializedMessage s : serializedMessages) {
-            var settings = getSettings(s);
-            if (consumerName.equals(settings.getConsumer())) {
-                URI uri = URI.create(WebRequest.getUrl(s.getMetadata()));
-                if (uri.isAbsolute()) {
-                    handle(s, uri, settings);
+            try {
+                var settings = getSettings(s);
+                if (consumerName.equals(settings.getConsumer())) {
+                    URI uri = URI.create(WebRequest.getUrl(s.getMetadata()));
+                    if (uri.isAbsolute()) {
+                        handle(s, uri, settings);
+                    }
+                } else if (isMainConsumer()) {
+                    runningConsumers.computeIfAbsent(
+                            settings.getConsumer(), c -> new ReverseProxyConsumer(client, c, s.getIndex()).start());
                 }
-            } else if (isMainConsumer()) {
-                runningConsumers.computeIfAbsent(
-                        settings.getConsumer(), c -> new ReverseProxyConsumer(client, c, s.getIndex()).start());
+            } catch (Throwable e) {
+                log.error("Failed to handle external request {}. Continuing..", s.getMessageId(), e);
+                try {
+                    sendResponse(asWebResponse(e), s);
+                } catch (Throwable e2) {
+                    e2.addSuppressed(e);
+                    log.error("Failed to send error response. Continuing..", e2);
+                }
             }
         }
     }
 
     void handle(SerializedMessage request, URI uri, WebRequestSettings settings) {
-        try {
-            HttpRequest httpRequest = asHttpRequest(request, uri, settings);
-            WebResponse webResponse = executeRequest(httpRequest);
-            SerializedMessage serializedResponse = webResponse.serialize(serializer);
-            serializedResponse.setRequestId(request.getRequestId());
-            serializedResponse.setTarget(request.getSource());
-            client.getGatewayClient(MessageType.WEBRESPONSE).send(Guarantee.NONE, serializedResponse);
-        } catch (Throwable e) {
-            log.error("Failed to handle external request", e);
-        }
+        HttpRequest httpRequest = asHttpRequest(request, uri, settings);
+        WebResponse webResponse = executeRequest(httpRequest);
+        sendResponse(webResponse, request);
     }
 
     HttpRequest asHttpRequest(SerializedMessage request, URI uri, WebRequestSettings settings) {
@@ -128,10 +131,15 @@ public class ReverseProxyConsumer implements Consumer<List<SerializedMessage>> {
             return asWebResponse(response);
         } catch (Throwable e) {
             log.error("Failed to handle external request. Returning error.. ", e);
-            return WebResponse.builder().status(502).payload(
-                    ofNullable(e.getMessage()).orElse("Exception while handling request in proxy")
-                            .getBytes()).build();
+            return asWebResponse(e);
         }
+    }
+
+    void sendResponse(WebResponse response, SerializedMessage request) {
+        SerializedMessage serializedResponse = response.serialize(serializer);
+        serializedResponse.setRequestId(request.getRequestId());
+        serializedResponse.setTarget(request.getSource());
+        client.getGatewayClient(MessageType.WEBRESPONSE).send(Guarantee.NONE, serializedResponse);
     }
 
     WebResponse asWebResponse(HttpResponse<byte[]> response) {
@@ -139,6 +147,12 @@ public class ReverseProxyConsumer implements Consumer<List<SerializedMessage>> {
                 .payload(response.body());
         response.headers().map().forEach((name, values) -> values.forEach(v -> builder.header(fixHeaderName(name), v)));
         return builder.build();
+    }
+
+    WebResponse asWebResponse(Throwable e) {
+        return WebResponse.builder().status(502).payload(
+                ofNullable(e.getMessage()).orElse("Exception while handling request in proxy")
+                        .getBytes()).build();
     }
 
     HttpRequest.BodyPublisher getBodyPublisher(SerializedMessage request) {
