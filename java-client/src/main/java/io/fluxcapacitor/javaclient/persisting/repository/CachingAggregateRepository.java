@@ -175,7 +175,7 @@ public class CachingAggregateRepository implements AggregateRepository {
             start(this::handleEvents, NOTIFICATION, ConsumerConfiguration.builder()
                     .ignoreSegment(true)
                     .clientControlledIndex(true)
-                    .minIndex(lastEventIndex = IndexUtils.indexFromTimestamp(FluxCapacitor.currentTime()))
+                    .minIndex(lastEventIndex = IndexUtils.indexFromTimestamp(FluxCapacitor.currentTime().minusSeconds(2)))
                     .name(format("%s_%s", client.name(), CachingAggregateRepository.class.getSimpleName()))
                     .build(), client);
             synchronized (cache) {
