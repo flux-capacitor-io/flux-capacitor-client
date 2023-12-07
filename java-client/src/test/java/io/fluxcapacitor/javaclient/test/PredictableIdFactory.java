@@ -14,12 +14,10 @@
 
 package io.fluxcapacitor.javaclient.test;
 
-import io.fluxcapacitor.javaclient.common.IdentityProvider;
-
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicInteger;
 
-public class PredictableIdFactory implements IdentityProvider {
+public class PredictableIdFactory implements PredictableIdentityProvider {
 
     private final AtomicInteger next = new AtomicInteger();
 
