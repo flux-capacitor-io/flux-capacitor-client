@@ -41,6 +41,7 @@ class WebMessageTest {
         HttpCookie cookie = new HttpCookie("foo-cookie", "bar-cookie");
         cookie.setSecure(true);
         cookie.setHttpOnly(true);
+        cookie.setPath("/");
         WebRequest input = WebRequest.builder().method(HttpRequestMethod.POST)
                 .header("foo", "bar").header("foo", "bar2")
                 .cookie(cookie).url("/test").payload("test").build();

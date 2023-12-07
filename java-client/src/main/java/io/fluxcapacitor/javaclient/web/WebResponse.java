@@ -207,7 +207,7 @@ public class WebResponse extends Message {
             var result = headers;
             if (!cookies.isEmpty()) {
                 result = new HashMap<>(headers);
-                result.put("Set-Cookie", cookies.stream().map(WebUtils::toString).collect(Collectors.toList()));
+                result.put("Set-Cookie", cookies.stream().map(WebUtils::toResponseHeaderString).collect(Collectors.toList()));
             }
             return result;
         }

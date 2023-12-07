@@ -254,7 +254,7 @@ public class WebRequest extends Message {
             }
             if (!cookies.isEmpty()) {
                 result.put("Cookie",
-                           List.of(cookies.stream().map(HttpCookie::toString).collect(Collectors.joining("; "))));
+                           List.of(cookies.stream().map(WebUtils::toRequestHeaderString).collect(Collectors.joining("; "))));
             }
             return result;
         }
