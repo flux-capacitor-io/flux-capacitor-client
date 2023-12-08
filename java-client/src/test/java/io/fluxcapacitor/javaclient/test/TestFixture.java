@@ -205,7 +205,7 @@ public class TestFixture implements Given, When {
         Arrays.stream(MessageType.values()).forEach(type -> client.getGatewayClient(type).registerMonitor(interceptor));
         fluxCapacitorBuilder = fluxCapacitorBuilder.disableShutdownHook().addDispatchInterceptor(interceptor)
                 .replaceIdentityProvider(p -> p == IdentityProvider.defaultIdentityProvider
-                        ? new PredictableIdFactory() : p)
+                        ? PredictableIdentityProvider.defaultPredictableIdentityProvider() : p)
                 .addBatchInterceptor(interceptor).addHandlerInterceptor(interceptor, true);
         this.fluxCapacitorBuilder = fluxCapacitorBuilder;
         this.fluxCapacitor = fluxCapacitorBuilder.build(client);
