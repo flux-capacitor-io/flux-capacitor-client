@@ -103,7 +103,7 @@ public class ConsumerConfiguration {
     }
 
     private static Stream<ConsumerConfiguration> classConfigurations(Class<?> type) {
-        return Optional.ofNullable(ReflectionUtils.getTypeAnnotation(type, Consumer.class))
+        return Optional.ofNullable(ReflectionUtils.<Consumer>getTypeAnnotation(type, Consumer.class))
                 .map(c -> getConfiguration(c, h -> h.getClass().equals(type)))
                 .stream();
     }

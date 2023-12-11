@@ -262,7 +262,7 @@ public class ReflectionUtils {
     }
 
     @SuppressWarnings("unchecked")
-    public static <A extends Annotation> A getTypeAnnotation(Class<?> type, Class<A> annotationType) {
+    public static <A extends Annotation> A getTypeAnnotation(Class<?> type, Class<? extends Annotation> annotationType) {
         for (Annotation annotation : getTypeAnnotations(type)) {
             if (annotation.annotationType().equals(annotationType)) {
                 return (A) annotation;
@@ -585,9 +585,9 @@ public class ReflectionUtils {
         return ReflectionUtils.class.getClassLoader().getDefinedPackage(parentName);
     }
 
-    public static <A extends Annotation> Optional<A> getMemberAnnotation(Class<?> type, String memberName, Class<A> a) {
+    public static <A extends Annotation> Optional<A> getMemberAnnotation(Class<?> type, String memberName, Class<? extends Annotation> a) {
         return getAnnotatedMethods(type, a).stream().filter(m -> m.getName().equals(memberName)).findFirst()
-                .flatMap(m -> getMethodAnnotation(m, a)).or(() -> {
+                .flatMap(m -> ReflectionUtils.<A>getMethodAnnotation(m, a)).or(() -> {
                     String alias = memberName.startsWith("get") ? memberName.substring(3) :
                             memberName.startsWith("is") ? memberName.substring(2) : memberName;
                     return getAnnotatedFields(type, a).stream()
@@ -674,7 +674,7 @@ public class ReflectionUtils {
      */
     public static <T> Optional<T> getAnnotationAs(Class<?> target, Class<? extends Annotation> annotationType,
                                                   Class<T> returnType) {
-        return getAnnotationAs(getTypeAnnotation(target, annotationType), annotationType, returnType);
+        return getAnnotationAs((Annotation) getTypeAnnotation(target, annotationType), annotationType, returnType);
     }
 
     public static <T> Optional<T> getAnnotationAs(AnnotatedElement member,
@@ -740,10 +740,11 @@ public class ReflectionUtils {
         return false;
     }
 
-    public static <A extends Annotation> Optional<A> getFieldAnnotation(Field f, Class<A> a) {
-        return Optional.ofNullable(f.getAnnotation(a)).or(() -> stream(f.getAnnotations())
-                .map(metaAnnotation -> metaAnnotation.annotationType().getAnnotation(a))
-                .filter(Objects::nonNull).findFirst());
+    @SuppressWarnings("unchecked")
+    public static <A extends Annotation> Optional<A> getFieldAnnotation(Field f, Class<? extends Annotation> a) {
+        return Optional.ofNullable((A) f.getAnnotation(a)).or(() -> stream(f.getAnnotations())
+                        .filter(metaAnnotation -> metaAnnotation.annotationType().isAnnotationPresent(a))
+                .findFirst().map(hit -> (A) hit));
     }
 
     /*
@@ -751,7 +752,7 @@ public class ReflectionUtils {
        
        Returns annotation or meta annotation.
     */
-    public static <A extends Annotation> Optional<A> getMethodAnnotation(Executable m, Class<A> a) {
+    public static <A extends Annotation> Optional<A> getMethodAnnotation(Executable m, Class<? extends Annotation> a) {
         A result = getTopLevelAnnotation(m, a);
         Class<?> c = m.getDeclaringClass();
 
@@ -772,13 +773,14 @@ public class ReflectionUtils {
     }
 
     @SuppressWarnings("unchecked")
-    private static <A extends Annotation> A getTopLevelAnnotation(Executable m, Class<A> a) {
-        return Optional.ofNullable(m.getAnnotation(a)).orElseGet(() -> (A) stream(m.getAnnotations())
+    private static <A extends Annotation> A getTopLevelAnnotation(Executable m, Class<? extends Annotation> a) {
+        return Optional.ofNullable((A) m.getAnnotation(a)).orElseGet(() -> (A) stream(m.getAnnotations())
                 .filter(metaAnnotation -> metaAnnotation.annotationType().isAnnotationPresent(a)).findFirst()
                 .orElse(null));
     }
 
-    private static <A extends Annotation> A getAnnotationOnSuper(Executable m, Class<?> s, Class<A> a) {
+    private static <A extends Annotation> A getAnnotationOnSuper(
+            Executable m, Class<?> s, Class<? extends Annotation> a) {
         try {
             for (Method n : s.getDeclaredMethods()) {
                 if (n.getName().equals(m.getName()) && n.getParameterCount() == m.getParameterCount()) {

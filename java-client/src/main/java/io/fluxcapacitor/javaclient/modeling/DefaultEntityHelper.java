@@ -49,7 +49,7 @@ import static io.fluxcapacitor.common.reflection.ReflectionUtils.getAnnotation;
 public class DefaultEntityHelper implements EntityHelper {
 
     private static final Aggregate defaultAggregateAnnotation = DefaultAggregate.class.getAnnotation(Aggregate.class);
-    private static final Function<Class<?>, Aggregate> annotationCache = memoize(type -> Optional.ofNullable(
+    private static final Function<Class<?>, Aggregate> annotationCache = memoize(type -> Optional.<Aggregate>ofNullable(
             ReflectionUtils.getTypeAnnotation(type, Aggregate.class)).orElse(defaultAggregateAnnotation));
     public static Aggregate getRootAnnotation(Class<?> type) {
         return annotationCache.apply(type);

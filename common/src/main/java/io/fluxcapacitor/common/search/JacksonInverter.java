@@ -39,6 +39,7 @@ import lombok.Getter;
 import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
 
+import java.lang.annotation.Annotation;
 import java.lang.reflect.Member;
 import java.math.BigDecimal;
 import java.time.Instant;
@@ -47,6 +48,7 @@ import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.SortedMap;
 import java.util.TreeMap;
 import java.util.function.Function;
@@ -85,9 +87,14 @@ public class JacksonInverter implements Inverter<JsonNode> {
      */
 
     protected static Function<Member, Boolean> searchIgnoreCache = memoize(
-            m -> getMemberAnnotation(m.getDeclaringClass(), m.getName(), SearchExclude.class)
-                    .or(() -> ofNullable(getTypeAnnotation(m.getDeclaringClass(), SearchExclude.class)))
-                    .map(SearchExclude::value).orElse(false));
+            m -> {
+                Optional<? extends Annotation> result = getMemberAnnotation(m.getDeclaringClass(), m.getName(), SearchExclude.class)
+                                .or(() -> ofNullable(getTypeAnnotation(m.getDeclaringClass(), SearchExclude.class)));
+                return result
+                        .map(a -> a instanceof SearchExclude s
+                                ? s : a.annotationType().getAnnotation(SearchExclude.class))
+                        .map(SearchExclude::value).orElse(false);
+            });
 
     protected static ThrowingFunction<Object, String> createSummarizer(JacksonInverter inverter) {
         JacksonInverter summarizer = new JacksonInverter(inverter.objectMapper.rebuild().annotationIntrospector(
