@@ -120,13 +120,14 @@ public class DefaultAggregateRepository implements AggregateRepository {
     }
 
     @Override
+    @SuppressWarnings("Java8MapForEach")
     public Map<String, Class<?>> getAggregatesFor(@NonNull Object entityId) {
         LinkedHashMap<String, Class<?>> result = new LinkedHashMap<>(getActiveAggregatesFor(entityId));
         relationshipsCache.computeIfAbsent(
                 entityId.toString(), id -> eventStoreClient.getAggregatesFor(id.toString())
                         .entrySet().stream().collect(toMap(Map.Entry::getKey, e -> classForName(
                                 serializer.upcastType(e.getValue()), Void.class), (a, b) -> b, LinkedHashMap::new)))
-                .forEach(result::putIfAbsent);
+                .entrySet().forEach(e -> result.putIfAbsent(e.getKey(), e.getValue()));
         return result;
     }
 
