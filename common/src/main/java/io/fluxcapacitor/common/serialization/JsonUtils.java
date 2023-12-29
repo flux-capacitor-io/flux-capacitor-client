@@ -170,6 +170,10 @@ public class JsonUtils {
         return writer.convertValue(fromValue, toValueType);
     }
 
+    public static <T> T convertValue(Object fromValue, Function<TypeFactory, JavaType> typeFunction) {
+        return writer.convertValue(fromValue, typeFunction.apply(typeFactory()));
+    }
+
     @SneakyThrows
     public static JsonNode readTree(byte[] jsonContent) {
         return writer.readTree(jsonContent);
