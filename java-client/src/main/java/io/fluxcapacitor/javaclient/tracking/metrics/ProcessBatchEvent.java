@@ -21,6 +21,7 @@ import lombok.Value;
 public class ProcessBatchEvent implements JsonType {
     String consumer;
     String trackerId;
+    int[] segment;
     Long lastIndex;
     int batchSize;
     long nanosecondDuration;
