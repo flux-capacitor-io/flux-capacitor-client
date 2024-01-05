@@ -27,7 +27,7 @@ import lombok.NonNull;
 public interface BulkUpdate {
     @NonNull String getId();
 
-    @NonNull String getCollection();
+    @NonNull Object getCollection();
 
     Type getType();
 

@@ -26,7 +26,7 @@ import static io.fluxcapacitor.common.api.search.BulkUpdate.Type.delete;
 @Builder(toBuilder = true)
 public class DeleteDocument implements BulkUpdate {
     String id;
-    String collection;
+    Object collection;
 
     @Override
     public BulkUpdate.Type getType() {

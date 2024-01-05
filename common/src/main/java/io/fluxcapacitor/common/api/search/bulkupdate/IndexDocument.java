@@ -32,7 +32,7 @@ public class IndexDocument implements BulkUpdate {
     @JsonTypeInfo(use = JsonTypeInfo.Id.CLASS)
     @NonNull Object object;
     String id;
-    String collection;
+    Object collection;
     Instant timestamp;
     Instant end;
 

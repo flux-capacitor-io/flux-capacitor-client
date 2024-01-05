@@ -166,11 +166,7 @@ public interface DocumentStore {
 
     default Search search(@NonNull Object collection) {
         List<String> collections = (collection instanceof Collection<?> list ? list.stream() : Stream.of(collection))
-                .map(c -> c instanceof Class<?> type ?
-                        getAnnotationAs(type, Searchable.class, SearchParameters.class)
-                                .map(SearchParameters::getCollection)
-                                .orElseThrow(() -> new IllegalArgumentException(
-                                        "Class is missing @Searchable: " + type)) : c.toString()).toList();
+                .map(this::determineCollection).toList();
         return search(SearchQuery.builder().collections(collections));
     }
 
@@ -185,6 +181,14 @@ public interface DocumentStore {
     CompletableFuture<Void> deleteCollection(Object collection);
 
     CompletableFuture<Void> createAuditTrail(Object collection, Duration retentionTime);
+
+    default String determineCollection(Object c) {
+        return c instanceof Class<?> type ?
+                getAnnotationAs(type, Searchable.class, SearchParameters.class)
+                        .map(SearchParameters::getCollection)
+                        .orElseThrow(() -> new IllegalArgumentException(
+                                "Class is missing @Searchable: " + type)) : c.toString();
+    }
 
     DocumentSerializer getSerializer();
 

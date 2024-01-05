@@ -65,9 +65,9 @@ public class DefaultDocumentStore implements DocumentStore {
     public CompletableFuture<Void> index(Object object, Object id, Object collection, Instant begin,
                                          Instant end, Guarantee guarantee, boolean ifNotExists) {
         try {
-            return client.index(List.of(serializer.toDocument(
-                    object, id.toString(), collection.toString(), begin, end)),
-                                guarantee, ifNotExists);
+            return client.index(
+                    List.of(serializer.toDocument(object, id.toString(), determineCollection(collection), begin, end)),
+                    guarantee, ifNotExists);
         } catch (Exception e) {
             throw new DocumentStoreException(format(
                     "Failed to store a document %s to collection %s", id, collection), e);
@@ -79,28 +79,31 @@ public class DefaultDocumentStore implements DocumentStore {
                                          String idPath, String beginPath,
                                          String endPath, Guarantee guarantee, boolean ifNotExists) {
         var documents = objects.stream().map(v -> serializer.toDocument(
-                v, currentIdentityProvider().nextTechnicalId(), collection.toString(), null, null))
+                        v, currentIdentityProvider().nextTechnicalId(), determineCollection(collection), null, null))
                 .map(SerializedDocument::deserializeDocument).map(d -> {
-            Document.DocumentBuilder builder = d.toBuilder();
-            if (idPath != null) {
-                builder.id(d.getEntryAtPath(idPath).filter(
-                                e -> e.getType() == Document.EntryType.TEXT || e.getType() == Document.EntryType.NUMERIC)
-                                   .map(Document.Entry::getValue).orElseThrow(
-                                () -> new IllegalArgumentException(
-                                        "Could not determine the document id. Path does not exist on document: " + d)));
-            }
-            if (beginPath != null) {
-                builder.timestamp(d.getEntryAtPath(beginPath).filter(e -> e.getType() == Document.EntryType.TEXT)
-                                          .map(Document.Entry::getValue).map(Instant::parse)
-                                          .orElse(null));
-            }
-            if (endPath != null) {
-                builder.end(d.getEntryAtPath(endPath).filter(e -> e.getType() == Document.EntryType.TEXT)
-                                    .map(Document.Entry::getValue).map(Instant::parse)
-                                    .orElse(null));
-            }
-            return builder.build();
-        }).map(SerializedDocument::new).collect(toList());
+                    Document.DocumentBuilder builder = d.toBuilder();
+                    if (idPath != null) {
+                        builder.id(d.getEntryAtPath(idPath).filter(
+                                        e -> e.getType() == Document.EntryType.TEXT
+                                             || e.getType() == Document.EntryType.NUMERIC)
+                                           .map(Document.Entry::getValue).orElseThrow(
+                                        () -> new IllegalArgumentException(
+                                                "Could not determine the document id. Path does not exist on document: "
+                                                + d)));
+                    }
+                    if (beginPath != null) {
+                        builder.timestamp(
+                                d.getEntryAtPath(beginPath).filter(e -> e.getType() == Document.EntryType.TEXT)
+                                        .map(Document.Entry::getValue).map(Instant::parse)
+                                        .orElse(null));
+                    }
+                    if (endPath != null) {
+                        builder.end(d.getEntryAtPath(endPath).filter(e -> e.getType() == Document.EntryType.TEXT)
+                                            .map(Document.Entry::getValue).map(Instant::parse)
+                                            .orElse(null));
+                    }
+                    return builder.build();
+                }).map(SerializedDocument::new).collect(toList());
         try {
             return client.index(documents, guarantee, ifNotExists);
         } catch (Exception e) {
@@ -116,7 +119,7 @@ public class DefaultDocumentStore implements DocumentStore {
                                              Function<? super T, Instant> endFunction, Guarantee guarantee,
                                              boolean ifNotExists) {
         var documents = objects.stream().map(v -> serializer.toDocument(
-                v, idFunction.apply(v).toString(), collection.toString(), beginFunction.apply(v),
+                v, idFunction.apply(v).toString(), determineCollection(collection), beginFunction.apply(v),
                 endFunction.apply(v))).collect(toList());
         try {
             return client.index(documents, guarantee, ifNotExists);
@@ -139,14 +142,15 @@ public class DefaultDocumentStore implements DocumentStore {
     }
 
     public DocumentUpdate serializeAction(BulkUpdate update) {
+        String collection = determineCollection(update.getCollection());
         DocumentUpdate.Builder builder = DocumentUpdate.builder()
-                .collection(update.getCollection()).id(update.getId()).type(update.getType());
+                .collection(collection).id(update.getId()).type(update.getType());
         if (update instanceof IndexDocument u) {
             return builder.object(serializer.toDocument(
-                    u.getObject(), u.getId(), u.getCollection(), u.getTimestamp(), u.getEnd())).build();
+                    u.getObject(), u.getId(), collection, u.getTimestamp(), u.getEnd())).build();
         } else if (update instanceof IndexDocumentIfNotExists u) {
             return builder.object(serializer.toDocument(
-                    u.getObject(), u.getId(), u.getCollection(), u.getTimestamp(), u.getEnd())).build();
+                    u.getObject(), u.getId(), collection, u.getTimestamp(), u.getEnd())).build();
         }
         return builder.build();
     }
@@ -160,7 +164,8 @@ public class DefaultDocumentStore implements DocumentStore {
     @Override
     public <T> Optional<T> fetchDocument(Object id, Object collection) {
         try {
-            return client.fetch(new GetDocument(id.toString(), collection.toString())).map(serializer::fromDocument);
+            return client.fetch(new GetDocument(id.toString(), determineCollection(collection)))
+                    .map(serializer::fromDocument);
         } catch (Exception e) {
             throw new DocumentStoreException(format("Could not get document %s from collection %s", id, collection), e);
         }
@@ -169,7 +174,7 @@ public class DefaultDocumentStore implements DocumentStore {
     @Override
     public <T> Optional<T> fetchDocument(Object id, Object collection, Class<T> type) {
         try {
-            return client.fetch(new GetDocument(id.toString(), collection.toString()))
+            return client.fetch(new GetDocument(id.toString(), determineCollection(collection)))
                     .map(d -> serializer.fromDocument(d, type));
         } catch (Exception e) {
             throw new DocumentStoreException(format("Could not get document %s from collection %s", id, collection), e);
@@ -179,16 +184,17 @@ public class DefaultDocumentStore implements DocumentStore {
     @Override
     public CompletableFuture<Void> deleteDocument(Object id, Object collection) {
         try {
-            return client.delete(id.toString(), collection.toString(), Guarantee.STORED);
+            return client.delete(id.toString(), determineCollection(collection), Guarantee.STORED);
         } catch (Exception e) {
-            throw new DocumentStoreException(format("Could not delete document %s from collection %s", id, collection), e);
+            throw new DocumentStoreException(format("Could not delete document %s from collection %s", id, collection),
+                                             e);
         }
     }
 
     @Override
     public CompletableFuture<Void> deleteCollection(Object collection) {
         try {
-            return client.deleteCollection(collection.toString());
+            return client.deleteCollection(determineCollection(collection));
         } catch (Exception e) {
             throw new DocumentStoreException(format("Could not delete collection %s", collection), e);
         }
@@ -197,7 +203,7 @@ public class DefaultDocumentStore implements DocumentStore {
     @Override
     public CompletableFuture<Void> createAuditTrail(Object collection, Duration retentionTime) {
         try {
-            return client.createAuditTrail(new CreateAuditTrail(collection.toString(), Optional.ofNullable(
+            return client.createAuditTrail(new CreateAuditTrail(determineCollection(collection), Optional.ofNullable(
                     retentionTime).map(Duration::getSeconds).orElse(null), Guarantee.STORED));
         } catch (Exception e) {
             throw new DocumentStoreException(format("Could not create audit trail %s", collection), e);
