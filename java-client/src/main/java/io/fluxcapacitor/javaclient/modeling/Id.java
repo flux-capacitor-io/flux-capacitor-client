@@ -118,11 +118,11 @@ public abstract class Id<T> {
             return false;
         }
         Id<?> id = (Id<?>) o;
-        return functionalId.equals(id.functionalId) && type.equals(id.type) && repositoryId.equals(id.repositoryId);
+        return type.equals(id.type) && repositoryId.equals(id.repositoryId);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(functionalId, type, repositoryId);
+        return Objects.hash(type, repositoryId);
     }
 }
