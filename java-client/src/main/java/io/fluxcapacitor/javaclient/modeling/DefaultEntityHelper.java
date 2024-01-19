@@ -73,7 +73,16 @@ public class DefaultEntityHelper implements EntityHelper {
 
     @Override
     public Stream<?> intercept(Object value, Entity<?> entity) {
-        MessageWithEntity m = new MessageWithEntity(value, entity);
+        Object payload = Optional.ofNullable(DeserializingMessage.getCurrent())
+                .map(DeserializingMessage::getMetadata)
+                .<Object>map(currentMetadata -> {
+                    if (value instanceof HasMessage) {
+                        Message result = Message.asMessage(value);
+                        return result.withMetadata(currentMetadata.with(result.getMetadata()));
+                    }
+                    return new Message(value, currentMetadata);
+                }).orElse(value);
+        MessageWithEntity m = new MessageWithEntity(payload, entity);
         return getInterceptInvoker(m)
                 .map(i -> asStream(i.invoke()).flatMap(v -> {
                     Message message = Message.asMessage(v);
