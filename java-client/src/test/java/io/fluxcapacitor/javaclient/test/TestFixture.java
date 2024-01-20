@@ -455,9 +455,9 @@ public class TestFixture implements Given, When {
     protected TestFixture givenModification(ThrowingConsumer<TestFixture> modifier) {
         return modifyFixture(fixture -> {
             try {
-                fixture.handleExpiredSchedulesLocally();
+                fixture.handleExpiredSchedulesLocally(false);
                 modifier.accept(fixture);
-                fixture.handleExpiredSchedulesLocally();
+                fixture.handleExpiredSchedulesLocally(false);
                 fixture.waitForConsumers();
             } catch (Throwable e) {
                 throw new IllegalStateException("Failed to execute given", e);
@@ -537,27 +537,24 @@ public class TestFixture implements Given, When {
     @Override
     public Then whenApplying(ThrowingFunction<FluxCapacitor, ?> action) {
         return fluxCapacitor.apply(fc -> {
+            handleExpiredSchedulesLocally(true);
+            waitForConsumers();
+            resetMocks();
+            collectingResults = true;
+            Object result;
             try {
-                handleExpiredSchedulesLocally();
-                waitForConsumers();
-                resetMocks();
-                collectingResults = true;
-                Object result;
-                try {
-                    result = action.apply(fc);
-                    if (result instanceof CompletableFuture<?> future) {
-                        result = getDispatchResult(future);
-                    }
-                } catch (Throwable e) {
-                    registerError(e);
-                    result = e;
+                result = action.apply(fc);
+                if (result instanceof CompletableFuture<?> future) {
+                    result = getDispatchResult(future);
                 }
-                waitForConsumers();
-                return getResultValidator(result, commands, queries, events, schedules, getFutureSchedules(), errors,
-                                          metrics);
-            } finally {
-                handleExpiredSchedulesLocally();
+            } catch (Throwable e) {
+                registerError(e);
+                result = e;
             }
+            waitForConsumers();
+            handleExpiredSchedulesLocally(true);
+            return getResultValidator(result, commands, queries, events, schedules, getFutureSchedules(), errors,
+                                      metrics);
         });
     }
 
@@ -584,14 +581,22 @@ public class TestFixture implements Given, When {
                                                                                  .toList());
     }
 
-    protected void handleExpiredSchedulesLocally() {
+    protected void handleExpiredSchedulesLocally(boolean collectErrors) {
         if (synchronous) {
-            SchedulingClient schedulingClient = getFluxCapacitor().client().getSchedulingClient();
-            if (schedulingClient instanceof InMemorySchedulingClient) {
-                List<Schedule> expiredSchedules = ((InMemorySchedulingClient) schedulingClient)
-                        .removeExpiredSchedules(getFluxCapacitor().serializer());
-                if (getFluxCapacitor().scheduler() instanceof DefaultScheduler scheduler) {
-                    expiredSchedules.forEach(scheduler::handleLocally);
+            try {
+                SchedulingClient schedulingClient = getFluxCapacitor().client().getSchedulingClient();
+                if (schedulingClient instanceof InMemorySchedulingClient) {
+                    List<Schedule> expiredSchedules = ((InMemorySchedulingClient) schedulingClient)
+                            .removeExpiredSchedules(getFluxCapacitor().serializer());
+                    if (getFluxCapacitor().scheduler() instanceof DefaultScheduler scheduler) {
+                        expiredSchedules.forEach(scheduler::handleLocally);
+                    }
+                }
+            } catch (Throwable e) {
+                if (collectErrors) {
+                    registerError(e);
+                } else {
+                    throw e;
                 }
             }
         }

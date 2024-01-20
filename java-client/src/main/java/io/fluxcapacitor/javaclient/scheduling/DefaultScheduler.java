@@ -25,6 +25,7 @@ import io.fluxcapacitor.javaclient.publishing.DispatchInterceptor;
 import io.fluxcapacitor.javaclient.scheduling.client.SchedulingClient;
 import io.fluxcapacitor.javaclient.tracking.handling.HandlerRegistry;
 import lombok.AllArgsConstructor;
+import lombok.SneakyThrows;
 
 import java.time.Instant;
 import java.util.Optional;
@@ -112,10 +113,14 @@ public class DefaultScheduler implements Scheduler {
         return localHandlerRegistry.registerHandler(target, handlerFilter);
     }
 
+    @SneakyThrows
     public void handleLocally(Schedule schedule) {
         var serializedMessage = schedule.serialize(serializer);
         serializedMessage.setIndex(indexFromTimestamp(schedule.getDeadline()));
-        localHandlerRegistry.handle(new DeserializingMessage(
+        var result = localHandlerRegistry.handle(new DeserializingMessage(
                 serializedMessage, type -> serializer.convert(schedule.getPayload(), type), SCHEDULE));
+        if (result.isPresent()) {
+            result.get().get();
+        }
     }
 }

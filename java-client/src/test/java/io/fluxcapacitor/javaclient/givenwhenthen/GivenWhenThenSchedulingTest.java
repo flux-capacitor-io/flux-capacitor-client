@@ -194,6 +194,7 @@ class GivenWhenThenSchedulingTest {
                         }
                     })
                     .whenTimeElapses(Duration.ofMinutes(10))
+                    .expectError()
                     .expectNoSchedules();
         }
 
