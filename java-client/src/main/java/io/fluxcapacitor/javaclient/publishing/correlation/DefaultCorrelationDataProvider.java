@@ -14,6 +14,7 @@
 
 package io.fluxcapacitor.javaclient.publishing.correlation;
 
+import io.fluxcapacitor.common.handling.Invocation;
 import io.fluxcapacitor.javaclient.FluxCapacitor;
 import io.fluxcapacitor.javaclient.common.serialization.DeserializingMessage;
 import io.fluxcapacitor.javaclient.tracking.Tracker;
@@ -21,6 +22,7 @@ import lombok.Getter;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Optional;
 
 import static java.util.Optional.ofNullable;
 
@@ -30,7 +32,7 @@ public enum DefaultCorrelationDataProvider implements CorrelationDataProvider {
 
     private final String clientIdKey = "$clientId", clientNameKey = "$clientName", consumerKey = "$consumer",
             trackerKey = "$tracker", correlationIdKey = "$correlationId", traceIdKey = "$traceId",
-            triggerKey = "$trigger", triggerTypeKey = "$triggerType";
+            triggerKey = "$trigger", triggerTypeKey = "$triggerType", invocationKey = "$invocation";
 
     @Override
     public Map<String, String> getCorrelationData(DeserializingMessage currentMessage) {
@@ -51,6 +53,7 @@ public enum DefaultCorrelationDataProvider implements CorrelationDataProvider {
             result.put(triggerTypeKey, m.getMessageType().name());
             result.putAll(currentMessage.getMetadata().getTraceEntries());
         });
+        Optional.ofNullable(Invocation.getCurrent()).ifPresent(i -> result.put(invocationKey, i.getId()));
         return result;
     }
 }

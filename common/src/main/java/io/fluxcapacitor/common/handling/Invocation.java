@@ -47,7 +47,7 @@ public class Invocation {
             invocation.getCallbacks().forEach(c -> c.accept(null, e));
             throw e;
         } finally {
-            current.set(null);
+            current.remove();
         }
     }
 
