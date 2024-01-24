@@ -19,7 +19,6 @@ import io.fluxcapacitor.common.api.Metadata;
 import io.fluxcapacitor.common.handling.HandlerConfiguration;
 import io.fluxcapacitor.common.handling.HandlerInvoker;
 import io.fluxcapacitor.common.handling.HandlerMatcher;
-import io.fluxcapacitor.common.handling.Invocation;
 import io.fluxcapacitor.common.handling.ParameterResolver;
 import io.fluxcapacitor.common.reflection.ReflectionUtils;
 import io.fluxcapacitor.javaclient.common.HasMessage;
@@ -27,6 +26,7 @@ import io.fluxcapacitor.javaclient.common.Message;
 import io.fluxcapacitor.javaclient.common.serialization.DeserializingMessage;
 import io.fluxcapacitor.javaclient.persisting.eventsourcing.Apply;
 import io.fluxcapacitor.javaclient.persisting.eventsourcing.InterceptApply;
+import io.fluxcapacitor.javaclient.tracking.handling.Invocation;
 import io.fluxcapacitor.javaclient.tracking.handling.validation.ValidationUtils;
 import lombok.Value;
 

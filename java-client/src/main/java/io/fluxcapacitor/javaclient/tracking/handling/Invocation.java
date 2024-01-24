@@ -12,24 +12,24 @@
  * limitations under the License.
  */
 
-package io.fluxcapacitor.common.handling;
+package io.fluxcapacitor.javaclient.tracking.handling;
 
 import io.fluxcapacitor.common.Registration;
+import io.fluxcapacitor.javaclient.common.IdentityProvider;
 import lombok.Getter;
 import lombok.SneakyThrows;
 import lombok.Value;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.UUID;
 import java.util.concurrent.Callable;
 import java.util.function.BiConsumer;
 
 @Value
 public class Invocation {
+
     private static final ThreadLocal<Invocation> current = new ThreadLocal<>();
-    @Getter(lazy = true)
-    String id = UUID.randomUUID().toString();
+    @Getter(lazy = true) String id = IdentityProvider.defaultIdentityProvider.nextTechnicalId();
     transient List<BiConsumer<Object, Throwable>> callbacks = new ArrayList<>();
 
     @SneakyThrows

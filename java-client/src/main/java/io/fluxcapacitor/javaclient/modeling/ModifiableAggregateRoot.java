@@ -15,11 +15,11 @@
 package io.fluxcapacitor.javaclient.modeling;
 
 import io.fluxcapacitor.common.Pair;
-import io.fluxcapacitor.common.handling.Invocation;
 import io.fluxcapacitor.javaclient.common.Message;
 import io.fluxcapacitor.javaclient.common.serialization.DeserializingMessage;
 import io.fluxcapacitor.javaclient.common.serialization.Serializer;
 import io.fluxcapacitor.javaclient.publishing.DispatchInterceptor;
+import io.fluxcapacitor.javaclient.tracking.handling.Invocation;
 import lombok.EqualsAndHashCode;
 import lombok.NonNull;
 import lombok.ToString;

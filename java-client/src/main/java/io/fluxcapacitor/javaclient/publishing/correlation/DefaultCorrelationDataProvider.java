@@ -14,10 +14,10 @@
 
 package io.fluxcapacitor.javaclient.publishing.correlation;
 
-import io.fluxcapacitor.common.handling.Invocation;
 import io.fluxcapacitor.javaclient.FluxCapacitor;
 import io.fluxcapacitor.javaclient.common.serialization.DeserializingMessage;
 import io.fluxcapacitor.javaclient.tracking.Tracker;
+import io.fluxcapacitor.javaclient.tracking.handling.Invocation;
 import lombok.Getter;
 
 import java.util.HashMap;

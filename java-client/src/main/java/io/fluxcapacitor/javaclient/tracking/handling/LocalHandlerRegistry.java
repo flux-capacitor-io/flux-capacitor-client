@@ -20,7 +20,6 @@ import io.fluxcapacitor.common.Registration;
 import io.fluxcapacitor.common.handling.Handler;
 import io.fluxcapacitor.common.handling.HandlerFilter;
 import io.fluxcapacitor.common.handling.HandlerInvoker;
-import io.fluxcapacitor.common.handling.Invocation;
 import io.fluxcapacitor.common.reflection.ReflectionUtils;
 import io.fluxcapacitor.javaclient.FluxCapacitor;
 import io.fluxcapacitor.javaclient.common.Message;
