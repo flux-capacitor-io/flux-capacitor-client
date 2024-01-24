@@ -14,6 +14,7 @@
 
 package io.fluxcapacitor.common.api.tracking;
 
+import io.fluxcapacitor.common.MessageType;
 import io.fluxcapacitor.common.api.Request;
 import lombok.EqualsAndHashCode;
 import lombok.Value;
@@ -21,6 +22,7 @@ import lombok.Value;
 @Value
 @EqualsAndHashCode(callSuper = true)
 public class ReadFromIndex extends Request {
+    MessageType messageType;
     long minIndex;
     int maxSize;
 }

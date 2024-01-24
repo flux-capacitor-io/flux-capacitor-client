@@ -22,4 +22,9 @@ import lombok.Value;
 public class CancelSchedule extends Command {
     String scheduleId;
     Guarantee guarantee;
+
+    @Override
+    public String routingKey() {
+        return scheduleId;
+    }
 }

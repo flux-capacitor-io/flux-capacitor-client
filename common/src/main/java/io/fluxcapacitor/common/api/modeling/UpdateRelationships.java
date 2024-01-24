@@ -19,10 +19,17 @@ import io.fluxcapacitor.common.api.Command;
 import lombok.Value;
 
 import java.util.Set;
+import java.util.stream.Stream;
 
 @Value
 public class UpdateRelationships extends Command {
     Set<Relationship> associations;
     Set<Relationship> dissociations;
     Guarantee guarantee;
+
+    @Override
+    public String routingKey() {
+        return Stream.concat(associations.stream(), dissociations.stream()).map(Relationship::getAggregateId)
+                .findFirst().orElse(null);
+    }
 }

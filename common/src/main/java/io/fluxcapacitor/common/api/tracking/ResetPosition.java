@@ -15,12 +15,19 @@
 package io.fluxcapacitor.common.api.tracking;
 
 import io.fluxcapacitor.common.Guarantee;
+import io.fluxcapacitor.common.MessageType;
 import io.fluxcapacitor.common.api.Command;
 import lombok.Value;
 
 @Value
 public class ResetPosition extends Command {
+    MessageType messageType;
     String consumer;
     long lastIndex;
     Guarantee guarantee;
+
+    @Override
+    public String routingKey() {
+        return "%s_%s".formatted(messageType, consumer);
+    }
 }

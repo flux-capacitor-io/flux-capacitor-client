@@ -78,7 +78,7 @@ public abstract class AbstractWebsocketClient implements AutoCloseable {
     private final WebSocketClient.ClientConfig clientConfig;
     private final ObjectMapper objectMapper;
     private final Map<Long, WebSocketRequest> requests = new ConcurrentHashMap<>();
-    private final Map<String, Backlog<JsonType>> sessionBacklogs = new ConcurrentHashMap<>();
+    private final Map<String, Backlog<Request>> sessionBacklogs = new ConcurrentHashMap<>();
     private final AtomicBoolean closed = new AtomicBoolean();
     private final ExecutorService resultExecutor = Executors.newFixedThreadPool(
             8, newThreadFactory(getClass().getSimpleName() + "-onMessage"));
@@ -131,35 +131,34 @@ public abstract class AbstractWebsocketClient implements AutoCloseable {
     }
 
     protected CompletableFuture<Void> sendCommand(Command command) {
-        switch (command.getGuarantee()) {
-            case NONE:
+        return switch (command.getGuarantee()) {
+            case NONE -> {
                 sendAndForget(command);
-                return CompletableFuture.completedFuture(null);
-            case SENT:
-                return sendAndForget(command);
-            default:
-                return send(command).thenApply(r -> null);
-        }
+                yield CompletableFuture.completedFuture(null);
+            }
+            case SENT -> sendAndForget(command);
+            default -> send(command).thenApply(r -> null);
+        };
     }
 
     @SneakyThrows
-    private CompletableFuture<Void> sendAndForget(JsonType object) {
-        return send(object, sessionPool.get());
+    private CompletableFuture<Void> sendAndForget(Command object) {
+        return send(object, sessionPool.get(object.routingKey()));
     }
 
     @SneakyThrows
-    private CompletableFuture<Void> send(JsonType object, Session session) {
+    private CompletableFuture<Void> send(Request request, Session session) {
         try {
             return sessionBacklogs.computeIfAbsent(
-                    session.getId(), id -> Backlog.forConsumer(batch -> sendBatch(batch, session))).add(object);
+                    session.getId(), id -> Backlog.forConsumer(batch -> sendBatch(batch, session))).add(request);
         } finally {
-            tryPublishMetrics(object, object instanceof Request
-                    ? metricsMetadata().with("requestId", ((Request) object).getRequestId()) : metricsMetadata());
+            tryPublishMetrics(request, metricsMetadata()
+                    .with("sessionId", session.getId()).with("requestId", request.getRequestId()));
         }
     }
 
     @SneakyThrows
-    private void sendBatch(List<JsonType> requests, Session session) {
+    private void sendBatch(List<Request> requests, Session session) {
         JsonType object = requests.size() == 1 ? requests.get(0) : new RequestBatch<>(requests);
         try (OutputStream outputStream = session.getBasicRemote().getSendStream()) {
             byte[] bytes = objectMapper.writeValueAsBytes(object);
@@ -289,7 +288,7 @@ public abstract class AbstractWebsocketClient implements AutoCloseable {
         protected <T extends QueryResult> CompletableFuture<T> send() {
             Session session;
             try {
-                session = sessionPool.get();
+                session = request instanceof Command c ? sessionPool.get(c.routingKey()) : sessionPool.get();
             } catch (Exception e) {
                 log.error("Failed to get websocket session to send request {}", request, e);
                 result.completeExceptionally(e);

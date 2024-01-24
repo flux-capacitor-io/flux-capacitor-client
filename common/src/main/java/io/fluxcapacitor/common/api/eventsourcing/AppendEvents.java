@@ -34,6 +34,11 @@ public class AppendEvents extends Command {
     }
 
     @Override
+    public String routingKey() {
+        return eventBatches.get(0).getAggregateId();
+    }
+
+    @Override
     public Metric toMetric() {
         return new Metric(eventBatches.stream().map(EventBatch::toMetric).collect(Collectors.toList()));
     }

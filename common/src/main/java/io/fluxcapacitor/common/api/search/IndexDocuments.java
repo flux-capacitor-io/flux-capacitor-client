@@ -46,6 +46,11 @@ public class IndexDocuments extends Command {
                 documents.stream().map(SerializedDocument::getId).collect(Collectors.toList()));
     }
 
+    @Override
+    public String routingKey() {
+        return documents.get(0).getId();
+    }
+
     @Value
     public static class Metric {
         int size;

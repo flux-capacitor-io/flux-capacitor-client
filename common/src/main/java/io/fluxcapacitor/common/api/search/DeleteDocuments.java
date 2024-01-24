@@ -24,4 +24,9 @@ import lombok.Value;
 public class DeleteDocuments extends Command {
     SearchQuery query;
     Guarantee guarantee;
+
+    @Override
+    public String routingKey() {
+        return super.routingKey();
+    }
 }

@@ -40,6 +40,11 @@ public class StoreValues extends Command {
         return "StoreValues of size " + values.size();
     }
 
+    @Override
+    public String routingKey() {
+        return values.get(0).getKey();
+    }
+
     @Value
     public static class Metric {
         List<String> keys;

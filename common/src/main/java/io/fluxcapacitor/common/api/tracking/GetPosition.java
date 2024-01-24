@@ -14,10 +14,12 @@
 
 package io.fluxcapacitor.common.api.tracking;
 
+import io.fluxcapacitor.common.MessageType;
 import io.fluxcapacitor.common.api.Request;
 import lombok.Value;
 
 @Value
 public class GetPosition extends Request {
+    MessageType messageType;
     String consumer;
 }

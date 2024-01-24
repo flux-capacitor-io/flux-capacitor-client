@@ -25,4 +25,9 @@ public class DeleteDocumentById extends Command {
     String collection;
     String id;
     Guarantee guarantee;
+
+    @Override
+    public String routingKey() {
+        return id;
+    }
 }

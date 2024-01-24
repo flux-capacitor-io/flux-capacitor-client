@@ -190,6 +190,10 @@ public class WebRequest extends Message {
         return Optional.ofNullable(metadata.get("headers", Map.class)).orElse(Collections.emptyMap());
     }
 
+    public static Optional<String> getHeader(Metadata metadata, String name) {
+        return getHeaders(metadata).getOrDefault(name, Collections.emptyList()).stream().findFirst();
+    }
+
     public static Optional<HttpCookie> getCookie(Metadata metadata, String name) {
         return getHeaders(metadata).getOrDefault("Cookie", Collections.emptyList())
                 .stream().findFirst().map(WebUtils::parseRequestCookieHeader).orElseGet(Collections::emptyList)

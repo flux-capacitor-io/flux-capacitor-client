@@ -26,4 +26,9 @@ public class RepairRelationships extends Command {
     String aggregateType;
     Set<String> entityIds;
     Guarantee guarantee;
+
+    @Override
+    public String routingKey() {
+        return aggregateId;
+    }
 }

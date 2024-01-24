@@ -26,4 +26,9 @@ public class CreateAuditTrail extends Command {
     @NonNull String collection;
     Long retentionTimeInSeconds;
     Guarantee guarantee;
+
+    @Override
+    public String routingKey() {
+        return collection;
+    }
 }

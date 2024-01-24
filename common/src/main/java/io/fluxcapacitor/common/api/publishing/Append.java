@@ -16,6 +16,7 @@ package io.fluxcapacitor.common.api.publishing;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import io.fluxcapacitor.common.Guarantee;
+import io.fluxcapacitor.common.MessageType;
 import io.fluxcapacitor.common.api.Command;
 import io.fluxcapacitor.common.api.SerializedMessage;
 import lombok.Value;
@@ -26,6 +27,7 @@ import static java.util.Optional.ofNullable;
 
 @Value
 public class Append extends Command {
+    MessageType messageType;
     List<SerializedMessage> messages;
     Guarantee guarantee;
 
@@ -39,17 +41,23 @@ public class Append extends Command {
     }
 
     @Override
+    public String routingKey() {
+        return messageType.name();
+    }
+
+    @Override
     public String toString() {
         return "Append of length " + messages.size();
     }
 
     @Override
     public Metric toMetric() {
-        return new Metric(getSize(), getGuarantee());
+        return new Metric(getMessageType(), getSize(), getGuarantee());
     }
 
     @Value
     public static class Metric {
+        MessageType messageType;
         int size;
         Guarantee guarantee;
     }

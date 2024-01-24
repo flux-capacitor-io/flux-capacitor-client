@@ -22,4 +22,9 @@ import lombok.Value;
 public class DeleteValue extends Command {
     String key;
     Guarantee guarantee;
+
+    @Override
+    public String routingKey() {
+        return key;
+    }
 }

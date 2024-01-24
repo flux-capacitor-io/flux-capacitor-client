@@ -18,4 +18,8 @@ import io.fluxcapacitor.common.Guarantee;
 
 public abstract class Command extends Request {
     public abstract Guarantee getGuarantee();
+
+    public String routingKey() {
+        return null;
+    }
 }

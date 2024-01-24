@@ -69,7 +69,7 @@ public class WebsocketTrackingClient extends AbstractWebsocketClient implements 
     @Override
     public CompletableFuture<MessageBatch> read(String consumer, String trackerId, Long lastIndex,
                                                 ConsumerConfiguration configuration) {
-        return this.<ReadResult>send(new Read(
+        return this.<ReadResult>send(new Read(messageType,
                         consumer, trackerId, configuration.getMaxFetchSize(),
                         configuration.getMaxWaitDuration().toMillis(), configuration.getTypeFilter(),
                         configuration.filterMessageTarget(), configuration.ignoreSegment(),
@@ -80,7 +80,7 @@ public class WebsocketTrackingClient extends AbstractWebsocketClient implements 
 
     public CompletableFuture<ClaimSegmentResult> claimSegment(String consumer, String trackerId, Long lastIndex,
                                            ConsumerConfiguration config) {
-        return send(new ClaimSegment(
+        return send(new ClaimSegment(messageType,
                 consumer, trackerId, config.getMaxWaitDuration().toMillis(), config.clientControlledIndex(),
                 config.getTypeFilter(), config.filterMessageTarget(), lastIndex,
                 Optional.ofNullable(config.getPurgeDelay()).map(Duration::toMillis).orElse(null)));
@@ -88,28 +88,28 @@ public class WebsocketTrackingClient extends AbstractWebsocketClient implements 
 
     @Override
     public List<SerializedMessage> readFromIndex(long minIndex, int maxSize) {
-        ReadFromIndexResult result = sendAndWait(new ReadFromIndex(minIndex, maxSize));
+        ReadFromIndexResult result = sendAndWait(new ReadFromIndex(messageType, minIndex, maxSize));
         return result.getMessages();
     }
 
     @Override
     public CompletableFuture<Void> storePosition(String consumer, int[] segment, long lastIndex, Guarantee guarantee) {
-        return sendCommand(new StorePosition(consumer, segment, lastIndex, guarantee));
+        return sendCommand(new StorePosition(messageType, consumer, segment, lastIndex, guarantee));
     }
 
     @Override
     public CompletableFuture<Void> resetPosition(String consumer, long lastIndex, Guarantee guarantee) {
-        return sendCommand(new ResetPosition(consumer, lastIndex, guarantee));
+        return sendCommand(new ResetPosition(messageType, consumer, lastIndex, guarantee));
     }
 
     @Override
     public Position getPosition(String consumer) {
-        return this.<GetPositionResult>sendAndWait(new GetPosition(consumer)).getPosition();
+        return this.<GetPositionResult>sendAndWait(new GetPosition(messageType, consumer)).getPosition();
     }
 
     @Override
     public CompletableFuture<Void> disconnectTracker(String consumer, String trackerId, boolean sendFinalEmptyBatch, Guarantee guarantee) {
-        return sendCommand(new DisconnectTracker(consumer, trackerId, sendFinalEmptyBatch, guarantee));
+        return sendCommand(new DisconnectTracker(messageType, consumer, trackerId, sendFinalEmptyBatch, guarantee));
     }
 
     @Override

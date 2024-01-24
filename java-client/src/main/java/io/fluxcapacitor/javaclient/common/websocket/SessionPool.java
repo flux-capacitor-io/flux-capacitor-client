@@ -14,6 +14,7 @@
 
 package io.fluxcapacitor.javaclient.common.websocket;
 
+import io.fluxcapacitor.common.ConsistentHashing;
 import jakarta.websocket.Session;
 import lombok.extern.slf4j.Slf4j;
 
@@ -28,7 +29,7 @@ import java.util.stream.IntStream;
 import static java.util.stream.Collectors.toCollection;
 
 @Slf4j
-public class SessionPool implements Supplier<Session>, AutoCloseable {
+public class SessionPool implements AutoCloseable {
     private final List<AtomicReference<Session>> sessions;
     private final int size;
     private final AtomicInteger counter = new AtomicInteger();
@@ -41,26 +42,33 @@ public class SessionPool implements Supplier<Session>, AutoCloseable {
                 toCollection(ArrayList::new));
     }
 
-    @Override
     public Session get() {
-        AtomicReference<Session> reference =
-                sessions.get(counter.getAndAccumulate(1, (i, inc) -> {
-                    int newIndex = i + inc;
-                    return newIndex >= size ? 0 : newIndex;
-                }));
-        return reference.updateAndGet(s -> {
-            if (isClosed(s)) {
-                synchronized (shuttingDown) {
-                    while (isClosed(s)) {
-                        if (shuttingDown.get()) {
-                            throw new IllegalStateException("Cannot provide session. This client has closed");
-                        }
-                        s = sessionFactory.get();
+        return sessions.get(counter.getAndAccumulate(1, (i, inc) -> {
+            int newIndex = i + inc;
+            return newIndex >= size ? 0 : newIndex;
+        })).updateAndGet(this::returnOrRefresh);
+    }
+
+    public Session get(String routingKey) {
+        if (routingKey == null) {
+            return get();
+        }
+        int segment = ConsistentHashing.computeSegment(routingKey, size);
+        return sessions.get(segment).updateAndGet(this::returnOrRefresh);
+    }
+
+    protected Session returnOrRefresh(Session s) {
+        if (isClosed(s)) {
+            synchronized (shuttingDown) {
+                while (isClosed(s)) {
+                    if (shuttingDown.get()) {
+                        throw new IllegalStateException("Cannot provide session. This client has closed");
                     }
+                    s = sessionFactory.get();
                 }
             }
-            return s;
-        });
+        }
+        return s;
     }
 
     @Override

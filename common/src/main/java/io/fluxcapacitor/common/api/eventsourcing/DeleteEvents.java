@@ -24,4 +24,9 @@ import lombok.Value;
 public class DeleteEvents extends Command {
     String aggregateId;
     Guarantee guarantee;
+
+    @Override
+    public String routingKey() {
+        return aggregateId;
+    }
 }

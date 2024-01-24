@@ -34,6 +34,11 @@ public class StoreValuesAndWait extends Command {
     }
 
     @Override
+    public String routingKey() {
+        return values.get(0).getKey();
+    }
+
+    @Override
     public String toString() {
         return "StoreValuesAndWait of size " + values.size();
     }

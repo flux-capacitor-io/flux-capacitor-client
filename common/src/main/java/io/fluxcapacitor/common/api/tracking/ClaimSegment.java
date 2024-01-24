@@ -14,6 +14,7 @@
 
 package io.fluxcapacitor.common.api.tracking;
 
+import io.fluxcapacitor.common.MessageType;
 import lombok.EqualsAndHashCode;
 import lombok.Value;
 
@@ -22,15 +23,15 @@ import java.beans.ConstructorProperties;
 @Value
 @EqualsAndHashCode(callSuper = true)
 public class ClaimSegment extends Read {
-    @ConstructorProperties({"consumer", "trackerId", "maxTimeout", "clientControlledIndex", "typeFilter", "filterMessageTarget", "lastIndex", "purgeTimeout"})
-    public ClaimSegment(String consumer, String trackerId, long maxTimeout, boolean clientControlledIndex, String typeFilter,
+    @ConstructorProperties({"messageType", "consumer", "trackerId", "maxTimeout", "clientControlledIndex", "typeFilter", "filterMessageTarget", "lastIndex", "purgeTimeout"})
+    public ClaimSegment(MessageType messageType, String consumer, String trackerId, long maxTimeout, boolean clientControlledIndex, String typeFilter,
                         boolean filterMessageTarget, Long lastIndex, Long purgeTimeout) {
-        super(consumer, trackerId, 0, maxTimeout, typeFilter, filterMessageTarget, false,
+        super(messageType, consumer, trackerId, 0, maxTimeout, typeFilter, filterMessageTarget, false,
               false, clientControlledIndex, lastIndex, purgeTimeout);
     }
 
     public ClaimSegment(Read read) {
-        this(read.getConsumer(), read.getTrackerId(), read.getMaxTimeout(), read.isClientControlledIndex(),
+        this(read.getMessageType(), read.getConsumer(), read.getTrackerId(), read.getMaxTimeout(), read.isClientControlledIndex(),
              read.getTypeFilter(), read.isFilterMessageTarget(), read.getLastIndex(), read.getPurgeTimeout());
     }
 }

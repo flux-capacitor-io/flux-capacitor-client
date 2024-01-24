@@ -24,4 +24,9 @@ import lombok.Value;
 public class DeleteCollection extends Command {
     String collection;
     Guarantee guarantee;
+
+    @Override
+    public String routingKey() {
+        return collection;
+    }
 }

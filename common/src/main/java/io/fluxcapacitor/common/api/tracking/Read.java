@@ -14,6 +14,7 @@
 
 package io.fluxcapacitor.common.api.tracking;
 
+import io.fluxcapacitor.common.MessageType;
 import io.fluxcapacitor.common.api.Request;
 import lombok.EqualsAndHashCode;
 import lombok.Value;
@@ -23,6 +24,7 @@ import lombok.experimental.NonFinal;
 @EqualsAndHashCode(callSuper = true)
 @NonFinal
 public class Read extends Request {
+    MessageType messageType;
     String consumer;
     String trackerId;
     int maxSize;

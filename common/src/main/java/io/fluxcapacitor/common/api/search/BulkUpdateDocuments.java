@@ -43,6 +43,11 @@ public class BulkUpdateDocuments extends Command {
         return new Metric(updates.size(), guarantee);
     }
 
+    @Override
+    public String routingKey() {
+        return updates.stream().map(DocumentUpdate::getId).findFirst().orElse(null);
+    }
+
     @Value
     public static class Metric {
         int size;

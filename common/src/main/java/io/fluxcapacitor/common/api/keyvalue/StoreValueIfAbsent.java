@@ -39,6 +39,11 @@ public class StoreValueIfAbsent extends Command {
         return new Metric(value.getKey());
     }
 
+    @Override
+    public String routingKey() {
+        return value.getKey();
+    }
+
     @Value
     public static class Metric {
         String key;
