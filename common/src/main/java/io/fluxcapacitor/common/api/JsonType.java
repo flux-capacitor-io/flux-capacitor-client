@@ -47,6 +47,8 @@ import io.fluxcapacitor.common.api.search.GetDocument;
 import io.fluxcapacitor.common.api.search.GetDocumentResult;
 import io.fluxcapacitor.common.api.search.GetDocumentStats;
 import io.fluxcapacitor.common.api.search.GetDocumentStatsResult;
+import io.fluxcapacitor.common.api.search.GetFacetStats;
+import io.fluxcapacitor.common.api.search.GetFacetStatsResult;
 import io.fluxcapacitor.common.api.search.GetSearchHistogram;
 import io.fluxcapacitor.common.api.search.GetSearchHistogramResult;
 import io.fluxcapacitor.common.api.search.IndexDocuments;
@@ -134,6 +136,8 @@ import io.fluxcapacitor.common.api.tracking.StorePosition;
         @JsonSubTypes.Type(value = SearchDocumentsResult.class, name = "searchDocumentsResult"),
         @JsonSubTypes.Type(value = GetDocumentStatsResult.class, name = "getDocumentStatsResult"),
         @JsonSubTypes.Type(value = CreateAuditTrail.class, name = "createAuditTrail"),
+        @JsonSubTypes.Type(value = GetFacetStats.class, name = "getFacetStats"),
+        @JsonSubTypes.Type(value = GetFacetStatsResult.class, name = "getFacetStatsResult"),
 })
 public interface JsonType {
     @JsonIgnore

@@ -16,12 +16,14 @@ package io.fluxcapacitor.javaclient.persisting.search;
 
 import io.fluxcapacitor.common.api.search.Constraint;
 import io.fluxcapacitor.common.api.search.DocumentStats.FieldStats;
+import io.fluxcapacitor.common.api.search.FacetStats;
 import io.fluxcapacitor.common.api.search.Group;
 import io.fluxcapacitor.common.api.search.SearchHistogram;
 import io.fluxcapacitor.common.api.search.constraints.AllConstraint;
 import io.fluxcapacitor.common.api.search.constraints.AnyConstraint;
 import io.fluxcapacitor.common.api.search.constraints.BetweenConstraint;
 import io.fluxcapacitor.common.api.search.constraints.ExistsConstraint;
+import io.fluxcapacitor.common.api.search.constraints.FacetConstraint;
 import io.fluxcapacitor.common.api.search.constraints.LookAheadConstraint;
 import io.fluxcapacitor.common.api.search.constraints.MatchConstraint;
 import io.fluxcapacitor.common.api.search.constraints.NotConstraint;
@@ -89,6 +91,10 @@ public interface Search {
 
     default Search match(Object constraint, boolean strict, String... paths) {
         return constraint(MatchConstraint.match(constraint, strict, paths));
+    }
+
+    default Search matchFacet(String name, Object value) {
+        return constraint(FacetConstraint.matchFacet(name, value));
     }
 
     default Search anyExist(String... paths) {
@@ -213,6 +219,8 @@ public interface Search {
     default Map<String, FieldStats> aggregate(String... fields) {
         return groupBy().aggregate(fields).get(Group.of());
     }
+
+    List<FacetStats> facetStats();
 
     CompletableFuture<Void> delete();
 }

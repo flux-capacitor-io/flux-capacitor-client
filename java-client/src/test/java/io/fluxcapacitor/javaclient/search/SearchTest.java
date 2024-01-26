@@ -17,9 +17,12 @@ package io.fluxcapacitor.javaclient.search;
 import com.fasterxml.jackson.databind.JsonNode;
 import io.fluxcapacitor.common.api.search.BulkUpdate;
 import io.fluxcapacitor.common.api.search.Constraint;
+import io.fluxcapacitor.common.api.search.FacetStats;
 import io.fluxcapacitor.common.api.search.Group;
 import io.fluxcapacitor.common.api.search.bulkupdate.DeleteDocument;
 import io.fluxcapacitor.common.api.search.bulkupdate.IndexDocument;
+import io.fluxcapacitor.common.api.search.constraints.FacetConstraint;
+import io.fluxcapacitor.common.search.Facet;
 import io.fluxcapacitor.common.serialization.JsonUtils;
 import io.fluxcapacitor.javaclient.FluxCapacitor;
 import io.fluxcapacitor.javaclient.common.serialization.jackson.JacksonSerializer;
@@ -589,6 +592,28 @@ public class SearchTest {
         }
     }
 
+    @Nested
+    class FacetSearch {
+        private final Given testFixture = TestFixture.create()
+                .givenDocuments("test", new SomeDocument(), new SomeDocument());
+
+        @Test
+        void facetMatch() {
+            expectMatch(FacetConstraint.matchFacet("custom", "testCustom"));
+            expectNoMatch(FacetConstraint.matchFacet("custom", "testCustom2"));
+            expectNoMatch(FacetConstraint.matchFacet("custom", "TESTCustom"));
+        }
+
+        @Test
+        void getFacetStats() {
+            testFixture.whenApplying(fc -> FluxCapacitor.search("test").facetStats())
+                    .<List<FacetStats>>expectResult(stats -> stats.size() == 3
+                                                             && stats.contains(new FacetStats("custom", "testCustom", 2))
+                                                             && stats.contains(new FacetStats("facetField", "testField", 2))
+                                                             && stats.contains(new FacetStats("facetGetter", "testGetter", 2)));
+        }
+    }
+
     @Value
     @Builder
     private static class MockObjectWithBulkUpdates {
@@ -622,6 +647,9 @@ public class SearchTest {
         List<Map<String, Object>> mapList;
         String symbols, weirdChars;
         Map<String, ?> status;
+        @Facet
+        String facetField;
+        String facetGetter;
 
         public SomeDocument() {
             this.someId = ID;
@@ -636,6 +664,18 @@ public class SearchTest {
             this.weirdChars =
                     "ẏṏṳṙ ẇḕḭṙḊ ṮḕẌṮ ÄäǞǟĄ̈ą̈B̈b̈C̈c̈ËëḦḧÏïḮḯJ̈j̈K̈k̈L̈l̈M̈m̈N̈n̈ÖöȪȫǪ̈ǫ̈ṎṏP̈p̈Q̈q̈Q̣̈q̣̈R̈r̈S̈s̈T̈ẗÜüǕǖǗǘǙǚǛǜṲṳṺṻṲ̄ṳ̄ᴞV̈v̈ẄẅẌẍŸÿZ̈z̈ΪϊῒΐῗΫϋῢΰῧϔӒӓЁёӚӛӜӝӞӟӤӥЇїӦӧӪӫӰӱӴӵӸӹӬӭ";
             this.status = Map.of("sent", Map.of("date", "2023-06-15T22:00:00.180Z"));
+            this.facetField = "testField";
+            this.facetGetter = "testGetter";
+        }
+
+        @Facet
+        public String getFacetGetter() {
+            return facetGetter;
+        }
+
+        @Facet("custom")
+        public String facetCustom() {
+            return "testCustom";
         }
     }
 }

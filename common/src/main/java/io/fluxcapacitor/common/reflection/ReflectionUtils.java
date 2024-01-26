@@ -230,6 +230,26 @@ public class ReflectionUtils {
         return results;
     }
 
+    public static String getPropertyName(AccessibleObject property) {
+        if (property instanceof Field field) {
+            return field.getName();
+        }
+        if (property instanceof Method method) {
+            String name = method.getName();
+            if (name.length() > 3 && name.startsWith("get") && Character.isUpperCase(name.charAt(3))) {
+                char[] c = name.toCharArray();
+                c[3] = Character.toLowerCase(c[3]);
+                name = String.valueOf(c, 3, c.length - 3);
+            } else if (name.length() > 2 && name.startsWith("is") && Character.isUpperCase(name.charAt(2))) {
+                char[] c = name.toCharArray();
+                c[2] = Character.toLowerCase(c[2]);
+                name = String.valueOf(c, 2, c.length - 2);
+            }
+            return name;
+        }
+        throw new UnsupportedOperationException("Not a property: " + property);
+    }
+
     public static List<Method> getAnnotatedMethods(Class<?> target, Class<? extends Annotation> annotation) {
         return methodsCache.apply(target).stream().filter(m -> getMethodAnnotation(m, annotation).isPresent()).toList();
     }
@@ -488,7 +508,7 @@ public class ReflectionUtils {
             return (target, propertyValue) -> ((ObjectNode) target).putPOJO(propertyName, propertyValue);
         }
         PropertyNotFoundException notFoundException = new PropertyNotFoundException(propertyName, type);
-        return stream(getBeanInfo(type, Object.class).getPropertyDescriptors())
+        return stream(getBeanInfo(type, null).getPropertyDescriptors())
                 .filter(d -> propertyName.equals(d.getName()))
                 .<Member>map(PropertyDescriptor::getWriteMethod).filter(Objects::nonNull).findFirst()
                 .or(() -> Optional.ofNullable(FieldUtils.getField(type, propertyName, true)))

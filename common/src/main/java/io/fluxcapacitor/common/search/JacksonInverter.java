@@ -28,7 +28,9 @@ import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.fasterxml.jackson.databind.node.TextNode;
 import io.fluxcapacitor.common.ThrowingFunction;
 import io.fluxcapacitor.common.api.Data;
+import io.fluxcapacitor.common.api.search.FacetEntry;
 import io.fluxcapacitor.common.api.search.SerializedDocument;
+import io.fluxcapacitor.common.reflection.ReflectionUtils;
 import io.fluxcapacitor.common.search.Document.Entry;
 import io.fluxcapacitor.common.search.Document.EntryType;
 import io.fluxcapacitor.common.search.Document.Path;
@@ -40,24 +42,32 @@ import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
 
 import java.lang.annotation.Annotation;
+import java.lang.reflect.AccessibleObject;
 import java.lang.reflect.Member;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.SortedMap;
 import java.util.TreeMap;
 import java.util.function.Function;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import static io.fluxcapacitor.common.ObjectUtils.memoize;
 import static io.fluxcapacitor.common.SearchUtils.asIntegerOrString;
 import static io.fluxcapacitor.common.api.Data.JSON_FORMAT;
 import static io.fluxcapacitor.common.reflection.ReflectionUtils.getMemberAnnotation;
+import static io.fluxcapacitor.common.reflection.ReflectionUtils.getPropertyName;
 import static io.fluxcapacitor.common.reflection.ReflectionUtils.getTypeAnnotation;
+import static java.util.Collections.emptySet;
 import static java.util.Optional.ofNullable;
 import static java.util.stream.Collectors.joining;
 import static java.util.stream.Collectors.toList;
@@ -127,7 +137,32 @@ public class JacksonInverter implements Inverter<JsonNode> {
                                          Instant timestamp, Instant end) {
         byte[] data = objectMapper.writeValueAsBytes(value);
         return new SerializedDocument(new Document(id, type, revision, collection,
-                                                   timestamp, end, invert(data), () -> summarize(value)));
+                                                   timestamp, end, invert(data), () -> summarize(value),
+                                                   getFacets(value)));
+    }
+
+    protected Set<FacetEntry> getFacets(Object value) {
+        if (value == null) {
+            return emptySet();
+        }
+        var properties = ReflectionUtils.getAnnotatedProperties(value.getClass(), Facet.class);
+        return properties.stream().flatMap(p -> ofNullable(ReflectionUtils.getValue(p, value)).stream()
+                        .flatMap(o -> getFacets(p, o))).collect(Collectors.toCollection(LinkedHashSet::new));
+    }
+
+    protected Stream<FacetEntry> getFacets(AccessibleObject property, Object propertyValue) {
+        if (propertyValue == null) {
+            return Stream.empty();
+        }
+        if (propertyValue instanceof Collection<?> collection) {
+            return collection.stream().flatMap(v -> getFacets(property, v));
+        }
+        String stringValue = propertyValue.toString();
+        var customName = ReflectionUtils.getAnnotation(
+                property, Facet.class).map(Facet::value).filter(s -> !s.isBlank());
+        return stringValue.isBlank()
+                ? Stream.empty() : Stream.of(new FacetEntry(
+                        customName.orElseGet(() -> getPropertyName(property)), stringValue));
     }
 
     @SneakyThrows

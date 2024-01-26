@@ -16,6 +16,7 @@ package io.fluxcapacitor.common.search;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import io.fluxcapacitor.common.SearchUtils;
+import io.fluxcapacitor.common.api.search.FacetEntry;
 import io.fluxcapacitor.common.api.search.SearchDocuments;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -30,11 +31,13 @@ import org.apache.commons.lang3.StringUtils;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.function.Function;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
@@ -62,6 +65,8 @@ public class Document {
     @EqualsAndHashCode.Exclude
     @ToString.Exclude
     Supplier<String> summary;
+    @Builder.Default
+    Set<FacetEntry> facets = Collections.emptySet();
 
     public Optional<Entry> getEntryAtPath(String queryPath) {
         return getMatchingEntries(Path.pathPredicate(queryPath)).findFirst();

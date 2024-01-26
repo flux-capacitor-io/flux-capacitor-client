@@ -20,6 +20,7 @@ import io.fluxcapacitor.common.api.search.Constraint;
 import io.fluxcapacitor.common.api.search.CreateAuditTrail;
 import io.fluxcapacitor.common.api.search.DocumentStats;
 import io.fluxcapacitor.common.api.search.DocumentUpdate;
+import io.fluxcapacitor.common.api.search.FacetStats;
 import io.fluxcapacitor.common.api.search.GetDocument;
 import io.fluxcapacitor.common.api.search.GetSearchHistogram;
 import io.fluxcapacitor.common.api.search.Group;
@@ -346,6 +347,11 @@ public class DefaultDocumentStore implements DocumentStore {
         @Override
         public GroupSearch groupBy(String... paths) {
             return new DefaultGroupSearch(Arrays.asList(paths));
+        }
+
+        @Override
+        public List<FacetStats> facetStats() {
+            return client.fetchFacetStats(queryBuilder.build());
         }
 
         @Override

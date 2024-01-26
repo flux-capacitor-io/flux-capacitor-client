@@ -18,6 +18,8 @@ import io.fluxcapacitor.common.Guarantee;
 import io.fluxcapacitor.common.api.search.CreateAuditTrail;
 import io.fluxcapacitor.common.api.search.DocumentStats;
 import io.fluxcapacitor.common.api.search.DocumentUpdate;
+import io.fluxcapacitor.common.api.search.FacetEntry;
+import io.fluxcapacitor.common.api.search.FacetStats;
 import io.fluxcapacitor.common.api.search.GetDocument;
 import io.fluxcapacitor.common.api.search.GetSearchHistogram;
 import io.fluxcapacitor.common.api.search.SearchDocuments;
@@ -30,11 +32,13 @@ import io.fluxcapacitor.javaclient.persisting.search.SearchHit;
 import java.time.Instant;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.TreeMap;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Function;
 import java.util.function.Predicate;
@@ -145,6 +149,15 @@ public class InMemorySearchClient implements SearchClient {
                 .collect(groupingBy(d -> (d.getTimestamp().toEpochMilli() - min) / step))
                 .forEach((bucket, hits) -> results.set(bucket.intValue(), (long) hits.size()));
         return new SearchHistogram(query.getSince(), query.getBefore(), results);
+    }
+
+    @Override
+    public List<FacetStats> fetchFacetStats(SearchQuery query) {
+        return documents.values().stream().filter(query::matches).flatMap(d -> d.getFacets().stream())
+                .collect(groupingBy(identity(), TreeMap::new, toList())).values().stream().map(group -> {
+                    FacetEntry first = group.get(0);
+                    return new FacetStats(first.getName(), first.getValue(), group.size());
+                }).sorted(Comparator.comparing(FacetStats::getCount).reversed()).toList();
     }
 
     @Override

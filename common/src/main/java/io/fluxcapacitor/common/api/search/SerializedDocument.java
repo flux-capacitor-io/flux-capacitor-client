@@ -28,6 +28,7 @@ import lombok.With;
 import java.beans.ConstructorProperties;
 import java.time.Instant;
 import java.util.Optional;
+import java.util.Set;
 import java.util.function.Supplier;
 
 import static io.fluxcapacitor.common.ObjectUtils.memoize;
@@ -48,23 +49,24 @@ public class SerializedDocument {
     @ToString.Exclude
     Supplier<Document> document;
     String summary;
+    Set<FacetEntry> facets;
 
-    @ConstructorProperties({"id", "timestamp", "end", "collection", "document", "summary"})
+    @ConstructorProperties({"id", "timestamp", "end", "collection", "document", "summary", "facets"})
     public SerializedDocument(String id, Long timestamp, Long end, String collection, Data<byte[]> document,
-                              String summary) {
-        this(id, timestamp, end, collection, () -> document, null, summary);
+                              String summary, Set<FacetEntry> facets) {
+        this(id, timestamp, end, collection, () -> document, null, summary, facets);
     }
 
     public SerializedDocument(Document document) {
         this(document.getId(), Optional.ofNullable(document.getTimestamp()).map(Instant::toEpochMilli).orElse(null),
              Optional.ofNullable(document.getEnd()).map(Instant::toEpochMilli).orElse(null),
              document.getCollection(), null, () -> document,
-             Optional.ofNullable(document.getSummary()).map(Supplier::get).orElse(null));
+             Optional.ofNullable(document.getSummary()).map(Supplier::get).orElse(null), document.getFacets());
     }
 
     @SuppressWarnings("unused")
     private SerializedDocument(String id, Long timestamp, Long end, String collection, Supplier<Data<byte[]>> data,
-                               Supplier<Document> document, String summary) {
+                               Supplier<Document> document, String summary, Set<FacetEntry> facets) {
         if (data == null && document == null) {
             throw new IllegalStateException("Either the serialized data or deserialized document should be supplied");
         }
@@ -76,6 +78,7 @@ public class SerializedDocument {
         this.document = document == null
                 ? memoize(() -> DefaultDocumentSerializer.INSTANCE.deserialize(data.get())) : document;
         this.summary = summary;
+        this.facets = facets;
     }
 
     public Long getEnd() {
