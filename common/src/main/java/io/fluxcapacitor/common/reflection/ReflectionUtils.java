@@ -853,7 +853,9 @@ public class ReflectionUtils {
         }
         while (type != null) {
             for (Field field : type.getDeclaredFields()) {
-                ensureAccessible(field).set(target, field.get(source));
+                if (!Modifier.isStatic(field.getModifiers())) {
+                    ensureAccessible(field).set(target, field.get(source));
+                }
             }
             type = type.getSuperclass();
         }
