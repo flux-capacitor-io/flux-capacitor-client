@@ -41,12 +41,13 @@ import io.fluxcapacitor.javaclient.publishing.DispatchInterceptor;
 import io.fluxcapacitor.javaclient.publishing.client.MessageDispatch;
 import io.fluxcapacitor.javaclient.scheduling.DefaultScheduler;
 import io.fluxcapacitor.javaclient.scheduling.Schedule;
-import io.fluxcapacitor.javaclient.scheduling.ScheduledCommandHandler;
+import io.fluxcapacitor.javaclient.scheduling.ScheduledCommand;
 import io.fluxcapacitor.javaclient.scheduling.client.InMemorySchedulingClient;
 import io.fluxcapacitor.javaclient.scheduling.client.SchedulingClient;
 import io.fluxcapacitor.javaclient.tracking.BatchInterceptor;
 import io.fluxcapacitor.javaclient.tracking.ConsumerConfiguration;
 import io.fluxcapacitor.javaclient.tracking.Tracker;
+import io.fluxcapacitor.javaclient.tracking.handling.HandleSchedule;
 import io.fluxcapacitor.javaclient.tracking.handling.HandleSelf;
 import io.fluxcapacitor.javaclient.tracking.handling.HandlerInterceptor;
 import io.fluxcapacitor.javaclient.tracking.handling.authentication.User;
@@ -212,7 +213,14 @@ public class TestFixture implements Given, When {
         withClock(Clock.fixed(Instant.now(), ZoneId.systemDefault()));
         List<Object> handlers = new ArrayList<>();
         if (synchronous) {
-            handlers.add(new ScheduledCommandHandler());
+            handlers.add(new Object() {
+                @HandleSchedule
+                void handle(ScheduledCommand schedule) {
+                    fluxCapacitor.serializer()
+                            .deserializeMessages(Stream.of(schedule.getCommand()), MessageType.COMMAND).findFirst().map(
+                                    DeserializingMessage::toMessage).ifPresent(FluxCapacitor::sendAndForgetCommand);
+                }
+            });
         }
         handlers.addAll(handlerFactory.apply(fluxCapacitor));
         registerHandlers(handlers);
@@ -229,7 +237,8 @@ public class TestFixture implements Given, When {
         var newClient = currentClient instanceof InMemoryClient
                 ? InMemoryClient.newInstance(null) : currentClient;
         {
-            Arrays.stream(MessageType.values()).forEach(type -> newClient.getGatewayClient(type).registerMonitor(interceptor));
+            Arrays.stream(MessageType.values())
+                    .forEach(type -> newClient.getGatewayClient(type).registerMonitor(interceptor));
         }
         this.fluxCapacitor = spying
                 ? new TestFluxCapacitor(fluxCapacitorBuilder.build(new TestClient(newClient)))
