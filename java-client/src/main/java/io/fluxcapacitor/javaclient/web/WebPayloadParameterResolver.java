@@ -49,7 +49,7 @@ public class WebPayloadParameterResolver implements ParameterResolver<HasMessage
     }
 
     @Override
-    public boolean matches(Parameter parameter, Annotation methodAnnotation, HasMessage value, Object target) {
+    public boolean matches(Parameter parameter, Annotation methodAnnotation, HasMessage value) {
         return ReflectionUtils.isOrHas(methodAnnotation, HandleWeb.class);
     }
 }

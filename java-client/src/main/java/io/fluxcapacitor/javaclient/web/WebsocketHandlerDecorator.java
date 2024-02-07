@@ -37,7 +37,7 @@ public class WebsocketHandlerDecorator implements HandlerDecorator {
 
     @Override
     public Handler<DeserializingMessage> wrap(Handler<DeserializingMessage> handler) {
-        var methods = ReflectionUtils.getAllMethods(handler.getTarget().getClass()).stream()
+        var methods = ReflectionUtils.getAllMethods(handler.getTargetClass()).stream()
                 .flatMap(m -> WebUtils.getWebParameters(m).stream()).filter(p -> p.getMethod().isWebsocket()).toList();
         if (!methods.isEmpty()) {
             methods.stream().filter(p -> p.getMethod() == HttpRequestMethod.WS_HANDSHAKE)
@@ -59,12 +59,12 @@ public class WebsocketHandlerDecorator implements HandlerDecorator {
         public WebsocketHandshakeHandler(Handler<DeserializingMessage> delegate, Collection<String> paths) {
             this.delegate = delegate;
             this.paths = paths;
-            this.handshakeInvoker = new HandshakeInvoker(delegate.getTarget());
+            this.handshakeInvoker = new HandshakeInvoker(delegate.getTargetClass());
         }
 
         @Override
-        public Optional<HandlerInvoker> findInvoker(DeserializingMessage message) {
-            return delegate.findInvoker(message).or(
+        public Optional<HandlerInvoker> getInvoker(DeserializingMessage message) {
+            return delegate.getInvoker(message).or(
                     () -> matches(message) ? Optional.of(handshakeInvoker) : Optional.empty());
         }
 
@@ -75,15 +75,14 @@ public class WebsocketHandlerDecorator implements HandlerDecorator {
         }
 
         @Override
-        public Object getTarget() {
-            return delegate.getTarget();
+        public Class<?> getTargetClass() {
+            return delegate.getTargetClass();
         }
-
     }
 
     @RequiredArgsConstructor
     protected static class HandshakeInvoker implements HandlerInvoker {
-        private final Object target;
+        private final Class<?> targetClass;
         private final Executable method = getInvokeMethod();
 
         @SneakyThrows
@@ -92,8 +91,8 @@ public class WebsocketHandlerDecorator implements HandlerDecorator {
         }
 
         @Override
-        public Object getTarget() {
-            return target;
+        public Class<?> getTargetClass() {
+            return targetClass;
         }
 
         @Override

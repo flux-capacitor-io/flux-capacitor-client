@@ -88,8 +88,7 @@ public class ClientUtils {
     }
 
     public static boolean isLocalHandler(HandlerInvoker invoker) {
-        return invoker.getTarget() != null && invoker.getMethod() != null && isLocalHandler(
-                invoker.getTarget().getClass(), invoker.getMethod());
+        return invoker.getMethod() != null && isLocalHandler(invoker.getTargetClass(), invoker.getMethod());
     }
 
     public static boolean isTrackingHandler(Class<?> target, java.lang.reflect.Executable method) {

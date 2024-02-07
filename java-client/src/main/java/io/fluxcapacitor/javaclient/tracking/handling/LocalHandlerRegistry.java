@@ -75,7 +75,7 @@ public class LocalHandlerRegistry implements HandlerRegistry {
                 boolean request = m.getMessageType().isRequest();
                 CompletableFuture<Message> future = new CompletableFuture<>();
                 for (Handler<DeserializingMessage> handler : localHandlers) {
-                    var optionalInvoker = handler.findInvoker(m);
+                    var optionalInvoker = handler.getInvoker(m);
                     if (optionalInvoker.isPresent()) {
                         var invoker = optionalInvoker.get();
                         boolean passive = invoker.isPassive();
@@ -135,7 +135,7 @@ public class LocalHandlerRegistry implements HandlerRegistry {
             return handleSelf.logMessage();
         }
         return getLocalHandlerAnnotation(
-                invoker.getTarget().getClass(), invoker.getMethod())
+                invoker.getTargetClass(), invoker.getMethod())
                 .map(LocalHandler::logMessage).orElse(false);
     }
 

@@ -43,17 +43,17 @@ public class HandlerInspectorParameterResolverTest {
 
     @Test
     public void testFindInvoker() {
-        assertTrue(subject.findInvoker(new Message("payload")).isPresent());
-        assertTrue(subject.findInvoker(new Message(0L)).isPresent());
-        assertFalse(subject.findInvoker(new Message(0)).isPresent());
+        assertTrue(subject.getInvoker(new Message("payload")).isPresent());
+        assertTrue(subject.getInvoker(new Message(0L)).isPresent());
+        assertFalse(subject.getInvoker(new Message(0)).isPresent());
     }
 
     @Test
     public void testInvoke() {
         Message message = new Message("payload");
-        assertEquals("payload", subject.findInvoker(message).orElseThrow().invoke());
+        assertEquals("payload", subject.getInvoker(message).orElseThrow().invoke());
         message = new Message(100L);
-        assertEquals(100L, subject.findInvoker(message).orElseThrow().invoke());
+        assertEquals(100L, subject.getInvoker(message).orElseThrow().invoke());
     }
 
     private static class Foo {

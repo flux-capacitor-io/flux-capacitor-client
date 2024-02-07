@@ -58,14 +58,14 @@ public interface HandlerInterceptor extends HandlerDecorator {
         private final HandlerInterceptor interceptor;
 
         @Override
-        public Optional<HandlerInvoker> findInvoker(DeserializingMessage message) {
-            Optional<HandlerInvoker> invoker = delegate.findInvoker(message);
+        public Optional<HandlerInvoker> getInvoker(DeserializingMessage message) {
+            Optional<HandlerInvoker> invoker = delegate.getInvoker(message);
             return invoker.map(s -> new DelegatingHandlerInvoker(s) {
                 @Override
                 public Object invoke(BiFunction<Object, Object, Object> combiner) {
                     return interceptor.interceptHandling(m -> {
                         if (m != message) {
-                            var i = InterceptedHandler.this.delegate.findInvoker(m)
+                            var i = InterceptedHandler.this.delegate.getInvoker(m)
                                     .orElseThrow(() -> new UnsupportedOperationException(
                                             "Changing the payload type in a HandlerInterceptor is not supported."));
                             return m.apply(msg -> i.invoke(combiner));

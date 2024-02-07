@@ -17,5 +17,5 @@ package io.fluxcapacitor.common.handling;
 import java.util.Optional;
 
 public interface HandlerMatcher<T, M> {
-    Optional<HandlerInvoker> findInvoker(T target, M message);
+    Optional<HandlerInvoker> getInvoker(T target, M message);
 }

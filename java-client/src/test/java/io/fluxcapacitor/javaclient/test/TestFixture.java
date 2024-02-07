@@ -881,7 +881,7 @@ public class TestFixture implements Given, When {
                     throw e;
                 } finally {
                     if (m.getMessageType().isRequest()
-                        && getLocalHandlerAnnotation(invoker.getTarget().getClass(), invoker.getMethod())
+                        && getLocalHandlerAnnotation(invoker.getTargetClass(), invoker.getMethod())
                                 .map(l -> !l.logMessage()).orElse(false)) {
                         synchronized (testFixture.consumers) {
                             testFixture.consumers.entrySet().stream()

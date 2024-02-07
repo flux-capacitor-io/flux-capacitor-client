@@ -112,7 +112,7 @@ public class JacksonContentFilter implements ContentFilter {
             Object value = input;
             try {
                 if (value != null) {
-                    Optional<HandlerInvoker> invoker = matcherCache.apply(value.getClass()).findInvoker(value, rootValue.get());
+                    Optional<HandlerInvoker> invoker = matcherCache.apply(value.getClass()).getInvoker(value, rootValue.get());
                     if (invoker.isPresent()) {
                         value = invoker.get().invoke();
                         if (value == null) {
@@ -135,7 +135,7 @@ public class JacksonContentFilter implements ContentFilter {
                 return true;
             }
             try {
-                return matcherCache.apply(value.getClass()).findInvoker(value, rootValue.get())
+                return matcherCache.apply(value.getClass()).getInvoker(value, rootValue.get())
                         .filter(handlerInvoker -> handlerInvoker.invoke() == null).isPresent();
             } catch (Exception ignored) {
                 return false;

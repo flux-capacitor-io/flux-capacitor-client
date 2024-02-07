@@ -37,7 +37,7 @@ public class EntityParameterResolver implements ParameterResolver<Object> {
     }
 
     @Override
-    public boolean matches(Parameter parameter, Annotation methodAnnotation, Object input, Object target) {
+    public boolean matches(Parameter parameter, Annotation methodAnnotation, Object input) {
         return matches(parameter, getMatchingEntity(input, parameter));
     }
 

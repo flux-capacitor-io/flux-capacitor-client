@@ -95,7 +95,7 @@ public class DefaultEntityHelper implements EntityHelper {
     }
 
     protected Optional<HandlerInvoker> getInterceptInvoker(MessageWithEntity m) {
-        return interceptMatchers.apply(m.getPayloadClass()).findInvoker(m.getPayload(), m)
+        return interceptMatchers.apply(m.getPayloadClass()).getInvoker(m.getPayload(), m)
                 .or(() -> {
                     for (Entity<?> child : m.getEntity().possibleTargets(m.getPayload())) {
                         var childInvoker = getInterceptInvoker(m.withEntity(child));
@@ -111,8 +111,8 @@ public class DefaultEntityHelper implements EntityHelper {
     public Optional<HandlerInvoker> applyInvoker(DeserializingMessage event, Entity<?> entity) {
         var message = new DeserializingMessageWithEntity(event, entity);
         Class<?> entityType = entity.type();
-        return applyMatchers.apply(entityType).findInvoker(entity.get(), message)
-                .or(() -> applyMatchers.apply(message.getPayloadClass()).findInvoker(message.getPayload(), message)
+        return applyMatchers.apply(entityType).getInvoker(entity.get(), message)
+                .or(() -> applyMatchers.apply(message.getPayloadClass()).getInvoker(message.getPayload(), message)
                         .filter(i -> {
                             if (i.getMethod() instanceof Method) {
                                 Class<?> returnType = ((Method) i.getMethod()).getReturnType();
@@ -179,7 +179,7 @@ public class DefaultEntityHelper implements EntityHelper {
         }
         MessageWithEntity message = new MessageWithEntity(value, entity);
         Collection<Object> additionalProperties = new HashSet<>(getAnnotatedPropertyValues(target, AssertLegal.class));
-        assertLegalMatchers.apply(targetType).findInvoker(target, message)
+        assertLegalMatchers.apply(targetType).getInvoker(target, message)
                 .filter(i -> getAnnotation(i.getMethod(), AssertLegal.class).map(
                         a -> a.afterHandler() == afterHandler).orElse(false))
                 .ifPresent(s -> {

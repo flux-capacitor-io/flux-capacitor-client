@@ -192,12 +192,12 @@ public class DefaultTracking implements Tracking {
     protected Optional<HandlerInvoker> getInvoker(DeserializingMessage message, Handler<DeserializingMessage> handler,
                                                   ConsumerConfiguration config) {
         try {
-            return handler.findInvoker(message);
+            return handler.getInvoker(message);
         } catch (Throwable e) {
             try {
                 Object retryResult = config.getErrorHandler().handleError(
                         e, format("Failed to check if handler %s is able to handle %s", handler, message),
-                        () -> handler.findInvoker(message));
+                        () -> handler.getInvoker(message));
                 return retryResult instanceof Optional<?> ? (Optional<HandlerInvoker>) retryResult : Optional.empty();
             } catch (Throwable e2) {
                 stopTracker(message, handler, e2);
