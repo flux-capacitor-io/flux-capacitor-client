@@ -12,20 +12,18 @@
  * limitations under the License.
  */
 
-package io.fluxcapacitor.javaclient.tracking.handling;
-
-import io.fluxcapacitor.common.MessageType;
+package io.fluxcapacitor.javaclient.modeling;
 
 import java.lang.annotation.Documented;
 import java.lang.annotation.ElementType;
+import java.lang.annotation.Inherited;
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
 @Documented
+@Target({ElementType.FIELD, ElementType.METHOD})
 @Retention(RetentionPolicy.RUNTIME)
-@Target({ElementType.METHOD, ElementType.CONSTRUCTOR})
-@HandleMessage(MessageType.COMMAND)
-public @interface HandleCommand {
-    boolean passive() default false;
+@Inherited
+public @interface Association {
 }
