@@ -104,15 +104,20 @@ public class ConsumerConfiguration {
 
     private static Stream<ConsumerConfiguration> classConfigurations(Class<?> type) {
         return Optional.ofNullable(ReflectionUtils.<Consumer>getTypeAnnotation(type, Consumer.class))
-                .map(c -> getConfiguration(c, h -> h.getClass().equals(type)))
-                .stream();
+                .map(c -> getConfiguration(c, h -> {
+                    Class<?> handlerType = h instanceof Class<?> t ? t : h.getClass();
+                    return handlerType.equals(type);
+                })).stream();
     }
 
     private static Stream<ConsumerConfiguration> packageConfigurations(Package p) {
         return ReflectionUtils.getPackageAnnotation(p, Consumer.class)
-                .map(c -> getConfiguration(c, h -> h.getClass().getPackage().equals(p)
-                                                   || h.getClass().getPackage().getName().startsWith(p.getName() + ".")
-                )).stream();
+                .map(c -> getConfiguration(
+                        c, h -> {
+                            Class<?> type = h instanceof Class<?> t ? t : h.getClass();
+                            return type.getPackage().equals(p)
+                                   || type.getPackage().getName().startsWith(p.getName() + ".");
+                        })).stream();
     }
 
     private static ConsumerConfiguration getConfiguration(Consumer consumer, Predicate<Object> handlerFilter) {

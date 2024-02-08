@@ -35,7 +35,6 @@ import java.util.function.Function;
 import java.util.stream.Stream;
 
 import static io.fluxcapacitor.common.ObjectUtils.memoize;
-import static io.fluxcapacitor.common.reflection.ReflectionUtils.asInstance;
 import static io.fluxcapacitor.javaclient.common.ClientUtils.getHandleSelfAnnotation;
 import static io.fluxcapacitor.javaclient.common.ClientUtils.getLocalHandlerAnnotation;
 import static java.util.Collections.emptyList;
@@ -60,7 +59,7 @@ public class LocalHandlerRegistry implements HandlerRegistry {
             return () -> localHandlers.remove(target);
         }
         Optional<Handler<DeserializingMessage>> handler = handlerFactory.createHandler(
-                asInstance(target), "local-" + messageType, handlerFilter, emptyList());
+                target, handlerFilter, emptyList());
         handler.ifPresent(localHandlers::add);
         return () -> handler.ifPresent(localHandlers::remove);
     }
@@ -140,8 +139,7 @@ public class LocalHandlerRegistry implements HandlerRegistry {
     }
 
     protected Optional<Handler<DeserializingMessage>> computeSelfHandler(Class<?> payloadType) {
-        return handlerFactory.createHandler(
-                () -> DeserializingMessage.getCurrent().getPayload(), payloadType, HandleSelf.class,
-                "self-" + messageType, handleSelfFilter, emptyList());
+        return handlerFactory.createHandler(DeserializingMessage::getPayload, payloadType, HandleSelf.class,
+                                            handleSelfFilter, emptyList());
     }
 }

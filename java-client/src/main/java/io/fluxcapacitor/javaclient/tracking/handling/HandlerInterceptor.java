@@ -77,7 +77,7 @@ public interface HandlerInterceptor extends HandlerDecorator {
         }
 
         private interface ExcludedMethods {
-            Optional<HandlerInvoker> findInvoker(DeserializingMessage message);
+            Optional<HandlerInvoker> getInvoker(DeserializingMessage message);
         }
 
         @Override

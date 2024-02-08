@@ -56,7 +56,6 @@ import java.util.function.Function;
 import java.util.stream.Stream;
 
 import static io.fluxcapacitor.common.ObjectUtils.unwrapException;
-import static io.fluxcapacitor.common.reflection.ReflectionUtils.asInstance;
 import static io.fluxcapacitor.javaclient.common.ClientUtils.waitForResults;
 import static io.fluxcapacitor.javaclient.common.serialization.DeserializingMessage.handleBatch;
 import static java.lang.String.format;
@@ -89,7 +88,7 @@ public class DefaultTracking implements Tracking {
                             if (target instanceof Handler<?>) {
                                 return Stream.of((Handler<DeserializingMessage>) target);
                             }
-                            return handlerFactory.createHandler(asInstance(target), e.getKey().getName(), handlerFilter,
+                            return handlerFactory.createHandler(target, handlerFilter,
                                                                 e.getKey().getHandlerInterceptors()).stream();
                         }).collect(toList());
                         return converted.isEmpty() ? Stream.empty() :
@@ -114,7 +113,8 @@ public class DefaultTracking implements Tracking {
     private Map<ConsumerConfiguration, List<Object>> assignHandlersToConsumers(List<?> handlers) {
         var unassignedHandlers = new ArrayList<Object>(handlers);
         var configurations = Stream.concat(
-                        ConsumerConfiguration.configurations(handlers.stream().map(Object::getClass).collect(toList())),
+                        ConsumerConfiguration.configurations(handlers.stream().map(
+                                h -> h instanceof Class<?> c ? c : h.getClass()).collect(toList())),
                         this.configurations.stream())
                 .sorted(Comparator.comparing(ConsumerConfiguration::exclusive))
                 .map(config -> config.toBuilder().batchInterceptors(generalBatchInterceptors).build())

@@ -36,7 +36,6 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.function.BiFunction;
 import java.util.function.Function;
-import java.util.function.Supplier;
 import java.util.stream.Stream;
 
 import static io.fluxcapacitor.common.handling.HandlerInspector.MethodHandlerMatcher.comparator;
@@ -65,15 +64,15 @@ public class HandlerInspector {
                              HandlerConfiguration.builder().methodAnnotation(methodAnnotation).build());
     }
 
-    public static <M> Handler<M> createHandler(Supplier<?> targetSupplier, Class<?> targetClass,
+    public static <M> Handler<M> createHandler(Object target, List<ParameterResolver<? super M>> parameterResolvers,
+                                               HandlerConfiguration<? super M> config) {
+        return createHandler(m -> target, target.getClass(), parameterResolvers, config);
+    }
+
+    public static <M> Handler<M> createHandler(Function<M, ?> targetSupplier, Class<?> targetClass,
                                                List<ParameterResolver<? super M>> parameterResolvers,
                                                HandlerConfiguration<? super M> config) {
         return new DefaultHandler<>(targetClass, targetSupplier, inspect(targetClass, parameterResolvers, config));
-    }
-
-    public static <M> Handler<M> createHandler(Object target, List<ParameterResolver<? super M>> parameterResolvers,
-                                               HandlerConfiguration<? super M> config) {
-        return new DefaultHandler<>(target.getClass(), () -> target, inspect(target.getClass(), parameterResolvers, config));
     }
 
     public static <M> HandlerMatcher<Object, M> inspect(Class<?> c,
@@ -150,16 +149,13 @@ public class HandlerInspector {
 
         @SuppressWarnings("unchecked")
         @Override
-        public Optional<HandlerInvoker> getInvoker(Object target, M m) {
-            if (!config.messageFilter().test(m, executable)
-                || (target == null
-                    ? !(executable instanceof Constructor) && !staticMethod
-                    : !(executable instanceof Method) || staticMethod)) {
+        public Optional<Function<Object, HandlerInvoker>> prepareInvoker(M m) {
+            if (!config.messageFilter().test(m, executable)) {
                 return Optional.empty();
             }
 
             if (parameterCount == 0) {
-                return Optional.of(new MethodHandlerInvoker() {
+                return Optional.of(target -> new MethodHandlerInvoker() {
                     @Override
                     public Object invoke(BiFunction<Object, Object, Object> combiner) {
                         return invoker.invoke(target);
@@ -182,12 +178,22 @@ public class HandlerInspector {
                 }
                 matchingResolvers[i] = matchingResolver.resolve(p, methodAnnotation);
             }
-            return Optional.of(new MethodHandlerInvoker() {
+            return Optional.of(target -> new MethodHandlerInvoker() {
                 @Override
                 public Object invoke(BiFunction<Object, Object, Object> combiner) {
                     return invoker.invoke(target, parameterCount, i -> matchingResolvers[i].apply(m));
                 }
             });
+        }
+
+        @Override
+        public Optional<HandlerInvoker> getInvoker(Object target, M m) {
+            if (target == null
+                    ? !(executable instanceof Constructor) && !staticMethod
+                    : !(executable instanceof Method) || staticMethod) {
+                return Optional.empty();
+            }
+            return prepareInvoker(m).map(f -> f.apply(target));
         }
 
         protected Class<?> computeClassForSpecificity() {
@@ -294,26 +300,42 @@ public class HandlerInspector {
     public static class ObjectHandlerMatcher<M> implements HandlerMatcher<Object, M> {
         private final List<HandlerMatcher<Object, M>> methodHandlers;
         private final boolean invokeMultipleMethods;
+
         @Override
-        public Optional<HandlerInvoker> getInvoker(Object target, M message) {
+        public Optional<Function<Object, HandlerInvoker>> prepareInvoker(M message) {
             if (invokeMultipleMethods) {
-                HandlerInvoker invoker = null;
+                Function<Object, HandlerInvoker> invoker = null;
                 for (HandlerMatcher<Object, M> d : methodHandlers) {
-                    Optional<HandlerInvoker> s = d.getInvoker(target, message);
+                    var s = d.prepareInvoker(message);
                     if (s.isPresent()) {
-                        invoker = invoker == null ? s.get() : invoker.combine(s.get());
+                        invoker = invoker == null ? s.get() : invoker.andThen(s.get());
                     }
                 }
                 return Optional.ofNullable(invoker);
             }
 
             for (HandlerMatcher<Object, M> d : methodHandlers) {
-                Optional<HandlerInvoker> s = d.getInvoker(target, message);
+                var s = d.prepareInvoker(message);
                 if (s.isPresent()) {
                     return s;
                 }
             }
             return Optional.empty();
+        }
+
+        @Override
+        public Optional<HandlerInvoker> getInvoker(Object target, M message) {
+            if (invokeMultipleMethods) {
+                HandlerInvoker invoker = null;
+                for (HandlerMatcher<Object, M> d : methodHandlers) {
+                    var s = d.getInvoker(target, message);
+                    if (s.isPresent()) {
+                        invoker = invoker == null ? s.get() : invoker.combine(s.get());
+                    }
+                }
+                return Optional.ofNullable(invoker);
+            }
+            return prepareInvoker(message).map(i -> i.apply(target));
         }
 
     }
@@ -322,12 +344,8 @@ public class HandlerInspector {
     @Slf4j
     public static class DefaultHandler<M> implements Handler<M> {
         private final Class<?> targetClass;
-        private final Supplier<?> targetSupplier;
+        private final Function<M, ?> targetSupplier;
         private final HandlerMatcher<Object, M> invoker;
-
-        private Object getTarget() {
-            return targetSupplier.get();
-        }
 
         @Override
         public Class<?> getTargetClass() {
@@ -336,15 +354,13 @@ public class HandlerInspector {
 
         @Override
         public Optional<HandlerInvoker> getInvoker(M message) {
-            return invoker.getInvoker(getTarget(), message);
+            return invoker.prepareInvoker(message).map(f -> f.apply(targetSupplier.apply(message)));
         }
 
         @Override
         public String toString() {
-            return Optional.ofNullable(getTarget()).map(o -> {
-                        String simpleName = o.getClass().getSimpleName();
-                        return String.format("\"%s\"", simpleName.isEmpty() ? o.getClass() : simpleName);
-                    }).orElse("DefaultHandler");
+            String simpleName = targetClass.getSimpleName();
+            return String.format("\"%s\"", simpleName.isEmpty() ? "DefaultHandler" : simpleName);
         }
     }
 }

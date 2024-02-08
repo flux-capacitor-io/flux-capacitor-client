@@ -21,6 +21,7 @@ import io.fluxcapacitor.common.handling.HandlerFilter;
 import io.fluxcapacitor.common.handling.HandlerInspector;
 import io.fluxcapacitor.common.handling.MessageFilter;
 import io.fluxcapacitor.common.handling.ParameterResolver;
+import io.fluxcapacitor.common.reflection.ReflectionUtils;
 import io.fluxcapacitor.javaclient.common.HasMessage;
 import io.fluxcapacitor.javaclient.common.serialization.DeserializingMessage;
 import io.fluxcapacitor.javaclient.web.HandleWeb;
@@ -31,7 +32,7 @@ import lombok.RequiredArgsConstructor;
 import java.lang.annotation.Annotation;
 import java.util.List;
 import java.util.Optional;
-import java.util.function.Supplier;
+import java.util.function.Function;
 import java.util.stream.Stream;
 
 import static io.fluxcapacitor.common.handling.HandlerInspector.hasHandlerMethods;
@@ -67,17 +68,16 @@ public class DefaultHandlerFactory implements HandlerFactory {
     }
 
     @Override
-    public Optional<Handler<DeserializingMessage>> createHandler(Object target, String consumer,
-                                                                 HandlerFilter handlerFilter,
+    public Optional<Handler<DeserializingMessage>> createHandler(Object target, HandlerFilter handlerFilter,
                                                                  List<HandlerInterceptor> extraInterceptors) {
-        return createHandler(() -> target, target.getClass(), getHandlerAnnotation(messageType),
-                             consumer, handlerFilter, extraInterceptors);
+        return createHandler(computeTargetSupplier(target), target instanceof Class<?> c ? c : target.getClass(),
+                             getHandlerAnnotation(messageType), handlerFilter, extraInterceptors);
     }
 
     @Override
     public Optional<Handler<DeserializingMessage>> createHandler(
-            Supplier<?> targetSupplier, Class<?> targetClass, Class<? extends Annotation> handlerAnnotation,
-            String consumer, HandlerFilter handlerFilter, List<HandlerInterceptor> extraInterceptors) {
+            Function<DeserializingMessage, ?> targetSupplier, Class<?> targetClass, Class<? extends Annotation> handlerAnnotation,
+            HandlerFilter handlerFilter, List<HandlerInterceptor> extraInterceptors) {
         HandlerDecorator handlerDecorator =
                 Stream.concat(extraInterceptors.stream(), Stream.of(defaultDecorator))
                         .reduce(HandlerDecorator::andThen).orElseThrow();
@@ -87,6 +87,14 @@ public class DefaultHandlerFactory implements HandlerFactory {
                 .filter(config -> hasHandlerMethods(targetClass, config))
                 .map(config -> HandlerInspector.createHandler(targetSupplier, targetClass, parameterResolvers, config))
                 .map(handlerDecorator::wrap);
+    }
+
+    protected Function<DeserializingMessage, Object> computeTargetSupplier(Object target) {
+        if (target instanceof Class<?> targetClass) {
+            var instance = ReflectionUtils.asInstance(targetClass);
+            return m -> instance;
+        }
+        return m -> target;
     }
 
     @SuppressWarnings("unchecked")
