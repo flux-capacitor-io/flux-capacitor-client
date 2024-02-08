@@ -181,7 +181,11 @@ public class DefaultTracker implements Runnable, Registration {
         Long lastIndex = batch.getLastIndex();
         try {
             processing = true;
-            if (batch.getMessages().isEmpty() || !running.get()) {
+            if (!running.get()) {
+                return;
+            }
+            if (batch.getMessages().isEmpty()) {
+                updatePosition(batch.getLastIndex(), batch.getSegment());
                 return;
             }
             batch = filterBatchIfNeeded(batch);
