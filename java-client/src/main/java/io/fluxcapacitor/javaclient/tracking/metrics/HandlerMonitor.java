@@ -80,9 +80,9 @@ public class HandlerMonitor implements HandlerInterceptor {
     }
 
     protected boolean logMetrics(HandlerInvoker invoker) {
-        return invoker.getMethodAnnotation() instanceof HandleSelf handleSelf ? handleSelf.logMetrics()
-                : getLocalHandlerAnnotation(invoker.getTargetClass(), invoker.getMethod())
-                .map(LocalHandler::logMetrics).orElse(true);
+        return getLocalHandlerAnnotation(invoker.getTargetClass(), invoker.getMethod())
+                .map(LocalHandler::logMetrics)
+                .orElseGet(() -> !(invoker.getMethodAnnotation() instanceof HandleSelf));
     }
 
 }

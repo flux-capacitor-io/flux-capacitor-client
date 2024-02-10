@@ -71,7 +71,8 @@ class HandleSelfTest {
     @Test
     void logTrackingMetrics() {
         testFixture.whenQuery(new Object() {
-            @HandleSelf(logMetrics = true)
+            @HandleSelf
+            @LocalHandler(logMetrics = true)
             String handleSelf() {
                 return "foo";
             }
@@ -129,7 +130,8 @@ class HandleSelfTest {
     }
 
     static class MessageLoggingHandleSelf {
-        @HandleSelf(logMessage = true)
+        @HandleSelf
+        @LocalHandler(logMessage = true)
         void handle() {
             FluxCapacitor.publishEvent("foo");
         }

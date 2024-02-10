@@ -14,8 +14,6 @@
 
 package io.fluxcapacitor.javaclient.tracking.handling;
 
-import io.fluxcapacitor.javaclient.tracking.metrics.HandleMessageEvent;
-
 import java.lang.annotation.Documented;
 import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;
@@ -47,16 +45,4 @@ public @interface HandleSelf {
      * If true, the result of the handler will be ignored.
      */
     boolean passive() default false;
-
-    /**
-     * Enables publication of the handled message for other consumers. If {@code true}, messages and their payloads are
-     * logged as if they have not been handled yet. This is often desirable for self-handled queries and commands issued
-     * by e.g. admins.
-     */
-    boolean logMessage() default false;
-
-    /**
-     * Enables publication of handler metrics, like a {@link HandleMessageEvent} (if tracker monitoring is enabled).
-     */
-    boolean logMetrics() default false;
 }

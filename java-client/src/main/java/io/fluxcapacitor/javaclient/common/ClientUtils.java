@@ -41,13 +41,15 @@ import java.util.function.Supplier;
 
 import static io.fluxcapacitor.common.reflection.ReflectionUtils.getAnnotatedMethods;
 import static io.fluxcapacitor.common.reflection.ReflectionUtils.getAnnotation;
+import static io.fluxcapacitor.common.reflection.ReflectionUtils.getPackageAnnotation;
 import static io.fluxcapacitor.common.reflection.ReflectionUtils.getTypeAnnotation;
 
 @Slf4j
 public class ClientUtils {
     private static final BiFunction<Class<?>, java.lang.reflect.Executable, Optional<LocalHandler>> localHandlerCache =
             memoize((target, method) -> getAnnotation(method, LocalHandler.class)
-                    .or(() -> Optional.ofNullable(getTypeAnnotation(target, LocalHandler.class))));
+                    .or(() -> Optional.ofNullable(getTypeAnnotation(target, LocalHandler.class)))
+                    .or(() -> getPackageAnnotation(target.getPackage(), LocalHandler.class)));
 
     private static final Function<Class<?>, Optional<HandleSelf>> handleSelfCache = memoize(
             target -> getAnnotatedMethods(target, HandleSelf.class).stream()

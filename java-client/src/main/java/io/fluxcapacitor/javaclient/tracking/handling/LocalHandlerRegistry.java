@@ -130,11 +130,7 @@ public class LocalHandlerRegistry implements HandlerRegistry {
     }
 
     protected boolean logMessage(HandlerInvoker invoker) {
-        if (invoker.getMethodAnnotation() instanceof HandleSelf handleSelf) {
-            return handleSelf.logMessage();
-        }
-        return getLocalHandlerAnnotation(
-                invoker.getTargetClass(), invoker.getMethod())
+        return getLocalHandlerAnnotation(invoker.getTargetClass(), invoker.getMethod())
                 .map(LocalHandler::logMessage).orElse(false);
     }
 

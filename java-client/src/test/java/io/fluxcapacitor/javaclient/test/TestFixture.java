@@ -50,6 +50,7 @@ import io.fluxcapacitor.javaclient.tracking.Tracker;
 import io.fluxcapacitor.javaclient.tracking.handling.HandleSchedule;
 import io.fluxcapacitor.javaclient.tracking.handling.HandleSelf;
 import io.fluxcapacitor.javaclient.tracking.handling.HandlerInterceptor;
+import io.fluxcapacitor.javaclient.tracking.handling.LocalHandler;
 import io.fluxcapacitor.javaclient.tracking.handling.authentication.User;
 import io.fluxcapacitor.javaclient.tracking.handling.authentication.UserProvider;
 import io.fluxcapacitor.javaclient.web.WebRequest;
@@ -89,7 +90,7 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import static io.fluxcapacitor.common.MessageType.SCHEDULE;
-import static io.fluxcapacitor.javaclient.common.ClientUtils.getHandleSelfAnnotation;
+import static io.fluxcapacitor.common.reflection.ReflectionUtils.getAnnotatedMethods;
 import static io.fluxcapacitor.javaclient.common.ClientUtils.getLocalHandlerAnnotation;
 import static io.fluxcapacitor.javaclient.common.ClientUtils.runSilently;
 import static io.fluxcapacitor.javaclient.common.Message.asMessage;
@@ -811,7 +812,9 @@ public class TestFixture implements Given, When {
                 addMessage(publishedSchedules, (Schedule) message);
             }
 
-            if (getHandleSelfAnnotation(message.getPayloadClass()).map(HandleSelf::logMessage).orElse(true)) {
+            if (getAnnotatedMethods(message.getPayloadClass(), HandleSelf.class).stream()
+                    .findFirst().map(m -> ReflectionUtils.<LocalHandler>getMethodAnnotation(m, LocalHandler.class).map(LocalHandler::logMessage).orElse(false))
+                    .orElse(true)) {
                 synchronized (testFixture.consumers) {
                     testFixture.consumers.entrySet().stream()
                             .filter(t -> {
