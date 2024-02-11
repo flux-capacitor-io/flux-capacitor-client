@@ -17,28 +17,53 @@ package io.fluxcapacitor.common.handling;
 import io.fluxcapacitor.common.reflection.ReflectionUtils;
 import lombok.Builder;
 import lombok.Builder.Default;
+import lombok.SneakyThrows;
 import lombok.Value;
 import lombok.experimental.Accessors;
 
 import java.lang.annotation.Annotation;
 import java.lang.reflect.Executable;
+import java.lang.reflect.Method;
+import java.util.Arrays;
 import java.util.Optional;
+
+import static java.util.Optional.ofNullable;
 
 @Value
 @Builder(toBuilder = true)
 @Accessors(fluent = true)
 public class HandlerConfiguration<M> {
     Class<? extends Annotation> methodAnnotation;
-    @Default boolean invokeMultipleMethods = false;
-    @Default HandlerFilter handlerFilter = (c, e) -> true;
-    @Default MessageFilter<? super M> messageFilter = (m, e) -> true;
+    @Default
+    boolean invokeMultipleMethods = false;
+    @Default
+    HandlerFilter handlerFilter = (c, e) -> true;
+    @Default
+    MessageFilter<? super M> messageFilter = (m, e) -> true;
 
     public boolean methodMatches(Class<?> c, Executable e) {
-        return Optional.ofNullable(methodAnnotation).map(a -> getAnnotation(e).isPresent()).orElse(true)
-                && handlerFilter.test(c, e);
+        return isEnabled(e) && handlerFilter.test(c, e);
+    }
+
+    @SneakyThrows
+    boolean isEnabled(Executable e) {
+        if (methodAnnotation == null) {
+            return true;
+        }
+        var annotation = getAnnotation(e).orElse(null);
+        if (annotation == null) {
+            return false;
+        }
+        Optional<Method> match = Arrays.stream(annotation.annotationType().getMethods())
+                .filter(m -> m.getName().equals("disabled")).findFirst();
+        if (match.isPresent()) {
+            var result = (boolean) match.get().invoke(annotation);
+            return !result;
+        }
+        return true;
     }
 
     public Optional<? extends Annotation> getAnnotation(Executable e) {
-        return ReflectionUtils.getMethodAnnotation(e, methodAnnotation);
+        return ofNullable(methodAnnotation).flatMap(a -> ReflectionUtils.getMethodAnnotation(e, methodAnnotation));
     }
 }

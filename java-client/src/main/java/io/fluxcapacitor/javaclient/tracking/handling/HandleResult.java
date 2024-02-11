@@ -27,4 +27,5 @@ import java.lang.annotation.Target;
 @Target({ElementType.METHOD, ElementType.CONSTRUCTOR})
 @HandleMessage(MessageType.RESULT)
 public @interface HandleResult {
+    boolean disabled() default false;
 }

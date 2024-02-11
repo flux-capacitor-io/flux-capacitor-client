@@ -26,5 +26,6 @@ import java.lang.annotation.Target;
 @HandleWeb(value = "", method = HttpRequestMethod.WS_HANDSHAKE)
 public @interface HandleSocketHandshake {
     String value();
+    boolean disabled() default false;
     boolean passive() default false;
 }

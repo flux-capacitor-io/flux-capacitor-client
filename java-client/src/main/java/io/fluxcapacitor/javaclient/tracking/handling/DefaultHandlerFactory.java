@@ -75,6 +75,14 @@ public class DefaultHandlerFactory implements HandlerFactory {
     }
 
     @Override
+    public Optional<Handler<DeserializingMessage>> createHandler(Function<DeserializingMessage, ?> targetSupplier,
+                                                                 Class<?> targetClass, HandlerFilter handlerFilter,
+                                                                 List<HandlerInterceptor> extraInterceptors) {
+        return createHandler(targetSupplier, targetClass,
+                             getHandlerAnnotation(messageType), handlerFilter, extraInterceptors);
+    }
+
+    @Override
     public Optional<Handler<DeserializingMessage>> createHandler(
             Function<DeserializingMessage, ?> targetSupplier, Class<?> targetClass, Class<? extends Annotation> handlerAnnotation,
             HandlerFilter handlerFilter, List<HandlerInterceptor> extraInterceptors) {

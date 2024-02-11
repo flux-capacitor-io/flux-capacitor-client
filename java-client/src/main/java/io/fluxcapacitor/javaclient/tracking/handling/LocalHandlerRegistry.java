@@ -20,7 +20,6 @@ import io.fluxcapacitor.common.Registration;
 import io.fluxcapacitor.common.handling.Handler;
 import io.fluxcapacitor.common.handling.HandlerFilter;
 import io.fluxcapacitor.common.handling.HandlerInvoker;
-import io.fluxcapacitor.common.reflection.ReflectionUtils;
 import io.fluxcapacitor.javaclient.FluxCapacitor;
 import io.fluxcapacitor.javaclient.common.Message;
 import io.fluxcapacitor.javaclient.common.serialization.DeserializingMessage;
@@ -35,7 +34,6 @@ import java.util.function.Function;
 import java.util.stream.Stream;
 
 import static io.fluxcapacitor.common.ObjectUtils.memoize;
-import static io.fluxcapacitor.javaclient.common.ClientUtils.getHandleSelfAnnotation;
 import static io.fluxcapacitor.javaclient.common.ClientUtils.getLocalHandlerAnnotation;
 import static java.util.Collections.emptyList;
 
@@ -45,9 +43,6 @@ public class LocalHandlerRegistry implements HandlerRegistry {
     private final MessageType messageType;
     private final HandlerFactory handlerFactory;
     private final List<Handler<DeserializingMessage>> localHandlers = new CopyOnWriteArrayList<>();
-
-    private final HandlerFilter handleSelfFilter = (c, e) -> ReflectionUtils.getAnnotation(e, HandleSelf.class)
-            .map(h -> !h.disabled()).orElse(false);
     private final Function<Class<?>, Optional<Handler<DeserializingMessage>>> selfHandlers
             = memoize(this::computeSelfHandler);
 
@@ -66,59 +61,55 @@ public class LocalHandlerRegistry implements HandlerRegistry {
 
     @Override
     public Optional<CompletableFuture<Message>> handle(DeserializingMessage message) {
-        if (!localHandlers.isEmpty() || handleSelf(message)) {
-            List<Handler<DeserializingMessage>> localHandlers = getLocalHandlers(message);
-            return message.apply(m -> {
-                boolean handled = false;
-                boolean logMessage = false;
-                boolean request = m.getMessageType().isRequest();
-                CompletableFuture<Message> future = new CompletableFuture<>();
-                for (Handler<DeserializingMessage> handler : localHandlers) {
-                    var optionalInvoker = handler.getInvoker(m);
-                    if (optionalInvoker.isPresent()) {
-                        var invoker = optionalInvoker.get();
-                        boolean passive = invoker.isPassive();
-                        if (!handled || !request || passive) {
-                            try {
-                                Object result = Invocation.performInvocation(invoker::invoke);
-                                if (!passive && !future.isDone()) {
-                                    if (result instanceof CompletableFuture<?>) {
-                                        future = ((CompletableFuture<?>) result).thenApply(Message::new);
-                                    } else {
-                                        future.complete(new Message(result));
-                                    }
-                                }
-                            } catch (Throwable e) {
-                                if (passive) {
-                                    log.error("Passive handler {} failed to handle a {}", invoker, m.getPayloadClass(),
-                                              e);
+        List<Handler<DeserializingMessage>> localHandlers = getLocalHandlers(message);
+        if (localHandlers.isEmpty()) {
+            return Optional.empty();
+        }
+        return message.apply(m -> {
+            boolean handled = false;
+            boolean logMessage = false;
+            boolean request = m.getMessageType().isRequest();
+            CompletableFuture<Message> future = new CompletableFuture<>();
+            for (Handler<DeserializingMessage> handler : localHandlers) {
+                var optionalInvoker = handler.getInvoker(m);
+                if (optionalInvoker.isPresent()) {
+                    var invoker = optionalInvoker.get();
+                    boolean passive = invoker.isPassive();
+                    if (!handled || !request || passive) {
+                        try {
+                            Object result = Invocation.performInvocation(invoker::invoke);
+                            if (!passive && !future.isDone()) {
+                                if (result instanceof CompletableFuture<?>) {
+                                    future = ((CompletableFuture<?>) result).thenApply(Message::new);
                                 } else {
-                                    future.completeExceptionally(e);
+                                    future.complete(new Message(result));
                                 }
-                            } finally {
-                                if (!passive) {
-                                    handled = true;
-                                }
-                                logMessage = logMessage || logMessage(invoker);
                             }
+                        } catch (Throwable e) {
+                            if (passive) {
+                                log.error("Passive handler {} failed to handle a {}", invoker, m.getPayloadClass(),
+                                          e);
+                            } else {
+                                future.completeExceptionally(e);
+                            }
+                        } finally {
+                            if (!passive) {
+                                handled = true;
+                            }
+                            logMessage = logMessage || logMessage(invoker);
                         }
                     }
                 }
-                try {
-                    return handled ? Optional.of(future) : Optional.empty();
-                } finally {
-                    if (logMessage) {
-                        FluxCapacitor.getOptionally().ifPresent(fc -> fc.client().getGatewayClient(m.getMessageType())
-                                .send(Guarantee.NONE, message.getSerializedObject()));
-                    }
+            }
+            try {
+                return handled ? Optional.of(future) : Optional.empty();
+            } finally {
+                if (logMessage) {
+                    FluxCapacitor.getOptionally().ifPresent(fc -> fc.client().getGatewayClient(m.getMessageType())
+                            .send(Guarantee.NONE, message.getSerializedObject()));
                 }
-            });
-        }
-        return Optional.empty();
-    }
-
-    protected boolean handleSelf(DeserializingMessage message) {
-        return messageType.isRequest() && getHandleSelfAnnotation(message.getPayloadClass()).isPresent();
+            }
+        });
     }
 
     protected List<Handler<DeserializingMessage>> getLocalHandlers(DeserializingMessage message) {
@@ -135,7 +126,7 @@ public class LocalHandlerRegistry implements HandlerRegistry {
     }
 
     protected Optional<Handler<DeserializingMessage>> computeSelfHandler(Class<?> payloadType) {
-        return handlerFactory.createHandler(DeserializingMessage::getPayload, payloadType, HandleSelf.class,
-                                            handleSelfFilter, emptyList());
+        return handlerFactory.createHandler(DeserializingMessage::getPayload, payloadType,
+                                            HandlerFilter.ALWAYS_HANDLE, emptyList());
     }
 }

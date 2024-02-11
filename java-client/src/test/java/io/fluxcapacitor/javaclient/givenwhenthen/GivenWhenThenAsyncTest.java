@@ -149,23 +149,23 @@ class GivenWhenThenAsyncTest {
 
     @Test
     void errorHandlerIsUsedAfterBatchCompletes() {
-        var handler = new Object() {
-            volatile boolean retried;
-
-            @HandleCommand
-            void handle(String payload) {
-                DeserializingMessage.whenBatchCompletes(e -> {
-                    if (retried) {
-                        FluxCapacitor.publishEvent(payload);
-                    } else {
-                        retried = true;
-                        throw new IllegalStateException();
-                    }
-                });
-            }
-        };
         TestFixture.createAsync(DefaultFluxCapacitor.builder().configureDefaultConsumer(
-                        COMMAND, c -> c.toBuilder().errorHandler(new ForeverRetryingErrorHandler()).build()), handler)
+                        COMMAND, c -> c.toBuilder().errorHandler(new ForeverRetryingErrorHandler()).build()),
+                                new Object() {
+                                    volatile boolean retried;
+
+                                    @HandleCommand
+                                    void handle(String payload) {
+                                        DeserializingMessage.whenBatchCompletes(e -> {
+                                            if (retried) {
+                                                FluxCapacitor.publishEvent(payload);
+                                            } else {
+                                                retried = true;
+                                                throw new IllegalStateException();
+                                            }
+                                        });
+                                    }
+                                })
                 .whenCommand("test")
                 .expectNoErrors().expectEvents("test");
     }

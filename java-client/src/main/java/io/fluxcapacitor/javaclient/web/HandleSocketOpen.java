@@ -26,5 +26,6 @@ import java.lang.annotation.Target;
 @HandleWeb(value = "", method = HttpRequestMethod.WS_OPEN)
 public @interface HandleSocketOpen {
     String value();
+    boolean disabled() default false;
     boolean passive() default false;
 }

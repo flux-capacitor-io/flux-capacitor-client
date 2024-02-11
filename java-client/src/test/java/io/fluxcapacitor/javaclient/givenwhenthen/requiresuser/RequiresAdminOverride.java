@@ -14,7 +14,7 @@
 
 package io.fluxcapacitor.javaclient.givenwhenthen.requiresuser;
 
-import io.fluxcapacitor.javaclient.tracking.handling.HandleSelf;
+import io.fluxcapacitor.javaclient.tracking.handling.HandleQuery;
 import io.fluxcapacitor.javaclient.tracking.handling.authentication.RequiresAnyRole;
 import lombok.Value;
 
@@ -22,7 +22,7 @@ import lombok.Value;
 @RequiresAnyRole("admin")
 public class RequiresAdminOverride {
 
-    @HandleSelf
+    @HandleQuery
     String handle() {
         return "success";
     }

@@ -19,7 +19,6 @@ import io.fluxcapacitor.common.handling.HandlerInvoker;
 import io.fluxcapacitor.javaclient.FluxCapacitor;
 import io.fluxcapacitor.javaclient.common.serialization.DeserializingMessage;
 import io.fluxcapacitor.javaclient.tracking.Tracker;
-import io.fluxcapacitor.javaclient.tracking.handling.HandleSelf;
 import io.fluxcapacitor.javaclient.tracking.handling.HandlerInterceptor;
 import io.fluxcapacitor.javaclient.tracking.handling.LocalHandler;
 import lombok.extern.slf4j.Slf4j;
@@ -82,7 +81,7 @@ public class HandlerMonitor implements HandlerInterceptor {
     protected boolean logMetrics(HandlerInvoker invoker) {
         return getLocalHandlerAnnotation(invoker.getTargetClass(), invoker.getMethod())
                 .map(LocalHandler::logMetrics)
-                .orElseGet(() -> !(invoker.getMethodAnnotation() instanceof HandleSelf));
+                .orElseGet(() -> Tracker.current().isPresent());
     }
 
 }

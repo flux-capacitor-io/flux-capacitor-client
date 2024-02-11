@@ -23,7 +23,6 @@ import io.fluxcapacitor.javaclient.givenwhenthen.requiresuser.RequiresUserViaPac
 import io.fluxcapacitor.javaclient.test.TestFixture;
 import io.fluxcapacitor.javaclient.tracking.handling.HandleCommand;
 import io.fluxcapacitor.javaclient.tracking.handling.HandleQuery;
-import io.fluxcapacitor.javaclient.tracking.handling.HandleSelf;
 import io.fluxcapacitor.javaclient.tracking.handling.authentication.AbstractUserProvider;
 import io.fluxcapacitor.javaclient.tracking.handling.authentication.ForbidsAnyRole;
 import io.fluxcapacitor.javaclient.tracking.handling.authentication.MockUser;
@@ -294,7 +293,7 @@ public class GivenWhenThenAuthenticationTest {
     @Value
     @MockRequiresRole(MockRole.delete)
     private static class DeleteSelf {
-        @HandleSelf
+        @HandleCommand
         void handle() {
         }
     }

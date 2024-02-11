@@ -27,4 +27,5 @@ import java.lang.annotation.Target;
 @Target({ElementType.METHOD, ElementType.CONSTRUCTOR})
 @HandleMessage(MessageType.EVENT)
 public @interface HandleEvent {
+    boolean disabled() default false;
 }

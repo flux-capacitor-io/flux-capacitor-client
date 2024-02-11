@@ -27,4 +27,5 @@ import java.lang.annotation.Target;
 @Target({ElementType.METHOD, ElementType.CONSTRUCTOR})
 @HandleMessage(MessageType.SCHEDULE)
 public @interface HandleSchedule {
+    boolean disabled() default false;
 }

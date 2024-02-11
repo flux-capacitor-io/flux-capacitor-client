@@ -14,13 +14,13 @@
 
 package io.fluxcapacitor.javaclient.givenwhenthen.requiresadmin;
 
-import io.fluxcapacitor.javaclient.tracking.handling.HandleSelf;
+import io.fluxcapacitor.javaclient.tracking.handling.HandleQuery;
 import lombok.Value;
 
 @Value
 public class RequiresAdminViaPackage {
 
-    @HandleSelf
+    @HandleQuery
     String handle() {
         return "success";
     }

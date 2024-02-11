@@ -28,4 +28,5 @@ import java.lang.annotation.Target;
 @Target(ElementType.METHOD)
 @HandleMessage(MessageType.WEBRESPONSE)
 public @interface HandleWebResponse {
+    boolean disabled() default false;
 }

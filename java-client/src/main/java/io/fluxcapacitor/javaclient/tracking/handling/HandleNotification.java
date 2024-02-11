@@ -27,4 +27,5 @@ import java.lang.annotation.Target;
 @Target({ElementType.METHOD, ElementType.CONSTRUCTOR})
 @HandleMessage(MessageType.NOTIFICATION)
 public @interface HandleNotification {
+    boolean disabled() default false;
 }

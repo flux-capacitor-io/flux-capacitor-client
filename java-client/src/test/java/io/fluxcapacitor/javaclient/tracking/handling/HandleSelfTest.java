@@ -29,7 +29,7 @@ class HandleSelfTest {
     @Test
     void query() {
         testFixture.whenQuery(new Object() {
-            @HandleSelf
+            @HandleQuery
             String handleSelf() {
                 return "foo";
             }
@@ -39,7 +39,7 @@ class HandleSelfTest {
     @Test
     void command() {
         Object payload = new Object() {
-            @HandleSelf
+            @HandleCommand
             void handleSelf() {
                 FluxCapacitor.publishEvent(this);
             }
@@ -60,7 +60,7 @@ class HandleSelfTest {
     @Test
     void handleSelfIgnoredIfEvent() {
         Object payload = new Object() {
-            @HandleSelf
+            @HandleEvent
             void handleSelf() {
                 FluxCapacitor.publishEvent("foo");
             }
@@ -71,7 +71,7 @@ class HandleSelfTest {
     @Test
     void logTrackingMetrics() {
         testFixture.whenQuery(new Object() {
-            @HandleSelf
+            @HandleQuery
             @LocalHandler(logMetrics = true)
             String handleSelf() {
                 return "foo";
@@ -102,7 +102,7 @@ class HandleSelfTest {
     @Test
     void triggersException() {
         testFixture.whenQuery(new Object() {
-            @HandleSelf
+            @HandleQuery
             String handleSelf() {
                 throw new MockException();
             }
@@ -115,7 +115,7 @@ class HandleSelfTest {
             @NotBlank
             private final String foo = null;
 
-            @HandleSelf
+            @HandleQuery
             String handleSelf() {
                 return "bar";
             }
@@ -123,14 +123,14 @@ class HandleSelfTest {
     }
 
     static class EventPublishingHandleSelf {
-        @HandleSelf
+        @HandleCommand
         void handle() {
             FluxCapacitor.publishEvent("foo");
         }
     }
 
     static class MessageLoggingHandleSelf {
-        @HandleSelf
+        @HandleCommand
         @LocalHandler(logMessage = true)
         void handle() {
             FluxCapacitor.publishEvent("foo");
@@ -138,7 +138,7 @@ class HandleSelfTest {
     }
 
     static class DisabledHandleSelf {
-        @HandleSelf(disabled = true)
+        @HandleCommand(disabled = true)
         void handle() {
             FluxCapacitor.publishEvent("foo");
         }

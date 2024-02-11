@@ -27,4 +27,5 @@ import java.lang.annotation.Target;
 @Target({ElementType.METHOD, ElementType.CONSTRUCTOR})
 @HandleMessage(MessageType.ERROR)
 public @interface HandleError {
+    boolean disabled() default false;
 }

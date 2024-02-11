@@ -30,6 +30,10 @@ public interface HandlerFactory {
 
     Optional<Handler<DeserializingMessage>> createHandler(
             Function<DeserializingMessage, ?> targetSupplier, Class<?> targetClass,
+            HandlerFilter handlerFilter, List<HandlerInterceptor> extraInterceptors);
+
+    Optional<Handler<DeserializingMessage>> createHandler(
+            Function<DeserializingMessage, ?> targetSupplier, Class<?> targetClass,
             Class<? extends Annotation> handlerAnnotation, HandlerFilter handlerFilter,
             List<HandlerInterceptor> extraInterceptors);
 }
