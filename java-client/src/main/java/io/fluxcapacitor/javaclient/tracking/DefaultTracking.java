@@ -113,8 +113,8 @@ public class DefaultTracking implements Tracking {
     private Map<ConsumerConfiguration, List<Object>> assignHandlersToConsumers(List<?> handlers) {
         var unassignedHandlers = new ArrayList<Object>(handlers);
         var configurations = Stream.concat(
-                        ConsumerConfiguration.configurations(handlers.stream().map(
-                                h -> h instanceof Class<?> c ? c : h.getClass()).collect(toList())),
+                        ConsumerConfiguration.configurations(
+                                handlers.stream().map(HandlerFactory::getTargetClass).collect(toList())),
                         this.configurations.stream())
                 .sorted(Comparator.comparing(ConsumerConfiguration::exclusive))
                 .map(config -> config.toBuilder().batchInterceptors(generalBatchInterceptors).build())

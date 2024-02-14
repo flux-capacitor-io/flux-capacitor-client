@@ -14,25 +14,29 @@
 
 package io.fluxcapacitor.javaclient.tracking.handling;
 
-import io.fluxcapacitor.common.handling.Handler;
-import io.fluxcapacitor.common.handling.HandlerFilter;
+import io.fluxcapacitor.common.reflection.ReflectionUtils;
 import io.fluxcapacitor.javaclient.common.serialization.DeserializingMessage;
+import io.fluxcapacitor.javaclient.tracking.TrackSelf;
+import lombok.Value;
 
-import java.util.List;
 import java.util.Optional;
 
-public interface HandlerFactory {
-
-    static Class<?> getTargetClass(Object target) {
-        if (target instanceof DynamicHandler h) {
-            return h.getType();
+@Value
+public class SelfHandler implements DynamicHandler {
+    public static Optional<SelfHandler> asSelfHandler(Class<?> type, boolean local) {
+        if (Optional.ofNullable(ReflectionUtils.<TrackSelf>getTypeAnnotation(type, TrackSelf.class))
+                .filter(trackSelf -> !trackSelf.disabled()).isPresent()) {
+            return Optional.ofNullable(local ? null : new SelfHandler(type, false));
+        } else {
+            return Optional.ofNullable(local ? new SelfHandler(type, true) : null);
         }
-        if (target instanceof Class<?> targetClass) {
-            return targetClass;
-        }
-        return target.getClass();
     }
 
-    Optional<Handler<DeserializingMessage>> createHandler(
-            Object target, HandlerFilter handlerFilter, List<HandlerInterceptor> extraInterceptors);
+    Class<?> type;
+    boolean local;
+
+    @Override
+    public Object apply(DeserializingMessage message) {
+        return message.getPayload();
+    }
 }

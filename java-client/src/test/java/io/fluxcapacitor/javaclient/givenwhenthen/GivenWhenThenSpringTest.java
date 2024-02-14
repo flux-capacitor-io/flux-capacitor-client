@@ -17,6 +17,9 @@ package io.fluxcapacitor.javaclient.givenwhenthen;
 import io.fluxcapacitor.javaclient.FluxCapacitor;
 import io.fluxcapacitor.javaclient.test.TestFixture;
 import io.fluxcapacitor.javaclient.test.spring.FluxCapacitorTestConfig;
+import io.fluxcapacitor.javaclient.tracking.Consumer;
+import io.fluxcapacitor.javaclient.tracking.TrackSelf;
+import io.fluxcapacitor.javaclient.tracking.Tracker;
 import io.fluxcapacitor.javaclient.tracking.handling.HandleCommand;
 import io.fluxcapacitor.javaclient.tracking.handling.HandleEvent;
 import lombok.SneakyThrows;
@@ -25,6 +28,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.ComponentScan;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.test.annotation.DirtiesContext;
 import org.springframework.test.context.ContextConfiguration;
@@ -62,12 +66,18 @@ class GivenWhenThenSpringTest {
         assertTrue(result.isDone());
     }
 
+    @Test
+    void selfTracked() {
+        testFixture.whenCommand(new SelfTracked()).expectEvents(SelfTracked.class);
+    }
+
     @SneakyThrows
     private static void sleepAWhile(int millis) {
         Thread.sleep(millis);
     }
 
     @Configuration
+    @ComponentScan
     static class FooConfig {
         @Bean
         public FooHandler fooHandler() {
@@ -92,6 +102,18 @@ class GivenWhenThenSpringTest {
         @Bean
         public BarHandler barHandler() {
             return new BarHandler();
+        }
+    }
+
+    @TrackSelf
+    @Consumer(name = "SelfTracked")
+    public static class SelfTracked {
+        @HandleCommand
+        void handleSelf() {
+            if (Tracker.current().isPresent()
+                && "SelfTracked".equals(Tracker.current().get().getConfiguration().getName())) {
+                FluxCapacitor.publishEvent(this);
+            }
         }
     }
 

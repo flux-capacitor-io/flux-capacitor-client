@@ -17,9 +17,13 @@ package io.fluxcapacitor.javaclient.tracking.handling;
 import io.fluxcapacitor.javaclient.FluxCapacitor;
 import io.fluxcapacitor.javaclient.MockException;
 import io.fluxcapacitor.javaclient.test.TestFixture;
+import io.fluxcapacitor.javaclient.tracking.Consumer;
+import io.fluxcapacitor.javaclient.tracking.TrackSelf;
+import io.fluxcapacitor.javaclient.tracking.Tracker;
 import io.fluxcapacitor.javaclient.tracking.handling.validation.ValidationException;
 import io.fluxcapacitor.javaclient.tracking.metrics.HandleMessageEvent;
 import jakarta.validation.constraints.NotBlank;
+import lombok.Value;
 import org.junit.jupiter.api.Test;
 
 class HandleSelfTest {
@@ -34,6 +38,32 @@ class HandleSelfTest {
                 return "foo";
             }
         }).expectResult("foo").expectNoMetrics();
+    }
+
+    public static
+    @TrackSelf
+    @Consumer(name = "SelfTracked")
+    @Value
+    class SelfTracked {
+        String input;
+
+        @HandleQuery
+        String handleSelf() {
+            if (Tracker.current().isEmpty()) {
+                return "no tracker";
+            }
+            if (Tracker.current().isPresent()
+                && "SelfTracked".equals(Tracker.current().get().getConfiguration().getName())) {
+                return input;
+            }
+            return "wrong consumer";
+        }
+    }
+
+    @Test
+    void queryTracked() {
+        testFixture.registerHandlers(SelfTracked.class)
+                .whenQuery(new SelfTracked("foo")).expectResult("foo");
     }
 
     @Test

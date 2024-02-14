@@ -126,7 +126,7 @@ public class LocalHandlerRegistry implements HandlerRegistry {
     }
 
     protected Optional<Handler<DeserializingMessage>> computeSelfHandler(Class<?> payloadType) {
-        return handlerFactory.createHandler(DeserializingMessage::getPayload, payloadType,
-                                            HandlerFilter.ALWAYS_HANDLE, emptyList());
+        return SelfHandler.asSelfHandler(payloadType, true).flatMap(
+                selfHandler -> handlerFactory.createHandler(selfHandler, HandlerFilter.ALWAYS_HANDLE, emptyList()));
     }
 }

@@ -53,11 +53,15 @@ import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.atomic.AtomicReference;
-import java.util.stream.Collectors;
 
 @Configuration
 @Slf4j
 public class FluxCapacitorSpringConfig implements BeanPostProcessor {
+
+    @Bean
+    public static TrackSelfPostProcessor trackSelfPostProcessor() {
+        return new TrackSelfPostProcessor();
+    }
 
     private final ApplicationContext context;
     private final List<Object> springBeans = new CopyOnWriteArrayList<>();
@@ -70,15 +74,16 @@ public class FluxCapacitorSpringConfig implements BeanPostProcessor {
 
     @Override
     public Object postProcessAfterInitialization(Object bean, String beanName) throws BeansException {
-        springBeans.add(bean);
+        if (!(bean instanceof Class<?>)) {
+            springBeans.add(bean);
+        }
         return bean;
     }
 
     @EventListener
     public void handle(ContextRefreshedEvent event) {
         FluxCapacitor fluxCapacitor = context.getBean(FluxCapacitor.class);
-        List<Object> potentialHandlers = springBeans.stream().filter(b -> !(b instanceof Class<?>)).collect(
-                Collectors.toList());
+        List<Object> potentialHandlers = new ArrayList<>(springBeans);
         handlerRegistration.updateAndGet(r -> r == null ? fluxCapacitor.registerHandlers(potentialHandlers) : r);
         if (Thread.getDefaultUncaughtExceptionHandler() == null) {
             Thread.setDefaultUncaughtExceptionHandler((t, e) -> log.error("Uncaught exception", e));
@@ -187,5 +192,4 @@ public class FluxCapacitorSpringConfig implements BeanPostProcessor {
     protected <T> Optional<T> getBean(Class<T> type) {
         return context.getBeansOfType(type).values().stream().findFirst();
     }
-
 }

@@ -14,25 +14,10 @@
 
 package io.fluxcapacitor.javaclient.tracking.handling;
 
-import io.fluxcapacitor.common.handling.Handler;
-import io.fluxcapacitor.common.handling.HandlerFilter;
 import io.fluxcapacitor.javaclient.common.serialization.DeserializingMessage;
 
-import java.util.List;
-import java.util.Optional;
+import java.util.function.Function;
 
-public interface HandlerFactory {
-
-    static Class<?> getTargetClass(Object target) {
-        if (target instanceof DynamicHandler h) {
-            return h.getType();
-        }
-        if (target instanceof Class<?> targetClass) {
-            return targetClass;
-        }
-        return target.getClass();
-    }
-
-    Optional<Handler<DeserializingMessage>> createHandler(
-            Object target, HandlerFilter handlerFilter, List<HandlerInterceptor> extraInterceptors);
+public interface DynamicHandler extends Function<DeserializingMessage, Object> {
+    Class<?> getType();
 }

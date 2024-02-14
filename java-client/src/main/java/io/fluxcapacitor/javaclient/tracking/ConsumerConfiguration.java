@@ -16,6 +16,7 @@ package io.fluxcapacitor.javaclient.tracking;
 
 import io.fluxcapacitor.common.reflection.ReflectionUtils;
 import io.fluxcapacitor.javaclient.configuration.client.Client;
+import io.fluxcapacitor.javaclient.tracking.handling.HandlerFactory;
 import io.fluxcapacitor.javaclient.tracking.handling.HandlerInterceptor;
 import lombok.Builder;
 import lombok.Builder.Default;
@@ -104,10 +105,7 @@ public class ConsumerConfiguration {
 
     private static Stream<ConsumerConfiguration> classConfigurations(Class<?> type) {
         return Optional.ofNullable(ReflectionUtils.<Consumer>getTypeAnnotation(type, Consumer.class))
-                .map(c -> getConfiguration(c, h -> {
-                    Class<?> handlerType = h instanceof Class<?> t ? t : h.getClass();
-                    return handlerType.equals(type);
-                })).stream();
+                .map(c -> getConfiguration(c, h -> HandlerFactory.getTargetClass(h).equals(type))).stream();
     }
 
     private static Stream<ConsumerConfiguration> packageConfigurations(Package p) {

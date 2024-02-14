@@ -64,28 +64,23 @@ public class DefaultHandlerFactory implements HandlerFactory {
         this.messageType = messageType;
         this.defaultDecorator = defaultDecorator;
         this.parameterResolvers = parameterResolvers;
-        this.messageFilter = computeMessageFilter();
+        this.messageFilter = defaultMessageFilter();
     }
 
     @Override
     public Optional<Handler<DeserializingMessage>> createHandler(Object target, HandlerFilter handlerFilter,
                                                                  List<HandlerInterceptor> extraInterceptors) {
-        return createHandler(computeTargetSupplier(target), target instanceof Class<?> c ? c : target.getClass(),
-                             getHandlerAnnotation(messageType), handlerFilter, extraInterceptors);
+        Class<?> targetClass = HandlerFactory.getTargetClass(target);
+        Function<DeserializingMessage, Object> targetSupplier = getTargetSupplier(target);
+        return createHandler(targetSupplier, targetClass, getHandlerAnnotation(messageType), handlerFilter,
+                             getMessageFilter(targetSupplier), extraInterceptors);
     }
 
-    @Override
-    public Optional<Handler<DeserializingMessage>> createHandler(Function<DeserializingMessage, ?> targetSupplier,
-                                                                 Class<?> targetClass, HandlerFilter handlerFilter,
-                                                                 List<HandlerInterceptor> extraInterceptors) {
-        return createHandler(targetSupplier, targetClass,
-                             getHandlerAnnotation(messageType), handlerFilter, extraInterceptors);
-    }
-
-    @Override
-    public Optional<Handler<DeserializingMessage>> createHandler(
-            Function<DeserializingMessage, ?> targetSupplier, Class<?> targetClass, Class<? extends Annotation> handlerAnnotation,
-            HandlerFilter handlerFilter, List<HandlerInterceptor> extraInterceptors) {
+    protected Optional<Handler<DeserializingMessage>> createHandler(
+            Function<DeserializingMessage, ?> targetSupplier,
+            Class<?> targetClass, Class<? extends Annotation> handlerAnnotation,
+            HandlerFilter handlerFilter, MessageFilter<? super DeserializingMessage> messageFilter,
+            List<HandlerInterceptor> extraInterceptors) {
         HandlerDecorator handlerDecorator =
                 Stream.concat(extraInterceptors.stream(), Stream.of(defaultDecorator))
                         .reduce(HandlerDecorator::andThen).orElseThrow();
@@ -97,16 +92,36 @@ public class DefaultHandlerFactory implements HandlerFactory {
                 .map(handlerDecorator::wrap);
     }
 
-    protected Function<DeserializingMessage, Object> computeTargetSupplier(Object target) {
+    protected Function<DeserializingMessage, Object> getTargetSupplier(Object target) {
+        if (target instanceof DynamicHandler h) {
+            return h;
+        }
         if (target instanceof Class<?> targetClass) {
+            {
+                var selfHandler = SelfHandler.asSelfHandler(targetClass, false);
+                if (selfHandler.isPresent()) {
+                    return selfHandler.get();
+                }
+            }
             var instance = ReflectionUtils.asInstance(targetClass);
             return m -> instance;
         }
         return m -> target;
     }
 
+
+    protected MessageFilter<? super DeserializingMessage> getMessageFilter(
+            Function<DeserializingMessage, Object> targetSupplier) {
+        if (targetSupplier instanceof SelfHandler handler) {
+            MessageFilter<DeserializingMessage> selfFilter =
+                    (message, method) -> handler.getType().isAssignableFrom(message.getPayloadClass());
+            return selfFilter.and(messageFilter);
+        }
+        return messageFilter;
+    }
+
     @SuppressWarnings("unchecked")
-    protected MessageFilter<? super DeserializingMessage> computeMessageFilter() {
+    protected MessageFilter<? super DeserializingMessage> defaultMessageFilter() {
         var result = parameterResolvers.stream().flatMap(r -> r instanceof MessageFilter<?>
                         ? Stream.of((MessageFilter<HasMessage>) r) : Stream.empty())
                 .reduce(MessageFilter::and).orElseGet(() -> (m, a) -> true);
