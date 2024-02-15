@@ -12,13 +12,21 @@
  * limitations under the License.
  */
 
-package io.fluxcapacitor.common.handling;
+package io.fluxcapacitor.javaclient.modeling;
 
-import java.util.Optional;
+import io.fluxcapacitor.javaclient.common.Entry;
 
-public interface HandlerMatcher<T, M> {
+import java.util.Collection;
+import java.util.concurrent.CompletableFuture;
 
-    boolean canHandle(M message);
+public interface ViewRepository {
 
-    Optional<HandlerInvoker> getInvoker(T target, M message);
+    Collection<? extends Entry<?>> findByAssociation(Collection<String> associations);
+
+    Entry<?> get(Object id);
+
+    CompletableFuture<?> set(Object value, Object id);
+
+    CompletableFuture<?> delete(Object id);
+
 }

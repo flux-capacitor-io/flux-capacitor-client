@@ -21,6 +21,8 @@ import io.fluxcapacitor.common.ObjectUtils;
 import io.fluxcapacitor.common.ThrowingRunnable;
 import io.fluxcapacitor.common.handling.HandlerInvoker;
 import io.fluxcapacitor.javaclient.FluxCapacitor;
+import io.fluxcapacitor.javaclient.modeling.SearchParameters;
+import io.fluxcapacitor.javaclient.modeling.Searchable;
 import io.fluxcapacitor.javaclient.tracking.handling.LocalHandler;
 import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
@@ -38,6 +40,7 @@ import java.util.function.Function;
 import java.util.function.Supplier;
 
 import static io.fluxcapacitor.common.reflection.ReflectionUtils.getAnnotation;
+import static io.fluxcapacitor.common.reflection.ReflectionUtils.getAnnotationAs;
 import static io.fluxcapacitor.common.reflection.ReflectionUtils.getPackageAnnotation;
 import static io.fluxcapacitor.common.reflection.ReflectionUtils.getTypeAnnotation;
 
@@ -119,5 +122,11 @@ public class ClientUtils {
     public static <T, U, R> MemoizingBiFunction<T, U, R> memoize(BiFunction<T, U, R> supplier,
                                                                  Duration lifespan) {
         return new MemoizingBiFunction<>(supplier, lifespan, FluxCapacitor::currentClock);
+    }
+
+    public static String determineCollection(Class<?> type) {
+        return getAnnotationAs(type, Searchable.class, SearchParameters.class)
+                .map(SearchParameters::getCollection)
+                .orElseGet(type::getSimpleName);
     }
 }

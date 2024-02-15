@@ -12,13 +12,10 @@
  * limitations under the License.
  */
 
-package io.fluxcapacitor.common.handling;
+package io.fluxcapacitor.javaclient.common;
 
-import java.util.Optional;
+public interface Entry<T> {
+    String getId();
 
-public interface HandlerMatcher<T, M> {
-
-    boolean canHandle(M message);
-
-    Optional<HandlerInvoker> getInvoker(T target, M message);
+    T getValue();
 }

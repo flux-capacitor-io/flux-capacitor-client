@@ -147,9 +147,13 @@ public class HandlerInspector {
             this.invoker = DefaultMemberInvoker.asInvoker(this.executable);
         }
 
-        @SuppressWarnings("unchecked")
         @Override
-        public Optional<Function<Object, HandlerInvoker>> prepareInvoker(M m) {
+        public boolean canHandle(M message) {
+            return prepareInvoker(message).isPresent();
+        }
+
+        @SuppressWarnings("unchecked")
+        protected Optional<Function<Object, HandlerInvoker>> prepareInvoker(M m) {
             if (!config.messageFilter().test(m, executable)) {
                 return Optional.empty();
             }
@@ -302,25 +306,13 @@ public class HandlerInspector {
         private final boolean invokeMultipleMethods;
 
         @Override
-        public Optional<Function<Object, HandlerInvoker>> prepareInvoker(M message) {
-            if (invokeMultipleMethods) {
-                Function<Object, HandlerInvoker> invoker = null;
-                for (HandlerMatcher<Object, M> d : methodHandlers) {
-                    var s = d.prepareInvoker(message);
-                    if (s.isPresent()) {
-                        invoker = invoker == null ? s.get() : invoker.andThen(s.get());
-                    }
-                }
-                return Optional.ofNullable(invoker);
-            }
-
+        public boolean canHandle(M message) {
             for (HandlerMatcher<Object, M> d : methodHandlers) {
-                var s = d.prepareInvoker(message);
-                if (s.isPresent()) {
-                    return s;
+                if (d.canHandle(message)) {
+                    return true;
                 }
             }
-            return Optional.empty();
+            return false;
         }
 
         @Override
@@ -335,7 +327,13 @@ public class HandlerInspector {
                 }
                 return Optional.ofNullable(invoker);
             }
-            return prepareInvoker(message).map(i -> i.apply(target));
+            for (HandlerMatcher<Object, M> d : methodHandlers) {
+                var s = d.getInvoker(target, message);
+                if (s.isPresent()) {
+                    return s;
+                }
+            }
+            return Optional.empty();
         }
 
     }
@@ -345,7 +343,7 @@ public class HandlerInspector {
     public static class DefaultHandler<M> implements Handler<M> {
         private final Class<?> targetClass;
         private final Function<M, ?> targetSupplier;
-        private final HandlerMatcher<Object, M> invoker;
+        private final HandlerMatcher<Object, M> handlerMatcher;
 
         @Override
         public Class<?> getTargetClass() {
@@ -354,7 +352,7 @@ public class HandlerInspector {
 
         @Override
         public Optional<HandlerInvoker> getInvoker(M message) {
-            return invoker.prepareInvoker(message).map(f -> f.apply(targetSupplier.apply(message)));
+            return handlerMatcher.getInvoker(targetSupplier.apply(message), message);
         }
 
         @Override

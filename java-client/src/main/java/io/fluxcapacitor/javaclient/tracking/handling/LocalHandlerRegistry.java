@@ -20,9 +20,11 @@ import io.fluxcapacitor.common.Registration;
 import io.fluxcapacitor.common.handling.Handler;
 import io.fluxcapacitor.common.handling.HandlerFilter;
 import io.fluxcapacitor.common.handling.HandlerInvoker;
+import io.fluxcapacitor.common.reflection.ReflectionUtils;
 import io.fluxcapacitor.javaclient.FluxCapacitor;
 import io.fluxcapacitor.javaclient.common.Message;
 import io.fluxcapacitor.javaclient.common.serialization.DeserializingMessage;
+import io.fluxcapacitor.javaclient.tracking.TrackSelf;
 import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
@@ -126,7 +128,12 @@ public class LocalHandlerRegistry implements HandlerRegistry {
     }
 
     protected Optional<Handler<DeserializingMessage>> computeSelfHandler(Class<?> payloadType) {
-        return SelfHandler.asSelfHandler(payloadType, true).flatMap(
-                selfHandler -> handlerFactory.createHandler(selfHandler, HandlerFilter.ALWAYS_HANDLE, emptyList()));
+        if (Optional.ofNullable(ReflectionUtils.getTypeAnnotation(payloadType, TrackSelf.class))
+                .or(() -> Optional.ofNullable(payloadType.getPackage())
+                        .flatMap(p -> ReflectionUtils.getPackageAnnotation(p, TrackSelf.class)))
+                .isPresent()) {
+            return Optional.empty();
+        }
+        return handlerFactory.createHandler(payloadType, HandlerFilter.ALWAYS_HANDLE, emptyList());
     }
 }

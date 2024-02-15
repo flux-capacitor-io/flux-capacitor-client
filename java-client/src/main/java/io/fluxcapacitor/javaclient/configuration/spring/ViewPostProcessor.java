@@ -14,7 +14,7 @@
 
 package io.fluxcapacitor.javaclient.configuration.spring;
 
-import io.fluxcapacitor.javaclient.tracking.TrackSelf;
+import io.fluxcapacitor.javaclient.modeling.View;
 import lombok.NonNull;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.BeansException;
@@ -28,18 +28,18 @@ import java.util.Objects;
 import static org.springframework.beans.factory.support.BeanDefinitionBuilder.genericBeanDefinition;
 
 @Slf4j
-public class TrackSelfPostProcessor implements BeanDefinitionRegistryPostProcessor {
+public class ViewPostProcessor implements BeanDefinitionRegistryPostProcessor {
     @Override
     public void postProcessBeanFactory(@NonNull ConfigurableListableBeanFactory beanFactory) throws BeansException {
         if (!(beanFactory instanceof BeanDefinitionRegistry registry)) {
-            log.warn("Cannot register Spring beans dynamically! @TrackSelf annotations will be ignored.");
+            log.warn("Cannot register Spring beans dynamically! @View annotations will be ignored.");
             return;
         }
-        Arrays.stream(beanFactory.getBeanNamesForAnnotation(TrackSelf.class))
+        Arrays.stream(beanFactory.getBeanNamesForAnnotation(View.class))
                 .map(beanFactory::getType).filter(Objects::nonNull)
                 .map(FluxPrototype::new)
                 .forEach(prototype -> registry.registerBeanDefinition(
-                         prototype.getType().getName()+ "$$SelfTracked",
+                         prototype.getType().getName()+ "$$View",
                          genericBeanDefinition(FluxPrototype.class, () -> prototype).getBeanDefinition()));
     }
 

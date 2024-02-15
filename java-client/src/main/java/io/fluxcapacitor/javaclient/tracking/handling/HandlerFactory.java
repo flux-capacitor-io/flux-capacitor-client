@@ -24,13 +24,7 @@ import java.util.Optional;
 public interface HandlerFactory {
 
     static Class<?> getTargetClass(Object target) {
-        if (target instanceof DynamicHandler h) {
-            return h.getType();
-        }
-        if (target instanceof Class<?> targetClass) {
-            return targetClass;
-        }
-        return target.getClass();
+        return target instanceof Class<?> targetClass ? targetClass : target.getClass();
     }
 
     Optional<Handler<DeserializingMessage>> createHandler(

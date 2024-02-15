@@ -14,6 +14,10 @@
 
 package io.fluxcapacitor.javaclient.modeling;
 
+import org.springframework.beans.factory.config.ConfigurableBeanFactory;
+import org.springframework.context.annotation.Scope;
+import org.springframework.stereotype.Component;
+
 import java.lang.annotation.Documented;
 import java.lang.annotation.ElementType;
 import java.lang.annotation.Inherited;
@@ -22,10 +26,12 @@ import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
 @Documented
-@Target({ElementType.TYPE, ElementType.ANNOTATION_TYPE})
+@Target(ElementType.TYPE)
 @Retention(RetentionPolicy.RUNTIME)
 @Inherited
 @Searchable
+@Component
+@Scope(ConfigurableBeanFactory.SCOPE_PROTOTYPE)
 public @interface View {
     boolean searchable() default false;
 

@@ -575,8 +575,8 @@ public class SearchTest {
         void classWithoutSearchable() {
             class NotAnnotated {
             }
-            testFixture.whenApplying(
-                    fc -> FluxCapacitor.search(List.of(NotAnnotated.class, "c2")).fetchAll()).expectError();
+            testFixture.givenDocument(a, "id1", NotAnnotated.class)
+                    .whenApplying(fc -> FluxCapacitor.search(NotAnnotated.class).fetchAll()).expectResult(List.of(a));
         }
 
         @Test

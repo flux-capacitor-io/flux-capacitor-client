@@ -12,12 +12,11 @@
  * limitations under the License.
  */
 
-package io.fluxcapacitor.javaclient.tracking.handling;
+package io.fluxcapacitor.javaclient.configuration.spring;
 
-import io.fluxcapacitor.javaclient.common.serialization.DeserializingMessage;
+import lombok.Value;
 
-import java.util.function.Function;
-
-public interface DynamicHandler extends Function<DeserializingMessage, Object> {
-    Class<?> getType();
+@Value
+public class FluxPrototype {
+    Class<?> type;
 }

@@ -63,6 +63,11 @@ public class FluxCapacitorSpringConfig implements BeanPostProcessor {
         return new TrackSelfPostProcessor();
     }
 
+    @Bean
+    public static ViewPostProcessor viewPostProcessor() {
+        return new ViewPostProcessor();
+    }
+
     private final ApplicationContext context;
     private final List<Object> springBeans = new CopyOnWriteArrayList<>();
     private final AtomicReference<Registration> handlerRegistration = new AtomicReference<>();
@@ -83,7 +88,8 @@ public class FluxCapacitorSpringConfig implements BeanPostProcessor {
     @EventListener
     public void handle(ContextRefreshedEvent event) {
         FluxCapacitor fluxCapacitor = context.getBean(FluxCapacitor.class);
-        List<Object> potentialHandlers = new ArrayList<>(springBeans);
+        List<Object> potentialHandlers = springBeans.stream()
+                .map(bean -> bean instanceof FluxPrototype prototype ? prototype.getType() : bean).toList();
         handlerRegistration.updateAndGet(r -> r == null ? fluxCapacitor.registerHandlers(potentialHandlers) : r);
         if (Thread.getDefaultUncaughtExceptionHandler() == null) {
             Thread.setDefaultUncaughtExceptionHandler((t, e) -> log.error("Uncaught exception", e));

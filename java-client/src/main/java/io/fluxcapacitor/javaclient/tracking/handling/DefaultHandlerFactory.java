@@ -24,6 +24,10 @@ import io.fluxcapacitor.common.handling.ParameterResolver;
 import io.fluxcapacitor.common.reflection.ReflectionUtils;
 import io.fluxcapacitor.javaclient.common.HasMessage;
 import io.fluxcapacitor.javaclient.common.serialization.DeserializingMessage;
+import io.fluxcapacitor.javaclient.modeling.View;
+import io.fluxcapacitor.javaclient.modeling.ViewHandler;
+import io.fluxcapacitor.javaclient.modeling.ViewRepository;
+import io.fluxcapacitor.javaclient.tracking.TrackSelf;
 import io.fluxcapacitor.javaclient.web.HandleWeb;
 import io.fluxcapacitor.javaclient.web.HandleWebResponse;
 import io.fluxcapacitor.javaclient.web.WebRequest;
@@ -33,9 +37,11 @@ import java.lang.annotation.Annotation;
 import java.util.List;
 import java.util.Optional;
 import java.util.function.Function;
+import java.util.function.Supplier;
 import java.util.stream.Stream;
 
 import static io.fluxcapacitor.common.handling.HandlerInspector.hasHandlerMethods;
+import static io.fluxcapacitor.javaclient.common.ClientUtils.memoize;
 
 @RequiredArgsConstructor
 public class DefaultHandlerFactory implements HandlerFactory {
@@ -59,11 +65,15 @@ public class DefaultHandlerFactory implements HandlerFactory {
     private final List<ParameterResolver<? super DeserializingMessage>> parameterResolvers;
     private final MessageFilter<? super DeserializingMessage> messageFilter;
 
+    private final Function<Class<?>, ViewRepository> viewRepositorySupplier;
+
     public DefaultHandlerFactory(MessageType messageType, HandlerDecorator defaultDecorator,
-                                 List<ParameterResolver<? super DeserializingMessage>> parameterResolvers) {
+                                 List<ParameterResolver<? super DeserializingMessage>> parameterResolvers,
+                                 Function<Class<?>, ViewRepository> viewRepositorySupplier) {
         this.messageType = messageType;
         this.defaultDecorator = defaultDecorator;
         this.parameterResolvers = parameterResolvers;
+        this.viewRepositorySupplier = memoize(viewRepositorySupplier);
         this.messageFilter = defaultMessageFilter();
     }
 
@@ -71,53 +81,48 @@ public class DefaultHandlerFactory implements HandlerFactory {
     public Optional<Handler<DeserializingMessage>> createHandler(Object target, HandlerFilter handlerFilter,
                                                                  List<HandlerInterceptor> extraInterceptors) {
         Class<?> targetClass = HandlerFactory.getTargetClass(target);
-        Function<DeserializingMessage, Object> targetSupplier = getTargetSupplier(target);
-        return createHandler(targetSupplier, targetClass, getHandlerAnnotation(messageType), handlerFilter,
-                             getMessageFilter(targetSupplier), extraInterceptors);
-    }
-
-    protected Optional<Handler<DeserializingMessage>> createHandler(
-            Function<DeserializingMessage, ?> targetSupplier,
-            Class<?> targetClass, Class<? extends Annotation> handlerAnnotation,
-            HandlerFilter handlerFilter, MessageFilter<? super DeserializingMessage> messageFilter,
-            List<HandlerInterceptor> extraInterceptors) {
         HandlerDecorator handlerDecorator =
                 Stream.concat(extraInterceptors.stream(), Stream.of(defaultDecorator))
                         .reduce(HandlerDecorator::andThen).orElseThrow();
-        return Optional.ofNullable(handlerAnnotation)
+        return Optional.ofNullable(getHandlerAnnotation(messageType))
                 .map(a -> HandlerConfiguration.<DeserializingMessage>builder().methodAnnotation(a)
                         .handlerFilter(handlerFilter).messageFilter(messageFilter).build())
                 .filter(config -> hasHandlerMethods(targetClass, config))
-                .map(config -> HandlerInspector.createHandler(targetSupplier, targetClass, parameterResolvers, config))
+                .map(config -> buildHandler(target, config))
                 .map(handlerDecorator::wrap);
     }
 
-    protected Function<DeserializingMessage, Object> getTargetSupplier(Object target) {
-        if (target instanceof DynamicHandler h) {
-            return h;
-        }
+    private Handler<DeserializingMessage> buildHandler(Object target, HandlerConfiguration<DeserializingMessage> config) {
         if (target instanceof Class<?> targetClass) {
             {
-                var selfHandler = SelfHandler.asSelfHandler(targetClass, false);
-                if (selfHandler.isPresent()) {
-                    return selfHandler.get();
+                View view = ReflectionUtils.getTypeAnnotation(targetClass, View.class);
+                if (view != null) {
+                    return new ViewHandler(
+                            targetClass, HandlerInspector.inspect(targetClass, parameterResolvers, config),
+                            viewRepositorySupplier.apply(targetClass));
                 }
             }
-            var instance = ReflectionUtils.asInstance(targetClass);
-            return m -> instance;
-        }
-        return m -> target;
-    }
 
+            {
+                var trackSelf
+                        = Optional.ofNullable(ReflectionUtils.getTypeAnnotation(targetClass, TrackSelf.class))
+                        .or(() -> Optional.ofNullable(targetClass.getPackage())
+                                .flatMap(p -> ReflectionUtils.getPackageAnnotation(p, TrackSelf.class)));
+                if (trackSelf.isPresent()) {
+                    MessageFilter<DeserializingMessage> selfFilter =
+                            (message, method) -> targetClass.isAssignableFrom(message.getPayloadClass());
+                    return HandlerInspector.createHandler(
+                            DeserializingMessage::getPayload, targetClass, parameterResolvers,
+                            config.toBuilder().messageFilter(selfFilter.and(config.messageFilter())).build());
+                }
+            }
 
-    protected MessageFilter<? super DeserializingMessage> getMessageFilter(
-            Function<DeserializingMessage, Object> targetSupplier) {
-        if (targetSupplier instanceof SelfHandler handler) {
-            MessageFilter<DeserializingMessage> selfFilter =
-                    (message, method) -> handler.getType().isAssignableFrom(message.getPayloadClass());
-            return selfFilter.and(messageFilter);
+            Supplier<Object> instanceSupplier = memoize(() -> ReflectionUtils.asInstance(targetClass));
+            return HandlerInspector.createHandler(
+                    m -> targetClass.equals(m.getPayloadClass()) ? m.getPayload() : instanceSupplier.get(),
+                    targetClass, parameterResolvers, config);
         }
-        return messageFilter;
+        return HandlerInspector.createHandler(target, parameterResolvers, config);
     }
 
     @SuppressWarnings("unchecked")

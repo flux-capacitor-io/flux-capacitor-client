@@ -89,7 +89,7 @@ public interface Given extends When {
      * <p>
      * The document will be stored in the given {@code collection} with random id and without start or end timestamp.
      */
-    default Given givenDocument(Object document, String collection) {
+    default Given givenDocument(Object document, Object collection) {
         return givenDocument(document, UUID.randomUUID().toString(), collection);
     }
 
@@ -99,7 +99,7 @@ public interface Given extends When {
      * The document will be stored in the given {@code collection} with given {@code id} and without start or end
      * timestamp.
      */
-    default Given givenDocument(Object document, String id, String collection) {
+    default Given givenDocument(Object document, Object id, Object collection) {
         return givenDocument(document, id, collection, null);
     }
 
@@ -109,7 +109,7 @@ public interface Given extends When {
      * The document will be stored in the given {@code collection} with given {@code id} and given {@code timestamp} as
      * start and end timestamp.
      */
-    default Given givenDocument(Object document, String id, String collection, Instant timestamp) {
+    default Given givenDocument(Object document, Object id, Object collection, Instant timestamp) {
         return givenDocument(document, id, collection, timestamp, timestamp);
     }
 
@@ -119,14 +119,14 @@ public interface Given extends When {
      * The document will be stored in the given {@code collection} with given {@code id} and given start and end
      * timestamps.
      */
-    Given givenDocument(Object document, String id, String collection, Instant start, Instant end);
+    Given givenDocument(Object document, Object id, Object collection, Instant start, Instant end);
 
     /**
      * Specify one or multiple documents that has been stored for search prior to the behavior you want to test.
      * <p>
      * The documents will be stored in the given {@code collection} with random id and without start or end timestamp.
      */
-    Given givenDocuments(String collection, Object... documents);
+    Given givenDocuments(Object collection, Object... documents);
 
     /**
      * Specify one or more schedules that have been issued prior to the behavior you want to test.
