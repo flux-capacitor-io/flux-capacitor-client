@@ -24,8 +24,6 @@ import io.fluxcapacitor.common.handling.ParameterResolver;
 import io.fluxcapacitor.common.reflection.ReflectionUtils;
 import io.fluxcapacitor.javaclient.common.HasMessage;
 import io.fluxcapacitor.javaclient.common.serialization.DeserializingMessage;
-import io.fluxcapacitor.javaclient.modeling.View;
-import io.fluxcapacitor.javaclient.modeling.ViewHandler;
 import io.fluxcapacitor.javaclient.modeling.ViewRepository;
 import io.fluxcapacitor.javaclient.tracking.TrackSelf;
 import io.fluxcapacitor.javaclient.web.HandleWeb;

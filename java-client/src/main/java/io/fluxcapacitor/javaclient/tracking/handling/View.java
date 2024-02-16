@@ -12,7 +12,12 @@
  * limitations under the License.
  */
 
-package io.fluxcapacitor.javaclient.modeling;
+package io.fluxcapacitor.javaclient.tracking.handling;
+
+import io.fluxcapacitor.javaclient.modeling.Searchable;
+import org.springframework.beans.factory.config.ConfigurableBeanFactory;
+import org.springframework.context.annotation.Scope;
+import org.springframework.stereotype.Component;
 
 import java.lang.annotation.Documented;
 import java.lang.annotation.ElementType;
@@ -22,8 +27,16 @@ import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
 @Documented
-@Target({ElementType.FIELD, ElementType.METHOD})
+@Target(ElementType.TYPE)
 @Retention(RetentionPolicy.RUNTIME)
 @Inherited
-public @interface Association {
+@Searchable(searchable = true)
+@Component
+@Scope(ConfigurableBeanFactory.SCOPE_PROTOTYPE)
+public @interface View {
+    boolean searchable() default true;
+
+    String collection() default "";
+
+    String timestampPath() default "";
 }

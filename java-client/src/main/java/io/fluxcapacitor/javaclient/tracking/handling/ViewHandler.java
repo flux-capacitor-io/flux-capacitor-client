@@ -12,15 +12,15 @@
  * limitations under the License.
  */
 
-package io.fluxcapacitor.javaclient.modeling;
+package io.fluxcapacitor.javaclient.tracking.handling;
 
 import io.fluxcapacitor.common.handling.Handler;
 import io.fluxcapacitor.common.handling.HandlerInvoker;
 import io.fluxcapacitor.common.handling.HandlerMatcher;
 import io.fluxcapacitor.common.reflection.ReflectionUtils;
-import io.fluxcapacitor.javaclient.FluxCapacitor;
 import io.fluxcapacitor.javaclient.common.Entry;
 import io.fluxcapacitor.javaclient.common.serialization.DeserializingMessage;
+import io.fluxcapacitor.javaclient.modeling.ViewRepository;
 import lombok.AccessLevel;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
@@ -32,7 +32,12 @@ import java.util.Collection;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.function.BiFunction;
-import java.util.stream.Collectors;
+
+import static io.fluxcapacitor.common.reflection.ReflectionUtils.getAnnotatedProperties;
+import static io.fluxcapacitor.common.reflection.ReflectionUtils.getAnnotation;
+import static io.fluxcapacitor.common.reflection.ReflectionUtils.getPropertyName;
+import static io.fluxcapacitor.javaclient.FluxCapacitor.generateId;
+import static java.util.stream.Collectors.toSet;
 
 @Getter
 @AllArgsConstructor
@@ -43,8 +48,9 @@ public class ViewHandler implements Handler<DeserializingMessage> {
     ViewRepository repository;
 
     @Getter(lazy = true)
-    Collection<String> associationProperties = ReflectionUtils.getAnnotatedProperties(
-            getTargetClass(), Association.class).stream().map(ReflectionUtils::getPropertyName).collect(Collectors.toSet());
+    Collection<String> associationProperties = getAnnotatedProperties(getTargetClass(), Association.class).stream()
+            .map(member -> getAnnotation(member, Association.class).map(Association::value)
+                    .filter(name -> !name.isBlank()).orElseGet(() -> getPropertyName(member))).collect(toSet());
 
     @Override
     public Optional<HandlerInvoker> getInvoker(DeserializingMessage message) {
@@ -54,11 +60,12 @@ public class ViewHandler implements Handler<DeserializingMessage> {
         var matches = repository.findByAssociation(associations(message));
         if (matches.isEmpty()) {
             return handlerMatcher.getInvoker(null, message)
-                    .map(i -> new ViewInvoker(i, null, repository));
+                    .map(i -> new ViewInvoker(i, null));
         }
         HandlerInvoker result = null;
         for (Entry<?> entry : matches) {
-            var invoker = handlerMatcher.getInvoker(entry.getValue(), message).map(i -> new ViewInvoker(i, entry, repository));
+            var invoker = handlerMatcher.getInvoker(entry.getValue(), message)
+                    .map(i -> new ViewInvoker(i, entry));
             if (invoker.isPresent()) {
                 result = result == null ? invoker.get() : result.combine(invoker.get());
             }
@@ -70,24 +77,23 @@ public class ViewHandler implements Handler<DeserializingMessage> {
         return Optional.ofNullable(message.getPayload()).stream()
                 .flatMap(p -> getAssociationProperties().stream()
                         .flatMap(property -> ReflectionUtils.readProperty(property, p).stream()))
-                .map(Object::toString).collect(Collectors.toSet());
+                .map(Object::toString).collect(toSet());
     }
 
     @Getter
     @AllArgsConstructor
     @FieldDefaults(makeFinal = true, level = AccessLevel.PRIVATE)
-    protected static class ViewInvoker implements HandlerInvoker {
+    protected class ViewInvoker implements HandlerInvoker {
         @Delegate(excludes = ExcludedMethods.class)
         HandlerInvoker delegate;
         Entry<?> currentEntry;
-        ViewRepository repository;
 
         @Override
         public Object invoke(BiFunction<Object, Object, Object> combiner) {
             Object result = delegate.invoke(combiner);
             if (delegate.getTargetClass().isInstance(result)) {
                 if (currentEntry == null || !Objects.equals(currentEntry.getValue(), result)) {
-                    repository.set(result, currentEntry == null ? FluxCapacitor.generateId() : currentEntry.getId());
+                    repository.set(result, currentEntry == null ? generateId() : currentEntry.getId());
                 }
             }
             if (result == null && expectResult() && getMethod() instanceof Method m

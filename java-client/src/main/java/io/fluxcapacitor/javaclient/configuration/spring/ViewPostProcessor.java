@@ -14,7 +14,7 @@
 
 package io.fluxcapacitor.javaclient.configuration.spring;
 
-import io.fluxcapacitor.javaclient.modeling.View;
+import io.fluxcapacitor.javaclient.tracking.handling.View;
 import lombok.NonNull;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.BeansException;

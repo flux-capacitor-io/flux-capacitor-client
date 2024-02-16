@@ -24,11 +24,12 @@ import io.fluxcapacitor.javaclient.tracking.handling.validation.ValidationExcept
 import io.fluxcapacitor.javaclient.tracking.metrics.HandleMessageEvent;
 import jakarta.validation.constraints.NotBlank;
 import lombok.Value;
+import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
 class HandleSelfTest {
 
-    final TestFixture testFixture = TestFixture.createAsync();
+    final TestFixture testFixture = TestFixture.create();
 
     @Test
     void query() {
@@ -38,32 +39,6 @@ class HandleSelfTest {
                 return "foo";
             }
         }).expectResult("foo").expectNoMetrics();
-    }
-
-    public static
-    @TrackSelf
-    @Consumer(name = "SelfTracked")
-    @Value
-    class SelfTracked {
-        String input;
-
-        @HandleQuery
-        String handleSelf() {
-            if (Tracker.current().isEmpty()) {
-                return "no tracker";
-            }
-            if (Tracker.current().isPresent()
-                && "SelfTracked".equals(Tracker.current().get().getConfiguration().getName())) {
-                return input;
-            }
-            return "wrong consumer";
-        }
-    }
-
-    @Test
-    void queryTracked() {
-        testFixture.registerHandlers(SelfTracked.class)
-                .whenQuery(new SelfTracked("foo")).expectResult("foo");
     }
 
     @Test
@@ -79,6 +54,13 @@ class HandleSelfTest {
 
     @Test
     void disabled() {
+        class DisabledHandleSelf {
+            @HandleCommand(disabled = true)
+            void handle() {
+                FluxCapacitor.publishEvent("foo");
+            }
+        }
+
         testFixture.registerHandlers(new Object() {
             @HandleCommand
             void handleCommand(Object command) {
@@ -110,26 +92,6 @@ class HandleSelfTest {
     }
 
     @Test
-    void logMessage() {
-        testFixture.registerHandlers(new Object() {
-            @HandleCommand
-            void handleCommand(Object command) {
-                FluxCapacitor.publishEvent(true);
-            }
-        }).whenCommand(new MessageLoggingHandleSelf()).expectEvents("foo", true);
-    }
-
-    @Test
-    void doNotLogMessage() {
-        testFixture.registerHandlers(new Object() {
-            @HandleCommand
-            void handleCommand(Object command) {
-                FluxCapacitor.publishEvent(true);
-            }
-        }).whenCommand(new EventPublishingHandleSelf()).expectEvents("foo").expectNoEventsLike(true);
-    }
-
-    @Test
     void triggersException() {
         testFixture.whenQuery(new Object() {
             @HandleQuery
@@ -152,25 +114,75 @@ class HandleSelfTest {
         }).expectExceptionalResult(ValidationException.class);
     }
 
-    static class EventPublishingHandleSelf {
-        @HandleCommand
-        void handle() {
-            FluxCapacitor.publishEvent("foo");
+    @Nested
+    class AsyncTests {
+
+        final TestFixture testFixture = TestFixture.createAsync();
+
+        @Test
+        void logMessage() {
+            testFixture.registerHandlers(new Object() {
+                @HandleCommand
+                void handleCommand(Object command) {
+                    FluxCapacitor.publishEvent(true);
+                }
+            }).whenCommand(new MessageLoggingHandleSelf()).expectEvents("foo", true);
+        }
+
+        @Test
+        void doNotLogMessage() {
+            testFixture.registerHandlers(new Object() {
+                @HandleCommand
+                void handleCommand(Object command) {
+                    FluxCapacitor.publishEvent(true);
+                }
+            }).whenCommand(new EventPublishingHandleSelf()).expectEvents("foo").expectNoEventsLike(true);
+        }
+
+        static class EventPublishingHandleSelf {
+            @HandleCommand
+            void handle() {
+                FluxCapacitor.publishEvent("foo");
+            }
+        }
+
+        static class MessageLoggingHandleSelf {
+            @HandleCommand
+            @LocalHandler(logMessage = true)
+            void handle() {
+                FluxCapacitor.publishEvent("foo");
+            }
         }
     }
 
-    static class MessageLoggingHandleSelf {
-        @HandleCommand
-        @LocalHandler(logMessage = true)
-        void handle() {
-            FluxCapacitor.publishEvent("foo");
-        }
-    }
+    @Nested
+    class TrackSelfTests {
 
-    static class DisabledHandleSelf {
-        @HandleCommand(disabled = true)
-        void handle() {
-            FluxCapacitor.publishEvent("foo");
+        final TestFixture testFixture = TestFixture.createAsync();
+
+        @TrackSelf
+        @Consumer(name = "SelfTracked")
+        @Value
+        static class SelfTracked {
+            String input;
+
+            @HandleQuery
+            String handleSelf() {
+                if (Tracker.current().isEmpty()) {
+                    return "no tracker";
+                }
+                if (Tracker.current().isPresent()
+                    && "SelfTracked".equals(Tracker.current().get().getConfiguration().getName())) {
+                    return input;
+                }
+                return "wrong consumer";
+            }
+        }
+
+        @Test
+        void queryTracked() {
+            testFixture.registerHandlers(SelfTracked.class)
+                    .whenQuery(new SelfTracked("foo")).expectResult("foo");
         }
     }
 }
