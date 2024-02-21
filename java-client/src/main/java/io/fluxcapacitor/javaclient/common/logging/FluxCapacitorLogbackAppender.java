@@ -68,6 +68,9 @@ public class FluxCapacitorLogbackAppender extends AppenderBase<ILoggingEvent> {
 
     @Override
     protected void append(ILoggingEvent event) {
+        if (!event.getLevel().isGreaterOrEqual(Level.WARN)) {
+            return;
+        }
         try {
             Optional<Throwable> throwable =
                     ofNullable((ThrowableProxy) event.getThrowableProxy()).map(ThrowableProxy::getThrowable);

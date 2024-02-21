@@ -14,18 +14,18 @@
 
 package io.fluxcapacitor.javaclient.scheduling;
 
-import io.fluxcapacitor.common.Registration;
 import io.fluxcapacitor.common.api.SerializedMessage;
 import io.fluxcapacitor.common.api.scheduling.SerializedSchedule;
-import io.fluxcapacitor.common.handling.HandlerFilter;
 import io.fluxcapacitor.javaclient.common.serialization.DeserializingMessage;
 import io.fluxcapacitor.javaclient.common.serialization.Serializer;
 import io.fluxcapacitor.javaclient.modeling.Entity;
 import io.fluxcapacitor.javaclient.publishing.DispatchInterceptor;
 import io.fluxcapacitor.javaclient.scheduling.client.SchedulingClient;
 import io.fluxcapacitor.javaclient.tracking.handling.HandlerRegistry;
+import io.fluxcapacitor.javaclient.tracking.handling.HasLocalHandlers;
 import lombok.AllArgsConstructor;
 import lombok.SneakyThrows;
+import lombok.experimental.Delegate;
 
 import java.time.Instant;
 import java.util.Optional;
@@ -36,12 +36,13 @@ import static io.fluxcapacitor.common.MessageType.SCHEDULE;
 import static io.fluxcapacitor.javaclient.tracking.IndexUtils.indexFromTimestamp;
 
 @AllArgsConstructor
-public class DefaultScheduler implements Scheduler {
+public class DefaultScheduler implements Scheduler, HasLocalHandlers {
 
     private final SchedulingClient client;
     private final Serializer serializer;
     private final DispatchInterceptor dispatchInterceptor;
     private final DispatchInterceptor commandDispatchInterceptor;
+    @Delegate
     private final HandlerRegistry localHandlerRegistry;
 
     @Override
@@ -108,10 +109,6 @@ public class DefaultScheduler implements Scheduler {
     /*
         Only used by the TestFixture to simulate scheduling in a single thread
      */
-
-    public Registration registerHandler(Object target, HandlerFilter handlerFilter) {
-        return localHandlerRegistry.registerHandler(target, handlerFilter);
-    }
 
     @SneakyThrows
     public void handleLocally(Schedule schedule) {

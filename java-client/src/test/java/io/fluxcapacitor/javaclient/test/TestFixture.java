@@ -28,6 +28,7 @@ import io.fluxcapacitor.common.handling.HandlerInvoker;
 import io.fluxcapacitor.common.reflection.ReflectionUtils;
 import io.fluxcapacitor.common.serialization.JsonUtils;
 import io.fluxcapacitor.javaclient.FluxCapacitor;
+import io.fluxcapacitor.javaclient.common.ClientUtils;
 import io.fluxcapacitor.javaclient.common.IdentityProvider;
 import io.fluxcapacitor.javaclient.common.Message;
 import io.fluxcapacitor.javaclient.common.serialization.DeserializingMessage;
@@ -49,6 +50,7 @@ import io.fluxcapacitor.javaclient.tracking.ConsumerConfiguration;
 import io.fluxcapacitor.javaclient.tracking.Tracker;
 import io.fluxcapacitor.javaclient.tracking.handling.HandleSchedule;
 import io.fluxcapacitor.javaclient.tracking.handling.HandlerInterceptor;
+import io.fluxcapacitor.javaclient.tracking.handling.HasLocalHandlers;
 import io.fluxcapacitor.javaclient.tracking.handling.authentication.User;
 import io.fluxcapacitor.javaclient.tracking.handling.authentication.UserProvider;
 import io.fluxcapacitor.javaclient.web.WebRequest;
@@ -208,14 +210,19 @@ public class TestFixture implements Given, When {
                 .addBatchInterceptor(interceptor).addHandlerInterceptor(interceptor, true);
         this.fluxCapacitorBuilder = fluxCapacitorBuilder;
         this.fluxCapacitor = fluxCapacitorBuilder.build(client);
+        if (synchronous) {
+            localHandlerRegistries(fluxCapacitor).forEach(r -> r.setSelfHandlerFilter(HandlerFilter.ALWAYS_HANDLE));
+        }
         withClock(Clock.fixed(Instant.now(), ZoneId.systemDefault()));
         List<Object> handlers = new ArrayList<>();
         if (synchronous) {
             handlers.add(new Object() {
                 @HandleSchedule
                 void handle(ScheduledCommand schedule) {
+                    SerializedMessage command = schedule.getCommand();
+                    command.setTimestamp(FluxCapacitor.currentTime().toEpochMilli());
                     fluxCapacitor.serializer()
-                            .deserializeMessages(Stream.of(schedule.getCommand()), MessageType.COMMAND).findFirst().map(
+                            .deserializeMessages(Stream.of(command), MessageType.COMMAND).findFirst().map(
                                     DeserializingMessage::toMessage).ifPresent(FluxCapacitor::sendAndForgetCommand);
                 }
             });
@@ -241,6 +248,8 @@ public class TestFixture implements Given, When {
         this.fluxCapacitor = spying
                 ? new TestFluxCapacitor(fluxCapacitorBuilder.build(new TestClient(newClient)))
                 : fluxCapacitorBuilder.build(newClient);
+        localHandlerRegistries(this.fluxCapacitor).forEach(r -> r.setSelfHandlerFilter(
+                synchronous ? HandlerFilter.ALWAYS_HANDLE : (t, m) -> !ClientUtils.isSelfTracking(t, m)));
         currentFixture.modifiers.forEach(this::modifyFixture);
     }
 
@@ -328,24 +337,24 @@ public class TestFixture implements Given, When {
                 return;
             }
             HandlerFilter handlerFilter = (c, e) -> true;
-            var registration = fc.apply(f -> handlers.stream().flatMap(h -> Stream
-                            .of(fc.commandGateway().registerHandler(h, handlerFilter),
-                                fc.queryGateway().registerHandler(h, handlerFilter),
-                                fc.eventGateway().registerHandler(h, handlerFilter),
-                                fc.eventStore().registerHandler(h, handlerFilter),
-                                fc.errorGateway().registerHandler(h, handlerFilter),
-                                fc.webRequestGateway().registerHandler(h, handlerFilter),
-                                fc.metricsGateway().registerHandler(h, handlerFilter)))
+            var registration = fc.apply(f -> handlers.stream().flatMap(
+                            h -> localHandlerRegistries(f).map(r -> r.registerHandler(h, handlerFilter)))
                     .reduce(Registration::merge).orElse(Registration.noOp()));
-            if (fc.scheduler() instanceof DefaultScheduler scheduler) {
-                registration.merge(handlers.stream().flatMap(h -> Stream
-                                .of(scheduler.registerHandler(h, handlerFilter)))
-                                           .reduce(Registration::merge).orElse(Registration.noOp()));
-            } else {
-                log.warn("Could not register local schedule handlers");
-            }
             fixture.registration = fixture.registration.merge(registration);
         });
+    }
+
+    protected Stream<HasLocalHandlers> localHandlerRegistries(FluxCapacitor fluxCapacitor) {
+        var gateways = Stream.of(
+                fluxCapacitor.commandGateway(),
+                fluxCapacitor.queryGateway(),
+                fluxCapacitor.eventGateway(),
+                fluxCapacitor.eventStore(),
+                fluxCapacitor.errorGateway(),
+                fluxCapacitor.webRequestGateway(),
+                fluxCapacitor.metricsGateway());
+        return fluxCapacitor.scheduler() instanceof DefaultScheduler scheduler ?
+                Stream.concat(gateways, Stream.of(scheduler)) : gateways;
     }
 
     /**
@@ -876,9 +885,15 @@ public class TestFixture implements Given, When {
                     testFixture.registerError(e);
                     throw e;
                 } finally {
-                    if (Tracker.current().isEmpty()
-                        && getLocalHandlerAnnotation(invoker.getTargetClass(), invoker.getMethod())
-                                .map(l -> !l.logMessage()).orElse(true)) {
+                    if (
+                            m.getMessageType().isRequest()
+                            && Tracker.current().map(Tracker::getMessageBatch).map(batch -> batch.getMessages().stream()
+                                    .noneMatch(bm -> bm.getMessageId().equals(m.getMessageId())))
+                                    .orElse(true)
+                            && getLocalHandlerAnnotation(
+                                    invoker.getTargetClass(), invoker.getMethod())
+                                    .map(l -> !l.logMessage()).orElse(true)
+                    ) {
                         synchronized (testFixture.consumers) {
                             testFixture.consumers.entrySet().stream()
                                     .filter(t -> t.getKey().getMessageType() == m.getMessageType())

@@ -23,6 +23,7 @@ import io.fluxcapacitor.javaclient.tracking.Tracker;
 import io.fluxcapacitor.javaclient.tracking.handling.validation.ValidationException;
 import io.fluxcapacitor.javaclient.tracking.metrics.HandleMessageEvent;
 import jakarta.validation.constraints.NotBlank;
+import lombok.AllArgsConstructor;
 import lombok.Value;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -112,6 +113,22 @@ class HandleSelfTest {
                 return "bar";
             }
         }).expectExceptionalResult(ValidationException.class);
+    }
+
+    @Test
+    void syncTrackSelfHandledWithoutRegistration() {
+        @TrackSelf
+        @AllArgsConstructor
+        class SelfTracked {
+            String input;
+
+            @HandleQuery
+            String handleSelf() {
+                return "bar";
+            }
+        }
+
+        testFixture.whenQuery(new SelfTracked("foo")).expectResult("bar");
     }
 
     @Nested

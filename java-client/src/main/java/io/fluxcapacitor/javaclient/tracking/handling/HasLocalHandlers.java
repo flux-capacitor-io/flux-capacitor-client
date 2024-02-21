@@ -23,5 +23,7 @@ public interface HasLocalHandlers {
         return registerHandler(target, ClientUtils::isLocalHandler);
     }
 
+    void setSelfHandlerFilter(HandlerFilter selfHandlerFilter);
+
     Registration registerHandler(Object target, HandlerFilter handlerFilter);
 }

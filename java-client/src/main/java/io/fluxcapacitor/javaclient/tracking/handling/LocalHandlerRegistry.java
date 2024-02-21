@@ -20,12 +20,14 @@ import io.fluxcapacitor.common.Registration;
 import io.fluxcapacitor.common.handling.Handler;
 import io.fluxcapacitor.common.handling.HandlerFilter;
 import io.fluxcapacitor.common.handling.HandlerInvoker;
-import io.fluxcapacitor.common.reflection.ReflectionUtils;
 import io.fluxcapacitor.javaclient.FluxCapacitor;
+import io.fluxcapacitor.javaclient.common.ClientUtils;
 import io.fluxcapacitor.javaclient.common.Message;
 import io.fluxcapacitor.javaclient.common.serialization.DeserializingMessage;
-import io.fluxcapacitor.javaclient.tracking.TrackSelf;
-import lombok.AllArgsConstructor;
+import lombok.Getter;
+import lombok.NonNull;
+import lombok.RequiredArgsConstructor;
+import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
 
 import java.util.List;
@@ -39,14 +41,21 @@ import static io.fluxcapacitor.common.ObjectUtils.memoize;
 import static io.fluxcapacitor.javaclient.common.ClientUtils.getLocalHandlerAnnotation;
 import static java.util.Collections.emptyList;
 
-@AllArgsConstructor
+@RequiredArgsConstructor
 @Slf4j
 public class LocalHandlerRegistry implements HandlerRegistry {
     private final MessageType messageType;
+    @Getter
     private final HandlerFactory handlerFactory;
     private final List<Handler<DeserializingMessage>> localHandlers = new CopyOnWriteArrayList<>();
+
+    @Setter
+    @Getter
+    @NonNull
+    private HandlerFilter selfHandlerFilter = (t, m) -> !ClientUtils.isSelfTracking(t, m);
+
     private final Function<Class<?>, Optional<Handler<DeserializingMessage>>> selfHandlers
-            = memoize(this::computeSelfHandler);
+            = memoize(payloadType -> getHandlerFactory().createHandler(payloadType, getSelfHandlerFilter(), List.of()));
 
     @SuppressWarnings("unchecked")
     @Override
@@ -125,15 +134,5 @@ public class LocalHandlerRegistry implements HandlerRegistry {
     protected boolean logMessage(HandlerInvoker invoker) {
         return getLocalHandlerAnnotation(invoker.getTargetClass(), invoker.getMethod())
                 .map(LocalHandler::logMessage).orElse(false);
-    }
-
-    protected Optional<Handler<DeserializingMessage>> computeSelfHandler(Class<?> payloadType) {
-        if (Optional.ofNullable(ReflectionUtils.getTypeAnnotation(payloadType, TrackSelf.class))
-                .or(() -> Optional.ofNullable(payloadType.getPackage())
-                        .flatMap(p -> ReflectionUtils.getPackageAnnotation(p, TrackSelf.class)))
-                .isPresent()) {
-            return Optional.empty();
-        }
-        return handlerFactory.createHandler(payloadType, HandlerFilter.ALWAYS_HANDLE, emptyList());
     }
 }

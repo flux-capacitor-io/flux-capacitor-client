@@ -37,7 +37,7 @@ import io.fluxcapacitor.javaclient.web.WebResponseMapper;
 import java.util.function.UnaryOperator;
 
 /**
- * Builder for a Flux Capacitor client instance.
+ * Builder for a {@link FluxCapacitor} instance.
  */
 public interface FluxCapacitorBuilder {
     FluxCapacitorBuilder configureDefaultConsumer(MessageType messageType,

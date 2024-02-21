@@ -23,10 +23,12 @@ import io.fluxcapacitor.common.handling.HandlerInvoker;
 import io.fluxcapacitor.javaclient.FluxCapacitor;
 import io.fluxcapacitor.javaclient.modeling.SearchParameters;
 import io.fluxcapacitor.javaclient.modeling.Searchable;
+import io.fluxcapacitor.javaclient.tracking.TrackSelf;
 import io.fluxcapacitor.javaclient.tracking.handling.LocalHandler;
 import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
 
+import java.lang.reflect.Executable;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.Collection;
@@ -50,6 +52,11 @@ public class ClientUtils {
             memoize((target, method) -> getAnnotation(method, LocalHandler.class)
                     .or(() -> Optional.ofNullable(getTypeAnnotation(target, LocalHandler.class)))
                     .or(() -> getPackageAnnotation(target.getPackage(), LocalHandler.class)));
+
+    private static final BiFunction<Class<?>, java.lang.reflect.Executable, Optional<TrackSelf>> trackSelfCache =
+            memoize((target, method) -> getAnnotation(method, TrackSelf.class)
+                    .or(() -> Optional.ofNullable(getTypeAnnotation(target, TrackSelf.class)))
+                    .or(() -> getPackageAnnotation(target.getPackage(), TrackSelf.class)));
 
     public static void waitForResults(Duration maxDuration, Collection<? extends Future<?>> futures) {
         Instant deadline = Instant.now().plus(maxDuration);
@@ -81,6 +88,19 @@ public class ClientUtils {
         runnable.run();
     }
 
+    public static boolean isSelfTracking(Class<?> target, Executable method) {
+        return trackSelfCache.apply(target, method).isPresent();
+    }
+
+    public static Optional<TrackSelf> getTrackSelfAnnotation(Class<?> target, java.lang.reflect.Executable method) {
+        return trackSelfCache.apply(target, method);
+    }
+
+    public static Optional<LocalHandler> getLocalHandlerAnnotation(Class<?> target,
+                                                                   java.lang.reflect.Executable method) {
+        return localHandlerCache.apply(target, method);
+    }
+
     public static boolean isLocalHandler(Class<?> target, java.lang.reflect.Executable method) {
         return getLocalHandlerAnnotation(target, method).map(LocalHandler::value).orElse(false);
     }
@@ -92,11 +112,6 @@ public class ClientUtils {
     public static boolean isTrackingHandler(Class<?> target, java.lang.reflect.Executable method) {
         return getLocalHandlerAnnotation(target, method).map(l -> !l.value() || l.allowExternalMessages())
                 .orElse(true);
-    }
-
-    public static Optional<LocalHandler> getLocalHandlerAnnotation(Class<?> target,
-                                                                   java.lang.reflect.Executable method) {
-        return localHandlerCache.apply(target, method);
     }
 
     public static <T> MemoizingSupplier<T> memoize(Supplier<T> supplier) {
