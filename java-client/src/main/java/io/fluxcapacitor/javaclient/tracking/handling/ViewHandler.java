@@ -18,6 +18,7 @@ import io.fluxcapacitor.common.handling.Handler;
 import io.fluxcapacitor.common.handling.HandlerInvoker;
 import io.fluxcapacitor.common.handling.HandlerMatcher;
 import io.fluxcapacitor.common.reflection.ReflectionUtils;
+import io.fluxcapacitor.javaclient.common.ClientUtils;
 import io.fluxcapacitor.javaclient.common.Entry;
 import io.fluxcapacitor.javaclient.common.serialization.DeserializingMessage;
 import io.fluxcapacitor.javaclient.modeling.ViewRepository;
@@ -26,12 +27,19 @@ import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.experimental.Delegate;
 import lombok.experimental.FieldDefaults;
+import lombok.extern.slf4j.Slf4j;
 
+import java.lang.reflect.Executable;
 import java.lang.reflect.Method;
+import java.util.Arrays;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.Set;
 import java.util.function.BiFunction;
+import java.util.function.Function;
+import java.util.stream.Stream;
 
 import static io.fluxcapacitor.common.reflection.ReflectionUtils.getAnnotatedProperties;
 import static io.fluxcapacitor.common.reflection.ReflectionUtils.getAnnotation;
@@ -42,15 +50,30 @@ import static java.util.stream.Collectors.toSet;
 @Getter
 @AllArgsConstructor
 @FieldDefaults(makeFinal = true, level = AccessLevel.PRIVATE)
+@Slf4j
 public class ViewHandler implements Handler<DeserializingMessage> {
     Class<?> targetClass;
     HandlerMatcher<Object, DeserializingMessage> handlerMatcher;
     ViewRepository repository;
 
     @Getter(lazy = true)
-    Collection<String> associationProperties = getAnnotatedProperties(getTargetClass(), Association.class).stream()
-            .map(member -> getAnnotation(member, Association.class).map(Association::value)
-                    .filter(name -> !name.isBlank()).orElseGet(() -> getPropertyName(member))).collect(toSet());
+    Set<String> viewAssociationProperties = getAnnotatedProperties(getTargetClass(), Association.class).stream()
+            .flatMap(member -> getAnnotation(member, Association.class).stream().flatMap(
+                    a -> Stream.concat(Optional.ofNullable(a.value()).filter(p -> !p.isBlank())
+                                               .or(() -> Optional.of(getPropertyName(member))).stream(),
+                                       Arrays.stream(a.aliases())))).collect(toSet());
+
+    Function<Executable, Set<String>> methodAssociationProperties = ClientUtils.memoize(
+            m -> getAnnotation(m, Association.class).map(
+                    a -> {
+                        Set<String> associations =
+                                Stream.concat(Optional.ofNullable(a.value()).filter(p -> !p.isBlank()).stream(),
+                                              Arrays.stream(a.aliases())).collect(toSet());
+                        if (associations.isEmpty()) {
+                            log.warn("@Association on handler method {} does not define a property. This is probably a mistake.", m);
+                        }
+                        return associations;
+                    }).orElseGet(Collections::emptySet));
 
     @Override
     public Optional<HandlerInvoker> getInvoker(DeserializingMessage message) {
@@ -58,10 +81,6 @@ public class ViewHandler implements Handler<DeserializingMessage> {
             return Optional.empty();
         }
         var matches = repository.findByAssociation(associations(message));
-        if (matches.isEmpty()) {
-            return handlerMatcher.getInvoker(null, message)
-                    .map(i -> new ViewInvoker(i, null));
-        }
         HandlerInvoker result = null;
         for (Entry<?> entry : matches) {
             var invoker = handlerMatcher.getInvoker(entry.getValue(), message)
@@ -70,13 +89,19 @@ public class ViewHandler implements Handler<DeserializingMessage> {
                 result = result == null ? invoker.get() : result.combine(invoker.get());
             }
         }
-        return Optional.ofNullable(result);
+        if (result == null) {
+            return handlerMatcher.getInvoker(null, message)
+                    .map(i -> new ViewInvoker(i, null));
+        }
+        return Optional.of(result);
     }
 
     protected Collection<String> associations(DeserializingMessage message) {
         return Optional.ofNullable(message.getPayload()).stream()
-                .flatMap(p -> getAssociationProperties().stream()
-                        .flatMap(property -> ReflectionUtils.readProperty(property, p).stream()))
+                .flatMap(payload -> Stream.concat(handlerMatcher.matchingMethods(message)
+                                                          .flatMap(e -> methodAssociationProperties.apply(e).stream()),
+                                              getViewAssociationProperties().stream())
+                        .flatMap(property -> ReflectionUtils.readProperty(property, payload).stream()))
                 .map(Object::toString).collect(toSet());
     }
 

@@ -31,14 +31,42 @@ public class ViewTest {
 
         @Test
         void viewIsCreated() {
-            testFixture.whenEvent(new SomeEvent("bla")).expectCommands(1);
+            testFixture.whenEvent(new SomeEvent("foo")).expectCommands(1);
         }
 
         @Test
         void viewIsUpdated() {
-            testFixture.givenEvents(new SomeEvent("bla"))
-                    .whenEvent(new SomeEvent("bla"))
-                    .expectCommands(2);
+            testFixture.givenEvents(new SomeEvent("foo"))
+                    .whenEvent(new SomeEvent("foo"))
+                    .expectOnlyCommands(2);
+        }
+
+        @Test
+        void viewIsNotUpdatedIfNoMatch() {
+            testFixture.givenEvents(new SomeEvent("foo"))
+                    .whenEvent(new SomeEvent("other"))
+                    .expectOnlyCommands(1);
+        }
+
+        @Test
+        void viewIsUpdated_alias() {
+            testFixture.givenEvents(new SomeEvent("foo"))
+                    .whenEvent(new AliasEvent("foo"))
+                    .expectOnlyCommands(2);
+        }
+
+        @Test
+        void viewIsNotUpdated_wrongAlias() {
+            testFixture.givenEvents(new SomeEvent("foo"))
+                    .whenEvent(new AliasEvent("other"))
+                    .expectNoCommands();
+        }
+
+        @Test
+        void viewIsUpdated_associationOnMethod() {
+            testFixture.givenEvents(new SomeEvent("foo"))
+                    .whenEvent(new CustomEvent("foo"))
+                    .expectOnlyCommands(2);
         }
 
         @View
@@ -46,7 +74,7 @@ public class ViewTest {
         @Value
         @Builder(toBuilder = true)
         public static class StaticView {
-            @Association String someId;
+            @Association(aliases = "aliasId") String someId;
             int eventCount;
 
             @HandleEvent
@@ -60,6 +88,19 @@ public class ViewTest {
                 FluxCapacitor.sendAndForgetCommand(eventCount + 1);
                 return toBuilder().eventCount(eventCount + 1).build();
             }
+
+            @HandleEvent
+            StaticView update(AliasEvent event) {
+                FluxCapacitor.sendAndForgetCommand(eventCount + 1);
+                return toBuilder().eventCount(eventCount + 1).build();
+            }
+
+            @HandleEvent
+            @Association("customId")
+            StaticView update(CustomEvent event) {
+                FluxCapacitor.sendAndForgetCommand(eventCount + 1);
+                return toBuilder().eventCount(eventCount + 1).build();
+            }
         }
     }
 
@@ -69,20 +110,20 @@ public class ViewTest {
 
         @Test
         void viewIsCreated() {
-            testFixture.whenEvent(new SomeEvent("bla")).expectCommands(1);
+            testFixture.whenEvent(new SomeEvent("foo")).expectCommands(1);
         }
 
         @Test
         void viewIsUpdated() {
-            testFixture.givenEvents(new SomeEvent("bla"))
-                    .whenEvent(new SomeEvent("bla"))
+            testFixture.givenEvents(new SomeEvent("foo"))
+                    .whenEvent(new SomeEvent("foo"))
                     .expectCommands(2);
         }
 
         @Test
         void viewIsUpdated_async() {
-            TestFixture.createAsync(ConstructorView.class).givenEvents(new SomeEvent("bla"))
-                    .whenEvent(new SomeEvent("bla"))
+            TestFixture.createAsync(ConstructorView.class).givenEvents(new SomeEvent("foo"))
+                    .whenEvent(new SomeEvent("foo"))
                     .expectCommands(2);
         }
 
@@ -114,13 +155,13 @@ public class ViewTest {
 
         @Test
         void viewIsCreated() {
-            testFixture.whenEvent(new SomeEvent("bla")).expectCommands(1);
+            testFixture.whenEvent(new SomeEvent("foo")).expectCommands(1);
         }
 
         @Test
         void viewIsUpdated() {
-            testFixture.givenEvents(new SomeEvent("bla"))
-                    .whenEvent(new SomeEvent("bla"))
+            testFixture.givenEvents(new SomeEvent("foo"))
+                    .whenEvent(new SomeEvent("foo"))
                     .expectCommands(2);
         }
 
@@ -169,5 +210,15 @@ public class ViewTest {
     @Value
     static class SomeEvent {
         String someId;
+    }
+
+    @Value
+    static class AliasEvent {
+        String aliasId;
+    }
+
+    @Value
+    static class CustomEvent {
+        String customId;
     }
 }

@@ -30,4 +30,5 @@ import java.lang.annotation.Target;
 @SearchInclude
 public @interface Association {
     String value() default "";
+    String[] aliases() default {};
 }

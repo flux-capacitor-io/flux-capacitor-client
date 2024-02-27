@@ -152,6 +152,11 @@ public class HandlerInspector {
             return prepareInvoker(message).isPresent();
         }
 
+        @Override
+        public Stream<Executable> matchingMethods(M message) {
+            return canHandle(message) ? Stream.of(executable) : Stream.empty();
+        }
+
         @SuppressWarnings("unchecked")
         protected Optional<Function<Object, HandlerInvoker>> prepareInvoker(M m) {
             if (!config.messageFilter().test(m, executable)) {
@@ -313,6 +318,11 @@ public class HandlerInspector {
                 }
             }
             return false;
+        }
+
+        @Override
+        public Stream<Executable> matchingMethods(M message) {
+            return methodHandlers.stream().flatMap(m -> m.matchingMethods(message));
         }
 
         @Override

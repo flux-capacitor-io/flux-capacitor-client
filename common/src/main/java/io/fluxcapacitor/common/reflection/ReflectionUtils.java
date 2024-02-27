@@ -606,6 +606,10 @@ public class ReflectionUtils {
                 });
     }
 
+    public static boolean isStatic(Method method) {
+        return Modifier.isStatic(method.getModifiers());
+    }
+
     @Value
     private static class PropertyNotFoundException extends RuntimeException {
         @NonNull String propertyName;
