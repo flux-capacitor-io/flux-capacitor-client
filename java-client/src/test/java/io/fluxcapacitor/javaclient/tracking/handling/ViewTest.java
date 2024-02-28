@@ -24,6 +24,8 @@ import lombok.Value;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
+import java.time.Instant;
+
 public class ViewTest {
 
     @Nested
@@ -169,13 +171,14 @@ public class ViewTest {
                     .expectCommands(2);
         }
 
-        @View
+        @View(timestampPath = "timestamp")
         @Value
         @Builder(toBuilder = true)
         @AllArgsConstructor
         public static class SomeView {
             @Association("someId") String id;
             int eventCount;
+            Instant timestamp = FluxCapacitor.currentTime();
 
             @HandleEvent
             SomeView(SomeEvent event) {

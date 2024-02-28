@@ -14,25 +14,50 @@
 
 package io.fluxcapacitor.javaclient.modeling;
 
+import io.fluxcapacitor.common.reflection.ReflectionUtils;
+import io.fluxcapacitor.javaclient.FluxCapacitor;
 import io.fluxcapacitor.javaclient.common.ClientUtils;
 import io.fluxcapacitor.javaclient.common.Entry;
 import io.fluxcapacitor.javaclient.persisting.search.DocumentStore;
-import lombok.AllArgsConstructor;
+import io.fluxcapacitor.javaclient.tracking.handling.View;
 import lombok.SneakyThrows;
+import lombok.extern.slf4j.Slf4j;
 
+import java.time.Instant;
+import java.time.temporal.TemporalAccessor;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Function;
 
-@AllArgsConstructor
+@Slf4j
 public class DefaultViewRepository implements ViewRepository {
     public static Function<Class<?>, ViewRepository> repositorySupplier(DocumentStore documentStore) {
-        return type -> new DefaultViewRepository(documentStore, ClientUtils.determineCollection(type));
+        return type -> new DefaultViewRepository(documentStore, ClientUtils.determineCollection(type),
+                                                 ReflectionUtils.getTypeAnnotation(type, View.class));
     }
 
     private final DocumentStore documentStore;
     private final String collection;
+    private final Function<Object, Instant> timestampFunction;
+
+    public DefaultViewRepository(DocumentStore documentStore, String collection, View annotation) {
+        this.documentStore = documentStore;
+        this.collection = collection;
+        AtomicBoolean warnedAboutMissingTimePath = new AtomicBoolean();
+        this.timestampFunction = Optional.of(annotation).map(View::timestampPath)
+                .filter(path -> !path.isBlank())
+                .<Function<Object, Instant>>map(path -> view -> ReflectionUtils.readProperty(path, view)
+                        .map(t -> Instant.from((TemporalAccessor) t)).orElseGet(() -> {
+                            if (warnedAboutMissingTimePath.compareAndSet(false, true)) {
+                                log.warn("Type {} does not declare a timestamp property at '{}'",
+                                         view.getClass().getSimpleName(), path);
+                            }
+                            return FluxCapacitor.currentTime();
+                        })).orElseGet(() -> view -> FluxCapacitor.currentTime());
+    }
 
     @Override
     public Collection<? extends Entry<Object>> findByAssociation(Collection<String> associations) {
@@ -59,7 +84,7 @@ public class DefaultViewRepository implements ViewRepository {
 
     @SneakyThrows
     public CompletableFuture<?> set(Object value, Object id) {
-        return documentStore.index(value, id, collection);
+        return documentStore.index(value, id, collection, timestampFunction.apply(value));
     }
 
     @SneakyThrows
