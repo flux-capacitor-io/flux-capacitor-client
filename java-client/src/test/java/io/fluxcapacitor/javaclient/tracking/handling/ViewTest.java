@@ -16,6 +16,7 @@ package io.fluxcapacitor.javaclient.tracking.handling;
 
 import io.fluxcapacitor.common.search.SearchExclude;
 import io.fluxcapacitor.javaclient.FluxCapacitor;
+import io.fluxcapacitor.javaclient.modeling.EntityId;
 import io.fluxcapacitor.javaclient.test.TestFixture;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -74,7 +75,7 @@ public class ViewTest {
         @Value
         @Builder(toBuilder = true)
         public static class StaticView {
-            @Association(aliases = "aliasId") String someId;
+            @Association({"someId", "aliasId"}) String someId;
             int eventCount;
 
             @HandleEvent
@@ -110,7 +111,9 @@ public class ViewTest {
 
         @Test
         void viewIsCreated() {
-            testFixture.whenEvent(new SomeEvent("foo")).expectCommands(1);
+            testFixture.whenEvent(new SomeEvent("foo"))
+                    .expectCommands(1)
+                    .expectTrue(fc -> fc.documentStore().fetchDocument("foo", ConstructorView.class).isPresent());
         }
 
         @Test
@@ -132,6 +135,7 @@ public class ViewTest {
         @Builder(toBuilder = true)
         @AllArgsConstructor
         public static class ConstructorView {
+            @EntityId
             @Association String someId;
             int eventCount;
 

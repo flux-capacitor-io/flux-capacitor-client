@@ -21,6 +21,12 @@ import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
+/**
+ * Marks a property (field or getter) as the holder of the identifier of an entity.
+ *
+ * @see Aggregate
+ * @see io.fluxcapacitor.javaclient.tracking.handling.View
+ */
 @Documented
 @Target({ElementType.FIELD, ElementType.METHOD})
 @Retention(RetentionPolicy.RUNTIME)

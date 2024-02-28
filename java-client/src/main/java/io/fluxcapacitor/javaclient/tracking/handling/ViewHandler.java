@@ -18,9 +18,11 @@ import io.fluxcapacitor.common.handling.Handler;
 import io.fluxcapacitor.common.handling.HandlerInvoker;
 import io.fluxcapacitor.common.handling.HandlerMatcher;
 import io.fluxcapacitor.common.reflection.ReflectionUtils;
+import io.fluxcapacitor.javaclient.FluxCapacitor;
 import io.fluxcapacitor.javaclient.common.ClientUtils;
 import io.fluxcapacitor.javaclient.common.Entry;
 import io.fluxcapacitor.javaclient.common.serialization.DeserializingMessage;
+import io.fluxcapacitor.javaclient.modeling.EntityId;
 import io.fluxcapacitor.javaclient.modeling.ViewRepository;
 import lombok.AccessLevel;
 import lombok.AllArgsConstructor;
@@ -42,9 +44,9 @@ import java.util.function.Function;
 import java.util.stream.Stream;
 
 import static io.fluxcapacitor.common.reflection.ReflectionUtils.getAnnotatedProperties;
+import static io.fluxcapacitor.common.reflection.ReflectionUtils.getAnnotatedPropertyValue;
 import static io.fluxcapacitor.common.reflection.ReflectionUtils.getAnnotation;
 import static io.fluxcapacitor.common.reflection.ReflectionUtils.getPropertyName;
-import static io.fluxcapacitor.javaclient.FluxCapacitor.generateId;
 import static java.util.stream.Collectors.toSet;
 
 @Getter
@@ -59,16 +61,13 @@ public class ViewHandler implements Handler<DeserializingMessage> {
     @Getter(lazy = true)
     Set<String> viewAssociationProperties = getAnnotatedProperties(getTargetClass(), Association.class).stream()
             .flatMap(member -> getAnnotation(member, Association.class).stream().flatMap(
-                    a -> Stream.concat(Optional.ofNullable(a.value()).filter(p -> !p.isBlank())
-                                               .or(() -> Optional.of(getPropertyName(member))).stream(),
-                                       Arrays.stream(a.aliases())))).collect(toSet());
+                    a -> a.value().length > 0 ? Arrays.stream(a.value()) : Stream.of(getPropertyName(member))))
+                    .collect(toSet());
 
     Function<Executable, Set<String>> methodAssociationProperties = ClientUtils.memoize(
             m -> getAnnotation(m, Association.class).map(
                     a -> {
-                        Set<String> associations =
-                                Stream.concat(Optional.ofNullable(a.value()).filter(p -> !p.isBlank()).stream(),
-                                              Arrays.stream(a.aliases())).collect(toSet());
+                        Set<String> associations = Arrays.stream(a.value()).collect(toSet());
                         if (associations.isEmpty()) {
                             log.warn("@Association on handler method {} does not define a property. This is probably a mistake.", m);
                         }
@@ -118,7 +117,7 @@ public class ViewHandler implements Handler<DeserializingMessage> {
             Object result = delegate.invoke(combiner);
             if (delegate.getTargetClass().isInstance(result)) {
                 if (currentEntry == null || !Objects.equals(currentEntry.getValue(), result)) {
-                    repository.set(result, currentEntry == null ? generateId() : currentEntry.getId());
+                    repository.set(result, currentEntry == null ? computeId(result) : currentEntry.getId());
                 }
             }
             if (result == null && expectResult() && getMethod() instanceof Method m
@@ -131,9 +130,13 @@ public class ViewHandler implements Handler<DeserializingMessage> {
             return result;
         }
 
-        private interface ExcludedMethods {
-            Object invoke(BiFunction<Object, Object, Object> combiner);
+        private static Object computeId(Object view) {
+            return getAnnotatedPropertyValue(view, EntityId.class).orElseGet(FluxCapacitor::generateId);
         }
 
+        private interface ExcludedMethods {
+            Object invoke(BiFunction<Object, Object, Object> combiner);
+
+        }
     }
 }

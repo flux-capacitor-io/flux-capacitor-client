@@ -211,11 +211,11 @@ public class ReflectionUtils {
         return annotatedProperties.isEmpty() ? Optional.empty() : Optional.of(annotatedProperties.get(0));
     }
 
-    public static Optional<?> getAnnotatedPropertyValue(Object target, Class<? extends Annotation> annotation) {
+    public static Optional<Object> getAnnotatedPropertyValue(Object target, Class<? extends Annotation> annotation) {
         return getAnnotatedProperty(target, annotation).map(m -> getValue(m, target, false));
     }
 
-    public static Collection<?> getAnnotatedPropertyValues(Object target, Class<? extends Annotation> annotation) {
+    public static Collection<Object> getAnnotatedPropertyValues(Object target, Class<? extends Annotation> annotation) {
         if (target == null) {
             return emptyList();
         }

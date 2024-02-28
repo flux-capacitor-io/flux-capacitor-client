@@ -26,6 +26,19 @@ import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
+/**
+ * Annotation to be placed on stateful message handlers. If this annotation is present it is possible to 'apply'
+ * messages like events on stored view instances, or automatically store views.
+ * <p>
+ * Messages are associated with stored views using {@link Association associations}.
+ * <p>
+ * Views are persisted to a {@link io.fluxcapacitor.javaclient.modeling.ViewRepository}. By default, a repository backed
+ * by the {@link io.fluxcapacitor.javaclient.persisting.search.DocumentStore} is used. An identifier for new views is
+ * automatically generated unless a property of the view is annotated with
+ * {@link io.fluxcapacitor.javaclient.modeling.EntityId}, in which case the property is used to determine the id.
+ *
+ * @see Association
+ */
 @Documented
 @Target(ElementType.TYPE)
 @Retention(RetentionPolicy.RUNTIME)
@@ -34,9 +47,15 @@ import java.lang.annotation.Target;
 @Component
 @Scope(ConfigurableBeanFactory.SCOPE_PROTOTYPE)
 public @interface View {
-    boolean searchable() default true;
 
+    /**
+     * Returns the name of the collection in which the view should be stored. Defaults to the simple name of View class.
+     */
     String collection() default "";
 
+    /**
+     * Returns the name of property on the view that contains a timestamp associated with the view. This may be useful
+     * in case the views need to e.g. be presented in an overview.
+     */
     String timestampPath() default "";
 }

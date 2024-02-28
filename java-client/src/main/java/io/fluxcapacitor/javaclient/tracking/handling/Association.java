@@ -23,12 +23,26 @@ import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
+/**
+ * Annotation used to associate a message to a stored View. If a message is associated with one or several Views, the
+ * Views will be fetched and the message will be applied on all Views.
+ * <p>
+ * This annotation can be added to properties (fields and getters) of the View class, or on handler methods of the View.
+ * If placed on a property of the View, the name of the property will be used to associate the event, unless another
+ * property name is specified using {@link #value()}. If the annotation is used on a handler method,
+ * {@link #value()} is required to match on a property by that name in the message payload.
+ *
+ * @see View
+ */
 @Documented
 @Target({ElementType.FIELD, ElementType.METHOD})
 @Retention(RetentionPolicy.RUNTIME)
 @Inherited
 @SearchInclude
 public @interface Association {
-    String value() default "";
-    String[] aliases() default {};
+    /**
+     * Returns names of properties in the message payload to associate with. If the annotation is placed on a
+     * property of the View this may be left empty to associate using the name of the View property.
+     */
+    String[] value() default {};
 }
