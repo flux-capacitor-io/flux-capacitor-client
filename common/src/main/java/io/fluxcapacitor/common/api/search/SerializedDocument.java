@@ -76,7 +76,8 @@ public class SerializedDocument {
         this.collection = collection;
         this.data = data == null ? memoize(() -> DefaultDocumentSerializer.INSTANCE.serialize(document.get())) : data;
         this.document = document == null
-                ? memoize(() -> DefaultDocumentSerializer.INSTANCE.deserialize(data.get())) : document;
+                ? memoize(() -> DefaultDocumentSerializer.INSTANCE.deserialize(data.get())
+                .toBuilder().facets(facets).build()) : document;
         this.summary = summary;
         this.facets = facets;
     }

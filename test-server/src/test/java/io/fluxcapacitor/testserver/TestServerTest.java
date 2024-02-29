@@ -14,8 +14,10 @@
 
 package io.fluxcapacitor.testserver;
 
+import io.fluxcapacitor.common.api.search.FacetStats;
 import io.fluxcapacitor.common.api.search.SearchDocuments;
 import io.fluxcapacitor.common.api.search.SearchDocumentsResult;
+import io.fluxcapacitor.common.search.Facet;
 import io.fluxcapacitor.javaclient.FluxCapacitor;
 import io.fluxcapacitor.javaclient.configuration.client.WebSocketClient;
 import io.fluxcapacitor.javaclient.scheduling.Schedule;
@@ -75,6 +77,13 @@ class TestServerTest {
             fc.documentStore().index("bla3", "test").get();
         }).whenApplying(fc -> fc.documentStore().search("test").lookAhead("bla").stream(2).toList())
                 .<List<?>>expectResult(list -> list.size() == 3);
+    }
+
+    @Test
+    void testFacetsHandlerIncluded() {
+        testFixture.given(fc -> fc.documentStore().index(new FacetedObject("bla"), "test").get())
+                .whenApplying(fc -> fc.documentStore().search("test").facetStats())
+                .<List<FacetStats>>expectResult(list -> list.size() == 1);
     }
 
     @Test
@@ -163,6 +172,12 @@ class TestServerTest {
 
     @Value
     private static class DoSomethingElse {
+    }
+
+    @Value
+    private static class FacetedObject {
+        @Facet
+        String something;
     }
 
     @SneakyThrows
