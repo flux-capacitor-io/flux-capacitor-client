@@ -119,6 +119,7 @@ public class ViewHandler implements Handler<DeserializingMessage> {
                 if (currentEntry == null || !Objects.equals(currentEntry.getValue(), result)) {
                     repository.set(result, currentEntry == null ? computeId(result) : currentEntry.getId());
                 }
+                return null;
             }
             if (result == null && expectResult() && getMethod() instanceof Method m
                 && (delegate.getTargetClass().isAssignableFrom(m.getReturnType())
@@ -126,6 +127,7 @@ public class ViewHandler implements Handler<DeserializingMessage> {
                 if (currentEntry != null) {
                     repository.delete(currentEntry.getId());
                 }
+                return null;
             }
             return result;
         }

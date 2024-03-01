@@ -28,4 +28,5 @@ import java.lang.annotation.Target;
 @HandleMessage(MessageType.NOTIFICATION)
 public @interface HandleNotification {
     boolean disabled() default false;
+    Class<?>[] allowedClasses() default {};
 }

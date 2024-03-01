@@ -28,4 +28,5 @@ import java.lang.annotation.Target;
 @HandleMessage(MessageType.ERROR)
 public @interface HandleError {
     boolean disabled() default false;
+    Class<?>[] allowedClasses() default {};
 }

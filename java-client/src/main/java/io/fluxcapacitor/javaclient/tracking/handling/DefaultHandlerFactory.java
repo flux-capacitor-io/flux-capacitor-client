@@ -43,25 +43,12 @@ import static io.fluxcapacitor.javaclient.common.ClientUtils.memoize;
 
 @RequiredArgsConstructor
 public class DefaultHandlerFactory implements HandlerFactory {
-    public static Class<? extends Annotation> getHandlerAnnotation(MessageType messageType) {
-        return switch (messageType) {
-            case COMMAND -> HandleCommand.class;
-            case EVENT -> HandleEvent.class;
-            case NOTIFICATION -> HandleNotification.class;
-            case QUERY -> HandleQuery.class;
-            case RESULT -> HandleResult.class;
-            case ERROR -> HandleError.class;
-            case SCHEDULE -> HandleSchedule.class;
-            case METRICS -> HandleMetrics.class;
-            case WEBREQUEST -> HandleWeb.class;
-            case WEBRESPONSE -> HandleWebResponse.class;
-        };
-    }
 
     private final MessageType messageType;
     private final HandlerDecorator defaultDecorator;
     private final List<ParameterResolver<? super DeserializingMessage>> parameterResolvers;
     private final MessageFilter<? super DeserializingMessage> messageFilter;
+    private final Class<? extends Annotation> handlerAnnotation;
 
     private final Function<Class<?>, ViewRepository> viewRepositorySupplier;
 
@@ -72,6 +59,7 @@ public class DefaultHandlerFactory implements HandlerFactory {
         this.defaultDecorator = defaultDecorator;
         this.parameterResolvers = parameterResolvers;
         this.viewRepositorySupplier = memoize(viewRepositorySupplier);
+        this.handlerAnnotation = getHandlerAnnotation(messageType);
         this.messageFilter = defaultMessageFilter();
     }
 
@@ -82,7 +70,7 @@ public class DefaultHandlerFactory implements HandlerFactory {
         HandlerDecorator handlerDecorator =
                 Stream.concat(extraInterceptors.stream(), Stream.of(defaultDecorator))
                         .reduce(HandlerDecorator::andThen).orElseThrow();
-        return Optional.ofNullable(getHandlerAnnotation(messageType))
+        return Optional.of(handlerAnnotation)
                 .map(a -> HandlerConfiguration.<DeserializingMessage>builder().methodAnnotation(a)
                         .handlerFilter(handlerFilter).messageFilter(messageFilter).build())
                 .filter(config -> hasHandlerMethods(targetClass, config))
@@ -123,11 +111,28 @@ public class DefaultHandlerFactory implements HandlerFactory {
         return HandlerInspector.createHandler(target, parameterResolvers, config);
     }
 
+    protected Class<? extends Annotation> getHandlerAnnotation(MessageType messageType) {
+        return switch (messageType) {
+            case COMMAND -> HandleCommand.class;
+            case EVENT -> HandleEvent.class;
+            case NOTIFICATION -> HandleNotification.class;
+            case QUERY -> HandleQuery.class;
+            case RESULT -> HandleResult.class;
+            case ERROR -> HandleError.class;
+            case SCHEDULE -> HandleSchedule.class;
+            case METRICS -> HandleMetrics.class;
+            case WEBREQUEST -> HandleWeb.class;
+            case WEBRESPONSE -> HandleWebResponse.class;
+        };
+    }
+
     @SuppressWarnings("unchecked")
     protected MessageFilter<? super DeserializingMessage> defaultMessageFilter() {
+        var payloadFilter = new PayloadFilter();
         var result = parameterResolvers.stream().flatMap(r -> r instanceof MessageFilter<?>
                         ? Stream.of((MessageFilter<HasMessage>) r) : Stream.empty())
-                .reduce(MessageFilter::and).orElseGet(() -> (m, a) -> true);
+                .reduce(MessageFilter::and).map(f -> f.and(payloadFilter))
+                .orElse(payloadFilter);
         return messageType == MessageType.WEBREQUEST ? WebRequest.getWebRequestFilter().and(result) : result;
     }
 

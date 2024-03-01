@@ -28,4 +28,5 @@ import java.lang.annotation.Target;
 @HandleMessage(MessageType.SCHEDULE)
 public @interface HandleSchedule {
     boolean disabled() default false;
+    Class<?>[] allowedClasses() default {};
 }

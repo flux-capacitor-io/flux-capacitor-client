@@ -28,4 +28,5 @@ import java.lang.annotation.Target;
 @HandleMessage(MessageType.METRICS)
 public @interface HandleMetrics {
     boolean disabled() default false;
+    Class<?>[] allowedClasses() default {};
 }

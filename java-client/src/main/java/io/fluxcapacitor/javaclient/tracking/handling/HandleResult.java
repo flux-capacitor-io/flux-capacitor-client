@@ -28,4 +28,5 @@ import java.lang.annotation.Target;
 @HandleMessage(MessageType.RESULT)
 public @interface HandleResult {
     boolean disabled() default false;
+    Class<?>[] allowedClasses() default {};
 }

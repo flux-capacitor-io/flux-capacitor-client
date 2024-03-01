@@ -29,4 +29,5 @@ import java.lang.annotation.Target;
 public @interface HandleQuery {
     boolean disabled() default false;
     boolean passive() default false;
+    Class<?>[] allowedClasses() default {};
 }

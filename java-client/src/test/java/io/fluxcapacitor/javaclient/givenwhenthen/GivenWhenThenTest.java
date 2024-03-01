@@ -210,7 +210,7 @@ class GivenWhenThenTest {
             return "result";
         }
 
-        @HandleCommand
+        @HandleCommand(allowedClasses = YieldsException.class)
         public void handle(YieldsException command) {
             throw new MockException();
         }
