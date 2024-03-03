@@ -27,6 +27,7 @@ import io.fluxcapacitor.javaclient.modeling.ViewRepository;
 import lombok.AccessLevel;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
+import lombok.SneakyThrows;
 import lombok.experimental.Delegate;
 import lombok.experimental.FieldDefaults;
 import lombok.extern.slf4j.Slf4j;
@@ -113,11 +114,12 @@ public class ViewHandler implements Handler<DeserializingMessage> {
         Entry<?> currentEntry;
 
         @Override
+        @SneakyThrows
         public Object invoke(BiFunction<Object, Object, Object> combiner) {
             Object result = delegate.invoke(combiner);
             if (delegate.getTargetClass().isInstance(result)) {
                 if (currentEntry == null || !Objects.equals(currentEntry.getValue(), result)) {
-                    repository.set(result, currentEntry == null ? computeId(result) : currentEntry.getId());
+                    repository.set(result, currentEntry == null ? computeId(result) : currentEntry.getId()).get();
                 }
                 return null;
             }
@@ -125,7 +127,7 @@ public class ViewHandler implements Handler<DeserializingMessage> {
                 && (delegate.getTargetClass().isAssignableFrom(m.getReturnType())
                     || m.getReturnType().isAssignableFrom(delegate.getTargetClass()))) {
                 if (currentEntry != null) {
-                    repository.delete(currentEntry.getId());
+                    repository.delete(currentEntry.getId()).get();
                 }
                 return null;
             }
