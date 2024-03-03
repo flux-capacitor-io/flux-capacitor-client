@@ -44,7 +44,7 @@ public class SpringBeanParameterResolver implements ParameterResolver<Object> {
     }
 
     @Override
-    public boolean matches(Parameter parameter, Annotation methodAnnotation, Object value, Object target) {
+    public boolean matches(Parameter parameter, Annotation methodAnnotation, Object value) {
         return ReflectionUtils.has(Autowired.class, parameter);
     }
 

@@ -24,8 +24,10 @@ import java.lang.annotation.Target;
 
 @Documented
 @Retention(RetentionPolicy.RUNTIME)
-@Target(ElementType.METHOD)
+@Target({ElementType.METHOD, ElementType.CONSTRUCTOR})
 @HandleMessage(MessageType.QUERY)
 public @interface HandleQuery {
+    boolean disabled() default false;
     boolean passive() default false;
+    Class<?>[] allowedClasses() default {};
 }

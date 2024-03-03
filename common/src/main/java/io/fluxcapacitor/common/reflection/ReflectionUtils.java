@@ -30,7 +30,6 @@ import java.lang.annotation.Annotation;
 import java.lang.invoke.MethodType;
 import java.lang.reflect.AccessibleObject;
 import java.lang.reflect.AnnotatedElement;
-import java.lang.reflect.AnnotatedType;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Executable;
 import java.lang.reflect.Field;
@@ -212,11 +211,11 @@ public class ReflectionUtils {
         return annotatedProperties.isEmpty() ? Optional.empty() : Optional.of(annotatedProperties.get(0));
     }
 
-    public static Optional<?> getAnnotatedPropertyValue(Object target, Class<? extends Annotation> annotation) {
+    public static Optional<Object> getAnnotatedPropertyValue(Object target, Class<? extends Annotation> annotation) {
         return getAnnotatedProperty(target, annotation).map(m -> getValue(m, target, false));
     }
 
-    public static Collection<?> getAnnotatedPropertyValues(Object target, Class<? extends Annotation> annotation) {
+    public static Collection<Object> getAnnotatedPropertyValues(Object target, Class<? extends Annotation> annotation) {
         if (target == null) {
             return emptyList();
         }
@@ -301,21 +300,11 @@ public class ReflectionUtils {
     }
 
     private static Collection<? extends Annotation> computeTypeAnnotations(Class<?> type) {
-        return Stream.concat(stream(type.getAnnotations()), stream(type.getAnnotatedInterfaces())
-                        .map(AnnotatedType::getType).flatMap(t -> {
-                            if (t instanceof ParameterizedType) {
-                                t = ((ParameterizedType) t).getRawType();
-                            }
-                            if (t instanceof Class<?>) {
-                                return Stream.of((Class<?>) t);
-                            }
-                            return Stream.empty();
-                        }).map(t -> (Class<?>) t)
-                        .flatMap(i -> stream(i.getAnnotations())))
+        return Stream.concat(stream(type.getAnnotations()), getAllInterfaces(type).stream()
+                        .flatMap(iType -> stream(iType.getAnnotations())))
                 .filter(ObjectUtils.distinctByKey(Annotation::annotationType))
                 .collect(toCollection(LinkedHashSet::new));
     }
-
 
     public static <A extends Annotation> Optional<A> getPackageAnnotation(Package p, Class<A> annotationType) {
         return Optional.ofNullable(p.getAnnotation(annotationType));
@@ -615,6 +604,10 @@ public class ReflectionUtils {
                                     .equalsIgnoreCase(alias)).findFirst()
                             .flatMap(f -> ReflectionUtils.getFieldAnnotation(f, a));
                 });
+    }
+
+    public static boolean isStatic(Method method) {
+        return Modifier.isStatic(method.getModifiers());
     }
 
     @Value

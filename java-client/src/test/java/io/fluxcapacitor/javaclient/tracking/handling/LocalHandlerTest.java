@@ -15,6 +15,7 @@
 package io.fluxcapacitor.javaclient.tracking.handling;
 
 import io.fluxcapacitor.javaclient.test.TestFixture;
+import io.fluxcapacitor.javaclient.tracking.handling.localhandler.PackageLocalHandler;
 import org.junit.jupiter.api.Test;
 
 import static io.fluxcapacitor.common.MessageType.COMMAND;
@@ -25,11 +26,16 @@ import static org.mockito.Mockito.verify;
 
 public class LocalHandlerTest {
 
-    private final TestFixture testFixture = TestFixture.createAsync(new PublishingLocalHandler()).spy();
+    private final TestFixture testFixture = TestFixture.createAsync(new PublishingLocalHandler(), new PackageLocalHandler()).spy();
 
     @Test
     void testMessagePublication() {
         testFixture.whenCommand("a").expectThat(fc -> verify(fc.client().getGatewayClient(COMMAND)).send(any(), any()));
+    }
+
+    @Test
+    void testPackageHandler() {
+        testFixture.whenCommand("a".getBytes()).expectResult(false);
     }
 
     @Test

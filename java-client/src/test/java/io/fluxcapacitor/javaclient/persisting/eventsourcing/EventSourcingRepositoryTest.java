@@ -31,7 +31,6 @@ import io.fluxcapacitor.javaclient.test.TestFixture;
 import io.fluxcapacitor.javaclient.tracking.handling.HandleCommand;
 import io.fluxcapacitor.javaclient.tracking.handling.HandleEvent;
 import io.fluxcapacitor.javaclient.tracking.handling.HandleQuery;
-import io.fluxcapacitor.javaclient.tracking.handling.HandleSelf;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.NoArgsConstructor;
@@ -935,7 +934,7 @@ class EventSourcingRepositoryTest {
     static class SelfApplyingCommand {
         Class<?> aggregateClass;
 
-        @HandleSelf
+        @HandleCommand
         void handle() {
             loadAggregate("test", aggregateClass).assertAndApply(this);
         }

@@ -12,19 +12,29 @@
  * limitations under the License.
  */
 
-package io.fluxcapacitor.javaclient.givenwhenthen;
+package io.fluxcapacitor.javaclient.givenwhenthen.spring;
 
+import io.fluxcapacitor.common.search.SearchExclude;
 import io.fluxcapacitor.javaclient.FluxCapacitor;
 import io.fluxcapacitor.javaclient.test.TestFixture;
 import io.fluxcapacitor.javaclient.test.spring.FluxCapacitorTestConfig;
+import io.fluxcapacitor.javaclient.tracking.Consumer;
+import io.fluxcapacitor.javaclient.tracking.TrackSelf;
+import io.fluxcapacitor.javaclient.tracking.Tracker;
+import io.fluxcapacitor.javaclient.tracking.handling.Association;
 import io.fluxcapacitor.javaclient.tracking.handling.HandleCommand;
 import io.fluxcapacitor.javaclient.tracking.handling.HandleEvent;
+import io.fluxcapacitor.javaclient.tracking.handling.View;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
 import lombok.SneakyThrows;
 import lombok.Value;
+import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.ComponentScan;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.test.annotation.DirtiesContext;
 import org.springframework.test.context.ContextConfiguration;
@@ -62,12 +72,96 @@ class GivenWhenThenSpringTest {
         assertTrue(result.isDone());
     }
 
+    @Test
+    void selfTracked() {
+        testFixture.whenCommand(new SelfTracked()).expectEvents(SelfTracked.class);
+    }
+
+    @Nested
+    class ViewTest {
+        @Test
+        void staticViewIsCreated() {
+            testFixture.whenEvent(new StaticEvent("bla"))
+                    .expectCommands(1);
+        }
+
+        @Test
+        void staticViewIsUpdated() {
+            testFixture.givenEvents(new StaticEvent("bla"))
+                    .whenEvent(new StaticEvent("bla"))
+                    .expectCommands(2);
+        }
+
+        @Test
+        void constructorViewIsCreated() {
+            testFixture.whenEvent(new StaticEvent("bla"))
+                    .expectCommands("constructor:1");
+        }
+
+        @Test
+        void constructorViewIsUpdated() {
+            testFixture
+                    .givenEvents(new StaticEvent("bla"))
+                    .whenEvent(new StaticEvent("bla"))
+                    .expectCommands("constructor:2");
+        }
+
+        @View
+        @SearchExclude
+        @Value
+        @Builder(toBuilder = true)
+        public static class StaticView {
+            @Association String someId;
+            int eventCount;
+
+            @HandleEvent
+            static StaticView create(StaticEvent event) {
+                FluxCapacitor.sendAndForgetCommand(1);
+                return StaticView.builder().someId(event.someId).eventCount(1).build();
+            }
+
+            @HandleEvent
+            StaticView update(StaticEvent event) {
+                FluxCapacitor.sendAndForgetCommand(eventCount + 1);
+                return toBuilder().eventCount(eventCount + 1).build();
+            }
+        }
+
+        @View
+        @Value
+        @Builder(toBuilder = true)
+        @AllArgsConstructor
+        public static class ConstructorView {
+            @Association String someId;
+            int eventCount;
+
+            @HandleEvent
+            ConstructorView(StaticEvent event) {
+                this(event.getSomeId(), 1);
+                FluxCapacitor.sendAndForgetCommand("constructor:" + eventCount);
+            }
+
+            @HandleEvent
+            ConstructorView update(StaticEvent event) {
+                FluxCapacitor.sendAndForgetCommand("constructor:" + (eventCount + 1));
+                return toBuilder().eventCount(eventCount + 1).build();
+            }
+        }
+
+        @Value
+        static class StaticEvent {
+            String someId;
+        }
+
+    }
+
     @SneakyThrows
     private static void sleepAWhile(int millis) {
         Thread.sleep(millis);
     }
 
     @Configuration
+    @ComponentScan
     static class FooConfig {
         @Bean
         public FooHandler fooHandler() {
@@ -92,6 +186,18 @@ class GivenWhenThenSpringTest {
         @Bean
         public BarHandler barHandler() {
             return new BarHandler();
+        }
+    }
+
+    @TrackSelf
+    @Consumer(name = "SelfTracked")
+    public static class SelfTracked {
+        @HandleCommand
+        void handleSelf() {
+            if (Tracker.current().isPresent()
+                && "SelfTracked".equals(Tracker.current().get().getConfiguration().getName())) {
+                FluxCapacitor.publishEvent(this);
+            }
         }
     }
 

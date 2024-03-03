@@ -44,7 +44,7 @@ class MethodInvokerBenchmark {
         MethodHandle realMethodHandle = lookup.unreflect(method);
         MemberInvoker invoker = DefaultMemberInvoker.asInvoker(method);
         Handler<Object> fluxHandler = createHandler(target, Handle.class);
-        HandlerInvoker fluxInvoker = fluxHandler.findInvoker(null).orElseThrow();
+        HandlerInvoker fluxInvoker = fluxHandler.getInvoker(null).orElseThrow();
 
         System.out.println("Invocation result of lambda: " + invoker.invoke(target));
 
@@ -91,7 +91,7 @@ class MethodInvokerBenchmark {
 
     private static void testFluxHandler(Handler<Object> handler) {
         for (long i = 0; i < iterations; i++) {
-            handler.findInvoker(null).orElseThrow().invoke();
+            handler.getInvoker(null).orElseThrow().invoke();
         }
     }
 

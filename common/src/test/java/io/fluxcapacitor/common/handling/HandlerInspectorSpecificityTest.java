@@ -29,15 +29,15 @@ class HandlerInspectorSpecificityTest {
 
     @Test
     void testFindInvoker() {
-        assertTrue(subject.findInvoker(new Message()).isPresent());
-        assertTrue(subject.findInvoker(new MessageSuper()).isPresent());
-        assertFalse(subject.findInvoker(foo).isPresent());
+        assertTrue(subject.getInvoker(new Message()).isPresent());
+        assertTrue(subject.getInvoker(new MessageSuper()).isPresent());
+        assertFalse(subject.getInvoker(foo).isPresent());
     }
 
     @Test
     void testInvoke() {
         Message message = new Message();
-        assertEquals(message, subject.findInvoker(message).orElseThrow().invoke());
+        assertEquals(message, subject.getInvoker(message).orElseThrow().invoke());
     }
 
     private static class Foo {

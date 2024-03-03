@@ -30,7 +30,9 @@ import io.fluxcapacitor.javaclient.common.serialization.Serializer;
 import io.fluxcapacitor.javaclient.common.serialization.jackson.JacksonSerializer;
 import io.fluxcapacitor.javaclient.configuration.client.Client;
 import io.fluxcapacitor.javaclient.modeling.DefaultEntityHelper;
+import io.fluxcapacitor.javaclient.modeling.DefaultViewRepository;
 import io.fluxcapacitor.javaclient.modeling.EntityParameterResolver;
+import io.fluxcapacitor.javaclient.modeling.ViewRepository;
 import io.fluxcapacitor.javaclient.persisting.caching.CacheEvictionsLogger;
 import io.fluxcapacitor.javaclient.persisting.caching.SelectiveCache;
 import io.fluxcapacitor.javaclient.persisting.eventsourcing.DefaultEventStore;
@@ -108,6 +110,7 @@ import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.ForkJoinPool;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.Function;
 import java.util.function.UnaryOperator;
 import java.util.stream.Stream;
 
@@ -565,6 +568,8 @@ public class DefaultFluxCapacitor implements FluxCapacitor {
                 Create components
              */
 
+            var viewRepositorySupplier = DefaultViewRepository.repositorySupplier(documentStore);
+
             ResultGateway webResponseGateway = new WebResponseGateway(client.getGatewayClient(WEBRESPONSE),
                                                                       serializer, dispatchInterceptors.get(WEBRESPONSE),
                                                                       webResponseMapper);
@@ -588,7 +593,7 @@ public class DefaultFluxCapacitor implements FluxCapacitor {
             EventStore eventStore = new DefaultEventStore(client.getEventStoreClient(), client.getGatewayClient(EVENT),
                                                           serializer, dispatchInterceptors.get(EVENT),
                                                           localHandlerRegistry(EVENT, handlerDecorators,
-                                                                               parameterResolvers));
+                                                                               parameterResolvers, viewRepositorySupplier));
             var snapshotStore = new DefaultSnapshotStore(client.getKeyValueClient(), snapshotSerializer, eventStore);
 
             Cache aggregateCache = new NamedCache(cache, id -> "$Aggregate:" + id);
@@ -601,6 +606,7 @@ public class DefaultFluxCapacitor implements FluxCapacitor {
                         aggregateRepository, client, aggregateCache, relationshipsCache, this.serializer);
             }
 
+
             //create gateways
             RequestHandler defaultRequestHandler = new DefaultRequestHandler(client, RESULT);
 
@@ -608,7 +614,7 @@ public class DefaultFluxCapacitor implements FluxCapacitor {
             ErrorGateway errorGateway =
                     new DefaultErrorGateway(createRequestGateway(client, ERROR, defaultRequestHandler,
                                                                  dispatchInterceptors, handlerDecorators,
-                                                                 parameterResolvers));
+                                                                 parameterResolvers, viewRepositorySupplier));
             if (!disableErrorReporting) {
                 ErrorReportingInterceptor interceptor = new ErrorReportingInterceptor(errorGateway);
                 Arrays.stream(MessageType.values())
@@ -620,26 +626,28 @@ public class DefaultFluxCapacitor implements FluxCapacitor {
             CommandGateway commandGateway =
                     new DefaultCommandGateway(createRequestGateway(client, COMMAND, defaultRequestHandler,
                                                                    dispatchInterceptors, handlerDecorators,
-                                                                   parameterResolvers));
+                                                                   parameterResolvers, viewRepositorySupplier));
             QueryGateway queryGateway =
                     new DefaultQueryGateway(createRequestGateway(client, QUERY, defaultRequestHandler,
                                                                  dispatchInterceptors, handlerDecorators,
-                                                                 parameterResolvers));
+                                                                 parameterResolvers, viewRepositorySupplier));
             EventGateway eventGateway =
                     new DefaultEventGateway(createRequestGateway(client, EVENT, defaultRequestHandler,
                                                                  dispatchInterceptors, handlerDecorators,
-                                                                 parameterResolvers));
+                                                                 parameterResolvers, viewRepositorySupplier));
 
             MetricsGateway metricsGateway =
                     new DefaultMetricsGateway(createRequestGateway(client, METRICS, defaultRequestHandler,
                                                                    dispatchInterceptors, handlerDecorators,
-                                                                   parameterResolvers));
+                                                                   parameterResolvers, viewRepositorySupplier));
 
             RequestHandler webRequestHandler = new DefaultRequestHandler(client, WEBRESPONSE);
             WebRequestGateway webRequestGateway =
                     new DefaultWebRequestGateway(createRequestGateway(client, WEBREQUEST, webRequestHandler,
                                                                       dispatchInterceptors, handlerDecorators,
-                                                                      parameterResolvers));
+                                                                      parameterResolvers, viewRepositorySupplier));
+
+
 
             //tracking
             Map<MessageType, Tracking> trackingMap = stream(MessageType.values())
@@ -647,14 +655,14 @@ public class DefaultFluxCapacitor implements FluxCapacitor {
                             m, m == WEBREQUEST ? webResponseGateway : resultGateway, consumerConfigurations.get(m),
                             generalBatchInterceptors.getOrDefault(m, List.of()), this.serializer,
                             new DefaultHandlerFactory(m, handlerDecorators.get(m == NOTIFICATION ? EVENT : m),
-                                                      parameterResolvers))));
+                                                      parameterResolvers, viewRepositorySupplier))));
 
             //misc
             Scheduler scheduler = new DefaultScheduler(client.getSchedulingClient(),
                                                        serializer, dispatchInterceptors.get(SCHEDULE),
                                                        dispatchInterceptors.get(COMMAND),
                                                        localHandlerRegistry(SCHEDULE, handlerDecorators,
-                                                                            parameterResolvers));
+                                                                            parameterResolvers, viewRepositorySupplier));
 
             if (!disableCacheEvictionMetrics) {
                 new CacheEvictionsLogger(metricsGateway).register(cache);
@@ -740,20 +748,22 @@ public class DefaultFluxCapacitor implements FluxCapacitor {
                                                       RequestHandler requestHandler,
                                                       Map<MessageType, DispatchInterceptor> dispatchInterceptors,
                                                       Map<MessageType, HandlerDecorator> handlerDecorators,
-                                                      List<ParameterResolver<? super DeserializingMessage>> parameterResolvers) {
+                                                      List<ParameterResolver<? super DeserializingMessage>> parameterResolvers,
+                                                      Function<Class<?>, ViewRepository> viewRepositorySupplier) {
             return new DefaultGenericGateway(client.getGatewayClient(messageType), requestHandler,
                                              this.serializer, dispatchInterceptors.get(messageType), messageType,
                                              localHandlerRegistry(messageType, handlerDecorators,
-                                                                  parameterResolvers));
+                                                                  parameterResolvers, viewRepositorySupplier));
         }
 
         protected HandlerRegistry localHandlerRegistry(MessageType messageType,
                                                        Map<MessageType, HandlerDecorator> handlerDecorators,
-                                                       List<ParameterResolver<? super DeserializingMessage>> parameterResolvers) {
+                                                       List<ParameterResolver<? super DeserializingMessage>> parameterResolvers,
+                                                       Function<Class<?>, ViewRepository> viewRepositorySupplier) {
             LocalHandlerRegistry result = new LocalHandlerRegistry(messageType, new DefaultHandlerFactory(
-                    messageType, handlerDecorators.get(messageType), parameterResolvers));
+                    messageType, handlerDecorators.get(messageType), parameterResolvers, viewRepositorySupplier));
             return messageType == EVENT ? result.merge(new LocalHandlerRegistry(NOTIFICATION, new DefaultHandlerFactory(
-                    NOTIFICATION, handlerDecorators.get(EVENT), parameterResolvers))) : result;
+                    NOTIFICATION, handlerDecorators.get(EVENT), parameterResolvers, viewRepositorySupplier))) : result;
         }
     }
 

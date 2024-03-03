@@ -35,8 +35,7 @@ import java.util.Set;
 
 @SupportedAnnotationTypes({
         "io.fluxcapacitor.javaclient.tracking.handling.HandleQuery",
-        "io.fluxcapacitor.javaclient.tracking.handling.HandleCommand",
-        "io.fluxcapacitor.javaclient.tracking.handling.HandleSelf"})
+        "io.fluxcapacitor.javaclient.tracking.handling.HandleCommand"})
 @AutoService(Processor.class)
 public class RequestAnnotationProcessor extends AbstractProcessor {
     @Override
@@ -55,12 +54,8 @@ public class RequestAnnotationProcessor extends AbstractProcessor {
         if (isPassive(method)) {
             return;
         }
-        if (method.getAnnotation(HandleSelf.class) != null) {
-            validateReturnType(method, method.getEnclosingElement().asType(), requestType);
-        } else {
-            for (TypeMirror p : ((ExecutableType) method.asType()).getParameterTypes()) {
-                validateReturnType(method, p, requestType);
-            }
+        for (TypeMirror p : ((ExecutableType) method.asType()).getParameterTypes()) {
+            validateReturnType(method, p, requestType);
         }
     }
 
@@ -94,10 +89,6 @@ public class RequestAnnotationProcessor extends AbstractProcessor {
         }
         if (Optional.ofNullable(method.getAnnotation(HandleQuery.class))
                 .map(HandleQuery::passive).orElse(false)) {
-            return true;
-        }
-        if (Optional.ofNullable(method.getAnnotation(HandleSelf.class))
-                .map(HandleSelf::passive).orElse(false)) {
             return true;
         }
         return false;

@@ -25,7 +25,7 @@ import java.util.function.BiFunction;
 
 public interface HandlerInvoker {
 
-    Object getTarget();
+    Class<?> getTargetClass();
 
     Executable getMethod();
 
@@ -66,8 +66,8 @@ public interface HandlerInvoker {
         protected final HandlerInvoker delegate;
 
         @Override
-        public Object getTarget() {
-            return delegate.getTarget();
+        public Class<?> getTargetClass() {
+            return delegate.getTargetClass();
         }
 
         @Override

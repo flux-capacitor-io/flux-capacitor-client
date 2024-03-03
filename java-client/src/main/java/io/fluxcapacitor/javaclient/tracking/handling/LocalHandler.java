@@ -37,7 +37,7 @@ import java.lang.annotation.Target;
  * will not be logged for consumption by non-local handlers.
  */
 @Documented
-@Target({ElementType.TYPE, ElementType.METHOD})
+@Target({ElementType.METHOD, ElementType.TYPE, ElementType.PACKAGE})
 @Retention(RetentionPolicy.RUNTIME)
 @Inherited
 public @interface LocalHandler {

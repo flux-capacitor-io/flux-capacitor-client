@@ -24,7 +24,9 @@ import java.lang.annotation.Target;
 
 @Documented
 @Retention(RetentionPolicy.RUNTIME)
-@Target(ElementType.METHOD)
+@Target({ElementType.METHOD, ElementType.CONSTRUCTOR})
 @HandleMessage(MessageType.EVENT)
 public @interface HandleEvent {
+    boolean disabled() default false;
+    Class<?>[] allowedClasses() default {};
 }

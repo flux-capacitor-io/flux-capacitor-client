@@ -27,7 +27,7 @@ public class InputParameterResolver implements ParameterResolver<Object> {
     }
 
     @Override
-    public boolean matches(Parameter parameter, Annotation methodAnnotation, Object value, Object target) {
+    public boolean matches(Parameter parameter, Annotation methodAnnotation, Object value) {
         return value != null && parameter.getType().isAssignableFrom(value.getClass());
     }
 }

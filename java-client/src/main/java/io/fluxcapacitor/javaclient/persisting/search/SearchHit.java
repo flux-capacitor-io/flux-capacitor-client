@@ -14,6 +14,7 @@
 
 package io.fluxcapacitor.javaclient.persisting.search;
 
+import io.fluxcapacitor.javaclient.common.Entry;
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.Value;
@@ -23,7 +24,7 @@ import java.util.function.Function;
 import java.util.function.Supplier;
 
 @Value
-public class SearchHit<T> {
+public class SearchHit<T> implements Entry<T> {
     String id;
     String collection;
     Instant timestamp;

@@ -18,8 +18,8 @@ import java.util.Optional;
 
 public interface Handler<M> {
 
-    Object getTarget();
+    Class<?> getTargetClass();
 
-    Optional<HandlerInvoker> findInvoker(M message);
+    Optional<HandlerInvoker> getInvoker(M message);
 
 }

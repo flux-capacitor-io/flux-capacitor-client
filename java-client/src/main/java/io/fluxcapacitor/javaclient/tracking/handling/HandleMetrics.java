@@ -24,7 +24,9 @@ import java.lang.annotation.Target;
 
 @Documented
 @Retention(RetentionPolicy.RUNTIME)
-@Target(ElementType.METHOD)
+@Target({ElementType.METHOD, ElementType.CONSTRUCTOR})
 @HandleMessage(MessageType.METRICS)
 public @interface HandleMetrics {
+    boolean disabled() default false;
+    Class<?>[] allowedClasses() default {};
 }

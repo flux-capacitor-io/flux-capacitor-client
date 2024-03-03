@@ -101,7 +101,7 @@ public abstract class WebsocketEndpoint extends Endpoint {
     private final Handler<Request> handler =
             HandlerInspector.createHandler(this, Handle.class, Arrays.asList(new ParameterResolver<>() {
                 @Override
-                public boolean matches(Parameter parameter, Annotation methodAnnotation, Request value, Object target) {
+                public boolean matches(Parameter parameter, Annotation methodAnnotation, Request value) {
                     return parameter.getType().isAssignableFrom(value.payload().getClass());
                 }
 
@@ -169,7 +169,7 @@ public abstract class WebsocketEndpoint extends Endpoint {
             ((RequestBatch<?>) value).getRequests().forEach(r -> handleRequest(session, r));
             return;
         }
-        HandlerInvoker invoker = handler.findInvoker(new Request(value, session)).orElseThrow(
+        HandlerInvoker invoker = handler.getInvoker(new Request(value, session)).orElseThrow(
                 () -> new IllegalArgumentException("Could not find find a handler for request " + value));
         Object result;
         try {

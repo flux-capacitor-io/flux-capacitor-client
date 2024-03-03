@@ -19,7 +19,6 @@ import io.fluxcapacitor.common.handling.HandlerInvoker;
 import io.fluxcapacitor.javaclient.FluxCapacitor;
 import io.fluxcapacitor.javaclient.common.serialization.DeserializingMessage;
 import io.fluxcapacitor.javaclient.tracking.Tracker;
-import io.fluxcapacitor.javaclient.tracking.handling.HandleSelf;
 import io.fluxcapacitor.javaclient.tracking.handling.HandlerInterceptor;
 import io.fluxcapacitor.javaclient.tracking.handling.LocalHandler;
 import lombok.extern.slf4j.Slf4j;
@@ -60,7 +59,7 @@ public class HandlerMonitor implements HandlerInterceptor {
                 boolean completed =
                         !(result instanceof CompletableFuture<?>) || ((CompletableFuture<?>) result).isDone();
                 FluxCapacitor.getOptionally().ifPresent(fc -> fc.metricsGateway().publish(new HandleMessageEvent(
-                        consumer, invoker.getTarget().getClass().getSimpleName(),
+                        consumer, invoker.getTargetClass().getSimpleName(),
                         message.getIndex(),
                         message.getType(), exceptionalResult, start.until(Instant.now(), NANOS), completed)));
                 if (!completed) {
@@ -68,7 +67,7 @@ public class HandlerMonitor implements HandlerInterceptor {
                     ((CompletionStage<?>) result).whenComplete((r, e) -> message.run(
                             m -> FluxCapacitor.getOptionally().ifPresent(fc -> fc.metricsGateway().publish(
                                     new CompleteMessageEvent(
-                                            consumer, invoker.getTarget().getClass().getSimpleName(),
+                                            consumer, invoker.getTargetClass().getSimpleName(),
                                             m.getIndex(), m.getType(),
                                             e != null, start.until(Instant.now(), NANOS)),
                                     Metadata.of(correlationData)))));
@@ -80,9 +79,9 @@ public class HandlerMonitor implements HandlerInterceptor {
     }
 
     protected boolean logMetrics(HandlerInvoker invoker) {
-        return invoker.getMethodAnnotation() instanceof HandleSelf handleSelf ? handleSelf.logMetrics()
-                : getLocalHandlerAnnotation(invoker.getTarget().getClass(), invoker.getMethod())
-                .map(LocalHandler::logMetrics).orElse(true);
+        return getLocalHandlerAnnotation(invoker.getTargetClass(), invoker.getMethod())
+                .map(LocalHandler::logMetrics)
+                .orElseGet(() -> Tracker.current().isPresent());
     }
 
 }

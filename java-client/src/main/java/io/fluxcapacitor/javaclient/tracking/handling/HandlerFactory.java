@@ -18,17 +18,15 @@ import io.fluxcapacitor.common.handling.Handler;
 import io.fluxcapacitor.common.handling.HandlerFilter;
 import io.fluxcapacitor.javaclient.common.serialization.DeserializingMessage;
 
-import java.lang.annotation.Annotation;
 import java.util.List;
 import java.util.Optional;
-import java.util.function.Supplier;
 
 public interface HandlerFactory {
 
-    Optional<Handler<DeserializingMessage>> createHandler(
-            Object target, String consumer, HandlerFilter handlerFilter, List<HandlerInterceptor> extraInterceptors);
+    static Class<?> getTargetClass(Object target) {
+        return target instanceof Class<?> targetClass ? targetClass : target.getClass();
+    }
 
     Optional<Handler<DeserializingMessage>> createHandler(
-            Supplier<?> targetSupplier, Class<?> targetClass, Class<? extends Annotation> handlerAnnotation,
-            String consumer, HandlerFilter handlerFilter, List<HandlerInterceptor> extraInterceptors);
+            Object target, HandlerFilter handlerFilter, List<HandlerInterceptor> extraInterceptors);
 }

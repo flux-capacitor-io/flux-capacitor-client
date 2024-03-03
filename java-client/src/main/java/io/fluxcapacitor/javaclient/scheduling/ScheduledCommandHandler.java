@@ -15,6 +15,7 @@
 package io.fluxcapacitor.javaclient.scheduling;
 
 import io.fluxcapacitor.common.MessageType;
+import io.fluxcapacitor.common.api.SerializedMessage;
 import io.fluxcapacitor.javaclient.FluxCapacitor;
 import io.fluxcapacitor.javaclient.tracking.Consumer;
 import io.fluxcapacitor.javaclient.tracking.handling.HandleSchedule;
@@ -25,6 +26,8 @@ import static io.fluxcapacitor.common.Guarantee.NONE;
 public class ScheduledCommandHandler {
     @HandleSchedule
     void handle(ScheduledCommand schedule) {
-        FluxCapacitor.get().client().getGatewayClient(MessageType.COMMAND).send(NONE, schedule.getCommand());
+        SerializedMessage command = schedule.getCommand();
+        command.setTimestamp(FluxCapacitor.currentTime().toEpochMilli());
+        FluxCapacitor.get().client().getGatewayClient(MessageType.COMMAND).send(NONE, command);
     }
 }

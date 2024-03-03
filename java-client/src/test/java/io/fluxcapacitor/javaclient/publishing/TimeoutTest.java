@@ -16,7 +16,7 @@ package io.fluxcapacitor.javaclient.publishing;
 
 import io.fluxcapacitor.javaclient.FluxCapacitor;
 import io.fluxcapacitor.javaclient.test.TestFixture;
-import io.fluxcapacitor.javaclient.tracking.handling.HandleSelf;
+import io.fluxcapacitor.javaclient.tracking.handling.HandleQuery;
 import org.junit.jupiter.api.Test;
 
 import java.util.concurrent.CompletableFuture;
@@ -27,7 +27,7 @@ class TimeoutTest {
     void testHandleSelf() {
         @Timeout(10)
         class HandleSelfRequest {
-            @HandleSelf
+            @HandleQuery
             CompletableFuture<String> handle() {
                 return new CompletableFuture<>();
             }

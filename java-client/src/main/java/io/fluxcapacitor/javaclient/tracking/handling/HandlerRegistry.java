@@ -49,6 +49,12 @@ public interface HandlerRegistry extends HasLocalHandlers {
         }
 
         @Override
+        public void setSelfHandlerFilter(HandlerFilter selfHandlerFilter) {
+            first.setSelfHandlerFilter(selfHandlerFilter);
+            second.setSelfHandlerFilter(selfHandlerFilter);
+        }
+
+        @Override
         public Registration registerHandler(Object target, HandlerFilter handlerFilter) {
             return first.registerHandler(target, handlerFilter).merge(second.registerHandler(target, handlerFilter));
         }

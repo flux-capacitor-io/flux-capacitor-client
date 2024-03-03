@@ -27,4 +27,5 @@ import java.lang.annotation.Target;
 @Target(ElementType.ANNOTATION_TYPE)
 public @interface HandleMessage {
     MessageType value();
+    Class<?>[] allowedClasses() default {};
 }

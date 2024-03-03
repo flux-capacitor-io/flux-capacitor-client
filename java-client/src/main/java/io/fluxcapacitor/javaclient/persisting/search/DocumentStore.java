@@ -17,9 +17,8 @@ package io.fluxcapacitor.javaclient.persisting.search;
 import io.fluxcapacitor.common.Guarantee;
 import io.fluxcapacitor.common.api.search.BulkUpdate;
 import io.fluxcapacitor.common.api.search.SearchQuery;
+import io.fluxcapacitor.javaclient.common.ClientUtils;
 import io.fluxcapacitor.javaclient.modeling.EntityId;
-import io.fluxcapacitor.javaclient.modeling.SearchParameters;
-import io.fluxcapacitor.javaclient.modeling.Searchable;
 import lombok.NonNull;
 import lombok.SneakyThrows;
 
@@ -33,7 +32,6 @@ import java.util.function.Function;
 import java.util.stream.Stream;
 
 import static io.fluxcapacitor.common.reflection.ReflectionUtils.getAnnotatedPropertyValue;
-import static io.fluxcapacitor.common.reflection.ReflectionUtils.getAnnotationAs;
 import static io.fluxcapacitor.javaclient.FluxCapacitor.currentIdentityProvider;
 import static java.util.Collections.singletonList;
 
@@ -183,11 +181,7 @@ public interface DocumentStore {
     CompletableFuture<Void> createAuditTrail(Object collection, Duration retentionTime);
 
     default String determineCollection(Object c) {
-        return c instanceof Class<?> type ?
-                getAnnotationAs(type, Searchable.class, SearchParameters.class)
-                        .map(SearchParameters::getCollection)
-                        .orElseThrow(() -> new IllegalArgumentException(
-                                "Class is missing @Searchable: " + type)) : c.toString();
+        return c instanceof Class<?> type ? ClientUtils.determineCollection(type) : c.toString();
     }
 
     DocumentSerializer getSerializer();

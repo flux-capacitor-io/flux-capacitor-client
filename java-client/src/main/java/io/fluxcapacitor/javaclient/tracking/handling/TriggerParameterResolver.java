@@ -55,7 +55,7 @@ public class TriggerParameterResolver implements ParameterResolver<HasMessage>, 
     }
 
     @Override
-    public boolean matches(Parameter parameter, Annotation methodAnnotation, HasMessage value, Object target) {
+    public boolean matches(Parameter parameter, Annotation methodAnnotation, HasMessage value) {
         return ReflectionUtils.has(Trigger.class, parameter);
     }
 

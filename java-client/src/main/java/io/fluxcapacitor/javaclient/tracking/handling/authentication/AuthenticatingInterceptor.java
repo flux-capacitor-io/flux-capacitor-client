@@ -20,14 +20,12 @@ import io.fluxcapacitor.common.handling.HandlerInvoker;
 import io.fluxcapacitor.javaclient.common.Message;
 import io.fluxcapacitor.javaclient.common.serialization.DeserializingMessage;
 import io.fluxcapacitor.javaclient.publishing.DispatchInterceptor;
-import io.fluxcapacitor.javaclient.tracking.handling.HandleSelf;
 import io.fluxcapacitor.javaclient.tracking.handling.HandlerInterceptor;
 import lombok.AllArgsConstructor;
 import lombok.experimental.Delegate;
 
 import java.util.Optional;
 import java.util.function.Function;
-import java.util.function.Supplier;
 
 import static io.fluxcapacitor.common.MessageType.WEBREQUEST;
 import static io.fluxcapacitor.javaclient.tracking.handling.validation.ValidationUtils.assertAuthorized;
@@ -82,9 +80,10 @@ public class AuthenticatingInterceptor implements DispatchInterceptor, HandlerIn
         private final Handler<DeserializingMessage> delegate;
 
         @Override
-        public Optional<HandlerInvoker> findInvoker(DeserializingMessage m) {
-            return delegate.findInvoker(m).filter(i -> i.getMethodAnnotation() instanceof HandleSelf || isAuthorized(
-                            i.getTarget().getClass(), i.getMethod(), userProvider.fromMessage(m)));
+        public Optional<HandlerInvoker> getInvoker(DeserializingMessage m) {
+            return delegate.getInvoker(m).filter(
+                    i -> i.getTargetClass().isAssignableFrom(m.getPayloadClass())
+                         || isAuthorized(i.getTargetClass(), i.getMethod(), userProvider.fromMessage(m)));
         }
 
         @Override
@@ -94,6 +93,6 @@ public class AuthenticatingInterceptor implements DispatchInterceptor, HandlerIn
     }
 
     private interface ExcludedMethods {
-        Optional<Supplier<?>> findInvoker(DeserializingMessage message);
+        Optional<HandlerInvoker> getInvoker(DeserializingMessage message);
     }
 }

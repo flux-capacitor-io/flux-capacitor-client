@@ -24,7 +24,7 @@ public abstract class TypedParameterResolver<M> implements ParameterResolver<M> 
     private final Class<?> type;
 
     @Override
-    public boolean matches(Parameter parameter, Annotation methodAnnotation, M value, Object target) {
+    public boolean matches(Parameter parameter, Annotation methodAnnotation, M value) {
         return type.isAssignableFrom(parameter.getType());
     }
 }

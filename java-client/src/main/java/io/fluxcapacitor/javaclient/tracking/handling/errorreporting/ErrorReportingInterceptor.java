@@ -66,7 +66,7 @@ public class ErrorReportingInterceptor implements HandlerInterceptor {
         Metadata metadata = cause.getMetadata();
         if (!(e instanceof FunctionalException || e instanceof TechnicalException)) {
             metadata = metadata.with("stackTrace", ExceptionUtils.getStackTrace(e));
-            e = new TechnicalException(format("Handler %s failed to handle a %s", invoker.getTarget(), cause));
+            e = new TechnicalException(format("Handler %s failed to handle a %s", invoker.getTargetClass(), cause));
         }
         errorGateway.report(new Message(e, metadata));
     }

@@ -41,40 +41,40 @@ class HandlerInspectorTest {
 
     @Test
     void testFindInvoker() {
-        assertTrue(subject.findInvoker(100L).isPresent());
-        assertTrue(subject.findInvoker("bla").isPresent());
-        assertTrue(subject.findInvoker(50).isPresent());
-        assertTrue(subject.findInvoker(4f).isPresent());
-        assertFalse(subject.findInvoker('b').isPresent());
-        assertFalse(subject.findInvoker(foo).isPresent());
+        assertTrue(subject.getInvoker(100L).isPresent());
+        assertTrue(subject.getInvoker("bla").isPresent());
+        assertTrue(subject.getInvoker(50).isPresent());
+        assertTrue(subject.getInvoker(4f).isPresent());
+        assertFalse(subject.getInvoker('b').isPresent());
+        assertFalse(subject.getInvoker(foo).isPresent());
     }
 
     @Test
     void testHandleInPrivateMethod() {
-        assertEquals(42, subject.findInvoker(true).orElseThrow().invoke());
+        assertEquals(42, subject.getInvoker(true).orElseThrow().invoke());
     }
 
     @Test
     void testInvoke() {
-        assertEquals(200L, subject.findInvoker(200L).orElseThrow().invoke());
-        assertEquals("a", subject.findInvoker("a").orElseThrow().invoke());
-        assertEquals(15, subject.findInvoker(15).orElseThrow().invoke());
+        assertEquals(200L, subject.getInvoker(200L).orElseThrow().invoke());
+        assertEquals("a", subject.getInvoker("a").orElseThrow().invoke());
+        assertEquals(15, subject.getInvoker(15).orElseThrow().invoke());
     }
 
     @Test
     void testInvokeExceptionally() {
-        assertThrows(UnsupportedOperationException.class, () -> subject.findInvoker(3f).orElseThrow().invoke());
+        assertThrows(UnsupportedOperationException.class, () -> subject.getInvoker(3f).orElseThrow().invoke());
     }
 
     @Test
     void testInvokeUnknownType() {
-        assertThrows(Exception.class, () -> subject.findInvoker('b').orElseThrow().invoke());
+        assertThrows(Exception.class, () -> subject.getInvoker('b').orElseThrow().invoke());
     }
 
     @Test
     void testMetaAnnotationHandler() {
         subject = HandlerInspector.createHandler(new Meta(), Handle.class);
-        assertEquals("a", subject.findInvoker("a").orElseThrow().invoke());
+        assertEquals("a", subject.getInvoker("a").orElseThrow().invoke());
     }
 
     private static class Foo extends Bar implements SomeInterface {

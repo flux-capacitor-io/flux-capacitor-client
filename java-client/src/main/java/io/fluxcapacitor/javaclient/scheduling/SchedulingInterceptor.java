@@ -60,8 +60,7 @@ public class SchedulingInterceptor implements DispatchInterceptor, HandlerInterc
 
     @Override
     public Handler<DeserializingMessage> wrap(Handler<DeserializingMessage> handler) {
-        Object target = handler.getTarget();
-        List<Method> methods = getAnnotatedMethods(target, HandleSchedule.class);
+        List<Method> methods = getAnnotatedMethods(handler.getTargetClass(), HandleSchedule.class);
         for (Method method : methods) {
             Periodic periodic = method.getAnnotation(Periodic.class);
             if (method.getParameterCount() > 0) {

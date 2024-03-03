@@ -159,15 +159,18 @@ public class DefaultTracker implements Runnable, Registration {
         if (running.compareAndSet(false, true)) {
             Tracker.current.set(tracker);
             thread.set(currentThread());
-            while (running.get()) {
-                MessageBatch batch = fetch(lastProcessedIndex);
-                if (batch != null) {
-                    Tracker.current.set(tracker.withMessageBatch(batch));
-                    processor.accept(batch);
+            try {
+                while (running.get()) {
+                    MessageBatch batch = fetch(lastProcessedIndex);
+                    if (batch != null) {
+                        Tracker.current.set(tracker.withMessageBatch(batch));
+                        processor.accept(batch);
+                    }
                 }
+            } finally {
+                thread.set(null);
+                Tracker.current.remove();
             }
-            Tracker.current.remove();
-            thread.set(null);
         }
     }
 

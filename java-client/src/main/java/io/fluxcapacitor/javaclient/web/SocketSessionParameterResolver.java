@@ -39,7 +39,7 @@ public class SocketSessionParameterResolver implements ParameterResolver<HasMess
     }
 
     @Override
-    public boolean matches(Parameter parameter, Annotation methodAnnotation, HasMessage value, Object target) {
+    public boolean matches(Parameter parameter, Annotation methodAnnotation, HasMessage value) {
         return SocketSession.class.isAssignableFrom(parameter.getType())
                && ReflectionUtils.isOrHas(methodAnnotation, HandleWeb.class)
                && value.getMetadata().containsKey("sessionId");
