@@ -16,24 +16,7 @@ package io.fluxcapacitor.testserver.endpoints;
 
 import io.fluxcapacitor.common.Guarantee;
 import io.fluxcapacitor.common.api.VoidResult;
-import io.fluxcapacitor.common.api.search.BulkUpdate;
-import io.fluxcapacitor.common.api.search.BulkUpdateDocuments;
-import io.fluxcapacitor.common.api.search.CreateAuditTrail;
-import io.fluxcapacitor.common.api.search.DeleteCollection;
-import io.fluxcapacitor.common.api.search.DeleteDocumentById;
-import io.fluxcapacitor.common.api.search.DeleteDocuments;
-import io.fluxcapacitor.common.api.search.DocumentUpdate;
-import io.fluxcapacitor.common.api.search.GetDocument;
-import io.fluxcapacitor.common.api.search.GetDocumentResult;
-import io.fluxcapacitor.common.api.search.GetDocumentStats;
-import io.fluxcapacitor.common.api.search.GetDocumentStatsResult;
-import io.fluxcapacitor.common.api.search.GetSearchHistogram;
-import io.fluxcapacitor.common.api.search.GetSearchHistogramResult;
-import io.fluxcapacitor.common.api.search.IndexDocuments;
-import io.fluxcapacitor.common.api.search.SearchDocuments;
-import io.fluxcapacitor.common.api.search.SearchDocumentsResult;
-import io.fluxcapacitor.common.api.search.SearchHistogram;
-import io.fluxcapacitor.common.api.search.SerializedDocument;
+import io.fluxcapacitor.common.api.search.*;
 import io.fluxcapacitor.javaclient.persisting.search.SearchHit;
 import io.fluxcapacitor.javaclient.persisting.search.client.SearchClient;
 import io.fluxcapacitor.testserver.Handle;
@@ -130,6 +113,17 @@ public class SearchEndpoint extends WebsocketEndpoint {
                                                 new SearchHistogram(request.getQuery().getSince(),
                                                                     request.getQuery().getBefore(),
                                                                     emptyList()));
+        }
+    }
+
+    @Handle
+    public GetFacetStatsResult handle(GetFacetStats request) {
+        try {
+            List<FacetStats> result = store.fetchFacetStats(request.getQuery());
+            return new GetFacetStatsResult(request.getRequestId(), result);
+        } catch (Exception e) {
+            log.error("Failed to handle {}", request, e);
+            return new GetFacetStatsResult(request.getRequestId(), emptyList());
         }
     }
 
