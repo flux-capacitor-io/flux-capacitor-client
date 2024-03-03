@@ -31,7 +31,6 @@ import io.fluxcapacitor.javaclient.persisting.search.SearchHit;
 
 import java.time.Instant;
 import java.util.Collection;
-import java.util.Collections;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -40,6 +39,7 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.TreeMap;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Function;
 import java.util.function.Predicate;
 import java.util.stream.IntStream;
@@ -57,10 +57,10 @@ public class InMemorySearchClient implements SearchClient {
         return collection + "/" + documentId;
     }
 
-    private final Map<String, Document> documents = Collections.synchronizedMap(new LinkedHashMap<>());
+    private final Map<String, Document> documents = new ConcurrentHashMap<>();
 
     @Override
-    public synchronized CompletableFuture<Void> index(List<SerializedDocument> documents, Guarantee guarantee, boolean ifNotExists) {
+    public CompletableFuture<Void> index(List<SerializedDocument> documents, Guarantee guarantee, boolean ifNotExists) {
         Map<String, Document> updates = documents.stream().map(SerializedDocument::deserializeDocument)
                 .collect(toMap(identifier, identity(), (a, b) -> b, LinkedHashMap::new));
         if (ifNotExists) {
