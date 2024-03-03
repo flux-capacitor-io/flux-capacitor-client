@@ -5,7 +5,7 @@
 Flux Capacitor java client
 ======================
 
-This repository contains the 'official' Java client for Flux Capacitor service.
+This repository contains the official Java client for [flux.host](https://flux.host), the Flux Capacitor platform.
 
 Installation
 ======================
@@ -22,11 +22,11 @@ Add these dependencies to your project's POM:
     <version>${flux-capacitor.version}</version>
 </dependency>
 <dependency>
-    <groupId>io.flux-capacitor</groupId>
-    <artifactId>java-client</artifactId>
-    <version>${flux-capacitor.version}</version>
-    <classifier>tests</classifier>
-    <scope>test</scope>
+<groupId>io.flux-capacitor</groupId>
+<artifactId>java-client</artifactId>
+<version>${flux-capacitor.version}</version>
+<classifier>tests</classifier>
+<scope>test</scope>
 </dependency>
 ``` 
 
@@ -171,23 +171,23 @@ class UserEventHandler {
 ```
 
 Aside from the message payload you can also include metadata with your message. Metadata are contextual data of a
-technical nature that relate to the message, eg who was the sender of this command, or what was the user agent of the
+technical nature that relate to the message, e.g. who was the sender of this command, or what was the user agent of the
 web client of the user. Each message (event, command, query, result, etc.) can contain metadata. In Flux Capacitor
 metadata is simply a key value map of strings, with convenience methods to (de)serialize values on the fly if required.
 
-Here’s an example in which metadata is included in a command that is sent when an http endpoint is invoked:
+Here’s an example in which metadata is included in a command that is sent when an HTTP endpoint is invoked:
 
 ```java
 class UserEndpoint {
     @PUT
     @Path("/user")
     void createUser(UserProfile profile, @HeaderParam("user-agent") String userAgent) {
-        FluxCapacitor.sendCommand(new CreateUser(...), Metadata.of("userAgent", userAgent));
+        FluxCapacitor.sendCommand(new CreateUser(...),Metadata.of("userAgent", userAgent));
     }
 }
 ```
 
-Note that we’ve used JAX-RS to define an http endpoint in this example, but of course this works with any other http
+Note that we’ve used JAX-RS to define an HTTP endpoint in this example, but of course this works with any other HTTP
 library as well.
 
 To read the metadata of a message in your handler simply add it as a method parameter:
@@ -204,11 +204,11 @@ class UserCommandHandler {
 
 ### Tracking messages
 
-By default, handlers will consume and handle messages asynchronously. When a message, like a command, is published, it 
-is sent to Flux Capacitor. Flux Capacitor will then log the message for immediate (or delayed) consumption by message 
-consumers. Message consumers then stream these messages to message handlers like those seen in earlier examples.
+By default, handlers will consume and handle messages asynchronously. When a message, like a command, is published, it
+is sent to Flux Capacitor. Flux Capacitor will log the message and notify all subscribed consumers. Message consumers
+then stream these messages to their message handlers.
 
-By default, a handler will join the default consumer for a given message type. E.g. in the example below, `MyHandler` 
+By default, a handler will join the default consumer for a given message type. E.g. in the example below, `MyHandler`
 will join the default consumer for commands.
 
 ```java
@@ -224,6 +224,7 @@ It is easy to configure `MyHandler` to join a different consumer, however. The e
 with `@Consumer` as follows:
 
 ```java
+
 @Consumer(name = "MyConsumer")
 class MyHandler {
     @HandleCommand
@@ -233,12 +234,14 @@ class MyHandler {
 }
 ```
 
-In the example above, we've created a consumer called `MyConsumer` and added `MyHandler` to it. Aside from using an
-annotation it is also possible to configure consumers inside your Spring config.
+In the example above, we've created a consumer called `MyConsumer` and added `MyHandler` to it. It is also possible to
+use `@Consumer` for handlers inside an entire package (and any sub-packages), by placing the annotation in a
+`package-info.java` file.
 
 You can configure the behavior of this consumer using the `@Consumer` annotation:
 
 ```java
+
 @Consumer(name = "MyConsumer", threads = 2, maxFetchSize = 100)
 class MyHandler {
     @HandleCommand
@@ -248,16 +251,91 @@ class MyHandler {
 }
 ```
 
-Here, we've configured 
-this consumer to consume its commands using 2 threads. Each of these 2 threads will run a "tracker" that will fetch 
-commands from Flux Capacitor and pass those to its handlers. In the example we've configured the Flux client to never 
+Here, we've configured
+the consumer to consume its commands using 2 threads per application instance. Each of these 2 threads will run a "
+tracker" that will fetch
+commands from Flux Capacitor and pass those to its handlers. Flux Capacitor will load-balance messages over both
+trackers. By deploying the same application more than once, you will create additional trackers. Flux will seamlessly
+re-balance the message load, making use of the newly added trackers.
+
+In the example above, we've also configured the Flux client to never
 fetch more than 100 messages at once. This is an easy way for clients to supply some back-pressure while consuming loads
-of messages. By default, a consumer uses 1 thread per application instance and a maximum fetch size of 1024. These defaults 
-will be fine for most consumers.
+of messages.
 
-### Testing your handlers
+`@Consumer` contains a large number of ways to control the behavior
+of your consumers, including ways to start consumption from any moment in time, methods to intercept messages, and
+custom
+ways to filter relevant messages.
 
-The java client for Flux Capacitor comes with an easy to use given-when-then testing framework. Here’s a basic example:
+By default, a consumer uses 1 thread per application instance and a maximum fetch size of 1024. These
+defaults will be fine for most consumers.
+
+### Local handlers
+
+Besides the ability to track and handle messages asynchronously it is also easy to handle messages 'locally', i.e.
+directly in the same application. This has the advantage that a round-trip with Flux Capacitor is prevented, generally
+resulting in faster response times.
+
+To define a local handler, simply annotate its package, class or method, e.g.:
+
+```java
+
+@LocalHandler(logMetrics = true)
+public class SomeLocalHandler {
+    @HandleEvent
+    void handle(ApplicationStarted event) {
+        //do something
+    }
+}
+```
+
+By default, metrics logging is off for local handlers, but this can be overridden.
+In the example above we've configured Flux to still generate metrics for this handler, like the time it took to handle
+an event.
+
+### Self-handling
+
+The examples so far have all shown situations where messages are handled in dedicated handler classes. However, it is
+also possible, and often even preferable to define the handler for a command or query in the message payload itself.
+
+Here's an example of a query class that 'handles itself':
+
+```java
+public class GetUserProfile {
+    String userId;
+
+    @HandleQuery
+    UserProfile handle() {
+        //fetch the user profile and return
+    }
+}
+```
+
+By default, self-handlers like the one above are local handlers, i.e. messages are directly handled in the publishing
+thread. However, it is also possible to self-handle asynchronously. For this, simply annotate the class
+with `@TrackSelf`:
+
+```java
+
+@TrackSelf
+@Consumer(name = "user-management")
+public class GetUserProfile {
+    String userId;
+
+    @HandleQuery
+    UserProfile handle() {
+        //fetch the user profile and return
+    }
+}
+```
+
+By component-scanning this class with Spring, an adhoc consumer will automatically be launched that will track this
+query asynchronously. Optionally, it is possible to configure the consumption and tracking of the message using the
+`@Consumer` annotation. Without this annotation, the default consumer for queries within the application will be used.
+
+## Testing your handlers
+
+The java client for Flux Capacitor comes with an easy-to-use given-when-then testing framework. Here’s a basic example:
 
 ```java
 final TestFixture testFixture = new TestFixture(new UserEventHandler());
@@ -281,7 +359,8 @@ private final TestFixture testFixture = new TestFixture(new UserCommandHandler()
 
 @Test
 void newUserGetsEmail() {
-    testFixture.whenCommand(new CreateUser(myUserProfile)).expectCommands(new SendWelcomeEmail(myUserProfile));
+    testFixture.whenCommand(new CreateUser(myUserProfile))
+            .expectCommands(new SendWelcomeEmail(myUserProfile));
 }
 ```
 
@@ -296,7 +375,7 @@ command instances like so:
 
 @Test
 void newUserGetsEmailAndIsAddedToOrganization() {
-    testFixture.whenEvent(new UserCreated(myUserProfile))
+    testFixture.whenCommand(new CreateUser(myUserProfile))
             .expectCommands(new SendWelcomeEmail(myUserProfile), isA(AddUserToOrganization.class));
 }
 ```
@@ -309,7 +388,8 @@ any combination of input and output message. Chaining is also possible, eg:
 
 @Test
 void newUserGetsEmail() {
-    testFixture.whenEvent(new UserCreated(myUserProfile)).expectCommands(new SendWelcomeEmail(myUserProfile))
+    testFixture.whenEvent(new UserCreated(myUserProfile))
+            .expectCommands(new SendWelcomeEmail(myUserProfile))
             .expectEvents(new UserStatsUpdated(...));
 }
 ```
@@ -322,7 +402,8 @@ Here’s an example:
 @Test
 void userResetsPassword() {
     testFixture.givenCommands(new CreateUser(...),new ResetPassword(...))
-        .whenCommand(new UpdatePassword(...)).expectEvents(new PasswordUpdatedEvent(...));
+        .whenCommand(new UpdatePassword(...))
+        .expectEvents(new PasswordUpdatedEvent(...));
 }
 ```
 
@@ -334,8 +415,8 @@ instance instead of the bare message payload to the fixture:
 
 @Test
 void newAdminGetsAdditionalEmail() {
-    testFixture.whenCommand(new Message(new CreateUser(...), Metadata.of("roles", Arrays.asList("Customer", "Admin")))
-        .expectCommands(new SendWelcomeEmail(...), new SendAdminEmail(...));
+    testFixture.whenCommand(new Message(new CreateUser(...),Metadata.of("roles", Arrays.asList("Customer", "Admin")))
+        .expectCommands(new SendWelcomeEmail(...),new SendAdminEmail(...));
 }
 ```
 
@@ -360,12 +441,41 @@ void userCannotBeCreatedTwice() {
 }
 ```
 
+It is also easy to compare results against serialized data in json, or use json as input. To do that, pass in strings
+ending with `.json`, e.g.:
+
+```java
+
+@Test
+void newUserCanBeQueried() {
+    testFixture.givenCommands("create-user.json")
+            .whenQuery(new GetUser(userId))
+            .expectResult("user.json");
+}
+```
+
+Here, the json files are looked up in (test) resource folders relative to the package containing the unit test. Use a
+forward slash to look up the
+json files in an absolute path of your project. E.g. `"/user/user-profile.json"` will look for the json file in the user
+folder of your project root. Note that for json files to be deserialized to the correct class it is important to include
+the class name in the json, as in the following example:
+
+```json
+{
+  "@class": "com.example.UserProfile",
+  "userId": "3290328",
+  "email": "foo.bar@example.com",
+  ...
+}
+```
+
 You can configure the FluxCapacitor in your test instance to you use any kind of interceptor, same as in production. In
 the example below we add an interceptor that authenticates the sender of a command:
 
 ```java
-private final TestFixture testFixture = new TestFixture(FluxCapacitor.builder()
-    .registerHandlerInterceptor(new AuthenticationInterceptor()), new UserCommandHandler());
+private final TestFixture testFixture =
+        new TestFixture(FluxCapacitor.builder().registerHandlerInterceptor(new AuthenticationInterceptor()),
+                        new UserCommandHandler());
 
 @Test
 void unauthenticatedUserCannotChangeProfile() {
@@ -960,11 +1070,33 @@ Consider the following configuration:
 
 ```java
 fluxCapacitorBuilder
-   .addConsumerConfiguration(MessageType.EVENT, ConsumerConfiguration.builder()
-            .name("webshop")
-            .handlerFilter(h -> h.getClass().getPackage().getName().startsWith("com.example.webshop"))
-            .trackingConfiguration(TrackingConfiguration.builder().threads(4).maxFetchBatchSize(128).build())
-            .build());
+        .addConsumerConfiguration(MessageType.EVENT, ConsumerConfiguration.builder()
+            .
+
+name("webshop")
+            .
+
+handlerFilter(h ->h.
+
+getClass().
+
+getPackage().
+
+getName().
+
+startsWith("com.example.webshop"))
+        .
+
+trackingConfiguration(TrackingConfiguration.builder().
+
+threads(4).
+
+maxFetchBatchSize(128).
+
+build())
+        .
+
+build());
 ``` 
 
 This will configure a custom consumer for events. It will only contain handlers in the `com.example.webshop` package
@@ -980,11 +1112,13 @@ equivalent of a common web filter in a CRUD application. Here's how to register 
 
 ```java
 fluxCapacitorBuilder
-   // registers an interceptor for outgoing messages
-   .registerDispatchInterceptor(new SomeDispatchInterceptor())
-   
-   // registers an interceptor for incoming events
-   .registerHandlerInterceptor(new SomeEventHandlerInterceptor(), MessageType.EVENT);
+        // registers an interceptor for outgoing messages
+        .registerDispatchInterceptor(new SomeDispatchInterceptor())
+
+        // registers an interceptor for incoming events
+        .
+
+registerHandlerInterceptor(new SomeEventHandlerInterceptor(),MessageType.EVENT);
 ```
 
 ### Overriding common settings
@@ -995,11 +1129,13 @@ about your application you can disable or enable common settings:
 
 ```java
 fluxCapacitorBuilder
-   // don't perform a constraint validation check on incoming commands and queries 
-   .disablePayloadValidation()
-   
-   // store metrics about the performance of handlers in your application
-   .collectTrackingMetrics();
+        // don't perform a constraint validation check on incoming commands and queries 
+        .disablePayloadValidation()
+
+// store metrics about the performance of handlers in your application
+   .
+
+collectTrackingMetrics();
 ```
 
 Bootstrap with Spring
@@ -1010,6 +1146,7 @@ All you need to do is import `FluxCapacitorSpringConfig` into your own configura
 you're good to go:
 
 ```java
+
 @Configuration
 @Import(FluxCapacitorSpringConfig.class)
 @ComponentScan
@@ -1020,6 +1157,7 @@ public class SampleSpringConfig {
 To change the default config just inject and modify the `FluxCapacitorBuilder` instance:
 
 ```java
+
 @Configuration
 @Import(FluxCapacitorSpringConfig.class)
 @ComponentScan
@@ -1056,21 +1194,6 @@ public class SpringExample {
     public static void main(final String[] args) {
         ApplicationContext applicationContext = new AnnotationConfigApplicationContext(SampleSpringConfig.class);
         applicationContext.getBean(FluxCapacitor.class).eventGateway().publish(new HelloWorld());
-    }
-}
-```
-
-If you want to handle messages only if they were sent by the current application you can define a local handler.
-By annotating your spring bean with `@LocalHandler` it will be automatically registered as local handler:
-
-```java
-
-@Component
-@LocalHandler
-public class SomeLocalHandler {
-    @HandleEvent
-    public void handle(ApplicationStarted event) {
-        //do something
     }
 }
 ```
