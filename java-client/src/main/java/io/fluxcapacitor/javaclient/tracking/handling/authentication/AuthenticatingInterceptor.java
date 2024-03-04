@@ -82,7 +82,8 @@ public class AuthenticatingInterceptor implements DispatchInterceptor, HandlerIn
         @Override
         public Optional<HandlerInvoker> getInvoker(DeserializingMessage m) {
             return delegate.getInvoker(m).filter(
-                    i -> i.getTargetClass().isAssignableFrom(m.getPayloadClass())
+                    i -> Optional.ofNullable(m.getPayloadClass())
+                                 .map(c -> i.getTargetClass().isAssignableFrom(c)).orElse(true)
                          || isAuthorized(i.getTargetClass(), i.getMethod(), userProvider.fromMessage(m)));
         }
 
