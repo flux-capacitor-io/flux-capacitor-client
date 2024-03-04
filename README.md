@@ -14,21 +14,22 @@ Installation
 
 Add these dependencies to your project's POM:
 
+[//]: # (@formatter:off)
 ```xml
-
 <dependency>
     <groupId>io.flux-capacitor</groupId>
     <artifactId>java-client</artifactId>
     <version>${flux-capacitor.version}</version>
 </dependency>
 <dependency>
-<groupId>io.flux-capacitor</groupId>
-<artifactId>java-client</artifactId>
-<version>${flux-capacitor.version}</version>
-<classifier>tests</classifier>
-<scope>test</scope>
+    <groupId>io.flux-capacitor</groupId>
+    <artifactId>java-client</artifactId>
+    <version>${flux-capacitor.version}</version>
+    <classifier>tests</classifier>
+    <scope>test</scope>
 </dependency>
-``` 
+```
+[//]: # (@formatter:on)
 
 ### Gradle users
 
