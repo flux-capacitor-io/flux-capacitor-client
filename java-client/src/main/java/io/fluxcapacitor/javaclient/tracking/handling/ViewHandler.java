@@ -81,6 +81,10 @@ public class ViewHandler implements Handler<DeserializingMessage> {
             return Optional.empty();
         }
         var matches = repository.findByAssociation(associations(message));
+        if (matches.isEmpty()) {
+            return handlerMatcher.getInvoker(null, message)
+                    .map(i -> new ViewInvoker(i, null));
+        }
         HandlerInvoker result = null;
         for (Entry<?> entry : matches) {
             var invoker = handlerMatcher.getInvoker(entry.getValue(), message)
@@ -89,11 +93,7 @@ public class ViewHandler implements Handler<DeserializingMessage> {
                 result = result == null ? invoker.get() : result.combine(invoker.get());
             }
         }
-        if (result == null) {
-            return handlerMatcher.getInvoker(null, message)
-                    .map(i -> new ViewInvoker(i, null));
-        }
-        return Optional.of(result);
+        return Optional.ofNullable(result);
     }
 
     protected Collection<String> associations(DeserializingMessage message) {
