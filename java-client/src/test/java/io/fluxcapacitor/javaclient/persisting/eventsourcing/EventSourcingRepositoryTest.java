@@ -437,7 +437,7 @@ class EventSourcingRepositoryTest {
                     })
                     .whenCommand(new SelfApplyingCommand(PublishOnlyModel.class))
                     .expectMetrics("success")
-                    .expectThat(fc -> verify(fc.client().getGatewayClient(MessageType.EVENT)).send(any(), any()))
+                    .expectThat(fc -> verify(fc.client().getGatewayClient(MessageType.EVENT)).append(any(), any()))
                     .expectThat(fc -> verify(fc.client().getEventStoreClient(), never()).storeEvents(any(), anyList(), anyBoolean()));
         }
 

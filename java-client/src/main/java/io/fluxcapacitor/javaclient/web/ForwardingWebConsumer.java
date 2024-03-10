@@ -69,7 +69,7 @@ public class ForwardingWebConsumer implements AutoCloseable {
             response.setTarget(request.getSource());
             response.setRequestId(request.getRequestId());
             response.setMetadata(response.getMetadata().with(currentCorrelationData()));
-            gatewayClient.send(Guarantee.NONE, response);
+            gatewayClient.append(Guarantee.NONE, response);
         };
         Consumer<List<SerializedMessage>> consumer = messages -> messages.forEach(m -> {
             Map<String, String> correlationData = getCorrelationData(m);

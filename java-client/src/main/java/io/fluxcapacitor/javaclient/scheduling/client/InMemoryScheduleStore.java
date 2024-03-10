@@ -21,6 +21,7 @@ import io.fluxcapacitor.javaclient.common.serialization.Serializer;
 import io.fluxcapacitor.javaclient.scheduling.Schedule;
 import io.fluxcapacitor.javaclient.tracking.client.InMemoryMessageStore;
 import lombok.NonNull;
+import lombok.SneakyThrows;
 import lombok.Synchronized;
 import lombok.extern.slf4j.Slf4j;
 
@@ -41,16 +42,16 @@ import static io.fluxcapacitor.javaclient.tracking.IndexUtils.timestampFromIndex
 import static java.util.stream.Collectors.toList;
 
 @Slf4j
-public class InMemorySchedulingClient extends InMemoryMessageStore implements SchedulingClient {
+public class InMemoryScheduleStore extends InMemoryMessageStore implements SchedulingClient {
 
     private final ConcurrentSkipListMap<Long, String> scheduleIdsByIndex = new ConcurrentSkipListMap<>();
     private volatile Clock clock = Clock.systemUTC();
 
-    public InMemorySchedulingClient() {
+    public InMemoryScheduleStore() {
         super(SCHEDULE);
     }
 
-    public InMemorySchedulingClient(Duration messageExpiration) {
+    public InMemoryScheduleStore(Duration messageExpiration) {
         super(SCHEDULE, messageExpiration);
     }
 
@@ -62,6 +63,7 @@ public class InMemorySchedulingClient extends InMemoryMessageStore implements Sc
                 .collect(toList());
     }
 
+    @SneakyThrows
     @Override
     @Synchronized
     public CompletableFuture<Void> schedule(Guarantee guarantee, SerializedSchedule... schedules) {
@@ -75,9 +77,8 @@ public class InMemorySchedulingClient extends InMemoryMessageStore implements Sc
             }
             schedule.getMessage().setIndex(index);
         }
-        super.send(Guarantee.SENT,
-                   filtered.stream().map(SerializedSchedule::getMessage).toArray(SerializedMessage[]::new));
-        return CompletableFuture.completedFuture(null);
+        return super.append(guarantee,
+                            filtered.stream().map(SerializedSchedule::getMessage).toArray(SerializedMessage[]::new));
     }
 
     @Override
@@ -98,7 +99,7 @@ public class InMemorySchedulingClient extends InMemoryMessageStore implements Sc
     }
 
     @Override
-    public CompletableFuture<Void> send(Guarantee guarantee, SerializedMessage... messages) {
+    public CompletableFuture<Void> append(Guarantee guarantee, SerializedMessage... messages) {
         throw new UnsupportedOperationException("Use method #schedule instead");
     }
 

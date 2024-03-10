@@ -12,7 +12,7 @@
  * limitations under the License.
  */
 
-package io.fluxcapacitor.testserver.endpoints.metrics;
+package io.fluxcapacitor.testserver.metrics;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -54,7 +54,7 @@ public class DefaultMetricsLog implements MetricsLog {
             try {
                 Revision revision = event.getClass().getAnnotation(Revision.class);
                 byte[] payload = objectMapper.writeValueAsBytes(event);
-                store.send(Guarantee.NONE, new SerializedMessage(
+                store.append(Guarantee.NONE, new SerializedMessage(
                         new Data<>(payload, event.getClass().getName(), revision == null ? 0 : revision.value(), Data.JSON_FORMAT),
                         metadata, randomUUID().toString(), currentTimeMillis()));
             } catch (JsonProcessingException e) {

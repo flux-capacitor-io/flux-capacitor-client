@@ -15,7 +15,7 @@
 package io.fluxcapacitor.javaclient.persisting.eventsourcing;
 
 import io.fluxcapacitor.common.api.SerializedMessage;
-import io.fluxcapacitor.javaclient.persisting.eventsourcing.client.InMemoryEventStoreClient;
+import io.fluxcapacitor.javaclient.persisting.eventsourcing.client.InMemoryEventStore;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
@@ -25,9 +25,9 @@ import java.util.stream.Stream;
 import static io.fluxcapacitor.common.TestUtils.assertEqualMessages;
 import static io.fluxcapacitor.common.TestUtils.createMessages;
 
-class InMemoryEventStoreClientTest {
+class InMemoryEventStoreTest {
 
-    private final InMemoryEventStoreClient subject = new InMemoryEventStoreClient();
+    private final InMemoryEventStore subject = new InMemoryEventStore();
 
     @Test
     void returnsCorrectStreamWhenLastSnIsMidBatch() throws Exception {

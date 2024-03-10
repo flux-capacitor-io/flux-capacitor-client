@@ -12,19 +12,19 @@
  * limitations under the License.
  */
 
-package io.fluxcapacitor.javaclient.publishing.client;
+package io.fluxcapacitor.common.tracking;
 
-import io.fluxcapacitor.common.Guarantee;
-import io.fluxcapacitor.common.Monitored;
-import io.fluxcapacitor.common.api.SerializedMessage;
-import io.fluxcapacitor.common.tracking.MessageDispatch;
+import io.fluxcapacitor.common.api.tracking.Position;
 
 import java.util.concurrent.CompletableFuture;
 
-public interface GatewayClient extends AutoCloseable, Monitored<MessageDispatch> {
+public interface PositionStore {
 
-    CompletableFuture<Void> append(Guarantee guarantee, SerializedMessage... messages);
+    CompletableFuture<Void> storePosition(String consumer, int[] segment, long lastIndex);
 
-    @Override
+    CompletableFuture<Void> resetPosition(String consumer, long lastIndex);
+
+    Position position(String consumer);
+
     void close();
 }

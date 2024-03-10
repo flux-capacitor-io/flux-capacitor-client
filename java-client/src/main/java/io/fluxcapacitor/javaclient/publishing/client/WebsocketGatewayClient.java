@@ -20,6 +20,7 @@ import io.fluxcapacitor.common.Registration;
 import io.fluxcapacitor.common.api.Metadata;
 import io.fluxcapacitor.common.api.SerializedMessage;
 import io.fluxcapacitor.common.api.publishing.Append;
+import io.fluxcapacitor.common.tracking.MessageDispatch;
 import io.fluxcapacitor.javaclient.common.websocket.AbstractWebsocketClient;
 import io.fluxcapacitor.javaclient.configuration.client.WebSocketClient;
 import io.fluxcapacitor.javaclient.configuration.client.WebSocketClient.ClientConfig;
@@ -58,7 +59,7 @@ public class WebsocketGatewayClient extends AbstractWebsocketClient implements G
     }
 
     @Override
-    public CompletableFuture<Void> send(Guarantee guarantee, SerializedMessage... messages) {
+    public CompletableFuture<Void> append(Guarantee guarantee, SerializedMessage... messages) {
         try {
             return sendCommand(new Append(messageType, Arrays.asList(messages), guarantee));
         } finally {

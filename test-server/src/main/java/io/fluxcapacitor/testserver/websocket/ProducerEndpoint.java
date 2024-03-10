@@ -12,29 +12,24 @@
  * limitations under the License.
  */
 
-package io.fluxcapacitor.testserver.endpoints;
+package io.fluxcapacitor.testserver.websocket;
 
-import io.fluxcapacitor.common.Guarantee;
 import io.fluxcapacitor.common.api.SerializedMessage;
 import io.fluxcapacitor.common.api.publishing.Append;
-import io.fluxcapacitor.javaclient.tracking.client.InMemoryMessageStore;
-import io.fluxcapacitor.testserver.Handle;
-import io.fluxcapacitor.testserver.WebsocketEndpoint;
+import io.fluxcapacitor.common.tracking.MessageStore;
 import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+
+import java.util.concurrent.CompletableFuture;
 
 @Slf4j
 @AllArgsConstructor
 public class ProducerEndpoint extends WebsocketEndpoint {
 
-    private final InMemoryMessageStore store;
+    private final MessageStore store;
 
     @Handle
-    public void handle(Append request) {
-        try {
-            store.send(Guarantee.SENT, request.getMessages().toArray(SerializedMessage[]::new));
-        } catch (Exception e) {
-            log.error("Failed to handle {}", request, e);
-        }
+    CompletableFuture<Void> handle(Append request) {
+        return store.append(request.getGuarantee(), request.getMessages().toArray(SerializedMessage[]::new));
     }
 }

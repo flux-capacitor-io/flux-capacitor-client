@@ -12,11 +12,9 @@
  * limitations under the License.
  */
 
-package io.fluxcapacitor.testserver.endpoints;
+package io.fluxcapacitor.testserver.websocket;
 
-import io.fluxcapacitor.common.Guarantee;
 import io.fluxcapacitor.common.api.SerializedMessage;
-import io.fluxcapacitor.common.api.VoidResult;
 import io.fluxcapacitor.common.api.eventsourcing.AppendEvents;
 import io.fluxcapacitor.common.api.eventsourcing.DeleteEvents;
 import io.fluxcapacitor.common.api.eventsourcing.EventBatch;
@@ -27,8 +25,6 @@ import io.fluxcapacitor.common.api.modeling.GetAggregateIdsResult;
 import io.fluxcapacitor.common.api.modeling.UpdateRelationships;
 import io.fluxcapacitor.javaclient.persisting.eventsourcing.AggregateEventStream;
 import io.fluxcapacitor.javaclient.persisting.eventsourcing.client.EventStoreClient;
-import io.fluxcapacitor.testserver.Handle;
-import io.fluxcapacitor.testserver.WebsocketEndpoint;
 import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
@@ -42,21 +38,19 @@ public class EventSourcingEndpoint extends WebsocketEndpoint {
     private final EventStoreClient eventStore;
 
     @Handle
-    public VoidResult handle(AppendEvents appendEvents) throws Exception {
-        var results = appendEvents.getEventBatches().stream().map(b -> eventStore
-                .storeEvents(b.getAggregateId(), b.getEvents(), b.isStoreOnly())).toArray(CompletableFuture[]::new);
-        CompletableFuture.allOf(results).get();
-        return new VoidResult(appendEvents.getRequestId());
+    CompletableFuture<Void> handle(AppendEvents appendEvents) {
+        return CompletableFuture.allOf(appendEvents.getEventBatches().stream().map(b -> eventStore
+                .storeEvents(b.getAggregateId(), b.getEvents(), b.isStoreOnly(), appendEvents.getGuarantee()))
+                                               .toArray(CompletableFuture[]::new));
     }
 
     @Handle
-    public VoidResult handle(DeleteEvents deleteEvents) throws Exception {
-        eventStore.deleteEvents(deleteEvents.getAggregateId()).get();
-        return new VoidResult(deleteEvents.getRequestId());
+    CompletableFuture<Void> handle(DeleteEvents deleteEvents) {
+        return eventStore.deleteEvents(deleteEvents.getAggregateId(), deleteEvents.getGuarantee());
     }
 
     @Handle
-    public GetEventsResult handle(GetEvents getEvents) throws Exception {
+    GetEventsResult handle(GetEvents getEvents) {
         AggregateEventStream<SerializedMessage> stream = eventStore
                 .getEvents(getEvents.getAggregateId(), getEvents.getLastSequenceNumber());
         long lastSequenceNumber = stream.getLastSequenceNumber().orElse(-1L);
@@ -65,17 +59,12 @@ public class EventSourcingEndpoint extends WebsocketEndpoint {
     }
 
     @Handle
-    public VoidResult handle(UpdateRelationships request) throws Exception {
-        CompletableFuture<?> future = eventStore.updateRelationships(request);
-        if (request.getGuarantee().compareTo(Guarantee.STORED) >= 0) {
-            future.get();
-            return new VoidResult(request.getRequestId());
-        }
-        return null;
+    CompletableFuture<Void> handle(UpdateRelationships request) {
+        return eventStore.updateRelationships(request);
     }
 
     @Handle
-    public GetAggregateIdsResult handle(GetAggregateIds request) {
+    GetAggregateIdsResult handle(GetAggregateIds request) {
         return new GetAggregateIdsResult(request.getRequestId(), eventStore.getAggregateIds(request));
     }
 }

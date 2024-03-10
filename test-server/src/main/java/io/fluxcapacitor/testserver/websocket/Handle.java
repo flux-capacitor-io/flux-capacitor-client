@@ -12,19 +12,16 @@
  * limitations under the License.
  */
 
-package io.fluxcapacitor.javaclient.publishing.client;
+package io.fluxcapacitor.testserver.websocket;
 
-import io.fluxcapacitor.common.Guarantee;
-import io.fluxcapacitor.common.Monitored;
-import io.fluxcapacitor.common.api.SerializedMessage;
-import io.fluxcapacitor.common.tracking.MessageDispatch;
+import java.lang.annotation.Documented;
+import java.lang.annotation.ElementType;
+import java.lang.annotation.Retention;
+import java.lang.annotation.RetentionPolicy;
+import java.lang.annotation.Target;
 
-import java.util.concurrent.CompletableFuture;
-
-public interface GatewayClient extends AutoCloseable, Monitored<MessageDispatch> {
-
-    CompletableFuture<Void> append(Guarantee guarantee, SerializedMessage... messages);
-
-    @Override
-    void close();
+@Documented
+@Retention(RetentionPolicy.RUNTIME)
+@Target(ElementType.METHOD)
+public @interface Handle {
 }

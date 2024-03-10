@@ -12,15 +12,11 @@
  * limitations under the License.
  */
 
-package io.fluxcapacitor.testserver.endpoints;
+package io.fluxcapacitor.testserver.websocket;
 
-import io.fluxcapacitor.common.Guarantee;
-import io.fluxcapacitor.common.api.VoidResult;
 import io.fluxcapacitor.common.api.search.*;
 import io.fluxcapacitor.javaclient.persisting.search.SearchHit;
 import io.fluxcapacitor.javaclient.persisting.search.client.SearchClient;
-import io.fluxcapacitor.testserver.Handle;
-import io.fluxcapacitor.testserver.WebsocketEndpoint;
 import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
@@ -49,47 +45,29 @@ public class SearchEndpoint extends WebsocketEndpoint {
     private final SearchClient store;
 
     @Handle
-    public VoidResult handle(IndexDocuments request) throws Exception {
-        try {
-            CompletableFuture<?> future = store.index(request.getDocuments(), request.getGuarantee(), request.isIfNotExists());
-            if (request.getGuarantee().compareTo(Guarantee.STORED) >= 0) {
-                future.get();
-            }
-        } catch (Exception e) {
-            log.error("Failed to handle {}", request, e);
-        }
-        return request.getGuarantee().compareTo(Guarantee.STORED) >= 0 ? new VoidResult(request.getRequestId()) : null;
+    CompletableFuture<Void> handle(IndexDocuments request) {
+        return store.index(request.getDocuments(), request.getGuarantee(), request.isIfNotExists());
     }
 
     @Handle
-    public VoidResult handle(BulkUpdateDocuments request) throws Exception {
+    CompletableFuture<Void> handle(BulkUpdateDocuments request) {
         Map<BulkUpdate.Type, List<DocumentUpdate>> updatesByType =
                 request.getUpdates().stream().filter(Objects::nonNull)
                         .collect(toMap(a -> format("%s_%s", a.getCollection(), a.getId()), identity(), (a, b) -> b))
                         .values().stream()
                         .collect(groupingBy(DocumentUpdate::getType));
-        try {
-            Collection<CompletableFuture<Void>> results = new ArrayList<>();
-            ofNullable(updatesByType.get(index)).ifPresent(updates -> {
-                var documents = updates.stream().map(DocumentUpdate::getObject).toList();
-                results.add(store.index(documents, request.getGuarantee(), false));
-            });
-            ofNullable(updatesByType.get(indexIfNotExists)).ifPresent(updates -> {
-                var documents = updates.stream().map(DocumentUpdate::getObject).toList();
-                results.add(store.index(documents, request.getGuarantee(), true));
-            });
-            updatesByType.getOrDefault(delete, emptyList())
-                    .forEach(delete -> store.delete(delete.getId(), delete.getCollection(), request.getGuarantee()));
-
-            if (request.getGuarantee().compareTo(Guarantee.STORED) >= 0) {
-                for (CompletableFuture<?> result : results) {
-                    result.get();
-                }
-            }
-        } catch (Exception e) {
-            log.error("Failed to handle {}", request, e);
-        }
-        return request.getGuarantee().compareTo(Guarantee.STORED) >= 0 ? new VoidResult(request.getRequestId()) : null;
+        Collection<CompletableFuture<Void>> results = new ArrayList<>();
+        ofNullable(updatesByType.get(index)).ifPresent(updates -> {
+            var documents = updates.stream().map(DocumentUpdate::getObject).toList();
+            results.add(store.index(documents, request.getGuarantee(), false));
+        });
+        ofNullable(updatesByType.get(indexIfNotExists)).ifPresent(updates -> {
+            var documents = updates.stream().map(DocumentUpdate::getObject).toList();
+            results.add(store.index(documents, request.getGuarantee(), true));
+        });
+        updatesByType.getOrDefault(delete, emptyList())
+                .forEach(delete -> store.delete(delete.getId(), delete.getCollection(), request.getGuarantee()));
+        return CompletableFuture.allOf(results.toArray(CompletableFuture[]::new));
     }
 
     @Handle
@@ -117,18 +95,7 @@ public class SearchEndpoint extends WebsocketEndpoint {
     }
 
     @Handle
-    public GetFacetStatsResult handle(GetFacetStats request) {
-        try {
-            List<FacetStats> result = store.fetchFacetStats(request.getQuery());
-            return new GetFacetStatsResult(request.getRequestId(), result);
-        } catch (Exception e) {
-            log.error("Failed to handle {}", request, e);
-            return new GetFacetStatsResult(request.getRequestId(), emptyList());
-        }
-    }
-
-    @Handle
-    public GetDocumentStatsResult handle(GetDocumentStats request) {
+    GetDocumentStatsResult handle(GetDocumentStats request) {
         try {
             return new GetDocumentStatsResult(request.getRequestId(),
                                               store.fetchStatistics(request.getQuery(), request.getFields(),
@@ -140,7 +107,7 @@ public class SearchEndpoint extends WebsocketEndpoint {
     }
 
     @Handle
-    public GetDocumentResult handle(GetDocument request) {
+    GetDocumentResult handle(GetDocument request) {
         try {
             return new GetDocumentResult(request.getRequestId(), store.fetch(request).orElse(null));
         } catch (Exception e) {
@@ -150,51 +117,32 @@ public class SearchEndpoint extends WebsocketEndpoint {
     }
 
     @Handle
-    public VoidResult handle(DeleteDocuments request) throws Exception {
-        try {
-            CompletableFuture<?> future = store.delete(request.getQuery(), request.getGuarantee());
-            if (request.getGuarantee().compareTo(Guarantee.STORED) >= 0) {
-                future.get();
-            }
-        } catch (Exception e) {
-            log.error("Failed to handle {}", request, e);
-        }
-        return request.getGuarantee().compareTo(Guarantee.STORED) >= 0 ? new VoidResult(request.getRequestId()) : null;
+    CompletableFuture<Void> handle(DeleteDocuments request) {
+        return store.delete(request.getQuery(), request.getGuarantee());
     }
 
     @Handle
-    public VoidResult handle(DeleteDocumentById request) throws Exception {
-        try {
-            store.delete(request.getId(), request.getCollection(), request.getGuarantee());
-        } catch (Exception e) {
-            log.error("Failed to handle {}", request, e);
-        }
-        return new VoidResult(request.getRequestId());
+    void handle(DeleteDocumentById request) {
+        store.delete(request.getId(), request.getCollection(), request.getGuarantee());
     }
 
     @Handle
-    public VoidResult handle(DeleteCollection request) throws Exception {
-        try {
-            store.deleteCollection(request.getCollection());
-        } catch (Exception e) {
-            log.error("Failed to handle {}", request, e);
-        }
-        return new VoidResult(request.getRequestId());
+    void handle(DeleteCollection request) {
+        store.deleteCollection(request.getCollection(), request.getGuarantee());
     }
 
     @Handle
-    public VoidResult handle(CreateAuditTrail request) throws Exception {
-        try {
-            store.createAuditTrail(request);
-        } catch (Exception e) {
-            log.error("Failed to handle {}", request, e);
-        }
-        return new VoidResult(request.getRequestId());
+    void handle(CreateAuditTrail request) {
+        store.createAuditTrail(request);
     }
 
-
-    @Override
-    public String toString() {
-        return "SearchEndpoint";
+    @Handle
+    GetFacetStatsResult handle(GetFacetStats request) {
+        try {
+            return new GetFacetStatsResult(request.getRequestId(), store.fetchFacetStats(request.getQuery()));
+        } catch (Exception e) {
+            log.error("Failed to handle {}", request, e);
+            return new GetFacetStatsResult(request.getRequestId(), emptyList());
+        }
     }
 }

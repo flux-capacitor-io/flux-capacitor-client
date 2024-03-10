@@ -43,7 +43,7 @@ public class DefaultResultGateway implements ResultGateway {
             }
             serializedMessage.setTarget(target);
             serializedMessage.setRequestId(requestId);
-            return client.send(guarantee, serializedMessage);
+            return client.append(guarantee, serializedMessage);
         } catch (Exception e) {
             throw new GatewayException(String.format("Failed to send response %s", payload), e);
         }

@@ -50,7 +50,7 @@ import static java.util.stream.Collectors.groupingBy;
 import static java.util.stream.Collectors.toList;
 import static java.util.stream.Collectors.toMap;
 
-public class InMemorySearchClient implements SearchClient {
+public class InMemorySearchStore implements SearchClient {
     protected static final Function<Document, String> identifier = d -> asIdentifier(d.getCollection(), d.getId());
 
     protected static String asIdentifier(String collection, String documentId) {

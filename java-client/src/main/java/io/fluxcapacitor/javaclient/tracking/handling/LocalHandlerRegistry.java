@@ -117,7 +117,7 @@ public class LocalHandlerRegistry implements HandlerRegistry {
             } finally {
                 if (logMessage) {
                     FluxCapacitor.getOptionally().ifPresent(fc -> fc.client().getGatewayClient(m.getMessageType())
-                            .send(Guarantee.NONE, message.getSerializedObject()));
+                            .append(Guarantee.NONE, message.getSerializedObject()));
                 }
             }
         });

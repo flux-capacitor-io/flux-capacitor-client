@@ -12,7 +12,7 @@
  * limitations under the License.
  */
 
-package io.fluxcapacitor.testserver;
+package io.fluxcapacitor.testserver.websocket;
 
 import io.undertow.Undertow;
 import io.undertow.connector.ByteBufferPool;

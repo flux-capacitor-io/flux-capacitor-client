@@ -20,9 +20,10 @@ import io.fluxcapacitor.common.Registration;
 import io.fluxcapacitor.common.api.SerializedMessage;
 import io.fluxcapacitor.common.api.tracking.MessageBatch;
 import io.fluxcapacitor.common.api.tracking.Position;
+import io.fluxcapacitor.common.tracking.MessageDispatch;
+import io.fluxcapacitor.common.tracking.MessageStore;
 import io.fluxcapacitor.javaclient.FluxCapacitor;
 import io.fluxcapacitor.javaclient.publishing.client.GatewayClient;
-import io.fluxcapacitor.javaclient.publishing.client.MessageDispatch;
 import io.fluxcapacitor.javaclient.tracking.ConsumerConfiguration;
 import io.fluxcapacitor.javaclient.tracking.IndexUtils;
 import lombok.Getter;
@@ -57,7 +58,7 @@ import static java.util.stream.Collectors.toList;
 
 @Slf4j
 @RequiredArgsConstructor
-public class InMemoryMessageStore implements GatewayClient, TrackingClient {
+public class InMemoryMessageStore implements GatewayClient, TrackingClient, MessageStore {
 
     private final Set<Consumer<MessageDispatch>> monitors = new CopyOnWriteArraySet<>();
     private final ExecutorService executor = Executors.newCachedThreadPool(newThreadFactory("InMemoryMessageStore"));
@@ -76,7 +77,7 @@ public class InMemoryMessageStore implements GatewayClient, TrackingClient {
     }
 
     @Override
-    public CompletableFuture<Void> send(Guarantee guarantee, SerializedMessage... messages) {
+    public CompletableFuture<Void> append(Guarantee guarantee, SerializedMessage... messages) {
         try {
             synchronized (this) {
                 Arrays.stream(messages).forEach(m -> {

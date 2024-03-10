@@ -28,7 +28,6 @@ import io.fluxcapacitor.javaclient.tracking.handling.HandleCommand;
 import io.fluxcapacitor.javaclient.tracking.handling.HandleEvent;
 import io.fluxcapacitor.javaclient.tracking.metrics.DisableMetrics;
 import io.fluxcapacitor.javaclient.tracking.metrics.ProcessBatchEvent;
-import lombok.SneakyThrows;
 import lombok.Value;
 import lombok.extern.slf4j.Slf4j;
 import org.junit.jupiter.api.BeforeAll;
@@ -91,7 +90,6 @@ class TestServerTest {
         Schedule schedule = new Schedule("bla", "test",
                                          testFixture.getCurrentTime().plusSeconds(10));
         testFixture.givenSchedules(schedule)
-                .given(fc -> sleepAWhile())
                 .whenApplying(fc -> fc.scheduler().getSchedule("test").orElse(null))
                 .expectResult(schedule);
     }
@@ -178,11 +176,6 @@ class TestServerTest {
     private static class FacetedObject {
         @Facet
         String something;
-    }
-
-    @SneakyThrows
-    private static void sleepAWhile() {
-        Thread.sleep(100);
     }
 
 }

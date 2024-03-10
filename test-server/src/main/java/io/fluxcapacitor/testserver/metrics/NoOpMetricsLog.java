@@ -12,7 +12,7 @@
  * limitations under the License.
  */
 
-package io.fluxcapacitor.testserver.endpoints.metrics;
+package io.fluxcapacitor.testserver.metrics;
 
 import io.fluxcapacitor.common.api.ClientEvent;
 import io.fluxcapacitor.common.api.Metadata;

@@ -12,17 +12,16 @@
  * limitations under the License.
  */
 
-package io.fluxcapacitor.testserver.endpoints.metrics;
+package io.fluxcapacitor.common.tracking;
 
-import io.fluxcapacitor.common.api.ClientEvent;
-import io.fluxcapacitor.common.api.Metadata;
+import io.fluxcapacitor.common.MessageType;
+import io.fluxcapacitor.common.api.SerializedMessage;
+import lombok.Value;
 
-public interface MetricsLog {
+import java.util.List;
 
-    default void registerMetrics(ClientEvent event) {
-        registerMetrics(event, Metadata.empty());
-    }
-
-    void registerMetrics(ClientEvent event, Metadata metadata);
-
+@Value
+public class MessageDispatch {
+    List<SerializedMessage> messages;
+    MessageType messageType;
 }

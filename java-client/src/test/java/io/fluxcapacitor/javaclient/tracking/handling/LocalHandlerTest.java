@@ -30,7 +30,7 @@ public class LocalHandlerTest {
 
     @Test
     void testMessagePublication() {
-        testFixture.whenCommand("a").expectThat(fc -> verify(fc.client().getGatewayClient(COMMAND)).send(any(), any()));
+        testFixture.whenCommand("a").expectThat(fc -> verify(fc.client().getGatewayClient(COMMAND)).append(any(), any()));
     }
 
     @Test
@@ -40,19 +40,19 @@ public class LocalHandlerTest {
 
     @Test
     void testMetricsPublication() {
-        testFixture.whenCommand("a").expectThat(fc -> verify(fc.client().getGatewayClient(METRICS)).send(any(), any()));
+        testFixture.whenCommand("a").expectThat(fc -> verify(fc.client().getGatewayClient(METRICS)).append(any(), any()));
     }
 
     @Test
     void testNoMessagePublication() {
         testFixture.whenCommand(1)
-                .expectThat(fc -> verify(fc.client().getGatewayClient(COMMAND), never()).send(any(), any()));
+                .expectThat(fc -> verify(fc.client().getGatewayClient(COMMAND), never()).append(any(), any()));
     }
 
     @Test
     void testNoMetricsPublication() {
         testFixture.whenCommand(1.1f)
-                .expectThat(fc -> verify(fc.client().getGatewayClient(METRICS), never()).send(any(), any()));
+                .expectThat(fc -> verify(fc.client().getGatewayClient(METRICS), never()).append(any(), any()));
     }
 
     @LocalHandler(logMessage = true, logMetrics = true)

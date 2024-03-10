@@ -37,16 +37,16 @@ import java.util.function.Function;
 import static io.fluxcapacitor.common.MessageType.EVENT;
 import static java.util.Collections.synchronizedMap;
 
-public class InMemoryEventStoreClient extends InMemoryMessageStore implements EventStoreClient {
+public class InMemoryEventStore extends InMemoryMessageStore implements EventStoreClient {
 
     private final Map<String, List<SerializedMessage>> appliedEvents = new ConcurrentHashMap<>();
     private final Map<String, Map<String, String>> relationships = new ConcurrentHashMap<>();
 
-    public InMemoryEventStoreClient() {
+    public InMemoryEventStore() {
         super(EVENT);
     }
 
-    public InMemoryEventStoreClient(Duration messageExpiration) {
+    public InMemoryEventStore(Duration messageExpiration) {
         super(EVENT, messageExpiration);
     }
 
@@ -57,7 +57,7 @@ public class InMemoryEventStoreClient extends InMemoryMessageStore implements Ev
         if (storeOnly) {
             return CompletableFuture.completedFuture(null);
         }
-        return super.send(guarantee, events.toArray(new SerializedMessage[0]));
+        return super.append(guarantee, events.toArray(new SerializedMessage[0]));
     }
 
     @Override

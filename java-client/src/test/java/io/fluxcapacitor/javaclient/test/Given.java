@@ -14,6 +14,7 @@
 
 package io.fluxcapacitor.javaclient.test;
 
+import io.fluxcapacitor.common.Guarantee;
 import io.fluxcapacitor.common.ThrowingConsumer;
 import io.fluxcapacitor.common.api.Data;
 import io.fluxcapacitor.javaclient.FluxCapacitor;
@@ -29,6 +30,8 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.Arrays;
 import java.util.UUID;
+
+import static io.fluxcapacitor.javaclient.common.ClientUtils.runSilently;
 
 /**
  * Interface of the `given` phase of a behavioral given-when-then test. Here you specify everything that happened prior
@@ -132,7 +135,8 @@ public interface Given extends When {
      * Specify one or more schedules that have been issued prior to the behavior you want to test.
      */
     default Given givenSchedules(Schedule... schedules) {
-        return given(fc -> Arrays.stream(schedules).forEach(s -> fc.scheduler().schedule(s)));
+        return given(fc -> Arrays.stream(schedules).forEach(
+                s -> runSilently(() ->fc.scheduler().schedule(s, false, Guarantee.STORED).get())));
     }
 
     /**

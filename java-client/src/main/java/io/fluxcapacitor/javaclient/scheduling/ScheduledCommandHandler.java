@@ -28,6 +28,6 @@ public class ScheduledCommandHandler {
     void handle(ScheduledCommand schedule) {
         SerializedMessage command = schedule.getCommand();
         command.setTimestamp(FluxCapacitor.currentTime().toEpochMilli());
-        FluxCapacitor.get().client().getGatewayClient(MessageType.COMMAND).send(NONE, command);
+        FluxCapacitor.get().client().getGatewayClient(MessageType.COMMAND).append(NONE, command);
     }
 }

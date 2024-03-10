@@ -14,14 +14,17 @@
 
 package io.fluxcapacitor.javaclient.scheduling;
 
+import io.fluxcapacitor.common.Guarantee;
 import io.fluxcapacitor.common.api.Metadata;
 import io.fluxcapacitor.javaclient.FluxCapacitor;
 import io.fluxcapacitor.javaclient.common.Message;
+import lombok.SneakyThrows;
 
 import java.time.Duration;
 import java.time.Instant;
 import java.time.ZoneId;
 import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
 
 import static io.fluxcapacitor.javaclient.FluxCapacitor.currentTime;
 
@@ -74,7 +77,17 @@ public interface Scheduler {
         schedule(message, false);
     }
 
-    void schedule(Schedule message, boolean ifAbsent);
+    @SneakyThrows
+    default void schedule(Schedule message, boolean ifAbsent) {
+        try {
+            schedule(message, ifAbsent, Guarantee.SENT).get();
+        } catch (Throwable e) {
+            throw new SchedulerException(String.format("Failed to schedule message %s for %s", message.getPayload(),
+                                                       message.getDeadline()), e);
+        }
+    }
+
+    CompletableFuture<Void> schedule(Schedule message, boolean ifAbsent, Guarantee guarantee);
 
     default String scheduleCommand(Object schedule, Instant deadline) {
         String scheduleId = FluxCapacitor.currentIdentityProvider().nextTechnicalId();
@@ -123,7 +136,16 @@ public interface Scheduler {
         scheduleCommand(message, false);
     }
 
-    void scheduleCommand(Schedule message, boolean ifAbsent);
+    default void scheduleCommand(Schedule message, boolean ifAbsent) {
+        try {
+            scheduleCommand(message, ifAbsent, Guarantee.SENT).get();
+        } catch (Throwable e) {
+            throw new SchedulerException(String.format("Failed to schedule command %s for %s", message.getPayload(),
+                                                       message.getDeadline()), e);
+        }
+    }
+
+    CompletableFuture<Void> scheduleCommand(Schedule message, boolean ifAbsent, Guarantee guarantee);
 
     void cancelSchedule(String scheduleId);
 

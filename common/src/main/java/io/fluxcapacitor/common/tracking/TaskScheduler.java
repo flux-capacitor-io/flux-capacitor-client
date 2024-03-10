@@ -12,16 +12,13 @@
  * limitations under the License.
  */
 
-package io.fluxcapacitor.javaclient.publishing.client;
+package io.fluxcapacitor.common.tracking;
 
-import io.fluxcapacitor.common.MessageType;
-import io.fluxcapacitor.common.api.SerializedMessage;
-import lombok.Value;
+import io.fluxcapacitor.common.Registration;
 
-import java.util.List;
+public interface TaskScheduler {
 
-@Value
-public class MessageDispatch {
-    List<SerializedMessage> messages;
-    MessageType messageType;
+    Registration schedule(long deadline, Runnable task);
+
+    void shutdown();
 }

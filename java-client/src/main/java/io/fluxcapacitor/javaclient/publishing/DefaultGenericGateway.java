@@ -84,7 +84,7 @@ public class DefaultGenericGateway implements GenericGateway {
             }
         }
         try {
-            return gatewayClient.send(guarantee, serializedMessages.toArray(new SerializedMessage[0]));
+            return gatewayClient.append(guarantee, serializedMessages.toArray(new SerializedMessage[0]));
         } catch (Exception e) {
             throw new GatewayException(format("Failed to send and forget %s messages", messages.length), e);
         }
@@ -124,7 +124,7 @@ public class DefaultGenericGateway implements GenericGateway {
                 .map(m -> (SerializedMessage) m).collect(Collectors.toList());
         List<CompletableFuture<Message>> externalResults = serializedMessages.isEmpty()
                 ? Collections.emptyList() : requestHandler.sendRequests(
-                        serializedMessages, m -> gatewayClient.send(SENT, m.toArray(SerializedMessage[]::new))).stream()
+                        serializedMessages, m -> gatewayClient.append(SENT, m.toArray(SerializedMessage[]::new))).stream()
                 .map(r -> r.thenCompose(m -> {
                     Object result;
                     try {

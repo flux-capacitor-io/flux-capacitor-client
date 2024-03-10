@@ -210,7 +210,7 @@ public class HandleWebTest {
         @Test
         void testAutoHandshake() {
             testFixture.whenWebRequest(WebRequest.builder().method(WS_HANDSHAKE).url("/auto").build())
-                    .expectThat(fc -> verify(fc.client().getGatewayClient(MessageType.WEBRESPONSE)).send(
+                    .expectThat(fc -> verify(fc.client().getGatewayClient(MessageType.WEBRESPONSE)).append(
                             any(), any(SerializedMessage.class)))
                     .expectNoErrors();
         }

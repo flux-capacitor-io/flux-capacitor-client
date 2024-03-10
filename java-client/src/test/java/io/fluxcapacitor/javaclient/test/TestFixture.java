@@ -27,6 +27,7 @@ import io.fluxcapacitor.common.handling.HandlerFilter;
 import io.fluxcapacitor.common.handling.HandlerInvoker;
 import io.fluxcapacitor.common.reflection.ReflectionUtils;
 import io.fluxcapacitor.common.serialization.JsonUtils;
+import io.fluxcapacitor.common.tracking.MessageDispatch;
 import io.fluxcapacitor.javaclient.FluxCapacitor;
 import io.fluxcapacitor.javaclient.common.ClientUtils;
 import io.fluxcapacitor.javaclient.common.IdentityProvider;
@@ -39,11 +40,10 @@ import io.fluxcapacitor.javaclient.configuration.client.InMemoryClient;
 import io.fluxcapacitor.javaclient.modeling.Entity;
 import io.fluxcapacitor.javaclient.persisting.search.Search;
 import io.fluxcapacitor.javaclient.publishing.DispatchInterceptor;
-import io.fluxcapacitor.javaclient.publishing.client.MessageDispatch;
 import io.fluxcapacitor.javaclient.scheduling.DefaultScheduler;
 import io.fluxcapacitor.javaclient.scheduling.Schedule;
 import io.fluxcapacitor.javaclient.scheduling.ScheduledCommand;
-import io.fluxcapacitor.javaclient.scheduling.client.InMemorySchedulingClient;
+import io.fluxcapacitor.javaclient.scheduling.client.InMemoryScheduleStore;
 import io.fluxcapacitor.javaclient.scheduling.client.SchedulingClient;
 import io.fluxcapacitor.javaclient.tracking.BatchInterceptor;
 import io.fluxcapacitor.javaclient.tracking.ConsumerConfiguration;
@@ -601,8 +601,8 @@ public class TestFixture implements Given, When {
         if (synchronous) {
             try {
                 SchedulingClient schedulingClient = getFluxCapacitor().client().getSchedulingClient();
-                if (schedulingClient instanceof InMemorySchedulingClient) {
-                    List<Schedule> expiredSchedules = ((InMemorySchedulingClient) schedulingClient)
+                if (schedulingClient instanceof InMemoryScheduleStore) {
+                    List<Schedule> expiredSchedules = ((InMemoryScheduleStore) schedulingClient)
                             .removeExpiredSchedules(getFluxCapacitor().serializer());
                     if (getFluxCapacitor().scheduler() instanceof DefaultScheduler scheduler) {
                         expiredSchedules.forEach(scheduler::handleLocally);
@@ -620,8 +620,8 @@ public class TestFixture implements Given, When {
 
     protected List<Schedule> getFutureSchedules() {
         SchedulingClient schedulingClient = getFluxCapacitor().client().getSchedulingClient();
-        if (schedulingClient instanceof InMemorySchedulingClient) {
-            return ((InMemorySchedulingClient) schedulingClient).getSchedules(getFluxCapacitor().serializer())
+        if (schedulingClient instanceof InMemoryScheduleStore) {
+            return ((InMemoryScheduleStore) schedulingClient).getSchedules(getFluxCapacitor().serializer())
                     .stream().filter(s -> s.getDeadline().isAfter(getCurrentTime())).collect(toList());
         }
         return emptyList();
@@ -670,8 +670,8 @@ public class TestFixture implements Given, When {
     protected void setClock(Clock clock) {
         getFluxCapacitor().withClock(clock);
         SchedulingClient schedulingClient = getFluxCapacitor().client().getSchedulingClient();
-        if (schedulingClient instanceof InMemorySchedulingClient) {
-            ((InMemorySchedulingClient) schedulingClient).setClock(clock);
+        if (schedulingClient instanceof InMemoryScheduleStore) {
+            ((InMemoryScheduleStore) schedulingClient).setClock(clock);
         } else {
             log.warn("Could not update clock of scheduling client. Timing tests may not work.");
         }

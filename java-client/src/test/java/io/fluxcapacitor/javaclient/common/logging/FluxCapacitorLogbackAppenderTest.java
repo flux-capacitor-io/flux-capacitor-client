@@ -49,7 +49,7 @@ class FluxCapacitorLogbackAppenderTest {
     @Test
     void testConsoleError() {
         log.error("mock error");
-        verify(fluxCapacitor.client().getGatewayClient(MessageType.ERROR)).send(
+        verify(fluxCapacitor.client().getGatewayClient(MessageType.ERROR)).append(
                 any(Guarantee.class), argThat((ArgumentMatcher<SerializedMessage>) message ->
                         ConsoleError.class.getName().equals(message.getData().getType())));
     }
@@ -57,7 +57,7 @@ class FluxCapacitorLogbackAppenderTest {
     @Test
     void testConsoleWarning() {
         log.warn("mock warning");
-        verify(fluxCapacitor.client().getGatewayClient(MessageType.ERROR)).send(
+        verify(fluxCapacitor.client().getGatewayClient(MessageType.ERROR)).append(
                 any(Guarantee.class), argThat((ArgumentMatcher<SerializedMessage>) message ->
                         ConsoleWarning.class.getName().equals(message.getData().getType())));
     }

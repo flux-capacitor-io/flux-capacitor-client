@@ -16,17 +16,17 @@ package io.fluxcapacitor.testserver;
 
 import io.fluxcapacitor.common.MessageType;
 import io.fluxcapacitor.javaclient.configuration.client.InMemoryClient;
-import io.fluxcapacitor.javaclient.scheduling.client.InMemorySchedulingClient;
+import io.fluxcapacitor.javaclient.scheduling.client.InMemoryScheduleStore;
 import io.fluxcapacitor.javaclient.tracking.client.InMemoryMessageStore;
-import io.fluxcapacitor.testserver.endpoints.ConsumerEndpoint;
-import io.fluxcapacitor.testserver.endpoints.EventSourcingEndpoint;
-import io.fluxcapacitor.testserver.endpoints.KeyValueEndPoint;
-import io.fluxcapacitor.testserver.endpoints.ProducerEndpoint;
-import io.fluxcapacitor.testserver.endpoints.SchedulingEndpoint;
-import io.fluxcapacitor.testserver.endpoints.SearchEndpoint;
-import io.fluxcapacitor.testserver.endpoints.metrics.DefaultMetricsLog;
-import io.fluxcapacitor.testserver.endpoints.metrics.MetricsLog;
-import io.fluxcapacitor.testserver.endpoints.metrics.NoOpMetricsLog;
+import io.fluxcapacitor.testserver.metrics.DefaultMetricsLog;
+import io.fluxcapacitor.testserver.metrics.MetricsLog;
+import io.fluxcapacitor.testserver.metrics.NoOpMetricsLog;
+import io.fluxcapacitor.testserver.websocket.ConsumerEndpoint;
+import io.fluxcapacitor.testserver.websocket.EventSourcingEndpoint;
+import io.fluxcapacitor.testserver.websocket.KeyValueEndPoint;
+import io.fluxcapacitor.testserver.websocket.ProducerEndpoint;
+import io.fluxcapacitor.testserver.websocket.SchedulingEndpoint;
+import io.fluxcapacitor.testserver.websocket.SearchEndpoint;
 import io.undertow.Undertow;
 import io.undertow.server.handlers.GracefulShutdownHandler;
 import io.undertow.server.handlers.PathHandler;
@@ -53,7 +53,7 @@ import static io.fluxcapacitor.common.ServicePathBuilder.keyValuePath;
 import static io.fluxcapacitor.common.ServicePathBuilder.producerPath;
 import static io.fluxcapacitor.common.ServicePathBuilder.schedulingPath;
 import static io.fluxcapacitor.common.ServicePathBuilder.searchPath;
-import static io.fluxcapacitor.testserver.WebsocketDeploymentUtils.deploy;
+import static io.fluxcapacitor.testserver.websocket.WebsocketDeploymentUtils.deploy;
 import static io.undertow.Handlers.path;
 import static io.undertow.util.Headers.CONTENT_TYPE;
 import static java.lang.Runtime.getRuntime;
@@ -90,7 +90,7 @@ public class TestServer {
                 .metricsLog(metricsLogSupplier.apply(projectId)), format("/%s/", searchPath()), pathHandler);
         pathHandler = deploy(projectId -> new SchedulingEndpoint(clients.apply(projectId).getSchedulingClient())
                 .metricsLog(metricsLogSupplier.apply(projectId)), format("/%s/", schedulingPath()), pathHandler);
-        pathHandler = deploy(projectId -> new ConsumerEndpoint((InMemorySchedulingClient) clients.apply(projectId).getSchedulingClient(), SCHEDULE)
+        pathHandler = deploy(projectId -> new ConsumerEndpoint((InMemoryScheduleStore) clients.apply(projectId).getSchedulingClient(), SCHEDULE)
                                      .metricsLog(metricsLogSupplier.apply(projectId)),
                              format("/%s/", consumerPath(SCHEDULE)), pathHandler);
         pathHandler = pathHandler.addPrefixPath("/health", exchange -> {

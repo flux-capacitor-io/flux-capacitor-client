@@ -139,7 +139,7 @@ public class ReverseProxyConsumer implements Consumer<List<SerializedMessage>> {
         SerializedMessage serializedResponse = response.serialize(serializer);
         serializedResponse.setRequestId(request.getRequestId());
         serializedResponse.setTarget(request.getSource());
-        client.getGatewayClient(MessageType.WEBRESPONSE).send(Guarantee.NONE, serializedResponse);
+        client.getGatewayClient(MessageType.WEBRESPONSE).append(Guarantee.NONE, serializedResponse);
     }
 
     WebResponse asWebResponse(HttpResponse<byte[]> response) {

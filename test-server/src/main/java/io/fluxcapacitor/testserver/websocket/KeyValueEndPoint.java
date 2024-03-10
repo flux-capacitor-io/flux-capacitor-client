@@ -12,11 +12,9 @@
  * limitations under the License.
  */
 
-package io.fluxcapacitor.testserver.endpoints;
+package io.fluxcapacitor.testserver.websocket;
 
 import io.fluxcapacitor.common.Guarantee;
-import io.fluxcapacitor.common.api.BooleanResult;
-import io.fluxcapacitor.common.api.VoidResult;
 import io.fluxcapacitor.common.api.keyvalue.DeleteValue;
 import io.fluxcapacitor.common.api.keyvalue.GetValue;
 import io.fluxcapacitor.common.api.keyvalue.GetValueResult;
@@ -25,9 +23,9 @@ import io.fluxcapacitor.common.api.keyvalue.StoreValueIfAbsent;
 import io.fluxcapacitor.common.api.keyvalue.StoreValues;
 import io.fluxcapacitor.common.api.keyvalue.StoreValuesAndWait;
 import io.fluxcapacitor.javaclient.persisting.keyvalue.client.KeyValueClient;
-import io.fluxcapacitor.testserver.Handle;
-import io.fluxcapacitor.testserver.WebsocketEndpoint;
 import lombok.AllArgsConstructor;
+
+import java.util.concurrent.CompletableFuture;
 
 @AllArgsConstructor
 public class KeyValueEndPoint extends WebsocketEndpoint {
@@ -42,31 +40,23 @@ public class KeyValueEndPoint extends WebsocketEndpoint {
     }
 
     @Handle
-    public VoidResult handle(StoreValuesAndWait storeValues) throws Exception {
-        for (KeyValuePair value : storeValues.getValues()) {
-            keyValueStore.putValue(value.getKey(), value.getValue(), Guarantee.STORED).get();
-        }
-        return new VoidResult(storeValues.getRequestId());
+    CompletableFuture<Void> handle(StoreValuesAndWait storeValues) {
+        return CompletableFuture.allOf(storeValues.getValues().stream().map(v -> keyValueStore.putValue(
+                v.getKey(), v.getValue(), storeValues.getGuarantee())).toArray(CompletableFuture[]::new));
     }
 
     @Handle
-    public BooleanResult handle(StoreValueIfAbsent r) throws Exception {
-        return new BooleanResult(r.getRequestId(),
-                                 keyValueStore.putValueIfAbsent(r.getValue().getKey(), r.getValue().getValue()).get());
+    CompletableFuture<Boolean> handle(StoreValueIfAbsent r) {
+        return keyValueStore.putValueIfAbsent(r.getValue().getKey(), r.getValue().getValue());
     }
 
     @Handle
-    public GetValueResult handle(GetValue getValue) {
+    GetValueResult handle(GetValue getValue) {
         return new GetValueResult(getValue.getRequestId(), keyValueStore.getValue(getValue.getKey()));
     }
 
     @Handle
-    public void handle(DeleteValue deleteValue) {
-        keyValueStore.deleteValue(deleteValue.getKey());
-    }
-
-    @Override
-    public String toString() {
-        return "KeyValueEndpoint";
+    CompletableFuture<Void> handle(DeleteValue deleteValue) {
+        return keyValueStore.deleteValue(deleteValue.getKey(), deleteValue.getGuarantee());
     }
 }

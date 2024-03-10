@@ -12,16 +12,17 @@
  * limitations under the License.
  */
 
-package io.fluxcapacitor.testserver;
+package io.fluxcapacitor.testserver.metrics;
 
-import java.lang.annotation.Documented;
-import java.lang.annotation.ElementType;
-import java.lang.annotation.Retention;
-import java.lang.annotation.RetentionPolicy;
-import java.lang.annotation.Target;
+import io.fluxcapacitor.common.api.ClientEvent;
+import io.fluxcapacitor.common.api.Metadata;
 
-@Documented
-@Retention(RetentionPolicy.RUNTIME)
-@Target(ElementType.METHOD)
-public @interface Handle {
+public interface MetricsLog {
+
+    default void registerMetrics(ClientEvent event) {
+        registerMetrics(event, Metadata.empty());
+    }
+
+    void registerMetrics(ClientEvent event, Metadata metadata);
+
 }

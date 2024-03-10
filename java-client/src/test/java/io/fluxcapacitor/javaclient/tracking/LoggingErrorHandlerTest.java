@@ -35,7 +35,7 @@ class LoggingErrorHandlerTest {
     @Test
     void loggedHandlerErrorHasTraceId() {
         testFixture.whenCommand("error")
-                .expectThat(fc -> verify(fc.client().getGatewayClient(MessageType.ERROR)).send(
+                .expectThat(fc -> verify(fc.client().getGatewayClient(MessageType.ERROR)).append(
                         any(), ArgumentMatchers.<SerializedMessage>argThat(
                                 message -> message.getMetadata().containsKey("$consumer")
                                            && message.getMetadata().containsKey("$correlationId")

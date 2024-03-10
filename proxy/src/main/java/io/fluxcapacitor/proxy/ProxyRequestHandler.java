@@ -117,7 +117,7 @@ public class ProxyRequestHandler implements HttpHandler, AutoCloseable {
 
     protected void sendWebRequest(HttpServerExchange se, WebRequest webRequest) {
         SerializedMessage requestMessage = webRequest.serialize(serializer);
-        requestHandler.sendRequest(requestMessage, m -> requestGateway.send(Guarantee.SENT, m))
+        requestHandler.sendRequest(requestMessage, m -> requestGateway.append(Guarantee.SENT, m))
                 .whenComplete((r, e) -> {
                     try {
                         e = unwrapException(e);

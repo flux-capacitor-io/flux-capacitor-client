@@ -14,6 +14,7 @@
 
 package io.fluxcapacitor.javaclient.scheduling;
 
+import io.fluxcapacitor.common.Guarantee;
 import io.fluxcapacitor.common.api.SerializedMessage;
 import io.fluxcapacitor.common.api.scheduling.SerializedSchedule;
 import io.fluxcapacitor.javaclient.common.serialization.DeserializingMessage;
@@ -29,6 +30,7 @@ import lombok.experimental.Delegate;
 
 import java.time.Instant;
 import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
 import java.util.stream.Stream;
 
 import static io.fluxcapacitor.common.MessageType.COMMAND;
@@ -46,43 +48,41 @@ public class DefaultScheduler implements Scheduler, HasLocalHandlers {
     private final HandlerRegistry localHandlerRegistry;
 
     @Override
-    public void schedule(Schedule message, boolean ifAbsent) {
-        try {
-            if (Entity.isLoading()) {
-                return;
-            }
-            message = (Schedule) dispatchInterceptor.interceptDispatch(message, SCHEDULE);
-            if (message == null) {
-                return;
-            }
-            SerializedMessage serializedMessage = dispatchInterceptor.modifySerializedMessage(
-                    message.serialize(serializer), message, SCHEDULE);
-            if (serializedMessage == null) {
-                return;
-            }
-            client.schedule(new SerializedSchedule(message.getScheduleId(),
-                                                   message.getDeadline().toEpochMilli(),
-                                                   serializedMessage, ifAbsent)).get();
-        } catch (Exception e) {
-            throw new SchedulerException(String.format("Failed to schedule message %s for %s", message.getPayload(),
-                                                       message.getDeadline()), e);
+    public CompletableFuture<Void> schedule(Schedule message, boolean ifAbsent, Guarantee guarantee) {
+        if (Entity.isLoading()) {
+            return CompletableFuture.completedFuture(null);
         }
+        message = (Schedule) dispatchInterceptor.interceptDispatch(message, SCHEDULE);
+        if (message == null) {
+            return CompletableFuture.completedFuture(null);
+        }
+        SerializedMessage serializedMessage = dispatchInterceptor.modifySerializedMessage(
+                message.serialize(serializer), message, SCHEDULE);
+        if (serializedMessage == null) {
+            return CompletableFuture.completedFuture(null);
+        }
+        return client.schedule(guarantee, new SerializedSchedule(message.getScheduleId(),
+                                               message.getDeadline().toEpochMilli(),
+                                               serializedMessage, ifAbsent));
     }
 
     @Override
-    public void scheduleCommand(Schedule schedule, boolean ifAbsent) {
+    public CompletableFuture<Void> scheduleCommand(Schedule schedule, boolean ifAbsent, Guarantee guarantee) {
+        if (Entity.isLoading()) {
+            return CompletableFuture.completedFuture(null);
+        }
         var intercepted = commandDispatchInterceptor.interceptDispatch(schedule, COMMAND);
         if (intercepted == null) {
-            return;
+            return CompletableFuture.completedFuture(null);
         }
         schedule = schedule.withPayload(intercepted.getPayload()).withMetadata(intercepted.getMetadata());
         SerializedMessage serializedCommand = commandDispatchInterceptor.modifySerializedMessage(
                 schedule.serialize(serializer), schedule, COMMAND);
         if (serializedCommand == null) {
-            return;
+            return CompletableFuture.completedFuture(null);
         }
-        schedule(schedule.withPayload(new ScheduledCommand(serializedCommand))
-                         .addMetadata("$commandType", schedule.getPayloadClass().getName()), ifAbsent);
+        return schedule(schedule.withPayload(new ScheduledCommand(serializedCommand))
+                         .addMetadata("$commandType", schedule.getPayloadClass().getName()), ifAbsent, guarantee);
     }
 
     @Override

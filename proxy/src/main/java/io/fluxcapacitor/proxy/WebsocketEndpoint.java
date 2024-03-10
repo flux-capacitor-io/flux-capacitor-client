@@ -104,7 +104,7 @@ public class WebsocketEndpoint extends Endpoint {
                                             FluxCapacitor.currentClock().millis());
         request.setSource(client.id());
         request.setTarget(getContext(session).trackerId());
-        requestGateway.send(Guarantee.SENT, request);
+        requestGateway.append(Guarantee.SENT, request);
     }
 
     protected void handleResultMessages(List<SerializedMessage> resultMessages) {

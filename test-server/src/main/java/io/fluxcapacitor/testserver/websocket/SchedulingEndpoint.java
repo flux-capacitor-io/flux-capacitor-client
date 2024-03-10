@@ -12,7 +12,7 @@
  * limitations under the License.
  */
 
-package io.fluxcapacitor.testserver.endpoints;
+package io.fluxcapacitor.testserver.websocket;
 
 import io.fluxcapacitor.common.api.scheduling.CancelSchedule;
 import io.fluxcapacitor.common.api.scheduling.GetSchedule;
@@ -20,29 +20,27 @@ import io.fluxcapacitor.common.api.scheduling.GetScheduleResult;
 import io.fluxcapacitor.common.api.scheduling.Schedule;
 import io.fluxcapacitor.common.api.scheduling.SerializedSchedule;
 import io.fluxcapacitor.javaclient.scheduling.client.SchedulingClient;
-import io.fluxcapacitor.testserver.Handle;
-import io.fluxcapacitor.testserver.WebsocketEndpoint;
 import lombok.AllArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
 
-@Slf4j
+import java.util.concurrent.CompletableFuture;
+
 @AllArgsConstructor
 public class SchedulingEndpoint extends WebsocketEndpoint {
 
     private final SchedulingClient store;
 
     @Handle
-    public void handle(Schedule schedule) {
-        store.schedule(schedule.getMessages().toArray(SerializedSchedule[]::new));
+    CompletableFuture<Void> handle(Schedule schedule) {
+        return store.schedule(schedule.getGuarantee(), schedule.getMessages().toArray(SerializedSchedule[]::new));
     }
 
     @Handle
-    public void handle(CancelSchedule cancelSchedule) {
-        store.cancelSchedule(cancelSchedule.getScheduleId());
+    CompletableFuture<Void> handle(CancelSchedule request) {
+        return store.cancelSchedule(request.getScheduleId(), request.getGuarantee());
     }
 
     @Handle
-    public GetScheduleResult handle(GetSchedule request) {
+    GetScheduleResult handle(GetSchedule request) {
         return new GetScheduleResult(request.getRequestId(), store.getSchedule(request.getScheduleId()));
     }
 }

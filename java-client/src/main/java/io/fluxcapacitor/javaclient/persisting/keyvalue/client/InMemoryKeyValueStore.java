@@ -21,15 +21,15 @@ import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 
-public class InMemoryKeyValueClient implements KeyValueClient {
+public class InMemoryKeyValueStore implements KeyValueClient {
 
     private final Map<String, Data<byte[]>> values;
 
-    public InMemoryKeyValueClient() {
+    public InMemoryKeyValueStore() {
         this(new ConcurrentHashMap<>());
     }
 
-    protected InMemoryKeyValueClient(Map<String, Data<byte[]>> map) {
+    protected InMemoryKeyValueStore(Map<String, Data<byte[]>> map) {
         values = map;
     }
 
