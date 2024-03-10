@@ -151,7 +151,7 @@ public class DefaultTrackingStrategy extends AutoClosing implements TrackingStra
     }
 
     protected List<SerializedMessage> getBatch(int[] segment, Position position, int batchSize) {
-        return source.readFromIndex(position.lowestIndexForSegment(segment).map(i -> i + 1L).orElse(-1L), batchSize);
+        return source.getBatch(position.lowestIndexForSegment(segment).orElse(null), batchSize);
     }
 
     protected void waitForMessages(Tracker tracker, MessageBatch emptyBatch, PositionStore positionStore) {

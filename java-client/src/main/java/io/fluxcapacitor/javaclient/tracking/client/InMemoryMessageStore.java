@@ -168,6 +168,13 @@ public class InMemoryMessageStore implements GatewayClient, TrackingClient, Mess
     }
 
     @Override
+    public List<SerializedMessage> getBatch(Long minIndex, int maxSize, boolean inclusive) {
+        ArrayList<SerializedMessage> list = new ArrayList<>(filterMessages(messageLog.tailMap(
+                Optional.ofNullable(minIndex).map(i -> inclusive ? i : i + 1L).orElse(-1L)).values()));
+        return list.subList(0, Math.min(maxSize, list.size()));
+    }
+
+    @Override
     public List<SerializedMessage> readFromIndex(long minIndex, int maxSize) {
         ArrayList<SerializedMessage> list = new ArrayList<>(messageLog.tailMap(minIndex).values());
         return list.subList(0, Math.min(maxSize, list.size()));

@@ -17,6 +17,7 @@ package io.fluxcapacitor.javaclient.scheduling.client;
 import io.fluxcapacitor.common.Guarantee;
 import io.fluxcapacitor.common.api.SerializedMessage;
 import io.fluxcapacitor.common.api.scheduling.SerializedSchedule;
+import io.fluxcapacitor.javaclient.FluxCapacitor;
 import io.fluxcapacitor.javaclient.common.serialization.Serializer;
 import io.fluxcapacitor.javaclient.scheduling.Schedule;
 import io.fluxcapacitor.javaclient.tracking.client.InMemoryMessageStore;
@@ -69,9 +70,10 @@ public class InMemoryScheduleStore extends InMemoryMessageStore implements Sched
     public CompletableFuture<Void> schedule(Guarantee guarantee, SerializedSchedule... schedules) {
         List<SerializedSchedule> filtered = Arrays.stream(schedules)
                 .filter(s -> !s.isIfAbsent() || !scheduleIdsByIndex.containsValue(s.getScheduleId())).toList();
+        long now = FluxCapacitor.currentClock().millis();
         for (SerializedSchedule schedule : filtered) {
             cancelSchedule(schedule.getScheduleId());
-            long index = indexFromMillis(schedule.getTimestamp());
+            long index = indexFromMillis(Math.max(now, schedule.getTimestamp()));
             while (scheduleIdsByIndex.putIfAbsent(index, schedule.getScheduleId()) != null) {
                 index++;
             }

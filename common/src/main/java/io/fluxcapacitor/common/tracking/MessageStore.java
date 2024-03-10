@@ -24,6 +24,12 @@ import java.util.concurrent.CompletableFuture;
 public interface MessageStore extends AutoCloseable, Monitored<MessageDispatch> {
     CompletableFuture<Void> append(Guarantee guarantee, SerializedMessage... messages);
 
+    default List<SerializedMessage> getBatch(Long minIndex, int maxSize) {
+        return getBatch(minIndex, maxSize, false);
+    }
+
+    List<SerializedMessage> getBatch(Long minIndex, int maxSize, boolean inclusive);
+
     List<SerializedMessage> readFromIndex(long minIndex, int maxSize);
 
     @Override
