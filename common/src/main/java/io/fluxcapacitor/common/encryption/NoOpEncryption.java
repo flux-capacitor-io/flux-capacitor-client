@@ -19,7 +19,7 @@ public enum NoOpEncryption implements Encryption {
 
     @Override
     public String encrypt(String value) {
-        throw new UnsupportedOperationException();
+        return value;
     }
 
     @Override
