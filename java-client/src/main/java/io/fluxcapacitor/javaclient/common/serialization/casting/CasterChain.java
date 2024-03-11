@@ -18,6 +18,7 @@ import io.fluxcapacitor.common.api.Data;
 import io.fluxcapacitor.common.api.SerializedObject;
 import io.fluxcapacitor.javaclient.common.serialization.DeserializationException;
 import lombok.AllArgsConstructor;
+import lombok.Getter;
 import lombok.Value;
 import lombok.With;
 
@@ -81,9 +82,13 @@ public class CasterChain<T> {
     }
 
     protected <S extends SerializedObject<T, S>> Stream<S> cast(Stream<S> input, Integer desiredRevision) {
+        return doCast(input, desiredRevision);
+    }
+
+    protected <S extends SerializedObject<T, S>> Stream<S> doCast(Stream<S> input, Integer desiredRevision) {
         return input.flatMap(i -> Objects.equals(i.data().getRevision(), desiredRevision) ? Stream.of(i)
                 : Optional.ofNullable(casters.get(new DataRevision(i.data())))
-                .map(caster -> cast(caster.cast(i), desiredRevision))
+                .map(caster -> doCast(caster.cast(i), desiredRevision))
                 .orElseGet(() -> Stream.of(i)));
     }
 
@@ -105,6 +110,7 @@ public class CasterChain<T> {
     @AllArgsConstructor
     protected static class ConvertingSerializedObject<T> implements SerializedObject<T, ConvertingSerializedObject<T>> {
 
+        @Getter
         private final SerializedObject<byte[], ?> source;
         private final Converter<T> converter;
         @With

@@ -15,6 +15,7 @@
 package io.fluxcapacitor.javaclient.configuration.spring;
 
 import com.fasterxml.jackson.databind.node.TextNode;
+import io.fluxcapacitor.common.api.SerializedMessage;
 import io.fluxcapacitor.common.caching.DefaultCache;
 import io.fluxcapacitor.javaclient.FluxCapacitor;
 import io.fluxcapacitor.javaclient.common.serialization.DeserializingMessage;
@@ -27,6 +28,7 @@ import io.fluxcapacitor.javaclient.tracking.handling.IllegalCommandException;
 import io.fluxcapacitor.javaclient.tracking.handling.LocalHandler;
 import io.fluxcapacitor.javaclient.tracking.handling.authentication.User;
 import io.fluxcapacitor.javaclient.tracking.handling.authentication.UserProvider;
+import lombok.NonNull;
 import lombok.Value;
 import lombok.extern.slf4j.Slf4j;
 import org.junit.jupiter.api.AfterEach;
@@ -157,8 +159,13 @@ public class FluxCapacitorSpringConfigTest {
     @Component
     public static class StringUpcaster {
         @Upcast(type = "java.lang.String", revision = 0)
-        public TextNode upcastResult(TextNode node) {
-            return TextNode.valueOf(node.asText().equals("result") ? "upcasted result" : node.asText());
+        public TextNode upcastResult(TextNode node, @NonNull SerializedMessage message) {
+            return TextNode.valueOf(node.asText().equals("result") ? "intermediate result" : node.asText());
+        }
+
+        @Upcast(type = "java.lang.String", revision = 1)
+        public TextNode upcastIntermediateResult(TextNode node, @NonNull SerializedMessage message) {
+            return TextNode.valueOf(node.asText().equals("intermediate result") ? "upcasted result" : node.asText());
         }
     }
 

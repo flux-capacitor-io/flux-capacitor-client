@@ -15,7 +15,9 @@
 package io.fluxcapacitor.javaclient.common.serialization.casting;
 
 import io.fluxcapacitor.common.api.Data;
+import io.fluxcapacitor.common.api.SerializedMessage;
 import io.fluxcapacitor.common.api.SerializedObject;
+import io.fluxcapacitor.common.reflection.DefaultMemberInvoker;
 import io.fluxcapacitor.common.reflection.ReflectionUtils;
 import io.fluxcapacitor.javaclient.common.serialization.DeserializationException;
 
@@ -23,8 +25,8 @@ import java.lang.annotation.Annotation;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.lang.reflect.ParameterizedType;
-import java.lang.reflect.Type;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.Comparator;
 import java.util.List;
@@ -77,29 +79,35 @@ public class CastInspector {
 
     private static <T> Function<SerializedObject<T, ?>, Object> invokeFunction(Method method, Object target,
                                                                                Class<T> dataType) {
-        Type[] parameters = method.getGenericParameterTypes();
-        if (parameters.length > 1) {
-            throw new DeserializationException(
-                    String.format("Upcaster method '%s' has unexpected number of parameters. Expected 1 or 0.",
-                                  method));
+        var parameterFunctions =
+                Arrays.stream(method.getGenericParameterTypes()).<Function<SerializedObject<T, ?>, ?>>map(pt -> {
+                    if (pt instanceof ParameterizedType parameterizedType) {
+                        if (parameterizedType.getRawType().equals(Data.class) && dataType
+                                .isAssignableFrom((Class<?>) parameterizedType.getActualTypeArguments()[0])) {
+                            return SerializedObject::data;
+                        }
+                        if (dataType.isAssignableFrom((Class<?>) parameterizedType.getRawType())) {
+                            return s -> s.data().getValue();
+                        }
+                    } else if (pt instanceof Class<?> c) {
+                        if (dataType.isAssignableFrom(c)) {
+                            return s -> s.data().getValue();
+                        }
+                        if (SerializedMessage.class.isAssignableFrom(c)) {
+                            return s -> s instanceof CasterChain.ConvertingSerializedObject<?> i
+                                        && i.getSource() instanceof SerializedMessage m ? m : null;
+                        }
+                    }
+                    throw new DeserializationException(String.format(
+                            "Parameter in upcaster method '%s' is of unexpected type. Expected Data<%s> or %s.",
+                            method, dataType.getName(), dataType.getName()));
+                }).toList();
+        var invoker = DefaultMemberInvoker.asInvoker(method);
+        try {
+            return s -> invoker.invoke(target, parameterFunctions.size(), i -> parameterFunctions.get(i).apply(s));
+        } catch (Throwable e) {
+            throw new DeserializationException("Exception while upcasting using method: " + invoker.getMember(), e);
         }
-        if (parameters.length == 0) {
-            return s -> invokeMethod(method, null, target);
-        }
-        if (parameters[0] instanceof ParameterizedType parameterizedType) {
-            if (parameterizedType.getRawType().equals(Data.class) && dataType
-                    .isAssignableFrom((Class<?>) parameterizedType.getActualTypeArguments()[0])) {
-                return s -> invokeMethod(method, s.data(), target);
-            }
-            if (dataType.isAssignableFrom((Class<?>) parameterizedType.getRawType())) {
-                return s -> invokeMethod(method, s.data().getValue(), target);
-            }
-        } else if (dataType.isAssignableFrom((Class<?>) parameters[0])) {
-            return s -> invokeMethod(method, s.data().getValue(), target);
-        }
-        throw new DeserializationException(String.format(
-                "First parameter in upcaster method '%s' is of unexpected type. Expected Data<%s> or %s.",
-                method, dataType.getName(), dataType.getName()));
     }
 
     private static Object invokeMethod(Method method, Object argument, Object target) {
