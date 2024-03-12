@@ -19,8 +19,8 @@ import io.fluxcapacitor.common.MessageType;
 import io.fluxcapacitor.common.Registration;
 import io.fluxcapacitor.common.ThrowingConsumer;
 import io.fluxcapacitor.common.ThrowingFunction;
-import io.fluxcapacitor.common.api.Data;
 import io.fluxcapacitor.common.api.SerializedMessage;
+import io.fluxcapacitor.common.api.SerializedObject;
 import io.fluxcapacitor.common.api.tracking.MessageBatch;
 import io.fluxcapacitor.common.application.SimplePropertySource;
 import io.fluxcapacitor.common.handling.HandlerFilter;
@@ -754,10 +754,12 @@ public class TestFixture implements Given, When {
         return fluxCapacitor.apply(fc -> asMessage(parsePayload(value, callerClass)).addUser(user));
     }
 
+    @SuppressWarnings("unchecked")
     public Object parsePayload(Object object, Class<?> callerClass) {
         object = parseObject(object, callerClass);
-        if (object instanceof Data<?> data) {
-            Data<byte[]> eventBytes = fluxCapacitor.serializer().serialize(data);
+        if (object instanceof SerializedObject<?, ?> s) {
+            SerializedObject<byte[], ?> eventBytes = s.data().getValue() instanceof byte[]
+                    ? (SerializedObject<byte[], ?>) s : fluxCapacitor.serializer().serialize(s);
             object = fluxCapacitor.serializer().deserialize(eventBytes);
         }
         return object;

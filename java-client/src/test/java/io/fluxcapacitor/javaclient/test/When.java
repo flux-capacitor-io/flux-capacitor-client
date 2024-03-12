@@ -149,4 +149,11 @@ public interface When {
      * Test expected result and/or (side) effects of the given action.
      */
     Then whenApplying(ThrowingFunction<FluxCapacitor, ?> action);
+
+    /**
+     * Test for state after the given phase.
+     */
+    default Then whenNothingHappens() {
+        return whenExecuting(fc -> {});
+    }
 }

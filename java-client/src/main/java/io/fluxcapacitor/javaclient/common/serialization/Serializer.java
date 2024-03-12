@@ -57,16 +57,15 @@ public interface Serializer extends ContentFilter {
      * @return Object resulting from the deserialization
      * @throws DeserializationException if deserialization fails
      */
-    @SuppressWarnings("unchecked")
+    @SuppressWarnings({"unchecked", "rawtypes"})
     default <T> T deserialize(SerializedObject<byte[], ?> data) {
-        List<T> list = deserialize((Stream) Stream.of(data), true)
-                .map(d -> ((DeserializingObject<T, ?>) d).getPayload()).toList();
+        List<DeserializingObject<T, ?>> list = deserialize((Stream) Stream.of(data), true).toList();
         if (list.size() != 1) {
             throw new DeserializationException(
                     String.format("Invalid deserialization result for a '%s'. Expected a single object but got %s",
-                                  data, list));
+                                  data, list.stream().map(DeserializingObject::getClass).toList()));
         }
-        return list.get(0);
+        return list.getFirst().getPayload();
     }
 
     /**
