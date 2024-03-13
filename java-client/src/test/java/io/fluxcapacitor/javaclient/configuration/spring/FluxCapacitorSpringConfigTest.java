@@ -14,7 +14,7 @@
 
 package io.fluxcapacitor.javaclient.configuration.spring;
 
-import com.fasterxml.jackson.databind.node.TextNode;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import io.fluxcapacitor.common.api.SerializedMessage;
 import io.fluxcapacitor.common.caching.DefaultCache;
 import io.fluxcapacitor.javaclient.FluxCapacitor;
@@ -88,8 +88,8 @@ public class FluxCapacitorSpringConfigTest {
 
     @Test
     void testHandleCommand() {
-        String result = fluxCapacitor.commandGateway().sendAndWait("command");
-        assertEquals("upcasted result", result);
+        String result = fluxCapacitor.commandGateway().sendAndWait(new UpcastCommand("command"));
+        assertEquals("upcasted command", result);
     }
 
     @Test
@@ -142,6 +142,11 @@ public class FluxCapacitorSpringConfigTest {
         }
 
         @HandleCommand
+        Object handle(UpcastCommand command) {
+            return command.getValue();
+        }
+
+        @HandleCommand
         void handle(AggregateCommand command, @Autowired UserProvider userProvider) {
             assertNotNull(userProvider, "User provider should have been injected");
             FluxCapacitor.loadAggregate("whatever", Object.class).assertAndApply(command);
@@ -158,14 +163,14 @@ public class FluxCapacitorSpringConfigTest {
 
     @Component
     public static class StringUpcaster {
-        @Upcast(type = "java.lang.String", revision = 0)
-        public TextNode upcastResult(TextNode node, @NonNull SerializedMessage message) {
-            return TextNode.valueOf(node.asText().equals("result") ? "intermediate result" : node.asText());
+        @Upcast(type = "io.fluxcapacitor.javaclient.configuration.spring.FluxCapacitorSpringConfigTest$UpcastCommand", revision = 0)
+        public ObjectNode upcastResult(ObjectNode node, @NonNull SerializedMessage message) {
+            return node.put("value", "intermediate command");
         }
 
-        @Upcast(type = "java.lang.String", revision = 1)
-        public TextNode upcastIntermediateResult(TextNode node, @NonNull SerializedMessage message) {
-            return TextNode.valueOf(node.asText().equals("intermediate result") ? "upcasted result" : node.asText());
+        @Upcast(type = "io.fluxcapacitor.javaclient.configuration.spring.FluxCapacitorSpringConfigTest$UpcastCommand", revision = 1)
+        public ObjectNode upcastIntermediateResult(ObjectNode node, @NonNull SerializedMessage message) {
+            return node.put("value", "upcasted command");
         }
     }
 
@@ -235,6 +240,11 @@ public class FluxCapacitorSpringConfigTest {
     @ConditionalOnBean(ConditionalPropertyMissing.class)
     @Component
     public static class ConditionalBeanMissing {
+    }
+
+    @Value
+    static class UpcastCommand {
+        String value;
     }
 
 }
