@@ -128,7 +128,7 @@ public class DefaultGenericGateway implements GenericGateway {
                 .map(r -> r.thenCompose(m -> {
                     Object result;
                     try {
-                        result = serializer.deserialize(m.getData());
+                        result = serializer.deserialize(m);
                     } catch (Exception e) {
                         log.error("Failed to deserialize result with id {}", m.getMessageId(), e);
                         return CompletableFuture.failedFuture(e);
