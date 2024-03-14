@@ -22,7 +22,6 @@ import io.fluxcapacitor.common.reflection.ReflectionUtils;
 import io.fluxcapacitor.javaclient.common.serialization.DeserializationException;
 
 import java.lang.annotation.Annotation;
-import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.lang.reflect.ParameterizedType;
 import java.util.ArrayList;
@@ -107,16 +106,6 @@ public class CastInspector {
             return s -> invoker.invoke(target, parameterFunctions.size(), i -> parameterFunctions.get(i).apply(s));
         } catch (Throwable e) {
             throw new DeserializationException("Exception while upcasting using method: " + invoker.getMember(), e);
-        }
-    }
-
-    private static Object invokeMethod(Method method, Object argument, Object target) {
-        try {
-            return argument == null ? method.invoke(target) : method.invoke(target, argument);
-        } catch (IllegalAccessException e) {
-            throw new DeserializationException("Not allowed to invoke method: " + method, e);
-        } catch (InvocationTargetException e) {
-            throw new DeserializationException("Exception while upcasting using method: " + method, e);
         }
     }
 

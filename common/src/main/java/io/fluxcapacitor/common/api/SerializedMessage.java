@@ -14,6 +14,7 @@
 
 package io.fluxcapacitor.common.api;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import lombok.AllArgsConstructor;
 import lombok.NonNull;
 import lombok.With;
@@ -45,5 +46,17 @@ public class SerializedMessage implements SerializedObject<byte[], SerializedMes
     @Override
     public Data<byte[]> data() {
         return data;
+    }
+
+    @Override
+    @JsonIgnore
+    public int getRevision() {
+        return SerializedObject.super.getRevision();
+    }
+
+    @Override
+    @JsonIgnore
+    public String getType() {
+        return SerializedObject.super.getType();
     }
 }

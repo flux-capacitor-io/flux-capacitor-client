@@ -86,8 +86,8 @@ public class CasterChain<T> {
     }
 
     protected <S extends SerializedObject<T, S>> Stream<S> doCast(Stream<S> input, Integer desiredRevision) {
-        return input.flatMap(i -> Objects.equals(i.data().getRevision(), desiredRevision) ? Stream.of(i)
-                : Optional.ofNullable(casters.get(new DataRevision(i.data())))
+        return input.flatMap(i -> Objects.equals(i.getRevision(), desiredRevision) ? Stream.of(i)
+                : Optional.ofNullable(casters.get(new DataRevision(i.getType(), i.getRevision())))
                 .map(caster -> doCast(caster.cast(i), desiredRevision))
                 .orElseGet(() -> Stream.of(i)));
     }
@@ -98,11 +98,7 @@ public class CasterChain<T> {
         String type;
         int revision;
 
-        protected DataRevision(Data<?> data) {
-            this(data.getType(), data.getRevision());
-        }
-
-        protected DataRevision(CastParameters annotation) {
+        DataRevision(CastParameters annotation) {
             this(annotation.type(), annotation.revision());
         }
     }
@@ -119,16 +115,28 @@ public class CasterChain<T> {
         public ConvertingSerializedObject(SerializedObject<byte[], ?> source, Converter<T> converter) {
             this.source = source;
             this.converter = converter;
-            this.data = converter.convert(source.data());
         }
 
         @Override
         public Data<T> data() {
+            if (data == null) {
+                data = converter.convert(source.data());
+            }
             return data;
         }
 
+        @Override
+        public String getType() {
+            return data == null ? source.getType() : data.getType();
+        }
+
+        @Override
+        public int getRevision() {
+            return data == null ? source.getRevision() : data.getRevision();
+        }
+
         public SerializedObject<byte[], ?> getResult() {
-            return source.withData(converter.convertBack(data));
+            return data == null ? source : source.withData(converter.convertBack(data));
         }
     }
 }

@@ -18,4 +18,12 @@ public interface SerializedObject<T, S extends SerializedObject<T, S>> {
     Data<T> data();
 
     S withData(Data<T> data);
+
+    default int getRevision() {
+        return data().getRevision();
+    }
+
+    default String getType() {
+        return data().getType();
+    }
 }
