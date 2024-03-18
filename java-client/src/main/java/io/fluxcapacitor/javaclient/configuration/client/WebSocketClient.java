@@ -29,6 +29,7 @@ import lombok.Getter;
 import lombok.NonNull;
 import lombok.Value;
 
+import java.time.Duration;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
@@ -93,6 +94,8 @@ public class WebSocketClient extends AbstractClient {
         @Default int searchSessions = 2;
         @Default Map<MessageType, Integer> gatewaySessions = defaultGatewaySessions();
         @Default Map<MessageType, TrackingClientConfig> trackingConfigs = defaultTrackingSessions();
+        @Default Duration pingTimeout = Duration.ofSeconds(10);
+        @Default Duration pingDelay = Duration.ofMinutes(1);
         String projectId;
         String typeFilter;
 

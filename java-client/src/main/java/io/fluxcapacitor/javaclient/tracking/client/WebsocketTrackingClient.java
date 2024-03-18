@@ -121,4 +121,9 @@ public class WebsocketTrackingClient extends AbstractWebsocketClient implements 
     public void close() {
         close(true);
     }
+
+    @Override
+    public String toString() {
+        return "%s-%s".formatted(super.toString(), messageType);
+    }
 }

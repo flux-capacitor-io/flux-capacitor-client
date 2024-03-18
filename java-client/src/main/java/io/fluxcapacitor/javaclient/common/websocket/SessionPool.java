@@ -18,19 +18,15 @@ import io.fluxcapacitor.common.ConsistentHashing;
 import jakarta.websocket.Session;
 import lombok.extern.slf4j.Slf4j;
 
-import java.util.ArrayList;
-import java.util.List;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
-import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Supplier;
-import java.util.stream.IntStream;
-
-import static java.util.stream.Collectors.toCollection;
 
 @Slf4j
 public class SessionPool implements AutoCloseable {
-    private final List<AtomicReference<Session>> sessions;
+    private final Map<Integer, Session> sessionMap;
     private final int size;
     private final AtomicInteger counter = new AtomicInteger();
     private final Supplier<Session> sessionFactory;
@@ -38,44 +34,41 @@ public class SessionPool implements AutoCloseable {
 
     public SessionPool(int size, Supplier<Session> sessionFactory) {
         this.sessionFactory = sessionFactory;
-        this.sessions = IntStream.range(0, this.size = size).mapToObj(i -> new AtomicReference<Session>()).collect(
-                toCollection(ArrayList::new));
+        this.size = size;
+        this.sessionMap = new ConcurrentHashMap<>();
     }
 
     public Session get() {
-        return sessions.get(counter.getAndAccumulate(1, (i, inc) -> {
+        return get(counter.getAndAccumulate(1, (i, inc) -> {
             int newIndex = i + inc;
             return newIndex >= size ? 0 : newIndex;
-        })).updateAndGet(this::returnOrRefresh);
+        }));
     }
 
     public Session get(String routingKey) {
         if (routingKey == null) {
             return get();
         }
-        int segment = ConsistentHashing.computeSegment(routingKey, size);
-        return sessions.get(segment).updateAndGet(this::returnOrRefresh);
+        return get(ConsistentHashing.computeSegment(routingKey, size));
     }
 
-    protected Session returnOrRefresh(Session s) {
-        if (isClosed(s)) {
-            synchronized (shuttingDown) {
-                while (isClosed(s)) {
-                    if (shuttingDown.get()) {
-                        throw new IllegalStateException("Cannot provide session. This client has closed");
-                    }
-                    s = sessionFactory.get();
+    protected Session get(int index) {
+        return sessionMap.compute(index, (i, s) -> {
+            while (isClosed(s)) {
+                if (shuttingDown.get()) {
+                    throw new IllegalStateException("Cannot provide session. This client has closed");
                 }
+                s = sessionFactory.get();
             }
-        }
-        return s;
+            return s;
+        });
     }
 
     @Override
     public void close() {
         if (shuttingDown.compareAndSet(false, true)) {
             synchronized (shuttingDown) {
-                sessions.stream().map(AtomicReference::get).forEach(session -> {
+                sessionMap.values().forEach(session -> {
                     if (!isClosed(session)) {
                         try {
                             session.close();

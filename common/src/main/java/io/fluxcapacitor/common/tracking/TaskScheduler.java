@@ -15,10 +15,22 @@
 package io.fluxcapacitor.common.tracking;
 
 import io.fluxcapacitor.common.Registration;
+import io.fluxcapacitor.common.ThrowingRunnable;
+
+import java.time.Duration;
+import java.time.Instant;
 
 public interface TaskScheduler {
 
-    Registration schedule(long deadline, Runnable task);
+    default Registration schedule(Duration duration, ThrowingRunnable task) {
+        return schedule(Instant.now().plus(duration), task);
+    }
+
+    default Registration schedule(Instant deadline, ThrowingRunnable task) {
+        return schedule(deadline.toEpochMilli(), task);
+    }
+
+    Registration schedule(long deadline, ThrowingRunnable task);
 
     void shutdown();
 }

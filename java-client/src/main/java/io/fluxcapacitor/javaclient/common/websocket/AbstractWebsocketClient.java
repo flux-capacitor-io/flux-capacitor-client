@@ -17,6 +17,7 @@ package io.fluxcapacitor.javaclient.common.websocket;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.json.JsonMapper;
 import io.fluxcapacitor.common.Backlog;
+import io.fluxcapacitor.common.Registration;
 import io.fluxcapacitor.common.RetryConfiguration;
 import io.fluxcapacitor.common.api.Command;
 import io.fluxcapacitor.common.api.JsonType;
@@ -25,6 +26,8 @@ import io.fluxcapacitor.common.api.QueryResult;
 import io.fluxcapacitor.common.api.Request;
 import io.fluxcapacitor.common.api.RequestBatch;
 import io.fluxcapacitor.common.api.ResultBatch;
+import io.fluxcapacitor.common.tracking.InMemoryTaskScheduler;
+import io.fluxcapacitor.common.tracking.TaskScheduler;
 import io.fluxcapacitor.javaclient.FluxCapacitor;
 import io.fluxcapacitor.javaclient.configuration.client.WebSocketClient;
 import io.fluxcapacitor.javaclient.configuration.client.WebSocketClient.ClientConfig;
@@ -35,17 +38,23 @@ import jakarta.websocket.ContainerProvider;
 import jakarta.websocket.OnClose;
 import jakarta.websocket.OnError;
 import jakarta.websocket.OnMessage;
+import jakarta.websocket.OnOpen;
+import jakarta.websocket.PongMessage;
 import jakarta.websocket.Session;
 import jakarta.websocket.WebSocketContainer;
 import lombok.RequiredArgsConstructor;
 import lombok.SneakyThrows;
+import lombok.Value;
+import lombok.experimental.Delegate;
 import lombok.extern.slf4j.Slf4j;
 
 import java.io.OutputStream;
 import java.net.URI;
+import java.nio.ByteBuffer;
 import java.time.Duration;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
@@ -79,9 +88,10 @@ public abstract class AbstractWebsocketClient implements AutoCloseable {
     private final ObjectMapper objectMapper;
     private final Map<Long, WebSocketRequest> requests = new ConcurrentHashMap<>();
     private final Map<String, Backlog<Request>> sessionBacklogs = new ConcurrentHashMap<>();
+    private final TaskScheduler pingScheduler;
+    private final Map<String, PingRegistration> pingDeadlines = new ConcurrentHashMap<>();
     private final AtomicBoolean closed = new AtomicBoolean();
-    private final ExecutorService resultExecutor = Executors.newFixedThreadPool(
-            8, newThreadFactory(getClass().getSimpleName() + "-onMessage"));
+    private final ExecutorService resultExecutor;
     private final boolean sendMetrics;
 
     public AbstractWebsocketClient(URI endpointUri, ClientConfig clientConfig, boolean sendMetrics) {
@@ -100,6 +110,9 @@ public abstract class AbstractWebsocketClient implements AutoCloseable {
         this.clientConfig = clientConfig;
         this.objectMapper = objectMapper;
         this.sendMetrics = sendMetrics;
+        this.pingScheduler = new InMemoryTaskScheduler(this + "-pingScheduler");
+        this.resultExecutor = Executors.newFixedThreadPool(
+                8, newThreadFactory(this + "-onMessage"));
         this.sessionPool = new SessionPool(numberOfSessions, () -> retryOnFailure(
                 () -> container.connectToServer(this, endpointUri),
                 RetryConfiguration.builder()
@@ -159,19 +172,24 @@ public abstract class AbstractWebsocketClient implements AutoCloseable {
 
     @SneakyThrows
     private void sendBatch(List<Request> requests, Session session) {
-        JsonType object = requests.size() == 1 ? requests.get(0) : new RequestBatch<>(requests);
+        JsonType object = requests.size() == 1 ? requests.getFirst() : new RequestBatch<>(requests);
         try (OutputStream outputStream = session.getBasicRemote().getSendStream()) {
             byte[] bytes = objectMapper.writeValueAsBytes(object);
-            outputStream.write(compress(bytes, clientConfig.getCompression()));
+            if (session.isOpen()) {
+                outputStream.write(compress(bytes, clientConfig.getCompression()));
+            }
         } catch (Exception e) {
             log.error("Failed to send request {}", object, e);
-            throw e;
+            if (Optional.ofNullable(e.getMessage()).map(m -> m.contains("Channel is closed")).orElse(false)) {
+                abort(session);
+            } else {
+                throw e;
+            }
         }
     }
 
     @OnMessage
-    @SneakyThrows
-    public void onMessage(byte[] bytes) {
+    public void onMessage(byte[] bytes, Session session) {
         resultExecutor.execute(() -> {
             JsonType value;
             try {
@@ -184,6 +202,10 @@ public abstract class AbstractWebsocketClient implements AutoCloseable {
                 String batchId = FluxCapacitor.generateId();
                 ((ResultBatch) value).getResults().forEach(r -> resultExecutor.execute(() -> handleResult(r, batchId)));
             } else {
+                WebSocketRequest webSocketRequest = requests.get(((QueryResult) value).getRequestId());
+                if (webSocketRequest == null) {
+                    log.warn("Could not find outstanding read request for id {} (session {})", ((QueryResult) value).getRequestId(), session.getId());
+                }
                 handleResult((QueryResult) value, null);
             }
         });
@@ -205,8 +227,9 @@ public abstract class AbstractWebsocketClient implements AutoCloseable {
                     FluxCapacitor.getOptionally().or(() -> ofNullable(webSocketRequest.fluxCapacitor))
                             .ifPresent(fc -> fc.execute(f -> ofNullable(webSocketRequest.adhocMetricsInterceptor)
                                     .ifPresentOrElse(
-                                            i -> AdhocDispatchInterceptor.runWithAdhocInterceptor(() -> tryPublishMetrics(result, metadata), i,
-                                                                                                  METRICS),
+                                            i -> AdhocDispatchInterceptor.runWithAdhocInterceptor(
+                                                    () -> tryPublishMetrics(result, metadata), i,
+                                                    METRICS),
                                             () -> tryPublishMetrics(result, metadata))));
                 } finally {
                     webSocketRequest.result.complete(result);
@@ -217,9 +240,78 @@ public abstract class AbstractWebsocketClient implements AutoCloseable {
         }
     }
 
+    @OnOpen
+    public void onOpen(Session session) {
+        schedulePing(session);
+    }
+
+    protected PingRegistration schedulePing(Session session) {
+        return pingDeadlines.compute(session.getId(), (k, v) -> {
+            if (v != null) {
+                v.cancel();
+            }
+            return !closed.get() ? new PingRegistration(
+                    pingScheduler.schedule(clientConfig.getPingDelay(), () -> sendPing(session))) : null;
+        });
+    }
+
+    @SneakyThrows
+    protected void sendPing(Session session) {
+        if (!closed.get()) {
+            if (session.isOpen()) {
+                var registration = pingDeadlines.compute(session.getId(), (k, v) -> {
+                    if (v != null) {
+                        v.cancel();
+                    }
+                    return new PingRegistration(pingScheduler.schedule(clientConfig.getPingTimeout(), () -> {
+                        log.warn("Failed to get a ping response in time for session {}. Resetting connection", session.getId());
+                        abort(session);
+                    }));
+                });
+                try {
+                    session.getBasicRemote().sendPing(ByteBuffer.wrap(registration.getId().getBytes()));
+                } catch (Exception e) {
+                    log.warn("Failed to send ping message", e);
+                }
+            }
+        }
+    }
+
+    @SuppressWarnings("TryFinallyCanBeTryWithResources")
+    protected void abort(Session session) {
+        var reason = new CloseReason(NO_STATUS_CODE, null);
+        try {
+         onClose(session, reason);
+        } finally {
+            try {
+                session.close(reason);
+            } catch (Throwable ignored) {
+            }
+        }
+    }
+
+    @OnMessage
+    public void onPong(PongMessage message, Session session) {
+        pingDeadlines.compute(session.getId(), (k, v) -> {
+            if (v == null) {
+                return v;
+            }
+            v.cancel();
+            return schedulePing(session);
+        });
+    }
+
+    @Value
+    protected static class PingRegistration implements Registration {
+        String id = FluxCapacitor.generateId();
+        @Delegate
+        Registration delegate;
+    }
+
     @OnClose
     public void onClose(Session session, CloseReason closeReason) {
         sessionBacklogs.remove(session.getId());
+        Optional.ofNullable(pingDeadlines.remove(session.getId())).ifPresent(PingRegistration::cancel);
         if (closeReason.getCloseCode().getCode() > NO_STATUS_CODE.getCode()) {
             log.warn("Connection to endpoint {} closed with reason {}", session.getRequestURI(), closeReason);
         }
@@ -234,7 +326,14 @@ public abstract class AbstractWebsocketClient implements AutoCloseable {
                 currentThread().interrupt();
                 throw new IllegalStateException("Thread interrupted while trying to retry outstanding requests", e);
             }
-            requests.values().stream().filter(r -> sessionId.equals(r.sessionId)).forEach(WebSocketRequest::send);
+            synchronized (sessionId.intern()) {
+                requests.values().stream().filter(r -> sessionId.equals(r.sessionId)).forEach(
+                        r -> {
+                            log.info("Retrying request {} using a new session (old session {})",
+                                     r.request.getRequestId(), sessionId);
+                            r.send();
+                        });
+            }
         }
     }
 
@@ -248,13 +347,20 @@ public abstract class AbstractWebsocketClient implements AutoCloseable {
         close(false);
     }
 
+    @Override
+    public String toString() {
+        return getClass().getSimpleName();
+    }
+
     protected void close(boolean clearOutstandingRequests) {
         if (closed.compareAndSet(false, true)) {
             synchronized (closed) {
                 if (clearOutstandingRequests) {
                     requests.clear();
                 }
+                pingScheduler.shutdown();
                 sessionPool.close();
+                pingDeadlines.clear();
                 if (!requests.isEmpty()) {
                     log.warn("{}: Closed websocket session to endpoint with {} outstanding requests",
                              getClass().getSimpleName(), requests.size());

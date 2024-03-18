@@ -15,6 +15,7 @@
 package io.fluxcapacitor.common.tracking;
 
 import io.fluxcapacitor.common.Registration;
+import io.fluxcapacitor.common.ThrowingRunnable;
 import lombok.extern.slf4j.Slf4j;
 
 import java.util.Set;
@@ -28,15 +29,19 @@ import static io.fluxcapacitor.common.TimingUtils.isMissedDeadline;
 
 @Slf4j
 public class InMemoryTaskScheduler implements TaskScheduler {
-    private final ScheduledExecutorService executorService = Executors.newSingleThreadScheduledExecutor(
-            newThreadFactory("InMemoryScheduler"));
+    private final ScheduledExecutorService executorService;
     private final Set<Task> tasks = new CopyOnWriteArraySet<>();
 
     public InMemoryTaskScheduler() {
-        this(100);
+        this("InMemoryScheduler");
     }
 
-    public InMemoryTaskScheduler(int delay) {
+    public InMemoryTaskScheduler(String threadName) {
+        this(100, threadName);
+    }
+
+    public InMemoryTaskScheduler(int delay, String threadName) {
+        this.executorService = Executors.newSingleThreadScheduledExecutor(newThreadFactory(threadName));
         executorService.scheduleWithFixedDelay(this::executeExpiredTasks, delay, delay, TimeUnit.MILLISECONDS);
     }
 
@@ -45,7 +50,7 @@ public class InMemoryTaskScheduler implements TaskScheduler {
             if (isMissedDeadline(task.deadline) && tasks.remove(task)) {
                 try {
                     task.runnable.run();
-                } catch (Exception e) {
+                } catch (Throwable e) {
                     log.error("Failed to execute scheduled task", e);
                 }
             }
@@ -53,7 +58,7 @@ public class InMemoryTaskScheduler implements TaskScheduler {
     }
 
     @Override
-    public Registration schedule(long deadline, Runnable task) {
+    public Registration schedule(long deadline, ThrowingRunnable task) {
         Task schedulerTask = new Task(task, deadline);
         tasks.add(schedulerTask);
         return () -> tasks.remove(schedulerTask);
@@ -65,10 +70,10 @@ public class InMemoryTaskScheduler implements TaskScheduler {
     }
 
     private static class Task {
-        private final Runnable runnable;
+        private final ThrowingRunnable runnable;
         private final long deadline;
 
-        public Task(Runnable runnable, long deadline) {
+        public Task(ThrowingRunnable runnable, long deadline) {
             this.runnable = runnable;
             this.deadline = deadline;
         }

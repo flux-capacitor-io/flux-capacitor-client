@@ -71,6 +71,11 @@ public class WebsocketGatewayClient extends AbstractWebsocketClient implements G
     }
 
     @Override
+    public String toString() {
+        return "%s-%s".formatted(super.toString(), messageType);
+    }
+
+    @Override
     protected Metadata metricsMetadata() {
         return metricsMetadata;
     }
