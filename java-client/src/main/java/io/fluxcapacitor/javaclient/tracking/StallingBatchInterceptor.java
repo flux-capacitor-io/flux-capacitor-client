@@ -15,7 +15,9 @@
 package io.fluxcapacitor.javaclient.tracking;
 
 import io.fluxcapacitor.common.api.tracking.MessageBatch;
+import lombok.AllArgsConstructor;
 import lombok.Builder;
+import lombok.NoArgsConstructor;
 import lombok.NonNull;
 import lombok.extern.slf4j.Slf4j;
 
@@ -29,6 +31,8 @@ import static io.fluxcapacitor.javaclient.FluxCapacitor.currentTime;
 
 @Builder
 @Slf4j
+@NoArgsConstructor
+@AllArgsConstructor
 public class StallingBatchInterceptor implements BatchInterceptor {
     @Builder.Default
     private final int desiredBatchSize = 512;
