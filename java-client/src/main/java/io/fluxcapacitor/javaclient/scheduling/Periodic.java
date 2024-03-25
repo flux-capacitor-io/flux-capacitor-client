@@ -31,6 +31,9 @@ import static java.util.concurrent.TimeUnit.MILLISECONDS;
  * annotation is present the same payload will be rescheduled using the configured delay each time after handling.
  * <p>
  * By default, the periodic schedule will also be automatically started if it isn't running yet.
+ * <p>
+ * Note, that if exception {@link CancelPeriodic} is thrown by the handler for a schedule, the periodic schedule will be
+ * cancelled.
  */
 @Documented
 @Target({ElementType.TYPE, ElementType.METHOD})
