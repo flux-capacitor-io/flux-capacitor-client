@@ -20,7 +20,6 @@ import io.fluxcapacitor.common.Registration;
 import io.fluxcapacitor.common.api.Metadata;
 import io.fluxcapacitor.common.api.SerializedMessage;
 import io.fluxcapacitor.common.api.publishing.Append;
-import io.fluxcapacitor.common.tracking.MessageDispatch;
 import io.fluxcapacitor.javaclient.common.websocket.AbstractWebsocketClient;
 import io.fluxcapacitor.javaclient.configuration.client.WebSocketClient;
 import io.fluxcapacitor.javaclient.configuration.client.WebSocketClient.ClientConfig;
@@ -28,6 +27,7 @@ import jakarta.websocket.ClientEndpoint;
 
 import java.net.URI;
 import java.util.Arrays;
+import java.util.List;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CopyOnWriteArraySet;
@@ -38,7 +38,7 @@ import static io.fluxcapacitor.common.MessageType.METRICS;
 @ClientEndpoint
 public class WebsocketGatewayClient extends AbstractWebsocketClient implements GatewayClient {
 
-    private final Set<Consumer<MessageDispatch>> monitors = new CopyOnWriteArraySet<>();
+    private final Set<Consumer<List<SerializedMessage>>> monitors = new CopyOnWriteArraySet<>();
 
     private final Metadata metricsMetadata;
     private final MessageType messageType;
@@ -64,8 +64,7 @@ public class WebsocketGatewayClient extends AbstractWebsocketClient implements G
             return sendCommand(new Append(messageType, Arrays.asList(messages), guarantee));
         } finally {
             if (!monitors.isEmpty()) {
-                MessageDispatch dispatch = new MessageDispatch(Arrays.asList(messages), messageType);
-                monitors.forEach(m -> m.accept(dispatch));
+                monitors.forEach(m -> m.accept(Arrays.asList(messages)));
             }
         }
     }
@@ -81,7 +80,7 @@ public class WebsocketGatewayClient extends AbstractWebsocketClient implements G
     }
 
     @Override
-    public Registration registerMonitor(Consumer<MessageDispatch> monitor) {
+    public Registration registerMonitor(Consumer<List<SerializedMessage>> monitor) {
         monitors.add(monitor);
         return () -> monitors.remove(monitor);
     }

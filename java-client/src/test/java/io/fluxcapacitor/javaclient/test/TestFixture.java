@@ -27,7 +27,6 @@ import io.fluxcapacitor.common.handling.HandlerFilter;
 import io.fluxcapacitor.common.handling.HandlerInvoker;
 import io.fluxcapacitor.common.reflection.ReflectionUtils;
 import io.fluxcapacitor.common.serialization.JsonUtils;
-import io.fluxcapacitor.common.tracking.MessageDispatch;
 import io.fluxcapacitor.javaclient.FluxCapacitor;
 import io.fluxcapacitor.javaclient.common.ClientUtils;
 import io.fluxcapacitor.javaclient.common.IdentityProvider;
@@ -203,8 +202,10 @@ public class TestFixture implements Given, When {
         }
         fluxCapacitorBuilder.addPropertySource(new SimplePropertySource(testProperties));
         this.interceptor = new GivenWhenThenInterceptor(this);
-        Arrays.stream(MessageType.values()).forEach(type -> client.getGatewayClient(type).registerMonitor(interceptor));
-        fluxCapacitorBuilder = fluxCapacitorBuilder.disableShutdownHook().addDispatchInterceptor(interceptor)
+        Arrays.stream(MessageType.values()).forEach(type -> client.getGatewayClient(type).registerMonitor(
+                messages -> interceptor.interceptClientDispatch(messages, type)));
+        fluxCapacitorBuilder = fluxCapacitorBuilder.disableShutdownHook()
+                .addDispatchInterceptor(interceptor)
                 .replaceIdentityProvider(p -> p == IdentityProvider.defaultIdentityProvider
                         ? PredictableIdentityProvider.defaultPredictableIdentityProvider() : p)
                 .addBatchInterceptor(interceptor).addHandlerInterceptor(interceptor, true);
@@ -243,7 +244,8 @@ public class TestFixture implements Given, When {
                 ? InMemoryClient.newInstance(null) : currentClient;
         {
             Arrays.stream(MessageType.values())
-                    .forEach(type -> newClient.getGatewayClient(type).registerMonitor(interceptor));
+                    .forEach(type -> newClient.getGatewayClient(type).registerMonitor(
+                            messages -> interceptor.interceptClientDispatch(messages, type)));
         }
         this.fluxCapacitor = spying
                 ? new TestFluxCapacitor(fluxCapacitorBuilder.build(new TestClient(newClient)))
@@ -787,23 +789,25 @@ public class TestFixture implements Given, When {
     }
 
     @AllArgsConstructor
-    protected static class GivenWhenThenInterceptor implements DispatchInterceptor, BatchInterceptor, HandlerInterceptor, Consumer<MessageDispatch> {
+    protected static class GivenWhenThenInterceptor implements DispatchInterceptor, BatchInterceptor, HandlerInterceptor {
         private TestFixture testFixture;
 
         private final List<Schedule> publishedSchedules = new CopyOnWriteArrayList<>();
         private final Set<String> interceptedMessageIds = new CopyOnWriteArraySet<>();
 
-        @Override
-        public void accept(MessageDispatch messageDispatch) {
+        protected void interceptClientDispatch(List<SerializedMessage> messages, MessageType messageType) {
             if (testFixture.collectingResults) {
                 try {
                     testFixture.fluxCapacitor.serializer()
-                            .deserializeMessages(messageDispatch.getMessages().stream()
+                            .deserializeMessages(messages.stream()
                                                          .filter(m -> !interceptedMessageIds.contains(
                                                                  m.getMessageId())),
-                                                 messageDispatch.getMessageType())
+                                                 messageType)
                             .map(DeserializingMessage::toMessage)
-                            .forEach(m -> interceptDispatch(m, messageDispatch.getMessageType()));
+                            .forEach(m -> {
+                                log.info("{}: {}", messageType, m);
+                                interceptDispatch(m, messageType);
+                            });
                 } catch (Exception ignored) {
                     log.warn("Failed to intercept a published message. This may cause your test to fail.");
                 }
@@ -812,6 +816,11 @@ public class TestFixture implements Given, When {
 
         @Override
         public Message interceptDispatch(Message message, MessageType messageType) {
+            return message;
+        }
+
+        @Override
+        public void monitorDispatch(Message message, MessageType messageType) {
             if (testFixture.collectingResults) {
                 interceptedMessageIds.add(message.getMessageId());
             }
@@ -842,8 +851,6 @@ public class TestFixture implements Given, When {
                     case METRICS -> testFixture.registerMetric(message);
                 }
             }
-
-            return message;
         }
 
         protected Boolean captureMessage(Message message) {

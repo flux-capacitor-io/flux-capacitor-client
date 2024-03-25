@@ -83,7 +83,12 @@ public class DefaultEventStore implements EventStore {
                     DefaultEventStore::payloadName).collect(toList()), aggregateId), e);
         }
         switch (strategy) {
-            case STORE_AND_PUBLISH, PUBLISH_ONLY -> messages.forEach(localHandlerRegistry::handle);
+            case STORE_AND_PUBLISH, PUBLISH_ONLY -> {
+                for (DeserializingMessage message : messages) {
+                    dispatchInterceptor.monitorDispatch(message.toMessage(), EVENT);
+                    localHandlerRegistry.handle(message);
+                }
+            }
         }
         return result;
     }

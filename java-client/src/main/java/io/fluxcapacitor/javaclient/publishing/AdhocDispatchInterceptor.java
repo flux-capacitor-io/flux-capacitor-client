@@ -67,6 +67,11 @@ public class AdhocDispatchInterceptor implements DispatchInterceptor {
     }
 
     @Override
+    public void monitorDispatch(Message message, MessageType messageType) {
+        getAdhocInterceptor(messageType).ifPresent(i -> i.monitorDispatch(message, messageType));
+    }
+
+    @Override
     public SerializedMessage modifySerializedMessage(SerializedMessage serializedMessage, Message message,
                                                      MessageType messageType) {
         var adhocInterceptor = getAdhocInterceptor(messageType);

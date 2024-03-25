@@ -65,6 +65,7 @@ public class DefaultGenericGateway implements GenericGateway {
             if (message == null) {
                 continue;
             }
+            dispatchInterceptor.monitorDispatch(message, messageType);
             Optional<CompletableFuture<Message>> localResult
                     = localHandlerRegistry.handle(new DeserializingMessage(message, messageType, serializer));
             if (localResult.isEmpty()) {
@@ -100,6 +101,7 @@ public class DefaultGenericGateway implements GenericGateway {
                 results.add(emptyReturnMessage());
                 continue;
             }
+            dispatchInterceptor.monitorDispatch(message, messageType);
             Optional<CompletableFuture<Message>> localResult
                     = localHandlerRegistry.handle(new DeserializingMessage(message, messageType, serializer));
             if (localResult.isPresent()) {

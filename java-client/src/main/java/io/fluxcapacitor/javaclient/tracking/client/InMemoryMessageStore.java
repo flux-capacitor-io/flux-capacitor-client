@@ -20,7 +20,6 @@ import io.fluxcapacitor.common.Registration;
 import io.fluxcapacitor.common.api.SerializedMessage;
 import io.fluxcapacitor.common.api.tracking.MessageBatch;
 import io.fluxcapacitor.common.api.tracking.Position;
-import io.fluxcapacitor.common.tracking.MessageDispatch;
 import io.fluxcapacitor.common.tracking.MessageStore;
 import io.fluxcapacitor.javaclient.FluxCapacitor;
 import io.fluxcapacitor.javaclient.publishing.client.GatewayClient;
@@ -60,7 +59,7 @@ import static java.util.stream.Collectors.toList;
 @RequiredArgsConstructor
 public class InMemoryMessageStore implements GatewayClient, TrackingClient, MessageStore {
 
-    private final Set<Consumer<MessageDispatch>> monitors = new CopyOnWriteArraySet<>();
+    private final Set<Consumer<List<SerializedMessage>>> monitors = new CopyOnWriteArraySet<>();
     private final ExecutorService executor = Executors.newCachedThreadPool(newThreadFactory("InMemoryMessageStore"));
     private final AtomicLong nextIndex = new AtomicLong();
     private final Map<String, TrackerRead> trackers = new ConcurrentHashMap<>();
@@ -94,8 +93,7 @@ public class InMemoryMessageStore implements GatewayClient, TrackingClient, Mess
             return CompletableFuture.completedFuture(null);
         } finally {
             if (!monitors.isEmpty()) {
-                MessageDispatch dispatch = new MessageDispatch(Arrays.asList(messages), messageType);
-                monitors.forEach(m -> m.accept(dispatch));
+                monitors.forEach(m -> m.accept(Arrays.asList(messages)));
             }
         }
     }
@@ -221,7 +219,7 @@ public class InMemoryMessageStore implements GatewayClient, TrackingClient, Mess
     }
 
     @Override
-    public Registration registerMonitor(Consumer<MessageDispatch> monitor) {
+    public Registration registerMonitor(Consumer<List<SerializedMessage>> monitor) {
         monitors.add(monitor);
         return () -> monitors.remove(monitor);
     }
