@@ -30,6 +30,7 @@ import org.apache.commons.lang3.exception.ExceptionUtils;
 import java.util.concurrent.CompletionStage;
 import java.util.function.Function;
 
+import static io.fluxcapacitor.common.ObjectUtils.unwrapException;
 import static java.lang.String.format;
 
 @AllArgsConstructor
@@ -55,7 +56,7 @@ public class ErrorReportingInterceptor implements HandlerInterceptor {
                     });
                 }
                 return result;
-            } catch (Exception e) {
+            } catch (Throwable e) {
                 reportError(e, invoker, message);
                 throw e;
             }
@@ -63,6 +64,7 @@ public class ErrorReportingInterceptor implements HandlerInterceptor {
     }
 
     protected void reportError(Throwable e, HandlerInvoker invoker, DeserializingMessage cause) {
+        e = unwrapException(e);
         Metadata metadata = cause.getMetadata();
         if (!(e instanceof FunctionalException || e instanceof TechnicalException)) {
             metadata = metadata.with("stackTrace", ExceptionUtils.getStackTrace(e));
