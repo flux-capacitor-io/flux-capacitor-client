@@ -54,6 +54,23 @@ public class RequestAnnotationProcessorTest {
     }
 
     @Test
+    void testRequestWithCorrectFutureType() {
+        RequestAnnotationProcessor p = new RequestAnnotationProcessor();
+        Reflect.compile(
+                "io.fluxcapacitor.javaclient.tracking.handling.CorrectHandler",
+                """
+                            package io.fluxcapacitor.javaclient.tracking.handling;
+                            public class CorrectHandler {
+                                @io.fluxcapacitor.javaclient.tracking.handling.HandleQuery
+                                java.util.concurrent.Future<java.lang.String> handle(io.fluxcapacitor.javaclient.tracking.handling.RequestAnnotationProcessorTest.MockQuery query) {
+                                    return java.util.concurrent.CompletableFuture.completedFuture("foo");
+                                }
+                            }
+                        """, new CompileOptions().processors(p)
+        ).create().get();
+    }
+
+    @Test
     void testRequestWithWrongTypeAllowedIfPassive() {
         RequestAnnotationProcessor p = new RequestAnnotationProcessor();
         Reflect.compile(
