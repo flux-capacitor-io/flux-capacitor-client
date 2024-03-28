@@ -16,6 +16,7 @@ package io.fluxcapacitor.javaclient.givenwhenthen;
 
 import io.fluxcapacitor.javaclient.FluxCapacitor;
 import io.fluxcapacitor.javaclient.MockException;
+import io.fluxcapacitor.javaclient.scheduling.CancelPeriodic;
 import io.fluxcapacitor.javaclient.scheduling.Periodic;
 import io.fluxcapacitor.javaclient.scheduling.Schedule;
 import io.fluxcapacitor.javaclient.test.GivenWhenThenAssertionError;
@@ -352,6 +353,14 @@ class GivenWhenThenSchedulingTest {
     }
 
     @Test
+    void testCancellingPeriodic() {
+        TestFixture.create(new CancellingPeriodicHandler())
+                .whenTimeElapses(Duration.ofMillis(1000))
+                .expectNoNewSchedules()
+                .expectNoSchedules();
+    }
+
+    @Test
     void testAlteredPayloadNonPeriodic() {
         subject = TestFixture.create(new AlteredPayloadNonPeriodicHandler());
         Instant deadline = subject.getCurrentTime().plusSeconds(1);
@@ -459,6 +468,14 @@ class GivenWhenThenSchedulingTest {
         @Periodic(delay = 1000)
         YieldsAlteredSchedule handle(YieldsAlteredSchedule schedule) {
             return new YieldsAlteredSchedule(schedule.getSequence() + 1);
+        }
+    }
+
+    static class CancellingPeriodicHandler {
+        @HandleSchedule
+        @Periodic(delay = 1000)
+        YieldsAlteredSchedule handle(YieldsAlteredSchedule schedule) {
+            throw new CancelPeriodic();
         }
     }
 

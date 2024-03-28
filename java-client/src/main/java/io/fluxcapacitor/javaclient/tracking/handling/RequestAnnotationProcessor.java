@@ -32,6 +32,7 @@ import javax.tools.Diagnostic;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
+import java.util.concurrent.Future;
 
 @SupportedAnnotationTypes({
         "io.fluxcapacitor.javaclient.tracking.handling.HandleQuery",
@@ -68,8 +69,24 @@ public class RequestAnnotationProcessor extends AbstractProcessor {
             if (getTypeUtils().isAssignable(payloadType, requestType)) {
                 List<? extends TypeMirror> typeArguments = ((DeclaredType) i).getTypeArguments();
                 if (!typeArguments.isEmpty()) {
-                    TypeMirror expectedReturnType = typeArguments.get(0);
-                    if (!getTypeUtils().isAssignable(methodType.getReturnType(), expectedReturnType)) {
+                    TypeMirror futureTypeElement = processingEnv.getElementUtils()
+                            .getTypeElement(Future.class.getCanonicalName()).asType();
+
+                    TypeMirror expectedReturnType = typeArguments.getFirst();
+                    TypeMirror handlerReturnType = methodType.getReturnType();
+                    if (getTypeUtils().isAssignable(getTypeUtils().erasure(handlerReturnType), getTypeUtils().erasure(futureTypeElement))) {
+                        List<? extends TypeMirror> futureTypeArgs = ((DeclaredType) handlerReturnType).getTypeArguments();
+                        if (futureTypeArgs.isEmpty()) {
+                            processingEnv.getMessager().printMessage(
+                                    Diagnostic.Kind.ERROR,
+                                    "Return type of request handler is invalid. Should be assignable to Future<%s>"
+                                            .formatted(expectedReturnType),
+                                    method);
+                            return;
+                        }
+                        handlerReturnType = futureTypeArgs.getFirst();
+                    }
+                    if (!getTypeUtils().isAssignable(handlerReturnType, expectedReturnType)) {
                         processingEnv.getMessager().printMessage(
                                 Diagnostic.Kind.ERROR,
                                 "Return type of request handler is invalid. Should be " + expectedReturnType,

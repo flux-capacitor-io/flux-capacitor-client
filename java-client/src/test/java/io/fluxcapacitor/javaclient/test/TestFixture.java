@@ -23,6 +23,7 @@ import io.fluxcapacitor.common.api.SerializedMessage;
 import io.fluxcapacitor.common.api.SerializedObject;
 import io.fluxcapacitor.common.api.tracking.MessageBatch;
 import io.fluxcapacitor.common.application.SimplePropertySource;
+import io.fluxcapacitor.common.handling.Handler;
 import io.fluxcapacitor.common.handling.HandlerFilter;
 import io.fluxcapacitor.common.handling.HandlerInvoker;
 import io.fluxcapacitor.common.reflection.ReflectionUtils;
@@ -329,7 +330,9 @@ public class TestFixture implements Given, When {
             if (handlers.isEmpty()) {
                 return;
             }
-            handlers.stream().collect(toMap(Object::getClass, Function.identity(), (a, b) -> {
+            handlers.stream().collect(toMap(o -> o instanceof Class<?> c ? c : o instanceof Handler<?> h
+                                                    ? h.getTargetClass() : o.getClass(),
+                                            Function.identity(), (a, b) -> {
                 log.warn("Handler of type {} is registered more than once. Please make sure this is intentional.",
                          a.getClass());
                 return a;
@@ -806,7 +809,7 @@ public class TestFixture implements Given, When {
                             .map(DeserializingMessage::toMessage)
                             .forEach(m -> {
                                 log.info("{}: {}", messageType, m);
-                                interceptDispatch(m, messageType);
+                                monitorDispatch(m, messageType);
                             });
                 } catch (Exception ignored) {
                     log.warn("Failed to intercept a published message. This may cause your test to fail.");
@@ -837,7 +840,11 @@ public class TestFixture implements Given, When {
                                     .ofNullable(configuration.getTypeFilter())
                                     .map(f -> message.getPayload().getClass().getName().matches(f))
                                     .orElse(true));
-                        }).forEach(e -> addMessage(e.getValue(), message));
+                        }).forEach(e -> {
+                            log.info("added to consumer {} ({}): {}", e.getKey().configuration.getName(),
+                                     messageType, message);
+                            addMessage(e.getValue(), message);
+                        });
             }
 
             if (captureMessage(message)) {

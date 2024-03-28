@@ -153,6 +153,14 @@ public class SchedulingInterceptor implements DispatchInterceptor, HandlerInterc
                 try {
                     result = function.apply(m);
                 } catch (Throwable e) {
+                    if (e instanceof CancelPeriodic) {
+                        String scheduleId = ofNullable(m.getMetadata().get(Schedule.scheduleIdMetadataKey))
+                                .or(() -> ofNullable(periodic).map(Periodic::scheduleId))
+                                .orElseGet(() -> m.getPayloadClass().getName());
+                        log.info("Periodic schedule {} will be cancelled.", scheduleId);
+                        FluxCapacitor.get().scheduler().cancelSchedule(scheduleId);
+                        return null;
+                    }
                     if (periodic != null && periodic.continueOnError()) {
                         if (periodic.delayAfterError() >= 0) {
                             schedule(m, now.plusMillis(periodic.timeUnit().toMillis(periodic.delayAfterError())));
