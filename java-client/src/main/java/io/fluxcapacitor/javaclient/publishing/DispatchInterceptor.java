@@ -39,17 +39,6 @@ public interface DispatchInterceptor {
     Message interceptDispatch(Message message, MessageType messageType);
 
     /**
-     * Monitors the dispatch of a message after all dispatch interceptors have had a change to stop or modify the
-     * message. Don't use this method to prevent message handling or publication.
-     * <p>
-     * This method is invoked by message gateways right before local handling of a message and optional publication
-     * (so right after {@link #interceptDispatch} is invoked).
-     */
-    default void monitorDispatch(Message message, MessageType messageType) {
-        //no op
-    }
-
-    /**
      * Enables modification of the {@link SerializedMessage} before it is published.
      * <p>
      * This method is invoked by message gateways right before publication of a message (so right after
@@ -61,6 +50,16 @@ public interface DispatchInterceptor {
     default SerializedMessage modifySerializedMessage(SerializedMessage serializedMessage,
                                                       Message message, MessageType messageType) {
         return serializedMessage;
+    }
+
+    /**
+     * Monitors the dispatch of a message after all dispatch interceptors have had a change to stop or modify the
+     * message. Don't use this method to prevent message handling or publication.
+     * <p>
+     * This method is invoked by message gateways right before local handling of a message and optional publication.
+     */
+    default void monitorDispatch(Message message, MessageType messageType) {
+        //no op
     }
 
     default DispatchInterceptor andThen(DispatchInterceptor nextInterceptor) {

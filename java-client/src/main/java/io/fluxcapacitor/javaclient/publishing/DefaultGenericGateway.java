@@ -75,12 +75,14 @@ public class DefaultGenericGateway implements GenericGateway {
                     continue;
                 }
                 serializedMessages.add(serializedMessage);
-            } else if (localResult.get().isCompletedExceptionally()) {
-                try {
-                    localResult.get().getNow(null);
-                } catch (CompletionException e) {
-                    log.error("Handler failed to handle a {}",
-                              message.getPayloadClass().getSimpleName(), e.getCause());
+            } else {
+                if (localResult.get().isCompletedExceptionally()) {
+                    try {
+                        localResult.get().getNow(null);
+                    } catch (CompletionException e) {
+                        log.error("Handler failed to handle a {}",
+                                  message.getPayloadClass().getSimpleName(), e.getCause());
+                    }
                 }
             }
         }

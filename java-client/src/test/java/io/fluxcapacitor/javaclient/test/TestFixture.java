@@ -807,10 +807,7 @@ public class TestFixture implements Given, When {
                                                                  m.getMessageId())),
                                                  messageType)
                             .map(DeserializingMessage::toMessage)
-                            .forEach(m -> {
-                                log.info("{}: {}", messageType, m);
-                                monitorDispatch(m, messageType);
-                            });
+                            .forEach(m -> monitorDispatch(m, messageType));
                 } catch (Exception ignored) {
                     log.warn("Failed to intercept a published message. This may cause your test to fail.");
                 }
@@ -840,11 +837,7 @@ public class TestFixture implements Given, When {
                                     .ofNullable(configuration.getTypeFilter())
                                     .map(f -> message.getPayload().getClass().getName().matches(f))
                                     .orElse(true));
-                        }).forEach(e -> {
-                            log.info("added to consumer {} ({}): {}", e.getKey().configuration.getName(),
-                                     messageType, message);
-                            addMessage(e.getValue(), message);
-                        });
+                        }).forEach(e -> addMessage(e.getValue(), message));
             }
 
             if (captureMessage(message)) {
@@ -886,8 +879,10 @@ public class TestFixture implements Given, When {
                 consumer.accept(b);
                 Collection<String> messageIds =
                         b.getMessages().stream().map(SerializedMessage::getMessageId).collect(toSet());
-                messages.removeIf(m -> messageIds.contains(m.getMessageId()));
-                testFixture.checkConsumers();
+                synchronized (testFixture.consumers) {
+                    messages.removeIf(m -> messageIds.contains(m.getMessageId()));
+                    testFixture.checkConsumers();
+                }
             };
         }
 

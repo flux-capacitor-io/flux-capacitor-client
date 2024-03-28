@@ -56,12 +56,12 @@ public class DefaultScheduler implements Scheduler, HasLocalHandlers {
         if (message == null) {
             return CompletableFuture.completedFuture(null);
         }
-        dispatchInterceptor.monitorDispatch(message, SCHEDULE);
         SerializedMessage serializedMessage = dispatchInterceptor.modifySerializedMessage(
                 message.serialize(serializer), message, SCHEDULE);
         if (serializedMessage == null) {
             return CompletableFuture.completedFuture(null);
         }
+        dispatchInterceptor.monitorDispatch(message, SCHEDULE);
         return client.schedule(guarantee, new SerializedSchedule(message.getScheduleId(),
                                                message.getDeadline().toEpochMilli(),
                                                serializedMessage, ifAbsent));

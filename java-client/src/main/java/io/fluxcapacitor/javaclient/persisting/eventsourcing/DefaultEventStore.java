@@ -32,7 +32,6 @@ import lombok.extern.slf4j.Slf4j;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
-import java.util.stream.Stream;
 
 import static io.fluxcapacitor.common.MessageType.EVENT;
 import static java.lang.String.format;
@@ -69,14 +68,20 @@ public class DefaultEventStore implements EventStore {
                 }
                 messages.add(deserializingMessage);
             });
-
-            Stream<SerializedMessage> serializedEvents
+            List<SerializedMessage> serializedEvents
                     = messages.stream().map(m -> m.getSerializedObject().getSegment() == null ?
-                            m.getSerializedObject().withSegment(segment) : m.getSerializedObject());
+                    m.getSerializedObject().withSegment(segment) : m.getSerializedObject()).toList();
+            switch (strategy) {
+                case STORE_AND_PUBLISH, PUBLISH_ONLY -> {
+                    for (DeserializingMessage message : messages) {
+                        dispatchInterceptor.monitorDispatch(message.toMessage(), EVENT);
+                    }
+                }
+            }
             result = switch (strategy) {
-                case STORE_AND_PUBLISH -> client.storeEvents(aggregateId.toString(), serializedEvents.toList(), false);
-                case STORE_ONLY -> client.storeEvents(aggregateId.toString(), serializedEvents.toList(), true);
+                case STORE_AND_PUBLISH -> client.storeEvents(aggregateId.toString(), serializedEvents, false);
                 case PUBLISH_ONLY -> eventGateway.append(Guarantee.STORED, serializedEvents.toArray(SerializedMessage[]::new));
+                case STORE_ONLY -> client.storeEvents(aggregateId.toString(), serializedEvents, true);
             };
         } catch (Exception e) {
             throw new EventSourcingException(format("Failed to store events %s for aggregate %s", events.stream().map(
@@ -85,7 +90,6 @@ public class DefaultEventStore implements EventStore {
         switch (strategy) {
             case STORE_AND_PUBLISH, PUBLISH_ONLY -> {
                 for (DeserializingMessage message : messages) {
-                    dispatchInterceptor.monitorDispatch(message.toMessage(), EVENT);
                     localHandlerRegistry.handle(message);
                 }
             }
