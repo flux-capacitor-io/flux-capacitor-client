@@ -260,8 +260,7 @@ public class DefaultDocumentStore implements DocumentStore {
 
         @Override
         public Search sortByTimestamp(boolean descending) {
-            sorting.add(descending ? "-" : "" + "timestamp");
-            return this;
+            return sortBy("timestamp", descending);
         }
 
         @Override
