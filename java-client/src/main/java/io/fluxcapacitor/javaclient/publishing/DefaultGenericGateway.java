@@ -65,6 +65,7 @@ public class DefaultGenericGateway implements GenericGateway {
             if (message == null) {
                 continue;
             }
+            dispatchInterceptor.monitorDispatch(message, messageType);
             Optional<CompletableFuture<Message>> localResult
                     = localHandlerRegistry.handle(new DeserializingMessage(message, messageType, serializer));
             if (localResult.isEmpty()) {
@@ -74,12 +75,14 @@ public class DefaultGenericGateway implements GenericGateway {
                     continue;
                 }
                 serializedMessages.add(serializedMessage);
-            } else if (localResult.get().isCompletedExceptionally()) {
-                try {
-                    localResult.get().getNow(null);
-                } catch (CompletionException e) {
-                    log.error("Handler failed to handle a {}",
-                              message.getPayloadClass().getSimpleName(), e.getCause());
+            } else {
+                if (localResult.get().isCompletedExceptionally()) {
+                    try {
+                        localResult.get().getNow(null);
+                    } catch (CompletionException e) {
+                        log.error("Handler failed to handle a {}",
+                                  message.getPayloadClass().getSimpleName(), e.getCause());
+                    }
                 }
             }
         }
@@ -100,6 +103,7 @@ public class DefaultGenericGateway implements GenericGateway {
                 results.add(emptyReturnMessage());
                 continue;
             }
+            dispatchInterceptor.monitorDispatch(message, messageType);
             Optional<CompletableFuture<Message>> localResult
                     = localHandlerRegistry.handle(new DeserializingMessage(message, messageType, serializer));
             if (localResult.isPresent()) {

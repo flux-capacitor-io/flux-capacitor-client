@@ -76,7 +76,7 @@ public class DefaultTrackingStrategy extends AutoClosing implements TrackingStra
         this.source = source;
         this.scheduler = scheduler;
         this.segments = segments;
-        source.registerMonitor(d -> onUpdate(d.getMessages()));
+        source.registerMonitor(this::onUpdate);
         purgeCeasedTrackers(Duration.ofSeconds(2));
     }
 

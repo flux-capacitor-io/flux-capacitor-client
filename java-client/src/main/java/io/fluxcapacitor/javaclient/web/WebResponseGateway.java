@@ -58,7 +58,11 @@ public class WebResponseGateway implements ResultGateway {
 
     protected SerializedMessage interceptDispatch(WebResponse response) {
         Message message = dispatchInterceptor.interceptDispatch(response, WEBRESPONSE);
-        return message == null ? null
+        SerializedMessage serializedMessage = message == null ? null
                 : dispatchInterceptor.modifySerializedMessage(message.serialize(serializer), message, WEBRESPONSE);
+        if (serializedMessage != null) {
+            dispatchInterceptor.monitorDispatch(message, WEBRESPONSE);
+        }
+        return serializedMessage;
     }
 }

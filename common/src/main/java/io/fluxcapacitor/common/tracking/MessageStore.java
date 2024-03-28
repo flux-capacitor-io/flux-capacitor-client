@@ -21,7 +21,7 @@ import io.fluxcapacitor.common.api.SerializedMessage;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 
-public interface MessageStore extends AutoCloseable, Monitored<MessageDispatch> {
+public interface MessageStore extends AutoCloseable, Monitored<List<SerializedMessage>> {
     CompletableFuture<Void> append(Guarantee guarantee, SerializedMessage... messages);
 
     default List<SerializedMessage> getBatch(Long minIndex, int maxSize) {

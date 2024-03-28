@@ -17,11 +17,11 @@ package io.fluxcapacitor.javaclient.publishing.client;
 import io.fluxcapacitor.common.Guarantee;
 import io.fluxcapacitor.common.Monitored;
 import io.fluxcapacitor.common.api.SerializedMessage;
-import io.fluxcapacitor.common.tracking.MessageDispatch;
 
+import java.util.List;
 import java.util.concurrent.CompletableFuture;
 
-public interface GatewayClient extends AutoCloseable, Monitored<MessageDispatch> {
+public interface GatewayClient extends AutoCloseable, Monitored<List<SerializedMessage>> {
 
     CompletableFuture<Void> append(Guarantee guarantee, SerializedMessage... messages);
 

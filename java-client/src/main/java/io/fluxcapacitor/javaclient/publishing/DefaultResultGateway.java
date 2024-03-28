@@ -51,7 +51,11 @@ public class DefaultResultGateway implements ResultGateway {
 
     protected SerializedMessage interceptDispatch(Object payload, Metadata metadata) {
         Message message = dispatchInterceptor.interceptDispatch(new Message(payload, metadata), RESULT);
-        return message == null ? null
+        SerializedMessage serializedMessage = message == null ? null
                 : dispatchInterceptor.modifySerializedMessage(message.serialize(serializer), message, RESULT);
+        if (serializedMessage != null) {
+            dispatchInterceptor.monitorDispatch(message, RESULT);
+        }
+        return serializedMessage;
     }
 }
