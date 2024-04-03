@@ -100,7 +100,7 @@ public class InMemoryMessageStore implements GatewayClient, TrackingClient, Mess
 
     protected void purgeExpiredMessages(Duration messageExpiration) {
         var threshold = FluxCapacitor.currentTime().minus(messageExpiration).toEpochMilli();
-        messageLog.headMap(IndexUtils.indexFromMillis(threshold)).clear();
+        messageLog.headMap(IndexUtils.maxIndexFromMillis(threshold), true).clear();
     }
 
     @Override

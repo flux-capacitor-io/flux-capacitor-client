@@ -38,6 +38,7 @@ import java.util.stream.Stream;
 
 import static io.fluxcapacitor.common.MessageType.SCHEDULE;
 import static io.fluxcapacitor.javaclient.tracking.IndexUtils.indexFromMillis;
+import static io.fluxcapacitor.javaclient.tracking.IndexUtils.maxIndexFromMillis;
 import static io.fluxcapacitor.javaclient.tracking.IndexUtils.millisFromIndex;
 import static io.fluxcapacitor.javaclient.tracking.IndexUtils.timestampFromIndex;
 import static java.util.stream.Collectors.toList;
@@ -58,7 +59,7 @@ public class InMemoryScheduleStore extends InMemoryMessageStore implements Sched
 
     @Override
     protected Collection<SerializedMessage> filterMessages(Collection<SerializedMessage> messages) {
-        long maximumIndex = indexFromMillis(clock.millis());
+        long maximumIndex = maxIndexFromMillis(clock.millis());
         return super.filterMessages(messages).stream()
                 .filter(m -> m.getIndex() <= maximumIndex && scheduleIdsByIndex.containsKey(m.getIndex()))
                 .collect(toList());
@@ -120,7 +121,7 @@ public class InMemoryScheduleStore extends InMemoryMessageStore implements Sched
 
     @Synchronized
     public List<Schedule> removeExpiredSchedules(Serializer serializer) {
-        Map<Long, String> expiredEntries = scheduleIdsByIndex.headMap(indexFromMillis(clock.millis()), true);
+        Map<Long, String> expiredEntries = scheduleIdsByIndex.headMap(maxIndexFromMillis(clock.millis()), true);
         List<Schedule> result = asList(expiredEntries, serializer);
         expiredEntries.clear();
         return result;
@@ -138,8 +139,8 @@ public class InMemoryScheduleStore extends InMemoryMessageStore implements Sched
 
     @Override
     protected void purgeExpiredMessages(Duration messageExpiration) {
-        scheduleIdsByIndex.headMap(indexFromMillis(
-                clock.millis() - messageExpiration.toMillis())).clear();
+        scheduleIdsByIndex.headMap(maxIndexFromMillis(
+                clock.millis() - messageExpiration.toMillis()), true).clear();
         super.purgeExpiredMessages(messageExpiration);
     }
 }

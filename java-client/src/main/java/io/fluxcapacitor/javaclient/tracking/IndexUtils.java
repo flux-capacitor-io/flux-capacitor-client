@@ -45,6 +45,10 @@ public class IndexUtils {
         return millisSinceEpoch << 16;
     }
 
+    public static long maxIndexFromMillis(long millisSinceEpoch) {
+        return indexFromMillis(millisSinceEpoch) + 65_536 - 1;
+    }
+
     public static int offsetFromIndex(long index) {
         return (int) (index % 65_536);
     }

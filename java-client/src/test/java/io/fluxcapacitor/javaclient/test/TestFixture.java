@@ -587,11 +587,7 @@ public class TestFixture implements Given, When {
                                       List<Message> events, List<Schedule> schedules, List<Schedule> allSchedules,
                                       List<Throwable> errors, List<Message> metrics) {
         return new ResultValidator(getFluxCapacitor(), result, events, commands, queries,
-                                   webRequests, webResponses, metrics,
-                                   schedules,
-                                   allSchedules.stream().filter(
-                                           s -> s.getDeadline().isAfter(getCurrentTime())).collect(toList()),
-                                   errors);
+                                   webRequests, webResponses, metrics, schedules, allSchedules, errors);
     }
 
     protected void applyEvents(String aggregateId, Class<?> aggregateClass, FluxCapacitor fc, List<Message> events) {
@@ -624,12 +620,8 @@ public class TestFixture implements Given, When {
     }
 
     protected List<Schedule> getFutureSchedules() {
-        SchedulingClient schedulingClient = getFluxCapacitor().client().getSchedulingClient();
-        if (schedulingClient instanceof InMemoryScheduleStore) {
-            return ((InMemoryScheduleStore) schedulingClient).getSchedules(getFluxCapacitor().serializer())
-                    .stream().filter(s -> s.getDeadline().isAfter(getCurrentTime())).collect(toList());
-        }
-        return emptyList();
+        return getFluxCapacitor().client().getSchedulingClient() instanceof InMemoryScheduleStore sc ?
+                sc.getSchedules(getFluxCapacitor().serializer()) : emptyList();
     }
 
     protected void waitForConsumers() {
