@@ -16,12 +16,18 @@ package io.fluxcapacitor.javaclient.configuration.client;
 
 import io.fluxcapacitor.common.MessageType;
 import io.fluxcapacitor.common.serialization.compression.CompressionAlgorithm;
+import io.fluxcapacitor.javaclient.persisting.eventsourcing.client.EventStoreClient;
 import io.fluxcapacitor.javaclient.persisting.eventsourcing.client.WebSocketEventStoreClient;
+import io.fluxcapacitor.javaclient.persisting.keyvalue.client.KeyValueClient;
 import io.fluxcapacitor.javaclient.persisting.keyvalue.client.WebsocketKeyValueClient;
+import io.fluxcapacitor.javaclient.persisting.search.client.SearchClient;
 import io.fluxcapacitor.javaclient.persisting.search.client.WebSocketSearchClient;
+import io.fluxcapacitor.javaclient.publishing.client.GatewayClient;
 import io.fluxcapacitor.javaclient.publishing.client.WebsocketGatewayClient;
+import io.fluxcapacitor.javaclient.scheduling.client.SchedulingClient;
 import io.fluxcapacitor.javaclient.scheduling.client.WebsocketSchedulingClient;
 import io.fluxcapacitor.javaclient.tracking.client.CachingTrackingClient;
+import io.fluxcapacitor.javaclient.tracking.client.TrackingClient;
 import io.fluxcapacitor.javaclient.tracking.client.WebsocketTrackingClient;
 import lombok.Builder;
 import lombok.Builder.Default;
@@ -55,21 +61,42 @@ public class WebSocketClient extends AbstractClient {
     }
 
     protected WebSocketClient(ClientConfig clientConfig) {
-        super(clientConfig.getName(), clientConfig.getId(),
-             type -> new WebsocketGatewayClient(producerUrl(type, clientConfig), clientConfig, type),
-             type -> {
-                 TrackingClientConfig trackingConfig = clientConfig.getTrackingConfigs().get(type);
-                 WebsocketTrackingClient wsClient =
-                         new WebsocketTrackingClient(consumerUrl(type, clientConfig), clientConfig, type);
-                 return trackingConfig.getCacheSize() > 0
-                         ? new CachingTrackingClient(wsClient, trackingConfig.getCacheSize()) : wsClient;
-             },
-              new WebSocketEventStoreClient(eventSourcingUrl(clientConfig), clientConfig),
-              new WebsocketSchedulingClient(schedulingUrl(clientConfig), clientConfig),
-              new WebsocketKeyValueClient(keyValueUrl(clientConfig), clientConfig),
-              new WebSocketSearchClient(searchUrl(clientConfig), clientConfig)
-        );
+        super(clientConfig.getName(), clientConfig.getId());
         this.clientConfig = clientConfig;
+    }
+
+    @Override
+    protected GatewayClient createGatewayClient(MessageType messageType) {
+        return new WebsocketGatewayClient(producerUrl(messageType, clientConfig), this, messageType);
+    }
+
+    @Override
+    protected TrackingClient createTrackingClient(MessageType messageType) {
+        TrackingClientConfig trackingConfig = clientConfig.getTrackingConfigs().get(messageType);
+        WebsocketTrackingClient wsClient =
+                new WebsocketTrackingClient(consumerUrl(messageType, clientConfig), this, messageType);
+        return trackingConfig.getCacheSize() > 0
+                ? new CachingTrackingClient(wsClient, trackingConfig.getCacheSize()) : wsClient;
+    }
+
+    @Override
+    protected EventStoreClient createEventStoreClient() {
+        return new WebSocketEventStoreClient(eventSourcingUrl(clientConfig), this);
+    }
+
+    @Override
+    protected SchedulingClient createSchedulingClient() {
+        return new WebsocketSchedulingClient(schedulingUrl(clientConfig), this);
+    }
+
+    @Override
+    protected KeyValueClient createKeyValueClient() {
+        return new WebsocketKeyValueClient(keyValueUrl(clientConfig), this);
+    }
+
+    @Override
+    protected SearchClient createSearchClient() {
+        return new WebSocketSearchClient(searchUrl(clientConfig), this);
     }
 
     @Override
@@ -96,6 +123,7 @@ public class WebSocketClient extends AbstractClient {
         @Default Map<MessageType, TrackingClientConfig> trackingConfigs = defaultTrackingSessions();
         @Default Duration pingTimeout = Duration.ofSeconds(10);
         @Default Duration pingDelay = Duration.ofMinutes(1);
+        boolean disableMetrics;
         String projectId;
         String typeFilter;
 

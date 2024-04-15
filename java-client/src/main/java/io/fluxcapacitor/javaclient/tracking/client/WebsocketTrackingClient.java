@@ -32,7 +32,7 @@ import io.fluxcapacitor.common.api.tracking.ReadResult;
 import io.fluxcapacitor.common.api.tracking.ResetPosition;
 import io.fluxcapacitor.common.api.tracking.StorePosition;
 import io.fluxcapacitor.javaclient.common.websocket.AbstractWebsocketClient;
-import io.fluxcapacitor.javaclient.configuration.client.WebSocketClient.ClientConfig;
+import io.fluxcapacitor.javaclient.configuration.client.WebSocketClient;
 import io.fluxcapacitor.javaclient.tracking.ConsumerConfiguration;
 import jakarta.websocket.ClientEndpoint;
 import lombok.Getter;
@@ -52,16 +52,16 @@ public class WebsocketTrackingClient extends AbstractWebsocketClient implements 
     private final MessageType messageType;
     private final Metadata metricsMetadata;
 
-    public WebsocketTrackingClient(String endPointUrl, ClientConfig clientConfig, MessageType type) {
-        this(URI.create(endPointUrl), clientConfig, type);
+    public WebsocketTrackingClient(String endPointUrl, WebSocketClient client, MessageType type) {
+        this(URI.create(endPointUrl), client, type);
     }
 
-    public WebsocketTrackingClient(URI endPointUri, ClientConfig clientConfig, MessageType type) {
-        this(endPointUri, clientConfig, type, type != METRICS);
+    public WebsocketTrackingClient(URI endPointUri, WebSocketClient client, MessageType type) {
+        this(endPointUri, client, type, type != METRICS);
     }
 
-    public WebsocketTrackingClient(URI endPointUri, ClientConfig clientConfig, MessageType type, boolean sendMetrics) {
-        super(endPointUri, clientConfig, sendMetrics, clientConfig.getTrackingConfigs().get(type).getSessions());
+    public WebsocketTrackingClient(URI endPointUri, WebSocketClient client, MessageType type, boolean sendMetrics) {
+        super(endPointUri, client, sendMetrics, client.getClientConfig().getTrackingConfigs().get(type).getSessions());
         this.messageType = type;
         this.metricsMetadata = Metadata.of("messageType", type);
     }

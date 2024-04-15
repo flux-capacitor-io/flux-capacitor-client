@@ -22,7 +22,7 @@ import io.fluxcapacitor.common.api.scheduling.GetScheduleResult;
 import io.fluxcapacitor.common.api.scheduling.Schedule;
 import io.fluxcapacitor.common.api.scheduling.SerializedSchedule;
 import io.fluxcapacitor.javaclient.common.websocket.AbstractWebsocketClient;
-import io.fluxcapacitor.javaclient.configuration.client.WebSocketClient.ClientConfig;
+import io.fluxcapacitor.javaclient.configuration.client.WebSocketClient;
 import jakarta.websocket.ClientEndpoint;
 
 import java.net.URI;
@@ -32,16 +32,17 @@ import java.util.concurrent.CompletableFuture;
 @ClientEndpoint
 public class WebsocketSchedulingClient extends AbstractWebsocketClient implements SchedulingClient {
 
-    public WebsocketSchedulingClient(String endPointUrl, ClientConfig clientConfig) {
-        this(URI.create(endPointUrl), clientConfig);
+    public WebsocketSchedulingClient(String endPointUrl, WebSocketClient client) {
+        this(URI.create(endPointUrl), client);
     }
 
-    public WebsocketSchedulingClient(URI endpointUri, ClientConfig clientConfig) {
-        this(endpointUri, clientConfig, true);
+    public WebsocketSchedulingClient(URI endpointUri, WebSocketClient client) {
+        this(endpointUri, client, true);
     }
 
-    public WebsocketSchedulingClient(URI endpointUri, ClientConfig clientConfig, boolean sendMetrics) {
-        super(endpointUri, clientConfig, sendMetrics, clientConfig.getGatewaySessions().get(MessageType.SCHEDULE));
+    public WebsocketSchedulingClient(URI endpointUri, WebSocketClient client, boolean sendMetrics) {
+        super(endpointUri, client, sendMetrics, client.getClientConfig()
+                .getGatewaySessions().get(MessageType.SCHEDULE));
     }
 
     @Override

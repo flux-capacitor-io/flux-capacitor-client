@@ -30,7 +30,6 @@ import io.fluxcapacitor.common.api.modeling.RepairRelationships;
 import io.fluxcapacitor.common.api.modeling.UpdateRelationships;
 import io.fluxcapacitor.javaclient.common.websocket.AbstractWebsocketClient;
 import io.fluxcapacitor.javaclient.configuration.client.WebSocketClient;
-import io.fluxcapacitor.javaclient.configuration.client.WebSocketClient.ClientConfig;
 import io.fluxcapacitor.javaclient.persisting.eventsourcing.AggregateEventStream;
 import jakarta.websocket.ClientEndpoint;
 
@@ -48,17 +47,17 @@ import static io.fluxcapacitor.common.ObjectUtils.iterate;
 public class WebSocketEventStoreClient extends AbstractWebsocketClient implements EventStoreClient {
     private final int fetchBatchSize;
 
-    public WebSocketEventStoreClient(String endPointUrl, ClientConfig clientConfig) {
-        this(URI.create(endPointUrl), 8192, clientConfig);
+    public WebSocketEventStoreClient(String endPointUrl, WebSocketClient client) {
+        this(URI.create(endPointUrl), 8192, client);
     }
 
-    public WebSocketEventStoreClient(URI endPointUri, int fetchBatchSize, WebSocketClient.ClientConfig clientConfig) {
-        this(endPointUri, fetchBatchSize, clientConfig, true);
+    public WebSocketEventStoreClient(URI endPointUri, int fetchBatchSize, WebSocketClient client) {
+        this(endPointUri, fetchBatchSize, client, true);
     }
 
-    public WebSocketEventStoreClient(URI endPointUri, int fetchBatchSize, WebSocketClient.ClientConfig clientConfig,
+    public WebSocketEventStoreClient(URI endPointUri, int fetchBatchSize, WebSocketClient client,
                                      boolean sendMetrics) {
-        super(endPointUri, clientConfig, sendMetrics, clientConfig.getEventSourcingSessions());
+        super(endPointUri, client, sendMetrics, client.getClientConfig().getEventSourcingSessions());
         this.fetchBatchSize = fetchBatchSize;
     }
 

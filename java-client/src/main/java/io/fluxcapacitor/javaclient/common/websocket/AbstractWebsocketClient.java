@@ -29,6 +29,8 @@ import io.fluxcapacitor.common.api.ResultBatch;
 import io.fluxcapacitor.common.tracking.InMemoryTaskScheduler;
 import io.fluxcapacitor.common.tracking.TaskScheduler;
 import io.fluxcapacitor.javaclient.FluxCapacitor;
+import io.fluxcapacitor.javaclient.common.serialization.Serializer;
+import io.fluxcapacitor.javaclient.common.serialization.jackson.JacksonSerializer;
 import io.fluxcapacitor.javaclient.configuration.client.WebSocketClient;
 import io.fluxcapacitor.javaclient.configuration.client.WebSocketClient.ClientConfig;
 import io.fluxcapacitor.javaclient.publishing.AdhocDispatchInterceptor;
@@ -42,6 +44,8 @@ import jakarta.websocket.OnOpen;
 import jakarta.websocket.PongMessage;
 import jakarta.websocket.Session;
 import jakarta.websocket.WebSocketContainer;
+import lombok.AccessLevel;
+import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import lombok.SneakyThrows;
 import lombok.Value;
@@ -63,6 +67,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 
 import static com.fasterxml.jackson.databind.DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES;
 import static com.fasterxml.jackson.databind.SerializationFeature.WRITE_DATES_AS_TIMESTAMPS;
+import static io.fluxcapacitor.common.Guarantee.STORED;
 import static io.fluxcapacitor.common.MessageType.METRICS;
 import static io.fluxcapacitor.common.ObjectUtils.newThreadFactory;
 import static io.fluxcapacitor.common.TimingUtils.retryOnFailure;
@@ -70,6 +75,7 @@ import static io.fluxcapacitor.common.serialization.compression.CompressionUtils
 import static io.fluxcapacitor.common.serialization.compression.CompressionUtils.decompress;
 import static io.fluxcapacitor.javaclient.FluxCapacitor.currentCorrelationData;
 import static io.fluxcapacitor.javaclient.FluxCapacitor.publishMetrics;
+import static io.fluxcapacitor.javaclient.common.Message.asMessage;
 import static io.fluxcapacitor.javaclient.publishing.AdhocDispatchInterceptor.getAdhocInterceptor;
 import static jakarta.websocket.CloseReason.CloseCodes.NO_STATUS_CODE;
 import static java.lang.System.currentTimeMillis;
@@ -84,7 +90,8 @@ public abstract class AbstractWebsocketClient implements AutoCloseable {
             .findAndAddModules().disable(WRITE_DATES_AS_TIMESTAMPS).build();
 
     private final SessionPool sessionPool;
-    private final WebSocketClient.ClientConfig clientConfig;
+    private final WebSocketClient client;
+    private final ClientConfig clientConfig;
     private final ObjectMapper objectMapper;
     private final Map<Long, WebSocketRequest> requests = new ConcurrentHashMap<>();
     private final Map<String, Backlog<Request>> sessionBacklogs = new ConcurrentHashMap<>();
@@ -92,24 +99,28 @@ public abstract class AbstractWebsocketClient implements AutoCloseable {
     private final Map<String, PingRegistration> pingDeadlines = new ConcurrentHashMap<>();
     private final AtomicBoolean closed = new AtomicBoolean();
     private final ExecutorService resultExecutor;
-    private final boolean sendMetrics;
+    private final boolean allowMetrics;
 
-    public AbstractWebsocketClient(URI endpointUri, ClientConfig clientConfig, boolean sendMetrics) {
-        this(endpointUri, clientConfig, sendMetrics, 1);
+    @Getter(value = AccessLevel.PROTECTED, lazy = true)
+    private final Serializer fallbackSerializer = new JacksonSerializer();
+
+    public AbstractWebsocketClient(URI endpointUri, WebSocketClient client, boolean allowMetrics) {
+        this(endpointUri, client, allowMetrics, 1);
     }
 
-    public AbstractWebsocketClient(URI endpointUri, WebSocketClient.ClientConfig clientConfig, boolean sendMetrics,
+    public AbstractWebsocketClient(URI endpointUri, WebSocketClient client, boolean allowMetrics,
                                    int numberOfSessions) {
-        this(defaultWebSocketContainer, endpointUri, clientConfig, sendMetrics, Duration.ofSeconds(1),
+        this(defaultWebSocketContainer, endpointUri, client, allowMetrics, Duration.ofSeconds(1),
              defaultObjectMapper, numberOfSessions);
     }
 
-    public AbstractWebsocketClient(WebSocketContainer container, URI endpointUri, ClientConfig clientConfig,
-                                   boolean sendMetrics, Duration reconnectDelay, ObjectMapper objectMapper,
+    public AbstractWebsocketClient(WebSocketContainer container, URI endpointUri, WebSocketClient client,
+                                   boolean allowMetrics, Duration reconnectDelay, ObjectMapper objectMapper,
                                    int numberOfSessions) {
-        this.clientConfig = clientConfig;
+        this.client = client;
+        this.clientConfig = client.getClientConfig();
         this.objectMapper = objectMapper;
-        this.sendMetrics = sendMetrics;
+        this.allowMetrics = allowMetrics;
         this.pingScheduler = new InMemoryTaskScheduler(this + "-pingScheduler");
         this.resultExecutor = Executors.newFixedThreadPool(
                 8, newThreadFactory(this + "-onMessage"));
@@ -156,16 +167,17 @@ public abstract class AbstractWebsocketClient implements AutoCloseable {
 
     @SneakyThrows
     private CompletableFuture<Void> sendAndForget(Command object) {
-        return send(object, sessionPool.get(object.routingKey()));
+        return send(object, FluxCapacitor.currentCorrelationData(), sessionPool.get(object.routingKey()));
     }
 
     @SneakyThrows
-    private CompletableFuture<Void> send(Request request, Session session) {
+    private CompletableFuture<Void> send(Request request, Map<String, String> correlationData,
+                                         Session session) {
         try {
             return sessionBacklogs.computeIfAbsent(
                     session.getId(), id -> Backlog.forConsumer(batch -> sendBatch(batch, session))).add(request);
         } finally {
-            tryPublishMetrics(request, metricsMetadata()
+            tryPublishMetrics(request, metricsMetadata().with(correlationData)
                     .with("sessionId", session.getId()).with("requestId", request.getRequestId()));
         }
     }
@@ -204,7 +216,8 @@ public abstract class AbstractWebsocketClient implements AutoCloseable {
             } else {
                 WebSocketRequest webSocketRequest = requests.get(((QueryResult) value).getRequestId());
                 if (webSocketRequest == null) {
-                    log.warn("Could not find outstanding read request for id {} (session {})", ((QueryResult) value).getRequestId(), session.getId());
+                    log.warn("Could not find outstanding read request for id {} (session {})",
+                             ((QueryResult) value).getRequestId(), session.getId());
                 }
                 handleResult((QueryResult) value, null);
             }
@@ -264,7 +277,8 @@ public abstract class AbstractWebsocketClient implements AutoCloseable {
                         v.cancel();
                     }
                     return new PingRegistration(pingScheduler.schedule(clientConfig.getPingTimeout(), () -> {
-                        log.warn("Failed to get a ping response in time for session {}. Resetting connection", session.getId());
+                        log.warn("Failed to get a ping response in time for session {}. Resetting connection",
+                                 session.getId());
                         abort(session);
                     }));
                 });
@@ -281,7 +295,7 @@ public abstract class AbstractWebsocketClient implements AutoCloseable {
     protected void abort(Session session) {
         var reason = new CloseReason(NO_STATUS_CODE, null);
         try {
-         onClose(session, reason);
+            onClose(session, reason);
         } finally {
             try {
                 session.close(reason);
@@ -371,8 +385,11 @@ public abstract class AbstractWebsocketClient implements AutoCloseable {
 
     protected void tryPublishMetrics(JsonType message, Metadata metadata) {
         Object metric = message.toMetric();
-        if (sendMetrics && metric != null) {
-            FluxCapacitor.getOptionally().ifPresent(f -> publishMetrics(metric, metadata));
+        if (allowMetrics && !clientConfig.isDisableMetrics() && metric != null) {
+            FluxCapacitor.getOptionally().ifPresentOrElse(
+                    f -> publishMetrics(metric, metadata),
+                    () -> client.getGatewayClient(METRICS).append(
+                            STORED, asMessage(message).addMetadata(metadata).serialize(getFallbackSerializer())));
         }
     }
 
@@ -405,7 +422,7 @@ public abstract class AbstractWebsocketClient implements AutoCloseable {
 
             try {
                 sendTimestamp = System.currentTimeMillis();
-                AbstractWebsocketClient.this.send(request, session);
+                AbstractWebsocketClient.this.send(request, correlationData, session);
             } catch (Exception e) {
                 requests.remove(request.getRequestId());
                 result.completeExceptionally(e);

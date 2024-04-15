@@ -34,16 +34,16 @@ import java.util.stream.Stream;
 @ClientEndpoint
 public class WebSocketSearchClient extends AbstractWebsocketClient implements SearchClient {
 
-    public WebSocketSearchClient(String endPointUrl, WebSocketClient.ClientConfig clientConfig) {
-        this(URI.create(endPointUrl), clientConfig);
+    public WebSocketSearchClient(String endPointUrl, WebSocketClient client) {
+        this(URI.create(endPointUrl), client);
     }
 
-    public WebSocketSearchClient(URI endpointUri, WebSocketClient.ClientConfig clientConfig) {
-        this(endpointUri, clientConfig, true);
+    public WebSocketSearchClient(URI endpointUri, WebSocketClient client) {
+        this(endpointUri, client, true);
     }
 
-    public WebSocketSearchClient(URI endpointUri, WebSocketClient.ClientConfig clientConfig, boolean sendMetrics) {
-        super(endpointUri, clientConfig, sendMetrics, clientConfig.getSearchSessions());
+    public WebSocketSearchClient(URI endpointUri, WebSocketClient client, boolean sendMetrics) {
+        super(endpointUri, client, sendMetrics, client.getClientConfig().getSearchSessions());
     }
 
     @Override

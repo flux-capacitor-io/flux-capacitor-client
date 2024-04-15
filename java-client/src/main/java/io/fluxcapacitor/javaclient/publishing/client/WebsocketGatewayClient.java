@@ -22,7 +22,6 @@ import io.fluxcapacitor.common.api.SerializedMessage;
 import io.fluxcapacitor.common.api.publishing.Append;
 import io.fluxcapacitor.javaclient.common.websocket.AbstractWebsocketClient;
 import io.fluxcapacitor.javaclient.configuration.client.WebSocketClient;
-import io.fluxcapacitor.javaclient.configuration.client.WebSocketClient.ClientConfig;
 import jakarta.websocket.ClientEndpoint;
 
 import java.net.URI;
@@ -43,17 +42,17 @@ public class WebsocketGatewayClient extends AbstractWebsocketClient implements G
     private final Metadata metricsMetadata;
     private final MessageType messageType;
 
-    public WebsocketGatewayClient(String endPointUrl, ClientConfig clientConfig, MessageType type) {
-        this(URI.create(endPointUrl), clientConfig, type);
+    public WebsocketGatewayClient(String endPointUrl, WebSocketClient client, MessageType type) {
+        this(URI.create(endPointUrl), client, type);
     }
 
-    public WebsocketGatewayClient(URI endPointUri, ClientConfig clientConfig, MessageType type) {
-        this(endPointUri, clientConfig, type, type != METRICS);
+    public WebsocketGatewayClient(URI endPointUri, WebSocketClient client, MessageType type) {
+        this(endPointUri, client, type, type != METRICS);
     }
 
-    public WebsocketGatewayClient(URI endPointUri, WebSocketClient.ClientConfig clientConfig,
+    public WebsocketGatewayClient(URI endPointUri, WebSocketClient client,
                                   MessageType type, boolean sendMetrics) {
-        super(endPointUri, clientConfig, sendMetrics, clientConfig.getGatewaySessions().get(type));
+        super(endPointUri, client, sendMetrics, client.getClientConfig().getGatewaySessions().get(type));
         this.metricsMetadata = Metadata.of("messageType", type);
         messageType = type;
     }

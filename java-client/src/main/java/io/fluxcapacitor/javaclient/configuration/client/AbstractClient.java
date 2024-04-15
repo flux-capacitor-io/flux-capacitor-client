@@ -24,44 +24,45 @@ import io.fluxcapacitor.javaclient.persisting.search.client.SearchClient;
 import io.fluxcapacitor.javaclient.publishing.client.GatewayClient;
 import io.fluxcapacitor.javaclient.scheduling.client.SchedulingClient;
 import io.fluxcapacitor.javaclient.tracking.client.TrackingClient;
+import lombok.AccessLevel;
 import lombok.Getter;
+import lombok.experimental.FieldDefaults;
 import lombok.extern.slf4j.Slf4j;
 
 import java.util.Set;
 import java.util.concurrent.CopyOnWriteArraySet;
-import java.util.function.Function;
 
 import static io.fluxcapacitor.common.ObjectUtils.memoize;
 import static java.util.Arrays.stream;
 
 @Slf4j
+@FieldDefaults(level = AccessLevel.PRIVATE, makeFinal = true)
 public abstract class AbstractClient implements Client {
 
-    private final String name;
-    private final String id;
-    private final MemoizingFunction<MessageType, ? extends GatewayClient> gatewayClients;
-    private final MemoizingFunction<MessageType, ? extends TrackingClient> trackingClients;
-    @Getter private final EventStoreClient eventStoreClient;
-    @Getter private final SchedulingClient schedulingClient;
-    @Getter private final KeyValueClient keyValueClient;
-    @Getter private final SearchClient searchClient;
+    String name;
+    String id;
+
+    MemoizingFunction<MessageType, ? extends GatewayClient> gatewayClients = memoize(this::createGatewayClient);
+    MemoizingFunction<MessageType, ? extends TrackingClient> trackingClients = memoize(this::createTrackingClient);
+    @Getter(lazy = true) EventStoreClient eventStoreClient = createEventStoreClient();
+    @Getter(lazy = true) SchedulingClient schedulingClient = createSchedulingClient();
+    @Getter(lazy = true) KeyValueClient keyValueClient = createKeyValueClient();
+    @Getter(lazy = true) SearchClient searchClient = createSearchClient();
+
 
     protected final Set<Runnable> shutdownTasks = new CopyOnWriteArraySet<>();
 
-    public AbstractClient(String name, String id, Function<MessageType, ? extends GatewayClient> gatewayClients,
-                          Function<MessageType, ? extends TrackingClient> trackingClients,
-                          EventStoreClient eventStoreClient, SchedulingClient schedulingClient,
-                          KeyValueClient keyValueClient,
-                          SearchClient searchClient) {
+    public AbstractClient(String name, String id) {
         this.name = name;
         this.id = id;
-        this.gatewayClients = memoize(gatewayClients);
-        this.trackingClients = memoize(trackingClients);
-        this.eventStoreClient = eventStoreClient;
-        this.schedulingClient = schedulingClient;
-        this.keyValueClient = keyValueClient;
-        this.searchClient = searchClient;
     }
+
+    protected abstract GatewayClient createGatewayClient(MessageType messageType);
+    protected abstract TrackingClient createTrackingClient(MessageType messageType);
+    protected abstract EventStoreClient createEventStoreClient();
+    protected abstract SchedulingClient createSchedulingClient();
+    protected abstract KeyValueClient createKeyValueClient();
+    protected abstract SearchClient createSearchClient();
 
     @Override
     public String name() {
@@ -89,10 +90,10 @@ public abstract class AbstractClient implements Client {
         MessageType[] types = MessageType.values();
         stream(types).filter(trackingClients::isCached).map(trackingClients).forEach(TrackingClient::close);
         stream(types).filter(gatewayClients::isCached).map(gatewayClients).forEach(GatewayClient::close);
-        eventStoreClient.close();
-        schedulingClient.close();
-        keyValueClient.close();
-        searchClient.close();
+        getEventStoreClient().close();
+        getSchedulingClient().close();
+        getKeyValueClient().close();
+        getSearchClient().close();
     }
 
     @Override

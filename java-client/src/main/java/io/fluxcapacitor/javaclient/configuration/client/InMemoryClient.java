@@ -29,20 +29,12 @@ import io.fluxcapacitor.javaclient.tracking.client.TrackingClient;
 
 import java.lang.management.ManagementFactory;
 import java.time.Duration;
-import java.util.function.Function;
-
-import static io.fluxcapacitor.common.ObjectUtils.memoize;
 
 public class InMemoryClient extends AbstractClient {
 
-    private static Function<MessageType, InMemoryMessageStore> messageStoreFactory(Duration messageExpiration) {
-        var eventStoreClient = new InMemoryEventStore(messageExpiration);
-        return memoize(t -> switch (t) {
-            case NOTIFICATION, EVENT -> eventStoreClient;
-            case SCHEDULE -> new InMemoryScheduleStore(messageExpiration);
-            default -> new InMemoryMessageStore(t, messageExpiration);
-        });
-    }
+    private final Duration messageExpiration;
+    private final InMemoryEventStore eventStore;
+    private final InMemoryScheduleStore scheduleStore;
 
     public static InMemoryClient newInstance() {
         return new InMemoryClient(Duration.ofMinutes(2));
@@ -53,16 +45,47 @@ public class InMemoryClient extends AbstractClient {
     }
 
     protected InMemoryClient(Duration messageExpiration) {
-        this("inMemory", ManagementFactory.getRuntimeMXBean().getName(), messageStoreFactory(messageExpiration),
-             new InMemoryKeyValueStore(), new InMemorySearchStore());
+        this("inMemory", ManagementFactory.getRuntimeMXBean().getName(), messageExpiration);
     }
 
-    protected <T extends GatewayClient & TrackingClient> InMemoryClient(String name, String id,
-                                                                        Function<MessageType, T> messageStoreClients,
-                                                                        KeyValueClient keyValueClient,
-                                                                        SearchClient searchClient) {
-        super(name, id, messageStoreClients, messageStoreClients,
-              (EventStoreClient) messageStoreClients.apply(MessageType.EVENT),
-              (SchedulingClient) messageStoreClients.apply(MessageType.SCHEDULE), keyValueClient, searchClient);
+    protected InMemoryClient(String name, String id, Duration messageExpiration) {
+        super(name, id);
+        this.messageExpiration = messageExpiration;
+        this.eventStore = new InMemoryEventStore(messageExpiration);
+        this.scheduleStore = new InMemoryScheduleStore(messageExpiration);
+    }
+
+    @Override
+    protected GatewayClient createGatewayClient(MessageType messageType) {
+        return switch (messageType) {
+            case NOTIFICATION, EVENT -> eventStore;
+            case SCHEDULE -> scheduleStore;
+            default -> new InMemoryMessageStore(messageType, messageExpiration);
+        };
+    }
+
+    @Override
+    protected TrackingClient createTrackingClient(MessageType messageType) {
+        return (TrackingClient) getGatewayClient(messageType);
+    }
+
+    @Override
+    protected EventStoreClient createEventStoreClient() {
+        return (EventStoreClient) getTrackingClient(MessageType.EVENT);
+    }
+
+    @Override
+    protected SchedulingClient createSchedulingClient() {
+        return (SchedulingClient) getTrackingClient(MessageType.SCHEDULE);
+    }
+
+    @Override
+    protected KeyValueClient createKeyValueClient() {
+        return new InMemoryKeyValueStore();
+    }
+
+    @Override
+    protected SearchClient createSearchClient() {
+        return new InMemorySearchStore();
     }
 }

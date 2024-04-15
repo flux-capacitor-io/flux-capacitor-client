@@ -35,16 +35,16 @@ import java.util.concurrent.CompletableFuture;
 @ClientEndpoint
 public class WebsocketKeyValueClient extends AbstractWebsocketClient implements KeyValueClient {
 
-    public WebsocketKeyValueClient(String endPointUrl, WebSocketClient.ClientConfig clientConfig) {
-        this(URI.create(endPointUrl), clientConfig);
+    public WebsocketKeyValueClient(String endPointUrl, WebSocketClient client) {
+        this(URI.create(endPointUrl), client);
     }
 
-    public WebsocketKeyValueClient(URI endpointUri, WebSocketClient.ClientConfig clientConfig) {
-        this(endpointUri, clientConfig, true);
+    public WebsocketKeyValueClient(URI endpointUri, WebSocketClient client) {
+        this(endpointUri, client, true);
     }
 
-    public WebsocketKeyValueClient(URI endpointUri, WebSocketClient.ClientConfig clientConfig, boolean sendMetrics) {
-        super(endpointUri, clientConfig, sendMetrics, clientConfig.getKeyValueSessions());
+    public WebsocketKeyValueClient(URI endpointUri, WebSocketClient client, boolean sendMetrics) {
+        super(endpointUri, client, sendMetrics, client.getClientConfig().getKeyValueSessions());
     }
 
     @Override
