@@ -14,13 +14,16 @@
 
 package io.fluxcapacitor.javaclient.scheduling;
 
-import io.fluxcapacitor.common.MessageType;
 import io.fluxcapacitor.common.api.SerializedMessage;
 import io.fluxcapacitor.javaclient.FluxCapacitor;
+import io.fluxcapacitor.javaclient.common.serialization.DeserializingMessage;
 import io.fluxcapacitor.javaclient.tracking.Consumer;
 import io.fluxcapacitor.javaclient.tracking.handling.HandleSchedule;
 
+import java.util.stream.Stream;
+
 import static io.fluxcapacitor.common.Guarantee.NONE;
+import static io.fluxcapacitor.common.MessageType.COMMAND;
 
 @Consumer(name = "ScheduledCommandHandler", typeFilter = "io.fluxcapacitor.javaclient.scheduling.ScheduledCommand")
 public class ScheduledCommandHandler {
@@ -28,6 +31,12 @@ public class ScheduledCommandHandler {
     void handle(ScheduledCommand schedule) {
         SerializedMessage command = schedule.getCommand();
         command.setTimestamp(FluxCapacitor.currentTime().toEpochMilli());
-        FluxCapacitor.get().client().getGatewayClient(MessageType.COMMAND).append(NONE, command);
+        var commands = FluxCapacitor.get().serializer().deserializeMessages(Stream.of(command), COMMAND)
+                .map(DeserializingMessage::toMessage).toArray();
+        if (commands.length != 0) {
+            FluxCapacitor.sendAndForgetCommands(commands);
+        } else {
+            FluxCapacitor.get().client().getGatewayClient(COMMAND).append(NONE, command);
+        }
     }
 }
