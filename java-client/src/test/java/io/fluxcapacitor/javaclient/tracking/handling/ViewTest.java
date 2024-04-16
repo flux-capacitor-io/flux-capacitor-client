@@ -17,6 +17,7 @@ package io.fluxcapacitor.javaclient.tracking.handling;
 import io.fluxcapacitor.common.search.SearchExclude;
 import io.fluxcapacitor.javaclient.FluxCapacitor;
 import io.fluxcapacitor.javaclient.modeling.EntityId;
+import io.fluxcapacitor.javaclient.modeling.Id;
 import io.fluxcapacitor.javaclient.test.TestFixture;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -54,14 +55,14 @@ public class ViewTest {
         @Test
         void viewIsUpdated_alias() {
             testFixture.givenEvents(new SomeEvent("foo"))
-                    .whenEvent(new AliasEvent("foo"))
+                    .whenEvent(new AliasEvent(new AliasId("foo")))
                     .expectOnlyCommands(2);
         }
 
         @Test
         void viewIsNotUpdated_wrongAlias() {
             testFixture.givenEvents(new SomeEvent("foo"))
-                    .whenEvent(new AliasEvent("other"))
+                    .whenEvent(new AliasEvent(new AliasId("other")))
                     .expectNoCommands();
         }
 
@@ -221,7 +222,13 @@ public class ViewTest {
 
     @Value
     static class AliasEvent {
-        String aliasId;
+        AliasId aliasId;
+    }
+
+    static class AliasId extends Id<Object> {
+        protected AliasId(String id) {
+            super(id, Object.class, "alias-");
+        }
     }
 
     @Value

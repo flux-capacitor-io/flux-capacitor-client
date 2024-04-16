@@ -23,6 +23,7 @@ import io.fluxcapacitor.javaclient.common.ClientUtils;
 import io.fluxcapacitor.javaclient.common.Entry;
 import io.fluxcapacitor.javaclient.common.serialization.DeserializingMessage;
 import io.fluxcapacitor.javaclient.modeling.EntityId;
+import io.fluxcapacitor.javaclient.modeling.Id;
 import io.fluxcapacitor.javaclient.modeling.ViewRepository;
 import lombok.AccessLevel;
 import lombok.AllArgsConstructor;
@@ -102,7 +103,12 @@ public class ViewHandler implements Handler<DeserializingMessage> {
                                                           .flatMap(e -> methodAssociationProperties.apply(e).stream()),
                                               getViewAssociationProperties().stream())
                         .flatMap(property -> ReflectionUtils.readProperty(property, payload).stream()))
-                .map(Object::toString).collect(toSet());
+                .map(v -> {
+                    if (v instanceof Id<?> id) {
+                        return id.getFunctionalId();
+                    }
+                    return v.toString();
+                }).collect(toSet());
     }
 
     @Getter
