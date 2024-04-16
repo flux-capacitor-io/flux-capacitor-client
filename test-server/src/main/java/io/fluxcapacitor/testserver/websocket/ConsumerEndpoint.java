@@ -33,7 +33,6 @@ import io.fluxcapacitor.common.tracking.MessageStore;
 import io.fluxcapacitor.common.tracking.PositionStore;
 import io.fluxcapacitor.common.tracking.TrackingStrategy;
 import io.fluxcapacitor.common.tracking.WebSocketTracker;
-import io.fluxcapacitor.javaclient.tracking.client.InMemoryMessageStore;
 import jakarta.websocket.CloseReason;
 import jakarta.websocket.Session;
 import lombok.AllArgsConstructor;
@@ -52,7 +51,7 @@ public class ConsumerEndpoint extends WebsocketEndpoint {
     private final PositionStore positionStore;
     private final MessageType messageType;
 
-    public ConsumerEndpoint(InMemoryMessageStore messageStore, MessageType messageType) {
+    public ConsumerEndpoint(MessageStore messageStore, MessageType messageType) {
         this(new DefaultTrackingStrategy(messageStore), messageStore, new InMemoryPositionStore(), messageType);
     }
 

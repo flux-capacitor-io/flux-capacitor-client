@@ -76,25 +76,27 @@ public class InMemoryMessageStore implements GatewayClient, TrackingClient, Mess
     }
 
     @Override
-    public CompletableFuture<Void> append(Guarantee guarantee, SerializedMessage... messages) {
+    public synchronized CompletableFuture<Void> append(Guarantee guarantee, SerializedMessage... messages) {
         try {
-            synchronized (this) {
-                Arrays.stream(messages).forEach(m -> {
-                    if (m.getIndex() == null) {
-                        m.setIndex(nextIndex.updateAndGet(IndexUtils::nextIndex));
-                    }
-                    messageLog.put(m.getIndex(), m);
-                });
-                if (messageExpiration != null) {
-                    purgeExpiredMessages(messageExpiration);
+            Arrays.stream(messages).forEach(m -> {
+                if (m.getIndex() == null) {
+                    m.setIndex(nextIndex.updateAndGet(IndexUtils::nextIndex));
                 }
-                this.notifyAll();
+                messageLog.put(m.getIndex(), m);
+            });
+            if (messageExpiration != null) {
+                purgeExpiredMessages(messageExpiration);
             }
             return CompletableFuture.completedFuture(null);
         } finally {
-            if (!monitors.isEmpty()) {
-                monitors.forEach(m -> m.accept(Arrays.asList(messages)));
-            }
+            notifyMonitors(messages);
+        }
+    }
+
+    public synchronized void notifyMonitors(SerializedMessage... messages) {
+        this.notifyAll();
+        if (!monitors.isEmpty()) {
+            monitors.forEach(m -> m.accept(Arrays.asList(messages)));
         }
     }
 
@@ -124,7 +126,8 @@ public class InMemoryMessageStore implements GatewayClient, TrackingClient, Mess
         if (trackerRead.getMessageType() != MessageType.RESULT && !Objects.equals(
                 trackerRead.getTrackerId(), trackers.computeIfAbsent(
                         trackerRead.getConsumer(), c -> trackerRead).getTrackerId())) {
-            log.debug("Delaying read by secondary tracker {} (message type {})", trackerRead.getConsumer(), messageType);
+            log.debug("Delaying read by secondary tracker {} (message type {})", trackerRead.getConsumer(),
+                      messageType);
             return CompletableFuture.supplyAsync(
                     () -> new MessageBatch(new int[]{0, 0}, Collections.emptyList(), null),
                     CompletableFuture.delayedExecutor(trackerRead.getDeadline() - currentTimeMillis(), MILLISECONDS));
@@ -199,7 +202,8 @@ public class InMemoryMessageStore implements GatewayClient, TrackingClient, Mess
     }
 
     @Override
-    public CompletableFuture<Void> disconnectTracker(String consumer, String trackerId, boolean sendFinalEmptyBatch, Guarantee guarantee) {
+    public CompletableFuture<Void> disconnectTracker(String consumer, String trackerId, boolean sendFinalEmptyBatch,
+                                                     Guarantee guarantee) {
         disconnectTrackersMatching(t -> Objects.equals(trackerId, t.getTrackerId()));
         return CompletableFuture.completedFuture(null);
     }

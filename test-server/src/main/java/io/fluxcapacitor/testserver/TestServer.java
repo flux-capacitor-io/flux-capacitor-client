@@ -15,12 +15,16 @@
 package io.fluxcapacitor.testserver;
 
 import io.fluxcapacitor.common.MessageType;
+import io.fluxcapacitor.common.tracking.MessageStore;
+import io.fluxcapacitor.javaclient.configuration.client.Client;
 import io.fluxcapacitor.javaclient.configuration.client.InMemoryClient;
 import io.fluxcapacitor.javaclient.scheduling.client.InMemoryScheduleStore;
+import io.fluxcapacitor.javaclient.scheduling.client.SchedulingClient;
 import io.fluxcapacitor.javaclient.tracking.client.InMemoryMessageStore;
 import io.fluxcapacitor.testserver.metrics.DefaultMetricsLog;
 import io.fluxcapacitor.testserver.metrics.MetricsLog;
 import io.fluxcapacitor.testserver.metrics.NoOpMetricsLog;
+import io.fluxcapacitor.testserver.scheduling.TestServerScheduleStore;
 import io.fluxcapacitor.testserver.websocket.ConsumerEndpoint;
 import io.fluxcapacitor.testserver.websocket.EventSourcingEndpoint;
 import io.fluxcapacitor.testserver.websocket.KeyValueEndPoint;
@@ -30,6 +34,8 @@ import io.fluxcapacitor.testserver.websocket.SearchEndpoint;
 import io.undertow.Undertow;
 import io.undertow.server.handlers.GracefulShutdownHandler;
 import io.undertow.server.handlers.PathHandler;
+import lombok.AllArgsConstructor;
+import lombok.experimental.Delegate;
 import lombok.extern.slf4j.Slf4j;
 
 import java.util.Arrays;
@@ -61,7 +67,9 @@ import static java.lang.String.format;
 
 @Slf4j
 public class TestServer {
-    private static final Function<String, InMemoryClient> clients = memoize(projectId -> InMemoryClient.newInstance());
+
+    private static final Function<String, Client> clients = memoize(
+            projectId -> new TestServerProject(InMemoryClient.newInstance()));
     private static final Function<String, MetricsLog> metricsLogSupplier =
             memoize(projectId -> new DefaultMetricsLog(getMessageStore(projectId, METRICS)));
 
@@ -90,7 +98,7 @@ public class TestServer {
                 .metricsLog(metricsLogSupplier.apply(projectId)), format("/%s/", searchPath()), pathHandler);
         pathHandler = deploy(projectId -> new SchedulingEndpoint(clients.apply(projectId).getSchedulingClient())
                 .metricsLog(metricsLogSupplier.apply(projectId)), format("/%s/", schedulingPath()), pathHandler);
-        pathHandler = deploy(projectId -> new ConsumerEndpoint((InMemoryScheduleStore) clients.apply(projectId).getSchedulingClient(), SCHEDULE)
+        pathHandler = deploy(projectId -> new ConsumerEndpoint((MessageStore) clients.apply(projectId).getSchedulingClient(), SCHEDULE)
                                      .metricsLog(metricsLogSupplier.apply(projectId)),
                              format("/%s/", consumerPath(SCHEDULE)), pathHandler);
         pathHandler = pathHandler.addPrefixPath("/health", exchange -> {
@@ -124,4 +132,19 @@ public class TestServer {
         return (InMemoryMessageStore) clients.apply(projectId).getGatewayClient(messageType);
     }
 
+    @AllArgsConstructor
+    static
+    class TestServerProject implements Client {
+        @Delegate(excludes = Excluded.class)
+        private final InMemoryClient delegate;
+
+        @Override
+        public SchedulingClient getSchedulingClient() {
+            return new TestServerScheduleStore((InMemoryScheduleStore) delegate.getSchedulingClient());
+        }
+
+        interface Excluded {
+            SchedulingClient getSchedulingClient();
+        }
+    }
 }

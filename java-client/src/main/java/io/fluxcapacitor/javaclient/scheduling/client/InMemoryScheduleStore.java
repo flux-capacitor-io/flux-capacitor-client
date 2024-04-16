@@ -23,7 +23,6 @@ import io.fluxcapacitor.javaclient.scheduling.Schedule;
 import io.fluxcapacitor.javaclient.tracking.client.InMemoryMessageStore;
 import lombok.NonNull;
 import lombok.SneakyThrows;
-import lombok.Synchronized;
 import lombok.extern.slf4j.Slf4j;
 
 import java.time.Clock;
@@ -49,6 +48,7 @@ public class InMemoryScheduleStore extends InMemoryMessageStore implements Sched
     private final ConcurrentSkipListMap<Long, String> scheduleIdsByIndex = new ConcurrentSkipListMap<>();
     private volatile Clock clock = Clock.systemUTC();
 
+
     public InMemoryScheduleStore() {
         super(SCHEDULE);
     }
@@ -67,8 +67,7 @@ public class InMemoryScheduleStore extends InMemoryMessageStore implements Sched
 
     @SneakyThrows
     @Override
-    @Synchronized
-    public CompletableFuture<Void> schedule(Guarantee guarantee, SerializedSchedule... schedules) {
+    public synchronized CompletableFuture<Void> schedule(Guarantee guarantee, SerializedSchedule... schedules) {
         List<SerializedSchedule> filtered = Arrays.stream(schedules)
                 .filter(s -> !s.isIfAbsent() || !scheduleIdsByIndex.containsValue(s.getScheduleId())).toList();
         long now = FluxCapacitor.currentClock().millis();
@@ -85,15 +84,13 @@ public class InMemoryScheduleStore extends InMemoryMessageStore implements Sched
     }
 
     @Override
-    @Synchronized
-    public CompletableFuture<Void> cancelSchedule(String scheduleId, Guarantee guarantee) {
+    public synchronized CompletableFuture<Void> cancelSchedule(String scheduleId, Guarantee guarantee) {
         scheduleIdsByIndex.values().removeIf(s -> s.equals(scheduleId));
         return CompletableFuture.completedFuture(null);
     }
 
     @Override
-    @Synchronized
-    public SerializedSchedule getSchedule(String scheduleId) {
+    public synchronized SerializedSchedule getSchedule(String scheduleId) {
         return scheduleIdsByIndex.entrySet().stream().filter(e -> scheduleId.equals(e.getValue())).findFirst()
                 .map(e -> {
                     SerializedMessage message = getMessage(e.getKey());
@@ -106,21 +103,18 @@ public class InMemoryScheduleStore extends InMemoryMessageStore implements Sched
         throw new UnsupportedOperationException("Use method #schedule instead");
     }
 
-    @Synchronized
-    public void setClock(@NonNull Clock clock) {
+    public synchronized void setClock(@NonNull Clock clock) {
         synchronized (this) {
             this.clock = clock;
             notifyAll();
         }
     }
 
-    @Synchronized
-    public List<Schedule> getSchedules(Serializer serializer) {
+    public synchronized List<Schedule> getSchedules(Serializer serializer) {
         return asList(scheduleIdsByIndex, serializer);
     }
 
-    @Synchronized
-    public List<Schedule> removeExpiredSchedules(Serializer serializer) {
+    public synchronized List<Schedule> removeExpiredSchedules(Serializer serializer) {
         Map<Long, String> expiredEntries = scheduleIdsByIndex.headMap(maxIndexFromMillis(clock.millis()), true);
         List<Schedule> result = asList(expiredEntries, serializer);
         expiredEntries.clear();
