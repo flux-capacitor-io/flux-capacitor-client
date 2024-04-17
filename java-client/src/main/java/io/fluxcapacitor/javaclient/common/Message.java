@@ -49,6 +49,7 @@ public class Message implements HasMessage {
     Object payload;
     @With
     Metadata metadata;
+    @With
     String messageId;
     Instant timestamp;
 

@@ -17,6 +17,7 @@ package io.fluxcapacitor.javaclient.scheduling;
 import io.fluxcapacitor.common.Guarantee;
 import io.fluxcapacitor.common.api.SerializedMessage;
 import io.fluxcapacitor.common.api.scheduling.SerializedSchedule;
+import io.fluxcapacitor.javaclient.FluxCapacitor;
 import io.fluxcapacitor.javaclient.common.serialization.DeserializingMessage;
 import io.fluxcapacitor.javaclient.common.serialization.Serializer;
 import io.fluxcapacitor.javaclient.modeling.Entity;
@@ -72,18 +73,19 @@ public class DefaultScheduler implements Scheduler, HasLocalHandlers {
         if (Entity.isLoading()) {
             return CompletableFuture.completedFuture(null);
         }
-        var intercepted = commandDispatchInterceptor.interceptDispatch(schedule, COMMAND);
+        var commandMessage = schedule.withMessageId(FluxCapacitor.currentIdentityProvider().nextTechnicalId());
+        var intercepted = commandDispatchInterceptor.interceptDispatch(commandMessage, COMMAND);
         if (intercepted == null) {
             return CompletableFuture.completedFuture(null);
         }
-        schedule = schedule.withPayload(intercepted.getPayload()).withMetadata(intercepted.getMetadata());
+        commandMessage = commandMessage.withPayload(intercepted.getPayload()).withMetadata(intercepted.getMetadata());
         SerializedMessage serializedCommand = commandDispatchInterceptor.modifySerializedMessage(
-                schedule.serialize(serializer), schedule, COMMAND);
+                commandMessage.serialize(serializer), commandMessage, COMMAND);
         if (serializedCommand == null) {
             return CompletableFuture.completedFuture(null);
         }
         return schedule(schedule.withPayload(new ScheduledCommand(serializedCommand))
-                         .addMetadata("$commandType", schedule.getPayloadClass().getName()), ifAbsent, guarantee);
+                                .addMetadata("$commandType", schedule.getPayloadClass().getName()), ifAbsent, guarantee);
     }
 
     @Override
