@@ -196,10 +196,39 @@ class HandleSelfTest {
             }
         }
 
+        @TrackSelf
+        @Consumer(name = "SelfTracked")
+        interface SelfTrackedInterface {
+            String getInput();
+
+            @HandleQuery
+            default String handleSelf() {
+                if (Tracker.current().isEmpty()) {
+                    return "no tracker";
+                }
+                if (Tracker.current().isPresent()
+                    && "SelfTracked".equals(Tracker.current().get().getConfiguration().getName())) {
+                    return getInput();
+                }
+                return "wrong consumer";
+            }
+        }
+
+        @Value
+        static class SelfTrackedConcrete implements SelfTrackedInterface {
+            String input;
+        }
+
         @Test
         void queryTracked() {
             testFixture.registerHandlers(SelfTracked.class)
                     .whenQuery(new SelfTracked("foo")).expectResult("foo");
+        }
+
+        @Test
+        void queryTrackedInterface() {
+            testFixture.registerHandlers(SelfTrackedInterface.class)
+                    .whenQuery(new SelfTrackedConcrete("foo")).expectResult("foo");
         }
     }
 }

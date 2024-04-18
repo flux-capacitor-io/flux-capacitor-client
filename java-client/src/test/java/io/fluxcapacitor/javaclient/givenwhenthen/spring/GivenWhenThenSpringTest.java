@@ -77,6 +77,11 @@ class GivenWhenThenSpringTest {
         testFixture.whenCommand(new SelfTracked()).expectEvents(SelfTracked.class);
     }
 
+    @Test
+    void selfTrackedInterface() {
+        testFixture.whenCommand(new SelfTrackedConcrete("test")).expectEvents(SelfTrackedConcrete.class);
+    }
+
     @Nested
     class ViewTest {
         @Test
@@ -201,6 +206,23 @@ class GivenWhenThenSpringTest {
         }
     }
 
+    @TrackSelf
+    @Consumer(name = "SelfTrackedInterface")
+    public interface SelfTrackedInterface {
+        @HandleCommand
+        default void handleSelf() {
+            if (Tracker.current().isPresent()
+                && "SelfTrackedInterface".equals(Tracker.current().get().getConfiguration().getName())) {
+                FluxCapacitor.publishEvent(this);
+            }
+        }
+    }
+
+    @Value
+    public static class SelfTrackedConcrete implements SelfTrackedInterface {
+        String input;
+    }
+
     static class BarHandler {
         @HandleEvent
         public void handle(DoSomething event) {
@@ -219,5 +241,4 @@ class GivenWhenThenSpringTest {
     @Value
     private static class SlowCommand {
     }
-
 }
