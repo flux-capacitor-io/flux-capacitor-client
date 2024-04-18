@@ -32,7 +32,6 @@ import java.lang.reflect.Parameter;
 import java.util.Arrays;
 import java.util.Comparator;
 import java.util.List;
-import java.util.Objects;
 import java.util.Optional;
 import java.util.function.BiFunction;
 import java.util.function.Function;
@@ -99,14 +98,7 @@ public class HandlerInspector {
                         (Function<MethodHandlerMatcher<?>, Integer>) MethodHandlerMatcher::getPriority, reverseOrder())
                 .thenComparing(
                         (Function<MethodHandlerMatcher<?>, Class<?>>) MethodHandlerMatcher::getClassForSpecificity,
-                        (o1, o2)
-                                -> Objects.equals(o1, o2) ? 0
-                                : o1 == null ? 1 : o2 == null ? -1
-                                : o1.isAssignableFrom(o2) ? 1
-                                : o2.isAssignableFrom(o1) ? -1
-                                : o1.isInterface() && !o2.isInterface() ? 1
-                                : !o1.isInterface() && o2.isInterface() ? -1
-                                : specificity(o2) - specificity(o1))
+                        ReflectionUtils.getClassSpecificityComparator())
                 .thenComparingInt(a -> -a.getParameterCount())
                 .thenComparingInt(MethodHandlerMatcher::getMethodIndex);
 
@@ -216,24 +208,7 @@ public class HandlerInspector {
                     }
                 }
             }
-            return null;
-        }
-
-        protected static int specificity(Class<?> type) {
-            int depth = 0;
-            Class<?> t = type;
-            if (type.isInterface()) {
-                while (t.getInterfaces().length > 0) {
-                    depth++;
-                    t = t.getInterfaces()[0];
-                }
-            } else {
-                while (t != null) {
-                    depth++;
-                    t = t.getSuperclass();
-                }
-            }
-            return depth;
+            return config.messageFilter().getLeastSpecificAllowedClass(executable).orElse(null);
         }
 
         protected int methodIndex(Method instanceMethod, Class<?> instanceType) {

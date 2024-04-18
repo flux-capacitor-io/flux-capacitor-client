@@ -17,20 +17,28 @@ package io.fluxcapacitor.common.handling;
 import lombok.NonNull;
 
 import java.lang.reflect.Executable;
+import java.util.Optional;
 
 @FunctionalInterface
 public interface MessageFilter<M> {
     boolean test(M message, Executable executable);
 
-    default MessageFilter<M> and(@NonNull MessageFilter<? super M> other) {
-        return (m, e) -> test(m, e) && other.test(m, e);
+    default Optional<Class<?>> getLeastSpecificAllowedClass(Executable executable) {
+        return Optional.empty();
     }
 
-    default MessageFilter<M> negate() {
-        return (m, e) -> !test(m, e);
-    }
+    default MessageFilter<M> and(@NonNull MessageFilter<? super M> second) {
+        var first = this;
+        return new MessageFilter<>() {
+            @Override
+            public boolean test(M m, Executable e) {
+                return first.test(m, e) && second.test(m, e);
+            }
 
-    default MessageFilter<M> or(@NonNull MessageFilter<? super M> other) {
-        return (m, e) -> test(m, e) || other.test(m, e);
+            @Override
+            public Optional<Class<?>> getLeastSpecificAllowedClass(Executable executable) {
+                return first.getLeastSpecificAllowedClass(executable).or(() -> second.getLeastSpecificAllowedClass(executable));
+            }
+        };
     }
 }

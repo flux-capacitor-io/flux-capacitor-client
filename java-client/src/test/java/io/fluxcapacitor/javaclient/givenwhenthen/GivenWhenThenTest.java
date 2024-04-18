@@ -68,6 +68,11 @@ class GivenWhenThenTest {
     }
 
     @Test
+    void testInvokeMostGenericHandler() {
+        subject.whenCommand("some string").expectEvents("generic");
+    }
+
+    @Test
     void testExpectEventButNoResult() {
         YieldsEventAndNoResult command = new YieldsEventAndNoResult();
         subject.whenCommand(command)
@@ -211,8 +216,13 @@ class GivenWhenThenTest {
         }
 
         @HandleCommand(allowedClasses = YieldsException.class)
-        public void handle(YieldsException command) {
+        public void handleYieldException() {
             throw new MockException();
+        }
+
+        @HandleCommand(allowedClasses = Object.class)
+        public void handleGeneric() {
+            FluxCapacitor.publishEvent("generic");
         }
 
         @HandleCommand

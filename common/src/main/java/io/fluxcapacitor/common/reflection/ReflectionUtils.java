@@ -17,6 +17,7 @@ package io.fluxcapacitor.common.reflection;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import io.fluxcapacitor.common.ObjectUtils;
 import io.fluxcapacitor.common.serialization.JsonUtils;
+import lombok.Getter;
 import lombok.NonNull;
 import lombok.SneakyThrows;
 import lombok.Value;
@@ -45,6 +46,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
@@ -101,6 +103,34 @@ public class ReflectionUtils {
 
     private static final Function<Class<?>, Collection<? extends Annotation>> typeAnnotations = memoize(
             ReflectionUtils::computeTypeAnnotations);
+
+    @Getter
+    private static final Comparator<Class<?>> classSpecificityComparator = (o1, o2)
+            -> Objects.equals(o1, o2) ? 0
+            : o1 == null ? 1 : o2 == null ? -1
+            : o1.isAssignableFrom(o2) ? 1
+            : o2.isAssignableFrom(o1) ? -1
+            : o1.isInterface() && !o2.isInterface() ? 1
+            : !o1.isInterface() && o2.isInterface() ? -1
+            : specificity(o2) - specificity(o1);
+
+    static int specificity(Class<?> type) {
+        int depth = 0;
+        Class<?> t = type;
+        if (type.isInterface()) {
+            while (t.getInterfaces().length > 0) {
+                depth++;
+                t = t.getInterfaces()[0];
+            }
+        } else {
+            while (t != null) {
+                depth++;
+                t = t.getSuperclass();
+            }
+        }
+        return depth;
+    }
+
 
     public static Stream<Method> getMethodOverrideHierarchy(Method method) {
         return MethodUtils.getOverrideHierarchy(method, ClassUtils.Interfaces.INCLUDE).stream();

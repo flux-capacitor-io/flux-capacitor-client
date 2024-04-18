@@ -40,6 +40,13 @@ public class PayloadFilter implements MessageFilter<HasMessage> {
                 .orElse(true);
     }
 
+    @Override
+    public Optional<Class<?>> getLeastSpecificAllowedClass(Executable executable) {
+        return Optional.ofNullable(allowedClassProvider.apply(executable))
+                .flatMap(a -> a.getAllowedClasses().stream()
+                        .max(ReflectionUtils.getClassSpecificityComparator()));
+    }
+
     @Value
     static class HandleAnnotation {
         List<Class<?>> allowedClasses;
