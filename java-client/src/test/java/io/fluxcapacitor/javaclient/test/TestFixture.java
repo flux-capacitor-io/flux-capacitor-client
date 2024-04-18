@@ -497,7 +497,7 @@ public class TestFixture implements Given, When {
     }
 
     @Override
-    public Then whenCommandByUser(Object command, User user) {
+    public Then whenCommandByUser(User user, Object command) {
         return whenCommand(addUser(user, command));
     }
 
@@ -508,7 +508,7 @@ public class TestFixture implements Given, When {
     }
 
     @Override
-    public Then whenQueryByUser(Object query, User user) {
+    public Then whenQueryByUser(User user, Object query) {
         return whenQuery(addUser(user, query));
     }
 

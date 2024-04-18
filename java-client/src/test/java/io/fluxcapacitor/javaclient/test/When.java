@@ -52,7 +52,7 @@ public interface When {
      * The command may be an instance of {@link Message} in which case it will be issued as is. Otherwise, the command
      * is issued using the passed value as payload without additional metadata.
      */
-    Then whenCommandByUser(Object command, User user);
+    Then whenCommandByUser(User user, Object command);
 
     /**
      * Test expected result of the given query (or side effects if any).
@@ -68,7 +68,7 @@ public interface When {
      * The query may be an instance of {@link Message} in which case it will be issued as is. Otherwise, the query is
      * issued using the passed value as payload without additional metadata.
      */
-    Then whenQueryByUser(Object command, User user);
+    Then whenQueryByUser(User user, Object command);
 
     /**
      * Test expected behavior of handling the given event, including any side effects.

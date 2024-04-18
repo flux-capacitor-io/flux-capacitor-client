@@ -170,7 +170,7 @@ public class GivenWhenThenAuthenticationTest {
 
     @Test
     void testWhenCommandByUser() {
-        testFixture.whenCommandByUser(new Update(), new MockUser("modify")).expectSuccessfulResult();
+        testFixture.whenCommandByUser(new MockUser("modify"), new Update()).expectSuccessfulResult();
     }
 
     @Test
