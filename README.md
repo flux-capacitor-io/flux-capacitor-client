@@ -470,6 +470,19 @@ the class name in the json, as in the following example:
 }
 ```
 
+Sometimes, it is needed to check the behavior of a command or query for a specific user. The TestFixture comes with easy
+to use APIs for that. E.g. to test whether user A is able to create user B, you can write:
+
+```java
+
+@Test
+void newUserCanBeQueried() {
+    var userA = new MyUser("userA");
+    testFixture.whenCommandByUser(userA, "create-user-b.json")
+            .expectExceptionalResult(UnauthorizedException.class);
+}
+```
+
 You can configure the FluxCapacitor in your test instance to you use any kind of interceptor, same as in production. In
 the example below we add an interceptor that authenticates the sender of a command:
 
