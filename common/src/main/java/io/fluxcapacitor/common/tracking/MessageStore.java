@@ -30,8 +30,6 @@ public interface MessageStore extends AutoCloseable, Monitored<List<SerializedMe
 
     List<SerializedMessage> getBatch(Long minIndex, int maxSize, boolean inclusive);
 
-    List<SerializedMessage> readFromIndex(long minIndex, int maxSize);
-
     @Override
     void close();
 }

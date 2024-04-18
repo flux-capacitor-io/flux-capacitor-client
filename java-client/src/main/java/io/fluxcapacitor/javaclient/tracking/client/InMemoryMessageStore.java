@@ -69,6 +69,7 @@ public class InMemoryMessageStore implements GatewayClient, TrackingClient, Mess
 
     @Getter
     private final MessageType messageType;
+    @Getter
     private final Duration messageExpiration;
 
     public InMemoryMessageStore(MessageType messageType) {

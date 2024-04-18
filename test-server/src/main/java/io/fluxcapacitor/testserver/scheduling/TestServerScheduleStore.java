@@ -16,6 +16,7 @@ package io.fluxcapacitor.testserver.scheduling;
 
 import io.fluxcapacitor.common.Guarantee;
 import io.fluxcapacitor.common.Registration;
+import io.fluxcapacitor.common.api.SerializedMessage;
 import io.fluxcapacitor.common.api.scheduling.SerializedSchedule;
 import io.fluxcapacitor.common.tracking.InMemoryTaskScheduler;
 import io.fluxcapacitor.common.tracking.MessageStore;
@@ -23,20 +24,28 @@ import io.fluxcapacitor.common.tracking.TaskScheduler;
 import io.fluxcapacitor.javaclient.FluxCapacitor;
 import io.fluxcapacitor.javaclient.scheduling.client.InMemoryScheduleStore;
 import io.fluxcapacitor.javaclient.scheduling.client.SchedulingClient;
-import lombok.RequiredArgsConstructor;
+import io.fluxcapacitor.javaclient.tracking.IndexUtils;
 import lombok.Value;
 import lombok.experimental.Delegate;
 
 import java.util.Arrays;
+import java.util.Comparator;
+import java.util.List;
 import java.util.concurrent.CompletableFuture;
 
-@RequiredArgsConstructor
+import static io.fluxcapacitor.javaclient.tracking.IndexUtils.indexForCurrentTime;
+
 public class TestServerScheduleStore implements MessageStore, SchedulingClient {
     private final TaskScheduler scheduler = new InMemoryTaskScheduler();
-    private volatile Deadline upcomingDeadline;
-
     @Delegate
     private final InMemoryScheduleStore delegate;
+    private volatile Deadline upcomingDeadline;
+
+    public TestServerScheduleStore(InMemoryScheduleStore delegate) {
+        this.delegate = delegate;
+        getBatch(indexForCurrentTime(), 1).stream().findFirst().map(SerializedMessage::getIndex)
+                .ifPresent(this::rescheduleNextDeadline);
+    }
 
     @Override
     public synchronized CompletableFuture<Void> schedule(Guarantee guarantee, SerializedSchedule... schedules) {
@@ -45,11 +54,27 @@ public class TestServerScheduleStore implements MessageStore, SchedulingClient {
             return delegate.schedule(guarantee, schedules);
         } finally {
             Arrays.stream(schedules).mapToLong(SerializedSchedule::getTimestamp).filter(t -> t > now)
-                    .findFirst().ifPresent(this::rescheduleNextDeadline);
+                    .map(IndexUtils::indexFromMillis).findFirst().ifPresent(this::rescheduleNextDeadline);
         }
     }
 
-    protected void rescheduleNextDeadline(long nextDeadline) {
+    @Override
+    public List<SerializedMessage> getBatch(Long minIndex, int maxSize) {
+        return getBatch(minIndex, maxSize, false);
+    }
+
+    @Override
+    public synchronized List<SerializedMessage> getBatch(Long minIndex, int maxSize, boolean inclusive) {
+        List<SerializedMessage> unfiltered = readFromIndex(
+                minIndex == null ? -1L : inclusive ? minIndex : minIndex + 1, maxSize);
+        List<SerializedMessage> filtered = delegate.getBatch(minIndex, maxSize, inclusive);
+        unfiltered.stream().filter(m -> !filtered.contains(m)).map(SerializedMessage::getIndex)
+                .min(Comparator.naturalOrder()).ifPresent(this::rescheduleNextDeadline);
+        return filtered;
+    }
+
+    protected void rescheduleNextDeadline(long nextIndex) {
+        var nextDeadline = IndexUtils.millisFromIndex(nextIndex);
         if (upcomingDeadline == null || nextDeadline < upcomingDeadline.getTimestamp()) {
             if (upcomingDeadline != null) {
                 upcomingDeadline.getScheduleToken().cancel();

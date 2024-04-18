@@ -92,7 +92,7 @@ public class ConsumerEndpoint extends WebsocketEndpoint {
     @Handle
     ReadFromIndexResult handle(ReadFromIndex read) {
         return new ReadFromIndexResult(read.getRequestId(),
-                                       messageStore.readFromIndex(read.getMinIndex(), read.getMaxSize()));
+                                       messageStore.getBatch(read.getMinIndex(), read.getMaxSize(), true));
     }
 
     @Handle
