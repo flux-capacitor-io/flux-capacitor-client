@@ -17,8 +17,9 @@ package io.fluxcapacitor.javaclient.persisting.search;
 import io.fluxcapacitor.common.Guarantee;
 import io.fluxcapacitor.common.api.search.BulkUpdate;
 import io.fluxcapacitor.common.api.search.SearchQuery;
-import io.fluxcapacitor.javaclient.common.ClientUtils;
+import io.fluxcapacitor.common.reflection.ReflectionUtils;
 import io.fluxcapacitor.javaclient.modeling.EntityId;
+import io.fluxcapacitor.javaclient.modeling.SearchParameters;
 import lombok.NonNull;
 import lombok.SneakyThrows;
 
@@ -33,9 +34,24 @@ import java.util.stream.Stream;
 
 import static io.fluxcapacitor.common.reflection.ReflectionUtils.getAnnotatedPropertyValue;
 import static io.fluxcapacitor.javaclient.FluxCapacitor.currentIdentityProvider;
+import static io.fluxcapacitor.javaclient.common.ClientUtils.getSearchParameters;
 import static java.util.Collections.singletonList;
+import static java.util.Optional.ofNullable;
 
 public interface DocumentStore {
+
+    default CompletableFuture<Void> index(Object object) {
+        if (object instanceof Collection<?> collection) {
+            return CompletableFuture.allOf(collection.stream().map(this::index).toArray(CompletableFuture[]::new));
+        }
+        Class<?> type = object.getClass();
+        var searchParams = ofNullable(getSearchParameters(type)).orElseGet(() -> SearchParameters.builder().build());
+        return index(object, ofNullable(searchParams.getCollection()).orElseGet(type::getSimpleName),
+                     getAnnotatedPropertyValue(object, EntityId.class).map(Object::toString)
+                             .orElseGet(() -> currentIdentityProvider().nextTechnicalId()),
+                     ReflectionUtils.<Instant>readProperty(searchParams.getTimestampPath(), object).orElse(null),
+                     ReflectionUtils.<Instant>readProperty(searchParams.getEndPath(), object).orElse(null));
+    }
 
     default CompletableFuture<Void> index(Object object, Object collection) {
         return index(object instanceof Collection<?> ? (Collection<?>) object : singletonList(object), collection);
@@ -63,18 +79,20 @@ public interface DocumentStore {
                 .orElseGet(() -> currentIdentityProvider().nextTechnicalId()));
     }
 
-    default <T> CompletableFuture<Void> index(Collection<? extends T> objects, Object collection, Function<? super T, ?> idFunction) {
+    default <T> CompletableFuture<Void> index(Collection<? extends T> objects, Object collection,
+                                              Function<? super T, ?> idFunction) {
         return index(objects, collection, idFunction, v -> null);
     }
 
     @SneakyThrows
-    default CompletableFuture<Void> index(Collection<?> objects, Object collection, String idPath, String timestampPath) {
+    default CompletableFuture<Void> index(Collection<?> objects, Object collection, String idPath,
+                                          String timestampPath) {
         return index(objects, collection, idPath, timestampPath, timestampPath, Guarantee.STORED, false);
     }
 
     @SneakyThrows
     default CompletableFuture<Void> index(Collection<?> objects, Object collection, String idPath,
-                       String beginPath, String endPath) {
+                                          String beginPath, String endPath) {
         return index(objects, collection, idPath, beginPath, endPath, Guarantee.STORED, false);
     }
 
@@ -83,14 +101,17 @@ public interface DocumentStore {
                                   boolean ifNotExists);
 
     @SneakyThrows
-    default <T> CompletableFuture<Void> index(Collection<? extends T> objects, Object collection, Function<? super T, ?> idFunction,
-                           Function<? super T, Instant> timestampFunction) {
+    default <T> CompletableFuture<Void> index(Collection<? extends T> objects, Object collection,
+                                              Function<? super T, ?> idFunction,
+                                              Function<? super T, Instant> timestampFunction) {
         return index(objects, collection, idFunction, timestampFunction, timestampFunction, Guarantee.STORED, false);
     }
 
     @SneakyThrows
-    default <T> CompletableFuture<Void> index(Collection<? extends T> objects, Object collection, Function<? super T, ?> idFunction,
-                           Function<? super T, Instant> beginFunction, Function<? super T, Instant> endFunction) {
+    default <T> CompletableFuture<Void> index(Collection<? extends T> objects, Object collection,
+                                              Function<? super T, ?> idFunction,
+                                              Function<? super T, Instant> beginFunction,
+                                              Function<? super T, Instant> endFunction) {
         return index(objects, collection, idFunction, beginFunction, endFunction, Guarantee.STORED, false);
     }
 
@@ -101,7 +122,8 @@ public interface DocumentStore {
                                       boolean ifNotExists);
 
     default CompletableFuture<Void> indexIfNotExists(Object object, Object collection) {
-        return indexIfNotExists(object instanceof Collection<?> ? (Collection<?>) object : singletonList(object), collection);
+        return indexIfNotExists(object instanceof Collection<?> ? (Collection<?>) object : singletonList(object),
+                                collection);
     }
 
     default CompletableFuture<Void> indexIfNotExists(Object object, Object id, Object collection) {
@@ -114,44 +136,48 @@ public interface DocumentStore {
     }
 
     @SneakyThrows
-    default CompletableFuture<Void> indexIfNotExists(Object object, Object id, Object collection, Instant begin, Instant end) {
+    default CompletableFuture<Void> indexIfNotExists(Object object, Object id, Object collection, Instant begin,
+                                                     Instant end) {
         return index(object, id, collection, begin, end, Guarantee.STORED, true);
     }
 
     default <T> CompletableFuture<Void> indexIfNotExists(Collection<? extends T> objects, Object collection) {
-        return indexIfNotExists(objects, collection, v -> getAnnotatedPropertyValue(v, EntityId.class).map(Object::toString)
-                .orElseGet(() -> currentIdentityProvider().nextTechnicalId()));
+        return indexIfNotExists(objects, collection,
+                                v -> getAnnotatedPropertyValue(v, EntityId.class).map(Object::toString)
+                                        .orElseGet(() -> currentIdentityProvider().nextTechnicalId()));
     }
 
     default <T> CompletableFuture<Void> indexIfNotExists(Collection<? extends T> objects, Object collection,
-                                      Function<? super T, ?> idFunction) {
+                                                         Function<? super T, ?> idFunction) {
         return indexIfNotExists(objects, collection, idFunction, v -> null);
     }
 
     @SneakyThrows
-    default <T> CompletableFuture<Void> indexIfNotExists(Collection<? extends T> objects, Object collection, String idPath,
-                                      String timestampPath) {
+    default <T> CompletableFuture<Void> indexIfNotExists(Collection<? extends T> objects, Object collection,
+                                                         String idPath,
+                                                         String timestampPath) {
         return index(objects, collection, idPath, timestampPath, timestampPath, Guarantee.STORED, true);
     }
 
     @SneakyThrows
-    default <T> CompletableFuture<Void> indexIfNotExists(Collection<? extends T> objects, Object collection, String idPath,
-                                      String beginPath, String endPath) {
+    default <T> CompletableFuture<Void> indexIfNotExists(Collection<? extends T> objects, Object collection,
+                                                         String idPath,
+                                                         String beginPath, String endPath) {
         return index(objects, collection, idPath, beginPath, endPath, Guarantee.STORED, true);
     }
 
     @SneakyThrows
     default <T> CompletableFuture<Void> indexIfNotExists(Collection<? extends T> objects, Object collection,
-                                      Function<? super T, ?> idFunction,
-                                      Function<? super T, Instant> timestampFunction) {
+                                                         Function<? super T, ?> idFunction,
+                                                         Function<? super T, Instant> timestampFunction) {
         return index(objects, collection, idFunction, timestampFunction, timestampFunction, Guarantee.STORED, true);
     }
 
     @SneakyThrows
     default <T> CompletableFuture<Void> indexIfNotExists(Collection<? extends T> objects, Object collection,
-                                      Function<? super T, ?> idFunction,
-                                      Function<? super T, Instant> beginFunction,
-                                      Function<? super T, Instant> endFunction) {
+                                                         Function<? super T, ?> idFunction,
+                                                         Function<? super T, Instant> beginFunction,
+                                                         Function<? super T, Instant> endFunction) {
         return index(objects, collection, idFunction, beginFunction, endFunction, Guarantee.STORED, true);
     }
 
@@ -181,7 +207,7 @@ public interface DocumentStore {
     CompletableFuture<Void> createAuditTrail(Object collection, Duration retentionTime);
 
     default String determineCollection(Object c) {
-        return c instanceof Class<?> type ? ClientUtils.determineCollection(type) : c.toString();
+        return c instanceof Class<?> type ? getSearchParameters(type).getCollection() : c.toString();
     }
 
     DocumentSerializer getSerializer();

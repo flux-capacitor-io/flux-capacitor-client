@@ -58,6 +58,11 @@ public class ClientUtils {
                     .or(() -> Optional.ofNullable(getTypeAnnotation(target, TrackSelf.class)))
                     .or(() -> getPackageAnnotation(target.getPackage(), TrackSelf.class)));
 
+    private static final Function<Class<?>, SearchParameters> searchParametersCache =
+            memoize(type -> getAnnotationAs(type, Searchable.class, SearchParameters.class)
+                    .map(p -> p.getCollection() == null ? p.withCollection(type.getSimpleName()) : p)
+                    .orElseGet(() -> new SearchParameters(true, type.getSimpleName(), null, null)));
+
     public static void waitForResults(Duration maxDuration, Collection<? extends Future<?>> futures) {
         Instant deadline = Instant.now().plus(maxDuration);
         for (Future<?> f : futures) {
@@ -139,9 +144,7 @@ public class ClientUtils {
         return new MemoizingBiFunction<>(supplier, lifespan, FluxCapacitor::currentClock);
     }
 
-    public static String determineCollection(Class<?> type) {
-        return getAnnotationAs(type, Searchable.class, SearchParameters.class)
-                .map(SearchParameters::getCollection)
-                .orElseGet(type::getSimpleName);
+    public static SearchParameters getSearchParameters(Class<?> type) {
+        return searchParametersCache.apply(type);
     }
 }

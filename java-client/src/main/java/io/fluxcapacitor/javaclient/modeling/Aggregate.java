@@ -92,4 +92,6 @@ public @interface Aggregate {
     String collection() default "";
 
     String timestampPath() default "";
+
+    String endPath() default "";
 }

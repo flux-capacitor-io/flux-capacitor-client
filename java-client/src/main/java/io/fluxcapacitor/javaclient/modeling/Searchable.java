@@ -24,9 +24,11 @@ import java.lang.annotation.Target;
 @Target({ElementType.ANNOTATION_TYPE, ElementType.TYPE})
 @Retention(RetentionPolicy.RUNTIME)
 public @interface Searchable {
-    boolean searchable() default false;
+    boolean searchable() default true;
 
     String collection() default "";
 
     String timestampPath() default "";
+
+    String endPath() default "";
 }

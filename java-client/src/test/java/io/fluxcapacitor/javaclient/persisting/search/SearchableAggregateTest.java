@@ -32,6 +32,15 @@ public class SearchableAggregateTest {
     private final TestFixture testFixture = TestFixture.create(new QueryHandler());
 
     @Test
+    void testDefaultAggregateIsNotSearchableAfterApply() {
+        testFixture.whenExecuting(fc -> loadAggregate("123", NotSearchableAggregate.class)
+                        .update(a -> new NotSearchableAggregate("bar")))
+                .expectTrue(fc -> fc.documentStore().search("NotSearchableAggregate").fetchAll().isEmpty())
+                .expectTrue(fc -> search(NotSearchableAggregate.class.getSimpleName()).fetchAll().isEmpty())
+                .expectTrue(fc -> search("searchables").fetchAll().isEmpty());
+    }
+
+    @Test
     void testAggregateIsSearchableAfterApply() {
         testFixture.whenExecuting(fc -> loadAggregate("123", SearchableAggregate.class)
                         .update(a -> new SearchableAggregate("bar")))
@@ -51,13 +60,17 @@ public class SearchableAggregateTest {
     @Test
     void testAggregateWithTimePath() {
         Instant timestamp = Instant.now().minusSeconds(1000);
+        Instant ending = timestamp.plusSeconds(60);
         testFixture.whenExecuting(fc -> loadAggregate("123", SearchableAggregateWithTimePath.class)
-                        .update(a -> new SearchableAggregateWithTimePath(timestamp)))
-                .expectTrue(fc -> fc.documentStore().search("SearchableAggregateWithTimePath").fetchAll().equals(List.of(new SearchableAggregateWithTimePath(timestamp))))
+                        .update(a -> new SearchableAggregateWithTimePath(timestamp, ending)))
+                .expectTrue(fc -> fc.documentStore().search("SearchableAggregateWithTimePath").fetchAll()
+                        .equals(List.of(new SearchableAggregateWithTimePath(timestamp, ending))))
                 .expectFalse(fc -> search(SearchableAggregateWithTimePath.class.getSimpleName())
                         .before(timestamp.plusSeconds(1)).fetchAll().isEmpty())
+                .expectFalse(fc -> search(SearchableAggregateWithTimePath.class.getSimpleName())
+                        .since(timestamp.plusSeconds(1)).fetchAll().isEmpty())
                 .expectTrue(fc -> search(SearchableAggregateWithTimePath.class.getSimpleName())
-                        .since(timestamp.plusSeconds(1)).fetchAll().isEmpty());
+                        .since(timestamp.plusSeconds(61)).fetchAll().isEmpty());
     }
 
     @Test
@@ -99,6 +112,12 @@ public class SearchableAggregateTest {
         }
     }
 
+    @Aggregate(cached = false)
+    @Value
+    static class NotSearchableAggregate {
+        String foo;
+    }
+
     @Aggregate(eventSourced = false, searchable = true, cached = false)
     @Value
     static class SearchableAggregate {
@@ -111,10 +130,11 @@ public class SearchableAggregateTest {
         String foo;
     }
 
-    @Aggregate(eventSourced = false, searchable = true, timestampPath = "timestamp")
+    @Aggregate(eventSourced = false, searchable = true, timestampPath = "timestamp", endPath = "ending")
     @Value
     static class SearchableAggregateWithTimePath {
         Instant timestamp;
+        Instant ending;
     }
 
     @Aggregate(eventSourced = false, searchable = true, timestampPath = "timestamp")

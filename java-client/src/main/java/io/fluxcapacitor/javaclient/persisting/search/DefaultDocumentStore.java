@@ -36,6 +36,7 @@ import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.util.StringUtils;
 
 import java.time.Duration;
 import java.time.Instant;
@@ -83,7 +84,7 @@ public class DefaultDocumentStore implements DocumentStore {
                         v, currentIdentityProvider().nextTechnicalId(), determineCollection(collection), null, null))
                 .map(SerializedDocument::deserializeDocument).map(d -> {
                     Document.DocumentBuilder builder = d.toBuilder();
-                    if (idPath != null) {
+                    if (StringUtils.hasText(idPath)) {
                         builder.id(d.getEntryAtPath(idPath).filter(
                                         e -> e.getType() == Document.EntryType.TEXT
                                              || e.getType() == Document.EntryType.NUMERIC)
@@ -92,13 +93,13 @@ public class DefaultDocumentStore implements DocumentStore {
                                                 "Could not determine the document id. Path does not exist on document: "
                                                 + d)));
                     }
-                    if (beginPath != null) {
+                    if (StringUtils.hasText(beginPath)) {
                         builder.timestamp(
                                 d.getEntryAtPath(beginPath).filter(e -> e.getType() == Document.EntryType.TEXT)
                                         .map(Document.Entry::getValue).map(Instant::parse)
                                         .orElse(null));
                     }
-                    if (endPath != null) {
+                    if (StringUtils.hasText(endPath)) {
                         builder.end(d.getEntryAtPath(endPath).filter(e -> e.getType() == Document.EntryType.TEXT)
                                             .map(Document.Entry::getValue).map(Instant::parse)
                                             .orElse(null));

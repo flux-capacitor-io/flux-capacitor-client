@@ -364,6 +364,9 @@ public class ReflectionUtils {
         if (target == null) {
             return Optional.empty();
         }
+        if (propertyPath == null || propertyPath.isBlank()) {
+            return Optional.empty();
+        }
         try {
             return Optional.ofNullable(gettersCache.apply(target.getClass(), propertyPath).apply(target))
                     .map(v -> (T) v);

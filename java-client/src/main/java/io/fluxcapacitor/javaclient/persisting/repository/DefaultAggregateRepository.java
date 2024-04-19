@@ -153,6 +153,7 @@ public class DefaultAggregateRepository implements AggregateRepository {
         private final boolean searchable;
         private final String collection;
         private final Function<Entity<?>, Instant> timestampFunction;
+        private final Function<Entity<?>, Instant> endFunction;
         private final String idProperty;
         private final boolean ignoreUnknownEvents;
 
@@ -189,6 +190,18 @@ public class DefaultAggregateRepository implements AggregateRepository {
                                         return aggregateRoot.timestamp();
                                     }))
                     .orElse(Entity::timestamp);
+            AtomicBoolean warnedAboutMissingEndPath = new AtomicBoolean();
+            this.endFunction = Optional.of(annotation).map(Aggregate::endPath)
+                    .filter(s -> !s.isBlank()).<Function<Entity<?>, Instant>>map(
+                            s -> aggregateRoot -> ReflectionUtils.readProperty(s, aggregateRoot.get())
+                                    .map(t -> Instant.from((TemporalAccessor) t)).orElseGet(() -> {
+                                        if (warnedAboutMissingEndPath.compareAndSet(false, true)) {
+                                            log.warn("Aggregate type {} does not declare an end timestamp property at '{}'",
+                                                     aggregateRoot.get().getClass().getSimpleName(), s);
+                                        }
+                                        return aggregateRoot.timestamp();
+                                    }))
+                    .orElse(timestampFunction);
             this.ignoreUnknownEvents = annotation.ignoreUnknownEvents();
         }
 
@@ -313,7 +326,8 @@ public class DefaultAggregateRepository implements AggregateRepository {
                         documentStore.deleteDocument(after.id().toString(), collection);
                     } else {
                         documentStore.index(
-                                value, after.id().toString(), collection, timestampFunction.apply(after)).get();
+                                value, after.id().toString(), collection,
+                                timestampFunction.apply(after), endFunction.apply(after)).get();
                     }
                 }
             } catch (Exception e) {

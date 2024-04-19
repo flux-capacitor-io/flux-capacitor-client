@@ -34,14 +34,16 @@ import java.util.function.Function;
 
 @Slf4j
 public class DefaultViewRepository implements ViewRepository {
+
     public static Function<Class<?>, ViewRepository> repositorySupplier(DocumentStore documentStore) {
-        return type -> new DefaultViewRepository(documentStore, ClientUtils.determineCollection(type),
+        return type -> new DefaultViewRepository(documentStore, ClientUtils.getSearchParameters(type).getCollection(),
                                                  ReflectionUtils.getTypeAnnotation(type, View.class));
     }
 
     private final DocumentStore documentStore;
     private final String collection;
     private final Function<Object, Instant> timestampFunction;
+    private final Function<Object, Instant> endFunction;
 
     public DefaultViewRepository(DocumentStore documentStore, String collection, View annotation) {
         this.documentStore = documentStore;
@@ -57,6 +59,18 @@ public class DefaultViewRepository implements ViewRepository {
                             }
                             return FluxCapacitor.currentTime();
                         })).orElseGet(() -> view -> FluxCapacitor.currentTime());
+        AtomicBoolean warnedAboutMissingEndPath = new AtomicBoolean();
+        this.endFunction = Optional.of(annotation).map(View::endPath)
+                .filter(path -> !path.isBlank())
+                .<Function<Object, Instant>>map(path -> view -> ReflectionUtils.readProperty(path, view)
+                        .map(t -> Instant.from((TemporalAccessor) t)).orElseGet(() -> {
+                            if (warnedAboutMissingEndPath.compareAndSet(false, true)) {
+                                log.warn("Type {} does not declare an end timestamp property at '{}'",
+                                         view.getClass().getSimpleName(), path);
+                            }
+                            return FluxCapacitor.currentTime();
+                        }))
+                .orElse(timestampFunction);
     }
 
     @Override
@@ -84,7 +98,7 @@ public class DefaultViewRepository implements ViewRepository {
 
     @SneakyThrows
     public CompletableFuture<?> set(Object value, Object id) {
-        return documentStore.index(value, id, collection, timestampFunction.apply(value));
+        return documentStore.index(value, id, collection, timestampFunction.apply(value), endFunction.apply(value));
     }
 
     @SneakyThrows

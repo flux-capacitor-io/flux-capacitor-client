@@ -14,11 +14,19 @@
 
 package io.fluxcapacitor.javaclient.modeling;
 
+import lombok.AllArgsConstructor;
+import lombok.Builder;
 import lombok.Value;
+import lombok.With;
 
 @Value
+@AllArgsConstructor
+@Builder
 public class SearchParameters {
-    boolean searchable;
+    @Builder.Default
+    boolean searchable = true;
+    @With
     String collection;
     String timestampPath;
+    String endPath;
 }

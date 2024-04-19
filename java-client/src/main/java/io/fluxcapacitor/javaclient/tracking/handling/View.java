@@ -43,13 +43,14 @@ import java.lang.annotation.Target;
 @Target(ElementType.TYPE)
 @Retention(RetentionPolicy.RUNTIME)
 @Inherited
-@Searchable(searchable = true)
+@Searchable
 @Component
 @Scope(ConfigurableBeanFactory.SCOPE_PROTOTYPE)
 public @interface View {
 
     /**
-     * Returns the name of the collection in which the view should be stored. Defaults to the simple name of View class.
+     * Returns the name of the collection in which the view should be stored. Defaults to the simple name of View
+     * class.
      */
     String collection() default "";
 
@@ -58,4 +59,10 @@ public @interface View {
      * in case the views need to e.g. be presented in an overview.
      */
     String timestampPath() default "";
+
+    /**
+     * Returns the name of property on the view that contains an end timestamp associated with the view. This may be
+     * useful in case the views need to e.g. be presented in an overview.
+     */
+    String endPath() default "";
 }
