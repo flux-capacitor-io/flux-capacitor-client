@@ -113,7 +113,7 @@ public interface Entity<T> {
     Entity<?> parent();
 
     default <A> A ancestorValue(Class<A> ancestorType) {
-        for (Entity<?> ancestor = parent(); ancestor != null; ancestor = ancestor.parent()) {
+        for (Entity<?> ancestor = this; ancestor != null; ancestor = ancestor.parent()) {
             if (ancestorType.isAssignableFrom(ancestor.type())) {
                 return ancestorType.cast(ancestor.get());
             }
