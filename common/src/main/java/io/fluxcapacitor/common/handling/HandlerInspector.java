@@ -198,17 +198,22 @@ public class HandlerInspector {
         }
 
         protected Class<?> computeClassForSpecificity() {
+            Class<?> handlerType = config.messageFilter().getLeastSpecificAllowedClass(executable).orElse(null);
             for (Parameter p : parameters) {
                 for (ParameterResolver<? super M> r : parameterResolvers) {
                     if (r.determinesSpecificity()) {
                         Function<? super M, Object> resolver = r.resolve(p, methodAnnotation);
                         if (resolver != null) {
-                            return p.getType();
+                            Class<?> parameterType = p.getType();
+                            if (handlerType != null && !handlerType.isAssignableFrom(parameterType)) {
+                                return handlerType;
+                            }
+                            return parameterType;
                         }
                     }
                 }
             }
-            return config.messageFilter().getLeastSpecificAllowedClass(executable).orElse(null);
+            return handlerType;
         }
 
         protected int methodIndex(Method instanceMethod, Class<?> instanceType) {
