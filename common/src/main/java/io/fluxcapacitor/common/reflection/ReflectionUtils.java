@@ -223,7 +223,8 @@ public class ReflectionUtils {
         List<AccessibleObject> result =
                 new ArrayList<>(FieldUtils.getFieldsListWithAnnotation(target, annotation));
         result.addAll(getMethodsListWithAnnotation(target, annotation, true, true).stream()
-                              .filter(m -> m.getParameterCount() == 0).toList());
+                              .filter(m -> m.getParameterCount() == 0)
+                              .filter(m -> !m.getDeclaringClass().isAssignableFrom(m.getReturnType())).toList());
         getAllInterfaces(target)
                 .forEach(i -> result.addAll(FieldUtils.getFieldsListWithAnnotation(i, annotation)));
         result.forEach(ReflectionUtils::ensureAccessible);
