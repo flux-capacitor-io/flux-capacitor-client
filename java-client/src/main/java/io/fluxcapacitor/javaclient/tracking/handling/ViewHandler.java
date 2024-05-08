@@ -129,7 +129,7 @@ public class ViewHandler implements Handler<DeserializingMessage> {
                 }
                 return null;
             }
-            if (result == null && expectResult() && getMethod() instanceof Method m
+            if (result == null && delegate.expectResult() && delegate.getMethod() instanceof Method m
                 && (delegate.getTargetClass().isAssignableFrom(m.getReturnType())
                     || m.getReturnType().isAssignableFrom(delegate.getTargetClass()))) {
                 if (currentEntry != null) {
