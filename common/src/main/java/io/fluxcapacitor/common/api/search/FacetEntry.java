@@ -14,12 +14,16 @@
 
 package io.fluxcapacitor.common.api.search;
 
+import lombok.AllArgsConstructor;
+import lombok.Builder;
 import lombok.NonNull;
 import lombok.Value;
 
 import java.util.Comparator;
 
 @Value
+@Builder(toBuilder = true)
+@AllArgsConstructor
 public class FacetEntry implements Comparable<FacetEntry> {
     private static final Comparator<FacetEntry> comparator
             = Comparator.comparing(FacetEntry::getName).thenComparing(FacetEntry::getValue);

@@ -27,6 +27,7 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Objects;
 
+import static io.fluxcapacitor.common.SearchUtils.normalizePath;
 import static java.util.stream.Collectors.toList;
 
 @Value
@@ -36,10 +37,11 @@ public class FacetConstraint implements Constraint {
         if (name == null) {
             return NoOpConstraint.instance;
         }
+        var normalizedName = normalizePath(name);
         if (value instanceof Collection<?>) {
             List<Constraint> constraints =
                     ((Collection<?>) value).stream().filter(Objects::nonNull)
-                            .map(v -> new FacetConstraint(new FacetEntry(name, v.toString())))
+                            .map(v -> new FacetConstraint(new FacetEntry(normalizedName, v.toString())))
                             .collect(toList());
             return switch (constraints.size()) {
                 case 0 -> NoOpConstraint.instance;
@@ -48,7 +50,7 @@ public class FacetConstraint implements Constraint {
             };
         } else {
             return value == null
-                    ? NoOpConstraint.instance : new FacetConstraint(new FacetEntry(name, value.toString()));
+                    ? NoOpConstraint.instance : new FacetConstraint(new FacetEntry(normalizedName, value.toString()));
         }
     }
 

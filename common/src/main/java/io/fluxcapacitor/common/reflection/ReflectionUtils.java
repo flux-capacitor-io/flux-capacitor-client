@@ -644,6 +644,10 @@ public class ReflectionUtils {
         return Modifier.isStatic(method.getModifiers());
     }
 
+    public static boolean isConstant(Object value) {
+        return value == null || value instanceof String || value instanceof Number || value instanceof Boolean;
+    }
+
     @Value
     private static class PropertyNotFoundException extends RuntimeException {
         @NonNull String propertyName;

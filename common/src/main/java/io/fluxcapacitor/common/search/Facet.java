@@ -29,15 +29,22 @@ import java.lang.annotation.Target;
  * is particularly useful when a collection contains many documents and statistics about those documents are required
  * frequently.
  * <p>
- * Note that only the root object is inspected for facets. Field and method values are not recursively inspected.
- * <p>
  * The facet value is determined as follows:
  * <p>
  * 1) in case the object is null or a blank string the facet is ignored;
  * <p>
- * 2) in case the object is a collection, then facets are created for each of the collection elements;
+ * 2) in case the object is a collection, facets are created for each of the collection elements;
  * <p>
- * 3) in other cases the toString() value of the element is used.
+ * 3) in case the object is a map, facets are created for each of the map values. Keys of the map are appended to
+ * the facet name (including a delimiting slash);
+ * <p>
+ * 4) in case the object is a constant value (number, string or boolean), the toString() value of the element is used;
+ * <p>
+ * 5) for other values, nested facets are collected by inspecting all annotated properties of the object. If the object
+ * contains any facets these will be included as well. Names of nested facets will be appended to the parent facet name
+ * (including a delimiting slash);
+ * <p>
+ * 5) in other cases the toString() value of the element is used.
  */
 @Target({ElementType.METHOD, ElementType.FIELD})
 @Retention(RetentionPolicy.RUNTIME)

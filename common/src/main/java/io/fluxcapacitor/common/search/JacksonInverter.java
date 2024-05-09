@@ -26,6 +26,7 @@ import com.fasterxml.jackson.databind.node.DecimalNode;
 import com.fasterxml.jackson.databind.node.NullNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.fasterxml.jackson.databind.node.TextNode;
+import io.fluxcapacitor.common.SearchUtils;
 import io.fluxcapacitor.common.ThrowingFunction;
 import io.fluxcapacitor.common.api.Data;
 import io.fluxcapacitor.common.api.search.FacetEntry;
@@ -64,6 +65,7 @@ import java.util.stream.Stream;
 import static io.fluxcapacitor.common.ObjectUtils.memoize;
 import static io.fluxcapacitor.common.SearchUtils.asIntegerOrString;
 import static io.fluxcapacitor.common.api.Data.JSON_FORMAT;
+import static io.fluxcapacitor.common.reflection.ReflectionUtils.getAnnotation;
 import static io.fluxcapacitor.common.reflection.ReflectionUtils.getMemberAnnotation;
 import static io.fluxcapacitor.common.reflection.ReflectionUtils.getPropertyName;
 import static io.fluxcapacitor.common.reflection.ReflectionUtils.getTypeAnnotation;
@@ -150,19 +152,25 @@ public class JacksonInverter implements Inverter<JsonNode> {
                         .flatMap(o -> getFacets(p, o))).collect(Collectors.toCollection(LinkedHashSet::new));
     }
 
-    protected Stream<FacetEntry> getFacets(AccessibleObject property, Object propertyValue) {
+    protected Stream<FacetEntry> getFacets(AccessibleObject holder, Object propertyValue) {
         if (propertyValue == null) {
             return Stream.empty();
         }
         if (propertyValue instanceof Collection<?> collection) {
-            return collection.stream().flatMap(v -> getFacets(property, v));
+            return collection.stream().flatMap(v -> getFacets(holder, v));
         }
-        String stringValue = propertyValue.toString();
-        var customName = ReflectionUtils.getAnnotation(
-                property, Facet.class).map(Facet::value).filter(s -> !s.isBlank());
-        return stringValue.isBlank()
-                ? Stream.empty() : Stream.of(new FacetEntry(
-                        customName.orElseGet(() -> getPropertyName(property)), stringValue));
+        if (propertyValue instanceof Map<?,?> map) {
+            return map.entrySet().stream().flatMap(e -> getFacets(holder, e.getValue()).map(
+                    f -> f.toBuilder().name("%s/%s".formatted(f.getName(), String.valueOf(e.getKey()))).build()));
+        }
+        String name = getAnnotation(holder, Facet.class).map(Facet::value).filter(s -> !s.isBlank())
+                .orElseGet(() -> getPropertyName(holder));
+        if (ReflectionUtils.isConstant(propertyValue)) {
+            String stringValue = propertyValue.toString();
+            return stringValue.isBlank() ? Stream.empty() : Stream.of(new FacetEntry(name, stringValue));
+        }
+        return getFacets(propertyValue).stream().map(
+                f -> f.toBuilder().name("%s/%s".formatted(name, f.getName())).build());
     }
 
     @SneakyThrows
@@ -235,7 +243,7 @@ public class JacksonInverter implements Inverter<JsonNode> {
             while (!token.isStructEnd()) {
                 if (token == JsonToken.FIELD_NAME) {
                     String fieldName = parser.getCurrentName();
-                    fieldName = Path.escapeFieldName(fieldName);
+                    fieldName = SearchUtils.escapeFieldName(fieldName);
                     path = root + fieldName;
                     token = parser.nextToken();
                     continue;
@@ -300,7 +308,7 @@ public class JacksonInverter implements Inverter<JsonNode> {
                     : new ObjectNode(objectMapper.getNodeFactory(), map.entrySet().stream().collect(
                     toMap(e -> {
                         String key = e.getKey().toString();
-                        key = Path.unescapeFieldName(key);
+                        key = SearchUtils.unescapeFieldName(key);
                         return key;
                     }, e -> toJsonNode(e.getValue()))))).orElse(NullNode.getInstance());
         }

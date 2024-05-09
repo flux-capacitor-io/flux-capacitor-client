@@ -26,8 +26,8 @@ import java.util.Collections;
 import java.util.List;
 import java.util.function.Predicate;
 
+import static io.fluxcapacitor.common.SearchUtils.normalizePath;
 import static io.fluxcapacitor.common.search.Document.Path.isLongPath;
-import static io.fluxcapacitor.common.search.Document.Path.normalizeQueryPath;
 
 @EqualsAndHashCode(callSuper = true)
 @Value
@@ -46,7 +46,7 @@ public class SearchDocuments extends Request {
     public Predicate<Path> computePathFilter() {
         Predicate<Path> excludeFilter = pathFilters.stream().filter(p -> p.startsWith("-"))
                 .<Predicate<Path>>map(path -> {
-                    path = normalizeQueryPath(path.substring(1));
+                    path = normalizePath(path.substring(1));
                     Predicate<String> predicate = SearchUtils.getGlobMatcher(path + "/**")
                             .or(SearchUtils.getGlobMatcher(path)).negate();
                     return isLongPath(path)
@@ -54,7 +54,7 @@ public class SearchDocuments extends Request {
                 }).reduce(Predicate::and).orElse(p -> true);
         Predicate<Path> includeFilter = pathFilters.stream().filter(p -> !p.startsWith("-"))
                 .<Predicate<Path>>map(path -> {
-                    path = normalizeQueryPath(path);
+                    path = normalizePath(path);
                     Predicate<String> predicate = SearchUtils.getGlobMatcher(path + "/**")
                             .or(SearchUtils.getGlobMatcher(path));
                     return isLongPath(path)

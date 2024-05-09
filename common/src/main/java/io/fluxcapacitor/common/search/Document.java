@@ -26,7 +26,6 @@ import lombok.NonNull;
 import lombok.ToString;
 import lombok.Value;
 import lombok.experimental.Accessors;
-import org.apache.commons.lang3.StringUtils;
 
 import java.math.BigDecimal;
 import java.time.Instant;
@@ -144,52 +143,25 @@ public class Document {
     @Value
     public static class Path {
         private static final Pattern splitPattern = Pattern.compile("(?<!\\\\)/");
-        private static final Pattern dotPattern = Pattern.compile("(?<!\\\\)\\.");
 
         private static final Function<String, String[]> splitFunction = memoize(in -> splitPattern.split(in));
         private static final Function<String, String> shortValueFunction = memoize(in -> Arrays.stream(
                 splitPattern.split(in))
-                .filter(p -> !SearchUtils.isInteger(p)).map(Path::unescapeFieldName).collect(joining("/")));
+                .filter(p -> !SearchUtils.isInteger(p)).map(SearchUtils::unescapeFieldName).collect(joining("/")));
 
         public static Stream<String> split(String path) {
             return Arrays.stream(splitFunction.apply(path));
-        }
-
-        public static String normalizeQueryPath(String queryPath) {
-            return queryPath == null ? null : dotPattern.matcher(queryPath).replaceAll("/");
         }
 
         public static boolean isLongPath(String queryPath) {
             return split(queryPath).anyMatch(SearchUtils::isInteger);
         }
 
-        public static String escapeFieldName(String fieldName) {
-            fieldName = fieldName.replace("/", "\\/");
-            fieldName = fieldName.replace("\"", "\\\"");
-            if (StringUtils.isNumeric(fieldName)) {
-                try {
-                    Integer.valueOf(fieldName);
-                    fieldName = "\"" + fieldName + "\"";
-                } catch (Exception ignored) {
-                }
-            }
-            return fieldName;
-        }
-
-        public static String unescapeFieldName(String fieldName) {
-            if (fieldName.startsWith("\"") && fieldName.endsWith("\"")) {
-                fieldName = fieldName.substring(1, fieldName.length() - 1);
-            }
-            fieldName = fieldName.replace("\\/", "/");
-            fieldName = fieldName.replace("\\\"", "\"");
-            return fieldName;
-        }
-
         public static Predicate<Path> pathPredicate(String queryPath) {
             if (queryPath == null) {
                 return p -> true;
             }
-            queryPath = normalizeQueryPath(queryPath);
+            queryPath = SearchUtils.normalizePath(queryPath);
             Predicate<String> predicate = SearchUtils.getGlobMatcher(queryPath);
             return isLongPath(queryPath)
                     ? p -> predicate.test(p.getLongValue()) : p -> predicate.test(p.getShortValue());
@@ -207,7 +179,7 @@ public class Document {
         @Getter(lazy = true)
         @EqualsAndHashCode.Exclude
         @ToString.Exclude
-        String longValue = Arrays.stream(splitPattern.split(getValue())).map(Path::unescapeFieldName)
+        String longValue = Arrays.stream(splitPattern.split(getValue())).map(SearchUtils::unescapeFieldName)
                 .collect(joining("/"));
 
     }

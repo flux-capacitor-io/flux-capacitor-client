@@ -14,6 +14,7 @@
 
 package io.fluxcapacitor.javaclient.search;
 
+import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import com.fasterxml.jackson.databind.JsonNode;
 import io.fluxcapacitor.common.api.search.BulkUpdate;
 import io.fluxcapacitor.common.api.search.Constraint;
@@ -607,10 +608,12 @@ public class SearchTest {
         @Test
         void getFacetStats() {
             testFixture.whenApplying(fc -> FluxCapacitor.search("test").facetStats())
-                    .<List<FacetStats>>expectResult(stats -> stats.size() == 3
+                    .<List<FacetStats>>expectResult(stats -> stats.size() == 5
                                                              && stats.contains(new FacetStats("custom", "testCustom", 2))
                                                              && stats.contains(new FacetStats("facetField", "testField", 2))
-                                                             && stats.contains(new FacetStats("facetGetter", "testGetter", 2)));
+                                                             && stats.contains(new FacetStats("facetGetter", "testGetter", 2))
+                                                             && stats.contains(new FacetStats("facetList", "value1", 2))
+                                                             && stats.contains(new FacetStats("facetList/status", "value2", 2)));
         }
     }
 
@@ -650,6 +653,9 @@ public class SearchTest {
         @Facet
         String facetField;
         String facetGetter;
+        @Facet
+        @JsonTypeInfo(use = JsonTypeInfo.Id.CLASS)
+        List<Object> facetList;
 
         public SomeDocument() {
             this.someId = ID;
@@ -666,6 +672,7 @@ public class SearchTest {
             this.status = Map.of("sent", Map.of("date", "2023-06-15T22:00:00.180Z"));
             this.facetField = "testField";
             this.facetGetter = "testGetter";
+            this.facetList = List.of("value1", new Nested("value2"));
         }
 
         @Facet
@@ -676,6 +683,12 @@ public class SearchTest {
         @Facet("custom")
         public String facetCustom() {
             return "testCustom";
+        }
+
+        @Value
+        static class Nested {
+            @Facet
+            String status;
         }
     }
 }

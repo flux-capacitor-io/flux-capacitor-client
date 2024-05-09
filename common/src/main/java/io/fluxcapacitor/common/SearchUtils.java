@@ -41,6 +41,8 @@ import static java.util.function.Function.identity;
 import static java.util.stream.Collectors.toMap;
 
 public class SearchUtils {
+
+    private static final Pattern dotPattern = Pattern.compile("(?<!\\\\)\\.");
     private static final Map<String, Integer> arrayIndices =
             IntStream.range(0, 1000).boxed().collect(toMap(Object::toString, identity()));
     private static final DateTimeFormatter ISO_FULL
@@ -250,5 +252,31 @@ public class SearchUtils {
             return value;
         }
         return value.toString();
+    }
+
+    public static String normalizePath(String queryPath) {
+        return queryPath == null ? null : dotPattern.matcher(queryPath).replaceAll("/");
+    }
+
+    public static String escapeFieldName(String fieldName) {
+        fieldName = fieldName.replace("/", "\\/");
+        fieldName = fieldName.replace("\"", "\\\"");
+        if (StringUtils.isNumeric(fieldName)) {
+            try {
+                Integer.valueOf(fieldName);
+                fieldName = "\"" + fieldName + "\"";
+            } catch (Exception ignored) {
+            }
+        }
+        return fieldName;
+    }
+
+    public static String unescapeFieldName(String fieldName) {
+        if (fieldName.startsWith("\"") && fieldName.endsWith("\"")) {
+            fieldName = fieldName.substring(1, fieldName.length() - 1);
+        }
+        fieldName = fieldName.replace("\\/", "/");
+        fieldName = fieldName.replace("\\\"", "\"");
+        return fieldName;
     }
 }
