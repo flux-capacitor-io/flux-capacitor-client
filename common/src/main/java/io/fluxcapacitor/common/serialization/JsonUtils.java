@@ -146,6 +146,22 @@ public class JsonUtils {
         return selectMapper(type).readValue(json, type);
     }
 
+    @SuppressWarnings("unchecked")
+    @SneakyThrows
+    public static <T> T fromJson(byte[] json) {
+        return (T) reader.readValue(json, Object.class);
+    }
+
+    @SneakyThrows
+    public static <T> T fromJson(byte[] json, JavaType type) {
+        return writer.readValue(json, type);
+    }
+
+    @SneakyThrows
+    public static <T> T fromJson(byte[] json, Function<TypeFactory, JavaType> typeFunction) {
+        return writer.readValue(json, typeFunction.apply(typeFactory()));
+    }
+
     static JsonMapper selectMapper(Class<?> type) {
         return Object.class.equals(type)
                || Collection.class.isAssignableFrom(type) ? reader : writer;
@@ -166,7 +182,13 @@ public class JsonUtils {
         return writer.writeValueAsBytes(object);
     }
 
+    @SneakyThrows
     public static <T> T convertValue(Object fromValue, Class<? extends T> toValueType) {
+        if (fromValue instanceof byte[] input && !byte[].class.equals(toValueType)) {
+            fromValue = readTree(input);
+        } else if (fromValue instanceof String input && !String.class.equals(toValueType)) {
+            fromValue = readTree(input);
+        }
         return writer.convertValue(fromValue, toValueType);
     }
 

@@ -16,6 +16,7 @@ package io.fluxcapacitor.javaclient.web;
 
 import io.fluxcapacitor.common.api.Metadata;
 import io.fluxcapacitor.common.api.SerializedMessage;
+import io.fluxcapacitor.common.serialization.JsonUtils;
 import io.fluxcapacitor.common.serialization.compression.CompressionAlgorithm;
 import io.fluxcapacitor.common.serialization.compression.CompressionUtils;
 import io.fluxcapacitor.javaclient.common.Message;
@@ -45,6 +46,8 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.stream.Collectors;
+
+import static io.fluxcapacitor.common.api.Data.JSON_FORMAT;
 
 @Value
 @EqualsAndHashCode(callSuper = true)
@@ -143,6 +146,25 @@ public class WebResponse extends Message {
     @Override
     public <R> R getPayload() {
         return (R) getDecodedPayload();
+    }
+
+    @Override
+    public <R> R getPayloadAs(Class<R> type) {
+        return JSON_FORMAT.equalsIgnoreCase(getContentType())
+                ? JsonUtils.convertValue(getPayload(), type)
+                : super.getPayloadAs(type);
+    }
+
+    public List<String> getHeaders(String name) {
+        return headers.getOrDefault(name, Collections.emptyList());
+    }
+
+    public String getHeader(String name) {
+        return getHeaders(name).stream().findFirst().orElse(null);
+    }
+
+    public String getContentType() {
+        return getHeader("Content-Type");
     }
 
     Object getEncodedPayload() {

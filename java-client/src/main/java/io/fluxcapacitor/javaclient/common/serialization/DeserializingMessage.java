@@ -17,7 +17,6 @@ package io.fluxcapacitor.javaclient.common.serialization;
 import io.fluxcapacitor.common.MessageType;
 import io.fluxcapacitor.common.api.Metadata;
 import io.fluxcapacitor.common.api.SerializedMessage;
-import io.fluxcapacitor.common.serialization.JsonUtils;
 import io.fluxcapacitor.javaclient.FluxCapacitor;
 import io.fluxcapacitor.javaclient.common.HasMessage;
 import io.fluxcapacitor.javaclient.common.Message;
@@ -170,7 +169,7 @@ public class DeserializingMessage implements HasMessage {
 
     public <R> R getPayloadAs(Class<R> type) {
         return ofNullable(delegate).map(d -> d.getPayloadAs(type))
-                .or(() -> ofNullable(message).map(m -> JsonUtils.convertValue(m.getPayload(), type))).orElse(null);
+                .orElseGet(() -> ofNullable(message).map(m -> m.getPayloadAs(type)).orElse(null));
     }
 
     @SuppressWarnings("rawtypes")

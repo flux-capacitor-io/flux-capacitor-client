@@ -19,6 +19,7 @@ import io.fluxcapacitor.common.SearchUtils;
 import io.fluxcapacitor.common.api.Metadata;
 import io.fluxcapacitor.common.api.SerializedMessage;
 import io.fluxcapacitor.common.handling.MessageFilter;
+import io.fluxcapacitor.common.serialization.JsonUtils;
 import io.fluxcapacitor.javaclient.common.HasMessage;
 import io.fluxcapacitor.javaclient.common.Message;
 import io.fluxcapacitor.javaclient.common.serialization.Serializer;
@@ -50,6 +51,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
+import static io.fluxcapacitor.common.api.Data.JSON_FORMAT;
 import static java.util.Objects.requireNonNull;
 
 @Value
@@ -113,8 +115,8 @@ public class WebRequest extends Message {
 
     @Override
     public SerializedMessage serialize(Serializer serializer) {
-        return headers.getOrDefault("Content-Type", List.of()).stream().findFirst().map(
-                        format -> new SerializedMessage(serializer.serialize(getPayload(), format), getMetadata(),
+        return Optional.ofNullable(getContentType()).map(
+                format -> new SerializedMessage(serializer.serialize(getPayload(), format), getMetadata(),
                                                         getMessageId(), getTimestamp().toEpochMilli()))
                 .orElseGet(() -> super.serialize(serializer));
     }
@@ -160,6 +162,17 @@ public class WebRequest extends Message {
 
     public List<String> getHeaders(String name) {
         return headers.getOrDefault(name, Collections.emptyList());
+    }
+
+    public String getContentType() {
+        return getHeader("Content-Type");
+    }
+
+    @Override
+    public <R> R getPayloadAs(Class<R> type) {
+        return JSON_FORMAT.equalsIgnoreCase(getContentType())
+                ? JsonUtils.convertValue(getPayload(), type)
+                : super.getPayloadAs(type);
     }
 
     public Optional<HttpCookie> getCookie(String name) {

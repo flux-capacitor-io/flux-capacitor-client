@@ -86,11 +86,19 @@ public class HandleWebTest {
         }
 
         @Test
+        void testPostPayloadAsString() {
+            var object = new Payload();
+            testFixture.whenWebRequest(WebRequest.builder().method(POST).url("/payload")
+                                               .payload(JsonUtils.asPrettyJson(object)).build()).expectResult(object);
+        }
+
+        @Test
         void testPostJson() {
             var object = Map.of("foo", "bar");
             testFixture.whenWebRequest(WebRequest.builder().method(POST).url("/json")
                                                .payload(object).build())
-                    .expectResult((JsonNode) JsonUtils.valueToTree(object));
+                    .expectResult((JsonNode) JsonUtils.valueToTree(object))
+                    .<WebResponse>expectResult(r -> r.getPayloadAs(Map.class).equals(object));
         }
 
         @Test
