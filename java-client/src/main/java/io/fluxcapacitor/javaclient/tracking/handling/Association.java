@@ -24,15 +24,16 @@ import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
 /**
- * Annotation used to associate a message to a stored View. If a message is associated with one or several Views, the
- * Views will be fetched and the message will be applied on all Views.
+ * Annotation used to associate a message to a stored Handler (typically annotated with {@link Stateful}). If a message
+ * is associated with one or several Handlers, the Handlers will be fetched and the message will be applied on all
+ * Handlers.
  * <p>
- * This annotation can be added to properties (fields and getters) of the View class, or on handler methods of the View.
- * If placed on a property of the View, the name of the property will be used to associate the event, unless another
- * property name is specified using {@link #value()}. If the annotation is used on a handler method,
- * {@link #value()} is required to match on a property by that name in the message payload.
+ * This annotation can be added to properties (fields and getters) of the Handler class, or on handler methods. If
+ * placed on a property of the Handler, the name of the property will be used to associate the message, unless another
+ * property name is specified using {@link #value()}. If the annotation is used on a handler method, {@link #value()} is
+ * required to match on a property by that name in the message payload.
  *
- * @see View
+ * @see Stateful
  */
 @Documented
 @Target({ElementType.FIELD, ElementType.METHOD})
@@ -41,8 +42,8 @@ import java.lang.annotation.Target;
 @SearchInclude
 public @interface Association {
     /**
-     * Returns names of properties in the message payload to associate with. If the annotation is placed on a
-     * property of the View this may be left empty to associate using the name of the View property.
+     * Returns names of properties in the message payload to associate with. If the annotation is placed on a property
+     * of the Handler this may be left empty to associate using the name of the Handler property.
      */
     String[] value() default {};
 }

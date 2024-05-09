@@ -64,8 +64,8 @@ public class FluxCapacitorSpringConfig implements BeanPostProcessor {
     }
 
     @Bean
-    public static ViewPostProcessor viewPostProcessor() {
-        return new ViewPostProcessor();
+    public static StatefulPostProcessor statefulPostProcessor() {
+        return new StatefulPostProcessor();
     }
 
     private final ApplicationContext context;

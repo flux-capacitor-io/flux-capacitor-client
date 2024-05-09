@@ -27,81 +27,81 @@ import org.junit.jupiter.api.Test;
 
 import java.time.Instant;
 
-public class ViewTest {
+public class StatefulHandlerTest {
 
     @Nested
     class StaticTests {
-        private final TestFixture testFixture = TestFixture.create(StaticView.class);
+        private final TestFixture testFixture = TestFixture.create(StaticHandler.class);
 
         @Test
-        void viewIsCreated() {
+        void handlerIsCreated() {
             testFixture.whenEvent(new SomeEvent("foo")).expectCommands(1);
         }
 
         @Test
-        void viewIsUpdated() {
+        void handlerIsUpdated() {
             testFixture.givenEvents(new SomeEvent("foo"))
                     .whenEvent(new SomeEvent("foo"))
                     .expectOnlyCommands(2);
         }
 
         @Test
-        void viewIsNotUpdatedIfNoMatch() {
+        void handlerIsNotUpdatedIfNoMatch() {
             testFixture.givenEvents(new SomeEvent("foo"))
                     .whenEvent(new SomeEvent("other"))
                     .expectOnlyCommands(1);
         }
 
         @Test
-        void viewIsUpdated_alias() {
+        void handlerIsUpdated_alias() {
             testFixture.givenEvents(new SomeEvent("foo"))
                     .whenEvent(new AliasEvent(new AliasId("foo")))
                     .expectOnlyCommands(2);
         }
 
         @Test
-        void viewIsNotUpdated_wrongAlias() {
+        void handlerIsNotUpdated_wrongAlias() {
             testFixture.givenEvents(new SomeEvent("foo"))
                     .whenEvent(new AliasEvent(new AliasId("other")))
                     .expectNoCommands();
         }
 
         @Test
-        void viewIsUpdated_associationOnMethod() {
+        void handlerIsUpdated_associationOnMethod() {
             testFixture.givenEvents(new SomeEvent("foo"))
                     .whenEvent(new CustomEvent("foo"))
                     .expectOnlyCommands(2);
         }
 
-        @View
+        @Stateful
         @SearchExclude
         @Value
         @Builder(toBuilder = true)
-        public static class StaticView {
+        public static class StaticHandler {
             @Association({"someId", "aliasId"}) String someId;
             int eventCount;
 
             @HandleEvent
-            static StaticView create(SomeEvent event) {
+            static StaticHandler create(SomeEvent event) {
                 FluxCapacitor.sendAndForgetCommand(1);
-                return StaticView.builder().someId(event.someId).eventCount(1).build();
+                return StaticHandler.builder().someId(event.someId).eventCount(1).build();
             }
 
             @HandleEvent
-            StaticView update(SomeEvent event) {
+            StaticHandler update(SomeEvent event) {
                 FluxCapacitor.sendAndForgetCommand(eventCount + 1);
                 return toBuilder().eventCount(eventCount + 1).build();
             }
 
             @HandleEvent
-            StaticView update(AliasEvent event) {
+            StaticHandler update(AliasEvent event) {
                 FluxCapacitor.sendAndForgetCommand(eventCount + 1);
                 return toBuilder().eventCount(eventCount + 1).build();
             }
 
             @HandleEvent
             @Association("customId")
-            StaticView update(CustomEvent event) {
+            StaticHandler update(CustomEvent event) {
                 FluxCapacitor.sendAndForgetCommand(eventCount + 1);
                 return toBuilder().eventCount(eventCount + 1).build();
             }
@@ -110,46 +110,46 @@ public class ViewTest {
 
     @Nested
     class ConstructorTests {
-        private final TestFixture testFixture = TestFixture.create(ConstructorView.class);
+        private final TestFixture testFixture = TestFixture.create(ConstructorHandler.class);
 
         @Test
-        void viewIsCreated() {
+        void handlerIsCreated() {
             testFixture.whenEvent(new SomeEvent("foo"))
                     .expectCommands(1)
-                    .expectTrue(fc -> fc.documentStore().fetchDocument("foo", ConstructorView.class).isPresent());
+                    .expectTrue(fc -> fc.documentStore().fetchDocument("foo", ConstructorHandler.class).isPresent());
         }
 
         @Test
-        void viewIsUpdated() {
+        void handlerIsUpdated() {
             testFixture.givenEvents(new SomeEvent("foo"))
                     .whenEvent(new SomeEvent("foo"))
                     .expectCommands(2);
         }
 
         @Test
-        void viewIsUpdated_async() {
-            TestFixture.createAsync(ConstructorView.class).givenEvents(new SomeEvent("foo"))
+        void handlerIsUpdated_async() {
+            TestFixture.createAsync(ConstructorHandler.class).givenEvents(new SomeEvent("foo"))
                     .whenEvent(new SomeEvent("foo"))
                     .expectCommands(2);
         }
 
-        @View
+        @Stateful
         @Value
         @Builder(toBuilder = true)
         @AllArgsConstructor
-        public static class ConstructorView {
+        public static class ConstructorHandler {
             @EntityId
             @Association String someId;
             int eventCount;
 
             @HandleEvent
-            ConstructorView(SomeEvent event) {
+            ConstructorHandler(SomeEvent event) {
                 this(event.getSomeId(), 1);
                 FluxCapacitor.sendAndForgetCommand(eventCount);
             }
 
             @HandleEvent
-            ConstructorView update(SomeEvent event) {
+            ConstructorHandler update(SomeEvent event) {
                 FluxCapacitor.sendAndForgetCommand(eventCount + 1);
                 return toBuilder().eventCount(eventCount + 1).build();
             }
@@ -158,37 +158,37 @@ public class ViewTest {
 
     @Nested
     class CustomAssociationProperty {
-        private final TestFixture testFixture = TestFixture.create(SomeView.class);
+        private final TestFixture testFixture = TestFixture.create(SomeHandler.class);
 
         @Test
-        void viewIsCreated() {
+        void handlerIsCreated() {
             testFixture.whenEvent(new SomeEvent("foo")).expectCommands(1);
         }
 
         @Test
-        void viewIsUpdated() {
+        void handlerIsUpdated() {
             testFixture.givenEvents(new SomeEvent("foo"))
                     .whenEvent(new SomeEvent("foo"))
                     .expectCommands(2);
         }
 
-        @View(timestampPath = "timestamp")
+        @Stateful(timestampPath = "timestamp")
         @Value
         @Builder(toBuilder = true)
         @AllArgsConstructor
-        public static class SomeView {
+        public static class SomeHandler {
             @Association("someId") String id;
             int eventCount;
             Instant timestamp = FluxCapacitor.currentTime();
 
             @HandleEvent
-            SomeView(SomeEvent event) {
+            SomeHandler(SomeEvent event) {
                 this(event.getSomeId(), 1);
                 FluxCapacitor.sendAndForgetCommand(eventCount);
             }
 
             @HandleEvent
-            SomeView update(SomeEvent event) {
+            SomeHandler update(SomeEvent event) {
                 FluxCapacitor.sendAndForgetCommand(eventCount + 1);
                 return toBuilder().eventCount(eventCount + 1).build();
             }
@@ -197,21 +197,21 @@ public class ViewTest {
 
     @Nested
     class MappingTests {
-        @View
+        @Stateful
         @Value
-        static class MappingView {
+        static class MappingHandler {
             String someId;
 
             @HandleEvent
-            static MappingView handle(String event) {
-                return new MappingView(event);
+            static MappingHandler handle(String event) {
+                return new MappingHandler(event);
             }
         }
 
         @Test
         void mappingTest() {
-            TestFixture.create(MappingView.class).whenEvent("foo")
-                    .expectTrue(fc -> FluxCapacitor.search(MappingView.class).fetchAll().size() == 1);
+            TestFixture.create(MappingHandler.class).whenEvent("foo")
+                    .expectTrue(fc -> FluxCapacitor.search(MappingHandler.class).fetchAll().size() == 1);
         }
     }
 

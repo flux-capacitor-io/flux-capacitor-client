@@ -19,7 +19,7 @@ import io.fluxcapacitor.javaclient.common.Entry;
 import java.util.Collection;
 import java.util.concurrent.CompletableFuture;
 
-public interface ViewRepository {
+public interface HandlerRepository {
 
     Collection<? extends Entry<?>> findByAssociation(Collection<String> associations);
 

@@ -19,7 +19,7 @@ import io.fluxcapacitor.javaclient.FluxCapacitor;
 import io.fluxcapacitor.javaclient.common.ClientUtils;
 import io.fluxcapacitor.javaclient.common.Entry;
 import io.fluxcapacitor.javaclient.persisting.search.DocumentStore;
-import io.fluxcapacitor.javaclient.tracking.handling.View;
+import io.fluxcapacitor.javaclient.tracking.handling.Stateful;
 import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
 
@@ -33,11 +33,11 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Function;
 
 @Slf4j
-public class DefaultViewRepository implements ViewRepository {
+public class DefaultHandlerRepository implements HandlerRepository {
 
-    public static Function<Class<?>, ViewRepository> repositorySupplier(DocumentStore documentStore) {
-        return type -> new DefaultViewRepository(documentStore, ClientUtils.getSearchParameters(type).getCollection(),
-                                                 ReflectionUtils.getTypeAnnotation(type, View.class));
+    public static Function<Class<?>, HandlerRepository> repositorySupplier(DocumentStore documentStore) {
+        return type -> new DefaultHandlerRepository(documentStore, ClientUtils.getSearchParameters(type).getCollection(),
+                                                    ReflectionUtils.getTypeAnnotation(type, Stateful.class));
     }
 
     private final DocumentStore documentStore;
@@ -45,28 +45,28 @@ public class DefaultViewRepository implements ViewRepository {
     private final Function<Object, Instant> timestampFunction;
     private final Function<Object, Instant> endFunction;
 
-    public DefaultViewRepository(DocumentStore documentStore, String collection, View annotation) {
+    public DefaultHandlerRepository(DocumentStore documentStore, String collection, Stateful annotation) {
         this.documentStore = documentStore;
         this.collection = collection;
         AtomicBoolean warnedAboutMissingTimePath = new AtomicBoolean();
-        this.timestampFunction = Optional.of(annotation).map(View::timestampPath)
+        this.timestampFunction = Optional.of(annotation).map(Stateful::timestampPath)
                 .filter(path -> !path.isBlank())
-                .<Function<Object, Instant>>map(path -> view -> ReflectionUtils.readProperty(path, view)
+                .<Function<Object, Instant>>map(path -> handler -> ReflectionUtils.readProperty(path, handler)
                         .map(t -> Instant.from((TemporalAccessor) t)).orElseGet(() -> {
                             if (warnedAboutMissingTimePath.compareAndSet(false, true)) {
                                 log.warn("Type {} does not declare a timestamp property at '{}'",
-                                         view.getClass().getSimpleName(), path);
+                                         handler.getClass().getSimpleName(), path);
                             }
                             return FluxCapacitor.currentTime();
-                        })).orElseGet(() -> view -> FluxCapacitor.currentTime());
+                        })).orElseGet(() -> handler -> FluxCapacitor.currentTime());
         AtomicBoolean warnedAboutMissingEndPath = new AtomicBoolean();
-        this.endFunction = Optional.of(annotation).map(View::endPath)
+        this.endFunction = Optional.of(annotation).map(Stateful::endPath)
                 .filter(path -> !path.isBlank())
-                .<Function<Object, Instant>>map(path -> view -> ReflectionUtils.readProperty(path, view)
+                .<Function<Object, Instant>>map(path -> handler -> ReflectionUtils.readProperty(path, handler)
                         .map(t -> Instant.from((TemporalAccessor) t)).orElseGet(() -> {
                             if (warnedAboutMissingEndPath.compareAndSet(false, true)) {
                                 log.warn("Type {} does not declare an end timestamp property at '{}'",
-                                         view.getClass().getSimpleName(), path);
+                                         handler.getClass().getSimpleName(), path);
                             }
                             return FluxCapacitor.currentTime();
                         }))

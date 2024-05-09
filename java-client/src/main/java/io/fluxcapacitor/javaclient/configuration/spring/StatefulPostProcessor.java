@@ -14,7 +14,7 @@
 
 package io.fluxcapacitor.javaclient.configuration.spring;
 
-import io.fluxcapacitor.javaclient.tracking.handling.View;
+import io.fluxcapacitor.javaclient.tracking.handling.Stateful;
 import lombok.NonNull;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.BeansException;
@@ -28,18 +28,18 @@ import java.util.Objects;
 import static org.springframework.beans.factory.support.BeanDefinitionBuilder.genericBeanDefinition;
 
 @Slf4j
-public class ViewPostProcessor implements BeanDefinitionRegistryPostProcessor {
+public class StatefulPostProcessor implements BeanDefinitionRegistryPostProcessor {
     @Override
     public void postProcessBeanFactory(@NonNull ConfigurableListableBeanFactory beanFactory) throws BeansException {
         if (!(beanFactory instanceof BeanDefinitionRegistry registry)) {
-            log.warn("Cannot register Spring beans dynamically! @View annotations will be ignored.");
+            log.warn("Cannot register Spring beans dynamically! @Stateful annotations will be ignored.");
             return;
         }
-        Arrays.stream(beanFactory.getBeanNamesForAnnotation(View.class))
+        Arrays.stream(beanFactory.getBeanNamesForAnnotation(Stateful.class))
                 .map(beanFactory::getType).filter(Objects::nonNull)
                 .map(FluxPrototype::new)
                 .forEach(prototype -> registry.registerBeanDefinition(
-                         prototype.getType().getName()+ "$$View",
+                         prototype.getType().getName()+ "$$Stateful",
                          genericBeanDefinition(FluxPrototype.class, () -> prototype).getBeanDefinition()));
     }
 

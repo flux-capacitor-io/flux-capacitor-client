@@ -24,7 +24,7 @@ import io.fluxcapacitor.common.handling.ParameterResolver;
 import io.fluxcapacitor.common.reflection.ReflectionUtils;
 import io.fluxcapacitor.javaclient.common.HasMessage;
 import io.fluxcapacitor.javaclient.common.serialization.DeserializingMessage;
-import io.fluxcapacitor.javaclient.modeling.ViewRepository;
+import io.fluxcapacitor.javaclient.modeling.HandlerRepository;
 import io.fluxcapacitor.javaclient.tracking.TrackSelf;
 import io.fluxcapacitor.javaclient.web.HandleWeb;
 import io.fluxcapacitor.javaclient.web.HandleWebResponse;
@@ -50,15 +50,15 @@ public class DefaultHandlerFactory implements HandlerFactory {
     private final MessageFilter<? super DeserializingMessage> messageFilter;
     private final Class<? extends Annotation> handlerAnnotation;
 
-    private final Function<Class<?>, ViewRepository> viewRepositorySupplier;
+    private final Function<Class<?>, HandlerRepository> handlerRepositorySupplier;
 
     public DefaultHandlerFactory(MessageType messageType, HandlerDecorator defaultDecorator,
                                  List<ParameterResolver<? super DeserializingMessage>> parameterResolvers,
-                                 Function<Class<?>, ViewRepository> viewRepositorySupplier) {
+                                 Function<Class<?>, HandlerRepository> handlerRepositorySupplier) {
         this.messageType = messageType;
         this.defaultDecorator = defaultDecorator;
         this.parameterResolvers = parameterResolvers;
-        this.viewRepositorySupplier = memoize(viewRepositorySupplier);
+        this.handlerRepositorySupplier = memoize(handlerRepositorySupplier);
         this.handlerAnnotation = getHandlerAnnotation(messageType);
         this.messageFilter = defaultMessageFilter();
     }
@@ -81,11 +81,11 @@ public class DefaultHandlerFactory implements HandlerFactory {
     private Handler<DeserializingMessage> buildHandler(Object target, HandlerConfiguration<DeserializingMessage> config) {
         if (target instanceof Class<?> targetClass) {
             {
-                View view = ReflectionUtils.getTypeAnnotation(targetClass, View.class);
-                if (view != null) {
-                    return new ViewHandler(
+                Stateful handler = ReflectionUtils.getTypeAnnotation(targetClass, Stateful.class);
+                if (handler != null) {
+                    return new StatefulHandler(
                             targetClass, HandlerInspector.inspect(targetClass, parameterResolvers, config),
-                            viewRepositorySupplier.apply(targetClass));
+                            handlerRepositorySupplier.apply(targetClass));
                 }
             }
 

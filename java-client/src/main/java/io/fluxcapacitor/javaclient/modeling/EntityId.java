@@ -14,6 +14,8 @@
 
 package io.fluxcapacitor.javaclient.modeling;
 
+import io.fluxcapacitor.javaclient.tracking.handling.Stateful;
+
 import java.lang.annotation.Documented;
 import java.lang.annotation.ElementType;
 import java.lang.annotation.Inherited;
@@ -25,7 +27,7 @@ import java.lang.annotation.Target;
  * Marks a property (field or getter) as the holder of the identifier of an entity.
  *
  * @see Aggregate
- * @see io.fluxcapacitor.javaclient.tracking.handling.View
+ * @see Stateful
  */
 @Documented
 @Target({ElementType.FIELD, ElementType.METHOD})

@@ -14,6 +14,7 @@
 
 package io.fluxcapacitor.javaclient.tracking.handling;
 
+import io.fluxcapacitor.javaclient.modeling.HandlerRepository;
 import io.fluxcapacitor.javaclient.modeling.Searchable;
 import org.springframework.beans.factory.config.ConfigurableBeanFactory;
 import org.springframework.context.annotation.Scope;
@@ -28,13 +29,13 @@ import java.lang.annotation.Target;
 
 /**
  * Annotation to be placed on stateful message handlers. If this annotation is present it is possible to 'apply'
- * messages like events on stored view instances, or automatically store views.
+ * messages like events on stored handler instances, or automatically store handlers.
  * <p>
- * Messages are associated with stored views using {@link Association associations}.
+ * Messages are associated with stored handlers using {@link Association associations}.
  * <p>
- * Views are persisted to a {@link io.fluxcapacitor.javaclient.modeling.ViewRepository}. By default, a repository backed
- * by the {@link io.fluxcapacitor.javaclient.persisting.search.DocumentStore} is used. An identifier for new views is
- * automatically generated unless a property of the view is annotated with
+ * Handlers are persisted to a {@link HandlerRepository}. By default, a repository backed by the
+ * {@link io.fluxcapacitor.javaclient.persisting.search.DocumentStore} is used. An identifier for new handlers is
+ * automatically generated unless a property of the handler is annotated with
  * {@link io.fluxcapacitor.javaclient.modeling.EntityId}, in which case the property is used to determine the id.
  *
  * @see Association
@@ -46,23 +47,23 @@ import java.lang.annotation.Target;
 @Searchable
 @Component
 @Scope(ConfigurableBeanFactory.SCOPE_PROTOTYPE)
-public @interface View {
+public @interface Stateful {
 
     /**
-     * Returns the name of the collection in which the view should be stored. Defaults to the simple name of View
+     * Returns the name of the collection in which the handler should be stored. Defaults to the simple name of Handler
      * class.
      */
     String collection() default "";
 
     /**
-     * Returns the name of property on the view that contains a timestamp associated with the view. This may be useful
-     * in case the views need to e.g. be presented in an overview.
+     * Returns the name of property on the handler that contains a timestamp associated with the handler. This may be
+     * useful in case the handlers need to e.g. be presented in an overview.
      */
     String timestampPath() default "";
 
     /**
-     * Returns the name of property on the view that contains an end timestamp associated with the view. This may be
-     * useful in case the views need to e.g. be presented in an overview.
+     * Returns the name of property on the handler that contains an end timestamp associated with the handler. This may
+     * be useful in case the handlers need to e.g. be presented in an overview.
      */
     String endPath() default "";
 }

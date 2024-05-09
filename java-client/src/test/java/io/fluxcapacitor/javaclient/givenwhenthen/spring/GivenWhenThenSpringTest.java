@@ -24,7 +24,7 @@ import io.fluxcapacitor.javaclient.tracking.Tracker;
 import io.fluxcapacitor.javaclient.tracking.handling.Association;
 import io.fluxcapacitor.javaclient.tracking.handling.HandleCommand;
 import io.fluxcapacitor.javaclient.tracking.handling.HandleEvent;
-import io.fluxcapacitor.javaclient.tracking.handling.View;
+import io.fluxcapacitor.javaclient.tracking.handling.Stateful;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.SneakyThrows;
@@ -83,71 +83,71 @@ class GivenWhenThenSpringTest {
     }
 
     @Nested
-    class ViewTest {
+    class StatefulHandlerTest {
         @Test
-        void staticViewIsCreated() {
+        void staticHandlerIsCreated() {
             testFixture.whenEvent(new StaticEvent("bla"))
                     .expectCommands(1);
         }
 
         @Test
-        void staticViewIsUpdated() {
+        void staticHandlerIsUpdated() {
             testFixture.givenEvents(new StaticEvent("bla"))
                     .whenEvent(new StaticEvent("bla"))
                     .expectCommands(2);
         }
 
         @Test
-        void constructorViewIsCreated() {
+        void constructorHandlerIsCreated() {
             testFixture.whenEvent(new StaticEvent("bla"))
                     .expectCommands("constructor:1");
         }
 
         @Test
-        void constructorViewIsUpdated() {
+        void constructorHandlerIsUpdated() {
             testFixture
                     .givenEvents(new StaticEvent("bla"))
                     .whenEvent(new StaticEvent("bla"))
                     .expectCommands("constructor:2");
         }
 
-        @View
+        @Stateful
         @SearchExclude
         @Value
         @Builder(toBuilder = true)
-        public static class StaticView {
+        public static class StaticHandler {
             @Association String someId;
             int eventCount;
 
             @HandleEvent
-            static StaticView create(StaticEvent event) {
+            static StaticHandler create(StaticEvent event) {
                 FluxCapacitor.sendAndForgetCommand(1);
-                return StaticView.builder().someId(event.someId).eventCount(1).build();
+                return StaticHandler.builder().someId(event.someId).eventCount(1).build();
             }
 
             @HandleEvent
-            StaticView update(StaticEvent event) {
+            StaticHandler update(StaticEvent event) {
                 FluxCapacitor.sendAndForgetCommand(eventCount + 1);
                 return toBuilder().eventCount(eventCount + 1).build();
             }
         }
 
-        @View
+        @Stateful
         @Value
         @Builder(toBuilder = true)
         @AllArgsConstructor
-        public static class ConstructorView {
+        public static class ConstructorHandler {
             @Association String someId;
             int eventCount;
 
             @HandleEvent
-            ConstructorView(StaticEvent event) {
+            ConstructorHandler(StaticEvent event) {
                 this(event.getSomeId(), 1);
                 FluxCapacitor.sendAndForgetCommand("constructor:" + eventCount);
             }
 
             @HandleEvent
-            ConstructorView update(StaticEvent event) {
+            ConstructorHandler update(StaticEvent event) {
                 FluxCapacitor.sendAndForgetCommand("constructor:" + (eventCount + 1));
                 return toBuilder().eventCount(eventCount + 1).build();
             }
