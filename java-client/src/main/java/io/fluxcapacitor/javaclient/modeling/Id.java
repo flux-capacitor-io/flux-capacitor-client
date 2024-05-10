@@ -16,6 +16,7 @@ package io.fluxcapacitor.javaclient.modeling;
 
 import com.fasterxml.jackson.annotation.JsonValue;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
+import io.fluxcapacitor.common.search.Facet;
 import lombok.Getter;
 import lombok.NonNull;
 
@@ -39,6 +40,7 @@ import java.util.Objects;
 public abstract class Id<T> {
     @JsonValue
     @Getter
+    @Facet
     String functionalId;
     @Getter
     Class<T> type;

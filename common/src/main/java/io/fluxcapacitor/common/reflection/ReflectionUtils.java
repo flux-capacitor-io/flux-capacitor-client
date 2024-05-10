@@ -645,7 +645,8 @@ public class ReflectionUtils {
     }
 
     public static boolean isConstant(Object value) {
-        return value == null || value instanceof String || value instanceof Number || value instanceof Boolean;
+        return value == null || value instanceof String || value instanceof Number
+               || value instanceof Boolean || value.getClass().isEnum();
     }
 
     @Value
