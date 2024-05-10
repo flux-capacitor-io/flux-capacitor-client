@@ -27,6 +27,7 @@ import io.fluxcapacitor.common.search.Facet;
 import io.fluxcapacitor.common.serialization.JsonUtils;
 import io.fluxcapacitor.javaclient.FluxCapacitor;
 import io.fluxcapacitor.javaclient.common.serialization.jackson.JacksonSerializer;
+import io.fluxcapacitor.javaclient.modeling.Id;
 import io.fluxcapacitor.javaclient.modeling.Searchable;
 import io.fluxcapacitor.javaclient.persisting.search.SearchHit;
 import io.fluxcapacitor.javaclient.test.Given;
@@ -608,12 +609,13 @@ public class SearchTest {
         @Test
         void getFacetStats() {
             testFixture.whenApplying(fc -> FluxCapacitor.search("test").facetStats())
-                    .<List<FacetStats>>expectResult(stats -> stats.size() == 5
+                    .<List<FacetStats>>expectResult(stats -> stats.size() == 6
                                                              && stats.contains(new FacetStats("custom", "testCustom", 2))
                                                              && stats.contains(new FacetStats("facetField", "testField", 2))
                                                              && stats.contains(new FacetStats("facetGetter", "testGetter", 2))
                                                              && stats.contains(new FacetStats("facetList", "value1", 2))
-                                                             && stats.contains(new FacetStats("facetList/status", "value2", 2)));
+                                                             && stats.contains(new FacetStats("facetList/status", "value2", 2))
+                                                             && stats.contains(new FacetStats("selfAnnotated", "self", 2)));
         }
     }
 
@@ -656,6 +658,8 @@ public class SearchTest {
         @Facet
         @JsonTypeInfo(use = JsonTypeInfo.Id.CLASS)
         List<Object> facetList;
+        @Facet
+        SelfAnnotated selfAnnotated;
 
         public SomeDocument() {
             this.someId = ID;
@@ -673,6 +677,7 @@ public class SearchTest {
             this.facetField = "testField";
             this.facetGetter = "testGetter";
             this.facetList = List.of("value1", new Nested("value2"));
+            this.selfAnnotated = new SelfAnnotated("self");
         }
 
         @Facet
@@ -689,6 +694,13 @@ public class SearchTest {
         static class Nested {
             @Facet
             String status;
+        }
+
+        @Facet
+        static class SelfAnnotated extends Id<Object> {
+            protected SelfAnnotated(String id) {
+                super(id, Object.class);
+            }
         }
     }
 }

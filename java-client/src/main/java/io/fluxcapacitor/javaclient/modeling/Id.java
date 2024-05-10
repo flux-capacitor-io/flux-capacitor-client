@@ -37,10 +37,10 @@ import java.util.Objects;
  *
  * @param <T> the entity type.
  */
+@Facet
 public abstract class Id<T> {
     @JsonValue
     @Getter
-    @Facet
     String functionalId;
     @Getter
     Class<T> type;

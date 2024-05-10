@@ -165,7 +165,8 @@ public class JacksonInverter implements Inverter<JsonNode> {
         }
         String name = getAnnotation(holder, Facet.class).map(Facet::value).filter(s -> !s.isBlank())
                 .orElseGet(() -> getPropertyName(holder));
-        if (ReflectionUtils.isConstant(propertyValue)) {
+        if (ReflectionUtils.isConstant(propertyValue)
+            || ReflectionUtils.getTypeAnnotation(propertyValue.getClass(), Facet.class) != null) {
             String stringValue = propertyValue.toString();
             return stringValue.isBlank() ? Stream.empty() : Stream.of(new FacetEntry(name, stringValue));
         }

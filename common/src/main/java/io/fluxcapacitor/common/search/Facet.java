@@ -35,18 +35,20 @@ import java.lang.annotation.Target;
  * <p>
  * 2) in case the object is a collection, facets are created for each of the collection elements;
  * <p>
- * 3) in case the object is a map, facets are created for each of the map values. Keys of the map are appended to
- * the facet name (including a delimiting slash);
+ * 3) in case the object is a map, facets are created for each of the map values. Keys of the map are appended to the
+ * facet name (including a delimiting slash);
  * <p>
- * 4) in case the object is a constant value (number, string or boolean), the toString() value of the element is used;
+ * 4) in case the class of the element is annotated with {@link Facet}, the toString() value of the element is used;
  * <p>
- * 5) for other values, nested facets are collected by inspecting all annotated properties of the object. If the object
+ * 5) in case the object is a constant value (number, string or boolean), the toString() value of the element is used;
+ * <p>
+ * 6) for other values, nested facets are collected by inspecting all annotated properties of the object. If the object
  * contains any facets these will be included as well. Names of nested facets will be appended to the parent facet name
  * (including a delimiting slash);
  * <p>
- * 5) in other cases the toString() value of the element is used.
+ * 7) in other cases the toString() value of the element is used.
  */
-@Target({ElementType.METHOD, ElementType.FIELD})
+@Target({ElementType.METHOD, ElementType.FIELD, ElementType.TYPE})
 @Retention(RetentionPolicy.RUNTIME)
 @Inherited
 @Documented
