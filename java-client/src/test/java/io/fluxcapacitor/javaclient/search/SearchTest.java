@@ -696,7 +696,6 @@ public class SearchTest {
             String status;
         }
 
-        @Facet
         static class SelfAnnotated extends Id<Object> {
             protected SelfAnnotated(String id) {
                 super(id, Object.class);
