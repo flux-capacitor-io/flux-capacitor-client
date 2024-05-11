@@ -20,6 +20,7 @@ import io.fluxcapacitor.common.Backlog;
 import io.fluxcapacitor.common.Registration;
 import io.fluxcapacitor.common.RetryConfiguration;
 import io.fluxcapacitor.common.api.Command;
+import io.fluxcapacitor.common.api.ErrorResult;
 import io.fluxcapacitor.common.api.JsonType;
 import io.fluxcapacitor.common.api.Metadata;
 import io.fluxcapacitor.common.api.QueryResult;
@@ -29,6 +30,7 @@ import io.fluxcapacitor.common.api.ResultBatch;
 import io.fluxcapacitor.common.tracking.InMemoryTaskScheduler;
 import io.fluxcapacitor.common.tracking.TaskScheduler;
 import io.fluxcapacitor.javaclient.FluxCapacitor;
+import io.fluxcapacitor.javaclient.common.exception.TechnicalException;
 import io.fluxcapacitor.javaclient.common.serialization.Serializer;
 import io.fluxcapacitor.javaclient.common.serialization.jackson.JacksonSerializer;
 import io.fluxcapacitor.javaclient.configuration.client.WebSocketClient;
@@ -245,7 +247,11 @@ public abstract class AbstractWebsocketClient implements AutoCloseable {
                                                     METRICS),
                                             () -> tryPublishMetrics(result, metadata))));
                 } finally {
-                    webSocketRequest.result.complete(result);
+                    if (result instanceof ErrorResult e) {
+                        webSocketRequest.result.completeExceptionally(new TechnicalException(e.getMessage()));
+                    } else {
+                        webSocketRequest.result.complete(result);
+                    }
                 }
             }
         } catch (Throwable e) {
