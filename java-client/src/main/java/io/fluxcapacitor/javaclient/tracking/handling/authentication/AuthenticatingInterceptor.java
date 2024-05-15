@@ -23,6 +23,7 @@ import io.fluxcapacitor.javaclient.publishing.DispatchInterceptor;
 import io.fluxcapacitor.javaclient.tracking.handling.HandlerInterceptor;
 import lombok.AllArgsConstructor;
 import lombok.experimental.Delegate;
+import lombok.extern.slf4j.Slf4j;
 
 import java.util.Optional;
 import java.util.function.Function;
@@ -33,6 +34,7 @@ import static io.fluxcapacitor.javaclient.tracking.handling.validation.Validatio
 import static java.util.Optional.ofNullable;
 
 @AllArgsConstructor
+@Slf4j
 public class AuthenticatingInterceptor implements DispatchInterceptor, HandlerInterceptor {
 
     private final UserProvider userProvider;
@@ -82,9 +84,19 @@ public class AuthenticatingInterceptor implements DispatchInterceptor, HandlerIn
         @Override
         public Optional<HandlerInvoker> getInvoker(DeserializingMessage m) {
             return delegate.getInvoker(m).filter(
-                    i -> Optional.ofNullable(m.getPayloadClass())
-                                 .map(c -> i.getTargetClass().isAssignableFrom(c)).orElse(true)
-                         || isAuthorized(i.getTargetClass(), i.getMethod(), userProvider.fromMessage(m)));
+                    i -> {
+                        if (Optional.ofNullable(m.getPayloadClass())
+                                .map(c -> i.getTargetClass().isAssignableFrom(c)).orElse(true)) {
+                            return true;
+                        }
+                        User user;
+                        try {
+                            user = userProvider.fromMessage(m);
+                        } catch (Throwable ignored) {
+                            user = null;
+                        }
+                        return isAuthorized(i.getTargetClass(), i.getMethod(), user);
+                    });
         }
 
         @Override
