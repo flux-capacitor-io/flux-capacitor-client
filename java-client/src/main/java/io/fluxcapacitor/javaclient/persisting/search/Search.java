@@ -33,6 +33,7 @@ import io.fluxcapacitor.javaclient.FluxCapacitor;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -217,7 +218,7 @@ public interface Search {
     }
 
     default Map<String, FieldStats> aggregate(String... fields) {
-        return groupBy().aggregate(fields).get(Group.of());
+        return groupBy().aggregate(fields).getOrDefault(Group.of(), Collections.emptyMap());
     }
 
     List<FacetStats> facetStats();
