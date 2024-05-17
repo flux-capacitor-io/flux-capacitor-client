@@ -14,6 +14,8 @@
 
 package io.fluxcapacitor.javaclient.test;
 
+import io.fluxcapacitor.common.MessageType;
+import io.fluxcapacitor.javaclient.common.serialization.DeserializingMessage;
 import io.fluxcapacitor.javaclient.tracking.handling.authentication.User;
 import io.fluxcapacitor.javaclient.tracking.handling.authentication.UserProvider;
 import lombok.AllArgsConstructor;
@@ -28,7 +30,12 @@ public class TestUserProvider implements UserProvider {
 
     @Override
     public User getActiveUser() {
-        return Optional.ofNullable(delegate.getActiveUser()).orElseGet(this::getSystemUser);
+        var result = delegate.getActiveUser();
+        if (result == null && Optional.ofNullable(DeserializingMessage.getCurrent())
+                .map(m -> m.getMessageType() != MessageType.WEBREQUEST).orElse(true)) {
+            return getSystemUser();
+        }
+        return result;
     }
 
     private interface ExcludedMethods {
