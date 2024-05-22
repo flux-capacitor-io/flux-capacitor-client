@@ -79,8 +79,7 @@ public class InMemoryScheduleStore extends InMemoryMessageStore implements Sched
             }
             schedule.getMessage().setIndex(index);
         }
-        return super.append(guarantee,
-                            filtered.stream().map(SerializedSchedule::getMessage).toArray(SerializedMessage[]::new));
+        return super.append(filtered.stream().map(SerializedSchedule::getMessage).toList());
     }
 
     @Override
@@ -99,7 +98,7 @@ public class InMemoryScheduleStore extends InMemoryMessageStore implements Sched
     }
 
     @Override
-    public CompletableFuture<Void> append(Guarantee guarantee, SerializedMessage... messages) {
+    public CompletableFuture<Void> append(List<SerializedMessage> messages) {
         throw new UnsupportedOperationException("Use method #schedule instead");
     }
 

@@ -112,12 +112,12 @@ public class CachingTrackingClient implements TrackingClient {
         AtomicLong atomicIndex = new AtomicLong(minIndex);
         long timeout = Duration.between(now(), deadline).toMillis();
         if (timeout <= 0) {
-            future.complete(new MessageBatch(claimResult.getSegment(), List.of(), atomicIndex.get()));
+            future.complete(new MessageBatch(claimResult.getSegment(), List.of(), atomicIndex.get(), claimResult.getPosition()));
         } else {
             ScheduledFuture<?> timeoutSchedule = scheduler.schedule(() -> {
                 try {
                     if (future.complete(
-                            new MessageBatch(claimResult.getSegment(), List.of(), atomicIndex.get()))) {
+                            new MessageBatch(claimResult.getSegment(), List.of(), atomicIndex.get(), claimResult.getPosition()))) {
                         waitingTrackers.remove(trackerId);
                     }
                 } finally {
@@ -150,7 +150,7 @@ public class CachingTrackingClient implements TrackingClient {
                 config.getMaxFetchSize()).collect(toList());
         Long lastIndex = unfiltered.isEmpty() ? null : unfiltered.get(unfiltered.size() - 1).getIndex();
         return new MessageBatch(claim.getSegment(), filterMessages(
-                unfiltered, claim.getSegment(), claim.getPosition(), config), lastIndex);
+                unfiltered, claim.getSegment(), claim.getPosition(), config), lastIndex, claim.getPosition());
     }
 
 

@@ -14,14 +14,18 @@
 
 package io.fluxcapacitor.javaclient.tracking;
 
+import io.fluxcapacitor.common.ConsistentHashing;
 import io.fluxcapacitor.common.MessageType;
 import io.fluxcapacitor.common.api.tracking.MessageBatch;
+import io.fluxcapacitor.javaclient.common.serialization.DeserializingMessage;
 import lombok.EqualsAndHashCode;
 import lombok.ToString;
 import lombok.Value;
 import lombok.With;
 
 import java.util.Optional;
+
+import static io.fluxcapacitor.common.ConsistentHashing.fallsInRange;
 
 @Value
 public class Tracker {
@@ -40,4 +44,13 @@ public class Tracker {
     @EqualsAndHashCode.Exclude
     @ToString.Exclude
     MessageBatch messageBatch;
+    
+    public boolean canHandle(DeserializingMessage message, String routingKey) {
+        if (messageBatch == null || messageBatch.getPosition() == null) {
+            return true;
+        }
+        int segment = ConsistentHashing.computeSegment(routingKey);
+        return fallsInRange(segment, messageBatch.getSegment())
+               && messageBatch.getPosition().isNewIndex(segment, message.getIndex());
+    }
 }

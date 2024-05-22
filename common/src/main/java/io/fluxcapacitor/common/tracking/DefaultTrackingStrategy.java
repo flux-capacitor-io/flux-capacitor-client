@@ -36,6 +36,7 @@ import java.util.function.Predicate;
 
 import static io.fluxcapacitor.common.ConsistentHashing.computeSegment;
 import static io.fluxcapacitor.common.api.tracking.Position.MAX_SEGMENT;
+import static io.fluxcapacitor.common.api.tracking.Position.newPosition;
 import static java.lang.System.currentTimeMillis;
 import static java.util.Collections.emptyList;
 import static java.util.Collections.synchronizedMap;
@@ -86,7 +87,7 @@ public class DefaultTrackingStrategy extends AutoClosing implements TrackingStra
         int[] newSegment = claimSegment(tracker);
         try {
             if (newSegment[0] == newSegment[1]) {
-                waitForMessages(tracker, new MessageBatch(newSegment, emptyList(), null), positionStore);
+                waitForMessages(tracker, new MessageBatch(newSegment, emptyList(), null, newPosition()), positionStore);
                 return;
             }
             int batchSize = adjustMaxSize(tracker, tracker.getMaxSize());
@@ -105,8 +106,8 @@ public class DefaultTrackingStrategy extends AutoClosing implements TrackingStra
                     if (batchIndex < indexFromMillis(System.currentTimeMillis() - tracker.maxTimeout())) {
                         //if the index is old, send back an empty batch.
                         // Prevents rushing through potentially billions of messages
-                        MessageBatch emptyBatch = new MessageBatch(newSegment, filtered, batchIndex);
-                        tracker.send(emptyBatch, position);
+                        MessageBatch emptyBatch = new MessageBatch(newSegment, filtered, batchIndex, position);
+                        tracker.send(emptyBatch);
                         return;
                     } else {
                         //update stored position and tracker, otherwise client may stay endlessly waiting
@@ -116,7 +117,7 @@ public class DefaultTrackingStrategy extends AutoClosing implements TrackingStra
                 }
             } while (!unfiltered.isEmpty() && filtered.isEmpty() && !tracker.hasMissedDeadline());
 
-            MessageBatch messageBatch = new MessageBatch(newSegment, filtered, getLastIndex(unfiltered));
+            MessageBatch messageBatch = new MessageBatch(newSegment, filtered, getLastIndex(unfiltered), position);
             if (messageBatch.isEmpty()) {
                 waitForMessages(tracker, messageBatch, positionStore);
                 if (lastIndex < lastSeenIndex
@@ -127,11 +128,11 @@ public class DefaultTrackingStrategy extends AutoClosing implements TrackingStra
                     }
                 }
             } else {
-                tracker.send(messageBatch, position);
+                tracker.send(messageBatch);
             }
         } catch (Throwable e) {
             log.error("Failed to get a batch for tracker {}", tracker, e);
-            waitForMessages(tracker, new MessageBatch(newSegment, emptyList(), null), positionStore);
+            waitForMessages(tracker, new MessageBatch(newSegment, emptyList(), null, newPosition()), positionStore);
         } finally {
             if (oldCluster != null && !Objects.deepEquals(oldCluster.getSegment(tracker), newSegment)) {
                 onClusterUpdate(oldCluster);
@@ -142,11 +143,12 @@ public class DefaultTrackingStrategy extends AutoClosing implements TrackingStra
     @Override
     public void claimSegment(Tracker tracker, PositionStore positionStore) {
         int[] newSegment = claimSegment(tracker);
-        MessageBatch emptyBatch = new MessageBatch(newSegment, emptyList(), null);
         if (newSegment[0] == newSegment[1]) {
-            waitForUpdate(tracker, emptyBatch, () -> claimSegment(tracker, positionStore));
+            waitForUpdate(tracker, new MessageBatch(newSegment, emptyList(), null, newPosition()),
+                          () -> claimSegment(tracker, positionStore));
         } else {
-            tracker.send(emptyBatch, position(tracker, positionStore, newSegment));
+            tracker.send(new MessageBatch(newSegment, emptyList(), null,
+                                          position(tracker, positionStore, newSegment)));
         }
     }
 
@@ -160,7 +162,7 @@ public class DefaultTrackingStrategy extends AutoClosing implements TrackingStra
 
     protected void waitForUpdate(Tracker tracker, MessageBatch emptyBatch, Runnable followUp) {
         if (tracker.hasMissedDeadline()) {
-            tracker.sendEmptyBatch(emptyBatch);
+            tracker.send(emptyBatch);
             return;
         }
         clusters.compute(tracker.getConsumerName(), (p, c) -> ofNullable(c)
@@ -169,7 +171,7 @@ public class DefaultTrackingStrategy extends AutoClosing implements TrackingStra
             if (waitingTrackers.keySet().removeIf(t -> t == tracker)) {
                 clusters.compute(tracker.getConsumerName(), (p, cluster) -> cluster != null && cluster.contains(tracker)
                         ? cluster.withActiveTracker(tracker) : cluster);
-                tracker.sendEmptyBatch(emptyBatch);
+                tracker.send(emptyBatch);
             }
         });
         WaitingTracker existing = waitingTrackers.remove(tracker);
@@ -177,7 +179,7 @@ public class DefaultTrackingStrategy extends AutoClosing implements TrackingStra
         if (existing != null) {
             log.warn("Tracker replaced another waiting tracker. This should normally not happen. New tracker: {}",
                      tracker);
-            existing.tracker.sendEmptyBatch(emptyBatch);
+            existing.tracker.send(emptyBatch);
         }
     }
 
@@ -201,7 +203,8 @@ public class DefaultTrackingStrategy extends AutoClosing implements TrackingStra
     protected List<SerializedMessage> filter(List<SerializedMessage> messages, int[] segmentRange,
                                              Position position, Tracker tracker) {
         return messages.stream().filter(
-                m -> tracker.canHandle(ensureMessageSegment(m), segmentRange) && position.isNewMessage(m)).toList();
+                m -> tracker.canHandle(ensureMessageSegment(m), segmentRange)
+                     && (tracker.ignoreSegment() || position.isNewMessage(m))).toList();
     }
 
     protected SerializedMessage ensureMessageSegment(SerializedMessage message) {
@@ -266,7 +269,7 @@ public class DefaultTrackingStrategy extends AutoClosing implements TrackingStra
             if (sendFinalEmptyBatch) {
                 removedAndWaiting.forEach(tracker -> {
                     try {
-                        tracker.sendEmptyBatch(new MessageBatch(new int[]{0, 0}, emptyList(), null));
+                        tracker.send(new MessageBatch(new int[]{0, 0}, emptyList(), null, newPosition()));
                     } catch (Exception e) {
                         log.error("Failed to send final empty batch to disconnecting tracker: {}", predicate, e);
                     }

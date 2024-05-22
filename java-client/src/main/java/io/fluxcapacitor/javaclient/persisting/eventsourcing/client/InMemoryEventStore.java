@@ -57,7 +57,7 @@ public class InMemoryEventStore extends InMemoryMessageStore implements EventSto
         if (storeOnly) {
             return CompletableFuture.completedFuture(null);
         }
-        return super.append(guarantee, events.toArray(new SerializedMessage[0]));
+        return super.append(events.toArray(new SerializedMessage[0]));
     }
 
     @Override

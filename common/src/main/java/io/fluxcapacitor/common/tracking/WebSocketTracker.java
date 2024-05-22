@@ -16,7 +16,6 @@ package io.fluxcapacitor.common.tracking;
 
 import io.fluxcapacitor.common.MessageType;
 import io.fluxcapacitor.common.api.tracking.MessageBatch;
-import io.fluxcapacitor.common.api.tracking.Position;
 import io.fluxcapacitor.common.api.tracking.Read;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
@@ -24,7 +23,7 @@ import lombok.With;
 import lombok.experimental.Accessors;
 
 import java.util.Objects;
-import java.util.function.BiConsumer;
+import java.util.function.Consumer;
 import java.util.function.Predicate;
 import java.util.regex.Pattern;
 
@@ -51,10 +50,10 @@ public class WebSocketTracker implements Tracker {
     @Accessors(fluent = true)
     private final long maxTimeout;
 
-    private final BiConsumer<MessageBatch, Position> handler;
+    private final Consumer<MessageBatch> handler;
 
     public WebSocketTracker(Read read, MessageType messageType, String clientId,
-                            String sessionId, BiConsumer<MessageBatch, Position> handler) {
+                            String sessionId, Consumer<MessageBatch> handler) {
         this.consumerName = read.getConsumer();
         this.messageType = messageType;
         this.clientId = clientId;
@@ -81,8 +80,8 @@ public class WebSocketTracker implements Tracker {
     }
 
     @Override
-    public void send(MessageBatch batch, Position position) {
-        handler.accept(batch, position);
+    public void send(MessageBatch batch) {
+        handler.accept(batch);
     }
 
     @Override

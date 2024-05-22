@@ -14,36 +14,52 @@
 
 package io.fluxcapacitor.common.api.tracking;
 
+import com.fasterxml.jackson.core.JsonGenerator;
+import com.fasterxml.jackson.core.JsonParser;
+import com.fasterxml.jackson.core.JsonToken;
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.DeserializationContext;
+import com.fasterxml.jackson.databind.JsonDeserializer;
+import com.fasterxml.jackson.databind.JsonSerializer;
+import com.fasterxml.jackson.databind.SerializerProvider;
+import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
+import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 import io.fluxcapacitor.common.api.SerializedMessage;
 import lombok.AllArgsConstructor;
 import lombok.Value;
 
-import java.util.HashMap;
+import java.io.IOException;
+import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.SortedMap;
 import java.util.TreeMap;
 import java.util.stream.IntStream;
 
 @Value
 @AllArgsConstructor
+@JsonSerialize(using = Position.PositionSerializer.class)
+@JsonDeserialize(using = Position.PositionDeserializer.class)
 public class Position {
+
+    private static final Position newPosition = new Position(new TreeMap<>());
 
     public static int MAX_SEGMENT = 128;
     public static int[] FULL_SEGMENT = new int[]{0, MAX_SEGMENT};
 
     public static Position newPosition() {
-        return new Position(new HashMap<>());
+        return newPosition;
     }
 
-    Map<Integer, Long> indexBySegment;
+    SortedMap<Integer, Long> indexBySegment;
 
     public Position(long index) {
         this(new int[]{0, MAX_SEGMENT}, index);
     }
 
     public Position(int[] segment, long index) {
-        Map<Integer, Long> indexBySegment = new HashMap<>();
+        SortedMap<Integer, Long> indexBySegment = new TreeMap<>();
         IntStream.range(segment[0], segment[1]).forEach(i -> indexBySegment.put(i, index));
         this.indexBySegment = indexBySegment;
     }
@@ -67,14 +83,14 @@ public class Position {
     }
 
     public Position merge(Position newPosition) {
-        Map<Integer, Long> indexBySegment = new HashMap<>(this.indexBySegment);
+        SortedMap<Integer, Long> indexBySegment = new TreeMap<>(this.indexBySegment);
         newPosition.indexBySegment.forEach((s, i) -> indexBySegment.merge(s, i, (v, v2) -> v2.compareTo(v) > 0 ? v2 : v));
         return new Position(indexBySegment);
     }
 
     public Map<int[], Long> splitInSegments() {
-        Map<int[], Long> result = new HashMap<>();
-        new TreeMap<>(indexBySegment).entrySet().stream()
+        Map<int[], Long> result = new LinkedHashMap<>();
+        indexBySegment.entrySet().stream()
                 .map(e -> Map.entry(new int[]{e.getKey(), e.getKey() + 1}, e.getValue())).reduce((a, b) -> {
             if (Objects.equals(a.getValue(), b.getValue()) && a.getKey()[1] == b.getKey()[0]) {
                 return Map.entry(new int[]{a.getKey()[0], b.getKey()[1]}, b.getValue());
@@ -86,7 +102,58 @@ public class Position {
     }
 
     public boolean isNewMessage(SerializedMessage message) {
-        Long index = indexBySegment.get(message.getSegment());
-        return index == null || index < message.getIndex();
+        return isNewIndex(message.getSegment(), message.getIndex());
+    }
+
+    public boolean isNewIndex(int segment, Long messageIndex) {
+        Long lastIndex = indexBySegment.get(segment);
+        return lastIndex == null || messageIndex == null || lastIndex < messageIndex;
+    }
+
+    static class PositionSerializer extends JsonSerializer<Position> {
+        @Override
+        public void serialize(Position value, JsonGenerator gen,
+                              SerializerProvider provider) throws IOException {
+            gen.writeStartArray();
+            for (Map.Entry<int[], Long> entry : value.splitInSegments().entrySet()) {
+                gen.writeStartArray();
+                gen.writeNumber(entry.getKey()[0]);
+                gen.writeNumber(entry.getKey()[1]);
+                gen.writeEndArray();
+                gen.writeNumber(entry.getValue());
+            }
+            gen.writeEndArray();
+        }
+    }
+
+    static class PositionDeserializer extends JsonDeserializer<Position> {
+        private final TypeReference<SortedMap<Integer, Long>> mapTypeReference = new TypeReference<>() {};
+
+        @Override
+        public Position deserialize(JsonParser p, DeserializationContext ctxt) throws IOException {
+            return switch (p.getCurrentToken()) {
+                case START_OBJECT -> {
+                    p.nextToken();
+                    p.nextToken();
+                    yield new Position(p.readValueAs(mapTypeReference));
+                }
+                case START_ARRAY -> {
+                    Position position = Position.newPosition();
+                    while (p.nextToken() == JsonToken.START_ARRAY) {
+                        int[] range = new int[2];
+                        p.nextToken();
+                        range[0] = p.getIntValue();
+                        p.nextToken();
+                        range[1] = p.getIntValue();
+                        p.nextToken();
+                        p.nextToken();
+                        long index = p.getLongValue();
+                        position = position.merge(new Position(range, index));
+                    }
+                    yield position;
+                }
+                default -> throw new UnsupportedOperationException();
+            };
+        }
     }
 }

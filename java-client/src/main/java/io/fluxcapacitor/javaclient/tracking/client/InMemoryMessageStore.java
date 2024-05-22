@@ -31,7 +31,6 @@ import lombok.extern.slf4j.Slf4j;
 
 import java.time.Duration;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
@@ -50,6 +49,7 @@ import java.util.function.Consumer;
 import java.util.function.Predicate;
 
 import static io.fluxcapacitor.common.ObjectUtils.newThreadFactory;
+import static io.fluxcapacitor.common.api.tracking.Position.newPosition;
 import static java.lang.System.currentTimeMillis;
 import static java.lang.Thread.currentThread;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
@@ -77,9 +77,14 @@ public class InMemoryMessageStore implements GatewayClient, TrackingClient, Mess
     }
 
     @Override
-    public synchronized CompletableFuture<Void> append(Guarantee guarantee, SerializedMessage... messages) {
+    public CompletableFuture<Void> append(Guarantee guarantee, SerializedMessage... messages) {
+        return append(messages);
+    }
+
+    @Override
+    public synchronized CompletableFuture<Void> append(List<SerializedMessage> messages) {
         try {
-            Arrays.stream(messages).forEach(m -> {
+            messages.forEach(m -> {
                 if (m.getIndex() == null) {
                     m.setIndex(nextIndex.updateAndGet(IndexUtils::nextIndex));
                 }
@@ -94,10 +99,14 @@ public class InMemoryMessageStore implements GatewayClient, TrackingClient, Mess
         }
     }
 
-    public synchronized void notifyMonitors(SerializedMessage... messages) {
+    public void notifyMonitors() {
+        notifyMonitors(Collections.emptyList());
+    }
+
+    public synchronized void notifyMonitors(List<SerializedMessage> messages) {
         this.notifyAll();
         if (!monitors.isEmpty()) {
-            monitors.forEach(m -> m.accept(Arrays.asList(messages)));
+            monitors.forEach(m -> m.accept(messages));
         }
     }
 
@@ -130,7 +139,7 @@ public class InMemoryMessageStore implements GatewayClient, TrackingClient, Mess
             log.debug("Delaying read by secondary tracker {} (message type {})", trackerRead.getConsumer(),
                       messageType);
             return CompletableFuture.supplyAsync(
-                    () -> new MessageBatch(new int[]{0, 0}, Collections.emptyList(), null),
+                    () -> new MessageBatch(new int[]{0, 0}, Collections.emptyList(), null, newPosition()),
                     CompletableFuture.delayedExecutor(trackerRead.getDeadline() - currentTimeMillis(), MILLISECONDS));
         }
         CompletableFuture<MessageBatch> result = new CompletableFuture<>();
@@ -156,7 +165,8 @@ public class InMemoryMessageStore implements GatewayClient, TrackingClient, Mess
             messages = messages.subList(0, Math.min(messages.size(), trackerRead.getMaxSize()));
             Long lastIndex = messages.isEmpty() ? null : messages.get(messages.size() - 1).getIndex();
             messages = messages.stream().filter(trackerRead::canHandle).collect(toList());
-            result.complete(new MessageBatch(new int[]{0, 128}, messages, lastIndex));
+            result.complete(new MessageBatch(new int[]{0, 128}, messages, lastIndex,
+                                             lastIndex == null ? Position.newPosition() : new Position(lastIndex)));
         });
         return result;
     }

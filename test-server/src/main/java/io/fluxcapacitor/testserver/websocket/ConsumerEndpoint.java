@@ -20,7 +20,6 @@ import io.fluxcapacitor.common.api.tracking.ClaimSegmentResult;
 import io.fluxcapacitor.common.api.tracking.DisconnectTracker;
 import io.fluxcapacitor.common.api.tracking.GetPosition;
 import io.fluxcapacitor.common.api.tracking.GetPositionResult;
-import io.fluxcapacitor.common.api.tracking.Position;
 import io.fluxcapacitor.common.api.tracking.Read;
 import io.fluxcapacitor.common.api.tracking.ReadFromIndex;
 import io.fluxcapacitor.common.api.tracking.ReadFromIndexResult;
@@ -39,7 +38,6 @@ import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
 import java.util.Objects;
-import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 
 @Slf4j
@@ -58,16 +56,16 @@ public class ConsumerEndpoint extends WebsocketEndpoint {
     @Handle
     void handle(Read read, Session session) {
         trackingStrategy.getBatch(
-                new WebSocketTracker(read, messageType, getClientId(session), session.getId(), (batch, p)
+                new WebSocketTracker(read, messageType, getClientId(session), session.getId(), batch
                         -> doSendResult(session, new ReadResult(read.getRequestId(), batch))), positionStore);
     }
 
     @Handle
     void handle(ClaimSegment read, Session session) {
         trackingStrategy.claimSegment(
-                new WebSocketTracker(read, messageType, getClientId(session), session.getId(), (batch, p) ->
-                        doSendResult(session, new ClaimSegmentResult(read.getRequestId(), Optional.ofNullable(p)
-                                .orElseGet(Position::newPosition), batch.getSegment()))), positionStore);
+                new WebSocketTracker(read, messageType, getClientId(session), session.getId(), batch ->
+                        doSendResult(session, new ClaimSegmentResult(read.getRequestId(), batch.getPosition(),
+                                                                     batch.getSegment()))), positionStore);
     }
 
     @Handle

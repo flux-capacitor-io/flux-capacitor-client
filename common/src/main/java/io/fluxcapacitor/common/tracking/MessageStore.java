@@ -14,15 +14,21 @@
 
 package io.fluxcapacitor.common.tracking;
 
-import io.fluxcapacitor.common.Guarantee;
 import io.fluxcapacitor.common.Monitored;
 import io.fluxcapacitor.common.api.SerializedMessage;
 
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 
+import static java.util.Arrays.asList;
+
 public interface MessageStore extends AutoCloseable, Monitored<List<SerializedMessage>> {
-    CompletableFuture<Void> append(Guarantee guarantee, SerializedMessage... messages);
+
+    default CompletableFuture<Void> append(SerializedMessage... messages) {
+        return append(asList(messages));
+    }
+
+    CompletableFuture<Void> append(List<SerializedMessage> messages);
 
     default List<SerializedMessage> getBatch(Long minIndex, int maxSize) {
         return getBatch(minIndex, maxSize, false);
@@ -30,6 +36,16 @@ public interface MessageStore extends AutoCloseable, Monitored<List<SerializedMe
 
     List<SerializedMessage> getBatch(Long minIndex, int maxSize, boolean inclusive);
 
+    @SuppressWarnings("unchecked")
+    default <T extends MessageStore> T unwrap(Class<T> type) {
+        if (type.isAssignableFrom(this.getClass())) {
+            return (T) this;
+        }
+        throw new UnsupportedOperationException();
+    }
+
     @Override
-    void close();
+    default void close() {
+        //no op
+    }
 }

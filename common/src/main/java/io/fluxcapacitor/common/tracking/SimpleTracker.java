@@ -15,7 +15,6 @@
 package io.fluxcapacitor.common.tracking;
 
 import io.fluxcapacitor.common.api.tracking.MessageBatch;
-import io.fluxcapacitor.common.api.tracking.Position;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Builder.Default;
@@ -71,7 +70,7 @@ public class SimpleTracker implements Tracker {
     }
 
     @Override
-    public void send(MessageBatch batch, Position position) {
+    public void send(MessageBatch batch) {
         handler.accept(batch);
     }
 

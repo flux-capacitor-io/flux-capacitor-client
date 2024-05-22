@@ -23,6 +23,7 @@ import org.slf4j.LoggerFactory;
 import java.util.Optional;
 
 import static io.fluxcapacitor.common.reflection.ReflectionUtils.getAnnotatedPropertyValue;
+import static io.fluxcapacitor.common.reflection.ReflectionUtils.readProperty;
 
 public interface HasMessage extends HasMetadata {
     Message toMessage();
@@ -43,19 +44,13 @@ public interface HasMessage extends HasMetadata {
     default Optional<String> computeRoutingKey() {
         Message m = toMessage();
         String routingValue = null;
+        Class<?> payloadType = m.getPayloadClass();
+        RoutingKey typeAnnotation = Optional.ofNullable(payloadType.getAnnotation(RoutingKey.class))
+                .filter(a -> !a.value().isBlank()).orElse(null);
+        if (typeAnnotation != null) {
+            return getRoutingKey(typeAnnotation.value());
+        }
         if (m.getPayload() != null) {
-            Class<?> payloadType = m.getPayload().getClass();
-            RoutingKey typeAnnotation = payloadType.getAnnotation(RoutingKey.class);
-            if (typeAnnotation != null) {
-                routingValue = getMetadata().get(typeAnnotation.metadataKey());
-                if (routingValue == null) {
-                    LoggerFactory.getLogger(HasMessage.class).warn(
-                            "Did not find metadata routingValue for {} for routing key of message {} (id {})",
-                            typeAnnotation.metadataKey(), payloadType, m.getMessageId());
-                } else {
-                    return Optional.of(routingValue);
-                }
-            }
             routingValue = getAnnotatedPropertyValue(
                     m.getPayload(), RoutingKey.class).map(Object::toString).orElse(null);
         }
@@ -63,5 +58,19 @@ public interface HasMessage extends HasMetadata {
             routingValue = ((Schedule) m).getScheduleId();
         }
         return Optional.ofNullable(routingValue);
+    }
+
+    default Optional<String> getRoutingKey(String propertyName) {
+        String result = getMetadata().get(propertyName);
+        if (result == null) {
+            result = readProperty(propertyName, getPayload())
+                    .map(Object::toString).orElse(null);
+        }
+        if (result == null) {
+            LoggerFactory.getLogger(HasMessage.class).warn(
+                    "Did not find property (field, method, or metadata key) '{}' for routing key on message {} (id {})",
+                    propertyName, getPayloadClass(), toMessage().getMessageId());
+        }
+        return Optional.ofNullable(result);
     }
 }

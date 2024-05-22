@@ -15,6 +15,7 @@
 package io.fluxcapacitor.javaclient.tracking;
 
 import io.fluxcapacitor.common.api.tracking.MessageBatch;
+import io.fluxcapacitor.common.api.tracking.Position;
 import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
@@ -59,7 +60,7 @@ class BatchInterceptorTest {
         Consumer<MessageBatch> invocation = BatchInterceptor.join(Arrays.asList(outerInterceptor, innerInterceptor))
                 .intercept(function, new Tracker("test", "0", COMMAND, configuration, null));
         assertEquals(emptyList(), invokedInstances);
-        invocation.accept(new MessageBatch(new int[]{0, 128}, emptyList(), 0L));
+        invocation.accept(new MessageBatch(new int[]{0, 128}, emptyList(), 0L, Position.newPosition()));
         assertEquals(Arrays.asList(outerInterceptor, innerInterceptor, function), invokedInstances);
     }
 }
