@@ -26,7 +26,6 @@ import java.util.Collection;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 import java.util.Optional;
 import java.util.stream.Stream;
 
@@ -66,19 +65,21 @@ public class CasterChain<T> {
         List<AnnotatedCaster<T>> upcasterList =
                 CastInspector.getCasters(down ? Downcast.class : Upcast.class, casterCandidates, dataType,
                                          down ? downcasterComparator : upcasterComparator);
-        CasterChain<T> casterChain = new CasterChain<>(upcasterList);
+        CasterChain<T> casterChain = new CasterChain<>(upcasterList, down);
         return casterChain::cast;
     }
 
     private final Map<DataRevision, AnnotatedCaster<T>> casters;
+    private final boolean down;
 
-    protected CasterChain(Collection<AnnotatedCaster<T>> casters) {
+    protected CasterChain(Collection<AnnotatedCaster<T>> casters, boolean down) {
         this.casters =
                 casters.stream().collect(toMap(u -> new DataRevision(u.getParameters()), identity(), (a, b) -> {
                     throw new DeserializationException(
                             format("Failed to create caster chain. Methods '%s' and '%s' both apply to the same data revision.",
                                    a, b));
                 }));
+        this.down = down;
     }
 
     protected <S extends SerializedObject<T, S>> Stream<S> cast(Stream<S> input, Integer desiredRevision) {
@@ -86,10 +87,14 @@ public class CasterChain<T> {
     }
 
     protected <S extends SerializedObject<T, S>> Stream<S> doCast(Stream<S> input, Integer desiredRevision) {
-        return input.flatMap(i -> Objects.equals(i.getRevision(), desiredRevision) ? Stream.of(i)
-                : Optional.ofNullable(casters.get(new DataRevision(i.getType(), i.getRevision())))
-                .map(caster -> doCast(caster.cast(i), desiredRevision))
-                .orElseGet(() -> Stream.of(i)));
+        return input.flatMap(i -> {
+            boolean completed = desiredRevision != null
+                                && (down ? i.getRevision() <= desiredRevision : i.getRevision() >= desiredRevision);
+            return completed ? Stream.of(i)
+                    : Optional.ofNullable(casters.get(new DataRevision(i.getType(), i.getRevision())))
+                    .map(caster -> doCast(caster.cast(i), desiredRevision))
+                    .orElseGet(() -> Stream.of(i));
+        });
     }
 
     @Value
