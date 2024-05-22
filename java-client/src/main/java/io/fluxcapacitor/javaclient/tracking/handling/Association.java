@@ -46,4 +46,17 @@ public @interface Association {
      * of the Handler this may be left empty to associate using the name of the Handler property.
      */
     String[] value() default {};
+
+    /**
+     * Returns payload classes for which this association can be used. If this array is empty or the payload of a
+     * message is assignable to any of these classes, AND the class is not excluded via {@link #excludedClasses()},
+     * an association with the message is attempted.
+     */
+    Class<?>[] includedClasses() default {};
+
+    /**
+     * Returns payload classes for which this association is active. If the payload of a message is assignable to any of
+     * these classes an association with the message is NOT attempted.
+     */
+    Class<?>[] excludedClasses() default {};
 }

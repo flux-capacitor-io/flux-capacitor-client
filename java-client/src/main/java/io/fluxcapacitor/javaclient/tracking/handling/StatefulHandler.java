@@ -38,9 +38,9 @@ import java.lang.reflect.Method;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
-import java.util.Set;
 import java.util.function.BiFunction;
 import java.util.function.Function;
 import java.util.stream.Stream;
@@ -49,6 +49,7 @@ import static io.fluxcapacitor.common.reflection.ReflectionUtils.getAnnotatedPro
 import static io.fluxcapacitor.common.reflection.ReflectionUtils.getAnnotatedPropertyValue;
 import static io.fluxcapacitor.common.reflection.ReflectionUtils.getAnnotation;
 import static io.fluxcapacitor.common.reflection.ReflectionUtils.getPropertyName;
+import static java.util.stream.Collectors.toMap;
 import static java.util.stream.Collectors.toSet;
 
 @Getter
@@ -61,20 +62,23 @@ public class StatefulHandler implements Handler<DeserializingMessage> {
     HandlerRepository repository;
 
     @Getter(lazy = true)
-    Set<String> associationProperties = getAnnotatedProperties(getTargetClass(), Association.class).stream()
-            .flatMap(member -> getAnnotation(member, Association.class).stream().flatMap(
-                    a -> a.value().length > 0 ? Arrays.stream(a.value()) : Stream.of(getPropertyName(member))))
-                    .collect(toSet());
+    Map<String, Association> associationProperties =
+            getAnnotatedProperties(getTargetClass(), Association.class).stream()
+                    .flatMap(member -> getAnnotation(member, Association.class).stream().flatMap(
+                            association -> (association.value().length > 0 ? Arrays.stream(association.value())
+                                    : Stream.of(getPropertyName(member))).map(v -> Map.entry(v, association))))
+                    .collect(toMap(Map.Entry::getKey, Map.Entry::getValue, (a, b) -> a));
 
-    Function<Executable, Set<String>> methodAssociationProperties = ClientUtils.memoize(
+    Function<Executable, Map<String, Association>> methodAssociationProperties = ClientUtils.memoize(
             m -> getAnnotation(m, Association.class).map(
-                    a -> {
-                        Set<String> associations = Arrays.stream(a.value()).collect(toSet());
+                    association -> {
+                        Map<String, Association> associations = Arrays.stream(association.value()).collect(
+                                toMap(Function.identity(), v -> association, (a, b) -> a));
                         if (associations.isEmpty()) {
-                            log.warn("@Association on handler method {} does not define a property. This is probably a mistake.", m);
+                            log.warn("@Association on {} does not define a property. This is probably a mistake.", m);
                         }
                         return associations;
-                    }).orElseGet(Collections::emptySet));
+                    }).orElseGet(Collections::emptyMap));
 
     @Override
     public Optional<HandlerInvoker> getInvoker(DeserializingMessage message) {
@@ -99,16 +103,27 @@ public class StatefulHandler implements Handler<DeserializingMessage> {
 
     protected Collection<String> associations(DeserializingMessage message) {
         return Optional.ofNullable(message.getPayload()).stream()
-                .flatMap(payload -> Stream.concat(handlerMatcher.matchingMethods(message)
-                                                          .flatMap(e -> methodAssociationProperties.apply(e).stream()),
-                                                  getAssociationProperties().stream())
-                        .flatMap(property -> ReflectionUtils.readProperty(property, payload).stream()))
+                .flatMap(payload -> Stream.concat(
+                        handlerMatcher.matchingMethods(message)
+                                .flatMap(e -> methodAssociationProperties.apply(e).entrySet().stream()),
+                        getAssociationProperties().entrySet().stream())
+                        .filter(entry -> includedPayload(payload, entry.getValue()))
+                        .flatMap(entry -> ReflectionUtils.readProperty(entry.getKey(), payload).stream()))
                 .map(v -> {
                     if (v instanceof Id<?> id) {
                         return id.getFunctionalId();
                     }
                     return v.toString();
                 }).collect(toSet());
+    }
+
+    protected boolean includedPayload(Object payload, Association association) {
+        Class<?> payloadType = payload.getClass();
+        if (association.includedClasses().length > 0
+            && Arrays.stream(association.includedClasses()).noneMatch(c -> c.isAssignableFrom(payloadType))) {
+            return false;
+        }
+        return Arrays.stream(association.excludedClasses()).noneMatch(c -> c.isAssignableFrom(payloadType));
     }
 
     @Getter

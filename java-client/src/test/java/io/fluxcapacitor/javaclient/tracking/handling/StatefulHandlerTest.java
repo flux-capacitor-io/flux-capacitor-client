@@ -39,6 +39,14 @@ public class StatefulHandlerTest {
         }
 
         @Test
+        void eventIsExcluded() {
+            testFixture.givenEvents(new SomeEvent("foo"))
+                    .whenEvent(new ExcludedEvent("foo"))
+                    .expectNoCommands()
+                    .expectNoErrors();
+        }
+
+        @Test
         void handlerIsUpdated() {
             testFixture.givenEvents(new SomeEvent("foo"))
                     .whenEvent(new SomeEvent("foo"))
@@ -78,7 +86,7 @@ public class StatefulHandlerTest {
         @Value
         @Builder(toBuilder = true)
         public static class StaticHandler {
-            @Association({"someId", "aliasId"}) String someId;
+            @Association(value = {"someId", "aliasId"}, excludedClasses = ExcludedEvent.class) String someId;
             int eventCount;
 
             @HandleEvent
@@ -91,6 +99,11 @@ public class StatefulHandlerTest {
             StaticHandler update(SomeEvent event) {
                 FluxCapacitor.sendAndForgetCommand(eventCount + 1);
                 return toBuilder().eventCount(eventCount + 1).build();
+            }
+
+            @HandleEvent
+            StaticHandler exclude(ExcludedEvent event) {
+                throw new UnsupportedOperationException();
             }
 
             @HandleEvent
@@ -234,5 +247,10 @@ public class StatefulHandlerTest {
     @Value
     static class CustomEvent {
         String customId;
+    }
+
+    @Value
+    static class ExcludedEvent {
+        String someId;
     }
 }
