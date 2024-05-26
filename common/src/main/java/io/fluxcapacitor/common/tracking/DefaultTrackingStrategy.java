@@ -312,6 +312,11 @@ public class DefaultTrackingStrategy extends AutoClosing implements TrackingStra
         scheduler.shutdown();
     }
 
+    @Override
+    public void close() {
+        onShutdown();
+    }
+
     @AllArgsConstructor
     protected class WaitingTracker implements Runnable {
         private final Tracker tracker;

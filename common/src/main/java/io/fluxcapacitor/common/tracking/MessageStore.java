@@ -22,7 +22,7 @@ import java.util.concurrent.CompletableFuture;
 
 import static java.util.Arrays.asList;
 
-public interface MessageStore extends AutoCloseable, Monitored<List<SerializedMessage>> {
+public interface MessageStore extends AutoCloseable, Monitored<List<SerializedMessage>>, HasMessageStore {
 
     default CompletableFuture<Void> append(SerializedMessage... messages) {
         return append(asList(messages));
@@ -47,5 +47,10 @@ public interface MessageStore extends AutoCloseable, Monitored<List<SerializedMe
     @Override
     default void close() {
         //no op
+    }
+
+    @Override
+    default MessageStore getMessageStore() {
+        return this;
     }
 }

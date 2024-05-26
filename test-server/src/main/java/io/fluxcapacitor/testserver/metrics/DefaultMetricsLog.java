@@ -16,13 +16,12 @@ package io.fluxcapacitor.testserver.metrics;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import io.fluxcapacitor.common.Guarantee;
 import io.fluxcapacitor.common.api.ClientEvent;
 import io.fluxcapacitor.common.api.Data;
 import io.fluxcapacitor.common.api.Metadata;
 import io.fluxcapacitor.common.api.SerializedMessage;
 import io.fluxcapacitor.common.serialization.Revision;
-import io.fluxcapacitor.javaclient.publishing.client.GatewayClient;
+import io.fluxcapacitor.common.tracking.MessageStore;
 import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
@@ -36,15 +35,15 @@ import static java.util.UUID.randomUUID;
 @AllArgsConstructor
 @Slf4j
 public class DefaultMetricsLog implements MetricsLog {
-    private final GatewayClient store;
+    private final MessageStore store;
     private final ObjectMapper objectMapper;
     private final ExecutorService workerPool;
 
-    public DefaultMetricsLog(GatewayClient store) {
+    public DefaultMetricsLog(MessageStore store) {
         this(store, Executors.newSingleThreadExecutor(newThreadFactory("DefaultMetricsLog")));
     }
 
-    public DefaultMetricsLog(GatewayClient store, ExecutorService workerPool) {
+    public DefaultMetricsLog(MessageStore store, ExecutorService workerPool) {
         this(store, new ObjectMapper(), workerPool);
     }
 
@@ -54,7 +53,7 @@ public class DefaultMetricsLog implements MetricsLog {
             try {
                 Revision revision = event.getClass().getAnnotation(Revision.class);
                 byte[] payload = objectMapper.writeValueAsBytes(event);
-                store.append(Guarantee.NONE, new SerializedMessage(
+                store.append(new SerializedMessage(
                         new Data<>(payload, event.getClass().getName(), revision == null ? 0 : revision.value(), Data.JSON_FORMAT),
                         metadata, randomUUID().toString(), currentTimeMillis()));
             } catch (JsonProcessingException e) {

@@ -15,10 +15,12 @@
 package io.fluxcapacitor.javaclient.publishing.routing;
 
 import io.fluxcapacitor.common.ConsistentHashing;
+import io.fluxcapacitor.common.Guarantee;
 import io.fluxcapacitor.common.api.Data;
 import io.fluxcapacitor.common.api.Metadata;
 import io.fluxcapacitor.common.api.SerializedMessage;
 import io.fluxcapacitor.javaclient.MockException;
+import io.fluxcapacitor.javaclient.common.ClientUtils;
 import io.fluxcapacitor.javaclient.common.Message;
 import io.fluxcapacitor.javaclient.configuration.DefaultFluxCapacitor;
 import io.fluxcapacitor.javaclient.test.TestFixture;
@@ -26,12 +28,12 @@ import io.fluxcapacitor.javaclient.tracking.Tracker;
 import io.fluxcapacitor.javaclient.tracking.handling.HandleEvent;
 import lombok.Value;
 import org.junit.jupiter.api.Nested;
-import org.junit.jupiter.api.RepeatedTest;
 import org.junit.jupiter.api.Test;
 import org.opentest4j.AssertionFailedError;
 
 import java.time.Clock;
 import java.util.UUID;
+import java.util.stream.IntStream;
 
 import static io.fluxcapacitor.common.MessageType.EVENT;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -59,9 +61,12 @@ class MessageRoutingInterceptorTest {
                 DefaultFluxCapacitor.builder().configureDefaultConsumer(EVENT, c -> c.toBuilder()
                         .threads(2).ignoreSegment(true).build()), handler);
 
-        @RepeatedTest(64)
+        @Test
         void ensureHandlerFiltering() {
-            testFixture.whenEvent(new Foo(UUID.randomUUID().toString())).expectNoErrors();
+            testFixture.whenExecuting(fc -> IntStream.range(0, 64).mapToObj(i -> new Foo(UUID.randomUUID().toString())).forEach(
+                    e -> ClientUtils.runSilently(
+                            () -> fc.eventGateway().publish(Message.asMessage(e), Guarantee.STORED).get())))
+                    .expectNoErrors();
         }
     }
 

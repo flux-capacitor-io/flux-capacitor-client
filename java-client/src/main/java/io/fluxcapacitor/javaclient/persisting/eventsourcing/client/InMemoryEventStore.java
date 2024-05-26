@@ -43,7 +43,7 @@ public class InMemoryEventStore extends InMemoryMessageStore implements EventSto
     private final Map<String, Map<String, String>> relationships = new ConcurrentHashMap<>();
 
     public InMemoryEventStore() {
-        super(EVENT);
+        this(Duration.ofMinutes(2));
     }
 
     public InMemoryEventStore(Duration messageExpiration) {
@@ -57,7 +57,7 @@ public class InMemoryEventStore extends InMemoryMessageStore implements EventSto
         if (storeOnly) {
             return CompletableFuture.completedFuture(null);
         }
-        return super.append(events.toArray(new SerializedMessage[0]));
+        return super.append(events);
     }
 
     @Override

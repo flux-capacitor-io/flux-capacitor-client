@@ -12,34 +12,23 @@
  * limitations under the License.
  */
 
-package io.fluxcapacitor.javaclient.tracking.client;
+package io.fluxcapacitor.javaclient.scheduling.client;
 
 import io.fluxcapacitor.common.MessageType;
-import io.fluxcapacitor.common.api.SerializedMessage;
+import io.fluxcapacitor.javaclient.tracking.client.LocalTrackingClient;
+import lombok.experimental.Delegate;
 
-import java.util.Comparator;
+import java.time.Duration;
 
-public interface TrackerRead extends Comparable<TrackerRead> {
-    Comparator<TrackerRead> comparator = Comparator.comparing(TrackerRead::getConsumer).thenComparing(TrackerRead::getTrackerId);
+public class LocalSchedulingClient extends LocalTrackingClient implements SchedulingClient {
 
-    MessageType getMessageType();
-
-    String getConsumer();
-
-    boolean canHandle(SerializedMessage message);
-
-    String getTrackerId();
-
-    Long getLastIndex();
-
-    long getDeadline();
-
-    Long getPurgeTimeout();
-
-    int getMaxSize();
+    public LocalSchedulingClient(Duration messageExpiration) {
+        super(new InMemoryScheduleStore(messageExpiration), MessageType.SCHEDULE);
+    }
 
     @Override
-    default int compareTo(TrackerRead o) {
-        return comparator.compare(this, o);
+    @Delegate
+    public InMemoryScheduleStore getMessageStore() {
+        return (InMemoryScheduleStore) super.getMessageStore();
     }
 }

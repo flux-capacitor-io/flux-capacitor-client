@@ -48,7 +48,6 @@ public class InMemoryScheduleStore extends InMemoryMessageStore implements Sched
     private final ConcurrentSkipListMap<Long, String> scheduleIdsByIndex = new ConcurrentSkipListMap<>();
     private volatile Clock clock = Clock.systemUTC();
 
-
     public InMemoryScheduleStore() {
         super(SCHEDULE);
     }
@@ -63,6 +62,11 @@ public class InMemoryScheduleStore extends InMemoryMessageStore implements Sched
         return super.filterMessages(messages).stream()
                 .filter(m -> m.getIndex() <= maximumIndex && scheduleIdsByIndex.containsKey(m.getIndex()))
                 .collect(toList());
+    }
+
+    @Override
+    public CompletableFuture<Void> append(SerializedMessage... messages) {
+        throw new UnsupportedOperationException();
     }
 
     @SneakyThrows
@@ -105,7 +109,7 @@ public class InMemoryScheduleStore extends InMemoryMessageStore implements Sched
     public synchronized void setClock(@NonNull Clock clock) {
         synchronized (this) {
             this.clock = clock;
-            notifyAll();
+            notifyMonitors();
         }
     }
 
