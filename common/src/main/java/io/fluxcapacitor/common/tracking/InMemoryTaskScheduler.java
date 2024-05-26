@@ -29,15 +29,20 @@ import static io.fluxcapacitor.common.TimingUtils.isMissedDeadline;
 
 @Slf4j
 public class InMemoryTaskScheduler implements TaskScheduler {
+    private static final int defaultDelay = 100;
     private final ScheduledExecutorService executorService;
     private final Set<Task> tasks = new CopyOnWriteArraySet<>();
 
     public InMemoryTaskScheduler() {
-        this("InMemoryScheduler");
+        this(defaultDelay);
     }
 
     public InMemoryTaskScheduler(String threadName) {
-        this(100, threadName);
+        this(defaultDelay, threadName);
+    }
+
+    public InMemoryTaskScheduler(int delay) {
+        this(delay, "InMemoryTaskScheduler");
     }
 
     public InMemoryTaskScheduler(int delay, String threadName) {

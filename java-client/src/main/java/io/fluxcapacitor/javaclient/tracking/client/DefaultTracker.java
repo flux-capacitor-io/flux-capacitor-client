@@ -216,7 +216,7 @@ public class DefaultTracker implements Runnable, Registration {
                     minIndex == null ? batch.getLastIndex() : Math.max(minIndex, batch.getLastIndex());
             batch = new MessageBatch(batch.getSegment(),
                                      batch.getMessages().stream().filter(filter).collect(toList()),
-                                     newLastIndex);
+                                     newLastIndex, batch.getPosition());
         }
         return batch;
     }

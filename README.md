@@ -334,12 +334,60 @@ By component-scanning this class with Spring, an adhoc consumer will automatical
 query asynchronously. Optionally, it is possible to configure the consumption and tracking of the message using the
 `@Consumer` annotation. Without this annotation, the default consumer for queries within the application will be used.
 
+## Scheduling
+
+Flux Capacitor also allows you to schedule messages for the future. Scheduled messages are stored and read like any
+other message except that they are not released before their deadline. Also, a schedule can be cancelled.
+
+Here’s an example of an event handler that permanently deletes a user account 30 days after a user account is closed:
+
+```java
+import java.time.Duration;
+
+class UserLifecycleHandler {
+  @HandleEvent
+  void handle(AccountClosed event) {
+    FluxCapacitor.schedule(new TerminateAccount(event.getUserId()),
+                                       "AccountClosed-" + event.getUserId(), Duration.ofDays(30));
+  }
+
+  @HandleEvent
+  void handle(AccountReopened event) {
+    FluxCapacitor.cancelSchedule("AccountClosed-" + event.getUserId());
+  }
+
+  @HandleSchedule
+  void handle(TerminateAccount schedule) {
+    //terminate the account
+  }
+}
+```
+In the example above you can see that the schedule can be easily cancelled if the user
+chooses to reopen the account within the month.
+
+Oftentimes it is useful to schedule a command. This is possible too:
+
+```java
+class UserLifecycleHandler {
+  @HandleEvent
+  void handle(AccountClosed event) {
+    FluxCapacitor.scheduleCommand(new TerminateAccount(
+            event.getUserId()), "AccountClosed-" + event.getUserId(), Duration.ofDays(30));
+  }
+
+  @HandleEvent
+  void handle(AccountReopened event) {
+    FluxCapacitor.cancelSchedule("AccountClosed-" + event.getUserId());
+  }
+}
+```
+
 ## Testing your handlers
 
 The java client for Flux Capacitor comes with an easy-to-use given-when-then testing framework. Here’s a basic example:
 
 ```java
-final TestFixture testFixture = new TestFixture(new UserEventHandler());
+TestFixture testFixture = TestFixture.create(new UserEventHandler());
 
 @Test
 void newUserGetsEmail() {
@@ -356,7 +404,7 @@ even if it is the event that triggers the email. By simply passing multiple hand
 this entire process:
 
 ```java
-private final TestFixture testFixture = new TestFixture(new UserCommandHandler(), new UserEventHandler());
+TestFixture testFixture = TestFixture.create(new UserCommandHandler(), new UserEventHandler());
 
 @Test
 void newUserGetsEmail() {
@@ -377,7 +425,7 @@ command instances like so:
 @Test
 void newUserGetsEmailAndIsAddedToOrganization() {
     testFixture.whenCommand(new CreateUser(myUserProfile))
-            .expectCommands(new SendWelcomeEmail(myUserProfile), isA(AddUserToOrganization.class));
+            .expectCommands(SendWelcomeEmail.class, isA(AddUserToOrganization.class));
 }
 ```
 
@@ -416,7 +464,7 @@ instance instead of the bare message payload to the fixture:
 
 @Test
 void newAdminGetsAdditionalEmail() {
-    testFixture.whenCommand(new Message(new CreateUser(...),Metadata.of("roles", Arrays.asList("Customer", "Admin")))
+    testFixture.whenCommand(new Message(new CreateUser(...), Metadata.of("roles", Arrays.asList("Customer", "Admin")))
         .expectCommands(new SendWelcomeEmail(...),new SendAdminEmail(...));
 }
 ```
@@ -438,7 +486,7 @@ This is very handy to test for command validation too:
 @Test
 void userCannotBeCreatedTwice() {
     testFixture.givenCommands(new CreateUser(userProfile)).whenCommand(new CreateUser(userProfile))
-            .expectException(IllegalCommandException.class);
+            .expectExceptionalResult(IllegalCommandException.class);
 }
 ```
 
@@ -487,9 +535,8 @@ You can configure the FluxCapacitor in your test instance to you use any kind of
 the example below we add an interceptor that authenticates the sender of a command:
 
 ```java
-private final TestFixture testFixture =
-        new TestFixture(FluxCapacitor.builder().registerHandlerInterceptor(new AuthenticationInterceptor()),
-                        new UserCommandHandler());
+TestFixture testFixture = TestFixture.create(
+        FluxCapacitor.builder().registerHandlerInterceptor(new AuthenticationInterceptor()), new UserCommandHandler());
 
 @Test
 void unauthenticatedUserCannotChangeProfile() {
@@ -507,34 +554,123 @@ or then phase:
 
 @Test
 void welcomeEmailActuallyGetsSent() {
-    testFixture.whenCommand(new CreateUser(userProfile)).expect(fc -> Mockito.verify(emailService).sendEmail(...))
+    testFixture.whenCommand(new CreateUser(userProfile)).expectThat(fc -> Mockito.verify(emailService).sendEmail(...))
 }
 
 @Test
 void userEndpointWorks() {
-    testFixture.when(fc -> httpClient.put("/user", userProfile)).expectEvents(new UserCreated(...))
+    testFixture.whenExecuting(fc -> httpClient.put("/user", userProfile)).expectEvents(new UserCreated(...))
 }
 ```
 
-All tests we’ve seen so far have one major difference compared to the way your app runs in production. A TestFixture
-registers your handlers as "local" handlers. A local handler handles a message in the publication thread;
-this way your test runs single threaded and fast. However, in reality your handlers will run in separate consumer
-threads.
-For most tests this makes no difference, but in case it does for your test you can use a `StreamingTestFixture` instead
-of the normal `TestFixture`. All functionality is the same, but you will notice that your tests run slower because we
-now
-need to deal with eventual consistency. Eg we will not immediately know if an event got published by a handler;
-we need to simply wait for it to happen in a reasonable time frame.
+### Asynchronous tests
 
-If you use Spring it’s easy to perform integration tests across your entire application. All you need to do is to
-pass your Spring config to the test fixture. Note however, that this is currently only supported on the
-`StreamingTestFixture`:
+All tests we’ve seen so far have one major difference compared to the way your app runs in production. A `TestFixture`
+registers your handlers as "local" handlers. A local handler handles a message in the publication thread;
+this way your test runs single threaded and fast. However, in reality most of your handlers will run in separate consumer
+threads.
+
+For most tests this makes no difference, but in case it does for your test you can use an async `TestFixture` instead
+of the normal `TestFixture`. All functionality is the same, but you will notice that your tests may run a little 
+slower because we now need to deal with eventual consistency. Here's how to create an async test fixture:
 
 ```java
-private final StreamingTestFixture testFixture = new StreamingTestFixture(springConfig);
+TestFixture testFixture = TestFixture.createAsync(new UserCommandHandler());
 ```
 
-### Event Sourcing
+If you use Spring it’s easy to perform integration tests across your entire application. All you need to do is to
+pass your Spring config to the test and then inject the `TestFixture`. Note however, that the injected test fixture
+will be async:
+
+```java
+@ExtendWith(SpringExtension.class)
+@DirtiesContext(classMode = AFTER_EACH_TEST_METHOD)
+@ContextConfiguration(classes = {FluxCapacitorTestConfig.class, AppConfig.class})
+class SpringTest {
+
+  @Autowired
+  TestFixture testFixture;
+
+  @Test
+  void testCreateUser() {
+    testFixture.whenCommand(new CreateUser(...)).expectEvents(UserCreated.class);
+  }
+```
+
+### Testing schedules
+
+You can use a `TestFixture` for tests involving scheduled messages as well. Here's an example:
+
+```java
+TestFixture testFixture = TestFixture.create(new UserCommandHandler(), new UserLifecycleHandler());
+
+@Test
+void accountIsTerminatedAfterClosing() {
+  testFixture
+          .givenCommands(new CreateUser(myUserProfile), new CloseAccount(userId))
+          .whenTimeElapses(Duration.ofDays(30))
+          .expectEvents(new AccountTerminated(userId));
+}
+```
+
+## Domain modeling
+
+Flux Capacitor allows you to easily model your domain through entities. Entities are useful to keep track of the state
+of your applications. Here's a basic example:
+
+```java
+@Aggregate
+class User {
+    @EntityId String userId;
+    UserProfile profile;
+    boolean accountClosed;
+}
+```
+
+Here, a User is unique identifiable by its UserId (hence the `@EntityId` annotation). A group of entities that share a 
+common root is also referred to as an 'aggregate', hence the `@Aggregate` annotation. Any entity may contain any number
+of child entities:
+
+```java
+@Aggregate
+class User {
+  @EntityId
+  String userId;
+  UserProfile profile;
+  boolean accountClosed;
+
+  @Member
+  List<Authorization> authorizations;
+}
+```
+
+In this example, the user contains a list of Authorization entities. By annotating the list of authorizations with
+`@Member`, Flux knows which fields contain child entities. The Authorization entity in this example may look 
+something like this:
+
+```java
+class Authorization {
+  @EntityId
+  String authorizationId;
+  Grant grant;
+}
+```
+
+Loading an aggregate is easy:
+
+```java
+class UserCommandHandler {
+    
+  @HandleCommand
+  void handle(UserCommand command) {
+    Entity<User> userEntity = FluxCapacitor.loadAggregate(command.getUserId(), User.class);
+  }
+}
+
+```
+
+
+## Event Sourcing
 
 Aside from keeping track of published events in a global event log Flux Capacitor Service can also store event logs for
 single entities (also named aggregates in DDD) the way a true event store does.
@@ -658,39 +794,6 @@ class UserCommandHandler {
     }
 }
 ```
-
-### Scheduling
-
-Flux Capacitor also allows you to schedule messages for the future. Scheduled messages are stored and read like any
-other message except that they are not released before their deadline and can be deleted. Here’s an example of a
-command handler that permanently deletes a user account one month after a user asks to close his or her account:
-
-```java
-class UserCommandHandler {
-    @HandleCommand
-    void handle(CloseAccount command) {
-        FluxCapacitor.scheduler().schedule("CloseAccount-" + command.getUserId(), Instant.now.plus(1, months),
-                                           new TerminateAccount(...));
-        ...
-    }
-
-    @HandleCommand
-    void handle(OpenAccount command) {
-        FluxCapacitor.scheduler().cancelSchedule("CloseAccount-" + command.getUserId());
-        ...
-    }
-
-    @HandleSchedule
-    void handle(TerminateAccount schedule) {
-        //terminate the account
-    }
-    
-    ...
-}
-```
-
-In the example above you can see that the schedule can be easily cancelled if the user
-chooses to reopen the account within the month.
 
 ### Key value store
 

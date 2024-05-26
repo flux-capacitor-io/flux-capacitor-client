@@ -25,6 +25,7 @@ import io.fluxcapacitor.javaclient.common.serialization.DeserializingMessage;
 import io.fluxcapacitor.javaclient.modeling.EntityId;
 import io.fluxcapacitor.javaclient.modeling.HandlerRepository;
 import io.fluxcapacitor.javaclient.modeling.Id;
+import io.fluxcapacitor.javaclient.tracking.Tracker;
 import lombok.AccessLevel;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
@@ -87,11 +88,17 @@ public class StatefulHandler implements Handler<DeserializingMessage> {
         }
         var matches = repository.findByAssociation(associations(message));
         if (matches.isEmpty()) {
+            if (!canTrackerHandle(message, message.getMessageId())) {
+                return Optional.empty();
+            }
             return handlerMatcher.getInvoker(null, message)
                     .map(i -> new StatefulHandlerInvoker(i, null));
         }
         HandlerInvoker result = null;
         for (Entry<?> entry : matches) {
+            if (!canTrackerHandle(message, entry.getId())) {
+                continue;
+            }
             var invoker = handlerMatcher.getInvoker(entry.getValue(), message)
                     .map(i -> new StatefulHandlerInvoker(i, entry));
             if (invoker.isPresent()) {
@@ -99,6 +106,11 @@ public class StatefulHandler implements Handler<DeserializingMessage> {
             }
         }
         return Optional.ofNullable(result);
+    }
+
+    protected Boolean canTrackerHandle(DeserializingMessage message, String routingKey) {
+        return Tracker.current().filter(tracker -> tracker.getConfiguration().ignoreSegment())
+                .map(tracker -> tracker.canHandle(message, routingKey)).orElse(true);
     }
 
     protected Collection<String> associations(DeserializingMessage message) {

@@ -26,6 +26,7 @@ public class MessageBatch {
     int[] segment;
     List<SerializedMessage> messages;
     Long lastIndex;
+    Position position;
 
     @JsonIgnore
     public boolean isEmpty() {
@@ -48,7 +49,7 @@ public class MessageBatch {
 
     @JsonIgnore
     public Metric toMetric() {
-        return new Metric(segment, getSize(), lastIndex);
+        return new Metric(segment, getSize(), lastIndex, position);
     }
 
     @Value
@@ -56,5 +57,6 @@ public class MessageBatch {
         int[] segment;
         int size;
         Long lastIndex;
+        Position position;
     }
 }

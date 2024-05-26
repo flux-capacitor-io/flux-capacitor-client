@@ -48,7 +48,6 @@ public class InMemoryScheduleStore extends InMemoryMessageStore implements Sched
     private final ConcurrentSkipListMap<Long, String> scheduleIdsByIndex = new ConcurrentSkipListMap<>();
     private volatile Clock clock = Clock.systemUTC();
 
-
     public InMemoryScheduleStore() {
         super(SCHEDULE);
     }
@@ -65,6 +64,11 @@ public class InMemoryScheduleStore extends InMemoryMessageStore implements Sched
                 .collect(toList());
     }
 
+    @Override
+    public CompletableFuture<Void> append(SerializedMessage... messages) {
+        throw new UnsupportedOperationException();
+    }
+
     @SneakyThrows
     @Override
     public synchronized CompletableFuture<Void> schedule(Guarantee guarantee, SerializedSchedule... schedules) {
@@ -79,8 +83,7 @@ public class InMemoryScheduleStore extends InMemoryMessageStore implements Sched
             }
             schedule.getMessage().setIndex(index);
         }
-        return super.append(guarantee,
-                            filtered.stream().map(SerializedSchedule::getMessage).toArray(SerializedMessage[]::new));
+        return super.append(filtered.stream().map(SerializedSchedule::getMessage).toList());
     }
 
     @Override
@@ -99,14 +102,14 @@ public class InMemoryScheduleStore extends InMemoryMessageStore implements Sched
     }
 
     @Override
-    public CompletableFuture<Void> append(Guarantee guarantee, SerializedMessage... messages) {
+    public CompletableFuture<Void> append(List<SerializedMessage> messages) {
         throw new UnsupportedOperationException("Use method #schedule instead");
     }
 
     public synchronized void setClock(@NonNull Clock clock) {
         synchronized (this) {
             this.clock = clock;
-            notifyAll();
+            notifyMonitors();
         }
     }
 

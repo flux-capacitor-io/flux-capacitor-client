@@ -30,6 +30,6 @@ public class ProducerEndpoint extends WebsocketEndpoint {
 
     @Handle
     CompletableFuture<Void> handle(Append request) {
-        return store.append(request.getGuarantee(), request.getMessages().toArray(SerializedMessage[]::new));
+        return store.append(request.getMessages().toArray(SerializedMessage[]::new));
     }
 }

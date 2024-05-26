@@ -16,15 +16,15 @@ package io.fluxcapacitor.javaclient.configuration.client;
 
 import io.fluxcapacitor.common.MessageType;
 import io.fluxcapacitor.javaclient.persisting.eventsourcing.client.EventStoreClient;
-import io.fluxcapacitor.javaclient.persisting.eventsourcing.client.InMemoryEventStore;
+import io.fluxcapacitor.javaclient.persisting.eventsourcing.client.LocalEventStoreClient;
 import io.fluxcapacitor.javaclient.persisting.keyvalue.client.InMemoryKeyValueStore;
 import io.fluxcapacitor.javaclient.persisting.keyvalue.client.KeyValueClient;
 import io.fluxcapacitor.javaclient.persisting.search.client.InMemorySearchStore;
 import io.fluxcapacitor.javaclient.persisting.search.client.SearchClient;
 import io.fluxcapacitor.javaclient.publishing.client.GatewayClient;
-import io.fluxcapacitor.javaclient.scheduling.client.InMemoryScheduleStore;
+import io.fluxcapacitor.javaclient.scheduling.client.LocalSchedulingClient;
 import io.fluxcapacitor.javaclient.scheduling.client.SchedulingClient;
-import io.fluxcapacitor.javaclient.tracking.client.InMemoryMessageStore;
+import io.fluxcapacitor.javaclient.tracking.client.LocalTrackingClient;
 import io.fluxcapacitor.javaclient.tracking.client.TrackingClient;
 
 import java.lang.management.ManagementFactory;
@@ -33,8 +33,8 @@ import java.time.Duration;
 public class InMemoryClient extends AbstractClient {
 
     private final Duration messageExpiration;
-    private final InMemoryEventStore eventStore;
-    private final InMemoryScheduleStore scheduleStore;
+    private final LocalEventStoreClient eventStore;
+    private final LocalSchedulingClient scheduleStore;
 
     public static InMemoryClient newInstance() {
         return new InMemoryClient(Duration.ofMinutes(2));
@@ -51,8 +51,8 @@ public class InMemoryClient extends AbstractClient {
     protected InMemoryClient(String name, String id, Duration messageExpiration) {
         super(name, id);
         this.messageExpiration = messageExpiration;
-        this.eventStore = new InMemoryEventStore(messageExpiration);
-        this.scheduleStore = new InMemoryScheduleStore(messageExpiration);
+        this.eventStore = new LocalEventStoreClient(messageExpiration);
+        this.scheduleStore = new LocalSchedulingClient(messageExpiration);
     }
 
     @Override
@@ -60,7 +60,7 @@ public class InMemoryClient extends AbstractClient {
         return switch (messageType) {
             case NOTIFICATION, EVENT -> eventStore;
             case SCHEDULE -> scheduleStore;
-            default -> new InMemoryMessageStore(messageType, messageExpiration);
+            default -> new LocalTrackingClient(messageType, messageExpiration);
         };
     }
 

@@ -14,17 +14,6 @@
 
 package io.fluxcapacitor.common.tracking;
 
-import java.io.Closeable;
-import java.util.function.Predicate;
-
-public interface TrackingStrategy extends Closeable {
-
-    void getBatch(Tracker tracker, PositionStore positionStore);
-
-    void claimSegment(Tracker tracker, PositionStore positionStore);
-
-    void disconnectTrackers(Predicate<Tracker> predicate, boolean sendFinalBatch);
-
-    @Override
-    void close();
+public interface HasMessageStore {
+    MessageStore getMessageStore();
 }

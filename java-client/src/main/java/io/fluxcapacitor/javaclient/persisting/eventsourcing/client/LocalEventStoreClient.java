@@ -12,19 +12,23 @@
  * limitations under the License.
  */
 
-package io.fluxcapacitor.common.tracking;
+package io.fluxcapacitor.javaclient.persisting.eventsourcing.client;
 
-import java.io.Closeable;
-import java.util.function.Predicate;
+import io.fluxcapacitor.common.MessageType;
+import io.fluxcapacitor.javaclient.tracking.client.LocalTrackingClient;
+import lombok.experimental.Delegate;
 
-public interface TrackingStrategy extends Closeable {
+import java.time.Duration;
 
-    void getBatch(Tracker tracker, PositionStore positionStore);
+public class LocalEventStoreClient extends LocalTrackingClient implements EventStoreClient {
 
-    void claimSegment(Tracker tracker, PositionStore positionStore);
-
-    void disconnectTrackers(Predicate<Tracker> predicate, boolean sendFinalBatch);
+    public LocalEventStoreClient(Duration messageExpiration) {
+        super(new InMemoryEventStore(messageExpiration), MessageType.EVENT);
+    }
 
     @Override
-    void close();
+    @Delegate
+    public InMemoryEventStore getMessageStore() {
+        return (InMemoryEventStore) super.getMessageStore();
+    }
 }

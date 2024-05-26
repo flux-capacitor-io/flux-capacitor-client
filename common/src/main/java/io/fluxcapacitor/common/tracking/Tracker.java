@@ -14,9 +14,9 @@
 
 package io.fluxcapacitor.common.tracking;
 
+import io.fluxcapacitor.common.ConsistentHashing;
 import io.fluxcapacitor.common.api.SerializedMessage;
 import io.fluxcapacitor.common.api.tracking.MessageBatch;
-import io.fluxcapacitor.common.api.tracking.Position;
 
 import java.util.Comparator;
 import java.util.function.Predicate;
@@ -29,10 +29,10 @@ public interface Tracker extends Comparable<Tracker> {
     String getConsumerName();
 
     default void sendEmptyBatch(MessageBatch batch) {
-        send(batch, Position.newPosition());
+        send(batch);
     }
 
-    void send(MessageBatch batch, Position position);
+    void send(MessageBatch batch);
 
     default boolean canHandle(SerializedMessage message, int[] segmentRange) {
         return isValidTarget(message, segmentRange) && isValidType(message);
@@ -58,8 +58,7 @@ public interface Tracker extends Comparable<Tracker> {
         if (ignoreSegment()) {
             return true;
         }
-        return segmentRange[1] != 0 && message.getSegment() >= segmentRange[0]
-               && message.getSegment() < segmentRange[1];
+        return ConsistentHashing.fallsInRange(message.getSegment(), segmentRange);
     }
 
     private boolean isValidType(SerializedMessage message) {

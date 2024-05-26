@@ -15,15 +15,25 @@
 package io.fluxcapacitor.javaclient.publishing.routing;
 
 import io.fluxcapacitor.common.ConsistentHashing;
+import io.fluxcapacitor.common.Guarantee;
 import io.fluxcapacitor.common.api.Data;
 import io.fluxcapacitor.common.api.Metadata;
 import io.fluxcapacitor.common.api.SerializedMessage;
+import io.fluxcapacitor.javaclient.MockException;
+import io.fluxcapacitor.javaclient.common.ClientUtils;
 import io.fluxcapacitor.javaclient.common.Message;
+import io.fluxcapacitor.javaclient.configuration.DefaultFluxCapacitor;
+import io.fluxcapacitor.javaclient.test.TestFixture;
+import io.fluxcapacitor.javaclient.tracking.Tracker;
+import io.fluxcapacitor.javaclient.tracking.handling.HandleEvent;
 import lombok.Value;
+import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.opentest4j.AssertionFailedError;
 
 import java.time.Clock;
+import java.util.UUID;
+import java.util.stream.IntStream;
 
 import static io.fluxcapacitor.common.MessageType.EVENT;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -33,6 +43,37 @@ class MessageRoutingInterceptorTest {
 
     private final MessageRoutingInterceptor subject = new MessageRoutingInterceptor();
     private Integer expectedHash = ConsistentHashing.computeSegment("bar");
+
+    @Nested
+    class HandlerTests {
+        final Object handler = new Object() {
+            @HandleEvent
+            @RoutingKey("bar")
+            void handle(Foo event) {
+                if (Tracker.current().map(tracker -> !ConsistentHashing.fallsInRange(
+                        event.bar, tracker.getMessageBatch().getSegment())).orElseThrow()) {
+                    throw new MockException();
+                }
+            }
+        };
+
+        final TestFixture testFixture = TestFixture.createAsync(
+                DefaultFluxCapacitor.builder().configureDefaultConsumer(EVENT, c -> c.toBuilder()
+                        .threads(2).ignoreSegment(true).build()), handler);
+
+        @Test
+        void ensureHandlerFiltering() {
+            testFixture.whenExecuting(fc -> IntStream.range(0, 64).mapToObj(i -> new Foo(UUID.randomUUID().toString())).forEach(
+                    e -> ClientUtils.runSilently(
+                            () -> fc.eventGateway().publish(Message.asMessage(e), Guarantee.STORED).get())))
+                    .expectNoErrors();
+        }
+    }
+
+    @Value
+    static class Foo {
+        String bar;
+    }
 
     @Test
     void testNoSegmentWithoutAnnotation() {
@@ -68,17 +109,20 @@ class MessageRoutingInterceptorTest {
 
     @Test
     void testStaticInterfaceFieldAnnotation() {
-        testInvocation(new AnnotationOnStaticInterfaceField() {});
+        testInvocation(new AnnotationOnStaticInterfaceField() {
+        });
     }
 
     @Test
     void testStaticInterfaceMethodAnnotation() {
-        testInvocation(new AnnotationOnStaticInterfaceMethod() {});
+        testInvocation(new AnnotationOnStaticInterfaceMethod() {
+        });
     }
 
     @Test
     void testDefaultInterfaceMethodAnnotation() {
-        testInvocation(new AnnotationOnDefaultInterfaceMethod() {});
+        testInvocation(new AnnotationOnDefaultInterfaceMethod() {
+        });
     }
 
     @Test
@@ -171,7 +215,7 @@ class MessageRoutingInterceptorTest {
         }
     }
 
-    @RoutingKey(metadataKey = "foo")
+    @RoutingKey(value = "foo")
     private static class AnnotationOnType {
     }
 

@@ -128,11 +128,11 @@ public class DefaultHandlerFactory implements HandlerFactory {
 
     @SuppressWarnings("unchecked")
     protected MessageFilter<? super DeserializingMessage> defaultMessageFilter() {
-        var payloadFilter = new PayloadFilter();
+        var defaultFilter = new PayloadFilter().and(new SegmentFilter());
         var result = parameterResolvers.stream().flatMap(r -> r instanceof MessageFilter<?>
                         ? Stream.of((MessageFilter<HasMessage>) r) : Stream.empty())
-                .reduce(MessageFilter::and).map(f -> f.and(payloadFilter))
-                .orElse(payloadFilter);
+                .reduce(MessageFilter::and).map(f -> f.and(defaultFilter))
+                .orElse(defaultFilter);
         return messageType == MessageType.WEBREQUEST ? WebRequest.getWebRequestFilter().and(result) : result;
     }
 

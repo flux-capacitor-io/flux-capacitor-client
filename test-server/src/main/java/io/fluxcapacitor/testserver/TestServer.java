@@ -15,12 +15,12 @@
 package io.fluxcapacitor.testserver;
 
 import io.fluxcapacitor.common.MessageType;
+import io.fluxcapacitor.common.tracking.HasMessageStore;
 import io.fluxcapacitor.common.tracking.MessageStore;
 import io.fluxcapacitor.javaclient.configuration.client.Client;
 import io.fluxcapacitor.javaclient.configuration.client.InMemoryClient;
-import io.fluxcapacitor.javaclient.scheduling.client.InMemoryScheduleStore;
+import io.fluxcapacitor.javaclient.scheduling.client.LocalSchedulingClient;
 import io.fluxcapacitor.javaclient.scheduling.client.SchedulingClient;
-import io.fluxcapacitor.javaclient.tracking.client.InMemoryMessageStore;
 import io.fluxcapacitor.testserver.metrics.DefaultMetricsLog;
 import io.fluxcapacitor.testserver.metrics.MetricsLog;
 import io.fluxcapacitor.testserver.metrics.NoOpMetricsLog;
@@ -125,11 +125,12 @@ public class TestServer {
         log.info("Flux Capacitor test server running on port {}", port);
     }
 
-    private static InMemoryMessageStore getMessageStore(String projectId, MessageType messageType) {
+    private static MessageStore getMessageStore(String projectId, MessageType messageType) {
         if (messageType == NOTIFICATION) {
             messageType = EVENT;
         }
-        return (InMemoryMessageStore) clients.apply(projectId).getGatewayClient(messageType);
+        var client = (HasMessageStore) clients.apply(projectId).getTrackingClient(messageType);
+        return client.getMessageStore();
     }
 
     @AllArgsConstructor
@@ -140,7 +141,8 @@ public class TestServer {
 
         @Override
         public SchedulingClient getSchedulingClient() {
-            return new TestServerScheduleStore((InMemoryScheduleStore) delegate.getSchedulingClient());
+            return new TestServerScheduleStore(
+                    ((LocalSchedulingClient) delegate.getSchedulingClient()).getMessageStore());
         }
 
         interface Excluded {
