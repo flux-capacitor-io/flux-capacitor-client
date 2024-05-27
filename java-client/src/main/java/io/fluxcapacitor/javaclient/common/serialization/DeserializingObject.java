@@ -17,8 +17,6 @@ package io.fluxcapacitor.javaclient.common.serialization;
 import io.fluxcapacitor.common.MemoizingFunction;
 import io.fluxcapacitor.common.api.SerializedObject;
 import io.fluxcapacitor.common.reflection.ReflectionUtils;
-import lombok.AccessLevel;
-import lombok.Getter;
 import lombok.SneakyThrows;
 import lombok.ToString;
 
@@ -26,30 +24,36 @@ import java.util.function.Function;
 
 import static io.fluxcapacitor.common.ObjectUtils.memoize;
 
-@ToString(exclude = "object")
+@ToString(exclude = "objectFunction")
 public class DeserializingObject<T, S extends SerializedObject<T, S>> {
-    @Getter
     private final S serializedObject;
-    @Getter(AccessLevel.PROTECTED)
-    private final MemoizingFunction<Class<?>, Object> object;
+    private final MemoizingFunction<Class<?>, Object> objectFunction;
+
+    public S getSerializedObject() {
+        return serializedObject;
+    }
+
+    protected MemoizingFunction<Class<?>, Object> getObjectFunction() {
+        return objectFunction;
+    }
 
     public DeserializingObject(S serializedObject, Function<Class<?>, Object> payload) {
         this.serializedObject = serializedObject;
-        this.object = memoize(payload);
+        this.objectFunction = memoize(payload);
     }
 
     @SuppressWarnings("unchecked")
     public <V> V getPayload() {
-        return (V) object.apply(Object.class);
+        return (V) objectFunction.apply(Object.class);
     }
 
     @SuppressWarnings("unchecked")
     public <V> V getPayloadAs(Class<V> type) {
-        return (V) object.apply(type);
+        return (V) objectFunction.apply(type);
     }
 
     public boolean isDeserialized() {
-        return object.isCached(Object.class);
+        return objectFunction.isCached(Object.class);
     }
 
     public String getType() {

@@ -142,7 +142,7 @@ public class DeserializingMessage implements HasMessage {
 
     public DeserializingMessage withMetadata(Metadata metadata) {
         return ofNullable(delegate).map(d -> new DeserializingMessage(
-                d.getSerializedObject().withMetadata(metadata), d.getObject(), messageType))
+                        d.getSerializedObject().withMetadata(metadata), d.getObjectFunction(), messageType))
                 .orElseGet(() -> new DeserializingMessage(message.withMetadata(metadata), messageType, serializer));
     }
 
