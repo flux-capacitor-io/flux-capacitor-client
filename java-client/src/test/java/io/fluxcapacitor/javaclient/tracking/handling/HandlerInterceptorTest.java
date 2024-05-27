@@ -50,9 +50,7 @@ class HandlerInterceptorTest {
     @Test
     void changePayload() {
         TestFixture.create(DefaultFluxCapacitor.builder().addHandlerInterceptor(
-                        (f, i) -> m -> f.apply(new DeserializingMessage(
-                                m.toMessage().withPayload("foobar"), COMMAND, new JacksonSerializer())),
-                        COMMAND), MockCommandHandler.class)
+                        (f, i) -> m -> f.apply(m.withPayload("foobar")), COMMAND), MockCommandHandler.class)
                 .whenCommand("foo").expectEvents("foobar").expectResult("foobar").expectNoErrors();
     }
 

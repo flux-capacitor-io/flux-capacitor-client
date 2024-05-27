@@ -17,6 +17,8 @@ package io.fluxcapacitor.javaclient.common.serialization;
 import io.fluxcapacitor.common.MemoizingFunction;
 import io.fluxcapacitor.common.api.SerializedObject;
 import io.fluxcapacitor.common.reflection.ReflectionUtils;
+import lombok.AccessLevel;
+import lombok.Getter;
 import lombok.SneakyThrows;
 import lombok.ToString;
 
@@ -26,7 +28,9 @@ import static io.fluxcapacitor.common.ObjectUtils.memoize;
 
 @ToString(exclude = "object")
 public class DeserializingObject<T, S extends SerializedObject<T, S>> {
+    @Getter
     private final S serializedObject;
+    @Getter(AccessLevel.PROTECTED)
     private final MemoizingFunction<Class<?>, Object> object;
 
     public DeserializingObject(S serializedObject, Function<Class<?>, Object> payload) {
@@ -54,10 +58,6 @@ public class DeserializingObject<T, S extends SerializedObject<T, S>> {
 
     public int getRevision() {
         return serializedObject.data().getRevision();
-    }
-
-    public S getSerializedObject() {
-        return serializedObject;
     }
 
     @SneakyThrows

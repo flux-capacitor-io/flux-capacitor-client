@@ -140,6 +140,16 @@ public class DeserializingMessage implements HasMessage {
                 .or(() -> ofNullable(message).map(Message::getMetadata)).orElse(null);
     }
 
+    public DeserializingMessage withMetadata(Metadata metadata) {
+        return ofNullable(delegate).map(d -> new DeserializingMessage(
+                d.getSerializedObject().withMetadata(metadata), d.getObject(), messageType))
+                .orElseGet(() -> new DeserializingMessage(message.withMetadata(metadata), messageType, serializer));
+    }
+
+    public DeserializingMessage withPayload(Object payload) {
+        return new DeserializingMessage(toMessage().withPayload(payload), messageType, serializer);
+    }
+
     public String getMessageId() {
         return ofNullable(delegate).map(DeserializingObject::getSerializedObject)
                 .map(SerializedMessage::getMessageId)
