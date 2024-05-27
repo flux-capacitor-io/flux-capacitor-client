@@ -14,8 +14,10 @@
 
 package io.fluxcapacitor.javaclient.tracking.handling;
 
+import io.fluxcapacitor.common.api.Metadata;
 import io.fluxcapacitor.common.search.SearchExclude;
 import io.fluxcapacitor.javaclient.FluxCapacitor;
+import io.fluxcapacitor.javaclient.common.Message;
 import io.fluxcapacitor.javaclient.modeling.EntityId;
 import io.fluxcapacitor.javaclient.modeling.Id;
 import io.fluxcapacitor.javaclient.test.TestFixture;
@@ -50,6 +52,13 @@ public class StatefulHandlerTest {
         void handlerIsUpdated() {
             testFixture.givenEvents(new SomeEvent("foo"))
                     .whenEvent(new SomeEvent("foo"))
+                    .expectOnlyCommands(2);
+        }
+
+        @Test
+        void handlerAssociationViaMetadata() {
+            testFixture.givenEvents(new SomeEvent("foo"))
+                    .whenEvent(new Message("whatever", Metadata.of("someId", "foo")))
                     .expectOnlyCommands(2);
         }
 
@@ -97,6 +106,12 @@ public class StatefulHandlerTest {
 
             @HandleEvent
             StaticHandler update(SomeEvent event) {
+                FluxCapacitor.sendAndForgetCommand(eventCount + 1);
+                return toBuilder().eventCount(eventCount + 1).build();
+            }
+
+            @HandleEvent
+            StaticHandler update(String ignored) {
                 FluxCapacitor.sendAndForgetCommand(eventCount + 1);
                 return toBuilder().eventCount(eventCount + 1).build();
             }

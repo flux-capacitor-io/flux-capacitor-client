@@ -120,7 +120,9 @@ public class StatefulHandler implements Handler<DeserializingMessage> {
                                 .flatMap(e -> methodAssociationProperties.apply(e).entrySet().stream()),
                         getAssociationProperties().entrySet().stream())
                         .filter(entry -> includedPayload(payload, entry.getValue()))
-                        .flatMap(entry -> ReflectionUtils.readProperty(entry.getKey(), payload).stream()))
+                        .flatMap(entry -> ReflectionUtils.readProperty(entry.getKey(), payload)
+                                .or(() -> Optional.ofNullable(message.getMetadata().get(entry.getKey())))
+                                .stream()))
                 .map(v -> {
                     if (v instanceof Id<?> id) {
                         return id.getFunctionalId();
