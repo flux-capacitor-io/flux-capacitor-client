@@ -144,9 +144,15 @@ public class StatefulHandler implements Handler<DeserializingMessage> {
     @AllArgsConstructor
     @FieldDefaults(makeFinal = true, level = AccessLevel.PRIVATE)
     protected class StatefulHandlerInvoker implements HandlerInvoker {
-        @Delegate(excludes = ExcludedMethods.class)
+        @Delegate
         HandlerInvoker delegate;
         Entry<?> currentEntry;
+
+
+        @Override
+        public Object invoke() {
+            return HandlerInvoker.super.invoke();
+        }
 
         @Override
         @SneakyThrows
@@ -171,11 +177,6 @@ public class StatefulHandler implements Handler<DeserializingMessage> {
 
         private static Object computeId(Object handler) {
             return getAnnotatedPropertyValue(handler, EntityId.class).orElseGet(FluxCapacitor::generateId);
-        }
-
-        private interface ExcludedMethods {
-            Object invoke(BiFunction<Object, Object, Object> combiner);
-
         }
     }
 }
