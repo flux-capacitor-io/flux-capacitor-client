@@ -82,7 +82,8 @@ public class LocalTrackingClient implements TrackingClient, GatewayClient, HasMe
                 new WebSocketTracker(new Read(messageType, consumer, trackerId, config.getMaxFetchSize(),
                                               config.getMaxWaitDuration().toMillis(), config.getTypeFilter(),
                                               config.filterMessageTarget(), config.ignoreSegment(),
-                                              config.singleTracker(), config.clientControlledIndex(), lastIndex,
+                                              config.singleTracker(), config.clientControlledIndex(),
+                                              lastIndex == null ? -1L : lastIndex,
                                               Optional.ofNullable(config.getPurgeDelay()).map(Duration::toMillis)
                                                       .orElse(null)),
                                      messageType, ManagementFactory.getRuntimeMXBean().getName(),

@@ -195,7 +195,7 @@ public class DefaultTrackingStrategy extends AutoClosing implements TrackingStra
             if (tracker.getLastTrackerIndex() != null) {
                 return new Position(segment, tracker.getLastTrackerIndex());
             }
-            return new Position(segment, indexFromMillis(System.currentTimeMillis() - 10000L));
+            return new Position(segment, indexFromMillis(System.currentTimeMillis() - 1000L));
         }
         return position;
     }
