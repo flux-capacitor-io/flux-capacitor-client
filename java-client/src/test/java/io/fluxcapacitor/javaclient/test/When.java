@@ -103,12 +103,12 @@ public interface When {
     /**
      * Test expected result of the given search in given collection.
      */
-    Then whenSearching(String collection, UnaryOperator<Search> searchQuery);
+    Then whenSearching(Object collection, UnaryOperator<Search> searchQuery);
 
     /**
      * Test expected result of a search with given constraints in given collection.
      */
-    default Then whenSearching(String collection, Constraint... constraints) {
+    default Then whenSearching(Object collection, Constraint... constraints) {
         return whenSearching(collection, s -> s.constraint(constraints));
     }
 

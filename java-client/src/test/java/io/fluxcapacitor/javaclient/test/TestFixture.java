@@ -445,8 +445,14 @@ public class TestFixture implements Given, When {
     }
 
     @Override
-    public TestFixture givenDocuments(Object collection, Object... documents) {
-        for (Object document : documents) {
+    public TestFixture givenDocument(Object document) {
+        givenModification(fixture -> fixture.getFluxCapacitor().documentStore().index(document).get());
+        return this;
+    }
+
+    @Override
+    public TestFixture givenDocuments(Object collection, Object firstDocument, Object... otherDocuments) {
+        for (Object document : Stream.concat(Stream.of(firstDocument), Arrays.stream(otherDocuments)).toList()) {
             givenModification(fixture -> fixture.getFluxCapacitor().documentStore().index(document, collection).get());
         }
         return this;
@@ -526,7 +532,7 @@ public class TestFixture implements Given, When {
     }
 
     @Override
-    public Then whenSearching(String collection, UnaryOperator<Search> searchQuery) {
+    public Then whenSearching(Object collection, UnaryOperator<Search> searchQuery) {
         return whenApplying(fc -> searchQuery.apply(fc.documentStore().search(collection)).fetchAll());
     }
 

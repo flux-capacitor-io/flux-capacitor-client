@@ -390,7 +390,7 @@ public class ReflectionUtils {
     }
 
     public static boolean hasProperty(String propertyPath, Object target) {
-        if (target == null) {
+        if (target == null || propertyPath == null) {
             return false;
         }
         try {

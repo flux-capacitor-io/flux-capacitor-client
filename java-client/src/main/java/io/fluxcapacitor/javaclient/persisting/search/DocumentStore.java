@@ -46,11 +46,13 @@ public interface DocumentStore {
         }
         Class<?> type = object.getClass();
         var searchParams = ofNullable(getSearchParameters(type)).orElseGet(() -> SearchParameters.builder().build());
-        return index(object, ofNullable(searchParams.getCollection()).orElseGet(type::getSimpleName),
-                     getAnnotatedPropertyValue(object, EntityId.class).map(Object::toString)
+        Instant begin = ReflectionUtils.<Instant>readProperty(searchParams.getTimestampPath(), object).orElse(null);
+        Instant end = ReflectionUtils.hasProperty(searchParams.getEndPath(), object)
+                ? ReflectionUtils.<Instant>readProperty(searchParams.getEndPath(), object).orElse(null) : begin;
+        return index(object, getAnnotatedPropertyValue(object, EntityId.class).map(Object::toString)
                              .orElseGet(() -> currentIdentityProvider().nextTechnicalId()),
-                     ReflectionUtils.<Instant>readProperty(searchParams.getTimestampPath(), object).orElse(null),
-                     ReflectionUtils.<Instant>readProperty(searchParams.getEndPath(), object).orElse(null));
+                     ofNullable(searchParams.getCollection()).orElseGet(type::getSimpleName),
+                     begin, end);
     }
 
     default CompletableFuture<Void> index(Object object, Object collection) {

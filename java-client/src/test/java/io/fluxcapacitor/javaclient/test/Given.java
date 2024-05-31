@@ -21,6 +21,7 @@ import io.fluxcapacitor.javaclient.FluxCapacitor;
 import io.fluxcapacitor.javaclient.common.Message;
 import io.fluxcapacitor.javaclient.configuration.ApplicationProperties;
 import io.fluxcapacitor.javaclient.modeling.Id;
+import io.fluxcapacitor.javaclient.modeling.Searchable;
 import io.fluxcapacitor.javaclient.scheduling.Schedule;
 import io.fluxcapacitor.javaclient.tracking.handling.authentication.User;
 import io.fluxcapacitor.javaclient.web.WebRequest;
@@ -88,6 +89,14 @@ public interface Given extends When {
     Given givenEvents(Object... events);
 
     /**
+     * Specify a documents that has been stored for search prior to the behavior you want to test.
+     * <p>
+     * If the object is (meta-)annotated with {@link Searchable @Searchable} the settings in the annotation will
+     * be used for collection name, timestamp path etc.
+     */
+    Given givenDocument(Object document);
+
+    /**
      * Specify a document that has been stored for search prior to the behavior you want to test.
      * <p>
      * The document will be stored in the given {@code collection} with random id and without start or end timestamp.
@@ -129,7 +138,7 @@ public interface Given extends When {
      * <p>
      * The documents will be stored in the given {@code collection} with random id and without start or end timestamp.
      */
-    Given givenDocuments(Object collection, Object... documents);
+    Given givenDocuments(Object collection, Object firstDocument, Object... otherDocuments);
 
     /**
      * Specify one or more schedules that have been issued prior to the behavior you want to test.

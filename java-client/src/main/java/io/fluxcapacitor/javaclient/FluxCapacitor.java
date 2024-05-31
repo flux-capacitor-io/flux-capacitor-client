@@ -35,6 +35,7 @@ import io.fluxcapacitor.javaclient.modeling.Aggregate;
 import io.fluxcapacitor.javaclient.modeling.Entity;
 import io.fluxcapacitor.javaclient.modeling.EntityId;
 import io.fluxcapacitor.javaclient.modeling.Id;
+import io.fluxcapacitor.javaclient.modeling.Searchable;
 import io.fluxcapacitor.javaclient.persisting.eventsourcing.EventStore;
 import io.fluxcapacitor.javaclient.persisting.eventsourcing.SnapshotStore;
 import io.fluxcapacitor.javaclient.persisting.keyvalue.KeyValueStore;
@@ -406,8 +407,8 @@ public interface FluxCapacitor extends AutoCloseable {
     }
 
     /**
-     * Schedules a message after the given delay, returning the schedule's id. The {@code schedule} parameter may be
-     * an instance of a {@link Message} in which case it will be scheduled as is. Otherwise, the schedule is published
+     * Schedules a message after the given delay, returning the schedule's id. The {@code schedule} parameter may be an
+     * instance of a {@link Message} in which case it will be scheduled as is. Otherwise, the schedule is published
      * using the passed value as payload without additional metadata.
      */
     static String schedule(Object schedule, Duration delay) {
@@ -415,8 +416,8 @@ public interface FluxCapacitor extends AutoCloseable {
     }
 
     /**
-     * Schedules a message with given {@code scheduleId} after given delay. The {@code schedule} parameter may be
-     * an instance of a {@link Message} in which case it will be scheduled as is. Otherwise, the schedule is published
+     * Schedules a message with given {@code scheduleId} after given delay. The {@code schedule} parameter may be an
+     * instance of a {@link Message} in which case it will be scheduled as is. Otherwise, the schedule is published
      * using the passed value as payload without additional metadata.
      */
     static void schedule(Object schedule, String scheduleId, Duration delay) {
@@ -596,6 +597,24 @@ public interface FluxCapacitor extends AutoCloseable {
     /**
      * Index given object for search.
      * <p>
+     * If the object is annotated with {@link Searchable @Searchable} the collection name and any timestamp or end path
+     * defined there will be used.
+     * <p>
+     * If the object has a property annotated with {@link EntityId}, it will be used as the id of the document.
+     * Otherwise, a random id will be assigned to the document.
+     * <p>
+     * This method returns once the object is stored.
+     *
+     * @see DocumentStore for more advanced uses.
+     * @see Searchable for ways to define collection name etc
+     */
+    static CompletableFuture<Void> index(Object object) {
+        return get().documentStore().index(object);
+    }
+
+    /**
+     * Index given object for search.
+     * <p>
      * If the object has a property annotated with {@link EntityId}, it will be used as the id of the document.
      * Otherwise, a random id will be assigned to the document.
      * <p>
@@ -654,8 +673,8 @@ public interface FluxCapacitor extends AutoCloseable {
      * Search the given collection for documents. Usually collection is the String name of the collection. However, it
      * is also possible to call it with a {@link Collection} containing one or multiple collection names.
      * <p>
-     * If collection is of type {@link Class} it is expected that the class is annotated with
-     * {@link io.fluxcapacitor.javaclient.modeling.Searchable}. It will then use the collection configured there.
+     * If collection is of type {@link Class} it is expected that the class is annotated with {@link Searchable}. It
+     * will then use the collection configured there.
      * <p>
      * For all other inputs, the collection name will be obtained by calling {@link Object#toString()} on the input.
      * <p>
@@ -668,9 +687,9 @@ public interface FluxCapacitor extends AutoCloseable {
     /**
      * Search the given collections for documents.
      * <p>
-     * If collection is of type {@link Class} it is expected that the class is annotated with *
-     * {@link io.fluxcapacitor.javaclient.modeling.Searchable}. It will then use the collection configured there. For
-     * all other inputs, the collection name will be obtained by calling {@link Object#toString()} on the input.
+     * If collection is of type {@link Class} it is expected that the class is annotated with * {@link Searchable}. It
+     * will then use the collection configured there. For all other inputs, the collection name will be obtained by
+     * calling {@link Object#toString()} on the input.
      * <p>
      * Example usage: FluxCapacitor.search("myCollection", "myOtherCollection).query("foo !bar").fetch(100);
      */

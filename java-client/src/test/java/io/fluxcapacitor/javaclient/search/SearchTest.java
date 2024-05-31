@@ -69,6 +69,21 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 public class SearchTest {
 
     @Test
+    void storeSearchable() {
+        TestFixture.create().givenDocument(new SomeSearchable("foo", Instant.now()))
+                .whenSearching(SomeSearchable.class)
+                .<List<SomeSearchable>>expectResult(r -> r.size() == 1)
+                .<List<SomeSearchable>>mapResult(List::getFirst);
+    }
+
+    @Value
+    @Searchable(timestampPath = "timestamp")
+    static class SomeSearchable {
+        String id;
+        Instant timestamp;
+    }
+
+    @Test
     void testPhraseMatching() {
         expectMatch(query("see what"));
         expectMatch(query("see what", "foo"));
