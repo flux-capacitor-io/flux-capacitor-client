@@ -56,7 +56,7 @@ public abstract class Id<T> {
      * @param functionalId The functional id of the entity. The object's toString() method is used to get a string
      *                     representation of the functional id.
      */
-    protected Id(String functionalId) {
+    public Id(String functionalId) {
         this(functionalId, "");
     }
 
@@ -69,7 +69,7 @@ public abstract class Id<T> {
      *                     representation of the functional id.
      * @param type         The entity's type. This may be a superclass of the actual entity.
      */
-    protected Id(String functionalId, Class<T> type) {
+    public Id(String functionalId, Class<T> type) {
         this(functionalId, type, "");
     }
 
@@ -86,7 +86,7 @@ public abstract class Id<T> {
      *                     this entity will be stored. Eg, if the prefix of an {@link Id} is "user-", and the id is
      *                     "pete123", the entity will be stored under "user-pete123".
      */
-    protected Id(String functionalId, String prefix) {
+    public Id(String functionalId, String prefix) {
         this(functionalId, prefix, true);
     }
 
@@ -101,7 +101,7 @@ public abstract class Id<T> {
      *                     this entity will be stored. Eg, if the prefix of an {@link Id} is "user-", and the id is
      *                     "pete123", the entity will be stored under "user-pete123".
      */
-    protected Id(String functionalId, Class<T> type, String prefix) {
+    public Id(String functionalId, Class<T> type, String prefix) {
         this(functionalId, type, prefix, true);
     }
 
@@ -114,7 +114,7 @@ public abstract class Id<T> {
      *                      representation of the functional id.
      * @param caseSensitive whether this id is case-sensitive.
      */
-    protected Id(String functionalId, boolean caseSensitive) {
+    public Id(String functionalId, boolean caseSensitive) {
         this(functionalId, "", caseSensitive);
     }
 
@@ -126,7 +126,7 @@ public abstract class Id<T> {
      * @param type          The entity's type. This may be a superclass of the actual entity.
      * @param caseSensitive whether this id is case-sensitive.
      */
-    protected Id(String functionalId, Class<T> type, boolean caseSensitive) {
+    public Id(String functionalId, Class<T> type, boolean caseSensitive) {
         this(functionalId, type, "", caseSensitive);
     }
 
@@ -143,7 +143,7 @@ public abstract class Id<T> {
      *                      "pete123", the entity will be stored under "user-pete123".
      * @param caseSensitive whether this id is case-sensitive.
      */
-    protected Id(@NonNull String functionalId, @NonNull String prefix, boolean caseSensitive) {
+    public Id(@NonNull String functionalId, @NonNull String prefix, boolean caseSensitive) {
         this.functionalId = functionalId;
         this.type = ReflectionUtils.getFirstTypeArgument(this.getClass().getGenericSuperclass());
         this.repositoryId = caseSensitive ? prefix + this.functionalId : prefix + this.functionalId.toLowerCase();
@@ -161,7 +161,7 @@ public abstract class Id<T> {
      *                      "pete123", the entity will be stored under "user-pete123".
      * @param caseSensitive whether this id is case-sensitive.
      */
-    protected Id(@NonNull String functionalId, @NonNull Class<T> type, @NonNull String prefix, boolean caseSensitive) {
+    public Id(@NonNull String functionalId, @NonNull Class<T> type, @NonNull String prefix, boolean caseSensitive) {
         this.functionalId = functionalId;
         this.type = type;
         this.repositoryId = caseSensitive ? prefix + this.functionalId : prefix + this.functionalId.toLowerCase();
