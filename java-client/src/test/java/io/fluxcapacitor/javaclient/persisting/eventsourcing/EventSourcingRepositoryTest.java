@@ -502,7 +502,7 @@ class EventSourcingRepositoryTest {
 
     static class TestModelId extends Id<TestModel> {
         public TestModelId(String functionalId) {
-            super(functionalId, TestModel.class, "testId-", true);
+            super(functionalId, "testId-", true);
         }
     }
 

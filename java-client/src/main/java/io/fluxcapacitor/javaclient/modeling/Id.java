@@ -16,6 +16,7 @@ package io.fluxcapacitor.javaclient.modeling;
 
 import com.fasterxml.jackson.annotation.JsonValue;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
+import io.fluxcapacitor.common.reflection.ReflectionUtils;
 import io.fluxcapacitor.common.search.Facet;
 import lombok.Getter;
 import lombok.NonNull;
@@ -49,13 +50,44 @@ public abstract class Id<T> {
     /**
      * Construct a case-sensitive id for an entity without prefix. This constructor allows ids to be prefixed with a
      * value to prevent clashes with other entities that may share the same functional id.
+     * <p>
+     * The identifier's {@code type} will be determined using reflection.
+     *
+     * @param functionalId The functional id of the entity. The object's toString() method is used to get a string
+     *                     representation of the functional id.
+     */
+    protected Id(String functionalId) {
+        this(functionalId, "");
+    }
+
+
+    /**
+     * Construct a case-sensitive id for an entity without prefix. This constructor allows ids to be prefixed with a
+     * value to prevent clashes with other entities that may share the same functional id.
      *
      * @param functionalId The functional id of the entity. The object's toString() method is used to get a string
      *                     representation of the functional id.
      * @param type         The entity's type. This may be a superclass of the actual entity.
      */
-    protected Id(Object functionalId, Class<T> type) {
+    protected Id(String functionalId, Class<T> type) {
         this(functionalId, type, "");
+    }
+
+    /**
+     * Construct a case-sensitive id for an entity. This constructor allows ids to be prefixed with a value to prevent
+     * clashes with other entities that may share the same functional id.
+     *
+     * <p>
+     * The identifier's {@code type} will be determined using reflection.
+     *
+     * @param functionalId The functional id of the entity. The object's toString() method is used to get a string
+     *                     representation of the functional id.
+     * @param prefix       The prefix that is prepended to the {@link #functionalId} to create the full id under which
+     *                     this entity will be stored. Eg, if the prefix of an {@link Id} is "user-", and the id is
+     *                     "pete123", the entity will be stored under "user-pete123".
+     */
+    protected Id(String functionalId, String prefix) {
+        this(functionalId, prefix, true);
     }
 
     /**
@@ -69,8 +101,21 @@ public abstract class Id<T> {
      *                     this entity will be stored. Eg, if the prefix of an {@link Id} is "user-", and the id is
      *                     "pete123", the entity will be stored under "user-pete123".
      */
-    protected Id(Object functionalId, Class<T> type, String prefix) {
+    protected Id(String functionalId, Class<T> type, String prefix) {
         this(functionalId, type, prefix, true);
+    }
+
+    /**
+     * Construct an id for an entity without prefix. This constructor allows ids to be case-insensitive.
+     * <p>
+     * The identifier's {@code type} will be determined using reflection.
+     *
+     * @param functionalId  The functional id of the entity. The object's toString() method is used to get a string
+     *                      representation of the functional id.
+     * @param caseSensitive whether this id is case-sensitive.
+     */
+    protected Id(String functionalId, boolean caseSensitive) {
+        this(functionalId, "", caseSensitive);
     }
 
     /**
@@ -81,8 +126,27 @@ public abstract class Id<T> {
      * @param type          The entity's type. This may be a superclass of the actual entity.
      * @param caseSensitive whether this id is case-sensitive.
      */
-    protected Id(Object functionalId, Class<T> type, boolean caseSensitive) {
+    protected Id(String functionalId, Class<T> type, boolean caseSensitive) {
         this(functionalId, type, "", caseSensitive);
+    }
+
+    /**
+     * Construct an id for an entity. This constructor allows ids to be prefixed with a value to prevent clashes with
+     * other entities that may share the same functional id. It also enables ids to be case-insensitive.
+     * <p>
+     * The identifier's {@code type} will be determined using reflection.
+     *
+     * @param functionalId  The functional id of the entity. The object's toString() method is used to get a string
+     *                      representation of the functional id.
+     * @param prefix        The prefix that is prepended to the {@link #functionalId} to create the full id under which
+     *                      this entity will be stored. Eg, if the prefix of an {@link Id} is "user-", and the id is
+     *                      "pete123", the entity will be stored under "user-pete123".
+     * @param caseSensitive whether this id is case-sensitive.
+     */
+    protected Id(@NonNull String functionalId, @NonNull String prefix, boolean caseSensitive) {
+        this.functionalId = functionalId;
+        this.type = ReflectionUtils.getFirstTypeArgument(this.getClass().getGenericSuperclass());
+        this.repositoryId = caseSensitive ? prefix + this.functionalId : prefix + this.functionalId.toLowerCase();
     }
 
     /**
@@ -97,8 +161,8 @@ public abstract class Id<T> {
      *                      "pete123", the entity will be stored under "user-pete123".
      * @param caseSensitive whether this id is case-sensitive.
      */
-    protected Id(@NonNull Object functionalId, @NonNull Class<T> type, @NonNull String prefix, boolean caseSensitive) {
-        this.functionalId = functionalId.toString();
+    protected Id(@NonNull String functionalId, @NonNull Class<T> type, @NonNull String prefix, boolean caseSensitive) {
+        this.functionalId = functionalId;
         this.type = type;
         this.repositoryId = caseSensitive ? prefix + this.functionalId : prefix + this.functionalId.toLowerCase();
     }

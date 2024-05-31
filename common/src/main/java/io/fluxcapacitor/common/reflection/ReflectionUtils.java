@@ -376,6 +376,20 @@ public class ReflectionUtils {
         }
     }
 
+    public static List<Type> getTypeArguments(Type genericType) {
+        if (genericType instanceof ParameterizedType pt) {
+            return Arrays.asList(pt.getActualTypeArguments());
+        }
+        return emptyList();
+    }
+
+    public static <T extends Type> T getFirstTypeArgument(Type genericType) {
+        if (genericType instanceof ParameterizedType pt) {
+            return (T) pt.getActualTypeArguments()[0];
+        }
+        throw new IllegalArgumentException("Type is raw and does not define arguments");
+    }
+
     @SuppressWarnings("unchecked")
     public static <T> Optional<T> getPropertyAnnotation(String propertyPath, Object target) {
         if (target == null) {
