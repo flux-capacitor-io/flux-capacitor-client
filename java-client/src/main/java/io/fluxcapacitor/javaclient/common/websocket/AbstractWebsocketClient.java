@@ -30,7 +30,7 @@ import io.fluxcapacitor.common.api.ResultBatch;
 import io.fluxcapacitor.common.tracking.InMemoryTaskScheduler;
 import io.fluxcapacitor.common.tracking.TaskScheduler;
 import io.fluxcapacitor.javaclient.FluxCapacitor;
-import io.fluxcapacitor.javaclient.common.exception.TechnicalException;
+import io.fluxcapacitor.javaclient.common.exception.ServiceException;
 import io.fluxcapacitor.javaclient.common.serialization.Serializer;
 import io.fluxcapacitor.javaclient.common.serialization.jackson.JacksonSerializer;
 import io.fluxcapacitor.javaclient.configuration.client.WebSocketClient;
@@ -248,7 +248,7 @@ public abstract class AbstractWebsocketClient implements AutoCloseable {
                                             () -> tryPublishMetrics(result, metadata))));
                 } finally {
                     if (result instanceof ErrorResult e) {
-                        webSocketRequest.result.completeExceptionally(new TechnicalException(e.getMessage()));
+                        webSocketRequest.result.completeExceptionally(new ServiceException(e.getMessage()));
                     } else {
                         webSocketRequest.result.complete(result);
                     }
