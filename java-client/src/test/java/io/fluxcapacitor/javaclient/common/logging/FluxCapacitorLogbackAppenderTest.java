@@ -56,9 +56,11 @@ class FluxCapacitorLogbackAppenderTest {
 
     @Test
     void testConsoleWarning() {
-        log.warn("mock warning");
+        String messageTemplate = "mock warning {}";
+        log.warn(messageTemplate, "foo");
         verify(fluxCapacitor.client().getGatewayClient(MessageType.ERROR)).append(
                 any(Guarantee.class), argThat((ArgumentMatcher<SerializedMessage>) message ->
-                        ConsoleWarning.class.getName().equals(message.getData().getType())));
+                        ConsoleWarning.class.getName().equals(message.getData().getType())
+                        && messageTemplate.equals(message.getMetadata().get("messageTemplate"))));
     }
 }

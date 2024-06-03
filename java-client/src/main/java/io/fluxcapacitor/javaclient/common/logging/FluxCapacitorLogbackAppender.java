@@ -81,7 +81,8 @@ public class FluxCapacitorLogbackAppender extends AppenderBase<ILoggingEvent> {
                                          event.getLoggerName(), event.getFormattedMessage(),
                                          throwable.map(e -> "\n" + getStackTrace(e)).orElse("")),
                     "level", event.getLevel().toString(),
-                    "loggerName", event.getLoggerName());
+                    "loggerName", event.getLoggerName(),
+                    "messageTemplate", event.getMessage());
             if (throwable.isPresent()) {
                 Throwable e = throwable.get();
                 metadata = metadata.with(
