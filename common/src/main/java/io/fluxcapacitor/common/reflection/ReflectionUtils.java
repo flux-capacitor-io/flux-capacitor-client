@@ -27,6 +27,7 @@ import org.apache.commons.lang3.reflect.FieldUtils;
 import org.apache.commons.lang3.reflect.MethodUtils;
 
 import java.beans.PropertyDescriptor;
+import java.io.File;
 import java.lang.annotation.Annotation;
 import java.lang.invoke.MethodType;
 import java.lang.reflect.AccessibleObject;
@@ -41,6 +42,7 @@ import java.lang.reflect.Parameter;
 import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
 import java.lang.reflect.WildcardType;
+import java.net.URL;
 import java.security.PrivilegedAction;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -351,7 +353,7 @@ public class ReflectionUtils {
         }
         Stream<Annotation> stream = stream(p.getAnnotations());
         if (recursive) {
-            stream = Stream.concat(stream, getPackageAnnotations(getParentPackage(p), true).stream());
+            stream = Stream.concat(stream, getPackageAnnotations(getFirstKnownAncestorPackage(p.getName()), true).stream());
         }
         return stream.toList();
     }
@@ -627,19 +629,49 @@ public class ReflectionUtils {
         List<Package> result = new ArrayList<>();
         while (p != null) {
             result.add(p);
-            p = getParentPackage(p);
+            p = getFirstKnownAncestorPackage(p.getName());
         }
         return result;
     }
 
-    private static Package getParentPackage(Package p) {
-        String name = p.getName();
+    static Package getFirstKnownAncestorPackage(String childPackageName) {
+        for (String parentName = getParentPackageName(childPackageName); parentName != null;
+                parentName = getParentPackageName(parentName)) {
+            Package result = tryGetPackage(parentName);
+            if (result != null) {
+                return result;
+            }
+        }
+        return null;
+    }
+
+    static String getParentPackageName(String name) {
         int lastIndex = name.lastIndexOf(".");
-        if (lastIndex < 0) {
+        return lastIndex < 0 ? null : name.substring(0, lastIndex);
+    }
+
+    private static Package tryGetPackage(String name) {
+        Package definedPackage = ReflectionUtils.class.getClassLoader().getDefinedPackage(name);
+        if (definedPackage != null) {
+            return definedPackage;
+        }
+        String packagePath = name.replace('.', '/');
+        URL resource = ReflectionUtils.class.getClassLoader().getResource(packagePath);
+        if (resource == null) {
             return null;
         }
-        String parentName = name.substring(0, lastIndex);
-        return ReflectionUtils.class.getClassLoader().getDefinedPackage(parentName);
+        File packageDir = new File(resource.getFile());
+        if (packageDir.exists() && packageDir.isDirectory()
+            && new File(resource.getFile() + "/package-info.class").exists()) {
+            try {
+                var result = classForName(name + ".package-info");
+                if (result != null) {
+                    return result.getPackage();
+                }
+            } catch (Throwable ignored) {
+            }
+        }
+        return null;
     }
 
     public static <A extends Annotation> Optional<A> getMemberAnnotation(Class<?> type, String memberName, Class<? extends Annotation> a) {
