@@ -78,7 +78,7 @@ public @interface Aggregate {
      * Use {@code @Aggregate(eventPublication = NEVER)} to prevent event publication altogether. This is useful because
      * it allows command application on aggregates with {@code eventSourcing = false} without giving rise to events.
      */
-    EventPublication eventPublication() default EventPublication.ALWAYS;
+    EventPublication eventPublication() default EventPublication.DEFAULT;
 
     /**
      * Setting that determines what happens to published events. Note that {@link #eventPublication()} is checked first

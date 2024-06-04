@@ -26,5 +26,5 @@ import io.fluxcapacitor.javaclient.persisting.eventsourcing.InterceptApply;
  * allows command application on aggregates with {@code eventSourcing = false} without giving rise to events.
  */
 public enum EventPublication {
-    ALWAYS, NEVER, IF_MODIFIED;
+    DEFAULT, ALWAYS, NEVER, IF_MODIFIED;
 }

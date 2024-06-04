@@ -307,6 +307,12 @@ class EventSourcingRepositoryTest {
             SelfApplyingCommand b = new SelfApplyingCommand(PublishNeverModel.class);
             testFixture.givenCommands(a).whenCommand(b).expectNoEvents();
         }
+
+        @Test
+        void publishNeverToAlways_newAggregate() {
+            var a = new SelfApplyingCommand(PublishNeverOverwrittenModel.class);
+            testFixture.whenCommand(a).expectEvents(a);
+        }
     }
 
     @Nested
@@ -382,6 +388,17 @@ class EventSourcingRepositoryTest {
 
         @Apply
         PublishNeverModel(Object event) {
+            this.event = event;
+        }
+    }
+
+    @Aggregate(eventPublication = NEVER)
+    @Value
+    static class PublishNeverOverwrittenModel {
+        Object event;
+
+        @Apply(eventPublication = IF_MODIFIED)
+        PublishNeverOverwrittenModel(Object event) {
             this.event = event;
         }
     }

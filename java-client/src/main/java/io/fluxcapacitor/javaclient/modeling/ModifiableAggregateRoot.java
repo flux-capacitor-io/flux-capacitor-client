@@ -15,9 +15,11 @@
 package io.fluxcapacitor.javaclient.modeling;
 
 import io.fluxcapacitor.common.Pair;
+import io.fluxcapacitor.common.handling.HandlerInvoker;
 import io.fluxcapacitor.javaclient.common.Message;
 import io.fluxcapacitor.javaclient.common.serialization.DeserializingMessage;
 import io.fluxcapacitor.javaclient.common.serialization.Serializer;
+import io.fluxcapacitor.javaclient.persisting.eventsourcing.Apply;
 import io.fluxcapacitor.javaclient.publishing.DispatchInterceptor;
 import io.fluxcapacitor.javaclient.tracking.handling.Invocation;
 import lombok.EqualsAndHashCode;
@@ -37,6 +39,7 @@ import java.util.function.UnaryOperator;
 import java.util.stream.Collectors;
 
 import static io.fluxcapacitor.common.MessageType.EVENT;
+import static io.fluxcapacitor.javaclient.modeling.EventPublication.DEFAULT;
 import static io.fluxcapacitor.javaclient.modeling.EventPublication.IF_MODIFIED;
 import static java.util.Optional.ofNullable;
 import static java.util.stream.Collectors.toMap;
@@ -127,10 +130,16 @@ public class ModifiableAggregateRoot<T> extends DelegatingEntity<T> implements A
         try {
             applying = true;
             handleUpdate(a -> {
+                var eventPublication =
+                        entityHelper.applyInvoker(new DeserializingMessage(message, EVENT, serializer), a)
+                                .<Apply>map(HandlerInvoker::getMethodAnnotation).map(Apply::eventPublication)
+                                .filter(ep -> ep != DEFAULT).orElse(this.eventPublication);
+
                 int hashCodeBefore = eventPublication == IF_MODIFIED ? a.get() == null ? -1 : a.get().hashCode() : -1;
+
                 Entity<T> result = a.apply(message);
                 if (switch (eventPublication) {
-                    case ALWAYS -> true;
+                    case ALWAYS, DEFAULT -> true;
                     case IF_MODIFIED -> !Objects.equals(a.get(), result.get())
                                         || (result.get() != null && result.get().hashCode() != hashCodeBefore);
                     case NEVER -> false;
