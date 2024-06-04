@@ -49,8 +49,8 @@ public @interface Association {
 
     /**
      * Returns payload classes for which this association can be used. If this array is empty or the payload of a
-     * message is assignable to any of these classes, AND the class is not excluded via {@link #excludedClasses()},
-     * an association with the message is attempted.
+     * message is assignable to any of these classes, AND the class is not excluded via {@link #excludedClasses()}, an
+     * association with the message is attempted.
      */
     Class<?>[] includedClasses() default {};
 
@@ -59,4 +59,12 @@ public @interface Association {
      * these classes an association with the message is NOT attempted.
      */
     Class<?>[] excludedClasses() default {};
+
+    /**
+     * Returns whether the message matched by this handler should always be applied to any stored handlers. All other
+     * configuration in this annotation will be ignored. This setting only has an effect if it is used in an
+     * annotation of a handler method. I.e. it has no effect the association is on a field or getter of the
+     * handler.
+     */
+    boolean always() default false;
 }

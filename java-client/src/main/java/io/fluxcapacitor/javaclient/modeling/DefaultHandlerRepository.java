@@ -37,17 +37,19 @@ public class DefaultHandlerRepository implements HandlerRepository {
 
     public static Function<Class<?>, HandlerRepository> repositorySupplier(DocumentStore documentStore) {
         return type -> new DefaultHandlerRepository(documentStore, ClientUtils.getSearchParameters(type).getCollection(),
-                                                    ReflectionUtils.getTypeAnnotation(type, Stateful.class));
+                                                    type, ReflectionUtils.getTypeAnnotation(type, Stateful.class));
     }
 
     private final DocumentStore documentStore;
     private final String collection;
+    private final Class<?> type;
     private final Function<Object, Instant> timestampFunction;
     private final Function<Object, Instant> endFunction;
 
-    public DefaultHandlerRepository(DocumentStore documentStore, String collection, Stateful annotation) {
+    public DefaultHandlerRepository(DocumentStore documentStore, String collection, Class<?> type, Stateful annotation) {
         this.documentStore = documentStore;
         this.collection = collection;
+        this.type = type;
         AtomicBoolean warnedAboutMissingTimePath = new AtomicBoolean();
         this.timestampFunction = Optional.of(annotation).map(Stateful::timestampPath)
                 .filter(path -> !path.isBlank())
@@ -78,7 +80,14 @@ public class DefaultHandlerRepository implements HandlerRepository {
         if (associations.isEmpty()) {
             return Collections.emptyList();
         }
-        return documentStore.search(collection).match(associations).streamHits().toList();
+        return documentStore.search(collection).match(associations).streamHits()
+                .filter(h -> type.isAssignableFrom(h.getValue().getClass())).toList();
+    }
+
+    @Override
+    public Collection<? extends Entry<?>> getAll() {
+        return documentStore.search(collection).streamHits()
+                .filter(h -> type.isAssignableFrom(h.getValue().getClass())).toList();
     }
 
     @Override

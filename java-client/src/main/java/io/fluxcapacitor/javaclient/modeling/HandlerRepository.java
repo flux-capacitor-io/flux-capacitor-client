@@ -23,10 +23,11 @@ public interface HandlerRepository {
 
     Collection<? extends Entry<?>> findByAssociation(Collection<String> associations);
 
+    Collection<? extends Entry<?>> getAll();
+
     Entry<?> get(Object id);
 
     CompletableFuture<?> set(Object value, Object id);
 
     CompletableFuture<?> delete(Object id);
-
 }

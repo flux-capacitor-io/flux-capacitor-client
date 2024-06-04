@@ -28,6 +28,7 @@ import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
 import java.time.Instant;
+import java.util.UUID;
 
 public class StatefulHandlerTest {
 
@@ -90,6 +91,13 @@ public class StatefulHandlerTest {
                     .expectOnlyCommands(2);
         }
 
+        @Test
+        void handlerIsUpdated_alwaysAssociate() {
+            testFixture.givenEvents(new SomeEvent("foo"))
+                    .whenEvent(new AlwaysAssociate())
+                    .expectOnlyCommands(2);
+        }
+
         @Stateful
         @SearchExclude
         @Value
@@ -123,6 +131,13 @@ public class StatefulHandlerTest {
 
             @HandleEvent
             StaticHandler update(AliasEvent event) {
+                FluxCapacitor.sendAndForgetCommand(eventCount + 1);
+                return toBuilder().eventCount(eventCount + 1).build();
+            }
+
+            @HandleEvent
+            @Association(always = true)
+            StaticHandler update(AlwaysAssociate event) {
                 FluxCapacitor.sendAndForgetCommand(eventCount + 1);
                 return toBuilder().eventCount(eventCount + 1).build();
             }
@@ -262,6 +277,11 @@ public class StatefulHandlerTest {
     @Value
     static class CustomEvent {
         String customId;
+    }
+
+    @Value
+    static class AlwaysAssociate {
+        String randomId = UUID.randomUUID().toString();
     }
 
     @Value

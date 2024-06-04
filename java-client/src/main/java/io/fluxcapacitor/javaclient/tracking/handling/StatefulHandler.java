@@ -81,12 +81,16 @@ public class StatefulHandler implements Handler<DeserializingMessage> {
                         return associations;
                     }).orElseGet(Collections::emptyMap));
 
+    Function<Executable, Boolean> alwaysAssociateMethods = ClientUtils.memoize(
+            m -> getAnnotation(m, Association.class).filter(Association::always).isPresent());
+
     @Override
     public Optional<HandlerInvoker> getInvoker(DeserializingMessage message) {
         if (!handlerMatcher.canHandle(message)) {
             return Optional.empty();
         }
-        var matches = repository.findByAssociation(associations(message));
+        boolean alwaysMatch = handlerMatcher.matchingMethods(message).anyMatch(alwaysAssociateMethods::apply);
+        var matches = alwaysMatch ? repository.getAll() : repository.findByAssociation(associations(message));
         if (matches.isEmpty()) {
             if (!canTrackerHandle(message, message.getMessageId())) {
                 return Optional.empty();
