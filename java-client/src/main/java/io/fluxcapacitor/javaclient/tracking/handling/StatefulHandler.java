@@ -25,6 +25,7 @@ import io.fluxcapacitor.javaclient.common.serialization.DeserializingMessage;
 import io.fluxcapacitor.javaclient.modeling.EntityId;
 import io.fluxcapacitor.javaclient.modeling.HandlerRepository;
 import io.fluxcapacitor.javaclient.modeling.Id;
+import io.fluxcapacitor.javaclient.publishing.routing.RoutingKey;
 import io.fluxcapacitor.javaclient.tracking.Tracker;
 import lombok.AccessLevel;
 import lombok.AllArgsConstructor;
@@ -92,24 +93,25 @@ public class StatefulHandler implements Handler<DeserializingMessage> {
         boolean alwaysMatch = handlerMatcher.matchingMethods(message).anyMatch(alwaysAssociateMethods::apply);
         var matches = alwaysMatch ? repository.getAll() : repository.findByAssociation(associations(message));
         if (matches.isEmpty()) {
-            if (!canTrackerHandle(message, message.getMessageId())) {
-                return Optional.empty();
-            }
             return handlerMatcher.getInvoker(null, message)
+                    .filter(i -> alreadyFiltered(i) || canTrackerHandle(
+                            message, message.computeRoutingKey().orElseGet(message::getMessageId)))
                     .map(i -> new StatefulHandlerInvoker(i, null));
         }
         HandlerInvoker result = null;
         for (Entry<?> entry : matches) {
-            if (!canTrackerHandle(message, entry.getId())) {
-                continue;
-            }
             var invoker = handlerMatcher.getInvoker(entry.getValue(), message)
+                    .filter(i -> alreadyFiltered(i) || canTrackerHandle(message, entry.getId()))
                     .map(i -> new StatefulHandlerInvoker(i, entry));
             if (invoker.isPresent()) {
                 result = result == null ? invoker.get() : result.combine(invoker.get());
             }
         }
         return Optional.ofNullable(result);
+    }
+
+    protected boolean alreadyFiltered(HandlerInvoker i) {
+        return ReflectionUtils.getMethodAnnotation(i.getMethod(), RoutingKey.class).isPresent();
     }
 
     protected Boolean canTrackerHandle(DeserializingMessage message, String routingKey) {

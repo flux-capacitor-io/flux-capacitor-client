@@ -20,12 +20,18 @@ import io.fluxcapacitor.javaclient.publishing.routing.RoutingKey;
 import io.fluxcapacitor.javaclient.scheduling.Schedule;
 import org.slf4j.LoggerFactory;
 
+import java.time.Instant;
 import java.util.Optional;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.function.BiFunction;
 
 import static io.fluxcapacitor.common.reflection.ReflectionUtils.getAnnotatedPropertyValue;
 import static io.fluxcapacitor.common.reflection.ReflectionUtils.readProperty;
+import static io.fluxcapacitor.javaclient.common.ClientUtils.memoize;
 
 public interface HasMessage extends HasMetadata {
+    BiFunction<Class<?>, String, AtomicBoolean> warnedAboutMissingProperty = memoize((type, property) -> new AtomicBoolean());
+
     Message toMessage();
 
     default <R> R getPayload() {
@@ -39,6 +45,14 @@ public interface HasMessage extends HasMetadata {
     default Class<?> getPayloadClass() {
         Object payload = getPayload();
         return payload == null ? Void.class : payload.getClass();
+    }
+
+    default String getMessageId() {
+        return toMessage().getMessageId();
+    }
+
+    default Instant getTimestamp() {
+        return toMessage().getTimestamp();
     }
 
     default Optional<String> computeRoutingKey() {
@@ -66,7 +80,8 @@ public interface HasMessage extends HasMetadata {
             result = readProperty(propertyName, getPayload())
                     .map(Object::toString).orElse(null);
         }
-        if (result == null) {
+        if (result == null && warnedAboutMissingProperty.apply(getPayloadClass(), propertyName)
+                .compareAndSet(false, true)) {
             LoggerFactory.getLogger(HasMessage.class).warn(
                     "Did not find property (field, method, or metadata key) '{}' for routing key on message {} (id {})",
                     propertyName, getPayloadClass(), toMessage().getMessageId());

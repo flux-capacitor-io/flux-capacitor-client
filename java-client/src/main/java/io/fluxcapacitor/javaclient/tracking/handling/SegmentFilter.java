@@ -36,7 +36,9 @@ public class SegmentFilter implements MessageFilter<HasMessage> {
         return message instanceof DeserializingMessage dm
                && Tracker.current().filter(tracker -> tracker.getConfiguration().ignoreSegment())
                        .map(tracker -> routingKeyCache.apply(executable)
-                               .flatMap(routingKey -> message.getRoutingKey(routingKey.value()))
+                               .map(routingKey -> message.getRoutingKey(routingKey.value())
+                                       .or(message::computeRoutingKey)
+                                       .orElseGet(message::getMessageId))
                                .map(routingValue -> tracker.canHandle(dm, routingValue))
                                .orElse(true)).orElse(true);
     }
