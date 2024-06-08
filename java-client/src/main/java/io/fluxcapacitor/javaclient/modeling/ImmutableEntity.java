@@ -122,6 +122,11 @@ public class ImmutableEntity<T> implements Entity<T> {
     }
 
     @Override
+    public Entity<T> commit() {
+        return this;
+    }
+
+    @Override
     public <E extends Exception> Entity<T> assertLegal(Object command) throws E {
         entityHelper.assertLegal(command, root());
         return this;

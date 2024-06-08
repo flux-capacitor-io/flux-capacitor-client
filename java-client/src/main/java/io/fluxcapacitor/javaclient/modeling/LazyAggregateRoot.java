@@ -153,6 +153,11 @@ public class LazyAggregateRoot<T> implements AggregateRoot<T> {
     }
 
     @Override
+    public Entity<T> commit() {
+        throw new UnsupportedOperationException("This aggregate is read-only.");
+    }
+
+    @Override
     public Entity<T> withType(Class<T> type) {
         throw new UnsupportedOperationException("This aggregate is read-only.");
     }

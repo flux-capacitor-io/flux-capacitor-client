@@ -373,11 +373,58 @@ public class AggregateEntitiesTest {
     }
 
     @Nested
+    class CommitTests {
+        Object event = "whatever";
+
+        @Test
+        void exceptionPreventsEvent() {
+            testFixture.registerHandlers(new Object() {
+                @HandleCommand
+                void handle(Object command) {
+                    Entity<Aggregate> entity = loadAggregate("test", Aggregate.class);
+                    entity.apply(command);
+                    throw new MockException();
+                }
+            }).whenCommand(event).expectNoEvents();
+        }
+
+        @Test
+        void commitBeforeHandlerEndYieldsEvent() {
+            testFixture.registerHandlers(new Object() {
+                @HandleCommand
+                void handle(Object command) {
+                    Entity<Aggregate> entity = loadAggregate("test", Aggregate.class);
+                    entity.apply(command);
+                    entity.commit();
+                    throw new MockException();
+                }
+            }).whenCommand(event).expectOnlyEvents(event);
+        }
+
+        @Test
+        void exceptionOtherAggregatePreventsEvent() {
+            testFixture.registerHandlers(new Object() {
+                @HandleCommand
+                void handle(Object command) {
+                    loadAggregate("test", Aggregate.class).apply("first").commit();
+                    loadAggregate("test2", Aggregate.class).apply("second");
+                    throw new MockException();
+                }
+            }).whenCommand(event).expectOnlyEvents("first");
+        }
+    }
+
+    @Nested
     class ApplyTests {
 
         @BeforeEach
         void setUp() {
-            testFixture.registerHandlers(new CommandHandler());
+            testFixture.registerHandlers(new Object() {
+                @HandleCommand
+                void handle(Object command) {
+                    loadAggregate("test", Aggregate.class).apply(command);
+                }
+            });
         }
 
         @Nested
@@ -618,12 +665,6 @@ public class AggregateEntitiesTest {
             }
         }
 
-        class CommandHandler {
-            @HandleCommand
-            void handle(Object command) {
-                loadAggregate("test", Aggregate.class).apply(command);
-            }
-        }
     }
 
     @Nested

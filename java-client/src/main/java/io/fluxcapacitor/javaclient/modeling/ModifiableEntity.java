@@ -58,6 +58,12 @@ public class ModifiableEntity<T> extends DelegatingEntity<T> {
 
     @Override
     @SuppressWarnings("unchecked")
+    public Entity<T> commit() {
+        return (Entity<T>) root.commit().getEntity(id()).orElse(null);
+    }
+
+    @Override
+    @SuppressWarnings("unchecked")
     public Entity<T> assertAndApply(Object payloadOrMessage) {
         return (Entity<T>) root.assertAndApply(payloadOrMessage).getEntity(id()).orElse(null);
     }

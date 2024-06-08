@@ -249,6 +249,8 @@ public interface Entity<T> {
 
     Entity<T> apply(Message eventMessage);
 
+    Entity<T> commit();
+
     <E extends Exception> Entity<T> assertLegal(Object command) throws E;
 
     default Entity<T> assertAndApply(Object payloadOrMessage) {
@@ -269,18 +271,6 @@ public interface Entity<T> {
             result = result.assertAndApply(event);
         }
         return result;
-    }
-
-    default <E extends Exception> Entity<T> assertThat(Validator<T, E> validator) throws E {
-        validator.validate(this.get());
-        return this;
-    }
-
-    default <E extends Exception> Entity<T> ensure(Predicate<T> check, Function<T, E> errorProvider) throws E {
-        if (!check.test(get())) {
-            throw errorProvider.apply(get());
-        }
-        return this;
     }
 
     default Iterable<Entity<?>> possibleTargets(Object payload) {

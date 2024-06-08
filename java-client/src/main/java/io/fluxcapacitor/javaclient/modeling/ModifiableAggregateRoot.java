@@ -166,7 +166,7 @@ public class ModifiableAggregateRoot<T> extends DelegatingEntity<T> implements A
             applying = false;
         }
         while (!queued.isEmpty()) {
-            Pair<Message, Boolean> value = queued.remove(0);
+            Pair<Message, Boolean> value = queued.removeFirst();
             apply(value.getFirst(), value.getSecond());
         }
         return this;
@@ -207,31 +207,35 @@ public class ModifiableAggregateRoot<T> extends DelegatingEntity<T> implements A
         waitingForHandlerEnd.set(false);
         if (error == null) {
             uncommitted.addAll(applied);
-            applied.clear();
-            lastStable = getDelegate();
-            if (!commitInBatch) {
-                commit();
-            } else if (waitingForBatchEnd.compareAndSet(false, true)) {
-                DeserializingMessage.whenBatchCompletes(e -> commit());
-            }
+            lastStable = delegate;
         } else {
-            applied.clear();
             delegate = lastStable;
-            if (!commitInBatch) {
-                activeAggregates.get().remove(id(), this);
-            } else if (waitingForBatchEnd.compareAndSet(false, true)) {
-                DeserializingMessage.whenBatchCompletes(e -> commit());
-            }
+        }
+        applied.clear();
+        if (!commitInBatch) {
+            activeAggregates.get().remove(id(), this);
+            commit();
+        } else if (waitingForBatchEnd.compareAndSet(false, true)) {
+            DeserializingMessage.whenBatchCompletes(this::whenBatchCompletes);
         }
     }
 
-    protected void commit() {
+    protected void whenBatchCompletes(Throwable error) {
+        waitingForBatchEnd.set(false);
         activeAggregates.get().remove(id(), this);
+        commit();
+    }
+
+    @Override
+    public Entity<T> commit() {
+        uncommitted.addAll(applied);
+        applied.clear();
+        lastStable = delegate;
         List<DeserializingMessage> events = new ArrayList<>(uncommitted);
         uncommitted.clear();
-        waitingForBatchEnd.set(false);
         commitHandler.handle(lastStable, events, lastCommitted);
         lastCommitted = lastStable;
+        return this;
     }
 
     @FunctionalInterface

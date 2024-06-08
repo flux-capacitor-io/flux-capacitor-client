@@ -22,8 +22,6 @@ import lombok.experimental.Accessors;
 
 import java.util.Collection;
 import java.util.Optional;
-import java.util.function.Function;
-import java.util.function.Predicate;
 import java.util.function.Supplier;
 import java.util.function.UnaryOperator;
 
@@ -49,22 +47,17 @@ public class NoOpEntity<T> implements Entity<T> {
     }
 
     @Override
+    public Entity<T> commit() {
+        return this;
+    }
+
+    @Override
     public Entity<T> update(UnaryOperator<T> function) {
         return this;
     }
 
     @Override
     public <E extends Exception> NoOpEntity<T> assertLegal(Object command) throws E {
-        return this;
-    }
-
-    @Override
-    public <E extends Exception> NoOpEntity<T> assertThat(Validator<T, E> validator) throws E {
-        return this;
-    }
-
-    @Override
-    public <E extends Exception> NoOpEntity<T> ensure(Predicate<T> check, Function<T, E> errorProvider) throws E {
         return this;
     }
 
