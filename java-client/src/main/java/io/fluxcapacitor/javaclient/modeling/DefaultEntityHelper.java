@@ -85,7 +85,8 @@ public class DefaultEntityHelper implements EntityHelper {
         MessageWithEntity m = new MessageWithEntity(payload, entity);
         return getInterceptInvoker(m)
                 .map(i -> asStream(i.invoke()).flatMap(v -> {
-                    Message message = Message.asMessage(v);
+                    Message message = v instanceof HasMessage hm
+                            ? hm.toMessage() : Message.asMessage(v).withTimestamp(m.getTimestamp());
                     message = message.withMetadata(m.getMetadata().with(message.getMetadata()));
                     if (message.getPayloadClass().equals(m.getPayloadClass())) {
                         return Stream.of(message);
