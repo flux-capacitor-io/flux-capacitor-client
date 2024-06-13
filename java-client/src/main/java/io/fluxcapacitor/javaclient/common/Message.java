@@ -51,6 +51,7 @@ public class Message implements HasMessage {
     Metadata metadata;
     @With
     String messageId;
+    @With
     Instant timestamp;
 
     public Message(Object payload) {

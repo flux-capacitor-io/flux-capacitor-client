@@ -156,6 +156,16 @@ public class WebRequest extends Message {
         return toBuilder().payload(payload).build();
     }
 
+    @Override
+    public WebRequest withMessageId(String messageId) {
+        return new WebRequest(super.withMessageId(messageId));
+    }
+
+    @Override
+    public WebRequest withTimestamp(Instant timestamp) {
+        return new WebRequest(super.withTimestamp(timestamp));
+    }
+
     public String getHeader(String name) {
         return getHeaders(name).stream().findFirst().orElse(null);
     }

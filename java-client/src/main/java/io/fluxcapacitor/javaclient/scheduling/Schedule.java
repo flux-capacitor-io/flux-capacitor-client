@@ -73,6 +73,16 @@ public class Schedule extends Message {
     }
 
     @Override
+    public Schedule withMessageId(String messageId) {
+        return new Schedule(getPayload(), getMetadata(), messageId, getTimestamp(), scheduleId, deadline);
+    }
+
+    @Override
+    public Schedule withTimestamp(Instant timestamp) {
+        return new Schedule(getPayload(), getMetadata(), getMessageId(), timestamp, scheduleId, deadline);
+    }
+
+    @Override
     public Schedule addMetadata(Metadata metadata) {
         return (Schedule) super.addMetadata(metadata);
     }

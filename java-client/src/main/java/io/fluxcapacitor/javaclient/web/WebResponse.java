@@ -125,6 +125,16 @@ public class WebResponse extends Message {
         return toBuilder().payload(payload).build();
     }
 
+    @Override
+    public WebResponse withMessageId(String messageId) {
+        return new WebResponse(super.withMessageId(messageId));
+    }
+
+    @Override
+    public WebResponse withTimestamp(Instant timestamp) {
+        return new WebResponse(super.withTimestamp(timestamp));
+    }
+
     public WebResponse.Builder toBuilder() {
         return new Builder(this);
     }
