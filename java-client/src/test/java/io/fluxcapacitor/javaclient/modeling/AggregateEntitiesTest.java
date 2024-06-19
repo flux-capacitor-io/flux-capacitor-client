@@ -139,8 +139,25 @@ public class AggregateEntitiesTest {
 
         @Test
         void testRouteToGrandchild() {
-            testFixture.whenCommand(new CommandWithRoutingKey("grandChild"))
-                    .expectExceptionalResult(IllegalCommandException.class).expectNoEvents();
+            testFixture = TestFixture.create().given(
+                    fc -> loadAggregate("test", Aggregate.class).update(s -> Aggregate.builder().build()));
+            testFixture.whenCommand(new Object() {
+                        @HandleCommand
+                        void handle() {
+                            Entity<Aggregate> entity = loadAggregate("test", Aggregate.class);
+                            entity.assertAndApply(this);
+                        }
+
+                        @Apply
+                        GrandChild apply(GrandChild grandChild) {
+                            throw new MockException();
+                        }
+
+                        String getGrandChildId() {
+                            return "grandChild";
+                        }
+                    })
+                    .expectExceptionalResult(MockException.class);
         }
 
         @Test

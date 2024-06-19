@@ -25,8 +25,10 @@ import io.fluxcapacitor.javaclient.publishing.routing.RoutingKey;
 
 import java.beans.Transient;
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Objects;
@@ -44,6 +46,7 @@ import static io.fluxcapacitor.common.reflection.ReflectionUtils.readProperty;
 import static io.fluxcapacitor.javaclient.common.Message.asMessage;
 import static java.lang.String.format;
 import static java.util.Collections.emptyList;
+import static java.util.Collections.singletonList;
 import static java.util.Optional.ofNullable;
 
 public interface Entity<T> {
@@ -274,39 +277,55 @@ public interface Entity<T> {
     }
 
     default Iterable<Entity<?>> possibleTargets(Object payload) {
-        if (payload != null) {
-            for (Entity<?> e : entities()) {
-                if (e.isPossibleTarget(payload)) {
-                    return List.of(e);
-                }
+        if (payload == null) {
+            return emptyList();
+        }
+        for (Entity<?> e : entities()) {
+            if (e.isPossibleTarget(payload, false)) {
+                return singletonList(e);
             }
         }
-        return emptyList();
+        List<Entity<?>> result = new ArrayList<>();
+        for (Entity<?> e : entities()) {
+            if (e.isPossibleTarget(payload, true)) {
+                result.add(e);
+            }
+        }
+        return switch (result.size()) {
+            case 0 -> emptyList();
+            case 1 -> result.subList(0, 1);
+            default -> {
+                result.sort(Comparator.<Entity<?>>comparingInt(Entity::depth).reversed());
+                yield result.subList(0, 1);
+            }
+        };
     }
 
-    private boolean isPossibleTarget(Object message) {
+    default int depth() {
+        Entity<?> parent = parent();
+        return parent == null ? 0 : 1 + parent.depth();
+    }
+
+    private boolean isPossibleTarget(Object message, boolean includeEmpty) {
         if (message == null) {
             return false;
         }
         String idProperty = idProperty();
-        Object id = id();
         if (idProperty == null) {
-            return true;
-        }
-        if (id == null && get() != null) {
-            return false;
+            return includeEmpty;
         }
         Object payload = message instanceof Message ? ((Message) message).getPayload() : message;
+        Object id = id();
         if (id == null) {
-            return hasProperty(idProperty, payload);
+            return includeEmpty && isEmpty() && hasProperty(idProperty, payload);
         }
         if (readProperty(idProperty, payload)
                 .or(() -> getAnnotatedPropertyValue(payload, RoutingKey.class)).map(id::equals).orElse(false)) {
             return true;
         }
-        if (!hasProperty(idProperty, payload)) {
+        if (isPresent() && !hasProperty(idProperty, payload)) {
             for (Entity<?> e : entities()) {
-                if (e.isPossibleTarget(message)) {
+                if (e.isPresent() && e.isPossibleTarget(message, includeEmpty)) {
                     return true;
                 }
             }
