@@ -162,15 +162,15 @@ public class DefaultEntityHelper implements EntityHelper {
             ValidationUtils.assertValid(value instanceof HasMessage hasMessage ? hasMessage.getPayload() : value);
         }
 
-        //check on value
-        Object payload = value instanceof HasMessage hasMessage ? hasMessage.getPayload() : value;
-        assertLegalValue(payload.getClass(), payload, value, entity, afterHandler);
-        entity.possibleTargets(payload).forEach(
-                e -> assertLegalValue(payload.getClass(), payload, value, e, afterHandler));
+        //check recursive on value and entity
+        assertLegalRecursive(value, entity, afterHandler,
+                             value instanceof HasMessage hasMessage ? hasMessage.getPayload() : value);
+    }
 
-        //check on entity
+    private void assertLegalRecursive(Object value, Entity<?> entity, boolean afterHandler, Object payload) {
+        assertLegalValue(payload.getClass(), payload, value, entity, afterHandler);
         assertLegalValue(entity.type(), entity.get(), value, entity, afterHandler);
-        entity.possibleTargets(payload).forEach(e -> assertLegalValue(e.type(), e.get(), value, e, afterHandler));
+        entity.possibleTargets(payload).forEach(e -> assertLegalRecursive(value, e, afterHandler, payload));
     }
 
     private void assertLegalValue(Class<?> targetType, Object target, Object value, Entity<?> entity,
