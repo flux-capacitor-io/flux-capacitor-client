@@ -20,11 +20,13 @@ import io.fluxcapacitor.common.api.search.SearchQuery;
 import io.fluxcapacitor.common.reflection.ReflectionUtils;
 import io.fluxcapacitor.javaclient.modeling.EntityId;
 import io.fluxcapacitor.javaclient.modeling.SearchParameters;
+import jakarta.validation.constraints.NotNull;
 import lombok.NonNull;
 import lombok.SneakyThrows;
 
 import java.time.Duration;
 import java.time.Instant;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
@@ -40,40 +42,60 @@ import static java.util.Optional.ofNullable;
 
 public interface DocumentStore {
 
-    default CompletableFuture<Void> index(Object object) {
+    default CompletableFuture<Void> index(@NonNull Object object) {
+        if (object.getClass().isArray()) {
+            if (!object.getClass().arrayType().isPrimitive()) {
+                object = Arrays.asList((Object[]) object);
+            }
+        }
         if (object instanceof Collection<?> collection) {
             return CompletableFuture.allOf(collection.stream().map(this::index).toArray(CompletableFuture[]::new));
         }
         Class<?> type = object.getClass();
-        var searchParams = ofNullable(getSearchParameters(type)).orElseGet(() -> SearchParameters.builder().build());
+        var searchParams = ofNullable(getSearchParameters(type)).orElse(SearchParameters.defaultSearchParameters);
+        String collection = ofNullable(searchParams.getCollection()).orElseGet(type::getSimpleName);
         Instant begin = ReflectionUtils.<Instant>readProperty(searchParams.getTimestampPath(), object).orElse(null);
         Instant end = ReflectionUtils.hasProperty(searchParams.getEndPath(), object)
                 ? ReflectionUtils.<Instant>readProperty(searchParams.getEndPath(), object).orElse(null) : begin;
-        return index(object, getAnnotatedPropertyValue(object, EntityId.class).map(Object::toString)
-                             .orElseGet(() -> currentIdentityProvider().nextTechnicalId()),
-                     ofNullable(searchParams.getCollection()).orElseGet(type::getSimpleName),
-                     begin, end);
+        String id = getAnnotatedPropertyValue(object, EntityId.class).map(Object::toString)
+                .orElseGet(() -> currentIdentityProvider().nextTechnicalId());
+        return index(object, id, collection, begin, end);
     }
 
-    default CompletableFuture<Void> index(Object object, Object collection) {
-        return index(object instanceof Collection<?> ? (Collection<?>) object : singletonList(object), collection);
+    default CompletableFuture<Void> index(@NonNull Object object, Object collection) {
+        if (object.getClass().isArray()) {
+            if (!object.getClass().arrayType().isPrimitive()) {
+                object = Arrays.asList((Object[]) object);
+            }
+        }
+        if (object instanceof Collection<?> col) {
+            return CompletableFuture.allOf(col.stream().map(v -> index(v, collection)).toArray(CompletableFuture[]::new));
+        }
+        Class<?> type = object.getClass();
+        var searchParams = ofNullable(getSearchParameters(type)).orElse(SearchParameters.defaultSearchParameters);
+        Instant begin = ReflectionUtils.<Instant>readProperty(searchParams.getTimestampPath(), object).orElse(null);
+        Instant end = ReflectionUtils.hasProperty(searchParams.getEndPath(), object)
+                ? ReflectionUtils.<Instant>readProperty(searchParams.getEndPath(), object).orElse(null) : begin;
+        String id = getAnnotatedPropertyValue(object, EntityId.class).map(Object::toString)
+                .orElseGet(() -> currentIdentityProvider().nextTechnicalId());
+        return index(object, id, collection, begin, end);
     }
 
-    default CompletableFuture<Void> index(Object object, Object id, Object collection) {
+    default CompletableFuture<Void> index(@NonNull Object object, Object id, Object collection) {
         return index(object, id, collection, null);
     }
 
     @SneakyThrows
-    default CompletableFuture<Void> index(Object object, Object id, Object collection, Instant timestamp) {
+    default CompletableFuture<Void> index(@NonNull Object object, Object id, Object collection, Instant timestamp) {
         return index(object, id, collection, timestamp, timestamp, Guarantee.STORED, false);
     }
 
     @SneakyThrows
-    default CompletableFuture<Void> index(Object object, Object id, Object collection, Instant begin, Instant end) {
+    default CompletableFuture<Void> index(@NonNull Object object, Object id, Object collection, Instant begin, Instant end) {
         return index(object, id, collection, begin, end, Guarantee.STORED, false);
     }
 
-    CompletableFuture<Void> index(Object object, Object id, Object collection, Instant begin, Instant end,
+    CompletableFuture<Void> index(@NotNull Object object, Object id, Object collection, Instant begin, Instant end,
                                   Guarantee guarantee, boolean ifNotExists);
 
     default CompletableFuture<Void> index(Collection<?> objects, Object collection) {

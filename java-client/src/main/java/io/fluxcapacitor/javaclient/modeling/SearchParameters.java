@@ -23,6 +23,8 @@ import lombok.With;
 @AllArgsConstructor
 @Builder
 public class SearchParameters {
+    public static final SearchParameters defaultSearchParameters = SearchParameters.builder().build();
+
     @Builder.Default
     boolean searchable = true;
     @With

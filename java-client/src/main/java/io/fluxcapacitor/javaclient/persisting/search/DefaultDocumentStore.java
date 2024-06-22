@@ -34,6 +34,7 @@ import io.fluxcapacitor.common.search.Document;
 import io.fluxcapacitor.javaclient.persisting.search.client.SearchClient;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
+import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.util.StringUtils;
@@ -64,7 +65,7 @@ public class DefaultDocumentStore implements DocumentStore {
     private final DocumentSerializer serializer;
 
     @Override
-    public CompletableFuture<Void> index(Object object, Object id, Object collection, Instant begin,
+    public CompletableFuture<Void> index(@NonNull Object object, Object id, Object collection, Instant begin,
                                          Instant end, Guarantee guarantee, boolean ifNotExists) {
         try {
             return client.index(
