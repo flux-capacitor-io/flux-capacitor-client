@@ -51,6 +51,7 @@ import io.fluxcapacitor.javaclient.tracking.Tracker;
 import io.fluxcapacitor.javaclient.tracking.handling.HandleSchedule;
 import io.fluxcapacitor.javaclient.tracking.handling.HandlerInterceptor;
 import io.fluxcapacitor.javaclient.tracking.handling.HasLocalHandlers;
+import io.fluxcapacitor.javaclient.tracking.handling.authentication.UnauthorizedException;
 import io.fluxcapacitor.javaclient.tracking.handling.authentication.User;
 import io.fluxcapacitor.javaclient.tracking.handling.authentication.UserProvider;
 import io.fluxcapacitor.javaclient.web.WebRequest;
@@ -412,10 +413,10 @@ public class TestFixture implements Given, When {
     }
 
     @Override
-    public TestFixture givenCommandsByUser(User user, Object... commands) {
+    public TestFixture givenCommandsByUser(Object userRep, Object... commands) {
         Class<?> callerClass = ReflectionUtils.getCallerClass();
         for (Object command : commands) {
-            givenModification(fixture -> fixture.asMessages(callerClass, command).map(c -> fixture.addUser(user, c))
+            givenModification(fixture -> fixture.asMessages(callerClass, command).map(c -> fixture.addUser(getUser(userRep), c))
                     .forEach(c -> fixture.getDispatchResult(fixture.getFluxCapacitor().commandGateway().send(c))));
         }
         return this;
@@ -503,8 +504,9 @@ public class TestFixture implements Given, When {
     }
 
     @Override
-    public Then whenCommandByUser(User user, Object command) {
-        return whenCommand(addUser(user, command));
+    public Then whenCommandByUser(Object user, Object command) {
+        Message message = trace(command);
+        return whenApplying(fc -> getDispatchResult(fc.commandGateway().send(addUser(getUser(user), message))));
     }
 
     @Override
@@ -514,8 +516,9 @@ public class TestFixture implements Given, When {
     }
 
     @Override
-    public Then whenQueryByUser(User user, Object query) {
-        return whenQuery(addUser(user, query));
+    public Then whenQueryByUser(Object user, Object query) {
+        Message message = trace(query);
+        return whenApplying(fc -> getDispatchResult(fc.queryGateway().send(addUser(getUser(user), message))));
     }
 
     @Override
@@ -588,6 +591,15 @@ public class TestFixture implements Given, When {
     /*
         helper
      */
+
+    protected User getUser(Object userOrId) {
+        User result = userOrId instanceof User user ? user
+                : fluxCapacitor.apply(fc -> fc.userProvider().getUserById(userOrId));
+        if (result == null) {
+            throw new UnauthorizedException("User %s could not be provided".formatted(userOrId));
+        }
+        return result;
+    }
 
     protected Then getResultValidator(Object result, List<Message> commands, List<Message> queries,
                                       List<Message> events, List<Schedule> schedules, List<Schedule> allSchedules,

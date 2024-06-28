@@ -25,7 +25,7 @@ import java.util.Optional;
 
 @AllArgsConstructor
 public class TestUserProvider implements UserProvider {
-    @Delegate(excludes = ExcludedMethods.class)
+    @Delegate
     private final UserProvider delegate;
 
     @Override
@@ -36,9 +36,5 @@ public class TestUserProvider implements UserProvider {
             return getSystemUser();
         }
         return result;
-    }
-
-    private interface ExcludedMethods {
-        User getActiveUser();
     }
 }

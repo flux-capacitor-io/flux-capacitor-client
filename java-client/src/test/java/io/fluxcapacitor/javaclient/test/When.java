@@ -23,6 +23,7 @@ import io.fluxcapacitor.javaclient.common.Message;
 import io.fluxcapacitor.javaclient.modeling.Id;
 import io.fluxcapacitor.javaclient.persisting.search.Search;
 import io.fluxcapacitor.javaclient.tracking.handling.authentication.User;
+import io.fluxcapacitor.javaclient.tracking.handling.authentication.UserProvider;
 import io.fluxcapacitor.javaclient.web.WebRequest;
 
 import java.time.Duration;
@@ -49,10 +50,13 @@ public interface When {
     /**
      * Test expected behavior of handling the given command issued by the given user, including any side effects.
      * <p>
+     * The given {@code user} may be an instance of {@link User} or an object representing the user's id. In the latter
+     * case, the test fixture will use the {@link UserProvider} to provide the user by id.
+     * <p>
      * The command may be an instance of {@link Message} in which case it will be issued as is. Otherwise, the command
      * is issued using the passed value as payload without additional metadata.
      */
-    Then whenCommandByUser(User user, Object command);
+    Then whenCommandByUser(Object user, Object command);
 
     /**
      * Test expected result of the given query (or side effects if any).
@@ -65,10 +69,13 @@ public interface When {
     /**
      * Test expected result of the given query issued by the given user (or side effects if any).
      * <p>
+     * The given {@code user} may be an instance of {@link User} or an object representing the user's id. In the latter
+     * case, the test fixture will use the {@link UserProvider} to provide the user by id.
+     * <p>
      * The query may be an instance of {@link Message} in which case it will be issued as is. Otherwise, the query is
      * issued using the passed value as payload without additional metadata.
      */
-    Then whenQueryByUser(User user, Object command);
+    Then whenQueryByUser(Object user, Object query);
 
     /**
      * Test expected behavior of handling the given event, including any side effects.
@@ -154,6 +161,7 @@ public interface When {
      * Test for state after the given phase.
      */
     default Then whenNothingHappens() {
-        return whenExecuting(fc -> {});
+        return whenExecuting(fc -> {
+        });
     }
 }

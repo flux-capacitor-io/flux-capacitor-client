@@ -23,6 +23,11 @@ public class NoOpUserProvider implements UserProvider {
     private static final NoOpUserProvider instance = new NoOpUserProvider();
 
     @Override
+    public User getUserById(Object userId) {
+        return null;
+    }
+
+    @Override
     public User getSystemUser() {
         return null;
     }

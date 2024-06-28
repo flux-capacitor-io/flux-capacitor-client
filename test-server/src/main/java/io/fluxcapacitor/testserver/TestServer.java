@@ -136,17 +136,13 @@ public class TestServer {
     @AllArgsConstructor
     static
     class TestServerProject implements Client {
-        @Delegate(excludes = Excluded.class)
+        @Delegate
         private final InMemoryClient delegate;
 
         @Override
         public SchedulingClient getSchedulingClient() {
             return new TestServerScheduleStore(
                     ((LocalSchedulingClient) delegate.getSchedulingClient()).getMessageStore());
-        }
-
-        interface Excluded {
-            SchedulingClient getSchedulingClient();
         }
     }
 }

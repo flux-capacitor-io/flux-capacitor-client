@@ -14,21 +14,32 @@
 
 package io.fluxcapacitor.javaclient.tracking.handling.authentication;
 
-public class GivenUserProvider extends AbstractUserProvider {
-    private final User user;
+import java.util.function.Supplier;
 
-    public GivenUserProvider(User user) {
+public class FixedUserProvider extends AbstractUserProvider {
+    private final Supplier<User> userSupplier;
+
+    public FixedUserProvider(User user) {
+        this(() -> user);
+    }
+
+    public FixedUserProvider(Supplier<User> userSupplier) {
         super(User.class);
-        this.user = user;
+        this.userSupplier = userSupplier;
     }
 
     @Override
     public User getActiveUser() {
-        return user;
+        return userSupplier.get();
     }
 
     @Override
     public User getSystemUser() {
-        return user;
+        return userSupplier.get();
+    }
+
+    @Override
+    public User getUserById(Object userId) {
+        return userSupplier.get();
     }
 }

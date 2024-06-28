@@ -24,6 +24,7 @@ import io.fluxcapacitor.javaclient.modeling.Id;
 import io.fluxcapacitor.javaclient.modeling.Searchable;
 import io.fluxcapacitor.javaclient.scheduling.Schedule;
 import io.fluxcapacitor.javaclient.tracking.handling.authentication.User;
+import io.fluxcapacitor.javaclient.tracking.handling.authentication.UserProvider;
 import io.fluxcapacitor.javaclient.web.WebRequest;
 
 import java.time.Clock;
@@ -55,10 +56,13 @@ public interface Given extends When {
     /**
      * Specify one or more commands that have been issued by given {@code user} prior to the behavior you want to test.
      * <p>
+     * The given {@code user} may be an instance of {@link User} or an object representing the user's id. In the latter
+     * case, the test fixture will use the {@link UserProvider} to provide the user by id.
+     * <p>
      * A command may be an instance of {@link Message} in which case it will be issued as is. Otherwise, the command is
      * issued using the passed value as payload without additional metadata.
      */
-    Given givenCommandsByUser(User user, Object... commands);
+    Given givenCommandsByUser(Object user, Object... commands);
 
     /**
      * Specify one or more events that have been applied to given aggregate prior to the behavior you want to test.
@@ -91,8 +95,8 @@ public interface Given extends When {
     /**
      * Specify a documents that has been stored for search prior to the behavior you want to test.
      * <p>
-     * If the object is (meta-)annotated with {@link Searchable @Searchable} the settings in the annotation will
-     * be used for collection name, timestamp path etc.
+     * If the object is (meta-)annotated with {@link Searchable @Searchable} the settings in the annotation will be used
+     * for collection name, timestamp path etc.
      */
     Given givenDocument(Object document);
 
@@ -145,7 +149,7 @@ public interface Given extends When {
      */
     default Given givenSchedules(Schedule... schedules) {
         return given(fc -> Arrays.stream(schedules).forEach(
-                s -> runSilently(() ->fc.scheduler().schedule(s, false, Guarantee.STORED).get())));
+                s -> runSilently(() -> fc.scheduler().schedule(s, false, Guarantee.STORED).get())));
     }
 
     /**

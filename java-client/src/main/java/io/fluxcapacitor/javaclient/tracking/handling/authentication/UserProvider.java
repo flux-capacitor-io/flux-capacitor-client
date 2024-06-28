@@ -30,6 +30,8 @@ public interface UserProvider {
         return User.getCurrent();
     }
 
+    User getUserById(Object userId);
+
     User getSystemUser();
 
     User fromMessage(HasMessage message);

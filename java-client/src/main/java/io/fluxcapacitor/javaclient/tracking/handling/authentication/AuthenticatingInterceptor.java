@@ -78,7 +78,7 @@ public class AuthenticatingInterceptor implements DispatchInterceptor, HandlerIn
 
     @AllArgsConstructor
     private class AuthorizingHandler implements Handler<DeserializingMessage> {
-        @Delegate(excludes = ExcludedMethods.class)
+        @Delegate
         private final Handler<DeserializingMessage> delegate;
 
         @Override
@@ -103,9 +103,5 @@ public class AuthenticatingInterceptor implements DispatchInterceptor, HandlerIn
         public String toString() {
             return delegate.toString();
         }
-    }
-
-    private interface ExcludedMethods {
-        Optional<HandlerInvoker> getInvoker(DeserializingMessage message);
     }
 }

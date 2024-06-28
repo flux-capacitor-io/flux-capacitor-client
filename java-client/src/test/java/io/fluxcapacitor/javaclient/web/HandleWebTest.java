@@ -20,7 +20,7 @@ import io.fluxcapacitor.common.api.SerializedMessage;
 import io.fluxcapacitor.common.serialization.JsonUtils;
 import io.fluxcapacitor.javaclient.configuration.DefaultFluxCapacitor;
 import io.fluxcapacitor.javaclient.test.TestFixture;
-import io.fluxcapacitor.javaclient.tracking.handling.authentication.GivenUserProvider;
+import io.fluxcapacitor.javaclient.tracking.handling.authentication.FixedUserProvider;
 import io.fluxcapacitor.javaclient.tracking.handling.authentication.MockUser;
 import io.fluxcapacitor.javaclient.tracking.handling.authentication.RequiresUser;
 import io.fluxcapacitor.javaclient.tracking.handling.authentication.UnauthenticatedException;
@@ -116,7 +116,7 @@ public class HandleWebTest {
         void testPostPayloadRequiringUser_validWithUser() {
             PayloadRequiringUser object = new PayloadRequiringUser();
             TestFixture.create(DefaultFluxCapacitor.builder().registerUserProvider(
-                            new GivenUserProvider(new MockUser())), new Handler())
+                            new FixedUserProvider(new MockUser())), new Handler())
                     .whenWebRequest(WebRequest.builder().method(POST).url("/requiresUser").payload(object).build())
                     .expectResult(object);
         }
@@ -124,7 +124,7 @@ public class HandleWebTest {
         @Test
         void testPostPayloadRequiringUser_invalidWithoutUser() {
             TestFixture.create(DefaultFluxCapacitor.builder().registerUserProvider(
-                    new GivenUserProvider(null)), new Handler())
+                    new FixedUserProvider(() -> null)), new Handler())
                     .whenWebRequest(WebRequest.builder().method(POST).url("/requiresUser")
                                             .payload(new PayloadRequiringUser()).build())
                     .expectExceptionalResult(UnauthenticatedException.class);

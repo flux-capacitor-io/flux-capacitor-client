@@ -53,7 +53,7 @@ public interface HandlerInterceptor extends HandlerDecorator {
     @AllArgsConstructor
     class InterceptedHandler implements Handler<DeserializingMessage> {
 
-        @Delegate(excludes = ExcludedMethods.class)
+        @Delegate
         private final Handler<DeserializingMessage> delegate;
         private final HandlerInterceptor interceptor;
 
@@ -74,10 +74,6 @@ public interface HandlerInterceptor extends HandlerDecorator {
                     }, s).apply(message);
                 }
             });
-        }
-
-        private interface ExcludedMethods {
-            Optional<HandlerInvoker> getInvoker(DeserializingMessage message);
         }
 
         @Override

@@ -23,14 +23,13 @@ import io.fluxcapacitor.javaclient.givenwhenthen.requiresuser.RequiresUserViaPac
 import io.fluxcapacitor.javaclient.test.TestFixture;
 import io.fluxcapacitor.javaclient.tracking.handling.HandleCommand;
 import io.fluxcapacitor.javaclient.tracking.handling.HandleQuery;
-import io.fluxcapacitor.javaclient.tracking.handling.authentication.AbstractUserProvider;
+import io.fluxcapacitor.javaclient.tracking.handling.authentication.FixedUserProvider;
 import io.fluxcapacitor.javaclient.tracking.handling.authentication.ForbidsAnyRole;
 import io.fluxcapacitor.javaclient.tracking.handling.authentication.MockUser;
 import io.fluxcapacitor.javaclient.tracking.handling.authentication.RequiresAnyRole;
 import io.fluxcapacitor.javaclient.tracking.handling.authentication.RequiresUser;
 import io.fluxcapacitor.javaclient.tracking.handling.authentication.UnauthenticatedException;
 import io.fluxcapacitor.javaclient.tracking.handling.authentication.UnauthorizedException;
-import io.fluxcapacitor.javaclient.tracking.handling.authentication.User;
 import lombok.Value;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -47,7 +46,7 @@ public class GivenWhenThenAuthenticationTest {
 
     private MockUser user = new MockUser("get", "create");
     private final TestFixture testFixture = TestFixture.create(
-            DefaultFluxCapacitor.builder().registerUserProvider(new MockUserProvider()), new MockHandler(),
+            DefaultFluxCapacitor.builder().registerUserProvider(new FixedUserProvider(() -> user)), new MockHandler(),
             new RefdataHandler(), new MockSystemHandler());
 
     @Nested
@@ -313,22 +312,6 @@ public class GivenWhenThenAuthenticationTest {
 
     public enum MockRole {
         modify, delete
-    }
-
-    public class MockUserProvider extends AbstractUserProvider {
-        public MockUserProvider() {
-            super(MockUser.class);
-        }
-
-        @Override
-        public User getActiveUser() {
-            return user;
-        }
-
-        @Override
-        public User getSystemUser() {
-            return user;
-        }
     }
 
 }
