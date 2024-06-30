@@ -14,7 +14,6 @@
 
 package io.fluxcapacitor.testserver;
 
-import io.fluxcapacitor.common.api.search.FacetStats;
 import io.fluxcapacitor.common.api.search.SearchDocuments;
 import io.fluxcapacitor.common.api.search.SearchDocumentsResult;
 import io.fluxcapacitor.common.search.Facet;
@@ -39,8 +38,6 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.test.annotation.DirtiesContext;
 import org.springframework.test.context.ContextConfiguration;
 import org.springframework.test.context.junit.jupiter.SpringExtension;
-
-import java.util.List;
 
 @ExtendWith(SpringExtension.class)
 @DirtiesContext(classMode = DirtiesContext.ClassMode.AFTER_EACH_TEST_METHOD)
@@ -75,14 +72,14 @@ class TestServerTest {
             fc.documentStore().index("bla2", "test").get();
             fc.documentStore().index("bla3", "test").get();
         }).whenApplying(fc -> fc.documentStore().search("test").lookAhead("bla").stream(2).toList())
-                .<List<?>>expectResult(list -> list.size() == 3);
+                .expectResult(list -> list.size() == 3);
     }
 
     @Test
     void testFacetsHandlerIncluded() {
         testFixture.given(fc -> fc.documentStore().index(new FacetedObject("bla"), "test").get())
                 .whenApplying(fc -> fc.documentStore().search("test").facetStats())
-                .<List<FacetStats>>expectResult(list -> list.size() == 1);
+                .expectResult(list -> list.size() == 1);
     }
 
     @Test

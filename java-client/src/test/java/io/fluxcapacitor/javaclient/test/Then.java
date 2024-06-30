@@ -31,10 +31,10 @@ import java.util.function.Predicate;
 import static java.lang.String.format;
 
 /**
- * Interface of the `then` phase of a behavioral given-when-then test. Here you specify the expected behavior of your
+ * Interface of the `then` phase of a behavioral given-when-Then<R> test. Here you specify the expected behavior of your
  * `when` phase.
  */
-public interface Then {
+public interface Then<R> {
 
     /*
         Events
@@ -51,12 +51,12 @@ public interface Then {
      * json resource in the class path of the unit test by passing a string ending in `.json`, e.g.
      * "expected/create-user.json".
      */
-    Then expectEvents(Object... events);
+    Then<R> expectEvents(Object... events);
 
     /**
      * Test if an event got published that matches the given predicate.
      */
-    default <T> Then expectEvent(Predicate<T> predicate) {
+    default <T> Then<R> expectEvent(Predicate<T> predicate) {
         return expectEvents(predicate);
     }
 
@@ -71,7 +71,7 @@ public interface Then {
      * json resource in the class path of the unit test by passing a string ending in `.json`, e.g.
      * "expected/create-user.json".
      */
-    Then expectOnlyEvents(Object... events);
+    Then<R> expectOnlyEvents(Object... events);
 
     /**
      * Assert that the given events did *not* get published.
@@ -84,12 +84,12 @@ public interface Then {
      * json resource in the class path of the unit test by passing a string ending in `.json`, e.g.
      * "expected/create-user.json".
      */
-    Then expectNoEventsLike(Object... events);
+    Then<R> expectNoEventsLike(Object... events);
 
     /**
      * Assert that no events got published.
      */
-    default Then expectNoEvents() {
+    default Then<R> expectNoEvents() {
         return expectOnlyEvents();
     }
 
@@ -108,12 +108,12 @@ public interface Then {
      * json resource in the class path of the unit test by passing a string ending in `.json`, e.g.
      * "expected/create-user.json".
      */
-    Then expectCommands(Object... commands);
+    Then<R> expectCommands(Object... commands);
 
     /**
      * Test if a command got published that matches the given predicate.
      */
-    default <T> Then expectCommand(Predicate<T> predicate) {
+    default <T> Then<R> expectCommand(Predicate<T> predicate) {
         return expectCommands(predicate);
     }
 
@@ -128,7 +128,7 @@ public interface Then {
      * json resource in the class path of the unit test by passing a string ending in `.json`, e.g.
      * "expected/create-user.json".
      */
-    Then expectOnlyCommands(Object... commands);
+    Then<R> expectOnlyCommands(Object... commands);
 
     /**
      * Assert that the given commands did *not* get published.
@@ -141,12 +141,12 @@ public interface Then {
      * json resource in the class path of the unit test by passing a string ending in `.json`, e.g.
      * "expected/create-user.json".
      */
-    Then expectNoCommandsLike(Object... commands);
+    Then<R> expectNoCommandsLike(Object... commands);
 
     /**
      * Assert that no commands got published.
      */
-    default Then expectNoCommands() {
+    default Then<R> expectNoCommands() {
         return expectOnlyCommands();
     }
     
@@ -157,53 +157,53 @@ public interface Then {
     /**
      * Test if the given queries got published.
      * <p>
-     * A query may be an instance of {@link Message} in which case it will be tested against published queries
-     * including any of the Message's metadata. Otherwise, the query is tested against published queries using the
-     * passed value as payload without additional metadata.
+     * A query may be an instance of {@link Message} in which case it will be tested against published queries including
+     * any of the Message's metadata. Otherwise, the query is tested against published queries using the passed value as
+     * payload without additional metadata.
      * <p>
      * A query may also be an instance of {@link Predicate}, hamcrest matcher, or Class. A query may also refer to a
      * json resource in the class path of the unit test by passing a string ending in `.json`, e.g.
      * "expected/create-user.json".
      */
-    Then expectQueries(Object... queries);
+    Then<R> expectQueries(Object... queries);
 
     /**
      * Test if a query got published that matches the given predicate.
      */
-    default <T> Then expectQuery(Predicate<T> predicate) {
+    default <T> Then<R> expectQuery(Predicate<T> predicate) {
         return expectQueries(predicate);
     }
 
     /**
      * Test if the given queries are the *only* queries that got published.
      * <p>
-     * A query may be an instance of {@link Message} in which case it will be tested against published queries
-     * including any of the Message's metadata. Otherwise, the query is tested against published queries using the
-     * passed value as payload without additional metadata.
+     * A query may be an instance of {@link Message} in which case it will be tested against published queries including
+     * any of the Message's metadata. Otherwise, the query is tested against published queries using the passed value as
+     * payload without additional metadata.
      * <p>
      * A query may also be an instance of {@link Predicate}, hamcrest matcher, or Class. A query may also refer to a
      * json resource in the class path of the unit test by passing a string ending in `.json`, e.g.
      * "expected/create-user.json".
      */
-    Then expectOnlyQueries(Object... queries);
+    Then<R> expectOnlyQueries(Object... queries);
 
     /**
      * Assert that the given queries did *not* get published.
      * <p>
-     * A query may be an instance of {@link Message} in which case it will be tested against published queries
-     * including any of the Message's metadata. Otherwise, the query is tested against published queries using the
-     * passed value as payload without additional metadata.
+     * A query may be an instance of {@link Message} in which case it will be tested against published queries including
+     * any of the Message's metadata. Otherwise, the query is tested against published queries using the passed value as
+     * payload without additional metadata.
      * <p>
      * A query may also be an instance of {@link Predicate}, hamcrest matcher, or Class. A query may also refer to a
      * json resource in the class path of the unit test by passing a string ending in `.json`, e.g.
      * "expected/create-user.json".
      */
-    Then expectNoQueriesLike(Object... queries);
+    Then<R> expectNoQueriesLike(Object... queries);
 
     /**
      * Assert that no queries got published.
      */
-    default Then expectNoQueries() {
+    default Then<R> expectNoQueries() {
         return expectOnlyQueries();
     }
 
@@ -222,12 +222,12 @@ public interface Then {
      * refer to a json resource in the class path of the unit test by passing a string ending in `.json`, e.g.
      * "expected/send-mail-request.json".
      */
-    Then expectWebRequests(Object... webRequests);
+    Then<R> expectWebRequests(Object... webRequests);
 
     /**
      * Test if a web request got published that matches the given predicate.
      */
-    default Then expectWebRequest(Predicate<WebRequest> predicate) {
+    default Then<R> expectWebRequest(Predicate<WebRequest> predicate) {
         return expectWebRequests(predicate);
     }
 
@@ -242,7 +242,7 @@ public interface Then {
      * to a json resource in the class path of the unit test by passing a string ending in `.json`, e.g.
      * "send-email-request.json".
      */
-    Then expectOnlyWebRequests(Object... webRequests);
+    Then<R> expectOnlyWebRequests(Object... webRequests);
 
     /**
      * Assert that the given web requests did *not* get published.
@@ -255,12 +255,12 @@ public interface Then {
      * refer to a json resource in the class path of the unit test by passing a string ending in `.json`, e.g.
      * "send-email-request.json".
      */
-    Then expectNoWebRequestsLike(Object... webResponses);
+    Then<R> expectNoWebRequestsLike(Object... webResponses);
 
     /**
      * Assert that no web requests got published.
      */
-    default Then expectNoWebRequests() {
+    default Then<R> expectNoWebRequests() {
         return expectOnlyWebRequests();
     }
 
@@ -279,12 +279,12 @@ public interface Then {
      * refer to a json resource in the class path of the unit test by passing a string ending in `.json`, e.g.
      * "expected/new-user-response.json".
      */
-    Then expectWebResponses(Object... webResponses);
+    Then<R> expectWebResponses(Object... webResponses);
 
     /**
      * Test if a web response got published that matches the given predicate.
      */
-    default Then expectWebResponse(Predicate<WebResponse> predicate) {
+    default Then<R> expectWebResponse(Predicate<WebResponse> predicate) {
         return expectWebResponses(predicate);
     }
 
@@ -299,7 +299,7 @@ public interface Then {
      * to a json resource in the class path of the unit test by passing a string ending in `.json`, e.g.
      * "new-user-response.json".
      */
-    Then expectOnlyWebResponses(Object... webResponses);
+    Then<R> expectOnlyWebResponses(Object... webResponses);
 
     /**
      * Assert that the given web responses did *not* get published.
@@ -312,12 +312,12 @@ public interface Then {
      * refer to a json resource in the class path of the unit test by passing a string ending in `.json`, e.g.
      * "new-user-response.json".
      */
-    Then expectNoWebResponsesLike(Object... webResponses);
+    Then<R> expectNoWebResponsesLike(Object... webResponses);
 
     /**
      * Assert that no web responses got published.
      */
-    default Then expectNoWebResponses() {
+    default Then<R> expectNoWebResponses() {
         return expectOnlyWebResponses();
     }
 
@@ -337,12 +337,12 @@ public interface Then {
      * a json resource in the class path of the unit test by passing a string ending in `.json`, e.g.
      * "expected/create-user.json".
      */
-    Then expectNewSchedules(Object... schedules);
+    Then<R> expectNewSchedules(Object... schedules);
 
     /**
      * Test if a schedule got published that matches the given predicate.
      */
-    default Then expectNewSchedule(Predicate<Schedule> predicate) {
+    default Then<R> expectNewSchedule(Predicate<Schedule> predicate) {
         return expectNewSchedules(predicate);
     }
 
@@ -358,7 +358,7 @@ public interface Then {
      * a json resource in the class path of the unit test by passing a string ending in `.json`, e.g.
      * "expected/create-user.json".
      */
-    Then expectOnlyNewSchedules(Object... schedules);
+    Then<R> expectOnlyNewSchedules(Object... schedules);
 
     /**
      * Assert that the given schedules did not get published.
@@ -372,12 +372,12 @@ public interface Then {
      * a json resource in the class path of the unit test by passing a string ending in `.json`, e.g.
      * "expected/create-user.json".
      */
-    Then expectNoNewSchedulesLike(Object... schedules);
+    Then<R> expectNoNewSchedulesLike(Object... schedules);
 
     /**
      * Assert that no new schedules got published.
      */
-    default Then expectNoNewSchedules() {
+    default Then<R> expectNoNewSchedules() {
         return expectOnlyNewSchedules();
     }
 
@@ -393,12 +393,12 @@ public interface Then {
      * a json resource in the class path of the unit test by passing a string ending in `.json`, e.g.
      * "expected/create-user.json".
      */
-    Then expectSchedules(Object... schedules);
+    Then<R> expectSchedules(Object... schedules);
 
     /**
      * Test if a schedule is still active that matches the given predicate.
      */
-    default Then expectSchedule(Predicate<Schedule> predicate) {
+    default Then<R> expectSchedule(Predicate<Schedule> predicate) {
         return expectSchedules(predicate);
     }
 
@@ -414,7 +414,7 @@ public interface Then {
      * a json resource in the class path of the unit test by passing a string ending in `.json`, e.g.
      * "expected/create-user.json".
      */
-    Then expectOnlySchedules(Object... schedules);
+    Then<R> expectOnlySchedules(Object... schedules);
 
     /**
      * Assert that the given schedules are not active.
@@ -428,24 +428,18 @@ public interface Then {
      * a json resource in the class path of the unit test by passing a string ending in `.json`, e.g.
      * "expected/create-user.json".
      */
-    Then expectNoSchedulesLike(Object... schedules);
+    Then<R> expectNoSchedulesLike(Object... schedules);
 
     /**
      * Assert that there are no running schedules.
      */
-    default Then expectNoSchedules() {
+    default Then<R> expectNoSchedules() {
         return expectOnlySchedules();
     }
 
     /*
         Normal result
      */
-
-    /**
-     * Maps the expected result of the test fixture to something else using the given {@code resultMapper}. This is
-     * typically used to simplify result checks.
-     */
-    <R> Then mapResult(Function<R, Object> resultMapper);
 
     /**
      * Test if the actual result of the test fixture matches the given result.
@@ -455,12 +449,12 @@ public interface Then {
      * "expected/create-user.json". In all other cases, the test fixture result will be compared to the given result by
      * checking if the results are equal via {@link Objects#equals(Object, Object)}.
      */
-    Then expectResult(Object result);
+    Then<R> expectResult(Object result);
 
     /**
      * Test if the actual result of the test fixture is an instance of the given class.
      */
-    default Then expectResult(@NonNull Class<?> resultClass) {
+    default <R2 extends R> Then<R2> expectResult(@NonNull Class<? extends R2> resultClass) {
         return this.expectResult(r -> r instanceof Class<?> ? r.equals(resultClass) : resultClass.isInstance(r),
                                  format("an instance of %s", resultClass.getSimpleName()));
     }
@@ -468,26 +462,39 @@ public interface Then {
     /**
      * Test if the actual result of the test fixture matches the given predicate.
      */
-    default <T> Then expectResult(Predicate<T> predicate) {
+    default <R2 extends R> Then<R2> expectResult(Predicate<R2> predicate) {
         return expectResult(predicate, "Predicate matcher");
     }
 
     /**
      * Assert that the actual result of the test fixture matches the given predicate summarized by given description.
      */
-    <T> Then expectResult(Predicate<T> predicate, String description);
+    <R2 extends R> Then<R2> expectResult(Predicate<R2> predicate, String description);
+
+    /**
+     * Assert that the actual result of the test fixture is a {@link Message} and matches the given predicate.
+     */
+    default <M extends Message> Then<R> expectResultMessage(Predicate<M> messagePredicate) {
+        return expectResultMessage(messagePredicate, "Predicate matcher");
+    }
+
+    /**
+     * ssert that the actual result of the test fixture is a {@link Message} and matches the given predicate summarized
+     * by given description.
+     */
+    <M extends Message> Then<R> expectResultMessage(Predicate<M> messagePredicate, String description);
 
     /**
      * Assert that the result of the test fixture is non-null.
      */
-    default Then expectNonNullResult() {
+    default Then<R> expectNonNullResult() {
         return expectResult(Objects::nonNull);
     }
 
     /**
      * Assert that the test fixture did not yield a result or exception (i.e. actual result is {@code null}).
      */
-    default Then expectNoResult() {
+    default Then<R> expectNoResult() {
         return expectResult((Object) null);
     }
 
@@ -499,7 +506,7 @@ public interface Then {
      * "expected/create-user.json". In all other cases, the test fixture result will be compared to the given result by
      * checking if the results are equal via {@link Objects#equals(Object, Object)}.
      */
-    Then expectNoResultLike(Object result);
+    Then<R> expectNoResultLike(Object result);
 
     /**
      * Assert that the actual result of the test fixture is a {@link Collection} or {@link Map} with containing values
@@ -511,7 +518,13 @@ public interface Then {
      * checking if the results are equal via {@link Objects#equals(Object, Object)}.
      */
     @SuppressWarnings("unchecked")
-    <T> Then expectResultContaining(T... results);
+    <T> Then<R> expectResultContaining(T... results);
+
+    /**
+     * Maps the expected result of the test fixture to something else using the given {@code resultMapper}. This is
+     * typically used to simplify result checks.
+     */
+    <MR> Then<MR> mapResult(Function<? super R, ? extends MR> resultMapper);
 
     /*
         Exceptions
@@ -525,19 +538,19 @@ public interface Then {
      * "expected/create-user.json". In all other cases, the test fixture result will be compared to the given result by
      * checking if the results are equal via {@link Objects#equals(Object, Object)}.
      */
-    Then expectExceptionalResult(Object expectedException);
+    Then<R> expectExceptionalResult(Object expectedException);
 
     /**
      * Assert that the test fixture completed exceptionally.
      */
-    default Then expectExceptionalResult() {
+    default Then<R> expectExceptionalResult() {
         return expectExceptionalResult(Objects::nonNull);
     }
 
     /**
      * Assert that the test fixture completed exceptionally and that the exception is an instance of the given class.
      */
-    default Then expectExceptionalResult(@NonNull Class<? extends Throwable> exceptionClass) {
+    default Then<R> expectExceptionalResult(@NonNull Class<? extends Throwable> exceptionClass) {
         return expectExceptionalResult(exceptionClass::isInstance,
                                        format("an instance of %s", exceptionClass.getSimpleName()));
     }
@@ -545,7 +558,7 @@ public interface Then {
     /**
      * Assert that the test fixture completed exceptionally and that the exception matches the given predicate.
      */
-    default <T extends Throwable> Then expectExceptionalResult(Predicate<T> predicate) {
+    default <T extends Throwable> Then<R> expectExceptionalResult(Predicate<T> predicate) {
         return expectExceptionalResult(predicate, "Predicate matcher");
     }
 
@@ -553,13 +566,22 @@ public interface Then {
      * Assert that the test fixture completed exceptionally and that the exception matches the given predicate described
      * by the given error message.
      */
-    <T extends Throwable> Then expectExceptionalResult(Predicate<T> predicate, String errorMessage);
+    <T extends Throwable> Then<R> expectExceptionalResult(Predicate<T> predicate, String errorMessage);
 
     /**
      * Assert that the test fixture completed without exceptional result.
      */
-    default Then expectSuccessfulResult() {
+    default Then<R> expectSuccessfulResult() {
         return expectResult(r -> !(r instanceof Throwable));
+    }
+
+    /**
+     * Assert that the test fixture completed without exceptional result and also provides a quick way to cast the
+     * fixture result to have the type of the given argument {@link R2}.
+     */
+    @SuppressWarnings("unchecked")
+    default <R2 extends R> Then<R2> expectResult() {
+        return (Then<R2>) expectSuccessfulResult();
     }
 
     /*
@@ -575,14 +597,14 @@ public interface Then {
      * other cases, the actual error will be compared to the given error by checking if the errors are equal via
      * {@link Objects#equals(Object, Object)}.
      */
-    Then expectError(Object expectedError);
+    Then<R> expectError(Object expectedError);
 
     /**
      * Assert that the test fixture handler yielded an exception anywhere and that the exception matches the given
      * predicate. This error does not need to be the returned result of the action in the `when` phase. To assert that
      * use methods that test for exceptional results.
      */
-    default <T extends Throwable> Then expectError(Predicate<T> predicate) {
+    default <T extends Throwable> Then<R> expectError(Predicate<T> predicate) {
         return expectError(predicate, "Predicate matcher");
     }
 
@@ -590,7 +612,7 @@ public interface Then {
      * Assert that the test fixture handler yielded an exception anywhere. This error does not need to be the returned
      * result of the action in the `when` phase. To assert that use methods that test for exceptional results.
      */
-    default Then expectError() {
+    default Then<R> expectError() {
         return expectError(Objects::nonNull);
     }
 
@@ -599,7 +621,7 @@ public interface Then {
      * error class. This error does not need to be the returned result of the action in the `when` phase. To assert that
      * use methods that test for exceptional results.
      */
-    default Then expectError(@NonNull Class<? extends Throwable> errorClass) {
+    default Then<R> expectError(@NonNull Class<? extends Throwable> errorClass) {
         return expectError(errorClass::isInstance, format("an instance of %s", errorClass.getSimpleName()));
     }
 
@@ -608,12 +630,12 @@ public interface Then {
      * predicate described by given error message. This error does not need to be the returned result of the action in
      * the `when` phase. To assert that use methods that test for exceptional results.
      */
-    <T extends Throwable> Then expectError(Predicate<T> predicate, String errorMessage);
+    <T extends Throwable> Then<R> expectError(Predicate<T> predicate, String errorMessage);
 
     /**
      * Assert that there has not been any error produced by any handler.
      */
-    Then expectNoErrors();
+    Then<R> expectNoErrors();
 
     /*
         Metrics
@@ -630,12 +652,12 @@ public interface Then {
      * json resource in the class path of the unit test by passing a string ending in `.json`, e.g.
      * "expected/create-user.json".
      */
-    Then expectMetrics(Object... metrics);
+    Then<R> expectMetrics(Object... metrics);
 
     /**
      * Test if a metric got published that matches the given predicate.
      */
-    default <T> Then expectMetric(Predicate<T> predicate) {
+    default <T> Then<R> expectMetric(Predicate<T> predicate) {
         return expectMetrics(predicate);
     }
 
@@ -650,7 +672,7 @@ public interface Then {
      * json resource in the class path of the unit test by passing a string ending in `.json`, e.g.
      * "expected/create-user.json".
      */
-    Then expectOnlyMetrics(Object... metrics);
+    Then<R> expectOnlyMetrics(Object... metrics);
 
     /**
      * Assert that the given metrics did *not* get published.
@@ -663,12 +685,12 @@ public interface Then {
      * json resource in the class path of the unit test by passing a string ending in `.json`, e.g.
      * "expected/create-user.json".
      */
-    Then expectNoMetricsLike(Object... metrics);
+    Then<R> expectNoMetricsLike(Object... metrics);
 
     /**
      * Assert that no metrics got published.
      */
-    default Then expectNoMetrics() {
+    default Then<R> expectNoMetrics() {
         return expectOnlyMetrics();
     }
 
@@ -680,18 +702,18 @@ public interface Then {
      * Assert that the test fixture is in the correct state after the `when` phase. You can e.g. use this to verify that
      * mocked methods were invoked correctly.
      */
-    Then expectThat(Consumer<FluxCapacitor> check);
+    Then<R> expectThat(Consumer<FluxCapacitor> check);
 
     /**
      * Assert that the test fixture is in the correct state after the `when` phase using the given predicate.
      */
-    Then expectTrue(Predicate<FluxCapacitor> check);
+    Then<R> expectTrue(Predicate<FluxCapacitor> check);
 
     /**
      * Assert that the test fixture is in the correct state after the `when` phase by checking that the given predicate
      * returns false.
      */
-    default Then expectFalse(Predicate<FluxCapacitor> check) {
+    default Then<R> expectFalse(Predicate<FluxCapacitor> check) {
         return expectTrue(check.negate());
     }
 

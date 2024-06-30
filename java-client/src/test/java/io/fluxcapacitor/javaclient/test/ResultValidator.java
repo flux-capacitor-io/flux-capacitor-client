@@ -44,7 +44,7 @@ import static java.util.stream.Collectors.toList;
 
 @AllArgsConstructor
 @Slf4j
-public class ResultValidator implements Then {
+public class ResultValidator<R> implements Then<R> {
     static final boolean matchersSupported = ReflectionUtils.classExists("org.hamcrest.Matcher");
 
     @Getter(AccessLevel.PROTECTED)
@@ -54,121 +54,125 @@ public class ResultValidator implements Then {
     private final List<Schedule> newSchedules;
     private final List<Schedule> allSchedules;
     private final List<Throwable> errors;
+    
+    protected <E> ResultValidator<E> withResult(E result) {
+        return new ResultValidator<>(fluxCapacitor, result, events, commands, queries, webRequests, 
+                                     webResponses, metrics, newSchedules, allSchedules, errors);
+    }
 
-    @Override
     @SuppressWarnings("unchecked")
-    public <R> Then mapResult(Function<R, Object> resultMapper) {
-        result = resultMapper.apply((R) result);
-        return this;
+    @Override
+    public <MR> Then<MR> mapResult(Function<? super R, ? extends MR> resultMapper) {
+        return withResult(resultMapper.apply((R) result));
     }
 
     @Override
-    public Then expectEvents(Object... events) {
+    public Then<R> expectEvents(Object... events) {
         return expect(asMessages(events), this.events);
     }
 
     @Override
-    public Then expectOnlyEvents(Object... events) {
+    public Then<R> expectOnlyEvents(Object... events) {
         return expectOnly(asMessages(events), this.events);
     }
 
     @Override
-    public Then expectNoEventsLike(Object... events) {
+    public Then<R> expectNoEventsLike(Object... events) {
         return expectNo(asMessages(events), this.events);
     }
 
     @Override
-    public Then expectCommands(Object... commands) {
+    public Then<R> expectCommands(Object... commands) {
         return expect(asMessages(commands), this.commands);
     }
 
     @Override
-    public Then expectOnlyCommands(Object... commands) {
+    public Then<R> expectOnlyCommands(Object... commands) {
         return expectOnly(asMessages(commands), this.commands);
     }
 
     @Override
-    public Then expectNoCommandsLike(Object... commands) {
+    public Then<R> expectNoCommandsLike(Object... commands) {
         return expectNo(asMessages(commands), this.commands);
     }
 
     @Override
-    public Then expectQueries(Object... queries) {
+    public Then<R> expectQueries(Object... queries) {
         return expect(asMessages(queries), this.queries);
     }
 
     @Override
-    public Then expectOnlyQueries(Object... queries) {
+    public Then<R> expectOnlyQueries(Object... queries) {
         return expectOnly(asMessages(queries), this.queries);
     }
 
     @Override
-    public Then expectNoQueriesLike(Object... queries) {
+    public Then<R> expectNoQueriesLike(Object... queries) {
         return expectNo(asMessages(queries), this.queries);
     }
 
     @Override
-    public Then expectWebRequests(Object... webRequests) {
+    public Then<R> expectWebRequests(Object... webRequests) {
         return expect(asMessages(webRequests), this.webRequests);
     }
 
     @Override
-    public Then expectOnlyWebRequests(Object... webRequests) {
+    public Then<R> expectOnlyWebRequests(Object... webRequests) {
         return expectOnly(asMessages(webRequests), this.webRequests);
     }
 
     @Override
-    public Then expectNoWebRequestsLike(Object... webResponses) {
+    public Then<R> expectNoWebRequestsLike(Object... webResponses) {
         return expectNo(asMessages(webRequests), this.webRequests);
     }
 
     @Override
-    public Then expectWebResponses(Object... webResponses) {
+    public Then<R> expectWebResponses(Object... webResponses) {
         return expect(asMessages(webResponses), this.webResponses);
     }
 
     @Override
-    public Then expectOnlyWebResponses(Object... webResponses) {
+    public Then<R> expectOnlyWebResponses(Object... webResponses) {
         return expectOnly(asMessages(webResponses), this.webResponses);
     }
 
     @Override
-    public Then expectNoWebResponsesLike(Object... webResponses) {
+    public Then<R> expectNoWebResponsesLike(Object... webResponses) {
         return expectNo(asMessages(commands), this.commands);
     }
 
     @Override
-    public Then expectOnlyNewSchedules(Object... schedules) {
+    public Then<R> expectOnlyNewSchedules(Object... schedules) {
         return expectOnlyScheduledMessages(asMessages(schedules), this.newSchedules);
     }
 
     @Override
-    public Then expectNewSchedules(Object... schedules) {
+    public Then<R> expectNewSchedules(Object... schedules) {
         return expectScheduledMessages(asMessages(schedules), this.newSchedules);
     }
 
     @Override
-    public Then expectNoNewSchedulesLike(Object... schedules) {
+    public Then<R> expectNoNewSchedulesLike(Object... schedules) {
         return expectNo(asMessages(schedules), this.newSchedules);
     }
 
     @Override
-    public Then expectOnlySchedules(Object... schedules) {
+    public Then<R> expectOnlySchedules(Object... schedules) {
         return expectOnlyScheduledMessages(asMessages(schedules), this.allSchedules);
     }
 
     @Override
-    public Then expectSchedules(Object... schedules) {
+    public Then<R> expectSchedules(Object... schedules) {
         return expectScheduledMessages(asMessages(schedules), this.allSchedules);
     }
 
     @Override
-    public Then expectNoSchedulesLike(Object... schedules) {
+    public Then<R> expectNoSchedulesLike(Object... schedules) {
         return expectNo(asMessages(schedules), this.allSchedules);
     }
 
     @Override
-    public ResultValidator expectResult(Object expectedResult) {
+    public ResultValidator<R> expectResult(Object expectedResult) {
         Class<?> callerClass = ReflectionUtils.getCallerClass();
         return fluxCapacitor.apply(fc -> {
             Object expected = TestFixture.parseObject(expectedResult, callerClass);
@@ -189,8 +193,23 @@ public class ResultValidator implements Then {
         });
     }
 
+    @SuppressWarnings({"unchecked", "rawtypes"})
     @Override
-    public <T> Then expectResult(Predicate<T> predicate, String description) {
+    public <M extends Message> Then<R> expectResultMessage(Predicate<M> messagePredicate, String description) {
+        if (result instanceof Throwable) {
+            throw new GivenWhenThenAssertionError("An unexpected exception occurred during handling",
+                                                  (Throwable) result);
+        }
+        if (result instanceof Message) {
+            return expectResult((Predicate) messagePredicate, description);
+        }
+        throw new GivenWhenThenAssertionError(String.format(
+                "Test fixture result is not of type Message. Expected: %s\nGot: %s.", description, result));
+    }
+
+    @SuppressWarnings("unchecked")
+    @Override
+    public <R2 extends R> Then<R2> expectResult(Predicate<R2> predicate, String description) {
         return fluxCapacitor.apply(fc -> {
             if (result instanceof Throwable) {
                 throw new GivenWhenThenAssertionError("An unexpected exception occurred during handling",
@@ -200,17 +219,17 @@ public class ResultValidator implements Then {
                 if (!errors.isEmpty()) {
                     throw new GivenWhenThenAssertionError(String.format(
                             "Handler returned an unexpected result. Expected: %s\n"
-                            + "Probable cause is an exception during handling.", description), (errors.get(0)));
+                            + "Probable cause is an exception during handling.", description), errors.getFirst());
                 }
                 throw new GivenWhenThenAssertionError("Handler returned an unexpected result",
                                                       description, result);
             }
-            return this;
+            return (Then<R2>) this;
         });
     }
 
     @Override
-    public ResultValidator expectNoResultLike(Object value) {
+    public ResultValidator<R> expectNoResultLike(Object value) {
         Class<?> callerClass = ReflectionUtils.getCallerClass();
         return fluxCapacitor.apply(fc -> {
             Object notExpected = TestFixture.parseObject(value, callerClass);
@@ -229,7 +248,7 @@ public class ResultValidator implements Then {
 
     @SafeVarargs
     @Override
-    public final <T> Then expectResultContaining(T... results) {
+    public final <T> Then<R> expectResultContaining(T... results) {
         if (!(this.result instanceof Collection<?>)) {
             throw new GivenWhenThenAssertionError("Result is not a collection", List.of(results), this.result);
         }
@@ -237,7 +256,7 @@ public class ResultValidator implements Then {
     }
 
     @Override
-    public ResultValidator expectExceptionalResult(@NonNull Object expectedException) {
+    public ResultValidator<R> expectExceptionalResult(@NonNull Object expectedException) {
         return fluxCapacitor.apply(fc -> {
             if (!(result instanceof Throwable)) {
                 throw new GivenWhenThenAssertionError(
@@ -259,7 +278,7 @@ public class ResultValidator implements Then {
 
     @SuppressWarnings("unchecked")
     @Override
-    public <T extends Throwable> Then expectExceptionalResult(Predicate<T> predicate, String description) {
+    public <T extends Throwable> Then<R> expectExceptionalResult(Predicate<T> predicate, String description) {
         return fluxCapacitor.apply(fc -> {
             if (!(result instanceof Throwable)) {
                 throw new GivenWhenThenAssertionError(
@@ -275,7 +294,7 @@ public class ResultValidator implements Then {
     }
 
     @Override
-    public Then expectError(Object expectedError) {
+    public Then<R> expectError(Object expectedError) {
         if (errors.isEmpty()) {
             throw new GivenWhenThenAssertionError("An error was expected but none was published");
         }
@@ -283,7 +302,7 @@ public class ResultValidator implements Then {
     }
 
     @Override
-    public <T extends Throwable> Then expectError(Predicate<T> predicate, String description) {
+    public <T extends Throwable> Then<R> expectError(Predicate<T> predicate, String description) {
         if (errors.isEmpty()) {
             throw new GivenWhenThenAssertionError("An error was expected but none was published");
         }
@@ -297,30 +316,30 @@ public class ResultValidator implements Then {
     }
 
     @Override
-    public Then expectNoErrors() {
+    public Then<R> expectNoErrors() {
         if (!errors.isEmpty()) {
             throw new GivenWhenThenAssertionError("An unexpected exception occurred during handling",
-                                                  errors.get(0));
+                                                  errors.getFirst());
         }
         return this;
     }
     @Override
-    public Then expectMetrics(Object... metrics) {
+    public Then<R> expectMetrics(Object... metrics) {
         return expect(asMessages(metrics), this.metrics);
     }
 
     @Override
-    public Then expectOnlyMetrics(Object... metrics) {
+    public Then<R> expectOnlyMetrics(Object... metrics) {
         return expectOnly(asMessages(metrics), this.metrics);
     }
 
     @Override
-    public Then expectNoMetricsLike(Object... metrics) {
+    public Then<R> expectNoMetricsLike(Object... metrics) {
         return expectNo(asMessages(metrics), this.metrics);
     }
 
     @Override
-    public ResultValidator expectThat(Consumer<FluxCapacitor> check) {
+    public ResultValidator<R> expectThat(Consumer<FluxCapacitor> check) {
         return fluxCapacitor.apply(fc -> {
             try {
                 check.accept(fc);
@@ -328,7 +347,7 @@ public class ResultValidator implements Then {
                 if (!errors.isEmpty()) {
                     throw new GivenWhenThenAssertionError(String.format(
                             "Verify check failed: %s\nProbable cause is an exception during handling.", e.getMessage()),
-                                                          (errors.get(0)));
+                                                          (errors.getFirst()));
                 }
                 throw new GivenWhenThenAssertionError("Verify check failed", e);
             }
@@ -337,7 +356,7 @@ public class ResultValidator implements Then {
     }
 
     @Override
-    public Then expectTrue(Predicate<FluxCapacitor> check) {
+    public Then<R> expectTrue(Predicate<FluxCapacitor> check) {
         return fluxCapacitor.apply(fc -> {
             if (!check.test(fc)) {
                 throw new GivenWhenThenAssertionError("Predicate test failed");
@@ -353,7 +372,7 @@ public class ResultValidator implements Then {
                && !Objects.equals(expected.getClass(), result.getClass());
     }
 
-    protected ResultValidator expectScheduledMessages(Collection<?> expected, Collection<? extends Schedule> actual) {
+    protected ResultValidator<R> expectScheduledMessages(Collection<?> expected, Collection<? extends Schedule> actual) {
         return fluxCapacitor.apply(fc -> {
             if (!expected.isEmpty() && actual.isEmpty()) {
                 throw new GivenWhenThenAssertionError("No messages were scheduled");
@@ -373,7 +392,7 @@ public class ResultValidator implements Then {
     }
 
 
-    protected ResultValidator expect(Collection<?> expected, Collection<?> actual) {
+    protected ResultValidator<R> expect(Collection<?> expected, Collection<?> actual) {
         return fluxCapacitor.apply(fc -> {
             if (!containsAll(expected, actual)) {
                 List<?> remaining = new ArrayList<>(actual);
@@ -397,7 +416,7 @@ public class ResultValidator implements Then {
         });
     }
 
-    protected ResultValidator expectOnly(Collection<?> expected, Collection<?> actual) {
+    protected ResultValidator<R> expectOnly(Collection<?> expected, Collection<?> actual) {
         return fluxCapacitor.apply(fc -> {
             if (expected.size() != actual.size()) {
                 reportMismatch(expected, actual);
@@ -410,7 +429,7 @@ public class ResultValidator implements Then {
         });
     }
 
-    protected ResultValidator expectNo(Collection<?> expectedNotToGet, Collection<?> actual) {
+    protected ResultValidator<R> expectNo(Collection<?> expectedNotToGet, Collection<?> actual) {
         return fluxCapacitor.apply(fc -> {
             if (containsAny(expectedNotToGet, actual)) {
                 reportUnwantedMatch(expectedNotToGet, actual);
@@ -425,7 +444,7 @@ public class ResultValidator implements Then {
             if (!errors.isEmpty() && (actual.isEmpty() || !errors.containsAll(actual))) {
                 throw new GivenWhenThenAssertionError(
                         "Published messages did not match. Probable cause is an exception that occurred during handling",
-                        expected, actual, errors.get(0));
+                        expected, actual, errors.getFirst());
             }
             throw new GivenWhenThenAssertionError("Published messages did not match", expected, actual);
         });
@@ -436,7 +455,7 @@ public class ResultValidator implements Then {
         fluxCapacitor.apply(fc -> {
             if (!errors.isEmpty() && (actual.isEmpty() || !errors.containsAll(actual))) {
                 throw new GivenWhenThenAssertionError("An unexpected exception occurred during handling",
-                                                      (errors.get(0)));
+                                                      (errors.getFirst()));
             }
             throw new GivenWhenThenAssertionError(
                     format("Unwanted match found in published messages.\nExpected not to get: %s\nGot: %s\n\n",
@@ -444,9 +463,9 @@ public class ResultValidator implements Then {
         });
     }
 
-    protected ResultValidator expectOnlyScheduledMessages(Collection<?> expected,
+    protected ResultValidator<R> expectOnlyScheduledMessages(Collection<?> expected,
                                                           Collection<? extends Schedule> actual) {
-        ResultValidator result = expectScheduledMessages(expected, actual);
+        ResultValidator<R> result = expectScheduledMessages(expected, actual);
         return result.expectOnly(expected, actual);
     }
 

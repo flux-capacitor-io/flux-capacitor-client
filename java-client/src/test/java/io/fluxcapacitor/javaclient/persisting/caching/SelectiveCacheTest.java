@@ -18,7 +18,6 @@ import io.fluxcapacitor.common.caching.Cache;
 import io.fluxcapacitor.common.caching.DefaultCache;
 import io.fluxcapacitor.javaclient.configuration.DefaultFluxCapacitor;
 import io.fluxcapacitor.javaclient.modeling.Aggregate;
-import io.fluxcapacitor.javaclient.modeling.Entity;
 import io.fluxcapacitor.javaclient.persisting.eventsourcing.Apply;
 import io.fluxcapacitor.javaclient.test.TestFixture;
 import io.fluxcapacitor.javaclient.tracking.handling.HandleCommand;
@@ -205,7 +204,7 @@ class SelectiveCacheTest {
             testFixture.givenCommands(true)
                     .given(fc -> fc.cache().clear())
                     .whenApplying(fc -> loadAggregateFor(aggregateId))
-                    .<Entity<?>>expectResult(e -> e.get() instanceof BooleanModel)
+                    .expectResult(e -> e.get() instanceof BooleanModel)
                     .expectFalse(fc -> booleanCache.isEmpty())
                     .expectThat(fc -> verify(fc.client().getEventStoreClient(), times(1))
                             .getEvents(aggregateId, -1L, -1));
@@ -216,7 +215,7 @@ class SelectiveCacheTest {
             testFixture.givenCommands("command")
                     .given(fc -> fc.cache().clear())
                     .whenApplying(fc -> loadAggregateFor(aggregateId))
-                    .<Entity<?>>expectResult(e -> e.get() instanceof StringModel)
+                    .expectResult(e -> e.get() instanceof StringModel)
                     .expectFalse(fc -> stringCache.isEmpty())
                     .expectThat(fc -> verify(fc.client().getEventStoreClient(), times(1))
                             .getEvents(aggregateId, -1L, -1));
@@ -244,7 +243,7 @@ class SelectiveCacheTest {
             testFixture.givenCommands(123)
                     .given(fc -> fc.cache().clear())
                     .whenApplying(fc -> loadAggregateFor(aggregateId))
-                    .<Entity<?>>expectResult(e -> e.get() instanceof NumberModel)
+                    .expectResult(e -> e.get() instanceof NumberModel)
                     .expectFalse(fc -> defaultCache.isEmpty())
                     .expectThat(fc -> verify(fc.client().getEventStoreClient(), times(1))
                             .getEvents(aggregateId, -1L, -1));

@@ -29,7 +29,6 @@ import io.fluxcapacitor.javaclient.FluxCapacitor;
 import io.fluxcapacitor.javaclient.common.serialization.jackson.JacksonSerializer;
 import io.fluxcapacitor.javaclient.modeling.Id;
 import io.fluxcapacitor.javaclient.modeling.Searchable;
-import io.fluxcapacitor.javaclient.persisting.search.SearchHit;
 import io.fluxcapacitor.javaclient.test.Given;
 import io.fluxcapacitor.javaclient.test.TestFixture;
 import io.fluxcapacitor.javaclient.test.When;
@@ -43,10 +42,10 @@ import org.junit.jupiter.api.Test;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.Arrays;
-import java.util.Collection;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.stream.Stream;
 
 import static io.fluxcapacitor.common.api.search.constraints.AnyConstraint.any;
@@ -72,8 +71,9 @@ public class SearchTest {
     void storeSearchable() {
         TestFixture.create().givenDocument(new SomeSearchable("foo", Instant.now()))
                 .whenSearching(SomeSearchable.class)
-                .<List<SomeSearchable>>expectResult(r -> r.size() == 1)
-                .<List<SomeSearchable>>mapResult(List::getFirst);
+                .expectResult(r -> r.size() == 1)
+                .mapResult(List::getFirst)
+                .expectResult(s -> Objects.equals(s.getId(), "foo"));
     }
 
     @Value
@@ -233,8 +233,8 @@ public class SearchTest {
     void testMetricsMessageExample() {
         JsonNode jsonNode = JsonUtils.fromFile("metrics-message.json", JsonNode.class);
         TestFixture.create().givenDocuments("test", jsonNode)
-                .whenSearching("test", query("106193501828612100", "messageIndex"))
-                .<List<JsonNode>>expectResult(r -> !r.isEmpty() && r.get(0).get("payload") != null);
+                .<JsonNode>whenSearching("test", query("106193501828612100", "messageIndex"))
+                .expectResult(r -> !r.isEmpty() && r.getFirst().get("payload") != null);
     }
 
     @Test
@@ -305,93 +305,92 @@ public class SearchTest {
         @Test
         void testExcludePaths() {
             TestFixture.create().givenDocuments("test", jsonNode)
-                    .whenSearching("test", search -> search.exclude("payload"))
-                    .<List<JsonNode>>expectResult(r -> !r.isEmpty() && r.get(0).get("payload") == null
-                                                       && r.get(0).get("segment") != null
-                                                       && r.get(0).get("metadata") != null
-                                                       && r.get(0).get("metadata").get("requestId") != null);
+                    .<JsonNode>whenSearching("test", search -> search.exclude("payload"))
+                    .expectResult(r -> !r.isEmpty() && r.getFirst().get("payload") == null
+                                                       && r.getFirst().get("segment") != null
+                                                       && r.getFirst().get("metadata") != null
+                                                       && r.getFirst().get("metadata").get("requestId") != null);
 
             TestFixture.create().givenDocuments("test", jsonNode)
-                    .whenSearching("test", search -> search.exclude("segment"))
-                    .<List<JsonNode>>expectResult(r -> r.get(0).get("segment") == null);
+                    .<JsonNode>whenSearching("test", search -> search.exclude("segment"))
+                    .expectResult(r -> r.getFirst().get("segment") == null);
 
             TestFixture.create().givenDocuments("test", jsonNode)
-                    .whenSearching("test", search -> search.exclude("metadata/requestId"))
-                    .<List<JsonNode>>expectResult(r -> r.get(0).get("metadata") != null
-                                                       && r.get(0).get("metadata").get("$consumer") != null
-                                                       && r.get(0).get("metadata").get("requestId") == null);
+                    .<JsonNode>whenSearching("test", search -> search.exclude("metadata/requestId"))
+                    .expectResult(r -> r.getFirst().get("metadata") != null
+                                                       && r.getFirst().get("metadata").get("$consumer") != null
+                                                       && r.getFirst().get("metadata").get("requestId") == null);
 
             TestFixture.create().givenDocuments("test", jsonNode)
-                    .whenSearching("test", search -> search.exclude("metadata/**"))
-                    .<List<JsonNode>>expectResult(r -> r.get(0).get("metadata") == null);
+                    .<JsonNode>whenSearching("test", search -> search.exclude("metadata/**"))
+                    .expectResult(r -> r.getFirst().get("metadata") == null);
         }
 
         @Test
         void testIncludePaths() {
             TestFixture.create().givenDocuments("test", jsonNode)
-                    .whenSearching("test", search -> search.includeOnly("payload"))
-                    .<List<JsonNode>>expectResult(r -> !r.isEmpty()
-                                                       && r.get(0).get("payload") != null
-                                                       && r.get(0).get("payload").get("requestId") != null
-                                                       && r.get(0).get("segment") == null
-                                                       && r.get(0).get("metadata") == null);
+                    .<JsonNode>whenSearching("test", search -> search.includeOnly("payload"))
+                    .expectResult(r -> !r.isEmpty()
+                                                       && r.getFirst().get("payload") != null
+                                                       && r.getFirst().get("payload").get("requestId") != null
+                                                       && r.getFirst().get("segment") == null
+                                                       && r.getFirst().get("metadata") == null);
 
             TestFixture.create().givenDocuments("test", jsonNode)
-                    .whenSearching("test", search -> search.includeOnly("payload/requestId"))
-                    .<List<JsonNode>>expectResult(r -> !r.isEmpty()
-                                                       && r.get(0).get("payload") != null
-                                                       && r.get(0).get("payload").get("requestId") != null
-                                                       && r.get(0).get("payload").get("strategy") == null
-                                                       && r.get(0).get("segment") == null
-                                                       && r.get(0).get("metadata") == null);
+                    .<JsonNode>whenSearching("test", search -> search.includeOnly("payload/requestId"))
+                    .expectResult(r -> !r.isEmpty()
+                                                       && r.getFirst().get("payload") != null
+                                                       && r.getFirst().get("payload").get("requestId") != null
+                                                       && r.getFirst().get("payload").get("strategy") == null
+                                                       && r.getFirst().get("segment") == null
+                                                       && r.getFirst().get("metadata") == null);
         }
 
         @Test
         void testExcludeMultiLevelArray() {
             TestFixture.create().givenDocuments("test", jsonNode)
-                    .whenSearching("test", search -> search.exclude("payload/array/anotherArray"))
-                    .<List<JsonNode>>expectResult(r -> r.get(0).get("metadata") != null
-                                                       && r.get(0).get("payload").get("array") != null
-                                                       &&
-                                                       r.get(0).get("payload").get("array").get(0).get("anotherArray")
+                    .<JsonNode>whenSearching("test", search -> search.exclude("payload/array/anotherArray"))
+                    .expectResult(r -> r.getFirst().get("metadata") != null
+                                                       && r.getFirst().get("payload").get("array") != null
+                                                       && r.getFirst().get("payload").get("array").get(0).get("anotherArray")
                                                        == null);
         }
 
         @Test
         void testMultipleExcludes() {
             TestFixture.create().givenDocuments("test", jsonNode)
-                    .whenSearching("test", search -> search.exclude("payload/array/anotherArray", "payload/requestId"))
-                    .<List<JsonNode>>expectResult(r -> r.get(0).get("metadata") != null
-                                                       && r.get(0).get("payload").get("array") != null
+                    .<JsonNode>whenSearching("test", search -> search.exclude("payload/array/anotherArray", "payload/requestId"))
+                    .expectResult(r -> r.getFirst().get("metadata") != null
+                                                       && r.getFirst().get("payload").get("array") != null
                                                        &&
-                                                       r.get(0).get("payload").get("array").get(0).get("anotherArray")
+                                                       r.getFirst().get("payload").get("array").get(0).get("anotherArray")
                                                        == null);
         }
 
         @Test
         void testMultipleIncludes() {
             TestFixture.create().givenDocuments("test", jsonNode)
-                    .whenSearching("test",
+                    .<JsonNode>whenSearching("test",
                                    search -> search.includeOnly("payload/array/anotherArray", "payload/requestId"))
-                    .<List<JsonNode>>expectResult(r -> r.get(0).get("metadata") == null
-                                                       && r.get(0).get("payload").get("array") != null
+                    .expectResult(r -> r.getFirst().get("metadata") == null
+                                                       && r.getFirst().get("payload").get("array") != null
                                                        &&
-                                                       r.get(0).get("payload").get("array").get(0).get("anotherArray")
+                                                       r.getFirst().get("payload").get("array").get(0).get("anotherArray")
                                                        != null
-                                                       && r.get(0).get("payload").get("requestId") != null);
+                                                       && r.getFirst().get("payload").get("requestId") != null);
         }
 
         @Test
         void testIncludesAndExcludes() {
             TestFixture.create().givenDocuments("test", jsonNode)
-                    .whenSearching("test", search -> search.includeOnly("payload/array", "payload/requestId")
+                    .<JsonNode>whenSearching("test", search -> search.includeOnly("payload/array", "payload/requestId")
                             .exclude("payload/array/anotherArray"))
-                    .<List<JsonNode>>expectResult(r -> r.get(0).get("metadata") == null
-                                                       && r.get(0).get("payload").get("array") != null
+                    .expectResult(r -> r.getFirst().get("metadata") == null
+                                                       && r.getFirst().get("payload").get("array") != null
                                                        &&
-                                                       r.get(0).get("payload").get("array").get(0).get("anotherArray")
+                                                       r.getFirst().get("payload").get("array").get(0).get("anotherArray")
                                                        == null
-                                                       && r.get(0).get("payload").get("requestId") != null);
+                                                       && r.getFirst().get("payload").get("requestId") != null);
         }
     }
 
@@ -404,111 +403,111 @@ public class SearchTest {
 
         @Test
         void searchSinceBeforeDocument() {
-            testFixture.whenSearching("foobar", s -> s.since(documentStart.minusSeconds(1))
-            ).<List<?>>expectResult(docs -> docs.size() == 1);
+            testFixture.<JsonNode>whenSearching("foobar", s -> s.since(documentStart.minusSeconds(1))
+            ).expectResult(docs -> docs.size() == 1);
         }
 
         @Test
         void searchBeforeAfterDocument() {
-            testFixture.whenSearching("foobar", s -> s.before(documentEnd.plusSeconds(1))
-            ).<List<?>>expectResult(docs -> docs.size() == 1);
+            testFixture.<JsonNode>whenSearching("foobar", s -> s.before(documentEnd.plusSeconds(1))
+            ).expectResult(docs -> docs.size() == 1);
         }
 
         @Test
         void searchPeriodBeforeAndAfterDocument() {
-            testFixture.whenSearching("foobar",
+            testFixture.<JsonNode>whenSearching("foobar",
                                       s -> s.inPeriod(documentStart.minusSeconds(1), documentEnd.plusSeconds(1))
-            ).<List<?>>expectResult(docs -> docs.size() == 1);
+            ).expectResult(docs -> docs.size() == 1);
         }
 
         @Test
         void searchPeriodStartsBeforeDocument() {
-            testFixture.whenSearching("foobar",
+            testFixture.<JsonNode>whenSearching("foobar",
                                       s -> s.inPeriod(documentStart.minusSeconds(1), documentEnd.minusSeconds(1))
-            ).<List<?>>expectResult(docs -> docs.size() == 1);
+            ).expectResult(docs -> docs.size() == 1);
         }
 
         @Test
         void searchPeriodEndsAfterDocument() {
-            testFixture.whenSearching("foobar",
+            testFixture.<JsonNode>whenSearching("foobar",
                                       s -> s.inPeriod(documentStart.plusSeconds(1), documentEnd.plusSeconds(1))
-            ).<List<?>>expectResult(docs -> docs.size() == 1);
+            ).expectResult(docs -> docs.size() == 1);
         }
 
         @Test
         void searchPeriodFallsWithinThatOfDocument() {
-            testFixture.whenSearching("foobar",
+            testFixture.<JsonNode>whenSearching("foobar",
                                       s -> s.inPeriod(documentStart.plusSeconds(1), documentEnd.minusSeconds(1))
-            ).<List<?>>expectResult(docs -> docs.size() == 1);
+            ).expectResult(docs -> docs.size() == 1);
         }
 
         @Test
         void searchPeriodBeforeThatOfDocument() {
-            testFixture.whenSearching("foobar",
+            testFixture.<JsonNode>whenSearching("foobar",
                                       s -> s.inPeriod(documentStart.minusSeconds(5), documentStart.minusSeconds(1))
-            ).<List<?>>expectResult(List::isEmpty);
+            ).expectResult(List::isEmpty);
         }
 
         @Test
         void searchPeriodAfterThatOfDocument() {
-            testFixture.whenSearching("foobar",
+            testFixture.<JsonNode>whenSearching("foobar",
                                       s -> s.inPeriod(documentEnd.plusSeconds(1), documentEnd.plusSeconds(5))
-            ).<List<?>>expectResult(List::isEmpty);
+            ).expectResult(List::isEmpty);
         }
 
         @Test
         void searchPeriodStartsAtEndOfDocument() {
-            testFixture.whenSearching("foobar",
+            testFixture.<JsonNode>whenSearching("foobar",
                                       s -> s.inPeriod(documentEnd, documentEnd.plusSeconds(5))
-            ).<List<?>>expectResult(docs -> docs.size() == 1);
+            ).expectResult(docs -> docs.size() == 1);
         }
 
         @Test
         void searchPeriodEndsAtStartOfDocument() {
-            testFixture.whenSearching("foobar", s -> s.before(documentStart)
-            ).<List<?>>expectResult(List::isEmpty);
+            testFixture.<JsonNode>whenSearching("foobar", s -> s.before(documentStart)
+            ).expectResult(List::isEmpty);
         }
 
         @Test
         void searchPeriodEndsAtStartOfDocument_inclusive() {
-            testFixture.whenSearching("foobar", s -> s.before(documentStart, true)
-            ).<List<?>>expectResult(docs -> docs.size() == 1);
+            testFixture.<JsonNode>whenSearching("foobar", s -> s.before(documentStart, true)
+            ).expectResult(docs -> docs.size() == 1);
         }
 
         @Test
         void noDocumentEndTimestamp() {
             TestFixture.create().givenDocument(new SomeDocument(), "testId", "foobar", documentStart, null)
-                    .whenSearching("foobar",
+                    .<JsonNode>whenSearching("foobar",
                                       s -> s.inPeriod(documentStart.minusSeconds(1), documentStart.plusSeconds(1))
-                    ).<List<?>>expectResult(docs -> docs.size() == 1);
+                    ).expectResult(docs -> docs.size() == 1);
             TestFixture.create().givenDocument(new SomeDocument(), "testId", "foobar", documentStart, null)
-                    .whenSearching("foobar",
+                    .<JsonNode>whenSearching("foobar",
                                    s -> s.inPeriod(documentStart.minusSeconds(1), documentStart)
-                    ).<List<?>>expectResult(List::isEmpty);
+                    ).expectResult(List::isEmpty);
         }
 
         @Test
         void noDocumentStartTimestamp() {
             TestFixture.create().givenDocument(new SomeDocument(), "testId", "foobar", null, documentEnd)
-                    .whenSearching("foobar",
+                    .<JsonNode>whenSearching("foobar",
                                    s -> s.inPeriod(documentStart.minusSeconds(1), documentEnd.plusSeconds(1))
-                    ).<List<?>>expectResult(docs -> docs.size() == 1);
+                    ).expectResult(docs -> docs.size() == 1);
             TestFixture.create().givenDocument(new SomeDocument(), "testId", "foobar", null, documentEnd)
-                    .whenSearching("foobar",
+                    .<JsonNode>whenSearching("foobar",
                                    s -> s.inPeriod(documentStart.minusSeconds(1), documentEnd.plusSeconds(1))
-                    ).<List<?>>expectResult(docs -> docs.size() == 1);
+                    ).expectResult(docs -> docs.size() == 1);
         }
 
         @Test
         void noDocumentStartAndEndTimestamp() {
             TestFixture.create().givenDocument(new SomeDocument(), "testId", "foobar", null, null)
-                    .whenSearching("foobar",
+                    .<JsonNode>whenSearching("foobar",
                                    s -> s.inPeriod(documentStart.minusSeconds(1), documentEnd.plusSeconds(1))
-                    ).<List<?>>expectResult(docs -> docs.size() == 1);
+                    ).expectResult(docs -> docs.size() == 1);
             TestFixture.create().givenDocument(new SomeDocument(), "testId", "foobar", null, null)
-                    .whenSearching("foobar",
+                    .<JsonNode>whenSearching("foobar",
                                    s -> s.inPeriod(documentStart.minusSeconds(1), documentEnd.plusSeconds(1))
-                    ).<List<?>>expectResult(l -> !l.isEmpty());
+                    ).expectResult(l -> !l.isEmpty());
         }
     }
 
@@ -527,8 +526,8 @@ public class SearchTest {
         void sortTimeDescending() {
             testFixture.whenApplying(
                             fc -> fc.documentStore().search("test").streamHits().toList())
-                    .<List<?>>expectResult(results -> results.size() == 2)
-                    .<List<SearchHit<?>>>expectResult(results -> "id2".equals(results.get(0).getId())
+                    .expectResult(results -> results.size() == 2)
+                    .expectResult(results -> "id2".equals(results.getFirst().getId())
                                                                  && "id1".equals(results.get(1).getId()));
         }
 
@@ -537,8 +536,8 @@ public class SearchTest {
             testFixture.whenApplying(
                             fc -> fc.documentStore().search("test")
                                     .sortByTimestamp(false).streamHits().toList())
-                    .<List<?>>expectResult(results -> results.size() == 2)
-                    .<List<SearchHit<?>>>expectResult(results -> "id1".equals(results.get(0).getId())
+                    .expectResult(results -> results.size() == 2)
+                    .expectResult(results -> "id1".equals(results.getFirst().getId())
                                                                  && "id2".equals(results.get(1).getId()));
         }
 
@@ -576,7 +575,7 @@ public class SearchTest {
         @Test
         void searchListOfCollections() {
             testFixture.whenApplying(fc -> FluxCapacitor.search(List.of("c1", "c2")).fetchAll())
-                    .<Collection<?>>expectResult(result -> result.contains(a) && result.contains(b));
+                    .expectResult(result -> result.contains(a) && result.contains(b));
         }
 
         @Test
@@ -585,7 +584,7 @@ public class SearchTest {
             class Annotated {
             }
             testFixture.whenApplying(fc -> FluxCapacitor.search(List.of(Annotated.class, "c2")).fetchAll())
-                    .<Collection<?>>expectResult(result -> result.contains(a) && result.contains(b));
+                    .expectResult(result -> result.contains(a) && result.contains(b));
         }
 
         @Test
@@ -605,7 +604,7 @@ public class SearchTest {
                 }
             }
             testFixture.whenApplying(fc -> FluxCapacitor.search(List.of(new C1(), "c2")).fetchAll())
-                    .<Collection<?>>expectResult(result -> result.contains(a) && result.contains(b));
+                    .expectResult(result -> result.contains(a) && result.contains(b));
         }
     }
 
@@ -643,13 +642,13 @@ public class SearchTest {
 
     private void expectMatch(Constraint... constraints) {
         SomeDocument document = new SomeDocument();
-        TestFixture.create().givenDocuments("test", document).whenSearching("test", constraints)
+        TestFixture.create().givenDocuments("test", document).<JsonNode>whenSearching("test", constraints)
                 .expectResult(singletonList(document));
     }
 
     private void expectNoMatch(Constraint... constraints) {
         SomeDocument document = new SomeDocument();
-        TestFixture.create().givenDocuments("test", document).whenSearching("test", constraints)
+        TestFixture.create().givenDocuments("test", document).<JsonNode>whenSearching("test", constraints)
                 .expectResult(emptyList());
     }
 

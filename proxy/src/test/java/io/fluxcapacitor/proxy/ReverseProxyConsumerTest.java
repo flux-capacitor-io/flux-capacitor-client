@@ -79,7 +79,7 @@ class ReverseProxyConsumerTest {
         });
         testFixture.whenWebRequest(WebRequest.builder().url("http://localhost:" + port).method(GET).build())
                 .<WebResponse>expectResult(r -> r.getStatus() == 200
-                                                && "test".equals(new String(r.<byte[]>getPayload())));
+                                                       && "test".equals(new String(r.<byte[]>getPayload())));
     }
 
     @Test
@@ -93,16 +93,18 @@ class ReverseProxyConsumerTest {
                 outputStream.flush();
             }
         });
-        testFixture.whenWebRequest(WebRequest.builder().url("http://localhost:" + port).method(GET).build())
-                .<WebResponse>expectResult(r -> r.getStatus() == 200
-                                                && "test".equals(new String(r.<byte[]>getPayload())));
+        testFixture
+                .whenWebRequest(WebRequest.builder().url("http://localhost:" + port).method(GET).build())
+                .<WebResponse>expectResultMessage(
+                        r -> r.getStatus() == 200 && "test".equals(new String(r.<byte[]>getPayload())));
     }
 
     @Test
     void postRequest() {
         serverContext.setHandler(exchange -> exchange.sendResponseHeaders(204, -1));
-        testFixture.whenWebRequest(WebRequest.builder().url("http://localhost:" + port)
-                                           .payload("test").method(POST).build())
+        testFixture
+                .whenWebRequest(WebRequest.builder().url("http://localhost:" + port)
+                                                     .payload("test").method(POST).build())
                 .<WebResponse>expectResult(r -> r.getStatus() == 204 && r.<byte[]>getPayload().length == 0);
     }
 }

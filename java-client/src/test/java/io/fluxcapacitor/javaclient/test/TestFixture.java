@@ -334,10 +334,11 @@ public class TestFixture implements Given, When {
             handlers.stream().collect(toMap(o -> o instanceof Class<?> c ? c : o instanceof Handler<?> h
                                                     ? h.getTargetClass() : o.getClass(),
                                             Function.identity(), (a, b) -> {
-                log.warn("Handler of type {} is registered more than once. Please make sure this is intentional.",
-                         a.getClass());
-                return a;
-            }));
+                        log.warn(
+                                "Handler of type {} is registered more than once. Please make sure this is intentional.",
+                                a.getClass());
+                        return a;
+                    }));
             if (!fixture.synchronous) {
                 fixture.registration = fixture.registration.merge(fc.registerHandlers(handlers));
                 return;
@@ -416,8 +417,10 @@ public class TestFixture implements Given, When {
     public TestFixture givenCommandsByUser(Object userRep, Object... commands) {
         Class<?> callerClass = ReflectionUtils.getCallerClass();
         for (Object command : commands) {
-            givenModification(fixture -> fixture.asMessages(callerClass, command).map(c -> fixture.addUser(getUser(userRep), c))
-                    .forEach(c -> fixture.getDispatchResult(fixture.getFluxCapacitor().commandGateway().send(c))));
+            givenModification(
+                    fixture -> fixture.asMessages(callerClass, command).map(c -> fixture.addUser(getUser(userRep), c))
+                            .forEach(c -> fixture.getDispatchResult(
+                                    fixture.getFluxCapacitor().commandGateway().send(c))));
         }
         return this;
     }
@@ -498,74 +501,74 @@ public class TestFixture implements Given, When {
      */
 
     @Override
-    public Then whenCommand(Object command) {
+    public Then<Object> whenCommand(Object command) {
         Message message = trace(command);
         return whenApplying(fc -> getDispatchResult(fc.commandGateway().send(message)));
     }
 
     @Override
-    public Then whenCommandByUser(Object user, Object command) {
+    public Then<Object> whenCommandByUser(Object user, Object command) {
         Message message = trace(command);
         return whenApplying(fc -> getDispatchResult(fc.commandGateway().send(addUser(getUser(user), message))));
     }
 
     @Override
-    public Then whenQuery(Object query) {
+    public Then<Object> whenQuery(Object query) {
         Message message = trace(query);
         return whenApplying(fc -> getDispatchResult(fc.queryGateway().send(message)));
     }
 
     @Override
-    public Then whenQueryByUser(Object user, Object query) {
+    public Then<Object> whenQueryByUser(Object user, Object query) {
         Message message = trace(query);
         return whenApplying(fc -> getDispatchResult(fc.queryGateway().send(addUser(getUser(user), message))));
     }
 
     @Override
-    public Then whenEvent(Object event) {
+    public Then<?> whenEvent(Object event) {
         Message message = trace(event);
         return whenExecuting(fc -> runSilently(() -> fc.eventGateway().publish(message, Guarantee.STORED).get()));
     }
 
     @Override
-    public Then whenEventsAreApplied(String aggregateId, Class<?> aggregateClass, Object... events) {
+    public Then<?> whenEventsAreApplied(String aggregateId, Class<?> aggregateClass, Object... events) {
         Class<?> callerClass = ReflectionUtils.getCallerClass();
         return whenExecuting(fc -> applyEvents(aggregateId, aggregateClass, fc,
                                                asMessages(callerClass, events).collect(toList())));
     }
 
     @Override
-    public Then whenSearching(Object collection, UnaryOperator<Search> searchQuery) {
+    public <R> Then<List<R>> whenSearching(Object collection, UnaryOperator<Search> searchQuery) {
         return whenApplying(fc -> searchQuery.apply(fc.documentStore().search(collection)).fetchAll());
     }
 
     @Override
-    public Then whenWebRequest(WebRequest request) {
+    public Then<Object> whenWebRequest(WebRequest request) {
         return whenApplying(fc -> request.getMethod().isWebsocket()
                 ? fc.webRequestGateway().sendAndForget(Guarantee.STORED, (WebRequest) trace(request))
                 : getDispatchResult(fc.webRequestGateway().send((WebRequest) trace(request))));
     }
 
     @Override
-    public Then whenScheduleExpires(Object schedule) {
+    public Then<?> whenScheduleExpires(Object schedule) {
         Message message = trace(schedule);
         return whenExecuting(fc -> fc.scheduler().schedule(message, getCurrentTime()));
     }
 
     @Override
     @SneakyThrows
-    public Then whenTimeElapses(Duration duration) {
+    public Then<?> whenTimeElapses(Duration duration) {
         return whenExecuting(fc -> advanceTimeBy(duration));
     }
 
     @Override
     @SneakyThrows
-    public Then whenTimeAdvancesTo(Instant instant) {
+    public Then<?> whenTimeAdvancesTo(Instant instant) {
         return whenExecuting(fc -> advanceTimeTo(instant));
     }
 
     @Override
-    public Then whenApplying(ThrowingFunction<FluxCapacitor, ?> action) {
+    public <R> Then<R> whenApplying(ThrowingFunction<FluxCapacitor, R> action) {
         return fluxCapacitor.apply(fc -> {
             handleExpiredSchedulesLocally(true);
             waitForConsumers();
@@ -601,11 +604,12 @@ public class TestFixture implements Given, When {
         return result;
     }
 
-    protected Then getResultValidator(Object result, List<Message> commands, List<Message> queries,
-                                      List<Message> events, List<Schedule> schedules, List<Schedule> allSchedules,
-                                      List<Throwable> errors, List<Message> metrics) {
-        return new ResultValidator(getFluxCapacitor(), result, events, commands, queries,
-                                   webRequests, webResponses, metrics, schedules, allSchedules, errors);
+    protected <R> Then<R> getResultValidator(Object result, List<Message> commands, List<Message> queries,
+                                             List<Message> events, List<Schedule> schedules,
+                                             List<Schedule> allSchedules,
+                                             List<Throwable> errors, List<Message> metrics) {
+        return new ResultValidator<>(getFluxCapacitor(), result, events, commands, queries,
+                                     webRequests, webResponses, metrics, schedules, allSchedules, errors);
     }
 
     protected void applyEvents(String aggregateId, Class<?> aggregateClass, FluxCapacitor fc, List<Message> events) {
@@ -724,11 +728,12 @@ public class TestFixture implements Given, When {
     }
 
     @SneakyThrows
-    protected Object getDispatchResult(CompletableFuture<?> dispatchResult) {
+    @SuppressWarnings("unchecked")
+    protected <R> R getDispatchResult(CompletableFuture<?> dispatchResult) {
         try {
-            return synchronous
+            return (R) (synchronous
                     ? dispatchResult.get(0, MILLISECONDS)
-                    : dispatchResult.get(resultTimeout.toMillis(), MILLISECONDS);
+                    : dispatchResult.get(resultTimeout.toMillis(), MILLISECONDS));
         } catch (ExecutionException e) {
             throw e.getCause();
         } catch (TimeoutException e) {
@@ -908,7 +913,7 @@ public class TestFixture implements Given, When {
                     if (
                             m.getMessageType().isRequest()
                             && Tracker.current().map(Tracker::getMessageBatch).map(batch -> batch.getMessages().stream()
-                                    .noneMatch(bm -> bm.getMessageId().equals(m.getMessageId())))
+                                            .noneMatch(bm -> bm.getMessageId().equals(m.getMessageId())))
                                     .orElse(true)
                             && getLocalHandlerAnnotation(
                                     invoker.getTargetClass(), invoker.getMethod())

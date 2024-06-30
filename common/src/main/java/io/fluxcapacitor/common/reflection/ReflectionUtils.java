@@ -385,6 +385,7 @@ public class ReflectionUtils {
         return emptyList();
     }
 
+    @SuppressWarnings("unchecked")
     public static <T extends Type> T getFirstTypeArgument(Type genericType) {
         if (genericType instanceof ParameterizedType pt) {
             return (T) pt.getActualTypeArguments()[0];

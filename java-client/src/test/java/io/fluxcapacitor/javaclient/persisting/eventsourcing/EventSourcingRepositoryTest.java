@@ -111,8 +111,10 @@ class EventSourcingRepositoryTest {
         @Test
         void testApplyEventsWithMetadata() {
             Metadata metaData = Metadata.of("foo", "bar");
-            testFixture.givenCommands(new Message(new CreateModelWithMetadata(), metaData)).whenQuery(new GetModel())
-                    .<TestModel>expectResult(r -> r.metadata.entrySet().containsAll(metaData.entrySet()));
+            testFixture.givenCommands(new Message(new CreateModelWithMetadata(), metaData))
+                    .whenQuery(new GetModel())
+                    .<TestModel>expectResult()
+                    .expectResult(r -> r.metadata.entrySet().containsAll(metaData.entrySet()));
         }
 
         @Test
@@ -728,7 +730,8 @@ class EventSourcingRepositoryTest {
 
         @Test
         void testCreateViaEvent() {
-            testFixture.givenCommands(new CreateModelFromEvent()).whenQuery(new GetModel())
+            testFixture.givenCommands(new CreateModelFromEvent())
+                    .whenQuery(new GetModel())
                     .<TestModelWithoutApplyEvent>expectResult(r -> r.firstEvent.equals(new CreateModelFromEvent()));
         }
 

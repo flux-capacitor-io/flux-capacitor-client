@@ -767,19 +767,19 @@ public class AggregateEntitiesTest {
         @Test
         void loadAggregateForEntity() {
             testFixture.whenApplying(fc -> FluxCapacitor.loadAggregateFor("map0"))
-                    .<Entity<Aggregate>>expectResult(a -> a.get() != null);
+                    .expectResult(a -> a.get() != null);
         }
 
         @Test
         void loadForNewEntityReturnsDefault() {
             testFixture.whenApplying(fc -> FluxCapacitor.loadAggregateFor("unknown", Aggregate.class))
-                    .<Entity<Aggregate>>expectResult(a -> a.get() == null);
+                    .expectResult(a -> a.get() == null);
         }
 
         @Test
         void loadForNewEntityReturnsDefaultClass() {
             testFixture.whenApplying(fc -> FluxCapacitor.loadAggregateFor("unknown", MapChild.class))
-                    .<Entity<MapChild>>expectResult(a -> a.get() == null && a.type().equals(MapChild.class));
+                    .expectResult(a -> a.get() == null && a.type().equals(MapChild.class));
         }
     }
 
