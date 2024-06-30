@@ -23,6 +23,7 @@ import lombok.AccessLevel;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NonNull;
+import lombok.With;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.builder.EqualsBuilder;
 import org.hamcrest.Matcher;
@@ -42,28 +43,41 @@ import static io.fluxcapacitor.javaclient.common.Message.asMessage;
 import static java.lang.String.format;
 import static java.util.stream.Collectors.toList;
 
-@AllArgsConstructor
 @Slf4j
+@AllArgsConstructor
 public class ResultValidator<R> implements Then<R> {
     static final boolean matchersSupported = ReflectionUtils.classExists("org.hamcrest.Matcher");
-
+    
+    private final TestFixture testFixture;
     @Getter(AccessLevel.PROTECTED)
     private final FluxCapacitor fluxCapacitor;
+    @With
     private Object result;
     private final List<Message> events, commands, queries, webRequests, webResponses, metrics;
     private final List<Schedule> newSchedules;
     private final List<Schedule> allSchedules;
     private final List<Throwable> errors;
-    
-    protected <E> ResultValidator<E> withResult(E result) {
-        return new ResultValidator<>(fluxCapacitor, result, events, commands, queries, webRequests, 
-                                     webResponses, metrics, newSchedules, allSchedules, errors);
+
+    public ResultValidator(TestFixture testFixture) {
+        this.testFixture = testFixture;
+        fluxCapacitor = testFixture.getFluxCapacitor();
+        var fixtureResult = testFixture.getFixtureResult();
+        result = fixtureResult.getResult();
+        events = fixtureResult.getEvents();
+        commands = fixtureResult.getCommands();
+        queries = fixtureResult.getQueries();
+        webRequests = fixtureResult.getWebRequests();
+        webResponses = fixtureResult.getWebResponses();
+        metrics = fixtureResult.getMetrics();
+        newSchedules = fixtureResult.getSchedules();
+        allSchedules = testFixture.getFutureSchedules();
+        errors = fixtureResult.getErrors();
     }
 
     @SuppressWarnings("unchecked")
     @Override
     public <MR> Then<MR> mapResult(Function<? super R, ? extends MR> resultMapper) {
-        return withResult(resultMapper.apply((R) result));
+        return (Then<MR>) withResult(resultMapper.apply((R) result));
     }
 
     @Override
@@ -363,6 +377,11 @@ public class ResultValidator<R> implements Then<R> {
             }
             return this;
         });
+    }
+
+    @Override
+    public TestFixture andThen() {
+        return testFixture.reset();
     }
 
     protected boolean isComparableToActual(Object expected) {

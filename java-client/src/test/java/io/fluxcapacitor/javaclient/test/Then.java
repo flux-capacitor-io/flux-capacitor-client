@@ -717,4 +717,10 @@ public interface Then<R> {
         return expectTrue(check.negate());
     }
 
+    /*
+        And then
+     */
+
+    Given andThen();
+
 }

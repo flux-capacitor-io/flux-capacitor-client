@@ -55,6 +55,7 @@ import io.fluxcapacitor.javaclient.tracking.handling.authentication.Unauthorized
 import io.fluxcapacitor.javaclient.tracking.handling.authentication.User;
 import io.fluxcapacitor.javaclient.tracking.handling.authentication.UserProvider;
 import io.fluxcapacitor.javaclient.web.WebRequest;
+import lombok.AccessLevel;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.SneakyThrows;
@@ -102,6 +103,7 @@ import static java.util.stream.Collectors.toMap;
 import static java.util.stream.Collectors.toSet;
 
 @Slf4j
+@Getter(AccessLevel.PACKAGE)
 public class TestFixture implements Given, When {
     /*
         Synchronous test fixture: Messages are dispatched and consumed in the same thread (i.e. all handlers are registered as local handlers)
@@ -163,17 +165,12 @@ public class TestFixture implements Given, When {
     private final boolean spying;
     private Registration registration = Registration.noOp();
 
-    private volatile Message tracedMessage;
     private final Map<ActiveConsumer, List<Message>> consumers = new ConcurrentHashMap<>();
-    private final List<Message> commands = new CopyOnWriteArrayList<>(), queries = new CopyOnWriteArrayList<>(),
-            events = new CopyOnWriteArrayList<>(),
-            webRequests = new CopyOnWriteArrayList<>(), webResponses = new CopyOnWriteArrayList<>(), metrics =
-            new CopyOnWriteArrayList<>();
-    private final List<Schedule> schedules = new CopyOnWriteArrayList<>();
-    private final CopyOnWriteArrayList<Throwable> errors = new CopyOnWriteArrayList<>();
+
+    @Delegate
+    private FixtureResult fixtureResult = new FixtureResult();
 
     private final Map<String, String> testProperties = new HashMap<>();
-    private volatile boolean collectingResults;
     private final List<ThrowingConsumer<TestFixture>> modifiers = new CopyOnWriteArrayList<>();
     private static final ThreadLocal<List<TestFixture>> activeFixtures = ThreadLocal.withInitial(ArrayList::new);
     private static final Executor shutdownExecutor = Executors.newFixedThreadPool(16);
@@ -544,9 +541,10 @@ public class TestFixture implements Given, When {
 
     @Override
     public Then<Object> whenWebRequest(WebRequest request) {
+        WebRequest message = trace(request);
         return whenApplying(fc -> request.getMethod().isWebsocket()
-                ? fc.webRequestGateway().sendAndForget(Guarantee.STORED, (WebRequest) trace(request))
-                : getDispatchResult(fc.webRequestGateway().send((WebRequest) trace(request))));
+                ? fc.webRequestGateway().sendAndForget(Guarantee.STORED, message)
+                : getDispatchResult(fc.webRequestGateway().send(message)));
     }
 
     @Override
@@ -573,7 +571,7 @@ public class TestFixture implements Given, When {
             handleExpiredSchedulesLocally(true);
             waitForConsumers();
             resetMocks();
-            collectingResults = true;
+            setCollectingResults(true);
             Object result;
             try {
                 result = action.apply(fc);
@@ -584,10 +582,10 @@ public class TestFixture implements Given, When {
                 registerError(e);
                 result = e;
             }
+            setResult(result);
             waitForConsumers();
             handleExpiredSchedulesLocally(true);
-            return getResultValidator(result, commands, queries, events, schedules, getFutureSchedules(), errors,
-                                      metrics);
+            return new ResultValidator<>(this);
         });
     }
 
@@ -602,14 +600,6 @@ public class TestFixture implements Given, When {
             throw new UnauthorizedException("User %s could not be provided".formatted(userOrId));
         }
         return result;
-    }
-
-    protected <R> Then<R> getResultValidator(Object result, List<Message> commands, List<Message> queries,
-                                             List<Message> events, List<Schedule> schedules,
-                                             List<Schedule> allSchedules,
-                                             List<Throwable> errors, List<Message> metrics) {
-        return new ResultValidator<>(getFluxCapacitor(), result, events, commands, queries,
-                                     webRequests, webResponses, metrics, schedules, allSchedules, errors);
     }
 
     protected void applyEvents(String aggregateId, Class<?> aggregateClass, FluxCapacitor fc, List<Message> events) {
@@ -670,6 +660,12 @@ public class TestFixture implements Given, When {
         }
     }
 
+    protected TestFixture reset() {
+        resetMocks();
+        fixtureResult = new FixtureResult();
+        return this;
+    }
+
     protected void resetMocks() {
         if (spying) {
             ((TestClient) fluxCapacitor.client()).resetMocks();
@@ -696,35 +692,35 @@ public class TestFixture implements Given, When {
     }
 
     protected void registerCommand(Message command) {
-        commands.add(command);
+        getCommands().add(command);
     }
 
     protected void registerQuery(Message query) {
-        queries.add(query);
+        getQueries().add(query);
     }
 
     protected void registerMetric(Message metric) {
-        metrics.add(metric);
+        getMetrics().add(metric);
     }
 
     protected void registerEvent(Message event) {
-        events.add(event);
+        getEvents().add(event);
     }
 
     protected void registerWebRequest(Message request) {
-        webRequests.add(request);
+        getWebRequests().add(request);
     }
 
     protected void registerWebResponse(Message response) {
-        webResponses.add(response);
+        getWebResponses().add(response);
     }
 
     protected void registerSchedule(Schedule schedule) {
-        schedules.add(schedule);
+        getSchedules().add(schedule);
     }
 
     protected void registerError(Throwable e) {
-        errors.addIfAbsent(e);
+        getErrors().addIfAbsent(e);
     }
 
     @SneakyThrows
@@ -763,9 +759,12 @@ public class TestFixture implements Given, When {
         }).map(Message::asMessage);
     }
 
-    protected Message trace(Object object) {
+    @SuppressWarnings("unchecked")
+    protected <M extends Message> M trace(Object object) {
         Class<?> callerClass = ReflectionUtils.getCallerClass();
-        return tracedMessage = fluxCapacitor.apply(fc -> asMessage(parsePayload(object, callerClass)));
+        M result = (M) fluxCapacitor.apply(fc -> asMessage(parsePayload(object, callerClass)));
+        setTracedMessage(result);
+        return result;
     }
 
     public Message addUser(User user, Object value) {
@@ -813,7 +812,7 @@ public class TestFixture implements Given, When {
         private final Set<String> interceptedMessageIds = new CopyOnWriteArraySet<>();
 
         protected void interceptClientDispatch(List<SerializedMessage> messages, MessageType messageType) {
-            if (testFixture.collectingResults) {
+            if (testFixture.isCollectingResults()) {
                 try {
                     testFixture.fluxCapacitor.serializer()
                             .deserializeMessages(messages.stream()
@@ -835,7 +834,7 @@ public class TestFixture implements Given, When {
 
         @Override
         public void monitorDispatch(Message message, MessageType messageType) {
-            if (testFixture.collectingResults) {
+            if (testFixture.isCollectingResults()) {
                 interceptedMessageIds.add(message.getMessageId());
             }
 
@@ -868,7 +867,8 @@ public class TestFixture implements Given, When {
         }
 
         protected Boolean captureMessage(Message message) {
-            return testFixture.collectingResults && Optional.ofNullable(testFixture.tracedMessage)
+            return testFixture.isCollectingResults()
+                   && Optional.ofNullable(testFixture.getFixtureResult().getTracedMessage())
                     .map(t -> !Objects.equals(t.getMessageId(), message.getMessageId())).orElse(true);
         }
 

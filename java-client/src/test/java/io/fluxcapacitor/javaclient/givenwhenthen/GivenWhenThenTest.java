@@ -23,6 +23,7 @@ import io.fluxcapacitor.javaclient.tracking.handling.HandleCommand;
 import io.fluxcapacitor.javaclient.tracking.handling.HandleEvent;
 import io.fluxcapacitor.javaclient.tracking.metrics.ProcessBatchEvent;
 import lombok.Value;
+import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.mockito.InOrder;
 
@@ -36,6 +37,32 @@ class GivenWhenThenTest {
 
     private final CommandHandler commandHandler = spy(new CommandHandler());
     private TestFixture subject = TestFixture.create(commandHandler);
+
+    @Nested
+    class AndThen {
+        @Test
+        void testAndThen_sync() {
+            YieldsEventAndResult second = new YieldsEventAndResult();
+            subject.whenCommand(new YieldsNoResult()).expectNoEvents()
+                    .andThen().whenCommand(second).expectOnlyEvents(second).expectResult(String.class);
+        }
+
+        @Test
+        void testAndThenGiven() {
+            YieldsEventAndResult second = new YieldsEventAndResult();
+            subject.whenCommand(new YieldsNoResult()).expectNoEvents()
+                    .andThen()
+                    .givenCommands(new YieldsEventAndNoResult())
+                    .whenCommand(second).expectOnlyEvents(second).expectResult(String.class);
+        }
+
+        @Test
+        void testAndThen_async() {
+            YieldsEventAndResult second = new YieldsEventAndResult();
+            subject.async().whenCommand(new YieldsNoResult()).expectNoEvents()
+                    .andThen().whenCommand(second).expectOnlyEvents(second).expectResult(String.class);
+        }
+    }
 
     @Test
     void registeringHandlerAsClassWorks() {
