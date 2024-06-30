@@ -14,6 +14,7 @@
 
 package io.fluxcapacitor.javaclient.common;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import io.fluxcapacitor.common.api.Metadata;
 import io.fluxcapacitor.common.api.SerializedMessage;
@@ -21,6 +22,7 @@ import io.fluxcapacitor.javaclient.FluxCapacitor;
 import io.fluxcapacitor.javaclient.common.serialization.Serializer;
 import io.fluxcapacitor.javaclient.tracking.handling.authentication.User;
 import io.fluxcapacitor.javaclient.tracking.handling.authentication.UserProvider;
+import lombok.Getter;
 import lombok.Value;
 import lombok.With;
 import lombok.experimental.NonFinal;
@@ -53,6 +55,11 @@ public class Message implements HasMessage {
     String messageId;
     @With
     Instant timestamp;
+
+    @SuppressWarnings("OptionalUsedAsFieldOrParameterType")
+    @JsonIgnore
+    @Getter(lazy = true)
+    Optional<String> routingKey = computeRoutingKey();
 
     public Message(Object payload) {
         this(payload, Metadata.empty());
