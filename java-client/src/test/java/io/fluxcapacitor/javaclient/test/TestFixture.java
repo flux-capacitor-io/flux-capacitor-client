@@ -170,6 +170,7 @@ public class TestFixture implements Given, When {
     @Delegate
     private FixtureResult fixtureResult = new FixtureResult();
 
+    private final BeanParameterResolver beanParameterResolver = new BeanParameterResolver();
     private final Map<String, String> testProperties = new HashMap<>();
     private final List<ThrowingConsumer<TestFixture>> modifiers = new CopyOnWriteArrayList<>();
     private static final ThreadLocal<List<TestFixture>> activeFixtures = ThreadLocal.withInitial(ArrayList::new);
@@ -204,6 +205,7 @@ public class TestFixture implements Given, When {
         Arrays.stream(MessageType.values()).forEach(type -> client.getGatewayClient(type).registerMonitor(
                 messages -> interceptor.interceptClientDispatch(messages, type)));
         fluxCapacitorBuilder = fluxCapacitorBuilder.disableShutdownHook()
+                .addParameterResolver(beanParameterResolver)
                 .addDispatchInterceptor(interceptor)
                 .replaceIdentityProvider(p -> p == IdentityProvider.defaultIdentityProvider
                         ? PredictableIdentityProvider.defaultPredictableIdentityProvider() : p)
@@ -386,6 +388,11 @@ public class TestFixture implements Given, When {
     public TestFixture withProperty(String name, Object value) {
         return modifyFixture(
                 fixture -> fixture.testProperties.compute(name, (k, v) -> value == null ? null : value.toString()));
+    }
+
+    @Override
+    public TestFixture withBean(Object bean) {
+        return modifyFixture(fixture -> fixture.beanParameterResolver.registerBean(bean));
     }
 
     protected TestFixture modifyFixture(ThrowingConsumer<TestFixture> modifier) {

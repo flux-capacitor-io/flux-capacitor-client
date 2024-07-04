@@ -26,6 +26,7 @@ import lombok.Value;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.mockito.InOrder;
+import org.springframework.beans.factory.annotation.Autowired;
 
 import static io.fluxcapacitor.javaclient.FluxCapacitor.loadAggregate;
 import static org.mockito.Mockito.inOrder;
@@ -36,21 +37,26 @@ import static org.mockito.Mockito.verify;
 class GivenWhenThenTest {
 
     private final CommandHandler commandHandler = spy(new CommandHandler());
-    private TestFixture subject = TestFixture.create(commandHandler);
+    private TestFixture testFixture = TestFixture.create(commandHandler);
+
+    @Test
+    void testInjectingMockBeans() {
+        testFixture.withBean(new MockBean()).whenCommand(new YieldsMockBean()).expectResult(MockBean.class);
+    }
 
     @Nested
     class AndThen {
         @Test
         void testAndThen_sync() {
             YieldsEventAndResult second = new YieldsEventAndResult();
-            subject.whenCommand(new YieldsNoResult()).expectNoEvents()
+            testFixture.whenCommand(new YieldsNoResult()).expectNoEvents()
                     .andThen().whenCommand(second).expectOnlyEvents(second).expectResult(String.class);
         }
 
         @Test
         void testAndThenGiven() {
             YieldsEventAndResult second = new YieldsEventAndResult();
-            subject.whenCommand(new YieldsNoResult()).expectNoEvents()
+            testFixture.whenCommand(new YieldsNoResult()).expectNoEvents()
                     .andThen()
                     .givenCommands(new YieldsEventAndNoResult())
                     .whenCommand(second).expectOnlyEvents(second).expectResult(String.class);
@@ -59,7 +65,7 @@ class GivenWhenThenTest {
         @Test
         void testAndThen_async() {
             YieldsEventAndResult second = new YieldsEventAndResult();
-            subject.async().whenCommand(new YieldsNoResult()).expectNoEvents()
+            testFixture.async().whenCommand(new YieldsNoResult()).expectNoEvents()
                     .andThen().whenCommand(second).expectOnlyEvents(second).expectResult(String.class);
         }
     }
@@ -80,92 +86,92 @@ class GivenWhenThenTest {
 
     @Test
     void testExpectNoEventsAndNoResult() {
-        subject.whenCommand(new YieldsNoResult()).expectNoEvents().expectNoResult();
+        testFixture.whenCommand(new YieldsNoResult()).expectNoEvents().expectNoResult();
     }
 
     @Test
     void testExpectResultButNoEvents() {
-        subject.whenCommand(new YieldsResult()).expectNoEvents().expectResult(String.class);
+        testFixture.whenCommand(new YieldsResult()).expectNoEvents().expectResult(String.class);
     }
 
     @Test
     void testExpectExceptionButNoEvents() {
-        subject.whenCommand(new YieldsException()).expectNoEvents()
+        testFixture.whenCommand(new YieldsException()).expectNoEvents()
                 .expectExceptionalResult(MockException.class);
     }
 
     @Test
     void testInvokeMostGenericHandler() {
-        subject.whenCommand("some string").expectEvents("generic");
+        testFixture.whenCommand("some string").expectEvents("generic");
     }
 
     @Test
     void testExpectEventButNoResult() {
         YieldsEventAndNoResult command = new YieldsEventAndNoResult();
-        subject.whenCommand(command)
+        testFixture.whenCommand(command)
                 .expectOnlyEvents(command).expectNoResult().expectSuccessfulResult();
     }
 
     @Test
     void testExpectNoEventsLike() {
         YieldsEventAndNoResult command = new YieldsEventAndNoResult();
-        subject.whenCommand(command).expectNoEventsLike(String.class);
+        testFixture.whenCommand(command).expectNoEventsLike(String.class);
     }
 
     @Test
     void testExpectResultAndEvent() {
         YieldsEventAndResult command = new YieldsEventAndResult();
-        subject.whenCommand(command).expectOnlyEvents(command).expectResult(String.class);
+        testFixture.whenCommand(command).expectOnlyEvents(command).expectResult(String.class);
     }
 
     @Test
     void testExpectResultUsingPredicate() {
         YieldsResult command = new YieldsResult();
-        subject.whenCommand(command).expectResult("result"::equals);
+        testFixture.whenCommand(command).expectResult("result"::equals);
     }
 
     @Test
     void testExpectExceptionAndEvent() {
         YieldsEventAndException command = new YieldsEventAndException();
-        subject.whenCommand(command).expectOnlyEvents(command)
+        testFixture.whenCommand(command).expectOnlyEvents(command)
                 .expectExceptionalResult(MockException.class)
                 .expectError(MockException.class);
     }
 
     @Test
     void testWithGivenCommandsAndResult() {
-        subject.givenCommands(new YieldsNoResult()).whenCommand(new YieldsResult()).expectResult(String.class)
+        testFixture.givenCommands(new YieldsNoResult()).whenCommand(new YieldsResult()).expectResult(String.class)
                 .expectNoEvents()
                 .expectNoErrors();
     }
 
     @Test
     void testWithGivenCommandsAndNoResult() {
-        subject.givenCommands(new YieldsResult()).whenCommand(new YieldsNoResult()).expectNoResult().expectNoEvents();
+        testFixture.givenCommands(new YieldsResult()).whenCommand(new YieldsNoResult()).expectNoResult().expectNoEvents();
     }
 
     @Test
     void testWithGivenCommandsAndEventsFromGiven() {
-        subject.givenCommands(new YieldsEventAndResult()).whenCommand(new YieldsNoResult()).expectNoResult()
+        testFixture.givenCommands(new YieldsEventAndResult()).whenCommand(new YieldsNoResult()).expectNoResult()
                 .expectNoEvents();
     }
 
     @Test
     void testWithGivenCommandsAndEventsFromCommand() {
         YieldsEventAndNoResult command = new YieldsEventAndNoResult();
-        subject.givenCommands(new YieldsNoResult()).whenCommand(command).expectNoResult().expectEvents(command);
+        testFixture.givenCommands(new YieldsNoResult()).whenCommand(command).expectNoResult().expectEvents(command);
     }
 
     @Test
     void testWithMultipleGivenCommands() {
         YieldsEventAndNoResult command = new YieldsEventAndNoResult();
-        subject.givenCommands(new YieldsNoResult(), new YieldsResult(), command, command).whenCommand(command)
+        testFixture.givenCommands(new YieldsNoResult(), new YieldsResult(), command, command).whenCommand(command)
                 .expectNoResult().expectOnlyEvents(command);
     }
 
     @Test
     void testAndGivenCommands() {
-        subject.givenCommands(new YieldsResult()).givenCommands(new YieldsEventAndNoResult())
+        testFixture.givenCommands(new YieldsResult()).givenCommands(new YieldsEventAndNoResult())
                 .whenCommand(new YieldsNoResult()).expectNoResult().expectNoEvents();
         InOrder inOrder = inOrder(commandHandler);
         inOrder.verify(commandHandler).handle(new YieldsResult());
@@ -175,16 +181,16 @@ class GivenWhenThenTest {
 
     @Test
     void testMultiHandler() {
-        subject = TestFixture.create(commandHandler, new EventHandler());
-        subject.whenCommand(new YieldsEventAndNoResult())
+        testFixture = TestFixture.create(commandHandler, new EventHandler());
+        testFixture.whenCommand(new YieldsEventAndNoResult())
                 .expectEvents(new YieldsEventAndNoResult())
                 .expectCommands(new YieldsNoResult());
     }
 
     @Test
     void testMultiHandlerWithExceptionInEventHandler() {
-        subject = TestFixture.create(commandHandler, new ThrowingEventHandler());
-        subject.whenCommand(new YieldsEventAndNoResult())
+        testFixture = TestFixture.create(commandHandler, new ThrowingEventHandler());
+        testFixture.whenCommand(new YieldsEventAndNoResult())
                 .expectEvents(new YieldsEventAndNoResult())
                 .expectSuccessfulResult()
                 .expectError(MockException.class);
@@ -193,31 +199,31 @@ class GivenWhenThenTest {
     @Test
     void testGivenCondition() {
         Runnable mockCondition = mock(Runnable.class);
-        subject.given(fc -> mockCondition.run()).whenCommand(new YieldsNoResult())
+        testFixture.given(fc -> mockCondition.run()).whenCommand(new YieldsNoResult())
                 .expectThat(fc -> verify(mockCondition).run());
     }
 
     @Test
     void testWhenCondition() {
         Runnable mockCondition = mock(Runnable.class);
-        subject.whenExecuting(fc -> mockCondition.run()).expectThat(fc -> verify(mockCondition).run());
+        testFixture.whenExecuting(fc -> mockCondition.run()).expectThat(fc -> verify(mockCondition).run());
     }
 
     @Test
     void testGivenAppliedEvents() {
-        subject.givenAppliedEvents("test", MockAggregate.class, new MockAggregateEvent())
+        testFixture.givenAppliedEvents("test", MockAggregate.class, new MockAggregateEvent())
                 .whenApplying(fc -> loadAggregate("test", MockAggregate.class).get())
                 .expectResult(r -> r instanceof MockAggregate);
     }
 
     @Test
     void testGivenCommandsAsJson() {
-        subject.givenCommands("yields-result.json").whenCommand(new YieldsNoResult()).expectNoResult().expectNoEvents();
+        testFixture.givenCommands("yields-result.json").whenCommand(new YieldsNoResult()).expectNoResult().expectNoEvents();
     }
 
     @Test
     void testExpectAsJson() {
-        subject.whenCommand("yields-result.json").expectResult("result.json");
+        testFixture.whenCommand("yields-result.json").expectResult("result.json");
     }
 
     @Test
@@ -268,6 +274,11 @@ class GivenWhenThenTest {
             FluxCapacitor.publishEvent(command);
             throw new MockException();
         }
+
+        @HandleCommand
+        public MockBean handle(YieldsMockBean command, @Autowired MockBean mockBean) {
+            return mockBean;
+        }
     }
 
     private static class EventHandler {
@@ -317,5 +328,13 @@ class GivenWhenThenTest {
 
     @Value
     private static class YieldsEventAndException {
+    }
+
+    @Value
+    private static class YieldsMockBean {
+    }
+
+    @Value
+    static class MockBean {
     }
 }

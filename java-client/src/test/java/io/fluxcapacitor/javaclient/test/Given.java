@@ -234,4 +234,10 @@ public interface Given extends When {
      */
     Given withProperty(String name, Object value);
 
+    /**
+     * Registers an injectable 'Spring' bean for the duration of the test fixture. This bean can be injected into
+     * handler parameters that are annotated with {@link org.springframework.beans.factory.annotation.Autowired}.
+     */
+    Given withBean(Object bean);
+
 }
