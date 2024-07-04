@@ -119,13 +119,6 @@
             </exclusions>
         </dependency>
 
-        <dependency>
-            <groupId>com.flipkart.zjsonpatch</groupId>
-            <artifactId>zjsonpatch</artifactId>
-            <version>0.4.16</version>
-            <scope>test</scope>
-        </dependency>
-
         <!--annotation processing-->
         <dependency>
             <groupId>org.jooq</groupId>
