@@ -468,8 +468,9 @@ public class TestFixture implements Given, When {
 
     @Override
     public TestFixture givenWebRequest(WebRequest webRequest) {
+        Class<?> callerClass = ReflectionUtils.getCallerClass();
         return givenModification(fixture -> fixture.getDispatchResult(
-                fixture.getFluxCapacitor().webRequestGateway().send(webRequest)));
+                fixture.getFluxCapacitor().webRequestGateway().send(parseObject(webRequest, callerClass))));
     }
 
     @Override
@@ -758,7 +759,7 @@ public class TestFixture implements Given, When {
             }
             return Stream.of(c);
         }).flatMap(c -> {
-            Object parsed = parsePayload(c, callerClass);
+            Object parsed = parseObject(c, callerClass);
             return parsed == null ? Stream.empty()
                     : parsed instanceof Collection<?> ? ((Collection<?>) parsed).stream()
                     : parsed.getClass().isArray() ? Arrays.stream((Object[]) parsed)
@@ -769,33 +770,28 @@ public class TestFixture implements Given, When {
     @SuppressWarnings("unchecked")
     protected <M extends Message> M trace(Object object) {
         Class<?> callerClass = ReflectionUtils.getCallerClass();
-        M result = (M) fluxCapacitor.apply(fc -> asMessage(parsePayload(object, callerClass)));
+        M result = (M) fluxCapacitor.apply(fc -> asMessage(parseObject(object, callerClass)));
         setTracedMessage(result);
         return result;
     }
 
-    public Message addUser(User user, Object value) {
+    protected Message addUser(User user, Object value) {
         Class<?> callerClass = ReflectionUtils.getCallerClass();
-        return fluxCapacitor.apply(fc -> asMessage(parsePayload(value, callerClass)).addUser(user));
+        return fluxCapacitor.apply(fc -> asMessage(parseObject(value, callerClass)).addUser(user));
     }
 
     @SuppressWarnings("unchecked")
-    public Object parsePayload(Object object, Class<?> callerClass) {
-        object = parseObject(object, callerClass);
+    public <T> T parseObject(T object, Class<?> callerClass) {
+        if (object instanceof Message message) {
+            return (T) message.withPayload(parseObject(message.getPayload(), callerClass));
+        }
+        if (object instanceof String && ((String) object).endsWith(".json")) {
+            object = JsonUtils.fromFile(callerClass, (String) object);
+        }
         if (object instanceof SerializedObject<?, ?> s) {
             SerializedObject<byte[], ?> eventBytes = s.data().getValue() instanceof byte[]
                     ? (SerializedObject<byte[], ?>) s : fluxCapacitor.serializer().serialize(s);
             object = fluxCapacitor.serializer().deserialize(eventBytes);
-        }
-        return object;
-    }
-
-    public static Object parseObject(Object object, Class<?> callerClass) {
-        if (object instanceof Message message) {
-            return message.withPayload(parseObject(message.getPayload(), callerClass));
-        }
-        if (object instanceof String && ((String) object).endsWith(".json")) {
-            return JsonUtils.fromFile(callerClass, (String) object);
         }
         return object;
     }

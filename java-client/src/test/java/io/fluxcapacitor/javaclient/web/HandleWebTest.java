@@ -116,6 +116,13 @@ public class HandleWebTest {
         }
 
         @Test
+        void testPostJsonFromFile_given() {
+            testFixture.givenWebRequest(
+                    WebRequest.builder().method(POST).url("/json").payload("/web/body.json").build())
+                    .whenNothingHappens().expectNoErrors();
+        }
+
+        @Test
         void testWithoutSlash() {
             testFixture.whenWebRequest(WebRequest.builder().method(GET).url("get").build()).expectResult("get");
         }

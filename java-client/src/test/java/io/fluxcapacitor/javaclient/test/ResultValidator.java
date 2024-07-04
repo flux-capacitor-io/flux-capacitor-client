@@ -190,7 +190,7 @@ public class ResultValidator<R> implements Then<R> {
     public ResultValidator<R> expectResult(Object expectedResult) {
         Class<?> callerClass = ReflectionUtils.getCallerClass();
         return fluxCapacitor.apply(fc -> {
-            Object expected = TestFixture.parseObject(expectedResult, callerClass);
+            Object expected = testFixture.parseObject(expectedResult, callerClass);
             if (result instanceof Throwable) {
                 throw new GivenWhenThenAssertionError("An unexpected exception occurred during handling",
                                                       (Throwable) result);
@@ -255,7 +255,7 @@ public class ResultValidator<R> implements Then<R> {
     public ResultValidator<R> expectNoResultLike(Object value) {
         Class<?> callerClass = ReflectionUtils.getCallerClass();
         return fluxCapacitor.apply(fc -> {
-            Object notExpected = TestFixture.parseObject(value, callerClass);
+            Object notExpected = testFixture.parseObject(value, callerClass);
             if (result instanceof Throwable) {
                 throw new GivenWhenThenAssertionError("An unexpected exception occurred during handling",
                                                       (Throwable) result);
@@ -557,7 +557,7 @@ public class ResultValidator<R> implements Then<R> {
         Class<?> callerClass = ReflectionUtils.getCallerClass();
         return fluxCapacitor.apply(fc -> Arrays.stream(expectedMessages)
                 .flatMap(e -> e instanceof Collection<?> ? ((Collection<?>) e).stream() : Stream.of(e))
-                .map(c -> TestFixture.parseObject(c, callerClass))
+                .map(c -> testFixture.parseObject(c, callerClass))
                 .map(e -> e instanceof Message || e instanceof Predicate<?> || isMatcher(e) || e instanceof Class<?>
                         ? e : new Message(e)).collect(toList()));
     }
