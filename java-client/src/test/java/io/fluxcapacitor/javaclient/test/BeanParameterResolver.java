@@ -22,7 +22,7 @@ import lombok.NonNull;
 
 import java.lang.annotation.Annotation;
 import java.lang.reflect.Parameter;
-import java.util.Map;
+import java.util.Collection;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.UnaryOperator;
 
@@ -31,22 +31,17 @@ public class BeanParameterResolver implements ParameterResolver<Object> {
     static final Class<? extends Annotation> autowiredClass = (Class<? extends Annotation>) ReflectionUtils.classForName(
             "org.springframework.beans.factory.annotation.Autowired", NoOpAnnotation.class);
 
-    private final Map<Class<?>, Object> beans = new ConcurrentHashMap<>();
+    private final Collection<Object> beans = ConcurrentHashMap.newKeySet();
 
     public Registration registerBean(@NonNull Object bean) {
-        beans.put(bean.getClass(), bean);
+        beans.add(bean);
         return () -> beans.remove(bean.getClass());
     }
 
     @Override
     public UnaryOperator<Object> resolve(Parameter p, Annotation methodAnnotation) {
-        return v -> {
-            Object bean = beans.get(p.getType());
-            if (bean == null) {
-                throw new IllegalStateException("No qualifying bean of type '" + p.getType() + "' available");
-            }
-            return bean;
-        };
+        return v -> beans.stream().filter(b -> p.getType().isAssignableFrom(b.getClass())).findFirst().orElseGet(
+                () -> new IllegalStateException("No qualifying bean of type '" + p.getType() + "' available"));
     }
 
     @Override
