@@ -101,6 +101,10 @@ public interface Serializer extends ContentFilter {
         return deserialize(dataStream, failOnUnknownType).map(s -> new DeserializingMessage(s, messageType));
     }
 
+    default DeserializingMessage deserializeMessage(SerializedMessage message, MessageType messageType) {
+        return deserializeMessages(Stream.of(message), messageType).findAny().orElseThrow();
+    }
+
     <V> V convert(Object value, Class<V> type);
 
     <V> V clone(Object value);

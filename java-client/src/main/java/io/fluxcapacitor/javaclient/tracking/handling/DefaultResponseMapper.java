@@ -12,15 +12,14 @@
  * limitations under the License.
  */
 
-package io.fluxcapacitor.javaclient.web;
+package io.fluxcapacitor.javaclient.tracking.handling;
 
 import io.fluxcapacitor.common.api.Metadata;
-import io.fluxcapacitor.javaclient.tracking.handling.ResponseMapper;
+import io.fluxcapacitor.javaclient.common.Message;
 
-@FunctionalInterface
-public interface WebResponseMapper extends ResponseMapper {
-
+public class DefaultResponseMapper implements ResponseMapper {
     @Override
-    WebResponse map(Object response, Metadata metadata);
-
+    public Message map(Object response, Metadata metadata) {
+        return new Message(response, metadata);
+    }
 }

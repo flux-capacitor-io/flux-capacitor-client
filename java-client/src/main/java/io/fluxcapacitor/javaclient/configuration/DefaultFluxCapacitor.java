@@ -63,6 +63,7 @@ import io.fluxcapacitor.javaclient.tracking.DefaultTracking;
 import io.fluxcapacitor.javaclient.tracking.Tracking;
 import io.fluxcapacitor.javaclient.tracking.TrackingException;
 import io.fluxcapacitor.javaclient.tracking.handling.DefaultHandlerFactory;
+import io.fluxcapacitor.javaclient.tracking.handling.DefaultResponseMapper;
 import io.fluxcapacitor.javaclient.tracking.handling.DeserializingMessageParameterResolver;
 import io.fluxcapacitor.javaclient.tracking.handling.HandlerDecorator;
 import io.fluxcapacitor.javaclient.tracking.handling.HandlerRegistry;
@@ -70,6 +71,7 @@ import io.fluxcapacitor.javaclient.tracking.handling.LocalHandlerRegistry;
 import io.fluxcapacitor.javaclient.tracking.handling.MessageParameterResolver;
 import io.fluxcapacitor.javaclient.tracking.handling.MetadataParameterResolver;
 import io.fluxcapacitor.javaclient.tracking.handling.PayloadParameterResolver;
+import io.fluxcapacitor.javaclient.tracking.handling.ResponseMapper;
 import io.fluxcapacitor.javaclient.tracking.handling.TriggerParameterResolver;
 import io.fluxcapacitor.javaclient.tracking.handling.authentication.AuthenticatingInterceptor;
 import io.fluxcapacitor.javaclient.tracking.handling.authentication.UserParameterResolver;
@@ -232,6 +234,7 @@ public class DefaultFluxCapacitor implements FluxCapacitor {
         private ForwardingWebConsumer forwardingWebConsumer;
         private Cache cache = new DefaultCache();
         private Cache relationshipsCache = new DefaultCache(100_000);
+        private ResponseMapper defaultResponseMapper = new DefaultResponseMapper();
         private WebResponseMapper webResponseMapper = new DefaultWebResponseMapper();
         private boolean disableErrorReporting;
         private boolean disableMessageCorrelation;
@@ -363,6 +366,12 @@ public class DefaultFluxCapacitor implements FluxCapacitor {
             forwardingWebConsumer =
                     new ForwardingWebConsumer(localServerConfig,
                                               consumerConfigurator.apply(getDefaultConsumerConfiguration(WEBREQUEST)));
+            return this;
+        }
+
+        @Override
+        public FluxCapacitorBuilder replaceDefaultResponseMapper(ResponseMapper defaultResponseMapper) {
+            this.defaultResponseMapper = defaultResponseMapper;
             return this;
         }
 
@@ -614,7 +623,8 @@ public class DefaultFluxCapacitor implements FluxCapacitor {
             ErrorGateway errorGateway =
                     new DefaultErrorGateway(createRequestGateway(client, ERROR, defaultRequestHandler,
                                                                  dispatchInterceptors, handlerDecorators,
-                                                                 parameterResolvers, handlerRepositorySupplier));
+                                                                 parameterResolvers, handlerRepositorySupplier,
+                                                                 defaultResponseMapper));
             if (!disableErrorReporting) {
                 ErrorReportingInterceptor interceptor = new ErrorReportingInterceptor(errorGateway);
                 Arrays.stream(MessageType.values())
@@ -622,30 +632,36 @@ public class DefaultFluxCapacitor implements FluxCapacitor {
             }
 
             ResultGateway resultGateway = new DefaultResultGateway(client.getGatewayClient(RESULT),
-                                                                   serializer, dispatchInterceptors.get(RESULT));
+                                                                   serializer, dispatchInterceptors.get(RESULT),
+                                                                   defaultResponseMapper);
             CommandGateway commandGateway =
                     new DefaultCommandGateway(createRequestGateway(client, COMMAND, defaultRequestHandler,
                                                                    dispatchInterceptors, handlerDecorators,
-                                                                   parameterResolvers, handlerRepositorySupplier));
+                                                                   parameterResolvers, handlerRepositorySupplier,
+                                                                   defaultResponseMapper));
             QueryGateway queryGateway =
                     new DefaultQueryGateway(createRequestGateway(client, QUERY, defaultRequestHandler,
                                                                  dispatchInterceptors, handlerDecorators,
-                                                                 parameterResolvers, handlerRepositorySupplier));
+                                                                 parameterResolvers, handlerRepositorySupplier,
+                                                                 defaultResponseMapper));
             EventGateway eventGateway =
                     new DefaultEventGateway(createRequestGateway(client, EVENT, defaultRequestHandler,
                                                                  dispatchInterceptors, handlerDecorators,
-                                                                 parameterResolvers, handlerRepositorySupplier));
+                                                                 parameterResolvers, handlerRepositorySupplier,
+                                                                 defaultResponseMapper));
 
             MetricsGateway metricsGateway =
                     new DefaultMetricsGateway(createRequestGateway(client, METRICS, defaultRequestHandler,
                                                                    dispatchInterceptors, handlerDecorators,
-                                                                   parameterResolvers, handlerRepositorySupplier));
+                                                                   parameterResolvers, handlerRepositorySupplier,
+                                                                   defaultResponseMapper));
 
             RequestHandler webRequestHandler = new DefaultRequestHandler(client, WEBRESPONSE);
             WebRequestGateway webRequestGateway =
                     new DefaultWebRequestGateway(createRequestGateway(client, WEBREQUEST, webRequestHandler,
                                                                       dispatchInterceptors, handlerDecorators,
-                                                                      parameterResolvers, handlerRepositorySupplier));
+                                                                      parameterResolvers, handlerRepositorySupplier,
+                                                                      webResponseMapper));
 
 
 
@@ -749,11 +765,13 @@ public class DefaultFluxCapacitor implements FluxCapacitor {
                                                       Map<MessageType, DispatchInterceptor> dispatchInterceptors,
                                                       Map<MessageType, HandlerDecorator> handlerDecorators,
                                                       List<ParameterResolver<? super DeserializingMessage>> parameterResolvers,
-                                                      Function<Class<?>, HandlerRepository> handlerRepositorySupplier) {
+                                                      Function<Class<?>, HandlerRepository> handlerRepositorySupplier,
+                                                      ResponseMapper responseMapper) {
             return new DefaultGenericGateway(client.getGatewayClient(messageType), requestHandler,
                                              this.serializer, dispatchInterceptors.get(messageType), messageType,
                                              localHandlerRegistry(messageType, handlerDecorators,
-                                                                  parameterResolvers, handlerRepositorySupplier));
+                                                                  parameterResolvers, handlerRepositorySupplier),
+                                             responseMapper);
         }
 
         protected HandlerRegistry localHandlerRegistry(MessageType messageType,

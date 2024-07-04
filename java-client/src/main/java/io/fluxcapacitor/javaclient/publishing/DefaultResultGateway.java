@@ -20,6 +20,7 @@ import io.fluxcapacitor.common.api.SerializedMessage;
 import io.fluxcapacitor.javaclient.common.Message;
 import io.fluxcapacitor.javaclient.common.serialization.Serializer;
 import io.fluxcapacitor.javaclient.publishing.client.GatewayClient;
+import io.fluxcapacitor.javaclient.tracking.handling.ResponseMapper;
 import lombok.AllArgsConstructor;
 
 import java.util.concurrent.CompletableFuture;
@@ -32,6 +33,7 @@ public class DefaultResultGateway implements ResultGateway {
     private final GatewayClient client;
     private final Serializer serializer;
     private final DispatchInterceptor dispatchInterceptor;
+    private final ResponseMapper responseMapper;
 
     @Override
     public CompletableFuture<Void> respond(Object payload, Metadata metadata, String target, Integer requestId,
@@ -50,7 +52,7 @@ public class DefaultResultGateway implements ResultGateway {
     }
 
     protected SerializedMessage interceptDispatch(Object payload, Metadata metadata) {
-        Message message = dispatchInterceptor.interceptDispatch(new Message(payload, metadata), RESULT);
+        Message message = dispatchInterceptor.interceptDispatch(responseMapper.map(payload, metadata), RESULT);
         SerializedMessage serializedMessage = message == null ? null
                 : dispatchInterceptor.modifySerializedMessage(message.serialize(serializer), message, RESULT);
         if (serializedMessage != null) {

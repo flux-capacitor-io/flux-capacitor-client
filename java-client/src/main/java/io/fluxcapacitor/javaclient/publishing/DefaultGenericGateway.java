@@ -22,6 +22,7 @@ import io.fluxcapacitor.javaclient.common.serialization.DeserializingMessage;
 import io.fluxcapacitor.javaclient.common.serialization.Serializer;
 import io.fluxcapacitor.javaclient.publishing.client.GatewayClient;
 import io.fluxcapacitor.javaclient.tracking.handling.HandlerRegistry;
+import io.fluxcapacitor.javaclient.tracking.handling.ResponseMapper;
 import io.fluxcapacitor.javaclient.web.WebResponse;
 import lombok.AllArgsConstructor;
 import lombok.SneakyThrows;
@@ -53,6 +54,7 @@ public class DefaultGenericGateway implements GenericGateway {
     private final MessageType messageType;
     @Delegate
     private final HandlerRegistry localHandlerRegistry;
+    private final ResponseMapper responseMapper;
 
     private final Map<String, CompletableFuture<?>> callbacks = new ConcurrentHashMap<>();
 
@@ -66,13 +68,13 @@ public class DefaultGenericGateway implements GenericGateway {
                 continue;
             }
             dispatchInterceptor.monitorDispatch(message, messageType);
-            Optional<CompletableFuture<Message>> localResult
+            Optional<CompletableFuture<Object>> localResult
                     = localHandlerRegistry.handle(new DeserializingMessage(message, messageType, serializer));
             if (localResult.isEmpty()) {
                 SerializedMessage serializedMessage = dispatchInterceptor.modifySerializedMessage(
                         message.serialize(serializer), message, messageType);
-                if (serializedMessage == null) {
-                    continue;
+                    if (serializedMessage == null) {
+                        continue;
                 }
                 serializedMessages.add(serializedMessage);
             } else {
@@ -107,13 +109,10 @@ public class DefaultGenericGateway implements GenericGateway {
                 continue;
             }
             dispatchInterceptor.monitorDispatch(message, messageType);
-            Optional<CompletableFuture<Message>> localResult
+            Optional<CompletableFuture<Object>> localResult
                     = localHandlerRegistry.handle(new DeserializingMessage(message, messageType, serializer));
             if (localResult.isPresent()) {
-                CompletableFuture<Message> c = localResult.get();
-                if (messageType == MessageType.WEBREQUEST) {
-                    c = c.thenApply(WebResponse::new);
-                }
+                CompletableFuture<Message> c = localResult.get().thenApply(responseMapper::map);
                 String messageId = message.getMessageId();
                 callbacks.put(messageId, c);
                 results.add(c.whenComplete((m, e) -> callbacks.remove(messageId)));

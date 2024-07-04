@@ -22,7 +22,6 @@ import io.fluxcapacitor.common.handling.HandlerFilter;
 import io.fluxcapacitor.common.handling.HandlerInvoker;
 import io.fluxcapacitor.javaclient.FluxCapacitor;
 import io.fluxcapacitor.javaclient.common.ClientUtils;
-import io.fluxcapacitor.javaclient.common.Message;
 import io.fluxcapacitor.javaclient.common.serialization.DeserializingMessage;
 import lombok.Getter;
 import lombok.NonNull;
@@ -70,8 +69,9 @@ public class LocalHandlerRegistry implements HandlerRegistry {
         return () -> handler.ifPresent(localHandlers::remove);
     }
 
+    @SuppressWarnings("unchecked")
     @Override
-    public Optional<CompletableFuture<Message>> handle(DeserializingMessage message) {
+    public Optional<CompletableFuture<Object>> handle(DeserializingMessage message) {
         List<Handler<DeserializingMessage>> localHandlers = getLocalHandlers(message);
         if (localHandlers.isEmpty()) {
             return Optional.empty();
@@ -80,7 +80,7 @@ public class LocalHandlerRegistry implements HandlerRegistry {
             boolean handled = false;
             boolean logMessage = false;
             boolean request = m.getMessageType().isRequest();
-            CompletableFuture<Message> future = new CompletableFuture<>();
+            CompletableFuture<Object> future = new CompletableFuture<>();
             for (Handler<DeserializingMessage> handler : localHandlers) {
                 var optionalInvoker = handler.getInvoker(m);
                 if (optionalInvoker.isPresent()) {
@@ -91,9 +91,9 @@ public class LocalHandlerRegistry implements HandlerRegistry {
                             Object result = Invocation.performInvocation(invoker::invoke);
                             if (!passive && !future.isDone()) {
                                 if (result instanceof CompletableFuture<?>) {
-                                    future = ((CompletableFuture<?>) result).thenApply(Message::new);
+                                    future = ((CompletableFuture<Object>) result);
                                 } else {
-                                    future.complete(new Message(result));
+                                    future.complete(result);
                                 }
                             }
                         } catch (Throwable e) {

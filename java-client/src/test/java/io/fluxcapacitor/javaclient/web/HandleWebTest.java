@@ -61,7 +61,15 @@ public class HandleWebTest {
         @Test
         void testPostString() {
             testFixture.whenWebRequest(WebRequest.builder().method(POST).url("/string").payload("payload").build())
-                    .expectResult("payload");
+                    .expectResult("payload")
+                    .<WebResponse>expectResultMessage(r -> r.getStatus() == 200);;
+        }
+
+        @Test
+        void testPostWithoutResult() {
+            testFixture.whenWebRequest(WebRequest.builder().method(POST).url("/noResult").payload("payload").build())
+                    .expectNoResult()
+                    .<WebResponse>expectResultMessage(r -> r.getStatus() == 204);
         }
 
         @Test
@@ -144,6 +152,11 @@ public class HandleWebTest {
             @HandleWeb(value = "/string", method = POST)
             String post(String body) {
                 return body;
+            }
+
+            @HandleWeb(value = "/noResult", method = POST)
+            void postWithoutResult(String body) {
+                //no op
             }
 
             @HandleWeb(value = "/bytes", method = POST)

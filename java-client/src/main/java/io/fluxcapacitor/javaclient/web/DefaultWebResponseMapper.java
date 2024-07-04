@@ -25,20 +25,20 @@ import java.util.concurrent.TimeoutException;
 
 public class DefaultWebResponseMapper implements WebResponseMapper {
     @Override
-    public WebResponse map(Object payload, Metadata metadata) {
+    public WebResponse map(Object response, Metadata metadata) {
         WebResponse.Builder builder = WebResponse.builder();
-        if (payload instanceof Throwable) {
-            if (payload instanceof ValidationException || payload instanceof DeserializationException) {
+        if (response instanceof Throwable) {
+            if (response instanceof ValidationException || response instanceof DeserializationException) {
                 builder.status(400);
-                builder.payload(((Exception) payload).getMessage());
-            } else if (payload instanceof UnauthorizedException || payload instanceof UnauthenticatedException) {
+                builder.payload(((Exception) response).getMessage());
+            } else if (response instanceof UnauthorizedException || response instanceof UnauthenticatedException) {
                 builder.status(401);
-                builder.payload(((Exception) payload).getMessage());
-            } else if (payload instanceof FunctionalException) {
+                builder.payload(((Exception) response).getMessage());
+            } else if (response instanceof FunctionalException) {
                 builder.status(403);
-                builder.payload(((Exception) payload).getMessage());
-            } else if (payload instanceof TimeoutException
-                    || payload instanceof io.fluxcapacitor.javaclient.publishing.TimeoutException) {
+                builder.payload(((Exception) response).getMessage());
+            } else if (response instanceof TimeoutException
+                    || response instanceof io.fluxcapacitor.javaclient.publishing.TimeoutException) {
                 builder.status(503);
                 builder.payload("The request has timed out. Please try again later.");
             } else {
@@ -46,8 +46,8 @@ public class DefaultWebResponseMapper implements WebResponseMapper {
                 builder.payload("An unexpected error occurred.");
             }
         } else {
-            builder.status(payload == null ? 204 : 200);
-            builder.payload(payload);
+            builder.status(response == null ? 204 : 200);
+            builder.payload(response);
         }
         return builder.build().addMetadata(metadata);
     }
