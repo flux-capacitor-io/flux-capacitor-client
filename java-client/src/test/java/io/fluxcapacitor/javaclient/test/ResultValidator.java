@@ -208,7 +208,6 @@ public class ResultValidator<R> implements Then<R> {
         });
     }
 
-    @SuppressWarnings({"unchecked", "rawtypes"})
     @Override
     public <M extends Message> Then<R> expectResultMessage(Predicate<M> messagePredicate, String description) {
         if (result instanceof Throwable) {
@@ -216,7 +215,16 @@ public class ResultValidator<R> implements Then<R> {
                                                   (Throwable) result);
         }
         if (result instanceof Message) {
-            return expectResult((Predicate) messagePredicate, description);
+            if (!testSafely(messagePredicate, result)) {
+                if (!errors.isEmpty()) {
+                    throw new GivenWhenThenAssertionError(String.format(
+                            "Handler returned an unexpected result. Expected: %s\n"
+                            + "Probable cause is an exception during handling.", description), errors.getFirst());
+                }
+                throw new GivenWhenThenAssertionError("Handler returned an unexpected result",
+                                                      description, result);
+            }
+            return this;
         }
         throw new GivenWhenThenAssertionError(String.format(
                 "Test fixture result is not of type Message. Expected: %s\nGot: %s.", description, result));
@@ -230,7 +238,7 @@ public class ResultValidator<R> implements Then<R> {
                 throw new GivenWhenThenAssertionError("An unexpected exception occurred during handling",
                                                       (Throwable) result);
             }
-            if (!testSafely(predicate, result)) {
+            if (!matches(predicate, result)) {
                 if (!errors.isEmpty()) {
                     throw new GivenWhenThenAssertionError(String.format(
                             "Handler returned an unexpected result. Expected: %s\n"
