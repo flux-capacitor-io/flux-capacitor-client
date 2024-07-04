@@ -192,6 +192,16 @@ public class JsonUtils {
         return writer.convertValue(fromValue, toValueType);
     }
 
+    @SneakyThrows
+    public static <T> T convertValue(Object fromValue, TypeRef<T> typeRef) {
+        if (fromValue instanceof byte[] input && !byte[].class.equals(typeRef.getType())) {
+            fromValue = readTree(input);
+        } else if (fromValue instanceof String input && !String.class.equals(typeRef.getType())) {
+            fromValue = readTree(input);
+        }
+        return writer.convertValue(fromValue, typeRef);
+    }
+
     public static <T> T convertValue(Object fromValue, Function<TypeFactory, JavaType> typeFunction) {
         return writer.convertValue(fromValue, typeFunction.apply(typeFactory()));
     }
