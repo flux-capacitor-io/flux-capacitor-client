@@ -17,8 +17,8 @@ package io.fluxcapacitor.javaclient.test;
 import io.fluxcapacitor.common.Registration;
 import io.fluxcapacitor.common.handling.ParameterResolver;
 import io.fluxcapacitor.common.reflection.ReflectionUtils;
+import io.fluxcapacitor.javaclient.common.NoOpAnnotation;
 import lombok.NonNull;
-import org.springframework.beans.factory.annotation.Autowired;
 
 import java.lang.annotation.Annotation;
 import java.lang.reflect.Parameter;
@@ -27,6 +27,10 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.UnaryOperator;
 
 public class BeanParameterResolver implements ParameterResolver<Object> {
+    @SuppressWarnings({"unchecked"})
+    static final Class<? extends Annotation> autowiredClass = (Class<? extends Annotation>) ReflectionUtils.classForName(
+            "org.springframework.beans.factory.annotation.Autowired", NoOpAnnotation.class);
+
     private final Map<Class<?>, Object> beans = new ConcurrentHashMap<>();
 
     public Registration registerBean(@NonNull Object bean) {
@@ -36,12 +40,18 @@ public class BeanParameterResolver implements ParameterResolver<Object> {
 
     @Override
     public UnaryOperator<Object> resolve(Parameter p, Annotation methodAnnotation) {
-        return v -> beans.get(p.getType());
+        return v -> {
+            Object bean = beans.get(p.getType());
+            if (bean == null) {
+                throw new IllegalStateException("No qualifying bean of type '" + p.getType() + "' available");
+            }
+            return bean;
+        };
     }
 
     @Override
     public boolean matches(Parameter parameter, Annotation methodAnnotation, Object value) {
-        return ReflectionUtils.has(Autowired.class, parameter);
+        return ReflectionUtils.has(autowiredClass, parameter);
     }
 
 }

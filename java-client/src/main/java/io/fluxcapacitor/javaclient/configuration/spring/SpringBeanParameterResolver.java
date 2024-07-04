@@ -18,6 +18,7 @@ import io.fluxcapacitor.common.handling.ParameterResolver;
 import io.fluxcapacitor.common.reflection.ReflectionUtils;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.NoSuchBeanDefinitionException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.config.ConfigurableListableBeanFactory;
@@ -51,7 +52,7 @@ public class SpringBeanParameterResolver implements ParameterResolver<Object> {
     protected UnaryOperator<Object> computeParameterResolver(Parameter p) {
         String[] beanNames = applicationContext.getBeanNamesForType(p.getType());
         return switch (beanNames.length) {
-            case 0 -> v -> null;
+            case 0 -> throw new NoSuchBeanDefinitionException(p.getType());
             case 1 -> {
                 String beanName = beanNames[0];
                 yield v -> applicationContext.getAutowireCapableBeanFactory().getBean(beanName);
