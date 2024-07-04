@@ -110,6 +110,12 @@ public class HandleWebTest {
         }
 
         @Test
+        void testPostJsonFromFile() {
+            testFixture.whenWebRequest(WebRequest.builder().method(POST).url("/json").payload("/web/body.json").build())
+                    .expectResult("/web/body.json");
+        }
+
+        @Test
         void testWithoutSlash() {
             testFixture.whenWebRequest(WebRequest.builder().method(GET).url("get").build()).expectResult("get");
         }

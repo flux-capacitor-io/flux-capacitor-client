@@ -122,6 +122,9 @@ public class WebResponse extends Message {
 
     @Override
     public WebResponse withPayload(Object payload) {
+        if (payload == getPayload()) {
+            return this;
+        }
         return toBuilder().payload(payload).build();
     }
 

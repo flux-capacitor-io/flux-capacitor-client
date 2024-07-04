@@ -64,6 +64,9 @@ public class Schedule extends Message {
 
     @Override
     public Schedule withPayload(Object payload) {
+        if (payload == getPayload()) {
+            return this;
+        }
         return new Schedule(payload, getMetadata(), getMessageId(), getTimestamp(), scheduleId, deadline);
     }
 

@@ -153,6 +153,9 @@ public class WebRequest extends Message {
 
     @Override
     public WebRequest withPayload(Object payload) {
+        if (payload == getPayload()) {
+            return this;
+        }
         return toBuilder().payload(payload).build();
     }
 

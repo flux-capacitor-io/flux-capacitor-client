@@ -19,6 +19,7 @@ import io.fluxcapacitor.javaclient.FluxCapacitor;
 import io.fluxcapacitor.javaclient.common.Message;
 import io.fluxcapacitor.javaclient.scheduling.Schedule;
 import io.fluxcapacitor.javaclient.web.WebRequest;
+import io.fluxcapacitor.javaclient.web.WebResponse;
 import lombok.AccessLevel;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
@@ -531,6 +532,12 @@ public class ResultValidator<R> implements Then<R> {
         if (actual instanceof WebRequest && expected instanceof WebRequest && !Objects.equals(
                 ((WebRequest) expected).getMethod(), ((WebRequest) actual).getMethod())) {
             return false;
+        }
+        if (actual instanceof WebResponse response && !(expected instanceof Message)) {
+            Class<?> expectedType = expectedMessage.getPayloadClass();
+            if (!response.getPayloadClass().equals(expectedType)) {
+                return new EqualsBuilder().append(expected, response.getPayloadAs(expectedType)).isEquals();
+            }
         }
         if (!actual.getMetadata().entrySet().containsAll(expectedMessage.getMetadata().entrySet())) {
             return false;

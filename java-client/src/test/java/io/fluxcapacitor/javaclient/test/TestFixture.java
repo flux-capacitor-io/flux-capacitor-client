@@ -784,8 +784,11 @@ public class TestFixture implements Given, When {
     }
 
     public static Object parseObject(Object object, Class<?> callerClass) {
+        if (object instanceof Message message) {
+            return message.withPayload(parseObject(message.getPayload(), callerClass));
+        }
         if (object instanceof String && ((String) object).endsWith(".json")) {
-            object = JsonUtils.fromFile(callerClass, (String) object);
+            return JsonUtils.fromFile(callerClass, (String) object);
         }
         return object;
     }

@@ -46,7 +46,6 @@ public class Message implements HasMessage {
         return object instanceof HasMessage ? ((HasMessage) object).toMessage() : new Message(object);
     }
 
-    @With
     @JsonTypeInfo(use = JsonTypeInfo.Id.CLASS)
     Object payload;
     @With
@@ -86,6 +85,13 @@ public class Message implements HasMessage {
     @Override
     public Message toMessage() {
         return this;
+    }
+
+    public Message withPayload(Object payload) {
+        if (payload == getPayload()) {
+            return this;
+        }
+        return new Message(payload, metadata, messageId, timestamp);
     }
 
     public Message addMetadata(Metadata metadata) {
