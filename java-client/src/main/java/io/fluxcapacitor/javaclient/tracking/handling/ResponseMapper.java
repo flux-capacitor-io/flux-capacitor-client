@@ -17,12 +17,9 @@ package io.fluxcapacitor.javaclient.tracking.handling;
 import io.fluxcapacitor.common.api.Metadata;
 import io.fluxcapacitor.javaclient.common.Message;
 
-@FunctionalInterface
 public interface ResponseMapper {
 
-    default Message map(Object response) {
-        return response instanceof Message m ? map(m.getPayload(), m.getMetadata()) : map(response, Metadata.empty());
-    }
+    Message map(Object response);
 
     Message map(Object response, Metadata metadata);
 

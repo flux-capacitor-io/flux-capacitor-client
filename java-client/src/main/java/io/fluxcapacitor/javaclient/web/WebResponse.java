@@ -176,6 +176,10 @@ public class WebResponse extends Message {
         return getHeaders(name).stream().findFirst().orElse(null);
     }
 
+    public List<HttpCookie> getCookies() {
+        return WebUtils.parseResponseCookieHeader(getHeaders("Set-Cookie"));
+    }
+
     public String getContentType() {
         return getHeader("Content-Type");
     }

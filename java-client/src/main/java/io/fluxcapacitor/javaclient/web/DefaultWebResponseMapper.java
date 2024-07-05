@@ -24,6 +24,7 @@ import io.fluxcapacitor.javaclient.tracking.handling.validation.ValidationExcept
 import java.util.concurrent.TimeoutException;
 
 public class DefaultWebResponseMapper implements WebResponseMapper {
+
     @Override
     public WebResponse map(Object response, Metadata metadata) {
         WebResponse.Builder builder = WebResponse.builder();

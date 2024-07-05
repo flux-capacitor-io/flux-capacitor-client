@@ -15,10 +15,15 @@
 package io.fluxcapacitor.javaclient.web;
 
 import io.fluxcapacitor.common.api.Metadata;
+import io.fluxcapacitor.javaclient.common.Message;
 import io.fluxcapacitor.javaclient.tracking.handling.ResponseMapper;
 
-@FunctionalInterface
 public interface WebResponseMapper extends ResponseMapper {
+
+    @Override
+    default WebResponse map(Object response) {
+        return response instanceof Message m ? map(m.getPayload(), m.getMetadata()) : map(response, Metadata.empty());
+    }
 
     @Override
     WebResponse map(Object response, Metadata metadata);

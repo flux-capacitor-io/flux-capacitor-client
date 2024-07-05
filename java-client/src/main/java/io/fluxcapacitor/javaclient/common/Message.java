@@ -43,7 +43,7 @@ import static io.fluxcapacitor.javaclient.FluxCapacitor.currentIdentityProvider;
 public class Message implements HasMessage {
 
     public static Message asMessage(Object object) {
-        return object instanceof HasMessage ? ((HasMessage) object).toMessage() : new Message(object);
+        return object instanceof HasMessage hm ? hm.toMessage() : new Message(object);
     }
 
     @JsonTypeInfo(use = JsonTypeInfo.Id.CLASS)

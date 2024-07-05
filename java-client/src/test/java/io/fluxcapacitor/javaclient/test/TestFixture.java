@@ -55,6 +55,7 @@ import io.fluxcapacitor.javaclient.tracking.handling.authentication.Unauthorized
 import io.fluxcapacitor.javaclient.tracking.handling.authentication.User;
 import io.fluxcapacitor.javaclient.tracking.handling.authentication.UserProvider;
 import io.fluxcapacitor.javaclient.web.WebRequest;
+import io.fluxcapacitor.javaclient.web.WebResponse;
 import lombok.AccessLevel;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
@@ -63,6 +64,7 @@ import lombok.Value;
 import lombok.experimental.Delegate;
 import lombok.extern.slf4j.Slf4j;
 
+import java.net.HttpCookie;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
@@ -172,6 +174,8 @@ public class TestFixture implements Given, When {
 
     private final BeanParameterResolver beanParameterResolver = new BeanParameterResolver();
     private final Map<String, String> testProperties = new HashMap<>();
+    private final List<HttpCookie> cookies = new ArrayList<>();
+
     private final List<ThrowingConsumer<TestFixture>> modifiers = new CopyOnWriteArrayList<>();
     private static final ThreadLocal<List<TestFixture>> activeFixtures = ThreadLocal.withInitial(ArrayList::new);
     private static final Executor shutdownExecutor = Executors.newFixedThreadPool(16);
@@ -469,8 +473,34 @@ public class TestFixture implements Given, When {
     @Override
     public TestFixture givenWebRequest(WebRequest webRequest) {
         Class<?> callerClass = ReflectionUtils.getCallerClass();
-        return givenModification(fixture -> fixture.getDispatchResult(
-                fixture.getFluxCapacitor().webRequestGateway().send(parseObject(webRequest, callerClass))));
+        return givenModification(fixture -> {
+            WebRequest request = fixture.parseObject(webRequest, callerClass);
+            fixture.executeWebRequest(request);
+        });
+    }
+
+    @SneakyThrows
+    protected Object executeWebRequest(WebRequest request) {
+        if (!cookies.isEmpty()) {
+            var builder = request.toBuilder();
+            for (HttpCookie cookie : cookies) {
+                if (request.getCookie(cookie.getName()).isEmpty()) {
+                    builder.cookie(cookie);
+                }
+            }
+            request = builder.build();
+        }
+        if (request.getMethod().isWebsocket()) {
+            return fluxCapacitor.webRequestGateway().sendAndForget(Guarantee.STORED, request).get();
+        }
+        WebResponse response = getDispatchResult(getFluxCapacitor().webRequestGateway().send(request));
+        response.getCookies().forEach(cookie -> {
+            cookies.remove(cookie);
+            if (!cookie.hasExpired()) {
+                cookies.add(cookie);
+            }
+        });
+        return response;
     }
 
     @Override
@@ -550,9 +580,7 @@ public class TestFixture implements Given, When {
     @Override
     public Then<Object> whenWebRequest(WebRequest request) {
         WebRequest message = trace(request);
-        return whenApplying(fc -> request.getMethod().isWebsocket()
-                ? fc.webRequestGateway().sendAndForget(Guarantee.STORED, message)
-                : getDispatchResult(fc.webRequestGateway().send(message)));
+        return whenApplying(fc -> executeWebRequest(message));
     }
 
     @Override

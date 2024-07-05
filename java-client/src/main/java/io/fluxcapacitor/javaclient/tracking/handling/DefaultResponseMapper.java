@@ -19,6 +19,11 @@ import io.fluxcapacitor.javaclient.common.Message;
 
 public class DefaultResponseMapper implements ResponseMapper {
     @Override
+    public Message map(Object response) {
+        return new Message(response, Metadata.empty());
+    }
+
+    @Override
     public Message map(Object response, Metadata metadata) {
         return new Message(response, metadata);
     }
