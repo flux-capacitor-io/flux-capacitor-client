@@ -71,6 +71,9 @@ public class JacksonContentFilter implements ContentFilter {
     @SuppressWarnings("unchecked")
     @Override
     public <T> T filterContent(T value, User viewer) {
+        if (value == null) {
+            return null;
+        }
         try {
             FilteringSerializer.rootValue.set(value);
             return viewer.apply(() -> mapper.convertValue(value, (Class<T>) value.getClass()));
