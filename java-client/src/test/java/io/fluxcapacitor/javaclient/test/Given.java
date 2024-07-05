@@ -25,6 +25,7 @@ import io.fluxcapacitor.javaclient.modeling.Searchable;
 import io.fluxcapacitor.javaclient.scheduling.Schedule;
 import io.fluxcapacitor.javaclient.tracking.handling.authentication.User;
 import io.fluxcapacitor.javaclient.tracking.handling.authentication.UserProvider;
+import io.fluxcapacitor.javaclient.web.HttpRequestMethod;
 import io.fluxcapacitor.javaclient.web.WebRequest;
 
 import java.time.Clock;
@@ -189,6 +190,21 @@ public interface Given extends When {
      * Specify a web request that has been issued prior to the behavior you want to test.
      */
     Given givenWebRequest(WebRequest webRequest);
+
+    /**
+     * Specify a POST request that has been issued prior to the behavior you want to test.
+     */
+    default Given givenPost(String path, Object payload) {
+        return givenWebRequest(
+                WebRequest.builder().method(HttpRequestMethod.POST).url(path).payload(payload).build());
+    }
+
+    /**
+     * Specify a GET request that has been issued prior to the behavior you want to test.
+     */
+    default Given givenGet(String path) {
+        return givenWebRequest(WebRequest.builder().method(HttpRequestMethod.GET).url(path).build());
+    }
 
     /**
      * Specify any action that has happened prior to the behavior you want to test.

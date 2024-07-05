@@ -25,6 +25,7 @@ import io.fluxcapacitor.javaclient.persisting.search.Search;
 import io.fluxcapacitor.javaclient.tracking.handling.Request;
 import io.fluxcapacitor.javaclient.tracking.handling.authentication.User;
 import io.fluxcapacitor.javaclient.tracking.handling.authentication.UserProvider;
+import io.fluxcapacitor.javaclient.web.HttpRequestMethod;
 import io.fluxcapacitor.javaclient.web.WebRequest;
 
 import java.time.Duration;
@@ -189,6 +190,20 @@ public interface When {
      * Test expected behavior of handling the given web request, including any side effects.
      */
     Then<Object> whenWebRequest(WebRequest request);
+
+    /**
+     * Test expected behavior of handling the given POST request, including any side effects.
+     */
+    default Then<Object> whenPost(String path, Object payload) {
+        return whenWebRequest(WebRequest.builder().method(HttpRequestMethod.POST).url(path).payload(payload).build());
+    }
+
+    /**
+     * Test expected behavior of handling the given GET request, including any side effects.
+     */
+    default Then<Object> whenGet(String path) {
+        return whenWebRequest(WebRequest.builder().method(HttpRequestMethod.GET).url(path).build());
+    }
 
     /**
      * Test expected behavior of handling the given expired schedule.

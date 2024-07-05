@@ -53,6 +53,11 @@ public class HandleWebTest {
         }
 
         @Test
+        void testGet_shortHand() {
+            testFixture.whenGet("/get").expectResult("get");
+        }
+
+        @Test
         void testGetFullUrl() {
             testFixture.whenWebRequest(WebRequest.builder().method(GET).url("http://localhost:8080/get").build())
                     .expectResult("get8080");
@@ -62,7 +67,7 @@ public class HandleWebTest {
         void testPostString() {
             testFixture.whenWebRequest(WebRequest.builder().method(POST).url("/string").payload("payload").build())
                     .expectResult("payload")
-                    .<WebResponse>expectResultMessage(r -> r.getStatus() == 200);;
+                    .<WebResponse>expectResultMessage(r -> r.getStatus() == 200);
         }
 
         @Test
@@ -70,6 +75,13 @@ public class HandleWebTest {
             testFixture.whenWebRequest(WebRequest.builder().method(POST).url("/noResult").payload("payload").build())
                     .expectNoResult()
                     .<WebResponse>expectResultMessage(r -> r.getStatus() == 204);
+        }
+
+        @Test
+        void testPostString_shortHand() {
+            testFixture.whenPost("/string", "payload")
+                    .expectResult("payload")
+                    .<WebResponse>expectResultMessage(r -> r.getStatus() == 200);
         }
 
         @Test
@@ -119,6 +131,12 @@ public class HandleWebTest {
         void testPostJsonFromFile_given() {
             testFixture.givenWebRequest(
                     WebRequest.builder().method(POST).url("/json").payload("/web/body.json").build())
+                    .whenNothingHappens().expectNoErrors();
+        }
+
+        @Test
+        void testPostJsonFromFile_given_shortHand() {
+            testFixture.givenPost("/json", "/web/body.json")
                     .whenNothingHappens().expectNoErrors();
         }
 
