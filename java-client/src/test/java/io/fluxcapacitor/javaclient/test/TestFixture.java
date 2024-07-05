@@ -479,6 +479,16 @@ public class TestFixture implements Given, When {
         });
     }
 
+    @Override
+    public TestFixture givenPost(String path, Object payload) {
+        return (TestFixture) Given.super.givenPost(path, payload);
+    }
+
+    @Override
+    public TestFixture givenGet(String path) {
+        return (TestFixture) Given.super.givenGet(path);
+    }
+
     @SneakyThrows
     protected Object executeWebRequest(WebRequest request) {
         if (!cookies.isEmpty()) {
