@@ -37,7 +37,7 @@ public class WebsocketResponseInterceptor implements DispatchInterceptor {
                 } else {
                     return message.withMetadata(
                             message.getMetadata().with("sessionId", currentMessage.getMetadata().get("sessionId"))
-                                                                  .addIfAbsent("function", "message"));
+                                    .addIfAbsent("function", message.getPayload() == null ? "ack" : "message"));
                 }
             }
         }

@@ -33,15 +33,17 @@ public class SocketSessionParameterResolver implements ParameterResolver<HasMess
     public Function<HasMessage, Object> resolve(Parameter p, Annotation methodAnnotation) {
         return m -> {
             String sessionId = m.getMetadata().get("sessionId");
+            if (sessionId == null) {
+                throw new IllegalStateException("`sessionId` is missing in the metadata of the WebRequest");
+            }
             String target = m instanceof DeserializingMessage dm ? dm.getSerializedObject().getSource() : null;
-            return sessionId == null ? null : new DefaultSocketSession(sessionId, target, webResponseGateway);
+            return new DefaultSocketSession(sessionId, target, webResponseGateway);
         };
     }
 
     @Override
     public boolean matches(Parameter parameter, Annotation methodAnnotation, HasMessage value) {
         return SocketSession.class.isAssignableFrom(parameter.getType())
-               && ReflectionUtils.isOrHas(methodAnnotation, HandleWeb.class)
-               && value.getMetadata().containsKey("sessionId");
+               && ReflectionUtils.isOrHas(methodAnnotation, HandleWeb.class);
     }
 }

@@ -255,7 +255,7 @@ public interface Then<R> {
      * refer to a json resource in the class path of the unit test by passing a string ending in `.json`, e.g.
      * "send-email-request.json".
      */
-    Then<R> expectNoWebRequestsLike(Object... webResponses);
+    Then<R> expectNoWebRequestsLike(Object... webRequests);
 
     /**
      * Assert that no web requests got published.

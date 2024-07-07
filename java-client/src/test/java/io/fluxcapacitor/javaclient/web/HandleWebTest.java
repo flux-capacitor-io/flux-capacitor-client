@@ -256,43 +256,74 @@ public class HandleWebTest {
 
     @Nested
     class WebSocketTests {
-        private final TestFixture testFixture = TestFixture.createAsync(new Handler())
-                .resultTimeout(Duration.ofSeconds(1)).consumerTimeout(Duration.ofSeconds(1)).spy();
 
-        @Test
-        void testAutoHandshake() {
-            testFixture.whenWebRequest(WebRequest.builder().method(WS_HANDSHAKE).url("/auto").build())
-                    .expectThat(fc -> verify(fc.client().getGatewayClient(MessageType.WEBRESPONSE)).append(
-                            any(), any(SerializedMessage.class)))
-                    .expectNoErrors();
+        @Nested
+        class Sync {
+            private final TestFixture testFixture = TestFixture.create(new Handler());
+
+            @Test
+            void testOpen() {
+                testFixture.whenWebRequest(WebRequest.builder().method(WS_OPEN).url("/auto").build())
+                        .expectResult(WebResponse.builder().payload("open").build());
+            }
+
+            @Test
+            void testResponse() {
+                testFixture.whenWebRequest(WebRequest.builder().method(WS_MESSAGE).url("/response").build())
+                        .expectResult(WebResponse.builder().payload("response").build());
+            }
+
+            @Test
+            void testNoResponse() {
+                testFixture.whenWebRequest(WebRequest.builder().method(WS_MESSAGE).url("/noResponse").build())
+                        .expectNoResult();
+            }
+
+            @Test
+            void testViaSession() {
+                testFixture.whenWebRequest(WebRequest.builder().method(WS_MESSAGE).url("/viaSession").build())
+                        .expectWebResponses("viaSession");
+            }
         }
 
-        @Test
-        void testOpen() {
-            testFixture.whenWebRequest(WebRequest.builder().method(WS_OPEN).url("/auto").build()
-                                               .addMetadata("sessionId", "someSession"))
-                    .expectWebResponses(WebResponse.builder().payload("open").build()
-                                                .addMetadata("sessionId", "someSession"));
+        @Nested
+        class Async {
+            private final TestFixture testFixture = TestFixture.createAsync(new Handler())
+                    .resultTimeout(Duration.ofSeconds(1)).consumerTimeout(Duration.ofSeconds(1)).spy();
+
+            @Test
+            void testAutoHandshake() {
+                testFixture.whenWebRequest(WebRequest.builder().method(WS_HANDSHAKE).url("/auto").build())
+                        .expectThat(fc -> verify(fc.client().getGatewayClient(MessageType.WEBRESPONSE)).append(
+                                any(), any(SerializedMessage.class)))
+                        .expectNoErrors();
+            }
+
+            @Test
+            void testOpen() {
+                testFixture.whenWebRequest(WebRequest.builder().method(WS_OPEN).url("/auto").build())
+                        .expectWebResponses(WebResponse.builder().payload("open").build());
+            }
+
+            @Test
+            void testResponse() {
+                testFixture.whenWebRequest(WebRequest.builder().method(WS_MESSAGE).url("/response").build())
+                        .expectWebResponses(WebResponse.builder().payload("response").build());
+            }
+
+            @Test
+            void testNoResponse() {
+                testFixture.whenWebRequest(WebRequest.builder().method(WS_MESSAGE).url("/noResponse").build())
+                        .expectNoWebResponses();
+            }
+
+            @Test
+            void testViaSession() {
+                testFixture.whenWebRequest(WebRequest.builder().method(WS_MESSAGE).url("/viaSession").build())
+                        .expectWebResponses("viaSession");
+            }
         }
 
-        @Test
-        void testResponse() {
-            testFixture.whenWebRequest(WebRequest.builder().method(WS_MESSAGE).url("/response").build())
-                    .expectWebResponses(WebResponse.builder().payload("response").build());
-        }
-
-        @Test
-        void testNoResponse() {
-            testFixture.whenWebRequest(WebRequest.builder().method(WS_MESSAGE).url("/noResponse").build())
-                    .expectNoWebResponses();
-        }
-
-        @Test
-        void testViaSession() {
-            testFixture.whenWebRequest(WebRequest.builder().method(WS_MESSAGE).url("/viaSession").build()
-                                               .addMetadata("sessionId", "someSession"))
-                    .expectWebResponses("viaSession");
-        }
 
         private class Handler {
             @HandleSocketHandshake("manual")

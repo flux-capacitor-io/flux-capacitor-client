@@ -17,11 +17,19 @@ package io.fluxcapacitor.javaclient.web;
 import io.fluxcapacitor.common.Guarantee;
 import io.fluxcapacitor.javaclient.common.Message;
 import io.fluxcapacitor.javaclient.publishing.ResultGateway;
+import lombok.AllArgsConstructor;
+import lombok.Getter;
+import lombok.experimental.Accessors;
 
 import java.util.concurrent.CompletableFuture;
 
-public record DefaultSocketSession(String sessionId, String target,
-                                   ResultGateway webResponseGateway) implements SocketSession {
+@AllArgsConstructor
+public class DefaultSocketSession implements SocketSession {
+    @Getter
+    @Accessors(fluent = true)
+    private final String sessionId;
+    private final String target;
+    private final ResultGateway webResponseGateway;
 
     @Override
     public CompletableFuture<Void> sendMessage(Object value, Guarantee guarantee) {

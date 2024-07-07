@@ -15,6 +15,7 @@
 package io.fluxcapacitor.common.serialization;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
+import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.JavaType;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -193,7 +194,7 @@ public class JsonUtils {
     }
 
     @SneakyThrows
-    public static <T> T convertValue(Object fromValue, TypeRef<T> typeRef) {
+    public static <T> T convertValue(Object fromValue, TypeReference<T> typeRef) {
         if (fromValue instanceof byte[] input && !byte[].class.equals(typeRef.getType())) {
             fromValue = readTree(input);
         } else if (fromValue instanceof String input && !String.class.equals(typeRef.getType())) {

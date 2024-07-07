@@ -17,6 +17,7 @@ package io.fluxcapacitor.common.api;
 import com.fasterxml.jackson.annotation.JsonAnyGetter;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.json.JsonMapper;
 import io.fluxcapacitor.common.serialization.NullCollectionsAsEmptyModule;
 import lombok.NonNull;
@@ -28,6 +29,7 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.function.Predicate;
@@ -200,6 +202,20 @@ public class Metadata {
         }
     }
 
+    @SneakyThrows
+    public <T> T get(Object key, TypeReference<T> type) {
+        String value = get(key);
+        if (value == null) {
+            return null;
+        }
+        try {
+            return objectMapper.readValue(value, type);
+        } catch (IOException e) {
+            throw new IllegalStateException(format("Failed to deserialize value %s to a %s for key %s",
+                                                   value, type, key), e);
+        }
+    }
+
     @JsonIgnore
     public Map<String, String> getTraceEntries() {
         return entrySet().stream().filter(e -> e.getKey().startsWith("$trace."))
@@ -213,6 +229,11 @@ public class Metadata {
 
     public boolean containsAnyKey(Object... keys) {
         return Arrays.stream(keys).anyMatch(this::containsKey);
+    }
+
+    public boolean contains(@NonNull Object key, @NonNull Object value) {
+        Object result = value instanceof String ? get(key) : get(key, value.getClass());
+        return Objects.equals(result, value);
     }
 
     public boolean contains(@NonNull Metadata metadata) {

@@ -489,30 +489,6 @@ public class TestFixture implements Given, When {
         return (TestFixture) Given.super.givenGet(path);
     }
 
-    @SneakyThrows
-    protected Object executeWebRequest(WebRequest request) {
-        if (!cookies.isEmpty()) {
-            var builder = request.toBuilder();
-            for (HttpCookie cookie : cookies) {
-                if (request.getCookie(cookie.getName()).isEmpty()) {
-                    builder.cookie(cookie);
-                }
-            }
-            request = builder.build();
-        }
-        if (request.getMethod().isWebsocket()) {
-            return fluxCapacitor.webRequestGateway().sendAndForget(Guarantee.STORED, request).get();
-        }
-        WebResponse response = getDispatchResult(getFluxCapacitor().webRequestGateway().send(request));
-        response.getCookies().forEach(cookie -> {
-            cookies.remove(cookie);
-            if (!cookie.hasExpired()) {
-                cookies.add(cookie);
-            }
-        });
-        return response;
-    }
-
     @Override
     public TestFixture givenTimeAdvancedTo(Instant instant) {
         return givenModification(fixture -> fixture.advanceTimeTo(instant));
@@ -590,7 +566,14 @@ public class TestFixture implements Given, When {
     @Override
     public Then<Object> whenWebRequest(WebRequest request) {
         WebRequest message = trace(request);
-        return whenApplying(fc -> executeWebRequest(message));
+        return whenApplying(fc -> {
+            var response = executeWebRequest(message);
+            if (response != null && synchronous
+                && (response.getPayload() != null || !request.getMethod().isWebsocket())) {
+                registerWebResponse(response);
+            }
+            return response;
+        });
     }
 
     @Override
@@ -638,6 +621,30 @@ public class TestFixture implements Given, When {
     /*
         helper
      */
+
+    @SneakyThrows
+    protected WebResponse executeWebRequest(WebRequest request) {
+        if (request.getMethod().isWebsocket() && !request.getMetadata().containsKey("sessionId")) {
+            request = request.addMetadata("sessionId", "testSession");
+        }
+        if (!cookies.isEmpty()) {
+            var builder = request.toBuilder();
+            for (HttpCookie cookie : cookies) {
+                if (request.getCookie(cookie.getName()).isEmpty()) {
+                    builder.cookie(cookie);
+                }
+            }
+            request = builder.build();
+        }
+        WebResponse response = getDispatchResult(getFluxCapacitor().webRequestGateway().send(request));
+        response.getCookies().forEach(cookie -> {
+            cookies.remove(cookie);
+            if (!cookie.hasExpired()) {
+                cookies.add(cookie);
+            }
+        });
+        return response;
+    }
 
     protected User getUser(Object userOrId) {
         User result = userOrId instanceof User user ? user
@@ -757,8 +764,10 @@ public class TestFixture implements Given, When {
         getWebRequests().add(request);
     }
 
-    protected void registerWebResponse(Message response) {
-        getWebResponses().add(response);
+    protected void registerWebResponse(WebResponse response) {
+        if (!response.getMetadata().contains("function", "ack")) {
+            getWebResponses().add(response);
+        }
     }
 
     protected void registerSchedule(Schedule schedule) {
@@ -904,7 +913,7 @@ public class TestFixture implements Given, When {
                     case EVENT -> testFixture.registerEvent(message);
                     case SCHEDULE -> testFixture.registerSchedule((Schedule) message);
                     case WEBREQUEST -> testFixture.registerWebRequest(message);
-                    case WEBRESPONSE -> testFixture.registerWebResponse(message);
+                    case WEBRESPONSE -> testFixture.registerWebResponse((WebResponse) message);
                     case METRICS -> testFixture.registerMetric(message);
                 }
             }

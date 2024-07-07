@@ -94,7 +94,7 @@ public class WebRequest extends Message {
             .map(WebUtils::parseRequestCookieHeader).orElse(Collections.emptyList());
 
     private WebRequest(Builder builder) {
-        super(builder.payload(), Metadata.of("url", builder.url(), "method", builder.method().name(),
+        super(builder.payload(), builder.metadata.with("url", builder.url(), "method", builder.method().name(),
                                              "headers", builder.headers()));
         this.path = builder.url();
         this.method = builder.method();
@@ -241,6 +241,8 @@ public class WebRequest extends Message {
 
         Object payload;
 
+        Metadata metadata = Metadata.empty();
+
         protected Builder(WebRequest request) {
             method(request.getMethod());
             url(request.getPath());
@@ -249,6 +251,7 @@ public class WebRequest extends Message {
             cookies.addAll(WebUtils.parseRequestCookieHeader(
                     Optional.ofNullable(headers.remove("Cookie")).orElseGet(List::of)
                             .stream().findFirst().orElse(null)));
+            metadata = request.getMetadata();
         }
 
         public Builder header(String key, String value) {

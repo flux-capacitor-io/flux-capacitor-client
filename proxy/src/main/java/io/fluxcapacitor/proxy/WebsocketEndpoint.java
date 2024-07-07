@@ -118,6 +118,7 @@ public class WebsocketEndpoint extends Endpoint {
                             case "message" -> sendMessage(m, session);
                             case "ping" -> sendPing(m, session);
                             case "close" -> sendClose(m, session);
+                            case "ack" -> { /* do nothing */ }
                         }
                     } catch (Exception e) {
                         log.warn("Failed to send websocket result to client (session {})", session.getId(), e);

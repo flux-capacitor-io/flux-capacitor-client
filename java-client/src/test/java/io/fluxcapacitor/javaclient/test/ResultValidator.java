@@ -137,8 +137,8 @@ public class ResultValidator<R> implements Then<R> {
     }
 
     @Override
-    public Then<R> expectNoWebRequestsLike(Object... webResponses) {
-        return expectNo(asMessages(webRequests), this.webRequests);
+    public Then<R> expectNoWebRequestsLike(Object... webRequests) {
+        return expectNo(asMessages(this.webRequests), this.webRequests);
     }
 
     @Override
@@ -153,7 +153,7 @@ public class ResultValidator<R> implements Then<R> {
 
     @Override
     public Then<R> expectNoWebResponsesLike(Object... webResponses) {
-        return expectNo(asMessages(commands), this.commands);
+        return expectNo(asMessages(webResponses), this.webResponses);
     }
 
     @Override

@@ -265,15 +265,9 @@ public class DefaultTracking implements Tracking {
             return false;
         }
         if (request.getMessageType() == MessageType.WEBREQUEST) {
-            var requestMethod = WebRequest.getMethod(request.getMetadata());
-            if (requestMethod != null) {
-                switch (requestMethod) {
-                    case WS_HANDSHAKE -> {
-                        return true;
-                    }
-                    case WS_OPEN, WS_MESSAGE -> {
-                        return result != null;
-                    }
+            switch (WebRequest.getMethod(request.getMetadata())) {
+                case WS_HANDSHAKE, WS_OPEN, WS_MESSAGE -> {
+                    return true;
                 }
             }
         }

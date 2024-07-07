@@ -26,6 +26,7 @@ import org.junit.platform.commons.util.ExceptionUtils;
 import org.opentest4j.AssertionFailedError;
 
 import java.util.Collection;
+import java.util.Objects;
 
 import static com.fasterxml.jackson.databind.DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES;
 import static com.fasterxml.jackson.databind.SerializationFeature.FAIL_ON_EMPTY_BEANS;
@@ -70,7 +71,7 @@ public class GivenWhenThenAssertionError extends AssertionFailedError {
                 return expectedOrActual;
             }
             if (expectedOrActual instanceof Description) {
-                return expectedOrActual.toString();
+                return Objects.toString(expectedOrActual);
             }
         }
         try {
