@@ -34,6 +34,7 @@ import io.fluxcapacitor.javaclient.modeling.EventPublicationStrategy;
 import io.fluxcapacitor.javaclient.modeling.ImmutableAggregateRoot;
 import io.fluxcapacitor.javaclient.modeling.ModifiableAggregateRoot;
 import io.fluxcapacitor.javaclient.modeling.NoOpEntity;
+import io.fluxcapacitor.javaclient.modeling.SideEffectFreeEntity;
 import io.fluxcapacitor.javaclient.persisting.eventsourcing.AggregateEventStream;
 import io.fluxcapacitor.javaclient.persisting.eventsourcing.EventSourcingException;
 import io.fluxcapacitor.javaclient.persisting.eventsourcing.EventStore;
@@ -120,13 +121,21 @@ public class DefaultAggregateRepository implements AggregateRepository {
     }
 
     @Override
+    @SuppressWarnings("unchecked")
+    public <T> Entity<T> asEntity(T entityValue) {
+        AnnotatedAggregateRepository<T> repository = (AnnotatedAggregateRepository<T>) delegates.apply(
+                entityValue == null ? Object.class : entityValue.getClass());
+        return repository.fromValue(entityValue);
+    }
+
+    @Override
     @SuppressWarnings("Java8MapForEach")
     public Map<String, Class<?>> getAggregatesFor(@NonNull Object entityId) {
         LinkedHashMap<String, Class<?>> result = new LinkedHashMap<>(getActiveAggregatesFor(entityId));
         relationshipsCache.computeIfAbsent(
-                entityId.toString(), id -> eventStoreClient.getAggregatesFor(id.toString())
-                        .entrySet().stream().collect(toMap(Map.Entry::getKey, e -> classForName(
-                                serializer.upcastType(e.getValue()), Void.class), (a, b) -> b, LinkedHashMap::new)))
+                        entityId.toString(), id -> eventStoreClient.getAggregatesFor(id.toString())
+                                .entrySet().stream().collect(toMap(Map.Entry::getKey, e -> classForName(
+                                        serializer.upcastType(e.getValue()), Void.class), (a, b) -> b, LinkedHashMap::new)))
                 .entrySet().forEach(e -> result.putIfAbsent(e.getKey(), e.getValue()));
         return result;
     }
@@ -196,13 +205,29 @@ public class DefaultAggregateRepository implements AggregateRepository {
                             s -> aggregateRoot -> ReflectionUtils.readProperty(s, aggregateRoot.get())
                                     .map(t -> Instant.from((TemporalAccessor) t)).orElseGet(() -> {
                                         if (warnedAboutMissingEndPath.compareAndSet(false, true)) {
-                                            log.warn("Aggregate type {} does not declare an end timestamp property at '{}'",
-                                                     aggregateRoot.get().getClass().getSimpleName(), s);
+                                            log.warn(
+                                                    "Aggregate type {} does not declare an end timestamp property at '{}'",
+                                                    aggregateRoot.get().getClass().getSimpleName(), s);
                                         }
                                         return aggregateRoot.timestamp();
                                     }))
                     .orElse(timestampFunction);
             this.ignoreUnknownEvents = annotation.ignoreUnknownEvents();
+        }
+
+        @SuppressWarnings("unchecked")
+        public Entity<T> fromValue(T value) {
+            return new SideEffectFreeEntity<>(ImmutableAggregateRoot
+                    .<T>builder()
+                    .idProperty(idProperty)
+                    .id(ReflectionUtils.readProperty(idProperty, value).orElse(null))
+                    .value(value)
+                    .type((Class<T>) (value != null ? value.getClass() : Object.class))
+                    .timestamp(FluxCapacitor.currentTime())
+                    .entityHelper(entityHelper)
+                    .eventStore(eventStore)
+                    .serializer(serializer)
+                    .build());
         }
 
         public Entity<T> load(Object id) {

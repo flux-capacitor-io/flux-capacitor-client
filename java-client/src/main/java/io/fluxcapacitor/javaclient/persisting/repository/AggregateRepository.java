@@ -32,6 +32,8 @@ public interface AggregateRepository {
 
     <T> Entity<T> loadFor(@NonNull Object entityId, Class<?> defaultType);
 
+    <T> Entity<T> asEntity(T entityId);
+
     default CompletableFuture<Void> repairRelationships(Id<?> aggregateId) {
         return repairRelationships(load(aggregateId));
     }

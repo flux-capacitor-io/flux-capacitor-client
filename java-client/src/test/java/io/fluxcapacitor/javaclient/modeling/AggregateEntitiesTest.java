@@ -56,6 +56,7 @@ import static io.fluxcapacitor.javaclient.FluxCapacitor.loadAggregate;
 import static io.fluxcapacitor.javaclient.FluxCapacitor.loadEntity;
 import static java.util.stream.Collectors.toList;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.mockito.Mockito.verifyNoInteractions;
 
 @Slf4j
 @SuppressWarnings({"rawtypes", "SameParameterValue", "unchecked"})
@@ -428,6 +429,53 @@ public class AggregateEntitiesTest {
                     throw new MockException();
                 }
             }).whenCommand(event).expectOnlyEvents("first");
+        }
+    }
+
+    @Nested
+    class AsEntityTests {
+
+        @Test
+        void applyModifiesAggregateValue() {
+            Aggregate input = Aggregate.builder().build();
+            testFixture
+                    .whenApplying(fc -> fc.aggregateRepository().asEntity(input).apply(new AddChild("missing")))
+                    .expectResult(e -> !e.get().equals(input))
+                    .expectResult(e -> e.allEntities().anyMatch(c -> c.get() instanceof MissingChild && "missing".equals(c.id())));
+        }
+
+        @Test
+        void applyDoesNotYieldAnyEvents() {
+            testFixture.spy()
+                    .whenApplying(fc -> fc.aggregateRepository().asEntity(
+                            Aggregate.builder().build()).apply(new AddChild("missing")))
+                    .expectThat(fc -> verifyNoInteractions(fc.eventStore()));
+        }
+
+        @Test
+        void fromNullValue() {
+            testFixture
+                    .whenApplying(fc -> fc.aggregateRepository().asEntity(null).apply(new CreateAggregate(), new AddChild("missing")))
+                    .expectResult(e -> e.allEntities().anyMatch(c -> c.get() instanceof MissingChild && "missing".equals(c.id())));
+        }
+
+        @Value
+        class CreateAggregate {
+
+            @Apply
+            Aggregate apply() {
+                return Aggregate.builder().build();
+            }
+        }
+
+        @Value
+        class AddChild {
+            String missingChildId;
+
+            @Apply
+            MissingChild apply() {
+                return MissingChild.builder().missingChildId(missingChildId).build();
+            }
         }
     }
 
@@ -852,6 +900,7 @@ public class AggregateEntitiesTest {
     public static class Aggregate {
 
         @Default
+        @EntityId
         String id = "test";
 
         @Member

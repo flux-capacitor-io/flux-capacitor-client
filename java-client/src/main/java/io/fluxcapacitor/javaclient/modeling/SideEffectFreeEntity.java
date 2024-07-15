@@ -21,6 +21,7 @@ import lombok.Getter;
 import lombok.experimental.Accessors;
 
 import java.util.Collection;
+import java.util.List;
 import java.util.Optional;
 import java.util.function.Supplier;
 import java.util.function.UnaryOperator;
@@ -29,20 +30,41 @@ import static java.util.stream.Collectors.toList;
 
 @AllArgsConstructor
 @Accessors(fluent = true)
-public class NoOpEntity<T> implements Entity<T> {
+public class SideEffectFreeEntity<T> implements Entity<T> {
 
     private final Supplier<Entity<T>> loader;
 
     @Getter(lazy = true, value = AccessLevel.PRIVATE)
     private final Entity<T> delegate = loader.get();
 
-    private NoOpEntity(Entity<T> delegate) {
+    @Getter(lazy = true)
+    private final List<Entity<?>> entities
+            = delegate().entities().stream().map(e -> new SideEffectFreeEntity<>((Entity<?>) e)).collect(toList());
+
+    public SideEffectFreeEntity(Entity<T> delegate) {
         this.loader = () -> delegate;
     }
 
     @Override
-    public Entity<T> apply(Message eventMessage) {
-        return this;
+    public SideEffectFreeEntity<T> apply(Message eventMessage) {
+        var wasLoading = Entity.isLoading();
+        try {
+            Entity.loading.set(true);
+            return new SideEffectFreeEntity<>(delegate().apply(eventMessage));
+        } finally {
+            Entity.loading.set(wasLoading);
+        }
+    }
+
+    @Override
+    public SideEffectFreeEntity<T> update(UnaryOperator<T> function) {
+        var wasLoading = Entity.isLoading();
+        try {
+            Entity.loading.set(true);
+            return new SideEffectFreeEntity<>(delegate().update(function));
+        } finally {
+            Entity.loading.set(wasLoading);
+        }
     }
 
     @Override
@@ -51,18 +73,14 @@ public class NoOpEntity<T> implements Entity<T> {
     }
 
     @Override
-    public Entity<T> update(UnaryOperator<T> function) {
-        return this;
-    }
-
-    @Override
-    public <E extends Exception> NoOpEntity<T> assertLegal(Object command) throws E {
+    public <E extends Exception> Entity<T> assertLegal(Object command) throws E {
+        delegate().assertLegal(command);
         return this;
     }
 
     @Override
     public Entity<?> parent() {
-        return Optional.ofNullable(delegate().parent()).map(NoOpEntity::new).orElse(null);
+        return Optional.ofNullable(delegate().parent()).map(SideEffectFreeEntity::new).orElse(null);
     }
 
     @Override
@@ -71,13 +89,9 @@ public class NoOpEntity<T> implements Entity<T> {
     }
 
     @Override
-    public Collection<? extends Entity<?>> entities() {
-        return delegate().entities().stream().map(e -> new NoOpEntity<>((Entity<?>) e)).collect(toList());
-    }
-
-    @Override
-    public Entity<T> previous() {
-        return new NoOpEntity<>(delegate().previous());
+    public SideEffectFreeEntity<T> previous() {
+        Entity<T> previous = delegate().previous();
+        return previous == null ? null : new SideEffectFreeEntity<>(previous);
     }
 
     @Override

@@ -72,6 +72,11 @@ public class CachingAggregateRepository implements AggregateRepository {
     }
 
     @Override
+    public <T> Entity<T> asEntity(T entityId) {
+        return delegate.asEntity(entityId);
+    }
+
+    @Override
     public CompletableFuture<Void> repairRelationships(Entity<?> aggregate) {
         return delegate.repairRelationships(aggregate);
     }
