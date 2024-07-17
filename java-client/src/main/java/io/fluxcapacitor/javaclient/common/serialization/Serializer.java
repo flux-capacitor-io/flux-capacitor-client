@@ -59,7 +59,7 @@ public interface Serializer extends ContentFilter {
      */
     @SuppressWarnings({"unchecked", "rawtypes"})
     default <T> T deserialize(SerializedObject<byte[], ?> data) {
-        List<DeserializingObject<T, ?>> list = deserialize((Stream) Stream.of(data), true).toList();
+        List<DeserializingObject<T, ?>> list = deserialize((Stream) Stream.of(data), UnknownTypeStrategy.FAIL).toList();
         if (list.size() != 1) {
             throw new DeserializationException(
                     String.format("Invalid deserialization result for a '%s'. Expected a single object but got %s",
@@ -78,27 +78,26 @@ public interface Serializer extends ContentFilter {
      * caller can inspect what type will be returned via {@link DeserializingObject#getSerializedObject()} before
      * deciding to go through with the deserialization.
      * <p>
-     * You can specify whether deserialization of a result in the output stream should fail with a {@link
-     * DeserializationException} if a type is unknown (not a class). It is up to the implementation to determine what
-     * should happen if a type is unknown but the {@code failOnUnknownType} flag is false.
+     * You can specify whether deserialization of a result in the output stream should fail with a
+     * {@link DeserializationException} if a type is unknown (not a class). It is up to the implementation to determine
+     * what should happen if a type is unknown but the {@code failOnUnknownType} flag is false.
      *
-     * @param dataStream        data input stream to deserialize
-     * @param failOnUnknownType flag that determines whether deserialization of an unknown type should give an
-     *                          exception
-     * @param <I>               the type of the serialized object
+     * @param dataStream          data input stream to deserialize
+     * @param unknownTypeStrategy value that determines what to do when encountering unknown types
+     * @param <I>                 the type of the serialized object
      * @return a stream containing deserialization results
      */
     <I extends SerializedObject<byte[], I>> Stream<DeserializingObject<byte[], I>> deserialize(
-            Stream<I> dataStream, boolean failOnUnknownType);
+            Stream<I> dataStream, UnknownTypeStrategy unknownTypeStrategy);
 
     default Stream<DeserializingMessage> deserializeMessages(Stream<SerializedMessage> dataStream,
                                                              MessageType messageType) {
-        return deserializeMessages(dataStream, messageType, false);
+        return deserializeMessages(dataStream, messageType, UnknownTypeStrategy.AS_INTERMEDIATE);
     }
 
     default Stream<DeserializingMessage> deserializeMessages(Stream<SerializedMessage> dataStream,
-                                                             MessageType messageType, boolean failOnUnknownType) {
-        return deserialize(dataStream, failOnUnknownType).map(s -> new DeserializingMessage(s, messageType));
+                                                             MessageType messageType, UnknownTypeStrategy unknownTypeStrategy) {
+        return deserialize(dataStream, unknownTypeStrategy).map(s -> new DeserializingMessage(s, messageType));
     }
 
     default DeserializingMessage deserializeMessage(SerializedMessage message, MessageType messageType) {

@@ -24,6 +24,7 @@ import io.fluxcapacitor.common.serialization.Revision;
 import io.fluxcapacitor.javaclient.common.serialization.DeserializationException;
 import io.fluxcapacitor.javaclient.common.serialization.DeserializingObject;
 import io.fluxcapacitor.javaclient.common.serialization.FilterContent;
+import io.fluxcapacitor.javaclient.common.serialization.UnknownTypeStrategy;
 import io.fluxcapacitor.javaclient.common.serialization.casting.Downcast;
 import io.fluxcapacitor.javaclient.common.serialization.casting.Upcast;
 import io.fluxcapacitor.javaclient.tracking.handling.authentication.MockUser;
@@ -80,7 +81,7 @@ class JacksonSerializerTest {
     void testDeserializeStream() throws JsonProcessingException {
         List<RevisedObject> expected = asList(new RevisedObject("test0", 5), new RevisedObject("test2", 42));
         List<?> actual = serializer.deserialize(
-                        Stream.of(createRev0Data(expected.get(0).getName()), serializer.serialize(expected.get(1))), true)
+                        Stream.of(createRev0Data(expected.get(0).getName()), serializer.serialize(expected.get(1))), UnknownTypeStrategy.FAIL)
                 .map(DeserializingObject::getPayload)
                 .collect(Collectors.toList());
         assertEquals(expected, actual);
@@ -91,7 +92,7 @@ class JacksonSerializerTest {
     void testFailOnUnknownType() {
         assertThrows(DeserializationException.class,
                      () -> serializer.deserialize(Stream.of(new Data<>("bla".getBytes(), "unknownType", 0,
-                                                                       Data.JSON_FORMAT)), true)
+                                                                       Data.JSON_FORMAT)), UnknownTypeStrategy.FAIL)
                              .collect(Collectors.toList()));
     }
 
@@ -100,10 +101,19 @@ class JacksonSerializerTest {
         Data<byte[]> data =
                 new Data<>(objectMapper.writeValueAsBytes(new Foo("bar")), "unknownType", 0, Data.JSON_FORMAT);
         List<DeserializingObject<byte[], Data<byte[]>>> result =
-                serializer.deserialize(Stream.of(data), false).toList();
+                serializer.deserialize(Stream.of(data), UnknownTypeStrategy.AS_INTERMEDIATE).toList();
         assertTrue(JsonNode.class.isAssignableFrom(result.get(0).getPayloadClass()));
         assertEquals(new ObjectNode(objectMapper.getNodeFactory(), singletonMap("foo", TextNode.valueOf("bar"))),
                      result.get(0).getPayload());
+    }
+
+    @Test
+    void testReturnsNothingIfTypeUnknownAndIgnoring() throws JsonProcessingException {
+        Data<byte[]> data =
+                new Data<>(objectMapper.writeValueAsBytes(new Foo("bar")), "unknownType", 0, Data.JSON_FORMAT);
+        List<DeserializingObject<byte[], Data<byte[]>>> result =
+                serializer.deserialize(Stream.of(data), UnknownTypeStrategy.IGNORE).toList();
+        assertTrue(result.isEmpty());
     }
 
     @Test
@@ -111,7 +121,7 @@ class JacksonSerializerTest {
         Foo foo = new Foo("bar");
         Data<byte[]> data = new Data<>(objectMapper.writeValueAsBytes(foo), "unknownType", 0, Data.JSON_FORMAT);
         List<DeserializingObject<byte[], Data<byte[]>>> result =
-                serializer.deserialize(Stream.of(data), false).toList();
+                serializer.deserialize(Stream.of(data), UnknownTypeStrategy.AS_INTERMEDIATE).toList();
         assertEquals(foo, result.get(0).getPayloadAs(Foo.class));
     }
 

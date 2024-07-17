@@ -20,6 +20,7 @@ import io.fluxcapacitor.common.api.SerializedMessage;
 import io.fluxcapacitor.javaclient.common.Message;
 import io.fluxcapacitor.javaclient.common.serialization.DeserializingMessage;
 import io.fluxcapacitor.javaclient.common.serialization.Serializer;
+import io.fluxcapacitor.javaclient.common.serialization.UnknownTypeStrategy;
 import io.fluxcapacitor.javaclient.modeling.EventPublicationStrategy;
 import io.fluxcapacitor.javaclient.persisting.eventsourcing.client.EventStoreClient;
 import io.fluxcapacitor.javaclient.publishing.DispatchInterceptor;
@@ -108,7 +109,8 @@ public class DefaultEventStore implements EventStore {
         try {
             AggregateEventStream<SerializedMessage> serializedEvents =
                     client.getEvents(aggregateId.toString(), lastSequenceNumber, maxSize);
-            return serializedEvents.convert(stream -> serializer.deserializeMessages(stream, EVENT, !ignoreUnknownType));
+            return serializedEvents.convert(stream -> serializer.deserializeMessages(stream, EVENT, ignoreUnknownType
+                    ? UnknownTypeStrategy.IGNORE : UnknownTypeStrategy.FAIL));
         } catch (Exception e) {
             throw new EventSourcingException(format("Failed to obtain events for aggregate %s", aggregateId), e);
         }

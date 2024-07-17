@@ -24,6 +24,7 @@ import java.util.stream.Stream;
 
 import static io.fluxcapacitor.common.Guarantee.NONE;
 import static io.fluxcapacitor.common.MessageType.COMMAND;
+import static io.fluxcapacitor.javaclient.common.serialization.UnknownTypeStrategy.IGNORE;
 
 @Consumer(name = "ScheduledCommandHandler", typeFilter = "io.fluxcapacitor.javaclient.scheduling.ScheduledCommand")
 public class ScheduledCommandHandler {
@@ -31,7 +32,7 @@ public class ScheduledCommandHandler {
     void handle(ScheduledCommand schedule) {
         SerializedMessage command = schedule.getCommand();
         command.setTimestamp(FluxCapacitor.currentTime().toEpochMilli());
-        var commands = FluxCapacitor.get().serializer().deserializeMessages(Stream.of(command), COMMAND)
+        var commands = FluxCapacitor.get().serializer().deserializeMessages(Stream.of(command), COMMAND, IGNORE)
                 .map(DeserializingMessage::toMessage).toArray();
         if (commands.length != 0) {
             FluxCapacitor.sendAndForgetCommands(commands);

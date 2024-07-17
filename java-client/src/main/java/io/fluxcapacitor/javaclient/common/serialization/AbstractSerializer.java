@@ -151,7 +151,7 @@ public abstract class AbstractSerializer<I> implements Serializer {
     @SuppressWarnings({"unchecked", "rawtypes"})
     @Override
     public <S extends SerializedObject<byte[], S>> Stream<DeserializingObject<byte[], S>> deserialize(
-            Stream<S> dataStream, boolean failOnUnknownType) {
+            Stream<S> dataStream, UnknownTypeStrategy unknownTypeStrategy) {
         return upcasterChain.cast((Stream<SerializedObject<byte[], ?>>) dataStream)
                 .map(s -> {
                     String type = s.data().getType();
@@ -162,14 +162,17 @@ public abstract class AbstractSerializer<I> implements Serializer {
                     if (!Objects.equals(format, s.data().getFormat())) {
                         return (Stream) deserializeOtherFormat(s);
                     }
-                    if (s.data().getType() == null) {
+                    if (s.data().getType() == null && unknownTypeStrategy == UnknownTypeStrategy.AS_INTERMEDIATE) {
                         return (Stream) deserializeUnknownType(s);
                     }
                     if (!isKnownType(s.data().getType())) {
-                        if (failOnUnknownType) {
+                        if (unknownTypeStrategy == UnknownTypeStrategy.FAIL) {
                             throw new DeserializationException(
                                     format("Could not deserialize object. The serialized type is unknown: %s (rev. %d)",
                                            s.data().getType(), s.data().getRevision()));
+                        }
+                        if (unknownTypeStrategy == UnknownTypeStrategy.IGNORE) {
+                            return Stream.empty();
                         }
                         return (Stream) deserializeUnknownType(s);
                     }

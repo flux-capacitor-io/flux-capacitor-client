@@ -18,6 +18,7 @@ import io.fluxcapacitor.common.api.Data;
 import io.fluxcapacitor.common.api.SerializedObject;
 import io.fluxcapacitor.javaclient.common.serialization.DeserializingObject;
 import io.fluxcapacitor.javaclient.common.serialization.Serializer;
+import io.fluxcapacitor.javaclient.common.serialization.UnknownTypeStrategy;
 import io.fluxcapacitor.javaclient.tracking.handling.authentication.User;
 
 import java.util.stream.Stream;
@@ -30,7 +31,7 @@ public class ProxySerializer implements Serializer {
 
     @Override
     public <I extends SerializedObject<byte[], I>> Stream<DeserializingObject<byte[], I>> deserialize(
-            Stream<I> stream, boolean b) {
+            Stream<I> stream, UnknownTypeStrategy unknownTypeStrategy) {
         throw new UnsupportedOperationException();
     }
 
