@@ -1,4 +1,4 @@
 {
-  "@class": "java.util.HashMap",
+  "@class": "io.fluxcapacitor.javaclient.web.HandleWebTest$JsonResponse",
   "userId": "testUser"
 }

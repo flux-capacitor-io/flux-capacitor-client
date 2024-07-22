@@ -259,6 +259,11 @@ public class WebRequest extends Message {
             return this;
         }
 
+        public Builder clearHeader(String key) {
+            headers.computeIfPresent(key, (k, v) -> null);
+            return this;
+        }
+
         public Builder cookie(HttpCookie cookie) {
             cookies.add(cookie);
             return this;

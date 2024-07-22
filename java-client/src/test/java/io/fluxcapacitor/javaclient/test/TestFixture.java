@@ -14,6 +14,7 @@
 
 package io.fluxcapacitor.javaclient.test;
 
+import com.fasterxml.jackson.databind.JsonNode;
 import io.fluxcapacitor.common.Guarantee;
 import io.fluxcapacitor.common.MessageType;
 import io.fluxcapacitor.common.Registration;
@@ -93,7 +94,10 @@ import java.util.function.UnaryOperator;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
+import static io.fluxcapacitor.common.MessageType.EVENT;
+import static io.fluxcapacitor.common.MessageType.NOTIFICATION;
 import static io.fluxcapacitor.common.MessageType.SCHEDULE;
+import static io.fluxcapacitor.common.api.Data.JSON_FORMAT;
 import static io.fluxcapacitor.javaclient.common.ClientUtils.getLocalHandlerAnnotation;
 import static io.fluxcapacitor.javaclient.common.ClientUtils.runSilently;
 import static io.fluxcapacitor.javaclient.common.Message.asMessage;
@@ -828,7 +832,12 @@ public class TestFixture implements Given, When {
     }
 
     @SuppressWarnings("unchecked")
-    public <T> T parseObject(T object, Class<?> callerClass) {
+    public <T> T parseObject(Object object, Class<?> callerClass) {
+        if (object instanceof WebRequest message
+            && message.getPayload() instanceof String payload && payload.endsWith(".json")) {
+            return (T) message.toBuilder().payload(JsonUtils.fromFile(callerClass, payload, JsonNode.class))
+                    .clearHeader("Content-Type").contentType(JSON_FORMAT).build();
+        }
         if (object instanceof Message message) {
             return (T) message.withPayload(parseObject(message.getPayload(), callerClass));
         }
@@ -840,7 +849,7 @@ public class TestFixture implements Given, When {
                     ? (SerializedObject<byte[], ?>) s : fluxCapacitor.serializer().serialize(s);
             object = fluxCapacitor.serializer().deserialize(eventBytes);
         }
-        return object;
+        return (T) object;
     }
 
     protected boolean checkConsumers() {
@@ -899,8 +908,9 @@ public class TestFixture implements Given, When {
                 testFixture.consumers.entrySet().stream()
                         .filter(t -> {
                             var configuration = t.getKey();
-                            return (configuration.getMessageType() == messageType && Optional
-                                    .ofNullable(configuration.getTypeFilter())
+                            return ((configuration.getMessageType() == messageType
+                                     || (configuration.getMessageType() == NOTIFICATION && messageType == EVENT))
+                                    && Optional.ofNullable(configuration.getTypeFilter())
                                     .map(f -> message.getPayload().getClass().getName().matches(f))
                                     .orElse(true));
                         }).forEach(e -> addMessage(e.getValue(), message));
@@ -922,7 +932,7 @@ public class TestFixture implements Given, When {
         protected Boolean captureMessage(Message message) {
             return testFixture.isCollectingResults()
                    && Optional.ofNullable(testFixture.getFixtureResult().getTracedMessage())
-                    .map(t -> !Objects.equals(t.getMessageId(), message.getMessageId())).orElse(true);
+                           .map(t -> !Objects.equals(t.getMessageId(), message.getMessageId())).orElse(true);
         }
 
         protected <T extends Message> void addMessage(List<T> messages, T message) {

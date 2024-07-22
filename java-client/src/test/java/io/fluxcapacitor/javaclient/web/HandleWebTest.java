@@ -218,6 +218,11 @@ public class HandleWebTest {
     }
 
     @Value
+    static class JsonResponse {
+        String userId;
+    }
+
+    @Value
     static class Payload {
     }
 
