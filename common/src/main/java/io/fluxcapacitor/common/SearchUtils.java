@@ -63,7 +63,7 @@ public class SearchUtils {
     }
 
     public static String normalize(@NonNull String text) {
-        return StringUtils.stripAccents(text.trim().toLowerCase());
+        return StringUtils.stripAccents(text).trim().toLowerCase();
     }
 
     @SneakyThrows
