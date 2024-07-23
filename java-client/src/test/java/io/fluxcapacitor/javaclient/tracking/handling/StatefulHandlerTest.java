@@ -28,6 +28,7 @@ import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
 import java.time.Instant;
+import java.util.List;
 import java.util.UUID;
 
 public class StatefulHandlerTest {
@@ -54,6 +55,16 @@ public class StatefulHandlerTest {
             testFixture.givenEvents(new SomeEvent("foo"))
                     .whenEvent(new SomeEvent("foo"))
                     .expectOnlyCommands(2);
+        }
+
+        @Test
+        void handlerIsCopied() {
+            testFixture.givenEvents(new SomeEvent("foo"))
+                    .whenEvent(new DuplicationEvent("foo", "fooCopy"))
+                    .expectOnlyCommands(2, 1)
+                    .andThen()
+                    .whenApplying(fc -> FluxCapacitor.search(StaticHandler.class).fetchAll().size())
+                    .expectResult(2);
         }
 
         @Test
@@ -103,6 +114,7 @@ public class StatefulHandlerTest {
         @Value
         @Builder(toBuilder = true)
         public static class StaticHandler {
+            @EntityId
             @Association(value = {"someId", "aliasId"}, excludedClasses = ExcludedEvent.class) String someId;
             int eventCount;
 
@@ -116,6 +128,14 @@ public class StatefulHandlerTest {
             StaticHandler update(SomeEvent event) {
                 FluxCapacitor.sendAndForgetCommand(eventCount + 1);
                 return toBuilder().eventCount(eventCount + 1).build();
+            }
+
+            @HandleEvent
+            List<StaticHandler> copy(DuplicationEvent event) {
+                FluxCapacitor.sendAndForgetCommand(eventCount + 1);
+                FluxCapacitor.sendAndForgetCommand(1);
+                return List.of(toBuilder().eventCount(eventCount + 1).build(),
+                               StaticHandler.builder().someId(event.copyId).eventCount(1).build());
             }
 
             @HandleEvent
@@ -220,6 +240,7 @@ public class StatefulHandlerTest {
         @Builder(toBuilder = true)
         @AllArgsConstructor
         public static class SomeHandler {
+            @EntityId
             @Association("someId") String id;
             int eventCount;
             Instant timestamp = FluxCapacitor.currentTime();
@@ -261,6 +282,12 @@ public class StatefulHandlerTest {
     @Value
     static class SomeEvent {
         String someId;
+    }
+
+    @Value
+    static class DuplicationEvent {
+        String someId;
+        String copyId;
     }
 
     @Value

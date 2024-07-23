@@ -161,28 +161,34 @@ public class StatefulHandler implements Handler<DeserializingMessage> {
         }
 
         @Override
-        @SneakyThrows
+
         public Object invoke(BiFunction<Object, Object, Object> combiner) {
             Object result = delegate.invoke(combiner);
-            if (delegate.getTargetClass().isInstance(result)) {
+            handleResult(result);
+            return result;
+        }
+
+        @SneakyThrows
+        protected void handleResult(Object result) {
+            if (result instanceof Collection<?> collection) {
+                collection.forEach(this::handleResult);
+            } else if (delegate.getTargetClass().isInstance(result)) {
                 if (currentEntry == null || !Objects.equals(currentEntry.getValue(), result)) {
-                    repository.set(result, currentEntry == null ? computeId(result) : currentEntry.getId()).get();
+                    repository.set(result, computeId(result)).get();
                 }
-                return null;
-            }
-            if (result == null && delegate.expectResult() && delegate.getMethod() instanceof Method m
+            } else if (result == null && delegate.expectResult() && delegate.getMethod() instanceof Method m
                 && (delegate.getTargetClass().isAssignableFrom(m.getReturnType())
                     || m.getReturnType().isAssignableFrom(delegate.getTargetClass()))) {
                 if (currentEntry != null) {
                     repository.delete(currentEntry.getId()).get();
                 }
-                return null;
             }
-            return result;
         }
 
-        private static Object computeId(Object handler) {
-            return getAnnotatedPropertyValue(handler, EntityId.class).orElseGet(FluxCapacitor::generateId);
+        protected Object computeId(Object handler) {
+            return getAnnotatedPropertyValue(handler, EntityId.class)
+                    .or(() -> Optional.ofNullable(currentEntry).map(Entry::getId))
+                    .orElseGet(FluxCapacitor::generateId);
         }
     }
 }
