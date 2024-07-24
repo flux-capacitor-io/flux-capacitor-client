@@ -31,10 +31,10 @@ import lombok.AccessLevel;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.SneakyThrows;
-import lombok.experimental.Delegate;
 import lombok.experimental.FieldDefaults;
 import lombok.extern.slf4j.Slf4j;
 
+import java.lang.annotation.Annotation;
 import java.lang.reflect.Executable;
 import java.lang.reflect.Method;
 import java.util.Arrays;
@@ -150,18 +150,10 @@ public class StatefulHandler implements Handler<DeserializingMessage> {
     @AllArgsConstructor
     @FieldDefaults(makeFinal = true, level = AccessLevel.PRIVATE)
     protected class StatefulHandlerInvoker implements HandlerInvoker {
-        @Delegate
         HandlerInvoker delegate;
         Entry<?> currentEntry;
 
-
         @Override
-        public Object invoke() {
-            return HandlerInvoker.super.invoke();
-        }
-
-        @Override
-
         public Object invoke(BiFunction<Object, Object, Object> combiner) {
             Object result = delegate.invoke(combiner);
             handleResult(result);
@@ -183,6 +175,31 @@ public class StatefulHandler implements Handler<DeserializingMessage> {
                     repository.delete(currentEntry.getId()).get();
                 }
             }
+        }
+
+        @Override
+        public Class<?> getTargetClass() {
+            return delegate.getTargetClass();
+        }
+
+        @Override
+        public Executable getMethod() {
+            return delegate.getMethod();
+        }
+
+        @Override
+        public <A extends Annotation> A getMethodAnnotation() {
+            return delegate.getMethodAnnotation();
+        }
+
+        @Override
+        public boolean expectResult() {
+            return delegate.expectResult();
+        }
+
+        @Override
+        public boolean isPassive() {
+            return delegate.isPassive();
         }
 
         protected Object computeId(Object handler) {
