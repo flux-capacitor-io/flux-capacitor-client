@@ -70,6 +70,7 @@ import java.util.function.Function;
 import static io.fluxcapacitor.common.ObjectUtils.memoize;
 import static io.fluxcapacitor.common.reflection.ReflectionUtils.classForName;
 import static io.fluxcapacitor.common.reflection.ReflectionUtils.getAnnotatedProperty;
+import static io.fluxcapacitor.common.reflection.ReflectionUtils.hasProperty;
 import static io.fluxcapacitor.javaclient.modeling.ModifiableAggregateRoot.getActiveAggregatesFor;
 import static java.lang.String.format;
 import static java.util.stream.Collectors.toMap;
@@ -192,7 +193,8 @@ public class DefaultAggregateRepository implements AggregateRepository {
                     .filter(s -> !s.isBlank()).<Function<Entity<?>, Instant>>map(
                             s -> aggregateRoot -> ReflectionUtils.readProperty(s, aggregateRoot.get())
                                     .map(t -> Instant.from((TemporalAccessor) t)).orElseGet(() -> {
-                                        if (warnedAboutMissingTimePath.compareAndSet(false, true)) {
+                                        if (warnedAboutMissingTimePath.compareAndSet(false, true)
+                                            && aggregateRoot.isPresent() && !hasProperty(s, aggregateRoot.get())) {
                                             log.warn("Aggregate type {} does not declare a timestamp property at '{}'",
                                                      aggregateRoot.get().getClass().getSimpleName(), s);
                                         }
@@ -204,7 +206,8 @@ public class DefaultAggregateRepository implements AggregateRepository {
                     .filter(s -> !s.isBlank()).<Function<Entity<?>, Instant>>map(
                             s -> aggregateRoot -> ReflectionUtils.readProperty(s, aggregateRoot.get())
                                     .map(t -> Instant.from((TemporalAccessor) t)).orElseGet(() -> {
-                                        if (warnedAboutMissingEndPath.compareAndSet(false, true)) {
+                                        if (warnedAboutMissingEndPath.compareAndSet(false, true)
+                                            && aggregateRoot.isPresent() && !hasProperty(s, aggregateRoot.get())) {
                                             log.warn(
                                                     "Aggregate type {} does not declare an end timestamp property at '{}'",
                                                     aggregateRoot.get().getClass().getSimpleName(), s);
@@ -218,16 +221,17 @@ public class DefaultAggregateRepository implements AggregateRepository {
         @SuppressWarnings("unchecked")
         public Entity<T> fromValue(T value) {
             return new SideEffectFreeEntity<>(ImmutableAggregateRoot
-                    .<T>builder()
-                    .idProperty(idProperty)
-                    .id(ReflectionUtils.readProperty(idProperty, value).orElse(null))
-                    .value(value)
-                    .type((Class<T>) (value != null ? value.getClass() : Object.class))
-                    .timestamp(FluxCapacitor.currentTime())
-                    .entityHelper(entityHelper)
-                    .eventStore(eventStore)
-                    .serializer(serializer)
-                    .build());
+                                                      .<T>builder()
+                                                      .idProperty(idProperty)
+                                                      .id(ReflectionUtils.readProperty(idProperty, value).orElse(null))
+                                                      .value(value)
+                                                      .type((Class<T>) (value != null ? value.getClass() :
+                                                              Object.class))
+                                                      .timestamp(FluxCapacitor.currentTime())
+                                                      .entityHelper(entityHelper)
+                                                      .eventStore(eventStore)
+                                                      .serializer(serializer)
+                                                      .build());
         }
 
         public Entity<T> load(Object id) {

@@ -55,7 +55,8 @@ public class DefaultHandlerRepository implements HandlerRepository {
                 .filter(path -> !path.isBlank())
                 .<Function<Object, Instant>>map(path -> handler -> ReflectionUtils.readProperty(path, handler)
                         .map(t -> Instant.from((TemporalAccessor) t)).orElseGet(() -> {
-                            if (warnedAboutMissingTimePath.compareAndSet(false, true)) {
+                            if (warnedAboutMissingTimePath.compareAndSet(false, true)
+                                && handler != null && !ReflectionUtils.hasProperty(path, handler)) {
                                 log.warn("Type {} does not declare a timestamp property at '{}'",
                                          handler.getClass().getSimpleName(), path);
                             }
@@ -66,7 +67,8 @@ public class DefaultHandlerRepository implements HandlerRepository {
                 .filter(path -> !path.isBlank())
                 .<Function<Object, Instant>>map(path -> handler -> ReflectionUtils.readProperty(path, handler)
                         .map(t -> Instant.from((TemporalAccessor) t)).orElseGet(() -> {
-                            if (warnedAboutMissingEndPath.compareAndSet(false, true)) {
+                            if (warnedAboutMissingEndPath.compareAndSet(false, true)
+                                && handler != null && !ReflectionUtils.hasProperty(path, handler)) {
                                 log.warn("Type {} does not declare an end timestamp property at '{}'",
                                          handler.getClass().getSimpleName(), path);
                             }
