@@ -34,7 +34,6 @@ import lombok.SneakyThrows;
 import lombok.experimental.FieldDefaults;
 import lombok.extern.slf4j.Slf4j;
 
-import java.lang.annotation.Annotation;
 import java.lang.reflect.Executable;
 import java.lang.reflect.Method;
 import java.util.Arrays;
@@ -146,12 +145,13 @@ public class StatefulHandler implements Handler<DeserializingMessage> {
         return Arrays.stream(association.excludedClasses()).noneMatch(c -> c.isAssignableFrom(payloadType));
     }
 
-    @Getter
-    @AllArgsConstructor
-    @FieldDefaults(makeFinal = true, level = AccessLevel.PRIVATE)
-    protected class StatefulHandlerInvoker implements HandlerInvoker {
-        HandlerInvoker delegate;
-        Entry<?> currentEntry;
+    protected class StatefulHandlerInvoker extends HandlerInvoker.DelegatingHandlerInvoker {
+        private final Entry<?> currentEntry;
+
+        public StatefulHandlerInvoker(HandlerInvoker delegate, Entry<?> currentEntry) {
+            super(delegate);
+            this.currentEntry = currentEntry;
+        }
 
         @Override
         public Object invoke(BiFunction<Object, Object, Object> combiner) {
@@ -164,42 +164,17 @@ public class StatefulHandler implements Handler<DeserializingMessage> {
         protected void handleResult(Object result) {
             if (result instanceof Collection<?> collection) {
                 collection.forEach(this::handleResult);
-            } else if (delegate.getTargetClass().isInstance(result)) {
+            } else if (getTargetClass().isInstance(result)) {
                 if (currentEntry == null || !Objects.equals(currentEntry.getValue(), result)) {
                     repository.set(result, computeId(result)).get();
                 }
-            } else if (result == null && delegate.expectResult() && delegate.getMethod() instanceof Method m
-                && (delegate.getTargetClass().isAssignableFrom(m.getReturnType())
-                    || m.getReturnType().isAssignableFrom(delegate.getTargetClass()))) {
+            } else if (result == null && expectResult() && getMethod() instanceof Method m
+                && (getTargetClass().isAssignableFrom(m.getReturnType())
+                    || m.getReturnType().isAssignableFrom(getTargetClass()))) {
                 if (currentEntry != null) {
                     repository.delete(currentEntry.getId()).get();
                 }
             }
-        }
-
-        @Override
-        public Class<?> getTargetClass() {
-            return delegate.getTargetClass();
-        }
-
-        @Override
-        public Executable getMethod() {
-            return delegate.getMethod();
-        }
-
-        @Override
-        public <A extends Annotation> A getMethodAnnotation() {
-            return delegate.getMethodAnnotation();
-        }
-
-        @Override
-        public boolean expectResult() {
-            return delegate.expectResult();
-        }
-
-        @Override
-        public boolean isPassive() {
-            return delegate.isPassive();
         }
 
         protected Object computeId(Object handler) {
