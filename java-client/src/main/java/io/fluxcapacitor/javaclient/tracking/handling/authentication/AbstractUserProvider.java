@@ -20,12 +20,14 @@ import lombok.AllArgsConstructor;
 
 @AllArgsConstructor
 public abstract class AbstractUserProvider implements UserProvider {
+    public static String DEFAULT_USER_KEY = "$user";
+
 
     private final String metadataKey;
     private final Class<? extends User> userClass;
 
     public AbstractUserProvider(Class<? extends User> userClass) {
-        this("$user", userClass);
+        this(DEFAULT_USER_KEY, userClass);
     }
 
     @Override
