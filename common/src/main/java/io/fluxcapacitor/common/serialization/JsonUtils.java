@@ -19,12 +19,16 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.JavaType;
 import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
 import com.fasterxml.jackson.databind.cfg.JsonNodeFeature;
+import com.fasterxml.jackson.databind.introspect.AnnotatedMember;
+import com.fasterxml.jackson.databind.introspect.JacksonAnnotationIntrospector;
 import com.fasterxml.jackson.databind.json.JsonMapper;
 import com.fasterxml.jackson.databind.jsontype.impl.LaissezFaireSubTypeValidator;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.fasterxml.jackson.databind.type.TypeFactory;
+import com.fasterxml.jackson.datatype.jdk8.Jdk8Module;
 import io.fluxcapacitor.common.FileUtils;
 import io.fluxcapacitor.common.reflection.ReflectionUtils;
 import lombok.SneakyThrows;
@@ -50,7 +54,7 @@ import static com.fasterxml.jackson.databind.SerializationFeature.WRITE_DURATION
 public class JsonUtils {
     public static JsonMapper writer = JsonMapper.builder()
             .findAndAddModules().addModule(new StripStringsModule()).addModule(new NullCollectionsAsEmptyModule())
-            .disable(FAIL_ON_EMPTY_BEANS)
+            .addModule(new Jdk8Module()).disable(FAIL_ON_EMPTY_BEANS)
             .disable(WRITE_DATES_AS_TIMESTAMPS).disable(WRITE_DURATIONS_AS_TIMESTAMPS)
             .enable(SerializationFeature.WRITE_DATES_WITH_ZONE_ID).disable(ADJUST_DATES_TO_CONTEXT_TIME_ZONE)
             .disable(FAIL_ON_UNKNOWN_PROPERTIES).disable(JsonNodeFeature.STRIP_TRAILING_BIGDECIMAL_ZEROES)
@@ -61,7 +65,6 @@ public class JsonUtils {
     public static JsonMapper reader = writer.rebuild()
             .activateDefaultTyping(LaissezFaireSubTypeValidator.instance, JAVA_LANG_OBJECT, PROPERTY)
             .build();
-
 
     @SneakyThrows
     public static Object fromFile(String fileName) {
@@ -253,5 +256,14 @@ public class JsonUtils {
 
     public static TypeFactory typeFactory() {
         return writer.getTypeFactory();
+    }
+
+    public static void disableJsonIgnore(ObjectMapper mapper) {
+        mapper.setAnnotationIntrospector(new JacksonAnnotationIntrospector() {
+            @Override
+            public boolean hasIgnoreMarker(final AnnotatedMember m) {
+                return false;
+            }
+        });
     }
 }

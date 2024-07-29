@@ -28,6 +28,7 @@ import io.fluxcapacitor.common.ThrowingConsumer;
 import io.fluxcapacitor.common.handling.HandlerInspector;
 import io.fluxcapacitor.common.handling.HandlerInvoker;
 import io.fluxcapacitor.common.handling.HandlerMatcher;
+import io.fluxcapacitor.common.serialization.JsonUtils;
 import io.fluxcapacitor.javaclient.common.serialization.ContentFilter;
 import io.fluxcapacitor.javaclient.common.serialization.FilterContent;
 import io.fluxcapacitor.javaclient.tracking.handling.InputParameterResolver;
@@ -65,6 +66,7 @@ public class JacksonContentFilter implements ContentFilter {
                 });
             }
         });
+        JsonUtils.disableJsonIgnore(mapper);
         this.mapper = mapper;
     }
 
