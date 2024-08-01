@@ -29,7 +29,6 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
-import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Predicate;
@@ -185,10 +184,8 @@ public class DefaultTrackingStrategy extends AutoClosing implements TrackingStra
 
     protected Position position(Tracker tracker, PositionStore positionStore, int[] segment) {
         if (tracker.clientControlledIndex()) {
-            Optional<Position> position = ofNullable(tracker.getLastTrackerIndex()).map(i -> new Position(segment, i));
-            if (position.isPresent()) {
-                return position.get();
-            }
+            long index = ofNullable(tracker.getLastTrackerIndex()).orElseGet(() -> indexFromMillis(currentTimeMillis()));
+            return new Position(segment, index);
         }
         Position position = positionStore.position(tracker.getConsumerName());
         if (position.isNew(segment)) {

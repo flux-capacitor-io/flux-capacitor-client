@@ -127,7 +127,6 @@ import static io.fluxcapacitor.common.MessageType.SCHEDULE;
 import static io.fluxcapacitor.common.MessageType.WEBREQUEST;
 import static io.fluxcapacitor.common.MessageType.WEBRESPONSE;
 import static io.fluxcapacitor.common.ObjectUtils.newThreadName;
-import static io.fluxcapacitor.javaclient.tracking.IndexUtils.indexFromTimestamp;
 import static java.lang.Runtime.getRuntime;
 import static java.lang.String.format;
 import static java.util.Arrays.stream;
@@ -756,7 +755,6 @@ public class DefaultFluxCapacitor implements FluxCapacitor {
                     .name(messageType.name())
                     .ignoreSegment(messageType == NOTIFICATION)
                     .clientControlledIndex(messageType == NOTIFICATION)
-                    .minIndex(messageType == NOTIFICATION ? indexFromTimestamp(FluxCapacitor.currentTime()) : null)
                     .build();
         }
 
