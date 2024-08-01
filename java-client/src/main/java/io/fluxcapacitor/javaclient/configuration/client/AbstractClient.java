@@ -39,9 +39,6 @@ import static java.util.Arrays.stream;
 @FieldDefaults(level = AccessLevel.PRIVATE, makeFinal = true)
 public abstract class AbstractClient implements Client {
 
-    String name;
-    String id;
-
     MemoizingFunction<MessageType, ? extends GatewayClient> gatewayClients = memoize(this::createGatewayClient);
     MemoizingFunction<MessageType, ? extends TrackingClient> trackingClients = memoize(this::createTrackingClient);
     @Getter(lazy = true) EventStoreClient eventStoreClient = createEventStoreClient();
@@ -52,27 +49,12 @@ public abstract class AbstractClient implements Client {
 
     protected final Set<Runnable> shutdownTasks = new CopyOnWriteArraySet<>();
 
-    public AbstractClient(String name, String id) {
-        this.name = name;
-        this.id = id;
-    }
-
     protected abstract GatewayClient createGatewayClient(MessageType messageType);
     protected abstract TrackingClient createTrackingClient(MessageType messageType);
     protected abstract EventStoreClient createEventStoreClient();
     protected abstract SchedulingClient createSchedulingClient();
     protected abstract KeyValueClient createKeyValueClient();
     protected abstract SearchClient createSearchClient();
-
-    @Override
-    public String name() {
-        return name;
-    }
-
-    @Override
-    public String id() {
-        return id;
-    }
 
     @Override
     public GatewayClient getGatewayClient(MessageType messageType) {

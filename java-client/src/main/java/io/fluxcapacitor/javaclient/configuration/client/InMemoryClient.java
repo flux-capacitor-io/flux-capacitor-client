@@ -26,6 +26,8 @@ import io.fluxcapacitor.javaclient.scheduling.client.LocalSchedulingClient;
 import io.fluxcapacitor.javaclient.scheduling.client.SchedulingClient;
 import io.fluxcapacitor.javaclient.tracking.client.LocalTrackingClient;
 import io.fluxcapacitor.javaclient.tracking.client.TrackingClient;
+import lombok.Getter;
+import lombok.experimental.Accessors;
 
 import java.lang.management.ManagementFactory;
 import java.time.Duration;
@@ -36,6 +38,9 @@ public class InMemoryClient extends AbstractClient {
     private final LocalEventStoreClient eventStore;
     private final LocalSchedulingClient scheduleStore;
 
+    @Getter(lazy = true) @Accessors(fluent = true)
+    private final String id = ManagementFactory.getRuntimeMXBean().getName();
+
     public static InMemoryClient newInstance() {
         return new InMemoryClient(Duration.ofMinutes(2));
     }
@@ -45,14 +50,19 @@ public class InMemoryClient extends AbstractClient {
     }
 
     protected InMemoryClient(Duration messageExpiration) {
-        this("inMemory", ManagementFactory.getRuntimeMXBean().getName(), messageExpiration);
-    }
-
-    protected InMemoryClient(String name, String id, Duration messageExpiration) {
-        super(name, id);
         this.messageExpiration = messageExpiration;
         this.eventStore = new LocalEventStoreClient(messageExpiration);
         this.scheduleStore = new LocalSchedulingClient(messageExpiration);
+    }
+
+    @Override
+    public String name() {
+        return "inMemory";
+    }
+
+    @Override
+    public String applicationId() {
+        return null;
     }
 
     @Override

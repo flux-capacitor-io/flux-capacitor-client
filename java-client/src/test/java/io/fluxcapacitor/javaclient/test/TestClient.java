@@ -64,6 +64,11 @@ public class TestClient implements Client {
     }
 
     @Override
+    public String applicationId() {
+        return delegate.applicationId();
+    }
+
+    @Override
     public GatewayClient getGatewayClient(MessageType messageType) {
         return decorate(delegate.getGatewayClient(messageType));
     }

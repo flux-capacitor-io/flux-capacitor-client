@@ -29,6 +29,8 @@ public interface Client {
 
     String id();
 
+    String applicationId();
+
     GatewayClient getGatewayClient(MessageType messageType);
 
     TrackingClient getTrackingClient(MessageType messageType);

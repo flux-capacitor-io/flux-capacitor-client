@@ -15,6 +15,7 @@
 package io.fluxcapacitor.javaclient.configuration.client;
 
 import io.fluxcapacitor.common.MessageType;
+import io.fluxcapacitor.common.application.DefaultPropertySource;
 import io.fluxcapacitor.common.serialization.compression.CompressionAlgorithm;
 import io.fluxcapacitor.javaclient.persisting.eventsourcing.client.EventStoreClient;
 import io.fluxcapacitor.javaclient.persisting.eventsourcing.client.WebSocketEventStoreClient;
@@ -29,10 +30,12 @@ import io.fluxcapacitor.javaclient.scheduling.client.WebsocketSchedulingClient;
 import io.fluxcapacitor.javaclient.tracking.client.CachingTrackingClient;
 import io.fluxcapacitor.javaclient.tracking.client.TrackingClient;
 import io.fluxcapacitor.javaclient.tracking.client.WebsocketTrackingClient;
+import lombok.AccessLevel;
 import lombok.Builder;
 import lombok.Builder.Default;
 import lombok.Getter;
 import lombok.NonNull;
+import lombok.RequiredArgsConstructor;
 import lombok.Value;
 
 import java.time.Duration;
@@ -51,6 +54,7 @@ import static io.fluxcapacitor.javaclient.common.websocket.ServiceUrlBuilder.sch
 import static io.fluxcapacitor.javaclient.common.websocket.ServiceUrlBuilder.searchUrl;
 import static java.util.stream.Collectors.toMap;
 
+@RequiredArgsConstructor(access = AccessLevel.PROTECTED)
 public class WebSocketClient extends AbstractClient {
 
     @Getter
@@ -60,9 +64,19 @@ public class WebSocketClient extends AbstractClient {
         return new WebSocketClient(clientConfig);
     }
 
-    protected WebSocketClient(ClientConfig clientConfig) {
-        super(clientConfig.getName(), clientConfig.getId());
-        this.clientConfig = clientConfig;
+    @Override
+    public String name() {
+        return clientConfig.getName();
+    }
+
+    @Override
+    public String id() {
+        return clientConfig.getId();
+    }
+
+    @Override
+    public String applicationId() {
+        return clientConfig.getApplicationId();
     }
 
     @Override
@@ -112,9 +126,11 @@ public class WebSocketClient extends AbstractClient {
     @Value
     @Builder(toBuilder = true)
     public static class ClientConfig {
+
         @NonNull String serviceBaseUrl;
         @NonNull String name;
-        @NonNull @Default String id = UUID.randomUUID().toString();
+        @Default String applicationId = DefaultPropertySource.getInstance().get("FLUX_APPLICATION_ID");
+        @NonNull @Default String id = DefaultPropertySource.getInstance().get("FLUX_TASK_ID", UUID.randomUUID().toString());
         @NonNull @Default CompressionAlgorithm compression = LZ4;
         @Default int eventSourcingSessions = 2;
         @Default int keyValueSessions = 2;

@@ -30,7 +30,8 @@ import static java.util.Optional.ofNullable;
 public enum DefaultCorrelationDataProvider implements CorrelationDataProvider {
     INSTANCE;
 
-    private final String clientIdKey = "$clientId", clientNameKey = "$clientName", consumerKey = "$consumer",
+    private final String applicationIdKey = "$applicationId",
+            clientIdKey = "$clientId", clientNameKey = "$clientName", consumerKey = "$consumer",
             trackerKey = "$tracker", correlationIdKey = "$correlationId", traceIdKey = "$traceId",
             triggerKey = "$trigger", triggerTypeKey = "$triggerType", invocationKey = "$invocation";
 
@@ -38,6 +39,8 @@ public enum DefaultCorrelationDataProvider implements CorrelationDataProvider {
     public Map<String, String> getCorrelationData(DeserializingMessage currentMessage) {
         Map<String, String> result = new HashMap<>();
         FluxCapacitor.getOptionally().ifPresent(f -> {
+            Optional.ofNullable(f.client().applicationId())
+                    .ifPresent(applicationId -> result.put(applicationIdKey, applicationId));
             result.put(clientIdKey, f.client().id());
             result.put(clientNameKey, f.client().name());
         });
