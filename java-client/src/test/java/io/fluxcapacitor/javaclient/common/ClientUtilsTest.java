@@ -54,10 +54,11 @@ class ClientUtilsTest {
 
     @Nested
     class MemoizeTests {
+        final AtomicInteger counter = new AtomicInteger();
+        final MemoizingSupplier<Integer> supplier =
+                ClientUtils.memoize(counter::incrementAndGet, Duration.ofSeconds(10));
+
         private final TestFixture testFixture = TestFixture.create(new Object() {
-            final AtomicInteger counter = new AtomicInteger();
-            final MemoizingSupplier<Integer> supplier =
-                    ClientUtils.memoize(counter::incrementAndGet, Duration.ofSeconds(10));
             @HandleCommand
             int handle() {
                 return supplier.get();
@@ -74,6 +75,13 @@ class ClientUtilsTest {
         void memoizeWithLifespan_dontRefreshBeforeLifespan() {
             testFixture.givenCommands(new Object()).givenElapsedTime(Duration.ofSeconds(5))
                     .whenCommand(new Object()).expectResult(1);
+        }
+
+        @Test
+        void memoizeWithLifespan_cleared() {
+            testFixture.givenCommands(new Object()).givenElapsedTime(Duration.ofSeconds(5))
+                    .given(fc -> supplier.clear())
+                    .whenCommand(new Object()).expectResult(2);
         }
     }
 

@@ -53,6 +53,15 @@ public class MemoizingFunction<K, V> implements Function<K, V> {
         return (V) result.getValue();
     }
 
+    public void clear() {
+        map.clear();
+    }
+
+    @SuppressWarnings("unchecked")
+    public V remove(K key) {
+        return (V) Optional.ofNullable(map.remove(key)).map(Entry::getValue);
+    }
+
     public boolean isCached(K key) {
         return key == null || map.containsKey(key);
     }

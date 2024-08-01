@@ -38,4 +38,8 @@ public class MemoizingSupplier<T> implements Supplier<T> {
     public boolean isCached() {
         return delegate.isCached(singleton);
     }
+
+    public void clear() {
+        delegate.clear();
+    }
 }

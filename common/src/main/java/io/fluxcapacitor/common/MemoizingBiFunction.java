@@ -42,4 +42,12 @@ public class MemoizingBiFunction<T, U, R> implements BiFunction<T, U, R> {
         return function.isCached(new Pair<>(t, u));
     }
 
+    public void clear() {
+        function.clear();
+    }
+
+    public R remove(T t, U u) {
+        return function.remove(new Pair<>(t, u));
+    }
+
 }
