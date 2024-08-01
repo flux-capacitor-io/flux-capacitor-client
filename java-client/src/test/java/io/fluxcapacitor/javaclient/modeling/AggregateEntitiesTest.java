@@ -596,6 +596,13 @@ public class AggregateEntitiesTest {
             }
 
             @Test
+            void assertThatWrongEventHandlerDoesNotGetEntity() {
+                testFixture.registerHandlers(new WrongEventHandler())
+                        .whenCommand(new AddChild("missing"))
+                        .expectNoEventsLike("added child to: test");
+            }
+
+            @Test
             void checkIfEventHandlerGetsEntity_unwrapped() {
                 testFixture.registerHandlers(new EventHandler())
                         .whenCommand(new UpdateChild("id", "missing"))
@@ -626,13 +633,20 @@ public class AggregateEntitiesTest {
 
             class EventHandler {
                 @HandleEvent
-                void handle(AddChild event, Entity<Aggregate> entity) {
+                void handle(Entity<Aggregate> entity) {
                     FluxCapacitor.publishEvent("added child to: " + entity.id());
                 }
 
                 @HandleEvent
                 void handle(UpdateChild event, Aggregate entity) {
                     FluxCapacitor.publishEvent("updated child of: " + entity.getId());
+                }
+            }
+
+            class WrongEventHandler {
+                @HandleEvent
+                void handle(Entity<String> entity) {
+                    FluxCapacitor.publishEvent("added child to: " + entity.id());
                 }
             }
         }
