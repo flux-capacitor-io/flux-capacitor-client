@@ -115,6 +115,7 @@ public class ImmutableAggregateRoot<T> extends ImmutableEntity<T> implements Agg
         return ((ImmutableAggregateRoot<T>) super.update(function))
                 .toBuilder()
                 .timestamp(currentTime())
+                .sequenceNumber(sequenceNumber + 1)
                 .build();
     }
 

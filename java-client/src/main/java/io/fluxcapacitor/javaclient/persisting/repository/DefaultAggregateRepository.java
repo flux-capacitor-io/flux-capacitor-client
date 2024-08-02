@@ -231,6 +231,7 @@ public class DefaultAggregateRepository implements AggregateRepository {
                                                       .entityHelper(entityHelper)
                                                       .eventStore(eventStore)
                                                       .serializer(serializer)
+                                                      .sequenceNumber(0)
                                                       .build());
         }
 

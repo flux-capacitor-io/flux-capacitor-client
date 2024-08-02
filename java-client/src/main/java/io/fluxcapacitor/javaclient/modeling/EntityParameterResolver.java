@@ -50,8 +50,11 @@ public class EntityParameterResolver implements ParameterResolver<Object> {
                         t -> parameter.getType().isAssignableFrom(t)).orElse(false)) {
                 return Optional.ofNullable(Entity.getAggregateId((HasMessage) input))
                         .or(() -> ((HasMessage) input).computeRoutingKey())
-                        .flatMap(entityId -> FluxCapacitor.getOptionally().map(
-                                fc -> FluxCapacitor.loadEntity(entityId))).orElse(null);
+                        .flatMap(possibleEntityId -> FluxCapacitor.getOptionally()
+                                .map(fc -> FluxCapacitor.loadEntity(possibleEntityId)))
+                        .filter(e -> isAssignable(parameter, e))
+                        .filter(e -> e.isPresent() || e.sequenceNumber() > -1L)
+                        .orElse(null);
             }
         }
         return null;

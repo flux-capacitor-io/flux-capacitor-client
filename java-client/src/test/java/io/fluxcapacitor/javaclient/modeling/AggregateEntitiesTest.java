@@ -441,7 +441,8 @@ public class AggregateEntitiesTest {
             testFixture
                     .whenApplying(fc -> fc.aggregateRepository().asEntity(input).apply(new AddChild("missing")))
                     .expectResult(e -> !e.get().equals(input))
-                    .expectResult(e -> e.allEntities().anyMatch(c -> c.get() instanceof MissingChild && "missing".equals(c.id())));
+                    .expectResult(e -> e.allEntities()
+                            .anyMatch(c -> c.get() instanceof MissingChild && "missing".equals(c.id())));
         }
 
         @Test
@@ -455,8 +456,10 @@ public class AggregateEntitiesTest {
         @Test
         void fromNullValue() {
             testFixture
-                    .whenApplying(fc -> fc.aggregateRepository().asEntity(null).apply(new CreateAggregate(), new AddChild("missing")))
-                    .expectResult(e -> e.allEntities().anyMatch(c -> c.get() instanceof MissingChild && "missing".equals(c.id())));
+                    .whenApplying(fc -> fc.aggregateRepository().asEntity(null)
+                            .apply(new CreateAggregate(), new AddChild("missing")))
+                    .expectResult(e -> e.allEntities()
+                            .anyMatch(c -> c.get() instanceof MissingChild && "missing".equals(c.id())));
         }
 
         @Value
@@ -476,6 +479,25 @@ public class AggregateEntitiesTest {
             MissingChild apply() {
                 return MissingChild.builder().missingChildId(missingChildId).build();
             }
+        }
+    }
+
+    @Nested
+    class EntityInjectionTests {
+        @Test
+        void entityShouldNotGetInjectedIfItIsOfTheWrongType() {
+            testFixture.registerHandlers(
+                            new Object() {
+                                @HandleEvent
+                                void shouldNotBeInvoked(Entity<String> entity) {
+                                    throw new UnsupportedOperationException();
+                                }
+                            }
+                    ).whenEvent(new Object() {
+                        @RoutingKey
+                        private final String someKey = "whatever";
+                    })
+                    .expectNoErrors();
         }
     }
 
