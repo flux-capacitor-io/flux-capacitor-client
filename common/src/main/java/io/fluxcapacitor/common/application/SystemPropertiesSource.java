@@ -14,18 +14,8 @@
 
 package io.fluxcapacitor.common.application;
 
-import io.fluxcapacitor.common.encryption.Encryption;
-
-import java.util.Optional;
-
-public class SystemPropertiesSource extends DecryptingPropertySource {
-
-    public SystemPropertiesSource(Encryption encryption) {
-        super(System.getProperties(), encryption);
-    }
-
-    @Override
-    public String get(String name) {
-        return Optional.ofNullable(super.get(name)).orElseGet(() -> decrypt(System.getProperty(name)));
+public class SystemPropertiesSource extends JavaPropertiesSource {
+    public SystemPropertiesSource() {
+        super(System.getProperties());
     }
 }

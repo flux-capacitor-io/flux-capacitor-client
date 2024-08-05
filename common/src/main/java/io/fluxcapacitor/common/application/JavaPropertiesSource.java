@@ -14,25 +14,21 @@
 
 package io.fluxcapacitor.common.application;
 
-import lombok.Getter;
-import lombok.extern.slf4j.Slf4j;
+import lombok.SneakyThrows;
 
-@Slf4j
-public class DefaultPropertySource implements PropertySource {
-    @Getter
-    private static final DefaultPropertySource instance = new DefaultPropertySource();
+import java.util.Properties;
 
-    public DefaultPropertySource() {
-        this.delegate = PropertySource.join(
-                        EnvironmentVariablesSource.INSTANCE, new SystemPropertiesSource(),
-                        new ApplicationEnvironmentPropertiesSource(),
-                        new ApplicationPropertiesSource());
+public abstract class JavaPropertiesSource implements PropertySource {
+
+    private final Properties properties;
+
+    @SneakyThrows
+    public JavaPropertiesSource(Properties properties) {
+        this.properties = properties;
     }
-
-    private final PropertySource delegate;
 
     @Override
     public String get(String name) {
-        return delegate.get(name);
+        return properties.getProperty(name);
     }
 }

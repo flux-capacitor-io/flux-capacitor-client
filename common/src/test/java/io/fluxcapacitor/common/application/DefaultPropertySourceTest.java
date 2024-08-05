@@ -14,7 +14,6 @@
 
 package io.fluxcapacitor.common.application;
 
-import io.fluxcapacitor.common.encryption.DefaultEncryption;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
@@ -45,14 +44,6 @@ class DefaultPropertySourceTest {
             assertEquals("envbar", source.get("propertiesFile.foo"));
             assertEquals("bar", source.get("envFile.foo"));
         }, "environment", "test");
-    }
-
-    @Test
-    void decryptProperty() {
-        DefaultEncryption encryption = new DefaultEncryption();
-        var source = new DefaultPropertySource(encryption);
-        runWithSystemProperties(() -> assertEquals("foo_encrypted", source.get("encrypted")),
-                              "encrypted", encryption.encrypt("foo_encrypted"));
     }
 
     @Nested

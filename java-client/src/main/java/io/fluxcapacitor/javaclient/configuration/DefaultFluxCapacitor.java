@@ -16,6 +16,7 @@ package io.fluxcapacitor.javaclient.configuration;
 
 import io.fluxcapacitor.common.MessageType;
 import io.fluxcapacitor.common.Registration;
+import io.fluxcapacitor.common.application.DecryptingPropertySource;
 import io.fluxcapacitor.common.application.DefaultPropertySource;
 import io.fluxcapacitor.common.application.PropertySource;
 import io.fluxcapacitor.common.caching.Cache;
@@ -710,7 +711,9 @@ public class DefaultFluxCapacitor implements FluxCapacitor {
                                                   aggregateRepository, snapshotStore,
                                                   eventStore, keyValueStore, documentStore, scheduler, userProvider,
                                                   cache, serializer, correlationDataProvider, identityProvider,
-                                                  propertySource, client, shutdownHandler);
+                                                  propertySource instanceof DecryptingPropertySource dps
+                                                          ? dps : new DecryptingPropertySource(propertySource),
+                                                  client, shutdownHandler);
 
             if (makeApplicationInstance) {
                 FluxCapacitor.applicationInstance.set(fluxCapacitor);

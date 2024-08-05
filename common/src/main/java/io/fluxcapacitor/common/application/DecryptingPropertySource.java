@@ -14,36 +14,51 @@
 
 package io.fluxcapacitor.common.application;
 
-import io.fluxcapacitor.common.ObjectUtils;
+import io.fluxcapacitor.common.encryption.DefaultEncryption;
 import io.fluxcapacitor.common.encryption.Encryption;
-import lombok.SneakyThrows;
+import io.fluxcapacitor.common.encryption.NoOpEncryption;
+import lombok.AllArgsConstructor;
+import lombok.Getter;
+import lombok.extern.slf4j.Slf4j;
 
-import java.util.HashSet;
-import java.util.Map;
-import java.util.Properties;
+import java.util.Optional;
+import java.util.function.Function;
 
-public abstract class DecryptingPropertySource implements PropertySource {
+import static io.fluxcapacitor.common.ObjectUtils.memoize;
+import static java.util.Optional.ofNullable;
 
-    private final Properties properties;
+@AllArgsConstructor
+@Slf4j
+public class DecryptingPropertySource implements PropertySource {
+    private final PropertySource delegate;
+    @Getter
     private final Encryption encryption;
+    private final Function<String, String> decryptionCache = memoize(s -> getEncryption().decrypt(s));
 
-    @SneakyThrows
-    public DecryptingPropertySource(Properties properties, Encryption encryption) {
-        this.properties = ObjectUtils.copyOf(properties);
-        this.encryption = encryption;
-        for (Map.Entry<Object, Object> entry : new HashSet<>(properties.entrySet())) {
-            if (entry.getValue() instanceof String string) {
-                this.properties.setProperty((String) entry.getKey(), decrypt(string));
-            }
-        }
+    public DecryptingPropertySource(PropertySource delegate) {
+        this(delegate, ofNullable(System.getenv("ENCRYPTION_KEY"))
+                     .or(() -> ofNullable(System.getenv("encryption_key")))
+                     .or(() -> ofNullable(System.getProperty("ENCRYPTION_KEY")))
+                     .or(() -> ofNullable(System.getProperty("encryption_key"))).orElse(null));
     }
+
+    public DecryptingPropertySource(PropertySource delegate, String encryptionKey) {
+        this(delegate, Optional.ofNullable(encryptionKey)
+                .map(encodedKey -> {
+                    try {
+                        return DefaultEncryption.fromEncryptionKey(encodedKey);
+                    } catch (Exception e) {
+                        log.error("Could not construct DefaultEncryption from environment variable "
+                                  + "`ENCRYPTION_KEY`");
+                        return null;
+                    }
+                }).orElse(NoOpEncryption.INSTANCE));
+    }
+
 
     @Override
     public String get(String name) {
-        return (String) properties.get(name);
-    }
-
-    public String decrypt(String value) {
-        return encryption.decrypt(value);
+        String value = delegate.get(name);
+        return value == null ? null : decryptionCache.apply(value);
     }
 }

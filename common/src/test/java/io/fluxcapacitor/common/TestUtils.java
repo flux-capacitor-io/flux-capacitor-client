@@ -24,6 +24,7 @@ import java.nio.ByteBuffer;
 import java.time.Clock;
 import java.util.List;
 import java.util.Random;
+import java.util.concurrent.Callable;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
@@ -69,6 +70,14 @@ public class TestUtils {
 
     @SneakyThrows
     public static void runWithSystemProperties(ThrowingRunnable runnable, String... propertyKeysAndValues) {
+        callWithSystemProperties(() -> {
+            runnable.run();
+            return null;
+        }, propertyKeysAndValues);
+    }
+
+    @SneakyThrows
+    public static <V> V callWithSystemProperties(Callable<V> callable, String... propertyKeysAndValues) {
         if (propertyKeysAndValues.length %2 != 0) {
             throw new IllegalArgumentException("Expected pairs of keys and values");
         }
@@ -76,7 +85,7 @@ public class TestUtils {
             for (int i = 0; i < propertyKeysAndValues.length; i += 2) {
                 System.setProperty(propertyKeysAndValues[i], propertyKeysAndValues[i + 1]);
             }
-            runnable.run();
+            return callable.call();
         } finally {
             for (int i = 0; i < propertyKeysAndValues.length; i += 2) {
                 System.clearProperty(propertyKeysAndValues[i]);

@@ -14,7 +14,9 @@
 
 package io.fluxcapacitor.javaclient.configuration;
 
+import io.fluxcapacitor.common.application.DecryptingPropertySource;
 import io.fluxcapacitor.common.application.DefaultPropertySource;
+import io.fluxcapacitor.common.encryption.Encryption;
 import io.fluxcapacitor.javaclient.FluxCapacitor;
 
 import java.util.Optional;
@@ -22,8 +24,7 @@ import java.util.Optional;
 public class ApplicationProperties {
 
     public static String getProperty(String name) {
-        return FluxCapacitor.getOptionally().map(FluxCapacitor::propertySource)
-                .orElseGet(DefaultPropertySource::getInstance).get(name);
+        return getPropertySource().get(name);
     }
 
     public static boolean getBooleanProperty(String name) {
@@ -56,12 +57,25 @@ public class ApplicationProperties {
     }
 
     public static String substituteProperties(String template) {
-        return FluxCapacitor.getOptionally().map(FluxCapacitor::propertySource)
-                .orElseGet(DefaultPropertySource::getInstance).substituteProperties(template);
+        return getPropertySource().substituteProperties(template);
+    }
+
+    public static Encryption getEncryption() {
+        return getPropertySource().getEncryption();
     }
 
     public static String encryptValue(String value) {
-        return DefaultPropertySource.getInstance().getEncryption().encrypt(value);
+        return getEncryption().encrypt(value);
+    }
+
+    public static String decryptValue(String encryptedValue) {
+        return getEncryption().decrypt(encryptedValue);
+    }
+
+    static DecryptingPropertySource getPropertySource() {
+        return FluxCapacitor.getOptionally().map(FluxCapacitor::propertySource)
+                .map(p -> p instanceof DecryptingPropertySource dps ? dps : new DecryptingPropertySource(p))
+                .orElseGet(() -> new DecryptingPropertySource(new DefaultPropertySource()));
     }
 
 }

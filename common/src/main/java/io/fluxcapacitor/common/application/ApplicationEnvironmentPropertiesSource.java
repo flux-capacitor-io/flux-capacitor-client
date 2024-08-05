@@ -16,21 +16,20 @@ package io.fluxcapacitor.common.application;
 
 import io.fluxcapacitor.common.FileUtils;
 import io.fluxcapacitor.common.ObjectUtils;
-import io.fluxcapacitor.common.encryption.Encryption;
 
 import java.util.Optional;
 import java.util.Properties;
 
 import static java.util.Optional.ofNullable;
 
-public class ApplicationEnvironmentPropertiesSource extends DecryptingPropertySource {
+public class ApplicationEnvironmentPropertiesSource extends JavaPropertiesSource {
 
-    public ApplicationEnvironmentPropertiesSource(Encryption encryption) {
-        this(getEnvironment(), encryption);
+    public ApplicationEnvironmentPropertiesSource() {
+        this(getEnvironment());
     }
 
-    public ApplicationEnvironmentPropertiesSource(String environment, Encryption encryption) {
-        super(loadProperties(environment), encryption);
+    public ApplicationEnvironmentPropertiesSource(String environment) {
+        super(loadProperties(environment));
     }
 
     protected static Properties loadProperties(String environment) {

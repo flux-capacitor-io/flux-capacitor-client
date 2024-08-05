@@ -15,20 +15,15 @@
 package io.fluxcapacitor.common.application;
 
 import io.fluxcapacitor.common.ObjectUtils;
-import io.fluxcapacitor.common.encryption.Encryption;
 
 import java.util.Properties;
 
 import static io.fluxcapacitor.common.FileUtils.tryLoadFile;
 
-public class ApplicationPropertiesSource extends DecryptingPropertySource {
+public class ApplicationPropertiesSource extends JavaPropertiesSource {
 
-    public ApplicationPropertiesSource(Encryption encryption) {
-        super(loadProperties(), encryption);
-    }
-
-    protected static Properties loadProperties() {
-        return tryLoadFile("/application.properties").map(ObjectUtils::asProperties)
-                .orElseGet(Properties::new);
+    public ApplicationPropertiesSource() {
+        super(tryLoadFile("/application.properties").map(ObjectUtils::asProperties)
+                .orElseGet(Properties::new));
     }
 }
