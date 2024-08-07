@@ -372,9 +372,11 @@ public class ResultValidator<R> implements Then<R> {
                 if (!errors.isEmpty()) {
                     throw new GivenWhenThenAssertionError(String.format(
                             "Verify check failed: %s\nProbable cause is an exception during handling.", e.getMessage()),
-                                                          (errors.getFirst()));
+                                                          "Successful check", describeException(e),
+                                                          errors.getFirst());
                 }
-                throw new GivenWhenThenAssertionError("Verify check failed", e);
+                throw new GivenWhenThenAssertionError("Verify check failed",
+                                                      "Successful check", describeException(e), e);
             }
             return this;
         });

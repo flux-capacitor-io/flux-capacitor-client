@@ -684,6 +684,14 @@ public class AggregateEntitiesTest {
             }
 
             @Test
+            void addToNullList() {
+                testFixture.whenCommand(new AddNullListChild("nullChild"))
+                        .expectThat(fc -> expectEntity(
+                                e -> e.get() instanceof NullListChild && "nullChild".equals(e.id())))
+                        .expectTrue(fc -> loadAggregate("test", Aggregate.class).get().getNullList().size() == 1);
+            }
+
+            @Test
             void testUpdateListChild() {
                 testFixture.whenCommand(new UpdateChild("list1", "data"))
                         .expectTrue(fc -> loadAggregate("test", Aggregate.class).get().getList().get(1).getData()
@@ -704,6 +712,16 @@ public class AggregateEntitiesTest {
                 @Apply
                 ListChild apply() {
                     return ListChild.builder().listChildId(listChildId).build();
+                }
+            }
+
+            @Value
+            class AddNullListChild {
+                String nullListChildId;
+
+                @Apply
+                NullListChild apply() {
+                    return new NullListChild(nullListChildId);
                 }
             }
         }
@@ -957,6 +975,9 @@ public class AggregateEntitiesTest {
                 ListChild.builder().listChildId("list1").build(), ListChild.builder().listChildId(null).build());
 
         @Member
+        List<NullListChild> nullList;
+
+        @Member
         @Default
         Map<Key, MapChild> map = Map.of(
                 new Key("map0"), MapChild.builder().mapChildId(new Key("map0")).build(),
@@ -1002,6 +1023,12 @@ public class AggregateEntitiesTest {
         String listChildId;
         @With
         Object data;
+    }
+
+    @Value
+    static class NullListChild {
+        @EntityId
+        String nullListChildId;
     }
 
     @Value

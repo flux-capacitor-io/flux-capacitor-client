@@ -26,8 +26,10 @@ import lombok.extern.slf4j.Slf4j;
 
 import java.lang.reflect.AccessibleObject;
 import java.lang.reflect.Method;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -194,6 +196,9 @@ public class AnnotatedEntityHolder {
         Object holder = ReflectionUtils.getValue(location, owner);
         if (Collection.class.isAssignableFrom(holderType)) {
             Collection<Object> collection = serializer.clone(holder);
+            if (collection == null) {
+                collection = new ArrayList<>();
+            }
             if (collection instanceof List<?>) {
                 List<Object> list = (List<Object>) collection;
                 int index = list.indexOf(before.get());
@@ -214,6 +219,9 @@ public class AnnotatedEntityHolder {
             }
         } else if (Map.class.isAssignableFrom(holderType)) {
             Map<Object, Object> map = serializer.clone(holder);
+            if (map == null) {
+                map = new LinkedHashMap<>();
+            }
             Object id = Optional.ofNullable(after.id()).orElseGet(() -> idProvider.apply(after.get()).value());
             if (after.get() == null) {
                 map.remove(id);
