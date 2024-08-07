@@ -35,6 +35,7 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Predicate;
@@ -191,18 +192,18 @@ public class ResultValidator<R> implements Then<R> {
         Class<?> callerClass = ReflectionUtils.getCallerClass();
         return fluxCapacitor.apply(fc -> {
             Object expected = testFixture.parseObject(expectedResult, callerClass);
-            if (result instanceof Throwable) {
+            if (result instanceof Throwable e) {
                 throw new GivenWhenThenAssertionError("An unexpected exception occurred during handling",
-                                                      (Throwable) result);
+                                                      expected, describeException(e), e);
             }
             if (!matches(expected, result)) {
                 if (isComparableToActual(expected)) {
-                    throw new GivenWhenThenAssertionError(format(
-                            "Handler returned a result of unexpected type.\nExpected: %s\nGot: %s",
-                            expected.getClass(), result.getClass()));
+                    throw new GivenWhenThenAssertionError(
+                            "Handler returned a result of unexpected type",
+                            expected.getClass(), result.getClass());
                 }
-                throw new GivenWhenThenAssertionError("Handler returned an unexpected result",
-                                                      expected, result);
+                throw new GivenWhenThenAssertionError(
+                        "Handler returned an unexpected result", expected, result);
             }
             return this;
         });
@@ -210,39 +211,39 @@ public class ResultValidator<R> implements Then<R> {
 
     @Override
     public <M extends Message> Then<R> expectResultMessage(Predicate<M> messagePredicate, String description) {
-        if (result instanceof Throwable) {
+        if (result instanceof Throwable e) {
             throw new GivenWhenThenAssertionError("An unexpected exception occurred during handling",
-                                                  (Throwable) result);
+                                                  description, describeException(e), e);
         }
         if (result instanceof Message) {
             if (!testSafely(messagePredicate, result)) {
                 if (!errors.isEmpty()) {
-                    throw new GivenWhenThenAssertionError(String.format(
-                            "Handler returned an unexpected result. Expected: %s\n"
-                            + "Probable cause is an exception during handling.", description), errors.getFirst());
+                    throw new GivenWhenThenAssertionError(
+                            "Handler returned an unexpected result. Probable cause is an exception during handling.",
+                            description, describeException(errors.getFirst()), errors.getFirst());
                 }
-                throw new GivenWhenThenAssertionError("Handler returned an unexpected result",
-                                                      description, result);
+                throw new GivenWhenThenAssertionError(
+                        "Handler returned an unexpected result", description, result);
             }
             return this;
         }
-        throw new GivenWhenThenAssertionError(String.format(
-                "Test fixture result is not of type Message. Expected: %s\nGot: %s.", description, result));
+        throw new GivenWhenThenAssertionError(
+                "Test fixture result is not of type Message.", description, result);
     }
 
     @SuppressWarnings("unchecked")
     @Override
     public <R2 extends R> Then<R2> expectResult(Predicate<R2> predicate, String description) {
         return fluxCapacitor.apply(fc -> {
-            if (result instanceof Throwable) {
-                throw new GivenWhenThenAssertionError("An unexpected exception occurred during handling",
-                                                      (Throwable) result);
+            if (result instanceof Throwable e) {
+                throw new GivenWhenThenAssertionError("An unexpected exception occurred during handling", e);
             }
             if (!matches(predicate, result)) {
                 if (!errors.isEmpty()) {
-                    throw new GivenWhenThenAssertionError(String.format(
-                            "Handler returned an unexpected result. Expected: %s\n"
-                            + "Probable cause is an exception during handling.", description), errors.getFirst());
+                    throw new GivenWhenThenAssertionError("Handler returned an unexpected result. "
+                                                          + "Probable cause is an exception during handling.",
+                                                          description, describeException(errors.getFirst()),
+                                                          errors.getFirst());
                 }
                 throw new GivenWhenThenAssertionError("Handler returned an unexpected result",
                                                       description, result);
@@ -288,9 +289,8 @@ public class ResultValidator<R> implements Then<R> {
             }
             if (!matches(expectedException, result)) {
                 if (isComparableToActual(expectedException)) {
-                    throw new GivenWhenThenAssertionError(format(
-                            "Handler threw unexpected exception.\nExpected: %s\nGot: %s",
-                            expectedException.getClass(), result.getClass()));
+                    throw new GivenWhenThenAssertionError("Handler threw unexpected exception",
+                            expectedException.getClass(), result.getClass());
                 }
                 throw new GivenWhenThenAssertionError("Handler threw unexpected exception",
                                                       expectedException, result);
@@ -319,7 +319,8 @@ public class ResultValidator<R> implements Then<R> {
     @Override
     public Then<R> expectError(Object expectedError) {
         if (errors.isEmpty()) {
-            throw new GivenWhenThenAssertionError("An error was expected but none was published");
+            throw new GivenWhenThenAssertionError("An error was expected but none was published",
+                                                  expectedError, null);
         }
         return expect(List.of(expectedError), this.errors);
     }
@@ -327,7 +328,8 @@ public class ResultValidator<R> implements Then<R> {
     @Override
     public <T extends Throwable> Then<R> expectError(Predicate<T> predicate, String description) {
         if (errors.isEmpty()) {
-            throw new GivenWhenThenAssertionError("An error was expected but none was published");
+            throw new GivenWhenThenAssertionError("An error was expected but none was published",
+                                                  description, null);
         }
         try {
             expect(List.of(predicate), this.errors);
@@ -409,9 +411,9 @@ public class ResultValidator<R> implements Then<R> {
                 if (e instanceof Schedule) {
                     if (actual.stream().noneMatch(s -> Objects.equals(s.getDeadline(), ((Schedule) e).getDeadline()))) {
                         throw new GivenWhenThenAssertionError(
-                                format("Found no schedules with matching deadline. Expected %s. Got %s",
+                                "Found no schedules with matching deadline",
                                        ((Schedule) e).getDeadline(),
-                                       actual.stream().map(Schedule::getDeadline).collect(toList())));
+                                       actual.stream().map(Schedule::getDeadline).collect(toList()));
                     }
                 }
             });
@@ -573,6 +575,12 @@ public class ResultValidator<R> implements Then<R> {
 
     protected boolean isMatcher(Object expected) {
         return matchersSupported && expected instanceof Matcher<?>;
+    }
+
+    protected String describeException(Throwable e) {
+        return Optional.ofNullable(e.getMessage())
+                .map(m -> "%s: %s".formatted(e.getClass().getSimpleName(), m))
+                .orElseGet(() -> e.getClass().getSimpleName());
     }
 
 }
