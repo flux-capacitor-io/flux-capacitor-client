@@ -14,7 +14,6 @@
 
 package io.fluxcapacitor.javaclient.modeling;
 
-import io.fluxcapacitor.common.Pair;
 import io.fluxcapacitor.common.handling.HandlerInvoker;
 import io.fluxcapacitor.javaclient.common.Message;
 import io.fluxcapacitor.javaclient.common.serialization.DeserializingMessage;
@@ -28,6 +27,7 @@ import lombok.ToString;
 
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -57,8 +57,16 @@ public class ModifiableAggregateRoot<T> extends DelegatingEntity<T> implements A
     }
 
     public static Map<String, Class<?>> getActiveAggregatesFor(@NonNull Object entityId) {
-        return activeAggregates.get().values().stream().filter(a -> a.getEntity(entityId).isPresent())
-                .collect(toMap(e -> e.id().toString(), Entity::type));
+        List<Entity<?>> candidates = activeAggregates.get().values().stream()
+                .filter(a -> a.getEntity(entityId).isPresent()).collect(Collectors.toList());
+        Comparator<Entity<?>> byPresent = Comparator.comparing(
+                a -> a.getEntity(entityId).map(Entity::isPresent).orElse(false));
+        Comparator<Entity<?>> byOrder = Comparator.comparing(candidates::indexOf);
+        LinkedHashMap<String, Class<?>> result =
+                candidates.stream()
+                        .sorted(byPresent.thenComparing(byOrder))
+                        .collect(toMap(e -> e.id().toString(), Entity::type, (a, b) -> b, LinkedHashMap::new));
+        return result;
     }
 
     public static <T> Entity<T> load(
@@ -82,9 +90,8 @@ public class ModifiableAggregateRoot<T> extends DelegatingEntity<T> implements A
 
     private final AtomicBoolean waitingForHandlerEnd = new AtomicBoolean(), waitingForBatchEnd = new AtomicBoolean();
     private final List<DeserializingMessage> applied = new ArrayList<>(), uncommitted = new ArrayList<>();
-    private final List<Pair<Message, Boolean>> queued = new ArrayList<>();
-
-    private volatile boolean applying;
+    private final List<UnaryOperator<Entity<T>>> queued = new ArrayList<>();
+    private volatile boolean updating, committing, commitPending;
 
     protected ModifiableAggregateRoot(Entity<T> delegate, boolean commitInBatch,
                                       EventPublication eventPublication, EntityHelper entityHelper,
@@ -114,93 +121,80 @@ public class ModifiableAggregateRoot<T> extends DelegatingEntity<T> implements A
     }
 
     @Override
+    public Entity<T> update(UnaryOperator<T> function) {
+        return handleUpdate(a -> a.update(function));
+    }
+
+    @Override
     public Entity<T> apply(Message message) {
         entityHelper.intercept(message, this).forEach(m -> apply(Message.asMessage(m), false));
         return this;
     }
 
     protected Entity<T> apply(Message message, boolean assertLegal) {
-        if (applying) {
-            queued.add(new Pair<>(message, assertLegal));
+        return handleUpdate(a -> {
+            if (assertLegal) {
+                entityHelper.assertLegal(message, a);
+            }
+            var eventPublication =
+                    entityHelper.applyInvoker(new DeserializingMessage(message, EVENT, serializer), a)
+                            .<Apply>map(HandlerInvoker::getMethodAnnotation).map(Apply::eventPublication)
+                            .filter(ep -> ep != DEFAULT).orElse(this.eventPublication);
+
+            int hashCodeBefore = eventPublication == IF_MODIFIED ? a.get() == null ? -1 : a.get().hashCode() : -1;
+
+            Entity<T> result = a.apply(message);
+            if (switch (eventPublication) {
+                case ALWAYS, DEFAULT -> true;
+                case IF_MODIFIED -> !Objects.equals(a.get(), result.get())
+                                    || (result.get() != null && result.get().hashCode() != hashCodeBefore);
+                case NEVER -> false;
+            }) {
+                Message intercepted = dispatchInterceptor.interceptDispatch(message, EVENT);
+                if (intercepted == null) {
+                    return a;
+                }
+                Message m = intercepted.addMetadata(Entity.AGGREGATE_ID_METADATA_KEY, id().toString(),
+                                                    Entity.AGGREGATE_TYPE_METADATA_KEY, type().getName(),
+                                                    Entity.AGGREGATE_SN_METADATA_KEY,
+                                                    String.valueOf(getDelegate().sequenceNumber() + 1L));
+                var serializedEvent =
+                        dispatchInterceptor.modifySerializedMessage(m.serialize(serializer), m, EVENT);
+                if (serializedEvent == null) {
+                    return a;
+                }
+                applied.add(new DeserializingMessage(
+                        serializedEvent, type -> serializer.convert(m.getPayload(), type), EVENT));
+            }
+            return result;
+        });
+    }
+
+    protected Entity<T> handleUpdate(UnaryOperator<Entity<T>> update) {
+        if (updating) {
+            queued.add(update);
             return this;
         }
-        if (assertLegal) {
-            entityHelper.assertLegal(message, this);
-        }
         try {
-            applying = true;
-            handleUpdate(a -> {
-                var eventPublication =
-                        entityHelper.applyInvoker(new DeserializingMessage(message, EVENT, serializer), a)
-                                .<Apply>map(HandlerInvoker::getMethodAnnotation).map(Apply::eventPublication)
-                                .filter(ep -> ep != DEFAULT).orElse(this.eventPublication);
-
-                int hashCodeBefore = eventPublication == IF_MODIFIED ? a.get() == null ? -1 : a.get().hashCode() : -1;
-
-                Entity<T> result = a.apply(message);
-                if (switch (eventPublication) {
-                    case ALWAYS, DEFAULT -> true;
-                    case IF_MODIFIED -> !Objects.equals(a.get(), result.get())
-                                        || (result.get() != null && result.get().hashCode() != hashCodeBefore);
-                    case NEVER -> false;
-                }) {
-                    Message intercepted = dispatchInterceptor.interceptDispatch(message, EVENT);
-                    if (intercepted == null) {
-                        return a;
-                    }
-                    Message m = intercepted.addMetadata(Entity.AGGREGATE_ID_METADATA_KEY, id().toString(),
-                                                        Entity.AGGREGATE_TYPE_METADATA_KEY, type().getName(),
-                                                        Entity.AGGREGATE_SN_METADATA_KEY,
-                                                        String.valueOf(getDelegate().sequenceNumber() + 1L));
-                    var serializedEvent =
-                            dispatchInterceptor.modifySerializedMessage(m.serialize(serializer), m, EVENT);
-                    if (serializedEvent == null) {
-                        return a;
-                    }
-                    applied.add(new DeserializingMessage(
-                            serializedEvent, type -> serializer.convert(m.getPayload(), type), EVENT));
+            updating = true;
+            boolean firstUpdate = waitingForHandlerEnd.compareAndSet(false, true);
+            if (firstUpdate) {
+                activeAggregates.get().putIfAbsent(id(), this);
+            }
+            try {
+                delegate = update.apply(getDelegate());
+            } finally {
+                if (firstUpdate) {
+                    Invocation.whenHandlerCompletes((r, e) -> whenHandlerCompletes(e));
                 }
-                return result;
-            });
+            }
         } finally {
-            applying = false;
+            updating = false;
         }
         while (!queued.isEmpty()) {
-            Pair<Message, Boolean> value = queued.removeFirst();
-            apply(value.getFirst(), value.getSecond());
+            queued.removeFirst().apply(this);
         }
         return this;
-    }
-
-    @Override
-    public Entity<T> update(UnaryOperator<T> function) {
-        handleUpdate(a -> a.update(function));
-        return this;
-    }
-
-    @Override
-    public Collection<? extends Entity<?>> entities() {
-        return super.entities().stream().map(e -> new ModifiableEntity<>(e, this)).collect(Collectors.toList());
-    }
-
-    @Override
-    public Entity<T> previous() {
-        Entity<T> previous = getDelegate().previous();
-        return previous == null ? null : new ModifiableEntity<>(previous, this);
-    }
-
-    protected void handleUpdate(UnaryOperator<Entity<T>> update) {
-        boolean firstUpdate = waitingForHandlerEnd.compareAndSet(false, true);
-        if (firstUpdate) {
-            activeAggregates.get().putIfAbsent(id(), this);
-        }
-        try {
-            delegate = update.apply(getDelegate());
-        } finally {
-            if (firstUpdate) {
-                Invocation.whenHandlerCompletes((r, e) -> whenHandlerCompletes(e));
-            }
-        }
     }
 
     protected void whenHandlerCompletes(Throwable error) {
@@ -213,8 +207,8 @@ public class ModifiableAggregateRoot<T> extends DelegatingEntity<T> implements A
         }
         applied.clear();
         if (!commitInBatch) {
-            activeAggregates.get().remove(id(), this);
             commit();
+            activeAggregates.get().remove(id(), this);
         } else if (waitingForBatchEnd.compareAndSet(false, true)) {
             DeserializingMessage.whenBatchCompletes(this::whenBatchCompletes);
         }
@@ -222,20 +216,45 @@ public class ModifiableAggregateRoot<T> extends DelegatingEntity<T> implements A
 
     protected void whenBatchCompletes(Throwable error) {
         waitingForBatchEnd.set(false);
-        activeAggregates.get().remove(id(), this);
         commit();
+        activeAggregates.get().remove(id(), this);
     }
 
     @Override
     public Entity<T> commit() {
-        uncommitted.addAll(applied);
-        applied.clear();
-        lastStable = delegate;
-        List<DeserializingMessage> events = new ArrayList<>(uncommitted);
-        uncommitted.clear();
-        commitHandler.handle(lastStable, events, lastCommitted);
-        lastCommitted = lastStable;
+        if (committing) {
+            commitPending = true;
+            return this;
+        }
+        try {
+            committing = true;
+            commitPending = false;
+            uncommitted.addAll(applied);
+            applied.clear();
+            lastStable = delegate;
+            List<DeserializingMessage> events = new ArrayList<>(uncommitted);
+            uncommitted.clear();
+            var before = lastCommitted;
+            lastCommitted = lastStable;
+            commitHandler.handle(lastStable, events, before);
+        } finally {
+            committing = false;
+        }
+        while (commitPending) {
+            commit();
+        }
         return this;
+    }
+
+    @Override
+    public Collection<? extends Entity<?>> entities() {
+        return super.entities().stream().map(e -> new ModifiableEntity<>(e, this)).collect(Collectors.toList());
+    }
+
+    @Override
+    public Entity<T> previous() {
+        Entity<T> previous = getDelegate().previous();
+        return previous == null ? null : new ModifiableEntity<>(previous, this);
     }
 
     @FunctionalInterface

@@ -111,10 +111,13 @@ public class DefaultAggregateRepository implements AggregateRepository {
             return (Entity<T>) load(entityId, defaultType);
         }
         if (aggregates.containsKey(entityId.toString())) {
-            return (Entity<T>) load(entityId, aggregates.get(entityId.toString()));
+            Entity<T> result = (Entity<T>) load(entityId, aggregates.get(entityId.toString()));
+            if (!result.isEmpty()) {
+                return result;
+            }
         }
         if (aggregates.size() > 1) {
-            log.info("Found multiple aggregates containing entity {}. Loading the most recent one.", entityId);
+            log.debug("Found multiple aggregates containing entity {}. Loading the most recent one.", entityId);
         }
         return aggregates.entrySet().stream().filter(e -> !Void.class.equals(e.getValue()))
                 .reduce((a, b) -> b).map(e -> (Entity<T>) load(e.getKey(), e.getValue()))
