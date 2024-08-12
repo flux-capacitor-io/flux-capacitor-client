@@ -30,6 +30,7 @@ import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 
+import java.io.ByteArrayInputStream;
 import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
@@ -143,10 +144,9 @@ public class ReverseProxyConsumer implements Consumer<List<SerializedMessage>> {
     }
 
     WebResponse asWebResponse(HttpResponse<byte[]> response) {
-        WebResponse.Builder builder = WebResponse.builder().status(response.statusCode())
-                .payload(response.body());
+        WebResponse.Builder builder = WebResponse.builder();
         response.headers().map().forEach((name, values) -> values.forEach(v -> builder.header(fixHeaderName(name), v)));
-        return builder.build();
+        return builder.status(response.statusCode()).payload(response.body()).build();
     }
 
     WebResponse asWebResponse(Throwable e) {
@@ -157,9 +157,9 @@ public class ReverseProxyConsumer implements Consumer<List<SerializedMessage>> {
 
     HttpRequest.BodyPublisher getBodyPublisher(SerializedMessage request) {
         String type = request.getData().getType();
-        if (type == null || Void.class.getName().equals(type)) {
+        if (type == null || Void.class.getName().equals(type) || request.getData().getValue().length == 0) {
             return HttpRequest.BodyPublishers.noBody();
         }
-        return HttpRequest.BodyPublishers.ofByteArray(request.getData().getValue());
+        return HttpRequest.BodyPublishers.ofInputStream(() -> new ByteArrayInputStream(request.data().getValue()));
     }
 }

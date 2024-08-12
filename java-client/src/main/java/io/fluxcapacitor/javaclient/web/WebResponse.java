@@ -48,6 +48,7 @@ import java.util.Optional;
 import java.util.stream.Collectors;
 
 import static io.fluxcapacitor.common.api.Data.JSON_FORMAT;
+import static io.fluxcapacitor.javaclient.web.WebUtils.fixHeaderName;
 
 @Value
 @EqualsAndHashCode(callSuper = true)
@@ -211,7 +212,7 @@ public class WebResponse extends Message {
         protected Builder(WebResponse response) {
             payload(response.getEncodedPayload());
             status(response.getStatus());
-            response.getHeaders().forEach((k, v) -> headers.put(k, new ArrayList<>(v)));
+            response.getHeaders().forEach((k, v) -> headers.put(fixHeaderName(k), new ArrayList<>(v)));
             cookies.addAll(WebUtils.parseResponseCookieHeader(headers.remove("Set-Cookie")));
         }
 
@@ -229,7 +230,7 @@ public class WebResponse extends Message {
         }
 
         public Builder header(String key, String value) {
-            headers.computeIfAbsent(key, k -> new ArrayList<>()).add(value);
+            headers.computeIfAbsent(fixHeaderName(key), k -> new ArrayList<>()).add(value);
             return this;
         }
 

@@ -23,8 +23,8 @@ import java.lang.annotation.Target;
 @Documented
 @Retention(RetentionPolicy.RUNTIME)
 @Target(ElementType.METHOD)
-@HandleWeb(value = "", method = HttpRequestMethod.PUT)
-public @interface HandlePut {
+@HandleWeb(value = "", method = HttpRequestMethod.HEAD)
+public @interface HandleHead {
     String value();
     boolean disabled() default false;
     boolean passive() default false;

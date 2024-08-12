@@ -130,6 +130,7 @@ public class JacksonContentFilter implements ContentFilter {
                 }
             } catch (Exception e) {
                 log.warn("Failed to filter content (type {}) for viewer {}", input.getClass(), User.getCurrent(), e);
+                throw e;
             }
             followUp.accept(value);
         }

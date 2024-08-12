@@ -52,6 +52,7 @@ import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
 import static io.fluxcapacitor.common.api.Data.JSON_FORMAT;
+import static io.fluxcapacitor.javaclient.web.WebUtils.fixHeaderName;
 import static java.util.Objects.requireNonNull;
 
 @Value
@@ -62,6 +63,10 @@ public class WebRequest extends Message {
 
     public static Builder builder() {
         return new Builder();
+    }
+
+    public static Builder builderFromMetadata(Metadata metadata) {
+        return new Builder(metadata);
     }
 
     public static MessageFilter<HasMessage> getWebRequestFilter() {
@@ -95,7 +100,7 @@ public class WebRequest extends Message {
 
     private WebRequest(Builder builder) {
         super(builder.payload(), builder.metadata.with("url", builder.url(), "method", builder.method().name(),
-                                             "headers", builder.headers()));
+                                                       "headers", builder.headers()));
         this.path = builder.url();
         this.method = builder.method();
         this.headers = builder.headers();
@@ -116,7 +121,7 @@ public class WebRequest extends Message {
     @Override
     public SerializedMessage serialize(Serializer serializer) {
         return Optional.ofNullable(getContentType()).map(
-                format -> new SerializedMessage(serializer.serialize(getPayload(), format), getMetadata(),
+                        format -> new SerializedMessage(serializer.serialize(getPayload(), format), getMetadata(),
                                                         getMessageId(), getTimestamp().toEpochMilli()))
                 .orElseGet(() -> super.serialize(serializer));
     }
@@ -243,11 +248,21 @@ public class WebRequest extends Message {
 
         Metadata metadata = Metadata.empty();
 
+        protected Builder(Metadata metadata) {
+            method(WebRequest.getMethod(metadata));
+            url(WebRequest.getUrl(metadata));
+            WebRequest.getHeaders(metadata).forEach((k, v) -> headers.put(fixHeaderName(k), new ArrayList<>(v)));
+            headers(WebRequest.getHeaders(metadata));
+            cookies.addAll(WebUtils.parseRequestCookieHeader(
+                    Optional.ofNullable(headers.remove("Cookie")).orElseGet(List::of)
+                            .stream().findFirst().orElse(null)));
+        }
+
         protected Builder(WebRequest request) {
             method(request.getMethod());
             url(request.getPath());
             payload(request.getPayload());
-            request.getHeaders().forEach((k, v) -> headers.put(k, new ArrayList<>(v)));
+            request.getHeaders().forEach((k, v) -> headers.put(fixHeaderName(k), new ArrayList<>(v)));
             cookies.addAll(WebUtils.parseRequestCookieHeader(
                     Optional.ofNullable(headers.remove("Cookie")).orElseGet(List::of)
                             .stream().findFirst().orElse(null)));
@@ -255,12 +270,12 @@ public class WebRequest extends Message {
         }
 
         public Builder header(String key, String value) {
-            headers.computeIfAbsent(key, k -> new ArrayList<>()).add(value);
+            headers.computeIfAbsent(fixHeaderName(key), k -> new ArrayList<>()).add(value);
             return this;
         }
 
         public Builder clearHeader(String key) {
-            headers.computeIfPresent(key, (k, v) -> null);
+            headers.computeIfPresent(fixHeaderName(key), (k, v) -> null);
             return this;
         }
 
@@ -292,7 +307,8 @@ public class WebRequest extends Message {
             }
             if (!cookies.isEmpty()) {
                 result.put("Cookie",
-                           List.of(cookies.stream().map(WebUtils::toRequestHeaderString).collect(Collectors.joining("; "))));
+                           List.of(cookies.stream().map(WebUtils::toRequestHeaderString)
+                                           .collect(Collectors.joining("; "))));
             }
             return result;
         }
