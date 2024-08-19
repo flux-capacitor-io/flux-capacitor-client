@@ -184,15 +184,14 @@ public class DefaultTrackingStrategy extends AutoClosing implements TrackingStra
 
     protected Position position(Tracker tracker, PositionStore positionStore, int[] segment) {
         if (tracker.clientControlledIndex()) {
-            long index = ofNullable(tracker.getLastTrackerIndex()).orElseGet(() -> indexFromMillis(currentTimeMillis()));
-            return new Position(segment, index);
+            return new Position(segment, ofNullable(tracker.getLastTrackerIndex())
+                    .orElseGet(() -> indexFromMillis(currentTimeMillis() - 1000L)));
         }
         Position position = positionStore.position(tracker.getConsumerName());
         if (position.isNew(segment)) {
-            if (tracker.getLastTrackerIndex() != null) {
-                return new Position(segment, tracker.getLastTrackerIndex());
-            }
-            return new Position(segment, indexFromMillis(System.currentTimeMillis() - 1000L));
+            return new Position(segment, tracker.getLastTrackerIndex() == null
+                    ? indexFromMillis(currentTimeMillis() - 1000L)
+                    : tracker.getLastTrackerIndex());
         }
         return position;
     }
