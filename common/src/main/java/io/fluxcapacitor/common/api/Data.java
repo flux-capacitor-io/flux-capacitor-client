@@ -34,6 +34,7 @@ public class Data<T> implements SerializedObject<T, Data<T>> {
     @With
     String type;
     int revision;
+    @With
     String format;
 
     @ConstructorProperties({"value", "type", "revision", "format"})

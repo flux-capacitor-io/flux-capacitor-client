@@ -162,9 +162,6 @@ public abstract class AbstractSerializer<I> implements Serializer {
                     if (!Objects.equals(format, s.data().getFormat())) {
                         return (Stream) deserializeOtherFormat(s);
                     }
-                    if (s.data().getType() == null && unknownTypeStrategy == UnknownTypeStrategy.AS_INTERMEDIATE) {
-                        return (Stream) deserializeUnknownType(s);
-                    }
                     if (!isKnownType(s.data().getType())) {
                         if (unknownTypeStrategy == UnknownTypeStrategy.FAIL) {
                             throw new DeserializationException(
@@ -273,7 +270,7 @@ public abstract class AbstractSerializer<I> implements Serializer {
     protected abstract <V> V doConvert(Object value, Class<V> type);
 
     protected boolean isKnownType(String type) {
-        return ReflectionUtils.classExists(type);
+        return type != null && ReflectionUtils.classExists(type);
     }
 
     @SuppressWarnings({"unchecked", "rawtypes"})
