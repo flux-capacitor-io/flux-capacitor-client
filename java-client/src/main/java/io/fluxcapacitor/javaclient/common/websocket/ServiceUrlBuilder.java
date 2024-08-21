@@ -18,6 +18,10 @@ import io.fluxcapacitor.common.MessageType;
 import io.fluxcapacitor.common.ServicePathBuilder;
 import io.fluxcapacitor.javaclient.configuration.client.WebSocketClient;
 
+import java.net.URLEncoder;
+
+import static java.nio.charset.StandardCharsets.UTF_8;
+
 public class ServiceUrlBuilder {
 
     public static String producerUrl(MessageType messageType, WebSocketClient.ClientConfig clientConfig) {
@@ -51,13 +55,12 @@ public class ServiceUrlBuilder {
     public static String buildUrl(WebSocketClient.ClientConfig clientConfig, String path) {
         String result = String.format("%s/%s?clientId=%s&clientName=%s",
                                       clientConfig.getServiceBaseUrl(), path,
-                                      clientConfig.getId(), clientConfig.getName());
+                                      URLEncoder.encode(clientConfig.getId(), UTF_8),
+                                      URLEncoder.encode(clientConfig.getName(), UTF_8));
         if (clientConfig.getProjectId() != null) {
-            result = String.format("%s&projectId=%s", result, clientConfig.getProjectId());
+            result = String.format("%s&projectId=%s", result, URLEncoder.encode(clientConfig.getProjectId(), UTF_8));
         }
-        if (clientConfig.getCompression() != null) {
-            result = String.format("%s&compression=%s", result, clientConfig.getCompression());
-        }
+        result = String.format("%s&compression=%s", result, clientConfig.getCompression());
         return result;
     }
 

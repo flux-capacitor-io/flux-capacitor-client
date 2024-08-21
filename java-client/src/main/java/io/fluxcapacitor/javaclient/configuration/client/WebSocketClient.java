@@ -127,8 +127,8 @@ public class WebSocketClient extends AbstractClient {
     @Builder(toBuilder = true)
     public static class ClientConfig {
 
-        @NonNull String serviceBaseUrl;
-        @NonNull String name;
+        @Default @NonNull String serviceBaseUrl = DefaultPropertySource.getInstance().get("FLUX_BASE_URL");
+        @Default @NonNull String name = DefaultPropertySource.getInstance().get("FLUX_APPLICATION_NAME");
         @Default String applicationId = DefaultPropertySource.getInstance().get("FLUX_APPLICATION_ID");
         @NonNull @Default String id = DefaultPropertySource.getInstance().get("FLUX_TASK_ID", UUID.randomUUID().toString());
         @NonNull @Default CompressionAlgorithm compression = LZ4;
@@ -140,7 +140,7 @@ public class WebSocketClient extends AbstractClient {
         @Default Duration pingTimeout = Duration.ofSeconds(10);
         @Default Duration pingDelay = Duration.ofMinutes(1);
         boolean disableMetrics;
-        String projectId;
+        @Default String projectId = DefaultPropertySource.getInstance().get("FLUX_PROJECT_ID");
         String typeFilter;
 
         public ClientConfig withGatewaySessions(MessageType messageType, int count) {

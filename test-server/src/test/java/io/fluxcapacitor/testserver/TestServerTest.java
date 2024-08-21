@@ -129,7 +129,7 @@ class TestServerTest {
             return WebSocketClient.ClientConfig.builder()
                     .serviceBaseUrl("ws://localhost:" + port)
                     .projectId("clienttest")
-                    .name("GivenWhenThenSpringCustomClientTest")
+                    .name("GivenWhenThenSpringCustom Client Test")
                     .build();
         }
 

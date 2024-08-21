@@ -20,6 +20,7 @@ import io.fluxcapacitor.javaclient.FluxCapacitor;
 import io.fluxcapacitor.javaclient.common.serialization.Serializer;
 import io.fluxcapacitor.javaclient.common.serialization.casting.CastInspector;
 import io.fluxcapacitor.javaclient.common.serialization.jackson.JacksonSerializer;
+import io.fluxcapacitor.javaclient.configuration.ApplicationProperties;
 import io.fluxcapacitor.javaclient.configuration.DefaultFluxCapacitor;
 import io.fluxcapacitor.javaclient.configuration.FluxCapacitorBuilder;
 import io.fluxcapacitor.javaclient.configuration.client.Client;
@@ -127,11 +128,19 @@ public class FluxCapacitorSpringConfig implements BeanPostProcessor {
     @Bean
     @ConditionalOnMissingBean
     public FluxCapacitor fluxCapacitor(FluxCapacitorBuilder builder) {
-        Client client = getBean(Client.class).orElseGet(() -> getBean(WebSocketClient.ClientConfig.class).<Client>map(
-                WebSocketClient::newInstance).orElseGet(() -> {
-            log.info("Using in-memory Flux Capacitor client");
-            return InMemoryClient.newInstance();
-        }));
+        Client client = getBean(Client.class).orElseGet(() -> getBean(WebSocketClient.ClientConfig.class)
+                .<Client>map(WebSocketClient::newInstance)
+                .orElseGet(() -> {
+                    if (ApplicationProperties.containsProperty("FLUX_BASE_URL")
+                        && ApplicationProperties.containsProperty("FLUX_APPLICATION_NAME")) {
+                        var config = WebSocketClient.ClientConfig.builder().build();
+                        log.info("Using connected Flux Capacitor client (application name: {}, service url: {})",
+                                 config.getName(), config.getServiceBaseUrl());
+                        return WebSocketClient.newInstance(config);
+                    }
+                    log.info("Using in-memory Flux Capacitor client");
+                    return InMemoryClient.newInstance();
+                }));
         return builder.build(client);
     }
 

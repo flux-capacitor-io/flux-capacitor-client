@@ -15,6 +15,7 @@
 package io.fluxcapacitor.javaclient.configuration.client;
 
 import io.fluxcapacitor.common.MessageType;
+import io.fluxcapacitor.common.application.DefaultPropertySource;
 import io.fluxcapacitor.javaclient.persisting.eventsourcing.client.EventStoreClient;
 import io.fluxcapacitor.javaclient.persisting.eventsourcing.client.LocalEventStoreClient;
 import io.fluxcapacitor.javaclient.persisting.keyvalue.client.InMemoryKeyValueStore;
@@ -39,7 +40,8 @@ public class InMemoryClient extends AbstractClient {
     private final LocalSchedulingClient scheduleStore;
 
     @Getter(lazy = true) @Accessors(fluent = true)
-    private final String id = ManagementFactory.getRuntimeMXBean().getName();
+    private final String id = DefaultPropertySource.getInstance().get(
+            "FLUX_TASK_ID", ManagementFactory.getRuntimeMXBean().getName());
 
     public static InMemoryClient newInstance() {
         return new InMemoryClient(Duration.ofMinutes(2));
@@ -57,12 +59,12 @@ public class InMemoryClient extends AbstractClient {
 
     @Override
     public String name() {
-        return "inMemory";
+        return DefaultPropertySource.getInstance().get("FLUX_APPLICATION_NAME", "inMemory");
     }
 
     @Override
     public String applicationId() {
-        return null;
+        return DefaultPropertySource.getInstance().get("FLUX_APPLICATION_ID");
     }
 
     @Override
