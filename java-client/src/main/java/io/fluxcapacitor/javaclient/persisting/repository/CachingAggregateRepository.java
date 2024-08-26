@@ -115,9 +115,17 @@ public class CachingAggregateRepository implements AggregateRepository {
                                     boolean wasLoading = Entity.isLoading();
                                     try {
                                         Entity.loading.set(true);
-                                        Entity<?> after = before.apply(m);
-                                        updateRelationships(before, after);
-                                        return after;
+                                        try {
+                                            Entity<?> after = before.apply(m);
+                                            updateRelationships(before, after);
+                                            return after;
+                                        } catch (Throwable e) {
+                                            log.error("Failed to handle event {} for aggregate {}"
+                                                      + " (id {}, last event id {}). Clearing aggregate from cache.",
+                                                      m.getMessageId(), getAggregateType(m), id, before.lastEventId(),
+                                                      e);
+                                            return null;
+                                        }
                                     } finally {
                                         Entity.loading.set(wasLoading);
                                     }
@@ -181,7 +189,8 @@ public class CachingAggregateRepository implements AggregateRepository {
             start(this::handleEvents, NOTIFICATION, ConsumerConfiguration.builder()
                     .ignoreSegment(true)
                     .clientControlledIndex(true)
-                    .minIndex(lastEventIndex = IndexUtils.indexFromTimestamp(FluxCapacitor.currentTime().minusSeconds(2)))
+                    .minIndex(
+                            lastEventIndex = IndexUtils.indexFromTimestamp(FluxCapacitor.currentTime().minusSeconds(2)))
                     .name(format("%s_%s", client.name(), CachingAggregateRepository.class.getSimpleName()))
                     .build(), client);
             synchronized (cache) {
