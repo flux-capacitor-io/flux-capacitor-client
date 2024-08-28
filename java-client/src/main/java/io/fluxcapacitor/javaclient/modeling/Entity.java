@@ -194,9 +194,10 @@ public interface Entity<T> {
         return Stream.concat(Stream.of(this), entities().stream().flatMap(Entity::allEntities));
     }
 
-    default Optional<Entity<?>> getEntity(Object entityId) {
+    @SuppressWarnings("unchecked")
+    default <C> Optional<Entity<C>> getEntity(Object entityId) {
         return entityId == null ? Optional.empty() : allEntities().filter(
-                e -> entityId.equals(e.id()) || e.aliases().contains(entityId)).findFirst();
+                e -> entityId.equals(e.id()) || e.aliases().contains(entityId)).findFirst().map(e -> (Entity<C>) e);
     }
 
     default Set<Relationship> relationships() {

@@ -571,9 +571,8 @@ public interface FluxCapacitor extends AutoCloseable {
      * loaded with the entityId as aggregate identifier. In case multiple entities are associated with the given
      * entityId the most recent entity is returned.
      */
-    @SuppressWarnings("unchecked")
     static <T> Entity<T> loadEntity(Id<T> entityId) {
-        return (Entity<T>) loadAggregateFor(entityId).getEntity(entityId).orElseGet(() -> loadAggregate(entityId));
+        return loadAggregateFor(entityId).<T>getEntity(entityId).orElseGet(() -> loadAggregate(entityId));
     }
 
     /**
