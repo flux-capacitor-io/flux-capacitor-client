@@ -86,8 +86,13 @@ public abstract class AbstractSerializer<I> implements Serializer {
                 return serializeToOtherFormat(object, format);
             }
         } catch (Exception e) {
-            throw new SerializationException(String.format("Could not serialize %s (format %s)", object, format), e);
+            throw new SerializationException(String.format("Could not serialize a %s (format %s)",
+                                                           formatValue(object), format), e);
         }
+    }
+
+    private String formatValue(Object value) {
+        return value == null ? "null" : value instanceof Class<?> c ? c.getName() : value.getClass().getName();
     }
 
     @SneakyThrows
