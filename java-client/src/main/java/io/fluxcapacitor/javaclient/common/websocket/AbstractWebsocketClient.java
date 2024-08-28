@@ -51,6 +51,7 @@ import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import lombok.SneakyThrows;
 import lombok.Value;
+import lombok.experimental.Accessors;
 import lombok.experimental.Delegate;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -91,7 +92,10 @@ public abstract class AbstractWebsocketClient implements AutoCloseable {
     public static ObjectMapper defaultObjectMapper = JsonMapper.builder().disable(FAIL_ON_UNKNOWN_PROPERTIES)
             .findAndAddModules().disable(WRITE_DATES_AS_TIMESTAMPS).build();
 
-    protected final Logger log;
+    @Getter(lazy = true)
+    @Accessors(fluent = true)
+    private final Logger log = LoggerFactory.getLogger("%s.%s".formatted(getClass().getPackageName(), this));
+
     private final SessionPool sessionPool;
     private final WebSocketClient client;
     private final ClientConfig clientConfig;
@@ -127,20 +131,19 @@ public abstract class AbstractWebsocketClient implements AutoCloseable {
         this.pingScheduler = new InMemoryTaskScheduler(this + "-pingScheduler");
         this.resultExecutor = Executors.newFixedThreadPool(
                 8, newThreadFactory(this + "-onMessage"));
-        this.log = LoggerFactory.getLogger(toString());
         this.sessionPool = new SessionPool(numberOfSessions, () -> retryOnFailure(
                 () -> container.connectToServer(this, endpointUri),
                 RetryConfiguration.builder()
                         .delay(reconnectDelay)
                         .errorTest(e -> !closed.get())
-                        .successLogger(s -> log.info("Successfully reconnected to endpoint {}", endpointUri))
+                        .successLogger(s -> log().info("Successfully reconnected to endpoint {}", endpointUri))
                         .exceptionLogger(status -> {
                             if (status.getNumberOfTimesRetried() == 0) {
-                                log.warn("Failed to connect to endpoint {}; reason: {}. Retrying every {} ms...",
+                                log().warn("Failed to connect to endpoint {}; reason: {}. Retrying every {} ms...",
                                          endpointUri, status.getException().getMessage(),
                                          status.getRetryConfiguration().getDelay().toMillis());
                             } else if (status.getNumberOfTimesRetried() % 100 == 0) {
-                                log.warn("Still trying to connect to endpoint {}. Last error: {}.",
+                                log().warn("Still trying to connect to endpoint {}. Last error: {}.",
                                          endpointUri, status.getException().getMessage());
                             }
                         }).build()));
@@ -195,7 +198,7 @@ public abstract class AbstractWebsocketClient implements AutoCloseable {
                 outputStream.write(compress(bytes, clientConfig.getCompression()));
             }
         } catch (Exception e) {
-            log.error(ignoreMarker, "Failed to send request %s".formatted(object), e);
+            log().error(ignoreMarker, "Failed to send request %s".formatted(object), e);
             if (ofNullable(e.getMessage()).map(m -> m.contains("Channel is closed")).orElse(false)) {
                 abort(session);
             } else {
@@ -211,7 +214,7 @@ public abstract class AbstractWebsocketClient implements AutoCloseable {
             try {
                 value = objectMapper.readValue(decompress(bytes, clientConfig.getCompression()), JsonType.class);
             } catch (Exception e) {
-                log.error("Could not parse input. Expected a Json message.", e);
+                log().error("Could not parse input. Expected a Json message.", e);
                 return;
             }
             if (value instanceof ResultBatch) {
@@ -220,7 +223,7 @@ public abstract class AbstractWebsocketClient implements AutoCloseable {
             } else {
                 WebSocketRequest webSocketRequest = requests.get(((QueryResult) value).getRequestId());
                 if (webSocketRequest == null) {
-                    log.warn("Could not find outstanding read request for id {} (session {})",
+                    log().warn("Could not find outstanding read request for id {} (session {})",
                              ((QueryResult) value).getRequestId(), session.getId());
                 }
                 handleResult((QueryResult) value, null);
@@ -233,7 +236,7 @@ public abstract class AbstractWebsocketClient implements AutoCloseable {
         try {
             WebSocketRequest webSocketRequest = requests.remove(result.getRequestId());
             if (webSocketRequest == null) {
-                log.warn("Could not find outstanding read request for id {}", result.getRequestId());
+                log().warn("Could not find outstanding read request for id {}", result.getRequestId());
             } else {
                 try {
                     Metadata metadata = metricsMetadata()
@@ -257,7 +260,7 @@ public abstract class AbstractWebsocketClient implements AutoCloseable {
                 }
             }
         } catch (Throwable e) {
-            log.error("Failed to handle result {}", result, e);
+            log().error("Failed to handle result {}", result, e);
         }
     }
 
@@ -285,7 +288,7 @@ public abstract class AbstractWebsocketClient implements AutoCloseable {
                         v.cancel();
                     }
                     return new PingRegistration(pingScheduler.schedule(clientConfig.getPingTimeout(), () -> {
-                        log.warn("Failed to get a ping response in time for session {}. Resetting connection",
+                        log().warn("Failed to get a ping response in time for session {}. Resetting connection",
                                  session.getId());
                         abort(session);
                     }));
@@ -293,7 +296,7 @@ public abstract class AbstractWebsocketClient implements AutoCloseable {
                 try {
                     session.getBasicRemote().sendPing(ByteBuffer.wrap(registration.getId().getBytes()));
                 } catch (Exception e) {
-                    log.warn("Failed to send ping message", e);
+                    log().warn("Failed to send ping message", e);
                 }
             }
         }
@@ -335,7 +338,7 @@ public abstract class AbstractWebsocketClient implements AutoCloseable {
         ofNullable(sessionBacklogs.remove(session.getId())).ifPresent(Backlog::shutDown);
         ofNullable(pingDeadlines.remove(session.getId())).ifPresent(PingRegistration::cancel);
         if (closeReason.getCloseCode().getCode() > NO_STATUS_CODE.getCode()) {
-            log.warn("Connection to endpoint {} closed with reason {}", session.getRequestURI(), closeReason);
+            log().warn("Connection to endpoint {} closed with reason {}", session.getRequestURI(), closeReason);
         }
         retryOutstandingRequests(session.getId());
     }
@@ -351,7 +354,7 @@ public abstract class AbstractWebsocketClient implements AutoCloseable {
             synchronized (sessionId.intern()) {
                 requests.values().stream().filter(r -> sessionId.equals(r.sessionId)).forEach(
                         r -> {
-                            log.info("Retrying request {} using a new session (old session {})",
+                            log().info("Retrying request {} using a new session (old session {})",
                                      r.request.getRequestId(), sessionId);
                             r.send();
                         });
@@ -361,7 +364,7 @@ public abstract class AbstractWebsocketClient implements AutoCloseable {
 
     @OnError
     public void onError(Session session, Throwable e) {
-        log.error("Client side error for web socket connected to endpoint {}", session.getRequestURI(), e);
+        log().error("Client side error for web socket connected to endpoint {}", session.getRequestURI(), e);
     }
 
     @Override
@@ -384,7 +387,7 @@ public abstract class AbstractWebsocketClient implements AutoCloseable {
                 sessionPool.close();
                 pingDeadlines.clear();
                 if (!requests.isEmpty()) {
-                    log.warn("{}: Closed websocket session to endpoint with {} outstanding requests",
+                    log().warn("{}: Closed websocket session to endpoint with {} outstanding requests",
                              getClass().getSimpleName(), requests.size());
                 }
             }
@@ -421,7 +424,7 @@ public abstract class AbstractWebsocketClient implements AutoCloseable {
             try {
                 session = request instanceof Command c ? sessionPool.get(c.routingKey()) : sessionPool.get();
             } catch (Exception e) {
-                log.error("Failed to get websocket session to send request {}", request, e);
+                log().error("Failed to get websocket session to send request {}", request, e);
                 result.completeExceptionally(e);
                 return (CompletableFuture<T>) result;
             }
