@@ -176,12 +176,16 @@ public class Backlog<T> implements Monitored<List<T>> {
     }
 
     public void shutDown() {
-        executorService.shutdown();
         try {
-            executorService.awaitTermination(1L, SECONDS);
-        } catch (InterruptedException e) {
-            log.warn("Shutdown of executor was interrupted", e);
-            Thread.currentThread().interrupt();
+            executorService.shutdown();
+            try {
+                executorService.awaitTermination(1L, SECONDS);
+            } catch (InterruptedException e) {
+                log.warn("Shutdown of executor was interrupted", e);
+                Thread.currentThread().interrupt();
+            }
+        } catch (Throwable e) {
+            log.warn("Failed to shutdown a backlog", e);
         }
     }
 

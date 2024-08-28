@@ -52,7 +52,8 @@ import lombok.RequiredArgsConstructor;
 import lombok.SneakyThrows;
 import lombok.Value;
 import lombok.experimental.Delegate;
-import lombok.extern.slf4j.Slf4j;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.OutputStream;
 import java.net.URI;
@@ -60,7 +61,6 @@ import java.nio.ByteBuffer;
 import java.time.Duration;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
@@ -77,6 +77,7 @@ import static io.fluxcapacitor.common.serialization.compression.CompressionUtils
 import static io.fluxcapacitor.common.serialization.compression.CompressionUtils.decompress;
 import static io.fluxcapacitor.javaclient.FluxCapacitor.currentCorrelationData;
 import static io.fluxcapacitor.javaclient.FluxCapacitor.publishMetrics;
+import static io.fluxcapacitor.javaclient.common.ClientUtils.ignoreMarker;
 import static io.fluxcapacitor.javaclient.common.Message.asMessage;
 import static io.fluxcapacitor.javaclient.publishing.AdhocDispatchInterceptor.getAdhocInterceptor;
 import static jakarta.websocket.CloseReason.CloseCodes.NO_STATUS_CODE;
@@ -85,12 +86,12 @@ import static java.lang.Thread.currentThread;
 import static java.lang.Thread.sleep;
 import static java.util.Optional.ofNullable;
 
-@Slf4j
 public abstract class AbstractWebsocketClient implements AutoCloseable {
     public static WebSocketContainer defaultWebSocketContainer = ContainerProvider.getWebSocketContainer();
     public static ObjectMapper defaultObjectMapper = JsonMapper.builder().disable(FAIL_ON_UNKNOWN_PROPERTIES)
             .findAndAddModules().disable(WRITE_DATES_AS_TIMESTAMPS).build();
 
+    protected final Logger log;
     private final SessionPool sessionPool;
     private final WebSocketClient client;
     private final ClientConfig clientConfig;
@@ -126,6 +127,7 @@ public abstract class AbstractWebsocketClient implements AutoCloseable {
         this.pingScheduler = new InMemoryTaskScheduler(this + "-pingScheduler");
         this.resultExecutor = Executors.newFixedThreadPool(
                 8, newThreadFactory(this + "-onMessage"));
+        this.log = LoggerFactory.getLogger(toString());
         this.sessionPool = new SessionPool(numberOfSessions, () -> retryOnFailure(
                 () -> container.connectToServer(this, endpointUri),
                 RetryConfiguration.builder()
@@ -193,8 +195,8 @@ public abstract class AbstractWebsocketClient implements AutoCloseable {
                 outputStream.write(compress(bytes, clientConfig.getCompression()));
             }
         } catch (Exception e) {
-            log.error("Failed to send request {}", object, e);
-            if (Optional.ofNullable(e.getMessage()).map(m -> m.contains("Channel is closed")).orElse(false)) {
+            log.error(ignoreMarker, "Failed to send request %s".formatted(object), e);
+            if (ofNullable(e.getMessage()).map(m -> m.contains("Channel is closed")).orElse(false)) {
                 abort(session);
             } else {
                 throw e;
@@ -330,8 +332,8 @@ public abstract class AbstractWebsocketClient implements AutoCloseable {
 
     @OnClose
     public void onClose(Session session, CloseReason closeReason) {
-        sessionBacklogs.remove(session.getId());
-        Optional.ofNullable(pingDeadlines.remove(session.getId())).ifPresent(PingRegistration::cancel);
+        ofNullable(sessionBacklogs.remove(session.getId())).ifPresent(Backlog::shutDown);
+        ofNullable(pingDeadlines.remove(session.getId())).ifPresent(PingRegistration::cancel);
         if (closeReason.getCloseCode().getCode() > NO_STATUS_CODE.getCode()) {
             log.warn("Connection to endpoint {} closed with reason {}", session.getRequestURI(), closeReason);
         }

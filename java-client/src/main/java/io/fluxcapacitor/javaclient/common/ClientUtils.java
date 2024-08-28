@@ -27,6 +27,8 @@ import io.fluxcapacitor.javaclient.tracking.TrackSelf;
 import io.fluxcapacitor.javaclient.tracking.handling.LocalHandler;
 import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
+import org.slf4j.Marker;
+import org.slf4j.MarkerFactory;
 
 import java.lang.reflect.Executable;
 import java.time.Duration;
@@ -48,6 +50,7 @@ import static io.fluxcapacitor.common.reflection.ReflectionUtils.getTypeAnnotati
 
 @Slf4j
 public class ClientUtils {
+    public static final Marker ignoreMarker = MarkerFactory.getMarker("ignoreError");
     private static final BiFunction<Class<?>, java.lang.reflect.Executable, Optional<LocalHandler>> localHandlerCache =
             memoize((target, method) -> getAnnotation(method, LocalHandler.class)
                     .or(() -> Optional.ofNullable(getTypeAnnotation(target, LocalHandler.class)))

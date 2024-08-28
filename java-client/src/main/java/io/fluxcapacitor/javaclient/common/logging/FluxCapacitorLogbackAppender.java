@@ -24,6 +24,7 @@ import ch.qos.logback.core.AppenderBase;
 import ch.qos.logback.core.Context;
 import io.fluxcapacitor.common.api.Metadata;
 import io.fluxcapacitor.javaclient.FluxCapacitor;
+import io.fluxcapacitor.javaclient.common.ClientUtils;
 import io.fluxcapacitor.javaclient.common.serialization.DeserializingMessage;
 import lombok.extern.slf4j.Slf4j;
 import org.slf4j.LoggerFactory;
@@ -68,12 +69,17 @@ public class FluxCapacitorLogbackAppender extends AppenderBase<ILoggingEvent> {
 
     @Override
     protected void append(ILoggingEvent event) {
-        if (!event.getLevel().isGreaterOrEqual(Level.WARN)) {
-            return;
-        }
         try {
+            if (!event.getLevel().isGreaterOrEqual(Level.WARN)) {
+                return;
+            }
             Optional<Throwable> throwable =
                     ofNullable((ThrowableProxy) event.getThrowableProxy()).map(ThrowableProxy::getThrowable);
+            if (ignoreEvent(event)) {
+                String errorMessage = "Ignoring error: %s".formatted(event.getFormattedMessage());
+                throwable.ifPresentOrElse(e -> log.info(errorMessage, e), () -> log.info(errorMessage));
+                return;
+            }
             Metadata metadata = ofNullable(DeserializingMessage.getCurrent())
                     .map(DeserializingMessage::getMetadata).orElse(Metadata.empty());
             metadata = metadata.with(
@@ -104,6 +110,11 @@ public class FluxCapacitorLogbackAppender extends AppenderBase<ILoggingEvent> {
         } catch (Throwable e) {
             log.info("Failed to publish console error", e);
         }
+    }
+
+    protected boolean ignoreEvent(ILoggingEvent event) {
+        return Optional.ofNullable(event.getMarkerList()).map(markers -> markers.stream().anyMatch(
+                m -> m.contains(ClientUtils.ignoreMarker))).orElse(false);
     }
 
     private static Logger getRootLogger() {
