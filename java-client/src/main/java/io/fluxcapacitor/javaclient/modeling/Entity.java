@@ -115,6 +115,14 @@ public interface Entity<T> {
 
     Entity<?> parent();
 
+    default List<Entity<?>> ancestors() {
+        List<Entity<?>> result = new ArrayList<>();
+        for (Entity<?> p = parent(); p != null; p = p.parent()) {
+            result.add(p);
+        }
+        return result.reversed();
+    }
+
     default <A> A ancestorValue(Class<A> ancestorType) {
         for (Entity<?> ancestor = this; ancestor != null; ancestor = ancestor.parent()) {
             if (ancestorType.isAssignableFrom(ancestor.type())) {
