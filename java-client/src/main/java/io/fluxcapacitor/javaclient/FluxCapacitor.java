@@ -594,6 +594,15 @@ public interface FluxCapacitor extends AutoCloseable {
     }
 
     /**
+     * Returns an Entity containing given value. The returned entity won't exhibit any side effects when they are
+     * updated, i.e. they won't be synced to any repository or give rise to any events. Other than, that they are
+     * fully functional.
+     */
+    static <T> Entity<T> asEntity(T value) {
+        return get().aggregateRepository().asEntity(value);
+    }
+
+    /**
      * Index given object for search.
      * <p>
      * If the object is annotated with {@link Searchable @Searchable} the collection name and any timestamp or end path
