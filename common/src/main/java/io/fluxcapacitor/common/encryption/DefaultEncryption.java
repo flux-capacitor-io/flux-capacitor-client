@@ -52,7 +52,7 @@ public class DefaultEncryption implements Encryption {
 
     @Override
     public String decrypt(String value) {
-        if (value != null && value.startsWith(getAlgorithm() + "|")) {
+        if (value != null && isEncrypted(value)) {
             return delegate.decrypt(value.split(getAlgorithm() + "\\|")[1]);
         }
         return value;
@@ -66,5 +66,10 @@ public class DefaultEncryption implements Encryption {
     @Override
     public String getEncryptionKey() {
         return getAlgorithm() + "|" + delegate.getEncryptionKey();
+    }
+
+    @Override
+    public boolean isEncrypted(String value) {
+        return value.startsWith(getAlgorithm() + "|");
     }
 }

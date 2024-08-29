@@ -24,4 +24,6 @@ public interface Encryption {
 
     String getEncryptionKey();
 
+    boolean isEncrypted(String value);
+
 }

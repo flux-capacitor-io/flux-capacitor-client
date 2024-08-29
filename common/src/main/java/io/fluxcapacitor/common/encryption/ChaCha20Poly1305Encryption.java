@@ -85,6 +85,11 @@ public class ChaCha20Poly1305Encryption implements Encryption {
         return encode(encryptionKey.getEncoded());
     }
 
+    @Override
+    public boolean isEncrypted(String value) {
+        throw new UnsupportedOperationException();
+    }
+
     @SneakyThrows
     private static SecretKey generateEncryptionKey() {
         KeyGenerator keyGenerator = KeyGenerator.getInstance(ALGORITHM);
