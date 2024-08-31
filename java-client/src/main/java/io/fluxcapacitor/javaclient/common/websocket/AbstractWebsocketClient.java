@@ -37,6 +37,7 @@ import io.fluxcapacitor.javaclient.configuration.client.WebSocketClient;
 import io.fluxcapacitor.javaclient.configuration.client.WebSocketClient.ClientConfig;
 import io.fluxcapacitor.javaclient.publishing.AdhocDispatchInterceptor;
 import io.fluxcapacitor.javaclient.publishing.DispatchInterceptor;
+import io.undertow.websockets.jsr.UndertowSession;
 import jakarta.websocket.CloseReason;
 import jakarta.websocket.ContainerProvider;
 import jakarta.websocket.OnClose;
@@ -81,7 +82,8 @@ import static io.fluxcapacitor.javaclient.FluxCapacitor.publishMetrics;
 import static io.fluxcapacitor.javaclient.common.ClientUtils.ignoreMarker;
 import static io.fluxcapacitor.javaclient.common.Message.asMessage;
 import static io.fluxcapacitor.javaclient.publishing.AdhocDispatchInterceptor.getAdhocInterceptor;
-import static jakarta.websocket.CloseReason.CloseCodes.NO_STATUS_CODE;
+import static jakarta.websocket.CloseReason.CloseCodes.CLOSED_ABNORMALLY;
+import static jakarta.websocket.CloseReason.CloseCodes.GOING_AWAY;
 import static java.lang.System.currentTimeMillis;
 import static java.lang.Thread.currentThread;
 import static java.lang.Thread.sleep;
@@ -198,7 +200,7 @@ public abstract class AbstractWebsocketClient implements AutoCloseable {
                 outputStream.write(compress(bytes, clientConfig.getCompression()));
             }
         } catch (Exception e) {
-            log().error(ignoreMarker, "Failed to send request %s".formatted(object), e);
+            log().error(ignoreMarker, "Failed to send request {} (session {})", object, session.getId(), e);
             if (ofNullable(e.getMessage()).map(m -> m.contains("Channel is closed")).orElse(false)) {
                 abort(session);
             } else {
@@ -302,17 +304,9 @@ public abstract class AbstractWebsocketClient implements AutoCloseable {
         }
     }
 
-    @SuppressWarnings("TryFinallyCanBeTryWithResources")
+    @SneakyThrows
     protected void abort(Session session) {
-        var reason = new CloseReason(NO_STATUS_CODE, null);
-        try {
-            onClose(session, reason);
-        } finally {
-            try {
-                session.close(reason);
-            } catch (Throwable ignored) {
-            }
-        }
+        session.close(new CloseReason(CLOSED_ABNORMALLY, "Session aborted"));
     }
 
     @OnMessage
@@ -335,9 +329,14 @@ public abstract class AbstractWebsocketClient implements AutoCloseable {
 
     @OnClose
     public void onClose(Session session, CloseReason closeReason) {
+        if (session.isOpen() && session instanceof UndertowSession s) {
+            //this works around a bug in Undertow: after closing the session normally and receiving the onClose message
+            // session.isOpen() still returns true, causing all kinds of havoc. With this workaround we don't get that.
+            s.forceClose();
+        }
         ofNullable(sessionBacklogs.remove(session.getId())).ifPresent(Backlog::shutDown);
         ofNullable(pingDeadlines.remove(session.getId())).ifPresent(PingRegistration::cancel);
-        if (closeReason.getCloseCode().getCode() > NO_STATUS_CODE.getCode()) {
+        if (closeReason.getCloseCode().getCode() > GOING_AWAY.getCode()) {
             log().warn("Connection to endpoint {} closed with reason {}", session.getRequestURI(), closeReason);
         }
         retryOutstandingRequests(session.getId());
@@ -352,7 +351,7 @@ public abstract class AbstractWebsocketClient implements AutoCloseable {
                 throw new IllegalStateException("Thread interrupted while trying to retry outstanding requests", e);
             }
             synchronized (sessionId.intern()) {
-                requests.values().stream().filter(r -> sessionId.equals(r.sessionId)).forEach(
+                requests.values().stream().filter(r -> sessionId.equals(r.sessionId)).toList().forEach(
                         r -> {
                             log().info("Retrying request {} using a new session (old session {})",
                                      r.request.getRequestId(), sessionId);

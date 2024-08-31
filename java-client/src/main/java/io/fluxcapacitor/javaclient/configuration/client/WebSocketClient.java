@@ -137,8 +137,8 @@ public class WebSocketClient extends AbstractClient {
         @Default int searchSessions = 2;
         @Default Map<MessageType, Integer> gatewaySessions = defaultGatewaySessions();
         @Default Map<MessageType, TrackingClientConfig> trackingConfigs = defaultTrackingSessions();
-        @Default Duration pingTimeout = Duration.ofSeconds(10);
-        @Default Duration pingDelay = Duration.ofMinutes(1);
+        @Default Duration pingTimeout = Duration.ofSeconds(5);
+        @Default Duration pingDelay = Duration.ofSeconds(10);
         boolean disableMetrics;
         @Default String projectId = DefaultPropertySource.getInstance().get("FLUX_PROJECT_ID");
         String typeFilter;
