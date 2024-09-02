@@ -23,6 +23,7 @@ import io.fluxcapacitor.javaclient.publishing.client.GatewayClient;
 import io.fluxcapacitor.javaclient.tracking.handling.ResponseMapper;
 import lombok.AllArgsConstructor;
 
+import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
 
 import static io.fluxcapacitor.common.MessageType.RESULT;
@@ -47,7 +48,9 @@ public class DefaultResultGateway implements ResultGateway {
             serializedMessage.setRequestId(requestId);
             return client.append(guarantee, serializedMessage);
         } catch (Exception e) {
-            throw new GatewayException(String.format("Failed to send response %s", payload), e);
+            throw new GatewayException(String.format("Failed to send response %s",
+                                                     payload == null || payload instanceof Class<?>
+                                                             ? Objects.toString(payload) : payload.getClass()), e);
         }
     }
 
