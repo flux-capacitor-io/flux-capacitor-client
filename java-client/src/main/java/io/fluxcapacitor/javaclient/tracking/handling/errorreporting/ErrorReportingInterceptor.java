@@ -48,8 +48,8 @@ public class ErrorReportingInterceptor implements HandlerInterceptor {
         return message -> {
             try {
                 Object result = function.apply(message);
-                if (result instanceof CompletionStage<?>) {
-                    ((CompletionStage<?>) result).whenComplete((r, e) -> {
+                if (result instanceof CompletionStage<?> s) {
+                    s.whenComplete((r, e) -> {
                         if (e != null) {
                             message.run(m -> reportError(e, invoker, m));
                         }

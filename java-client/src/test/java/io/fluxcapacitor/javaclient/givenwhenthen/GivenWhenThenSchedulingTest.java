@@ -32,6 +32,7 @@ import java.time.Duration;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 
 import static io.fluxcapacitor.javaclient.FluxCapacitor.publishEvent;
@@ -306,6 +307,14 @@ class GivenWhenThenSchedulingTest {
     }
 
     @Test
+    void testRescheduleAsync() {
+        Duration delay = Duration.ofSeconds(10);
+        var payload = new YieldsNewScheduleAsync(delay.toMillis());
+        subject.givenSchedules(new Schedule(payload, "test", subject.getCurrentTime().plus(delay)))
+                .whenTimeElapses(delay).expectNewSchedules(payload);
+    }
+
+    @Test
     void testScheduleOverride() {
         Duration delay = Duration.ofSeconds(10);
         Object expected = new YieldsCommand("original");
@@ -442,6 +451,11 @@ class GivenWhenThenSchedulingTest {
         }
 
         @HandleSchedule
+        CompletableFuture<Duration> handle(YieldsNewScheduleAsync schedule) {
+            return CompletableFuture.completedFuture(Duration.ofMillis(schedule.getDelay()));
+        }
+
+        @HandleSchedule
         void handle(PeriodicSchedule schedule) {
         }
 
@@ -512,6 +526,11 @@ class GivenWhenThenSchedulingTest {
 
     @Value
     static class YieldsNewSchedule {
+        long delay;
+    }
+
+    @Value
+    static class YieldsNewScheduleAsync {
         long delay;
     }
 

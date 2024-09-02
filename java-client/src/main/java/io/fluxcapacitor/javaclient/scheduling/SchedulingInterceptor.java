@@ -25,6 +25,7 @@ import io.fluxcapacitor.javaclient.configuration.ApplicationProperties;
 import io.fluxcapacitor.javaclient.publishing.DispatchInterceptor;
 import io.fluxcapacitor.javaclient.tracking.handling.HandleSchedule;
 import io.fluxcapacitor.javaclient.tracking.handling.HandlerInterceptor;
+import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
 
 import java.lang.reflect.Method;
@@ -35,6 +36,7 @@ import java.time.temporal.TemporalAccessor;
 import java.time.temporal.TemporalAmount;
 import java.util.List;
 import java.util.Optional;
+import java.util.concurrent.CompletionStage;
 import java.util.function.Function;
 
 import static io.fluxcapacitor.common.ObjectUtils.memoize;
@@ -137,76 +139,98 @@ public class SchedulingInterceptor implements DispatchInterceptor, HandlerInterc
     @Override
     public Function<DeserializingMessage, Object> interceptHandling(Function<DeserializingMessage, Object> function,
                                                                     HandlerInvoker invoker) {
-        return m -> {
-            if (m.getMessageType() == MessageType.SCHEDULE) {
-                long deadline = millisFromIndex(m.getIndex());
+        return schedule -> {
+            if (schedule.getMessageType() == MessageType.SCHEDULE) {
+                long deadline = millisFromIndex(schedule.getIndex());
                 Periodic periodic = ofNullable(invoker.getMethod()).map(method -> method.getAnnotation(Periodic.class))
-                        .or(() -> ofNullable(getTypeAnnotation(m.getPayloadClass(), Periodic.class)))
+                        .or(() -> ofNullable(getTypeAnnotation(schedule.getPayloadClass(), Periodic.class)))
                         .orElse(null);
                 if (periodic != null && !periodic.cron().isBlank() && cronExpression.apply(periodic.cron()).isEmpty()) {
                     log.warn("Periodic scheduling is disabled for {}. Ignoring schedule {}.",
-                             m.getPayloadClass(), m.getMessageId());
+                             schedule.getPayloadClass(), schedule.getMessageId());
                     return null; //schedule is disabled. Don't invoke handler anymore.
                 }
                 Object result;
                 Instant now = ofEpochMilli(deadline);
                 try {
-                    result = function.apply(m);
+                    result = function.apply(schedule);
                 } catch (Throwable e) {
-                    if (e instanceof CancelPeriodic) {
-                        String scheduleId = ofNullable(m.getMetadata().get(Schedule.scheduleIdMetadataKey))
-                                .or(() -> ofNullable(periodic).map(Periodic::scheduleId))
-                                .orElseGet(() -> m.getPayloadClass().getName());
-                        log.info("Periodic schedule {} will be cancelled.", scheduleId);
-                        FluxCapacitor.get().scheduler().cancelSchedule(scheduleId);
-                        return null;
-                    }
-                    if (periodic != null && periodic.continueOnError()) {
-                        if (periodic.delayAfterError() >= 0) {
-                            schedule(m, now.plusMillis(periodic.timeUnit().toMillis(periodic.delayAfterError())));
-                        } else {
-                            schedule(m, nextDeadline(periodic, now));
-                        }
-                    }
-                    throw e;
+                    return handleExceptionalResult(e, schedule, now, periodic);
                 }
-                if (result instanceof TemporalAmount) {
-                    schedule(m, now.plus((TemporalAmount) result));
-                } else if (result instanceof TemporalAccessor) {
-                    schedule(m, Instant.from((TemporalAccessor) result));
-                } else if (result instanceof Schedule) {
-                    schedule((Schedule) result);
-                } else if (result != null) {
-                    Metadata metadata = m.getMetadata();
-                    Object nextPayload = result;
-                    if (result instanceof Message) {
-                        metadata = ((Message) result).getMetadata();
-                        nextPayload = ((Message) result).getPayload();
-                    }
-                    if (nextPayload != null && m.getPayloadClass().isAssignableFrom(nextPayload.getClass())) {
-                        if (periodic == null) {
-                            Instant dispatched = m.getTimestamp();
-                            Duration previousDelay = between(dispatched, now);
-                            if (previousDelay.compareTo(Duration.ZERO) > 0) {
-                                schedule(nextPayload, metadata, now.plus(previousDelay));
-                            } else {
-                                log.info("Delay between the time this schedule was created and scheduled is <= 0, "
-                                         + "rescheduling with delay of 1 minute");
-                                schedule(nextPayload, metadata, now.plus(Duration.of(1, MINUTES)));
-                            }
-                        } else {
-                            schedule(nextPayload, metadata, nextDeadline(periodic, now));
-                        }
-                    } else if (periodic != null) {
-                        schedule(m, nextDeadline(periodic, now));
-                    }
-                } else if (periodic != null) {
-                    schedule(m, nextDeadline(periodic, now));
-                }
-                return result;
+                return handleResult(result, schedule, now, periodic);
             }
-            return function.apply(m);
+            return function.apply(schedule);
         };
+    }
+
+    protected Object handleResult(Object result, DeserializingMessage schedule, Instant now, Periodic periodic) {
+        if (result instanceof CompletionStage<?> f) {
+            f.whenComplete((r, e) -> {
+                if (e == null) {
+                    handleResult(r, schedule, now, periodic);
+                } else {
+                    try {
+                        handleExceptionalResult(e, schedule, now, periodic);
+                    } catch (Throwable ignored) {
+                    }
+                }
+            });
+            return result;
+        } else if (result instanceof TemporalAmount) {
+            schedule(schedule, now.plus((TemporalAmount) result));
+        } else if (result instanceof TemporalAccessor) {
+            schedule(schedule, Instant.from((TemporalAccessor) result));
+        } else if (result instanceof Schedule) {
+            schedule((Schedule) result);
+        } else if (result != null) {
+            Metadata metadata = schedule.getMetadata();
+            Object nextPayload = result;
+            if (result instanceof Message) {
+                metadata = ((Message) result).getMetadata();
+                nextPayload = ((Message) result).getPayload();
+            }
+            if (nextPayload != null && schedule.getPayloadClass().isAssignableFrom(nextPayload.getClass())) {
+                if (periodic == null) {
+                    Instant dispatched = schedule.getTimestamp();
+                    Duration previousDelay = between(dispatched, now);
+                    if (previousDelay.compareTo(Duration.ZERO) > 0) {
+                        schedule(nextPayload, metadata, now.plus(previousDelay));
+                    } else {
+                        log.info("Delay between the time this schedule was created and scheduled is <= 0, "
+                                 + "rescheduling with delay of 1 minute");
+                        schedule(nextPayload, metadata, now.plus(Duration.of(1, MINUTES)));
+                    }
+                } else {
+                    schedule(nextPayload, metadata, nextDeadline(periodic, now));
+                }
+            } else if (periodic != null) {
+                schedule(schedule, nextDeadline(periodic, now));
+            }
+        } else if (periodic != null) {
+            schedule(schedule, nextDeadline(periodic, now));
+        }
+        return result;
+    }
+
+    @SneakyThrows
+    protected Object handleExceptionalResult(Throwable result, DeserializingMessage schedule, Instant now,
+                                             Periodic periodic) {
+        if (result instanceof CancelPeriodic) {
+            String scheduleId = ofNullable(schedule.getMetadata().get(Schedule.scheduleIdMetadataKey))
+                    .or(() -> ofNullable(periodic).map(Periodic::scheduleId))
+                    .orElseGet(() -> schedule.getPayloadClass().getName());
+            log.info("Periodic schedule {} will be cancelled.", scheduleId);
+            FluxCapacitor.get().scheduler().cancelSchedule(scheduleId);
+            return null;
+        }
+        if (periodic != null && periodic.continueOnError()) {
+            if (periodic.delayAfterError() >= 0) {
+                schedule(schedule, now.plusMillis(periodic.timeUnit().toMillis(periodic.delayAfterError())));
+            } else {
+                schedule(schedule, nextDeadline(periodic, now));
+            }
+        }
+        throw result;
     }
 
     private void schedule(DeserializingMessage message, Instant instant) {

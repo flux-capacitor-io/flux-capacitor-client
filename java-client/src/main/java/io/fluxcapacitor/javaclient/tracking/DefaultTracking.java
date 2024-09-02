@@ -49,6 +49,7 @@ import java.util.Map.Entry;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionStage;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
@@ -211,7 +212,7 @@ public class DefaultTracking implements Tracking {
                             ConsumerConfiguration config) {
         try {
             Object result = Invocation.performInvocation(h::invoke);
-            return result instanceof CompletableFuture ? ((CompletableFuture<Object>) result)
+            return result instanceof CompletionStage<?> ? ((CompletionStage<Object>) result)
                     .exceptionally(e -> message.apply(m -> processError(e, message, h, handler, config))) : result;
         } catch (Throwable e) {
             return processError(e, message, h, handler, config);
@@ -227,8 +228,8 @@ public class DefaultTracking implements Tracking {
 
     protected void reportResult(Object result, HandlerInvoker h, DeserializingMessage message,
                                 ConsumerConfiguration config) {
-        if (result instanceof CompletableFuture<?>) {
-            ((CompletableFuture<?>) result).whenComplete((r, e) -> {
+        if (result instanceof CompletionStage<?> s) {
+            s.whenComplete((r, e) -> {
                 try {
                     message.run(m -> reportResult(Optional.<Object>ofNullable(e).orElse(r), h, message, config));
                 } finally {
