@@ -114,6 +114,14 @@ class GivenWhenThenSchedulingTest {
                 });
 
         @Test
+        void testScheduleManualCron() {
+            testFixture.whenExecuting(fc -> FluxCapacitor.schedulePeriodic(new PeriodicCronSchedule(), "123"))
+                    .expectSchedule(s -> s.getScheduleId().equals("123") && s.getDeadline()
+                            .equals(testFixture.getCurrentTime().truncatedTo(ChronoUnit.DAYS)
+                                            .plus(Duration.ofDays(1))));
+        }
+
+        @Test
         void testPeriodicCronSchedule() {
             testFixture.whenTimeAdvancesTo(afterOneHour).expectOnlyEvents(afterOneHour);
         }
@@ -568,6 +576,11 @@ class GivenWhenThenSchedulingTest {
 
     @Periodic(delay = 1000)
     interface PeriodicInterface {
+    }
+
+    @Value
+    @Periodic(cron = atStartOfDay)
+    static class PeriodicCronSchedule {
     }
 
 }

@@ -389,6 +389,28 @@ public interface FluxCapacitor extends AutoCloseable {
     }
 
     /**
+     * Starts a new periodic schedule, returning the schedule's id. The {@code schedule} parameter may be
+     * an instance of a {@link Message} or the schedule payload. If the payload is not annotated with
+     * {@link io.fluxcapacitor.javaclient.scheduling.Periodic} an {@link IllegalArgumentException} is thrown.
+     *
+     * @see io.fluxcapacitor.javaclient.scheduling.Periodic
+     */
+    static String schedulePeriodic(Object schedule) {
+        return get().scheduler().schedulePeriodic(schedule);
+    }
+
+    /**
+     * Starts a new periodic schedule using given schedule id. The {@code schedule} parameter may be
+     * an instance of a {@link Message} or the schedule payload. If the payload is not annotated with
+     * {@link io.fluxcapacitor.javaclient.scheduling.Periodic} an {@link IllegalArgumentException} is thrown.
+     *
+     * @see io.fluxcapacitor.javaclient.scheduling.Periodic
+     */
+    static void schedulePeriodic(Object schedule, String scheduleId) {
+        get().scheduler().schedulePeriodic(schedule, scheduleId);
+    }
+
+    /**
      * Schedules a message for the given timestamp, returning the schedule's id. The {@code schedule} parameter may be
      * an instance of a {@link Message} in which case it will be scheduled as is. Otherwise, the schedule is published
      * using the passed value as payload without additional metadata.
