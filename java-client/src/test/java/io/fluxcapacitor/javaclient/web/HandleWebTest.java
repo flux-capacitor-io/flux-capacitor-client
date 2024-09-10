@@ -29,6 +29,7 @@ import lombok.Value;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
+import java.net.HttpCookie;
 import java.time.Duration;
 import java.util.Map;
 import java.util.concurrent.TimeoutException;
@@ -87,7 +88,7 @@ public class HandleWebTest {
         @Test
         void testPostBytes() {
             testFixture.whenWebRequest(
-                    WebRequest.builder().method(POST).url("/bytes").payload("payload".getBytes()).build())
+                            WebRequest.builder().method(POST).url("/bytes").payload("payload".getBytes()).build())
                     .expectResult("payload".getBytes());
         }
 
@@ -116,7 +117,7 @@ public class HandleWebTest {
         void testPostJson() {
             var object = Map.of("foo", "bar");
             testFixture.whenWebRequest(
-                    WebRequest.builder().method(POST).url("/json").payload(object).build())
+                            WebRequest.builder().method(POST).url("/json").payload(object).build())
                     .expectResult(JsonUtils.<JsonNode>valueToTree(object))
                     .expectResultMessage(r -> r.getPayloadAs(Map.class).equals(object));
         }
@@ -130,7 +131,7 @@ public class HandleWebTest {
         @Test
         void testPostJsonFromFile_given() {
             testFixture.givenWebRequest(
-                    WebRequest.builder().method(POST).url("/json").payload("/web/body.json").build())
+                            WebRequest.builder().method(POST).url("/json").payload("/web/body.json").build())
                     .whenNothingHappens().expectNoErrors();
         }
 
@@ -163,7 +164,7 @@ public class HandleWebTest {
         @Test
         void testPostPayloadRequiringUser_invalidWithoutUser() {
             TestFixture.create(DefaultFluxCapacitor.builder().registerUserProvider(
-                    new FixedUserProvider(() -> null)), new Handler())
+                            new FixedUserProvider(() -> null)), new Handler())
                     .whenWebRequest(WebRequest.builder().method(POST).url("/requiresUser")
                                             .payload(new PayloadRequiringUser()).build())
                     .expectExceptionalResult(UnauthenticatedException.class);
@@ -355,6 +356,34 @@ public class HandleWebTest {
             void viaSession(SocketSession session) {
                 session.sendMessage("viaSession");
             }
+        }
+    }
+
+    @Nested
+    class CookieTests {
+        @Test
+        void testGivenCookie() {
+            TestFixture.create(new Object() {
+                @HandleGet("/checkCookie")
+                String check(WebRequest request) {
+                    return request.getCookie("foo").orElseThrow().getValue();
+                }
+            }).givenCookie("foo", "bar").whenGet("/checkCookie").expectResult("bar");
+        }
+
+        @Test
+        void returnedCookieIsUsed() {
+            TestFixture.create(new Object() {
+                @HandlePost("/signIn")
+                WebResponse signIn(String userName) {
+                    return WebResponse.builder().cookie(new HttpCookie("user", userName)).build();
+                }
+
+                @HandleGet("/getUser")
+                String getUser(WebRequest request) {
+                    return request.getCookie("user").orElseThrow().getValue();
+                }
+            }).givenPost("signIn", "testUser").whenGet("getUser").expectResult("testUser");
         }
     }
 }

@@ -28,6 +28,7 @@ import io.fluxcapacitor.javaclient.tracking.handling.authentication.UserProvider
 import io.fluxcapacitor.javaclient.web.HttpRequestMethod;
 import io.fluxcapacitor.javaclient.web.WebRequest;
 
+import java.net.HttpCookie;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
@@ -205,6 +206,19 @@ public interface Given extends When {
     default Given givenGet(String path) {
         return givenWebRequest(WebRequest.builder().method(HttpRequestMethod.GET).url(path).build());
     }
+
+    /**
+     * Specify the name and value of a cookie that should be used when validating future web requests.
+     */
+    default Given givenCookie(String name, String value) {
+        return givenCookie(new HttpCookie(name, value));
+    }
+
+    /**
+     * Registers a cookie that should be used when validating future web requests. If the given cookie has expired,
+     * any existing matching cookie will be automatically removed.
+     */
+    Given givenCookie(HttpCookie cookie);
 
     /**
      * Specify any action that has happened prior to the behavior you want to test.

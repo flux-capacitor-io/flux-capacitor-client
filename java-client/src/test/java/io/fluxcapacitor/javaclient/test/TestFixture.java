@@ -494,6 +494,16 @@ public class TestFixture implements Given, When {
     }
 
     @Override
+    public TestFixture givenCookie(String name, String value) {
+        return (TestFixture) Given.super.givenCookie(name, value);
+    }
+
+    @Override
+    public TestFixture givenCookie(HttpCookie cookie) {
+        return addCookie(cookie);
+    }
+
+    @Override
     public TestFixture givenTimeAdvancedTo(Instant instant) {
         return givenModification(fixture -> fixture.advanceTimeTo(instant));
     }
@@ -641,13 +651,16 @@ public class TestFixture implements Given, When {
             request = builder.build();
         }
         WebResponse response = getDispatchResult(getFluxCapacitor().webRequestGateway().send(request));
-        response.getCookies().forEach(cookie -> {
-            cookies.remove(cookie);
-            if (!cookie.hasExpired()) {
-                cookies.add(cookie);
-            }
-        });
+        response.getCookies().forEach(this::addCookie);
         return response;
+    }
+
+    protected TestFixture addCookie(HttpCookie cookie) {
+        cookies.remove(cookie);
+        if (!cookie.hasExpired()) {
+            cookies.add(cookie);
+        }
+        return this;
     }
 
     protected User getUser(Object userOrId) {
