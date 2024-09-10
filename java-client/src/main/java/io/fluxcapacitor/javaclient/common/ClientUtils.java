@@ -33,6 +33,13 @@ import org.slf4j.MarkerFactory;
 import java.lang.reflect.Executable;
 import java.time.Duration;
 import java.time.Instant;
+import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
+import java.time.ZonedDateTime;
+import java.time.temporal.ChronoUnit;
+import java.time.temporal.Temporal;
+import java.time.temporal.TemporalAdjusters;
+import java.time.temporal.TemporalUnit;
 import java.util.Collection;
 import java.util.Optional;
 import java.util.concurrent.ExecutionException;
@@ -47,6 +54,7 @@ import static io.fluxcapacitor.common.reflection.ReflectionUtils.getAnnotation;
 import static io.fluxcapacitor.common.reflection.ReflectionUtils.getAnnotationAs;
 import static io.fluxcapacitor.common.reflection.ReflectionUtils.getPackageAnnotation;
 import static io.fluxcapacitor.common.reflection.ReflectionUtils.getTypeAnnotation;
+import static java.time.temporal.ChronoUnit.DAYS;
 
 @Slf4j
 public class ClientUtils {
@@ -149,5 +157,34 @@ public class ClientUtils {
 
     public static SearchParameters getSearchParameters(Class<?> type) {
         return searchParametersCache.apply(type);
+    }
+
+    @SuppressWarnings("unchecked")
+    public static <T extends Temporal> T truncate(T timestamp, TemporalUnit unit) {
+        T result = unit instanceof ChronoUnit chronoUnit ?
+                switch (chronoUnit) {
+                    case YEARS -> (T) timestamp.with(TemporalAdjusters.firstDayOfYear());
+                    case MONTHS -> (T) timestamp.with(TemporalAdjusters.firstDayOfMonth());
+                    default -> timestamp;
+                } : timestamp;
+        TemporalUnit truncateUnit = unit instanceof ChronoUnit chronoUnit ?
+                switch (chronoUnit) {
+                    case YEARS, MONTHS -> DAYS;
+                    default -> chronoUnit;
+                } : unit;
+
+        if (result instanceof LocalDateTime r) {
+            return (T) r.truncatedTo(truncateUnit);
+        }
+        if (result instanceof ZonedDateTime r) {
+            return (T) r.truncatedTo(truncateUnit);
+        }
+        if (result instanceof OffsetDateTime r) {
+            return (T) r.truncatedTo(truncateUnit);
+        }
+        if (result instanceof Instant r) {
+            return (T) r.truncatedTo(truncateUnit);
+        }
+        throw new UnsupportedOperationException("Unsupported temporal type: " + result.getClass());
     }
 }
