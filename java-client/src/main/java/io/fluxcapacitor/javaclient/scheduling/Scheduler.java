@@ -42,7 +42,7 @@ public interface Scheduler {
         if (periodic == null) {
             throw new IllegalArgumentException("Could not determine when to schedule this value");
         }
-        Instant nextDeadline = Optional.ofNullable(nextDeadline(periodic.cron())).orElseGet(
+        Instant nextDeadline = Optional.ofNullable(nextDeadline(periodic.cron(), periodic.timeZone())).orElseGet(
                 () -> FluxCapacitor.currentTime().plusMillis(periodic.timeUnit().toMillis(
                         periodic.initialDelay() < 0 ? periodic.delay() : periodic.initialDelay())));
         schedule(value,
@@ -149,11 +149,11 @@ public interface Scheduler {
 
     Optional<Schedule> getSchedule(String scheduleId);
 
-    private static Instant nextDeadline(String cronSchedule) {
+    private static Instant nextDeadline(String cronSchedule, String timeZone) {
         if (isBlank(cronSchedule)) {
             return null;
         }
         return CronExpression.parseCronExpression(cronSchedule).nextTimeAfter(
-                FluxCapacitor.currentTime().atZone(ZoneId.of("UTC"))).toInstant();
+                FluxCapacitor.currentTime().atZone(ZoneId.of(timeZone))).toInstant();
     }
 }

@@ -30,6 +30,7 @@ import org.junit.jupiter.api.Test;
 
 import java.time.Duration;
 import java.time.Instant;
+import java.time.ZoneId;
 import java.time.temporal.ChronoUnit;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
@@ -117,8 +118,9 @@ class GivenWhenThenSchedulingTest {
         void testScheduleManualCron() {
             testFixture.whenExecuting(fc -> FluxCapacitor.schedulePeriodic(new PeriodicCronSchedule(), "123"))
                     .expectSchedule(s -> s.getScheduleId().equals("123") && s.getDeadline()
-                            .equals(testFixture.getCurrentTime().truncatedTo(ChronoUnit.DAYS)
-                                            .plus(Duration.ofDays(1))));
+                            .atZone(ZoneId.of("Europe/Amsterdam"))
+                            .equals(testFixture.getCurrentTime().atZone(ZoneId.of("Europe/Amsterdam"))
+                                            .truncatedTo(ChronoUnit.DAYS).plus(Duration.ofDays(1))));
         }
 
         @Test
@@ -579,7 +581,7 @@ class GivenWhenThenSchedulingTest {
     }
 
     @Value
-    @Periodic(cron = atStartOfDay)
+    @Periodic(cron = atStartOfDay, timeZone = "Europe/Amsterdam")
     static class PeriodicCronSchedule {
     }
 
