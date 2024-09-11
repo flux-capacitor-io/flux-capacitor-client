@@ -16,8 +16,10 @@ package io.fluxcapacitor.javaclient.persisting.eventsourcing;
 
 import lombok.AllArgsConstructor;
 import lombok.Getter;
+import lombok.NonNull;
 import lombok.experimental.Delegate;
 
+import java.util.Iterator;
 import java.util.Optional;
 import java.util.function.Function;
 import java.util.function.Supplier;
@@ -30,6 +32,11 @@ public class AggregateEventStream<T> implements Stream<T> {
     private final Stream<T> eventStream;
     private final String aggregateId;
     private final Supplier<Long> lastSequenceNumber;
+
+    @NonNull
+    public Iterator<T> iterator() {
+        return eventStream.iterator();
+    }
 
     public <O> AggregateEventStream<O> convert(Function<Stream<T>, Stream<O>> streamConvertor) {
         return new AggregateEventStream<>(streamConvertor.apply(eventStream), aggregateId, lastSequenceNumber);

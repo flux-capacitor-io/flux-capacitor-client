@@ -196,10 +196,14 @@ public class DefaultAggregateRepository implements AggregateRepository {
                     .filter(s -> !s.isBlank()).<Function<Entity<?>, Instant>>map(
                             s -> aggregateRoot -> ReflectionUtils.readProperty(s, aggregateRoot.get())
                                     .map(t -> Instant.from((TemporalAccessor) t)).orElseGet(() -> {
-                                        if (warnedAboutMissingTimePath.compareAndSet(false, true)
-                                            && aggregateRoot.isPresent() && !hasProperty(s, aggregateRoot.get())) {
-                                            log.warn("Aggregate type {} does not declare a timestamp property at '{}'",
-                                                     aggregateRoot.get().getClass().getSimpleName(), s);
+                                        if (aggregateRoot.isPresent()) {
+                                            if (hasProperty(s, aggregateRoot.get())) {
+                                                return null;
+                                            }
+                                            if (warnedAboutMissingTimePath.compareAndSet(false, true)) {
+                                                log.warn("Aggregate type {} does not declare a timestamp property at '{}'",
+                                                         aggregateRoot.get().getClass().getSimpleName(), s);
+                                            }
                                         }
                                         return aggregateRoot.timestamp();
                                     }))
@@ -209,11 +213,14 @@ public class DefaultAggregateRepository implements AggregateRepository {
                     .filter(s -> !s.isBlank()).<Function<Entity<?>, Instant>>map(
                             s -> aggregateRoot -> ReflectionUtils.readProperty(s, aggregateRoot.get())
                                     .map(t -> Instant.from((TemporalAccessor) t)).orElseGet(() -> {
-                                        if (warnedAboutMissingEndPath.compareAndSet(false, true)
-                                            && aggregateRoot.isPresent() && !hasProperty(s, aggregateRoot.get())) {
-                                            log.warn(
-                                                    "Aggregate type {} does not declare an end timestamp property at '{}'",
-                                                    aggregateRoot.get().getClass().getSimpleName(), s);
+                                        if (aggregateRoot.isPresent()) {
+                                            if (hasProperty(s, aggregateRoot.get())) {
+                                                return null;
+                                            }
+                                            if (warnedAboutMissingEndPath.compareAndSet(false, true)) {
+                                                log.warn("Aggregate type {} does not declare an end timestamp property at '{}'",
+                                                         aggregateRoot.get().getClass().getSimpleName(), s);
+                                            }
                                         }
                                         return aggregateRoot.timestamp();
                                     }))

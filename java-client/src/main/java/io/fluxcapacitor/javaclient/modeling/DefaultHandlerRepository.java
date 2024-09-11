@@ -55,10 +55,14 @@ public class DefaultHandlerRepository implements HandlerRepository {
                 .filter(path -> !path.isBlank())
                 .<Function<Object, Instant>>map(path -> handler -> ReflectionUtils.readProperty(path, handler)
                         .map(t -> Instant.from((TemporalAccessor) t)).orElseGet(() -> {
-                            if (warnedAboutMissingTimePath.compareAndSet(false, true)
-                                && handler != null && !ReflectionUtils.hasProperty(path, handler)) {
-                                log.warn("Type {} does not declare a timestamp property at '{}'",
-                                         handler.getClass().getSimpleName(), path);
+                            if (handler != null) {
+                                if (ReflectionUtils.hasProperty(path, handler)) {
+                                    return null;
+                                }
+                                if (warnedAboutMissingTimePath.compareAndSet(false, true)) {
+                                    log.warn("Type {} does not declare a timestamp property at '{}'",
+                                             handler.getClass().getSimpleName(), path);
+                                }
                             }
                             return FluxCapacitor.currentTime();
                         })).orElseGet(() -> handler -> FluxCapacitor.currentTime());
@@ -67,10 +71,14 @@ public class DefaultHandlerRepository implements HandlerRepository {
                 .filter(path -> !path.isBlank())
                 .<Function<Object, Instant>>map(path -> handler -> ReflectionUtils.readProperty(path, handler)
                         .map(t -> Instant.from((TemporalAccessor) t)).orElseGet(() -> {
-                            if (warnedAboutMissingEndPath.compareAndSet(false, true)
-                                && handler != null && !ReflectionUtils.hasProperty(path, handler)) {
-                                log.warn("Type {} does not declare an end timestamp property at '{}'",
-                                         handler.getClass().getSimpleName(), path);
+                            if (handler != null) {
+                                if (ReflectionUtils.hasProperty(path, handler)) {
+                                    return null;
+                                }
+                                if (warnedAboutMissingEndPath.compareAndSet(false, true)) {
+                                    log.warn("Type {} does not declare an end timestamp property at '{}'",
+                                             handler.getClass().getSimpleName(), path);
+                                }
                             }
                             return FluxCapacitor.currentTime();
                         }))
