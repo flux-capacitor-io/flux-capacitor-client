@@ -33,6 +33,7 @@ import org.slf4j.MarkerFactory;
 import java.lang.reflect.Executable;
 import java.time.Duration;
 import java.time.Instant;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.OffsetDateTime;
 import java.time.ZonedDateTime;
@@ -173,6 +174,9 @@ public class ClientUtils {
                     default -> chronoUnit;
                 } : unit;
 
+        if (result instanceof LocalDate) {
+            return result;
+        }
         if (result instanceof LocalDateTime r) {
             return (T) r.truncatedTo(truncateUnit);
         }
