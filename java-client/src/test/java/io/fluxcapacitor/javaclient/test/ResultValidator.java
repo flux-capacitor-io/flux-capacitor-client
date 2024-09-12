@@ -490,8 +490,8 @@ public class ResultValidator<R> implements Then<R> {
                                                       (errors.getFirst()));
             }
             throw new GivenWhenThenAssertionError(
-                    format("Unwanted match found in published messages.\nExpected not to get: %s\nGot: %s\n\n",
-                           expected, actual));
+                    format("Unwanted match found in published messages.\nExpected not to get: %s\nGot: %s\n",
+                           expected, actual), expected, actual);
         });
     }
 
