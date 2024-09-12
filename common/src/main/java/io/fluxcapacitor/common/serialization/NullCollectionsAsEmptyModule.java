@@ -22,6 +22,9 @@ import com.fasterxml.jackson.databind.module.SimpleModule;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
+import java.util.SequencedCollection;
+import java.util.SequencedMap;
+import java.util.SequencedSet;
 import java.util.Set;
 import java.util.SortedMap;
 import java.util.SortedSet;
@@ -35,10 +38,13 @@ public class NullCollectionsAsEmptyModule extends SimpleModule {
         JsonSetter.Value nullAsEmpty = empty().withValueNulls(Nulls.AS_EMPTY);
         JsonInclude.Value includeNull = JsonInclude.Value.empty().withValueInclusion(JsonInclude.Include.ALWAYS);
         context.configOverride(Collection.class).setSetterInfo(nullAsEmpty).setInclude(includeNull);
+        context.configOverride(SequencedCollection.class).setSetterInfo(nullAsEmpty).setInclude(includeNull);
         context.configOverride(List.class).setSetterInfo(nullAsEmpty).setInclude(includeNull);
         context.configOverride(Set.class).setSetterInfo(nullAsEmpty).setInclude(includeNull);
         context.configOverride(SortedSet.class).setSetterInfo(nullAsEmpty).setInclude(includeNull);
+        context.configOverride(SequencedSet.class).setSetterInfo(nullAsEmpty).setInclude(includeNull);
         context.configOverride(Map.class).setSetterInfo(nullAsEmpty).setInclude(includeNull);
         context.configOverride(SortedMap.class).setSetterInfo(nullAsEmpty).setInclude(includeNull);
+        context.configOverride(SequencedMap.class).setSetterInfo(nullAsEmpty).setInclude(includeNull);
     }
 }
