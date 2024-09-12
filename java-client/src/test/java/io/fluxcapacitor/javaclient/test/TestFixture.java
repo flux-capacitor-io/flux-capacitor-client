@@ -685,10 +685,13 @@ public class TestFixture implements Given, When {
             try {
                 SchedulingClient schedulingClient = getFluxCapacitor().client().getSchedulingClient();
                 if (schedulingClient instanceof LocalSchedulingClient local) {
-                    List<Schedule> expiredSchedules = local.removeExpiredSchedules(getFluxCapacitor().serializer());
-                    if (getFluxCapacitor().scheduler() instanceof DefaultScheduler scheduler) {
-                        expiredSchedules.forEach(scheduler::handleLocally);
-                    }
+                    List<Schedule> expiredSchedules;
+                    do {
+                        expiredSchedules = local.removeExpiredSchedules(getFluxCapacitor().serializer());
+                        if (getFluxCapacitor().scheduler() instanceof DefaultScheduler scheduler) {
+                            expiredSchedules.forEach(scheduler::handleLocally);
+                        }
+                    } while (!expiredSchedules.isEmpty());
                 }
             } catch (Throwable e) {
                 if (collectErrors) {
