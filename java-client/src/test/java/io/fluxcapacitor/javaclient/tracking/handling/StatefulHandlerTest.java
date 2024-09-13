@@ -29,6 +29,7 @@ import org.junit.jupiter.api.Test;
 
 import java.time.Instant;
 import java.util.List;
+import java.util.Objects;
 import java.util.UUID;
 
 public class StatefulHandlerTest {
@@ -55,6 +56,39 @@ public class StatefulHandlerTest {
             testFixture.givenEvents(new SomeEvent("foo"))
                     .whenEvent(new SomeEvent("foo"))
                     .expectOnlyCommands(2);
+        }
+
+        @Test
+        void handlerIsDeleted() {
+            testFixture.givenEvents(new SomeEvent("foo"))
+                    .whenEvent(new DeleteHandler("foo"))
+                    .expectOnlyCommands(2)
+                    .expectNoErrors()
+                    .andThen()
+                    .whenApplying(fc -> FluxCapacitor.search(StaticHandler.class).fetchAll())
+                    .expectResult(List::isEmpty);
+        }
+
+        @Test
+        void handlerIsDeleted_secondDelete() {
+            testFixture.givenEvents(new SomeEvent("foo"), new DeleteHandler("foo"))
+                    .whenEvent(new DeleteHandler("foo"))
+                    .expectNoCommands()
+                    .expectNoErrors()
+                    .andThen()
+                    .whenApplying(fc -> FluxCapacitor.search(StaticHandler.class).fetchAll())
+                    .expectResult(List::isEmpty);
+        }
+
+        @Test
+        void handlerIsDeleted_createdAgain() {
+            testFixture.givenEvents(new SomeEvent("foo"), new DeleteHandler("foo"))
+                    .whenEvent(new SomeEvent("foo"))
+                    .expectOnlyCommands(1)
+                    .expectNoErrors()
+                    .andThen()
+                    .whenApplying(fc -> FluxCapacitor.search(StaticHandler.class).stream().findFirst().orElse(null))
+                    .expectResult(Objects::nonNull);
         }
 
         @Test
@@ -128,6 +162,12 @@ public class StatefulHandlerTest {
             StaticHandler update(SomeEvent event) {
                 FluxCapacitor.sendAndForgetCommand(eventCount + 1);
                 return toBuilder().eventCount(eventCount + 1).build();
+            }
+
+            @HandleEvent
+            StaticHandler update(DeleteHandler event) {
+                FluxCapacitor.sendAndForgetCommand(eventCount + 1);
+                return null;
             }
 
             @HandleEvent
@@ -281,6 +321,11 @@ public class StatefulHandlerTest {
 
     @Value
     static class SomeEvent {
+        String someId;
+    }
+
+    @Value
+    static class DeleteHandler {
         String someId;
     }
 

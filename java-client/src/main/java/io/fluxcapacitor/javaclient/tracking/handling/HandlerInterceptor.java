@@ -19,7 +19,6 @@ import io.fluxcapacitor.common.handling.HandlerInvoker;
 import io.fluxcapacitor.common.handling.HandlerInvoker.DelegatingHandlerInvoker;
 import io.fluxcapacitor.javaclient.common.serialization.DeserializingMessage;
 import lombok.AllArgsConstructor;
-import lombok.experimental.Delegate;
 
 import java.util.Optional;
 import java.util.function.BiFunction;
@@ -52,8 +51,6 @@ public interface HandlerInterceptor extends HandlerDecorator {
 
     @AllArgsConstructor
     class InterceptedHandler implements Handler<DeserializingMessage> {
-
-        @Delegate
         private final Handler<DeserializingMessage> delegate;
         private final HandlerInterceptor interceptor;
 
@@ -74,6 +71,11 @@ public interface HandlerInterceptor extends HandlerDecorator {
                     }, s).apply(message);
                 }
             });
+        }
+
+        @Override
+        public Class<?> getTargetClass() {
+            return delegate.getTargetClass();
         }
 
         @Override

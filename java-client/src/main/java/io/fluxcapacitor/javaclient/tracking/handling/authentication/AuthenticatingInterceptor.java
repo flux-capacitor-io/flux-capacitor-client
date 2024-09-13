@@ -22,7 +22,6 @@ import io.fluxcapacitor.javaclient.common.serialization.DeserializingMessage;
 import io.fluxcapacitor.javaclient.publishing.DispatchInterceptor;
 import io.fluxcapacitor.javaclient.tracking.handling.HandlerInterceptor;
 import lombok.AllArgsConstructor;
-import lombok.experimental.Delegate;
 import lombok.extern.slf4j.Slf4j;
 
 import java.util.Optional;
@@ -78,7 +77,6 @@ public class AuthenticatingInterceptor implements DispatchInterceptor, HandlerIn
 
     @AllArgsConstructor
     private class AuthorizingHandler implements Handler<DeserializingMessage> {
-        @Delegate
         private final Handler<DeserializingMessage> delegate;
 
         @Override
@@ -97,6 +95,11 @@ public class AuthenticatingInterceptor implements DispatchInterceptor, HandlerIn
                         }
                         return isAuthorized(i.getTargetClass(), i.getMethod(), user);
                     });
+        }
+
+        @Override
+        public Class<?> getTargetClass() {
+            return delegate.getTargetClass();
         }
 
         @Override

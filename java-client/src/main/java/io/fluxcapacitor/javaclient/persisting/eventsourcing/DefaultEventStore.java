@@ -16,6 +16,7 @@ package io.fluxcapacitor.javaclient.persisting.eventsourcing;
 
 import io.fluxcapacitor.common.ConsistentHashing;
 import io.fluxcapacitor.common.Guarantee;
+import io.fluxcapacitor.common.ObjectUtils;
 import io.fluxcapacitor.common.api.SerializedMessage;
 import io.fluxcapacitor.javaclient.common.Message;
 import io.fluxcapacitor.javaclient.common.serialization.DeserializingMessage;
@@ -91,7 +92,12 @@ public class DefaultEventStore implements EventStore {
         switch (strategy) {
             case STORE_AND_PUBLISH, PUBLISH_ONLY -> {
                 for (DeserializingMessage message : messages) {
-                    localHandlerRegistry.handle(message);
+                    try {
+                        localHandlerRegistry.handle(message).ifPresent(f -> f.getNow(null));
+                    } catch (Throwable e) {
+                        log.error("Failed to locally handle event {}. Continuing..",
+                                  message.getPayloadClass().getSimpleName(), ObjectUtils.unwrapException(e));
+                    }
                 }
             }
         }

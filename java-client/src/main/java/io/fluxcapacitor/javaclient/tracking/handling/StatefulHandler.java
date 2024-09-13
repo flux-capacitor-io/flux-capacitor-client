@@ -145,6 +145,11 @@ public class StatefulHandler implements Handler<DeserializingMessage> {
         return Arrays.stream(association.excludedClasses()).noneMatch(c -> c.isAssignableFrom(payloadType));
     }
 
+    @Override
+    public String toString() {
+        return "StatefulHandler[%s]".formatted(targetClass);
+    }
+
     protected class StatefulHandlerInvoker extends HandlerInvoker.DelegatingHandlerInvoker {
         private final Entry<?> currentEntry;
 

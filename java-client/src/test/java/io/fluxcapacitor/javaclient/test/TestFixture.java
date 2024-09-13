@@ -519,16 +519,16 @@ public class TestFixture implements Given, When {
     }
 
     protected TestFixture givenModification(ThrowingConsumer<TestFixture> modifier) {
-        return modifyFixture(fixture -> {
-            try {
+        try {
+            return modifyFixture(fixture -> {
                 fixture.handleExpiredSchedulesLocally(false);
                 modifier.accept(fixture);
                 fixture.handleExpiredSchedulesLocally(false);
                 fixture.waitForConsumers();
-            } catch (Throwable e) {
-                throw new IllegalStateException("Failed to execute given", e);
-            }
-        });
+            });
+        } catch (Throwable e) {
+            throw new IllegalStateException("Failed to execute given", e);
+        }
     }
 
     /*
