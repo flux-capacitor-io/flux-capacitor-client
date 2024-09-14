@@ -89,12 +89,12 @@ public class DefaultHandlerRepository implements HandlerRepository {
     }
 
     @Override
-    public Collection<? extends Entry<Object>> findByAssociation(Map<String, Collection<String>> associations) {
+    public Collection<? extends Entry<Object>> findByAssociation(Map<String, String> associations) {
         if (associations.isEmpty()) {
             return Collections.emptyList();
         }
         var constraints = associations.entrySet().stream().map(e -> MatchConstraint.match(
-                e.getKey(), e.getValue().toArray(String[]::new))).toArray(Constraint[]::new);
+                e.getKey(), e.getValue())).toArray(Constraint[]::new);
         return documentStore.search(collection).any(constraints).streamHits()
                 .filter(h -> type.isAssignableFrom(h.getValue().getClass())).toList();
     }

@@ -27,6 +27,7 @@ import lombok.Value;
 import lombok.With;
 import lombok.experimental.Accessors;
 
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
 import java.util.Objects;
@@ -42,10 +43,11 @@ public class MatchConstraint extends PathConstraint {
     }
 
     public static Constraint match(Object value, boolean strict, String... paths) {
+        var filteredPaths = Arrays.stream(paths).filter(p -> p != null && !p.isBlank()).toList();
         if (value instanceof Collection<?>) {
             List<Constraint> constraints =
                     ((Collection<?>) value).stream().filter(Objects::nonNull)
-                            .map(v -> new MatchConstraint(v.toString(), List.of(paths), strict))
+                            .map(v -> new MatchConstraint(v.toString(), filteredPaths, strict))
                             .collect(toList());
             return switch (constraints.size()) {
                 case 0 -> NoOpConstraint.instance;
@@ -54,7 +56,7 @@ public class MatchConstraint extends PathConstraint {
             };
         } else {
             return value == null
-                    ? NoOpConstraint.instance : new MatchConstraint(value.toString(), List.of(paths), strict);
+                    ? NoOpConstraint.instance : new MatchConstraint(value.toString(), filteredPaths, strict);
         }
     }
 

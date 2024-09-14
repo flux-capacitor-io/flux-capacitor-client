@@ -826,6 +826,10 @@ public class ReflectionUtils {
         return Optional.of(JsonUtils.convertValue(params, returnType));
     }
 
+    public static <T> T convertAnnotation(Annotation annotation, Class<? extends T> returnType) {
+        return getAnnotationAs(annotation, annotation.annotationType(), returnType).orElseThrow();
+    }
+
     public static boolean has(Class<? extends Annotation> annotationClass, Method method) {
         return getMethodAnnotation(method, annotationClass).isPresent();
     }

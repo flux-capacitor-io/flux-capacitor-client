@@ -48,12 +48,14 @@ public @interface Association {
     String[] value() default {};
 
     /**
-     * Returns paths of the property to match on in the handler state. A message is only associated with a stored
-     * Handler if the associated value can be found in a stored Handler at any of the given paths.
+     * Returns path of the property to match on in the handler state. A message is only associated with a stored Handler
+     * if the associated value can be found in a stored Handler at the given path.
      * <p>
-     * If this is left empty, any Handler containing the associated value is matched, i.e. value path is ignored.
+     * If this is left empty and the annotation is on a field or getter, the name of field is used to filter any
+     * matches. If this is left empty and the annotation is on a handler method, any Handler containing the
+     * associated value is matched, regardless of the path of the value in the matched Handler.
      */
-    String[] path() default {};
+    String path() default "";
 
     /**
      * Returns payload classes for which this association can be used. If this array is empty or the payload of a

@@ -29,17 +29,19 @@ import io.fluxcapacitor.javaclient.publishing.routing.RoutingKey;
 import io.fluxcapacitor.javaclient.tracking.Tracker;
 import lombok.AccessLevel;
 import lombok.AllArgsConstructor;
+import lombok.Builder;
 import lombok.Getter;
 import lombok.SneakyThrows;
+import lombok.Value;
 import lombok.experimental.FieldDefaults;
 import lombok.extern.slf4j.Slf4j;
 
 import java.lang.reflect.Executable;
 import java.lang.reflect.Method;
-import java.util.AbstractMap.SimpleEntry;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
@@ -51,6 +53,7 @@ import static io.fluxcapacitor.common.reflection.ReflectionUtils.getAnnotatedPro
 import static io.fluxcapacitor.common.reflection.ReflectionUtils.getAnnotatedPropertyValue;
 import static io.fluxcapacitor.common.reflection.ReflectionUtils.getAnnotation;
 import static io.fluxcapacitor.common.reflection.ReflectionUtils.getPropertyName;
+import static java.util.Optional.ofNullable;
 import static java.util.stream.Collectors.toMap;
 
 @Getter
@@ -63,18 +66,29 @@ public class StatefulHandler implements Handler<DeserializingMessage> {
     HandlerRepository repository;
 
     @Getter(lazy = true)
-    Map<String, Association> associationProperties =
+    Map<String, AssociationValue> associationProperties =
             getAnnotatedProperties(getTargetClass(), Association.class).stream()
                     .flatMap(member -> getAnnotation(member, Association.class).stream().flatMap(
-                            association -> (association.value().length > 0 ? Arrays.stream(association.value())
-                                    : Stream.of(getPropertyName(member))).map(v -> Map.entry(v, association))))
+                            association -> {
+                                String propertyName = getPropertyName(member);
+                                return (association.value().length > 0
+                                        ? Arrays.stream(association.value()) : Stream.of(propertyName))
+                                        .map(v -> {
+                                            var associationValue = AssociationValue.valueOf(association);
+                                            if (associationValue.getPath() == null) {
+                                                associationValue = associationValue.toBuilder()
+                                                        .path(propertyName).build();
+                                            }
+                                            return Map.entry(v, associationValue);
+                                        });
+                            }))
                     .collect(toMap(Map.Entry::getKey, Map.Entry::getValue, (a, b) -> a));
 
-    Function<Executable, Map<String, Association>> methodAssociationProperties = ClientUtils.memoize(
+    Function<Executable, Map<String, AssociationValue>> methodAssociationProperties = ClientUtils.memoize(
             m -> getAnnotation(m, Association.class).map(
                     association -> {
-                        Map<String, Association> associations = Arrays.stream(association.value()).collect(
-                                toMap(Function.identity(), v -> association, (a, b) -> a));
+                        Map<String, AssociationValue> associations = Arrays.stream(association.value()).collect(
+                                toMap(Function.identity(), v -> AssociationValue.valueOf(association), (a, b) -> a));
                         if (associations.isEmpty()) {
                             log.warn("@Association on {} does not define a property. This is probably a mistake.", m);
                         }
@@ -106,7 +120,7 @@ public class StatefulHandler implements Handler<DeserializingMessage> {
                 result = result == null ? invoker.get() : result.combine(invoker.get());
             }
         }
-        return Optional.ofNullable(result);
+        return ofNullable(result);
     }
 
     protected boolean alreadyFiltered(HandlerInvoker i) {
@@ -118,38 +132,56 @@ public class StatefulHandler implements Handler<DeserializingMessage> {
                 .map(tracker -> tracker.canHandle(message, routingKey)).orElse(true);
     }
 
-    protected Map<String, Collection<String>> associations(DeserializingMessage message) {
-        return Optional.ofNullable(message.getPayload()).stream()
+    protected Map<String, String> associations(DeserializingMessage message) {
+        return ofNullable(message.getPayload()).stream()
                 .flatMap(payload -> Stream.concat(
                         handlerMatcher.matchingMethods(message)
                                 .flatMap(e -> methodAssociationProperties.apply(e).entrySet().stream()),
                         getAssociationProperties().entrySet().stream())
                         .filter(entry -> includedPayload(payload, entry.getValue()))
                         .flatMap(entry -> ReflectionUtils.readProperty(entry.getKey(), payload)
-                                .or(() -> Optional.ofNullable(message.getMetadata().get(entry.getKey())))
+                                .or(() -> ofNullable(message.getMetadata().get(entry.getKey())))
                                 .map(v -> {
                                     if (v instanceof Id<?> id) {
                                         return id.getFunctionalId();
                                     }
                                     return v.toString();
                                 })
-                                .map(v -> new SimpleEntry<>(v, entry.getValue().path())).stream()))
-                .collect(toMap(SimpleEntry::getKey, e -> Arrays.asList(e.getValue()),
-                               (a, b) -> Stream.concat(a.stream(), b.stream()).distinct().toList()));
+                                .map(v -> Map.entry(v, entry.getValue().getPath()))
+                                .stream()))
+                .collect(toMap(Map.Entry::getKey, Map.Entry::getValue, (a, b) -> a.isBlank() ? b : a));
     }
 
-    protected boolean includedPayload(Object payload, Association association) {
+    protected boolean includedPayload(Object payload, AssociationValue association) {
         Class<?> payloadType = payload.getClass();
-        if (association.includedClasses().length > 0
-            && Arrays.stream(association.includedClasses()).noneMatch(c -> c.isAssignableFrom(payloadType))) {
+        if (!association.includedClasses.isEmpty()
+            && association.includedClasses.stream().noneMatch(c -> c.isAssignableFrom(payloadType))) {
             return false;
         }
-        return Arrays.stream(association.excludedClasses()).noneMatch(c -> c.isAssignableFrom(payloadType));
+        return association.excludedClasses.stream().noneMatch(c -> c.isAssignableFrom(payloadType));
     }
 
     @Override
     public String toString() {
         return "StatefulHandler[%s]".formatted(targetClass);
+    }
+
+    @Value
+    @Builder(toBuilder = true)
+    protected static class AssociationValue {
+        public static AssociationValue valueOf(Association association) {
+            return ReflectionUtils.convertAnnotation(association, AssociationValue.class);
+        }
+
+        List<String> value;
+        String path;
+        List<Class<?>> includedClasses;
+        List<Class<?>> excludedClasses;
+        boolean always;
+
+        public String getPath() {
+            return path == null ? "" : path;
+        }
     }
 
     protected class StatefulHandlerInvoker extends HandlerInvoker.DelegatingHandlerInvoker {
@@ -186,7 +218,7 @@ public class StatefulHandler implements Handler<DeserializingMessage> {
 
         protected Object computeId(Object handler) {
             return getAnnotatedPropertyValue(handler, EntityId.class)
-                    .or(() -> Optional.ofNullable(currentEntry).map(Entry::getId))
+                    .or(() -> ofNullable(currentEntry).map(Entry::getId))
                     .orElseGet(FluxCapacitor::generateId);
         }
     }
