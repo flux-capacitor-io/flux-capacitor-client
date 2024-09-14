@@ -14,6 +14,8 @@
 
 package io.fluxcapacitor.javaclient.modeling;
 
+import io.fluxcapacitor.common.api.search.Constraint;
+import io.fluxcapacitor.common.api.search.constraints.MatchConstraint;
 import io.fluxcapacitor.common.reflection.ReflectionUtils;
 import io.fluxcapacitor.javaclient.FluxCapacitor;
 import io.fluxcapacitor.javaclient.common.ClientUtils;
@@ -27,6 +29,7 @@ import java.time.Instant;
 import java.time.temporal.TemporalAccessor;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -86,11 +89,13 @@ public class DefaultHandlerRepository implements HandlerRepository {
     }
 
     @Override
-    public Collection<? extends Entry<Object>> findByAssociation(Collection<String> associations) {
+    public Collection<? extends Entry<Object>> findByAssociation(Map<String, Collection<String>> associations) {
         if (associations.isEmpty()) {
             return Collections.emptyList();
         }
-        return documentStore.search(collection).match(associations).streamHits()
+        var constraints = associations.entrySet().stream().map(e -> MatchConstraint.match(
+                e.getKey(), e.getValue().toArray(String[]::new))).toArray(Constraint[]::new);
+        return documentStore.search(collection).any(constraints).streamHits()
                 .filter(h -> type.isAssignableFrom(h.getValue().getClass())).toList();
     }
 

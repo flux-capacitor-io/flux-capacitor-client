@@ -17,11 +17,12 @@ package io.fluxcapacitor.javaclient.modeling;
 import io.fluxcapacitor.javaclient.common.Entry;
 
 import java.util.Collection;
+import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 
 public interface HandlerRepository {
 
-    Collection<? extends Entry<?>> findByAssociation(Collection<String> associations);
+    Collection<? extends Entry<?>> findByAssociation(Map<String, Collection<String>> associations);
 
     Collection<? extends Entry<?>> getAll();
 

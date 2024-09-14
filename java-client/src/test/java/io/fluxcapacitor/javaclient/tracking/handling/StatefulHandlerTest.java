@@ -137,6 +137,21 @@ public class StatefulHandlerTest {
         }
 
         @Test
+        void handlerIsUpdated_associationOnMethod_rightPath() {
+            testFixture.givenEvents(new SomeEvent("foo"))
+                    .whenEvent(new CustomRightPathEvent("foo"))
+                    .expectOnlyCommands(2);
+        }
+
+        @Test
+        void handlerIsUpdated_associationOnMethod_wrongPath() {
+            testFixture.givenEvents(new SomeEvent("foo"))
+                    .whenEvent(new CustomWrongPathEvent("foo"))
+                    .expectNoCommands()
+                    .expectNoErrors();
+        }
+
+        @Test
         void handlerIsUpdated_alwaysAssociate() {
             testFixture.givenEvents(new SomeEvent("foo"))
                     .whenEvent(new AlwaysAssociate())
@@ -205,6 +220,20 @@ public class StatefulHandlerTest {
             @HandleEvent
             @Association("customId")
             StaticHandler update(CustomEvent event) {
+                FluxCapacitor.sendAndForgetCommand(eventCount + 1);
+                return toBuilder().eventCount(eventCount + 1).build();
+            }
+
+            @HandleEvent
+            @Association(value = "customId", path = "someId")
+            StaticHandler update(CustomRightPathEvent event) {
+                FluxCapacitor.sendAndForgetCommand(eventCount + 1);
+                return toBuilder().eventCount(eventCount + 1).build();
+            }
+
+            @HandleEvent
+            @Association(value = "customId", path = "unknown")
+            StaticHandler update(CustomWrongPathEvent event) {
                 FluxCapacitor.sendAndForgetCommand(eventCount + 1);
                 return toBuilder().eventCount(eventCount + 1).build();
             }
@@ -348,6 +377,16 @@ public class StatefulHandlerTest {
 
     @Value
     static class CustomEvent {
+        String customId;
+    }
+
+    @Value
+    static class CustomRightPathEvent {
+        String customId;
+    }
+
+    @Value
+    static class CustomWrongPathEvent {
         String customId;
     }
 

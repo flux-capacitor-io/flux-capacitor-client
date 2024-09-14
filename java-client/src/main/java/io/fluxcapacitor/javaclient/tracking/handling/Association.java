@@ -48,6 +48,14 @@ public @interface Association {
     String[] value() default {};
 
     /**
+     * Returns paths of the property to match on in the handler state. A message is only associated with a stored
+     * Handler if the associated value can be found in a stored Handler at any of the given paths.
+     * <p>
+     * If this is left empty, any Handler containing the associated value is matched, i.e. value path is ignored.
+     */
+    String[] path() default {};
+
+    /**
      * Returns payload classes for which this association can be used. If this array is empty or the payload of a
      * message is assignable to any of these classes, AND the class is not excluded via {@link #excludedClasses()}, an
      * association with the message is attempted.
@@ -62,9 +70,8 @@ public @interface Association {
 
     /**
      * Returns whether the message matched by this handler should always be applied to any stored handlers. All other
-     * configuration in this annotation will be ignored. This setting only has an effect if it is used in an
-     * annotation of a handler method. I.e. it has no effect the association is on a field or getter of the
-     * handler.
+     * configuration in this annotation will be ignored. This setting only has an effect if it is used in an annotation
+     * of a handler method. I.e. it has no effect the association is on a field or getter of the handler.
      */
     boolean always() default false;
 }

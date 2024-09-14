@@ -36,6 +36,7 @@ import lombok.extern.slf4j.Slf4j;
 
 import java.lang.reflect.Executable;
 import java.lang.reflect.Method;
+import java.util.AbstractMap.SimpleEntry;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
@@ -51,7 +52,6 @@ import static io.fluxcapacitor.common.reflection.ReflectionUtils.getAnnotatedPro
 import static io.fluxcapacitor.common.reflection.ReflectionUtils.getAnnotation;
 import static io.fluxcapacitor.common.reflection.ReflectionUtils.getPropertyName;
 import static java.util.stream.Collectors.toMap;
-import static java.util.stream.Collectors.toSet;
 
 @Getter
 @AllArgsConstructor
@@ -118,7 +118,7 @@ public class StatefulHandler implements Handler<DeserializingMessage> {
                 .map(tracker -> tracker.canHandle(message, routingKey)).orElse(true);
     }
 
-    protected Collection<String> associations(DeserializingMessage message) {
+    protected Map<String, Collection<String>> associations(DeserializingMessage message) {
         return Optional.ofNullable(message.getPayload()).stream()
                 .flatMap(payload -> Stream.concat(
                         handlerMatcher.matchingMethods(message)
@@ -127,13 +127,15 @@ public class StatefulHandler implements Handler<DeserializingMessage> {
                         .filter(entry -> includedPayload(payload, entry.getValue()))
                         .flatMap(entry -> ReflectionUtils.readProperty(entry.getKey(), payload)
                                 .or(() -> Optional.ofNullable(message.getMetadata().get(entry.getKey())))
-                                .stream()))
-                .map(v -> {
-                    if (v instanceof Id<?> id) {
-                        return id.getFunctionalId();
-                    }
-                    return v.toString();
-                }).collect(toSet());
+                                .map(v -> {
+                                    if (v instanceof Id<?> id) {
+                                        return id.getFunctionalId();
+                                    }
+                                    return v.toString();
+                                })
+                                .map(v -> new SimpleEntry<>(v, entry.getValue().path())).stream()))
+                .collect(toMap(SimpleEntry::getKey, e -> Arrays.asList(e.getValue()),
+                               (a, b) -> Stream.concat(a.stream(), b.stream()).distinct().toList()));
     }
 
     protected boolean includedPayload(Object payload, Association association) {
