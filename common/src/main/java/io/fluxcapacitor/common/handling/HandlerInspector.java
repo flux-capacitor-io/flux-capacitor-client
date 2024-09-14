@@ -29,6 +29,7 @@ import java.lang.reflect.Executable;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
 import java.lang.reflect.Parameter;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Comparator;
 import java.util.List;
@@ -308,14 +309,12 @@ public class HandlerInspector {
         @Override
         public Optional<HandlerInvoker> getInvoker(Object target, M message) {
             if (invokeMultipleMethods) {
-                HandlerInvoker invoker = null;
+                List<HandlerInvoker> invokers = new ArrayList<>();
                 for (HandlerMatcher<Object, M> d : methodHandlers) {
                     var s = d.getInvoker(target, message);
-                    if (s.isPresent()) {
-                        invoker = invoker == null ? s.get() : invoker.combine(s.get());
-                    }
+                    s.ifPresent(invokers::add);
                 }
-                return Optional.ofNullable(invoker);
+                return HandlerInvoker.join(invokers);
             }
             for (HandlerMatcher<Object, M> d : methodHandlers) {
                 var s = d.getInvoker(target, message);

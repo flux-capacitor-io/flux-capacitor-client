@@ -21,9 +21,30 @@ import java.lang.reflect.Executable;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.List;
+import java.util.Optional;
 import java.util.function.BiFunction;
 
 public interface HandlerInvoker {
+
+    static Optional<HandlerInvoker> join(List<? extends HandlerInvoker> invokers) {
+        if (invokers.isEmpty()) {
+            return Optional.empty();
+        }
+        if (invokers.size() == 1) {
+            return Optional.of(invokers.getFirst());
+        }
+        return Optional.of(new DelegatingHandlerInvoker(invokers.getFirst()) {
+            @Override
+            public Object invoke(BiFunction<Object, Object, Object> combiner) {
+                Object result = delegate.invoke();
+                for (int i = 1; i < invokers.size(); i++) {
+                    result = combiner.apply(result, invokers.get(i).invoke());
+                }
+                return result;
+            }
+        });
+    }
 
     Class<?> getTargetClass();
 
@@ -51,15 +72,6 @@ public interface HandlerInvoker {
     }
 
     Object invoke(BiFunction<Object, Object, Object> combiner);
-
-    default HandlerInvoker combine(HandlerInvoker second) {
-        return new DelegatingHandlerInvoker(this) {
-            @Override
-            public Object invoke(BiFunction<Object, Object, Object> combiner) {
-                return combiner.apply(delegate.invoke(), second.invoke());
-            }
-        };
-    }
 
     @AllArgsConstructor
     abstract class DelegatingHandlerInvoker implements HandlerInvoker {

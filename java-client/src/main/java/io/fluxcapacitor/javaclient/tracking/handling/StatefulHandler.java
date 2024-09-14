@@ -38,6 +38,7 @@ import lombok.extern.slf4j.Slf4j;
 
 import java.lang.reflect.Executable;
 import java.lang.reflect.Method;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
@@ -111,16 +112,14 @@ public class StatefulHandler implements Handler<DeserializingMessage> {
                             message, message.computeRoutingKey().orElseGet(message::getMessageId)))
                     .map(i -> new StatefulHandlerInvoker(i, null));
         }
-        HandlerInvoker result = null;
+        List<HandlerInvoker> invokers = new ArrayList<>();
         for (Entry<?> entry : matches) {
-            var invoker = handlerMatcher.getInvoker(entry.getValue(), message)
+            handlerMatcher.getInvoker(entry.getValue(), message)
                     .filter(i -> alreadyFiltered(i) || canTrackerHandle(message, entry.getId()))
-                    .map(i -> new StatefulHandlerInvoker(i, entry));
-            if (invoker.isPresent()) {
-                result = result == null ? invoker.get() : result.combine(invoker.get());
-            }
+                    .map(i -> new StatefulHandlerInvoker(i, entry))
+                    .ifPresent(invokers::add);
         }
-        return ofNullable(result);
+        return HandlerInvoker.join(invokers);
     }
 
     protected boolean alreadyFiltered(HandlerInvoker i) {
