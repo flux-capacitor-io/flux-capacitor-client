@@ -39,7 +39,7 @@ public class HandlerConfiguration<M> {
     @Default
     HandlerFilter handlerFilter = (c, e) -> true;
     @Default
-    MessageFilter<? super M> messageFilter = (m, e) -> true;
+    MessageFilter<? super M> messageFilter = (m, e, handlerAnnotation) -> true;
 
     public boolean methodMatches(Class<?> c, Executable e) {
         return isEnabled(e) && handlerFilter.test(c, e);

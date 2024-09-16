@@ -21,6 +21,7 @@ import io.fluxcapacitor.javaclient.common.serialization.DeserializingMessage;
 import io.fluxcapacitor.javaclient.publishing.routing.RoutingKey;
 import io.fluxcapacitor.javaclient.tracking.Tracker;
 
+import java.lang.annotation.Annotation;
 import java.lang.reflect.Executable;
 import java.util.Optional;
 import java.util.function.Function;
@@ -32,7 +33,7 @@ public class SegmentFilter implements MessageFilter<HasMessage> {
             memoize(e -> ReflectionUtils.getMethodAnnotation(e, RoutingKey.class));
 
     @Override
-    public boolean test(HasMessage message, Executable executable) {
+    public boolean test(HasMessage message, Executable executable, Class<? extends Annotation> handlerAnnotation) {
         return message instanceof DeserializingMessage dm
                && Tracker.current().filter(tracker -> tracker.getConfiguration().ignoreSegment())
                        .map(tracker -> routingKeyCache.apply(executable)

@@ -16,14 +16,16 @@ package io.fluxcapacitor.common.handling;
 
 import lombok.NonNull;
 
+import java.lang.annotation.Annotation;
 import java.lang.reflect.Executable;
 import java.util.Optional;
 
 @FunctionalInterface
 public interface MessageFilter<M> {
-    boolean test(M message, Executable executable);
+    boolean test(M message, Executable executable, Class<? extends Annotation> handlerAnnotation);
 
-    default Optional<Class<?>> getLeastSpecificAllowedClass(Executable executable) {
+    default Optional<Class<?>> getLeastSpecificAllowedClass(Executable executable,
+                                                            Class<? extends Annotation> handlerAnnotation) {
         return Optional.empty();
     }
 
@@ -31,13 +33,15 @@ public interface MessageFilter<M> {
         var first = this;
         return new MessageFilter<>() {
             @Override
-            public boolean test(M m, Executable e) {
-                return first.test(m, e) && second.test(m, e);
+            public boolean test(M m, Executable e, Class<? extends Annotation> handlerAnnotation) {
+                return first.test(m, e, handlerAnnotation) && second.test(m, e, handlerAnnotation);
             }
 
             @Override
-            public Optional<Class<?>> getLeastSpecificAllowedClass(Executable executable) {
-                return first.getLeastSpecificAllowedClass(executable).or(() -> second.getLeastSpecificAllowedClass(executable));
+            public Optional<Class<?>> getLeastSpecificAllowedClass(Executable executable,
+                                                                   Class<? extends Annotation> handlerAnnotation) {
+                return first.getLeastSpecificAllowedClass(executable, handlerAnnotation)
+                        .or(() -> second.getLeastSpecificAllowedClass(executable, handlerAnnotation));
             }
         };
     }

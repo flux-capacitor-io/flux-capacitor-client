@@ -70,7 +70,7 @@ public class WebRequest extends Message {
     }
 
     public static MessageFilter<HasMessage> getWebRequestFilter() {
-        return (message, executable) -> filterCache.computeIfAbsent(executable, e -> {
+        return (message, executable, handlerAnnotation) -> filterCache.computeIfAbsent(executable, e -> {
             var handleWeb = WebUtils.getWebParameters(e).orElseThrow();
             Predicate<String> pathTest = Optional.of(handleWeb.getPath())
                     .map(SearchUtils::getGlobMatcher)

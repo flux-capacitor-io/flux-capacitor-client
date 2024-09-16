@@ -96,7 +96,7 @@ public class DefaultHandlerFactory implements HandlerFactory {
                                 .flatMap(p -> ReflectionUtils.getPackageAnnotation(p, TrackSelf.class)));
                 if (trackSelf.isPresent()) {
                     MessageFilter<DeserializingMessage> selfFilter =
-                            (message, method) -> targetClass.isAssignableFrom(message.getPayloadClass());
+                            (message, method, handlerAnnotation) -> targetClass.isAssignableFrom(message.getPayloadClass());
                     return HandlerInspector.createHandler(
                             DeserializingMessage::getPayload, targetClass, parameterResolvers,
                             config.toBuilder().messageFilter(selfFilter.and(config.messageFilter())).build());

@@ -50,7 +50,7 @@ public class TriggerParameterResolver implements ParameterResolver<HasMessage>, 
     private final DefaultCorrelationDataProvider correlationDataProvider = DefaultCorrelationDataProvider.INSTANCE;
 
     @Override
-    public boolean test(HasMessage message, Executable executable) {
+    public boolean test(HasMessage message, Executable executable, Class<? extends Annotation> handlerAnnotation) {
         return messageFilterCache.apply(executable).test(message);
     }
 

@@ -112,6 +112,7 @@ public class HandlerInspector {
         private final boolean hasReturnValue;
         private final Class<?> classForSpecificity;
         private final Annotation methodAnnotation;
+        private final Class<? extends Annotation> methodAnnotationType;
         private final int priority;
         private final boolean passive;
         private final Class<?> targetClass;
@@ -134,6 +135,8 @@ public class HandlerInspector {
             this.hasReturnValue =
                     !(executable instanceof Method) || !(((Method) executable).getReturnType()).equals(void.class);
             this.methodAnnotation = config.getAnnotation(executable).orElse(null);
+            this.methodAnnotationType = Optional.ofNullable(this.methodAnnotation).map(Annotation::annotationType)
+                    .orElse(null);
             this.classForSpecificity = computeClassForSpecificity();
             this.priority = getPriority(methodAnnotation);
             this.passive = isPassive(methodAnnotation);
@@ -152,7 +155,7 @@ public class HandlerInspector {
 
         @SuppressWarnings("unchecked")
         protected Optional<Function<Object, HandlerInvoker>> prepareInvoker(M m) {
-            if (!config.messageFilter().test(m, executable)) {
+            if (!config.messageFilter().test(m, executable, methodAnnotationType)) {
                 return Optional.empty();
             }
 
@@ -199,7 +202,8 @@ public class HandlerInspector {
         }
 
         protected Class<?> computeClassForSpecificity() {
-            Class<?> handlerType = config.messageFilter().getLeastSpecificAllowedClass(executable).orElse(null);
+            Class<?> handlerType = config.messageFilter().getLeastSpecificAllowedClass(
+                    executable, methodAnnotationType).orElse(null);
             for (Parameter p : parameters) {
                 for (ParameterResolver<? super M> r : parameterResolvers) {
                     if (r.determinesSpecificity()) {

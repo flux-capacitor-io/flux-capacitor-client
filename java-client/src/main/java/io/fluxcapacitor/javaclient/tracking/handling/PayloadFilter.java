@@ -19,6 +19,7 @@ import io.fluxcapacitor.common.reflection.ReflectionUtils;
 import io.fluxcapacitor.javaclient.common.HasMessage;
 import lombok.Value;
 
+import java.lang.annotation.Annotation;
 import java.lang.reflect.Executable;
 import java.util.List;
 import java.util.Optional;
@@ -28,21 +29,22 @@ import static io.fluxcapacitor.javaclient.common.ClientUtils.memoize;
 
 public class PayloadFilter implements MessageFilter<HasMessage> {
 
-    private final Function<Executable, HandleAnnotation> allowedClassProvider = memoize(
-            e -> ReflectionUtils.getAnnotationAs(e, HandleMessage.class, HandleAnnotation.class)
-                    .orElse(null));
+    private final Function<Class<? extends Annotation>, Function<Executable, HandleAnnotation>> allowedClassProvider
+            = memoize(a -> memoize(e -> ReflectionUtils.getAnnotationAs(e, a, HandleAnnotation.class)
+            .orElse(null)));
 
     @Override
-    public boolean test(HasMessage message, Executable executable) {
+    public boolean test(HasMessage message, Executable executable, Class<? extends Annotation> handlerAnnotation) {
         Class<?> payloadClass = message.getPayloadClass();
-        return Optional.ofNullable(allowedClassProvider.apply(executable))
-                .map(a -> a.getAllowedClasses().isEmpty() || a.getAllowedClasses().stream().anyMatch(c -> c.isAssignableFrom(payloadClass)))
-                .orElse(true);
+        return Optional.ofNullable(allowedClassProvider.apply(handlerAnnotation).apply(executable))
+                .map(a -> a.getAllowedClasses().isEmpty() || a.getAllowedClasses().stream()
+                        .anyMatch(c -> c.isAssignableFrom(payloadClass))).orElse(true);
     }
 
     @Override
-    public Optional<Class<?>> getLeastSpecificAllowedClass(Executable executable) {
-        return Optional.ofNullable(allowedClassProvider.apply(executable))
+    public Optional<Class<?>> getLeastSpecificAllowedClass(Executable executable,
+                                                           Class<? extends Annotation> handlerAnnotation) {
+        return Optional.ofNullable(allowedClassProvider.apply(handlerAnnotation).apply(executable))
                 .flatMap(a -> a.getAllowedClasses().stream()
                         .max(ReflectionUtils.getClassSpecificityComparator()));
     }
