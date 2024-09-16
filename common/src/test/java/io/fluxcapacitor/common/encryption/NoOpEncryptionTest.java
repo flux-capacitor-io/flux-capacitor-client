@@ -14,24 +14,14 @@
 
 package io.fluxcapacitor.common.encryption;
 
-import org.junit.jupiter.api.Test;
-
-import static org.junit.jupiter.api.Assertions.assertNull;
-
-class DefaultEncryptionTest extends AbstractEncryptionTest {
-
+public class NoOpEncryptionTest extends AbstractEncryptionTest {
     @Override
     protected Encryption createSubject() {
-        return new DefaultEncryption();
+        return NoOpEncryption.INSTANCE;
     }
 
     @Override
     protected Encryption createSubject(String encryptionKey) {
-        return DefaultEncryption.fromEncryptionKey(encryptionKey);
-    }
-
-    @Test
-    void decryptSecretWithUnknownAlgorithm() {
-        assertNull(subject.decrypt("encrypted|unknown|encryptedvalue"));
+        return NoOpEncryption.INSTANCE;
     }
 }

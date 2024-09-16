@@ -20,7 +20,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 
 abstract class AbstractEncryptionTest {
 
-    private final Encryption subject = createSubject();
+    protected final Encryption subject = createSubject();
 
     protected abstract Encryption createSubject();
 
@@ -28,7 +28,7 @@ abstract class AbstractEncryptionTest {
 
     @Test
     void encryptString() {
-        String input = "to be encrypted using ChaCha20";
+        String input = "to be encrypted";
         String cipherText = subject.encrypt(input);
         String output = subject.decrypt(cipherText);
         assertEquals(input, output);

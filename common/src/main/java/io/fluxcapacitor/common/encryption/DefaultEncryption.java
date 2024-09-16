@@ -47,15 +47,29 @@ public class DefaultEncryption implements Encryption {
 
     @Override
     public String encrypt(String value) {
-        return String.format("%s|%s", getAlgorithm(), delegate.encrypt(value));
+        return String.format("encrypted|%s|%s", getAlgorithm(), delegate.encrypt(value));
     }
 
     @Override
     public String decrypt(String value) {
         if (value != null && isEncrypted(value)) {
-            return delegate.decrypt(value.split(getAlgorithm() + "\\|")[1]);
+            if (isEncryptedWithKnownAlgorithm(value)) {
+                return delegate.decrypt(value.split("encrypted\\|" + getAlgorithm() + "\\|")[1]);
+            }
+            //Value is encrypted but with a different algorithm. Typically, this is the result of a
+            // missing encryption key. Return null.
+            return null;
         }
         return value;
+    }
+
+    protected boolean isEncryptedWithKnownAlgorithm(String value) {
+        return value.startsWith("encrypted|" + getAlgorithm() + "|");
+    }
+
+    @Override
+    public boolean isEncrypted(String value) {
+        return value.startsWith("encrypted|");
     }
 
     @Override
@@ -66,10 +80,5 @@ public class DefaultEncryption implements Encryption {
     @Override
     public String getEncryptionKey() {
         return getAlgorithm() + "|" + delegate.getEncryptionKey();
-    }
-
-    @Override
-    public boolean isEncrypted(String value) {
-        return value.startsWith(getAlgorithm() + "|");
     }
 }

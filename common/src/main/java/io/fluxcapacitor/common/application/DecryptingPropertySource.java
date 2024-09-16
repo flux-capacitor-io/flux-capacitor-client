@@ -52,7 +52,7 @@ public class DecryptingPropertySource implements PropertySource {
                                   + "`ENCRYPTION_KEY`");
                         return null;
                     }
-                }).orElse(NoOpEncryption.INSTANCE));
+                }).orElseGet(() -> new DefaultEncryption(NoOpEncryption.INSTANCE)));
     }
 
 
