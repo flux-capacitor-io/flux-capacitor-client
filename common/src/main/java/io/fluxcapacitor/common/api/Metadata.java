@@ -113,7 +113,7 @@ public class Metadata {
     }
 
 
-    public Metadata addIfAbsent(Object key, String value) {
+    public Metadata addIfAbsent(Object key, Object value) {
         return containsKey(key) ? this : with(key, value);
     }
 
