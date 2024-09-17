@@ -42,4 +42,40 @@ public interface UserProvider {
 
     Metadata addToMetadata(Metadata metadata, User user);
 
+    default UserProvider andThen(UserProvider other) {
+        return new DelegatingUserProvider(this) {
+            @Override
+            public User getUserById(Object userId) {
+                return Optional.ofNullable(super.getUserById(userId)).orElseGet(() -> other.getUserById(userId));
+            }
+
+            @Override
+            public User getSystemUser() {
+                return Optional.ofNullable(super.getSystemUser()).orElseGet(other::getSystemUser);
+            }
+
+            @Override
+            public User fromMessage(HasMessage message) {
+                return Optional.ofNullable(super.fromMessage(message)).orElseGet(() -> other.fromMessage(message));
+            }
+
+            @Override
+            public boolean containsUser(Metadata metadata) {
+                return super.containsUser(metadata) || other.containsUser(metadata);
+            }
+
+            @Override
+            public Metadata removeFromMetadata(Metadata metadata) {
+                metadata = super.removeFromMetadata(metadata);
+                return other.removeFromMetadata(metadata);
+            }
+
+            @Override
+            public Metadata addToMetadata(Metadata metadata, User user) {
+                metadata = super.addToMetadata(metadata, user);
+                return other.addToMetadata(metadata, user);
+            }
+        };
+    }
+
 }

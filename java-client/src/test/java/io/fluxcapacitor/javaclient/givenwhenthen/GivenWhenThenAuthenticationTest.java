@@ -14,6 +14,7 @@
 
 package io.fluxcapacitor.javaclient.givenwhenthen;
 
+import io.fluxcapacitor.common.api.Metadata;
 import io.fluxcapacitor.javaclient.configuration.DefaultFluxCapacitor;
 import io.fluxcapacitor.javaclient.givenwhenthen.forbidsadmin.ForbidsAdminViaPackage;
 import io.fluxcapacitor.javaclient.givenwhenthen.requiresadmin.RequiresAdminViaPackage;
@@ -23,6 +24,7 @@ import io.fluxcapacitor.javaclient.givenwhenthen.requiresuser.RequiresUserViaPac
 import io.fluxcapacitor.javaclient.test.TestFixture;
 import io.fluxcapacitor.javaclient.tracking.handling.HandleCommand;
 import io.fluxcapacitor.javaclient.tracking.handling.HandleQuery;
+import io.fluxcapacitor.javaclient.tracking.handling.authentication.AbstractUserProvider;
 import io.fluxcapacitor.javaclient.tracking.handling.authentication.FixedUserProvider;
 import io.fluxcapacitor.javaclient.tracking.handling.authentication.ForbidsAnyRole;
 import io.fluxcapacitor.javaclient.tracking.handling.authentication.MockUser;
@@ -30,6 +32,7 @@ import io.fluxcapacitor.javaclient.tracking.handling.authentication.RequiresAnyR
 import io.fluxcapacitor.javaclient.tracking.handling.authentication.RequiresUser;
 import io.fluxcapacitor.javaclient.tracking.handling.authentication.UnauthenticatedException;
 import io.fluxcapacitor.javaclient.tracking.handling.authentication.UnauthorizedException;
+import io.fluxcapacitor.javaclient.tracking.handling.authentication.User;
 import lombok.Value;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -210,6 +213,46 @@ public class GivenWhenThenAuthenticationTest {
     void testUnauthorizedIfForbiddenRoleIsPresent() {
         user = new MockUser("create", "admin");
         testFixture.whenCommand(new Create()).expectExceptionalResult(UnauthorizedException.class);
+    }
+
+    @Nested
+    class MergedUserProviderTests {
+
+        private final MockUser user = new MockUser("get", "create");
+        private final MockUser systemUser = new MockUser("admin");
+
+        private final TestFixture testFixture = TestFixture.create(
+                DefaultFluxCapacitor.builder().registerUserProvider(
+                        new FixedUserProvider(() -> user).andThen(new SystemUserProvider())),
+                new MockHandler(), new RefdataHandler(), new MockSystemHandler());
+
+        @Test
+        void addToMetadata() {
+            testFixture.whenApplying(fc -> fc.userProvider().addToMetadata(Metadata.empty(), user))
+                    .expectResult(m -> m.contains("system", "true"));
+        }
+
+        class SystemUserProvider extends AbstractUserProvider {
+
+            public SystemUserProvider() {
+                super(User.class);
+            }
+
+            @Override
+            public User getUserById(Object userId) {
+                return systemUser;
+            }
+
+            @Override
+            public User getSystemUser() {
+                return systemUser;
+            }
+
+            @Override
+            public Metadata addToMetadata(Metadata metadata, User user) {
+                return super.addToMetadata(metadata, user).addIfAbsent("system", "true");
+            }
+        }
     }
     
     private static class RefdataHandler {
