@@ -170,6 +170,17 @@ public class HandleWebTest {
                     .expectExceptionalResult(UnauthenticatedException.class);
         }
 
+        @Test
+        void testExpectWebRequestEmptyPayload() {
+            TestFixture.create(new Object() {
+                @HandlePost("/foo")
+                void foo() {}
+            }).whenApplying(fc -> fc.webRequestGateway().sendAndWait(
+                    WebRequest.builder().method(POST).url("/foo").build()))
+                    .expectWebRequest(r -> r.getMethod() == POST);
+
+        }
+
         private class Handler {
             @HandleWeb(value = "/get", method = GET)
             String get() {

@@ -572,6 +572,11 @@ public class ResultValidator<R> implements Then<R> {
             return ((Predicate<Object>) predicate).test(actual);
         } catch (ClassCastException e) {
             return false;
+        } catch (NullPointerException e) {
+            if (actual == null) {
+                return false;
+            }
+            throw e;
         }
     }
 
