@@ -249,8 +249,8 @@ public class GivenWhenThenAuthenticationTest {
             }
 
             @Override
-            public Metadata addToMetadata(Metadata metadata, User user) {
-                return super.addToMetadata(metadata, user).addIfAbsent("system", "true");
+            public Metadata addToMetadata(Metadata metadata, User user, boolean ifAbsent) {
+                return super.addToMetadata(metadata, user, ifAbsent).with("system", "true");
             }
         }
     }

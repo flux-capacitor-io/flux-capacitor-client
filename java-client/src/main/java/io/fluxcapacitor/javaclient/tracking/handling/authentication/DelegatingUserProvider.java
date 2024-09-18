@@ -14,11 +14,51 @@
 
 package io.fluxcapacitor.javaclient.tracking.handling.authentication;
 
+import io.fluxcapacitor.common.api.Metadata;
+import io.fluxcapacitor.javaclient.common.HasMessage;
 import lombok.AllArgsConstructor;
-import lombok.experimental.Delegate;
 
 @AllArgsConstructor
 public class DelegatingUserProvider implements UserProvider {
-    @Delegate
-    private final UserProvider delegate;
+    protected final UserProvider delegate;
+
+    @Override
+    public User getActiveUser() {
+        return delegate.getActiveUser();
+    }
+
+    @Override
+    public User getUserById(Object userId) {
+        return delegate.getUserById(userId);
+    }
+
+    @Override
+    public User getSystemUser() {
+        return delegate.getSystemUser();
+    }
+
+    @Override
+    public User fromMessage(HasMessage message) {
+        return delegate.fromMessage(message);
+    }
+
+    @Override
+    public boolean containsUser(Metadata metadata) {
+        return delegate.containsUser(metadata);
+    }
+
+    @Override
+    public Metadata removeFromMetadata(Metadata metadata) {
+        return delegate.removeFromMetadata(metadata);
+    }
+
+    @Override
+    public Metadata addToMetadata(Metadata metadata, User user, boolean ifAbsent) {
+        return delegate.addToMetadata(metadata, user, ifAbsent);
+    }
+
+    @Override
+    public UserProvider andThen(UserProvider other) {
+        return delegate.andThen(other);
+    }
 }

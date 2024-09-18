@@ -40,7 +40,11 @@ public interface UserProvider {
 
     Metadata removeFromMetadata(Metadata metadata);
 
-    Metadata addToMetadata(Metadata metadata, User user);
+    default Metadata addToMetadata(Metadata metadata, User user) {
+        return addToMetadata(metadata, user, false);
+    }
+
+    Metadata addToMetadata(Metadata metadata, User user, boolean ifAbsent);
 
     default UserProvider andThen(UserProvider other) {
         return new DelegatingUserProvider(this) {
@@ -71,9 +75,12 @@ public interface UserProvider {
             }
 
             @Override
-            public Metadata addToMetadata(Metadata metadata, User user) {
-                metadata = super.addToMetadata(metadata, user);
-                return other.addToMetadata(metadata, user);
+            public Metadata addToMetadata(Metadata metadata, User user, boolean ifAbsent) {
+                if (ifAbsent) {
+                    return other.addToMetadata(super.addToMetadata(metadata, user, true), user, true);
+                }
+                boolean chained = delegate instanceof DelegatingUserProvider;
+                return other.addToMetadata(super.addToMetadata(metadata, user, chained), user, true);
             }
         };
     }

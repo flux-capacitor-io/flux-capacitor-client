@@ -46,8 +46,7 @@ public abstract class AbstractUserProvider implements UserProvider {
     }
 
     @Override
-    public Metadata addToMetadata(Metadata metadata, User user) {
-        return metadata.addIfAbsent(metadataKey, user);
+    public Metadata addToMetadata(Metadata metadata, User user, boolean ifAbsent) {
+        return ifAbsent ? metadata.addIfAbsent(metadataKey, user) : metadata.with(metadataKey, user);
     }
-
 }

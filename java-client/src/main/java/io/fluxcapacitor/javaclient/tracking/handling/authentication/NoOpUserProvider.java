@@ -48,7 +48,7 @@ public class NoOpUserProvider implements UserProvider {
     }
 
     @Override
-    public Metadata addToMetadata(Metadata metadata, User user) {
+    public Metadata addToMetadata(Metadata metadata, User user, boolean ifAbsent) {
         return metadata;
     }
 }
