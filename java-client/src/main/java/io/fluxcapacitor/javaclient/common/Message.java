@@ -37,7 +37,7 @@ import java.util.Optional;
 import static io.fluxcapacitor.javaclient.FluxCapacitor.currentIdentityProvider;
 
 @Value
-@JsonTypeInfo(use = JsonTypeInfo.Id.CLASS)
+@JsonTypeInfo(use = JsonTypeInfo.Id.CLASS, defaultImpl = Message.class)
 @NonFinal
 @Slf4j
 public class Message implements HasMessage {
