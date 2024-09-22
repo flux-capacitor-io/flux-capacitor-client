@@ -16,10 +16,12 @@ package io.fluxcapacitor.javaclient.configuration.spring;
 
 import com.fasterxml.jackson.databind.node.TextNode;
 import io.fluxcapacitor.common.api.SerializedMessage;
+import io.fluxcapacitor.common.application.SimplePropertySource;
 import io.fluxcapacitor.common.caching.DefaultCache;
 import io.fluxcapacitor.javaclient.FluxCapacitor;
 import io.fluxcapacitor.javaclient.common.serialization.DeserializingMessage;
 import io.fluxcapacitor.javaclient.common.serialization.casting.Upcast;
+import io.fluxcapacitor.javaclient.configuration.ApplicationProperties;
 import io.fluxcapacitor.javaclient.configuration.FluxCapacitorBuilder;
 import io.fluxcapacitor.javaclient.persisting.eventsourcing.Apply;
 import io.fluxcapacitor.javaclient.tracking.handling.HandleCommand;
@@ -45,6 +47,8 @@ import org.springframework.context.annotation.Import;
 import org.springframework.stereotype.Component;
 import org.springframework.test.context.ContextConfiguration;
 import org.springframework.test.context.junit.jupiter.SpringExtension;
+
+import java.util.Map;
 
 import static java.util.Objects.requireNonNull;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -133,6 +137,11 @@ public class FluxCapacitorSpringConfigTest {
         assertNotNull(beanFactory.getBean(ConditionalBeanPresent.class));
     }
 
+    @Test
+    void testPropertySetUsingCustomizer() {
+        assertEquals("bar", fluxCapacitor.apply(fc -> ApplicationProperties.getProperty("foo")));
+    }
+
     @Component
     public static class SomeHandler {
         @HandleCommand
@@ -183,6 +192,11 @@ public class FluxCapacitorSpringConfigTest {
         @ConditionalOnMissingBean(UserProvider.class)
         public UserProvider userProvider() {
             return mockUserProvider;
+        }
+
+        @Bean
+        FluxCapacitorCustomizer configure() {
+            return builder -> builder.addPropertySource(new SimplePropertySource(Map.of("foo", "bar")));
         }
 
     }

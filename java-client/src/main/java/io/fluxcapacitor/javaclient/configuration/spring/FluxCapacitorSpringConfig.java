@@ -37,6 +37,7 @@ import io.fluxcapacitor.javaclient.publishing.QueryGateway;
 import io.fluxcapacitor.javaclient.publishing.ResultGateway;
 import io.fluxcapacitor.javaclient.scheduling.Scheduler;
 import io.fluxcapacitor.javaclient.tracking.handling.authentication.UserProvider;
+import jakarta.annotation.Nullable;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.BeansException;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -127,7 +128,8 @@ public class FluxCapacitorSpringConfig implements BeanPostProcessor {
 
     @Bean
     @ConditionalOnMissingBean
-    public FluxCapacitor fluxCapacitor(FluxCapacitorBuilder builder) {
+    public FluxCapacitor fluxCapacitor(FluxCapacitorBuilder builder,
+                                       @Nullable FluxCapacitorCustomizer customizer) {
         Client client = getBean(Client.class).orElseGet(() -> getBean(WebSocketClient.ClientConfig.class)
                 .<Client>map(WebSocketClient::newInstance)
                 .orElseGet(() -> {
@@ -141,7 +143,7 @@ public class FluxCapacitorSpringConfig implements BeanPostProcessor {
                     log.info("Using in-memory Flux Capacitor client");
                     return InMemoryClient.newInstance();
                 }));
-        return builder.build(client);
+        return Optional.ofNullable(customizer).map(c -> c.customize(builder)).orElse(builder).build(client);
     }
 
     @Bean
