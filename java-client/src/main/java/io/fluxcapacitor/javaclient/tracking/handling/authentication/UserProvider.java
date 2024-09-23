@@ -17,14 +17,14 @@ package io.fluxcapacitor.javaclient.tracking.handling.authentication;
 import io.fluxcapacitor.common.api.Metadata;
 import io.fluxcapacitor.javaclient.common.HasMessage;
 
-import java.util.Iterator;
 import java.util.Optional;
 import java.util.ServiceLoader;
+import java.util.ServiceLoader.Provider;
 
 public interface UserProvider {
 
-    UserProvider defaultUserSupplier = Optional.of(ServiceLoader.load(UserProvider.class)).map(
-                ServiceLoader::iterator).filter(Iterator::hasNext).map(Iterator::next).orElse(null);
+    UserProvider defaultUserSupplier = Optional.of(ServiceLoader.load(UserProvider.class))
+            .flatMap(loader -> loader.stream().map(Provider::get).reduce(UserProvider::andThen)).orElse(null);
 
     default User getActiveUser() {
         return User.getCurrent();
