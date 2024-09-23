@@ -116,7 +116,10 @@ class TestServerTest {
                 FluxCapacitor.search("mock").fetchAll();
             }
         }
-        testFixture.registerHandlers(new Handler()).whenEvent("test")
+        testFixture.registerHandlers(new Handler()).whenExecuting(fc -> {
+                    fc.eventGateway().publish("test");
+                    Thread.sleep(100);
+                })
                 .expectNoMetricsLike(SearchDocumentsResult.Metric.class)
                 .expectNoMetricsLike(SearchDocuments.class)
                 .<ProcessBatchEvent>expectMetric(e -> consumerName.equals(e.getConsumer()));
