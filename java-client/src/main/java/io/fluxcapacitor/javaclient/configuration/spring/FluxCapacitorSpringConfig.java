@@ -37,6 +37,7 @@ import io.fluxcapacitor.javaclient.publishing.QueryGateway;
 import io.fluxcapacitor.javaclient.publishing.ResultGateway;
 import io.fluxcapacitor.javaclient.scheduling.Scheduler;
 import io.fluxcapacitor.javaclient.tracking.handling.authentication.UserProvider;
+import io.fluxcapacitor.javaclient.web.WebResponseMapper;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.BeansException;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -114,12 +115,14 @@ public class FluxCapacitorSpringConfig implements BeanPostProcessor {
     @Bean
     @ConditionalOnMissingBean
     @SuppressWarnings("OptionalUsedAsFieldOrParameterType")
-    public FluxCapacitorBuilder fluxCapacitorBuilder(Serializer serializer, Optional<UserProvider> userProvider,
-                                                     Optional<Cache> cache, Environment environment) {
+    public FluxCapacitorBuilder fluxCapacitorBuilder(
+            Serializer serializer, Optional<UserProvider> userProvider, Optional<Cache> cache,
+            Optional<WebResponseMapper> webResponseMapper, Environment environment) {
         FluxCapacitorBuilder builder = DefaultFluxCapacitor.builder().disableShutdownHook()
                 .replaceSerializer(serializer).replaceSnapshotSerializer(serializer).makeApplicationInstance(true);
         userProvider.ifPresent(builder::registerUserProvider);
         cache.ifPresent(builder::replaceCache);
+        webResponseMapper.ifPresent(builder::replaceWebResponseMapper);
         builder.addPropertySource(new SpringPropertySource(environment));
         builder.addParameterResolver(new SpringBeanParameterResolver(context));
         return builder;
