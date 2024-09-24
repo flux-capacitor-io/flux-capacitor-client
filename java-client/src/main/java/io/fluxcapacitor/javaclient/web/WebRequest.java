@@ -274,6 +274,11 @@ public class WebRequest extends Message {
             return this;
         }
 
+        public Builder headers(Map<String, List<String>> headers) {
+            this.headers.putAll(headers);
+            return this;
+        }
+
         public Builder clearHeader(String key) {
             headers.computeIfPresent(fixHeaderName(key), (k, v) -> null);
             return this;

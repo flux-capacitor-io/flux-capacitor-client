@@ -32,6 +32,7 @@ import org.junit.jupiter.api.Test;
 import java.net.HttpCookie;
 import java.time.Duration;
 import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.TimeoutException;
 
 import static io.fluxcapacitor.javaclient.web.HttpRequestMethod.GET;
@@ -371,15 +372,37 @@ public class HandleWebTest {
     }
 
     @Nested
-    class CookieTests {
+    class HeaderTests {
+
         @Test
-        void testGivenCookie() {
+        void testWithHeader() {
+            TestFixture.create(new Object() {
+                @HandleGet("/checkHeader")
+                String check(WebRequest request) {
+                    return Optional.ofNullable(request.getHeader("foo")).orElseThrow();
+                }
+            }).withHeader("foo", "bar").whenGet("/checkHeader").expectResult("bar");
+        }
+
+        @Test
+        void testWithoutHeader() {
+            TestFixture.create(new Object() {
+                @HandleGet("/checkHeader")
+                String check(WebRequest request) {
+                    return Optional.ofNullable(request.getHeader("foo")).orElseThrow();
+                }
+            }).withHeader("foo", "bar")
+                    .withoutHeader("foo").whenGet("/checkHeader").expectExceptionalResult();
+        }
+
+        @Test
+        void testWithCookie() {
             TestFixture.create(new Object() {
                 @HandleGet("/checkCookie")
                 String check(WebRequest request) {
                     return request.getCookie("foo").orElseThrow().getValue();
                 }
-            }).givenCookie("foo", "bar").whenGet("/checkCookie").expectResult("bar");
+            }).withCookie("foo", "bar").whenGet("/checkCookie").expectResult("bar");
         }
 
         @Test

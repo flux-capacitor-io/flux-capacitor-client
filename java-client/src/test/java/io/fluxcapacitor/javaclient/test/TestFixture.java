@@ -75,6 +75,7 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -179,6 +180,7 @@ public class TestFixture implements Given, When {
     private final BeanParameterResolver beanParameterResolver = new BeanParameterResolver();
     private final Map<String, String> testProperties = new HashMap<>();
     private final List<HttpCookie> cookies = new ArrayList<>();
+    private final Map<String, List<String>> headers = new LinkedHashMap<>();
 
     private final List<ThrowingConsumer<TestFixture>> modifiers = new CopyOnWriteArrayList<>();
     private static final ThreadLocal<List<TestFixture>> activeFixtures = ThreadLocal.withInitial(ArrayList::new);
@@ -494,13 +496,22 @@ public class TestFixture implements Given, When {
     }
 
     @Override
-    public TestFixture givenCookie(String name, String value) {
-        return (TestFixture) Given.super.givenCookie(name, value);
+    public TestFixture withCookie(String name, String value) {
+        return (TestFixture) Given.super.withCookie(name, value);
     }
 
     @Override
-    public TestFixture givenCookie(HttpCookie cookie) {
+    public TestFixture withCookie(HttpCookie cookie) {
         return addCookie(cookie);
+    }
+
+    @Override
+    public TestFixture withHeader(String headerName, String... headerValues) {
+        if (headerValues.length == 0) {
+            headers.remove(headerName);
+        }
+        headers.put(headerName, Arrays.asList(headerValues));
+        return this;
     }
 
     @Override
@@ -640,6 +651,9 @@ public class TestFixture implements Given, When {
     protected WebResponse executeWebRequest(WebRequest request) {
         if (request.getMethod().isWebsocket() && !request.getMetadata().containsKey("sessionId")) {
             request = request.addMetadata("sessionId", "testSession");
+        }
+        if (!headers.isEmpty()) {
+            request = request.toBuilder().headers(headers).build();
         }
         if (!cookies.isEmpty()) {
             var builder = request.toBuilder();

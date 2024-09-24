@@ -208,19 +208,6 @@ public interface Given extends When {
     }
 
     /**
-     * Specify the name and value of a cookie that should be used when validating future web requests.
-     */
-    default Given givenCookie(String name, String value) {
-        return givenCookie(new HttpCookie(name, value));
-    }
-
-    /**
-     * Registers a cookie that should be used when validating future web requests. If the given cookie has expired,
-     * any existing matching cookie will be automatically removed.
-     */
-    Given givenCookie(HttpCookie cookie);
-
-    /**
      * Specify any action that has happened prior to the behavior you want to test.
      */
     Given given(ThrowingConsumer<FluxCapacitor> condition);
@@ -242,6 +229,32 @@ public interface Given extends When {
      */
     default Instant getCurrentTime() {
         return getClock().instant();
+    }
+
+    /**
+     * Specify the name and value of a cookie that should be used when validating future web requests.
+     */
+    default Given withCookie(String name, String value) {
+        return withCookie(new HttpCookie(name, value));
+    }
+
+    /**
+     * Registers a cookie that should be used when validating future web requests. If the given cookie has expired,
+     * any existing matching cookie will be automatically removed.
+     */
+    Given withCookie(HttpCookie cookie);
+
+    /**
+     * Registers a header that should be used when validating future web requests. If {@code headerValues} is empty the
+     * header will be removed.
+     */
+    Given withHeader(String headerName, String... headerValues);
+
+    /**
+     * Removes a header used when validating future web requests.
+     */
+    default Given withoutHeader(String headerName) {
+        return withHeader(headerName);
     }
 
     /**
