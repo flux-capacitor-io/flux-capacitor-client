@@ -35,6 +35,8 @@ import io.undertow.util.HttpString;
 import io.undertow.util.Protocols;
 import io.undertow.websockets.jsr.WebSocketDeploymentInfo;
 import jakarta.servlet.DispatcherType;
+import jakarta.websocket.HandshakeResponse;
+import jakarta.websocket.server.HandshakeRequest;
 import jakarta.websocket.server.ServerEndpointConfig;
 import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
@@ -42,14 +44,18 @@ import org.xnio.OptionMap;
 import org.xnio.Options;
 import org.xnio.Xnio;
 
+import java.net.URLDecoder;
 import java.nio.ByteBuffer;
+import java.nio.charset.StandardCharsets;
 import java.time.Duration;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import static io.fluxcapacitor.common.ObjectUtils.unwrapException;
-import static io.fluxcapacitor.javaclient.web.WebUtils.fixHeaderName;
 import static io.undertow.servlet.Servlets.deployment;
 import static java.lang.String.format;
 
@@ -101,18 +107,39 @@ public class ProxyRequestHandler implements HttpHandler, AutoCloseable {
                 .method(HttpRequestMethod.valueOf(se.getRequestMethod().toString())).payload(payload)
                 .acceptGzipEncoding(false);
         se.getRequestHeaders().forEach(
-                header -> header.forEach(value -> builder.header(fixHeaderName(
-                        header.getHeaderName().toString()), value)));
-        return tryUpgrade(builder.build());
+                header -> header.forEach(value -> builder.header(header.getHeaderName().toString(), value)));
+        return tryUpgrade(builder.build(), se);
     }
 
-    protected WebRequest tryUpgrade(WebRequest webRequest) {
+    protected WebRequest tryUpgrade(WebRequest webRequest, HttpServerExchange se) {
         if (webRequest.getMethod() == HttpRequestMethod.GET
             && "Upgrade".equalsIgnoreCase(webRequest.getHeader("Connection"))
             && "websocket".equalsIgnoreCase(webRequest.getHeader("Upgrade"))) {
-            return webRequest.toBuilder().method(HttpRequestMethod.WS_HANDSHAKE).build();
+            var requestBuilder = webRequest.toBuilder();
+            var protocols = getWebsocketProtocols(webRequest.getHeaders("Sec-WebSocket-Protocol"));
+            if (!protocols.isEmpty() && protocols.size() % 2 == 0) {
+                for (int i = 0; i < protocols.size(); i += 2) {
+                    try {
+                        var name = URLDecoder.decode(protocols.get(i), StandardCharsets.UTF_8);
+                        var value = URLDecoder.decode(protocols.get(i + 1), StandardCharsets.UTF_8);
+                        requestBuilder.header(name, value);
+                        se.getRequestHeaders().put(new HttpString(name), value);
+                    } catch (Throwable e) {
+                        log.warn("Failed to convert a protocol to a ");
+                    }
+                }
+            }
+            return requestBuilder.method(HttpRequestMethod.WS_HANDSHAKE).build();
         }
         return webRequest;
+    }
+
+    static List<String> getWebsocketProtocols(List<String> headerValue) {
+        if (headerValue == null || headerValue.isEmpty()) {
+            return Collections.emptyList();
+        }
+        return headerValue.stream().flatMap(
+                protocolHeader -> Arrays.stream(protocolHeader.split(",")).map(String::trim)).toList();
     }
 
     protected void sendWebRequest(HttpServerExchange se, WebRequest webRequest) {
@@ -125,7 +152,7 @@ public class ProxyRequestHandler implements HttpHandler, AutoCloseable {
                             handleResponse(r, webRequest, se);
                         } else if (e instanceof TimeoutException) {
                             log.warn("Request {} timed out (messageId: {}). This is possibly due to a missing handler.",
-                                      webRequest, webRequest.getMessageId(), e);
+                                     webRequest, webRequest.getMessageId(), e);
                             sendGatewayTimeout(se);
                         } else {
                             log.error("Failed to complete {} (messageId: {})",
@@ -194,6 +221,19 @@ public class ProxyRequestHandler implements HttpHandler, AutoCloseable {
                                                                  @Override
                                                                  public <T> T getEndpointInstance(Class<T> endpointClass) {
                                                                      return endpointClass.cast(websocketEndpoint);
+                                                                 }
+
+                                                                 @Override
+                                                                 public void modifyHandshake(ServerEndpointConfig sec,
+                                                                                             HandshakeRequest request,
+                                                                                             HandshakeResponse response) {
+                                                                     super.modifyHandshake(sec, request, response);
+                                                                     var protocols = getWebsocketProtocols(request.getHeaders()
+                                                                                                                   .get("Sec-WebSocket-Protocol"));
+                                                                     if (!protocols.isEmpty()) {
+                                                                         response.getHeaders().put("Sec-WebSocket-Protocol",
+                                                                                                   List.of(protocols.getFirst()));
+                                                                     }
                                                                  }
                                                              }).build()))
                         .setDeploymentName("websocket")

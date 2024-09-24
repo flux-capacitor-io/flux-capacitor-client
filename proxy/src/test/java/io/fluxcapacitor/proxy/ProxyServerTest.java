@@ -35,11 +35,14 @@ import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
 import java.net.URI;
+import java.net.URLEncoder;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpRequest.BodyPublishers;
 import java.net.http.HttpResponse.BodyHandlers;
 import java.net.http.WebSocket;
+import java.nio.charset.StandardCharsets;
+import java.util.Arrays;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 
@@ -121,6 +124,21 @@ class ProxyServerTest {
                     })
                     .whenApplying(openSocketAndWait())
                     .expectResult("Hello World");
+        }
+
+        @Test
+        @SneakyThrows
+        void protocolIsSplitAndConvertedToHeaders() {
+            testFixture.registerHandlers(new Object() {
+                        @HandleSocketOpen("/")
+                        String hello(WebRequest request) {
+                            return "%s_%s".formatted(request.getHeader("X-Foo"),
+                                                     request.getHeader("X-Bar"));
+                        }
+                    })
+                    .whenApplying(openSocketAndWait("X-Foo", URLEncoder.encode(
+                            "fo o", StandardCharsets.UTF_8), "X-Bar", "bar"))
+                    .expectResult("fo o_bar");
         }
 
         @Test
@@ -215,23 +233,27 @@ class ProxyServerTest {
                     .expectEvents("ws closed with 1001");
         }
 
-        private ThrowingFunction<FluxCapacitor, ?> openSocketAndWait() {
+        private ThrowingFunction<FluxCapacitor, ?> openSocketAndWait(String... protocols) {
             return openSocketAnd(ws -> {
-            });
+            }, protocols);
         }
 
-        private ThrowingFunction<FluxCapacitor, ?> openSocketAnd(ThrowingConsumer<WebSocket> followUp) {
+        private ThrowingFunction<FluxCapacitor, ?> openSocketAnd(ThrowingConsumer<WebSocket> followUp, String... protocols) {
             return fc -> {
                 CompletableFuture<String> result = new CompletableFuture<>();
-                WebSocket webSocket = openSocket(result);
+                WebSocket webSocket = openSocket(result, protocols);
                 followUp.accept(webSocket);
                 return result.get();
             };
         }
 
         @SneakyThrows
-        private WebSocket openSocket(CompletableFuture<String> callback) {
-            return httpClient.newWebSocketBuilder().buildAsync(baseUri(), new WebSocket.Listener() {
+        private WebSocket openSocket(CompletableFuture<String> callback, String... protocols) {
+            WebSocket.Builder builder = httpClient.newWebSocketBuilder();
+            if (protocols.length > 0) {
+                builder.subprotocols(protocols[0], Arrays.copyOfRange(protocols, 1, protocols.length));
+            }
+            return builder.buildAsync(baseUri(), new WebSocket.Listener() {
                 @Override
                 public CompletionStage<?> onText(WebSocket webSocket1, CharSequence data, boolean last) {
                     callback.complete(String.valueOf(data));

@@ -57,6 +57,7 @@ import io.fluxcapacitor.javaclient.tracking.handling.authentication.User;
 import io.fluxcapacitor.javaclient.tracking.handling.authentication.UserProvider;
 import io.fluxcapacitor.javaclient.web.WebRequest;
 import io.fluxcapacitor.javaclient.web.WebResponse;
+import io.fluxcapacitor.javaclient.web.WebUtils;
 import lombok.AccessLevel;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
@@ -75,7 +76,6 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -180,7 +180,7 @@ public class TestFixture implements Given, When {
     private final BeanParameterResolver beanParameterResolver = new BeanParameterResolver();
     private final Map<String, String> testProperties = new HashMap<>();
     private final List<HttpCookie> cookies = new ArrayList<>();
-    private final Map<String, List<String>> headers = new LinkedHashMap<>();
+    private final Map<String, List<String>> headers = WebUtils.emptyHeaderMap();
 
     private final List<ThrowingConsumer<TestFixture>> modifiers = new CopyOnWriteArrayList<>();
     private static final ThreadLocal<List<TestFixture>> activeFixtures = ThreadLocal.withInitial(ArrayList::new);

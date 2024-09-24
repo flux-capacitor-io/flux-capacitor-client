@@ -40,17 +40,16 @@ import java.net.HttpCookie;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.Collections;
-import java.util.HashMap;
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
-import java.util.stream.Collectors;
 
 import static io.fluxcapacitor.common.api.Data.JSON_FORMAT;
-import static io.fluxcapacitor.javaclient.web.WebUtils.fixHeaderName;
+import static io.fluxcapacitor.javaclient.web.WebUtils.asHeaderMap;
+import static java.util.stream.Collectors.toList;
 
 @Value
 @EqualsAndHashCode(callSuper = true)
@@ -73,7 +72,8 @@ public class WebResponse extends Message {
     @ConstructorProperties({"payload", "metadata", "messageId", "timestamp"})
     WebResponse(Object payload, Metadata metadata, String messageId, Instant timestamp) {
         super(payload, metadata, messageId, timestamp);
-        this.headers = Optional.ofNullable(metadata.get("headers", Map.class)).orElse(Collections.emptyMap());
+        this.headers = Optional.ofNullable(metadata.get("headers", Map.class))
+                .map(map -> asHeaderMap(map)).orElseGet(WebUtils::emptyHeaderMap);
         this.status = Optional.ofNullable(metadata.get("status")).map(Integer::valueOf).orElse(null);
     }
 
@@ -176,9 +176,9 @@ public class WebResponse extends Message {
     }
 
     public WebResponse retainHeaders(String... headerNames) {
-        var filtered = new LinkedHashMap<>(headers);
-        filtered.keySet().retainAll(Arrays.stream(headerNames).map(WebUtils::fixHeaderName).toList());
-        return toBuilder().headers(filtered).build();
+        var filtered = WebUtils.asHeaderMap(headers);
+        filtered.keySet().retainAll(Arrays.asList(headerNames));
+        return toBuilder().clearHeaders().headers(filtered).build();
     }
 
     public String getHeader(String name) {
@@ -200,7 +200,7 @@ public class WebResponse extends Message {
     @SneakyThrows
     Object decodePayload() {
         Object result = getEncodedPayload();
-        if (result instanceof byte[] bytes && Objects.equals(getHeaders().get("Content-Encoding"), gzipEncoding)) {
+        if (result instanceof byte[] bytes && Objects.equals(getHeaders("Content-Encoding"), gzipEncoding)) {
             return CompressionUtils.decompress(bytes, CompressionAlgorithm.GZIP);
         }
         return result;
@@ -211,7 +211,7 @@ public class WebResponse extends Message {
     @Accessors(fluent = true, chain = true)
     @FieldDefaults(level = AccessLevel.PRIVATE)
     public static class Builder {
-        Map<String, List<String>> headers = new HashMap<>();
+        final Map<String, List<String>> headers = WebUtils.emptyHeaderMap();
         @Setter(AccessLevel.NONE)
         List<HttpCookie> cookies = new ArrayList<>();
         Object payload;
@@ -220,7 +220,7 @@ public class WebResponse extends Message {
         protected Builder(WebResponse response) {
             payload(response.getEncodedPayload());
             status(response.getStatus());
-            response.getHeaders().forEach((k, v) -> headers.put(fixHeaderName(k), new ArrayList<>(v)));
+            headers(response.getHeaders());
             cookies.addAll(WebUtils.parseResponseCookieHeader(headers.remove("Set-Cookie")));
         }
 
@@ -237,8 +237,27 @@ public class WebResponse extends Message {
             return this;
         }
 
+        public Builder headers(Map<String, List<String>> headers) {
+            this.headers.putAll(headers);
+            return this;
+        }
+
+        public Builder header(String key, Collection<String> values) {
+            headers.computeIfAbsent(key, k -> new ArrayList<>()).addAll(values);
+            return this;
+        }
+
         public Builder header(String key, String value) {
-            headers.computeIfAbsent(fixHeaderName(key), k -> new ArrayList<>()).add(value);
+            return header(key, List.of(value));
+        }
+
+        public Builder clearHeader(String key) {
+            headers.computeIfPresent(key, (k, v) -> null);
+            return this;
+        }
+
+        public Builder clearHeaders() {
+            headers.clear();
             return this;
         }
 
@@ -252,12 +271,11 @@ public class WebResponse extends Message {
         }
 
         public Map<String, List<String>> headers() {
-            var result = headers;
             if (!cookies.isEmpty()) {
-                result = new HashMap<>(headers);
-                result.put("Set-Cookie", cookies.stream().map(WebUtils::toResponseHeaderString).collect(Collectors.toList()));
+                clearHeader("Set-Cookie").header(
+                        "Set-Cookie", cookies.stream().map(WebUtils::toResponseHeaderString).collect(toList()));
             }
-            return result;
+            return headers;
         }
 
         public Integer status() {

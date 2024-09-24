@@ -29,7 +29,6 @@ import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
 
-import static io.fluxcapacitor.javaclient.web.WebUtils.fixHeaderName;
 import static io.fluxcapacitor.proxy.WebsocketEndpoint.metadataPrefix;
 
 @Slf4j
@@ -49,7 +48,7 @@ public class WebsocketFilter implements Filter {
                             .method(HttpRequestMethod.valueOf(r.getMethod()));
                     r.getHeaderNames().asIterator().forEachRemaining(
                             name -> r.getHeaders(name).asIterator().forEachRemaining(
-                                    value -> builder.header(fixHeaderName(name), value)));
+                                    value -> builder.header(name, value)));
                     builder.build().getMetadata().getEntries().forEach(
                             (k, v) -> result.put(metadataPrefix + k, new String[]{v}));
                 }

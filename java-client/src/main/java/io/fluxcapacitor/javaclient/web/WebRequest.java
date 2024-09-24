@@ -42,7 +42,6 @@ import java.net.HttpCookie;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -52,7 +51,7 @@ import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
 import static io.fluxcapacitor.common.api.Data.JSON_FORMAT;
-import static io.fluxcapacitor.javaclient.web.WebUtils.fixHeaderName;
+import static io.fluxcapacitor.javaclient.web.WebUtils.asHeaderMap;
 import static java.util.Objects.requireNonNull;
 
 @Value
@@ -218,7 +217,9 @@ public class WebRequest extends Message {
 
     @SuppressWarnings("unchecked")
     public static Map<String, List<String>> getHeaders(Metadata metadata) {
-        return Optional.ofNullable(metadata.get("headers", Map.class)).orElse(Collections.emptyMap());
+        return Optional.ofNullable(metadata.get("headers", Map.class))
+                .map(map -> asHeaderMap(map))
+                .orElseGet(WebUtils::emptyHeaderMap);
     }
 
     public static Optional<String> getHeader(Metadata metadata, String name) {
@@ -238,7 +239,7 @@ public class WebRequest extends Message {
     public static class Builder {
         String url;
         HttpRequestMethod method;
-        Map<String, List<String>> headers = new LinkedHashMap<>();
+        final Map<String, List<String>> headers = WebUtils.emptyHeaderMap();
         boolean acceptGzipEncoding = true;
 
         @Setter(AccessLevel.NONE)
@@ -251,7 +252,7 @@ public class WebRequest extends Message {
         protected Builder(Metadata metadata) {
             method(WebRequest.getMethod(metadata));
             url(WebRequest.getUrl(metadata));
-            WebRequest.getHeaders(metadata).forEach((k, v) -> headers.put(fixHeaderName(k), new ArrayList<>(v)));
+            WebRequest.getHeaders(metadata).forEach((k, v) -> headers.put(k, new ArrayList<>(v)));
             headers(WebRequest.getHeaders(metadata));
             cookies.addAll(WebUtils.parseRequestCookieHeader(
                     Optional.ofNullable(headers.remove("Cookie")).orElseGet(List::of)
@@ -262,15 +263,30 @@ public class WebRequest extends Message {
             method(request.getMethod());
             url(request.getPath());
             payload(request.getPayload());
-            request.getHeaders().forEach((k, v) -> headers.put(fixHeaderName(k), new ArrayList<>(v)));
+            headers(request.getHeaders());
             cookies.addAll(WebUtils.parseRequestCookieHeader(
                     Optional.ofNullable(headers.remove("Cookie")).orElseGet(List::of)
                             .stream().findFirst().orElse(null)));
             metadata = request.getMetadata();
         }
 
+        public Builder headerIfAbsent(String key, String value) {
+            List<String> values = headers.computeIfAbsent(key, k -> new ArrayList<>());
+            if (values.isEmpty()) {
+                values.add(value);
+            }
+            return this;
+        }
+
         public Builder header(String key, String value) {
-            headers.computeIfAbsent(fixHeaderName(key), k -> new ArrayList<>()).add(value);
+            return header(key, value, false);
+        }
+
+        public Builder header(String key, String value, boolean ifAbsent) {
+            List<String> values = headers.computeIfAbsent(key, k -> new ArrayList<>());
+            if (values.isEmpty() || !ifAbsent) {
+                values.add(value);
+            }
             return this;
         }
 
@@ -280,7 +296,7 @@ public class WebRequest extends Message {
         }
 
         public Builder clearHeader(String key) {
-            headers.computeIfPresent(fixHeaderName(key), (k, v) -> null);
+            headers.computeIfPresent(key, (k, v) -> null);
             return this;
         }
 
@@ -299,7 +315,7 @@ public class WebRequest extends Message {
         }
 
         public Map<String, List<String>> headers() {
-            var result = new LinkedHashMap<>(headers);
+            var result = WebUtils.asHeaderMap(headers);
             if (acceptGzipEncoding) {
                 result.computeIfAbsent("Accept-Encoding", k -> List.of("gzip"));
             }
@@ -311,9 +327,8 @@ public class WebRequest extends Message {
                 }
             }
             if (!cookies.isEmpty()) {
-                result.put("Cookie",
-                           List.of(cookies.stream().map(WebUtils::toRequestHeaderString)
-                                           .collect(Collectors.joining("; "))));
+                result.put("Cookie", List.of(cookies.stream().map(WebUtils::toRequestHeaderString)
+                                                     .collect(Collectors.joining("; "))));
             }
             return result;
         }

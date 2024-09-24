@@ -33,7 +33,7 @@ class WebMessageTest {
         WebResponse converted = input.toBuilder().build();
         assertEquals((Object) input.getPayload(), converted.getPayload());
         assertEquals(input.getMetadata(), converted.getMetadata());
-        assertFalse(input.getHeaders().get("Set-Cookie").isEmpty());
+        assertFalse(input.getHeaders("Set-Cookie").isEmpty());
     }
 
     @Test
@@ -48,6 +48,6 @@ class WebMessageTest {
         WebRequest converted = input.toBuilder().build();
         assertEquals((Object) input.getPayload(), converted.getPayload());
         assertEquals(input.getMetadata(), converted.getMetadata());
-        assertFalse(input.getHeaders().get("Cookie").isEmpty());
+        assertFalse(input.getHeaders("Cookie").isEmpty());
     }
 }

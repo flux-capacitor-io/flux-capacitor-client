@@ -15,7 +15,6 @@
 package io.fluxcapacitor.javaclient.web;
 
 import lombok.NonNull;
-import org.apache.commons.lang3.StringUtils;
 
 import java.lang.reflect.Executable;
 import java.net.HttpCookie;
@@ -23,7 +22,9 @@ import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
+import java.util.TreeMap;
 import java.util.stream.Collectors;
 
 import static io.fluxcapacitor.common.reflection.ReflectionUtils.getAnnotationAs;
@@ -73,6 +74,16 @@ public class WebUtils {
     }
 
     public static String fixHeaderName(String name) {
-        return Arrays.stream(name.split("-")).map(StringUtils::capitalize).collect(Collectors.joining("-"));
+        return name == null ? null : name.toLowerCase();
+    }
+
+    public static Map<String, List<String>> emptyHeaderMap() {
+        return new TreeMap<>(String.CASE_INSENSITIVE_ORDER);
+    }
+
+    public static Map<String, List<String>> asHeaderMap(Map<String, List<String>> input) {
+        Map<String, List<String>> result = emptyHeaderMap();
+        result.putAll(input);
+        return result;
     }
 }
