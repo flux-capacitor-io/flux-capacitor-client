@@ -43,7 +43,7 @@ import static io.fluxcapacitor.common.caching.CacheEvictionEvent.Reason.size;
 
 @AllArgsConstructor
 @Slf4j
-public class DefaultCache implements Cache {
+public class DefaultCache implements Cache, AutoCloseable {
     protected static final String mutexPrecursor = "$DC$";
 
     @Getter

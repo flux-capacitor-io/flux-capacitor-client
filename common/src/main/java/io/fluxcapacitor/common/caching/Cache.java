@@ -21,7 +21,7 @@ import java.util.function.BiFunction;
 import java.util.function.Consumer;
 import java.util.function.Function;
 
-public interface Cache extends AutoCloseable {
+public interface Cache {
     Object put(Object id, Object value);
 
     Object putIfAbsent(Object id, Object value);
@@ -52,7 +52,6 @@ public interface Cache extends AutoCloseable {
 
     Registration registerEvictionListener(Consumer<CacheEvictionEvent> listener);
 
-    @Override
     void close();
 
 }

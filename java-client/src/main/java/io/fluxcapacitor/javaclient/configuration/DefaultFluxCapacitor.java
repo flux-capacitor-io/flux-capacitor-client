@@ -701,6 +701,7 @@ public class DefaultFluxCapacitor implements FluxCapacitor {
                                 }).collect(toList()));
                 defaultRequestHandler.close();
                 webRequestHandler.close();
+                cache.close();
                 client.shutDown();
                 shutdownPool.shutdown();
             };
