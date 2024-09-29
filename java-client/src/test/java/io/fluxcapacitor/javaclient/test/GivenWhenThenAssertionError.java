@@ -102,7 +102,7 @@ public class GivenWhenThenAssertionError extends AssertionFailedError {
         }
 
         public String getPayloadType() {
-            return payload.getClass().getName();
+            return payload == null ? Void.class.getName() : payload.getClass().getName();
         }
     }
 
