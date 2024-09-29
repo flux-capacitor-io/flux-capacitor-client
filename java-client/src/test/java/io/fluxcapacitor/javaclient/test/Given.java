@@ -251,13 +251,6 @@ public interface Given extends When {
     Given withHeader(String headerName, String... headerValues);
 
     /**
-     * Registers a header that should be used when validating future web requests.
-     */
-    default Given withHeader(String headerName, String headerValue) {
-        return withHeader(headerName, new String[]{headerValue});
-    }
-
-    /**
      * Removes a header used when validating future web requests.
      */
     default Given withoutHeader(String headerName) {
