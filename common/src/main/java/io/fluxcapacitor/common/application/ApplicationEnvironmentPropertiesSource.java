@@ -15,7 +15,6 @@
 package io.fluxcapacitor.common.application;
 
 import io.fluxcapacitor.common.FileUtils;
-import io.fluxcapacitor.common.ObjectUtils;
 
 import java.util.Optional;
 import java.util.Properties;
@@ -34,8 +33,8 @@ public class ApplicationEnvironmentPropertiesSource extends JavaPropertiesSource
 
     protected static Properties loadProperties(String environment) {
         return Optional.ofNullable(environment)
-                .map(e -> String.format("/application-%s.properties", e))
-                .flatMap(FileUtils::tryLoadFile).map(ObjectUtils::asProperties)
+                .map(e -> String.format("application-%s.properties", e))
+                .map(FileUtils::loadProperties)
                 .orElseGet(Properties::new);
     }
 

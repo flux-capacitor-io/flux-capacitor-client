@@ -29,7 +29,10 @@ class ApplicationPropertiesTest {
     @Test
     void ableToReadApplicationProperties() {
         testFixture.whenApplying(fc -> ApplicationProperties.getProperty("foo2"))
-                .expectResult("bar2");
+                .expectResult("bar2")
+                .andThen()
+                .whenApplying(fc -> ApplicationProperties.getProperty("foo"))
+                .expectResult("barOverride");
     }
 
     @Test

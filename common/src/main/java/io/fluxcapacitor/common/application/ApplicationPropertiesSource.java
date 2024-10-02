@@ -14,16 +14,11 @@
 
 package io.fluxcapacitor.common.application;
 
-import io.fluxcapacitor.common.ObjectUtils;
-
-import java.util.Properties;
-
-import static io.fluxcapacitor.common.FileUtils.tryLoadFile;
+import static io.fluxcapacitor.common.FileUtils.loadProperties;
 
 public class ApplicationPropertiesSource extends JavaPropertiesSource {
 
     public ApplicationPropertiesSource() {
-        super(tryLoadFile("/application.properties").map(ObjectUtils::asProperties)
-                .orElseGet(Properties::new));
+        super(loadProperties("application.properties"));
     }
 }

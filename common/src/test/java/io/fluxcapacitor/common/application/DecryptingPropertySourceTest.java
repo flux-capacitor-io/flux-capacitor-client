@@ -26,7 +26,7 @@ class DecryptingPropertySourceTest {
     @Test
     void ableToDecrypt() {
         runWithSystemProperties(() -> {
-            var source = new DecryptingPropertySource(new DefaultPropertySource());
+            var source = new DecryptingPropertySource(DefaultPropertySource.getInstance());
             assertEquals("bar", source.get("encrypted"));
         }, "ENCRYPTION_KEY", encryption.getEncryptionKey(),
                                 "encrypted", encryption.encrypt("bar"));

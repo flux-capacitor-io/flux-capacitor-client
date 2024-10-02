@@ -14,7 +14,6 @@
 
 package io.fluxcapacitor.common;
 
-import io.fluxcapacitor.common.reflection.ReflectionUtils;
 import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
 
@@ -23,10 +22,15 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileWriter;
 import java.io.InputStream;
+import java.net.URL;
 import java.nio.charset.Charset;
+import java.util.Collections;
+import java.util.Objects;
 import java.util.Optional;
+import java.util.Properties;
 import java.util.Scanner;
 
+import static io.fluxcapacitor.common.reflection.ReflectionUtils.getCallerClass;
 import static java.nio.charset.StandardCharsets.UTF_8;
 
 @Slf4j
@@ -40,7 +44,7 @@ public class FileUtils {
     }
 
     public static String loadFile(String fileName) {
-        return loadFile(ReflectionUtils.getCallerClass(), fileName, UTF_8);
+        return loadFile(getCallerClass(), fileName, UTF_8);
     }
 
     public static String loadFile(Class<?> referencePoint, String fileName) {
@@ -48,7 +52,7 @@ public class FileUtils {
     }
 
     public static String loadFile(String fileName, Charset charset) {
-        return loadFile(ReflectionUtils.getCallerClass(), fileName, charset);
+        return loadFile(getCallerClass(), fileName, charset);
     }
 
     @SuppressWarnings("ConstantConditions")
@@ -73,7 +77,7 @@ public class FileUtils {
     }
 
     public static Optional<String> tryLoadFile(String fileName) {
-        return tryLoadFile(ReflectionUtils.getCallerClass(), fileName, UTF_8);
+        return tryLoadFile(getCallerClass(), fileName, UTF_8);
     }
 
     public static Optional<String> tryLoadFile(Class<?> referencePoint, String fileName) {
@@ -81,7 +85,7 @@ public class FileUtils {
     }
 
     public static Optional<String> tryLoadFile(String fileName, Charset charset) {
-        return tryLoadFile(ReflectionUtils.getCallerClass(), fileName, charset);
+        return tryLoadFile(getCallerClass(), fileName, charset);
     }
 
     @SuppressWarnings("ConstantConditions")
@@ -103,4 +107,24 @@ public class FileUtils {
         }
     }
 
+    @SneakyThrows
+    public static Properties loadProperties(String fileName) {
+        fileName = fileName.startsWith("/") ? fileName.substring(1) : fileName;
+        Properties result = new Properties();
+        var resources = Collections.list(getCallerClass().getClassLoader().getResources(fileName)).reversed();
+        for (URL resource : resources) {
+            try (InputStream inputStream = resource.openStream()) {
+                Properties properties = new Properties();
+                properties.load(inputStream);
+                properties.forEach((k, v) -> {
+                    Object existing = result.put(k, v);
+                    if (existing != null && !Objects.equals(existing, v)) {
+                        log.warn("Property {} has been registered in more than one module. "
+                                 + "This may give unpredictable results.", k);
+                    }
+                });
+            }
+        }
+        return result;
+    }
 }

@@ -19,7 +19,7 @@ import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
 public class DefaultPropertySource implements PropertySource {
-    @Getter
+    @Getter(lazy = true)
     private static final DefaultPropertySource instance = new DefaultPropertySource();
 
     public DefaultPropertySource() {

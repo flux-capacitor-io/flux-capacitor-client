@@ -75,7 +75,7 @@ public class ApplicationProperties {
     static DecryptingPropertySource getPropertySource() {
         return FluxCapacitor.getOptionally().map(FluxCapacitor::propertySource)
                 .map(p -> p instanceof DecryptingPropertySource dps ? dps : new DecryptingPropertySource(p))
-                .orElseGet(() -> new DecryptingPropertySource(new DefaultPropertySource()));
+                .orElseGet(() -> new DecryptingPropertySource(DefaultPropertySource.getInstance()));
     }
 
 }

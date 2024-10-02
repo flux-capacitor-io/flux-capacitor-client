@@ -139,7 +139,7 @@ public class FluxCapacitorSpringConfigTest {
 
     @Test
     void testPropertySetUsingCustomizer() {
-        assertEquals("bar", fluxCapacitor.apply(fc -> ApplicationProperties.getProperty("foo")));
+        assertEquals("barViaCustomizer", fluxCapacitor.apply(fc -> ApplicationProperties.getProperty("foo")));
     }
 
     @Component
@@ -196,7 +196,8 @@ public class FluxCapacitorSpringConfigTest {
 
         @Bean
         FluxCapacitorCustomizer configure() {
-            return builder -> builder.addPropertySource(new SimplePropertySource(Map.of("foo", "bar")));
+            return builder -> builder.replacePropertySource(existing -> new SimplePropertySource(
+                    Map.of("foo", "barViaCustomizer")).merge(existing));
         }
 
     }

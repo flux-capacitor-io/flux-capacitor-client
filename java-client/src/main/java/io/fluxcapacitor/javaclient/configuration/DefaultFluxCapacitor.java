@@ -250,7 +250,7 @@ public class DefaultFluxCapacitor implements FluxCapacitor {
         private boolean makeApplicationInstance;
         private UserProvider userProvider = UserProvider.defaultUserSupplier;
         private IdentityProvider identityProvider = IdentityProvider.defaultIdentityProvider;
-        private PropertySource propertySource = new DefaultPropertySource();
+        private PropertySource propertySource = DefaultPropertySource.getInstance();
 
         @Override
         public Builder replaceSerializer(@NonNull Serializer serializer) {
