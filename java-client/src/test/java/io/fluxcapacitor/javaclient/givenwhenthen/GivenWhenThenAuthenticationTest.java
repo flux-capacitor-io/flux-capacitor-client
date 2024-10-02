@@ -20,6 +20,7 @@ import io.fluxcapacitor.javaclient.givenwhenthen.forbidsadmin.ForbidsAdminViaPac
 import io.fluxcapacitor.javaclient.givenwhenthen.requiresadmin.RequiresAdminViaPackage;
 import io.fluxcapacitor.javaclient.givenwhenthen.requiresadmin.subpackage.RequiresAdminViaParentPackage;
 import io.fluxcapacitor.javaclient.givenwhenthen.requiresuser.RequiresAdminOverride;
+import io.fluxcapacitor.javaclient.givenwhenthen.requiresuser.RequiresNoUserOverride;
 import io.fluxcapacitor.javaclient.givenwhenthen.requiresuser.RequiresUserViaPackage;
 import io.fluxcapacitor.javaclient.test.TestFixture;
 import io.fluxcapacitor.javaclient.tracking.handling.HandleCommand;
@@ -85,6 +86,12 @@ public class GivenWhenThenAuthenticationTest {
         void requiresAdminOverrideSuccess() {
             user = new MockUser("admin");
             testFixture.whenQuery(new RequiresAdminOverride()).expectResult("success");
+        }
+
+        @Test
+        void requiresNoUserOverrideSuccess() {
+            user = null;
+            testFixture.whenQuery(new RequiresNoUserOverride()).expectResult("success");
         }
 
         @Test

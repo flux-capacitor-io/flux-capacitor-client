@@ -17,6 +17,7 @@ package io.fluxcapacitor.javaclient.tracking.handling.validation;
 import io.fluxcapacitor.common.reflection.ReflectionUtils;
 import io.fluxcapacitor.javaclient.tracking.handling.authentication.ForbidsAnyRole;
 import io.fluxcapacitor.javaclient.tracking.handling.authentication.RequiresAnyRole;
+import io.fluxcapacitor.javaclient.tracking.handling.authentication.RequiresNoUser;
 import io.fluxcapacitor.javaclient.tracking.handling.authentication.UnauthenticatedException;
 import io.fluxcapacitor.javaclient.tracking.handling.authentication.UnauthorizedException;
 import io.fluxcapacitor.javaclient.tracking.handling.authentication.User;
@@ -150,6 +151,9 @@ public class ValidationUtils {
     protected static void assertAuthorized(String action, User user, String[] requiredRoles) {
         if (requiredRoles != null) {
             if (user == null) {
+                if (Arrays.asList(requiredRoles).contains(RequiresNoUser.RESERVED_ROLE)) {
+                    return;
+                }
                 throw new UnauthenticatedException(format("%s requires authentication", action));
             }
             List<String> remainingRoles = new ArrayList<>();
@@ -182,6 +186,11 @@ public class ValidationUtils {
             return ((RequiresAnyRole) annotation).value();
         }
         if (annotation.annotationType().isAnnotationPresent(RequiresAnyRole.class)) {
+            var metaRoles = getRequiredRoles(annotation.annotationType().getAnnotation(RequiresAnyRole.class));
+            if (metaRoles != null && metaRoles.length > 0) {
+                return metaRoles;
+            }
+
             for (Method method : ReflectionUtils.getAllMethods(annotation.annotationType())) {
                 if (method.getName().equalsIgnoreCase("value")) {
                     Object[] result = (Object[]) method.invoke(annotation);
