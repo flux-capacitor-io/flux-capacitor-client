@@ -45,6 +45,10 @@ public class EntityParameterResolver implements ParameterResolver<Object> {
         if (input instanceof HasEntity) {
             return ((HasEntity) input).getEntity();
         } else if (input instanceof HasMessage) {
+            var type = Entity.getAggregateType((HasMessage) input);
+            if (type == null) {
+                return null;
+            }
             if (Entity.class.isAssignableFrom(parameter.getType())
                 || Optional.ofNullable(Entity.getAggregateType((HasMessage) input)).map(
                         t -> parameter.getType().isAssignableFrom(t)).orElse(false)) {
