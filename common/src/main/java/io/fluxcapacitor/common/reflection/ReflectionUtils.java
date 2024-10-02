@@ -687,7 +687,7 @@ public class ReflectionUtils {
                 });
     }
 
-    public static boolean isStatic(Method method) {
+    public static boolean isStatic(Executable method) {
         return Modifier.isStatic(method.getModifiers());
     }
 

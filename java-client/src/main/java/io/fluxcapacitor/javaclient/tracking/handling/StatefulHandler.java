@@ -104,8 +104,10 @@ public class StatefulHandler implements Handler<DeserializingMessage> {
         if (!handlerMatcher.canHandle(message)) {
             return Optional.empty();
         }
-        boolean alwaysMatch = handlerMatcher.matchingMethods(message).anyMatch(alwaysAssociateMethods::apply);
-        var matches = alwaysMatch ? repository.getAll() : repository.findByAssociation(associations(message));
+        var alwaysMatch = handlerMatcher.matchingMethods(message).anyMatch(alwaysAssociateMethods::apply);
+        var alwaysInvoke = alwaysMatch && handlerMatcher.matchingMethods(message).allMatch(ReflectionUtils::isStatic);
+        var matches = alwaysInvoke ? List.<Entry<?>>of() : alwaysMatch ? repository.getAll()
+                : repository.findByAssociation(associations(message));
         if (matches.isEmpty()) {
             return handlerMatcher.getInvoker(null, message)
                     .filter(i -> alreadyFiltered(i) || canTrackerHandle(

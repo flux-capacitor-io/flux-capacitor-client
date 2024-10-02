@@ -158,6 +158,13 @@ public class StatefulHandlerTest {
                     .expectOnlyCommands(2);
         }
 
+        @Test
+        void handlerIsInvoked_alwaysAssociateStatic() {
+            testFixture.givenEvents(new SomeEvent("foo"), new SomeEvent("bar"))
+                    .whenEvent(new AlwaysAssociateStatic())
+                    .expectOnlyCommands("once");
+        }
+
         @Stateful
         @SearchExclude
         @Value
@@ -215,6 +222,12 @@ public class StatefulHandlerTest {
             StaticHandler update(AlwaysAssociate event) {
                 FluxCapacitor.sendAndForgetCommand(eventCount + 1);
                 return toBuilder().eventCount(eventCount + 1).build();
+            }
+
+            @HandleEvent
+            @Association(always = true)
+            static void update(AlwaysAssociateStatic event) {
+                FluxCapacitor.sendAndForgetCommand("once");
             }
 
             @HandleEvent
@@ -393,6 +406,10 @@ public class StatefulHandlerTest {
     @Value
     static class AlwaysAssociate {
         String randomId = UUID.randomUUID().toString();
+    }
+
+    @Value
+    static class AlwaysAssociateStatic {
     }
 
     @Value
