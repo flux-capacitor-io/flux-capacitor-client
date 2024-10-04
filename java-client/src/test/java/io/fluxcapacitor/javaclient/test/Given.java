@@ -201,6 +201,22 @@ public interface Given extends When {
     }
 
     /**
+     * Specify a PUT request that has been issued prior to the behavior you want to test.
+     */
+    default Given givenPut(String path, Object payload) {
+        return givenWebRequest(
+                WebRequest.builder().method(HttpRequestMethod.PUT).url(path).payload(payload).build());
+    }
+
+    /**
+     * Specify a PATCH request that has been issued prior to the behavior you want to test.
+     */
+    default Given givenPatch(String path, Object payload) {
+        return givenWebRequest(
+                WebRequest.builder().method(HttpRequestMethod.PATCH).url(path).payload(payload).build());
+    }
+
+    /**
      * Specify a GET request that has been issued prior to the behavior you want to test.
      */
     default Given givenGet(String path) {

@@ -199,6 +199,20 @@ public interface When {
     }
 
     /**
+     * Test expected behavior of handling the given PUT request, including any side effects.
+     */
+    default Then<Object> whenPut(String path, Object payload) {
+        return whenWebRequest(WebRequest.builder().method(HttpRequestMethod.PUT).url(path).payload(payload).build());
+    }
+
+    /**
+     * Test expected behavior of handling the given PUT request, including any side effects.
+     */
+    default Then<Object> whenPatch(String path, Object payload) {
+        return whenWebRequest(WebRequest.builder().method(HttpRequestMethod.PATCH).url(path).payload(payload).build());
+    }
+
+    /**
      * Test expected behavior of handling the given GET request, including any side effects.
      */
     default Then<Object> whenGet(String path) {

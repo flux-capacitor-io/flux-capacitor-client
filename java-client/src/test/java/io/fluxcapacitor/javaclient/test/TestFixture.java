@@ -491,6 +491,16 @@ public class TestFixture implements Given, When {
     }
 
     @Override
+    public TestFixture givenPut(String path, Object payload) {
+        return (TestFixture) Given.super.givenPut(path, payload);
+    }
+
+    @Override
+    public TestFixture givenPatch(String path, Object payload) {
+        return (TestFixture) Given.super.givenPatch(path, payload);
+    }
+
+    @Override
     public TestFixture givenGet(String path) {
         return (TestFixture) Given.super.givenGet(path);
     }
