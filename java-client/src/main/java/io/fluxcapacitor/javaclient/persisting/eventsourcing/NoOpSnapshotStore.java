@@ -17,13 +17,14 @@ package io.fluxcapacitor.javaclient.persisting.eventsourcing;
 import io.fluxcapacitor.javaclient.modeling.Entity;
 
 import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
 
 public enum NoOpSnapshotStore implements SnapshotStore {
     INSTANCE;
 
     @Override
-    public <T> void storeSnapshot(Entity<T> snapshot) {
-        //no op
+    public <T> CompletableFuture<Void> storeSnapshot(Entity<T> snapshot) {
+        return CompletableFuture.completedFuture(null);
     }
 
     @Override
@@ -32,7 +33,7 @@ public enum NoOpSnapshotStore implements SnapshotStore {
     }
 
     @Override
-    public void deleteSnapshot(Object aggregateId) {
-        //no op
+    public CompletableFuture<Void> deleteSnapshot(Object aggregateId) {
+        return CompletableFuture.completedFuture(null);
     }
 }

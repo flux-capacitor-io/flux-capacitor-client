@@ -50,6 +50,11 @@ public enum NoOpCache implements Cache {
     }
 
     @Override
+    public <T> void modifyEach(BiFunction<? super Object, ? super T, ? extends T> modifierFunction) {
+        //no op
+    }
+
+    @Override
     public <T> T get(Object id) {
         return null;
     }

@@ -14,7 +14,6 @@
 
 package io.fluxcapacitor.javaclient.persisting.eventsourcing;
 
-import io.fluxcapacitor.common.Guarantee;
 import io.fluxcapacitor.javaclient.common.serialization.DeserializationException;
 import io.fluxcapacitor.javaclient.common.serialization.Serializer;
 import io.fluxcapacitor.javaclient.modeling.Entity;
@@ -24,7 +23,9 @@ import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
 import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
 
+import static io.fluxcapacitor.common.Guarantee.STORED;
 import static java.lang.String.format;
 import static java.util.Optional.ofNullable;
 
@@ -36,10 +37,10 @@ public class DefaultSnapshotStore implements SnapshotStore {
     private final EventStore eventStore;
 
     @Override
-    public <T> void storeSnapshot(Entity<T> snapshot) {
+    public <T> CompletableFuture<Void> storeSnapshot(Entity<T> snapshot) {
         try {
-            keyValueClient.putValue(snapshotKey(snapshot.id()), serializer.serialize(
-                    ImmutableAggregateRoot.from(snapshot, null, null, eventStore)), Guarantee.SENT);
+            return keyValueClient.putValue(snapshotKey(snapshot.id()), serializer.serialize(
+                    ImmutableAggregateRoot.from(snapshot, null, null, eventStore)), STORED);
         } catch (Exception e) {
             throw new EventSourcingException(format("Failed to store a snapshot: %s", snapshot), e);
         }
@@ -59,9 +60,9 @@ public class DefaultSnapshotStore implements SnapshotStore {
     }
 
     @Override
-    public void deleteSnapshot(Object aggregateId) {
+    public CompletableFuture<Void> deleteSnapshot(Object aggregateId) {
         try {
-            keyValueClient.deleteValue(snapshotKey(aggregateId));
+            return keyValueClient.deleteValue(snapshotKey(aggregateId), STORED);
         } catch (Exception e) {
             throw new EventSourcingException(format("Failed to delete snapshot for aggregate %s", aggregateId), e);
         }

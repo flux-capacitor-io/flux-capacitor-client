@@ -16,6 +16,7 @@ package io.fluxcapacitor.javaclient.persisting.eventsourcing;
 
 import io.fluxcapacitor.javaclient.FluxCapacitor;
 import io.fluxcapacitor.javaclient.modeling.Aggregate;
+import io.fluxcapacitor.javaclient.modeling.Entity;
 import io.fluxcapacitor.javaclient.publishing.routing.RoutingKey;
 import io.fluxcapacitor.javaclient.test.TestFixture;
 import io.fluxcapacitor.javaclient.tracking.handling.HandleCommand;
@@ -38,10 +39,10 @@ class EventSourcingIntegrationTest {
 
     @Test
     void testHandleBatch() {
-        testFixture.givenCommands(new UpdateCommand("test", "0"), new UpdateCommand("test", "1"),
-                                  new UpdateCommand("test", "2"))
-                .whenCommand(new UpdateCommand("test", "3"))
-                .expectOnlyEvents(new UpdateCommand("test", "3"))
+        testFixture.givenCommands(new UpsertCommand("test", "0"), new UpsertCommand("test", "1"),
+                                  new UpsertCommand("test", "2"))
+                .whenCommand(new UpsertCommand("test", "3"))
+                .expectOnlyEvents(new UpsertCommand("test", "3"))
                 .expectOnlyCommands(new SecondOrderCommand());
 
         assertEquals(4, testFixture.getFluxCapacitor().eventStore().getEvents("test").count());
@@ -51,12 +52,27 @@ class EventSourcingIntegrationTest {
     }
 
     @Test
-    void testHandleUpdateAfterDelete(){
-        testFixture.givenCommands(new UpdateCommand("test", "0"), new DeleteCommand("test"))
-                .whenCommand(new UpdateCommand("test", "1"))
-                .expectOnlyEvents(new UpdateCommand("test", "1"))
+    void testHandleUpdateAfterDelete() {
+        testFixture.givenCommands(new UpsertCommand("test", "0"), new DeleteCommand("test"))
+                .whenCommand(new UpsertCommand("test", "1"))
+                .expectOnlyEvents(new UpsertCommand("test", "1"))
                 .expectOnlyCommands(new SecondOrderCommand())
                 .expectThat(fc -> assertEquals("create", loadAggregate("test", AggregateRoot.class).get().event));
+    }
+
+    @Test
+    void testDeleteAggregate() {
+        testFixture.givenCommands(new UpsertCommand("test", "0"))
+                .whenApplying(fc -> FluxCapacitor.loadAggregate("test", AggregateRoot.class))
+                .expectResult(Entity::isPresent)
+                .andThen()
+                .whenExecuting(fc -> fc.aggregateRepository().deleteAggregate("test"))
+                .expectTrue(fc -> fc.cache().isEmpty())
+                .expectTrue(fc -> fc.eventStore().getEvents("test").toList().isEmpty())
+                .expectTrue(fc -> fc.aggregateRepository().getAggregatesFor("test").isEmpty())
+                .andThen()
+                .whenApplying(fc -> FluxCapacitor.loadAggregate("test", AggregateRoot.class))
+                .expectResult(Entity::isEmpty);
     }
 
     static class CommandHandler {
@@ -74,20 +90,20 @@ class EventSourcingIntegrationTest {
         }
     }
 
-    @Aggregate
+    @Aggregate(searchable = true, snapshotPeriod = 1)
     @Value
     @Builder(toBuilder = true)
     static class AggregateRoot {
         String id, value, event;
     }
 
-    interface AggregateCommand{
+    interface AggregateCommand {
         @RoutingKey
         String getId();
     }
 
     @Value
-    static class UpdateCommand implements AggregateCommand{
+    static class UpsertCommand implements AggregateCommand {
         String id, value;
 
 
@@ -103,7 +119,7 @@ class EventSourcingIntegrationTest {
     }
 
     @Value
-    static class DeleteCommand implements AggregateCommand{
+    static class DeleteCommand implements AggregateCommand {
         String id;
 
         @Apply

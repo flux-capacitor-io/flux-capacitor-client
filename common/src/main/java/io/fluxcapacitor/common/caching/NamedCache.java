@@ -54,6 +54,11 @@ public class NamedCache implements Cache {
     }
 
     @Override
+    public <T> void modifyEach(BiFunction<? super Object, ? super T, ? extends T> modifierFunction) {
+        delegate.modifyEach(modifierFunction);
+    }
+
+    @Override
     public <T> T get(Object id) {
         return delegate.get(idFunction.apply(id));
     }

@@ -49,4 +49,6 @@ public interface AggregateRepository {
     default Optional<String> getLatestAggregateId(Object entityId) {
         return getAggregatesFor(entityId).keySet().stream().reduce((a, b) -> b);
     }
+
+    CompletableFuture<Void> deleteAggregate(Object aggregateId);
 }

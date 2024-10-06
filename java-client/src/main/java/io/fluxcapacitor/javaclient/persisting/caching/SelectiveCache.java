@@ -127,6 +127,12 @@ public class SelectiveCache implements Cache {
     }
 
     @Override
+    public <T> void modifyEach(BiFunction<? super Object, ? super T, ? extends T> modifierFunction) {
+        delegate.modifyEach(modifierFunction);
+        nextCache.modifyEach(modifierFunction);
+    }
+
+    @Override
     public int size() {
         return delegate.size() + nextCache.size();
     }

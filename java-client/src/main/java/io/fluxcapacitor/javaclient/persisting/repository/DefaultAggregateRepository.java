@@ -14,7 +14,6 @@
 
 package io.fluxcapacitor.javaclient.persisting.repository;
 
-import io.fluxcapacitor.common.Guarantee;
 import io.fluxcapacitor.common.api.modeling.Relationship;
 import io.fluxcapacitor.common.api.modeling.RepairRelationships;
 import io.fluxcapacitor.common.api.modeling.UpdateRelationships;
@@ -58,6 +57,7 @@ import lombok.extern.slf4j.Slf4j;
 import java.time.Instant;
 import java.time.temporal.TemporalAccessor;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -69,6 +69,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Function;
 
+import static io.fluxcapacitor.common.Guarantee.STORED;
 import static io.fluxcapacitor.common.ObjectUtils.memoize;
 import static io.fluxcapacitor.common.reflection.ReflectionUtils.classForName;
 import static io.fluxcapacitor.common.reflection.ReflectionUtils.getAnnotatedProperty;
@@ -147,11 +148,17 @@ public class DefaultAggregateRepository implements AggregateRepository {
     }
 
     @Override
+    public CompletableFuture<Void> deleteAggregate(Object aggregateId) {
+        var type = getAggregatesFor(aggregateId).getOrDefault(aggregateId.toString(), Void.class);
+        return delegates.apply(type).delete(aggregateId);
+    }
+
+    @Override
     public CompletableFuture<Void> repairRelationships(Entity<?> aggregate) {
         aggregate = aggregate.root();
         return eventStoreClient.repairRelationships(new RepairRelationships(
                 aggregate.id().toString(), aggregate.type().getName(),
-                aggregate.relationships().stream().map(Relationship::getEntityId).collect(toSet()), Guarantee.STORED));
+                aggregate.relationships().stream().map(Relationship::getEntityId).collect(toSet()), STORED));
     }
 
     public class AnnotatedAggregateRepository<T> {
@@ -247,6 +254,24 @@ public class DefaultAggregateRepository implements AggregateRepository {
                                                       .serializer(serializer)
                                                       .sequenceNumber(0)
                                                       .build());
+        }
+
+        public CompletableFuture<Void> delete(Object id) {
+            List<CompletableFuture<Void>> futures = new ArrayList<>();
+            String aggregateId = id.toString();
+            aggregateCache.remove(aggregateId);
+            relationshipsCache.<Map<String, String>>modifyEach((entityId, map) -> {
+                map.remove(aggregateId);
+                return map.isEmpty() ? null : map;
+            });
+            futures.add(eventStoreClient.repairRelationships(
+                    new RepairRelationships(aggregateId, type.getName(), Collections.emptySet(), STORED)));
+            futures.add(eventStoreClient.deleteEvents(aggregateId, STORED));
+            futures.add(snapshotStore.deleteSnapshot(id));
+            if (searchable) {
+                futures.add(documentStore.deleteDocument(id, collection));
+            }
+            return CompletableFuture.allOf(futures.toArray(CompletableFuture[]::new));
         }
 
         public Entity<T> load(Object id) {
@@ -354,7 +379,7 @@ public class DefaultAggregateRepository implements AggregateRepository {
                         }));
                 if (!associations.isEmpty() || !dissociations.isEmpty()) {
                     eventStoreClient.updateRelationships(
-                            new UpdateRelationships(associations, dissociations, Guarantee.STORED)).get();
+                            new UpdateRelationships(associations, dissociations, STORED)).get();
                 }
                 if (!unpublishedEvents.isEmpty()) {
                     storeEvents(after.id().toString(), unpublishedEvents);

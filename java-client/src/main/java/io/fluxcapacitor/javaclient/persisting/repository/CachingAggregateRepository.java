@@ -87,6 +87,11 @@ public class CachingAggregateRepository implements AggregateRepository {
         return delegate.getAggregatesFor(entityId);
     }
 
+    @Override
+    public CompletableFuture<Void> deleteAggregate(Object aggregateId) {
+        return delegate.deleteAggregate(aggregateId);
+    }
+
     protected void handleEvents(List<SerializedMessage> messages) {
         try {
             handleBatch(serializer.deserializeMessages(messages.stream(), EVENT)).forEach(this::handleEvent);

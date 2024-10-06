@@ -32,6 +32,8 @@ public interface Cache {
 
     <T> T compute(Object id, BiFunction<? super Object, ? super T, ? extends T> mappingFunction);
 
+    <T> void modifyEach(BiFunction<? super Object, ? super T, ? extends T> modifierFunction);
+
     <T> T get(Object id);
 
     default <T> T getOrDefault(Object id, T defaultValue) {

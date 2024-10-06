@@ -17,13 +17,14 @@ package io.fluxcapacitor.javaclient.persisting.eventsourcing;
 import io.fluxcapacitor.javaclient.modeling.Entity;
 
 import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
 
 public interface SnapshotStore {
 
-    <T> void storeSnapshot(Entity<T> snapshot);
+    <T> CompletableFuture<Void> storeSnapshot(Entity<T> snapshot);
 
     <T> Optional<Entity<T>> getSnapshot(Object aggregateId);
 
-    void deleteSnapshot(Object aggregateId);
+    CompletableFuture<Void> deleteSnapshot(Object aggregateId);
 
 }

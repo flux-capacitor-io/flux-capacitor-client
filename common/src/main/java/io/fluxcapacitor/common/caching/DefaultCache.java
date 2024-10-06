@@ -25,6 +25,7 @@ import java.lang.ref.ReferenceQueue;
 import java.lang.ref.SoftReference;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Optional;
@@ -98,6 +99,11 @@ public class DefaultCache implements Cache, AutoCloseable {
             }
             return unwrap(next);
         }
+    }
+
+    @Override
+    public <T> void modifyEach(BiFunction<? super Object, ? super T, ? extends T> modifierFunction) {
+        new HashSet<>(valueMap.keySet()).forEach(key -> computeIfPresent(key, modifierFunction));
     }
 
     @Override
