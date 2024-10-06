@@ -85,7 +85,7 @@ public @interface Aggregate {
      * to determine if an applied event should be published at all. Only then is checked how the events are to be
      * published given the strategy.
      */
-    EventPublicationStrategy publicationStrategy() default EventPublicationStrategy.STORE_AND_PUBLISH;
+    EventPublicationStrategy publicationStrategy() default EventPublicationStrategy.DEFAULT;
 
     boolean searchable() default false;
 

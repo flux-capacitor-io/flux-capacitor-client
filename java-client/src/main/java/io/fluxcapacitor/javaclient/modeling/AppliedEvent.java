@@ -12,16 +12,13 @@
  * limitations under the License.
  */
 
-package io.fluxcapacitor.javaclient.persisting.eventsourcing;
+package io.fluxcapacitor.javaclient.modeling;
 
-import io.fluxcapacitor.javaclient.modeling.AppliedEvent;
-import io.fluxcapacitor.javaclient.modeling.Entity;
+import io.fluxcapacitor.javaclient.common.serialization.DeserializingMessage;
+import lombok.Value;
 
-import java.util.List;
-
-@FunctionalInterface
-public interface SnapshotTrigger {
-
-    boolean shouldCreateSnapshot(Entity<?> model, List<AppliedEvent> newEvents);
-
+@Value
+public class AppliedEvent {
+    DeserializingMessage event;
+    EventPublicationStrategy publicationStrategy;
 }

@@ -74,14 +74,14 @@ public class DefaultEventStore implements EventStore {
                     = messages.stream().map(m -> m.getSerializedObject().getSegment() == null ?
                     m.getSerializedObject().withSegment(segment) : m.getSerializedObject()).toList();
             switch (strategy) {
-                case STORE_AND_PUBLISH, PUBLISH_ONLY -> {
+                case DEFAULT, STORE_AND_PUBLISH, PUBLISH_ONLY -> {
                     for (DeserializingMessage message : messages) {
                         dispatchInterceptor.monitorDispatch(message.toMessage(), EVENT);
                     }
                 }
             }
             result = switch (strategy) {
-                case STORE_AND_PUBLISH -> client.storeEvents(aggregateId.toString(), serializedEvents, false);
+                case DEFAULT, STORE_AND_PUBLISH -> client.storeEvents(aggregateId.toString(), serializedEvents, false);
                 case PUBLISH_ONLY -> eventGateway.append(Guarantee.STORED, serializedEvents.toArray(SerializedMessage[]::new));
                 case STORE_ONLY -> client.storeEvents(aggregateId.toString(), serializedEvents, true);
             };
@@ -90,7 +90,7 @@ public class DefaultEventStore implements EventStore {
                     DefaultEventStore::payloadName).collect(toList()), aggregateId), e);
         }
         switch (strategy) {
-            case STORE_AND_PUBLISH, PUBLISH_ONLY -> {
+            case DEFAULT, STORE_AND_PUBLISH, PUBLISH_ONLY -> {
                 for (DeserializingMessage message : messages) {
                     try {
                         localHandlerRegistry.handle(message).ifPresent(f -> f.getNow(null));

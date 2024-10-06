@@ -16,6 +16,7 @@ package io.fluxcapacitor.javaclient.persisting.eventsourcing;
 
 import io.fluxcapacitor.javaclient.common.Message;
 import io.fluxcapacitor.javaclient.modeling.EventPublication;
+import io.fluxcapacitor.javaclient.modeling.EventPublicationStrategy;
 
 import java.lang.annotation.Documented;
 import java.lang.annotation.ElementType;
@@ -39,4 +40,5 @@ import java.lang.annotation.Target;
 @Target({ElementType.METHOD, ElementType.CONSTRUCTOR})
 public @interface Apply {
     EventPublication eventPublication() default EventPublication.DEFAULT;
+    EventPublicationStrategy publicationStrategy() default EventPublicationStrategy.DEFAULT;
 }

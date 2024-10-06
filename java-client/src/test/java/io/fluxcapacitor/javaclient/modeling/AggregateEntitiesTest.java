@@ -56,6 +56,10 @@ import static io.fluxcapacitor.javaclient.FluxCapacitor.loadAggregate;
 import static io.fluxcapacitor.javaclient.FluxCapacitor.loadEntity;
 import static java.util.stream.Collectors.toList;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.mockito.ArgumentMatchers.anyList;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 
 @Slf4j
@@ -731,9 +735,21 @@ public class AggregateEntitiesTest {
             @Test
             void testAddMapChild() {
                 testFixture.whenCommand(new AddMapChild(new Key("map2")))
+                        .expectEvents(AddMapChild.class)
                         .expectThat(fc -> expectEntity(
                                 e -> e.get() instanceof MapChild && new Key("map2").equals(e.id())))
                         .expectTrue(fc -> loadAggregate("test", Aggregate.class).get().getMap().size() == 3);
+            }
+
+            @Test
+            void testAddMapChild_storeOnly() {
+                testFixture.spy().whenCommand(new StoreOnlyAddMapChild(new Key("map2")))
+                        .expectNoEvents()
+                        .expectThat(fc -> expectEntity(
+                                e -> e.get() instanceof MapChild && new Key("map2").equals(e.id())))
+                        .expectTrue(fc -> loadAggregate("test", Aggregate.class).get().getMap().size() == 3)
+                        .expectThat(fc -> verify(fc.client().getEventStoreClient())
+                                .storeEvents(anyString(), anyList(), eq(true)));
             }
 
             @Test
@@ -755,6 +771,16 @@ public class AggregateEntitiesTest {
                 Key mapChildId;
 
                 @Apply
+                MapChild apply(@NonNull Aggregate aggregate, @NonNull Metadata metadata) {
+                    return MapChild.builder().mapChildId(mapChildId).build();
+                }
+            }
+
+            @Value
+            class StoreOnlyAddMapChild {
+                Key mapChildId;
+
+                @Apply(publicationStrategy = EventPublicationStrategy.STORE_ONLY)
                 MapChild apply(@NonNull Aggregate aggregate, @NonNull Metadata metadata) {
                     return MapChild.builder().mapChildId(mapChildId).build();
                 }

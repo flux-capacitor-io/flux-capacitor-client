@@ -109,10 +109,10 @@ public class DefaultEntityHelper implements EntityHelper {
     }
 
     @Override
-    public Optional<HandlerInvoker> applyInvoker(DeserializingMessage event, Entity<?> entity) {
+    public Optional<HandlerInvoker> applyInvoker(DeserializingMessage event, Entity<?> entity, boolean searchChildren) {
         var message = new DeserializingMessageWithEntity(event, entity);
         Class<?> entityType = entity.type();
-        return applyMatchers.apply(entityType).getInvoker(entity.get(), message)
+        Optional<HandlerInvoker> result = applyMatchers.apply(entityType).getInvoker(entity.get(), message)
                 .or(() -> applyMatchers.apply(message.getPayloadClass()).getInvoker(message.getPayload(), message)
                         .filter(i -> {
                             if (i.getMethod() instanceof Method) {
@@ -140,6 +140,15 @@ public class DefaultEntityHelper implements EntityHelper {
                         });
                     }
                 });
+        if (result.isEmpty() && searchChildren) {
+            for (Entity<?> e : entity.possibleTargets(message.getPayload())) {
+                result = applyInvoker(event, e, true);
+                if (result.isPresent()) {
+                    return result;
+                }
+            }
+        }
+        return result;
     }
 
     @Override

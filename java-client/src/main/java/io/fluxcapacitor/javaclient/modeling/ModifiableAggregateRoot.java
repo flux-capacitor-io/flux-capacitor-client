@@ -39,7 +39,6 @@ import java.util.function.UnaryOperator;
 import java.util.stream.Collectors;
 
 import static io.fluxcapacitor.common.MessageType.EVENT;
-import static io.fluxcapacitor.javaclient.modeling.EventPublication.DEFAULT;
 import static io.fluxcapacitor.javaclient.modeling.EventPublication.IF_MODIFIED;
 import static java.util.Optional.ofNullable;
 import static java.util.stream.Collectors.toMap;
@@ -62,19 +61,18 @@ public class ModifiableAggregateRoot<T> extends DelegatingEntity<T> implements A
         Comparator<Entity<?>> byPresent = Comparator.comparing(
                 a -> a.getEntity(entityId).map(Entity::isPresent).orElse(false));
         Comparator<Entity<?>> byOrder = Comparator.comparing(candidates::indexOf);
-        LinkedHashMap<String, Class<?>> result =
-                candidates.stream()
-                        .sorted(byPresent.thenComparing(byOrder))
-                        .collect(toMap(e -> e.id().toString(), Entity::type, (a, b) -> b, LinkedHashMap::new));
-        return result;
+        return candidates.stream()
+                .sorted(byPresent.thenComparing(byOrder))
+                .collect(toMap(e -> e.id().toString(), Entity::type, (a, b) -> b, LinkedHashMap::new));
     }
 
     public static <T> Entity<T> load(
             Object aggregateId, Supplier<Entity<T>> loader, boolean commitInBatch, EventPublication eventPublication,
+            EventPublicationStrategy publicationStrategy,
             EntityHelper entityHelper, Serializer serializer, DispatchInterceptor dispatchInterceptor,
             CommitHandler commitHandler) {
         return ModifiableAggregateRoot.<T>getIfActive(aggregateId).orElseGet(
-                () -> new ModifiableAggregateRoot<>(loader.get(), commitInBatch, eventPublication,
+                () -> new ModifiableAggregateRoot<>(loader.get(), commitInBatch, eventPublication, publicationStrategy,
                                                     entityHelper, serializer, dispatchInterceptor, commitHandler));
     }
 
@@ -82,27 +80,29 @@ public class ModifiableAggregateRoot<T> extends DelegatingEntity<T> implements A
     private Entity<T> lastStable;
     private final boolean commitInBatch;
 
-    private final EventPublication eventPublication;
+    private final EventPublication aggregateEventPublication;
+    private final EventPublicationStrategy aggregatePublicationStrategy;
     private final EntityHelper entityHelper;
     private final Serializer serializer;
     private final DispatchInterceptor dispatchInterceptor;
     private final CommitHandler commitHandler;
 
     private final AtomicBoolean waitingForHandlerEnd = new AtomicBoolean(), waitingForBatchEnd = new AtomicBoolean();
-    private final List<DeserializingMessage> applied = new ArrayList<>(), uncommitted = new ArrayList<>();
+    private final List<AppliedEvent> applied = new ArrayList<>(), uncommitted = new ArrayList<>();
     private final List<UnaryOperator<Entity<T>>> queued = new ArrayList<>();
     private volatile boolean updating, committing, commitPending;
 
     protected ModifiableAggregateRoot(Entity<T> delegate, boolean commitInBatch,
-                                      EventPublication eventPublication, EntityHelper entityHelper,
-                                      Serializer serializer, DispatchInterceptor dispatchInterceptor,
-                                      CommitHandler commitHandler) {
+                                      EventPublication eventPublication, EventPublicationStrategy publicationStrategy,
+                                      EntityHelper entityHelper, Serializer serializer,
+                                      DispatchInterceptor dispatchInterceptor, CommitHandler commitHandler) {
         super(delegate);
         this.entityHelper = entityHelper;
         this.lastCommitted = delegate;
         this.lastStable = delegate;
         this.commitInBatch = commitInBatch;
-        this.eventPublication = eventPublication;
+        this.aggregateEventPublication = eventPublication;
+        this.aggregatePublicationStrategy = publicationStrategy;
         this.serializer = serializer;
         this.dispatchInterceptor = dispatchInterceptor;
         this.commitHandler = commitHandler;
@@ -136,10 +136,13 @@ public class ModifiableAggregateRoot<T> extends DelegatingEntity<T> implements A
             if (assertLegal) {
                 entityHelper.assertLegal(message, a);
             }
-            var eventPublication =
-                    entityHelper.applyInvoker(new DeserializingMessage(message, EVENT, serializer), a)
-                            .<Apply>map(HandlerInvoker::getMethodAnnotation).map(Apply::eventPublication)
-                            .filter(ep -> ep != DEFAULT).orElse(this.eventPublication);
+
+            Optional<Apply> applyAnnotation = entityHelper.applyInvoker(
+                            new DeserializingMessage(message, EVENT, serializer), a, true)
+                    .map(HandlerInvoker::getMethodAnnotation);
+
+            var eventPublication = applyAnnotation.map(Apply::eventPublication)
+                    .filter(ep -> ep != EventPublication.DEFAULT).orElse(this.aggregateEventPublication);
 
             int hashCodeBefore = eventPublication == IF_MODIFIED ? a.get() == null ? -1 : a.get().hashCode() : -1;
 
@@ -163,8 +166,10 @@ public class ModifiableAggregateRoot<T> extends DelegatingEntity<T> implements A
                 if (serializedEvent == null) {
                     return a;
                 }
-                applied.add(new DeserializingMessage(
-                        serializedEvent, type -> serializer.convert(m.getPayload(), type), EVENT));
+                var publicationStrategy = applyAnnotation.map(Apply::publicationStrategy)
+                        .filter(ep -> ep != EventPublicationStrategy.DEFAULT).orElse(this.aggregatePublicationStrategy);
+                applied.add(new AppliedEvent(new DeserializingMessage(serializedEvent, type ->
+                        serializer.convert(m.getPayload(), type), EVENT), publicationStrategy));
             }
             return result;
         });
@@ -232,7 +237,7 @@ public class ModifiableAggregateRoot<T> extends DelegatingEntity<T> implements A
             uncommitted.addAll(applied);
             applied.clear();
             lastStable = delegate;
-            List<DeserializingMessage> events = new ArrayList<>(uncommitted);
+            List<AppliedEvent> events = new ArrayList<>(uncommitted);
             uncommitted.clear();
             var before = lastCommitted;
             lastCommitted = lastStable;
@@ -259,6 +264,7 @@ public class ModifiableAggregateRoot<T> extends DelegatingEntity<T> implements A
 
     @FunctionalInterface
     public interface CommitHandler {
-        void handle(Entity<?> model, List<DeserializingMessage> unpublished, Entity<?> beforeUpdate);
+        void handle(Entity<?> model, List<AppliedEvent> unpublished, Entity<?> beforeUpdate);
     }
+
 }

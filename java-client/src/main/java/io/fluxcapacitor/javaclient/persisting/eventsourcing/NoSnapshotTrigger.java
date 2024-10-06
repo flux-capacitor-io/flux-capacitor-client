@@ -14,7 +14,7 @@
 
 package io.fluxcapacitor.javaclient.persisting.eventsourcing;
 
-import io.fluxcapacitor.javaclient.common.serialization.DeserializingMessage;
+import io.fluxcapacitor.javaclient.modeling.AppliedEvent;
 import io.fluxcapacitor.javaclient.modeling.Entity;
 
 import java.util.List;
@@ -23,7 +23,7 @@ public enum NoSnapshotTrigger implements SnapshotTrigger {
     INSTANCE;
 
     @Override
-    public boolean shouldCreateSnapshot(Entity<?> model, List<DeserializingMessage> newEvents) {
+    public boolean shouldCreateSnapshot(Entity<?> model, List<AppliedEvent> newEvents) {
         return false;
     }
 }

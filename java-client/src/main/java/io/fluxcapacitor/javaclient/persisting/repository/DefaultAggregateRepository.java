@@ -25,6 +25,7 @@ import io.fluxcapacitor.javaclient.FluxCapacitor;
 import io.fluxcapacitor.javaclient.common.serialization.DeserializingMessage;
 import io.fluxcapacitor.javaclient.common.serialization.Serializer;
 import io.fluxcapacitor.javaclient.modeling.Aggregate;
+import io.fluxcapacitor.javaclient.modeling.AppliedEvent;
 import io.fluxcapacitor.javaclient.modeling.DefaultEntityHelper;
 import io.fluxcapacitor.javaclient.modeling.Entity;
 import io.fluxcapacitor.javaclient.modeling.EntityHelper;
@@ -50,6 +51,7 @@ import lombok.AccessLevel;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NonNull;
+import lombok.SneakyThrows;
 import lombok.experimental.Accessors;
 import lombok.extern.slf4j.Slf4j;
 
@@ -201,8 +203,9 @@ public class DefaultAggregateRepository implements AggregateRepository {
                                                 return null;
                                             }
                                             if (warnedAboutMissingTimePath.compareAndSet(false, true)) {
-                                                log.warn("Aggregate type {} does not declare a timestamp property at '{}'",
-                                                         aggregateRoot.get().getClass().getSimpleName(), s);
+                                                log.warn(
+                                                        "Aggregate type {} does not declare a timestamp property at '{}'",
+                                                        aggregateRoot.get().getClass().getSimpleName(), s);
                                             }
                                         }
                                         return aggregateRoot.timestamp();
@@ -218,8 +221,9 @@ public class DefaultAggregateRepository implements AggregateRepository {
                                                 return null;
                                             }
                                             if (warnedAboutMissingEndPath.compareAndSet(false, true)) {
-                                                log.warn("Aggregate type {} does not declare an end timestamp property at '{}'",
-                                                         aggregateRoot.get().getClass().getSimpleName(), s);
+                                                log.warn(
+                                                        "Aggregate type {} does not declare an end timestamp property at '{}'",
+                                                        aggregateRoot.get().getClass().getSimpleName(), s);
                                             }
                                         }
                                         return aggregateRoot.timestamp();
@@ -260,7 +264,8 @@ public class DefaultAggregateRepository implements AggregateRepository {
                             }
                         }
                         return eventSourceModel(loadSnapshot(id));
-                    }), commitInBatch, eventPublication, entityHelper, serializer, dispatchInterceptor, this::commit);
+                    }), commitInBatch, eventPublication, publicationStrategy,
+                    entityHelper, serializer, dispatchInterceptor, this::commit);
         }
 
         protected Entity<T> loadSnapshot(Object id) {
@@ -330,7 +335,7 @@ public class DefaultAggregateRepository implements AggregateRepository {
             }
         }
 
-        public void commit(Entity<?> after, List<DeserializingMessage> unpublishedEvents, Entity<?> before) {
+        public void commit(Entity<?> after, List<AppliedEvent> unpublishedEvents, Entity<?> before) {
             try {
                 aggregateCache.<Entity<?>>compute(after.id().toString(), (stringId, current) ->
                         current == null || Objects.equals(before.lastEventId(), current.lastEventId())
@@ -352,10 +357,7 @@ public class DefaultAggregateRepository implements AggregateRepository {
                             new UpdateRelationships(associations, dissociations, Guarantee.STORED)).get();
                 }
                 if (!unpublishedEvents.isEmpty()) {
-                    FluxCapacitor.getOptionally().ifPresent(
-                            fc -> unpublishedEvents.forEach(e -> e.getSerializedObject().setSource(fc.client().id())));
-                    eventStore.storeEvents(after.id().toString(), new ArrayList<>(unpublishedEvents),
-                                           publicationStrategy).get();
+                    storeEvents(after.id().toString(), unpublishedEvents);
                     if (snapshotTrigger.shouldCreateSnapshot(after, unpublishedEvents)) {
                         snapshotStore.storeSnapshot(after);
                     }
@@ -373,6 +375,28 @@ public class DefaultAggregateRepository implements AggregateRepository {
             } catch (Exception e) {
                 log.error("Failed to commit aggregate {}", after.id(), e);
                 aggregateCache.remove(after.id().toString());
+            }
+        }
+
+        @SneakyThrows
+        void storeEvents(String aggregateId, List<AppliedEvent> appliedEvents) {
+            FluxCapacitor.getOptionally().ifPresent(fc -> appliedEvents.forEach(
+                    e -> e.getEvent().getSerializedObject().setSource(fc.client().id())));
+
+            List<AppliedEvent> currentBatch = new ArrayList<>();
+            EventPublicationStrategy currentStrategy = null;
+            for (AppliedEvent event : appliedEvents) {
+                if (event.getPublicationStrategy() != currentStrategy && currentStrategy != null) {
+                    eventStore.storeEvents(aggregateId, currentBatch.stream().map(AppliedEvent::getEvent).toList(),
+                                           currentStrategy).get();
+                    currentBatch.clear();
+                }
+                currentStrategy = event.getPublicationStrategy();
+                currentBatch.add(event);
+            }
+            if (!currentBatch.isEmpty()) {
+                eventStore.storeEvents(aggregateId, currentBatch.stream().map(AppliedEvent::getEvent).toList(),
+                                       currentStrategy).get();
             }
         }
     }

@@ -16,7 +16,13 @@ package io.fluxcapacitor.javaclient.modeling;
 
 public enum EventPublicationStrategy {
     /**
-     * Store applied events in the event store and also publish events to event handlers.
+     * Use the default strategy to publish events. This will be whatever is configured at the aggregate level, or
+     * else application level. If the strategy is set to DEFAULT at all of these levels, STORE_AND_PUBLISH will be used.
+     */
+    DEFAULT,
+
+    /**
+     * Store applied events in the event store and also publish events to event handlers. This is the default strategy.
      */
     STORE_AND_PUBLISH,
 

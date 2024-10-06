@@ -22,7 +22,10 @@ import java.util.stream.Stream;
 
 public interface EntityHelper {
     Stream<?> intercept(Object value, Entity<?> entity);
-    Optional<HandlerInvoker> applyInvoker(DeserializingMessage message, Entity<?> entity);
+    default Optional<HandlerInvoker> applyInvoker(DeserializingMessage message, Entity<?> entity) {
+        return applyInvoker(message, entity, false);
+    }
+    Optional<HandlerInvoker> applyInvoker(DeserializingMessage message, Entity<?> entity, boolean searchChildren);
     <E extends Exception> void assertLegal(Object value, Entity<?> entity) throws E;
     <E extends Exception> Optional<E> checkLegality(Object value, Entity<?> entity);
     boolean isLegal(Object value, Entity<?> entity);
