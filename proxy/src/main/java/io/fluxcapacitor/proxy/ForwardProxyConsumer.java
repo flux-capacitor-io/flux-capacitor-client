@@ -48,7 +48,7 @@ import static java.util.Optional.ofNullable;
 
 @AllArgsConstructor(access = AccessLevel.PRIVATE)
 @Slf4j
-public class ReverseProxyConsumer implements Consumer<List<SerializedMessage>> {
+public class ForwardProxyConsumer implements Consumer<List<SerializedMessage>> {
     private static final HttpClient httpClient = HttpClient.newBuilder()
             .followRedirects(HttpClient.Redirect.NORMAL).connectTimeout(Duration.ofSeconds(5)).build();
     protected static final WebRequestSettings defaultSettings = WebRequestSettings.builder().build();
@@ -63,7 +63,7 @@ public class ReverseProxyConsumer implements Consumer<List<SerializedMessage>> {
     private final boolean mainConsumer = minIndex == null;
 
     public static Registration start(Client client) {
-        var consumer = new ReverseProxyConsumer(client, defaultSettings.getConsumer(), null);
+        var consumer = new ForwardProxyConsumer(client, defaultSettings.getConsumer(), null);
         consumer.runningConsumers.computeIfAbsent(defaultSettings.getConsumer(), c -> consumer.start());
         return () -> {
             Collection<Registration> running = consumer.runningConsumers.values();
@@ -91,7 +91,7 @@ public class ReverseProxyConsumer implements Consumer<List<SerializedMessage>> {
                     }
                 } else if (isMainConsumer()) {
                     runningConsumers.computeIfAbsent(
-                            settings.getConsumer(), c -> new ReverseProxyConsumer(client, c, s.getIndex()).start());
+                            settings.getConsumer(), c -> new ForwardProxyConsumer(client, c, s.getIndex()).start());
                 }
             } catch (Throwable e) {
                 log.error("Failed to handle external request {}. Continuing..", s.getMessageId(), e);

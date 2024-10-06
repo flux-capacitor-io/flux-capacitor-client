@@ -38,7 +38,7 @@ public class ProxyServer {
                                 .projectId(getProperty("PROJECT_ID")).build()))
                 .orElseThrow(() -> new IllegalStateException("FLUX_URL environment variable is not set"));
         Registration registration = start(port, new ProxyRequestHandler(client))
-                .merge(ReverseProxyConsumer.start(client));
+                .merge(ForwardProxyConsumer.start(client));
         log.info("Flux Capacitor proxy server running on port {}", port);
 
         Runtime.getRuntime().addShutdownHook(new Thread(() -> {

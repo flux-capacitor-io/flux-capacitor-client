@@ -174,11 +174,11 @@ public class WebsocketEndpoint extends Endpoint {
             session.getRequestParameterMap().forEach((k, v) -> {
                 if (k.startsWith(metadataPrefix)) {
                     String name = k.substring(metadataPrefix.length());
-                    map.put(name, v.get(0));
+                    map.put(name, v.getFirst());
                 } else if (k.equals(trackerIdKey)) {
-                    contextBuilder.trackerId(v.get(0));
+                    contextBuilder.trackerId(v.getFirst());
                 } else if (k.equals(clientIdKey)) {
-                    contextBuilder.clientId(v.get(0));
+                    contextBuilder.clientId(v.getFirst());
                 }
             });
             contextBuilder.metadata(Metadata.of(map).with("sessionId", session.getId()));
@@ -224,6 +224,6 @@ public class WebsocketEndpoint extends Endpoint {
     }
 
     @Builder
-    record SessionContext(Metadata metadata, String clientId, String trackerId) {
+    protected record SessionContext(Metadata metadata, String clientId, String trackerId) {
     }
 }
