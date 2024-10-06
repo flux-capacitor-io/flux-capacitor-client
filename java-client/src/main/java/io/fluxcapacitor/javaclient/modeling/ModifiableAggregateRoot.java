@@ -157,17 +157,18 @@ public class ModifiableAggregateRoot<T> extends DelegatingEntity<T> implements A
                 if (intercepted == null) {
                     return a;
                 }
-                Message m = intercepted.addMetadata(Entity.AGGREGATE_ID_METADATA_KEY, id().toString(),
-                                                    Entity.AGGREGATE_TYPE_METADATA_KEY, type().getName(),
-                                                    Entity.AGGREGATE_SN_METADATA_KEY,
-                                                    String.valueOf(getDelegate().sequenceNumber() + 1L));
+                var publicationStrategy = applyAnnotation.map(Apply::publicationStrategy)
+                        .filter(ep -> ep != EventPublicationStrategy.DEFAULT).orElse(this.aggregatePublicationStrategy);
+                Message m = publicationStrategy == EventPublicationStrategy.PUBLISH_ONLY ? intercepted
+                        : intercepted.addMetadata(Entity.AGGREGATE_ID_METADATA_KEY, id().toString(),
+                                                  Entity.AGGREGATE_TYPE_METADATA_KEY, type().getName(),
+                                                  Entity.AGGREGATE_SN_METADATA_KEY,
+                                                  String.valueOf(getDelegate().sequenceNumber() + 1L));
                 var serializedEvent =
                         dispatchInterceptor.modifySerializedMessage(m.serialize(serializer), m, EVENT);
                 if (serializedEvent == null) {
                     return a;
                 }
-                var publicationStrategy = applyAnnotation.map(Apply::publicationStrategy)
-                        .filter(ep -> ep != EventPublicationStrategy.DEFAULT).orElse(this.aggregatePublicationStrategy);
                 applied.add(new AppliedEvent(new DeserializingMessage(serializedEvent, type ->
                         serializer.convert(m.getPayload(), type), EVENT), publicationStrategy));
             }
