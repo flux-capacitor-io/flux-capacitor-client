@@ -159,7 +159,9 @@ public class ModifiableAggregateRoot<T> extends DelegatingEntity<T> implements A
                 }
                 var publicationStrategy = applyAnnotation.map(Apply::publicationStrategy)
                         .filter(ep -> ep != EventPublicationStrategy.DEFAULT).orElse(this.aggregatePublicationStrategy);
-                Message m = publicationStrategy == EventPublicationStrategy.PUBLISH_ONLY ? intercepted
+                Message m = publicationStrategy == EventPublicationStrategy.PUBLISH_ONLY
+                        ? intercepted.addMetadata(Entity.AGGREGATE_ID_METADATA_KEY, id().toString(),
+                                                  Entity.AGGREGATE_TYPE_METADATA_KEY, type().getName())
                         : intercepted.addMetadata(Entity.AGGREGATE_ID_METADATA_KEY, id().toString(),
                                                   Entity.AGGREGATE_TYPE_METADATA_KEY, type().getName(),
                                                   Entity.AGGREGATE_SN_METADATA_KEY,

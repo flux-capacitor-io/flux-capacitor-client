@@ -389,8 +389,8 @@ public interface FluxCapacitor extends AutoCloseable {
     }
 
     /**
-     * Starts a new periodic schedule, returning the schedule's id. The {@code schedule} parameter may be
-     * an instance of a {@link Message} or the schedule payload. If the payload is not annotated with
+     * Starts a new periodic schedule, returning the schedule's id. The {@code schedule} parameter may be an instance of
+     * a {@link Message} or the schedule payload. If the payload is not annotated with
      * {@link io.fluxcapacitor.javaclient.scheduling.Periodic} an {@link IllegalArgumentException} is thrown.
      *
      * @see io.fluxcapacitor.javaclient.scheduling.Periodic
@@ -400,8 +400,8 @@ public interface FluxCapacitor extends AutoCloseable {
     }
 
     /**
-     * Starts a new periodic schedule using given schedule id. The {@code schedule} parameter may be
-     * an instance of a {@link Message} or the schedule payload. If the payload is not annotated with
+     * Starts a new periodic schedule using given schedule id. The {@code schedule} parameter may be an instance of a
+     * {@link Message} or the schedule payload. If the payload is not annotated with
      * {@link io.fluxcapacitor.javaclient.scheduling.Periodic} an {@link IllegalArgumentException} is thrown.
      *
      * @see io.fluxcapacitor.javaclient.scheduling.Periodic
@@ -511,7 +511,7 @@ public interface FluxCapacitor extends AutoCloseable {
      * Loads the aggregate root of type {@code <T>} with given aggregateId.
      * <p>
      * If the aggregate is loaded while handling an event of the aggregate, the returned Aggregate will automatically be
-     * replayed back to the event currently being handled. Otherwise, the most recent state of the aggregate is loaded.
+     * played back to the event currently being handled. Otherwise, the most recent state of the aggregate is loaded.
      *
      * @see Aggregate for more info on how to define an event sourced aggregate root
      */
@@ -523,7 +523,7 @@ public interface FluxCapacitor extends AutoCloseable {
      * Loads the aggregate root of type {@code <T>} with given aggregateId.
      * <p>
      * If the aggregate is loaded while handling an event of the aggregate, the returned Aggregate will automatically be
-     * replayed back to the event currently being handled. Otherwise, the most recent state of the aggregate is loaded.
+     * played back to the event currently being handled. Otherwise, the most recent state of the aggregate is loaded.
      *
      * @see Aggregate for more info on how to define an event sourced aggregate root
      */
@@ -540,23 +540,12 @@ public interface FluxCapacitor extends AutoCloseable {
      * default behavior is that any one of the associated aggregates is returned.
      * <p>
      * If the aggregate is loaded while handling an event of the aggregate, the returned Aggregate will automatically be
-     * replayed back to the event currently being handled. Otherwise, the most recent state of the aggregate is loaded.
+     * played back to the event currently being handled. Otherwise, the most recent state of the aggregate is loaded.
      *
      * @see Aggregate for more info on how to define an event sourced aggregate root
      */
     static <T> Entity<T> loadAggregateFor(Object entityId, Class<?> defaultType) {
         return playbackToHandledEvent(get().aggregateRepository().loadFor(entityId, defaultType));
-    }
-
-    private static <T> Entity<T> playbackToHandledEvent(Entity<T> entity) {
-        DeserializingMessage message = DeserializingMessage.getCurrent();
-        if (!Entity.isApplying()
-            && message != null && (message.getMessageType() == EVENT || message.getMessageType() == NOTIFICATION)
-            && entity.rootAnnotation().eventSourced()
-            && entity.id().toString().equals(Entity.getAggregateId(message))) {
-            return entity.playBackToEvent(message.getMessageId());
-        }
-        return entity;
     }
 
     /**
@@ -569,7 +558,7 @@ public interface FluxCapacitor extends AutoCloseable {
      * default behavior is that any one of the associated aggregates is returned.
      * <p>
      * If the aggregate is loaded while handling an event of the aggregate, the returned Aggregate will automatically be
-     * replayed back to the event currently being handled. Otherwise, the most recent state of the aggregate is loaded.
+     * played back to the event currently being handled. Otherwise, the most recent state of the aggregate is loaded.
      *
      * @see Aggregate for more info on how to define an event sourced aggregate root
      */
@@ -581,6 +570,9 @@ public interface FluxCapacitor extends AutoCloseable {
      * Loads the entity with given id. If the entity is not associated with any aggregate yet, a new aggregate root is
      * loaded with the entityId as aggregate identifier. In case multiple entities are associated with the given
      * entityId the most recent entity is returned.
+     * <p>
+     * If the entity is loaded while handling an event its aggregate, the returned entity will automatically be played
+     * back to the event currently being handled. Otherwise, the most recent state of the entity is loaded.
      */
     @SuppressWarnings("unchecked")
     static <T> Entity<T> loadEntity(Object entityId) {
@@ -592,6 +584,9 @@ public interface FluxCapacitor extends AutoCloseable {
      * Loads the entity with given id. If the entity is not associated with any aggregate yet, a new aggregate root is
      * loaded with the entityId as aggregate identifier. In case multiple entities are associated with the given
      * entityId the most recent entity is returned.
+     * <p>
+     * If the entity is loaded while handling an event its aggregate, the returned entity will automatically be played
+     * back to the event currently being handled. Otherwise, the most recent state of the entity is loaded.
      */
     static <T> Entity<T> loadEntity(Id<T> entityId) {
         return loadAggregateFor(entityId).<T>getEntity(entityId).orElseGet(() -> loadAggregate(entityId));
@@ -600,6 +595,9 @@ public interface FluxCapacitor extends AutoCloseable {
     /**
      * Loads the current entity value for given entity id. Entity may be the aggregate root or any ancestral entity. If
      * no such entity exists an empty optional is returned.
+     * <p>
+     * If the entity is loaded while handling an event its aggregate, the returned entity will automatically be played
+     * back to the event currently being handled. Otherwise, the most recent state of the entity is loaded.
      */
     @SuppressWarnings("unchecked")
     static <T> Optional<T> loadEntityValue(Object entityId) {
@@ -609,6 +607,9 @@ public interface FluxCapacitor extends AutoCloseable {
     /**
      * Loads the current entity value for given entity id. Entity may be the aggregate root or any ancestral entity. If
      * no such entity exists an empty optional is returned.
+     * <p>
+     * If the entity is loaded while handling an event its aggregate, the returned entity will automatically be played
+     * back to the event currently being handled. Otherwise, the most recent state of the entity is loaded.
      */
     @SuppressWarnings("unchecked")
     static <T> Optional<T> loadEntityValue(Id<T> entityId) {
@@ -617,11 +618,23 @@ public interface FluxCapacitor extends AutoCloseable {
 
     /**
      * Returns an Entity containing given value. The returned entity won't exhibit any side effects when they are
-     * updated, i.e. they won't be synced to any repository or give rise to any events. Other than, that they are
-     * fully functional.
+     * updated, i.e. they won't be synced to any repository or give rise to any events. Other than, that they are fully
+     * functional.
      */
     static <T> Entity<T> asEntity(T value) {
         return get().aggregateRepository().asEntity(value);
+    }
+
+    private static <T> Entity<T> playbackToHandledEvent(Entity<T> entity) {
+        DeserializingMessage message = DeserializingMessage.getCurrent();
+        if (!Entity.isApplying()
+            && message != null && (message.getMessageType() == EVENT || message.getMessageType() == NOTIFICATION)
+            && entity.rootAnnotation().eventSourced()
+            && entity.id().toString().equals(Entity.getAggregateId(message))
+            && Entity.hasSequenceNumber(message)) {
+            return entity.playBackToEvent(message.getMessageId());
+        }
+        return entity;
     }
 
     /**
