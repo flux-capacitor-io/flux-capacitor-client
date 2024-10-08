@@ -35,12 +35,15 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Function;
 
+import static io.fluxcapacitor.javaclient.common.ClientUtils.memoize;
+
 @Slf4j
 public class DefaultHandlerRepository implements HandlerRepository {
 
     public static Function<Class<?>, HandlerRepository> repositorySupplier(DocumentStore documentStore) {
-        return type -> new DefaultHandlerRepository(documentStore, ClientUtils.getSearchParameters(type).getCollection(),
-                                                    type, ReflectionUtils.getTypeAnnotation(type, Stateful.class));
+        return memoize(type -> new DefaultHandlerRepository(
+                documentStore, ClientUtils.getSearchParameters(type).getCollection(),
+                type, ReflectionUtils.getTypeAnnotation(type, Stateful.class)));
     }
 
     private final DocumentStore documentStore;

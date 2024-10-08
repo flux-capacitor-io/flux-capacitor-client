@@ -15,7 +15,6 @@
 package io.fluxcapacitor.javaclient.tracking.handling;
 
 import io.fluxcapacitor.common.Guarantee;
-import io.fluxcapacitor.common.MessageType;
 import io.fluxcapacitor.common.Registration;
 import io.fluxcapacitor.common.handling.Handler;
 import io.fluxcapacitor.common.handling.HandlerFilter;
@@ -43,7 +42,6 @@ import static java.util.Collections.emptyList;
 @RequiredArgsConstructor
 @Slf4j
 public class LocalHandlerRegistry implements HandlerRegistry {
-    private final MessageType messageType;
     @Getter
     private final HandlerFactory handlerFactory;
     private final List<Handler<DeserializingMessage>> localHandlers = new CopyOnWriteArrayList<>();

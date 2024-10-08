@@ -26,13 +26,22 @@ public interface HandlerRegistry extends HasLocalHandlers {
 
     Optional<CompletableFuture<Object>> handle(DeserializingMessage message);
 
-    default HandlerRegistry merge(HandlerRegistry next) {
+    default HandlerRegistry andThen(HandlerRegistry next) {
         return new MergedHandlerRegistry(this, next);
+    }
+
+    default HandlerRegistry orThen(HandlerRegistry next) {
+        return new MergedHandlerRegistry(this, next) {
+            @Override
+            public Optional<CompletableFuture<Object>> handle(DeserializingMessage message) {
+                return first.handle(message).or(() -> second.handle(message));
+            }
+        };
     }
 
     @AllArgsConstructor
     class MergedHandlerRegistry implements HandlerRegistry {
-        private final HandlerRegistry first, second;
+        protected final HandlerRegistry first, second;
 
         @Override
         public Optional<CompletableFuture<Object>> handle(DeserializingMessage message) {

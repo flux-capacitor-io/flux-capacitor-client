@@ -26,10 +26,24 @@ import io.fluxcapacitor.javaclient.common.HasMessage;
 import io.fluxcapacitor.javaclient.common.serialization.DeserializingMessage;
 import io.fluxcapacitor.javaclient.modeling.HandlerRepository;
 import io.fluxcapacitor.javaclient.tracking.TrackSelf;
+import io.fluxcapacitor.javaclient.web.HandleDelete;
+import io.fluxcapacitor.javaclient.web.HandleGet;
+import io.fluxcapacitor.javaclient.web.HandleHead;
+import io.fluxcapacitor.javaclient.web.HandleOptions;
+import io.fluxcapacitor.javaclient.web.HandlePatch;
+import io.fluxcapacitor.javaclient.web.HandlePost;
+import io.fluxcapacitor.javaclient.web.HandlePut;
+import io.fluxcapacitor.javaclient.web.HandleSocketClose;
+import io.fluxcapacitor.javaclient.web.HandleSocketHandshake;
+import io.fluxcapacitor.javaclient.web.HandleSocketMessage;
+import io.fluxcapacitor.javaclient.web.HandleSocketOpen;
+import io.fluxcapacitor.javaclient.web.HandleSocketPong;
+import io.fluxcapacitor.javaclient.web.HandleTrace;
 import io.fluxcapacitor.javaclient.web.HandleWeb;
 import io.fluxcapacitor.javaclient.web.HandleWebResponse;
-import io.fluxcapacitor.javaclient.web.WebRequest;
-import lombok.RequiredArgsConstructor;
+import io.fluxcapacitor.javaclient.web.HttpRequestMethod;
+import io.fluxcapacitor.javaclient.web.WebUtils;
+import lombok.AllArgsConstructor;
 
 import java.lang.annotation.Annotation;
 import java.util.List;
@@ -41,7 +55,7 @@ import java.util.stream.Stream;
 import static io.fluxcapacitor.common.handling.HandlerInspector.hasHandlerMethods;
 import static io.fluxcapacitor.javaclient.common.ClientUtils.memoize;
 
-@RequiredArgsConstructor
+@AllArgsConstructor
 public class DefaultHandlerFactory implements HandlerFactory {
 
     private final MessageType messageType;
@@ -49,7 +63,6 @@ public class DefaultHandlerFactory implements HandlerFactory {
     private final List<ParameterResolver<? super DeserializingMessage>> parameterResolvers;
     private final MessageFilter<? super DeserializingMessage> messageFilter;
     private final Class<? extends Annotation> handlerAnnotation;
-
     private final Function<Class<?>, HandlerRepository> handlerRepositorySupplier;
 
     public DefaultHandlerFactory(MessageType messageType, HandlerDecorator defaultDecorator,
@@ -58,8 +71,19 @@ public class DefaultHandlerFactory implements HandlerFactory {
         this.messageType = messageType;
         this.defaultDecorator = defaultDecorator;
         this.parameterResolvers = parameterResolvers;
-        this.handlerRepositorySupplier = memoize(handlerRepositorySupplier);
+        this.handlerRepositorySupplier = handlerRepositorySupplier;
         this.handlerAnnotation = getHandlerAnnotation(messageType);
+        this.messageFilter = defaultMessageFilter();
+    }
+
+    public DefaultHandlerFactory(HttpRequestMethod httpRequestMethod, HandlerDecorator defaultDecorator,
+                                 List<ParameterResolver<? super DeserializingMessage>> parameterResolvers,
+                                 Function<Class<?>, HandlerRepository> handlerRepositorySupplier) {
+        this.messageType = MessageType.WEBREQUEST;
+        this.defaultDecorator = defaultDecorator;
+        this.parameterResolvers = parameterResolvers;
+        this.handlerRepositorySupplier = handlerRepositorySupplier;
+        this.handlerAnnotation = getHandlerAnnotation(httpRequestMethod);
         this.messageFilter = defaultMessageFilter();
     }
 
@@ -126,6 +150,24 @@ public class DefaultHandlerFactory implements HandlerFactory {
         };
     }
 
+    protected Class<? extends Annotation> getHandlerAnnotation(HttpRequestMethod requestMethod) {
+        return switch (requestMethod) {
+            case GET -> HandleGet.class;
+            case POST -> HandlePost.class;
+            case PUT -> HandlePut.class;
+            case PATCH -> HandlePatch.class;
+            case DELETE -> HandleDelete.class;
+            case HEAD -> HandleHead.class;
+            case OPTIONS -> HandleOptions.class;
+            case TRACE -> HandleTrace.class;
+            case WS_OPEN -> HandleSocketOpen.class;
+            case WS_MESSAGE -> HandleSocketMessage.class;
+            case WS_CLOSE -> HandleSocketClose.class;
+            case WS_PONG -> HandleSocketPong.class;
+            case WS_HANDSHAKE -> HandleSocketHandshake.class;
+        };
+    }
+
     @SuppressWarnings("unchecked")
     protected MessageFilter<? super DeserializingMessage> defaultMessageFilter() {
         var defaultFilter = new PayloadFilter().and(new SegmentFilter());
@@ -133,7 +175,7 @@ public class DefaultHandlerFactory implements HandlerFactory {
                         ? Stream.of((MessageFilter<HasMessage>) r) : Stream.empty())
                 .reduce(MessageFilter::and).map(f -> f.and(defaultFilter))
                 .orElse(defaultFilter);
-        return messageType == MessageType.WEBREQUEST ? WebRequest.getWebRequestFilter().and(result) : result;
+        return messageType == MessageType.WEBREQUEST ? WebUtils.getWebRequestFilter().and(result) : result;
     }
 
 }

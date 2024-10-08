@@ -14,8 +14,13 @@
 
 package io.fluxcapacitor.javaclient.web;
 
+import io.fluxcapacitor.common.SearchUtils;
+import io.fluxcapacitor.common.handling.MessageFilter;
+import io.fluxcapacitor.common.reflection.ReflectionUtils;
+import io.fluxcapacitor.javaclient.common.HasMessage;
 import lombok.NonNull;
 
+import java.lang.annotation.Annotation;
 import java.lang.reflect.Executable;
 import java.net.HttpCookie;
 import java.net.URLEncoder;
@@ -25,12 +30,33 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.TreeMap;
+import java.util.function.BiFunction;
+import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
-import static io.fluxcapacitor.common.reflection.ReflectionUtils.getAnnotationAs;
+import static io.fluxcapacitor.javaclient.common.ClientUtils.memoize;
+import static java.util.Objects.requireNonNull;
 import static org.apache.commons.lang3.StringUtils.isBlank;
 
 public class WebUtils {
+    private static final BiFunction<Executable, Class<? extends Annotation>, Predicate<HasMessage>> filterCache =
+            memoize((e, a) -> {
+                var handleWeb = WebUtils.getWebParameters(e, a).orElseThrow();
+                Predicate<String> pathTest = Optional.of(handleWeb.getPath())
+                        .map(SearchUtils::getGlobMatcher)
+                        .<Predicate<String>>map(p -> s -> p.test(s.startsWith("/") || s.contains("://") ? s : "/" + s))
+                        .orElse(p -> true);
+                Predicate<String> methodTest = Optional.of(handleWeb.getMethod())
+                        .<Predicate<String>>map(r -> p -> r.name().equals(p))
+                        .orElse(p -> true);
+                return msg -> {
+                    String path = requireNonNull(msg.getMetadata().get("url"),
+                                                 "Web request url is missing in the metadata of a WebRequest message");
+                    String method = requireNonNull(msg.getMetadata().get("method"),
+                                                   "Web request method is missing in the metadata of a WebRequest message");
+                    return pathTest.test(path) && methodTest.test(method);
+                };
+            });
 
     public static String toResponseHeaderString(@NonNull HttpCookie cookie) {
         StringBuilder sb = new StringBuilder();
@@ -70,7 +96,13 @@ public class WebUtils {
     }
 
     public static Optional<WebParameters> getWebParameters(Executable method) {
-        return getAnnotationAs(method, HandleWeb.class, WebParameters.class);
+        return getWebParameters(method, HandleWeb.class);
+    }
+
+    public static Optional<WebParameters> getWebParameters(
+            Executable method, Class<? extends Annotation> annotationType) {
+        return ReflectionUtils.getMethodAnnotation(method, annotationType)
+                .flatMap(a -> ReflectionUtils.getAnnotationAs(a, HandleWeb.class, WebParameters.class));
     }
 
     public static String fixHeaderName(String name) {
@@ -85,5 +117,10 @@ public class WebUtils {
         Map<String, List<String>> result = emptyHeaderMap();
         result.putAll(input);
         return result;
+    }
+
+    public static MessageFilter<HasMessage> getWebRequestFilter() {
+        return (message, executable, handlerAnnotation) -> filterCache.apply(
+                executable, handlerAnnotation).test(message);
     }
 }

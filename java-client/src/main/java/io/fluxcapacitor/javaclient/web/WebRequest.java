@@ -15,12 +15,9 @@
 package io.fluxcapacitor.javaclient.web;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
-import io.fluxcapacitor.common.SearchUtils;
 import io.fluxcapacitor.common.api.Metadata;
 import io.fluxcapacitor.common.api.SerializedMessage;
-import io.fluxcapacitor.common.handling.MessageFilter;
 import io.fluxcapacitor.common.serialization.JsonUtils;
-import io.fluxcapacitor.javaclient.common.HasMessage;
 import io.fluxcapacitor.javaclient.common.Message;
 import io.fluxcapacitor.javaclient.common.serialization.Serializer;
 import io.fluxcapacitor.javaclient.tracking.handling.authentication.User;
@@ -37,7 +34,6 @@ import lombok.experimental.Accessors;
 import lombok.experimental.FieldDefaults;
 
 import java.beans.ConstructorProperties;
-import java.lang.reflect.Executable;
 import java.net.HttpCookie;
 import java.time.Instant;
 import java.util.ArrayList;
@@ -46,46 +42,21 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
 import static io.fluxcapacitor.common.api.Data.JSON_FORMAT;
 import static io.fluxcapacitor.javaclient.web.WebUtils.asHeaderMap;
-import static java.util.Objects.requireNonNull;
 
 @Value
 @EqualsAndHashCode(callSuper = true)
 @ToString(exclude = {"headers", "cookies"})
 public class WebRequest extends Message {
-    private static final Map<Executable, Predicate<HasMessage>> filterCache = new ConcurrentHashMap<>();
-
     public static Builder builder() {
         return new Builder();
     }
 
     public static Builder builderFromMetadata(Metadata metadata) {
         return new Builder(metadata);
-    }
-
-    public static MessageFilter<HasMessage> getWebRequestFilter() {
-        return (message, executable, handlerAnnotation) -> filterCache.computeIfAbsent(executable, e -> {
-            var handleWeb = WebUtils.getWebParameters(e).orElseThrow();
-            Predicate<String> pathTest = Optional.of(handleWeb.getPath())
-                    .map(SearchUtils::getGlobMatcher)
-                    .<Predicate<String>>map(p -> s -> p.test(s.startsWith("/") || s.contains("://") ? s : "/" + s))
-                    .orElse(p -> true);
-            Predicate<String> methodTest = Optional.of(handleWeb.getMethod())
-                    .<Predicate<String>>map(r -> p -> r.name().equals(p))
-                    .orElse(p -> true);
-            return msg -> {
-                String path = requireNonNull(msg.getMetadata().get("url"),
-                                             "Web request url is missing in the metadata of a WebRequest message");
-                String method = requireNonNull(msg.getMetadata().get("method"),
-                                               "Web request method is missing in the metadata of a WebRequest message");
-                return pathTest.test(path) && methodTest.test(method);
-            };
-        }).test(message);
     }
 
     @NonNull String path;

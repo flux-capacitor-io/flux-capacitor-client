@@ -255,7 +255,14 @@ public class HandleWebTest {
 
         @Test
         void testPostString() {
-            testFixture.whenWebRequest(WebRequest.builder().method(POST).url("/string").payload("payload").build())
+            testFixture
+                    .whenWebRequest(WebRequest.builder().method(POST).url("/string").payload("payload").build())
+                    .expectResult("payload")
+                    .andThen()
+                    .whenPut("/string", "payload")
+                    .expectResult("payload")
+                    .andThen()
+                    .whenPost("/string", "payload")
                     .expectResult("payload");
         }
 
@@ -266,7 +273,8 @@ public class HandleWebTest {
             }
 
             @HandlePost("/string")
-            String post(String body) {
+            @HandlePut("/string")
+            String putOrPost(String body) {
                 return body;
             }
         }

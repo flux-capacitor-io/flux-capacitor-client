@@ -83,6 +83,7 @@ import io.fluxcapacitor.javaclient.tracking.metrics.HandlerMonitor;
 import io.fluxcapacitor.javaclient.tracking.metrics.TrackerMonitor;
 import io.fluxcapacitor.javaclient.web.DefaultWebResponseMapper;
 import io.fluxcapacitor.javaclient.web.ForwardingWebConsumer;
+import io.fluxcapacitor.javaclient.web.HttpRequestMethod;
 import io.fluxcapacitor.javaclient.web.LocalServerConfig;
 import io.fluxcapacitor.javaclient.web.SocketSessionParameterResolver;
 import io.fluxcapacitor.javaclient.web.WebPayloadParameterResolver;
@@ -602,7 +603,8 @@ public class DefaultFluxCapacitor implements FluxCapacitor {
             EventStore eventStore = new DefaultEventStore(client.getEventStoreClient(), client.getGatewayClient(EVENT),
                                                           serializer, dispatchInterceptors.get(EVENT),
                                                           localHandlerRegistry(EVENT, handlerDecorators,
-                                                                               parameterResolvers, handlerRepositorySupplier));
+                                                                               parameterResolvers,
+                                                                               handlerRepositorySupplier));
             var snapshotStore = new DefaultSnapshotStore(client.getKeyValueClient(), snapshotSerializer, eventStore);
 
             Cache aggregateCache = new NamedCache(cache, id -> "$Aggregate:" + id);
@@ -664,7 +666,6 @@ public class DefaultFluxCapacitor implements FluxCapacitor {
                                                                       webResponseMapper));
 
 
-
             //tracking
             Map<MessageType, Tracking> trackingMap = stream(MessageType.values())
                     .collect(toMap(identity(), m -> new DefaultTracking(
@@ -678,7 +679,8 @@ public class DefaultFluxCapacitor implements FluxCapacitor {
                                                        serializer, dispatchInterceptors.get(SCHEDULE),
                                                        dispatchInterceptors.get(COMMAND),
                                                        localHandlerRegistry(SCHEDULE, handlerDecorators,
-                                                                            parameterResolvers, handlerRepositorySupplier));
+                                                                            parameterResolvers,
+                                                                            handlerRepositorySupplier));
 
             if (!disableCacheEvictionMetrics) {
                 new CacheEvictionsLogger(metricsGateway).register(cache);
@@ -780,10 +782,25 @@ public class DefaultFluxCapacitor implements FluxCapacitor {
                                                        Map<MessageType, HandlerDecorator> handlerDecorators,
                                                        List<ParameterResolver<? super DeserializingMessage>> parameterResolvers,
                                                        Function<Class<?>, HandlerRepository> handlerRepositorySupplier) {
-            LocalHandlerRegistry result = new LocalHandlerRegistry(messageType, new DefaultHandlerFactory(
-                    messageType, handlerDecorators.get(messageType), parameterResolvers, handlerRepositorySupplier));
-            return messageType == EVENT ? result.merge(new LocalHandlerRegistry(NOTIFICATION, new DefaultHandlerFactory(
-                    NOTIFICATION, handlerDecorators.get(EVENT), parameterResolvers, handlerRepositorySupplier))) : result;
+            return switch (messageType) {
+                case EVENT -> new LocalHandlerRegistry(new DefaultHandlerFactory(
+                        messageType, handlerDecorators.get(messageType), parameterResolvers, handlerRepositorySupplier))
+                        .andThen(new LocalHandlerRegistry(new DefaultHandlerFactory(
+                                NOTIFICATION, handlerDecorators.get(EVENT), parameterResolvers,
+                                handlerRepositorySupplier)));
+                case WEBREQUEST -> stream(HttpRequestMethod.values())
+                        .map(requestMethod -> new DefaultHandlerFactory(
+                                requestMethod, handlerDecorators.get(messageType),
+                                parameterResolvers, handlerRepositorySupplier))
+                        .<HandlerRegistry>map(LocalHandlerRegistry::new)
+                        .reduce(HandlerRegistry::andThen).orElseThrow()
+                        .orThen(new LocalHandlerRegistry(new DefaultHandlerFactory(
+                                WEBREQUEST, handlerDecorators.get(messageType),
+                                parameterResolvers, handlerRepositorySupplier)));
+                default -> new LocalHandlerRegistry(new DefaultHandlerFactory(
+                        messageType, handlerDecorators.get(messageType), parameterResolvers,
+                        handlerRepositorySupplier));
+            };
         }
     }
 
