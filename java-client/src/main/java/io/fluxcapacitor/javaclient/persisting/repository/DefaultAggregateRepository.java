@@ -364,7 +364,8 @@ public class DefaultAggregateRepository implements AggregateRepository {
             try {
                 aggregateCache.<Entity<?>>compute(after.id().toString(), (stringId, current) ->
                         current == null || Objects.equals(before.lastEventId(), current.lastEventId())
-                        || unpublishedEvents.isEmpty() ? after : current.apply(unpublishedEvents));
+                        || unpublishedEvents.isEmpty() ? after : current.apply(
+                                unpublishedEvents.stream().map(AppliedEvent::getEvent).toList()));
                 Set<Relationship> associations = after.associations(before), dissociations =
                         after.dissociations(before);
                 dissociations.forEach(
