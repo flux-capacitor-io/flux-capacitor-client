@@ -35,13 +35,13 @@ import io.fluxcapacitor.javaclient.modeling.Aggregate;
 import io.fluxcapacitor.javaclient.modeling.Entity;
 import io.fluxcapacitor.javaclient.modeling.EntityId;
 import io.fluxcapacitor.javaclient.modeling.Id;
-import io.fluxcapacitor.javaclient.modeling.Searchable;
 import io.fluxcapacitor.javaclient.persisting.eventsourcing.EventStore;
 import io.fluxcapacitor.javaclient.persisting.eventsourcing.SnapshotStore;
 import io.fluxcapacitor.javaclient.persisting.keyvalue.KeyValueStore;
 import io.fluxcapacitor.javaclient.persisting.repository.AggregateRepository;
 import io.fluxcapacitor.javaclient.persisting.search.DocumentStore;
 import io.fluxcapacitor.javaclient.persisting.search.Search;
+import io.fluxcapacitor.javaclient.persisting.search.Searchable;
 import io.fluxcapacitor.javaclient.publishing.CommandGateway;
 import io.fluxcapacitor.javaclient.publishing.ErrorGateway;
 import io.fluxcapacitor.javaclient.publishing.EventGateway;
@@ -748,6 +748,34 @@ public interface FluxCapacitor extends AutoCloseable {
      */
     static Search search(SearchQuery.Builder queryBuilder) {
         return get().documentStore().search(queryBuilder);
+    }
+
+    /**
+     * Gets the document with given id in given collection, returning the value in the type that it was stored.
+     */
+    static <T> Optional<T> getDocument(Object id, Object collection) {
+        return get().documentStore().fetchDocument(id, collection);
+    }
+
+    /**
+     * Gets the document with given id in given collection, converting the matching document to a value with given type.
+     */
+    static <T> Optional<T> getDocument(Object id, Object collection, Class<T> type) {
+        return get().documentStore().fetchDocument(id, collection, type);
+    }
+
+    /**
+     * Deletes the document with given id in given collection if it exists.
+     */
+    static CompletableFuture<Void> deleteDocument(Object id, Object collection) {
+        return get().documentStore().deleteDocument(id, collection);
+    }
+
+    /**
+     * Deletes a search collection if it exists.
+     */
+    static CompletableFuture<Void> deleteCollection(Object collection) {
+        return get().documentStore().deleteCollection(collection);
     }
 
     /**

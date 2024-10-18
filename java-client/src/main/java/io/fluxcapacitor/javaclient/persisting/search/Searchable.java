@@ -12,7 +12,7 @@
  * limitations under the License.
  */
 
-package io.fluxcapacitor.javaclient.modeling;
+package io.fluxcapacitor.javaclient.persisting.search;
 
 import java.lang.annotation.Documented;
 import java.lang.annotation.ElementType;

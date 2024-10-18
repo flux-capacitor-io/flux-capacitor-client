@@ -15,6 +15,7 @@
 package io.fluxcapacitor.javaclient.modeling;
 
 import io.fluxcapacitor.javaclient.persisting.eventsourcing.InterceptApply;
+import io.fluxcapacitor.javaclient.persisting.search.Searchable;
 
 import java.lang.annotation.Documented;
 import java.lang.annotation.ElementType;

@@ -15,7 +15,7 @@
 package io.fluxcapacitor.javaclient.tracking.handling;
 
 import io.fluxcapacitor.javaclient.modeling.HandlerRepository;
-import io.fluxcapacitor.javaclient.modeling.Searchable;
+import io.fluxcapacitor.javaclient.persisting.search.Searchable;
 import org.springframework.beans.factory.config.ConfigurableBeanFactory;
 import org.springframework.context.annotation.Scope;
 import org.springframework.stereotype.Component;

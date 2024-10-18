@@ -22,7 +22,7 @@ import io.fluxcapacitor.common.ThrowingRunnable;
 import io.fluxcapacitor.common.handling.HandlerInvoker;
 import io.fluxcapacitor.javaclient.FluxCapacitor;
 import io.fluxcapacitor.javaclient.modeling.SearchParameters;
-import io.fluxcapacitor.javaclient.modeling.Searchable;
+import io.fluxcapacitor.javaclient.persisting.search.Searchable;
 import io.fluxcapacitor.javaclient.tracking.TrackSelf;
 import io.fluxcapacitor.javaclient.tracking.handling.LocalHandler;
 import lombok.SneakyThrows;

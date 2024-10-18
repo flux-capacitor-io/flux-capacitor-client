@@ -28,7 +28,7 @@ import io.fluxcapacitor.common.serialization.JsonUtils;
 import io.fluxcapacitor.javaclient.FluxCapacitor;
 import io.fluxcapacitor.javaclient.common.serialization.jackson.JacksonSerializer;
 import io.fluxcapacitor.javaclient.modeling.Id;
-import io.fluxcapacitor.javaclient.modeling.Searchable;
+import io.fluxcapacitor.javaclient.persisting.search.Searchable;
 import io.fluxcapacitor.javaclient.test.Given;
 import io.fluxcapacitor.javaclient.test.TestFixture;
 import io.fluxcapacitor.javaclient.test.When;

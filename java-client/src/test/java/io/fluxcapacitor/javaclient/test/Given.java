@@ -21,7 +21,7 @@ import io.fluxcapacitor.javaclient.FluxCapacitor;
 import io.fluxcapacitor.javaclient.common.Message;
 import io.fluxcapacitor.javaclient.configuration.ApplicationProperties;
 import io.fluxcapacitor.javaclient.modeling.Id;
-import io.fluxcapacitor.javaclient.modeling.Searchable;
+import io.fluxcapacitor.javaclient.persisting.search.Searchable;
 import io.fluxcapacitor.javaclient.scheduling.Schedule;
 import io.fluxcapacitor.javaclient.tracking.handling.authentication.User;
 import io.fluxcapacitor.javaclient.tracking.handling.authentication.UserProvider;
