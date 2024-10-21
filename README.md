@@ -5,7 +5,8 @@
 Flux Capacitor java client
 ======================
 
-This repository contains the official Java client for [flux.host](https://flux.host), the Flux Capacitor platform.
+This repository contains the official Java client for [flux.host](https://flux.host), the Flux Capacitor platform. For a short 
+overview of functionalities, check out this [cheatsheet](documentation/cheatsheet.pdf).
 
 Installation
 ======================
