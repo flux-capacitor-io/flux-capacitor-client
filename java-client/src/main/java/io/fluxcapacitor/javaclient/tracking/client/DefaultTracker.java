@@ -30,6 +30,7 @@ import lombok.extern.slf4j.Slf4j;
 import java.time.Duration;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
@@ -299,8 +300,8 @@ public class DefaultTracker implements Runnable, Registration {
                 } else {
                     //interrupt message fetching
                     try {
-                        thread.get().interrupt();
-                    } catch (Exception e) {
+                        Optional.ofNullable(thread.get()).ifPresent(Thread::interrupt);
+                    } catch (Throwable e) {
                         log.warn("Not allowed to cancel tracker {}", tracker.getName(), e);
                     } finally {
                         thread.set(null);
