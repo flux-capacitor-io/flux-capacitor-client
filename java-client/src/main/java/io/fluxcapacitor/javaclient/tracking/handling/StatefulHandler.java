@@ -18,7 +18,6 @@ import io.fluxcapacitor.common.handling.Handler;
 import io.fluxcapacitor.common.handling.HandlerInvoker;
 import io.fluxcapacitor.common.handling.HandlerMatcher;
 import io.fluxcapacitor.common.reflection.ReflectionUtils;
-import io.fluxcapacitor.javaclient.FluxCapacitor;
 import io.fluxcapacitor.javaclient.common.ClientUtils;
 import io.fluxcapacitor.javaclient.common.Entry;
 import io.fluxcapacitor.javaclient.common.serialization.DeserializingMessage;
@@ -110,15 +109,23 @@ public class StatefulHandler implements Handler<DeserializingMessage> {
                 : repository.findByAssociation(associations(message));
         if (matches.isEmpty()) {
             return handlerMatcher.getInvoker(null, message)
-                    .filter(i -> alreadyFiltered(i) || canTrackerHandle(
-                            message, message.computeRoutingKey().orElseGet(message::getMessageId)))
-                    .map(i -> new StatefulHandlerInvoker(i, null));
+                    .filter(i -> {
+                        if (alreadyFiltered(i)) {
+                            return true;
+                        }
+                        String routingKey = ReflectionUtils.getAnnotatedProperty(targetClass, EntityId.class)
+                                .map(ReflectionUtils::getPropertyName)
+                                .flatMap(message::getRoutingKey)
+                                .orElseGet(message::getMessageId);
+                        return canTrackerHandle(message, routingKey);
+                    })
+                    .map(i -> new StatefulHandlerInvoker(i, null, message));
         }
         List<HandlerInvoker> invokers = new ArrayList<>();
         for (Entry<?> entry : matches) {
             handlerMatcher.getInvoker(entry.getValue(), message)
                     .filter(i -> alreadyFiltered(i) || canTrackerHandle(message, entry.getId()))
-                    .map(i -> new StatefulHandlerInvoker(i, entry))
+                    .map(i -> new StatefulHandlerInvoker(i, entry, message))
                     .ifPresent(invokers::add);
         }
         return HandlerInvoker.join(invokers);
@@ -136,9 +143,9 @@ public class StatefulHandler implements Handler<DeserializingMessage> {
     protected Map<String, String> associations(DeserializingMessage message) {
         return ofNullable(message.getPayload()).stream()
                 .flatMap(payload -> Stream.concat(
-                        handlerMatcher.matchingMethods(message)
-                                .flatMap(e -> methodAssociationProperties.apply(e).entrySet().stream()),
-                        getAssociationProperties().entrySet().stream())
+                                handlerMatcher.matchingMethods(message)
+                                        .flatMap(e -> methodAssociationProperties.apply(e).entrySet().stream()),
+                                getAssociationProperties().entrySet().stream())
                         .filter(entry -> includedPayload(payload, entry.getValue()))
                         .flatMap(entry -> ReflectionUtils.readProperty(entry.getKey(), payload)
                                 .or(() -> ofNullable(message.getMetadata().get(entry.getKey())))
@@ -187,10 +194,12 @@ public class StatefulHandler implements Handler<DeserializingMessage> {
 
     protected class StatefulHandlerInvoker extends HandlerInvoker.DelegatingHandlerInvoker {
         private final Entry<?> currentEntry;
+        private final DeserializingMessage message;
 
-        public StatefulHandlerInvoker(HandlerInvoker delegate, Entry<?> currentEntry) {
+        public StatefulHandlerInvoker(HandlerInvoker delegate, Entry<?> currentEntry, DeserializingMessage message) {
             super(delegate);
             this.currentEntry = currentEntry;
+            this.message = message;
         }
 
         @Override
@@ -209,8 +218,8 @@ public class StatefulHandler implements Handler<DeserializingMessage> {
                     repository.set(result, computeId(result)).get();
                 }
             } else if (result == null && expectResult() && getMethod() instanceof Method m
-                && (getTargetClass().isAssignableFrom(m.getReturnType())
-                    || m.getReturnType().isAssignableFrom(getTargetClass()))) {
+                       && (getTargetClass().isAssignableFrom(m.getReturnType())
+                           || m.getReturnType().isAssignableFrom(getTargetClass()))) {
                 if (currentEntry != null) {
                     repository.delete(currentEntry.getId()).get();
                 }
@@ -220,7 +229,7 @@ public class StatefulHandler implements Handler<DeserializingMessage> {
         protected Object computeId(Object handler) {
             return getAnnotatedPropertyValue(handler, EntityId.class)
                     .or(() -> ofNullable(currentEntry).map(Entry::getId))
-                    .orElseGet(FluxCapacitor::generateId);
+                    .orElseGet(message::getMessageId);
         }
     }
 }
