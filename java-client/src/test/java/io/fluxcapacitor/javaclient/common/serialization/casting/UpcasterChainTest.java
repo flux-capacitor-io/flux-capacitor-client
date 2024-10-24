@@ -16,6 +16,7 @@ package io.fluxcapacitor.javaclient.common.serialization.casting;
 
 import io.fluxcapacitor.common.api.Data;
 import io.fluxcapacitor.common.api.SerializedObject;
+import io.fluxcapacitor.javaclient.MockException;
 import io.fluxcapacitor.javaclient.common.serialization.DeserializationException;
 import lombok.Getter;
 import org.junit.jupiter.api.Test;
@@ -23,6 +24,7 @@ import org.junit.jupiter.api.Test;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.stream.Stream;
 
@@ -62,7 +64,7 @@ class UpcasterChainTest {
     void testDroppingPayload() {
         Data<String> input = new Data<>("input", "dropPayload", 0, null);
         Stream<Data<String>> result = subject.cast(Stream.of(input));
-        assertEquals(emptyList(), result.collect(toList()));
+        assertEquals(emptyList(), result.map(Data::getValue).filter(Objects::nonNull).collect(toList()));
     }
 
     @Test
@@ -83,7 +85,7 @@ class UpcasterChainTest {
     void testOptionallyDroppingPayload() {
         Data<String> input = new Data<>("forbiddenPayload", "optionallyDropPayload", 0, null);
         Stream<Data<String>> result = subject.cast(Stream.of(input));
-        assertEquals(emptyList(), result.collect(toList()));
+        assertEquals(emptyList(), result.map(Data::getValue).filter(Objects::nonNull).collect(toList()));
     }
 
     @Test
@@ -201,7 +203,13 @@ class UpcasterChainTest {
         }
 
         @Upcast(type = "dropPayload", revision = 0)
-        public void dropPayload(String input) {
+        public String dropPayload(String input) {
+            return null;
+        }
+
+        @Upcast(type = "dropPayload", revision = 1)
+        public String dropPayloadContinued(String input) {
+            throw new MockException(); //expected not to get here
         }
 
         @Upcast(type = "dropData", revision = 0)

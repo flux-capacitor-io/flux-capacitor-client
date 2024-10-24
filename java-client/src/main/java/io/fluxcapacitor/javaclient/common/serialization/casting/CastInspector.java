@@ -103,7 +103,17 @@ public class CastInspector {
                 }).toList();
         var invoker = DefaultMemberInvoker.asInvoker(method);
         try {
-            return s -> invoker.invoke(target, parameterFunctions.size(), i -> parameterFunctions.get(i).apply(s));
+            return s -> {
+                Object[] args = new Object[parameterFunctions.size()];
+                for (int i = 0; i < parameterFunctions.size(); i++) {
+                    var arg = parameterFunctions.get(i).apply(s);
+                    if (arg == null) {
+                        return null;
+                    }
+                    args[i] = arg;
+                }
+                return invoker.invoke(target, args);
+            };
         } catch (Throwable e) {
             throw new DeserializationException("Exception while upcasting using method: " + invoker.getMember(), e);
         }
@@ -119,28 +129,29 @@ public class CastInspector {
                                               s.data().getFormat())));
         }
         if (method.getReturnType().equals(Data.class)) {
-            return (s, o) -> Stream.of(s.withData((Data<T>) o.get()));
+            return (s, o) -> Optional.ofNullable((Data<T>) o.get()).stream().map(s::withData);
         }
         if (method.getReturnType().equals(Optional.class)) {
             ParameterizedType parameterizedType = (ParameterizedType) method.getGenericReturnType();
             if (parameterizedType.getActualTypeArguments()[0] instanceof Class<?> typeParameter) {
                 if (dataType.isAssignableFrom(typeParameter)) {
-                    return (s, o) -> {
-                        Optional<T> result = (Optional<T>) o.get();
-                        return result.stream().map(t -> s.withData(new Data<>(
-                                t, annotation.type(), annotation.revision() + annotation.revisionDelta(),
-                                s.data().getFormat())));
-                    };
+                    return (s, o) -> Stream.of(s.withData(new Data<>(
+                            () -> o.get() instanceof Optional<?> optional && optional.isPresent()
+                                    ? (T) optional.get() : null,
+                            annotation.type(), annotation.revision() + annotation.revisionDelta(),
+                            s.data().getFormat())));
                 }
             } else if (parameterizedType.getActualTypeArguments()[0] instanceof ParameterizedType) {
                 if (((ParameterizedType) parameterizedType.getActualTypeArguments()[0]).getRawType()
                         .equals(Data.class)) {
-                    return (s, o) -> ((Optional<Data<T>>) o.get()).stream().map(s::withData);
+                    return (s, o) -> o.get() instanceof Optional<?> optional && optional.isPresent()
+                            ? ((Optional<Data<T>>) optional).stream().map(s::withData) : Stream.empty();
                 }
             }
         }
         if (method.getReturnType().equals(Stream.class)) {
-            return (s, o) -> ((Stream<Data<T>>) o.get()).map(s::withData);
+            return (s, o) -> o.get() instanceof Stream<?> stream ? ((Stream<Data<T>>) stream).map(s::withData)
+                    : Stream.empty();
         }
 
         throw new DeserializationException(String.format(

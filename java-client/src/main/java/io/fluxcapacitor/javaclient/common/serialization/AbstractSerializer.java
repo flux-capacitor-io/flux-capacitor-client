@@ -262,10 +262,10 @@ public abstract class AbstractSerializer<I> implements Serializer {
     @Nullable
     private Object downcastIntermediate(Data<I> data, int desiredRevision) {
         var result = downcasterChain.cast(Stream.of(data), desiredRevision).map(Data::getValue)
-                .collect(Collectors.toList());
+                .filter(Objects::nonNull).toList();
         return switch (result.size()) {
             case 0 -> null;
-            case 1 -> result.get(0);
+            case 1 -> result.getFirst();
             default -> result;
         };
     }
