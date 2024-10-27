@@ -30,6 +30,7 @@ import io.fluxcapacitor.javaclient.test.TestFixture;
 import io.fluxcapacitor.javaclient.tracking.handling.HandleCommand;
 import io.fluxcapacitor.javaclient.tracking.handling.HandleQuery;
 import lombok.Builder;
+import lombok.NonNull;
 import lombok.Singular;
 import lombok.Value;
 import org.junit.jupiter.api.Test;
@@ -42,7 +43,7 @@ import static org.wildfly.common.Assert.assertTrue;
 public class GivenWhenThenUpcasterChainTest {
     private static final String aggregateId = "test";
 
-    private final TestFixture testFixture = TestFixture.createAsync(
+    private final TestFixture testFixture = TestFixture.create(
             DefaultFluxCapacitor.builder().replaceSerializer(
                     new JacksonSerializer(List.of(new JsonNodeUpcaster()))), new Handler());
 
@@ -56,6 +57,13 @@ public class GivenWhenThenUpcasterChainTest {
     void upcastCommand() {
         testFixture.whenCommand("create-model-revision-0.json")
                 .expectEvents(new CreateModel("patchedContent"));
+    }
+
+    @Test
+    void droppedCommandDoesNotInvokeHandler() {
+        testFixture.whenExecuting(fc -> FluxCapacitor.sendAndForgetCommand(
+                        testFixture.parseObject("dropped-create-model-revision-0.json", getClass())))
+                .expectNoEvents().expectNoErrors();
     }
 
     @Test
@@ -84,8 +92,18 @@ public class GivenWhenThenUpcasterChainTest {
         public ObjectNode upcast(ObjectNode input) {
             return input.put("content", "patchedContent");
         }
+
+        @Upcast(type = "io.fluxcapacitor.javaclient.common.serialization.casting.GivenWhenThenUpcasterChainTest$DroppedCreateModel",
+                revision = 0)
+        public ObjectNode drop(ObjectNode input) {
+            return null;
+        }
     }
 
+    @Value
+    public static class DroppedCreateModel {
+        String content;
+    }
 
     @Value
     @Revision(1)
@@ -105,7 +123,7 @@ public class GivenWhenThenUpcasterChainTest {
 
     private static class Handler {
         @HandleCommand
-        void handle(Object command, Metadata metadata) {
+        void handle(@NonNull Object command, Metadata metadata) {
             FluxCapacitor.loadAggregate(aggregateId, TestModel.class).assertLegal(command).apply(command, metadata);
         }
 

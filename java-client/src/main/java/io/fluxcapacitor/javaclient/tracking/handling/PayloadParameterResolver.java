@@ -23,13 +23,18 @@ import java.util.function.Function;
 
 public class PayloadParameterResolver implements ParameterResolver<HasMessage> {
     @Override
+    public boolean matches(Parameter p, Annotation methodAnnotation, HasMessage value) {
+        return p.getType().isAssignableFrom(value.getPayloadClass());
+    }
+
+    @Override
     public Function<HasMessage, Object> resolve(Parameter p, Annotation methodAnnotation) {
         return HasMessage::getPayload;
     }
 
     @Override
-    public boolean matches(Parameter p, Annotation methodAnnotation, HasMessage value) {
-        return p.getType().isAssignableFrom(value.getPayloadClass());
+    public boolean filterMessage(HasMessage message, Parameter parameter) {
+        return message.getPayload() != null; //may be the case after upcasting
     }
 
     @Override
