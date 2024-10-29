@@ -18,9 +18,11 @@ import com.fasterxml.jackson.annotation.JsonValue;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import io.fluxcapacitor.common.reflection.ReflectionUtils;
 import io.fluxcapacitor.common.search.Facet;
+import io.fluxcapacitor.javaclient.tracking.handling.validation.ValidationException;
 import lombok.Getter;
 import lombok.NonNull;
 
+import java.util.Collections;
 import java.util.Objects;
 
 /**
@@ -162,6 +164,9 @@ public abstract class Id<T> {
      * @param caseSensitive whether this id is case-sensitive.
      */
     public Id(@NonNull String functionalId, @NonNull Class<T> type, @NonNull String prefix, boolean caseSensitive) {
+        if (functionalId.isBlank()) {
+            throw new ValidationException("Id value should not be blank", Collections.emptySet());
+        }
         this.functionalId = functionalId;
         this.type = type;
         this.repositoryId = caseSensitive ? prefix + this.functionalId : prefix + this.functionalId.toLowerCase();

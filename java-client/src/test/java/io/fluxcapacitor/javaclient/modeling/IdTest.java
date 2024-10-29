@@ -15,11 +15,13 @@
 package io.fluxcapacitor.javaclient.modeling;
 
 import io.fluxcapacitor.common.serialization.JsonUtils;
+import io.fluxcapacitor.javaclient.tracking.handling.validation.ValidationException;
 import lombok.AllArgsConstructor;
 import lombok.Value;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
 class IdTest {
 
@@ -43,6 +45,16 @@ class IdTest {
     @Test
     void toStringIsLowercaseAndHasPrefix() {
         assertEquals("mock-foobar", defaultOwner.getId().toString());
+    }
+
+    @Test
+    void blankFunctionalIdNotAllowed() {
+        assertThrows(ValidationException.class, () -> new MockId("  "));
+    }
+
+    @Test
+    void blankFunctionalIdNotAllowed_deserialization() {
+        assertThrows(Exception.class, () -> JsonUtils.convertValue("\" \"", MockId.class));
     }
 
     @Value
