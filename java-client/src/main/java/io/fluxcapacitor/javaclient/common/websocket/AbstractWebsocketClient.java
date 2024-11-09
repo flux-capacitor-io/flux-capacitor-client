@@ -39,7 +39,6 @@ import io.fluxcapacitor.javaclient.publishing.AdhocDispatchInterceptor;
 import io.fluxcapacitor.javaclient.publishing.DispatchInterceptor;
 import io.undertow.websockets.jsr.UndertowSession;
 import jakarta.websocket.CloseReason;
-import jakarta.websocket.ContainerProvider;
 import jakarta.websocket.OnClose;
 import jakarta.websocket.OnError;
 import jakarta.websocket.OnMessage;
@@ -90,7 +89,7 @@ import static java.lang.Thread.sleep;
 import static java.util.Optional.ofNullable;
 
 public abstract class AbstractWebsocketClient implements AutoCloseable {
-    public static WebSocketContainer defaultWebSocketContainer = ContainerProvider.getWebSocketContainer();
+    public static WebSocketContainer defaultWebSocketContainer = new DefaultWebSocketContainerProvider().getContainer();
     public static ObjectMapper defaultObjectMapper = JsonMapper.builder().disable(FAIL_ON_UNKNOWN_PROPERTIES)
             .findAndAddModules().disable(WRITE_DATES_AS_TIMESTAMPS).build();
 
