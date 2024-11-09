@@ -71,9 +71,15 @@ public @interface Association {
     Class<?>[] excludedClasses() default {};
 
     /**
+     * Returns whether metadata properties of messages should be checked for possible association with a stored handler.
+     */
+    boolean excludeMetadata() default false;
+
+    /**
      * Returns whether the message matched by this handler should always be applied to any stored handlers. All other
      * configuration in this annotation will be ignored. This setting only has an effect if it is used in an annotation
      * of a handler method. I.e. it has no effect the association is on a field or getter of the handler.
      */
     boolean always() default false;
+
 }

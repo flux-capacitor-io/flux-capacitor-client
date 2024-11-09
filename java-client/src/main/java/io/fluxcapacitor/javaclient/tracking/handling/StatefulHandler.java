@@ -53,6 +53,7 @@ import static io.fluxcapacitor.common.reflection.ReflectionUtils.getAnnotatedPro
 import static io.fluxcapacitor.common.reflection.ReflectionUtils.getAnnotatedPropertyValue;
 import static io.fluxcapacitor.common.reflection.ReflectionUtils.getAnnotation;
 import static io.fluxcapacitor.common.reflection.ReflectionUtils.getPropertyName;
+import static java.util.Optional.empty;
 import static java.util.Optional.ofNullable;
 import static java.util.stream.Collectors.toMap;
 
@@ -148,7 +149,7 @@ public class StatefulHandler implements Handler<DeserializingMessage> {
                                 getAssociationProperties().entrySet().stream())
                         .filter(entry -> includedPayload(payload, entry.getValue()))
                         .flatMap(entry -> ReflectionUtils.readProperty(entry.getKey(), payload)
-                                .or(() -> ofNullable(message.getMetadata().get(entry.getKey())))
+                                .or(() -> entry.getValue().isExcludeMetadata() ? empty() : ofNullable(message.getMetadata().get(entry.getKey())))
                                 .map(v -> {
                                     if (v instanceof Id<?> id) {
                                         return id.getFunctionalId();
@@ -185,6 +186,7 @@ public class StatefulHandler implements Handler<DeserializingMessage> {
         String path;
         List<Class<?>> includedClasses;
         List<Class<?>> excludedClasses;
+        boolean excludeMetadata;
         boolean always;
 
         public String getPath() {

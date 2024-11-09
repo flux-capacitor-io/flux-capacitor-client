@@ -109,6 +109,13 @@ public class StatefulHandlerTest {
         }
 
         @Test
+        void handlerAssociationViaIgnoredMetadata() {
+            testFixture.givenEvents(new SomeEvent("foo"))
+                    .whenEvent(new Message(123, Metadata.of("otherId", "foo")))
+                    .expectNoCommands().expectNoErrors();
+        }
+
+        @Test
         void handlerIsNotUpdatedIfNoMatch() {
             testFixture.givenEvents(new SomeEvent("foo"))
                     .whenEvent(new SomeEvent("other"))
@@ -172,12 +179,13 @@ public class StatefulHandlerTest {
         public static class StaticHandler {
             @EntityId
             @Association(value = {"someId", "aliasId"}, excludedClasses = ExcludedEvent.class) String someId;
+            @Association(excludeMetadata = true) String otherId;
             int eventCount;
 
             @HandleEvent
             static StaticHandler create(SomeEvent event) {
                 FluxCapacitor.sendAndForgetCommand(1);
-                return StaticHandler.builder().someId(event.someId).eventCount(1).build();
+                return StaticHandler.builder().someId(event.someId).otherId(event.someId).eventCount(1).build();
             }
 
             @HandleEvent
@@ -197,11 +205,17 @@ public class StatefulHandlerTest {
                 FluxCapacitor.sendAndForgetCommand(eventCount + 1);
                 FluxCapacitor.sendAndForgetCommand(1);
                 return List.of(toBuilder().eventCount(eventCount + 1).build(),
-                               StaticHandler.builder().someId(event.copyId).eventCount(1).build());
+                               StaticHandler.builder().someId(event.copyId).otherId(event.copyId).eventCount(1).build());
             }
 
             @HandleEvent
             StaticHandler update(String ignored) {
+                FluxCapacitor.sendAndForgetCommand(eventCount + 1);
+                return toBuilder().eventCount(eventCount + 1).build();
+            }
+
+            @HandleEvent
+            StaticHandler update(Integer ignored) {
                 FluxCapacitor.sendAndForgetCommand(eventCount + 1);
                 return toBuilder().eventCount(eventCount + 1).build();
             }
