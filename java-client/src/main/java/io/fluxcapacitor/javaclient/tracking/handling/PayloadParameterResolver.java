@@ -15,6 +15,7 @@
 package io.fluxcapacitor.javaclient.tracking.handling;
 
 import io.fluxcapacitor.common.handling.ParameterResolver;
+import io.fluxcapacitor.common.reflection.ReflectionUtils;
 import io.fluxcapacitor.javaclient.common.HasMessage;
 
 import java.lang.annotation.Annotation;
@@ -34,7 +35,7 @@ public class PayloadParameterResolver implements ParameterResolver<HasMessage> {
 
     @Override
     public boolean filterMessage(HasMessage message, Parameter parameter) {
-        return message.getPayload() != null; //may be the case after upcasting
+        return message.getPayload() != null || ReflectionUtils.isNullable(parameter); //may be the case after upcasting
     }
 
     @Override
