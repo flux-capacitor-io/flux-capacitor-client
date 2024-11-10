@@ -213,7 +213,11 @@ class GivenWhenThenTest {
     void testGivenAppliedEvents() {
         testFixture.givenAppliedEvents("test", MockAggregate.class, new MockAggregateEvent())
                 .whenApplying(fc -> loadAggregate("test", MockAggregate.class).get())
-                .expectResult(r -> r instanceof MockAggregate);
+                .verifyResult(r -> {
+                    if (r == null) {
+                        throw new MockException();
+                    }
+                });
     }
 
     @Test

@@ -14,12 +14,15 @@
 
 package io.fluxcapacitor.javaclient.test;
 
+import io.fluxcapacitor.common.ThrowingConsumer;
 import io.fluxcapacitor.javaclient.FluxCapacitor;
+import io.fluxcapacitor.javaclient.common.ClientUtils;
 import io.fluxcapacitor.javaclient.common.Message;
 import io.fluxcapacitor.javaclient.scheduling.Schedule;
 import io.fluxcapacitor.javaclient.web.WebRequest;
 import io.fluxcapacitor.javaclient.web.WebResponse;
 import lombok.NonNull;
+import lombok.SneakyThrows;
 
 import java.util.Collection;
 import java.util.Map;
@@ -467,6 +470,24 @@ public interface Then<R> {
     }
 
     /**
+     * Verify if the actual result of the test fixture matches using the given verifier. If the verifier yields an
+     * exception, the test will fail.
+     */
+    default <R2 extends R> Then<R2> verifyResult(ThrowingConsumer<R2> verifier) {
+        return expectResult(r -> {
+            try {
+                verifier.accept(r);
+                return true;
+            } catch (Throwable e) {
+                ClientUtils.runSilently(() -> {
+                    throw e;
+                });
+                return false;
+            }
+        }, "Custom verifier");
+    }
+
+    /**
      * Assert that the actual result of the test fixture matches the given predicate summarized by given description.
      */
     <R2 extends R> Then<R2> expectResult(Predicate<R2> predicate, String description);
@@ -483,6 +504,25 @@ public interface Then<R> {
      * by given description.
      */
     <M extends Message> Then<R> expectResultMessage(Predicate<M> messagePredicate, String description);
+
+    /**
+     * Verify if the actual result of the test fixture matches using the given verifier. If the verifier yields an
+     * exception, the test will fail.
+     */
+    @SuppressWarnings("unchecked")
+    default <M extends Message> Then<R> verifyResultMessage(ThrowingConsumer<M> verifier) {
+        return expectResultMessage(r -> {
+            try {
+                verifier.accept((M) r);
+                return true;
+            } catch (Throwable e) {
+                ClientUtils.runSilently(() -> {
+                    throw e;
+                });
+                return false;
+            }
+        }, "Custom verifier");
+    }
 
     /**
      * Assert that the result of the test fixture is non-null.
@@ -563,6 +603,25 @@ public interface Then<R> {
     }
 
     /**
+     * Assert that the test fixture completed exceptionally and verify the exception using the given verifier. Only if
+     * the verifier yields an exception, the test fails.
+     */
+    @SuppressWarnings("unchecked")
+    default <T extends Throwable> Then<R> verifyExceptionalResult(ThrowingConsumer<T> verifier) {
+        return expectExceptionalResult(r -> {
+            try {
+                verifier.accept((T) r);
+                return true;
+            } catch (Throwable e) {
+                ClientUtils.runSilently(() -> {
+                    throw e;
+                });
+                return false;
+            }
+        }, "Custom verifier");
+    }
+
+    /**
      * Assert that the test fixture completed exceptionally and that the exception matches the given predicate described
      * by the given error message.
      */
@@ -606,6 +665,27 @@ public interface Then<R> {
      */
     default <T extends Throwable> Then<R> expectError(Predicate<T> predicate) {
         return expectError(predicate, "Predicate matcher");
+    }
+
+    /**
+     * Verify that the test fixture handler yielded an exception anywhere and test the exception using the given
+     * verifier. If the verifier yields an  exception, the test will fail. This error does not need to be the returned
+     * result of the action in the `when` phase. To assert that use methods that test for exceptional results.
+     */
+    @SuppressWarnings("unchecked")
+    @SneakyThrows
+    default <T extends Throwable> Then<R> verifyError(ThrowingConsumer<T> verifier) {
+        return this.expectError(e -> {
+            try {
+                verifier.accept((T) e);
+                return true;
+            } catch (Throwable ex) {
+                ClientUtils.runSilently(() -> {
+                    throw ex;
+                });
+                return false;
+            }
+        }, "Custom matcher");
     }
 
     /**
