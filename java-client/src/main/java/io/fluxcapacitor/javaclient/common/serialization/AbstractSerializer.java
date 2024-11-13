@@ -46,7 +46,6 @@ import java.util.TreeMap;
 import java.util.TreeSet;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Function;
-import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import static java.lang.String.format;
@@ -117,18 +116,17 @@ public abstract class AbstractSerializer<I> implements Serializer {
         }
         Class<?> type = object.getClass();
         if (Collection.class.isAssignableFrom(type)) {
-            Collection<?> collection = (Collection<?>) object;
-            Set<Type> children = collection.stream().map(this::getType).collect(Collectors.toSet());
-            if (children.size() == 1) {
-                return TypeUtils.parameterize(type, children.iterator().next());
+            List<Class<?>> children = ReflectionUtils.determineCommonAncestors((Collection<?>) object);
+            if (!children.isEmpty()) {
+                return TypeUtils.parameterize(type, children.getFirst());
             }
         } else if (Map.class.isAssignableFrom(type)) {
             Map<?, ?> map = (Map<?, ?>) object;
-            Set<Type> keys = map.keySet().stream().map(this::getType).collect(Collectors.toSet());
-            if (keys.size() == 1) {
-                Set<Type> values = map.values().stream().map(this::getType).collect(Collectors.toSet());
-                if (values.size() == 1) {
-                    return TypeUtils.parameterize(type, keys.iterator().next(), values.iterator().next());
+            List<Class<?>> keys = ReflectionUtils.determineCommonAncestors(map.keySet());
+            if (!keys.isEmpty()) {
+                List<Class<?>> values = ReflectionUtils.determineCommonAncestors(map.values());
+                if (!values.isEmpty()) {
+                    return TypeUtils.parameterize(type, keys.getFirst(), values.getFirst());
                 }
             }
         }

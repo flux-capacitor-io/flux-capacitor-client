@@ -14,6 +14,9 @@
 
 package io.fluxcapacitor.javaclient.common.serialization.jackson;
 
+import com.fasterxml.jackson.annotation.JsonSubTypes;
+import com.fasterxml.jackson.annotation.JsonSubTypes.Type;
+import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -145,6 +148,13 @@ class JacksonSerializerTest {
         List<?> input = Arrays.asList(new Foo("bla1"), "bla2");
         assertEquals(objectMapper.convertValue(input, Object.class),
                      serializer.deserialize(serializer.serialize(input)));
+    }
+
+    @Test
+    void testDeserializeMixedCollectionSharedInterface() {
+        List<Bar> input = Arrays.asList(new Foo("bla1"), new Foo2("bla2"));
+        Data<byte[]> serialized = serializer.serialize(input);
+        assertEquals(input, serializer.deserialize(serialized));
     }
 
     @Nested
@@ -286,8 +296,19 @@ class JacksonSerializerTest {
     }
 
     @Value
-    private static class Foo {
+    private static class Foo implements Bar {
         String foo;
+    }
+
+    @Value
+    private static class Foo2 implements Bar {
+        String foo2;
+    }
+
+    @JsonTypeInfo(use = JsonTypeInfo.Id.DEDUCTION, defaultImpl = Foo.class)
+    @JsonSubTypes({@Type(Foo.class), @Type(Foo2.class)})
+    interface Bar {
+
     }
 
 }

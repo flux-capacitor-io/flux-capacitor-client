@@ -26,6 +26,7 @@ import lombok.experimental.NonFinal;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
+import static io.fluxcapacitor.common.reflection.ReflectionUtils.determineCommonAncestors;
 import static io.fluxcapacitor.common.reflection.ReflectionUtils.hasProperty;
 import static io.fluxcapacitor.common.reflection.ReflectionUtils.readProperty;
 import static io.fluxcapacitor.common.reflection.ReflectionUtils.writeProperty;
@@ -157,6 +158,29 @@ class ReflectionUtilsTest {
         }
     }
 
+    @Nested
+    class CommonAncestorsTests {
+        @Test
+        void commonAncestorTest() {
+            assertEquals(A.class, determineCommonAncestors(AB.class, AImpl.class).getFirst());
+            assertEquals(Object.class, determineCommonAncestors(A.class, B.class, C.class).getFirst());
+            assertEquals(A.class, determineCommonAncestors(A.class, AB.class).getFirst());
+            assertEquals(A.class, determineCommonAncestors(AImpl.class, ABImpl.class).getFirst());
+            assertEquals(A.class, determineCommonAncestors(ABImpl.class, ABImpl2.class).getFirst());
+            assertEquals(B.class, determineCommonAncestors(ABImpl.class, ABImpl2.class, BCImpl.class).getFirst());
+            assertEquals(Object.class, determineCommonAncestors(AImpl.class, ABImpl.class, ABImpl2.class, BCImpl.class).getFirst());
+            assertEquals(AB.class, determineCommonAncestors(AB.class, ABImpl.class).getFirst());
+        }
+
+        private interface A {}
+        private interface B {}
+        private interface AB extends A, B {}
+        private interface C {}
+        private static class AImpl implements A {}
+        private static class ABImpl implements AB {}
+        private static class ABImpl2 implements A, B {}
+        private static class BCImpl implements B, C {}
+    }
 
     @Value
     @Builder(toBuilder = true)

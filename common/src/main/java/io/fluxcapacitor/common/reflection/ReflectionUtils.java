@@ -53,6 +53,7 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.LinkedHashSet;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -624,6 +625,48 @@ public class ReflectionUtils {
             }
         }
         throw new IllegalStateException("Could not get parameter index of " + parameter);
+    }
+
+    /*
+    Based on this SO question https://stackoverflow.com/questions/9797212/finding-the-nearest-common-superclass-or-superinterface-of-a-collection-of-cla
+     */
+    public static List<Class<?>> determineCommonAncestors(Collection<?> elements) {
+        return determineCommonAncestors(
+                elements.stream().map(e -> e == null ? Void.class : e.getClass()).distinct()
+                        .toArray(Class<?>[]::new));
+    }
+
+    static List<Class<?>> determineCommonAncestors(Class<?>... classes) {
+        return switch (classes.length) {
+            case 0 -> Collections.emptyList();
+            case 1 -> List.of(classes);
+            default -> {
+                Set<Class<?>> rollingIntersect = new LinkedHashSet<>(getClassHierarchy(classes[0]));
+                for (int i = 1; i < classes.length; i++) {
+                    rollingIntersect.retainAll(getClassHierarchy(classes[i]));
+                }
+                yield rollingIntersect.isEmpty() ? List.of(Object.class) : new LinkedList<>(rollingIntersect);
+            }
+        };
+    }
+
+    static Set<Class<?>> getClassHierarchy(Class<?> clazz) {
+        Set<Class<?>> classes = new LinkedHashSet<>();
+        Set<Class<?>> nextLevel = new LinkedHashSet<>();
+        nextLevel.add(clazz);
+        do {
+            classes.addAll(nextLevel);
+            Set<Class<?>> thisLevel = new LinkedHashSet<>(nextLevel);
+            nextLevel.clear();
+            for (Class<?> each : thisLevel) {
+                Class<?> superClass = each.getSuperclass();
+                if (superClass != null && superClass != Object.class) {
+                    nextLevel.add(superClass);
+                }
+                Collections.addAll(nextLevel, each.getInterfaces());
+            }
+        } while (!nextLevel.isEmpty());
+        return classes;
     }
 
     public static List<Package> getPackageAndParentPackages(Package p) {
