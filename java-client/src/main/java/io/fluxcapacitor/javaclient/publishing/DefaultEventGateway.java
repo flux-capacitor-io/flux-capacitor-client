@@ -30,4 +30,14 @@ public class DefaultEventGateway implements EventGateway {
     public CompletableFuture<Void> publish(Message message, Guarantee guarantee) {
         return delegate.sendAndForget(message, guarantee);
     }
+
+    @Override
+    public void publish(Object... messages) {
+        publish(Guarantee.NONE, messages);
+    }
+
+    @Override
+    public CompletableFuture<Void> publish(Guarantee guarantee, Object... messages) {
+        return sendAndForget(guarantee, messages);
+    }
 }

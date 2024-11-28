@@ -35,4 +35,8 @@ public interface EventGateway extends HasLocalHandlers {
     }
 
     CompletableFuture<Void> publish(Message message, Guarantee guarantee);
+
+    void publish(Object... messages);
+
+    CompletableFuture<Void> publish(Guarantee guarantee, Object... messages);
 }

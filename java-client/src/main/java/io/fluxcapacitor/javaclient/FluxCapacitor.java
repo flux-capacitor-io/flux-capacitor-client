@@ -188,6 +188,20 @@ public interface FluxCapacitor extends AutoCloseable {
     }
 
     /**
+     * Publishes given application events. The events may be instances of {@link Message} in which case they will be
+     * published as is. Otherwise, the events are published using the passed value as payload without additional
+     * metadata.
+     * <p>
+     * Note that the published events will not be available for event sourcing as they do not belong to any
+     * aggregate.
+     *
+     * @see #aggregateRepository() if you're interested in publishing events that belong to an aggregate.
+     */
+    static void publishEvents(Object... events) {
+        get().eventGateway().publish(events);
+    }
+
+    /**
      * Sends the given command and doesn't wait for a result. The command may be an instance of a {@link Message} in
      * which case it will be sent as is. Otherwise the command is published using the passed value as payload without
      * additional metadata.
@@ -758,7 +772,8 @@ public interface FluxCapacitor extends AutoCloseable {
     }
 
     /**
-     * Gets the document with given id in given collection, converting the matching document to a value with given type.
+     * Gets the document with given id in given collection, converting the matching document to a value with given
+     * type.
      */
     static <T> Optional<T> getDocument(Object id, Object collection, Class<T> type) {
         return get().documentStore().fetchDocument(id, collection, type);
