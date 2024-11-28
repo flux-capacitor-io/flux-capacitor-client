@@ -60,7 +60,8 @@ public abstract class PathConstraint implements Constraint {
         return checkPathBeforeEntry() ? d -> d.getEntries().entrySet().stream()
                 .anyMatch(e -> e.getValue().stream().anyMatch(pathPredicate) && matches(e.getKey())) :
                 d -> d.getEntries().entrySet().stream()
-                        .anyMatch(e -> matches(e.getKey()) && (e.getValue().isEmpty() ? pathPredicate.test(null) :
+                        .anyMatch(e -> matches(e.getKey()) && (e.getValue().isEmpty()
+                                ? pathPredicate.test(Path.EMPTY_PATH) :
                                 e.getValue().stream().anyMatch(pathPredicate)));
     }
 }

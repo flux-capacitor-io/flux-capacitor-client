@@ -38,6 +38,10 @@ import static java.util.stream.Collectors.toList;
 @AllArgsConstructor(access = AccessLevel.PRIVATE)
 public class ContainsConstraint extends PathConstraint {
 
+    public static Constraint contains(String phrase, String... paths) {
+        return contains(phrase, false, false, false, paths);
+    }
+
     public static Constraint contains(String phrase, boolean prefixSearch, boolean postfixSearch,
                                       String... paths) {
         return contains(phrase, prefixSearch, postfixSearch, false, paths);

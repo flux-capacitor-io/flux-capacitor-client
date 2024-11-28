@@ -142,6 +142,7 @@ public class Document {
 
     @Value
     public static class Path {
+        public static Path EMPTY_PATH = new Path("");
         private static final Pattern splitPattern = Pattern.compile("(?<!\\\\)/");
 
         private static final Function<String, String[]> splitFunction = memoize(in -> splitPattern.split(in));

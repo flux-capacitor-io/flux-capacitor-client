@@ -52,6 +52,7 @@ import static io.fluxcapacitor.common.api.search.constraints.AnyConstraint.any;
 import static io.fluxcapacitor.common.api.search.constraints.BetweenConstraint.atLeast;
 import static io.fluxcapacitor.common.api.search.constraints.BetweenConstraint.below;
 import static io.fluxcapacitor.common.api.search.constraints.BetweenConstraint.between;
+import static io.fluxcapacitor.common.api.search.constraints.ContainsConstraint.contains;
 import static io.fluxcapacitor.common.api.search.constraints.ExistsConstraint.exists;
 import static io.fluxcapacitor.common.api.search.constraints.LookAheadConstraint.lookAhead;
 import static io.fluxcapacitor.common.api.search.constraints.MatchConstraint.match;
@@ -630,6 +631,30 @@ public class SearchTest {
                                                              && stats.contains(new FacetStats("facetList", "value1", 2))
                                                              && stats.contains(new FacetStats("facetList/status", "value2", 2))
                                                              && stats.contains(new FacetStats("selfAnnotated", "self", 2)));
+        }
+    }
+
+    @Nested
+    class UnstructuredDocSearchTests {
+        private final Given testFixture = TestFixture.create()
+                .givenDocuments("test", "some string");
+
+        @Test
+        void findInString() {
+            testFixture.whenSearching("test", contains("some"))
+                            .expectResult(list -> list.size() == 1 && "some string".equals(list.getFirst()));
+        }
+
+        @Test
+        void noMatchIfPathIsAdded() {
+            testFixture.whenSearching("test", contains("some", "id"))
+                    .expectResult(List::isEmpty);
+        }
+
+        @Test
+        void matchIfQueryPathIsEmpty() {
+            testFixture.whenSearching("test", contains("some", ""))
+                    .expectResult(list -> list.size() == 1);
         }
     }
 
