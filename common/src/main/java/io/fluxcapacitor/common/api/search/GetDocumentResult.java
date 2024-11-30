@@ -22,4 +22,14 @@ public class GetDocumentResult implements QueryResult {
     long requestId;
     SerializedDocument document;
     long timestamp = System.currentTimeMillis();
+
+    @Override
+    public Metric toMetric() {
+        return new Metric(timestamp);
+    }
+
+    @Value
+    public static class Metric {
+        long timestamp;
+    }
 }

@@ -21,6 +21,7 @@ import lombok.EqualsAndHashCode;
 import lombok.Value;
 
 import java.util.List;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 @EqualsAndHashCode(callSuper = true)
@@ -43,12 +44,13 @@ public class IndexDocuments extends Command {
     @Override
     public Metric toMetric() {
         return new Metric(getSize(), ifNotExists, guarantee,
-                documents.stream().map(SerializedDocument::getId).collect(Collectors.toList()));
+                          documents.stream().map(SerializedDocument::getCollection).collect(Collectors.toSet()),
+                          documents.stream().map(SerializedDocument::getId).toList());
     }
 
     @Override
     public String routingKey() {
-        return documents.get(0).getId();
+        return documents.getFirst().getId();
     }
 
     @Value
@@ -56,6 +58,7 @@ public class IndexDocuments extends Command {
         int size;
         boolean ifNotExists;
         Guarantee guarantee;
+        Set<String> collections;
         List<String> ids;
     }
 }
