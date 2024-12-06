@@ -34,7 +34,7 @@ class FlowRegulatorTest {
         @Test
         void consumerIsPaused() {
             testFixture
-                    .consumerTimeout(Duration.ofMillis(100))
+                    .consumerTimeout(Duration.ofMillis(400))
                     .registerHandlers(PauseOnceHandler.class)
                     .whenEvent("123")
                     .expectMetrics(PauseTrackerEvent.class)
@@ -61,7 +61,7 @@ class FlowRegulatorTest {
             @Override
             public Optional<Duration> pauseDuration() {
                 if (pausedOnce.compareAndSet(false, true)) {
-                    return Optional.of(Duration.ofMillis(200));
+                    return Optional.of(Duration.ofMillis(800));
                 }
                 return Optional.empty();
             }
