@@ -110,7 +110,16 @@ public class CachingAggregateRepository implements AggregateRepository {
         if (id != null) {
             try {
                 if (Objects.equals(client.id(), m.getSerializedObject().getSource())) {
-                    cache.<Entity<?>>computeIfPresent(id, (i, a) -> a.withEventIndex(m.getIndex(), m.getMessageId()));
+                    cache.<Entity<?>>computeIfPresent(id, (i, a) -> {
+                        try {
+                            return a.withEventIndex(m.getIndex(), m.getMessageId());
+                        } catch (Throwable e) {
+                            log.error("Failed to update event index {} for aggregate {}"
+                                      + " (id {}, last event id {}). Clearing aggregate from cache.",
+                                      m.getMessageId(), getAggregateType(m), id, a.lastEventId(), e);
+                            return null;
+                        }
+                    });
                 } else {
                     long index = m.getIndex();
                     cache.<Entity<?>>computeIfPresent(
