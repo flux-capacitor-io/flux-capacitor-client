@@ -94,6 +94,8 @@ public class ConsumerConfiguration {
     Function<Client, String> trackerIdFactory = client -> String.format("%s_%s", client.id(), UUID.randomUUID());
     @Default
     Duration purgeDelay = null;
+    @Default
+    FlowRegulator flowRegulator = NoOpFlowRegulator.getInstance();
 
     public static Stream<ConsumerConfiguration> configurations(Collection<Class<?>> handlerClasses) {
         return Stream.concat(handlerClasses.stream().flatMap(ConsumerConfiguration::classConfigurations),
@@ -123,6 +125,7 @@ public class ConsumerConfiguration {
                 .name(consumer.name())
                 .handlerFilter(handlerFilter)
                 .errorHandler(asInstance(consumer.errorHandler()))
+                .flowRegulator(asInstance(consumer.flowRegulator()))
                 .threads(consumer.threads())
                 .maxFetchSize(consumer.maxFetchSize())
                 .maxWaitDuration(Duration.of(consumer.maxWaitDuration(), consumer.durationUnit()))

@@ -16,15 +16,19 @@ package io.fluxcapacitor.javaclient.tracking.client;
 
 import io.fluxcapacitor.common.MessageType;
 import io.fluxcapacitor.common.Registration;
+import io.fluxcapacitor.common.api.Metadata;
 import io.fluxcapacitor.common.api.SerializedMessage;
 import io.fluxcapacitor.common.api.tracking.MessageBatch;
 import io.fluxcapacitor.javaclient.FluxCapacitor;
 import io.fluxcapacitor.javaclient.configuration.client.Client;
+import io.fluxcapacitor.javaclient.publishing.MetricsGateway;
 import io.fluxcapacitor.javaclient.tracking.BatchProcessingException;
 import io.fluxcapacitor.javaclient.tracking.ConsumerConfiguration;
+import io.fluxcapacitor.javaclient.tracking.FlowRegulator;
 import io.fluxcapacitor.javaclient.tracking.FluxCapacitorInterceptor;
 import io.fluxcapacitor.javaclient.tracking.Tracker;
 import io.fluxcapacitor.javaclient.tracking.TrackingException;
+import io.fluxcapacitor.javaclient.tracking.metrics.PauseTrackerEvent;
 import lombok.extern.slf4j.Slf4j;
 
 import java.time.Duration;
@@ -84,6 +88,8 @@ public class DefaultTracker implements Runnable, Registration {
     private final Duration retryDelay;
     private final Long maxIndexExclusive;
     private final Long minIndex;
+    private final FlowRegulator flowRegulator;
+    private final MetricsGateway metricsGateway;
     private volatile Long lastProcessedIndex;
     private volatile boolean processing;
 
@@ -153,6 +159,8 @@ public class DefaultTracker implements Runnable, Registration {
         this.lastProcessedIndex = ofNullable(config.getMinIndex()).map(i -> i - 1).orElse(null);
         this.minIndex = config.getMinIndex();
         this.maxIndexExclusive = config.getMaxIndexExclusive();
+        this.flowRegulator = config.getFlowRegulator();
+        this.metricsGateway = FluxCapacitor.getOptionally().map(FluxCapacitor::metricsGateway).orElse(null);
     }
 
     @Override
@@ -162,16 +170,39 @@ public class DefaultTracker implements Runnable, Registration {
             thread.set(currentThread());
             try {
                 while (running.get()) {
-                    MessageBatch batch = fetch(lastProcessedIndex);
-                    if (batch != null) {
-                        Tracker.current.set(tracker.withMessageBatch(batch));
-                        processor.accept(batch);
+                    pauseFetchIfNeeded();
+                    if (running.get()) {
+                        MessageBatch batch = fetch(lastProcessedIndex);
+                        if (batch != null) {
+                            Tracker.current.set(tracker.withMessageBatch(batch));
+                            processor.accept(batch);
+                        }
                     }
                 }
             } finally {
                 thread.set(null);
                 Tracker.current.remove();
             }
+        }
+    }
+
+    protected void pauseFetchIfNeeded() {
+        try {
+            AtomicBoolean notified = new AtomicBoolean();
+            Duration duration;
+            do {
+                duration = flowRegulator.pauseDuration().orElse(null);
+                if (duration != null) {
+                    if (notified.compareAndSet(false, true)) {
+                        Optional.ofNullable(metricsGateway).ifPresent(g -> g.publish(new PauseTrackerEvent(
+                                tracker.getName(), tracker.getTrackerId()), Metadata.of(
+                                        "messageType", trackingClient.getMessageType())));
+                    }
+                    Thread.sleep(duration);
+                }
+            } while (duration != null);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
         }
     }
 

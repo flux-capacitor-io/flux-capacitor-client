@@ -47,6 +47,8 @@ public @interface Consumer {
 
     Class<? extends ErrorHandler> errorHandler() default LoggingErrorHandler.class;
 
+    Class<? extends FlowRegulator> flowRegulator() default NoOpFlowRegulator.class;
+
     boolean filterMessageTarget() default false;
 
     boolean ignoreSegment() default false;
