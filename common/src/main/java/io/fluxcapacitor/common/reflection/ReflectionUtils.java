@@ -152,13 +152,13 @@ public class ReflectionUtils {
     }
 
     public static Class<?> ifClass(Object value) {
-        if (value == null) {
-            return null;
-        }
         if (value instanceof Class<?> c) {
             return c;
         }
-        return KotlinReflectionUtils.convertIfKotlinClass(value);
+        if (isKotlinReflectionSupported()) {
+            return KotlinReflectionUtils.convertIfKotlinClass(value);
+        }
+        return null;
     }
 
     public static List<Method> getAllMethods(Class<?> type) {
