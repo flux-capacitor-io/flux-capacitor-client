@@ -40,7 +40,7 @@ public class BeanParameterResolver implements ParameterResolver<Object> {
 
     @Override
     public UnaryOperator<Object> resolve(Parameter p, Annotation methodAnnotation) {
-        return v -> beans.stream().filter(b -> p.getType().isAssignableFrom(b.getClass())).findFirst().orElseGet(
+        return v -> beans.stream().filter(b -> p.getType().isAssignableFrom(b.getClass())).findFirst().orElseThrow(
                 () -> new IllegalStateException("No qualifying bean of type '" + p.getType() + "' available"));
     }
 
