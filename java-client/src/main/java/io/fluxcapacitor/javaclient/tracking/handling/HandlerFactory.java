@@ -17,14 +17,17 @@ package io.fluxcapacitor.javaclient.tracking.handling;
 import io.fluxcapacitor.common.handling.Handler;
 import io.fluxcapacitor.common.handling.HandlerFilter;
 import io.fluxcapacitor.javaclient.common.serialization.DeserializingMessage;
+import lombok.NonNull;
 
 import java.util.List;
 import java.util.Optional;
 
+import static io.fluxcapacitor.common.reflection.ReflectionUtils.ifClass;
+
 public interface HandlerFactory {
 
-    static Class<?> getTargetClass(Object target) {
-        return target instanceof Class<?> targetClass ? targetClass : target.getClass();
+    static Class<?> getTargetClass(@NonNull Object target) {
+        return ifClass(target) instanceof Class<?> targetClass ? targetClass : target.getClass();
     }
 
     Optional<Handler<DeserializingMessage>> createHandler(

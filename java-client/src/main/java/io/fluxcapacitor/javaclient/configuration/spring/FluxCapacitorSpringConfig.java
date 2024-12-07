@@ -56,6 +56,8 @@ import java.util.Optional;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.atomic.AtomicReference;
 
+import static io.fluxcapacitor.common.reflection.ReflectionUtils.ifClass;
+
 @Configuration
 @Slf4j
 public class FluxCapacitorSpringConfig implements BeanPostProcessor {
@@ -81,7 +83,7 @@ public class FluxCapacitorSpringConfig implements BeanPostProcessor {
 
     @Override
     public Object postProcessAfterInitialization(Object bean, String beanName) throws BeansException {
-        if (!(bean instanceof Class<?>)) {
+        if (ifClass(bean) == null) {
             springBeans.add(bean);
         }
         return bean;

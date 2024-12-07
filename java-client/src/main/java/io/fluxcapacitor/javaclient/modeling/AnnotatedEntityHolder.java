@@ -47,6 +47,7 @@ import static io.fluxcapacitor.common.reflection.ReflectionUtils.getAnnotatedPro
 import static io.fluxcapacitor.common.reflection.ReflectionUtils.getCollectionElementType;
 import static io.fluxcapacitor.common.reflection.ReflectionUtils.getName;
 import static io.fluxcapacitor.common.reflection.ReflectionUtils.getValue;
+import static io.fluxcapacitor.common.reflection.ReflectionUtils.ifClass;
 import static io.fluxcapacitor.common.reflection.ReflectionUtils.readProperty;
 import static java.beans.Introspector.decapitalize;
 import static java.util.Optional.empty;
@@ -99,8 +100,8 @@ public class AnnotatedEntityHolder {
                 v -> (v == null ? Optional.<MemberInvoker>empty() : entityIdInvokerCache.apply(v.getClass())).map(
                                 p -> new Id(p.invoke(v), p.getMember().getName()))
                         .orElseGet(() -> {
-                            if (v instanceof Class<?>) {
-                                return new Id(null, getAnnotatedProperty((Class<?>) v, EntityId.class)
+                            if (ifClass(v) instanceof Class<?> c) {
+                                return new Id(null, getAnnotatedProperty(c, EntityId.class)
                                         .map(ReflectionUtils::getName).orElse(null));
                             }
                             return new Id(null, null);

@@ -41,6 +41,7 @@ import java.util.function.Function;
 import java.util.function.Predicate;
 import java.util.stream.Stream;
 
+import static io.fluxcapacitor.common.reflection.ReflectionUtils.ifClass;
 import static io.fluxcapacitor.javaclient.common.Message.asMessage;
 import static java.lang.String.format;
 import static java.util.stream.Collectors.toList;
@@ -519,8 +520,8 @@ public class ResultValidator<R> implements Then<R> {
         if (isMatcher(expected)) {
             return ((Matcher<?>) expected).matches(actual);
         }
-        if (expected instanceof Class<?>) {
-            return actual instanceof Class<?> ? expected.equals(actual) : ((Class<?>) expected).isInstance(actual);
+        if (ifClass(expected) instanceof Class<?> e) {
+            return ifClass(actual) instanceof Class<?> a ? e.equals(a) : e.isInstance(actual);
         }
         return Objects.deepEquals(expected, actual);
     }
@@ -533,8 +534,8 @@ public class ResultValidator<R> implements Then<R> {
         if (isMatcher(expected)) {
             return ((Matcher<?>) expected).matches(actual.getPayload()) || ((Matcher<?>) expected).matches(actual);
         }
-        if (expected instanceof Class<?>) {
-            return ((Class<?>) expected).isInstance(actual.getPayload());
+        if (ifClass(expected) instanceof Class<?> e) {
+            return e.isInstance(actual.getPayload());
         }
         Message expectedMessage = asMessage(expected);
         if (actual instanceof Schedule && expected instanceof Schedule && !Objects.equals(
@@ -562,7 +563,7 @@ public class ResultValidator<R> implements Then<R> {
         return fluxCapacitor.apply(fc -> Arrays.stream(expectedMessages)
                 .flatMap(e -> e instanceof Collection<?> ? ((Collection<?>) e).stream() : Stream.of(e))
                 .map(c -> testFixture.parseObject(c, callerClass))
-                .map(e -> e instanceof Message || e instanceof Predicate<?> || isMatcher(e) || e instanceof Class<?>
+                .map(e -> e instanceof Message || e instanceof Predicate<?> || isMatcher(e) || ifClass(e) != null
                         ? e : new Message(e)).collect(toList()));
     }
 

@@ -39,6 +39,7 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import static io.fluxcapacitor.common.reflection.ReflectionUtils.asInstance;
+import static io.fluxcapacitor.common.reflection.ReflectionUtils.ifClass;
 
 @Value
 @Builder(builderClassName = "Builder", toBuilder = true)
@@ -114,7 +115,8 @@ public class ConsumerConfiguration {
         return ReflectionUtils.getPackageAnnotation(p, Consumer.class)
                 .map(c -> getConfiguration(
                         c, h -> {
-                            Class<?> type = h instanceof Class<?> t ? t : h.getClass();
+                            @SuppressWarnings("DataFlowIssue")
+                            Class<?> type = ifClass(h) instanceof Class<?> t ? t : h.getClass();
                             return type.getPackage().equals(p)
                                    || type.getPackage().getName().startsWith(p.getName() + ".");
                         })).stream();

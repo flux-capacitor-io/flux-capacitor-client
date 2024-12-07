@@ -27,6 +27,7 @@ import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
 
 import static io.fluxcapacitor.common.MessageType.RESULT;
+import static io.fluxcapacitor.common.reflection.ReflectionUtils.ifClass;
 
 @AllArgsConstructor
 public class DefaultResultGateway implements ResultGateway {
@@ -49,7 +50,7 @@ public class DefaultResultGateway implements ResultGateway {
             return client.append(guarantee, serializedMessage);
         } catch (Exception e) {
             throw new GatewayException(String.format("Failed to send response %s",
-                                                     payload == null || payload instanceof Class<?>
+                                                     payload == null || ifClass(payload) != null
                                                              ? Objects.toString(payload) : payload.getClass()), e);
         }
     }

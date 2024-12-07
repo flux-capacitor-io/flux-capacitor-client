@@ -151,6 +151,16 @@ public class ReflectionUtils {
         return ReflectionUtils.classExists("kotlin.reflect.full.KClasses");
     }
 
+    public static Class<?> ifClass(Object value) {
+        if (value == null) {
+            return null;
+        }
+        if (value instanceof Class<?> c) {
+            return c;
+        }
+        return KotlinReflectionUtils.convertIfKotlinClass(value);
+    }
+
     public static List<Method> getAllMethods(Class<?> type) {
         return methodsCache.apply(type);
     }
@@ -307,7 +317,7 @@ public class ReflectionUtils {
 
     public static List<Field> getAnnotatedFields(Object target, Class<? extends Annotation> annotation) {
         return target == null ? emptyList() :
-                getAnnotatedFields(target instanceof Class<?> t ? t : target.getClass(), annotation);
+                getAnnotatedFields(ifClass(target) instanceof Class<?> t ? t : target.getClass(), annotation);
     }
 
     public static boolean isAnnotationPresent(Class<?> type, Class<? extends Annotation> annotationType) {
@@ -455,7 +465,7 @@ public class ReflectionUtils {
     @SuppressWarnings("unchecked")
     public static <T> Optional<T> getFieldValue(String fieldName, Object target) {
         return target == null ? Optional.empty() :
-                getField(target instanceof Class<?> type ? type : target.getClass(), fieldName)
+                getField(ifClass(target) instanceof Class<?> type ? type : target.getClass(), fieldName)
                         .map(f -> (T) getValue(f, target, true));
     }
 
@@ -605,9 +615,9 @@ public class ReflectionUtils {
 
     @SuppressWarnings("unchecked")
     public static <T> T asInstance(Object classOrInstance) {
-        if (classOrInstance instanceof Class<?>) {
+        if (ifClass(classOrInstance) instanceof Class<?> c) {
             try {
-                return (T) ensureAccessible(((Class<?>) classOrInstance).getDeclaredConstructor()).newInstance();
+                return (T) ensureAccessible(c.getDeclaredConstructor()).newInstance();
             } catch (Exception e) {
                 throw new IllegalStateException(format(
                         "Failed to create an instance of class %s. Does it have an accessible default constructor?",

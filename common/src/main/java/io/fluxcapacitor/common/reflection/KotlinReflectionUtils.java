@@ -14,6 +14,8 @@
 
 package io.fluxcapacitor.common.reflection;
 
+import kotlin.jvm.JvmClassMappingKt;
+import kotlin.reflect.KClass;
 import kotlin.reflect.KFunction;
 import kotlin.reflect.KParameter;
 import kotlin.reflect.jvm.ReflectJvmMapping;
@@ -40,6 +42,10 @@ public class KotlinReflectionUtils {
         return executable instanceof Method
                 ? ReflectJvmMapping.getKotlinFunction((Method) executable)
                 : ReflectJvmMapping.getKotlinFunction((Constructor<?>) executable);
+    }
+
+    public static Class<?> convertIfKotlinClass(Object classObject) {
+        return classObject instanceof KClass<?> k ? JvmClassMappingKt.getJavaClass(k) : null;
     }
 
 }

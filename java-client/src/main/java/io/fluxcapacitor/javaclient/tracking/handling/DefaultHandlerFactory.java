@@ -44,6 +44,7 @@ import io.fluxcapacitor.javaclient.web.HandleWebResponse;
 import io.fluxcapacitor.javaclient.web.HttpRequestMethod;
 import io.fluxcapacitor.javaclient.web.WebUtils;
 import lombok.AllArgsConstructor;
+import lombok.NonNull;
 
 import java.lang.annotation.Annotation;
 import java.util.List;
@@ -53,6 +54,7 @@ import java.util.function.Supplier;
 import java.util.stream.Stream;
 
 import static io.fluxcapacitor.common.handling.HandlerInspector.hasHandlerMethods;
+import static io.fluxcapacitor.common.reflection.ReflectionUtils.ifClass;
 import static io.fluxcapacitor.javaclient.common.ClientUtils.memoize;
 
 @AllArgsConstructor
@@ -102,8 +104,8 @@ public class DefaultHandlerFactory implements HandlerFactory {
                 .map(handlerDecorator::wrap);
     }
 
-    private Handler<DeserializingMessage> buildHandler(Object target, HandlerConfiguration<DeserializingMessage> config) {
-        if (target instanceof Class<?> targetClass) {
+    private Handler<DeserializingMessage> buildHandler(@NonNull Object target, HandlerConfiguration<DeserializingMessage> config) {
+        if (ifClass(target) instanceof Class<?> targetClass) {
             {
                 Stateful handler = ReflectionUtils.getTypeAnnotation(targetClass, Stateful.class);
                 if (handler != null) {

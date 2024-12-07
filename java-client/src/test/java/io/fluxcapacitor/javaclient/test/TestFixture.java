@@ -99,6 +99,7 @@ import static io.fluxcapacitor.common.MessageType.EVENT;
 import static io.fluxcapacitor.common.MessageType.NOTIFICATION;
 import static io.fluxcapacitor.common.MessageType.SCHEDULE;
 import static io.fluxcapacitor.common.api.Data.JSON_FORMAT;
+import static io.fluxcapacitor.common.reflection.ReflectionUtils.ifClass;
 import static io.fluxcapacitor.javaclient.common.ClientUtils.getLocalHandlerAnnotation;
 import static io.fluxcapacitor.javaclient.common.ClientUtils.runSilently;
 import static io.fluxcapacitor.javaclient.common.Message.asMessage;
@@ -333,14 +334,14 @@ public class TestFixture implements Given, When {
      * of the test fixture creator methods, or all at the same time via registerHandlers. If handlers that share the
      * same consumer are registered separately, an exception will be raised.
      */
-    @SuppressWarnings("ResultOfMethodCallIgnored")
+    @SuppressWarnings({"ResultOfMethodCallIgnored", "DataFlowIssue"})
     public TestFixture registerHandlers(List<?> handlers) {
         return modifyFixture(fixture -> {
             FluxCapacitor fc = fixture.getFluxCapacitor();
             if (handlers.isEmpty()) {
                 return;
             }
-            handlers.stream().collect(toMap(o -> o instanceof Class<?> c ? c : o instanceof Handler<?> h
+            handlers.stream().collect(toMap(o -> ifClass(o) instanceof Class<?> c ? c : o instanceof Handler<?> h
                                                     ? h.getTargetClass() : o.getClass(),
                                             Function.identity(), (a, b) -> {
                         log.warn(

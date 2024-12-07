@@ -230,8 +230,9 @@ public interface DocumentStore {
 
     CompletableFuture<Void> createAuditTrail(Object collection, Duration retentionTime);
 
-    default String determineCollection(Object c) {
-        return c instanceof Class<?> type ? getSearchParameters(type).getCollection() : c.toString();
+    default String determineCollection(@NonNull Object c) {
+        return ReflectionUtils.ifClass(c) instanceof Class<?> type
+                ? getSearchParameters(type).getCollection() : c.toString();
     }
 
     DocumentSerializer getSerializer();
