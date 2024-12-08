@@ -156,6 +156,15 @@
                         <includes>
                             <include>**</include>
                         </includes>
+                        <properties>
+                            <configurationParameters>
+                                junit.jupiter.execution.parallel.enabled = true
+                                junit.jupiter.execution.parallel.config.strategy = fixed
+                                junit.jupiter.execution.parallel.config.fixed.parallelism = 2
+                                junit.jupiter.execution.parallel.mode.default = same_thread
+                                junit.jupiter.execution.parallel.mode.classes.default = concurrent
+                            </configurationParameters>
+                        </properties>
                     </configuration>
                 </plugin>
                 <plugin>
