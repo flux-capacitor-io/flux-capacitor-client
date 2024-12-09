@@ -185,7 +185,7 @@ public class DeserializingMessage implements HasMessage {
     @SuppressWarnings("rawtypes")
     public Class<?> getPayloadClass() {
         return ofNullable(delegate).<Class>map(DeserializingObject::getPayloadClass)
-                .or(() -> ofNullable(message).map(Message::getPayloadClass)).orElse(null);
+                .or(() -> ofNullable(message).map(Message::getPayloadClass)).orElse(Void.class);
     }
 
     public String getType() {

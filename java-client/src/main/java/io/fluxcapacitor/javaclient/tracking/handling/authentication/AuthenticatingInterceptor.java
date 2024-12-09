@@ -84,7 +84,7 @@ public class AuthenticatingInterceptor implements DispatchInterceptor, HandlerIn
             return delegate.getInvoker(m).filter(
                     i -> {
                         if (Optional.ofNullable(m.getPayloadClass())
-                                .map(c -> i.getTargetClass().isAssignableFrom(c)).orElse(true)) {
+                                .map(c -> i.getTargetClass().isAssignableFrom(c)).orElse(false)) {
                             return true;
                         }
                         User user;
