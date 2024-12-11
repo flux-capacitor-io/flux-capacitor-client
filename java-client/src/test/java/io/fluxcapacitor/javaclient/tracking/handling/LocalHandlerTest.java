@@ -16,11 +16,9 @@ package io.fluxcapacitor.javaclient.tracking.handling;
 
 import io.fluxcapacitor.javaclient.test.TestFixture;
 import io.fluxcapacitor.javaclient.tracking.handling.localhandler.PackageLocalHandler;
-import io.fluxcapacitor.javaclient.tracking.metrics.HandleMessageEvent;
 import org.junit.jupiter.api.Test;
 
 import static io.fluxcapacitor.common.MessageType.COMMAND;
-import static io.fluxcapacitor.common.MessageType.EVENT;
 import static io.fluxcapacitor.common.MessageType.METRICS;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.never;
@@ -57,20 +55,6 @@ public class LocalHandlerTest {
                 .expectThat(fc -> verify(fc.client().getGatewayClient(METRICS), never()).append(any(), any()));
     }
 
-    @Test
-    void testNoGlobalEventsWhenLocallyHandled() {
-        testFixture.whenEvent("foo")
-                .expectMetrics(HandleMessageEvent.class)
-                .expectThat(fc -> verify(fc.client().getGatewayClient(EVENT), never()).append(any(), any()));
-    }
-
-    @Test
-    void testGlobalEventsWhenLocallyHandledPassively() {
-        testFixture.whenEvent(123)
-                .expectMetrics(HandleMessageEvent.class)
-                .expectThat(fc -> verify(fc.client().getGatewayClient(EVENT)).append(any(), any()));
-    }
-
     @LocalHandler(logMessage = true, logMetrics = true)
     private static class PublishingLocalHandler {
         @HandleCommand
@@ -88,16 +72,6 @@ public class LocalHandlerTest {
         @LocalHandler(logMetrics = false)
         Float handle(Float command) {
             return command;
-        }
-
-        @HandleEvent
-        @LocalHandler(logMetrics = true)
-        void handleEvent(String ignored) {
-        }
-
-        @HandleEvent(passive = true)
-        @LocalHandler(logMetrics = true)
-        void handleEventPassively(Integer ignored) {
         }
     }
 

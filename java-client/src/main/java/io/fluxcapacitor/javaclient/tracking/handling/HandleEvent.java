@@ -29,5 +29,4 @@ import java.lang.annotation.Target;
 public @interface HandleEvent {
     boolean disabled() default false;
     Class<?>[] allowedClasses() default {};
-    boolean passive() default false;
 }
