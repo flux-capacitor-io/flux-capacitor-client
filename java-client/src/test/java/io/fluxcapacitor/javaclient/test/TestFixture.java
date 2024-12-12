@@ -689,6 +689,9 @@ public class TestFixture implements Given, When {
     }
 
     protected User getUser(Object userOrId) {
+        if (userOrId == null) {
+            throw new UnauthorizedException("User %s could not be provided".formatted(userOrId));
+        }
         User result = userOrId instanceof User user ? user
                 : fluxCapacitor.apply(fc -> fc.userProvider().getUserById(userOrId));
         if (result == null) {
