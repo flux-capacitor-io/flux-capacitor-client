@@ -139,7 +139,8 @@ public class FluxCapacitorSpringConfigTest {
 
     @Test
     void testPropertySetUsingCustomizer() {
-        assertEquals("barViaCustomizer", fluxCapacitor.apply(fc -> ApplicationProperties.getProperty("foo")));
+        assertEquals("firstCustomizerValue", fluxCapacitor.apply(fc -> ApplicationProperties.getProperty("bar")));
+        assertEquals("secondCustomizerValue", fluxCapacitor.apply(fc -> ApplicationProperties.getProperty("foo")));
     }
 
     @Component
@@ -195,11 +196,16 @@ public class FluxCapacitorSpringConfigTest {
         }
 
         @Bean
-        FluxCapacitorCustomizer configure() {
+        FluxCapacitorCustomizer firstCustomizer() {
             return builder -> builder.replacePropertySource(existing -> new SimplePropertySource(
-                    Map.of("foo", "barViaCustomizer")).merge(existing));
+                    Map.of("foo", "firstCustomizerVale", "bar", "firstCustomizerValue")).merge(existing));
         }
 
+        @Bean
+        FluxCapacitorCustomizer secondCustomizer() {
+            return builder -> builder.replacePropertySource(existing -> new SimplePropertySource(
+                    Map.of("foo", "secondCustomizerValue")).merge(existing));
+        }
     }
 
     @Component
