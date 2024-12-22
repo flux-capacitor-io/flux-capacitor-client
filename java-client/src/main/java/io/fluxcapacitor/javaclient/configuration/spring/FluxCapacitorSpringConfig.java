@@ -132,7 +132,7 @@ public class FluxCapacitorSpringConfig implements BeanPostProcessor {
 
     @Bean
     @ConditionalOnMissingBean
-    public FluxCapacitor fluxCapacitor(FluxCapacitorBuilder builder, Optional<FluxCapacitorCustomizer> customizer) {
+    public FluxCapacitor fluxCapacitor(FluxCapacitorBuilder builder, List<FluxCapacitorCustomizer> customizers) {
         Client client = getBean(Client.class).orElseGet(() -> getBean(WebSocketClient.ClientConfig.class)
                 .<Client>map(WebSocketClient::newInstance)
                 .orElseGet(() -> {
@@ -146,7 +146,12 @@ public class FluxCapacitorSpringConfig implements BeanPostProcessor {
                     log.info("Using in-memory Flux Capacitor client");
                     return InMemoryClient.newInstance();
                 }));
-        return customizer.map(c -> c.customize(builder)).orElse(builder).build(client);
+
+        FluxCapacitorCustomizer customizer = customizers.stream()
+                .reduce((first, second) -> b -> second.customize(first.customize(b)))
+                .orElse(b -> b);
+
+        return customizer.customize(builder).build(client);
     }
 
     @Bean
