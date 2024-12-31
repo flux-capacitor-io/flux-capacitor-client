@@ -34,6 +34,8 @@ import java.util.function.BiFunction;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
+import static io.fluxcapacitor.common.reflection.ReflectionUtils.getPackageAnnotation;
+import static io.fluxcapacitor.common.reflection.ReflectionUtils.getTypeAnnotation;
 import static io.fluxcapacitor.javaclient.common.ClientUtils.memoize;
 import static java.util.Objects.requireNonNull;
 import static org.apache.commons.lang3.StringUtils.isBlank;
@@ -41,8 +43,15 @@ import static org.apache.commons.lang3.StringUtils.isBlank;
 public class WebUtils {
     private static final BiFunction<Executable, Class<? extends Annotation>, Predicate<HasMessage>> filterCache =
             memoize((e, a) -> {
+                var declaringClass = e.getDeclaringClass();
+                String root = ReflectionUtils.<Root>getMethodAnnotation(e, Root.class)
+                        .or(() -> Optional.ofNullable(getTypeAnnotation(declaringClass, Root.class)))
+                        .or(() -> getPackageAnnotation(declaringClass.getPackage(), Root.class))
+                        .map(Root::value)
+                        .map(p -> p.endsWith("//") || !p.endsWith("/") ? p : p.substring(0, p.length() - 1))
+                        .orElse("");
                 var handleWeb = WebUtils.getWebParameters(e, a).orElseThrow();
-                Predicate<String> pathTest = Optional.of(handleWeb.getPath())
+                Predicate<String> pathTest = Optional.of(root + handleWeb.getPath())
                         .map(SearchUtils::getGlobMatcher)
                         .<Predicate<String>>map(p -> s -> p.test(s.startsWith("/") || s.contains("://") ? s : "/" + s))
                         .orElse(p -> true);

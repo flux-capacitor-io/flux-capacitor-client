@@ -266,7 +266,7 @@ public class SearchTest {
     }
 
     @Nested
-    class PathTests {
+    class RootTests {
         @Test
         void testPathMatching() {
             expectMatch(match(true, "booleans/first"));

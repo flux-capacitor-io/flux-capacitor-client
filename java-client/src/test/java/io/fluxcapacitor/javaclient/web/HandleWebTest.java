@@ -24,6 +24,8 @@ import io.fluxcapacitor.javaclient.tracking.handling.authentication.FixedUserPro
 import io.fluxcapacitor.javaclient.tracking.handling.authentication.MockUser;
 import io.fluxcapacitor.javaclient.tracking.handling.authentication.RequiresUser;
 import io.fluxcapacitor.javaclient.tracking.handling.authentication.UnauthenticatedException;
+import io.fluxcapacitor.javaclient.web.path.ClassPathHandler;
+import io.fluxcapacitor.javaclient.web.path.PackagePathHandler;
 import lombok.SneakyThrows;
 import lombok.Value;
 import org.junit.jupiter.api.Nested;
@@ -242,6 +244,27 @@ public class HandleWebTest {
     @RequiresUser
     @Value
     static class PayloadRequiringUser {
+    }
+
+    @Nested
+    class RootTests {
+
+        final TestFixture testFixture = TestFixture.create(new ClassPathHandler(), new PackagePathHandler());
+
+        @Test
+        void classPathTest() {
+            testFixture.whenGet("/class/get").expectResult("get");
+        }
+
+        @Test
+        void packagePathTest() {
+            testFixture.whenGet("/package/get").expectResult("get");
+        }
+
+        @Test
+        void methodPathTest() {
+            testFixture.whenGet("/method/get").expectResult("get");
+        }
     }
 
     @Nested
