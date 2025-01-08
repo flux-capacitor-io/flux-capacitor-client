@@ -159,6 +159,21 @@ public class StatefulHandlerTest {
         }
 
         @Test
+        void handlerIsUpdated_associationOnField_rightPath() {
+            testFixture.givenEvents(new SomeEvent("foo"))
+                    .whenEvent(new EventWithRightPath("foo"))
+                    .expectOnlyCommands(2);
+        }
+
+        @Test
+        void handlerIsUpdated_associationOnField_wrongPath() {
+            testFixture.givenEvents(new SomeEvent("foo"))
+                    .whenEvent(new EventWithWrongPath("foo"))
+                    .expectNoCommands()
+                    .expectNoErrors();
+        }
+
+        @Test
         void handlerIsUpdated_alwaysAssociate() {
             testFixture.givenEvents(new SomeEvent("foo"))
                     .whenEvent(new AlwaysAssociate())
@@ -261,6 +276,18 @@ public class StatefulHandlerTest {
             @HandleEvent
             @Association(value = "customId", path = "unknown")
             StaticHandler update(CustomWrongPathEvent event) {
+                FluxCapacitor.sendAndForgetCommand(eventCount + 1);
+                return toBuilder().eventCount(eventCount + 1).build();
+            }
+
+            @HandleEvent
+            StaticHandler update(EventWithRightPath event) {
+                FluxCapacitor.sendAndForgetCommand(eventCount + 1);
+                return toBuilder().eventCount(eventCount + 1).build();
+            }
+
+            @HandleEvent
+            StaticHandler update(EventWithWrongPath event) {
                 FluxCapacitor.sendAndForgetCommand(eventCount + 1);
                 return toBuilder().eventCount(eventCount + 1).build();
             }
@@ -429,5 +456,15 @@ public class StatefulHandlerTest {
     @Value
     static class ExcludedEvent {
         String someId;
+    }
+
+    @Value
+    static class EventWithRightPath {
+        String someId;
+    }
+
+    @Value
+    static class EventWithWrongPath {
+        String customId;
     }
 }

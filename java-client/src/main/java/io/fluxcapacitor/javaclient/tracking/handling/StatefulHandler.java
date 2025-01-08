@@ -76,7 +76,7 @@ public class StatefulHandler implements Handler<DeserializingMessage> {
                                         ? Arrays.stream(association.value()) : Stream.of(propertyName))
                                         .map(v -> {
                                             var associationValue = AssociationValue.valueOf(association);
-                                            if (associationValue.getPath() == null) {
+                                            if (associationValue.getPath().isBlank()) {
                                                 associationValue = associationValue.toBuilder()
                                                         .path(propertyName).build();
                                             }
