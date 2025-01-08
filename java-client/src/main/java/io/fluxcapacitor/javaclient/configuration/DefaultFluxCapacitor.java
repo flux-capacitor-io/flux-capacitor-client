@@ -86,6 +86,7 @@ import io.fluxcapacitor.javaclient.web.ForwardingWebConsumer;
 import io.fluxcapacitor.javaclient.web.HttpRequestMethod;
 import io.fluxcapacitor.javaclient.web.LocalServerConfig;
 import io.fluxcapacitor.javaclient.web.SocketSessionParameterResolver;
+import io.fluxcapacitor.javaclient.web.WebParamParameterResolver;
 import io.fluxcapacitor.javaclient.web.WebPayloadParameterResolver;
 import io.fluxcapacitor.javaclient.web.WebResponseCompressingInterceptor;
 import io.fluxcapacitor.javaclient.web.WebResponseGateway;
@@ -593,6 +594,7 @@ public class DefaultFluxCapacitor implements FluxCapacitor {
                                               new DeserializingMessageParameterResolver(),
                                               new MetadataParameterResolver(), new MessageParameterResolver(),
                                               new SocketSessionParameterResolver(webResponseGateway),
+                                              new WebParamParameterResolver(),
                                               new WebPayloadParameterResolver(
                                                       !disablePayloadValidation, userProvider != null),
                                               new PayloadParameterResolver(),

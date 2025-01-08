@@ -19,6 +19,7 @@ import io.fluxcapacitor.common.MessageType;
 import io.fluxcapacitor.common.api.SerializedMessage;
 import io.fluxcapacitor.common.serialization.JsonUtils;
 import io.fluxcapacitor.javaclient.configuration.DefaultFluxCapacitor;
+import io.fluxcapacitor.javaclient.modeling.Id;
 import io.fluxcapacitor.javaclient.test.TestFixture;
 import io.fluxcapacitor.javaclient.tracking.handling.authentication.FixedUserProvider;
 import io.fluxcapacitor.javaclient.tracking.handling.authentication.MockUser;
@@ -57,14 +58,36 @@ public class HandleWebTest {
         }
 
         @Test
+        void testGetViaPath() {
+            testFixture.whenGet("/getViaPath").expectResult("getViaPath");
+        }
+
+        @Test
         void testGet_shortHand() {
             testFixture.whenGet("/get").expectResult("get");
+        }
+
+        @Test
+        void testGet_disabled() {
+            testFixture.whenGet("/disabled").expectExceptionalResult(TimeoutException.class);
         }
 
         @Test
         void testGetFullUrl() {
             testFixture.whenWebRequest(WebRequest.builder().method(GET).url("http://localhost:8080/get").build())
                     .expectResult("get8080");
+        }
+
+        @Test
+        void testGetFullUrl_other() {
+            testFixture.whenWebRequest(WebRequest.builder().method(GET).url("http://localhost:8080/other").build())
+                    .expectResult("other8080");
+        }
+
+        @Test
+        void testGetFullUrl_otherPort() {
+            testFixture.whenWebRequest(WebRequest.builder().method(GET).url("http://localhost:8081/get").build())
+                    .expectResult("get8081");
         }
 
         @Test
@@ -185,14 +208,35 @@ public class HandleWebTest {
         }
 
         private class Handler {
+            @Path("/getViaPath")
+            @HandleWeb(method = GET)
+            String getViaPath() {
+                return "getViaPath";
+            }
+
             @HandleWeb(value = "/get", method = GET)
             String get() {
                 return "get";
             }
 
+            @HandleWeb(value = "/disabled", method = GET, disabled = true)
+            String disabledGet() {
+                return "get";
+            }
+
             @HandleWeb(value = "http://localhost:8080/get", method = GET)
-            String getWithProtocol() {
+            String get_8080() {
                 return "get8080";
+            }
+
+            @HandleWeb(value = "http://localhost:8080/other", method = GET)
+            String getOther_8080() {
+                return "other8080";
+            }
+
+            @HandleWeb(value = "http://localhost:8081/get", method = GET)
+            String get_8081() {
+                return "get8081";
             }
 
             @HandleWeb(value = "/string", method = POST)
@@ -247,7 +291,7 @@ public class HandleWebTest {
     }
 
     @Nested
-    class RootTests {
+    class PathTests {
 
         final TestFixture testFixture = TestFixture.create(new ClassPathHandler(), new PackagePathHandler());
 
@@ -289,7 +333,7 @@ public class HandleWebTest {
                     .expectResult("payload");
         }
 
-        private class Handler {
+        private static class Handler {
             @HandleGet("get")
             String get() {
                 return "get";
@@ -301,6 +345,74 @@ public class HandleWebTest {
                 return body;
             }
         }
+    }
+
+    @Nested
+    class RestTests {
+
+        @Nested
+        class PathParamTests {
+
+            final TestFixture testFixture = TestFixture.create(new Handler());
+
+            @Test
+            void testPathParam_String() {
+                testFixture.whenGet("/string/123").expectResult("123");
+            }
+
+            @Test
+            void testPathParam_Number() {
+                testFixture.whenGet("/number/123").expectResult(123);
+            }
+
+            @Test
+            void testPathParam_Id() {
+                testFixture.whenGet("/id/123").expectResult(new SomeId("123"));
+            }
+
+            static class Handler {
+                @HandleGet("string/{foo}")
+                Object get(@PathParam String foo) {
+                    return foo;
+                }
+
+                @HandleGet("number/{foo}")
+                Object get(@PathParam int foo) {
+                    return foo;
+                }
+
+                @HandleGet("id/{foo}")
+                Object get(@PathParam SomeId foo) {
+                    return foo;
+                }
+            }
+        }
+
+        @Nested
+        class QueryParamTests {
+
+            final TestFixture testFixture = TestFixture.create(new Handler());
+
+            @Test
+            void testPathParam_String() {
+                testFixture.whenGet("/?offset=1").expectResult(1);
+            }
+
+            static class Handler {
+
+                @HandleGet("/")
+                Object parameters(@QueryParam int offset) {
+                    return offset;
+                }
+            }
+        }
+
+        static class SomeId extends Id<Object> {
+            public SomeId(String functionalId) {
+                super(functionalId);
+            }
+        }
+
     }
 
     @Nested

@@ -549,7 +549,8 @@ public class ResultValidator<R> implements Then<R> {
         if (actual instanceof WebResponse response && !(expected instanceof Message)) {
             Class<?> expectedType = expectedMessage.getPayloadClass();
             if (!response.getPayloadClass().equals(expectedType)) {
-                return new EqualsBuilder().append(expected, response.getPayloadAs(expectedType)).isEquals();
+                return expected != null
+                       && new EqualsBuilder().append(expected, response.getPayloadAs(expectedType)).isEquals();
             }
         }
         if (!actual.getMetadata().entrySet().containsAll(expectedMessage.getMetadata().entrySet())) {

@@ -25,7 +25,7 @@ import java.lang.annotation.Target;
 @Target(ElementType.METHOD)
 @HandleWeb(value = "", method = HttpRequestMethod.POST)
 public @interface HandlePost {
-    String value();
+    String value() default "";
     boolean disabled() default false;
     boolean passive() default false;
 }

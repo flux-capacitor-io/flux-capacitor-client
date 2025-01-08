@@ -18,13 +18,33 @@ import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.Value;
 
+import java.util.Optional;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+
 @Value
 public class WebParameters {
-    @Getter(AccessLevel.NONE)
+    static final Pattern uriPattern = Pattern.compile("^(([^:/?#]+):)?(//([^/?#]*))?([^?#]*)(\\?([^#]*))?(#(.*))?");
+
+    static Matcher uriMatcher(String uriString) {
+        Matcher result = uriPattern.matcher(Optional.ofNullable(uriString).orElse(""));
+        if (result.matches()) {
+            return result;
+        }
+        throw new IllegalStateException("Malformed URI: '" + uriString + "'");
+    }
+
+    @Getter(AccessLevel.PRIVATE)
     String value;
     HttpRequestMethod method;
+    boolean disabled;
 
-    public String getPath() {
-        return value.startsWith("/") || value.contains("://") ? value : "/" + value;
-    }
+    @Getter(lazy = true, value = AccessLevel.PRIVATE)
+    Matcher matcher = uriMatcher(getValue());
+    @Getter(lazy = true)
+    String path = Optional.ofNullable(getMatcher().group(5)).map(p -> p.startsWith("/") ? p : p.isBlank() ? "" : "/" + p).orElse("");
+    @Getter(lazy = true)
+    String origin = Optional.ofNullable(getMatcher().group(1))
+            .map(scheme -> scheme + getMatcher().group(3)).orElse(null);
+
 }

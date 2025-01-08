@@ -28,6 +28,7 @@ import lombok.AccessLevel;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NonNull;
+import lombok.Synchronized;
 import lombok.Value;
 import lombok.experimental.NonFinal;
 import lombok.extern.slf4j.Slf4j;
@@ -39,6 +40,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.Spliterator;
 import java.util.Spliterators;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.BiFunction;
 import java.util.function.Consumer;
 import java.util.function.Function;
@@ -72,6 +74,10 @@ public class DeserializingMessage implements HasMessage {
     @Getter(AccessLevel.NONE)
     @NonFinal
     SerializedMessage serializedMessage;
+
+    @Getter(value = AccessLevel.NONE)
+    @NonFinal
+    transient Map<Class<?>, Object> context;
 
     public DeserializingMessage(SerializedMessage message, Function<Class<?>, Object> payload,
                                 MessageType messageType) {
@@ -201,6 +207,15 @@ public class DeserializingMessage implements HasMessage {
             serializedMessage = message.serialize(serializer);
         }
         return serializedMessage;
+    }
+
+    @SuppressWarnings("unchecked")
+    @Synchronized
+    public <T> T computeContextIfAbsent(Class<T> contextKey, Function<DeserializingMessage, ? extends T> provider) {
+        if (context == null) {
+            context = new ConcurrentHashMap<>();
+        }
+        return (T) context.computeIfAbsent(contextKey, k -> provider.apply(this));
     }
 
     public static DeserializingMessage getCurrent() {

@@ -25,11 +25,13 @@ import java.lang.invoke.MethodHandles;
 import java.lang.invoke.MethodType;
 import java.lang.reflect.AccessibleObject;
 import java.lang.reflect.Constructor;
+import java.lang.reflect.Executable;
 import java.lang.reflect.Field;
 import java.lang.reflect.Member;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
 import java.lang.reflect.Proxy;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
@@ -60,6 +62,7 @@ public class DefaultMemberInvoker implements MemberInvoker {
     private final boolean staticMember;
     private final boolean returnsResult;
     private final int lambdaParameterCount;
+    private final Class<?>[] parameterTypes;
 
     private DefaultMemberInvoker(Member member, boolean forceAccess) {
         if (forceAccess) {
@@ -67,6 +70,7 @@ public class DefaultMemberInvoker implements MemberInvoker {
         }
         this.member = member;
         lambdaParameterCount = getLambdaParameterCount(member);
+        parameterTypes = Collections.nCopies(lambdaParameterCount, Object.class).toArray(Class<?>[]::new);
         returnsResult = !(member instanceof Method && ((Method) member).getReturnType().equals(void.class));
         staticMember = Modifier.isStatic(member.getModifiers()) || member instanceof Constructor<?>;
         invokeFunction = computeInvokeFunction();
@@ -93,14 +97,16 @@ public class DefaultMemberInvoker implements MemberInvoker {
         if (member instanceof Field || Proxy.isProxyClass(member.getDeclaringClass())) {
             return null;
         }
+        if (member instanceof Executable e && Arrays.stream(e.getParameterTypes()).anyMatch(Class::isPrimitive)) {
+            return null;
+        }
         try {
             var lookup = privateLookupIn(member.getDeclaringClass(), DefaultMemberInvoker.lookup);
             MethodHandle realMethodHandle = getMethodHandle(member, lookup);
             MethodType factoryType =
                     methodType(Class.forName(DefaultMemberInvoker.class.getName()
                                              + (returnsResult ? "$_Function" : "$_Consumer") + lambdaParameterCount));
-            MethodType interfaceMethodType = methodType(returnsResult ? Object.class : void.class,
-                    Collections.nCopies(lambdaParameterCount, Object.class).toArray(Class<?>[]::new));
+            MethodType interfaceMethodType = methodType(returnsResult ? Object.class : void.class, parameterTypes);
             CallSite site = LambdaMetafactory.metafactory(
                     lookup, returnsResult ? "apply" : "accept", factoryType,
                     interfaceMethodType, realMethodHandle, realMethodHandle.type());

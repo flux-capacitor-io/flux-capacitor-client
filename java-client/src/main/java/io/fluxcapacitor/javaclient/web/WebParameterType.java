@@ -14,17 +14,6 @@
 
 package io.fluxcapacitor.javaclient.web;
 
-import java.lang.annotation.Documented;
-import java.lang.annotation.ElementType;
-import java.lang.annotation.Retention;
-import java.lang.annotation.RetentionPolicy;
-import java.lang.annotation.Target;
-
-@Documented
-@Retention(RetentionPolicy.RUNTIME)
-@Target(ElementType.METHOD)
-@HandleWeb(value = "", method = HttpRequestMethod.WS_CLOSE)
-public @interface HandleSocketClose {
-    String value() default "";;
-    boolean disabled() default false;
+public enum WebParameterType {
+    PATH, QUERY, HEADER, COOKIE, FORM
 }

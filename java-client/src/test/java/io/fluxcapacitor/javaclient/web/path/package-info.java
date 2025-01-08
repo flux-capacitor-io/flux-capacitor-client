@@ -12,7 +12,7 @@
  * limitations under the License.
  */
 
-@Root("/package")
+@Path("/package")
 package io.fluxcapacitor.javaclient.web.path;
 
-import io.fluxcapacitor.javaclient.web.Root;
+import io.fluxcapacitor.javaclient.web.Path;

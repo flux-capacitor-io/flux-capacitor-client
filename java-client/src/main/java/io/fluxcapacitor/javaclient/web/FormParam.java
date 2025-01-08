@@ -11,20 +11,33 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package io.fluxcapacitor.javaclient.web;
 
-import java.lang.annotation.Documented;
 import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
-@Documented
+/**
+ * Injects the value of a form field or an entire form.
+ *
+ * <pre>{@code
+ * @HandlePost("/newsletter")
+ * void handle(@FormParam String email) { }
+ *
+ * @HandlePost("/user")
+ * UserId form(@FormParam UserData form) { }
+ * }</pre>
+ * <p>
+ * The HTTP request must be encoded as application/x-www-form-urlencoded or multipart/form-data.
+ */
 @Retention(RetentionPolicy.RUNTIME)
-@Target(ElementType.METHOD)
-@HandleWeb(value = "", method = HttpRequestMethod.WS_CLOSE)
-public @interface HandleSocketClose {
-    String value() default "";;
-    boolean disabled() default false;
+@Target(ElementType.PARAMETER)
+@WebParam(type = WebParameterType.FORM)
+public @interface FormParam {
+
+    /**
+     * Form parameter name. If left empty, it defaults to the method parameter's name;
+     */
+    String value() default "";
 }

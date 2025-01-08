@@ -15,18 +15,18 @@
 package io.fluxcapacitor.javaclient.web.path;
 
 import io.fluxcapacitor.javaclient.web.HandleWeb;
-import io.fluxcapacitor.javaclient.web.Root;
+import io.fluxcapacitor.javaclient.web.Path;
 
 import static io.fluxcapacitor.javaclient.web.HttpRequestMethod.GET;
 
-@Root("/class/")
+@Path("/class/")
 public class ClassPathHandler {
     @HandleWeb(value = "/get", method = GET)
     String get() {
         return "get";
     }
 
-    @Root("/method")
+    @Path("/method")
     @HandleWeb(value = "get", method = GET)
     String override() {
         return "get";

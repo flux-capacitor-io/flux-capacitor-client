@@ -14,17 +14,13 @@
 
 package io.fluxcapacitor.javaclient.web;
 
-import java.lang.annotation.Documented;
-import java.lang.annotation.ElementType;
-import java.lang.annotation.Retention;
-import java.lang.annotation.RetentionPolicy;
-import java.lang.annotation.Target;
+import lombok.Value;
 
-@Documented
-@Retention(RetentionPolicy.RUNTIME)
-@Target(ElementType.METHOD)
-@HandleWeb(value = "", method = HttpRequestMethod.WS_CLOSE)
-public @interface HandleSocketClose {
-    String value() default "";;
-    boolean disabled() default false;
+@Value
+public class ParameterValue {
+    io.jooby.Value value;
+
+    public <V> V as(Class<V> type) {
+        return value.toNullable(type);
+    }
 }

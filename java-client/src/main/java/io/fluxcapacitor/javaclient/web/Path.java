@@ -16,15 +16,25 @@ package io.fluxcapacitor.javaclient.web;
 
 import java.lang.annotation.Documented;
 import java.lang.annotation.ElementType;
+import java.lang.annotation.Inherited;
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
-@Documented
+/**
+ * Annotation used by web handlers that specifies the root of the URI path. This annotation can be present at package,
+ * class or method level. The annotation at the most specific level overrides the value from lower levels, e.g. @Root on
+ * a class will override the package level annotation.
+ */
 @Retention(RetentionPolicy.RUNTIME)
-@Target(ElementType.METHOD)
-@HandleWeb(value = "", method = HttpRequestMethod.WS_CLOSE)
-public @interface HandleSocketClose {
-    String value() default "";;
-    boolean disabled() default false;
+@Target({ElementType.METHOD, ElementType.CONSTRUCTOR, ElementType.TYPE, ElementType.PACKAGE})
+@Inherited
+@Documented
+public @interface Path {
+    /**
+     * Defines the root URI path for web handlers. This value is prepended to the value of web handler annotations like
+     * {@link HandleGet @HandleGet}. A missing forward slash at beginning or end will automatically be added if
+     * required.
+     */
+    String value();
 }

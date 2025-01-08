@@ -11,20 +11,19 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package io.fluxcapacitor.javaclient.web;
 
-import java.lang.annotation.Documented;
 import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
-@Documented
+/**
+ * Meta-annotation for parameters that inject parameter values present in HTTP requests.
+ */
 @Retention(RetentionPolicy.RUNTIME)
-@Target(ElementType.METHOD)
-@HandleWeb(value = "", method = HttpRequestMethod.WS_CLOSE)
-public @interface HandleSocketClose {
-    String value() default "";;
-    boolean disabled() default false;
+@Target(ElementType.ANNOTATION_TYPE)
+public @interface WebParam {
+    String value() default "";
+    WebParameterType type();
 }

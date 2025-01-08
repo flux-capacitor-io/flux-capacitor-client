@@ -14,10 +14,7 @@
 
 package io.fluxcapacitor.javaclient.web;
 
-import io.fluxcapacitor.common.SearchUtils;
-import io.fluxcapacitor.common.handling.MessageFilter;
 import io.fluxcapacitor.common.reflection.ReflectionUtils;
-import io.fluxcapacitor.javaclient.common.HasMessage;
 import lombok.NonNull;
 
 import java.lang.annotation.Annotation;
@@ -30,43 +27,11 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.TreeMap;
-import java.util.function.BiFunction;
-import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
-import static io.fluxcapacitor.common.reflection.ReflectionUtils.getPackageAnnotation;
-import static io.fluxcapacitor.common.reflection.ReflectionUtils.getTypeAnnotation;
-import static io.fluxcapacitor.javaclient.common.ClientUtils.memoize;
-import static java.util.Objects.requireNonNull;
 import static org.apache.commons.lang3.StringUtils.isBlank;
 
 public class WebUtils {
-    private static final BiFunction<Executable, Class<? extends Annotation>, Predicate<HasMessage>> filterCache =
-            memoize((e, a) -> {
-                var declaringClass = e.getDeclaringClass();
-                String root = ReflectionUtils.<Root>getMethodAnnotation(e, Root.class)
-                        .or(() -> Optional.ofNullable(getTypeAnnotation(declaringClass, Root.class)))
-                        .or(() -> getPackageAnnotation(declaringClass.getPackage(), Root.class))
-                        .map(Root::value)
-                        .map(p -> p.endsWith("//") || !p.endsWith("/") ? p : p.substring(0, p.length() - 1))
-                        .orElse("");
-                var handleWeb = WebUtils.getWebParameters(e, a).orElseThrow();
-                Predicate<String> pathTest = Optional.of(root + handleWeb.getPath())
-                        .map(SearchUtils::getGlobMatcher)
-                        .<Predicate<String>>map(p -> s -> p.test(s.startsWith("/") || s.contains("://") ? s : "/" + s))
-                        .orElse(p -> true);
-                Predicate<String> methodTest = Optional.of(handleWeb.getMethod())
-                        .<Predicate<String>>map(r -> p -> r.name().equals(p))
-                        .orElse(p -> true);
-                return msg -> {
-                    String path = requireNonNull(msg.getMetadata().get("url"),
-                                                 "Web request url is missing in the metadata of a WebRequest message");
-                    String method = requireNonNull(msg.getMetadata().get("method"),
-                                                   "Web request method is missing in the metadata of a WebRequest message");
-                    return pathTest.test(path) && methodTest.test(method);
-                };
-            });
-
     public static String toResponseHeaderString(@NonNull HttpCookie cookie) {
         StringBuilder sb = new StringBuilder();
         sb.append(cookie.getName()).append("=").append(URLEncoder.encode(cookie.getValue(), StandardCharsets.UTF_8));
@@ -126,10 +91,5 @@ public class WebUtils {
         Map<String, List<String>> result = emptyHeaderMap();
         result.putAll(input);
         return result;
-    }
-
-    public static MessageFilter<HasMessage> getWebRequestFilter() {
-        return (message, executable, handlerAnnotation) -> filterCache.apply(
-                executable, handlerAnnotation).test(message);
     }
 }

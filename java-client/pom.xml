@@ -55,6 +55,13 @@
             <scope>test</scope>
         </dependency>
 
+        <!-- web routing -->
+        <dependency>
+            <groupId>io.jooby</groupId>
+            <artifactId>jooby</artifactId>
+            <version>3.5.5</version>
+        </dependency>
+
         <!--websocket client-->
         <dependency>
             <groupId>io.undertow</groupId>

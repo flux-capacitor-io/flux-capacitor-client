@@ -21,7 +21,6 @@ import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NonNull;
 import lombok.SneakyThrows;
-import lombok.extern.slf4j.Slf4j;
 
 import java.lang.annotation.Annotation;
 import java.lang.reflect.Constructor;
@@ -331,27 +330,4 @@ public class HandlerInspector {
 
     }
 
-    @AllArgsConstructor
-    @Slf4j
-    public static class DefaultHandler<M> implements Handler<M> {
-        private final Class<?> targetClass;
-        private final Function<M, ?> targetSupplier;
-        private final HandlerMatcher<Object, M> handlerMatcher;
-
-        @Override
-        public Class<?> getTargetClass() {
-            return targetClass;
-        }
-
-        @Override
-        public Optional<HandlerInvoker> getInvoker(M message) {
-            return handlerMatcher.getInvoker(targetSupplier.apply(message), message);
-        }
-
-        @Override
-        public String toString() {
-            String simpleName = targetClass.getSimpleName();
-            return String.format("\"%s\"", simpleName.isEmpty() ? "DefaultHandler" : simpleName);
-        }
-    }
 }

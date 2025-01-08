@@ -11,20 +11,27 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package io.fluxcapacitor.javaclient.web;
 
-import java.lang.annotation.Documented;
 import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
-@Documented
+/**
+ * Injects the value of a URI template variable or a path segment containing the template parameter.
+ *
+ * <pre>{@code
+ * @HandleGet("/user/:id")
+ * UserProfile getUser(@PathParam String id) { }
+ * }</pre>
+ */
 @Retention(RetentionPolicy.RUNTIME)
-@Target(ElementType.METHOD)
-@HandleWeb(value = "", method = HttpRequestMethod.WS_CLOSE)
-public @interface HandleSocketClose {
-    String value() default "";;
-    boolean disabled() default false;
+@Target(ElementType.PARAMETER)
+@WebParam(type = WebParameterType.PATH, value = "")
+public @interface PathParam {
+    /**
+     * Parameter name in the URI pattern. If left empty, it defaults to the method parameter's name;
+     */
+    String value() default "";
 }

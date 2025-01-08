@@ -749,6 +749,10 @@ public class ReflectionUtils {
                || value instanceof Boolean || value.getClass().isEnum();
     }
 
+    public static boolean isAnnotationPresent(Parameter parameter, Class<? extends Annotation> annotationType) {
+        return getAnnotation(parameter, annotationType).isPresent();
+    }
+
     @Value
     private static class PropertyNotFoundException extends RuntimeException {
         @NonNull String propertyName;
@@ -809,15 +813,7 @@ public class ReflectionUtils {
         Returns meta annotation if desired
      */
 
-    public static <A extends Annotation> Optional<A> getAnnotation(Class<?> c, Class<A> a) {
-        return getAnnotationAs(c, a, a);
-    }
-
-    public static <A extends Annotation> Optional<A> getAnnotation(Executable m, Class<A> a) {
-        return getAnnotationAs(m, a, a);
-    }
-
-    public static <A extends Annotation> Optional<A> getAnnotation(AccessibleObject m, Class<A> a) {
+    public static <A extends Annotation> Optional<A> getAnnotation(AnnotatedElement m, Class<A> a) {
         return getAnnotationAs(m, a, a);
     }
 
@@ -832,16 +828,10 @@ public class ReflectionUtils {
     public static <T> Optional<T> getAnnotationAs(AnnotatedElement member,
                                                   Class<? extends Annotation> annotationType, Class<? extends T> returnType) {
         Annotation annotation;
-        if (member instanceof Method method) {
-            annotation = getMethodAnnotation(method, annotationType).orElse(null);
-        } else if (member instanceof Field field) {
-            annotation = field.getAnnotation(annotationType);
-        } else if (member instanceof Constructor<?> constructor) {
-            annotation = constructor.getAnnotation(annotationType);
-        } else if (member instanceof Parameter parameter) {
-            annotation = parameter.getAnnotation(annotationType);
+        if (member instanceof Executable e) {
+            annotation = getMethodAnnotation(e, annotationType).orElse(null);
         } else {
-            annotation = null;
+            annotation = getTopLevelAnnotation(member, annotationType);
         }
         return getAnnotationAs(annotation, annotationType, returnType);
     }
@@ -929,7 +919,7 @@ public class ReflectionUtils {
     }
 
     @SuppressWarnings("unchecked")
-    private static <A extends Annotation> A getTopLevelAnnotation(Executable m, Class<? extends Annotation> a) {
+    private static <A extends Annotation> A getTopLevelAnnotation(AnnotatedElement m, Class<? extends Annotation> a) {
         return Optional.ofNullable((A) m.getAnnotation(a)).orElseGet(() -> (A) stream(m.getAnnotations())
                 .filter(metaAnnotation -> metaAnnotation.annotationType().isAnnotationPresent(a)).findFirst()
                 .orElse(null));
