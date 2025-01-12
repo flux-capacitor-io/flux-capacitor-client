@@ -16,26 +16,30 @@ package io.fluxcapacitor.javaclient.web;
 
 public interface WebRequestContext {
 
-    ParameterValue getParameter(WebParameterType type, String name);
+    ParameterValue getParameter(String name, WebParameterSource... sources);
+
+    default ParameterValue getParameter(String name) {
+        return getParameter(name, WebParameterSource.PATH, WebParameterSource.QUERY, WebParameterSource.FORM);
+    }
 
     default ParameterValue getPathParameter(String name) {
-        return getParameter(WebParameterType.PATH, name);
+        return getParameter(name, WebParameterSource.PATH);
     }
 
     default ParameterValue getQueryParameter(String name) {
-        return getParameter(WebParameterType.QUERY, name);
+        return getParameter(name, WebParameterSource.QUERY);
     }
 
     default ParameterValue getHeaderParameter(String name) {
-        return getParameter(WebParameterType.HEADER, name);
+        return getParameter(name, WebParameterSource.HEADER);
     }
 
     default ParameterValue getCookieParameter(String name) {
-        return getParameter(WebParameterType.COOKIE, name);
+        return getParameter(name, WebParameterSource.COOKIE);
     }
 
     default ParameterValue getFormParameter(String name) {
-        return getParameter(WebParameterType.FORM, name);
+        return getParameter(name, WebParameterSource.FORM);
     }
 
 }

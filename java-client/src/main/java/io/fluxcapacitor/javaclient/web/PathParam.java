@@ -28,7 +28,7 @@ import java.lang.annotation.Target;
  */
 @Retention(RetentionPolicy.RUNTIME)
 @Target(ElementType.PARAMETER)
-@WebParam(type = WebParameterType.PATH, value = "")
+@WebParam(type = WebParameterSource.PATH, value = "")
 public @interface PathParam {
     /**
      * Parameter name in the URI pattern. If left empty, it defaults to the method parameter's name;

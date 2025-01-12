@@ -33,7 +33,7 @@ import java.lang.annotation.Target;
  */
 @Retention(RetentionPolicy.RUNTIME)
 @Target(ElementType.PARAMETER)
-@WebParam(type = WebParameterType.FORM)
+@WebParam(type = WebParameterSource.FORM)
 public @interface FormParam {
 
     /**

@@ -56,6 +56,7 @@ import java.nio.channels.FileChannel;
 import java.nio.channels.ReadableByteChannel;
 import java.nio.charset.Charset;
 import java.security.cert.Certificate;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
@@ -147,14 +148,14 @@ public class DefaultWebRequestContext implements DefaultContext, WebRequestConte
     }
 
     @Override
-    public ParameterValue getParameter(WebParameterType type, String name) {
-        var value = lookup(name, switch (type) {
+    public ParameterValue getParameter(String name, WebParameterSource... sources) {
+        var value = lookup(name, Arrays.stream(sources).map(type -> switch (type) {
             case PATH -> ParamSource.PATH;
             case HEADER -> ParamSource.HEADER;
             case COOKIE -> ParamSource.COOKIE;
             case FORM -> ParamSource.FORM;
             case QUERY -> ParamSource.QUERY;
-        });
+        }).toArray(ParamSource[]::new));
         return new ParameterValue(value);
     }
 

@@ -28,7 +28,7 @@ import java.lang.annotation.Target;
  */
 @Retention(RetentionPolicy.RUNTIME)
 @Target(ElementType.PARAMETER)
-@WebParam(type = WebParameterType.HEADER)
+@WebParam(type = WebParameterSource.HEADER)
 public @interface HeaderParam {
     /**
      * Header parameter name. If left empty, it defaults to the method parameter's name;

@@ -28,7 +28,7 @@ import java.lang.annotation.Target;
  */
 @Retention(RetentionPolicy.RUNTIME)
 @Target(ElementType.PARAMETER)
-@WebParam(type = WebParameterType.QUERY)
+@WebParam(type = WebParameterSource.QUERY)
 public @interface QueryParam {
     /**
      * Query parameter name. If left empty, it defaults to the method parameter's name;

@@ -394,7 +394,7 @@ public class HandleWebTest {
             final TestFixture testFixture = TestFixture.create(new Handler());
 
             @Test
-            void testPathParam_String() {
+            void testPathParam_int() {
                 testFixture.whenGet("/?offset=1").expectResult(1);
             }
 

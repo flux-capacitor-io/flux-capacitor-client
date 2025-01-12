@@ -52,7 +52,7 @@ public class WebParamParameterResolver implements ParameterResolver<HasMessage> 
                         } else {
                             name = value;
                         }
-                        return context.getParameter(f.getType(), name);
+                        return context.getParameter(name, f.getType());
                     }).map(v -> v.as(p.getType())).orElse(null);
         };
     }
@@ -66,6 +66,6 @@ public class WebParamParameterResolver implements ParameterResolver<HasMessage> 
     @Value
     static class ParamField {
         String value;
-        WebParameterType type;
+        WebParameterSource type;
     }
 }

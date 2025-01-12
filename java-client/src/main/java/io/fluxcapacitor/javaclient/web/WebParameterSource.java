@@ -14,6 +14,6 @@
 
 package io.fluxcapacitor.javaclient.web;
 
-public enum WebParameterType {
+public enum WebParameterSource {
     PATH, QUERY, HEADER, COOKIE, FORM
 }

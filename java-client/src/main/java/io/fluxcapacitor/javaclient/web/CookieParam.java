@@ -28,7 +28,7 @@ import java.lang.annotation.Target;
  */
 @Retention(RetentionPolicy.RUNTIME)
 @Target(ElementType.PARAMETER)
-@WebParam(type = WebParameterType.COOKIE)
+@WebParam(type = WebParameterSource.COOKIE)
 public @interface CookieParam {
     /**
      * Cookie parameter name. If left empty, it defaults to the method parameter's name;
