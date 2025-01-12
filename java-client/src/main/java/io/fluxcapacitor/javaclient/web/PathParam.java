@@ -22,7 +22,7 @@ import java.lang.annotation.Target;
  * Injects the value of a URI template variable or a path segment containing the template parameter.
  *
  * <pre>{@code
- * @HandleGet("/user/:id")
+ * @HandleGet("/user/{id}")
  * UserProfile getUser(@PathParam String id) { }
  * }</pre>
  */

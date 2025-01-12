@@ -366,6 +366,11 @@ public class HandleWebTest {
             }
 
             @Test
+            void testPathParam_Non_Number_Fails() {
+                testFixture.whenGet("/number/123a").expectExceptionalResult(TimeoutException.class);
+            }
+
+            @Test
             void testPathParam_Id() {
                 testFixture.whenGet("/id/123").expectResult(new SomeId("123"));
             }
@@ -376,7 +381,7 @@ public class HandleWebTest {
                     return foo;
                 }
 
-                @HandleGet("number/{foo}")
+                @HandleGet("number/{foo:[0-9]+}")
                 Object get(@PathParam int foo) {
                     return foo;
                 }
