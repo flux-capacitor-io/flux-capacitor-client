@@ -171,6 +171,7 @@ public class TestFixture implements Given, When {
     private Duration consumerTimeout = defaultConsumerTimeout;
     private final boolean synchronous;
     private final boolean spying;
+    private final boolean defaultUserProvider;
     private Registration registration = Registration.noOp();
 
     private final Map<ActiveConsumer, List<Message>> consumers = new ConcurrentHashMap<>();
@@ -203,8 +204,9 @@ public class TestFixture implements Given, When {
         activeFixtures.get().add(this);
         this.synchronous = synchronous;
         this.spying = false;
+        this.defaultUserProvider = false;
         Optional<TestUserProvider> userProvider =
-                Optional.ofNullable(UserProvider.defaultUserSupplier).map(TestUserProvider::new);
+                Optional.ofNullable(UserProvider.defaultUserProvider).map(TestUserProvider::new);
         if (userProvider.isPresent()) {
             fluxCapacitorBuilder = fluxCapacitorBuilder.registerUserProvider(userProvider.get());
         }
@@ -244,12 +246,17 @@ public class TestFixture implements Given, When {
         registerHandlers(handlers);
     }
 
-    protected TestFixture(TestFixture currentFixture, boolean synchronous, boolean spying) {
-        shutDownActiveFixtures();
+    protected TestFixture(TestFixture currentFixture, boolean synchronous, boolean spying,
+                          boolean defaultUserProvider) {
         activeFixtures.get().add(this);
         this.synchronous = synchronous;
         this.spying = spying;
+        this.defaultUserProvider = defaultUserProvider;
+
         this.fluxCapacitorBuilder = currentFixture.fluxCapacitorBuilder;
+        Optional.ofNullable(UserProvider.defaultUserProvider)
+                .map(provider -> defaultUserProvider ? provider : new TestUserProvider(provider))
+                .ifPresent(this.fluxCapacitorBuilder::registerUserProvider);
         (this.interceptor = currentFixture.interceptor).testFixture = this;
         var currentClient = currentFixture.fluxCapacitor.client().unwrap();
         var newClient = currentClient instanceof InMemoryClient
@@ -299,7 +306,7 @@ public class TestFixture implements Given, When {
      * properties and 'given' conditions as the source fixture.
      */
     public TestFixture async() {
-        return synchronous ? new TestFixture(this, false, spying) : this;
+        return synchronous ? new TestFixture(this, false, spying, false) : this;
     }
 
     /**
@@ -310,7 +317,7 @@ public class TestFixture implements Given, When {
      * properties and 'given' conditions as the source fixture.
      */
     public TestFixture sync() {
-        return !synchronous ? new TestFixture(this, true, spying) : this;
+        return !synchronous ? new TestFixture(this, true, spying, false) : this;
     }
 
     /**
@@ -324,7 +331,18 @@ public class TestFixture implements Given, When {
      * @see org.mockito.Mockito#spy(Object[])
      */
     public TestFixture spy() {
-        return spying ? this : new TestFixture(this, synchronous, true);
+        return spying ? this : new TestFixture(this, synchronous, true, false);
+    }
+
+    /**
+     * Returns a new test fixture in which the application's default UserProvider is used, see
+     * {@link UserProvider#defaultUserProvider}. This allows for testing of the behavior of unauthenticated web users.
+     * <p>
+     * The returned test fixture will have a nearly identical state, i.e. it will have the same handlers, clock,
+     * properties and 'given' conditions as the source fixture.
+     */
+    public TestFixture withDefaultUserProvider() {
+        return defaultUserProvider ? this : new TestFixture(this, synchronous, spying, true);
     }
 
     /**
@@ -334,7 +352,7 @@ public class TestFixture implements Given, When {
      * of the test fixture creator methods, or all at the same time via registerHandlers. If handlers that share the
      * same consumer are registered separately, an exception will be raised.
      */
-    @SuppressWarnings({"ResultOfMethodCallIgnored", "DataFlowIssue"})
+    @SuppressWarnings("ResultOfMethodCallIgnored")
     public TestFixture registerHandlers(List<?> handlers) {
         return modifyFixture(fixture -> {
             FluxCapacitor fc = fixture.getFluxCapacitor();
@@ -957,8 +975,8 @@ public class TestFixture implements Given, When {
                             return ((configuration.getMessageType() == messageType
                                      || (configuration.getMessageType() == NOTIFICATION && messageType == EVENT))
                                     && Optional.ofNullable(configuration.getTypeFilter())
-                                    .map(f -> message.getPayload().getClass().getName().matches(f))
-                                    .orElse(true));
+                                            .map(f -> message.getPayload().getClass().getName().matches(f))
+                                            .orElse(true));
                         }).forEach(e -> addMessage(e.getValue(), message));
             }
 

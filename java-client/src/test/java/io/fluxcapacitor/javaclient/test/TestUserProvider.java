@@ -14,8 +14,6 @@
 
 package io.fluxcapacitor.javaclient.test;
 
-import io.fluxcapacitor.common.MessageType;
-import io.fluxcapacitor.javaclient.common.serialization.DeserializingMessage;
 import io.fluxcapacitor.javaclient.tracking.handling.authentication.User;
 import io.fluxcapacitor.javaclient.tracking.handling.authentication.UserProvider;
 import lombok.AllArgsConstructor;
@@ -23,6 +21,10 @@ import lombok.experimental.Delegate;
 
 import java.util.Optional;
 
+/**
+ * User provider that returns the system user as active user when there is no active user according to a
+ * delegate user provider. This enables easy testing of web requests without having to provide authentication headers.
+ */
 @AllArgsConstructor
 public class TestUserProvider implements UserProvider {
     @Delegate
@@ -30,11 +32,6 @@ public class TestUserProvider implements UserProvider {
 
     @Override
     public User getActiveUser() {
-        var result = delegate.getActiveUser();
-        if (result == null && Optional.ofNullable(DeserializingMessage.getCurrent())
-                .map(m -> m.getMessageType() != MessageType.WEBREQUEST).orElse(true)) {
-            return getSystemUser();
-        }
-        return result;
+        return Optional.ofNullable(delegate.getActiveUser()).orElseGet(delegate::getSystemUser);
     }
 }

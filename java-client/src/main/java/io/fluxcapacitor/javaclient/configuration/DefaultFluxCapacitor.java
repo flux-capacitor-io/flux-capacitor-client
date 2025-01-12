@@ -250,7 +250,7 @@ public class DefaultFluxCapacitor implements FluxCapacitor {
         private boolean disableWebResponseCompression;
         private boolean disableAdhocDispatchInterceptor;
         private boolean makeApplicationInstance;
-        private UserProvider userProvider = UserProvider.defaultUserSupplier;
+        private UserProvider userProvider = UserProvider.defaultUserProvider;
         private IdentityProvider identityProvider = IdentityProvider.defaultIdentityProvider;
         private PropertySource propertySource = DefaultPropertySource.getInstance();
 

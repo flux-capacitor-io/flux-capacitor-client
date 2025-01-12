@@ -36,6 +36,7 @@ import lombok.SneakyThrows;
 import java.io.InputStream;
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
@@ -228,6 +229,17 @@ public class JsonUtils {
     @SneakyThrows
     public static <T extends JsonNode> T valueToTree(Object object) {
         return writer.valueToTree(object);
+    }
+
+    public static ObjectNode newObjectNode(Object... keyValues) {
+        if (keyValues.length % 2 == 1) {
+            throw new IllegalArgumentException("Expected even number of keys + values but got: " + keyValues.length);
+        }
+        Map<String, Object> map = new HashMap<>();
+        for (int i = 0; i < keyValues.length; i += 2) {
+            map.put(keyValues[i].toString(), keyValues[i + 1]);
+        }
+        return convertValue(map, ObjectNode.class);
     }
 
     @SuppressWarnings("unchecked")

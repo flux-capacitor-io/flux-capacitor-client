@@ -112,7 +112,7 @@ public class Message implements HasMessage {
 
     public Message addUser(User user) {
         return addMetadata(FluxCapacitor.getOptionally().map(FluxCapacitor::userProvider)
-                .or(() -> Optional.ofNullable(UserProvider.defaultUserSupplier))
+                .or(() -> Optional.ofNullable(UserProvider.defaultUserProvider))
                 .orElseThrow(() -> new IllegalStateException("User provider is not set"))
                 .addToMetadata(getMetadata(), user));
     }

@@ -23,7 +23,7 @@ import java.util.ServiceLoader.Provider;
 
 public interface UserProvider {
 
-    UserProvider defaultUserSupplier = Optional.of(ServiceLoader.load(UserProvider.class))
+    UserProvider defaultUserProvider = Optional.of(ServiceLoader.load(UserProvider.class))
             .flatMap(loader -> loader.stream().map(Provider::get).reduce(UserProvider::andThen)).orElse(null);
 
     default User getActiveUser() {
