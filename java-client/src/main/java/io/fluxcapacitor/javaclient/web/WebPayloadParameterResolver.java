@@ -36,7 +36,7 @@ public class WebPayloadParameterResolver implements ParameterResolver<HasMessage
     public Function<HasMessage, Object> resolve(Parameter p, Annotation methodAnnotation) {
         return m -> {
             Object payload = m.getPayloadAs(p.getType());
-            if (validatePayload) {
+            if (payload != null && validatePayload) {
                 assertValid(payload);
             }
             if (authoriseUser) {
