@@ -27,6 +27,7 @@ import io.fluxcapacitor.javaclient.common.IdentityProvider;
 import io.fluxcapacitor.javaclient.common.Message;
 import io.fluxcapacitor.javaclient.common.UuidFactory;
 import io.fluxcapacitor.javaclient.common.serialization.DeserializingMessage;
+import io.fluxcapacitor.javaclient.common.serialization.FilterContent;
 import io.fluxcapacitor.javaclient.common.serialization.Serializer;
 import io.fluxcapacitor.javaclient.configuration.DefaultFluxCapacitor;
 import io.fluxcapacitor.javaclient.configuration.client.Client;
@@ -57,6 +58,7 @@ import io.fluxcapacitor.javaclient.tracking.Tracking;
 import io.fluxcapacitor.javaclient.tracking.handling.HandleCommand;
 import io.fluxcapacitor.javaclient.tracking.handling.LocalHandler;
 import io.fluxcapacitor.javaclient.tracking.handling.Request;
+import io.fluxcapacitor.javaclient.tracking.handling.authentication.User;
 import io.fluxcapacitor.javaclient.tracking.handling.authentication.UserProvider;
 import lombok.SneakyThrows;
 
@@ -791,6 +793,14 @@ public interface FluxCapacitor extends AutoCloseable {
      */
     static CompletableFuture<Void> deleteCollection(Object collection) {
         return get().documentStore().deleteCollection(collection);
+    }
+
+    /**
+     * Modify given value before it's passed to the given viewer. See {@link FilterContent} for info on how to filter
+     * the value.
+     */
+    static <T> T filterContent(T value, User user) {
+        return get().serializer().filterContent(value, user);
     }
 
     /**
