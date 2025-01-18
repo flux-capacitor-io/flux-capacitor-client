@@ -196,6 +196,7 @@ public class TestFixture implements Given, When {
                 Optional.ofNullable(fixture.registration).ifPresent(Registration::cancel);
                 fixture.fluxCapacitor.client().shutDown();
             }));
+            Optional.ofNullable(FluxCapacitor.instance.get()).ifPresent(fc -> FluxCapacitor.instance.remove());
         }
     }
 
@@ -225,6 +226,7 @@ public class TestFixture implements Given, When {
                 .addBatchInterceptor(interceptor).addHandlerInterceptor(interceptor, true);
         this.fluxCapacitorBuilder = fluxCapacitorBuilder;
         this.fluxCapacitor = fluxCapacitorBuilder.build(client);
+        FluxCapacitor.instance.set(this.fluxCapacitor);
         if (synchronous) {
             localHandlerRegistries(fluxCapacitor).forEach(r -> r.setSelfHandlerFilter(HandlerFilter.ALWAYS_HANDLE));
         }
@@ -269,6 +271,7 @@ public class TestFixture implements Given, When {
         this.fluxCapacitor = spying
                 ? new TestFluxCapacitor(fluxCapacitorBuilder.build(new TestClient(newClient)))
                 : fluxCapacitorBuilder.build(newClient);
+        FluxCapacitor.instance.set(this.fluxCapacitor);
         localHandlerRegistries(this.fluxCapacitor).forEach(r -> r.setSelfHandlerFilter(
                 synchronous ? HandlerFilter.ALWAYS_HANDLE : (t, m) -> !ClientUtils.isSelfTracking(t, m)));
         currentFixture.modifiers.forEach(this::modifyFixture);

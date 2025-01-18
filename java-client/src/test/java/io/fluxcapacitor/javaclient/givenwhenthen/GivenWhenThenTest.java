@@ -23,12 +23,15 @@ import io.fluxcapacitor.javaclient.tracking.handling.HandleCommand;
 import io.fluxcapacitor.javaclient.tracking.handling.HandleEvent;
 import io.fluxcapacitor.javaclient.tracking.metrics.ProcessBatchEvent;
 import lombok.Value;
+import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.mockito.InOrder;
 import org.springframework.beans.factory.annotation.Autowired;
 
 import static io.fluxcapacitor.javaclient.FluxCapacitor.loadAggregate;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.spy;
@@ -228,6 +231,16 @@ class GivenWhenThenTest {
     @Test
     void testExpectAsJson() {
         testFixture.whenCommand("yields-result.json").expectResult("result.json");
+    }
+
+    @AfterAll
+    static void afterAll() {
+        assertNull(FluxCapacitor.instance.get());
+    }
+
+    @Test
+    void testFluxCapacitorInstanceAvailableOutsideTestFixture() {
+        assertEquals(testFixture.getFluxCapacitor(), FluxCapacitor.instance.get());
     }
 
     @Test
