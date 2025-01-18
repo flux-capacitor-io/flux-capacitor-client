@@ -27,6 +27,9 @@ public class DefaultWebResponseMapper implements WebResponseMapper {
 
     @Override
     public WebResponse map(Object response, Metadata metadata) {
+        if (response instanceof WebResponse r) {
+            return r;
+        }
         WebResponse.Builder builder = WebResponse.builder();
         if (response instanceof Throwable) {
             if (response instanceof ValidationException || response instanceof DeserializationException) {
