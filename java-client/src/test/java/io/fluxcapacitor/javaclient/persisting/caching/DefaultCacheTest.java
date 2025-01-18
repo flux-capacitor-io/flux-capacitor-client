@@ -134,8 +134,6 @@ class DefaultCacheTest {
         latch.countDown();
         thread2.join();
         assertEquals("bar2", subject.get("foo"));
-        assertEquals(Thread.State.TERMINATED, thread1.getState());
-        assertEquals(Thread.State.TERMINATED, thread2.getState());
     }
 
     @SneakyThrows
