@@ -19,6 +19,7 @@ import io.fluxcapacitor.javaclient.FluxCapacitor;
 import io.fluxcapacitor.javaclient.configuration.FluxCapacitorBuilder;
 import io.fluxcapacitor.javaclient.configuration.client.Client;
 import io.fluxcapacitor.javaclient.configuration.client.WebSocketClient;
+import io.fluxcapacitor.javaclient.configuration.spring.FluxCapacitorCustomizer;
 import io.fluxcapacitor.javaclient.configuration.spring.FluxCapacitorSpringConfig;
 import io.fluxcapacitor.javaclient.test.TestFixture;
 import lombok.AllArgsConstructor;
@@ -29,6 +30,7 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Import;
 import org.springframework.context.annotation.Primary;
 
+import java.util.List;
 import java.util.Optional;
 
 @Configuration
@@ -46,8 +48,12 @@ public class FluxCapacitorTestConfig {
     }
 
     @Bean
-    public TestFixture testFixture(FluxCapacitorBuilder fluxCapacitorBuilder) {
+    public TestFixture testFixture(FluxCapacitorBuilder fluxCapacitorBuilder, List<FluxCapacitorCustomizer> customizers) {
         fluxCapacitorBuilder.makeApplicationInstance(false);
+        FluxCapacitorCustomizer customizer = customizers.stream()
+                .reduce((first, second) -> b -> second.customize(first.customize(b)))
+                .orElse(b -> b);
+        fluxCapacitorBuilder = customizer.customize(fluxCapacitorBuilder);
         Client client = getBean(Client.class).orElseGet(() -> getBean(WebSocketClient.ClientConfig.class).<Client>map(
                 WebSocketClient::newInstance).orElse(null));
         if (client == null) {
