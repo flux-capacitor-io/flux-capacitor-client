@@ -17,9 +17,11 @@ package io.fluxcapacitor.proxy;
 import io.fluxcapacitor.common.Guarantee;
 import io.fluxcapacitor.common.MessageType;
 import io.fluxcapacitor.common.Registration;
+import io.fluxcapacitor.common.api.Metadata;
 import io.fluxcapacitor.common.api.SerializedMessage;
 import io.fluxcapacitor.javaclient.common.serialization.Serializer;
 import io.fluxcapacitor.javaclient.configuration.client.Client;
+import io.fluxcapacitor.javaclient.publishing.correlation.DefaultCorrelationDataProvider;
 import io.fluxcapacitor.javaclient.tracking.ConsumerConfiguration;
 import io.fluxcapacitor.javaclient.tracking.client.DefaultTracker;
 import io.fluxcapacitor.javaclient.web.WebRequest;
@@ -136,9 +138,12 @@ public class ForwardProxyConsumer implements Consumer<List<SerializedMessage>> {
     }
 
     void sendResponse(WebResponse response, SerializedMessage request) {
+        Metadata responseMetadata = response.getMetadata().addIfAbsent(
+                DefaultCorrelationDataProvider.INSTANCE.getCorrelationData(request, MessageType.WEBREQUEST));
         SerializedMessage serializedResponse = new SerializedMessage(
                 serializer.serialize(response.getPayload()).withFormat("application/octet-stream"),
-                response.getMetadata(), response.getMessageId(), response.getTimestamp().toEpochMilli());
+                responseMetadata, response.getMessageId(), response.getTimestamp().toEpochMilli());
+
         serializedResponse.setRequestId(request.getRequestId());
         serializedResponse.setTarget(request.getSource());
         client.getGatewayClient(MessageType.WEBRESPONSE).append(Guarantee.NONE, serializedResponse);

@@ -105,6 +105,7 @@ class ForwardProxyConsumerTest {
         testFixture
                 .whenWebRequest(WebRequest.builder().url("http://localhost:" + port)
                                                      .payload("test").method(POST).build())
-                .<WebResponse>expectResult(r -> r.getStatus() == 204 && r.<byte[]>getPayload().length == 0);
+                .<WebResponse>expectResult(r -> r.getStatus() == 204 && r.<byte[]>getPayload().length == 0)
+                .expectWebResponse(r -> r.getStatus() == 204 && r.getMetadata().containsKey("$correlationId"));
     }
 }

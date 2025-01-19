@@ -26,7 +26,7 @@ import java.util.Map;
 import java.util.function.Predicate;
 
 class CorrelationDataProviderTest {
-    private final CorrelationDataProvider testProvider = msg -> {
+    private final CorrelationDataProvider testProvider = (msg, type) -> {
         Map<String, String> result = new HashMap<>(Map.of("foo", "bar"));
         if (msg != null) {
             result.put("msgId", msg.getMessageId());

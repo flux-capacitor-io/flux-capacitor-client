@@ -112,9 +112,14 @@ public class Metadata {
         return new Metadata(with(key, value, new HashMap<>(entries)));
     }
 
-
     public Metadata addIfAbsent(Object key, Object value) {
         return containsKey(key) ? this : with(key, value);
+    }
+
+    public Metadata addIfAbsent(Map<?, ?> map) {
+        map = new HashMap<>(map);
+        map.keySet().removeIf(this::containsKey);
+        return with(map);
     }
 
     @SneakyThrows

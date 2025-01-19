@@ -14,23 +14,46 @@
 
 package io.fluxcapacitor.javaclient.publishing.correlation;
 
+import io.fluxcapacitor.common.MessageType;
+import io.fluxcapacitor.common.api.SerializedMessage;
 import io.fluxcapacitor.javaclient.common.serialization.DeserializingMessage;
+import jakarta.annotation.Nullable;
 
 import java.util.Map;
 
-@FunctionalInterface
 public interface CorrelationDataProvider {
     default Map<String, String> getCorrelationData() {
         return getCorrelationData(DeserializingMessage.getCurrent());
     }
 
-    Map<String, String> getCorrelationData(DeserializingMessage currentMessage);
+    default Map<String, String> getCorrelationData(@Nullable DeserializingMessage currentMessage) {
+        if (currentMessage == null) {
+            return getCorrelationData(null, null);
+        }
+        return getCorrelationData(currentMessage.getSerializedObject(), currentMessage.getMessageType());
+    }
+
+    Map<String, String> getCorrelationData(@Nullable SerializedMessage currentMessage,
+                                           @Nullable MessageType messageType);
 
     default CorrelationDataProvider andThen(CorrelationDataProvider next) {
-        return currentMessage -> {
-            Map<String, String> result = getCorrelationData(currentMessage);
-            result.putAll(next.getCorrelationData(currentMessage));
-            return result;
+        CorrelationDataProvider first = this;
+
+        return new CorrelationDataProvider() {
+            @Override
+            public Map<String, String> getCorrelationData(@Nullable DeserializingMessage currentMessage) {
+                Map<String, String> result = first.getCorrelationData(currentMessage);
+                result.putAll(next.getCorrelationData(currentMessage));
+                return result;
+            }
+
+            @Override
+            public Map<String, String> getCorrelationData(@Nullable SerializedMessage currentMessage,
+                                                          @Nullable MessageType messageType) {
+                Map<String, String> result = first.getCorrelationData(currentMessage, messageType);
+                result.putAll(next.getCorrelationData(currentMessage, messageType));
+                return result;
+            }
         };
     }
 
