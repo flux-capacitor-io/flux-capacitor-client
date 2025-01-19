@@ -55,8 +55,14 @@ public class RequestAnnotationProcessor extends AbstractProcessor {
         if (isPassive(method)) {
             return;
         }
-        for (TypeMirror p : ((ExecutableType) method.asType()).getParameterTypes()) {
-            validateReturnType(method, p, requestType);
+        var classType = method.getEnclosingElement().asType();
+        if (getTypeUtils().isAssignable(classType, requestType)) {
+            //request handles itself
+            validateReturnType(method, classType, requestType);
+        } else {
+            for (TypeMirror p : ((ExecutableType) method.asType()).getParameterTypes()) {
+                validateReturnType(method, p, requestType);
+            }
         }
     }
 

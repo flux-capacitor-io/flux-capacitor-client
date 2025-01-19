@@ -21,6 +21,8 @@ import org.joor.Reflect;
 import org.joor.ReflectException;
 import org.junit.jupiter.api.Test;
 
+import static org.junit.jupiter.api.Assertions.assertThrows;
+
 public class RequestAnnotationProcessorTest {
 
     @Test
@@ -70,6 +72,8 @@ public class RequestAnnotationProcessorTest {
         ).create().get();
     }
 
+
+
     @Test
     void testRequestWithWrongTypeAllowedIfPassive() {
         RequestAnnotationProcessor p = new RequestAnnotationProcessor();
@@ -90,8 +94,7 @@ public class RequestAnnotationProcessorTest {
     @Test
     void testRequestWithWrongReturnType() {
         RequestAnnotationProcessor p = new RequestAnnotationProcessor();
-        try {
-            Reflect.compile(
+        assertThrows(ReflectException.class, () -> Reflect.compile(
                     "io.fluxcapacitor.javaclient.tracking.handling.WrongHandler",
                     """
                                 package io.fluxcapacitor.javaclient.tracking.handling;
@@ -102,10 +105,41 @@ public class RequestAnnotationProcessorTest {
                                     }
                                 }
                             """, new CompileOptions().processors(p)
-            ).create().get();
-            throw new AssertionError();
-        } catch (ReflectException ignored) {
-        }
+            ).create().get());
+    }
+
+    @Test
+    void testPayloadHandlerWithCorrectType() {
+        RequestAnnotationProcessor p = new RequestAnnotationProcessor();
+        Reflect.compile(
+                "io.fluxcapacitor.javaclient.tracking.handling.CorrectPayloadHandler",
+                """
+                            package io.fluxcapacitor.javaclient.tracking.handling;
+                            public class CorrectPayloadHandler implements io.fluxcapacitor.javaclient.tracking.handling.Request<java.lang.String> {
+                                @io.fluxcapacitor.javaclient.tracking.handling.HandleQuery
+                                String handle() {
+                                    return "foo";
+                                }
+                            }
+                        """, new CompileOptions().processors(p)
+        ).create().get();
+    }
+
+    @Test
+    void testPayloadHandlerWithWrongType() {
+        RequestAnnotationProcessor p = new RequestAnnotationProcessor();
+        assertThrows(ReflectException.class, () -> Reflect.compile(
+                "io.fluxcapacitor.javaclient.tracking.handling.CorrectPayloadHandler",
+                """
+                            package io.fluxcapacitor.javaclient.tracking.handling;
+                            public class CorrectPayloadHandler implements io.fluxcapacitor.javaclient.tracking.handling.Request<java.lang.String> {
+                                @io.fluxcapacitor.javaclient.tracking.handling.HandleQuery
+                                Integer handle() {
+                                    return 2;
+                                }
+                            }
+                        """, new CompileOptions().processors(p)
+        ).create().get());
     }
 
     @SuppressWarnings("unused")
