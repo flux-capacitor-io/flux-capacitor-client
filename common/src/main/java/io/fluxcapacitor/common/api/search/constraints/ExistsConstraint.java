@@ -22,17 +22,38 @@ import lombok.AccessLevel;
 import lombok.AllArgsConstructor;
 import lombok.NonNull;
 import lombok.Value;
+import lombok.With;
 
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 
 @Value
 @AllArgsConstructor(access = AccessLevel.PRIVATE)
 public class ExistsConstraint extends PathConstraint {
-    public static Constraint exists(String path) {
-        return path == null ? NoOpConstraint.instance : new ExistsConstraint(path);
+    public static Constraint exists(String... paths) {
+        return exists(true, paths);
     }
 
-    @NonNull String exists;
+    public static Constraint exists(boolean includeSubPaths, String... paths) {
+        if (paths.length == 0) {
+            return NoOpConstraint.instance;
+        }
+        if (includeSubPaths) {
+            List<String> allPaths = new ArrayList<>(paths.length * 2);
+            for (String path : paths) {
+                allPaths.add(path);
+                if (!path.endsWith("**")) {
+                    allPaths.add(path + "/**");
+                }
+            }
+            return new ExistsConstraint(allPaths);
+        }
+        return new ExistsConstraint(Arrays.asList(paths));
+    }
+
+    @With
+    @NonNull List<String> exists;
 
     @Override
     protected boolean matches(Document.Entry entry) {
@@ -42,11 +63,11 @@ public class ExistsConstraint extends PathConstraint {
     @Override
     @JsonIgnore
     public List<String> getPaths() {
-        return List.of(exists);
+        return exists;
     }
 
     @Override
     public Constraint withPaths(List<String> paths) {
-        return paths.isEmpty() ? NoOpConstraint.instance : exists(paths.get(0));
+        return paths.isEmpty() ? NoOpConstraint.instance : withExists(paths);
     }
 }
