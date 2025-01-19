@@ -22,7 +22,6 @@ import lombok.AccessLevel;
 import lombok.AllArgsConstructor;
 import lombok.NonNull;
 import lombok.Value;
-import lombok.With;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -39,21 +38,22 @@ public class ExistsConstraint extends PathConstraint {
         if (paths.length == 0) {
             return NoOpConstraint.instance;
         }
+        List<String> allPaths;
         if (includeSubPaths) {
-            List<String> allPaths = new ArrayList<>(paths.length * 2);
+            allPaths = new ArrayList<>(paths.length * 2);
             for (String path : paths) {
                 allPaths.add(path);
                 if (!path.endsWith("**")) {
                     allPaths.add(path + "/**");
                 }
             }
-            return new ExistsConstraint(allPaths);
+        } else {
+            allPaths = Arrays.asList(paths);
         }
-        return new ExistsConstraint(Arrays.asList(paths));
+        return AnyConstraint.any(allPaths.stream().<Constraint>map(ExistsConstraint::new).toList());
     }
 
-    @With
-    @NonNull List<String> exists;
+    @NonNull String exists;
 
     @Override
     protected boolean matches(Document.Entry entry) {
@@ -63,11 +63,11 @@ public class ExistsConstraint extends PathConstraint {
     @Override
     @JsonIgnore
     public List<String> getPaths() {
-        return exists;
+        return List.of(exists);
     }
 
     @Override
     public Constraint withPaths(List<String> paths) {
-        return paths.isEmpty() ? NoOpConstraint.instance : withExists(paths);
+        return paths.isEmpty() ? NoOpConstraint.instance : exists(paths.get(0));
     }
 }
