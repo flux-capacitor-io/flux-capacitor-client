@@ -24,6 +24,7 @@ import org.junit.jupiter.api.Test;
 
 import static io.fluxcapacitor.javaclient.web.HttpRequestMethod.GET;
 import static io.fluxcapacitor.javaclient.web.HttpRequestMethod.POST;
+import static io.fluxcapacitor.javaclient.web.HttpRequestMethod.PUT;
 
 public class GivenWhenThenWebTest {
 
@@ -60,13 +61,27 @@ public class GivenWhenThenWebTest {
         private final TestFixture testFixture = TestFixture.create(new Handler());
 
         @Test
-        void testGivenPostWhenGet() {
-            String payload = "testPayload";
-            testFixture.givenWebRequest(WebRequest.builder().method(POST).url("/string").payload(payload).build())
-                    .whenWebRequest(WebRequest.builder().method(GET).url("/get").build()).expectResult(payload);
+        void testMultiGet() {
+            testFixture.givenPost("/string", "foo")
+                    .whenGet("get").expectResult("foo")
+                    .andThen()
+                    .whenGet("/get2").expectResult("foo")
+                    .andThen()
+                    .whenGet("/get3").expectResult("foo");
         }
 
-        private class Handler {
+        @Test
+        void testMultiMethod() {
+            testFixture.givenPost("/multi", "foo")
+                    .whenGet("get").expectResult("foo")
+                    .andThen()
+                    .givenPut("/multi", "foo2")
+                    .whenGet("/get2").expectResult("foo2")
+                    .andThen()
+                    .whenGet("/get3").expectResult("foo2");
+        }
+
+        private static class Handler {
             private String posted;
 
             @HandleGet("get")
@@ -74,8 +89,18 @@ public class GivenWhenThenWebTest {
                 return posted;
             }
 
+            @HandleGet(value = {"get2", "get3"})
+            String getOther() {
+                return posted;
+            }
+
             @HandlePost("/string")
             void post(String body) {
+                this.posted = body;
+            }
+
+            @HandleWeb(value = "/multi", method = {POST, PUT})
+            void multi(String body) {
                 this.posted = body;
             }
         }

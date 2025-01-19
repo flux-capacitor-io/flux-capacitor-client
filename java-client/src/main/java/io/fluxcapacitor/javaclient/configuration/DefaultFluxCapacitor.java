@@ -83,7 +83,6 @@ import io.fluxcapacitor.javaclient.tracking.metrics.HandlerMonitor;
 import io.fluxcapacitor.javaclient.tracking.metrics.TrackerMonitor;
 import io.fluxcapacitor.javaclient.web.DefaultWebResponseMapper;
 import io.fluxcapacitor.javaclient.web.ForwardingWebConsumer;
-import io.fluxcapacitor.javaclient.web.HttpRequestMethod;
 import io.fluxcapacitor.javaclient.web.LocalServerConfig;
 import io.fluxcapacitor.javaclient.web.SocketSessionParameterResolver;
 import io.fluxcapacitor.javaclient.web.WebParamParameterResolver;
@@ -790,15 +789,6 @@ public class DefaultFluxCapacitor implements FluxCapacitor {
                         .andThen(new LocalHandlerRegistry(new DefaultHandlerFactory(
                                 NOTIFICATION, handlerDecorators.get(EVENT), parameterResolvers,
                                 handlerRepositorySupplier)));
-                case WEBREQUEST -> stream(HttpRequestMethod.values())
-                        .map(requestMethod -> new DefaultHandlerFactory(
-                                requestMethod, handlerDecorators.get(messageType),
-                                parameterResolvers, handlerRepositorySupplier))
-                        .<HandlerRegistry>map(LocalHandlerRegistry::new)
-                        .reduce(HandlerRegistry::andThen).orElseThrow()
-                        .orThen(new LocalHandlerRegistry(new DefaultHandlerFactory(
-                                WEBREQUEST, handlerDecorators.get(messageType),
-                                parameterResolvers, handlerRepositorySupplier)));
                 default -> new LocalHandlerRegistry(new DefaultHandlerFactory(
                         messageType, handlerDecorators.get(messageType), parameterResolvers,
                         handlerRepositorySupplier));

@@ -38,11 +38,11 @@ public class WebsocketHandlerDecorator implements HandlerDecorator {
     @Override
     public Handler<DeserializingMessage> wrap(Handler<DeserializingMessage> handler) {
         var methods = ReflectionUtils.getAllMethods(handler.getTargetClass()).stream()
-                .flatMap(m -> WebUtils.getWebParameters(m).stream()).filter(p -> p.getMethod().isWebsocket()).toList();
+                .flatMap(m -> WebUtils.getWebPatterns(m).stream()).filter(p -> p.getMethod().isWebsocket()).toList();
         if (!methods.isEmpty()) {
             methods.stream().filter(p -> p.getMethod() == HttpRequestMethod.WS_HANDSHAKE)
-                    .map(WebParameters::getPath).distinct().forEach(websocketPaths::add);
-            var pathsRequiringHandshake = methods.stream().map(WebParameters::getPath).distinct()
+                    .map(WebPattern::getPath).distinct().forEach(websocketPaths::add);
+            var pathsRequiringHandshake = methods.stream().map(WebPattern::getPath).distinct()
                     .filter(websocketPaths::add).toList();
             if (!pathsRequiringHandshake.isEmpty()) {
                 return new WebsocketHandshakeHandler(handler, pathsRequiringHandshake);

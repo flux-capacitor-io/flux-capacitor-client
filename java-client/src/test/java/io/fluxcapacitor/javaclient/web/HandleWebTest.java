@@ -40,6 +40,7 @@ import java.util.concurrent.TimeoutException;
 
 import static io.fluxcapacitor.javaclient.web.HttpRequestMethod.GET;
 import static io.fluxcapacitor.javaclient.web.HttpRequestMethod.POST;
+import static io.fluxcapacitor.javaclient.web.HttpRequestMethod.PUT;
 import static io.fluxcapacitor.javaclient.web.HttpRequestMethod.WS_HANDSHAKE;
 import static io.fluxcapacitor.javaclient.web.HttpRequestMethod.WS_MESSAGE;
 import static io.fluxcapacitor.javaclient.web.HttpRequestMethod.WS_OPEN;
@@ -321,7 +322,7 @@ public class HandleWebTest {
         }
 
         @Test
-        void testPostString() {
+        void testPutOrPost() {
             testFixture
                     .whenWebRequest(WebRequest.builder().method(POST).url("/string").payload("payload").build())
                     .expectResult("payload")
@@ -333,15 +334,33 @@ public class HandleWebTest {
                     .expectResult("payload");
         }
 
+        @Test
+        void testPutOrPost2() {
+            testFixture
+                    .whenPost("/string2", "payload")
+                    .expectResult("payload")
+                    .andThen()
+                    .whenPut("/string2", "payload")
+                    .expectResult("payload")
+                    .andThen()
+                    .whenPost("/string2", "payload")
+                    .expectResult("payload");
+        }
+
         private static class Handler {
             @HandleGet("get")
             String get() {
                 return "get";
             }
 
-            @HandlePost("/string")
-            @HandlePut("/string")
+            @HandleWeb(value = "/string", method = {PUT, POST})
             String putOrPost(String body) {
+                return body;
+            }
+
+            @HandlePost("/string2")
+            @HandlePut("/string2")
+            String putOrPost2(String body) {
                 return body;
             }
         }

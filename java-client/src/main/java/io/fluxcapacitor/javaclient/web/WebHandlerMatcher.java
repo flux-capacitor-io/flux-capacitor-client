@@ -61,12 +61,13 @@ public class WebHandlerMatcher implements HandlerMatcher<Object, DeserializingMe
                     .map(Path::value)
                     .map(p -> p.endsWith("//") || !p.endsWith("/") ? p : p.substring(0, p.length() - 1))
                     .orElse("");
-            WebParameters webParameters
-                    = WebUtils.getWebParameters(m.getExecutable(), m.getMethodAnnotationType()).orElseThrow();
+            List<WebPattern> webPatterns = WebUtils.getWebPatterns(m.getExecutable());
 
-            String origin = webParameters.getOrigin();
-            var router = origin == null ? this.router : subRouters.computeIfAbsent(origin, __ -> new RouterImpl());
-            router.route(webParameters.getMethod().name(), root + webParameters.getPath(), ctx -> m);
+            for (WebPattern pattern : webPatterns) {
+                String origin = pattern.getOrigin();
+                var router = origin == null ? this.router : subRouters.computeIfAbsent(origin, __ -> new RouterImpl());
+                router.route(pattern.getMethod().name(), root + pattern.getPath(), ctx -> m);
+            }
         }
         subRouters.forEach((origin, subRouter) -> this.router.mount(ctx -> {
             if (ctx instanceof DefaultWebRequestContext context) {

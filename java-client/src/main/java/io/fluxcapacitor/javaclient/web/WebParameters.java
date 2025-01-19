@@ -14,37 +14,24 @@
 
 package io.fluxcapacitor.javaclient.web;
 
-import lombok.AccessLevel;
-import lombok.Getter;
 import lombok.Value;
 
-import java.util.Optional;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
+import java.util.Arrays;
+import java.util.stream.Stream;
 
 @Value
 public class WebParameters {
-    static final Pattern uriPattern = Pattern.compile("^(([^:/?#]+):)?(//([^/?#]*))?([^?#]*)(\\?([^#]*))?(#(.*))?");
-
-    static Matcher uriMatcher(String uriString) {
-        Matcher result = uriPattern.matcher(Optional.ofNullable(uriString).orElse(""));
-        if (result.matches()) {
-            return result;
-        }
-        throw new IllegalStateException("Malformed URI: '" + uriString + "'");
-    }
-
-    @Getter(AccessLevel.PRIVATE)
-    String value;
-    HttpRequestMethod method;
+    String[] value;
+    HttpRequestMethod[] method;
     boolean disabled;
 
-    @Getter(lazy = true, value = AccessLevel.PRIVATE)
-    Matcher matcher = uriMatcher(getValue());
-    @Getter(lazy = true)
-    String path = Optional.ofNullable(getMatcher().group(5)).map(p -> p.startsWith("/") ? p : p.isBlank() ? "" : "/" + p).orElse("");
-    @Getter(lazy = true)
-    String origin = Optional.ofNullable(getMatcher().group(1))
-            .map(scheme -> scheme + getMatcher().group(3)).orElse(null);
-
+    public Stream<WebPattern> getWebPatterns() {
+        Stream<HttpRequestMethod> methodStream = method.length == 0
+                ? Arrays.stream(HttpRequestMethod.values()) : Arrays.stream(method);
+        return methodStream.flatMap(method -> switch (value.length) {
+            case 0 -> Stream.of(new WebPattern("", method));
+            case 1 -> Stream.of(new WebPattern(value[0], method));
+            default -> Arrays.stream(value).map(v -> new WebPattern(v, method));
+        });
+    }
 }

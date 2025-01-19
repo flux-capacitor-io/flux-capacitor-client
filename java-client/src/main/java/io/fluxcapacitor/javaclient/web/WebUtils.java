@@ -17,7 +17,6 @@ package io.fluxcapacitor.javaclient.web;
 import io.fluxcapacitor.common.reflection.ReflectionUtils;
 import lombok.NonNull;
 
-import java.lang.annotation.Annotation;
 import java.lang.reflect.Executable;
 import java.net.HttpCookie;
 import java.net.URLEncoder;
@@ -25,7 +24,6 @@ import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import java.util.TreeMap;
 import java.util.stream.Collectors;
 
@@ -69,14 +67,10 @@ public class WebUtils {
                 : setCookieHeaders.stream().flatMap(h -> HttpCookie.parse(h).stream()).toList();
     }
 
-    public static Optional<WebParameters> getWebParameters(Executable method) {
-        return getWebParameters(method, HandleWeb.class);
-    }
-
-    public static Optional<WebParameters> getWebParameters(
-            Executable method, Class<? extends Annotation> annotationType) {
-        return ReflectionUtils.getMethodAnnotation(method, annotationType)
-                .flatMap(a -> ReflectionUtils.getAnnotationAs(a, HandleWeb.class, WebParameters.class));
+    public static List<WebPattern> getWebPatterns(Executable method) {
+        return ReflectionUtils.getMethodAnnotations(method, HandleWeb.class)
+                .stream().flatMap(a -> ReflectionUtils.getAnnotationAs(a, HandleWeb.class, WebParameters.class)
+                        .stream().flatMap(WebParameters::getWebPatterns)).toList();
     }
 
     public static String fixHeaderName(String name) {

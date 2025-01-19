@@ -28,8 +28,8 @@ import java.lang.annotation.Target;
 @Target({ElementType.METHOD, ElementType.ANNOTATION_TYPE})
 @HandleMessage(MessageType.WEBREQUEST)
 public @interface HandleWeb {
-    String value() default "";
+    String[] value() default {};
     boolean disabled() default false;
-    HttpRequestMethod method();
+    HttpRequestMethod[] method() default {};
     boolean passive() default false;
 }

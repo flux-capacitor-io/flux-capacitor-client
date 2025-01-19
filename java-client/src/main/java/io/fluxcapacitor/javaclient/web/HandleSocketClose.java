@@ -25,6 +25,6 @@ import java.lang.annotation.Target;
 @Target(ElementType.METHOD)
 @HandleWeb(value = "", method = HttpRequestMethod.WS_CLOSE)
 public @interface HandleSocketClose {
-    String value() default "";;
+    String[] value() default {};
     boolean disabled() default false;
 }

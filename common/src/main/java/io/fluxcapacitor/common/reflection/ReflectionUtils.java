@@ -918,11 +918,40 @@ public class ReflectionUtils {
         return Optional.ofNullable(result);
     }
 
+    public static <A extends Annotation> List<A> getMethodAnnotations(Executable m, Class<? extends Annotation> a) {
+        List<A> result = getTopLevelAnnotations(m, a);
+        Class<?> c = m.getDeclaringClass();
+
+        if (result.isEmpty()) {
+            for (Class<?> s = c; result.isEmpty() && (s = s.getSuperclass()) != null; ) {
+                result = getAnnotationsOnSuper(m, s, a);
+            }
+            if (result.isEmpty() && m instanceof Method) {
+                for (Class<?> s : getAllInterfaces(c)) {
+                    result = getAnnotationsOnSuper(m, s, a);
+                    if (result != null) {
+                        break;
+                    }
+                }
+            }
+        }
+        return result;
+    }
+
     @SuppressWarnings("unchecked")
     private static <A extends Annotation> A getTopLevelAnnotation(AnnotatedElement m, Class<? extends Annotation> a) {
         return Optional.ofNullable((A) m.getAnnotation(a)).orElseGet(() -> (A) stream(m.getAnnotations())
                 .filter(metaAnnotation -> metaAnnotation.annotationType().isAnnotationPresent(a)).findFirst()
                 .orElse(null));
+    }
+
+    @SuppressWarnings("unchecked")
+    private static <A extends Annotation> List<A> getTopLevelAnnotations(AnnotatedElement m, Class<? extends Annotation> a) {
+        return Optional.ofNullable(m.getAnnotation(a)).map(v -> Stream.of((A) v))
+                .orElseGet(() -> stream(m.getAnnotations())
+                        .filter(metaAnnotation -> metaAnnotation.annotationType().isAnnotationPresent(a))
+                        .map(v -> (A) v))
+                .collect(toCollection(ArrayList::new));
     }
 
     private static <A extends Annotation> A getAnnotationOnSuper(
@@ -937,6 +966,20 @@ public class ReflectionUtils {
         } catch (NoSuchMethodException ignored) {
         }
         return null;
+    }
+
+    private static <A extends Annotation> List<A> getAnnotationsOnSuper(
+            Executable m, Class<?> s, Class<? extends Annotation> a) {
+        try {
+            for (Method n : s.getDeclaredMethods()) {
+                if (n.getName().equals(m.getName()) && n.getParameterCount() == m.getParameterCount()) {
+                    n = s.getDeclaredMethod(m.getName(), m.getParameterTypes());
+                    return overrides(m, n) ? getTopLevelAnnotations(n, a) : emptyList();
+                }
+            }
+        } catch (NoSuchMethodException ignored) {
+        }
+        return emptyList();
     }
 
     private static boolean overrides(Executable a, Executable b) {

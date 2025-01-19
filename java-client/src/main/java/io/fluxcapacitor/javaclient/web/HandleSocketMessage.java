@@ -25,7 +25,7 @@ import java.lang.annotation.Target;
 @Target(ElementType.METHOD)
 @HandleWeb(value = "", method = HttpRequestMethod.WS_MESSAGE)
 public @interface HandleSocketMessage {
-    String value() default "";
+    String[] value() default {};
     boolean disabled() default false;
     boolean passive() default false;
 }
