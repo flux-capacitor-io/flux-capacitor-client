@@ -19,11 +19,16 @@ import io.fluxcapacitor.common.MessageType;
 import io.fluxcapacitor.common.Registration;
 import io.fluxcapacitor.common.api.Metadata;
 import io.fluxcapacitor.common.api.SerializedMessage;
+import io.fluxcapacitor.javaclient.common.Message;
 import io.fluxcapacitor.javaclient.common.serialization.Serializer;
+import io.fluxcapacitor.javaclient.common.serialization.jackson.JacksonSerializer;
 import io.fluxcapacitor.javaclient.configuration.client.Client;
 import io.fluxcapacitor.javaclient.publishing.correlation.DefaultCorrelationDataProvider;
 import io.fluxcapacitor.javaclient.tracking.ConsumerConfiguration;
+import io.fluxcapacitor.javaclient.tracking.Tracker;
 import io.fluxcapacitor.javaclient.tracking.client.DefaultTracker;
+import io.fluxcapacitor.javaclient.tracking.metrics.HandleMessageEvent;
+import io.fluxcapacitor.javaclient.tracking.metrics.ProcessBatchEvent;
 import io.fluxcapacitor.javaclient.web.WebRequest;
 import io.fluxcapacitor.javaclient.web.WebRequestSettings;
 import io.fluxcapacitor.javaclient.web.WebResponse;
@@ -38,6 +43,7 @@ import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.time.Duration;
+import java.time.Instant;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
@@ -46,15 +52,17 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Consumer;
 
 import static io.fluxcapacitor.javaclient.web.WebRequest.getHeaders;
+import static java.time.temporal.ChronoUnit.NANOS;
 import static java.util.Optional.ofNullable;
 
-@AllArgsConstructor(access = AccessLevel.PRIVATE)
+@AllArgsConstructor(access = AccessLevel.PROTECTED)
 @Slf4j
 public class ForwardProxyConsumer implements Consumer<List<SerializedMessage>> {
     private static final HttpClient httpClient = HttpClient.newBuilder()
             .followRedirects(HttpClient.Redirect.NORMAL).connectTimeout(Duration.ofSeconds(5)).build();
     protected static final WebRequestSettings defaultSettings = WebRequestSettings.builder().build();
     protected static final Serializer serializer = new ProxySerializer();
+    protected static final Serializer metricsSerializer = new JacksonSerializer();
 
     protected final Map<String, Registration> runningConsumers = new ConcurrentHashMap<>();
 
@@ -83,37 +91,50 @@ public class ForwardProxyConsumer implements Consumer<List<SerializedMessage>> {
 
     @Override
     public void accept(List<SerializedMessage> serializedMessages) {
-        for (SerializedMessage s : serializedMessages) {
-            try {
-                var settings = getSettings(s);
-                if (consumerName.equals(settings.getConsumer())) {
-                    URI uri = URI.create(WebRequest.getUrl(s.getMetadata()));
-                    if (uri.isAbsolute()) {
-                        handle(s, uri, settings);
-                    }
-                } else if (isMainConsumer()) {
-                    runningConsumers.computeIfAbsent(
-                            settings.getConsumer(), c -> new ForwardProxyConsumer(client, c, s.getIndex()).start());
-                }
-            } catch (Throwable e) {
-                log.error("Failed to handle external request {}. Continuing..", s.getMessageId(), e);
+        Instant start = Instant.now();
+        try {
+            for (SerializedMessage s : serializedMessages) {
                 try {
-                    sendResponse(asWebResponse(e), s);
-                } catch (Throwable e2) {
-                    e2.addSuppressed(e);
-                    log.error("Failed to send error response. Continuing..", e2);
+                    var settings = getSettings(s);
+                    if (consumerName.equals(settings.getConsumer())) {
+                        URI uri = URI.create(WebRequest.getUrl(s.getMetadata()));
+                        if (uri.isAbsolute()) {
+                            handle(s, uri, settings);
+                        }
+                    } else if (isMainConsumer()) {
+                        runningConsumers.computeIfAbsent(
+                                settings.getConsumer(), c -> new ForwardProxyConsumer(client, c, s.getIndex()).start());
+                    }
+                } catch (Throwable e) {
+                    log.error("Failed to handle external request {}. Continuing..", s.getMessageId(), e);
+                    try {
+                        sendResponse(asWebResponse(e), s);
+                    } catch (Throwable e2) {
+                        e2.addSuppressed(e);
+                        log.error("Failed to send error response. Continuing..", e2);
+                    }
                 }
             }
+        } finally {
+            publishProcessBatchMetrics(start);
         }
     }
 
-    void handle(SerializedMessage request, URI uri, WebRequestSettings settings) {
-        HttpRequest httpRequest = asHttpRequest(request, uri, settings);
-        WebResponse webResponse = executeRequest(httpRequest);
+    protected void handle(SerializedMessage request, URI uri, WebRequestSettings settings) {
+        Instant start = Instant.now();
+        WebResponse webResponse;
+        try {
+            HttpRequest httpRequest = asHttpRequest(request, uri, settings);
+            webResponse = executeRequest(httpRequest);
+        } catch (Throwable e) {
+            publishHandleMessageMetrics(request, true, start);
+            throw e;
+        }
+        publishHandleMessageMetrics(request, false, start);
         sendResponse(webResponse, request);
     }
 
-    HttpRequest asHttpRequest(SerializedMessage request, URI uri, WebRequestSettings settings) {
+    protected HttpRequest asHttpRequest(SerializedMessage request, URI uri, WebRequestSettings settings) {
         var builder = HttpRequest.newBuilder()
                 .version(HttpClient.Version.valueOf(settings.getHttpVersion().name()))
                 .timeout(settings.getTimeout());
@@ -127,7 +148,7 @@ public class ForwardProxyConsumer implements Consumer<List<SerializedMessage>> {
                 .orElse(defaultSettings);
     }
 
-    WebResponse executeRequest(HttpRequest httpRequest) {
+    protected WebResponse executeRequest(HttpRequest httpRequest) {
         try {
             var response = httpClient.send(httpRequest, HttpResponse.BodyHandlers.ofByteArray());
             return asWebResponse(response);
@@ -137,7 +158,7 @@ public class ForwardProxyConsumer implements Consumer<List<SerializedMessage>> {
         }
     }
 
-    void sendResponse(WebResponse response, SerializedMessage request) {
+    protected void sendResponse(WebResponse response, SerializedMessage request) {
         Metadata responseMetadata = response.getMetadata().addIfAbsent(
                 DefaultCorrelationDataProvider.INSTANCE.getCorrelationData(request, MessageType.WEBREQUEST));
         SerializedMessage serializedResponse = new SerializedMessage(
@@ -149,23 +170,52 @@ public class ForwardProxyConsumer implements Consumer<List<SerializedMessage>> {
         client.getGatewayClient(MessageType.WEBRESPONSE).append(Guarantee.NONE, serializedResponse);
     }
 
-    WebResponse asWebResponse(HttpResponse<byte[]> response) {
+    protected WebResponse asWebResponse(HttpResponse<byte[]> response) {
         WebResponse.Builder builder = WebResponse.builder();
         response.headers().map().forEach((name, values) -> values.forEach(v -> builder.header(name, v)));
         return builder.status(response.statusCode()).payload(response.body()).build();
     }
 
-    WebResponse asWebResponse(Throwable e) {
+    protected WebResponse asWebResponse(Throwable e) {
         return WebResponse.builder().status(502).payload(
                 ofNullable(e.getMessage()).orElse("Exception while handling request in proxy")
                         .getBytes()).build();
     }
 
-    HttpRequest.BodyPublisher getBodyPublisher(SerializedMessage request) {
+    protected HttpRequest.BodyPublisher getBodyPublisher(SerializedMessage request) {
         String type = request.getData().getType();
         if (type == null || Void.class.getName().equals(type) || request.getData().getValue().length == 0) {
             return HttpRequest.BodyPublishers.noBody();
         }
         return HttpRequest.BodyPublishers.ofInputStream(() -> new ByteArrayInputStream(request.data().getValue()));
+    }
+
+    protected void publishHandleMessageMetrics(SerializedMessage request, boolean exceptionalResult, Instant start) {
+        try {
+            var metadata = Metadata.of(DefaultCorrelationDataProvider.INSTANCE.getCorrelationData(request, MessageType.WEBREQUEST));
+            var metricsMessage = new Message(new HandleMessageEvent(
+                    consumerName, ForwardProxyConsumer.class.getSimpleName(),
+                    request.getIndex(), WebRequest.getUrl(request.getMetadata()),
+                    exceptionalResult, start.until(Instant.now(), NANOS), true), metadata);
+            var metricsGateway = client.getGatewayClient(MessageType.METRICS);
+            metricsGateway.append(Guarantee.NONE, metricsMessage.serialize(metricsSerializer));
+        } catch (Throwable e) {
+            log.error("Failed to publish HandleMessage metrics", e);
+        }
+    }
+
+    protected void publishProcessBatchMetrics(Instant start) {
+        try {
+            var metadata = Metadata.of(DefaultCorrelationDataProvider.INSTANCE.getCorrelationData());
+            var tracker = Tracker.current().orElseThrow();
+            var metricsMessage = new Message(new ProcessBatchEvent(
+                    consumerName, tracker.getTrackerId(), tracker.getMessageBatch().getSegment(),
+                    tracker.getMessageBatch().getLastIndex(), tracker.getMessageBatch().getSize(),
+                    start.until(Instant.now(), NANOS)), metadata);
+            var metricsGateway = client.getGatewayClient(MessageType.METRICS);
+            metricsGateway.append(Guarantee.NONE, metricsMessage.serialize(metricsSerializer));
+        } catch (Throwable e) {
+            log.error("Failed to publish HandleMessage metrics", e);
+        }
     }
 }

@@ -16,8 +16,10 @@ package io.fluxcapacitor.proxy;
 
 import com.sun.net.httpserver.HttpContext;
 import com.sun.net.httpserver.HttpServer;
+import io.fluxcapacitor.common.MessageType;
 import io.fluxcapacitor.common.Registration;
 import io.fluxcapacitor.common.TestUtils;
+import io.fluxcapacitor.common.api.SerializedMessage;
 import io.fluxcapacitor.common.serialization.compression.CompressionAlgorithm;
 import io.fluxcapacitor.common.serialization.compression.CompressionUtils;
 import io.fluxcapacitor.javaclient.test.TestFixture;
@@ -36,10 +38,13 @@ import java.util.concurrent.Executors;
 
 import static io.fluxcapacitor.javaclient.web.HttpRequestMethod.GET;
 import static io.fluxcapacitor.javaclient.web.HttpRequestMethod.POST;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.atLeastOnce;
+import static org.mockito.Mockito.verify;
 
 @Slf4j
 class ForwardProxyConsumerTest {
-    private final TestFixture testFixture = TestFixture.createAsync();
+    private final TestFixture testFixture = TestFixture.createAsync().spy();
     private final int port = TestUtils.getAvailablePort();
 
     private HttpContext serverContext;
@@ -80,6 +85,22 @@ class ForwardProxyConsumerTest {
         testFixture.whenWebRequest(WebRequest.builder().url("http://localhost:" + port).method(GET).build())
                 .<WebResponse>expectResult(r -> r.getStatus() == 200
                                                        && "test".equals(new String(r.<byte[]>getPayload())));
+    }
+
+    @Test
+    void handlerMetricsPublished() {
+        serverContext.setHandler(exchange -> {
+            try (OutputStream outputStream = exchange.getResponseBody()) {
+                String response = "test";
+                exchange.sendResponseHeaders(200, response.length());
+                outputStream.write(response.getBytes());
+                outputStream.flush();
+            }
+        });
+        testFixture
+                .whenWebRequest(WebRequest.builder().url("http://localhost:" + port).method(GET).build())
+                .expectThat(fc -> verify(fc.client().getGatewayClient(MessageType.METRICS), atLeastOnce())
+                        .append(any(), any(SerializedMessage.class)));
     }
 
     @Test
