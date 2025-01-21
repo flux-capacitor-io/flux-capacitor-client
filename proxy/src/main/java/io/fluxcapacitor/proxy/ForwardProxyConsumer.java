@@ -160,7 +160,7 @@ public class ForwardProxyConsumer implements Consumer<List<SerializedMessage>> {
 
     protected void sendResponse(WebResponse response, SerializedMessage request) {
         Metadata responseMetadata = response.getMetadata().addIfAbsent(
-                DefaultCorrelationDataProvider.INSTANCE.getCorrelationData(request, MessageType.WEBREQUEST));
+                DefaultCorrelationDataProvider.INSTANCE.getCorrelationData(client, request, MessageType.WEBREQUEST));
         SerializedMessage serializedResponse = new SerializedMessage(
                 serializer.serialize(response.getPayload()).withFormat("application/octet-stream"),
                 responseMetadata, response.getMessageId(), response.getTimestamp().toEpochMilli());
@@ -192,7 +192,8 @@ public class ForwardProxyConsumer implements Consumer<List<SerializedMessage>> {
 
     protected void publishHandleMessageMetrics(SerializedMessage request, boolean exceptionalResult, Instant start) {
         try {
-            var metadata = Metadata.of(DefaultCorrelationDataProvider.INSTANCE.getCorrelationData(request, MessageType.WEBREQUEST));
+            var metadata = Metadata.of(DefaultCorrelationDataProvider.INSTANCE.getCorrelationData(
+                    client, request, MessageType.WEBREQUEST));
             var metricsMessage = new Message(new HandleMessageEvent(
                     consumerName, ForwardProxyConsumer.class.getSimpleName(),
                     request.getIndex(), WebRequest.getUrl(request.getMetadata()),

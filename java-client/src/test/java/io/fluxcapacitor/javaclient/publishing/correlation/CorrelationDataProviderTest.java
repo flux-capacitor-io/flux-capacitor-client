@@ -14,11 +14,16 @@
 
 package io.fluxcapacitor.javaclient.publishing.correlation;
 
+import io.fluxcapacitor.common.MessageType;
+import io.fluxcapacitor.common.api.SerializedMessage;
 import io.fluxcapacitor.javaclient.FluxCapacitor;
 import io.fluxcapacitor.javaclient.common.Message;
+import io.fluxcapacitor.javaclient.common.serialization.DeserializingMessage;
 import io.fluxcapacitor.javaclient.configuration.DefaultFluxCapacitor;
+import io.fluxcapacitor.javaclient.configuration.client.Client;
 import io.fluxcapacitor.javaclient.test.TestFixture;
 import io.fluxcapacitor.javaclient.tracking.handling.HandleCommand;
+import org.jetbrains.annotations.Nullable;
 import org.junit.jupiter.api.Test;
 
 import java.util.HashMap;
@@ -26,13 +31,7 @@ import java.util.Map;
 import java.util.function.Predicate;
 
 class CorrelationDataProviderTest {
-    private final CorrelationDataProvider testProvider = (msg, type) -> {
-        Map<String, String> result = new HashMap<>(Map.of("foo", "bar"));
-        if (msg != null) {
-            result.put("msgId", msg.getMessageId());
-        }
-        return result;
-    };
+    private final CorrelationDataProvider testProvider = new TestCorrelationDataProvider();
     private final DefaultCorrelationDataProvider defaultProvider = DefaultCorrelationDataProvider.INSTANCE;
 
     @Test
@@ -61,6 +60,28 @@ class CorrelationDataProviderTest {
         @HandleCommand
         void handle(Object command) {
             FluxCapacitor.publishEvent(command);
+        }
+    }
+
+    private static class TestCorrelationDataProvider implements CorrelationDataProvider {
+
+        @Override
+        public Map<String, String> getCorrelationData(@Nullable DeserializingMessage currentMessage) {
+            Client client = FluxCapacitor.getOptionally().map(FluxCapacitor::client).orElse(null);
+            if (currentMessage == null) {
+                return getCorrelationData(client, null, null);
+            }
+            return getCorrelationData(client, currentMessage.getSerializedObject(), currentMessage.getMessageType());
+        }
+
+        @Override
+        public Map<String, String> getCorrelationData(Client client, @Nullable SerializedMessage msg,
+                                                      @Nullable MessageType messageType) {
+            Map<String, String> result = new HashMap<>(Map.of("foo", "bar"));
+            if (msg != null) {
+                result.put("msgId", msg.getMessageId());
+            }
+            return result;
         }
     }
 

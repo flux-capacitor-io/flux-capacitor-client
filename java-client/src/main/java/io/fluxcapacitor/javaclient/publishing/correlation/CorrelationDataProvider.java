@@ -17,6 +17,7 @@ package io.fluxcapacitor.javaclient.publishing.correlation;
 import io.fluxcapacitor.common.MessageType;
 import io.fluxcapacitor.common.api.SerializedMessage;
 import io.fluxcapacitor.javaclient.common.serialization.DeserializingMessage;
+import io.fluxcapacitor.javaclient.configuration.client.Client;
 import jakarta.annotation.Nullable;
 
 import java.util.Map;
@@ -26,14 +27,9 @@ public interface CorrelationDataProvider {
         return getCorrelationData(DeserializingMessage.getCurrent());
     }
 
-    default Map<String, String> getCorrelationData(@Nullable DeserializingMessage currentMessage) {
-        if (currentMessage == null) {
-            return getCorrelationData(null, null);
-        }
-        return getCorrelationData(currentMessage.getSerializedObject(), currentMessage.getMessageType());
-    }
+    Map<String, String> getCorrelationData(@Nullable DeserializingMessage currentMessage);
 
-    Map<String, String> getCorrelationData(@Nullable SerializedMessage currentMessage,
+    Map<String, String> getCorrelationData(@Nullable Client client, @Nullable SerializedMessage currentMessage,
                                            @Nullable MessageType messageType);
 
     default CorrelationDataProvider andThen(CorrelationDataProvider next) {
@@ -48,10 +44,10 @@ public interface CorrelationDataProvider {
             }
 
             @Override
-            public Map<String, String> getCorrelationData(@Nullable SerializedMessage currentMessage,
+            public Map<String, String> getCorrelationData(Client client, @Nullable SerializedMessage currentMessage,
                                                           @Nullable MessageType messageType) {
-                Map<String, String> result = first.getCorrelationData(currentMessage, messageType);
-                result.putAll(next.getCorrelationData(currentMessage, messageType));
+                Map<String, String> result = first.getCorrelationData(client, currentMessage, messageType);
+                result.putAll(next.getCorrelationData(client, currentMessage, messageType));
                 return result;
             }
         };

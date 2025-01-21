@@ -18,6 +18,7 @@ import io.fluxcapacitor.common.MessageType;
 import io.fluxcapacitor.common.api.SerializedMessage;
 import io.fluxcapacitor.javaclient.FluxCapacitor;
 import io.fluxcapacitor.javaclient.common.serialization.DeserializingMessage;
+import io.fluxcapacitor.javaclient.configuration.client.Client;
 import io.fluxcapacitor.javaclient.tracking.Tracker;
 import io.fluxcapacitor.javaclient.tracking.handling.Invocation;
 import jakarta.annotation.Nullable;
@@ -40,7 +41,8 @@ public enum DefaultCorrelationDataProvider implements CorrelationDataProvider {
 
     @Override
     public Map<String, String> getCorrelationData(@Nullable DeserializingMessage currentMessage) {
-        Map<String, String> result = getBasicCorrelationData();
+        Map<String, String> result = getBasicCorrelationData(
+                FluxCapacitor.getOptionally().map(FluxCapacitor::client).orElse(null));
         ofNullable(currentMessage).ifPresent(m -> {
             String correlationId = ofNullable(m.getIndex()).map(Object::toString).orElse(m.getMessageId());
             result.put(this.correlationIdKey, correlationId);
@@ -53,8 +55,9 @@ public enum DefaultCorrelationDataProvider implements CorrelationDataProvider {
     }
 
     @Override
-    public Map<String, String> getCorrelationData(@Nullable SerializedMessage currentMessage, @Nullable MessageType messageType) {
-        Map<String, String> result = getBasicCorrelationData();
+    public Map<String, String> getCorrelationData(@Nullable Client client, @Nullable SerializedMessage currentMessage,
+                                                  @Nullable MessageType messageType) {
+        Map<String, String> result = getBasicCorrelationData(client);
         ofNullable(currentMessage).ifPresent(m -> {
             String correlationId = ofNullable(m.getIndex()).map(Object::toString).orElse(m.getMessageId());
             result.put(this.correlationIdKey, correlationId);
@@ -68,13 +71,13 @@ public enum DefaultCorrelationDataProvider implements CorrelationDataProvider {
         return result;
     }
 
-    private HashMap<String, String> getBasicCorrelationData() {
+    private HashMap<String, String> getBasicCorrelationData(@Nullable Client client) {
         var result = new HashMap<String, String>();
-        FluxCapacitor.getOptionally().ifPresent(f -> {
-            Optional.ofNullable(f.client().applicationId())
+        Optional.ofNullable(client).ifPresent(f -> {
+            Optional.ofNullable(client.applicationId())
                     .ifPresent(applicationId -> result.put(applicationIdKey, applicationId));
-            result.put(clientIdKey, f.client().id());
-            result.put(clientNameKey, f.client().name());
+            result.put(clientIdKey, client.id());
+            result.put(clientNameKey, client.name());
         });
         Tracker.current().ifPresent(t -> {
             result.put(consumerKey, t.getName());
