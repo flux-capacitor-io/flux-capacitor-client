@@ -174,6 +174,13 @@ public class StatefulHandlerTest {
         }
 
         @Test
+        void handlerIsUpdated_associationOnCollectionField() {
+            testFixture.givenEvents(new SomeEvent("foo"))
+                    .whenEvent(new EventWithPropertyList(List.of("bar", "foo")))
+                    .expectOnlyCommands(2);
+        }
+
+        @Test
         void handlerIsUpdated_alwaysAssociate() {
             testFixture.givenEvents(new SomeEvent("foo"))
                     .whenEvent(new AlwaysAssociate())
@@ -288,6 +295,13 @@ public class StatefulHandlerTest {
 
             @HandleEvent
             StaticHandler update(EventWithWrongPath event) {
+                FluxCapacitor.sendAndForgetCommand(eventCount + 1);
+                return toBuilder().eventCount(eventCount + 1).build();
+            }
+
+            @HandleEvent
+            @Association("someIds")
+            StaticHandler update(EventWithPropertyList event) {
                 FluxCapacitor.sendAndForgetCommand(eventCount + 1);
                 return toBuilder().eventCount(eventCount + 1).build();
             }
@@ -466,5 +480,10 @@ public class StatefulHandlerTest {
     @Value
     static class EventWithWrongPath {
         String customId;
+    }
+
+    @Value
+    static class EventWithPropertyList {
+        List<String> someIds;
     }
 }

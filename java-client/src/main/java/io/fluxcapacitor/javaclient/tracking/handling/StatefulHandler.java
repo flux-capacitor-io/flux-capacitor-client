@@ -141,7 +141,7 @@ public class StatefulHandler implements Handler<DeserializingMessage> {
                 .map(tracker -> tracker.canHandle(message, routingKey)).orElse(true);
     }
 
-    protected Map<String, String> associations(DeserializingMessage message) {
+    protected Map<Object, String> associations(DeserializingMessage message) {
         return ofNullable(message.getPayload()).stream()
                 .flatMap(payload -> Stream.concat(
                                 handlerMatcher.matchingMethods(message)
@@ -150,12 +150,7 @@ public class StatefulHandler implements Handler<DeserializingMessage> {
                         .filter(entry -> includedPayload(payload, entry.getValue()))
                         .flatMap(entry -> ReflectionUtils.readProperty(entry.getKey(), payload)
                                 .or(() -> entry.getValue().isExcludeMetadata() ? empty() : ofNullable(message.getMetadata().get(entry.getKey())))
-                                .map(v -> {
-                                    if (v instanceof Id<?> id) {
-                                        return id.getFunctionalId();
-                                    }
-                                    return v.toString();
-                                })
+                                .map(v -> v instanceof Id<?> id ? id.getFunctionalId() : v)
                                 .map(v -> Map.entry(v, entry.getValue().getPath()))
                                 .stream()))
                 .collect(toMap(Map.Entry::getKey, Map.Entry::getValue, (a, b) -> a.isBlank() ? b : a));

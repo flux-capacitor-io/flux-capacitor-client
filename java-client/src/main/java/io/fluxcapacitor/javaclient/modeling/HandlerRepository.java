@@ -22,7 +22,7 @@ import java.util.concurrent.CompletableFuture;
 
 public interface HandlerRepository {
 
-    Collection<? extends Entry<?>> findByAssociation(Map<String, String> associations);
+    Collection<? extends Entry<?>> findByAssociation(Map<Object, String> associations);
 
     Collection<? extends Entry<?>> getAll();
 

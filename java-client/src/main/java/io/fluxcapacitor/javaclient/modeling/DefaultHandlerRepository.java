@@ -92,7 +92,7 @@ public class DefaultHandlerRepository implements HandlerRepository {
     }
 
     @Override
-    public Collection<? extends Entry<Object>> findByAssociation(Map<String, String> associations) {
+    public Collection<? extends Entry<Object>> findByAssociation(Map<Object, String> associations) {
         if (associations.isEmpty()) {
             return Collections.emptyList();
         }
