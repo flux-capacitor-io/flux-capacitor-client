@@ -196,7 +196,7 @@ public class ForwardProxyConsumer implements Consumer<List<SerializedMessage>> {
                     client, request, MessageType.WEBREQUEST));
             var metricsMessage = new Message(new HandleMessageEvent(
                     consumerName, ForwardProxyConsumer.class.getSimpleName(),
-                    request.getIndex(), WebRequest.getUrl(request.getMetadata()),
+                    request.getIndex(), request.getType(),
                     exceptionalResult, start.until(Instant.now(), NANOS), true), metadata);
             var metricsGateway = client.getGatewayClient(MessageType.METRICS);
             metricsGateway.append(Guarantee.NONE, metricsMessage.serialize(metricsSerializer));
