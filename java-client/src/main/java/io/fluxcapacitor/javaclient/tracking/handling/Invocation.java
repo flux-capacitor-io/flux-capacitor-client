@@ -41,13 +41,13 @@ public class Invocation {
         current.set(invocation);
         try {
             V result = callable.call();
+            current.remove();
             invocation.getCallbacks().forEach(c -> c.accept(result, null));
             return result;
         } catch (Throwable e) {
+            current.remove();
             invocation.getCallbacks().forEach(c -> c.accept(null, e));
             throw e;
-        } finally {
-            current.remove();
         }
     }
 
