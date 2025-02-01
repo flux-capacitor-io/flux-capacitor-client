@@ -25,7 +25,7 @@ import lombok.AllArgsConstructor;
 @AllArgsConstructor
 public class WebsocketResponseInterceptor implements DispatchInterceptor {
     @Override
-    public Message interceptDispatch(Message message, MessageType messageType) {
+    public Message interceptDispatch(Message message, MessageType messageType, String topic) {
         DeserializingMessage currentMessage = DeserializingMessage.getCurrent();
         if (currentMessage != null && currentMessage.getMessageType() == MessageType.WEBREQUEST) {
             HttpRequestMethod requestMethod = WebRequest.getMethod(currentMessage.getMetadata());

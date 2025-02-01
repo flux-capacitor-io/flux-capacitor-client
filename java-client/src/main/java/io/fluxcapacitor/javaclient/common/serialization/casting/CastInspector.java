@@ -93,7 +93,7 @@ public class CastInspector {
                             return s -> s.data().getValue();
                         }
                         if (SerializedMessage.class.isAssignableFrom(c)) {
-                            return s -> s instanceof CasterChain.ConvertingSerializedObject<?> i
+                            return s -> s instanceof HasSource<?> i
                                         && i.getSource() instanceof SerializedMessage m ? m : null;
                         }
                     }

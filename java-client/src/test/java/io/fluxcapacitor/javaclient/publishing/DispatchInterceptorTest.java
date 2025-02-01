@@ -38,7 +38,7 @@ public class DispatchInterceptorTest {
     void changeMessageType() {
         TestFixture.create(
                         DefaultFluxCapacitor.builder().addDispatchInterceptor(
-                                (message, messageType) -> message.withPayload(new DifferentCommand()), COMMAND),
+                                (message, messageType, topic) -> message.withPayload(new DifferentCommand()), COMMAND),
                         commandHandler)
                 .whenCommand(new Command(""))
                 .expectEvents(new DifferentCommand());
@@ -48,7 +48,7 @@ public class DispatchInterceptorTest {
     void changeMessageContent() {
         TestFixture.createAsync(
                         DefaultFluxCapacitor.builder().addDispatchInterceptor(
-                                (message, messageType) -> message.withPayload(new Command("intercepted")), COMMAND),
+                                (message, messageType, topic) -> message.withPayload(new Command("intercepted")), COMMAND),
                         commandHandler)
                 .whenCommand(new Command(""))
                 .expectEvents(new Command("intercepted"));
@@ -57,7 +57,7 @@ public class DispatchInterceptorTest {
     @Test
     void blockMessagePublication() {
         TestFixture.create(
-                DefaultFluxCapacitor.builder().addDispatchInterceptor((message, messageType) -> null, COMMAND),
+                DefaultFluxCapacitor.builder().addDispatchInterceptor((message, messageType, topic) -> null, COMMAND),
                 commandHandler)
                 .whenCommand(new Command("whatever"))
                 .expectNoEvents().expectNoResult();
@@ -66,7 +66,7 @@ public class DispatchInterceptorTest {
     @Test
     void throwException() {
         TestFixture.create(
-                        DefaultFluxCapacitor.builder().addDispatchInterceptor((message, messageType) -> {
+                        DefaultFluxCapacitor.builder().addDispatchInterceptor((message, messageType, topic) -> {
                             throw new MockException();
                         }, COMMAND), commandHandler)
                 .whenCommand(new Command("whatever"))

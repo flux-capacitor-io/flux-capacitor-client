@@ -18,6 +18,7 @@ import lombok.AllArgsConstructor;
 
 import java.time.Clock;
 import java.time.Duration;
+import java.util.function.BiConsumer;
 import java.util.function.BiFunction;
 import java.util.function.Supplier;
 
@@ -48,6 +49,10 @@ public class MemoizingBiFunction<T, U, R> implements BiFunction<T, U, R> {
 
     public R remove(T t, U u) {
         return function.remove(new Pair<>(t, u));
+    }
+
+    public void forEach(BiConsumer<? super Pair<T, U>, ? super R> consumer) {
+        function.forEach(consumer);
     }
 
 }

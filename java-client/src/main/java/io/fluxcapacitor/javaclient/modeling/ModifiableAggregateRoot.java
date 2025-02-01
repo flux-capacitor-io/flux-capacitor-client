@@ -138,7 +138,7 @@ public class ModifiableAggregateRoot<T> extends DelegatingEntity<T> implements A
             }
 
             Optional<Apply> applyAnnotation = entityHelper.applyInvoker(
-                            new DeserializingMessage(message, EVENT, serializer), a, true)
+                            new DeserializingMessage(message, EVENT, null, serializer), a, true)
                     .map(HandlerInvoker::getMethodAnnotation);
 
             var eventPublication = applyAnnotation.map(Apply::eventPublication)
@@ -153,7 +153,7 @@ public class ModifiableAggregateRoot<T> extends DelegatingEntity<T> implements A
                                     || (result.get() != null && result.get().hashCode() != hashCodeBefore);
                 case NEVER -> false;
             }) {
-                Message intercepted = dispatchInterceptor.interceptDispatch(message, EVENT);
+                Message intercepted = dispatchInterceptor.interceptDispatch(message, EVENT, null);
                 if (intercepted == null) {
                     return a;
                 }
@@ -167,12 +167,12 @@ public class ModifiableAggregateRoot<T> extends DelegatingEntity<T> implements A
                                                   Entity.AGGREGATE_SN_METADATA_KEY,
                                                   String.valueOf(getDelegate().sequenceNumber() + 1L));
                 var serializedEvent =
-                        dispatchInterceptor.modifySerializedMessage(m.serialize(serializer), m, EVENT);
+                        dispatchInterceptor.modifySerializedMessage(m.serialize(serializer), m, EVENT, null);
                 if (serializedEvent == null) {
                     return a;
                 }
                 applied.add(new AppliedEvent(new DeserializingMessage(serializedEvent, type ->
-                        serializer.convert(m.getPayload(), type), EVENT), publicationStrategy));
+                        serializer.convert(m.getPayload(), type), EVENT, null), publicationStrategy));
             }
             return result;
         });

@@ -17,6 +17,7 @@ package io.fluxcapacitor.javaclient.tracking.client;
 import io.fluxcapacitor.common.Guarantee;
 import io.fluxcapacitor.common.MessageType;
 import io.fluxcapacitor.common.api.SerializedMessage;
+import io.fluxcapacitor.common.api.tracking.ClaimSegmentResult;
 import io.fluxcapacitor.common.api.tracking.MessageBatch;
 import io.fluxcapacitor.common.api.tracking.Position;
 import io.fluxcapacitor.javaclient.tracking.ConsumerConfiguration;
@@ -37,6 +38,9 @@ public interface TrackingClient extends AutoCloseable {
                                          ConsumerConfiguration trackingConfiguration);
 
     List<SerializedMessage> readFromIndex(long minIndex, int maxSize);
+
+    CompletableFuture<ClaimSegmentResult> claimSegment(String consumer, String trackerId, Long lastIndex,
+                                                       ConsumerConfiguration config);
 
     default CompletableFuture<Void> storePosition(String consumer, int[] segment, long lastIndex) {
         return storePosition(consumer, segment, lastIndex, Guarantee.STORED);
@@ -59,6 +63,8 @@ public interface TrackingClient extends AutoCloseable {
     CompletableFuture<Void> disconnectTracker(String consumer, String trackerId, boolean sendFinalEmptyBatch, Guarantee guarantee);
 
     MessageType getMessageType();
+
+    String getTopic();
 
     @Override
     void close();

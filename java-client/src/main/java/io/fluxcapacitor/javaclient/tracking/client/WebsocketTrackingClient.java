@@ -50,20 +50,18 @@ import static io.fluxcapacitor.common.MessageType.METRICS;
 public class WebsocketTrackingClient extends AbstractWebsocketClient implements TrackingClient {
 
     private final MessageType messageType;
+    private final String topic;
     private final Metadata metricsMetadata;
 
-    public WebsocketTrackingClient(String endPointUrl, WebSocketClient client, MessageType type) {
-        this(URI.create(endPointUrl), client, type);
+    public WebsocketTrackingClient(String endPointUrl, WebSocketClient client, MessageType type, String topic) {
+        this(URI.create(endPointUrl), client, type, topic, type != METRICS);
     }
 
-    public WebsocketTrackingClient(URI endPointUri, WebSocketClient client, MessageType type) {
-        this(endPointUri, client, type, type != METRICS);
-    }
-
-    public WebsocketTrackingClient(URI endPointUri, WebSocketClient client, MessageType type, boolean sendMetrics) {
+    public WebsocketTrackingClient(URI endPointUri, WebSocketClient client, MessageType type, String topic, boolean sendMetrics) {
         super(endPointUri, client, sendMetrics, client.getClientConfig().getTrackingConfigs().get(type).getSessions());
         this.messageType = type;
-        this.metricsMetadata = Metadata.of("messageType", type);
+        this.topic = topic;
+        this.metricsMetadata = Metadata.of("messageType", type).with("topic", topic);
     }
 
     @Override

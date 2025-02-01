@@ -157,7 +157,7 @@ class MessageRoutingInterceptorTest {
     private void testInvocation(Message message) {
         SerializedMessage result = subject.modifySerializedMessage(new SerializedMessage(
                 new Data<>("test".getBytes(), "test", 0, null), Metadata.empty(), "someId",
-                Clock.systemUTC().millis()), message, EVENT);
+                Clock.systemUTC().millis()), message, EVENT, null);
         assertEquals(expectedHash, result.getSegment());
     }
 

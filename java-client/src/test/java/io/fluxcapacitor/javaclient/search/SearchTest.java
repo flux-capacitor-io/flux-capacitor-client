@@ -685,7 +685,8 @@ public class SearchTest {
     @Value
     @AllArgsConstructor
     @Builder(toBuilder = true)
-    private static class SomeDocument {
+    @Searchable(collection = "someDoc")
+    public static class SomeDocument {
         private static final String ID = "123A45B67c";
 
         String someId;

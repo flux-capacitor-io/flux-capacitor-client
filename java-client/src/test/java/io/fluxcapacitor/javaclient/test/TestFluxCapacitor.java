@@ -30,6 +30,7 @@ import io.fluxcapacitor.javaclient.persisting.search.DocumentStore;
 import io.fluxcapacitor.javaclient.publishing.CommandGateway;
 import io.fluxcapacitor.javaclient.publishing.ErrorGateway;
 import io.fluxcapacitor.javaclient.publishing.EventGateway;
+import io.fluxcapacitor.javaclient.publishing.GenericGateway;
 import io.fluxcapacitor.javaclient.publishing.MetricsGateway;
 import io.fluxcapacitor.javaclient.publishing.QueryGateway;
 import io.fluxcapacitor.javaclient.publishing.ResultGateway;
@@ -108,6 +109,11 @@ public class TestFluxCapacitor implements FluxCapacitor {
     @Override
     public MetricsGateway metricsGateway() {
         return decorate(delegate.metricsGateway());
+    }
+
+    @Override
+    public GenericGateway customGateway(String topic) {
+        return decorate(delegate.customGateway(topic));
     }
 
     @Override

@@ -14,15 +14,6 @@
 
 package io.fluxcapacitor.javaclient.common.serialization.casting;
 
-import java.util.stream.Stream;
-
-@FunctionalInterface
-public interface Caster<I, O> {
-
-    default Stream<O> cast(Stream<I> input) {
-        return cast(input, null);
-    }
-
-    Stream<O> cast(Stream<I> input, Integer desiredRevision);
-
+public interface HasSource<T> {
+    T getSource();
 }

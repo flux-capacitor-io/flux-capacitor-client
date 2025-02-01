@@ -12,17 +12,14 @@
  * limitations under the License.
  */
 
-package io.fluxcapacitor.javaclient.common.serialization.casting;
+package io.fluxcapacitor.javaclient.configuration.client;
 
-import java.util.stream.Stream;
+import io.fluxcapacitor.common.MessageType;
+import io.fluxcapacitor.common.api.SerializedMessage;
+
+import java.util.List;
 
 @FunctionalInterface
-public interface Caster<I, O> {
-
-    default Stream<O> cast(Stream<I> input) {
-        return cast(input, null);
-    }
-
-    Stream<O> cast(Stream<I> input, Integer desiredRevision);
-
+public interface ClientDispatchMonitor {
+    void accept(MessageType messageType, String topic, List<SerializedMessage> messages);
 }

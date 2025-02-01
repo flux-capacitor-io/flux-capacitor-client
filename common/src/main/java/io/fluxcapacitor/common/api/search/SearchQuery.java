@@ -69,6 +69,10 @@ public class SearchQuery {
         return before == null || since == null || before.isAfter(since) ? before : since;
     }
 
+    public boolean matches(SerializedDocument d) {
+        return matches(d.deserializeDocument());
+    }
+
     @SuppressWarnings("RedundantIfStatement")
     public boolean matches(Document d) {
         if (!decomposeConstraints().matches(d)) {

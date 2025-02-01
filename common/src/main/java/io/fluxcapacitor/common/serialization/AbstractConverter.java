@@ -12,17 +12,23 @@
  * limitations under the License.
  */
 
-package io.fluxcapacitor.javaclient.common.serialization.casting;
+package io.fluxcapacitor.common.serialization;
 
-import java.util.stream.Stream;
+import io.fluxcapacitor.common.api.Data;
+import io.fluxcapacitor.common.reflection.ReflectionUtils;
 
-@FunctionalInterface
-public interface Caster<I, O> {
+public abstract class AbstractConverter<I, O> implements Converter<I, O> {
 
-    default Stream<O> cast(Stream<I> input) {
-        return cast(input, null);
+    @Override
+    public Data<O> convert(Data<I> data) {
+        return data.map(this::convert);
     }
 
-    Stream<O> cast(Stream<I> input, Integer desiredRevision);
+    protected abstract O convert(I bytes);
+
+    @Override
+    public Class<O> getOutputType() {
+        return ReflectionUtils.getTypeArgument(getClass().getGenericSuperclass(), 1);
+    }
 
 }

@@ -87,7 +87,7 @@ public class InMemoryMessageStore implements MessageStore {
         notifyMonitors(Collections.emptyList());
     }
 
-    public synchronized void notifyMonitors(List<SerializedMessage> messages) {
+    protected synchronized void notifyMonitors(List<SerializedMessage> messages) {
         this.notifyAll();
         if (!monitors.isEmpty()) {
             monitors.forEach(m -> m.accept(messages));

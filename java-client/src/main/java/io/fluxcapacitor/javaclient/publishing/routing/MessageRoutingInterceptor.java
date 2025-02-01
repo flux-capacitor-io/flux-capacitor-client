@@ -26,13 +26,13 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 public class MessageRoutingInterceptor implements DispatchInterceptor {
     @Override
-    public Message interceptDispatch(Message message, MessageType messageType) {
+    public Message interceptDispatch(Message message, MessageType messageType, String topic) {
         return message;
     }
 
     @Override
     public SerializedMessage modifySerializedMessage(SerializedMessage serializedMessage, Message m,
-                                                     MessageType messageType) {
+                                                     MessageType messageType, String topic) {
         if (serializedMessage.getSegment() == null) {
             m.computeRoutingKey().map(ConsistentHashing::computeSegment).ifPresent(serializedMessage::setSegment);
         }

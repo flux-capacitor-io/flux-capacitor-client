@@ -20,6 +20,7 @@ import io.fluxcapacitor.javaclient.persisting.eventsourcing.client.EventStoreCli
 import io.fluxcapacitor.javaclient.persisting.eventsourcing.client.LocalEventStoreClient;
 import io.fluxcapacitor.javaclient.persisting.keyvalue.client.InMemoryKeyValueStore;
 import io.fluxcapacitor.javaclient.persisting.keyvalue.client.KeyValueClient;
+import io.fluxcapacitor.javaclient.persisting.search.client.InMemoryDocumentMessageStore;
 import io.fluxcapacitor.javaclient.persisting.search.client.InMemorySearchStore;
 import io.fluxcapacitor.javaclient.persisting.search.client.SearchClient;
 import io.fluxcapacitor.javaclient.publishing.client.GatewayClient;
@@ -39,7 +40,8 @@ public class InMemoryClient extends AbstractClient {
     private final LocalEventStoreClient eventStore;
     private final LocalSchedulingClient scheduleStore;
 
-    @Getter(lazy = true) @Accessors(fluent = true)
+    @Getter(lazy = true)
+    @Accessors(fluent = true)
     private final String id = DefaultPropertySource.getInstance().get(
             "FLUX_TASK_ID", ManagementFactory.getRuntimeMXBean().getName());
 
@@ -68,17 +70,19 @@ public class InMemoryClient extends AbstractClient {
     }
 
     @Override
-    protected GatewayClient createGatewayClient(MessageType messageType) {
+    protected GatewayClient createGatewayClient(MessageType messageType, String topic) {
         return switch (messageType) {
             case NOTIFICATION, EVENT -> eventStore;
             case SCHEDULE -> scheduleStore;
-            default -> new LocalTrackingClient(messageType, messageExpiration);
+            case DOCUMENT -> new LocalTrackingClient(new InMemoryDocumentMessageStore((InMemorySearchStore) getSearchClient(),
+                                                                                      topic), MessageType.DOCUMENT, topic);
+            default -> new LocalTrackingClient(messageType, topic, messageExpiration);
         };
     }
 
     @Override
-    protected TrackingClient createTrackingClient(MessageType messageType) {
-        return (TrackingClient) getGatewayClient(messageType);
+    protected TrackingClient createTrackingClient(MessageType messageType, String topic) {
+        return (TrackingClient) getGatewayClient(messageType, topic);
     }
 
     @Override

@@ -61,22 +61,22 @@ public class AdhocDispatchInterceptor implements DispatchInterceptor {
     }
 
     @Override
-    public Message interceptDispatch(Message message, MessageType messageType) {
+    public Message interceptDispatch(Message message, MessageType messageType, String topic) {
         var adhocInterceptor = getAdhocInterceptor(messageType);
-        return adhocInterceptor.isPresent() ? adhocInterceptor.get().interceptDispatch(message, messageType) : message;
+        return adhocInterceptor.isPresent() ? adhocInterceptor.get().interceptDispatch(message, messageType, topic) : message;
     }
 
     @Override
-    public void monitorDispatch(Message message, MessageType messageType) {
-        getAdhocInterceptor(messageType).ifPresent(i -> i.monitorDispatch(message, messageType));
+    public void monitorDispatch(Message message, MessageType messageType, String topic) {
+        getAdhocInterceptor(messageType).ifPresent(i -> i.monitorDispatch(message, messageType, topic));
     }
 
     @Override
     public SerializedMessage modifySerializedMessage(SerializedMessage serializedMessage, Message message,
-                                                     MessageType messageType) {
+                                                     MessageType messageType, String topic) {
         var adhocInterceptor = getAdhocInterceptor(messageType);
         return adhocInterceptor.isPresent() ?
-                adhocInterceptor.get().modifySerializedMessage(serializedMessage, message, messageType) :
+                adhocInterceptor.get().modifySerializedMessage(serializedMessage, message, messageType, topic) :
                 serializedMessage;
     }
 }

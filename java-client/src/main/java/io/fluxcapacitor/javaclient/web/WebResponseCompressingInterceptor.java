@@ -41,7 +41,8 @@ public class WebResponseCompressingInterceptor implements DispatchInterceptor {
     }
 
     @Override
-    public SerializedMessage modifySerializedMessage(SerializedMessage response, Message message, MessageType type) {
+    public SerializedMessage modifySerializedMessage(SerializedMessage response, Message message, MessageType type,
+                                                     String topic) {
         return acceptCompression() && shouldCompress(response) ? compress(response) : response;
     }
 
@@ -74,7 +75,7 @@ public class WebResponseCompressingInterceptor implements DispatchInterceptor {
     }
 
     @Override
-    public Message interceptDispatch(Message message, MessageType messageType) {
+    public Message interceptDispatch(Message message, MessageType messageType, String topic) {
         return message;
     }
 }

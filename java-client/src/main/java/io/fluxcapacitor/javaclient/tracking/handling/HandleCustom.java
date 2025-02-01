@@ -12,17 +12,25 @@
  * limitations under the License.
  */
 
-package io.fluxcapacitor.javaclient.common.serialization.casting;
+package io.fluxcapacitor.javaclient.tracking.handling;
 
-import java.util.stream.Stream;
+import io.fluxcapacitor.common.MessageType;
 
-@FunctionalInterface
-public interface Caster<I, O> {
+import java.lang.annotation.Documented;
+import java.lang.annotation.ElementType;
+import java.lang.annotation.Retention;
+import java.lang.annotation.RetentionPolicy;
+import java.lang.annotation.Target;
 
-    default Stream<O> cast(Stream<I> input) {
-        return cast(input, null);
-    }
-
-    Stream<O> cast(Stream<I> input, Integer desiredRevision);
-
+@Documented
+@Retention(RetentionPolicy.RUNTIME)
+@Target({ElementType.METHOD, ElementType.CONSTRUCTOR})
+@HandleMessage(MessageType.DOCUMENT)
+public @interface HandleCustom {
+    /**
+     * Specifies the topic name.
+     */
+    String value();
+    boolean disabled() default false;
+    Class<?>[] allowedClasses() default {};
 }

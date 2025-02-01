@@ -46,7 +46,7 @@ public class DataProtectionInterceptor implements DispatchInterceptor, HandlerIn
 
     @Override
     @SuppressWarnings("unchecked")
-    public Message interceptDispatch(Message m, MessageType messageType) {
+    public Message interceptDispatch(Message m, MessageType messageType, String topic) {
         Map<String, String> protectedFields = new HashMap<>();
         if (m.getMetadata().containsKey(METADATA_KEY)) {
             protectedFields.putAll(m.getMetadata().get(METADATA_KEY, Map.class));

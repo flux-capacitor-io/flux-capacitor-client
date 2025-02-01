@@ -69,6 +69,26 @@ public interface Serializer extends ContentFilter {
     }
 
     /**
+     * Upcasts and deserializes the given {@link Data} object to an object of type T. If the input data cannot be
+     * deserialized to a single result (due to upcasting) a {@link DeserializationException} is thrown.
+     *
+     * @param data Data to deserialize
+     * @param <T>  Type of object to deserialize to
+     * @return Object resulting from the deserialization
+     * @throws DeserializationException if deserialization fails
+     */
+    @SuppressWarnings({"unchecked", "rawtypes"})
+    default <T> T deserialize(SerializedObject<byte[], ?> data, Class<T> type) {
+        List<DeserializingObject<T, ?>> list = deserialize((Stream) Stream.of(data), UnknownTypeStrategy.AS_INTERMEDIATE).toList();
+        if (list.size() != 1) {
+            throw new DeserializationException(
+                    String.format("Invalid deserialization result for a '%s'. Expected a single object but got %s",
+                                  data, list.stream().map(DeserializingObject::getClass).toList()));
+        }
+        return list.getFirst().getPayloadAs(type);
+    }
+
+    /**
      * Upcasts and deserializes a stream of serialized objects. Each result in the output stream contains both a
      * provider for the deserialized object and the serialized object after upcasting that is used as the source of the
      * deserialized object.
@@ -92,12 +112,22 @@ public interface Serializer extends ContentFilter {
 
     default Stream<DeserializingMessage> deserializeMessages(Stream<SerializedMessage> dataStream,
                                                              MessageType messageType) {
-        return deserializeMessages(dataStream, messageType, UnknownTypeStrategy.AS_INTERMEDIATE);
+        return deserializeMessages(dataStream, messageType, (String) null);
+    }
+
+    default Stream<DeserializingMessage> deserializeMessages(Stream<SerializedMessage> dataStream,
+                                                             MessageType messageType, String topic) {
+        return deserializeMessages(dataStream, messageType, topic, UnknownTypeStrategy.AS_INTERMEDIATE);
     }
 
     default Stream<DeserializingMessage> deserializeMessages(Stream<SerializedMessage> dataStream,
                                                              MessageType messageType, UnknownTypeStrategy unknownTypeStrategy) {
-        return deserialize(dataStream, unknownTypeStrategy).map(s -> new DeserializingMessage(s, messageType));
+        return deserializeMessages(dataStream, messageType, null, unknownTypeStrategy);
+    }
+
+    default Stream<DeserializingMessage> deserializeMessages(Stream<SerializedMessage> dataStream,
+                                                             MessageType messageType, String topic, UnknownTypeStrategy unknownTypeStrategy) {
+        return deserialize(dataStream, unknownTypeStrategy).map(s -> new DeserializingMessage(s, messageType, topic));
     }
 
     default DeserializingMessage deserializeMessage(SerializedMessage message, MessageType messageType) {

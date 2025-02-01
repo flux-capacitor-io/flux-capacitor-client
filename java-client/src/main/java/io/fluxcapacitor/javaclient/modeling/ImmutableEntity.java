@@ -118,7 +118,7 @@ public class ImmutableEntity<T> implements Entity<T> {
 
     @Override
     public Entity<T> apply(Message message) {
-        return apply(new DeserializingMessage(message, EVENT, serializer));
+        return apply(new DeserializingMessage(message, EVENT, null, serializer));
     }
 
     @Override

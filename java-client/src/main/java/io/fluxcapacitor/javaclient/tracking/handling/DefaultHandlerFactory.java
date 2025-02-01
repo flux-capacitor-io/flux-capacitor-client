@@ -28,22 +28,8 @@ import io.fluxcapacitor.javaclient.common.HasMessage;
 import io.fluxcapacitor.javaclient.common.serialization.DeserializingMessage;
 import io.fluxcapacitor.javaclient.modeling.HandlerRepository;
 import io.fluxcapacitor.javaclient.tracking.TrackSelf;
-import io.fluxcapacitor.javaclient.web.HandleDelete;
-import io.fluxcapacitor.javaclient.web.HandleGet;
-import io.fluxcapacitor.javaclient.web.HandleHead;
-import io.fluxcapacitor.javaclient.web.HandleOptions;
-import io.fluxcapacitor.javaclient.web.HandlePatch;
-import io.fluxcapacitor.javaclient.web.HandlePost;
-import io.fluxcapacitor.javaclient.web.HandlePut;
-import io.fluxcapacitor.javaclient.web.HandleSocketClose;
-import io.fluxcapacitor.javaclient.web.HandleSocketHandshake;
-import io.fluxcapacitor.javaclient.web.HandleSocketMessage;
-import io.fluxcapacitor.javaclient.web.HandleSocketOpen;
-import io.fluxcapacitor.javaclient.web.HandleSocketPong;
-import io.fluxcapacitor.javaclient.web.HandleTrace;
 import io.fluxcapacitor.javaclient.web.HandleWeb;
 import io.fluxcapacitor.javaclient.web.HandleWebResponse;
-import io.fluxcapacitor.javaclient.web.HttpRequestMethod;
 import io.fluxcapacitor.javaclient.web.WebHandlerMatcher;
 import lombok.AllArgsConstructor;
 import lombok.NonNull;
@@ -77,18 +63,7 @@ public class DefaultHandlerFactory implements HandlerFactory {
         this.parameterResolvers = parameterResolvers;
         this.handlerRepositorySupplier = handlerRepositorySupplier;
         this.handlerAnnotation = getHandlerAnnotation(messageType);
-        this.messageFilter = defaultMessageFilter();
-    }
-
-    public DefaultHandlerFactory(HttpRequestMethod httpRequestMethod, HandlerDecorator defaultDecorator,
-                                 List<ParameterResolver<? super DeserializingMessage>> parameterResolvers,
-                                 Function<Class<?>, HandlerRepository> handlerRepositorySupplier) {
-        this.messageType = MessageType.WEBREQUEST;
-        this.defaultDecorator = defaultDecorator;
-        this.parameterResolvers = parameterResolvers;
-        this.handlerRepositorySupplier = handlerRepositorySupplier;
-        this.handlerAnnotation = getHandlerAnnotation(httpRequestMethod);
-        this.messageFilter = defaultMessageFilter();
+        this.messageFilter = computeMessageFilter();
     }
 
     @Override
@@ -106,8 +81,9 @@ public class DefaultHandlerFactory implements HandlerFactory {
                 .map(handlerDecorator::wrap);
     }
 
-    private Handler<DeserializingMessage> buildHandler(@NonNull Object target,
-                                                       HandlerConfiguration<DeserializingMessage> config) {
+    protected Handler<DeserializingMessage> buildHandler(@NonNull Object target,
+                                                         HandlerConfiguration<DeserializingMessage> config) {
+
         if (ifClass(target) instanceof Class<?> targetClass) {
             {
                 Stateful handler = ReflectionUtils.getTypeAnnotation(targetClass, Stateful.class);
@@ -127,17 +103,21 @@ public class DefaultHandlerFactory implements HandlerFactory {
                             (message, method, handlerAnnotation) -> targetClass.isAssignableFrom(
                                     message.getPayloadClass());
                     config = config.toBuilder().messageFilter(selfFilter.and(config.messageFilter())).build();
-                    return new DefaultHandler<>(targetClass, DeserializingMessage::getPayload,
-                                                createHandlerMatcher(targetClass, config));
+                    return createDefaultHandler(targetClass, DeserializingMessage::getPayload, config);
                 }
             }
 
             Supplier<Object> instanceSupplier = memoize(() -> ReflectionUtils.asInstance(targetClass));
-            return new DefaultHandler<>(targetClass, m -> targetClass.equals(m.getPayloadClass())
-                    ? m.getPayload() : instanceSupplier.get(), createHandlerMatcher(targetClass, config));
+            return createDefaultHandler(targetClass, m -> targetClass.equals(m.getPayloadClass())
+                    ? m.getPayload() : instanceSupplier.get(), config);
         }
-        Class<?> targetClass = target.getClass();
-        return new DefaultHandler<>(targetClass, m -> target, createHandlerMatcher(targetClass, config));
+        return createDefaultHandler(target.getClass(), m -> target, config);
+    }
+
+    protected Handler<DeserializingMessage> createDefaultHandler(
+            Class<?> targetClass, Function<DeserializingMessage, ?> targetSupplier,
+            HandlerConfiguration<DeserializingMessage> config) {
+        return new DefaultHandler<>(targetClass, targetSupplier, createHandlerMatcher(targetClass, config));
     }
 
     protected Class<? extends Annotation> getHandlerAnnotation(MessageType messageType) {
@@ -152,24 +132,8 @@ public class DefaultHandlerFactory implements HandlerFactory {
             case METRICS -> HandleMetrics.class;
             case WEBREQUEST -> HandleWeb.class;
             case WEBRESPONSE -> HandleWebResponse.class;
-        };
-    }
-
-    protected Class<? extends Annotation> getHandlerAnnotation(HttpRequestMethod requestMethod) {
-        return switch (requestMethod) {
-            case GET -> HandleGet.class;
-            case POST -> HandlePost.class;
-            case PUT -> HandlePut.class;
-            case PATCH -> HandlePatch.class;
-            case DELETE -> HandleDelete.class;
-            case HEAD -> HandleHead.class;
-            case OPTIONS -> HandleOptions.class;
-            case TRACE -> HandleTrace.class;
-            case WS_OPEN -> HandleSocketOpen.class;
-            case WS_MESSAGE -> HandleSocketMessage.class;
-            case WS_CLOSE -> HandleSocketClose.class;
-            case WS_PONG -> HandleSocketPong.class;
-            case WS_HANDSHAKE -> HandleSocketHandshake.class;
+            case DOCUMENT -> HandleDocument.class;
+            case CUSTOM -> HandleCustom.class;
         };
     }
 
@@ -182,12 +146,17 @@ public class DefaultHandlerFactory implements HandlerFactory {
         };
     }
 
-    @SuppressWarnings("unchecked")
-    protected MessageFilter<? super DeserializingMessage> defaultMessageFilter() {
+    @SuppressWarnings({"unchecked", "rawtypes"})
+    protected MessageFilter<? super DeserializingMessage> computeMessageFilter() {
         var defaultFilter = new PayloadFilter().and(new SegmentFilter());
+        MessageFilter result = switch (messageType) {
+            case CUSTOM -> defaultFilter.and((MessageFilter) new HandleCustomFilter());
+            case DOCUMENT -> defaultFilter.and((MessageFilter) new HandleDocumentFilter());
+            default -> defaultFilter;
+        };
         return parameterResolvers.stream().flatMap(r -> r instanceof MessageFilter<?>
                         ? Stream.of((MessageFilter<HasMessage>) r) : Stream.empty())
-                .reduce(MessageFilter::and).map(f -> f.and(defaultFilter)).orElse(defaultFilter);
+                .reduce(MessageFilter::and).map(f -> f.and(result)).orElse(result);
     }
 
 }

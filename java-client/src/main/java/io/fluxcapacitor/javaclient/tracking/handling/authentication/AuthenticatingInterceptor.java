@@ -39,7 +39,7 @@ public class AuthenticatingInterceptor implements DispatchInterceptor, HandlerIn
     private final UserProvider userProvider;
 
     @Override
-    public Message interceptDispatch(Message m, MessageType messageType) {
+    public Message interceptDispatch(Message m, MessageType messageType, String topic) {
         if (!userProvider.containsUser(m.getMetadata())) {
             Optional<DeserializingMessage> currentMessage = ofNullable(DeserializingMessage.getCurrent());
             User user = currentMessage.isPresent()

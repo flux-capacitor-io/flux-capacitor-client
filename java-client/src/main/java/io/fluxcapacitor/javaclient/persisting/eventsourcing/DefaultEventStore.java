@@ -60,13 +60,15 @@ public class DefaultEventStore implements EventStore {
                 if (e instanceof DeserializingMessage) {
                     deserializingMessage = (DeserializingMessage) e;
                 } else {
-                    Message m = dispatchInterceptor.interceptDispatch(Message.asMessage(e), EVENT);
+                    Message m = dispatchInterceptor.interceptDispatch(Message.asMessage(e), EVENT, null);
                     SerializedMessage serializedMessage
-                            = m == null ? null : dispatchInterceptor.modifySerializedMessage(m.serialize(serializer), m, EVENT);
+                            = m == null ? null : dispatchInterceptor.modifySerializedMessage(m.serialize(serializer), m, EVENT,
+                                                                                             null);
                     if (serializedMessage == null) {
                         return;
                     }
-                    deserializingMessage = new DeserializingMessage(serializedMessage, type -> m.getPayload(), EVENT);
+                    deserializingMessage = new DeserializingMessage(serializedMessage, type -> m.getPayload(), EVENT,
+                                                                    null);
                 }
                 messages.add(deserializingMessage);
             });
@@ -76,7 +78,7 @@ public class DefaultEventStore implements EventStore {
             switch (strategy) {
                 case DEFAULT, STORE_AND_PUBLISH, PUBLISH_ONLY -> {
                     for (DeserializingMessage message : messages) {
-                        dispatchInterceptor.monitorDispatch(message.toMessage(), EVENT);
+                        dispatchInterceptor.monitorDispatch(message.toMessage(), EVENT, null);
                     }
                 }
             }

@@ -14,13 +14,12 @@
 
 package io.fluxcapacitor.common.search;
 
-import io.fluxcapacitor.common.api.Data;
 import io.fluxcapacitor.common.api.search.SerializedDocument;
+import io.fluxcapacitor.common.serialization.Converter;
 
 import java.time.Instant;
 
-public interface Inverter<T> {
-    SerializedDocument toDocument(Object object, String type, int revision, String id, String collection, Instant timestamp, Instant end);
-
-    Data<T> fromDocument(SerializedDocument document);
+public interface Inverter<T> extends Converter<byte[], T> {
+    SerializedDocument toDocument(Object object, String type, int revision, String id, String collection,
+                                  Instant timestamp, Instant end);
 }

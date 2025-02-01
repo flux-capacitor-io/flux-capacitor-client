@@ -95,6 +95,7 @@ import java.util.function.UnaryOperator;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
+import static io.fluxcapacitor.common.MessageType.CUSTOM;
 import static io.fluxcapacitor.common.MessageType.EVENT;
 import static io.fluxcapacitor.common.MessageType.NOTIFICATION;
 import static io.fluxcapacitor.common.MessageType.SCHEDULE;
@@ -216,8 +217,7 @@ public class TestFixture implements Given, When {
         }
         fluxCapacitorBuilder.addPropertySource(new SimplePropertySource(testProperties));
         this.interceptor = new GivenWhenThenInterceptor(this);
-        Arrays.stream(MessageType.values()).forEach(type -> client.getGatewayClient(type).registerMonitor(
-                messages -> interceptor.interceptClientDispatch(messages, type)));
+        client.monitorDispatch(interceptor::interceptClientDispatch);
         fluxCapacitorBuilder = fluxCapacitorBuilder.disableShutdownHook()
                 .addParameterResolver(beanParameterResolver)
                 .addDispatchInterceptor(interceptor)
@@ -263,11 +263,7 @@ public class TestFixture implements Given, When {
         var currentClient = currentFixture.fluxCapacitor.client().unwrap();
         var newClient = currentClient instanceof InMemoryClient
                 ? InMemoryClient.newInstance(null) : currentClient;
-        {
-            Arrays.stream(MessageType.values())
-                    .forEach(type -> newClient.getGatewayClient(type).registerMonitor(
-                            messages -> interceptor.interceptClientDispatch(messages, type)));
-        }
+        newClient.monitorDispatch(interceptor::interceptClientDispatch);
         this.fluxCapacitor = spying
                 ? new TestFluxCapacitor(fluxCapacitorBuilder.build(new TestClient(newClient)))
                 : fluxCapacitorBuilder.build(newClient);
@@ -376,7 +372,9 @@ public class TestFixture implements Given, When {
             }
             HandlerFilter handlerFilter = (c, e) -> true;
             var registration = fc.apply(f -> handlers.stream().flatMap(
-                            h -> localHandlerRegistries(f).map(r -> r.registerHandler(h, handlerFilter)))
+                            h -> Stream.concat(localHandlerRegistries(f).map(r -> r.registerHandler(h, handlerFilter)),
+                                               ClientUtils.getTopics(CUSTOM, h).stream()
+                                                       .map(topic -> f.customGateway(topic).registerHandler(h, handlerFilter))))
                     .reduce(Registration::merge).orElse(Registration.noOp()));
             fixture.registration = fixture.registration.merge(registration);
         });
@@ -774,7 +772,7 @@ public class TestFixture implements Given, When {
                          + "This may cause your test to fail. Waiting consumers: {}",
                          consumers.entrySet().stream()
                                  .filter(e -> !e.getValue().isEmpty())
-                                 .map(e -> e.getKey().getName() + " : " + e.getValue().stream()
+                                 .map(e -> e.getKey() + " : " + e.getValue().stream()
                                          .map(m -> m.getPayload() == null
                                                  ? "Void" : m.getPayload().getClass().getSimpleName()).collect(
                                                  Collectors.joining(", "))).collect(toList()));
@@ -940,7 +938,7 @@ public class TestFixture implements Given, When {
         private final List<Schedule> publishedSchedules = new CopyOnWriteArrayList<>();
         private final Set<String> interceptedMessageIds = new CopyOnWriteArraySet<>();
 
-        protected void interceptClientDispatch(List<SerializedMessage> messages, MessageType messageType) {
+        protected void interceptClientDispatch(MessageType messageType, String topic, List<SerializedMessage> messages) {
             if (testFixture.isCollectingResults()) {
                 try {
                     testFixture.fluxCapacitor.serializer()
@@ -949,7 +947,7 @@ public class TestFixture implements Given, When {
                                                                  m.getMessageId())),
                                                  messageType)
                             .map(DeserializingMessage::toMessage)
-                            .forEach(m -> monitorDispatch(m, messageType));
+                            .forEach(m -> monitorDispatch(m, messageType, topic));
                 } catch (Exception ignored) {
                     log.warn("Failed to intercept a published message. This may cause your test to fail.");
                 }
@@ -957,12 +955,12 @@ public class TestFixture implements Given, When {
         }
 
         @Override
-        public Message interceptDispatch(Message message, MessageType messageType) {
+        public Message interceptDispatch(Message message, MessageType messageType, String topic) {
             return message;
         }
 
         @Override
-        public void monitorDispatch(Message message, MessageType messageType) {
+        public void monitorDispatch(Message message, MessageType messageType, String topic) {
             if (testFixture.isCollectingResults()) {
                 interceptedMessageIds.add(message.getMessageId());
             }
@@ -974,10 +972,10 @@ public class TestFixture implements Given, When {
             synchronized (testFixture.consumers) {
                 testFixture.consumers.entrySet().stream()
                         .filter(t -> {
-                            var configuration = t.getKey();
-                            return ((configuration.getMessageType() == messageType
-                                     || (configuration.getMessageType() == NOTIFICATION && messageType == EVENT))
-                                    && Optional.ofNullable(configuration.getTypeFilter())
+                            var consumer = t.getKey();
+                            return (((consumer.getMessageType() == messageType && Objects.equals(consumer.getTopic(), topic))
+                                     || (consumer.getMessageType() == NOTIFICATION && messageType == EVENT))
+                                    && Optional.ofNullable(consumer.getConfiguration().getTypeFilter())
                                             .map(f -> message.getPayload().getClass().getName().matches(f))
                                             .orElse(true));
                         }).forEach(e -> addMessage(e.getValue(), message));
@@ -1012,13 +1010,17 @@ public class TestFixture implements Given, When {
 
         @Override
         public Consumer<MessageBatch> intercept(Consumer<MessageBatch> consumer, Tracker tracker) {
-            List<Message> messages = testFixture.consumers.computeIfAbsent(
-                    new ActiveConsumer(tracker.getConfiguration(), tracker.getMessageType()),
-                    c -> (c.getMessageType() == SCHEDULE
-                            ? publishedSchedules : Collections.<Message>emptyList()).stream().filter(
-                                    m -> Optional.ofNullable(c.getTypeFilter()).map(f -> m.getPayload().getClass()
-                                            .getName().matches(f)).orElse(true))
-                            .collect(toCollection(CopyOnWriteArrayList::new)));
+            List<Message> messages;
+            synchronized (testFixture.consumers) {
+                messages = testFixture.consumers.computeIfAbsent(
+                        new ActiveConsumer(tracker.getConfiguration(), tracker.getMessageType(), tracker.getTopic()),
+                        c -> (c.getMessageType() == SCHEDULE
+                                ? publishedSchedules : Collections.<Message>emptyList()).stream().filter(
+                                        m -> Optional.ofNullable(c.getConfiguration().getTypeFilter())
+                                                .map(f -> m.getPayload().getClass()
+                                                        .getName().matches(f)).orElse(true))
+                                .collect(toCollection(CopyOnWriteArrayList::new)));
+            }
             return b -> {
                 consumer.accept(b);
                 Collection<String> messageIds =
@@ -1063,15 +1065,24 @@ public class TestFixture implements Given, When {
 
         @Override
         public void shutdown(Tracker tracker) {
-            testFixture.consumers.remove(new ActiveConsumer(tracker.getConfiguration(), tracker.getMessageType()));
+            synchronized (testFixture.consumers) {
+                testFixture.consumers.remove(
+                        new ActiveConsumer(tracker.getConfiguration(), tracker.getMessageType(), tracker.getTopic()));
+            }
             testFixture.checkConsumers();
         }
     }
 
     @Value
     protected static class ActiveConsumer {
-        @Delegate
         ConsumerConfiguration configuration;
         MessageType messageType;
+        String topic;
+
+        @Override
+        public String toString() {
+            return topic == null ? "{name=%s, messageType=%s}".formatted(configuration.getName(), messageType) :
+                    "{name=%s, messageType=%s, topic=%s}".formatted(configuration.getName(), messageType, topic);
+        }
     }
 }

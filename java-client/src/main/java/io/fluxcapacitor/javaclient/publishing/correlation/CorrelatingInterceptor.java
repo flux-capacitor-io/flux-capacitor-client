@@ -26,7 +26,7 @@ import static io.fluxcapacitor.javaclient.FluxCapacitor.currentCorrelationData;
 @AllArgsConstructor
 public class CorrelatingInterceptor implements DispatchInterceptor {
     @Override
-    public Message interceptDispatch(Message message, MessageType messageType) {
+    public Message interceptDispatch(Message message, MessageType messageType, String topic) {
         Metadata metadata = message.getMetadata();
         if (messageType == MessageType.EVENT) {
             DeserializingMessage currentMessage = DeserializingMessage.getCurrent();

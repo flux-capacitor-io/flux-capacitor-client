@@ -22,6 +22,7 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.function.BiConsumer;
 import java.util.function.Function;
 import java.util.function.Supplier;
 
@@ -64,6 +65,11 @@ public class MemoizingFunction<K, V> implements Function<K, V> {
 
     public boolean isCached(K key) {
         return key == null || map.containsKey(key);
+    }
+
+    @SuppressWarnings("unchecked")
+    public void forEach(BiConsumer<? super K, ? super V> consumer) {
+        map.forEach((k, e) -> consumer.accept((K) k, (V) e.value));
     }
 
     @Value

@@ -18,6 +18,7 @@ import io.fluxcapacitor.common.Guarantee;
 import io.fluxcapacitor.common.api.search.BulkUpdate;
 import io.fluxcapacitor.common.api.search.SearchQuery;
 import io.fluxcapacitor.common.reflection.ReflectionUtils;
+import io.fluxcapacitor.javaclient.common.ClientUtils;
 import io.fluxcapacitor.javaclient.modeling.EntityId;
 import io.fluxcapacitor.javaclient.modeling.SearchParameters;
 import jakarta.validation.constraints.NotNull;
@@ -231,8 +232,7 @@ public interface DocumentStore {
     CompletableFuture<Void> createAuditTrail(Object collection, Duration retentionTime);
 
     default String determineCollection(@NonNull Object c) {
-        return ReflectionUtils.ifClass(c) instanceof Class<?> type
-                ? getSearchParameters(type).getCollection() : c.toString();
+        return ClientUtils.determineSearchCollection(c);
     }
 
     DocumentSerializer getSerializer();

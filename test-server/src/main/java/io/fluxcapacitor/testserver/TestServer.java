@@ -134,8 +134,7 @@ public class TestServer {
     }
 
     @AllArgsConstructor
-    static
-    class TestServerProject implements Client {
+    static class TestServerProject implements Client {
         @Delegate
         private final InMemoryClient delegate;
 

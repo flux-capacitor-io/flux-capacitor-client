@@ -53,16 +53,16 @@ public class DefaultScheduler implements Scheduler, HasLocalHandlers {
         if (Entity.isLoading()) {
             return CompletableFuture.completedFuture(null);
         }
-        message = (Schedule) dispatchInterceptor.interceptDispatch(message, SCHEDULE);
+        message = (Schedule) dispatchInterceptor.interceptDispatch(message, SCHEDULE, null);
         if (message == null) {
             return CompletableFuture.completedFuture(null);
         }
         SerializedMessage serializedMessage = dispatchInterceptor.modifySerializedMessage(
-                message.serialize(serializer), message, SCHEDULE);
+                message.serialize(serializer), message, SCHEDULE, null);
         if (serializedMessage == null) {
             return CompletableFuture.completedFuture(null);
         }
-        dispatchInterceptor.monitorDispatch(message, SCHEDULE);
+        dispatchInterceptor.monitorDispatch(message, SCHEDULE, null);
         return client.schedule(guarantee, new SerializedSchedule(message.getScheduleId(),
                                                message.getDeadline().toEpochMilli(),
                                                serializedMessage, ifAbsent));
@@ -74,13 +74,13 @@ public class DefaultScheduler implements Scheduler, HasLocalHandlers {
             return CompletableFuture.completedFuture(null);
         }
         var commandMessage = schedule.withMessageId(FluxCapacitor.currentIdentityProvider().nextTechnicalId());
-        var intercepted = commandDispatchInterceptor.interceptDispatch(commandMessage, COMMAND);
+        var intercepted = commandDispatchInterceptor.interceptDispatch(commandMessage, COMMAND, null);
         if (intercepted == null) {
             return CompletableFuture.completedFuture(null);
         }
         commandMessage = commandMessage.withPayload(intercepted.getPayload()).withMetadata(intercepted.getMetadata());
         SerializedMessage serializedCommand = commandDispatchInterceptor.modifySerializedMessage(
-                commandMessage.serialize(serializer), commandMessage, COMMAND);
+                commandMessage.serialize(serializer), commandMessage, COMMAND, null);
         if (serializedCommand == null) {
             return CompletableFuture.completedFuture(null);
         }
@@ -118,7 +118,7 @@ public class DefaultScheduler implements Scheduler, HasLocalHandlers {
         var serializedMessage = schedule.serialize(serializer);
         serializedMessage.setIndex(indexFromTimestamp(schedule.getDeadline()));
         var result = localHandlerRegistry.handle(new DeserializingMessage(
-                serializedMessage, type -> serializer.convert(schedule.getPayload(), type), SCHEDULE));
+                serializedMessage, type -> serializer.convert(schedule.getPayload(), type), SCHEDULE, null));
         if (result.isPresent()) {
             result.get().get();
         }

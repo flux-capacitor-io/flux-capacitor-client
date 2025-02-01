@@ -29,9 +29,6 @@ import io.fluxcapacitor.javaclient.common.serialization.AbstractSerializer;
 import io.fluxcapacitor.javaclient.common.serialization.ContentFilter;
 import io.fluxcapacitor.javaclient.common.serialization.DeserializationException;
 import io.fluxcapacitor.javaclient.common.serialization.DeserializingObject;
-import io.fluxcapacitor.javaclient.common.serialization.casting.Caster;
-import io.fluxcapacitor.javaclient.common.serialization.casting.CasterChain;
-import io.fluxcapacitor.javaclient.common.serialization.casting.Converter;
 import io.fluxcapacitor.javaclient.persisting.search.DocumentSerializer;
 import lombok.Getter;
 import lombok.SneakyThrows;
@@ -58,7 +55,6 @@ public class JacksonSerializer extends AbstractSerializer<JsonNode> implements D
     private final ContentFilter contentFilter;
     private final Function<String, JavaType> typeCache = memoize(this::getJavaType);
     private final Function<Type, String> typeStringCache = memoize(this::getCanonicalType);
-    private final Caster<Data<JsonNode>> jsonNodeUpcaster;
     private final Inverter<JsonNode> inverter;
 
     public JacksonSerializer() {
@@ -74,15 +70,14 @@ public class JacksonSerializer extends AbstractSerializer<JsonNode> implements D
     }
 
     public JacksonSerializer(JsonMapper objectMapper, Collection<?> casterCandidates) {
-        this(objectMapper, casterCandidates, new ObjectNodeConverter(objectMapper));
+        this(objectMapper, casterCandidates, new JacksonInverter());
     }
 
-    public JacksonSerializer(JsonMapper objectMapper, Collection<?> casterCandidates, Converter<JsonNode> converter) {
-        super(casterCandidates, converter, Data.JSON_FORMAT);
+    public JacksonSerializer(JsonMapper objectMapper, Collection<?> casterCandidates, JacksonInverter inverter) {
+        super(casterCandidates, inverter, Data.JSON_FORMAT);
         this.objectMapper = objectMapper;
         this.contentFilter = new JacksonContentFilter(objectMapper.copy());
-        this.jsonNodeUpcaster = CasterChain.create(casterCandidates, JsonNode.class, false);
-        this.inverter = new JacksonInverter(objectMapper);
+        this.inverter = inverter;
     }
 
     @Override
@@ -96,8 +91,14 @@ public class JacksonSerializer extends AbstractSerializer<JsonNode> implements D
     }
 
     @Override
-    protected Object doDeserialize(Data<byte[]> data, String type) throws Exception {
-        return objectMapper.readValue(data.getValue(), typeCache.apply(type));
+    protected Object doDeserialize(Data<?> data, String type) throws Exception {
+        return switch (data.getValue()) {
+            case JsonNode v -> objectMapper.convertValue(v, typeCache.apply(type));
+            case byte[] v -> objectMapper.readValue(v, typeCache.apply(type));
+            case String v -> objectMapper.readValue(v, typeCache.apply(type));
+            case null -> null;
+            default -> throw new IllegalArgumentException("Incompatible data value type: " + data.getValue().getClass());
+        };
     }
 
     @SneakyThrows
@@ -149,14 +150,12 @@ public class JacksonSerializer extends AbstractSerializer<JsonNode> implements D
 
     @Override
     public <T> T fromDocument(SerializedDocument document) {
-        return jsonNodeUpcaster.cast(Stream.of(inverter.fromDocument(document))).findFirst()
-                .<T>map(d -> objectMapper.convertValue(d.getValue(), typeCache.apply(d.getType()))).orElse(null);
+        return deserialize(document.getDocument());
     }
 
     @Override
     public <T> T fromDocument(SerializedDocument document, Class<T> type) {
-        return jsonNodeUpcaster.cast(Stream.of(inverter.fromDocument(document))).findFirst()
-                .map(d -> objectMapper.convertValue(d.getValue(), type)).orElse(null);
+        return deserialize(document.getDocument(), type);
     }
 
     @Override
