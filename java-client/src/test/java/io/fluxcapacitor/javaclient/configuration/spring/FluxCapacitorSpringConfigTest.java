@@ -128,6 +128,16 @@ public class FluxCapacitorSpringConfigTest {
     }
 
     @Test
+    void testConditionalOnMissingPropertyMissing() {
+        assertNotNull(beanFactory.getBean(ConditionalOnMissingProperty_PropertyMissing.class));
+    }
+
+    @Test
+    void testConditionalOnMissingPropertyPresent() {
+        assertThrows(NoSuchBeanDefinitionException.class, () -> beanFactory.getBean(ConditionalOnMissingProperty_PropertyPresent.class));
+    }
+
+    @Test
     void testConditionalComponentMissing() {
         assertThrows(NoSuchBeanDefinitionException.class, () -> beanFactory.getBean(ConditionalBeanMissing.class));
     }
@@ -232,6 +242,18 @@ public class FluxCapacitorSpringConfigTest {
     @ConditionalOnProperty("missingProperty")
     @Component
     public static class ConditionalPropertyMissing {
+    }
+
+    @Value
+    @ConditionalOnMissingProperty("missingProperty")
+    @Component
+    public static class ConditionalOnMissingProperty_PropertyMissing {
+    }
+
+    @Value
+    @ConditionalOnMissingProperty("existingProperty")
+    @Component
+    public static class ConditionalOnMissingProperty_PropertyPresent {
     }
 
     @Value
