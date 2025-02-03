@@ -16,6 +16,8 @@ package io.fluxcapacitor.javaclient.givenwhenthen.spring;
 
 import io.fluxcapacitor.common.search.SearchExclude;
 import io.fluxcapacitor.javaclient.FluxCapacitor;
+import io.fluxcapacitor.javaclient.MockException;
+import io.fluxcapacitor.javaclient.configuration.spring.ConditionalOnMissingProperty;
 import io.fluxcapacitor.javaclient.test.TestFixture;
 import io.fluxcapacitor.javaclient.test.spring.FluxCapacitorTestConfig;
 import io.fluxcapacitor.javaclient.tracking.Consumer;
@@ -29,6 +31,8 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.SneakyThrows;
 import lombok.Value;
+import org.junit.jupiter.api.AfterAll;
+import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -49,6 +53,18 @@ import static org.springframework.test.annotation.DirtiesContext.ClassMode.AFTER
 @DirtiesContext(classMode = AFTER_EACH_TEST_METHOD)
 @ContextConfiguration(classes = {FluxCapacitorTestConfig.class, GivenWhenThenSpringTest.FooConfig.class, GivenWhenThenSpringTest.BarConfig.class})
 class GivenWhenThenSpringTest {
+
+    @BeforeAll
+    static void beforeAll() {
+        System.setProperty("stateful-disabled", "true");
+        System.setProperty("trackself-disabled", "true");
+    }
+
+    @AfterAll
+    static void afterAll() {
+        System.clearProperty("stateful-disabled");
+        System.clearProperty("trackself-disabled");
+    }
 
     @Autowired
     private TestFixture testFixture;
@@ -75,6 +91,14 @@ class GivenWhenThenSpringTest {
     @Test
     void selfTracked() {
         testFixture.whenCommand(new SelfTracked()).expectEvents(SelfTracked.class);
+    }
+
+    @Test
+    void selfTracked_disabled() {
+        testFixture.whenExecuting(fc -> {
+            FluxCapacitor.sendAndForgetCommand(new DisabledSelfTracked());
+            Thread.sleep(100);
+        }).expectNoErrors();
     }
 
     @Test
@@ -111,6 +135,8 @@ class GivenWhenThenSpringTest {
                     .expectCommands("constructor:2");
         }
 
+
+
         @Stateful
         @SearchExclude
         @Value
@@ -129,6 +155,20 @@ class GivenWhenThenSpringTest {
             StaticHandler update(StaticEvent event) {
                 FluxCapacitor.sendAndForgetCommand(eventCount + 1);
                 return toBuilder().eventCount(eventCount + 1).build();
+            }
+        }
+
+        @Stateful
+        @SearchExclude
+        @Value
+        @Builder(toBuilder = true)
+        @ConditionalOnMissingProperty("stateful-disabled")
+        public static class DisabledStaticHandler {
+            @Association String someId;
+
+            @HandleEvent
+            static StaticHandler create(StaticEvent event) {
+                throw new MockException("this should not happen");
             }
         }
 
@@ -203,6 +243,16 @@ class GivenWhenThenSpringTest {
                 && "SelfTracked".equals(Tracker.current().get().getConfiguration().getName())) {
                 FluxCapacitor.publishEvent(this);
             }
+        }
+    }
+
+    @TrackSelf
+    @Consumer(name = "DisabledSelfTracked")
+    @ConditionalOnMissingProperty("trackself-disabled")
+    public static class DisabledSelfTracked {
+        @HandleCommand
+        void handleSelf() {
+            throw new MockException("this should not happen");
         }
     }
 
