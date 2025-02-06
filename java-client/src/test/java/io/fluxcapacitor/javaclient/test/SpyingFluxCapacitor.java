@@ -47,7 +47,7 @@ import java.util.Map;
 import java.util.WeakHashMap;
 
 @AllArgsConstructor
-public class TestFluxCapacitor implements FluxCapacitor {
+public class SpyingFluxCapacitor implements FluxCapacitor {
     private final Map<Object, Object> spiedComponents = new WeakHashMap<>();
 
     private final FluxCapacitor delegate;

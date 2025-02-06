@@ -44,6 +44,7 @@ import static java.util.Collections.emptyList;
 public class LocalHandlerRegistry implements HandlerRegistry {
     @Getter
     private final HandlerFactory handlerFactory;
+    @Getter
     private final List<Handler<DeserializingMessage>> localHandlers = new CopyOnWriteArrayList<>();
 
     @Setter
@@ -53,6 +54,11 @@ public class LocalHandlerRegistry implements HandlerRegistry {
 
     private final Function<Class<?>, Optional<Handler<DeserializingMessage>>> selfHandlers
             = memoize(payloadType -> getHandlerFactory().createHandler(payloadType, getSelfHandlerFilter(), List.of()));
+
+    @Override
+    public boolean hasLocalHandlers() {
+        return !localHandlers.isEmpty();
+    }
 
     @SuppressWarnings("unchecked")
     @Override

@@ -67,6 +67,26 @@ public interface Given extends When {
     Given givenCommandsByUser(Object user, Object... commands);
 
     /**
+     * Specify one or more requests that have been issued to given custom topic prior to the behavior you want to test.
+     * <p>
+     * A request may be an instance of {@link Message} in which case it will be issued as is. Otherwise, the request is
+     * issued using the passed value as payload without additional metadata.
+     */
+    Given givenCustom(String topic, Object... requests);
+
+    /**
+     * Specify one or more requests that have been issued to given topic by given {@code user} prior to the behavior you
+     * want to test.
+     * <p>
+     * The given {@code user} may be an instance of {@link User} or an object representing the user's id. In the latter
+     * case, the test fixture will use the {@link UserProvider} to provide the user by id.
+     * <p>
+     * A request may be an instance of {@link Message} in which case it will be issued as is. Otherwise, the request is
+     * issued using the passed value as payload without additional metadata.
+     */
+    Given givenCustomByUser(Object user, String topic, Object... requests);
+
+    /**
      * Specify one or more events that have been applied to given aggregate prior to the behavior you want to test.
      * <p>
      * An event may be an instance of {@link Message} in which case it will be applied as is. An event may also be an
@@ -255,8 +275,8 @@ public interface Given extends When {
     }
 
     /**
-     * Registers a cookie that should be used when validating future web requests. If the given cookie has expired,
-     * any existing matching cookie will be automatically removed.
+     * Registers a cookie that should be used when validating future web requests. If the given cookie has expired, any
+     * existing matching cookie will be automatically removed.
      */
     Given withCookie(HttpCookie cookie);
 

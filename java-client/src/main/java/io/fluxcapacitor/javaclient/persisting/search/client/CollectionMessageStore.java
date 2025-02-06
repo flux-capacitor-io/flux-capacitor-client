@@ -24,14 +24,14 @@ import java.util.concurrent.CompletableFuture;
 import java.util.function.Consumer;
 
 @AllArgsConstructor
-public class InMemoryDocumentMessageStore implements MessageStore {
+public class CollectionMessageStore implements MessageStore {
 
     private final InMemorySearchStore searchClient;
     private final String collection;
 
     @Override
     public List<SerializedMessage> getBatch(Long minIndex, int maxSize, boolean inclusive) {
-        minIndex = minIndex == null ? -1L : minIndex;
+        minIndex = minIndex == null ? 0L : minIndex;
         long lastIndex = inclusive ? minIndex -1L : minIndex;
         return searchClient.openStream(collection, lastIndex, maxSize).toList();
     }

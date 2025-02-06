@@ -14,73 +14,51 @@
 
 package io.fluxcapacitor.common;
 
-import lombok.AllArgsConstructor;
-import lombok.Value;
+import lombok.NonNull;
 
-import java.time.Clock;
-import java.time.Duration;
-import java.time.Instant;
-import java.util.Optional;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.function.BiConsumer;
+import java.util.function.Consumer;
 import java.util.function.Function;
-import java.util.function.Supplier;
 
-import static java.util.Optional.ofNullable;
+public interface MemoizingFunction<K, V> extends Function<K, V> {
 
-@AllArgsConstructor
-public class MemoizingFunction<K, V> implements Function<K, V> {
-    private static final Entry nullValue = new Entry(null);
-    private final ConcurrentHashMap<Object, Entry> map = new ConcurrentHashMap<>();
-    private final Function<K, V> delegate;
-    private final Duration lifespan;
-    private final Supplier<Clock> clock;
+    void clear();
 
-    public MemoizingFunction(Function<K, V> delegate) {
-        this(delegate, null, null);
-    }
+    V remove(K key);
 
-    @SuppressWarnings("unchecked")
+    boolean isCached(K key);
+
+    void forEach(Consumer<? super V> consumer);
+
     @Override
-    public V apply(K key) {
-        Entry result = map.compute(
-                Optional.<Object>ofNullable(key).orElse(nullValue),
-                (k, v) -> v == null || (v.expiry != null && v.expiry.isBefore(clock.get().instant())) ? ofNullable(
-                        delegate.apply(k == nullValue ? null : key))
-                        .map(value -> new Entry(value,
-                                                lifespan == null ? null :
-                                                        clock.get().instant().plus(lifespan)))
-                        .orElse(nullValue) : v);
-        return (V) result.getValue();
-    }
+    @NonNull
+    default <K1> MemoizingFunction<K1, V> compose(@NonNull Function<? super K1, ? extends K> before) {
+        MemoizingFunction<K, V> origin = this;
 
-    public void clear() {
-        map.clear();
-    }
+        return new MemoizingFunction<>() {
+            @Override
+            public V apply(K1 key) {
+                return origin.apply(before.apply(key));
+            }
 
-    @SuppressWarnings("unchecked")
-    public V remove(K key) {
-        return (V) Optional.ofNullable(map.remove(key)).map(Entry::getValue);
-    }
+            @Override
+            public V remove(K1 key) {
+                return origin.remove(before.apply(key));
+            }
 
-    public boolean isCached(K key) {
-        return key == null || map.containsKey(key);
-    }
+            @Override
+            public boolean isCached(K1 key) {
+                return origin.isCached(before.apply(key));
+            }
 
-    @SuppressWarnings("unchecked")
-    public void forEach(BiConsumer<? super K, ? super V> consumer) {
-        map.forEach((k, e) -> consumer.accept((K) k, (V) e.value));
-    }
+            @Override
+            public void forEach(Consumer<? super V> consumer) {
+                origin.forEach(consumer);
+            }
 
-    @Value
-    @AllArgsConstructor
-    static class Entry {
-
-        Object value;
-        Instant expiry;
-
-        Entry(Object value) {
-            this(value, null);
-        }
+            @Override
+            public void clear() {
+                origin.clear();
+            }
+        };
     }
 }

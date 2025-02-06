@@ -35,7 +35,7 @@ import java.util.WeakHashMap;
 
 @Slf4j
 @AllArgsConstructor
-public class TestClient implements Client {
+public class SpyingClient implements Client {
     private final Map<Object, Object> spiedComponents = new WeakHashMap<>();
 
     private final Client delegate;

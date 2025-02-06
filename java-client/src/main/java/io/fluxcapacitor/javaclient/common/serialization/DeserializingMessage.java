@@ -82,7 +82,7 @@ public class DeserializingMessage implements HasMessage {
 
     public DeserializingMessage(SerializedMessage message, Function<Class<?>, Object> payload,
                                 MessageType messageType, String topic) {
-        this(new DeserializingObject<>(message, payload), messageType, null);
+        this(new DeserializingObject<>(message, payload), messageType, topic);
     }
 
     public DeserializingMessage(DeserializingObject<byte[], SerializedMessage> delegate, MessageType messageType,

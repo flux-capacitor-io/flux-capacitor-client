@@ -14,32 +14,10 @@
 
 package io.fluxcapacitor.common;
 
-import java.time.Clock;
-import java.time.Duration;
 import java.util.function.Supplier;
 
-public class MemoizingSupplier<T> implements Supplier<T> {
-    private static final Object singleton = new Object();
-    private final MemoizingFunction<Object, T> delegate;
+public interface MemoizingSupplier<T> extends Supplier<T> {
+    boolean isCached();
 
-    public MemoizingSupplier(Supplier<T> delegate) {
-        this(delegate, null, null);
-    }
-
-    public MemoizingSupplier(Supplier<T> delegate, Duration lifespan, Supplier<Clock> clockSupplier) {
-        this.delegate = new MemoizingFunction<>(o -> delegate.get(), lifespan, clockSupplier);
-    }
-
-    @Override
-    public T get() {
-        return delegate.apply(singleton);
-    }
-
-    public boolean isCached() {
-        return delegate.isCached(singleton);
-    }
-
-    public void clear() {
-        delegate.clear();
-    }
+    void clear();
 }

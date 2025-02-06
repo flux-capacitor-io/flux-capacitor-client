@@ -17,45 +17,76 @@ package io.fluxcapacitor.javaclient.tracking.handling;
 import io.fluxcapacitor.javaclient.FluxCapacitor;
 import io.fluxcapacitor.javaclient.search.SearchTest.SomeDocument;
 import io.fluxcapacitor.javaclient.test.TestFixture;
+import lombok.AllArgsConstructor;
+import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
 public class HandleDocumentTest {
 
-    final TestFixture testFixture = TestFixture.createAsync();
-
-    @Test
-    void handleDocument_class() {
-        testFixture.registerHandlers(new Object() {
-                    @HandleDocument(SomeDocument.class)
-                    void handleClass() {
-                        FluxCapacitor.publishEvent("someDocument");
-                    }
-                }).whenExecuting(fc -> FluxCapacitor.index(new SomeDocument()).get())
-                .expectEvents("someDocument");
+    @Nested
+    class SyncTests extends TestMethods {
+        public SyncTests() {
+            super(TestFixture.create());
+        }
     }
 
-    @Test
-    void handleDocument_collectionName() {
-        testFixture.registerHandlers(new Object() {
-                    @HandleDocument(collectionName = "someDoc")
-                    void handleName() {
-                        FluxCapacitor.publishEvent("someDocument");
-                    }
-                }).whenExecuting(fc -> FluxCapacitor.index(new SomeDocument()).get())
-                .expectEvents("someDocument");
+    @Nested
+    class AsyncTests extends TestMethods {
+        public AsyncTests() {
+            super(TestFixture.createAsync());
+        }
     }
 
-    @Test
-    void handleDocument_firstParam() {
-        testFixture
-                .registerHandlers(new Object() {
-                    @HandleDocument
-                    void handle(SomeDocument document) {
-                        FluxCapacitor.publishEvent("someDocument");
-                    }
-                })
-                .whenExecuting(fc -> FluxCapacitor.index(new SomeDocument()).get())
-                .expectEvents("someDocument");
+    @AllArgsConstructor
+    private abstract static class TestMethods {
+        TestFixture testFixture;
+
+        @Test
+        void handleDocument_class() {
+            testFixture.registerHandlers(new Object() {
+                        @HandleDocument(documentClass = SomeDocument.class)
+                        void handleClass() {
+                            FluxCapacitor.publishEvent("someDocument");
+                        }
+                        @HandleDocument("otherDoc")
+                        void handleName() {
+                            FluxCapacitor.publishEvent("otherDocument");
+                        }
+                    }).whenExecuting(fc -> FluxCapacitor.index(new SomeDocument()).get())
+                    .expectOnlyEvents("someDocument");
+        }
+
+        @Test
+        void handleDocument_collectionName() {
+            testFixture.registerHandlers(new Object() {
+                        @HandleDocument("someDoc")
+                        void handleName() {
+                            FluxCapacitor.publishEvent("someDocument");
+                        }
+                        @HandleDocument("otherDoc")
+                        void handleOther() {
+                            FluxCapacitor.publishEvent("otherDocument");
+                        }
+                    }).whenExecuting(fc -> FluxCapacitor.index(new SomeDocument()).get())
+                    .expectOnlyEvents("someDocument")
+                    .andThen()
+                    .whenExecuting(fc -> FluxCapacitor.index("foo", "otherDoc").get())
+                    .expectOnlyEvents("otherDocument");
+        }
+
+        @Test
+        void handleDocument_firstParam() {
+            testFixture
+                    .registerHandlers(new Object() {
+                        @HandleDocument
+                        void handle(SomeDocument document) {
+                            FluxCapacitor.publishEvent("someDocument");
+                        }
+                    })
+                    .whenExecuting(fc -> FluxCapacitor.index(new SomeDocument()).get())
+                    .expectEvents("someDocument");
+        }
+
     }
 
 }

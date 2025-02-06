@@ -31,24 +31,22 @@ import java.lang.annotation.Target;
 @Target({ElementType.METHOD, ElementType.CONSTRUCTOR})
 @HandleMessage(MessageType.DOCUMENT)
 public @interface HandleDocument {
+    /**
+     * Optional parameter to specify the collection name. If set, the class returned in {@link #documentClass()}
+     * is ignored.
+     */
+    String value() default "";
 
     /**
-     * Specifies the document class to be handled. If the class is annotated with {@link Searchable} or has an
+     * Optional parameter to specify the class of the documents to be handled. If the class is annotated with {@link Searchable} or has an
      * annotation that itself is annotated with {@link Searchable}, the annotation will be used to determine the
      * document collection, otherwise the simple name of the class will be used as document collection.
      * <p>
-     * If {@link #collectionName()} is specified the returned class here does not matter.
+     * If {@link #value()} is specified the returned class here will be ignored.
      *
      * @see Searchable
      */
-    Class<?> value() default Void.class;
-
-    /**
-     * Optional parameter to specify the collection name. If set, the class returned in {@link #value()} is ignored.
-     */
-    String collectionName() default "";
+    Class<?> documentClass() default Void.class;
 
     boolean disabled() default false;
-
-    Class<?>[] allowedClasses() default {};
 }

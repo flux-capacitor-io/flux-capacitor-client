@@ -14,6 +14,9 @@
 
 package io.fluxcapacitor.javaclient.common;
 
+import io.fluxcapacitor.common.DefaultMemoizingBiFunction;
+import io.fluxcapacitor.common.DefaultMemoizingFunction;
+import io.fluxcapacitor.common.DefaultMemoizingSupplier;
 import io.fluxcapacitor.common.MemoizingBiFunction;
 import io.fluxcapacitor.common.MemoizingFunction;
 import io.fluxcapacitor.common.MemoizingSupplier;
@@ -156,16 +159,16 @@ public class ClientUtils {
     }
 
     public static <T> MemoizingSupplier<T> memoize(Supplier<T> supplier, Duration lifespan) {
-        return new MemoizingSupplier<>(supplier, lifespan, FluxCapacitor::currentClock);
+        return new DefaultMemoizingSupplier<>(supplier, lifespan, FluxCapacitor::currentClock);
     }
 
     public static <K, V> MemoizingFunction<K, V> memoize(Function<K, V> supplier, Duration lifespan) {
-        return new MemoizingFunction<>(supplier, lifespan, FluxCapacitor::currentClock);
+        return new DefaultMemoizingFunction<>(supplier, lifespan, FluxCapacitor::currentClock);
     }
 
     public static <T, U, R> MemoizingBiFunction<T, U, R> memoize(BiFunction<T, U, R> supplier,
                                                                  Duration lifespan) {
-        return new MemoizingBiFunction<>(supplier, lifespan, FluxCapacitor::currentClock);
+        return new DefaultMemoizingBiFunction<>(supplier, lifespan, FluxCapacitor::currentClock);
     }
 
     public static String determineSearchCollection(@NonNull Object c) {
@@ -201,11 +204,10 @@ public class ClientUtils {
     public static String getTopic(HandleDocument handleDocument, Executable executable) {
         return Optional.ofNullable(handleDocument)
                 .filter(h -> !h.disabled())
-                .flatMap(h -> Optional.ofNullable(h.collectionName()).filter(s -> !s.isBlank())
-                .or(() -> Void.class.equals(h.value()) ? Optional.empty() :
-                        Optional.of(ClientUtils.determineSearchCollection(h.value()))))
-                .or(() -> Arrays.stream(executable.getParameters()).findFirst().map(
-                        (Parameter parameter) -> parameter.getType()).map(
+                .flatMap(h -> Optional.ofNullable(h.value()).filter(s -> !s.isBlank())
+                .or(() -> Void.class.equals(h.documentClass()) ? Optional.empty() :
+                        Optional.of(ClientUtils.determineSearchCollection(h.documentClass()))))
+                .or(() -> Arrays.stream(executable.getParameters()).findFirst().map(Parameter::getType).map(
                         ClientUtils::determineSearchCollection))
                 .filter(s -> !s.isBlank()).orElse(null);
     }

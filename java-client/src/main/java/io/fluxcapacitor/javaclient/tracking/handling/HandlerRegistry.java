@@ -24,6 +24,10 @@ import java.util.concurrent.CompletableFuture;
 
 public interface HandlerRegistry extends HasLocalHandlers {
 
+    static HandlerRegistry noOp() {
+        return NoOpHandlerRegistry.INSTANCE;
+    }
+
     Optional<CompletableFuture<Object>> handle(DeserializingMessage message);
 
     default HandlerRegistry andThen(HandlerRegistry next) {
@@ -57,6 +61,11 @@ public interface HandlerRegistry extends HasLocalHandlers {
         }
 
         @Override
+        public boolean hasLocalHandlers() {
+            return first.hasLocalHandlers() || second.hasLocalHandlers();
+        }
+
+        @Override
         public void setSelfHandlerFilter(HandlerFilter selfHandlerFilter) {
             first.setSelfHandlerFilter(selfHandlerFilter);
             second.setSelfHandlerFilter(selfHandlerFilter);
@@ -65,6 +74,30 @@ public interface HandlerRegistry extends HasLocalHandlers {
         @Override
         public Registration registerHandler(Object target, HandlerFilter handlerFilter) {
             return first.registerHandler(target, handlerFilter).merge(second.registerHandler(target, handlerFilter));
+        }
+    }
+
+    enum NoOpHandlerRegistry implements HandlerRegistry {
+        INSTANCE;
+
+        @Override
+        public Optional<CompletableFuture<Object>> handle(DeserializingMessage message) {
+            return Optional.empty();
+        }
+
+        @Override
+        public boolean hasLocalHandlers() {
+            return false;
+        }
+
+        @Override
+        public void setSelfHandlerFilter(HandlerFilter selfHandlerFilter) {
+            //no op
+        }
+
+        @Override
+        public Registration registerHandler(Object target, HandlerFilter handlerFilter) {
+            return Registration.noOp();
         }
     }
 }

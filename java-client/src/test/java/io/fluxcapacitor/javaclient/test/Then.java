@@ -154,6 +154,63 @@ public interface Then<R> {
     }
     
     /*
+        Custom topics
+     */
+
+    /**
+     * Test if the given requests got published on given custom topic.
+     * <p>
+     * A request may be an instance of {@link Message} in which case it will be tested against published requests
+     * including any of the Message's metadata. Otherwise, the request is tested against published requests using the
+     * passed value as payload without additional metadata.
+     * <p>
+     * A request may also be an instance of {@link Predicate}, hamcrest matcher, or Class. A request may also refer to a
+     * json resource in the class path of the unit test by passing a string ending in `.json`, e.g.
+     * "expected/create-user.json".
+     */
+    Then<R> expectCustom(String topic, Object... requests);
+
+    /**
+     * Test if a request got published on given custom topic that matches the given predicate.
+     */
+    default <T> Then<R> expectCustom(String topic, Predicate<T> predicate) {
+        return expectCustom(topic, (Object) predicate);
+    }
+
+    /**
+     * Test if the given requests are the *only* requests that got published on given custom topic.
+     * <p>
+     * A request may be an instance of {@link Message} in which case it will be tested against published requests
+     * including any of the Message's metadata. Otherwise, the request is tested against published requests using the
+     * passed value as payload without additional metadata.
+     * <p>
+     * A request may also be an instance of {@link Predicate}, hamcrest matcher, or Class. A request may also refer to a
+     * json resource in the class path of the unit test by passing a string ending in `.json`, e.g.
+     * "expected/create-user.json".
+     */
+    Then<R> expectOnlyCustom(String topic, Object... requests);
+
+    /**
+     * Assert that the given requests did *not* get published on given custom topic.
+     * <p>
+     * A request may be an instance of {@link Message} in which case it will be tested against published requests
+     * including any of the Message's metadata. Otherwise, the request is tested against published requests using the
+     * passed value as payload without additional metadata.
+     * <p>
+     * A request may also be an instance of {@link Predicate}, hamcrest matcher, or Class. A request may also refer to a
+     * json resource in the class path of the unit test by passing a string ending in `.json`, e.g.
+     * "expected/create-user.json".
+     */
+    Then<R> expectNoCustomLike(String topic, Object... requests);
+
+    /**
+     * Assert that no requests got published on given custom topic.
+     */
+    default Then<R> expectNoCustom(String topic) {
+        return expectOnlyCustom(topic);
+    }
+    
+    /*
         Queries
      */
 

@@ -131,6 +131,50 @@ public interface When {
     Then<Object> whenQueryByUser(Object user, Object query);
 
     /**
+     * Test expected behavior of handling the given message for given custom topic, including any side effects.
+     * <p>
+     * The message may be an instance of {@link Message} in which case it will be issued as is. Otherwise, the
+     * message issued using the passed value as payload without additional metadata.
+     */
+    Then<Object> whenCustom(String topic, Object message);
+
+    /**
+     * Test expected behavior of handling the given request for given custom topic, including any side effects.
+     * <p>
+     * The request may be an instance of {@link Message} in which case it will be issued as is. Otherwise, the request is
+     * issued using the passed value as payload without additional metadata.
+     */
+    @SuppressWarnings("unchecked")
+    default <R> Then<R> whenCustom(String topic, Request<R> request) {
+        return (Then<R>) whenCustom(topic, (Object) request);
+    }
+
+    /**
+     * Test expected result of the given request for given custom topic issued by the given user (or side effects if any).
+     * <p>
+     * The given {@code user} may be an instance of {@link User} or an object representing the user's id. In the latter
+     * case, the test fixture will use the {@link UserProvider} to provide the user by id.
+     * <p>
+     * The request may be an instance of {@link Message} in which case it will be issued as is. Otherwise, the request is
+     * issued using the passed value as payload without additional metadata.
+     */
+    @SuppressWarnings("unchecked")
+    default <R> Then<R> whenCustomByUser(Object user, String topic, Request<R> request) {
+        return (Then<R>) whenCustomByUser(user, topic, (Object) request);
+    }
+
+    /**
+     * Test expected result of the given message for given custom topic issued by the given user (or side effects if any).
+     * <p>
+     * The given {@code user} may be an instance of {@link User} or an object representing the user's id. In the latter
+     * case, the test fixture will use the {@link UserProvider} to provide the user by id.
+     * <p>
+     * The message may be an instance of {@link Message} in which case it will be issued as is. Otherwise, the message is
+     * issued using the passed value as payload without additional metadata.
+     */
+    Then<Object> whenCustomByUser(Object user, String topic, Object message);
+
+    /**
      * Test expected behavior of handling the given event, including any side effects.
      * <p>
      * The event may be an instance of {@link Message} in which case it will be issued as is. Otherwise, the event is

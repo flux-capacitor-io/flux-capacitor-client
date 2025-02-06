@@ -75,7 +75,7 @@ package com.example;
 
 import io.fluxcapacitor.javaclient.FluxCapacitor;
 import io.fluxcapacitor.javaclient.configuration.DefaultFluxCapacitor;
-import io.fluxcapacitor.javaclient.configuration.client.InMemoryClient;
+import io.fluxcapacitor.javaclient.configuration.client.LocalClient;
 
 public class ExampleMain {
     public static void main(final String[] args) {

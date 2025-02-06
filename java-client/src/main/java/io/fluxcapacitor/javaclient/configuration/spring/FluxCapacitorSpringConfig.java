@@ -24,7 +24,7 @@ import io.fluxcapacitor.javaclient.configuration.ApplicationProperties;
 import io.fluxcapacitor.javaclient.configuration.DefaultFluxCapacitor;
 import io.fluxcapacitor.javaclient.configuration.FluxCapacitorBuilder;
 import io.fluxcapacitor.javaclient.configuration.client.Client;
-import io.fluxcapacitor.javaclient.configuration.client.InMemoryClient;
+import io.fluxcapacitor.javaclient.configuration.client.LocalClient;
 import io.fluxcapacitor.javaclient.configuration.client.WebSocketClient;
 import io.fluxcapacitor.javaclient.persisting.keyvalue.KeyValueStore;
 import io.fluxcapacitor.javaclient.persisting.repository.AggregateRepository;
@@ -144,7 +144,7 @@ public class FluxCapacitorSpringConfig implements BeanPostProcessor {
                         return WebSocketClient.newInstance(config);
                     }
                     log.info("Using in-memory Flux Capacitor client");
-                    return InMemoryClient.newInstance();
+                    return LocalClient.newInstance();
                 }));
 
         FluxCapacitorCustomizer customizer = customizers.stream()

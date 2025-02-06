@@ -20,14 +20,13 @@ import io.fluxcapacitor.javaclient.configuration.client.WebSocketClient;
 
 import java.net.URLEncoder;
 
-import static io.micrometer.common.util.StringUtils.isBlank;
 import static java.nio.charset.StandardCharsets.UTF_8;
 
 public class ServiceUrlBuilder {
 
     public static String producerUrl(MessageType messageType, String topic, WebSocketClient.ClientConfig clientConfig) {
         String url = buildUrl(clientConfig, ServicePathBuilder.producerPath(messageType));
-        if (!isBlank(topic)) {
+        if (topic != null) {
             url += "&topic=" + URLEncoder.encode(topic, UTF_8);
         }
         return url;
@@ -35,7 +34,7 @@ public class ServiceUrlBuilder {
 
     public static String consumerUrl(MessageType messageType, String topic, WebSocketClient.ClientConfig clientConfig) {
         String url = buildUrl(clientConfig, ServicePathBuilder.consumerPath(messageType));
-        if (!isBlank(topic)) {
+        if (topic != null) {
             url += "&topic=" + URLEncoder.encode(topic, UTF_8);
         }
         if (clientConfig.getTypeFilter() != null) {

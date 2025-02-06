@@ -19,39 +19,27 @@ import jakarta.websocket.CloseReason;
 import jakarta.websocket.Endpoint;
 import jakarta.websocket.EndpointConfig;
 import jakarta.websocket.Session;
+import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
-import java.util.Optional;
-import java.util.function.Function;
-
-import static io.fluxcapacitor.common.ObjectUtils.memoize;
-
 @Slf4j
+@AllArgsConstructor
 public class MultiClientEndpoint extends Endpoint {
 
-    private final MemoizingFunction<String, Endpoint> endpointSupplier;
-
-    public MultiClientEndpoint(Function<String, Endpoint> endpointSupplier) {
-        this.endpointSupplier = memoize(endpointSupplier);
-    }
+    private final MemoizingFunction<Session, Endpoint> endpointSupplier;
 
     @Override
     public void onOpen(Session session, EndpointConfig config) {
-        endpointSupplier.apply(getProjectId(session)).onOpen(session, config);
+        endpointSupplier.apply(session).onOpen(session, config);
     }
 
     @Override
     public void onClose(Session session, CloseReason closeReason) {
-        endpointSupplier.apply(getProjectId(session)).onClose(session, closeReason);
+        endpointSupplier.apply(session).onClose(session, closeReason);
     }
 
     @Override
     public void onError(Session session, Throwable thr) {
-        endpointSupplier.apply(getProjectId(session)).onError(session, thr);
-    }
-
-    private String getProjectId(Session session) {
-        return Optional.ofNullable(session.getRequestParameterMap().get("projectId")).map(list -> list.get(0))
-                .orElse("public");
+        endpointSupplier.apply(session).onError(session, thr);
     }
 }

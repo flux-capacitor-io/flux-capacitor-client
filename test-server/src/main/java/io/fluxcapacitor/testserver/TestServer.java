@@ -15,10 +15,12 @@
 package io.fluxcapacitor.testserver;
 
 import io.fluxcapacitor.common.MessageType;
+import io.fluxcapacitor.common.ObjectUtils;
+import io.fluxcapacitor.common.Pair;
 import io.fluxcapacitor.common.tracking.HasMessageStore;
 import io.fluxcapacitor.common.tracking.MessageStore;
 import io.fluxcapacitor.javaclient.configuration.client.Client;
-import io.fluxcapacitor.javaclient.configuration.client.InMemoryClient;
+import io.fluxcapacitor.javaclient.configuration.client.LocalClient;
 import io.fluxcapacitor.javaclient.scheduling.client.LocalSchedulingClient;
 import io.fluxcapacitor.javaclient.scheduling.client.SchedulingClient;
 import io.fluxcapacitor.testserver.metrics.DefaultMetricsLog;
@@ -34,11 +36,16 @@ import io.fluxcapacitor.testserver.websocket.SearchEndpoint;
 import io.undertow.Undertow;
 import io.undertow.server.handlers.GracefulShutdownHandler;
 import io.undertow.server.handlers.PathHandler;
+import jakarta.websocket.Endpoint;
+import jakarta.websocket.Session;
 import lombok.AllArgsConstructor;
+import lombok.Value;
+import lombok.With;
 import lombok.experimental.Delegate;
 import lombok.extern.slf4j.Slf4j;
 
 import java.util.Arrays;
+import java.util.List;
 import java.util.function.Function;
 
 import static io.fluxcapacitor.common.MessageType.COMMAND;
@@ -60,16 +67,19 @@ import static io.fluxcapacitor.common.ServicePathBuilder.producerPath;
 import static io.fluxcapacitor.common.ServicePathBuilder.schedulingPath;
 import static io.fluxcapacitor.common.ServicePathBuilder.searchPath;
 import static io.fluxcapacitor.testserver.websocket.WebsocketDeploymentUtils.deploy;
+import static io.fluxcapacitor.testserver.websocket.WebsocketDeploymentUtils.deployFromSession;
+import static io.fluxcapacitor.testserver.websocket.WebsocketDeploymentUtils.getProjectId;
 import static io.undertow.Handlers.path;
 import static io.undertow.util.Headers.CONTENT_TYPE;
 import static java.lang.Runtime.getRuntime;
 import static java.lang.String.format;
+import static java.util.Optional.ofNullable;
 
 @Slf4j
 public class TestServer {
 
     private static final Function<String, Client> clients = memoize(
-            projectId -> new TestServerProject(InMemoryClient.newInstance()));
+            projectId -> new TestServerProject(LocalClient.newInstance()));
     private static final Function<String, MetricsLog> metricsLogSupplier =
             memoize(projectId -> new DefaultMetricsLog(getMessageStore(projectId, METRICS)));
 
@@ -90,6 +100,18 @@ public class TestServer {
         pathHandler = deploy(projectId -> new ConsumerEndpoint(getMessageStore(projectId, NOTIFICATION), NOTIFICATION)
                                      .metricsLog(metricsLogSupplier.apply(projectId)),
                              format("/%s/", consumerPath(NOTIFICATION)), pathHandler);
+
+        for (MessageType messageType : MessageType.values()) {
+            switch (messageType) {
+                case DOCUMENT, CUSTOM -> pathHandler = deployFromSession(
+                        ObjectUtils.<String, String, Endpoint>memoize((projectId, topic) -> new ConsumerEndpoint(
+                                getMessageStore(projectId, messageType, topic), messageType)
+                                        .metricsLog(metricsLogSupplier.apply(projectId)))
+                                .compose(s -> new Pair<>(getProjectId(s), getTopic(s))),
+                        format("/%s/", consumerPath(messageType)), pathHandler);
+            }
+        }
+
         pathHandler = deploy(projectId -> new EventSourcingEndpoint(clients.apply(projectId).getEventStoreClient())
                 .metricsLog(metricsLogSupplier.apply(projectId)), format("/%s/", eventSourcingPath()), pathHandler);
         pathHandler = deploy(projectId -> new KeyValueEndPoint(clients.apply(projectId).getKeyValueClient())
@@ -126,22 +148,46 @@ public class TestServer {
     }
 
     private static MessageStore getMessageStore(String projectId, MessageType messageType) {
+        return getMessageStore(projectId, messageType, null);
+    }
+
+    private static MessageStore getMessageStore(String projectId, MessageType messageType, String topic) {
         if (messageType == NOTIFICATION) {
             messageType = EVENT;
         }
-        var client = (HasMessageStore) clients.apply(projectId).getTrackingClient(messageType);
+        var client = (HasMessageStore) clients.apply(projectId).getTrackingClient(messageType, topic);
         return client.getMessageStore();
     }
 
     @AllArgsConstructor
     static class TestServerProject implements Client {
         @Delegate
-        private final InMemoryClient delegate;
+        private final LocalClient delegate;
 
         @Override
         public SchedulingClient getSchedulingClient() {
             return new TestServerScheduleStore(
                     ((LocalSchedulingClient) delegate.getSchedulingClient()).getMessageStore());
         }
+    }
+
+    static String getTopic(Session s) {
+        return ofNullable(s.getRequestParameterMap().get("topic")).map(List::getFirst)
+                .orElseThrow(() -> new IllegalStateException("Topic parameter missing"));
+    }
+
+    static StoreIdentifier getStoreIdentifier(MessageType messageType, Session s) {
+        return new StoreIdentifier(
+                getProjectId(s), messageType,
+                ofNullable(s.getRequestParameterMap().get("topic")).map(List::getFirst)
+                        .orElseThrow(() -> new IllegalStateException("Topic parameter missing")));
+    }
+
+    @Value
+    public static class StoreIdentifier {
+        String projectId;
+        @With
+        MessageType messageType;
+        String topic;
     }
 }

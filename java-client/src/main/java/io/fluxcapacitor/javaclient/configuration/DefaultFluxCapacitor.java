@@ -48,6 +48,8 @@ import io.fluxcapacitor.javaclient.persisting.repository.DefaultAggregateReposit
 import io.fluxcapacitor.javaclient.persisting.search.DefaultDocumentStore;
 import io.fluxcapacitor.javaclient.persisting.search.DocumentSerializer;
 import io.fluxcapacitor.javaclient.persisting.search.DocumentStore;
+import io.fluxcapacitor.javaclient.persisting.search.client.InMemorySearchStore;
+import io.fluxcapacitor.javaclient.persisting.search.client.LocalDocumentHandlerRegistry;
 import io.fluxcapacitor.javaclient.publishing.*;
 import io.fluxcapacitor.javaclient.publishing.correlation.CorrelatingInterceptor;
 import io.fluxcapacitor.javaclient.publishing.correlation.CorrelationDataProvider;
@@ -120,6 +122,7 @@ import java.util.stream.Stream;
 
 import static io.fluxcapacitor.common.MessageType.COMMAND;
 import static io.fluxcapacitor.common.MessageType.CUSTOM;
+import static io.fluxcapacitor.common.MessageType.DOCUMENT;
 import static io.fluxcapacitor.common.MessageType.ERROR;
 import static io.fluxcapacitor.common.MessageType.EVENT;
 import static io.fluxcapacitor.common.MessageType.METRICS;
@@ -499,7 +502,6 @@ public class DefaultFluxCapacitor implements FluxCapacitor {
                     config.toBuilder().name(String.format("%s_%s", client.name(), config.getName())).build()));
 
             KeyValueStore keyValueStore = new DefaultKeyValueStore(client.getKeyValueClient(), serializer);
-            DocumentStore documentStore = new DefaultDocumentStore(client.getSearchClient(), documentSerializer);
 
             //enable message routing
             Arrays.stream(MessageType.values()).forEach(
@@ -586,7 +588,7 @@ public class DefaultFluxCapacitor implements FluxCapacitor {
                 Create components
              */
 
-            var handlerRepositorySupplier = DefaultHandlerRepository.repositorySupplier(documentStore);
+
 
             ResultGateway webResponseGateway = new WebResponseGateway(client.getGatewayClient(WEBRESPONSE),
                                                                       serializer, dispatchInterceptors.get(WEBRESPONSE),
@@ -607,6 +609,16 @@ public class DefaultFluxCapacitor implements FluxCapacitor {
                                               new PayloadParameterResolver(),
                                               new EntityParameterResolver()));
 
+            AtomicReference<DocumentStore> documentStore = new AtomicReference<>();
+            var handlerRepositorySupplier = DefaultHandlerRepository.repositorySupplier(documentStore::get);
+            documentStore.set(new DefaultDocumentStore(
+                    client.getSearchClient(), documentSerializer,
+                    client.getSearchClient() instanceof InMemorySearchStore searchStore
+                            ? new LocalDocumentHandlerRegistry(searchStore, localHandlerRegistry(
+                                    DOCUMENT, handlerDecorators, parameterResolvers, handlerRepositorySupplier),
+                                                               dispatchInterceptors.get(DOCUMENT), serializer)
+                            : HandlerRegistry.noOp()));
+
             //event sourcing
             var entityMatcher = new DefaultEntityHelper(parameterResolvers, disablePayloadValidation);
             EventStore eventStore = new DefaultEventStore(client.getEventStoreClient(), client.getGatewayClient(EVENT),
@@ -619,7 +631,8 @@ public class DefaultFluxCapacitor implements FluxCapacitor {
             Cache aggregateCache = new NamedCache(cache, id -> "$Aggregate:" + id);
             AggregateRepository aggregateRepository = new DefaultAggregateRepository(
                     eventStore, client.getEventStoreClient(), snapshotStore, aggregateCache,
-                    relationshipsCache, documentStore, serializer, dispatchInterceptors.get(EVENT), entityMatcher);
+                    relationshipsCache, documentStore.get(),
+                    serializer, dispatchInterceptors.get(EVENT), entityMatcher);
 
             if (!disableAutomaticAggregateCaching) {
                 aggregateRepository = new CachingAggregateRepository(
@@ -725,7 +738,7 @@ public class DefaultFluxCapacitor implements FluxCapacitor {
                     doBuild(trackingMap, customGateways, commandGateway, queryGateway, eventGateway,
                             resultGateway, errorGateway, metricsGateway, webRequestGateway,
                             aggregateRepository, snapshotStore,
-                            eventStore, keyValueStore, documentStore, scheduler, userProvider,
+                            eventStore, keyValueStore, documentStore.get(), scheduler, userProvider,
                             cache, serializer, correlationDataProvider, identityProvider,
                             propertySource instanceof DecryptingPropertySource dps
                                     ? dps : new DecryptingPropertySource(propertySource),

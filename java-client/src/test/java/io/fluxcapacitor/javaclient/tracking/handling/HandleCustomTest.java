@@ -24,35 +24,38 @@ public class HandleCustomTest {
 
     @Test
     void syncFixture() {
-        testFixture.whenApplying(fc -> fc.customGateway("foo").sendAndWait("test"))
+        testFixture
+                .whenCustom("foo", "test")
                 .expectResult("foo: test")
                 .andThen()
-                .whenApplying(fc -> fc.customGateway("bar").sendAndWait("test"))
+                .whenCustom("bar", "test")
                 .expectResult("bar: test")
                 .andThen()
-                .whenApplying(fc -> fc.customGateway("foo").sendAndWait(123))
+                .whenCustom("foo", 123)
                 .expectResult("foo: 123")
                 .andThen()
-                .whenExecuting(fc -> fc.customGateway("customEvent").sendAndForget("test"))
+                .whenCustom("customEvent", "test")
                 .expectNoResult()
-                .expectEvents("custom: test");
+                .expectEvents("custom: test")
+                .expectCustom("other", "test");
     }
 
     @Test
     void asyncFixture() {
         TestFixture.createAsync(new Handler())
-                .whenApplying(fc -> fc.customGateway("foo").sendAndWait("test"))
+                .whenCustom("foo", "test")
                 .expectResult("foo: test")
                 .andThen()
-                .whenApplying(fc -> fc.customGateway("bar").sendAndWait("test"))
+                .whenCustom("bar", "test")
                 .expectResult("bar: test")
                 .andThen()
-                .whenApplying(fc -> fc.customGateway("foo").sendAndWait(123))
+                .whenCustom("foo", 123)
                 .expectResult("foo: 123")
                 .andThen()
-                .whenExecuting(fc -> fc.customGateway("customEvent").sendAndForget("test"))
+                .whenCustom("customEvent", "test")
                 .expectNoResult()
                 .expectEvents("custom: test")
+                .expectCustom("other", "test")
         ;
     }
 
@@ -75,6 +78,7 @@ public class HandleCustomTest {
         @HandleCustom("customEvent")
         void handleCustomEvent(String input) {
             FluxCapacitor.publishEvent("custom: " + input);
+            FluxCapacitor.get().customGateway("other").sendAndForget(input);
         }
     }
 

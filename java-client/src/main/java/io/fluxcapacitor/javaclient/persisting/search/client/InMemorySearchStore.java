@@ -47,13 +47,13 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentSkipListMap;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Predicate;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
-import static java.util.Collections.emptyList;
 import static java.util.function.Function.identity;
 import static java.util.stream.Collectors.groupingBy;
 import static java.util.stream.Collectors.mapping;
@@ -71,7 +71,7 @@ public class InMemorySearchStore implements SearchClient {
 
     private final AtomicLong nextIndex = new AtomicLong();
     private final Map<String, ConcurrentSkipListMap<Long, SerializedMessage>> messageLogs = new ConcurrentHashMap<>();
-    private final Map<String, List<Consumer<List<SerializedMessage>>>> monitors = new ConcurrentHashMap<>();
+    private final List<BiConsumer<String, List<SerializedMessage>>> monitors = new CopyOnWriteArrayList<>();
 
     @Override
     public CompletableFuture<Void> index(List<SerializedDocument> documents, Guarantee guarantee, boolean ifNotExists) {
@@ -83,14 +83,6 @@ public class InMemorySearchStore implements SearchClient {
         this.documents.putAll(updates);
         storeMessages(updates);
         return CompletableFuture.completedFuture(null);
-    }
-
-    protected SerializedMessage asSerializedMessage(SerializedDocument document) {
-        long index = nextIndex.updateAndGet(IndexUtils::nextIndex);
-        var result = new SerializedMessage(document.getDocument(), Metadata.empty(), document.getId(),
-                                           IndexUtils.millisFromIndex(index));
-        result.setIndex(index);
-        return result;
     }
 
     @Override
@@ -204,28 +196,45 @@ public class InMemorySearchStore implements SearchClient {
     }
 
     protected synchronized void storeMessages(Map<String, SerializedDocument> updates) {
-        Map<String, List<SerializedMessage>> byCollection
-                = updates.values().stream().collect(groupingBy(SerializedDocument::getCollection, mapping(
-                this::asSerializedMessage, toList())));
-        try {
-            byCollection.forEach((collection, messages) -> {
-                var log = messageLogs.computeIfAbsent(collection, c -> new ConcurrentSkipListMap<>());
-                messages.forEach(m -> log.put(m.getIndex(), m));
-            });
-        } finally {
-            byCollection.forEach(this::notifyMonitors);
+        if (!monitors.isEmpty()) {
+            Map<String, List<SerializedMessage>> byCollection
+                    = updates.values().stream().collect(groupingBy(SerializedDocument::getCollection, mapping(
+                    this::asSerializedMessage, toList())));
+            try {
+                byCollection.forEach((collection, messages) -> {
+                    var log = messageLogs.computeIfAbsent(collection, c -> new ConcurrentSkipListMap<>());
+                    messages.forEach(m -> log.put(m.getIndex(), m));
+                });
+            } finally {
+                byCollection.forEach(this::notifyMonitors);
+            }
         }
+    }
+
+    protected SerializedMessage asSerializedMessage(SerializedDocument document) {
+        long index = nextIndex.updateAndGet(IndexUtils::nextIndex);
+        var result = new SerializedMessage(document.getDocument(), Metadata.empty(), document.getId(),
+                                           IndexUtils.millisFromIndex(index));
+        result.setIndex(index);
+        return result;
     }
 
     protected void notifyMonitors(String collection, List<SerializedMessage> messages) {
         this.notifyAll();
-        monitors.getOrDefault(collection, emptyList()).forEach(c -> c.accept(messages));
+        monitors.forEach(m -> m.accept(collection, messages));
     }
 
-    public synchronized Registration registerMonitor(String collection, Consumer<List<SerializedMessage>> monitor) {
-        var list = monitors.computeIfAbsent(collection, c -> new CopyOnWriteArrayList<>());
-        list.add(monitor);
-        return () -> list.remove(monitor);
+    public synchronized Registration registerMonitor(BiConsumer<String, List<SerializedMessage>> monitor) {
+        monitors.add(monitor);
+        return () -> monitors.remove(monitor);
+    }
+
+    public Registration registerMonitor(String collection, Consumer<List<SerializedMessage>> monitor) {
+        return registerMonitor((c, messages) -> {
+            if (Objects.equals(collection, c)) {
+                monitor.accept(messages);
+            }
+        });
     }
 
     @Override

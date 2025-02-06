@@ -117,8 +117,8 @@ public abstract class AbstractClient implements Client {
     @Override
     public void shutDown() {
         shutdownTasks.forEach(ClientUtils::tryRun);
-        trackingClients.forEach((k, v) -> v.close());
-        gatewayClients.forEach((k, v) -> v.close());
+        trackingClients.forEach(TrackingClient::close);
+        gatewayClients.forEach(GatewayClient::close);
         getEventStoreClient().close();
         getSchedulingClient().close();
         getKeyValueClient().close();
