@@ -72,8 +72,7 @@ public interface DocumentStore {
         if (object instanceof Collection<?> col) {
             return CompletableFuture.allOf(col.stream().map(v -> index(v, collection)).toArray(CompletableFuture[]::new));
         }
-        Class<?> type = object.getClass();
-        var searchParams = ofNullable(getSearchParameters(type)).orElse(SearchParameters.defaultSearchParameters);
+        var searchParams = ofNullable(getSearchParameters(object.getClass())).orElse(SearchParameters.defaultSearchParameters);
         Instant begin = ReflectionUtils.<Instant>readProperty(searchParams.getTimestampPath(), object).orElse(null);
         Instant end = ReflectionUtils.hasProperty(searchParams.getEndPath(), object)
                 ? ReflectionUtils.<Instant>readProperty(searchParams.getEndPath(), object).orElse(null) : begin;
@@ -83,7 +82,12 @@ public interface DocumentStore {
     }
 
     default CompletableFuture<Void> index(@NonNull Object object, Object id, Object collection) {
-        return index(object, id, collection, null);
+        var searchParams = ofNullable(getSearchParameters(object.getClass()))
+                .orElse(SearchParameters.defaultSearchParameters);
+        Instant begin = ReflectionUtils.<Instant>readProperty(searchParams.getTimestampPath(), object).orElse(null);
+        Instant end = ReflectionUtils.hasProperty(searchParams.getEndPath(), object)
+                ? ReflectionUtils.<Instant>readProperty(searchParams.getEndPath(), object).orElse(null) : begin;
+        return index(object, id, collection, begin, end);
     }
 
     @SneakyThrows

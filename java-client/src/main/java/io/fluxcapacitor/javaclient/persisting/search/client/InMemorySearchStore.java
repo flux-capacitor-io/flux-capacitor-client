@@ -213,7 +213,8 @@ public class InMemorySearchStore implements SearchClient {
 
     protected SerializedMessage asSerializedMessage(SerializedDocument document) {
         long index = nextIndex.updateAndGet(IndexUtils::nextIndex);
-        var result = new SerializedMessage(document.getDocument(), Metadata.empty(), document.getId(),
+        Metadata metadata = Metadata.of("$start", document.getTimestamp(), "$end", document.getEnd());
+        var result = new SerializedMessage(document.getDocument(), metadata, document.getId(),
                                            IndexUtils.millisFromIndex(index));
         result.setIndex(index);
         return result;

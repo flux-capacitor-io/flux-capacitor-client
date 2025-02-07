@@ -18,7 +18,6 @@ import io.fluxcapacitor.common.api.Data;
 import io.fluxcapacitor.common.api.SerializedObject;
 import io.fluxcapacitor.common.reflection.ReflectionUtils;
 import io.fluxcapacitor.common.serialization.Converter;
-import io.fluxcapacitor.common.serialization.Revision;
 import io.fluxcapacitor.javaclient.common.serialization.casting.Caster;
 import io.fluxcapacitor.javaclient.common.serialization.casting.DefaultCasterChain;
 import lombok.Getter;
@@ -38,7 +37,6 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
-import java.util.Optional;
 import java.util.Set;
 import java.util.SortedMap;
 import java.util.SortedSet;
@@ -49,6 +47,7 @@ import java.util.function.Function;
 import java.util.stream.Stream;
 
 import static io.fluxcapacitor.common.reflection.ReflectionUtils.ifClass;
+import static io.fluxcapacitor.javaclient.common.ClientUtils.getRevisionNumber;
 import static java.lang.String.format;
 import static java.nio.charset.StandardCharsets.UTF_8;
 
@@ -140,14 +139,6 @@ public abstract class AbstractSerializer<I> implements Serializer {
 
     protected String getTypeString(Object object) {
         return asString(getType(object));
-    }
-
-    protected Optional<Revision> getRevision(Object object) {
-        return Optional.ofNullable(object).map(o -> o.getClass().getAnnotation(Revision.class));
-    }
-
-    protected int getRevisionNumber(Object object) {
-        return getRevision(object).map(Revision::value).orElse(0);
     }
 
     protected abstract byte[] doSerialize(Object object) throws Exception;
@@ -249,7 +240,7 @@ public abstract class AbstractSerializer<I> implements Serializer {
     public Object downcast(Object object, int desiredRevision) {
         return downcastIntermediate(new Data<>(
                 asIntermediateValue(object), asString(getType(object)),
-                getRevision(object).map(Revision::value).orElse(0), format), desiredRevision);
+                getRevisionNumber(object), format), desiredRevision);
     }
 
     @Override

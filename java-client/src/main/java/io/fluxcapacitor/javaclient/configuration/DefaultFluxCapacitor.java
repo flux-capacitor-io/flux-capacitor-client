@@ -68,6 +68,7 @@ import io.fluxcapacitor.javaclient.tracking.TrackingException;
 import io.fluxcapacitor.javaclient.tracking.handling.DefaultHandlerFactory;
 import io.fluxcapacitor.javaclient.tracking.handling.DefaultResponseMapper;
 import io.fluxcapacitor.javaclient.tracking.handling.DeserializingMessageParameterResolver;
+import io.fluxcapacitor.javaclient.tracking.handling.DocumentHandlerDecorator;
 import io.fluxcapacitor.javaclient.tracking.handling.HandlerDecorator;
 import io.fluxcapacitor.javaclient.tracking.handling.HandlerRegistry;
 import io.fluxcapacitor.javaclient.tracking.handling.LocalHandlerRegistry;
@@ -117,6 +118,7 @@ import java.util.concurrent.ForkJoinPool;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Function;
+import java.util.function.Supplier;
 import java.util.function.UnaryOperator;
 import java.util.stream.Stream;
 
@@ -572,6 +574,12 @@ public class DefaultFluxCapacitor implements FluxCapacitor {
             handlerDecorators.computeIfPresent(WEBREQUEST, (t, i) -> i.andThen(new WebsocketHandlerDecorator()));
             dispatchInterceptors.computeIfPresent(WEBRESPONSE, (t, i) -> new WebsocketResponseInterceptor().andThen(i));
 
+            //add document handler decorator
+            AtomicReference<DocumentStore> documentStore = new AtomicReference<>();
+            Supplier<DocumentStore> documentStoreSupplier = documentStore::get;
+            handlerDecorators.computeIfPresent(
+                    DOCUMENT, (t, i) -> new DocumentHandlerDecorator(documentStoreSupplier).andThen(i));
+
             if (!disableWebResponseCompression) {
                 dispatchInterceptors.computeIfPresent(
                         WEBRESPONSE, (t, i) -> new WebResponseCompressingInterceptor().andThen(i));
@@ -609,8 +617,7 @@ public class DefaultFluxCapacitor implements FluxCapacitor {
                                               new PayloadParameterResolver(),
                                               new EntityParameterResolver()));
 
-            AtomicReference<DocumentStore> documentStore = new AtomicReference<>();
-            var handlerRepositorySupplier = DefaultHandlerRepository.repositorySupplier(documentStore::get);
+            var handlerRepositorySupplier = DefaultHandlerRepository.repositorySupplier(documentStoreSupplier);
             documentStore.set(new DefaultDocumentStore(
                     client.getSearchClient(), documentSerializer,
                     client.getSearchClient() instanceof InMemorySearchStore searchStore

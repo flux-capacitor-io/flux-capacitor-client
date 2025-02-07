@@ -25,6 +25,7 @@ import io.fluxcapacitor.common.ObjectUtils;
 import io.fluxcapacitor.common.ThrowingRunnable;
 import io.fluxcapacitor.common.handling.HandlerInvoker;
 import io.fluxcapacitor.common.reflection.ReflectionUtils;
+import io.fluxcapacitor.common.serialization.Revision;
 import io.fluxcapacitor.javaclient.FluxCapacitor;
 import io.fluxcapacitor.javaclient.modeling.SearchParameters;
 import io.fluxcapacitor.javaclient.persisting.search.Searchable;
@@ -169,6 +170,11 @@ public class ClientUtils {
     public static <T, U, R> MemoizingBiFunction<T, U, R> memoize(BiFunction<T, U, R> supplier,
                                                                  Duration lifespan) {
         return new DefaultMemoizingBiFunction<>(supplier, lifespan, FluxCapacitor::currentClock);
+    }
+
+    public static int getRevisionNumber(Object object) {
+        return Optional.ofNullable(object).map(o -> o.getClass().getAnnotation(Revision.class))
+                .map(Revision::value).orElse(0);
     }
 
     public static String determineSearchCollection(@NonNull Object c) {

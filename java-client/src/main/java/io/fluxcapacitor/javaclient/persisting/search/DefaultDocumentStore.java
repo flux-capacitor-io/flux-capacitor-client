@@ -336,12 +336,17 @@ public class DefaultDocumentStore implements DocumentStore, HasLocalHandlers {
                     ? defaultFetchSize : Math.min(maxSize, defaultFetchSize));
         }
 
+        @SuppressWarnings({"unchecked", "rawtypes"})
         protected <T> Stream<SearchHit<T>> fetchHitStream(Integer maxSize, Class<T> type, int fetchSize) {
+            Stream<SearchHit<SerializedDocument>> hitStream = client.search(
+                    SearchDocuments.builder().query(queryBuilder.build()).maxSize(maxSize).sorting(sorting)
+                            .pathFilters(pathFilters).skip(skip).build(), fetchSize);
+            if (SerializedDocument.class.equals(type)) {
+                return (Stream) hitStream;
+            }
             Function<SerializedDocument, T> convertFunction = type == null
                     ? serializer::fromDocument : document -> serializer.fromDocument(document, type);
-            return client.search(SearchDocuments.builder().query(queryBuilder.build()).maxSize(maxSize).sorting(sorting)
-                                         .pathFilters(pathFilters).skip(skip).build(), fetchSize)
-                    .map(hit -> hit.map(convertFunction));
+            return hitStream.map(hit -> hit.map(convertFunction));
         }
 
         @Override

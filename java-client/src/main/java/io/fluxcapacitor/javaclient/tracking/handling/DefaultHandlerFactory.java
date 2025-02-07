@@ -15,6 +15,7 @@
 package io.fluxcapacitor.javaclient.tracking.handling;
 
 import io.fluxcapacitor.common.MessageType;
+import io.fluxcapacitor.common.ObjectUtils;
 import io.fluxcapacitor.common.handling.DefaultHandler;
 import io.fluxcapacitor.common.handling.Handler;
 import io.fluxcapacitor.common.handling.HandlerConfiguration;
@@ -71,7 +72,7 @@ public class DefaultHandlerFactory implements HandlerFactory {
                                                                  List<HandlerInterceptor> extraInterceptors) {
         Class<?> targetClass = HandlerFactory.getTargetClass(target);
         HandlerDecorator handlerDecorator =
-                Stream.concat(extraInterceptors.stream(), Stream.of(defaultDecorator))
+                ObjectUtils.concat(extraInterceptors.stream(), Stream.of(defaultDecorator))
                         .reduce(HandlerDecorator::andThen).orElseThrow();
         return Optional.of(handlerAnnotation)
                 .map(a -> HandlerConfiguration.<DeserializingMessage>builder().methodAnnotation(a)
