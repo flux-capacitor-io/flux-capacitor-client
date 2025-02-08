@@ -17,10 +17,9 @@ package io.fluxcapacitor.javaclient.common.serialization;
 import io.fluxcapacitor.common.api.Data;
 import io.fluxcapacitor.common.api.SerializedObject;
 import io.fluxcapacitor.common.reflection.ReflectionUtils;
-import io.fluxcapacitor.common.serialization.Revision;
+import io.fluxcapacitor.common.serialization.Converter;
 import io.fluxcapacitor.javaclient.common.serialization.casting.Caster;
-import io.fluxcapacitor.javaclient.common.serialization.casting.CasterChain;
-import io.fluxcapacitor.javaclient.common.serialization.casting.Converter;
+import io.fluxcapacitor.javaclient.common.serialization.casting.DefaultCasterChain;
 import lombok.Getter;
 import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
@@ -38,7 +37,6 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
-import java.util.Optional;
 import java.util.Set;
 import java.util.SortedMap;
 import java.util.SortedSet;
@@ -49,20 +47,21 @@ import java.util.function.Function;
 import java.util.stream.Stream;
 
 import static io.fluxcapacitor.common.reflection.ReflectionUtils.ifClass;
+import static io.fluxcapacitor.javaclient.common.ClientUtils.getRevisionNumber;
 import static java.lang.String.format;
 import static java.nio.charset.StandardCharsets.UTF_8;
 
 @Slf4j
 public abstract class AbstractSerializer<I> implements Serializer {
-    private final Caster<SerializedObject<byte[], ?>> upcasterChain;
-    private final Caster<Data<I>> downcasterChain;
+    private final Caster<SerializedObject<byte[], ?>, SerializedObject<?, ?>> upcasterChain;
+    private final Caster<Data<I>, Data<I>> downcasterChain;
     @Getter
     private final String format;
     private final Map<String, String> typeCasters = new ConcurrentHashMap<>();
 
-    protected AbstractSerializer(Collection<?> casterCandidates, Converter<I> converter, String format) {
-        this.upcasterChain = CasterChain.createUpcaster(casterCandidates, converter);
-        this.downcasterChain = CasterChain.create(casterCandidates, converter.getDataType(), true);
+    protected AbstractSerializer(Collection<?> casterCandidates, Converter<byte[], I> converter, String format) {
+        this.upcasterChain = DefaultCasterChain.createUpcaster(casterCandidates, converter);
+        this.downcasterChain = DefaultCasterChain.create(casterCandidates, converter.getOutputType(), true);
         this.format = format;
     }
 
@@ -142,14 +141,6 @@ public abstract class AbstractSerializer<I> implements Serializer {
         return asString(getType(object));
     }
 
-    protected Optional<Revision> getRevision(Object object) {
-        return Optional.ofNullable(object).map(o -> o.getClass().getAnnotation(Revision.class));
-    }
-
-    protected int getRevisionNumber(Object object) {
-        return getRevision(object).map(Revision::value).orElse(0);
-    }
-
     protected abstract byte[] doSerialize(Object object) throws Exception;
 
     @SuppressWarnings({"unchecked", "rawtypes"})
@@ -160,7 +151,7 @@ public abstract class AbstractSerializer<I> implements Serializer {
                 .map(s -> {
                     String type = s.data().getType();
                     String upcastedType = upcastType(type);
-                    return Objects.equals(type, upcastedType) ? s : s.withData(s.data().withType(upcastedType));
+                    return Objects.equals(type, upcastedType) ? s : s.withData((Data) s.data().withType(upcastedType));
                 })
                 .flatMap(s -> {
                     if (!Objects.equals(format, s.data().getFormat())) {
@@ -249,7 +240,7 @@ public abstract class AbstractSerializer<I> implements Serializer {
     public Object downcast(Object object, int desiredRevision) {
         return downcastIntermediate(new Data<>(
                 asIntermediateValue(object), asString(getType(object)),
-                getRevision(object).map(Revision::value).orElse(0), format), desiredRevision);
+                getRevisionNumber(object), format), desiredRevision);
     }
 
     @Override
@@ -305,7 +296,7 @@ public abstract class AbstractSerializer<I> implements Serializer {
         return Stream.empty();
     }
 
-    protected abstract Object doDeserialize(Data<byte[]> data, String type) throws Exception;
+    protected abstract Object doDeserialize(Data<?> data, String type) throws Exception;
 
     protected abstract I asIntermediateValue(Object input);
 }

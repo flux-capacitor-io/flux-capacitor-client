@@ -23,7 +23,6 @@ import lombok.With;
 @AllArgsConstructor
 public class SerializedMessage implements SerializedObject<byte[], SerializedMessage>, HasMetadata {
 
-    @With
     @NonNull
     private Data<byte[]> data;
     @With
@@ -37,6 +36,8 @@ public class SerializedMessage implements SerializedObject<byte[], SerializedMes
     private Long timestamp;
     private String messageId;
 
+    private transient Integer originalRevision;
+
     public SerializedMessage(Data<byte[]> data, Metadata metadata, String messageId, Long timestamp) {
         this.data = data;
         this.metadata = metadata;
@@ -47,6 +48,18 @@ public class SerializedMessage implements SerializedObject<byte[], SerializedMes
     @Override
     public Data<byte[]> data() {
         return data;
+    }
+
+    public int getOriginalRevision() {
+        return originalRevision == null ? data.getRevision() : originalRevision;
+    }
+
+    @Override
+    public SerializedMessage withData(@NonNull Data<byte[]> data) {
+        return this.data == data ? this : new SerializedMessage(data, this.metadata, this.segment, this.index,
+                                                                this.source, this.target, this.requestId,
+                                                                this.timestamp, this.messageId,
+                                                                this.data.getRevision());
     }
 
     @Override

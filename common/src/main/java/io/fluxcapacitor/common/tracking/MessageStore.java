@@ -17,6 +17,7 @@ package io.fluxcapacitor.common.tracking;
 import io.fluxcapacitor.common.Monitored;
 import io.fluxcapacitor.common.api.SerializedMessage;
 
+import java.time.Duration;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 
@@ -35,6 +36,8 @@ public interface MessageStore extends AutoCloseable, Monitored<List<SerializedMe
     }
 
     List<SerializedMessage> getBatch(Long minIndex, int maxSize, boolean inclusive);
+
+    void setRetentionTime(Duration retentionPeriod);
 
     @SuppressWarnings("unchecked")
     default <T extends MessageStore> T unwrap(Class<T> type) {

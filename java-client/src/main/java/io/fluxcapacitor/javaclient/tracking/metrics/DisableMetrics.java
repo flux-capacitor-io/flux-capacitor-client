@@ -32,13 +32,13 @@ public class DisableMetrics implements HandlerInterceptor, BatchInterceptor {
     @Override
     public Consumer<MessageBatch> intercept(Consumer<MessageBatch> consumer, Tracker tracker) {
         return batch -> AdhocDispatchInterceptor.runWithAdhocInterceptor(() -> consumer.accept(batch),
-                                                                         (message, messageType) -> null, MessageType.METRICS);
+                                                                         (message, messageType, topic) -> null, MessageType.METRICS);
     }
 
     @Override
     public Function<DeserializingMessage, Object> interceptHandling(Function<DeserializingMessage, Object> function,
                                                                     HandlerInvoker invoker) {
         return m -> runWithAdhocInterceptor(() -> function.apply(m),
-                                            (message, messageType) -> null, MessageType.METRICS);
+                                            (message, messageType, topic) -> null, MessageType.METRICS);
     }
 }

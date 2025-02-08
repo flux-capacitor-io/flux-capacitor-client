@@ -33,6 +33,7 @@ public class Data<T> implements SerializedObject<T, Data<T>> {
     Supplier<T> value;
     @With
     String type;
+    @With
     int revision;
     @With
     String format;

@@ -29,12 +29,12 @@ import io.fluxcapacitor.javaclient.tracking.FluxCapacitorInterceptor;
 import io.fluxcapacitor.javaclient.tracking.Tracker;
 import io.fluxcapacitor.javaclient.tracking.TrackingException;
 import io.fluxcapacitor.javaclient.tracking.metrics.PauseTrackerEvent;
+import jakarta.annotation.Nullable;
 import lombok.extern.slf4j.Slf4j;
 
 import java.time.Duration;
 import java.util.Arrays;
 import java.util.List;
-import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
@@ -105,8 +105,23 @@ public class DefaultTracker implements Runnable, Registration {
      */
     public static Registration start(Consumer<List<SerializedMessage>> consumer, MessageType messageType,
                                      ConsumerConfiguration config, FluxCapacitor fluxCapacitor) {
+        return start(consumer, messageType, null, config, fluxCapacitor);
+    }
+
+    /**
+     * Starts one or more trackers. Messages will be passed to the given consumer. Once the consumer is done the
+     * position of the tracker is automatically updated.
+     * <p>
+     * {@link FluxCapacitorInterceptor} will be added to the list of batch interceptors in the given configuration. This
+     * ensures that a thread local {@link FluxCapacitor} instance will always be available during tracking.
+     * <p>
+     * Each tracker started is using a single thread. To track in parallel configure the number of trackers using
+     * {@link ConsumerConfiguration}.
+     */
+    public static Registration start(Consumer<List<SerializedMessage>> consumer, MessageType messageType, String topic,
+                                     ConsumerConfiguration config, FluxCapacitor fluxCapacitor) {
         return start(
-                consumer, messageType, config.toBuilder().clearBatchInterceptors().batchInterceptors(
+                consumer, messageType, topic, config.toBuilder().clearBatchInterceptors().batchInterceptors(
                         Stream.concat(Stream.of(new FluxCapacitorInterceptor(fluxCapacitor)),
                                       config.getBatchInterceptors().stream()).collect(toList())).build(),
                 fluxCapacitor.client());
@@ -121,10 +136,22 @@ public class DefaultTracker implements Runnable, Registration {
      */
     public static Registration start(Consumer<List<SerializedMessage>> consumer, MessageType messageType,
                                      ConsumerConfiguration config, Client client) {
+        return start(consumer, messageType, null, config, client);
+    }
+
+    /**
+     * Starts one or more trackers. Messages will be passed to the given consumer. Once the consumer is done the
+     * position of the tracker is automatically updated.
+     * <p>
+     * Each tracker started is using a single thread. To track in parallel configure the number of trackers using
+     * {@link ConsumerConfiguration}.
+     */
+    public static Registration start(Consumer<List<SerializedMessage>> consumer, MessageType messageType,
+                                     @Nullable String topic, ConsumerConfiguration config, Client client) {
         List<DefaultTracker> trackers = IntStream.range(0, config.getThreads())
                 .mapToObj(i -> new DefaultTracker(consumer, config, new Tracker(
-                        config.getName(), config.getTrackerIdFactory().apply(client), messageType, config, null),
-                                                  client.getTrackingClient(messageType))).toList();
+                        config.getName(), config.getTrackerIdFactory().apply(client), messageType, topic, config, null),
+                                                  client.getTrackingClient(messageType, topic))).toList();
         for (int i = 0; i < trackers.size(); i++) {
             new Thread(threadGroup, trackers.get(i),
                        format("%s%s-%d", config.getName(),
@@ -135,10 +162,10 @@ public class DefaultTracker implements Runnable, Registration {
     }
 
     public static Registration start(Consumer<List<SerializedMessage>> consumer, ConsumerConfiguration config,
-                                     TrackingClient trackingClient) {
+                                     TrackingClient trackingClient, String topic) {
         List<DefaultTracker> trackers = IntStream.range(0, config.getThreads())
                 .mapToObj(i -> new DefaultTracker(consumer, config, new Tracker(
-                        config.getName(), UUID.randomUUID().toString(), trackingClient.getMessageType(),
+                        config.getName(), UUID.randomUUID().toString(), trackingClient.getMessageType(), topic,
                         config, null), trackingClient)).toList();
         for (int i = 0; i < trackers.size(); i++) {
             new Thread(threadGroup, trackers.get(i),
@@ -194,7 +221,7 @@ public class DefaultTracker implements Runnable, Registration {
                 duration = flowRegulator.pauseDuration().orElse(null);
                 if (duration != null) {
                     if (notified.compareAndSet(false, true)) {
-                        Optional.ofNullable(metricsGateway).ifPresent(g -> g.publish(new PauseTrackerEvent(
+                        ofNullable(metricsGateway).ifPresent(g -> g.publish(new PauseTrackerEvent(
                                 tracker.getName(), tracker.getTrackerId()), Metadata.of(
                                         "messageType", trackingClient.getMessageType())));
                     }
@@ -202,7 +229,7 @@ public class DefaultTracker implements Runnable, Registration {
                 }
             } while (duration != null);
         } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
+            currentThread().interrupt();
         }
     }
 
@@ -317,7 +344,7 @@ public class DefaultTracker implements Runnable, Registration {
     @Override
     public void cancel() {
         if (running.compareAndSet(true, false)) {
-            if (!Thread.currentThread().equals(thread.get())) {
+            if (!currentThread().equals(thread.get())) {
                 //wait for processing to complete
                 if (processing) {
                     while (processing) {
@@ -331,7 +358,7 @@ public class DefaultTracker implements Runnable, Registration {
                 } else {
                     //interrupt message fetching
                     try {
-                        Optional.ofNullable(thread.get()).ifPresent(Thread::interrupt);
+                        ofNullable(thread.get()).ifPresent(Thread::interrupt);
                     } catch (Throwable e) {
                         log.warn("Not allowed to cancel tracker {}", tracker.getName(), e);
                     } finally {

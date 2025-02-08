@@ -46,6 +46,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
@@ -143,21 +144,34 @@ public class DefaultTracking implements Tracking {
 
     protected Registration startTracking(ConsumerConfiguration configuration,
                                          List<Handler<DeserializingMessage>> handlers, FluxCapacitor fluxCapacitor) {
-        return DefaultTracker.start(createConsumer(configuration, handlers), messageType, configuration, fluxCapacitor);
+        var topics = ClientUtils.getTopics(messageType, handlers.stream().<Class<?>>map(Handler::getTargetClass)
+                .filter(Objects::nonNull).toList());
+        if (topics.isEmpty()) {
+            return switch (messageType) {
+                case DOCUMENT, CUSTOM -> Registration.noOp();
+                default -> DefaultTracker.start(
+                        createConsumer(configuration, handlers), messageType, configuration, fluxCapacitor);
+            };
+        }
+        return topics.stream().map(topic -> DefaultTracker.start(
+                        createConsumer(configuration, handlers), messageType, topic, configuration, fluxCapacitor))
+                .reduce(Registration::merge).orElseGet(Registration::noOp);
     }
 
     protected Consumer<List<SerializedMessage>> createConsumer(ConsumerConfiguration config,
                                                                List<Handler<DeserializingMessage>> handlers) {
         return serializedMessages -> {
+            String topic = Tracker.current().orElseThrow().getTopic();
             try {
-                handleBatch(serializer.deserializeMessages(serializedMessages.stream(), messageType))
+                handleBatch(serializer.deserializeMessages(serializedMessages.stream(), messageType, topic))
                         .forEach(m -> handlers.forEach(h -> tryHandle(m, h, config, true)));
             } catch (BatchProcessingException e) {
                 throw e;
             } catch (Throwable e) {
                 config.getErrorHandler().handleError(
                         e, format("Failed to handle batch of consumer %s", config.getName()),
-                        () -> handleBatch(serializer.deserializeMessages(serializedMessages.stream(), messageType))
+                        () -> handleBatch(
+                                serializer.deserializeMessages(serializedMessages.stream(), messageType, topic))
                                 .forEach(m -> handlers.forEach(h -> tryHandle(m, h, config, false))));
             }
         };

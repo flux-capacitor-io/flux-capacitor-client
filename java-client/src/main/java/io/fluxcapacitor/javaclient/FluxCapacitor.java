@@ -23,6 +23,7 @@ import io.fluxcapacitor.common.api.Metadata;
 import io.fluxcapacitor.common.api.search.SearchQuery;
 import io.fluxcapacitor.common.application.PropertySource;
 import io.fluxcapacitor.common.caching.Cache;
+import io.fluxcapacitor.javaclient.common.ClientUtils;
 import io.fluxcapacitor.javaclient.common.IdentityProvider;
 import io.fluxcapacitor.javaclient.common.Message;
 import io.fluxcapacitor.javaclient.common.UuidFactory;
@@ -46,6 +47,7 @@ import io.fluxcapacitor.javaclient.persisting.search.Searchable;
 import io.fluxcapacitor.javaclient.publishing.CommandGateway;
 import io.fluxcapacitor.javaclient.publishing.ErrorGateway;
 import io.fluxcapacitor.javaclient.publishing.EventGateway;
+import io.fluxcapacitor.javaclient.publishing.GenericGateway;
 import io.fluxcapacitor.javaclient.publishing.MetricsGateway;
 import io.fluxcapacitor.javaclient.publishing.QueryGateway;
 import io.fluxcapacitor.javaclient.publishing.ResultGateway;
@@ -75,6 +77,7 @@ import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Function;
 import java.util.stream.Stream;
 
+import static io.fluxcapacitor.common.MessageType.CUSTOM;
 import static io.fluxcapacitor.common.MessageType.EVENT;
 import static io.fluxcapacitor.common.MessageType.NOTIFICATION;
 import static java.util.Arrays.stream;
@@ -839,8 +842,12 @@ public interface FluxCapacitor extends AutoCloseable {
             Registration local = handlers.stream().flatMap(h -> Stream
                             .of(commandGateway().registerHandler(h), queryGateway().registerHandler(h),
                                 eventGateway().registerHandler(h), eventStore().registerHandler(h),
-                                errorGateway().registerHandler(h), webRequestGateway().registerHandler(h)))
+                                errorGateway().registerHandler(h), webRequestGateway().registerHandler(h),
+                                ClientUtils.getTopics(CUSTOM, h).stream()
+                                        .map(topic -> customGateway(topic).registerHandler(h))
+                                        .reduce(Registration::merge).orElse(Registration.noOp())))
                     .reduce(Registration::merge).orElse(Registration.noOp());
+
             Registration tracking = stream(MessageType.values()).map(t -> tracking(t).start(this, handlers))
                     .reduce(Registration::merge).orElse(Registration.noOp());
             return tracking.merge(local);
@@ -908,6 +915,11 @@ public interface FluxCapacitor extends AutoCloseable {
      * Returns the gateway for sending web requests.
      */
     WebRequestGateway webRequestGateway();
+
+    /**
+     * Returns the gateway for given custom message topic.
+     */
+    GenericGateway customGateway(String topic);
 
     /**
      * Returns a client to assist with the tracking of a given message type.

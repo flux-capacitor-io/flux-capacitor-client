@@ -24,7 +24,8 @@ public enum MessageType {
     NOTIFICATION(false, false), QUERY(true, false),
     RESULT(false, true), SCHEDULE(false, false), ERROR(false, false),
     METRICS(false, false),
-    WEBREQUEST(true, false), WEBRESPONSE(false, true);
+    WEBREQUEST(true, false), WEBRESPONSE(false, true),
+    DOCUMENT(false, false), CUSTOM(true, false),;
 
     private final boolean request;
     private final boolean response;

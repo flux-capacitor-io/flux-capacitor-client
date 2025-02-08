@@ -52,6 +52,7 @@ public class DefaultGenericGateway implements GenericGateway {
     private final Serializer serializer;
     private final DispatchInterceptor dispatchInterceptor;
     private final MessageType messageType;
+    private final String topic;
     @Delegate
     private final HandlerRegistry localHandlerRegistry;
     private final ResponseMapper responseMapper;
@@ -63,16 +64,16 @@ public class DefaultGenericGateway implements GenericGateway {
     public CompletableFuture<Void> sendAndForget(Guarantee guarantee, Message... messages) {
         List<SerializedMessage> serializedMessages = new ArrayList<>();
         for (Message message : messages) {
-            message = dispatchInterceptor.interceptDispatch(message, messageType);
+            message = dispatchInterceptor.interceptDispatch(message, messageType, topic);
             if (message == null) {
                 continue;
             }
-            dispatchInterceptor.monitorDispatch(message, messageType);
+            dispatchInterceptor.monitorDispatch(message, messageType, topic);
             Optional<CompletableFuture<Object>> localResult
-                    = localHandlerRegistry.handle(new DeserializingMessage(message, messageType, serializer));
+                    = localHandlerRegistry.handle(new DeserializingMessage(message, messageType, topic, serializer));
             if (localResult.isEmpty()) {
                 SerializedMessage serializedMessage = dispatchInterceptor.modifySerializedMessage(
-                        message.serialize(serializer), message, messageType);
+                        message.serialize(serializer), message, messageType, topic);
                     if (serializedMessage == null) {
                         continue;
                 }
@@ -103,14 +104,14 @@ public class DefaultGenericGateway implements GenericGateway {
     public List<CompletableFuture<Message>> sendForMessages(Message... messages) {
         List<Object> results = new ArrayList<>(messages.length);
         for (Message message : messages) {
-            message = dispatchInterceptor.interceptDispatch(message, messageType);
+            message = dispatchInterceptor.interceptDispatch(message, messageType, topic);
             if (message == null) {
                 results.add(emptyReturnMessage());
                 continue;
             }
-            dispatchInterceptor.monitorDispatch(message, messageType);
+            dispatchInterceptor.monitorDispatch(message, messageType, topic);
             Optional<CompletableFuture<Object>> localResult
-                    = localHandlerRegistry.handle(new DeserializingMessage(message, messageType, serializer));
+                    = localHandlerRegistry.handle(new DeserializingMessage(message, messageType, topic, serializer));
             if (localResult.isPresent()) {
                 CompletableFuture<Message> c = localResult.get().thenApply(responseMapper::map);
                 String messageId = message.getMessageId();
@@ -118,7 +119,7 @@ public class DefaultGenericGateway implements GenericGateway {
                 results.add(c.whenComplete((m, e) -> callbacks.remove(messageId)));
             } else {
                 SerializedMessage serializedMessage = dispatchInterceptor.modifySerializedMessage(
-                        message.serialize(serializer), message, messageType);
+                        message.serialize(serializer), message, messageType, topic);
                 if (serializedMessage == null) {
                     results.add(emptyReturnMessage());
                     continue;

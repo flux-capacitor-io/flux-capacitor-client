@@ -18,12 +18,15 @@ import io.fluxcapacitor.common.Guarantee;
 import io.fluxcapacitor.common.Monitored;
 import io.fluxcapacitor.common.api.SerializedMessage;
 
+import java.time.Duration;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 
 public interface GatewayClient extends AutoCloseable, Monitored<List<SerializedMessage>> {
 
     CompletableFuture<Void> append(Guarantee guarantee, SerializedMessage... messages);
+
+    CompletableFuture<Void> setRetentionTime(Duration duration, Guarantee guarantee);
 
     @Override
     void close();

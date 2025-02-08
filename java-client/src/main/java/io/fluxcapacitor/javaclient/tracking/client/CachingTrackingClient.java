@@ -55,7 +55,7 @@ import static java.util.stream.Collectors.toMap;
 @Slf4j
 public class CachingTrackingClient implements TrackingClient {
     @Getter
-    private final WebsocketTrackingClient delegate;
+    private final TrackingClient delegate;
     private final int maxCacheSize;
 
     private final ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(10);
@@ -80,8 +80,9 @@ public class CachingTrackingClient implements TrackingClient {
                     .name(CachingTrackingClient.class.getSimpleName()).build();
             registration = FluxCapacitor.getOptionally()
                     .map(fc -> DefaultTracker.start(this::cacheNewMessages, delegate.getMessageType(),
-                                                    cacheFillerConfig, fc))
-                    .orElseGet(() -> DefaultTracker.start(this::cacheNewMessages, cacheFillerConfig, delegate));
+                                                    delegate.getTopic(), cacheFillerConfig, fc))
+                    .orElseGet(() -> DefaultTracker.start(this::cacheNewMessages, cacheFillerConfig, delegate,
+                                                          delegate.getTopic()));
         }
         if (lastIndex != null && cache.containsKey(lastIndex)) {
             Instant deadline = now().plus(config.getMaxWaitDuration());
@@ -148,7 +149,7 @@ public class CachingTrackingClient implements TrackingClient {
     protected MessageBatch getMessageBatch(ConsumerConfiguration config, long minIndex, ClaimSegmentResult claim) {
         List<SerializedMessage> unfiltered = cache.tailMap(minIndex, false).values().stream().limit(
                 config.getMaxFetchSize()).collect(toList());
-        Long lastIndex = unfiltered.isEmpty() ? null : unfiltered.get(unfiltered.size() - 1).getIndex();
+        Long lastIndex = unfiltered.isEmpty() ? null : unfiltered.getLast().getIndex();
         return new MessageBatch(claim.getSegment(), filterMessages(
                 unfiltered, claim.getSegment(), claim.getPosition(), config), lastIndex, claim.getPosition());
     }
@@ -194,6 +195,12 @@ public class CachingTrackingClient implements TrackingClient {
     }
 
     @Override
+    public CompletableFuture<ClaimSegmentResult> claimSegment(String consumer, String trackerId, Long lastIndex,
+                                                              ConsumerConfiguration config) {
+        return delegate.claimSegment(consumer, trackerId, lastIndex, config);
+    }
+
+    @Override
     public CompletableFuture<Void> storePosition(String consumer, int[] segment, long lastIndex, Guarantee guarantee) {
         return delegate.storePosition(consumer, segment, lastIndex, guarantee);
     }
@@ -216,6 +223,11 @@ public class CachingTrackingClient implements TrackingClient {
     @Override
     public MessageType getMessageType() {
         return delegate.getMessageType();
+    }
+
+    @Override
+    public String getTopic() {
+        return delegate.getTopic();
     }
 
     @Override

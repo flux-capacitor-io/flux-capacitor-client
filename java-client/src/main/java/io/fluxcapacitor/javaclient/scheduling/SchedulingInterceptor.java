@@ -127,7 +127,7 @@ public class SchedulingInterceptor implements DispatchInterceptor, HandlerInterc
     }
 
     @Override
-    public Message interceptDispatch(Message message, MessageType messageType) {
+    public Message interceptDispatch(Message message, MessageType messageType, String topic) {
         if (messageType == MessageType.SCHEDULE) {
             message = message.withMetadata(
                     message.getMetadata()

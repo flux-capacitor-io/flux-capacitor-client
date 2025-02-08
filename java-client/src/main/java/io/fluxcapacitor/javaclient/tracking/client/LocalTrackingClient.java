@@ -18,6 +18,7 @@ import io.fluxcapacitor.common.Guarantee;
 import io.fluxcapacitor.common.MessageType;
 import io.fluxcapacitor.common.Registration;
 import io.fluxcapacitor.common.api.SerializedMessage;
+import io.fluxcapacitor.common.api.tracking.ClaimSegmentResult;
 import io.fluxcapacitor.common.api.tracking.MessageBatch;
 import io.fluxcapacitor.common.api.tracking.Position;
 import io.fluxcapacitor.common.api.tracking.Read;
@@ -49,17 +50,25 @@ public class LocalTrackingClient implements TrackingClient, GatewayClient, HasMe
 
     @Getter
     private final MessageType messageType;
+    @Getter
+    private final String topic;
 
-    public LocalTrackingClient(MessageType messageType, Duration messageExpiration) {
+    public LocalTrackingClient(MessageType messageType, String topic, Duration messageExpiration) {
         this.messageStore = new InMemoryMessageStore(messageType, messageExpiration);
         this.trackingStrategy = new DefaultTrackingStrategy(messageStore);
         this.positionStore = new InMemoryPositionStore();
         this.messageType = messageType;
+        this.topic = topic;
     }
 
     public LocalTrackingClient(MessageStore messageStore, MessageType messageType) {
+        this(messageStore, messageType, null);
+    }
+
+    public LocalTrackingClient(MessageStore messageStore, MessageType messageType, String topic) {
         this.messageStore = messageStore;
         this.messageType = messageType;
+        this.topic = topic;
         this.trackingStrategy = new DefaultTrackingStrategy(messageStore);
         this.positionStore = new InMemoryPositionStore();
     }
@@ -72,6 +81,12 @@ public class LocalTrackingClient implements TrackingClient, GatewayClient, HasMe
     @Override
     public CompletableFuture<Void> append(Guarantee guarantee, SerializedMessage... messages) {
         return messageStore.append(messages);
+    }
+
+    @Override
+    public CompletableFuture<Void> setRetentionTime(Duration duration, Guarantee guarantee) {
+        messageStore.setRetentionTime(duration);
+        return CompletableFuture.completedFuture(null);
     }
 
     @Override
@@ -94,6 +109,25 @@ public class LocalTrackingClient implements TrackingClient, GatewayClient, HasMe
     @Override
     public List<SerializedMessage> readFromIndex(long minIndex, int maxSize) {
         return messageStore.getBatch(minIndex, maxSize, true);
+    }
+
+    @Override
+    public CompletableFuture<ClaimSegmentResult> claimSegment(String consumer, String trackerId, Long lastIndex,
+                                                              ConsumerConfiguration config) {
+        CompletableFuture<ClaimSegmentResult> result = new CompletableFuture<>();
+        Read read = new Read(messageType, consumer, trackerId, config.getMaxFetchSize(),
+                             config.getMaxWaitDuration().toMillis(), config.getTypeFilter(),
+                             config.filterMessageTarget(), config.ignoreSegment(),
+                             config.singleTracker(), config.clientControlledIndex(),
+                             lastIndex == null ? -1L : lastIndex,
+                             Optional.ofNullable(config.getPurgeDelay()).map(Duration::toMillis)
+                                     .orElse(null));
+        trackingStrategy.claimSegment(
+                new WebSocketTracker(read, messageType, ManagementFactory.getRuntimeMXBean().getName(),
+                                     null, batch ->
+                        result.complete(new ClaimSegmentResult(read.getRequestId(), batch.getPosition(),
+                                                                     batch.getSegment()))), positionStore);
+        return result;
     }
 
     @Override

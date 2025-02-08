@@ -31,9 +31,25 @@ public interface Client {
 
     String applicationId();
 
-    GatewayClient getGatewayClient(MessageType messageType);
+    default GatewayClient getGatewayClient(MessageType messageType) {
+        switch (messageType) {
+            case DOCUMENT, CUSTOM -> throw new UnsupportedOperationException("Topic is required");
+        }
+        return getGatewayClient(messageType, null);
+    }
 
-    TrackingClient getTrackingClient(MessageType messageType);
+    GatewayClient getGatewayClient(MessageType messageType, String topic);
+
+    Registration monitorDispatch(ClientDispatchMonitor monitor, MessageType... messageTypes);
+
+    default TrackingClient getTrackingClient(MessageType messageType) {
+        switch (messageType) {
+            case DOCUMENT, CUSTOM -> throw new UnsupportedOperationException("Topic is required");
+        }
+        return getTrackingClient(messageType, null);
+    }
+
+    TrackingClient getTrackingClient(MessageType messageType, String topic);
 
     EventStoreClient getEventStoreClient();
 

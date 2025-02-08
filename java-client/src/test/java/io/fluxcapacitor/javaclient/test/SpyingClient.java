@@ -18,6 +18,7 @@ import io.fluxcapacitor.common.MessageType;
 import io.fluxcapacitor.common.Registration;
 import io.fluxcapacitor.common.reflection.ReflectionUtils;
 import io.fluxcapacitor.javaclient.configuration.client.Client;
+import io.fluxcapacitor.javaclient.configuration.client.ClientDispatchMonitor;
 import io.fluxcapacitor.javaclient.persisting.eventsourcing.client.EventStoreClient;
 import io.fluxcapacitor.javaclient.persisting.keyvalue.client.KeyValueClient;
 import io.fluxcapacitor.javaclient.persisting.search.client.SearchClient;
@@ -34,7 +35,7 @@ import java.util.WeakHashMap;
 
 @Slf4j
 @AllArgsConstructor
-public class TestClient implements Client {
+public class SpyingClient implements Client {
     private final Map<Object, Object> spiedComponents = new WeakHashMap<>();
 
     private final Client delegate;
@@ -69,13 +70,18 @@ public class TestClient implements Client {
     }
 
     @Override
-    public GatewayClient getGatewayClient(MessageType messageType) {
-        return decorate(delegate.getGatewayClient(messageType));
+    public GatewayClient getGatewayClient(MessageType messageType, String topic) {
+        return decorate(delegate.getGatewayClient(messageType, topic));
     }
 
     @Override
-    public TrackingClient getTrackingClient(MessageType messageType) {
-        var component = delegate.getTrackingClient(messageType);
+    public Registration monitorDispatch(ClientDispatchMonitor monitor, MessageType... messageTypes) {
+        return delegate.monitorDispatch(monitor, messageTypes);
+    }
+
+    @Override
+    public TrackingClient getTrackingClient(MessageType messageType, String topic) {
+        var component = delegate.getTrackingClient(messageType, topic);
         if (component instanceof CachingTrackingClient && !spiedComponents.containsKey(component)) {
             ReflectionUtils.setField("delegate", component,
                                      decorate(((CachingTrackingClient) component).getDelegate()));

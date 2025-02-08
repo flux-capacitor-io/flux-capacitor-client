@@ -24,6 +24,7 @@ import io.fluxcapacitor.javaclient.test.TestFixture;
 import io.fluxcapacitor.javaclient.test.spring.FluxCapacitorTestConfig;
 import io.fluxcapacitor.javaclient.tracking.Consumer;
 import io.fluxcapacitor.javaclient.tracking.handling.HandleCommand;
+import io.fluxcapacitor.javaclient.tracking.handling.HandleDocument;
 import io.fluxcapacitor.javaclient.tracking.handling.HandleEvent;
 import io.fluxcapacitor.javaclient.tracking.metrics.DisableMetrics;
 import io.fluxcapacitor.javaclient.tracking.metrics.ProcessBatchEvent;
@@ -125,6 +126,15 @@ class TestServerTest {
                 .<ProcessBatchEvent>expectMetric(e -> consumerName.equals(e.getConsumer()));
     }
 
+    @Test
+    void handleDocument() {
+        testFixture.whenExecuting(fc -> {
+                    FluxCapacitor.index("testDoc", "test").get();
+                    Thread.sleep(100);
+                })
+                .expectEvents("testDoc");
+    }
+
     @Configuration
     static class FooConfig {
         @Bean
@@ -140,12 +150,24 @@ class TestServerTest {
         public FooHandler fooHandler() {
             return new FooHandler();
         }
+
+        @Bean
+        DocumentHandler documentHandler() {
+            return new DocumentHandler();
+        }
     }
 
     private static class FooHandler {
         @HandleCommand
         public void handle(DoSomething command) {
             FluxCapacitor.publishEvent(command);
+        }
+    }
+
+    static class DocumentHandler {
+        @HandleDocument("test")
+        void handle(String doc) {
+            FluxCapacitor.publishEvent(doc);
         }
     }
 

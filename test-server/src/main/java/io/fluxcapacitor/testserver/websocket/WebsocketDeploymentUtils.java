@@ -14,6 +14,7 @@
 
 package io.fluxcapacitor.testserver.websocket;
 
+import io.fluxcapacitor.common.MemoizingFunction;
 import io.undertow.Undertow;
 import io.undertow.connector.ByteBufferPool;
 import io.undertow.server.DefaultByteBufferPool;
@@ -22,6 +23,7 @@ import io.undertow.servlet.Servlets;
 import io.undertow.servlet.api.DeploymentManager;
 import io.undertow.websockets.jsr.WebSocketDeploymentInfo;
 import jakarta.websocket.Endpoint;
+import jakarta.websocket.Session;
 import jakarta.websocket.server.ServerEndpointConfig;
 import lombok.SneakyThrows;
 import org.xnio.OptionMap;
@@ -29,17 +31,26 @@ import org.xnio.Options;
 import org.xnio.Xnio;
 import org.xnio.XnioWorker;
 
+import java.util.List;
 import java.util.function.Function;
 
+import static io.fluxcapacitor.javaclient.common.ClientUtils.memoize;
 import static io.undertow.servlet.Servlets.deployment;
+import static java.util.Optional.ofNullable;
 
 public class WebsocketDeploymentUtils {
 
     private static final ByteBufferPool bufferPool =
             new DefaultByteBufferPool(false, 1024, 100, 12);
 
-    @SneakyThrows
     public static PathHandler deploy(Function<String, Endpoint> endpointSupplier, String path, PathHandler pathHandler) {
+        return deployFromSession(memoize(endpointSupplier).compose(WebsocketDeploymentUtils::getProjectId),
+                                 path, pathHandler);
+    }
+
+    @SneakyThrows
+    public static PathHandler deployFromSession(MemoizingFunction<Session, Endpoint> endpointSupplier, String path,
+                                                PathHandler pathHandler) {
         ServerEndpointConfig config = ServerEndpointConfig.Builder
                 .create(MultiClientEndpoint.class, "/")
                 .configurator(
@@ -67,6 +78,10 @@ public class WebsocketDeploymentUtils {
 
     public static WebSocketDeploymentInfo createWebsocketDeploymentInfo() {
         return new WebSocketDeploymentInfo().setBuffers(bufferPool).setWorker(createWorker());
+    }
+
+    public static String getProjectId(Session session) {
+        return ofNullable(session.getRequestParameterMap().get("projectId")).map(List::getFirst).orElse("public");
     }
 
     @SneakyThrows

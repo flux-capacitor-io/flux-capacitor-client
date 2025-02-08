@@ -14,40 +14,53 @@
 
 package io.fluxcapacitor.common;
 
-import lombok.AllArgsConstructor;
+import lombok.NonNull;
 
-import java.time.Clock;
-import java.time.Duration;
 import java.util.function.BiFunction;
-import java.util.function.Supplier;
+import java.util.function.Consumer;
+import java.util.function.Function;
 
-@AllArgsConstructor
-public class MemoizingBiFunction<T, U, R> implements BiFunction<T, U, R> {
-    private final MemoizingFunction<Pair<T, U>, R> function;
+public interface MemoizingBiFunction<T, U, R> extends BiFunction<T, U, R> {
+    boolean isCached(T t, U u);
 
-    public MemoizingBiFunction(BiFunction<T, U, R> delegate) {
-        this(delegate, null, null);
+    void clear();
+
+    R remove(T t, U u);
+
+    void forEach(Consumer<? super R> consumer);
+
+    @NonNull
+    default <K1> MemoizingFunction<K1, R> compose(@NonNull Function<? super K1, Pair<? extends T, ? extends U>> before) {
+        MemoizingBiFunction<T, U, R> origin = this;
+
+        return new MemoizingFunction<>() {
+            @Override
+            public R apply(K1 key) {
+                Pair<? extends T, ? extends U> pair = before.apply(key);
+                return origin.apply(pair.getFirst(), pair.getSecond());
+            }
+
+            @Override
+            public R remove(K1 key) {
+                Pair<? extends T, ? extends U> pair = before.apply(key);
+                return origin.remove(pair.getFirst(), pair.getSecond());
+            }
+
+            @Override
+            public boolean isCached(K1 key) {
+                Pair<? extends T, ? extends U> pair = before.apply(key);
+                return origin.isCached(pair.getFirst(), pair.getSecond());
+            }
+
+            @Override
+            public void forEach(Consumer<? super R> consumer) {
+                origin.forEach(consumer);
+            }
+
+            @Override
+            public void clear() {
+                origin.clear();
+            }
+        };
     }
-
-    public MemoizingBiFunction(BiFunction<T, U, R> delegate, Duration lifespan, Supplier<Clock> clockSupplier) {
-        this.function = new MemoizingFunction<>(p -> delegate.apply(p.getFirst(), p.getSecond()), lifespan, clockSupplier);
-    }
-
-    @Override
-    public R apply(T t, U u) {
-        return function.apply(new Pair<>(t, u));
-    }
-
-    public boolean isCached(T t, U u) {
-        return function.isCached(new Pair<>(t, u));
-    }
-
-    public void clear() {
-        function.clear();
-    }
-
-    public R remove(T t, U u) {
-        return function.remove(new Pair<>(t, u));
-    }
-
 }

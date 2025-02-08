@@ -48,6 +48,7 @@ import java.util.function.UnaryOperator;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 
+import static java.util.Arrays.stream;
 import static java.util.function.UnaryOperator.identity;
 
 public class ObjectUtils {
@@ -71,6 +72,11 @@ public class ObjectUtils {
 
     public static <T> Stream<T> iterate(T seed, UnaryOperator<T> f, Predicate<T> breakCondition) {
         return StreamSupport.stream(new BreakingSpliterator<>(Stream.iterate(seed, f), breakCondition), false);
+    }
+
+    @SafeVarargs
+    public static <T> Stream<T> concat(Stream<? extends T>... streams) {
+        return stream(streams).flatMap(Function.identity());
     }
 
     public static <T> List<T> deduplicate(List<T> list) {
@@ -172,15 +178,15 @@ public class ObjectUtils {
     }
 
     public static <T> MemoizingSupplier<T> memoize(Supplier<T> supplier) {
-        return supplier instanceof MemoizingSupplier<T> existing ? existing : new MemoizingSupplier<>(supplier);
+        return supplier instanceof MemoizingSupplier<T> existing ? existing : new DefaultMemoizingSupplier<>(supplier);
     }
 
     public static <K, V> MemoizingFunction<K, V> memoize(Function<K, V> supplier) {
-        return supplier instanceof MemoizingFunction<K, V> existing ? existing : new MemoizingFunction<>(supplier);
+        return supplier instanceof MemoizingFunction<K, V> existing ? existing : new DefaultMemoizingFunction<>(supplier);
     }
 
     public static <T, U, R> MemoizingBiFunction<T, U, R> memoize(BiFunction<T, U, R> supplier) {
-        return supplier instanceof MemoizingBiFunction<T, U, R> existing ? existing : new MemoizingBiFunction<>(supplier);
+        return supplier instanceof MemoizingBiFunction<T, U, R> existing ? existing : new DefaultMemoizingBiFunction<>(supplier);
     }
 
     private static final AtomicInteger threadNumber = new AtomicInteger(1);

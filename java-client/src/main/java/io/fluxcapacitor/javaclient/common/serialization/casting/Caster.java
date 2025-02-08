@@ -17,11 +17,12 @@ package io.fluxcapacitor.javaclient.common.serialization.casting;
 import java.util.stream.Stream;
 
 @FunctionalInterface
-public interface Caster<T> {
+public interface Caster<I, O> {
 
-    default Stream<T> cast(Stream<T> input) {
+    default Stream<O> cast(Stream<I> input) {
         return cast(input, null);
     }
-    Stream<T> cast(Stream<T> input, Integer desiredRevision);
+
+    Stream<O> cast(Stream<I> input, Integer desiredRevision);
 
 }

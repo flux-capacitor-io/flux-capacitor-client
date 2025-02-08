@@ -16,6 +16,7 @@ package io.fluxcapacitor.javaclient.common.serialization.casting;
 
 import io.fluxcapacitor.common.api.Data;
 import io.fluxcapacitor.common.api.SerializedObject;
+import io.fluxcapacitor.common.serialization.AbstractConverter;
 import io.fluxcapacitor.javaclient.MockException;
 import io.fluxcapacitor.javaclient.common.serialization.DeserializationException;
 import lombok.Getter;
@@ -39,73 +40,73 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 class UpcasterChainTest {
 
     private final UpcasterStub upcasterStub = new UpcasterStub();
-    private Caster<Data<String>> subject = create(Collections.singleton(upcasterStub));
+    private Caster<Data<String>, Data<String>> subject = create(Collections.singleton(upcasterStub));
 
-    private static <S extends SerializedObject<String, S>> Caster<S> create(Collection<?> upcasters) {
-        return CasterChain.create(upcasters, String.class, false);
+    private static <S extends SerializedObject<String, S>> Caster<S, S> create(Collection<?> upcasters) {
+        return DefaultCasterChain.create(upcasters, String.class, false);
     }
 
     @Test
     void testMappingPayload() {
         Data<String> input = new Data<>("input", "mapPayload", 0, null);
-        Stream<Data<String>> result = subject.cast(Stream.of(input));
+        Stream<? extends Data<String>> result = subject.cast(Stream.of(input));
         assertEquals(singletonList(new Data<>(upcasterStub.mapPayload(input.getValue()), "mapPayload", 1, null)),
-                result.collect(toList()));
+                     result.collect(toList()));
     }
 
     @Test
     void testMappingData() {
         Data<String> input = new Data<>("input", "mapData", 0, null);
-        Stream<Data<String>> result = subject.cast(Stream.of(input));
+        Stream<? extends Data<String>> result = subject.cast(Stream.of(input));
         assertEquals(singletonList(upcasterStub.mapData(input)), result.collect(toList()));
     }
 
     @Test
     void testDroppingPayload() {
         Data<String> input = new Data<>("input", "dropPayload", 0, null);
-        Stream<Data<String>> result = subject.cast(Stream.of(input));
+        Stream<? extends Data<String>> result = subject.cast(Stream.of(input));
         assertEquals(emptyList(), result.map(Data::getValue).filter(Objects::nonNull).collect(toList()));
     }
 
     @Test
     void testDroppingData() {
         Data<String> input = new Data<>("input", "dropData", 0, null);
-        Stream<Data<String>> result = subject.cast(Stream.of(input));
+        Stream<? extends Data<String>> result = subject.cast(Stream.of(input));
         assertEquals(emptyList(), result.collect(toList()));
     }
 
     @Test
     void testNotOptionallyDroppingPayload() {
         Data<String> input = new Data<>("allowedPayload", "optionallyDropPayload", 0, null);
-        Stream<Data<String>> result = subject.cast(Stream.of(input));
+        Stream<? extends Data<String>> result = subject.cast(Stream.of(input));
         assertEquals(singletonList(new Data<>(input.getValue(), input.getType(), 1, null)), result.collect(toList()));
     }
 
     @Test
     void testOptionallyDroppingPayload() {
         Data<String> input = new Data<>("forbiddenPayload", "optionallyDropPayload", 0, null);
-        Stream<Data<String>> result = subject.cast(Stream.of(input));
+        Stream<? extends Data<String>> result = subject.cast(Stream.of(input));
         assertEquals(emptyList(), result.map(Data::getValue).filter(Objects::nonNull).collect(toList()));
     }
 
     @Test
     void testNotOptionallyDroppingData() {
         Data<String> input = new Data<>("allowedPayload", "optionallyDropData", 0, null);
-        Stream<Data<String>> result = subject.cast(Stream.of(input));
+        Stream<? extends Data<String>> result = subject.cast(Stream.of(input));
         assertEquals(singletonList(new Data<>(input.getValue(), input.getType(), 1, null)), result.collect(toList()));
     }
 
     @Test
     void testOptionallyDroppingData() {
         Data<String> input = new Data<>("forbiddenPayload", "optionallyDropData", 0, null);
-        Stream<Data<String>> result = subject.cast(Stream.of(input));
+        Stream<? extends Data<String>> result = subject.cast(Stream.of(input));
         assertEquals(emptyList(), result.collect(toList()));
     }
 
     @Test
     void testSplittingData() {
         Data<String> input = new Data<>("input", "splitData", 0, null);
-        Stream<Data<String>> result = subject.cast(Stream.of(input));
+        Stream<? extends Data<String>> result = subject.cast(Stream.of(input));
         assertEquals(upcasterStub.splitData(input).collect(toList()), result.collect(toList()));
     }
 
@@ -116,7 +117,7 @@ class UpcasterChainTest {
     @Test
     void testChaining() {
         Data<String> input = new Data<>("input", "chainStart", 0, null);
-        Stream<Data<String>> result = subject.cast(Stream.of(input));
+        Stream<? extends Data<String>> result = subject.cast(Stream.of(input));
         assertEquals(singletonList(upcasterStub.chainEnd(input)), result.collect(toList()));
     }
 
@@ -125,7 +126,7 @@ class UpcasterChainTest {
         NonConflictingUpcaster nonConflictingUpcaster = new NonConflictingUpcaster();
         subject = create(List.of(upcasterStub, nonConflictingUpcaster));
         Data<String> input = new Data<>("input", "chainStart", 0, null);
-        Stream<Data<String>> result = subject.cast(Stream.of(input));
+        Stream<? extends Data<String>> result = subject.cast(Stream.of(input));
         assertEquals(singletonList(nonConflictingUpcaster.chainEnd(input)), result.collect(toList()));
     }
 
@@ -136,14 +137,14 @@ class UpcasterChainTest {
     @Test
     void testNoUpcastingForUnknownType() {
         Data<String> input = new Data<>("input", "unknownType", 0, null);
-        Stream<Data<String>> result = subject.cast(Stream.of(input));
+        Stream<? extends Data<String>> result = subject.cast(Stream.of(input));
         assertEquals(singletonList(input), result.collect(toList()));
     }
 
     @Test
     void testNoUpcastingForUnknownRevision() {
         Data<String> input = new Data<>("input", "mapPayload", 1, null);
-        Stream<Data<String>> result = subject.cast(Stream.of(input));
+        Stream<? extends Data<String>> result = subject.cast(Stream.of(input));
         assertEquals(singletonList(input), result.collect(toList()));
     }
 
@@ -153,12 +154,12 @@ class UpcasterChainTest {
 
     @Test
     void testUpcastingWithTypeConversion() {
-        Caster<SerializedObject<byte[], ?>> subject
-                = CasterChain.createUpcaster(Collections.singleton(upcasterStub), new StringConverter());
-        Stream<SerializedObject<byte[], ?>> result =
+        Caster<SerializedObject<byte[], ?>, SerializedObject<?, ?>> subject
+                = DefaultCasterChain.createUpcaster(Collections.singleton(upcasterStub), new StringConverter());
+        Stream<? extends SerializedObject<?, ?>> result =
                 subject.cast(Stream.of(new Data<>("input".getBytes(), "mapPayload", 0, null)));
-        assertEquals(singletonList(new Data<>("mappedPayload".getBytes(), "mapPayload", 1, null)),
-                result.map(SerializedObject::data).collect(toList()));
+        assertEquals(singletonList(new Data<>("mappedPayload", "mapPayload", 1, null)),
+                     result.map(SerializedObject::data).collect(toList()));
     }
 
     /*
@@ -167,12 +168,15 @@ class UpcasterChainTest {
 
     @Test
     void testExceptionForUpcasterWithUnexpectedDataType() {
-        assertThrows(DeserializationException.class, () -> CasterChain.createUpcaster(Collections.singleton(upcasterStub), new NoConverter()));
+        assertThrows(DeserializationException.class,
+                     () -> DefaultCasterChain.createUpcaster(Collections.singleton(upcasterStub), new NoConverter()));
     }
 
     @Test
     void testExceptionForConflictingUpcasters() {
-        assertThrows(DeserializationException.class, () -> CasterChain.createUpcaster(List.of(upcasterStub, new ConflictingUpcaster()), new StringConverter()));
+        assertThrows(DeserializationException.class,
+                     () -> DefaultCasterChain.createUpcaster(List.of(upcasterStub, new ConflictingUpcaster()),
+                                                             new StringConverter()));
     }
 
     /*
@@ -182,9 +186,10 @@ class UpcasterChainTest {
     @Test
     void testLazyUpcasting() {
         MonitoringUpcaster upcaster = new MonitoringUpcaster();
-        Caster<Data<String>> subject = create(Collections.singletonList(upcaster));
-        Stream<Data<String>> resultStream = subject.cast(Stream.of(new Data<>("foo", "upcastLazily", 0, null)));
-        Data<String> result = resultStream.toList().get(0);
+        Caster<Data<String>, Data<String>> subject = create(Collections.singletonList(upcaster));
+        Stream<? extends Data<String>> resultStream =
+                subject.cast(Stream.of(new Data<>("foo", "upcastLazily", 0, null)));
+        Data<String> result = resultStream.toList().getFirst();
         assertFalse(upcaster.isInvoked());
         result.getValue();
         assertTrue(upcaster.isInvoked());
@@ -230,7 +235,7 @@ class UpcasterChainTest {
         @Upcast(type = "splitData", revision = 0)
         public Stream<Data<String>> splitData(Data<String> input) {
             return Stream.of(new Data<>(input.getValue(), input.getType(), input.getRevision() + 1, null),
-                    new Data<>("someOtherValue", "someOtherType", 9, null));
+                             new Data<>("someOtherValue", "someOtherType", 9, null));
         }
 
         @Upcast(type = "chainStart", revision = 0)
@@ -285,41 +290,23 @@ class UpcasterChainTest {
         }
     }
 
-    private static class StringConverter implements Converter<String> {
+    private static class StringConverter extends AbstractConverter<byte[], String> {
 
         @Override
         public String convert(byte[] bytes) {
             return new String(bytes);
         }
 
-        @Override
-        public byte[] convertBack(String value) {
-            return value.getBytes();
-        }
-
-        @Override
-        public Class<String> getDataType() {
-            return String.class;
-        }
     }
 
 
-    private static class NoConverter implements Converter<byte[]> {
+    private static class NoConverter extends AbstractConverter<byte[], byte[]> {
 
         @Override
         public byte[] convert(byte[] bytes) {
             return bytes;
         }
 
-        @Override
-        public byte[] convertBack(byte[] bytes) {
-            return bytes;
-        }
-
-        @Override
-        public Class<byte[]> getDataType() {
-            return byte[].class;
-        }
     }
 
 

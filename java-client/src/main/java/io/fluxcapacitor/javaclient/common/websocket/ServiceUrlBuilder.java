@@ -24,12 +24,19 @@ import static java.nio.charset.StandardCharsets.UTF_8;
 
 public class ServiceUrlBuilder {
 
-    public static String producerUrl(MessageType messageType, WebSocketClient.ClientConfig clientConfig) {
-        return buildUrl(clientConfig, ServicePathBuilder.producerPath(messageType));
+    public static String producerUrl(MessageType messageType, String topic, WebSocketClient.ClientConfig clientConfig) {
+        String url = buildUrl(clientConfig, ServicePathBuilder.producerPath(messageType));
+        if (topic != null) {
+            url += "&topic=" + URLEncoder.encode(topic, UTF_8);
+        }
+        return url;
     }
 
-    public static String consumerUrl(MessageType messageType, WebSocketClient.ClientConfig clientConfig) {
+    public static String consumerUrl(MessageType messageType, String topic, WebSocketClient.ClientConfig clientConfig) {
         String url = buildUrl(clientConfig, ServicePathBuilder.consumerPath(messageType));
+        if (topic != null) {
+            url += "&topic=" + URLEncoder.encode(topic, UTF_8);
+        }
         if (clientConfig.getTypeFilter() != null) {
             url += "&typeFilter=" + clientConfig.getTypeFilter();
         }

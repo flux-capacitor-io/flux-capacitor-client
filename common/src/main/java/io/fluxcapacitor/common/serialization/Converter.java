@@ -12,24 +12,17 @@
  * limitations under the License.
  */
 
-package io.fluxcapacitor.javaclient.common.serialization.casting;
+package io.fluxcapacitor.common.serialization;
 
 import io.fluxcapacitor.common.api.Data;
 
-public interface Converter<T> {
+public interface Converter<I, O> {
 
-    default Data<T> convert(Data<byte[]> data) {
-        return new Data<>(() -> convert(data.getValue()), data.getType(), data.getRevision(), data.getFormat());
+    Data<O> convert(Data<I> data);
+
+    default Data<?> convertFormat(Data<I> data) {
+        return data;
     }
 
-    T convert(byte[] bytes);
-
-    byte[] convertBack(T value);
-
-    default Data<byte[]> convertBack(Data<T> data) {
-        return new Data<>(() -> convertBack(data.getValue()), data.getType(), data.getRevision(), data.getFormat());
-    }
-
-    Class<T> getDataType();
-
+    Class<O> getOutputType();
 }

@@ -20,8 +20,8 @@ import io.fluxcapacitor.javaclient.persisting.eventsourcing.client.EventStoreCli
 import io.fluxcapacitor.javaclient.persisting.eventsourcing.client.LocalEventStoreClient;
 import io.fluxcapacitor.javaclient.persisting.keyvalue.client.InMemoryKeyValueStore;
 import io.fluxcapacitor.javaclient.persisting.keyvalue.client.KeyValueClient;
+import io.fluxcapacitor.javaclient.persisting.search.client.CollectionMessageStore;
 import io.fluxcapacitor.javaclient.persisting.search.client.InMemorySearchStore;
-import io.fluxcapacitor.javaclient.persisting.search.client.SearchClient;
 import io.fluxcapacitor.javaclient.publishing.client.GatewayClient;
 import io.fluxcapacitor.javaclient.scheduling.client.LocalSchedulingClient;
 import io.fluxcapacitor.javaclient.scheduling.client.SchedulingClient;
@@ -33,25 +33,26 @@ import lombok.experimental.Accessors;
 import java.lang.management.ManagementFactory;
 import java.time.Duration;
 
-public class InMemoryClient extends AbstractClient {
+public class LocalClient extends AbstractClient {
 
     private final Duration messageExpiration;
     private final LocalEventStoreClient eventStore;
     private final LocalSchedulingClient scheduleStore;
 
-    @Getter(lazy = true) @Accessors(fluent = true)
+    @Getter(lazy = true)
+    @Accessors(fluent = true)
     private final String id = DefaultPropertySource.getInstance().get(
             "FLUX_TASK_ID", ManagementFactory.getRuntimeMXBean().getName());
 
-    public static InMemoryClient newInstance() {
-        return new InMemoryClient(Duration.ofMinutes(2));
+    public static LocalClient newInstance() {
+        return new LocalClient(Duration.ofMinutes(2));
     }
 
-    public static InMemoryClient newInstance(Duration messageExpiration) {
-        return new InMemoryClient(messageExpiration);
+    public static LocalClient newInstance(Duration messageExpiration) {
+        return new LocalClient(messageExpiration);
     }
 
-    protected InMemoryClient(Duration messageExpiration) {
+    protected LocalClient(Duration messageExpiration) {
         this.messageExpiration = messageExpiration;
         this.eventStore = new LocalEventStoreClient(messageExpiration);
         this.scheduleStore = new LocalSchedulingClient(messageExpiration);
@@ -68,17 +69,19 @@ public class InMemoryClient extends AbstractClient {
     }
 
     @Override
-    protected GatewayClient createGatewayClient(MessageType messageType) {
+    protected GatewayClient createGatewayClient(MessageType messageType, String topic) {
         return switch (messageType) {
             case NOTIFICATION, EVENT -> eventStore;
             case SCHEDULE -> scheduleStore;
-            default -> new LocalTrackingClient(messageType, messageExpiration);
+            case DOCUMENT -> new LocalTrackingClient(new CollectionMessageStore((InMemorySearchStore) getSearchClient(),
+                                                                                topic), MessageType.DOCUMENT, topic);
+            default -> new LocalTrackingClient(messageType, topic, messageExpiration);
         };
     }
 
     @Override
-    protected TrackingClient createTrackingClient(MessageType messageType) {
-        return (TrackingClient) getGatewayClient(messageType);
+    protected TrackingClient createTrackingClient(MessageType messageType, String topic) {
+        return (TrackingClient) getGatewayClient(messageType, topic);
     }
 
     @Override
@@ -97,7 +100,7 @@ public class InMemoryClient extends AbstractClient {
     }
 
     @Override
-    protected SearchClient createSearchClient() {
-        return new InMemorySearchStore();
+    protected InMemorySearchStore createSearchClient() {
+        return new InMemorySearchStore(messageExpiration);
     }
 }

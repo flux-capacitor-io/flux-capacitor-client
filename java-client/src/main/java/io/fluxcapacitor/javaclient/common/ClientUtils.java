@@ -14,23 +14,33 @@
 
 package io.fluxcapacitor.javaclient.common;
 
+import io.fluxcapacitor.common.DefaultMemoizingBiFunction;
+import io.fluxcapacitor.common.DefaultMemoizingFunction;
+import io.fluxcapacitor.common.DefaultMemoizingSupplier;
 import io.fluxcapacitor.common.MemoizingBiFunction;
 import io.fluxcapacitor.common.MemoizingFunction;
 import io.fluxcapacitor.common.MemoizingSupplier;
+import io.fluxcapacitor.common.MessageType;
 import io.fluxcapacitor.common.ObjectUtils;
 import io.fluxcapacitor.common.ThrowingRunnable;
 import io.fluxcapacitor.common.handling.HandlerInvoker;
+import io.fluxcapacitor.common.reflection.ReflectionUtils;
+import io.fluxcapacitor.common.serialization.Revision;
 import io.fluxcapacitor.javaclient.FluxCapacitor;
 import io.fluxcapacitor.javaclient.modeling.SearchParameters;
 import io.fluxcapacitor.javaclient.persisting.search.Searchable;
 import io.fluxcapacitor.javaclient.tracking.TrackSelf;
+import io.fluxcapacitor.javaclient.tracking.handling.HandleCustom;
+import io.fluxcapacitor.javaclient.tracking.handling.HandleDocument;
 import io.fluxcapacitor.javaclient.tracking.handling.LocalHandler;
+import lombok.NonNull;
 import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
 import org.slf4j.Marker;
 import org.slf4j.MarkerFactory;
 
 import java.lang.reflect.Executable;
+import java.lang.reflect.Parameter;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalDate;
@@ -41,8 +51,12 @@ import java.time.temporal.ChronoUnit;
 import java.time.temporal.Temporal;
 import java.time.temporal.TemporalAdjusters;
 import java.time.temporal.TemporalUnit;
+import java.util.Arrays;
 import java.util.Collection;
+import java.util.Collections;
+import java.util.Objects;
 import java.util.Optional;
+import java.util.Set;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
@@ -50,7 +64,9 @@ import java.util.concurrent.TimeoutException;
 import java.util.function.BiFunction;
 import java.util.function.Function;
 import java.util.function.Supplier;
+import java.util.stream.Collectors;
 
+import static io.fluxcapacitor.common.reflection.ReflectionUtils.getAnnotatedMethods;
 import static io.fluxcapacitor.common.reflection.ReflectionUtils.getAnnotation;
 import static io.fluxcapacitor.common.reflection.ReflectionUtils.getAnnotationAs;
 import static io.fluxcapacitor.common.reflection.ReflectionUtils.getPackageAnnotation;
@@ -144,20 +160,62 @@ public class ClientUtils {
     }
 
     public static <T> MemoizingSupplier<T> memoize(Supplier<T> supplier, Duration lifespan) {
-        return new MemoizingSupplier<>(supplier, lifespan, FluxCapacitor::currentClock);
+        return new DefaultMemoizingSupplier<>(supplier, lifespan, FluxCapacitor::currentClock);
     }
 
     public static <K, V> MemoizingFunction<K, V> memoize(Function<K, V> supplier, Duration lifespan) {
-        return new MemoizingFunction<>(supplier, lifespan, FluxCapacitor::currentClock);
+        return new DefaultMemoizingFunction<>(supplier, lifespan, FluxCapacitor::currentClock);
     }
 
     public static <T, U, R> MemoizingBiFunction<T, U, R> memoize(BiFunction<T, U, R> supplier,
                                                                  Duration lifespan) {
-        return new MemoizingBiFunction<>(supplier, lifespan, FluxCapacitor::currentClock);
+        return new DefaultMemoizingBiFunction<>(supplier, lifespan, FluxCapacitor::currentClock);
+    }
+
+    public static int getRevisionNumber(Object object) {
+        return Optional.ofNullable(object).map(o -> o.getClass().getAnnotation(Revision.class))
+                .map(Revision::value).orElse(0);
+    }
+
+    public static String determineSearchCollection(@NonNull Object c) {
+        return ReflectionUtils.ifClass(c) instanceof Class<?> type
+                ? getSearchParameters(type).getCollection() : c.toString();
     }
 
     public static SearchParameters getSearchParameters(Class<?> type) {
         return searchParametersCache.apply(type);
+    }
+
+    public static Set<String> getTopics(MessageType messageType, Object handler) {
+        return getTopics(messageType, Collections.singleton(
+                ReflectionUtils.ifClass(handler) instanceof Class<?> c ? c : handler.getClass()));
+    }
+
+    public static Set<String> getTopics(MessageType messageType, Collection<Class<?>> handlerClasses) {
+        return switch (messageType) {
+            case DOCUMENT -> handlerClasses.stream()
+                    .flatMap(handlerClass -> getAnnotatedMethods(handlerClass, HandleDocument.class).stream())
+                    .flatMap(m -> ReflectionUtils.<HandleDocument>getMethodAnnotation(m, HandleDocument.class)
+                            .map(a -> getTopic(a, m)).stream()).collect(Collectors.toSet());
+            case CUSTOM -> handlerClasses.stream()
+                    .flatMap(handlerClass -> getAnnotatedMethods(handlerClass, HandleCustom.class).stream()).map(m -> {
+                        var handleDocument = ReflectionUtils.<HandleCustom>getMethodAnnotation(
+                                m, HandleCustom.class).filter(h -> !h.disabled());
+                        return handleDocument.map(HandleCustom::value).orElse(null);
+                    }).filter(Objects::nonNull).collect(Collectors.toSet());
+            default -> Collections.emptySet();
+        };
+    }
+
+    public static String getTopic(HandleDocument handleDocument, Executable executable) {
+        return Optional.ofNullable(handleDocument)
+                .filter(h -> !h.disabled())
+                .flatMap(h -> Optional.ofNullable(h.value()).filter(s -> !s.isBlank())
+                .or(() -> Void.class.equals(h.documentClass()) ? Optional.empty() :
+                        Optional.of(ClientUtils.determineSearchCollection(h.documentClass()))))
+                .or(() -> Arrays.stream(executable.getParameters()).findFirst().map(Parameter::getType).map(
+                        ClientUtils::determineSearchCollection))
+                .filter(s -> !s.isBlank()).orElse(null);
     }
 
     @SuppressWarnings("unchecked")

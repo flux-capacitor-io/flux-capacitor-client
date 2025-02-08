@@ -20,11 +20,13 @@ import io.fluxcapacitor.common.Registration;
 import io.fluxcapacitor.common.api.Metadata;
 import io.fluxcapacitor.common.api.SerializedMessage;
 import io.fluxcapacitor.common.api.publishing.Append;
+import io.fluxcapacitor.common.api.publishing.SetRetentionTime;
 import io.fluxcapacitor.javaclient.common.websocket.AbstractWebsocketClient;
 import io.fluxcapacitor.javaclient.configuration.client.WebSocketClient;
 import jakarta.websocket.ClientEndpoint;
 
 import java.net.URI;
+import java.time.Duration;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Set;
@@ -41,20 +43,18 @@ public class WebsocketGatewayClient extends AbstractWebsocketClient implements G
 
     private final Metadata metricsMetadata;
     private final MessageType messageType;
+    private final String topic;
 
-    public WebsocketGatewayClient(String endPointUrl, WebSocketClient client, MessageType type) {
-        this(URI.create(endPointUrl), client, type);
-    }
-
-    public WebsocketGatewayClient(URI endPointUri, WebSocketClient client, MessageType type) {
-        this(endPointUri, client, type, type != METRICS);
+    public WebsocketGatewayClient(String endPointUrl, WebSocketClient client, MessageType type, String topic) {
+        this(URI.create(endPointUrl), client, type, topic, type != METRICS);
     }
 
     public WebsocketGatewayClient(URI endPointUri, WebSocketClient client,
-                                  MessageType type, boolean sendMetrics) {
+                                  MessageType type, String topic, boolean sendMetrics) {
         super(endPointUri, client, sendMetrics, client.getClientConfig().getGatewaySessions().get(type));
-        this.metricsMetadata = Metadata.of("messageType", type);
-        messageType = type;
+        this.topic = topic;
+        this.metricsMetadata = Metadata.of("messageType", type, "topic", topic);
+        this.messageType = type;
     }
 
     @Override
@@ -69,8 +69,13 @@ public class WebsocketGatewayClient extends AbstractWebsocketClient implements G
     }
 
     @Override
+    public CompletableFuture<Void> setRetentionTime(Duration duration, Guarantee guarantee) {
+        return sendCommand(new SetRetentionTime(duration.getSeconds(), guarantee));
+    }
+
+    @Override
     public String toString() {
-        return "%s-%s".formatted(super.toString(), messageType);
+        return "%s-%s%s".formatted(super.toString(), messageType, topic == null ? "" : "_" + topic);
     }
 
     @Override

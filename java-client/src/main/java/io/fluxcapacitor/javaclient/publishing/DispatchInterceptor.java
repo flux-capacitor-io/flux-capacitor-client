@@ -27,7 +27,7 @@ import static java.util.Optional.ofNullable;
 @FunctionalInterface
 public interface DispatchInterceptor {
 
-    DispatchInterceptor noOp = (m, messageType) -> m;
+    DispatchInterceptor noOp = (m, messageType, topic) -> m;
 
 
     /**
@@ -36,7 +36,7 @@ public interface DispatchInterceptor {
      * <p>
      * Return {@code null} or throw an exception to prevent publication of the message.
      */
-    Message interceptDispatch(Message message, MessageType messageType);
+    Message interceptDispatch(Message message, MessageType messageType, String topic);
 
     /**
      * Enables modification of the {@link SerializedMessage} before it is published.
@@ -48,7 +48,7 @@ public interface DispatchInterceptor {
      * to use {@link #interceptDispatch} for that.
      */
     default SerializedMessage modifySerializedMessage(SerializedMessage serializedMessage,
-                                                      Message message, MessageType messageType) {
+                                                      Message message, MessageType messageType, String topic) {
         return serializedMessage;
     }
 
@@ -58,29 +58,29 @@ public interface DispatchInterceptor {
      * <p>
      * This method is invoked by message gateways right before local handling of a message and optional publication.
      */
-    default void monitorDispatch(Message message, MessageType messageType) {
+    default void monitorDispatch(Message message, MessageType messageType, String topic) {
         //no op
     }
 
     default DispatchInterceptor andThen(DispatchInterceptor nextInterceptor) {
         return new DispatchInterceptor() {
             @Override
-            public Message interceptDispatch(Message m, MessageType t) {
-                return ofNullable(DispatchInterceptor.this.interceptDispatch(m, t))
-                        .map(message -> nextInterceptor.interceptDispatch(message, t)).orElse(null);
+            public Message interceptDispatch(Message m, MessageType t, String topic) {
+                return ofNullable(DispatchInterceptor.this.interceptDispatch(m, t, topic))
+                        .map(message -> nextInterceptor.interceptDispatch(message, t, topic)).orElse(null);
             }
 
             @Override
-            public void monitorDispatch(Message message, MessageType messageType) {
-                DispatchInterceptor.this.monitorDispatch(message, messageType);
-                nextInterceptor.monitorDispatch(message, messageType);
+            public void monitorDispatch(Message message, MessageType messageType, String topic) {
+                DispatchInterceptor.this.monitorDispatch(message, messageType, topic);
+                nextInterceptor.monitorDispatch(message, messageType, topic);
             }
 
             @Override
             public SerializedMessage modifySerializedMessage(SerializedMessage s, Message m,
-                                                             MessageType type) {
-                return ofNullable(DispatchInterceptor.this.modifySerializedMessage(s, m, type))
-                        .map(message -> nextInterceptor.modifySerializedMessage(message, m, type)).orElse(null);
+                                                             MessageType type, String topic) {
+                return ofNullable(DispatchInterceptor.this.modifySerializedMessage(s, m, type, topic))
+                        .map(message -> nextInterceptor.modifySerializedMessage(message, m, type, topic)).orElse(null);
             }
         };
     }

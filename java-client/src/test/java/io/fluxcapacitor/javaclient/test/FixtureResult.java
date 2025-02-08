@@ -21,6 +21,9 @@ import lombok.Setter;
 import lombok.Value;
 import lombok.experimental.NonFinal;
 
+import java.util.List;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
 
 @Value
@@ -41,4 +44,5 @@ public class FixtureResult {
             metrics = new CopyOnWriteArrayList<>();
     CopyOnWriteArrayList<Schedule> schedules = new CopyOnWriteArrayList<>();
     CopyOnWriteArrayList<Throwable> errors = new CopyOnWriteArrayList<>();
+    Map<String, List<Message>> customMessages = new ConcurrentHashMap<>();
 }

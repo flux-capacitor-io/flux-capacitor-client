@@ -80,15 +80,15 @@ public class WebSocketClient extends AbstractClient {
     }
 
     @Override
-    protected GatewayClient createGatewayClient(MessageType messageType) {
-        return new WebsocketGatewayClient(producerUrl(messageType, clientConfig), this, messageType);
+    protected GatewayClient createGatewayClient(MessageType messageType, String topic) {
+        return new WebsocketGatewayClient(producerUrl(messageType, topic, clientConfig), this, messageType, topic);
     }
 
     @Override
-    protected TrackingClient createTrackingClient(MessageType messageType) {
+    protected TrackingClient createTrackingClient(MessageType messageType, String topic) {
         TrackingClientConfig trackingConfig = clientConfig.getTrackingConfigs().get(messageType);
         WebsocketTrackingClient wsClient =
-                new WebsocketTrackingClient(consumerUrl(messageType, clientConfig), this, messageType);
+                new WebsocketTrackingClient(consumerUrl(messageType, topic, clientConfig), this, messageType, topic);
         return trackingConfig.getCacheSize() > 0
                 ? new CachingTrackingClient(wsClient, trackingConfig.getCacheSize()) : wsClient;
     }

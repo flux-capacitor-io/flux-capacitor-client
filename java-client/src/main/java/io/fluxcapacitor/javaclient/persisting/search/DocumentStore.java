@@ -18,6 +18,7 @@ import io.fluxcapacitor.common.Guarantee;
 import io.fluxcapacitor.common.api.search.BulkUpdate;
 import io.fluxcapacitor.common.api.search.SearchQuery;
 import io.fluxcapacitor.common.reflection.ReflectionUtils;
+import io.fluxcapacitor.javaclient.common.ClientUtils;
 import io.fluxcapacitor.javaclient.modeling.EntityId;
 import io.fluxcapacitor.javaclient.modeling.SearchParameters;
 import jakarta.validation.constraints.NotNull;
@@ -71,8 +72,7 @@ public interface DocumentStore {
         if (object instanceof Collection<?> col) {
             return CompletableFuture.allOf(col.stream().map(v -> index(v, collection)).toArray(CompletableFuture[]::new));
         }
-        Class<?> type = object.getClass();
-        var searchParams = ofNullable(getSearchParameters(type)).orElse(SearchParameters.defaultSearchParameters);
+        var searchParams = ofNullable(getSearchParameters(object.getClass())).orElse(SearchParameters.defaultSearchParameters);
         Instant begin = ReflectionUtils.<Instant>readProperty(searchParams.getTimestampPath(), object).orElse(null);
         Instant end = ReflectionUtils.hasProperty(searchParams.getEndPath(), object)
                 ? ReflectionUtils.<Instant>readProperty(searchParams.getEndPath(), object).orElse(null) : begin;
@@ -82,7 +82,12 @@ public interface DocumentStore {
     }
 
     default CompletableFuture<Void> index(@NonNull Object object, Object id, Object collection) {
-        return index(object, id, collection, null);
+        var searchParams = ofNullable(getSearchParameters(object.getClass()))
+                .orElse(SearchParameters.defaultSearchParameters);
+        Instant begin = ReflectionUtils.<Instant>readProperty(searchParams.getTimestampPath(), object).orElse(null);
+        Instant end = ReflectionUtils.hasProperty(searchParams.getEndPath(), object)
+                ? ReflectionUtils.<Instant>readProperty(searchParams.getEndPath(), object).orElse(null) : begin;
+        return index(object, id, collection, begin, end);
     }
 
     @SneakyThrows
@@ -231,8 +236,7 @@ public interface DocumentStore {
     CompletableFuture<Void> createAuditTrail(Object collection, Duration retentionTime);
 
     default String determineCollection(@NonNull Object c) {
-        return ReflectionUtils.ifClass(c) instanceof Class<?> type
-                ? getSearchParameters(type).getCollection() : c.toString();
+        return ClientUtils.determineSearchCollection(c);
     }
 
     DocumentSerializer getSerializer();

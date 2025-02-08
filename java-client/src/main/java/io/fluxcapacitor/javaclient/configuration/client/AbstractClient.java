@@ -14,7 +14,7 @@
 
 package io.fluxcapacitor.javaclient.configuration.client;
 
-import io.fluxcapacitor.common.MemoizingFunction;
+import io.fluxcapacitor.common.MemoizingBiFunction;
 import io.fluxcapacitor.common.MessageType;
 import io.fluxcapacitor.common.Registration;
 import io.fluxcapacitor.javaclient.common.ClientUtils;
@@ -29,18 +29,28 @@ import lombok.Getter;
 import lombok.experimental.FieldDefaults;
 import lombok.extern.slf4j.Slf4j;
 
+import java.util.AbstractMap.SimpleEntry;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.CopyOnWriteArraySet;
 
 import static io.fluxcapacitor.common.ObjectUtils.memoize;
-import static java.util.Arrays.stream;
+import static java.util.Objects.requireNonNull;
 
 @Slf4j
 @FieldDefaults(level = AccessLevel.PRIVATE, makeFinal = true)
 public abstract class AbstractClient implements Client {
 
-    MemoizingFunction<MessageType, ? extends GatewayClient> gatewayClients = memoize(this::createGatewayClient);
-    MemoizingFunction<MessageType, ? extends TrackingClient> trackingClients = memoize(this::createTrackingClient);
+    private final Map<MessageType, List<Map.Entry<ClientDispatchMonitor, Registration>>> monitors = new ConcurrentHashMap<>();
+
+    MemoizingBiFunction<MessageType, String, ? extends GatewayClient> gatewayClients = memoize(this::createGatewayClient);
+    MemoizingBiFunction<MessageType, String, ? extends TrackingClient> trackingClients = memoize(this::createTrackingClient);
     @Getter(lazy = true) EventStoreClient eventStoreClient = createEventStoreClient();
     @Getter(lazy = true) SchedulingClient schedulingClient = createSchedulingClient();
     @Getter(lazy = true) KeyValueClient keyValueClient = createKeyValueClient();
@@ -49,29 +59,66 @@ public abstract class AbstractClient implements Client {
 
     protected final Set<Runnable> shutdownTasks = new CopyOnWriteArraySet<>();
 
-    protected abstract GatewayClient createGatewayClient(MessageType messageType);
-    protected abstract TrackingClient createTrackingClient(MessageType messageType);
+    protected abstract GatewayClient createGatewayClient(MessageType messageType, String topic);
+    protected abstract TrackingClient createTrackingClient(MessageType messageType, String topic);
     protected abstract EventStoreClient createEventStoreClient();
     protected abstract SchedulingClient createSchedulingClient();
     protected abstract KeyValueClient createKeyValueClient();
     protected abstract SearchClient createSearchClient();
 
     @Override
-    public GatewayClient getGatewayClient(MessageType messageType) {
-        return gatewayClients.apply(messageType);
+    public GatewayClient getGatewayClient(MessageType messageType, String topic) {
+        switch (messageType) {
+            case DOCUMENT, CUSTOM -> requireNonNull(topic);
+            default -> {
+                if (topic != null) {
+                    throw new IllegalArgumentException("Topic is not supported for message type: " + messageType);
+                }
+            }
+        }
+        if (!gatewayClients.isCached(messageType, topic)) {
+            synchronized (gatewayClients) {
+                if (!gatewayClients.isCached(messageType, topic)) {
+                    GatewayClient result = gatewayClients.apply(messageType, topic);
+                    monitors.getOrDefault(messageType, Collections.emptyList()).forEach(entry -> entry.setValue(
+                            result.registerMonitor(messages -> entry.getKey().accept(messageType, topic, messages))));
+                    return result;
+                }
+            }
+        }
+        return gatewayClients.apply(messageType, topic);
     }
 
     @Override
-    public TrackingClient getTrackingClient(MessageType messageType) {
-        return trackingClients.apply(messageType);
+    public Registration monitorDispatch(ClientDispatchMonitor monitor, MessageType... messageTypes) {
+        if (messageTypes.length == 0) {
+            messageTypes = MessageType.values();
+        }
+        return Arrays.stream(messageTypes).<Registration>map(t -> {
+            var list = monitors.computeIfAbsent(t, (k) -> new CopyOnWriteArrayList<>());
+            Map.Entry<ClientDispatchMonitor, Registration> entry = new SimpleEntry<>(monitor, null);
+            list.add(entry);
+            return () -> {
+                list.remove(entry);
+                Optional.ofNullable(entry.getValue()).ifPresent(Registration::cancel);
+            };
+        }).reduce(Registration::merge).orElseGet(Registration::noOp);
+    }
+
+    @Override
+    public TrackingClient getTrackingClient(MessageType messageType, String topic) {
+        switch (messageType) {
+            case DOCUMENT, CUSTOM -> requireNonNull(topic);
+            default -> topic = null;
+        }
+        return trackingClients.apply(messageType, topic);
     }
 
     @Override
     public void shutDown() {
         shutdownTasks.forEach(ClientUtils::tryRun);
-        MessageType[] types = MessageType.values();
-        stream(types).filter(trackingClients::isCached).map(trackingClients).forEach(TrackingClient::close);
-        stream(types).filter(gatewayClients::isCached).map(gatewayClients).forEach(GatewayClient::close);
+        trackingClients.forEach(TrackingClient::close);
+        gatewayClients.forEach(GatewayClient::close);
         getEventStoreClient().close();
         getSchedulingClient().close();
         getKeyValueClient().close();

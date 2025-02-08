@@ -60,6 +60,7 @@ public class ResultValidator<R> implements Then<R> {
     private final List<Schedule> newSchedules;
     private final List<Schedule> allSchedules;
     private final List<Throwable> errors;
+    private final Map<String, List<Message>> customMessages;
 
     public ResultValidator(TestFixture testFixture) {
         this.testFixture = testFixture;
@@ -75,6 +76,7 @@ public class ResultValidator<R> implements Then<R> {
         newSchedules = fixtureResult.getSchedules();
         allSchedules = testFixture.getFutureSchedules();
         errors = fixtureResult.getErrors();
+        customMessages = fixtureResult.getCustomMessages();
     }
 
     @SuppressWarnings("unchecked")
@@ -111,6 +113,21 @@ public class ResultValidator<R> implements Then<R> {
     @Override
     public Then<R> expectNoCommandsLike(Object... commands) {
         return expectNo(asMessages(commands), this.commands);
+    }
+
+    @Override
+    public Then<R> expectCustom(String topic, Object... requests) {
+        return expect(asMessages(requests), this.customMessages.getOrDefault(topic, new ArrayList<>()));
+    }
+
+    @Override
+    public Then<R> expectOnlyCustom(String topic, Object... requests) {
+        return expectOnly(asMessages(requests), this.customMessages.getOrDefault(topic, new ArrayList<>()));
+    }
+
+    @Override
+    public Then<R> expectNoCustomLike(String topic, Object... requests) {
+        return expectNo(asMessages(requests), this.customMessages.getOrDefault(topic, new ArrayList<>()));
     }
 
     @Override

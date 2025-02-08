@@ -26,12 +26,12 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 class DowncasterChainTest {
 
     private final Downcasters downcasters = new Downcasters();
-    private final Caster<Data<String>> subject = CasterChain.create(List.of(downcasters), String.class, true);
+    private final Caster<Data<String>, Data<String>> subject = DefaultCasterChain.create(List.of(downcasters), String.class, true);
 
     @Test
     void inputIsDowncasted() {
         Data<String> input = new Data<>("bar", "mapPayload", 1, null);
-        Stream<Data<String>> result = subject.cast(Stream.of(input));
+        Stream<? extends Data<String>> result = subject.cast(Stream.of(input));
         assertEquals(List.of(new Data<>(downcasters.mapPayload(input.getValue()),
                                         "mapPayload", 0, null)), result.collect(toList()));
     }

@@ -32,10 +32,12 @@ import io.fluxcapacitor.common.api.search.bulkupdate.IndexDocument;
 import io.fluxcapacitor.common.api.search.bulkupdate.IndexDocumentIfNotExists;
 import io.fluxcapacitor.common.search.Document;
 import io.fluxcapacitor.javaclient.persisting.search.client.SearchClient;
+import io.fluxcapacitor.javaclient.tracking.handling.HasLocalHandlers;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
+import lombok.experimental.Delegate;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.util.StringUtils;
 
@@ -59,10 +61,12 @@ import static java.util.stream.Collectors.toMap;
 
 @AllArgsConstructor
 @Slf4j
-public class DefaultDocumentStore implements DocumentStore {
+public class DefaultDocumentStore implements DocumentStore, HasLocalHandlers {
     private final SearchClient client;
     @Getter
     private final DocumentSerializer serializer;
+    @Delegate
+    private final HasLocalHandlers handlerRegistry;
 
     @Override
     public CompletableFuture<Void> index(@NonNull Object object, Object id, Object collection, Instant begin,
@@ -332,12 +336,17 @@ public class DefaultDocumentStore implements DocumentStore {
                     ? defaultFetchSize : Math.min(maxSize, defaultFetchSize));
         }
 
+        @SuppressWarnings({"unchecked", "rawtypes"})
         protected <T> Stream<SearchHit<T>> fetchHitStream(Integer maxSize, Class<T> type, int fetchSize) {
+            Stream<SearchHit<SerializedDocument>> hitStream = client.search(
+                    SearchDocuments.builder().query(queryBuilder.build()).maxSize(maxSize).sorting(sorting)
+                            .pathFilters(pathFilters).skip(skip).build(), fetchSize);
+            if (SerializedDocument.class.equals(type)) {
+                return (Stream) hitStream;
+            }
             Function<SerializedDocument, T> convertFunction = type == null
                     ? serializer::fromDocument : document -> serializer.fromDocument(document, type);
-            return client.search(SearchDocuments.builder().query(queryBuilder.build()).maxSize(maxSize).sorting(sorting)
-                                         .pathFilters(pathFilters).skip(skip).build(), fetchSize)
-                    .map(hit -> hit.map(convertFunction));
+            return hitStream.map(hit -> hit.map(convertFunction));
         }
 
         @Override

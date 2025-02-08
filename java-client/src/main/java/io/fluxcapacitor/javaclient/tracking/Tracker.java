@@ -38,6 +38,7 @@ public class Tracker {
     String name;
     String trackerId;
     MessageType messageType;
+    String topic;
     ConsumerConfiguration configuration;
 
     @With

@@ -34,6 +34,7 @@ import io.fluxcapacitor.common.api.modeling.GetRelationshipsResult;
 import io.fluxcapacitor.common.api.modeling.RepairRelationships;
 import io.fluxcapacitor.common.api.modeling.UpdateRelationships;
 import io.fluxcapacitor.common.api.publishing.Append;
+import io.fluxcapacitor.common.api.publishing.SetRetentionTime;
 import io.fluxcapacitor.common.api.scheduling.CancelSchedule;
 import io.fluxcapacitor.common.api.scheduling.GetSchedule;
 import io.fluxcapacitor.common.api.scheduling.GetScheduleResult;
@@ -80,6 +81,7 @@ import io.fluxcapacitor.common.api.tracking.StorePosition;
 
         //publishing
         @JsonSubTypes.Type(value = Append.class, name = "append"),
+        @JsonSubTypes.Type(value = SetRetentionTime.class, name = "setRetentionTime"),
 
         //tracking
         @JsonSubTypes.Type(value = Read.class, name = "read"),
