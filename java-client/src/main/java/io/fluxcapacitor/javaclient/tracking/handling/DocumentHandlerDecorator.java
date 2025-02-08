@@ -87,7 +87,7 @@ public class DocumentHandlerDecorator implements HandlerDecorator {
                 if (result == null) {
                     store.deleteDocument(message.getMessageId(), collection);
                 } else {
-                    if (ClientUtils.getRevisionNumber(result) > message.getSerializedObject().getRevision()) {
+                    if (ClientUtils.getRevisionNumber(result) > message.getSerializedObject().getOriginalRevision()) {
                         if (getSearchParameters(result.getClass()) instanceof SearchParameters searchParams
                             && (searchParams.getTimestampPath() != null || searchParams.getEndPath() != null)) {
                             store.index(result, message.getMessageId(), collection);
