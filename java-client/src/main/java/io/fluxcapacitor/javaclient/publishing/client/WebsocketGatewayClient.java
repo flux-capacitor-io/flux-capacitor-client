@@ -20,11 +20,13 @@ import io.fluxcapacitor.common.Registration;
 import io.fluxcapacitor.common.api.Metadata;
 import io.fluxcapacitor.common.api.SerializedMessage;
 import io.fluxcapacitor.common.api.publishing.Append;
+import io.fluxcapacitor.common.api.publishing.SetRetentionTime;
 import io.fluxcapacitor.javaclient.common.websocket.AbstractWebsocketClient;
 import io.fluxcapacitor.javaclient.configuration.client.WebSocketClient;
 import jakarta.websocket.ClientEndpoint;
 
 import java.net.URI;
+import java.time.Duration;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Set;
@@ -64,6 +66,11 @@ public class WebsocketGatewayClient extends AbstractWebsocketClient implements G
                 monitors.forEach(m -> m.accept(Arrays.asList(messages)));
             }
         }
+    }
+
+    @Override
+    public CompletableFuture<Void> setRetentionTime(Duration duration, Guarantee guarantee) {
+        return sendCommand(new SetRetentionTime(duration.getSeconds(), guarantee));
     }
 
     @Override

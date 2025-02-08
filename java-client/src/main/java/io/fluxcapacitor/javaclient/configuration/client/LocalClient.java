@@ -101,6 +101,6 @@ public class LocalClient extends AbstractClient {
 
     @Override
     protected InMemorySearchStore createSearchClient() {
-        return new InMemorySearchStore();
+        return new InMemorySearchStore(messageExpiration);
     }
 }

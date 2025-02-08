@@ -16,10 +16,13 @@ package io.fluxcapacitor.testserver.websocket;
 
 import io.fluxcapacitor.common.api.SerializedMessage;
 import io.fluxcapacitor.common.api.publishing.Append;
+import io.fluxcapacitor.common.api.publishing.SetRetentionTime;
 import io.fluxcapacitor.common.tracking.MessageStore;
 import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
+import java.time.Duration;
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 
 @Slf4j
@@ -31,5 +34,11 @@ public class ProducerEndpoint extends WebsocketEndpoint {
     @Handle
     CompletableFuture<Void> handle(Append request) {
         return store.append(request.getMessages().toArray(SerializedMessage[]::new));
+    }
+
+    @Handle
+    void handle(SetRetentionTime request) {
+        store.setRetentionTime(Optional.ofNullable(
+                request.getRetentionTimeInSeconds()).map(Duration::ofSeconds).orElse(null));
     }
 }

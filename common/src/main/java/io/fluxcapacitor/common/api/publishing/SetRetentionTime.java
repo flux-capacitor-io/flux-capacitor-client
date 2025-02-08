@@ -12,22 +12,16 @@
  * limitations under the License.
  */
 
-package io.fluxcapacitor.javaclient.publishing.client;
+package io.fluxcapacitor.common.api.publishing;
 
 import io.fluxcapacitor.common.Guarantee;
-import io.fluxcapacitor.common.Monitored;
-import io.fluxcapacitor.common.api.SerializedMessage;
+import io.fluxcapacitor.common.api.Command;
+import lombok.EqualsAndHashCode;
+import lombok.Value;
 
-import java.time.Duration;
-import java.util.List;
-import java.util.concurrent.CompletableFuture;
-
-public interface GatewayClient extends AutoCloseable, Monitored<List<SerializedMessage>> {
-
-    CompletableFuture<Void> append(Guarantee guarantee, SerializedMessage... messages);
-
-    CompletableFuture<Void> setRetentionTime(Duration duration, Guarantee guarantee);
-
-    @Override
-    void close();
+@EqualsAndHashCode(callSuper = true)
+@Value
+public class SetRetentionTime extends Command {
+    Long retentionTimeInSeconds;
+    Guarantee guarantee;
 }

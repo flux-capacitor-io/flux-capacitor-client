@@ -20,8 +20,9 @@ import io.fluxcapacitor.common.api.SerializedMessage;
 import io.fluxcapacitor.common.tracking.MessageStore;
 import io.fluxcapacitor.javaclient.FluxCapacitor;
 import io.fluxcapacitor.javaclient.tracking.IndexUtils;
+import lombok.AllArgsConstructor;
 import lombok.Getter;
-import lombok.RequiredArgsConstructor;
+import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
 
 import java.time.Duration;
@@ -42,7 +43,7 @@ import java.util.function.Consumer;
 import static io.fluxcapacitor.common.ObjectUtils.newThreadFactory;
 
 @Slf4j
-@RequiredArgsConstructor
+@AllArgsConstructor
 public class InMemoryMessageStore implements MessageStore {
 
     private final Set<Consumer<List<SerializedMessage>>> monitors = new CopyOnWriteArraySet<>();
@@ -51,8 +52,8 @@ public class InMemoryMessageStore implements MessageStore {
     private final ConcurrentSkipListMap<Long, SerializedMessage> messageLog = new ConcurrentSkipListMap<>();
     @Getter
     private final MessageType messageType;
-    @Getter
-    private final Duration messageExpiration;
+    @Getter @Setter
+    private Duration retentionTime;
 
     public InMemoryMessageStore(MessageType messageType) {
         this(messageType, Duration.ofMinutes(2));
@@ -67,8 +68,8 @@ public class InMemoryMessageStore implements MessageStore {
                 }
                 messageLog.put(m.getIndex(), m);
             });
-            if (messageExpiration != null) {
-                purgeExpiredMessages(messageExpiration);
+            if (retentionTime != null) {
+                purgeExpiredMessages(retentionTime);
             }
             return CompletableFuture.completedFuture(null);
         } finally {

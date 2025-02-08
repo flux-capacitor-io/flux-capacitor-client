@@ -30,9 +30,14 @@ import io.fluxcapacitor.common.api.search.SearchHistogram;
 import io.fluxcapacitor.common.api.search.SearchQuery;
 import io.fluxcapacitor.common.api.search.SerializedDocument;
 import io.fluxcapacitor.common.search.Document;
+import io.fluxcapacitor.javaclient.FluxCapacitor;
 import io.fluxcapacitor.javaclient.persisting.search.SearchHit;
 import io.fluxcapacitor.javaclient.tracking.IndexUtils;
+import lombok.AllArgsConstructor;
+import lombok.Getter;
+import lombok.Setter;
 
+import java.time.Duration;
 import java.time.Instant;
 import java.util.Collection;
 import java.util.Comparator;
@@ -60,6 +65,7 @@ import static java.util.stream.Collectors.mapping;
 import static java.util.stream.Collectors.toList;
 import static java.util.stream.Collectors.toMap;
 
+@AllArgsConstructor
 public class InMemorySearchStore implements SearchClient {
     protected static final Function<SerializedDocument, String> identifier = d -> asIdentifier(d.getCollection(), d.getId());
 
@@ -72,6 +78,10 @@ public class InMemorySearchStore implements SearchClient {
     private final AtomicLong nextIndex = new AtomicLong();
     private final Map<String, ConcurrentSkipListMap<Long, SerializedMessage>> messageLogs = new ConcurrentHashMap<>();
     private final List<BiConsumer<String, List<SerializedMessage>>> monitors = new CopyOnWriteArrayList<>();
+
+    @Getter
+    @Setter
+    private Duration retentionTime;
 
     @Override
     public CompletableFuture<Void> index(List<SerializedDocument> documents, Guarantee guarantee, boolean ifNotExists) {
@@ -205,6 +215,9 @@ public class InMemorySearchStore implements SearchClient {
                     var log = messageLogs.computeIfAbsent(collection, c -> new ConcurrentSkipListMap<>());
                     messages.forEach(m -> log.put(m.getIndex(), m));
                 });
+                if (retentionTime != null) {
+                    purgeExpiredMessages(retentionTime);
+                }
             } finally {
                 byCollection.forEach(this::notifyMonitors);
             }
@@ -218,6 +231,12 @@ public class InMemorySearchStore implements SearchClient {
                                            IndexUtils.millisFromIndex(index));
         result.setIndex(index);
         return result;
+    }
+
+    protected void purgeExpiredMessages(Duration messageExpiration) {
+        var threshold = FluxCapacitor.currentTime().minus(messageExpiration).toEpochMilli();
+        messageLogs.values().forEach(messageLog -> messageLog.headMap(
+                IndexUtils.maxIndexFromMillis(threshold), true).clear());
     }
 
     protected void notifyMonitors(String collection, List<SerializedMessage> messages) {

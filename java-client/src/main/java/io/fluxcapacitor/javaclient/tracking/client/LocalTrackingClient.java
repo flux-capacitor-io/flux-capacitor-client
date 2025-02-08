@@ -84,6 +84,12 @@ public class LocalTrackingClient implements TrackingClient, GatewayClient, HasMe
     }
 
     @Override
+    public CompletableFuture<Void> setRetentionTime(Duration duration, Guarantee guarantee) {
+        messageStore.setRetentionTime(duration);
+        return CompletableFuture.completedFuture(null);
+    }
+
+    @Override
     public CompletableFuture<MessageBatch> read(String consumer, String trackerId, Long lastIndex,
                                                 ConsumerConfiguration config) {
         CompletableFuture<MessageBatch> result = new CompletableFuture<>();

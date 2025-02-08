@@ -19,6 +19,7 @@ import io.fluxcapacitor.common.api.SerializedMessage;
 import io.fluxcapacitor.common.tracking.MessageStore;
 import lombok.AllArgsConstructor;
 
+import java.time.Duration;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Consumer;
@@ -44,5 +45,10 @@ public class CollectionMessageStore implements MessageStore {
     @Override
     public CompletableFuture<Void> append(List<SerializedMessage> messages) {
         throw new UnsupportedOperationException("Appending of documents is not supported");
+    }
+
+    @Override
+    public void setRetentionTime(Duration retentionPeriod) {
+        //no op
     }
 }
