@@ -164,8 +164,8 @@ public class TestFixture implements Given, When {
         return new TestFixture(fluxCapacitorBuilder, fc -> Arrays.asList(handlers), client, false);
     }
 
-    public static Duration defaultResultTimeout = Duration.ofSeconds(10L);
-    public static Duration defaultConsumerTimeout = Duration.ofSeconds(30L);
+    public static Duration defaultResultTimeout = Duration.ofSeconds(2L);
+    public static Duration defaultConsumerTimeout = Duration.ofSeconds(5L);
 
     @Getter
     private final FluxCapacitor fluxCapacitor;
