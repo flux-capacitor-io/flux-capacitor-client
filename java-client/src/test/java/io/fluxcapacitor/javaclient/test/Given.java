@@ -35,7 +35,7 @@ import java.time.Instant;
 import java.util.Arrays;
 import java.util.UUID;
 
-import static io.fluxcapacitor.javaclient.common.ClientUtils.runSilently;
+import static io.fluxcapacitor.common.ObjectUtils.run;
 
 /**
  * Interface of the `given` phase of a behavioral given-when-then test. Here you specify everything that happened prior
@@ -171,7 +171,7 @@ public interface Given extends When {
      */
     default Given givenSchedules(Schedule... schedules) {
         return given(fc -> Arrays.stream(schedules).forEach(
-                s -> runSilently(() -> fc.scheduler().schedule(s, false, Guarantee.STORED).get())));
+                s -> run(() -> fc.scheduler().schedule(s, false, Guarantee.STORED).get())));
     }
 
     /**

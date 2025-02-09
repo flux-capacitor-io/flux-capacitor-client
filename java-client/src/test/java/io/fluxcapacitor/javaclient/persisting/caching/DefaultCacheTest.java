@@ -119,7 +119,7 @@ class DefaultCacheTest {
     @Test
     void testLockingSameKey() {
         var latch = new CountDownLatch(1);
-        var thread1 = new Thread(() -> subject.compute("foo", (k, v) -> ObjectUtils.safelyCall(() -> {
+        var thread1 = new Thread(() -> subject.compute("foo", (k, v) -> ObjectUtils.call(() -> {
             latch.await();
             return "bar";
         })));
@@ -140,7 +140,7 @@ class DefaultCacheTest {
     @Test
     void testNoLockIfDifferentKey() {
         var latch = new CountDownLatch(1);
-        var thread1 = new Thread(() -> subject.compute("foo", (k, v) -> ObjectUtils.safelyCall(() -> {
+        var thread1 = new Thread(() -> subject.compute("foo", (k, v) -> ObjectUtils.call(() -> {
             latch.await();
             return "bar";
         })));

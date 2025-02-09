@@ -41,8 +41,8 @@ import java.util.function.Function;
 import java.util.regex.Pattern;
 import java.util.stream.Stream;
 
+import static io.fluxcapacitor.common.ObjectUtils.call;
 import static io.fluxcapacitor.common.ObjectUtils.memoize;
-import static io.fluxcapacitor.common.ObjectUtils.safelyCall;
 import static io.fluxcapacitor.common.reflection.ReflectionUtils.getAnnotatedProperty;
 import static io.fluxcapacitor.common.reflection.ReflectionUtils.getCollectionElementType;
 import static io.fluxcapacitor.common.reflection.ReflectionUtils.getName;
@@ -123,7 +123,7 @@ public class AnnotatedEntityHolder {
                                              && m.getName().toLowerCase().contains(propertyName.toLowerCase())) :
                 witherCandidates.filter(m -> Objects.equals(member.wither(), m.getName()));
         Optional<BiFunction<Object, Object, Object>> wither =
-                witherCandidates.findFirst().map(m -> (o, h) -> safelyCall(() -> m.invoke(o, h)));
+                witherCandidates.findFirst().map(m -> (o, h) -> call(() -> m.invoke(o, h)));
         return wither.orElseGet(() -> {
             AtomicBoolean warningIssued = new AtomicBoolean();
             MemberInvoker field = ReflectionUtils.getField(ownerType, propertyName)

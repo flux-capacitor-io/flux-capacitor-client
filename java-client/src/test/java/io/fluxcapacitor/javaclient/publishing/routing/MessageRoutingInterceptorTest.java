@@ -20,7 +20,6 @@ import io.fluxcapacitor.common.api.Data;
 import io.fluxcapacitor.common.api.Metadata;
 import io.fluxcapacitor.common.api.SerializedMessage;
 import io.fluxcapacitor.javaclient.MockException;
-import io.fluxcapacitor.javaclient.common.ClientUtils;
 import io.fluxcapacitor.javaclient.common.Message;
 import io.fluxcapacitor.javaclient.configuration.DefaultFluxCapacitor;
 import io.fluxcapacitor.javaclient.test.TestFixture;
@@ -36,6 +35,7 @@ import java.util.UUID;
 import java.util.stream.IntStream;
 
 import static io.fluxcapacitor.common.MessageType.EVENT;
+import static io.fluxcapacitor.common.ObjectUtils.run;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
@@ -64,8 +64,7 @@ class MessageRoutingInterceptorTest {
         @Test
         void ensureHandlerFiltering() {
             testFixture.whenExecuting(fc -> IntStream.range(0, 64).mapToObj(i -> new Foo(UUID.randomUUID().toString())).forEach(
-                    e -> ClientUtils.runSilently(
-                            () -> fc.eventGateway().publish(Message.asMessage(e), Guarantee.STORED).get())))
+                    e -> run(() -> fc.eventGateway().publish(Message.asMessage(e), Guarantee.STORED).get())))
                     .expectNoErrors();
         }
     }

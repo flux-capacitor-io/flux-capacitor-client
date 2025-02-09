@@ -18,7 +18,6 @@ import io.fluxcapacitor.common.Registration;
 import io.fluxcapacitor.common.api.SerializedMessage;
 import io.fluxcapacitor.common.api.tracking.MessageBatch;
 import io.fluxcapacitor.common.api.tracking.Position;
-import io.fluxcapacitor.common.application.AutoClosing;
 import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
@@ -55,7 +54,7 @@ import static java.util.Optional.ofNullable;
  * more than one client.
  */
 @Slf4j
-public class DefaultTrackingStrategy extends AutoClosing implements TrackingStrategy {
+public class DefaultTrackingStrategy implements TrackingStrategy {
 
     private final MessageStore source;
     private final TaskScheduler scheduler;
@@ -63,6 +62,10 @@ public class DefaultTrackingStrategy extends AutoClosing implements TrackingStra
     private final Map<Tracker, WaitingTracker> waitingTrackers = synchronizedMap(new HashMap<>());
     private final ConcurrentHashMap<String, TrackerCluster> clusters = new ConcurrentHashMap<>();
     private volatile long lastSeenIndex = -1L;
+
+    private final Registration sourceRegistration;
+
+    private volatile boolean stopped;
 
     public DefaultTrackingStrategy(MessageStore source) {
         this(source, new InMemoryTaskScheduler());
@@ -76,7 +79,7 @@ public class DefaultTrackingStrategy extends AutoClosing implements TrackingStra
         this.source = source;
         this.scheduler = scheduler;
         this.segments = segments;
-        source.registerMonitor(this::onUpdate);
+        sourceRegistration = source.registerMonitor(this::onUpdate);
         purgeCeasedTrackers(Duration.ofSeconds(2));
     }
 
@@ -221,7 +224,7 @@ public class DefaultTrackingStrategy extends AutoClosing implements TrackingStra
     }
 
     protected void onUpdate(List<SerializedMessage> messages) {
-        if (!isStopped()) {
+        if (!stopped) {
             synchronized (waitingTrackers) {
                 lastSeenIndex = ofNullable(getLastIndex(messages)).orElse(lastSeenIndex);
                 new ArrayList<>(waitingTrackers.values()).forEach(WaitingTracker::run);
@@ -230,7 +233,7 @@ public class DefaultTrackingStrategy extends AutoClosing implements TrackingStra
     }
 
     protected void onClusterUpdate(TrackerCluster cluster) {
-        if (!isStopped()) {
+        if (!stopped) {
             synchronized (waitingTrackers) {
                 waitingTrackers.entrySet().stream().filter(e -> cluster.contains(e.getKey())).map(
                         Map.Entry::getValue).toList().forEach(WaitingTracker::run);
@@ -304,13 +307,11 @@ public class DefaultTrackingStrategy extends AutoClosing implements TrackingStra
     }
 
     @Override
-    protected void onShutdown() {
-        scheduler.shutdown();
-    }
-
-    @Override
     public void close() {
-        onShutdown();
+        stopped = true;
+        scheduler.shutdown();
+        sourceRegistration.cancel();
+        source.close();
     }
 
     @AllArgsConstructor

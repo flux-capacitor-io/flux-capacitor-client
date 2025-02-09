@@ -27,6 +27,7 @@ import io.fluxcapacitor.common.search.Facet;
 import io.fluxcapacitor.common.serialization.JsonUtils;
 import io.fluxcapacitor.javaclient.FluxCapacitor;
 import io.fluxcapacitor.javaclient.common.serialization.jackson.JacksonSerializer;
+import io.fluxcapacitor.javaclient.configuration.DefaultFluxCapacitor;
 import io.fluxcapacitor.javaclient.modeling.Id;
 import io.fluxcapacitor.javaclient.persisting.search.Searchable;
 import io.fluxcapacitor.javaclient.test.Given;
@@ -672,13 +673,15 @@ public class SearchTest {
 
     private void expectMatch(Constraint... constraints) {
         SomeDocument document = new SomeDocument();
-        TestFixture.create().givenDocuments("test", document).<JsonNode>whenSearching("test", constraints)
+        TestFixture.create(DefaultFluxCapacitor.builder().disableScheduledCommandHandler().disableAutomaticAggregateCaching())
+                .givenDocuments("test", document).<JsonNode>whenSearching("test", constraints)
                 .expectResult(singletonList(document));
     }
 
     private void expectNoMatch(Constraint... constraints) {
         SomeDocument document = new SomeDocument();
-        TestFixture.create().givenDocuments("test", document).<JsonNode>whenSearching("test", constraints)
+        TestFixture.create(DefaultFluxCapacitor.builder().disableScheduledCommandHandler().disableAutomaticAggregateCaching())
+                .givenDocuments("test", document).<JsonNode>whenSearching("test", constraints)
                 .expectResult(emptyList());
     }
 

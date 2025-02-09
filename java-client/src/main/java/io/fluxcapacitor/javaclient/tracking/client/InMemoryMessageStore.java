@@ -35,19 +35,14 @@ import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentSkipListMap;
 import java.util.concurrent.CopyOnWriteArraySet;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Consumer;
-
-import static io.fluxcapacitor.common.ObjectUtils.newThreadFactory;
 
 @Slf4j
 @AllArgsConstructor
 public class InMemoryMessageStore implements MessageStore {
 
     private final Set<Consumer<List<SerializedMessage>>> monitors = new CopyOnWriteArraySet<>();
-    private final ExecutorService executor = Executors.newCachedThreadPool(newThreadFactory("InMemoryMessageStore"));
     private final AtomicLong nextIndex = new AtomicLong();
     private final ConcurrentSkipListMap<Long, SerializedMessage> messageLog = new ConcurrentSkipListMap<>();
     @Getter
@@ -116,6 +111,5 @@ public class InMemoryMessageStore implements MessageStore {
 
     @Override
     public void close() {
-        executor.shutdownNow();
     }
 }

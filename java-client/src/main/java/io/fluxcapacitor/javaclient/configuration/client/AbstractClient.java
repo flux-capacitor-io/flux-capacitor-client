@@ -16,8 +16,8 @@ package io.fluxcapacitor.javaclient.configuration.client;
 
 import io.fluxcapacitor.common.MemoizingBiFunction;
 import io.fluxcapacitor.common.MessageType;
+import io.fluxcapacitor.common.ObjectUtils;
 import io.fluxcapacitor.common.Registration;
-import io.fluxcapacitor.javaclient.common.ClientUtils;
 import io.fluxcapacitor.javaclient.persisting.eventsourcing.client.EventStoreClient;
 import io.fluxcapacitor.javaclient.persisting.keyvalue.client.KeyValueClient;
 import io.fluxcapacitor.javaclient.persisting.search.client.SearchClient;
@@ -40,6 +40,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.CopyOnWriteArraySet;
 
+import static io.fluxcapacitor.common.ObjectUtils.asConsumer;
 import static io.fluxcapacitor.common.ObjectUtils.memoize;
 import static java.util.Objects.requireNonNull;
 
@@ -116,9 +117,9 @@ public abstract class AbstractClient implements Client {
 
     @Override
     public void shutDown() {
-        shutdownTasks.forEach(ClientUtils::tryRun);
-        trackingClients.forEach(TrackingClient::close);
-        gatewayClients.forEach(GatewayClient::close);
+        shutdownTasks.forEach(ObjectUtils::tryRun);
+        trackingClients.forEach(asConsumer(AutoCloseable::close));
+        gatewayClients.forEach(asConsumer(AutoCloseable::close));
         getEventStoreClient().close();
         getSchedulingClient().close();
         getKeyValueClient().close();

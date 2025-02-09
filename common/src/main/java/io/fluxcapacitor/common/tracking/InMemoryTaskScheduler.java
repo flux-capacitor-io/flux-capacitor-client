@@ -71,7 +71,7 @@ public class InMemoryTaskScheduler implements TaskScheduler {
 
     @Override
     public void shutdown() {
-        executorService.shutdown();
+        executorService.shutdownNow();
     }
 
     private static class Task {

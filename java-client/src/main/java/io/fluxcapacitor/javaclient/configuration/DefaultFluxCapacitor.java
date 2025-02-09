@@ -15,6 +15,7 @@
 package io.fluxcapacitor.javaclient.configuration;
 
 import io.fluxcapacitor.common.MessageType;
+import io.fluxcapacitor.common.ObjectUtils;
 import io.fluxcapacitor.common.Registration;
 import io.fluxcapacitor.common.application.DecryptingPropertySource;
 import io.fluxcapacitor.common.application.DefaultPropertySource;
@@ -24,7 +25,6 @@ import io.fluxcapacitor.common.caching.DefaultCache;
 import io.fluxcapacitor.common.caching.NamedCache;
 import io.fluxcapacitor.common.handling.ParameterResolver;
 import io.fluxcapacitor.javaclient.FluxCapacitor;
-import io.fluxcapacitor.javaclient.common.ClientUtils;
 import io.fluxcapacitor.javaclient.common.IdentityProvider;
 import io.fluxcapacitor.javaclient.common.serialization.DeserializingMessage;
 import io.fluxcapacitor.javaclient.common.serialization.Serializer;
@@ -208,11 +208,13 @@ public class DefaultFluxCapacitor implements FluxCapacitor {
     }
 
     @Override
-    public void close() {
+    public void close(boolean silently) {
         if (closed.compareAndSet(false, true)) {
-            log.info("Initiating controlled shutdown");
+            if (!silently) {
+                log.info("Initiating controlled shutdown");
+            }
             try {
-                cleanupTasks.forEach(ClientUtils::tryRun);
+                cleanupTasks.forEach(ObjectUtils::tryRun);
                 shutdownHandler.run();
             } catch (Exception e) {
                 log.error("Encountered an error during shutdown", e);
@@ -221,7 +223,9 @@ public class DefaultFluxCapacitor implements FluxCapacitor {
                     FluxCapacitor.applicationInstance.set(null);
                 }
             }
-            log.info("Completed shutdown");
+            if (!silently) {
+                log.info("Completed shutdown");
+            }
         }
     }
 
@@ -736,8 +740,9 @@ public class DefaultFluxCapacitor implements FluxCapacitor {
                 defaultRequestHandler.close();
                 webRequestHandler.close();
                 cache.close();
+                relationshipsCache.close();
                 client.shutDown();
-                shutdownPool.shutdown();
+                shutdownPool.close();
             };
 
             //and finally...

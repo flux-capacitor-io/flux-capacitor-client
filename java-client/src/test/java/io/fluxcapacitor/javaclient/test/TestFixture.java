@@ -89,7 +89,6 @@ import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.CopyOnWriteArraySet;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executor;
-import java.util.concurrent.Executors;
 import java.util.concurrent.TimeoutException;
 import java.util.function.Consumer;
 import java.util.function.Function;
@@ -101,12 +100,14 @@ import static io.fluxcapacitor.common.MessageType.CUSTOM;
 import static io.fluxcapacitor.common.MessageType.EVENT;
 import static io.fluxcapacitor.common.MessageType.NOTIFICATION;
 import static io.fluxcapacitor.common.MessageType.SCHEDULE;
+import static io.fluxcapacitor.common.ObjectUtils.newThreadFactory;
+import static io.fluxcapacitor.common.ObjectUtils.tryCatch;
 import static io.fluxcapacitor.common.api.Data.JSON_FORMAT;
 import static io.fluxcapacitor.common.reflection.ReflectionUtils.ifClass;
 import static io.fluxcapacitor.javaclient.common.ClientUtils.getLocalHandlerAnnotation;
-import static io.fluxcapacitor.javaclient.common.ClientUtils.runSilently;
 import static io.fluxcapacitor.javaclient.common.Message.asMessage;
 import static java.util.Collections.emptyList;
+import static java.util.concurrent.Executors.newFixedThreadPool;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
 import static java.util.stream.Collectors.toCollection;
 import static java.util.stream.Collectors.toList;
@@ -190,16 +191,14 @@ public class TestFixture implements Given, When {
 
     private final List<ThrowingConsumer<TestFixture>> modifiers = new CopyOnWriteArrayList<>();
     private static final ThreadLocal<List<TestFixture>> activeFixtures = ThreadLocal.withInitial(ArrayList::new);
-    private static final Executor shutdownExecutor = Executors.newFixedThreadPool(16);
+    private static final Executor shutdownExecutor = newFixedThreadPool(16, newThreadFactory("TestFixture-shutdown"));
 
     public static void shutDownActiveFixtures() {
         var fixtures = activeFixtures.get();
         if (!fixtures.isEmpty()) {
             activeFixtures.remove();
-            fixtures.forEach(fixture -> shutdownExecutor.execute(() -> {
-                Optional.ofNullable(fixture.registration).ifPresent(Registration::cancel);
-                fixture.fluxCapacitor.client().shutDown();
-            }));
+            fixtures.forEach(fixture -> shutdownExecutor.execute(
+                    tryCatch(() -> fixture.fluxCapacitor.close(true))));
             Optional.ofNullable(FluxCapacitor.instance.get()).ifPresent(fc -> FluxCapacitor.instance.remove());
         }
     }
@@ -641,7 +640,7 @@ public class TestFixture implements Given, When {
     @Override
     public Then<?> whenEvent(Object event) {
         Message message = trace(event);
-        return whenExecuting(fc -> runSilently(() -> fc.eventGateway().publish(message, Guarantee.STORED).get()));
+        return whenExecuting(fc -> fc.eventGateway().publish(message, Guarantee.STORED).get());
     }
 
     @Override

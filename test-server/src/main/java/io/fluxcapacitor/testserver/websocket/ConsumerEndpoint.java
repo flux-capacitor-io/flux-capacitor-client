@@ -109,6 +109,7 @@ public class ConsumerEndpoint extends WebsocketEndpoint {
     @Override
     protected void shutDown() {
         trackingStrategy.disconnectTrackers(t -> true, false);
+        trackingStrategy.close();
         super.shutDown();
     }
 

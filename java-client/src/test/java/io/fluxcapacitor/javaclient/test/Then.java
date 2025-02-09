@@ -16,7 +16,6 @@ package io.fluxcapacitor.javaclient.test;
 
 import io.fluxcapacitor.common.ThrowingConsumer;
 import io.fluxcapacitor.javaclient.FluxCapacitor;
-import io.fluxcapacitor.javaclient.common.ClientUtils;
 import io.fluxcapacitor.javaclient.common.Message;
 import io.fluxcapacitor.javaclient.scheduling.Schedule;
 import io.fluxcapacitor.javaclient.web.WebRequest;
@@ -31,6 +30,7 @@ import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Predicate;
 
+import static io.fluxcapacitor.common.ObjectUtils.run;
 import static java.lang.String.format;
 
 /**
@@ -536,7 +536,7 @@ public interface Then<R> {
                 verifier.accept(r);
                 return true;
             } catch (Throwable e) {
-                ClientUtils.runSilently(() -> {
+                run(() -> {
                     throw e;
                 });
                 return false;
@@ -573,7 +573,7 @@ public interface Then<R> {
                 verifier.accept((M) r);
                 return true;
             } catch (Throwable e) {
-                ClientUtils.runSilently(() -> {
+                run(() -> {
                     throw e;
                 });
                 return false;
@@ -670,7 +670,7 @@ public interface Then<R> {
                 verifier.accept((T) r);
                 return true;
             } catch (Throwable e) {
-                ClientUtils.runSilently(() -> {
+                run(() -> {
                     throw e;
                 });
                 return false;
@@ -737,7 +737,7 @@ public interface Then<R> {
                 verifier.accept((T) e);
                 return true;
             } catch (Throwable ex) {
-                ClientUtils.runSilently(() -> {
+                run(() -> {
                     throw ex;
                 });
                 return false;

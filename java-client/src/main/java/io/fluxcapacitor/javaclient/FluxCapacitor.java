@@ -1011,6 +1011,16 @@ public interface FluxCapacitor extends AutoCloseable {
      */
     Registration beforeShutdown(Runnable task);
 
+    /**
+     * Closes this Flux Capacitor instance gracefully.
+     */
     @Override
-    void close();
+    default void close() {
+        close(false);
+    }
+
+    /**
+     * Closes this Flux Capacitor instance gracefully. If silently is true, shutdown is done without logging.
+     */
+    void close(boolean silently);
 }

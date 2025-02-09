@@ -22,7 +22,6 @@ import io.fluxcapacitor.common.MemoizingFunction;
 import io.fluxcapacitor.common.MemoizingSupplier;
 import io.fluxcapacitor.common.MessageType;
 import io.fluxcapacitor.common.ObjectUtils;
-import io.fluxcapacitor.common.ThrowingRunnable;
 import io.fluxcapacitor.common.handling.HandlerInvoker;
 import io.fluxcapacitor.common.reflection.ReflectionUtils;
 import io.fluxcapacitor.common.serialization.Revision;
@@ -34,7 +33,6 @@ import io.fluxcapacitor.javaclient.tracking.handling.HandleCustom;
 import io.fluxcapacitor.javaclient.tracking.handling.HandleDocument;
 import io.fluxcapacitor.javaclient.tracking.handling.LocalHandler;
 import lombok.NonNull;
-import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
 import org.slf4j.Marker;
 import org.slf4j.MarkerFactory;
@@ -106,19 +104,6 @@ public class ClientUtils {
             } catch (ExecutionException ignore) {
             }
         }
-    }
-
-    public static void tryRun(Runnable task) {
-        try {
-            task.run();
-        } catch (Exception e) {
-            log.warn("Task {} failed", task, e);
-        }
-    }
-
-    @SneakyThrows
-    public static void runSilently(ThrowingRunnable runnable) {
-        runnable.run();
     }
 
     public static boolean isSelfTracking(Class<?> target, Executable method) {

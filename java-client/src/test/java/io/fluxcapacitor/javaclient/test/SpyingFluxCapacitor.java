@@ -187,8 +187,8 @@ public class SpyingFluxCapacitor implements FluxCapacitor {
     }
 
     @Override
-    public void close() {
-        delegate.close();
+    public void close(boolean silently) {
+        delegate.close(silently);
     }
 
 }

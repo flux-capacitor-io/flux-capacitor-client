@@ -31,4 +31,9 @@ public class LocalEventStoreClient extends LocalTrackingClient implements EventS
     public InMemoryEventStore getMessageStore() {
         return (InMemoryEventStore) super.getMessageStore();
     }
+
+    @Override
+    public void close() {
+        super.close();
+    }
 }

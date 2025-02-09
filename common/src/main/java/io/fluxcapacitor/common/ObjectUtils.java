@@ -15,6 +15,7 @@
 package io.fluxcapacitor.common;
 
 import lombok.SneakyThrows;
+import lombok.extern.slf4j.Slf4j;
 
 import java.io.StringReader;
 import java.nio.ByteBuffer;
@@ -51,6 +52,7 @@ import java.util.stream.StreamSupport;
 import static java.util.Arrays.stream;
 import static java.util.function.UnaryOperator.identity;
 
+@Slf4j
 public class ObjectUtils {
     private static final Predicate<Object> noOpPredicate = v -> true;
     private static final BiPredicate<Object, Object> noOpBiPredicate = (a, b) -> true;
@@ -129,16 +131,45 @@ public class ObjectUtils {
     }
 
     @SneakyThrows
-    public static <T> T safelyCall(Callable<T> callable) {
+    public static <T> T call(Callable<T> callable) {
         return callable.call();
     }
 
-    public static <T> Supplier<T> safelySupply(Callable<T> callable) {
-        return () -> safelyCall(callable);
+    @SneakyThrows
+    public static void run(ThrowingRunnable runnable) {
+        runnable.run();
+    }
+
+    public static void tryRun(Runnable task) {
+        try {
+            task.run();
+        } catch (Exception e) {
+            log.error("Task {} failed", task, e);
+        }
+    }
+
+    public static Runnable tryCatch(Runnable runnable) {
+        return () -> tryRun(runnable);
+    }
+
+    public static <T> Supplier<T> asSupplier(Callable<T> callable) {
+        return () -> call(callable);
+    }
+
+    public static Runnable asRunnable(ThrowingRunnable runnable) {
+        return () -> run(runnable);
+    }
+
+    public static <T, R> Function<T, R> asFunction(ThrowingFunction<T, R> function) {
+        return t -> call(() -> function.apply(t));
+    }
+
+    public static <T> Consumer<T> asConsumer(ThrowingConsumer<T> consumer) {
+        return t -> run(() -> consumer.accept(t));
     }
 
     public static Runnable asRunnable(Callable<?> callable) {
-        return () -> safelyCall(callable);
+        return () -> call(callable);
     }
 
     public static byte[] getBytes(ByteBuffer buffer) {

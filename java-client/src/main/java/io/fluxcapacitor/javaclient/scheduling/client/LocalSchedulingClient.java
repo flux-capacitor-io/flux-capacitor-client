@@ -31,4 +31,9 @@ public class LocalSchedulingClient extends LocalTrackingClient implements Schedu
     public InMemoryScheduleStore getMessageStore() {
         return (InMemoryScheduleStore) super.getMessageStore();
     }
+
+    @Override
+    public void close() {
+        super.close();
+    }
 }
