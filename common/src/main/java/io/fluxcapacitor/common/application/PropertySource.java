@@ -78,11 +78,11 @@ public interface PropertySource {
         return result.equals(template) ? result : substituteProperties(result);
     }
 
-    default PropertySource merge(PropertySource next) {
+    default PropertySource andThen(PropertySource next) {
         return name -> Optional.ofNullable(PropertySource.this.get(name)).orElseGet(() -> next.get(name));
     }
 
     static PropertySource join(PropertySource... propertySources) {
-        return Arrays.stream(propertySources).reduce(PropertySource::merge).orElse(NoOpPropertySource.INSTANCE);
+        return Arrays.stream(propertySources).reduce(PropertySource::andThen).orElse(NoOpPropertySource.INSTANCE);
     }
 }

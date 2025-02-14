@@ -217,7 +217,7 @@ public class TestFixture implements Given, When {
         if (synchronous) {
             fluxCapacitorBuilder.disableScheduledCommandHandler();
         }
-        fluxCapacitorBuilder.addPropertySource(new SimplePropertySource(testProperties));
+        fluxCapacitorBuilder.replacePropertySource(s -> new SimplePropertySource(testProperties).andThen(s));
         this.interceptor = new GivenWhenThenInterceptor(this);
         client.monitorDispatch(interceptor::interceptClientDispatch);
         fluxCapacitorBuilder = fluxCapacitorBuilder.disableShutdownHook()

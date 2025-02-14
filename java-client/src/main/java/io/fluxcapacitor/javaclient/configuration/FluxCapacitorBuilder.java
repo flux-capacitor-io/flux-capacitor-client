@@ -112,7 +112,7 @@ public interface FluxCapacitorBuilder {
     FluxCapacitorBuilder registerUserProvider(UserProvider userProvider);
 
     default FluxCapacitorBuilder addPropertySource(PropertySource propertySource) {
-        return replacePropertySource(existing -> existing.merge(propertySource));
+        return replacePropertySource(existing -> existing.andThen(propertySource));
     }
 
     FluxCapacitorBuilder replacePropertySource(UnaryOperator<PropertySource> replacer);

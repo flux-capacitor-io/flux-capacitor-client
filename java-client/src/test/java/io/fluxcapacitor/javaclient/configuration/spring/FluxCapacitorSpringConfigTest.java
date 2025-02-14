@@ -208,13 +208,13 @@ public class FluxCapacitorSpringConfigTest {
         @Bean
         FluxCapacitorCustomizer firstCustomizer() {
             return builder -> builder.replacePropertySource(existing -> new SimplePropertySource(
-                    Map.of("foo", "firstCustomizerVale", "bar", "firstCustomizerValue")).merge(existing));
+                    Map.of("foo", "firstCustomizerVale", "bar", "firstCustomizerValue")).andThen(existing));
         }
 
         @Bean
         FluxCapacitorCustomizer secondCustomizer() {
             return builder -> builder.replacePropertySource(existing -> new SimplePropertySource(
-                    Map.of("foo", "secondCustomizerValue")).merge(existing));
+                    Map.of("foo", "secondCustomizerValue")).andThen(existing));
         }
     }
 
