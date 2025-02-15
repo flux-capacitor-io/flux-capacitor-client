@@ -22,7 +22,6 @@ import io.fluxcapacitor.javaclient.common.serialization.DeserializingMessage;
 import io.fluxcapacitor.javaclient.publishing.DispatchInterceptor;
 import io.fluxcapacitor.javaclient.tracking.handling.HandlerInterceptor;
 import lombok.AllArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
 
 import java.util.Optional;
 import java.util.function.Function;
@@ -33,7 +32,6 @@ import static io.fluxcapacitor.javaclient.tracking.handling.validation.Validatio
 import static java.util.Optional.ofNullable;
 
 @AllArgsConstructor
-@Slf4j
 public class AuthenticatingInterceptor implements DispatchInterceptor, HandlerInterceptor {
 
     private final UserProvider userProvider;
@@ -92,6 +90,9 @@ public class AuthenticatingInterceptor implements DispatchInterceptor, HandlerIn
                             user = userProvider.fromMessage(m);
                         } catch (Throwable ignored) {
                             user = null;
+                        }
+                        if (user == null) {
+                            user = userProvider.getActiveUser();
                         }
                         return isAuthorized(i.getTargetClass(), i.getMethod(), user);
                     });
