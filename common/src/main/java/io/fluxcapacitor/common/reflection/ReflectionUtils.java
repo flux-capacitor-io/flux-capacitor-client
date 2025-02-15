@@ -52,6 +52,7 @@ import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
+import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.LinkedList;
 import java.util.List;
@@ -75,6 +76,7 @@ import static java.security.AccessController.doPrivileged;
 import static java.util.Arrays.stream;
 import static java.util.Collections.emptyList;
 import static java.util.stream.Collectors.toCollection;
+import static java.util.stream.Collectors.toMap;
 import static org.apache.commons.lang3.ClassUtils.getAllInterfaces;
 import static org.apache.commons.lang3.StringUtils.isEmpty;
 import static org.apache.commons.lang3.reflect.MethodUtils.getMethodsListWithAnnotation;
@@ -365,8 +367,11 @@ public class ReflectionUtils {
         Stream<Annotation> stream = stream(p.getAnnotations());
         if (recursive) {
             stream = Stream.concat(stream, getPackageAnnotations(getFirstKnownAncestorPackage(p.getName()), true).stream());
+            return stream.collect(toMap(Annotation::annotationType, Function.identity(),
+                                        (a, b) -> a, LinkedHashMap::new)).values();
+        } else {
+            return stream.toList();
         }
-        return stream.toList();
     }
 
     /*

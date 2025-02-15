@@ -35,10 +35,12 @@ import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.ServiceLoader;
+import java.util.Set;
 import java.util.function.BiFunction;
 import java.util.function.Function;
 
 import static io.fluxcapacitor.common.ObjectUtils.memoize;
+import static io.fluxcapacitor.common.reflection.ReflectionUtils.getPackageAndParentPackages;
 import static io.fluxcapacitor.common.reflection.ReflectionUtils.getPackageAnnotations;
 import static io.fluxcapacitor.common.reflection.ReflectionUtils.getTypeAnnotations;
 import static java.lang.String.format;
@@ -57,6 +59,7 @@ public class ValidationUtils {
         }
         return annotation.value();
     });
+    private static final Set<String> requiresNoUserRole = Set.of(RequiresNoUser.RESERVED_ROLE);
 
     /*
         Check object validity
@@ -118,7 +121,10 @@ public class ValidationUtils {
     private static final BiFunction<Class<?>, Executable, String[]> requiredRolesForMethodCache = memoize(
             (target, executable) -> Optional.ofNullable(getRequiredRoles(Arrays.asList(executable.getAnnotations())))
                     .or(() -> Optional.ofNullable(getRequiredRoles(getTypeAnnotations(target))))
-                    .orElseGet(() -> getRequiredRoles(getPackageAnnotations(target.getPackage()))));
+                    .orElseGet(() -> getPackageAndParentPackages(target.getPackage()).stream()
+                            .map(p -> ReflectionUtils.getPackageAnnotations(p, false))
+                            .map(ValidationUtils::getRequiredRoles)
+                            .filter(Objects::nonNull).findFirst().orElse(null)));
 
     public static void assertAuthorized(Class<?> payloadType,
                                         User user) throws UnauthenticatedException, UnauthorizedException {
@@ -150,10 +156,10 @@ public class ValidationUtils {
 
     protected static void assertAuthorized(String action, User user, String[] requiredRoles) {
         if (requiredRoles != null) {
+            if (Set.of(requiredRoles).equals(requiresNoUserRole)) {
+                return;
+            }
             if (user == null) {
-                if (Arrays.asList(requiredRoles).contains(RequiresNoUser.RESERVED_ROLE)) {
-                    return;
-                }
                 throw new UnauthenticatedException(format("%s requires authentication", action));
             }
             List<String> remainingRoles = new ArrayList<>();
