@@ -552,6 +552,28 @@ public class HandleWebTest {
         }
 
         @Test
+        void testValidCookieHeader() {
+            TestFixture.create(new Object() {
+                        @HandleGet("/checkHeader")
+                        String check(WebRequest request) {
+                            return request.getCookie("foo").map(HttpCookie::getValue).orElse(null);
+                        }
+                    }).withHeader("cookie", "foo=bar=bar").whenGet("/checkHeader")
+                    .expectResult("bar=bar");
+        }
+
+        @Test
+        void testInvalidCookieHeader() {
+            TestFixture.create(new Object() {
+                @HandleGet("/checkHeader")
+                String check(WebRequest request) {
+                    return request.getCookie("").map(HttpCookie::getValue).orElse(null);
+                }
+            }).withHeader("cookie", "bar").whenGet("/checkHeader")
+                    .expectNoResult().expectNoErrors();
+        }
+
+        @Test
         void testWithoutHeader() {
             TestFixture.create(new Object() {
                 @HandleGet("/checkHeader")

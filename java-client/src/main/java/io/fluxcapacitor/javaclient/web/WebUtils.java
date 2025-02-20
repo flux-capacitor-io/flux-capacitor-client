@@ -25,7 +25,7 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
-import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import static org.apache.commons.lang3.StringUtils.isBlank;
 
@@ -56,10 +56,12 @@ public class WebUtils {
     }
 
     public static List<HttpCookie> parseRequestCookieHeader(String cookieHeader) {
-        return cookieHeader == null ? List.of() : Arrays.stream(cookieHeader.split(";")).map(c -> {
-            var parts = c.trim().split("=");
-            return new HttpCookie(parts[0].trim(), parts[1].trim().replaceAll("^\"|\"$", ""));
-        }).collect(Collectors.toList());
+        return cookieHeader == null ? List.of() : Arrays.stream(cookieHeader.split(";")).flatMap(c -> {
+            var parts = c.trim().split("=", 2);
+            return parts.length == 2 ? Stream.of(
+                    new HttpCookie(parts[0].trim(), parts[1].trim().replaceAll("^\"|\"$", ""))) :
+                    Stream.empty();
+        }).toList();
     }
 
     public static List<HttpCookie> parseResponseCookieHeader(List<String> setCookieHeaders) {
