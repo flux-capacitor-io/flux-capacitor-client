@@ -1,0 +1,18 @@
+{
+  "trackerId": "93e38d4e-9d72-4926-a0e2-a2bb63ce5e3a_d130361b-df59-4ac8-b987-46a513ea1efc",
+  "maxTimeout": 60000,
+  "@type": "read",
+  "requestId": 210551,
+  "filterMessageTarget": false,
+  "maxSize": 128,
+  "lastIndex": 106187509441101820,
+  "consumer": "audittrail:QUERY",
+  "array": [{
+    "arrayId": "123",
+    "anotherArray": [
+      {
+        "anotherArrayId": "456"
+      }
+    ]
+  }]
+}

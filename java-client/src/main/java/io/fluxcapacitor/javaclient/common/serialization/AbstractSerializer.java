@@ -198,22 +198,15 @@ public abstract class AbstractSerializer<I> implements Serializer {
             return (V) value;
         }
         if (value instanceof Collection<?> collection) {
-            if (value instanceof List<?>) {
-                return (V) new ArrayList<>(collection);
-            }
-            if (value instanceof SortedSet<?>) {
-                return (V) new TreeSet<>(collection);
-            }
-            if (value instanceof Set<?>) {
-                return (V) new LinkedHashSet<>(collection);
-            }
-            return (V) new LinkedList<>(collection);
+            return switch (value) {
+                case List<?> __ -> (V) new ArrayList<>(collection);
+                case SortedSet<?> __ -> (V) new TreeSet<>(collection);
+                case Set<?> __ -> (V) new LinkedHashSet<>(collection);
+                default -> (V) new LinkedList<>(collection);
+            };
         }
         if (value instanceof Map<?, ?> map) {
-            if (value instanceof SortedMap<?, ?>) {
-                return (V) new TreeMap<>(map);
-            }
-            return (V) new LinkedHashMap<>(map);
+            return value instanceof SortedMap<?, ?> ? (V) new TreeMap<>(map) : (V) new LinkedHashMap<>(map);
         }
         return (V) doClone(value);
     }
@@ -291,8 +284,7 @@ public abstract class AbstractSerializer<I> implements Serializer {
         }));
     }
 
-    protected Stream<DeserializingObject<byte[], ?>> deserializeUnknownType(
-            SerializedObject<byte[], ?> serializedObject) {
+    protected Stream<DeserializingObject<byte[], ?>> deserializeUnknownType(SerializedObject<?, ?> serializedObject) {
         return Stream.empty();
     }
 

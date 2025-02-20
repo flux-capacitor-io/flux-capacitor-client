@@ -122,12 +122,19 @@ public class JacksonSerializer extends AbstractSerializer<JsonNode> implements D
 
     @SuppressWarnings({"unchecked", "rawtypes"})
     @Override
-    protected Stream<DeserializingObject<byte[], ?>> deserializeUnknownType(SerializedObject<byte[], ?> s) {
-        SerializedObject<byte[], ?> jsonNode =
-                s.withData(new Data<>(s.data().getValue(), JsonNode.class.getName(), 0, getFormat()));
+    protected Stream<DeserializingObject<byte[], ?>> deserializeUnknownType(SerializedObject<?, ?> s) {
+        SerializedObject<?, ?> jsonNode =
+                s.withData(new Data(s.data().getValue(), JsonNode.class.getName(), 0, getFormat()));
         return Stream.of(new DeserializingObject(jsonNode, (Function<Class<?>, Object>) type -> {
             try {
-                return convert(objectMapper.readTree(jsonNode.data().getValue()), type);
+                Object serializedValue = jsonNode.data().getValue();
+                return switch (serializedValue) {
+                    case null -> convert(null, type);
+                    case JsonNode json -> convert(json, type);
+                    case byte[] bytes -> convert(objectMapper.readTree(bytes), type);
+                    default -> throw new UnsupportedOperationException(
+                            "Unsupported data type: " + serializedValue.getClass());
+                };
             } catch (Exception e) {
                 throw new DeserializationException(format("Could not deserialize a %s to a %s. Invalid json?",
                                                           type, s.data().getType()), e);

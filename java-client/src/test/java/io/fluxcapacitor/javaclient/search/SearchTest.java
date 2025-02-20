@@ -23,6 +23,7 @@ import io.fluxcapacitor.common.api.search.Group;
 import io.fluxcapacitor.common.api.search.bulkupdate.DeleteDocument;
 import io.fluxcapacitor.common.api.search.bulkupdate.IndexDocument;
 import io.fluxcapacitor.common.api.search.constraints.FacetConstraint;
+import io.fluxcapacitor.common.api.tracking.Read;
 import io.fluxcapacitor.common.search.Facet;
 import io.fluxcapacitor.common.serialization.JsonUtils;
 import io.fluxcapacitor.javaclient.FluxCapacitor;
@@ -49,6 +50,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.stream.Stream;
 
+import static io.fluxcapacitor.common.Guarantee.STORED;
 import static io.fluxcapacitor.common.api.search.constraints.AnyConstraint.any;
 import static io.fluxcapacitor.common.api.search.constraints.BetweenConstraint.atLeast;
 import static io.fluxcapacitor.common.api.search.constraints.BetweenConstraint.below;
@@ -242,6 +244,18 @@ public class SearchTest {
         TestFixture.create().givenDocuments("test", jsonNode)
                 .<JsonNode>whenSearching("test", query("106193501828612100", "messageIndex"))
                 .expectResult(r -> !r.isEmpty() && r.getFirst().get("payload") != null);
+    }
+
+    @Test
+    void testDeserializingUnknownType() {
+        TestFixture testFixture = TestFixture.create();
+        var read = JsonUtils.fromFile("read-payload.json", JsonNode.class);
+        var document = testFixture.getFluxCapacitor().documentStore().getSerializer().toDocument(
+                read, "foo", "test", null, null);
+        var documentWithUnknownType = document.withData(() -> document.getDocument().withType("unknown"));
+        testFixture.given(fc -> fc.client().getSearchClient().index(List.of(documentWithUnknownType), STORED, false).get())
+                .whenApplying(fc -> FluxCapacitor.search("test").fetchAll(Read.class))
+                .expectResult(r -> !r.isEmpty());
     }
 
     @Test

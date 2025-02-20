@@ -139,7 +139,7 @@ public class DefaultCasterChain<T> {
         }
 
         @SuppressWarnings({"rawtypes", "unchecked"})
-        public SerializedObject<I, ?> getResult() {
+        public SerializedObject<?, ?> getResult() {
             if (data == null) {
                 Data converted = converter.convertFormat(source.data());
                 return converted == source.data() ? source : source.withData(converted);
