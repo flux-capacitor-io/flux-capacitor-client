@@ -582,7 +582,7 @@ public interface FluxCapacitor extends AutoCloseable {
      * @see Aggregate for more info on how to define an event sourced aggregate root
      */
     static <T> Entity<T> loadAggregateFor(Object entityId) {
-        return loadAggregateFor(entityId, Object.class);
+        return loadAggregateFor(entityId, entityId instanceof Id<?> id ? id.getType() : Object.class);
     }
 
     /**
@@ -593,10 +593,11 @@ public interface FluxCapacitor extends AutoCloseable {
      * If the entity is loaded while handling an event its aggregate, the returned entity will automatically be played
      * back to the event currently being handled. Otherwise, the most recent state of the entity is loaded.
      */
-    @SuppressWarnings("unchecked")
+    @SuppressWarnings({"unchecked", "rawtypes"})
     static <T> Entity<T> loadEntity(Object entityId) {
         return (Entity<T>) loadAggregateFor(entityId).getEntity(entityId)
-                .orElseGet(() -> loadAggregate(entityId.toString(), Object.class));
+                .orElseGet(() -> entityId instanceof Id id
+                        ? loadAggregate(id) : loadAggregate(entityId.toString(), Object.class));
     }
 
     /**

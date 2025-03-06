@@ -53,6 +53,7 @@ import java.util.stream.Stream;
 
 import static io.fluxcapacitor.common.Guarantee.STORED;
 import static io.fluxcapacitor.javaclient.FluxCapacitor.loadAggregate;
+import static io.fluxcapacitor.javaclient.FluxCapacitor.loadAggregateFor;
 import static io.fluxcapacitor.javaclient.FluxCapacitor.loadEntity;
 import static java.util.stream.Collectors.toList;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -126,6 +127,12 @@ public class AggregateEntitiesTest {
         @Test
         void findByAlias() {
             expectEntity(e -> e.getEntity(new GrandChildAlias()).isPresent());
+        }
+
+        @Test
+        void loadEmptyEntityById() {
+            testFixture.whenApplying(fc -> loadAggregateFor(new MissingChildId("missing")))
+                    .expectResult(e -> e.isEmpty() && e.type().equals(MissingChild.class));
         }
     }
 
@@ -296,24 +303,26 @@ public class AggregateEntitiesTest {
 
         @Test
         void returnDifferentCommand() {
+            MissingChildId childId = new MissingChildId("missing");
             testFixture.whenEventsAreApplied("test", Aggregate.class, new Message(new FailingCommand() {
                         @InterceptApply
                         Object intercept(FailingCommand input) {
-                            return Message.asMessage(new AddChild("missing"))
+                            return Message.asMessage(new AddChild(childId))
                                     .addMetadata("fooNew", "barNew");
                         }
                     }, Metadata.of("foo", "bar")))
                     .expectEvents((Predicate<Message>) m -> m.getMetadata().containsKey("foo"))
                     .expectEvents((Predicate<Message>) m -> m.getMetadata().containsKey("fooNew"))
-                    .expectThat(fc -> expectEntity(e -> e.get() instanceof MissingChild && "missing".equals(e.id())));
+                    .expectThat(fc -> expectEntity(e -> e.get() instanceof MissingChild && childId.equals(e.id())));
         }
 
         @Test
         void returnTwoCommands() {
+            MissingChildId childId = new MissingChildId("missing");
             testFixture.whenCommand(new FailingCommand() {
                 @InterceptApply
                 List<?> intercept() {
-                    return List.of(new AddChild("missing"), new UpdateChild("id", "data"));
+                    return List.of(new AddChild(childId), new UpdateChild("id", "data"));
                 }
             }).expectThat(fc -> expectEntity(
                     e -> e.get() instanceof Child && ((Child) e.get()).getData().equals("data")));
@@ -321,10 +330,11 @@ public class AggregateEntitiesTest {
 
         @Test
         void returnTwoCommandsSecondFails() {
+            MissingChildId childId = new MissingChildId("missing");
             testFixture.whenCommand(new FailingCommand() {
                 @InterceptApply
                 List<?> intercept() {
-                    return List.of(new AddChild("missing"), new FailingCommand());
+                    return List.of(new AddChild(childId), new FailingCommand());
                 }
             }).expectExceptionalResult(MockException.class);
         }
@@ -342,7 +352,7 @@ public class AggregateEntitiesTest {
 
         @Test
         void secondAddChildNotAllowed() {
-            AddChild command = new AddChild("missing");
+            AddChild command = new AddChild(new MissingChildId("missing"));
             testFixture.givenCommands(command).whenCommand(command)
                     .expectNoEvents().expectNoErrors();
         }
@@ -359,7 +369,7 @@ public class AggregateEntitiesTest {
 
         @Value
         class AddChild {
-            String missingChildId;
+            MissingChildId missingChildId;
 
             @InterceptApply
             Object intercept(MissingChild child) {
@@ -388,7 +398,7 @@ public class AggregateEntitiesTest {
         class UpdateChildNested {
             @InterceptApply
             List<?> intercept() {
-                return List.of(new AddChild("missing"), new UpdateChild("id", "data"));
+                return List.of(new AddChild(new MissingChildId("missing")), new UpdateChild("id", "data"));
             }
         }
 
@@ -442,28 +452,30 @@ public class AggregateEntitiesTest {
         @Test
         void applyModifiesAggregateValue() {
             Aggregate input = Aggregate.builder().build();
+            MissingChildId childId = new MissingChildId("missing");
             testFixture
-                    .whenApplying(fc -> fc.aggregateRepository().asEntity(input).apply(new AddChild("missing")))
+                    .whenApplying(fc -> fc.aggregateRepository().asEntity(input).apply(new AddChild(childId)))
                     .expectResult(e -> !e.get().equals(input))
                     .expectResult(e -> e.allEntities()
-                            .anyMatch(c -> c.get() instanceof MissingChild && "missing".equals(c.id())));
+                            .anyMatch(c -> c.get() instanceof MissingChild && childId.equals(c.id())));
         }
 
         @Test
         void applyDoesNotYieldAnyEvents() {
             testFixture.spy()
                     .whenApplying(fc -> fc.aggregateRepository().asEntity(
-                            Aggregate.builder().build()).apply(new AddChild("missing")))
+                            Aggregate.builder().build()).apply(new AddChild(new MissingChildId("missing"))))
                     .expectThat(fc -> verifyNoInteractions(fc.eventStore()));
         }
 
         @Test
         void fromNullValue() {
+            MissingChildId childId = new MissingChildId("missing");
             testFixture
                     .whenApplying(fc -> fc.aggregateRepository().asEntity(null)
-                            .apply(new CreateAggregate(), new AddChild("missing")))
+                            .apply(new CreateAggregate(), new AddChild(childId)))
                     .expectResult(e -> e.allEntities()
-                            .anyMatch(c -> c.get() instanceof MissingChild && "missing".equals(c.id())));
+                            .anyMatch(c -> c.get() instanceof MissingChild && childId.equals(c.id())));
         }
 
         @Value
@@ -477,7 +489,7 @@ public class AggregateEntitiesTest {
 
         @Value
         class AddChild {
-            String missingChildId;
+            MissingChildId missingChildId;
 
             @Apply
             MissingChild apply() {
@@ -523,13 +535,15 @@ public class AggregateEntitiesTest {
 
             @Test
             void testAddSingleton() {
-                testFixture.whenCommand(new AddChild("missing"))
+                MissingChildId childId = new MissingChildId("missing");
+                testFixture.whenCommand(new AddChild(childId))
                         .expectThat(fc -> expectEntity(
-                                e -> e.get() instanceof MissingChild && "missing".equals(e.id())));
+                                e -> e.get() instanceof MissingChild && childId.equals(e.id())));
             }
 
             @Test
             void findChildJustAfterAdding() {
+                MissingChildId childId = new MissingChildId("missing");
                 TestFixture.create().given(
                                 fc -> loadAggregate("test", Aggregate.class).update(s -> Aggregate.builder().build()))
                         .registerHandlers(new Object() {
@@ -539,15 +553,16 @@ public class AggregateEntitiesTest {
                                 return loadEntity(command.getMissingChildId());
                             }
                         })
-                        .whenCommand(new AddChild("missing"))
-                        .<Entity<?>>expectResult(e -> e.get() instanceof MissingChild && "missing".equals(e.id()));
+                        .whenCommand(new AddChild(childId))
+                        .<Entity<?>>expectResult(e -> e.get() instanceof MissingChild &&childId.equals(e.id()));
             }
 
             @Test
             void testAddChildAndGrandChild() {
-                testFixture.whenCommand(new AddChildAndGrandChild("missing", "missingGc"))
+                MissingChildId childId = new MissingChildId("missing");
+                testFixture.whenCommand(new AddChildAndGrandChild(childId, "missingGc"))
                         .expectThat(fc -> {
-                            expectEntity(e -> Objects.equals(e.id(), "missing"));
+                            expectEntity(e -> Objects.equals(e.id(), childId));
                             expectEntity(e -> Objects.equals(e.id(), "missingGc"));
                         });
             }
@@ -617,14 +632,14 @@ public class AggregateEntitiesTest {
             @Test
             void checkIfEventHandlerGetsEntity() {
                 testFixture.registerHandlers(new EventHandler())
-                        .whenCommand(new AddChild("missing"))
+                        .whenCommand(new AddChild(new MissingChildId("missing")))
                         .expectEvents("added child to: test");
             }
 
             @Test
             void assertThatWrongEventHandlerDoesNotGetEntity() {
                 testFixture.registerHandlers(new WrongEventHandler())
-                        .whenCommand(new AddChild("missing"))
+                        .whenCommand(new AddChild(new MissingChildId("missing")))
                         .expectNoEventsLike("added child to: test");
             }
 
@@ -637,7 +652,7 @@ public class AggregateEntitiesTest {
 
             @Value
             class AddChild {
-                String missingChildId;
+                MissingChildId missingChildId;
 
                 @Apply
                 MissingChild apply() {
@@ -647,7 +662,7 @@ public class AggregateEntitiesTest {
 
             @Value
             class AddChildAndGrandChild {
-                String missingChildId;
+                MissingChildId missingChildId;
                 String missingGrandChildId;
 
                 @Apply
@@ -1070,11 +1085,17 @@ public class AggregateEntitiesTest {
     @Builder
     public static class MissingChild {
         @EntityId
-        String missingChildId;
+        MissingChildId missingChildId;
 
         @Member
         @With
         MissingGrandChild grandChild;
+    }
+
+    static class MissingChildId extends Id<MissingChild> {
+        public MissingChildId(String functionalId) {
+            super(functionalId);
+        }
     }
 
     @Value
