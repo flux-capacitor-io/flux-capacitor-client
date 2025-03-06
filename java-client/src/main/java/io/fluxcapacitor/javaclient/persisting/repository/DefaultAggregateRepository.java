@@ -361,6 +361,10 @@ public class DefaultAggregateRepository implements AggregateRepository {
         }
 
         public void commit(Entity<?> after, List<AppliedEvent> unpublishedEvents, Entity<?> before) {
+            if (after.type() != null && !Objects.equals(after.type(), type)) {
+                delegates.apply(after.type()).commit(after, unpublishedEvents, before);
+                return;
+            }
             try {
                 aggregateCache.<Entity<?>>compute(after.id().toString(), (stringId, current) ->
                         current == null || Objects.equals(before.lastEventId(), current.lastEventId())
