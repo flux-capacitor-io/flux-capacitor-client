@@ -18,6 +18,7 @@ import com.fasterxml.jackson.annotation.JsonIgnore;
 import io.fluxcapacitor.common.SearchUtils;
 import io.fluxcapacitor.common.api.search.FacetEntry;
 import io.fluxcapacitor.common.api.search.SearchDocuments;
+import io.fluxcapacitor.common.api.search.SortableEntry;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.EqualsAndHashCode;
@@ -66,6 +67,8 @@ public class Document {
     Supplier<String> summary;
     @Builder.Default
     Set<FacetEntry> facets = Collections.emptySet();
+    @Builder.Default
+    Set<SortableEntry> sortables = Collections.emptySet();
 
     public Optional<Entry> getEntryAtPath(String queryPath) {
         return getMatchingEntries(Path.pathPredicate(queryPath)).findFirst();
@@ -109,7 +112,8 @@ public class Document {
                     Predicate<Path> pathPredicate = Path.pathPredicate(queryPath);
                     Comparator<Document> valueComparator =
                             Comparator.nullsLast(Comparator.comparing(d -> {
-                                Stream<Entry> matchingEntries = d.getMatchingEntries(pathPredicate);
+                                var matchingEntries
+                                        = d.getSortables().stream().filter(o -> pathPredicate.test(o.getPath()));
                                 return (reversed ? matchingEntries.max(naturalOrder()) :
                                         matchingEntries.min(naturalOrder())).orElse(null);
                             }, Comparator.nullsLast(naturalOrder())));
@@ -199,21 +203,15 @@ public class Document {
         }
 
         public static EntryType deserialize(byte b) {
-            switch (b) {
-                case 0:
-                    return TEXT;
-                case 1:
-                    return NUMERIC;
-                case 2:
-                    return BOOLEAN;
-                case 3:
-                    return NULL;
-                case 4:
-                    return EMPTY_ARRAY;
-                case 5:
-                    return EMPTY_OBJECT;
-            }
-            throw new IllegalArgumentException("Cannot convert to EntryType: " + b);
+            return switch (b) {
+                case 0 -> TEXT;
+                case 1 -> NUMERIC;
+                case 2 -> BOOLEAN;
+                case 3 -> NULL;
+                case 4 -> EMPTY_ARRAY;
+                case 5 -> EMPTY_OBJECT;
+                default -> throw new IllegalArgumentException("Cannot convert to EntryType: " + b);
+            };
         }
     }
 }

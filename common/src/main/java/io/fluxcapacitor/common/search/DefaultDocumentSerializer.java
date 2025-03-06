@@ -84,7 +84,8 @@ public enum DefaultDocumentSerializer {
                     keys.add(new Path(unpacker.unpackString()));
                 }
             }
-            return new Document(id, document.getType(), document.getRevision(), collection, timestamp, end, map, null, Collections.emptySet());
+            return new Document(id, document.getType(), document.getRevision(), collection, timestamp, end, map,
+                                null, Collections.emptySet(), Collections.emptySet());
         } catch (Exception e) {
             throw new IllegalArgumentException("Could not deserialize document", e);
         }

@@ -31,6 +31,7 @@ import io.fluxcapacitor.common.ThrowingFunction;
 import io.fluxcapacitor.common.api.Data;
 import io.fluxcapacitor.common.api.search.FacetEntry;
 import io.fluxcapacitor.common.api.search.SerializedDocument;
+import io.fluxcapacitor.common.api.search.SortableEntry;
 import io.fluxcapacitor.common.reflection.ReflectionUtils;
 import io.fluxcapacitor.common.search.Document.Entry;
 import io.fluxcapacitor.common.search.Document.EntryType;
@@ -71,6 +72,7 @@ import static io.fluxcapacitor.common.reflection.ReflectionUtils.getAnnotation;
 import static io.fluxcapacitor.common.reflection.ReflectionUtils.getMemberAnnotation;
 import static io.fluxcapacitor.common.reflection.ReflectionUtils.getPropertyName;
 import static io.fluxcapacitor.common.reflection.ReflectionUtils.getTypeAnnotation;
+import static io.fluxcapacitor.common.reflection.ReflectionUtils.isConstant;
 import static java.util.Collections.emptySet;
 import static java.util.Optional.ofNullable;
 import static java.util.stream.Collectors.joining;
@@ -142,8 +144,12 @@ public class JacksonInverter implements Inverter<JsonNode> {
         byte[] data = objectMapper.writeValueAsBytes(value);
         return new SerializedDocument(new Document(id, type, revision, collection,
                                                    timestamp, end, invert(data), () -> summarize(value),
-                                                   getFacets(value)));
+                                                   getFacets(value), getSortables(value)));
     }
+    
+    /*
+        Facets
+     */
 
     protected Set<FacetEntry> getFacets(Object value) {
         if (value == null) {
@@ -151,29 +157,61 @@ public class JacksonInverter implements Inverter<JsonNode> {
         }
         var properties = ReflectionUtils.getAnnotatedProperties(value.getClass(), Facet.class);
         return properties.stream().flatMap(p -> ofNullable(ReflectionUtils.getValue(p, value)).stream()
-                        .flatMap(o -> getFacets(p, o))).collect(Collectors.toCollection(LinkedHashSet::new));
+                .flatMap(o -> getFacets(p, o))).collect(Collectors.toCollection(LinkedHashSet::new));
     }
 
     protected Stream<FacetEntry> getFacets(AccessibleObject holder, Object propertyValue) {
-        if (propertyValue == null) {
-            return Stream.empty();
-        }
-        if (propertyValue instanceof Collection<?> collection) {
-            return collection.stream().flatMap(v -> getFacets(holder, v));
-        }
-        if (propertyValue instanceof Map<?,?> map) {
-            return map.entrySet().stream().flatMap(e -> getFacets(holder, e.getValue()).map(
+        return switch (propertyValue) {
+            case null -> Stream.empty();
+            case Collection<?> collection -> collection.stream().flatMap(v -> getFacets(holder, v));
+            case Map<?, ?> map -> map.entrySet().stream().flatMap(e -> getFacets(holder, e.getValue()).map(
                     f -> f.toBuilder().name("%s/%s".formatted(f.getName(), String.valueOf(e.getKey()))).build()));
+            default -> {
+                String name = getAnnotation(holder, Facet.class).map(Facet::value).filter(s -> !s.isBlank())
+                        .orElseGet(() -> getPropertyName(holder));
+                if (isConstant(propertyValue)
+                    || ReflectionUtils.getTypeAnnotation(propertyValue.getClass(), Facet.class) != null) {
+                    String stringValue = propertyValue.toString();
+                    yield stringValue.isBlank() ? Stream.empty() : Stream.of(new FacetEntry(name, stringValue));
+                }
+                yield getFacets(propertyValue).stream().map(
+                        f -> f.toBuilder().name("%s/%s".formatted(name, f.getName())).build());
+            }
+        };
+    }
+
+    /*
+        Sortables
+     */
+
+    protected Set<SortableEntry> getSortables(Object value) {
+        if (value == null) {
+            return emptySet();
         }
-        String name = getAnnotation(holder, Facet.class).map(Facet::value).filter(s -> !s.isBlank())
-                .orElseGet(() -> getPropertyName(holder));
-        if (ReflectionUtils.isConstant(propertyValue)
-            || ReflectionUtils.getTypeAnnotation(propertyValue.getClass(), Facet.class) != null) {
-            String stringValue = propertyValue.toString();
-            return stringValue.isBlank() ? Stream.empty() : Stream.of(new FacetEntry(name, stringValue));
-        }
-        return getFacets(propertyValue).stream().map(
-                f -> f.toBuilder().name("%s/%s".formatted(name, f.getName())).build());
+        var properties = ReflectionUtils.getAnnotatedProperties(value.getClass(), Sortable.class);
+        return properties.stream().flatMap(p -> ofNullable(ReflectionUtils.getValue(p, value)).stream()
+                .flatMap(o -> getSortables(p, o))).collect(Collectors.toCollection(LinkedHashSet::new));
+    }
+
+    protected Stream<SortableEntry> getSortables(AccessibleObject holder, Object propertyValue) {
+        return switch (propertyValue) {
+            case null -> Stream.empty();
+            case Collection<?> collection -> collection.stream().flatMap(v -> getSortables(holder, v));
+            case Map<?, ?> map -> map.entrySet().stream().flatMap(e -> getSortables(holder, e.getValue()).map(
+                    f -> f.toBuilder().name("%s/%s".formatted(f.getName(), String.valueOf(e.getKey()))).build()));
+            default -> {
+                String name = getAnnotation(holder, Sortable.class).map(Sortable::value).filter(s -> !s.isBlank())
+                        .orElseGet(() -> getPropertyName(holder));
+                if (isConstant(propertyValue)
+                    || ReflectionUtils.getTypeAnnotation(propertyValue.getClass(), Sortable.class) != null) {
+                    Object value = propertyValue instanceof String ps ? ps.toLowerCase() :
+                            isConstant(propertyValue) ? propertyValue : propertyValue.toString().toLowerCase();
+                    yield Stream.of(new SortableEntry(name, value));
+                }
+                yield getSortables(propertyValue).stream().map(
+                        f -> f.toBuilder().name("%s/%s".formatted(name, f.getName())).build());
+            }
+        };
     }
 
     @SneakyThrows
