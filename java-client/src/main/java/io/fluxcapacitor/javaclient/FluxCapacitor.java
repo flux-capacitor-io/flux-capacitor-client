@@ -42,6 +42,7 @@ import io.fluxcapacitor.javaclient.persisting.eventsourcing.SnapshotStore;
 import io.fluxcapacitor.javaclient.persisting.keyvalue.KeyValueStore;
 import io.fluxcapacitor.javaclient.persisting.repository.AggregateRepository;
 import io.fluxcapacitor.javaclient.persisting.search.DocumentStore;
+import io.fluxcapacitor.javaclient.persisting.search.IndexOperation;
 import io.fluxcapacitor.javaclient.persisting.search.Search;
 import io.fluxcapacitor.javaclient.persisting.search.Searchable;
 import io.fluxcapacitor.javaclient.publishing.CommandGateway;
@@ -62,6 +63,7 @@ import io.fluxcapacitor.javaclient.tracking.handling.LocalHandler;
 import io.fluxcapacitor.javaclient.tracking.handling.Request;
 import io.fluxcapacitor.javaclient.tracking.handling.authentication.User;
 import io.fluxcapacitor.javaclient.tracking.handling.authentication.UserProvider;
+import lombok.NonNull;
 import lombok.SneakyThrows;
 
 import java.time.Clock;
@@ -655,6 +657,25 @@ public interface FluxCapacitor extends AutoCloseable {
             return entity.playBackToEvent(message.getMessageId());
         }
         return entity;
+    }
+
+    /**
+     * Prepare given object for indexing for search. This returns a mutable builder that allows defining an id,
+     * collection, etc.
+     * <p>
+     * If the object is annotated with {@link Searchable @Searchable} the collection name and any timestamp or end path
+     * defined there will be used.
+     * <p>
+     * If the object has a property annotated with {@link EntityId}, it will be used as the id of the document.
+     * Otherwise, a random id will be assigned to the document.
+     * <p>
+     * This method returns once the object is stored.
+     *
+     * @see DocumentStore for more advanced uses.
+     * @see Searchable for ways to define collection name etc
+     */
+    static IndexOperation prepareIndex(@NonNull Object object) {
+        return get().documentStore().prepareIndex(object);
     }
 
     /**

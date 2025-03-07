@@ -29,6 +29,7 @@ import com.fasterxml.jackson.databind.node.TextNode;
 import io.fluxcapacitor.common.SearchUtils;
 import io.fluxcapacitor.common.ThrowingFunction;
 import io.fluxcapacitor.common.api.Data;
+import io.fluxcapacitor.common.api.Metadata;
 import io.fluxcapacitor.common.api.search.FacetEntry;
 import io.fluxcapacitor.common.api.search.SerializedDocument;
 import io.fluxcapacitor.common.reflection.ReflectionUtils;
@@ -41,6 +42,7 @@ import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
+import org.jetbrains.annotations.NotNull;
 
 import java.lang.annotation.Annotation;
 import java.lang.reflect.AccessibleObject;
@@ -71,7 +73,6 @@ import static io.fluxcapacitor.common.reflection.ReflectionUtils.getAnnotation;
 import static io.fluxcapacitor.common.reflection.ReflectionUtils.getMemberAnnotation;
 import static io.fluxcapacitor.common.reflection.ReflectionUtils.getPropertyName;
 import static io.fluxcapacitor.common.reflection.ReflectionUtils.getTypeAnnotation;
-import static java.util.Collections.emptySet;
 import static java.util.Optional.ofNullable;
 import static java.util.stream.Collectors.joining;
 import static java.util.stream.Collectors.toList;
@@ -138,42 +139,49 @@ public class JacksonInverter implements Inverter<JsonNode> {
     @Override
     @SneakyThrows
     public SerializedDocument toDocument(Object value, String type, int revision, String id, String collection,
-                                         Instant timestamp, Instant end) {
+                                         Instant timestamp, Instant end, Metadata metadata) {
         byte[] data = objectMapper.writeValueAsBytes(value);
         return new SerializedDocument(new Document(id, type, revision, collection,
                                                    timestamp, end, invert(data), () -> summarize(value),
-                                                   getFacets(value)));
+                                                   computeFacets(value, metadata)));
     }
 
-    protected Set<FacetEntry> getFacets(Object value) {
+    protected Set<FacetEntry> computeFacets(Object value, Metadata metadata) {
+        return Stream.concat(getFacets(value), asFacets(metadata))
+                .collect(Collectors.toCollection(LinkedHashSet::new));
+    }
+
+    private @NotNull Stream<FacetEntry> getFacets(Object value) {
         if (value == null) {
-            return emptySet();
+            return Stream.empty();
         }
         var properties = ReflectionUtils.getAnnotatedProperties(value.getClass(), Facet.class);
         return properties.stream().flatMap(p -> ofNullable(ReflectionUtils.getValue(p, value)).stream()
-                        .flatMap(o -> getFacets(p, o))).collect(Collectors.toCollection(LinkedHashSet::new));
+                .flatMap(o -> getFacets(p, o)));
+    }
+
+    protected Stream<FacetEntry> asFacets(Metadata metadata) {
+        return metadata.entrySet().stream().map(e -> new FacetEntry("$metadata/" + e.getKey(), e.getValue()));
     }
 
     protected Stream<FacetEntry> getFacets(AccessibleObject holder, Object propertyValue) {
-        if (propertyValue == null) {
-            return Stream.empty();
-        }
-        if (propertyValue instanceof Collection<?> collection) {
-            return collection.stream().flatMap(v -> getFacets(holder, v));
-        }
-        if (propertyValue instanceof Map<?,?> map) {
-            return map.entrySet().stream().flatMap(e -> getFacets(holder, e.getValue()).map(
-                    f -> f.toBuilder().name("%s/%s".formatted(f.getName(), String.valueOf(e.getKey()))).build()));
-        }
-        String name = getAnnotation(holder, Facet.class).map(Facet::value).filter(s -> !s.isBlank())
-                .orElseGet(() -> getPropertyName(holder));
-        if (ReflectionUtils.isConstant(propertyValue)
-            || ReflectionUtils.getTypeAnnotation(propertyValue.getClass(), Facet.class) != null) {
-            String stringValue = propertyValue.toString();
-            return stringValue.isBlank() ? Stream.empty() : Stream.of(new FacetEntry(name, stringValue));
-        }
-        return getFacets(propertyValue).stream().map(
-                f -> f.toBuilder().name("%s/%s".formatted(name, f.getName())).build());
+        return switch (propertyValue) {
+            case null -> Stream.empty();
+            case Collection<?> collection -> collection.stream().flatMap(v -> getFacets(holder, v));
+            case Map<?, ?> map -> map.entrySet().stream().flatMap(e -> getFacets(holder, e.getValue()).map(
+                        f -> f.toBuilder().name("%s/%s".formatted(f.getName(), String.valueOf(e.getKey()))).build()));
+            default -> {
+                String name = getAnnotation(holder, Facet.class).map(Facet::value).filter(s -> !s.isBlank())
+                        .orElseGet(() -> getPropertyName(holder));
+                if (ReflectionUtils.isConstant(propertyValue)
+                    || ReflectionUtils.getTypeAnnotation(propertyValue.getClass(), Facet.class) != null) {
+                    String stringValue = propertyValue.toString();
+                    yield stringValue.isBlank() ? Stream.empty() : Stream.of(new FacetEntry(name, stringValue));
+                }
+                yield getFacets(propertyValue).map(
+                        f -> f.toBuilder().name("%s/%s".formatted(name, f.getName())).build());
+            }
+        };
     }
 
     @SneakyThrows

@@ -15,6 +15,7 @@
 package io.fluxcapacitor.javaclient.persisting.search;
 
 import io.fluxcapacitor.common.Guarantee;
+import io.fluxcapacitor.common.api.Metadata;
 import io.fluxcapacitor.common.api.search.BulkUpdate;
 import io.fluxcapacitor.common.api.search.SearchQuery;
 import io.fluxcapacitor.common.reflection.ReflectionUtils;
@@ -42,6 +43,10 @@ import static java.util.Collections.singletonList;
 import static java.util.Optional.ofNullable;
 
 public interface DocumentStore {
+
+    default IndexOperation prepareIndex(@NonNull Object object) {
+        return new DefaultIndexOperation(this, object);
+    }
 
     default CompletableFuture<Void> index(@NonNull Object object) {
         if (object.getClass().isArray()) {
@@ -100,8 +105,13 @@ public interface DocumentStore {
         return index(object, id, collection, begin, end, Guarantee.STORED, false);
     }
 
+    default CompletableFuture<Void> index(@NotNull Object object, Object id, Object collection, Instant begin, Instant end,
+                                  Guarantee guarantee, boolean ifNotExists) {
+        return index(object, id, collection, begin, end, Metadata.empty(), guarantee, ifNotExists);
+    }
+
     CompletableFuture<Void> index(@NotNull Object object, Object id, Object collection, Instant begin, Instant end,
-                                  Guarantee guarantee, boolean ifNotExists);
+                                  Metadata metadata, Guarantee guarantee, boolean ifNotExists);
 
     default CompletableFuture<Void> index(Collection<?> objects, Object collection) {
         return index(objects, collection, v -> getAnnotatedPropertyValue(v, EntityId.class).map(Object::toString)

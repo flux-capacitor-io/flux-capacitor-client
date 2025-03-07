@@ -14,6 +14,7 @@
 
 package io.fluxcapacitor.common.search;
 
+import io.fluxcapacitor.common.api.Metadata;
 import io.fluxcapacitor.common.api.search.SerializedDocument;
 import io.fluxcapacitor.common.serialization.Converter;
 
@@ -21,5 +22,5 @@ import java.time.Instant;
 
 public interface Inverter<T> extends Converter<byte[], T> {
     SerializedDocument toDocument(Object object, String type, int revision, String id, String collection,
-                                  Instant timestamp, Instant end);
+                                  Instant timestamp, Instant end, Metadata metadata);
 }

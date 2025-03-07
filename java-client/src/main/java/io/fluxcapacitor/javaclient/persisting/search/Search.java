@@ -98,6 +98,10 @@ public interface Search {
         return constraint(FacetConstraint.matchFacet(name, value));
     }
 
+    default Search matchMetadata(String key, Object value) {
+        return matchFacet("$metadata/" + key, value);
+    }
+
     default Search anyExist(String... paths) {
         return switch (paths.length) {
             case 0 -> this;

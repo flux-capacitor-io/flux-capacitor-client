@@ -19,6 +19,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.json.JsonMapper;
 import io.fluxcapacitor.common.api.Data;
+import io.fluxcapacitor.common.api.Metadata;
 import io.fluxcapacitor.common.api.SerializedObject;
 import io.fluxcapacitor.common.api.search.SerializedDocument;
 import io.fluxcapacitor.common.reflection.ReflectionUtils;
@@ -98,7 +99,8 @@ public class JacksonSerializer extends AbstractSerializer<JsonNode> implements D
             case byte[] v -> objectMapper.readValue(v, typeCache.apply(type));
             case String v -> objectMapper.readValue(v, typeCache.apply(type));
             case null -> null;
-            default -> throw new IllegalArgumentException("Incompatible data value type: " + data.getValue().getClass());
+            default ->
+                    throw new IllegalArgumentException("Incompatible data value type: " + data.getValue().getClass());
         };
     }
 
@@ -151,9 +153,10 @@ public class JacksonSerializer extends AbstractSerializer<JsonNode> implements D
     }
 
     @Override
-    public SerializedDocument toDocument(Object value, String id, String collection, Instant timestamp, Instant end) {
+    public SerializedDocument toDocument(Object value, String id, String collection, Instant timestamp, Instant end,
+                                         Metadata metadata) {
         return inverter.toDocument(value, getTypeString(value), getRevisionNumber(value), id, collection, timestamp,
-                                   end);
+                                   end, metadata);
     }
 
     @Override
