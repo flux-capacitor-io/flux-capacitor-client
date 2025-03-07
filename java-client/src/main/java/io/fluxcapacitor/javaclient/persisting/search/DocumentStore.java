@@ -235,6 +235,8 @@ public interface DocumentStore {
 
     Search search(SearchQuery.Builder queryBuilder);
 
+    boolean hasDocument(Object id, Object collection);
+
     <T> Optional<T> fetchDocument(Object id, Object collection);
 
     <T> Optional<T> fetchDocument(Object id, Object collection, Class<T> type);

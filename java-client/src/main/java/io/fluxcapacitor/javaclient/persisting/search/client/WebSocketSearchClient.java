@@ -16,6 +16,7 @@ package io.fluxcapacitor.javaclient.persisting.search.client;
 
 import io.fluxcapacitor.common.Guarantee;
 import io.fluxcapacitor.common.ObjectUtils;
+import io.fluxcapacitor.common.api.BooleanResult;
 import io.fluxcapacitor.common.api.search.*;
 import io.fluxcapacitor.javaclient.common.websocket.AbstractWebsocketClient;
 import io.fluxcapacitor.javaclient.configuration.client.WebSocketClient;
@@ -78,6 +79,11 @@ public class WebSocketSearchClient extends AbstractWebsocketClient implements Se
                                                                Instant.ofEpochMilli(d.getTimestamp()),
                                                        d.getEnd() == null ? null : Instant.ofEpochMilli(d.getEnd()),
                                                        () -> d));
+    }
+
+    @Override
+    public boolean documentExists(HasDocument request) {
+        return this.<BooleanResult>sendAndWait(request).isSuccess();
     }
 
     @Override
