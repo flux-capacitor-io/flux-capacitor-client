@@ -14,8 +14,10 @@
 
 package io.fluxcapacitor.javaclient.modeling;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonValue;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
+import io.fluxcapacitor.common.api.HasId;
 import io.fluxcapacitor.common.reflection.ReflectionUtils;
 import io.fluxcapacitor.common.search.Facet;
 import io.fluxcapacitor.javaclient.tracking.handling.validation.ValidationException;
@@ -41,7 +43,7 @@ import java.util.Objects;
  * @param <T> the entity type.
  */
 @Facet
-public abstract class Id<T> {
+public abstract class Id<T> implements HasId {
     @JsonValue
     @Getter
     String functionalId;
@@ -170,6 +172,12 @@ public abstract class Id<T> {
         this.functionalId = functionalId;
         this.type = type;
         this.repositoryId = caseSensitive ? prefix + this.functionalId : prefix + this.functionalId.toLowerCase();
+    }
+
+    @Override
+    @JsonIgnore
+    public String getId() {
+        return functionalId;
     }
 
     /**

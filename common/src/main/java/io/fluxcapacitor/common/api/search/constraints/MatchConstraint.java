@@ -15,6 +15,7 @@
 package io.fluxcapacitor.common.api.search.constraints;
 
 import io.fluxcapacitor.common.SearchUtils;
+import io.fluxcapacitor.common.api.HasId;
 import io.fluxcapacitor.common.api.search.Constraint;
 import io.fluxcapacitor.common.api.search.NoOpConstraint;
 import io.fluxcapacitor.common.search.Document;
@@ -44,19 +45,27 @@ public class MatchConstraint extends PathConstraint {
 
     public static Constraint match(Object value, boolean strict, String... paths) {
         var filteredPaths = Arrays.stream(paths).filter(p -> p != null && !p.isBlank()).toList();
-        if (value instanceof Collection<?>) {
-            List<Constraint> constraints =
-                    ((Collection<?>) value).stream().filter(Objects::nonNull)
-                            .map(v -> new MatchConstraint(v.toString(), filteredPaths, strict))
-                            .collect(toList());
-            return switch (constraints.size()) {
-                case 0 -> NoOpConstraint.instance;
-                case 1 -> constraints.get(0);
-                default -> AnyConstraint.any(constraints);
-            };
-        } else {
-            return value == null
-                    ? NoOpConstraint.instance : new MatchConstraint(value.toString(), filteredPaths, strict);
+        switch (value) {
+            case Collection<?> objects -> {
+                List<Constraint> constraints =
+                        objects.stream().filter(Objects::nonNull)
+                                .map(v -> new MatchConstraint(v.toString(), filteredPaths, strict))
+                                .collect(toList());
+                return switch (constraints.size()) {
+                    case 0 -> NoOpConstraint.instance;
+                    case 1 -> constraints.getFirst();
+                    default -> AnyConstraint.any(constraints);
+                };
+            }
+            case HasId id -> {
+                return new MatchConstraint(id.getId(), filteredPaths, strict);
+            }
+            case null -> {
+                return NoOpConstraint.instance;
+            }
+            default -> {
+                return new MatchConstraint(value.toString(), filteredPaths, strict);
+            }
         }
     }
 
