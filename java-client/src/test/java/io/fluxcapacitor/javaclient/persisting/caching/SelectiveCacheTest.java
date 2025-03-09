@@ -14,8 +14,6 @@
 
 package io.fluxcapacitor.javaclient.persisting.caching;
 
-import io.fluxcapacitor.common.caching.Cache;
-import io.fluxcapacitor.common.caching.DefaultCache;
 import io.fluxcapacitor.javaclient.configuration.DefaultFluxCapacitor;
 import io.fluxcapacitor.javaclient.modeling.Aggregate;
 import io.fluxcapacitor.javaclient.persisting.eventsourcing.Apply;

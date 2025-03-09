@@ -12,7 +12,7 @@
  * limitations under the License.
  */
 
-package io.fluxcapacitor.common.caching;
+package io.fluxcapacitor.javaclient.persisting.caching;
 
 import lombok.Value;
 
@@ -22,6 +22,6 @@ public class CacheEvictionEvent {
     Reason reason;
 
     public enum Reason {
-        manual, size, memoryPressure
+        manual, size, memoryPressure, expiry
     }
 }

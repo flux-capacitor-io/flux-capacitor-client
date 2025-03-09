@@ -15,9 +15,6 @@
 package io.fluxcapacitor.javaclient.persisting.caching;
 
 import io.fluxcapacitor.common.Registration;
-import io.fluxcapacitor.common.caching.Cache;
-import io.fluxcapacitor.common.caching.CacheEvictionEvent;
-import io.fluxcapacitor.common.caching.DefaultCache;
 import io.fluxcapacitor.javaclient.modeling.Entity;
 import lombok.AllArgsConstructor;
 

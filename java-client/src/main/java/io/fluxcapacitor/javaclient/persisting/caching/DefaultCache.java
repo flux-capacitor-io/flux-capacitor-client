@@ -12,10 +12,11 @@
  * limitations under the License.
  */
 
-package io.fluxcapacitor.common.caching;
+package io.fluxcapacitor.javaclient.persisting.caching;
 
 
 import io.fluxcapacitor.common.Registration;
+import io.fluxcapacitor.javaclient.FluxCapacitor;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
@@ -23,6 +24,9 @@ import lombok.extern.slf4j.Slf4j;
 import java.lang.ref.Reference;
 import java.lang.ref.ReferenceQueue;
 import java.lang.ref.SoftReference;
+import java.time.Clock;
+import java.time.Duration;
+import java.time.Instant;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashSet;
@@ -33,14 +37,17 @@ import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.Executor;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
 import java.util.function.BiFunction;
 import java.util.function.Consumer;
 import java.util.function.Function;
+import java.util.function.Supplier;
 
 import static io.fluxcapacitor.common.ObjectUtils.newThreadFactory;
-import static io.fluxcapacitor.common.caching.CacheEvictionEvent.Reason.manual;
-import static io.fluxcapacitor.common.caching.CacheEvictionEvent.Reason.memoryPressure;
-import static io.fluxcapacitor.common.caching.CacheEvictionEvent.Reason.size;
+import static io.fluxcapacitor.javaclient.persisting.caching.CacheEvictionEvent.Reason.manual;
+import static io.fluxcapacitor.javaclient.persisting.caching.CacheEvictionEvent.Reason.memoryPressure;
+import static io.fluxcapacitor.javaclient.persisting.caching.CacheEvictionEvent.Reason.size;
 
 @AllArgsConstructor
 @Slf4j
@@ -51,10 +58,13 @@ public class DefaultCache implements Cache, AutoCloseable {
     private final Map<Object, CacheReference> valueMap;
 
     private final Executor evictionNotifier;
+    private final Duration expiry;
+    private final Supplier<Clock> clockSupplier;
+
     private final Collection<Consumer<CacheEvictionEvent>> evictionListeners = new CopyOnWriteArrayList<>();
 
-    private final ExecutorService referencePurger = Executors.newSingleThreadExecutor(
-            newThreadFactory("DefaultCache-referencePurger"));
+    private final ScheduledExecutorService referencePurger = Executors.newScheduledThreadPool(
+            2, newThreadFactory("DefaultCache-referencePurger"));
 
     private final ReferenceQueue<Object> referenceQueue = new ReferenceQueue<>();
 
@@ -63,10 +73,18 @@ public class DefaultCache implements Cache, AutoCloseable {
     }
 
     public DefaultCache(int maxSize) {
-        this(maxSize, Executors.newSingleThreadExecutor(newThreadFactory("DefaultCache-evictionNotifier")));
+        this(maxSize, null);
     }
 
-    public DefaultCache(int maxSize, Executor evictionNotifier) {
+    public DefaultCache(int maxSize, Duration expiry) {
+        this(maxSize, Executors.newSingleThreadExecutor(newThreadFactory("DefaultCache-evictionNotifier")), expiry);
+    }
+
+    public DefaultCache(int maxSize, Executor evictionNotifier, Duration expiry) {
+        this(maxSize, evictionNotifier, expiry, Duration.ofMinutes(1));
+    }
+
+    public DefaultCache(int maxSize, Executor evictionNotifier, Duration expiry, Duration expiryCheckDelay) {
         this.valueMap = Collections.synchronizedMap(new LinkedHashMap<>(Math.min(128, maxSize), 0.75f, true) {
             @Override
             protected boolean removeEldestEntry(Map.Entry<Object, CacheReference> eldest) {
@@ -81,7 +99,14 @@ public class DefaultCache implements Cache, AutoCloseable {
             }
         });
         this.evictionNotifier = evictionNotifier;
+        this.clockSupplier = FluxCapacitor.getOptionally().<Supplier<Clock>>map(fc -> fc::clock)
+                .orElseGet(() -> Clock::systemUTC);
         this.referencePurger.execute(this::pollReferenceQueue);
+        if ((this.expiry = expiry) != null) {
+            this.referencePurger.scheduleWithFixedDelay(
+                    this::removeExpiredReferences, expiryCheckDelay.toMillis(), expiryCheckDelay.toMillis(),
+                    TimeUnit.MILLISECONDS);
+        }
     }
 
     @Override
@@ -178,6 +203,9 @@ public class DefaultCache implements Cache, AutoCloseable {
         if (ref == null) {
             return null;
         }
+        if (ref.hasExpired()) {
+            return null;
+        }
         Object result = ref.get();
         if (result instanceof Optional<?>) {
             result = ((Optional<?>) result).orElse(null);
@@ -199,6 +227,16 @@ public class DefaultCache implements Cache, AutoCloseable {
         }
     }
 
+    protected void removeExpiredReferences() {
+        valueMap.entrySet().removeIf(e -> {
+            if (e.getValue().hasExpired()) {
+                notifyEvictionListeners(e.getKey(), CacheEvictionEvent.Reason.expiry);
+                return true;
+            }
+            return false;
+        });
+    }
+
     protected void notifyEvictionListeners(Object id, CacheEvictionEvent.Reason reason) {
         var event = new CacheEvictionEvent(id, reason);
         evictionNotifier.execute(() -> evictionListeners.forEach(l -> l.accept(event)));
@@ -206,10 +244,16 @@ public class DefaultCache implements Cache, AutoCloseable {
 
     protected class CacheReference extends SoftReference<Object> {
         private final Object id;
+        private final Instant deadline;
 
         public CacheReference(Object id, Object value) {
             super(value, referenceQueue);
             this.id = id;
+            this.deadline = expiry == null ? null : clockSupplier.get().instant().plus(expiry);
+        }
+
+        boolean hasExpired() {
+            return deadline != null && deadline.isBefore(clockSupplier.get().instant());
         }
     }
 }
