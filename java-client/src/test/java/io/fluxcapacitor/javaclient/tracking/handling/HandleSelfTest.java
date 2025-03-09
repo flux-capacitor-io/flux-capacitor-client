@@ -82,14 +82,24 @@ class HandleSelfTest {
     }
 
     @Test
-    void logTrackingMetrics() {
+    void logHandlerMetricsIfExplicitlyEnabled() {
         testFixture.whenQuery(new Object() {
             @HandleQuery
             @LocalHandler(logMetrics = true)
             String handleSelf() {
                 return "foo";
             }
-        }).expectMetrics(HandleMessageEvent.class);
+        }).expectResult("foo").expectMetrics(HandleMessageEvent.class);
+    }
+
+    @Test
+    void logNoHandlerMetricsByDefault() {
+        testFixture.whenQuery(new Object() {
+            @HandleQuery
+            String handleSelf() {
+                return "foo";
+            }
+        }).expectResult("foo").expectNoMetricsLike(HandleMessageEvent.class);
     }
 
     @Test

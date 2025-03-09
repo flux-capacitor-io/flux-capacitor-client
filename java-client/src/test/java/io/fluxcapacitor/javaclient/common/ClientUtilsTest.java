@@ -33,21 +33,25 @@ class ClientUtilsTest {
     void handleOnlyTracking() throws Exception {
         assertTrue(
                 ClientUtils.isTrackingHandler(Handler.class, Handler.class.getDeclaredMethod("handle", String.class)));
-        assertFalse(ClientUtils.isLocalHandler(Handler.class, Handler.class.getDeclaredMethod("handle", String.class)));
+        assertFalse(ClientUtils.getLocalHandlerAnnotation(Handler.class,
+                                                          Handler.class.getDeclaredMethod("handle", String.class))
+                            .isPresent());
     }
 
     @Test
     void handleOnlyLocal() throws Exception {
-        assertTrue(ClientUtils.isLocalHandler(Handler.class,
-                                              Handler.class.getDeclaredMethod("handleOnlyLocal", int.class)));
+        assertTrue(ClientUtils.getLocalHandlerAnnotation(Handler.class,
+                                                         Handler.class.getDeclaredMethod("handleOnlyLocal", int.class))
+                           .isPresent());
         assertFalse(ClientUtils.isTrackingHandler(Handler.class,
                                                   Handler.class.getDeclaredMethod("handleOnlyLocal", int.class)));
     }
 
     @Test
     void handleLocalAndExternal() throws Exception {
-        assertTrue(ClientUtils.isLocalHandler(Handler.class,
-                                              Handler.class.getDeclaredMethod("handleLocalOrExternal", double.class)));
+        assertTrue(ClientUtils.getLocalHandlerAnnotation(Handler.class,
+                                                         Handler.class.getDeclaredMethod("handleLocalOrExternal",
+                                                                                         double.class)).isPresent());
         assertTrue(ClientUtils.isTrackingHandler(Handler.class, Handler.class.getDeclaredMethod("handleLocalOrExternal",
                                                                                                 double.class)));
     }
