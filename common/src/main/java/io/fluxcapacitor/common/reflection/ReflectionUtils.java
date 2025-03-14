@@ -17,6 +17,7 @@ package io.fluxcapacitor.common.reflection;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import io.fluxcapacitor.common.ObjectUtils;
 import io.fluxcapacitor.common.serialization.JsonUtils;
+import io.fluxcapacitor.common.serialization.TypeRegistry;
 import lombok.Getter;
 import lombok.NonNull;
 import lombok.SneakyThrows;
@@ -32,7 +33,6 @@ import java.lang.annotation.Annotation;
 import java.lang.invoke.MethodType;
 import java.lang.reflect.AccessibleObject;
 import java.lang.reflect.AnnotatedElement;
-import java.lang.reflect.Constructor;
 import java.lang.reflect.Executable;
 import java.lang.reflect.Field;
 import java.lang.reflect.Member;
@@ -43,7 +43,6 @@ import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
 import java.lang.reflect.WildcardType;
 import java.net.URL;
-import java.security.PrivilegedAction;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -64,6 +63,7 @@ import java.util.function.BiConsumer;
 import java.util.function.BiFunction;
 import java.util.function.Function;
 import java.util.function.Predicate;
+import java.util.function.Supplier;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -72,7 +72,6 @@ import static io.fluxcapacitor.common.reflection.DefaultMemberInvoker.asInvoker;
 import static java.beans.Introspector.getBeanInfo;
 import static java.lang.Integer.compare;
 import static java.lang.String.format;
-import static java.security.AccessController.doPrivileged;
 import static java.util.Arrays.stream;
 import static java.util.Collections.emptyList;
 import static java.util.stream.Collectors.toCollection;
@@ -86,7 +85,13 @@ public class ReflectionUtils {
     private static final List<Integer> ACCESS_ORDER = List.of(Modifier.PRIVATE, 0, Modifier.PROTECTED, Modifier.PUBLIC);
 
     private static final Function<Class<?>, List<Method>> methodsCache = memoize(ReflectionUtils::computeAllMethods);
-    private static final Function<String, Class<?>> classForNameCache = memoize(ReflectionUtils::computeClass);
+    private static final Function<String, Optional<Class<?>>> classForFqnCache
+            = memoize(ReflectionUtils::computeClassForFqn);
+    private static final Supplier<TypeRegistry> typeRegistrySupplier = memoize(() -> classForFqnCache
+            .apply("io.fluxcapacitor.common.serialization.GeneratedTypeRegistry")
+            .<TypeRegistry>map(ReflectionUtils::asInstance).orElseThrow());
+    private static final Function<String, Optional<Class<?>>> classForNameCache
+            = memoize(ReflectionUtils::computeClassForName);
     private static final BiFunction<Class<?>, Class<? extends Annotation>, List<? extends AccessibleObject>>
             annotatedPropertiesCache = memoize(ReflectionUtils::computeAnnotatedProperties);
     private static final BiFunction<Class<?>, String, Function<Object, Object>> gettersCache =
@@ -811,10 +816,7 @@ public class ReflectionUtils {
     }
 
     public static <T extends AccessibleObject> T ensureAccessible(T member) {
-        doPrivileged((PrivilegedAction<?>) () -> {
-            member.setAccessible(true);
-            return null;
-        });
+        member.setAccessible(true);
         return member;
     }
 
@@ -1040,34 +1042,38 @@ public class ReflectionUtils {
         return target;
     }
 
+    @SneakyThrows
     public static Class<?> classForName(String type) {
-        return classForNameCache.apply(type);
+        Optional<Class<?>> result = classForNameCache.apply(type);
+        if (result.isPresent()) {
+            return result.get();
+        }
+        throw new ClassNotFoundException(type);
     }
 
     public static Class<?> classForName(String type, Class<?> defaultClass) {
-        try {
-            return classForNameCache.apply(type);
-        } catch (Exception ignored) {
-            return defaultClass;
-        }
+        return classForNameCache.apply(type).orElse(defaultClass);
     }
 
     public static boolean classExists(String className) {
+        return classForNameCache.apply(className).isPresent();
+    }
+
+    @SneakyThrows
+    private static Optional<Class<?>> computeClassForFqn(String type) {
         try {
-            classForNameCache.apply(className);
-            return true;
-        } catch (Exception e) {
-            return false;
+            return Optional.of(Class.forName(type.split("<")[0]));
+        } catch (Throwable ignored) {
+            return Optional.empty();
         }
     }
 
-    @SneakyThrows
-    public static <T> Constructor<? extends T> getConstructor(Class<? extends T> type, Class<?>... arguments) {
-        return type.getDeclaredConstructor(arguments);
-    }
-
-    @SneakyThrows
-    private static Class<?> computeClass(String type) {
-        return Class.forName(type.split("<")[0]);
+    private static Optional<Class<?>> computeClassForName(String name) {
+        var fqnResult = classForFqnCache.apply(name);
+        if (fqnResult.isPresent()) {
+            return fqnResult;
+        }
+        TypeRegistry typeRegistry = typeRegistrySupplier.get();
+        return typeRegistry.getTypeName(name).flatMap(classForFqnCache);
     }
 }

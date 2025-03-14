@@ -50,6 +50,14 @@
             <scope>provided</scope>
         </dependency>
 
+        <!-- annotation processing -->
+        <dependency>
+            <groupId>com.google.auto.service</groupId>
+            <artifactId>auto-service</artifactId>
+            <version>1.1.1</version>
+            <scope>provided</scope>
+        </dependency>
+
         <!--testing-->
         <dependency>
             <groupId>org.junit.jupiter</groupId>
@@ -60,6 +68,12 @@
             <groupId>org.mockito</groupId>
             <artifactId>mockito-core</artifactId>
             <version>5.14.2</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.jooq</groupId>
+            <artifactId>joor</artifactId>
+            <version>0.9.15</version>
             <scope>test</scope>
         </dependency>
 

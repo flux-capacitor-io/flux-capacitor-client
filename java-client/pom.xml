@@ -34,13 +34,6 @@
     </properties>
 
     <dependencies>
-        <dependency>
-            <groupId>com.google.auto.service</groupId>
-            <artifactId>auto-service</artifactId>
-            <version>1.1.1</version>
-            <scope>provided</scope>
-        </dependency>
-
         <!--flux-capacitor common-->
         <dependency>
             <groupId>io.flux-capacitor</groupId>
@@ -118,14 +111,6 @@
                     <artifactId>undertow-core</artifactId>
                 </exclusion>
             </exclusions>
-        </dependency>
-
-        <!--annotation processing-->
-        <dependency>
-            <groupId>org.jooq</groupId>
-            <artifactId>joor</artifactId>
-            <version>0.9.15</version>
-            <scope>test</scope>
         </dependency>
 
         <dependency>
