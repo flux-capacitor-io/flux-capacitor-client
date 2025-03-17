@@ -16,6 +16,7 @@ package io.fluxcapacitor.javaclient.test;
 
 import io.fluxcapacitor.common.reflection.ReflectionUtils;
 import io.fluxcapacitor.javaclient.FluxCapacitor;
+import io.fluxcapacitor.javaclient.common.HasMessage;
 import io.fluxcapacitor.javaclient.common.Message;
 import io.fluxcapacitor.javaclient.scheduling.Schedule;
 import io.fluxcapacitor.javaclient.web.WebRequest;
@@ -32,6 +33,7 @@ import org.hamcrest.Matcher;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -452,7 +454,8 @@ public class ResultValidator<R> implements Then<R> {
                                 e instanceof Message ? ((Message) e).getPayload().getClass() : expected.getClass();
                         Object match = remaining.stream().filter(a -> payloadType
                                         .equals(a instanceof Message ? ((Message) a).getPayload().getClass() : a.getClass()))
-                                .findFirst().orElse(null);
+                                .max(Comparator.comparingDouble(a -> similarity(e, a)))
+                                .orElse(null);
                         if (match != null) {
                             remaining.remove(match);
                             return Stream.of(match);
@@ -601,6 +604,34 @@ public class ResultValidator<R> implements Then<R> {
 
     protected boolean isMatcher(Object expected) {
         return matchersSupported && expected instanceof Matcher<?>;
+    }
+
+    protected double similarity(Object expected, Object actual) {
+        expected = expected instanceof HasMessage m ? m.getPayload() : expected;
+        actual = actual instanceof HasMessage m ? m.getPayload() : actual;
+        if (expected == null || actual == null) {
+            return 0;
+        }
+        String a = expected.toString();
+        String b = actual.toString();
+
+        int[][] dp = new int[a.length() + 1][b.length() + 1];
+        for (int i = 0; i <= a.length(); i++) {
+            for (int j = 0; j <= b.length(); j++) {
+                if (i == 0) {
+                    dp[i][j] = j;
+                } else if (j == 0) {
+                    dp[i][j] = i;
+                } else {
+                    dp[i][j] = Math.min(dp[i - 1][j - 1] + (a.charAt(i - 1) == b.charAt(j - 1) ? 0 : 1),
+                                        Math.min(dp[i - 1][j] + 1, dp[i][j - 1] + 1));
+                }
+            }
+        }
+        int distance = dp[a.length()][b.length()];
+        int maxLength = Math.max(a.length(), b.length());
+
+        return 1.0f - ((double) distance / maxLength);
     }
 
     protected String describeException(Throwable e) {
