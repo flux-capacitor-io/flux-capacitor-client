@@ -12,10 +12,7 @@
  * limitations under the License.
  */
 
-package io.fluxcapacitor.common.serialization;
+@RegisterType
+package io.fluxcapacitor.common.reflection.typeregistry.empty;
 
-import java.util.Optional;
-
-public interface TypeRegistry {
-    Optional<String> getTypeName(String alias);
-}
+import io.fluxcapacitor.common.serialization.RegisterType;

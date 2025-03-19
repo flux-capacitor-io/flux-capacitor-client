@@ -15,10 +15,11 @@
 package io.fluxcapacitor.common.serialization;
 
 import com.google.auto.service.AutoService;
+import lombok.Getter;
 import lombok.SneakyThrows;
 
 import javax.annotation.processing.AbstractProcessor;
-import javax.annotation.processing.FilerException;
+import javax.annotation.processing.ProcessingEnvironment;
 import javax.annotation.processing.Processor;
 import javax.annotation.processing.RoundEnvironment;
 import javax.annotation.processing.SupportedAnnotationTypes;
@@ -27,98 +28,144 @@ import javax.lang.model.element.Element;
 import javax.lang.model.element.QualifiedNameable;
 import javax.lang.model.element.TypeElement;
 import javax.tools.FileObject;
-import javax.tools.JavaFileObject;
-import javax.tools.StandardLocation;
-import java.io.IOException;
 import java.io.Writer;
-import java.util.HashSet;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.LinkedHashSet;
 import java.util.Scanner;
 import java.util.Set;
 import java.util.TreeSet;
 import java.util.stream.Stream;
 
-@SupportedAnnotationTypes("io.fluxcapacitor.common.serialization.RegisterType")
+import static io.fluxcapacitor.common.ObjectUtils.call;
+import static java.util.stream.Collectors.toCollection;
+import static java.util.stream.Stream.concat;
+import static javax.tools.StandardLocation.CLASS_OUTPUT;
+
+@SupportedAnnotationTypes(TypeRegistryProcessor.ANNOTATION)
 @AutoService(Processor.class)
 public class TypeRegistryProcessor extends AbstractProcessor {
-    static final String CLASS_NAME = "GeneratedTypeRegistry";
-    static final String PACKAGE_NAME = "io.fluxcapacitor.common.serialization";
+    static final String ANNOTATION = "io.fluxcapacitor.common.serialization.RegisterType";
+    public static final String TYPES_FILE = "META-INF/" + TypeRegistry.class.getName();
+    private static final String PREFIXES_FILE = "META-INF/type-registry-prefixes";
 
-    final Set<String> prefixes = new HashSet<>();
-    final Set<String> classes = new TreeSet<>();
+    private final Set<String> roundPrefixes = new LinkedHashSet<>();
+    @Getter(lazy = true)
+    private final FileObject typesResource =
+            call(() -> processingEnv.getFiler().getResource(CLASS_OUTPUT, "", TYPES_FILE));
+    @Getter(lazy = true)
+    private final FileObject prefixesResource =
+            call(() -> processingEnv.getFiler().getResource(CLASS_OUTPUT, "", PREFIXES_FILE));
+
+    @Override
+    public synchronized void init(ProcessingEnvironment processingEnv) {
+        super.init(processingEnv);
+        if (!isNewProcess()) {
+            storeTypes();
+        }
+    }
 
     @Override
     public boolean process(Set<? extends TypeElement> annotations, RoundEnvironment roundEnv) {
-        if (roundEnv.processingOver()) {
-            writeClass();
-            return true;
+        roundPrefixes.addAll(roundEnv.getRootElements().stream().flatMap(this::getPrefixes).toList());
+        if (roundEnv.processingOver() && isNewProcess()) {
+            storeTypes();
         }
-        for (Element element : roundEnv.getElementsAnnotatedWith(RegisterType.class)) {
-            if (element instanceof QualifiedNameable typeOrPackage) {
-                prefixes.add(typeOrPackage.getQualifiedName().toString());
-            }
-        }
-        roundEnv.getRootElements().stream()
-                .filter(e -> e instanceof TypeElement t
-                             && prefixes.stream().anyMatch(root -> t.getQualifiedName().toString().startsWith(root)))
-                .flatMap(e -> getClasses((TypeElement) e))
-                .forEach(c -> classes.add(processingEnv.getElementUtils().getBinaryName(c).toString()));
         return true;
     }
 
-    Stream<TypeElement> getClasses(TypeElement type) {
-        return Stream.concat(Stream.of(type), type.getEnclosedElements().stream()
-                .filter(e -> e instanceof TypeElement).flatMap(e -> getClasses((TypeElement) e)));
+    boolean isNewProcess() {
+        return getTypesResource().getLastModified() == 0;
     }
 
     @SneakyThrows
-    void writeClass() {
-        Set<String> existingClasses = new TreeSet<>(classes);
-
-        try {
-            FileObject resource = processingEnv.getFiler().getResource(
-                    StandardLocation.CLASS_OUTPUT, "io.fluxcapacitor.common.serialization",
-                    "generated-type-registry");
-            try (Scanner scanner = new Scanner(resource.openInputStream())) {
-                while (scanner.hasNextLine()) {
-                    existingClasses.add(scanner.nextLine());
-                }
-            }
-        } catch (IOException ignored) {
-        }
-
-        FileObject resource = processingEnv.getFiler().createResource(
-                StandardLocation.CLASS_OUTPUT, "io.fluxcapacitor.common.serialization", "generated-type-registry");
-        try (Writer resourceWriter = resource.openWriter()) {
-            for (String type : existingClasses) {
+    void storeTypes() {
+        var prefixes = updateAndGetPrefixes();
+        var types = Stream.concat(getStoredTypes(prefixes), getNewTypes(prefixes)).collect(toCollection(TreeSet::new));
+        try (var resourceWriter = processingEnv.getFiler().createResource(CLASS_OUTPUT, "", TYPES_FILE)
+                .openWriter()) {
+            for (String type : types) {
                 resourceWriter.write(type + "\n");
             }
         }
+    }
 
-        StringBuilder registryCode = new StringBuilder()
-                .append("package ").append(PACKAGE_NAME).append(";\n\n")
-                .append("public class GeneratedTypeRegistry extends TypeRegistry {\n\n")
-                .append(" public static TypeRegistry INSTANCE = new GeneratedTypeRegistry();\n\n")
-                .append(" private GeneratedTypeRegistry() {\n")
-                .append("    super(getElements());\n")
-                .append(" }\n\n")
-                .append("    private static java.util.List<java.lang.String> getElements() {\n")
-                .append("        java.util.List<java.lang.String> result = new java.util.ArrayList<>();\n");
-        for (String type : existingClasses) {
-            registryCode.append("        result.add(\"").append(type).append("\");\n");
+    @SneakyThrows
+    Stream<String> getStoredTypes(Set<String> prefixes) {
+        if (isNewProcess()) {
+            return Stream.empty();
         }
-        registryCode
-                .append("        return result;\n")
-                .append("    }\n\n")
-                .append("}\n");
-
-        try {
-            JavaFileObject file = processingEnv.getFiler().createSourceFile(PACKAGE_NAME + "." + CLASS_NAME);
-            try (Writer writer = file.openWriter()) {
-                writer.write(registryCode.toString());
+        Collection<String> result = new ArrayList<>();
+        try (Scanner scanner = new Scanner(getTypesResource().openInputStream())) {
+            while (scanner.hasNextLine()) {
+                String type = scanner.nextLine();
+                String canonicalType = type.replace("$", ".");
+                if (isType(type) && prefixes.stream().anyMatch(canonicalType::startsWith)) {
+                    result.add(type);
+                }
             }
-//            processingEnv.getMessager().printNote("✅ Successfully generated " + CLASS_NAME);
-        }  catch (FilerException ignored) {
         }
+        return result.stream();
+    }
+
+    Stream<String> getNewTypes(Set<String> prefixes) {
+        return processingEnv.getElementUtils().getAllModuleElements().stream().flatMap(this::getClasses)
+                .filter(t -> prefixes.stream().anyMatch(prefix -> t.getQualifiedName().toString().startsWith(prefix)))
+                .map(c -> processingEnv.getElementUtils().getBinaryName(c).toString());
+    }
+
+    @SneakyThrows
+    Set<String> updateAndGetPrefixes() {
+        Set<String> prefixes = new TreeSet<>(roundPrefixes);
+        FileObject resource = getPrefixesResource();
+        if (resource.getLastModified() != 0) {
+            try (Scanner scanner = new Scanner(resource.openInputStream())) {
+                while (scanner.hasNextLine()) {
+                    String prefix = scanner.nextLine();
+                    if (isPackage(prefix) || isType(prefix)) {
+                        prefixes.add(prefix);
+                    }
+                }
+            }
+        }
+        resource = processingEnv.getFiler().createResource(CLASS_OUTPUT, "", PREFIXES_FILE);
+        try (Writer resourceWriter = resource.openWriter()) {
+            for (String prefix : prefixes) {
+                if (isPackage(prefix) || isType(prefix)) {
+                    resourceWriter.write(prefix + "\n");
+                }
+            }
+        }
+        return prefixes;
+    }
+
+    Stream<String> getPrefixes(Element element) {
+        try {
+            if (element.getAnnotation(RegisterType.class) != null) {
+                return Stream.of(((QualifiedNameable) element).getQualifiedName().toString());
+            }
+        } catch (Throwable ignored) {
+        }
+        return element.getEnclosedElements().stream().flatMap(this::getPrefixes);
+    }
+
+    Stream<TypeElement> getClasses(Element element) {
+        try {
+            return concat(element instanceof TypeElement t ? Stream.of(t) : Stream.empty(),
+                          element.getEnclosedElements().stream().flatMap(this::getClasses));
+        } catch (Throwable e) {
+            processingEnv.getMessager()
+                    .printWarning("Failed to get classes of element: " + element + ". " + e.getMessage());
+            return Stream.empty();
+        }
+    }
+
+    boolean isType(String fqn) {
+        return processingEnv.getElementUtils().getTypeElement(fqn.replace("$", ".")) != null;
+    }
+
+    boolean isPackage(String fqn) {
+        return processingEnv.getElementUtils().getPackageElement(fqn) != null;
     }
 
     @Override

@@ -16,6 +16,7 @@ package io.fluxcapacitor.common.reflection.typeregistry;
 
 import io.fluxcapacitor.common.reflection.ReflectionUtils;
 import io.fluxcapacitor.common.reflection.typeregistry.bar.Bar;
+import io.fluxcapacitor.common.reflection.typeregistry.empty.inner.ChildOfEmpty;
 import io.fluxcapacitor.common.serialization.TypeRegistryProcessor;
 import org.joor.CompileOptions;
 import org.joor.Reflect;
@@ -34,6 +35,7 @@ class TypeRegistryProcessorTest {
         assertEquals(Bar.class, ReflectionUtils.classForName("Bar"));
         assertEquals(FooBar.class, ReflectionUtils.classForName("FooBar"));
         assertEquals(FooBar.class, ReflectionUtils.classForName("typeregistry.FooBar"));
+        assertEquals(ChildOfEmpty.class, ReflectionUtils.classForName("ChildOfEmpty"));
     }
 
     @Test

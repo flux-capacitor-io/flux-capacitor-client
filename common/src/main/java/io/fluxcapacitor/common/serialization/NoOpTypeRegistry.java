@@ -16,6 +16,11 @@ package io.fluxcapacitor.common.serialization;
 
 import java.util.Optional;
 
-public interface TypeRegistry {
-    Optional<String> getTypeName(String alias);
+public enum NoOpTypeRegistry implements TypeRegistry {
+    INSTANCE;
+
+    @Override
+    public Optional<String> getTypeName(String alias) {
+        return Optional.empty();
+    }
 }

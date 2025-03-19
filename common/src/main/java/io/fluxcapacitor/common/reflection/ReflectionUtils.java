@@ -16,6 +16,7 @@ package io.fluxcapacitor.common.reflection;
 
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import io.fluxcapacitor.common.ObjectUtils;
+import io.fluxcapacitor.common.serialization.DefaultTypeRegistry;
 import io.fluxcapacitor.common.serialization.JsonUtils;
 import io.fluxcapacitor.common.serialization.TypeRegistry;
 import lombok.Getter;
@@ -87,9 +88,7 @@ public class ReflectionUtils {
     private static final Function<Class<?>, List<Method>> methodsCache = memoize(ReflectionUtils::computeAllMethods);
     private static final Function<String, Optional<Class<?>>> classForFqnCache
             = memoize(ReflectionUtils::computeClassForFqn);
-    private static final Supplier<TypeRegistry> typeRegistrySupplier = memoize(() -> classForFqnCache
-            .apply("io.fluxcapacitor.common.serialization.GeneratedTypeRegistry")
-            .<TypeRegistry>map(ReflectionUtils::asInstance).orElseThrow());
+    private static final Supplier<TypeRegistry> typeRegistrySupplier = memoize(() -> new DefaultTypeRegistry());
     private static final Function<String, Optional<Class<?>>> classForNameCache
             = memoize(ReflectionUtils::computeClassForName);
     private static final BiFunction<Class<?>, Class<? extends Annotation>, List<? extends AccessibleObject>>
@@ -1059,6 +1058,14 @@ public class ReflectionUtils {
         return classForNameCache.apply(className).isPresent();
     }
 
+    public static String getSimpleName(String fullyQualifiedName) {
+        if (fullyQualifiedName == null || fullyQualifiedName.trim().isEmpty()) {
+            throw new IllegalArgumentException("Fully qualified name cannot be null or empty");
+        }
+        int lastSeparatorIndex = Math.max(fullyQualifiedName.lastIndexOf('.'), fullyQualifiedName.lastIndexOf('$'));
+        return (lastSeparatorIndex == -1) ? fullyQualifiedName : fullyQualifiedName.substring(lastSeparatorIndex + 1);
+    }
+
     @SneakyThrows
     private static Optional<Class<?>> computeClassForFqn(String type) {
         try {
@@ -1073,7 +1080,6 @@ public class ReflectionUtils {
         if (fqnResult.isPresent()) {
             return fqnResult;
         }
-        TypeRegistry typeRegistry = typeRegistrySupplier.get();
-        return typeRegistry.getTypeName(name).flatMap(classForFqnCache);
+        return typeRegistrySupplier.get().getTypeName(name).flatMap(classForFqnCache);
     }
 }
