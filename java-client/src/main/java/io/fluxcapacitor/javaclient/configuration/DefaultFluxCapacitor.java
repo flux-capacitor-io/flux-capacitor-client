@@ -17,6 +17,7 @@ package io.fluxcapacitor.javaclient.configuration;
 import io.fluxcapacitor.common.MessageType;
 import io.fluxcapacitor.common.ObjectUtils;
 import io.fluxcapacitor.common.Registration;
+import io.fluxcapacitor.common.ThrowingRunnable;
 import io.fluxcapacitor.common.application.DecryptingPropertySource;
 import io.fluxcapacitor.common.application.DefaultPropertySource;
 import io.fluxcapacitor.common.application.PropertySource;
@@ -172,7 +173,7 @@ public class DefaultFluxCapacitor implements FluxCapacitor {
     private final PropertySource propertySource;
     private final AtomicReference<Clock> clock = new AtomicReference<>(Clock.systemUTC());
     private final Client client;
-    private final Runnable shutdownHandler;
+    private final ThrowingRunnable shutdownHandler;
 
     private final AtomicBoolean closed = new AtomicBoolean();
     private final Collection<Runnable> cleanupTasks = new CopyOnWriteArrayList<>();
@@ -722,7 +723,7 @@ public class DefaultFluxCapacitor implements FluxCapacitor {
                 new CacheEvictionsLogger(metricsGateway).register(cache);
             }
 
-            Runnable shutdownHandler = () -> {
+            ThrowingRunnable shutdownHandler = () -> {
                 ForkJoinPool shutdownPool = new ForkJoinPool(MessageType.values().length);
                 Optional.ofNullable(forwardingWebConsumer).ifPresent(ForwardingWebConsumer::close);
                 shutdownPool.invokeAll(
@@ -786,7 +787,7 @@ public class DefaultFluxCapacitor implements FluxCapacitor {
                                         Scheduler scheduler, UserProvider userProvider, Cache cache,
                                         Serializer serializer, CorrelationDataProvider correlationDataProvider,
                                         IdentityProvider identityProvider, PropertySource propertySource,
-                                        Client client, Runnable shutdownHandler) {
+                                        Client client, ThrowingRunnable shutdownHandler) {
             return new DefaultFluxCapacitor(trackingSupplier, customGatewaySupplier,
                                             commandGateway, queryGateway, eventGateway, resultGateway,
                                             errorGateway, metricsGateway, webRequestGateway,
