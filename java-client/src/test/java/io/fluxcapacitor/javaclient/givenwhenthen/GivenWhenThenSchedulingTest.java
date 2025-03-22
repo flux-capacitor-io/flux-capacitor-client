@@ -21,6 +21,7 @@ import io.fluxcapacitor.javaclient.scheduling.Periodic;
 import io.fluxcapacitor.javaclient.scheduling.Schedule;
 import io.fluxcapacitor.javaclient.test.GivenWhenThenAssertionError;
 import io.fluxcapacitor.javaclient.test.TestFixture;
+import io.fluxcapacitor.javaclient.tracking.IndexUtils;
 import io.fluxcapacitor.javaclient.tracking.handling.HandleCommand;
 import io.fluxcapacitor.javaclient.tracking.handling.HandleSchedule;
 import lombok.AllArgsConstructor;
@@ -98,6 +99,17 @@ class GivenWhenThenSchedulingTest {
                 .given(fc -> fc.scheduler().cancelSchedule("test"))
                 .whenTimeElapses(Duration.ofSeconds(10))
                 .expectNoCommands();
+    }
+
+    @Test
+    void scheduleIndexAlwaysNew() {
+        Instant deadline = subject.getCurrentTime().plusSeconds(10);
+        String scheduleId = "new";
+        subject.givenSchedules(new Schedule("foo", scheduleId, deadline))
+                .given(fc -> FluxCapacitor.cancelSchedule(scheduleId))
+                .givenSchedules(new Schedule("foo", scheduleId, deadline))
+                .whenApplying(fc -> FluxCapacitor.get().client().getSchedulingClient().getSchedule(scheduleId))
+                .expectResult(s -> s.getMessage().getIndex() > IndexUtils.indexFromTimestamp(deadline));
     }
 
     @Nested

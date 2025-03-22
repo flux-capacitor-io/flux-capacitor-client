@@ -20,9 +20,11 @@ import io.fluxcapacitor.common.api.scheduling.SerializedSchedule;
 import io.fluxcapacitor.javaclient.FluxCapacitor;
 import io.fluxcapacitor.javaclient.common.serialization.Serializer;
 import io.fluxcapacitor.javaclient.scheduling.Schedule;
+import io.fluxcapacitor.javaclient.tracking.IndexUtils;
 import io.fluxcapacitor.javaclient.tracking.client.InMemoryMessageStore;
 import lombok.NonNull;
 import lombok.SneakyThrows;
+import lombok.Value;
 import lombok.extern.slf4j.Slf4j;
 
 import java.time.Clock;
@@ -45,7 +47,7 @@ import static java.util.stream.Collectors.toList;
 @Slf4j
 public class InMemoryScheduleStore extends InMemoryMessageStore implements SchedulingClient {
 
-    private final ConcurrentSkipListMap<Long, String> scheduleIdsByIndex = new ConcurrentSkipListMap<>();
+    private final ConcurrentSkipListMap<Long, Entry> scheduleIdsByIndex = new ConcurrentSkipListMap<>();
     private volatile Clock clock = Clock.systemUTC();
 
     public InMemoryScheduleStore() {
@@ -58,9 +60,10 @@ public class InMemoryScheduleStore extends InMemoryMessageStore implements Sched
 
     @Override
     protected Collection<SerializedMessage> filterMessages(Collection<SerializedMessage> messages) {
-        long maximumIndex = maxIndexFromMillis(clock.millis());
+        long msThreshold = clock.millis();
         return super.filterMessages(messages).stream()
-                .filter(m -> m.getIndex() <= maximumIndex && scheduleIdsByIndex.containsKey(m.getIndex()))
+                .filter(m -> IndexUtils.millisFromIndex(m.getIndex()) <= msThreshold && scheduleIdsByIndex.containsKey(
+                        m.getIndex()))
                 .collect(toList());
     }
 
@@ -73,32 +76,42 @@ public class InMemoryScheduleStore extends InMemoryMessageStore implements Sched
     @Override
     public synchronized CompletableFuture<Void> schedule(Guarantee guarantee, SerializedSchedule... schedules) {
         List<SerializedSchedule> filtered = Arrays.stream(schedules)
-                .filter(s -> !s.isIfAbsent() || !scheduleIdsByIndex.containsValue(s.getScheduleId())).toList();
+                .filter(s -> !s.isIfAbsent() || !hasSchedule(s.getScheduleId())).toList();
         long now = FluxCapacitor.currentClock().millis();
         for (SerializedSchedule schedule : filtered) {
-            cancelSchedule(schedule.getScheduleId());
             long index = indexFromMillis(Math.max(now, schedule.getTimestamp()));
-            while (scheduleIdsByIndex.putIfAbsent(index, schedule.getScheduleId()) != null) {
+            while (scheduleIdsByIndex.containsKey(index)) {
                 index++;
             }
+            Entry entry = new Entry(schedule.getScheduleId());
+            cancelSchedule(schedule.getScheduleId());
             schedule.getMessage().setIndex(index);
+            if (scheduleIdsByIndex.put(index, entry) != null) {
+                log.warn("Overwriting existing schedule with index {}, id {}", index, schedule.getScheduleId());
+            }
         }
         return super.append(filtered.stream().map(SerializedSchedule::getMessage).toList());
     }
 
     @Override
     public synchronized CompletableFuture<Void> cancelSchedule(String scheduleId, Guarantee guarantee) {
-        scheduleIdsByIndex.values().removeIf(s -> s.equals(scheduleId));
+        scheduleIdsByIndex.entrySet().stream().filter(e -> scheduleId.equals(e.getValue().getScheduleId()))
+                .toList().forEach(e -> scheduleIdsByIndex.computeIfPresent(e.getKey(), (k, v) -> v.invalidate()));
         return CompletableFuture.completedFuture(null);
     }
 
     @Override
     public synchronized SerializedSchedule getSchedule(String scheduleId) {
-        return scheduleIdsByIndex.entrySet().stream().filter(e -> scheduleId.equals(e.getValue())).findFirst()
-                .map(e -> {
+        return scheduleIdsByIndex.entrySet().stream().filter(e -> scheduleId.equals(e.getValue().getScheduleId()))
+                .findFirst().filter(e -> e.getValue().isPresent()).map(e -> {
                     SerializedMessage message = getMessage(e.getKey());
                     return new SerializedSchedule(scheduleId, millisFromIndex(e.getKey()), message, false);
                 }).orElse(null);
+    }
+
+    @Override
+    public boolean hasSchedule(String scheduleId) {
+        return scheduleIdsByIndex.containsValue(new Entry(scheduleId));
     }
 
     @Override
@@ -118,19 +131,19 @@ public class InMemoryScheduleStore extends InMemoryMessageStore implements Sched
     }
 
     public synchronized List<Schedule> removeExpiredSchedules(Serializer serializer) {
-        Map<Long, String> expiredEntries = scheduleIdsByIndex.headMap(maxIndexFromMillis(clock.millis()), true);
+        Map<Long, Entry> expiredEntries = scheduleIdsByIndex.headMap(maxIndexFromMillis(clock.millis()), true);
         List<Schedule> result = asList(expiredEntries, serializer);
         expiredEntries.clear();
         return result;
     }
 
     @SuppressWarnings("OptionalGetWithoutIsPresent")
-    protected List<Schedule> asList(Map<Long, String> scheduleIdsByIndex, Serializer serializer) {
-        return scheduleIdsByIndex.entrySet().stream().map(e -> {
+    protected List<Schedule> asList(Map<Long, Entry> scheduleIdsByIndex, Serializer serializer) {
+        return scheduleIdsByIndex.entrySet().stream().filter(e -> e.getValue().isPresent()).map(e -> {
             SerializedMessage m = getMessage(e.getKey());
             return new Schedule(
                     serializer.deserializeMessages(Stream.of(m), SCHEDULE).findFirst().get().getPayload(),
-                    m.getMetadata(), e.getValue(), timestampFromIndex(e.getKey()));
+                    m.getMetadata(), e.getValue().getScheduleId(), timestampFromIndex(e.getKey()));
         }).toList();
     }
 
@@ -139,5 +152,27 @@ public class InMemoryScheduleStore extends InMemoryMessageStore implements Sched
         scheduleIdsByIndex.headMap(maxIndexFromMillis(
                 clock.millis() - messageExpiration.toMillis()), true).clear();
         super.purgeExpiredMessages(messageExpiration);
+    }
+
+    @Override
+    public String toString() {
+        return "InMemoryScheduleStore";
+    }
+
+    @Value
+    protected static class Entry {
+        String scheduleId;
+
+        public Entry invalidate() {
+            return new Entry(null);
+        }
+
+        public boolean isPresent() {
+            return scheduleId != null;
+        }
+
+        public boolean isEmpty() {
+            return !isPresent();
+        }
     }
 }
