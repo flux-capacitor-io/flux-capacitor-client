@@ -14,12 +14,19 @@
 
 package io.fluxcapacitor.javaclient.persisting.search;
 
+import io.fluxcapacitor.common.api.Metadata;
 import io.fluxcapacitor.common.api.search.SerializedDocument;
 
 import java.time.Instant;
 
 public interface DocumentSerializer {
-    SerializedDocument toDocument(Object value, String id, String collection, Instant timestamp, Instant end);
+
+    default SerializedDocument toDocument(Object value, String id, String collection, Instant timestamp, Instant end) {
+        return toDocument(value, id, collection, timestamp, end, Metadata.empty());
+    }
+
+    SerializedDocument toDocument(Object value, String id, String collection, Instant timestamp, Instant end,
+                                  Metadata metadata);
 
     <T> T fromDocument(SerializedDocument document);
 

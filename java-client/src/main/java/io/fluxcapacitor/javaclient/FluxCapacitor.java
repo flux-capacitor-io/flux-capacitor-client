@@ -22,7 +22,6 @@ import io.fluxcapacitor.common.ThrowingFunction;
 import io.fluxcapacitor.common.api.Metadata;
 import io.fluxcapacitor.common.api.search.SearchQuery;
 import io.fluxcapacitor.common.application.PropertySource;
-import io.fluxcapacitor.common.caching.Cache;
 import io.fluxcapacitor.javaclient.common.ClientUtils;
 import io.fluxcapacitor.javaclient.common.IdentityProvider;
 import io.fluxcapacitor.javaclient.common.Message;
@@ -37,11 +36,13 @@ import io.fluxcapacitor.javaclient.modeling.Aggregate;
 import io.fluxcapacitor.javaclient.modeling.Entity;
 import io.fluxcapacitor.javaclient.modeling.EntityId;
 import io.fluxcapacitor.javaclient.modeling.Id;
+import io.fluxcapacitor.javaclient.persisting.caching.Cache;
 import io.fluxcapacitor.javaclient.persisting.eventsourcing.EventStore;
 import io.fluxcapacitor.javaclient.persisting.eventsourcing.SnapshotStore;
 import io.fluxcapacitor.javaclient.persisting.keyvalue.KeyValueStore;
 import io.fluxcapacitor.javaclient.persisting.repository.AggregateRepository;
 import io.fluxcapacitor.javaclient.persisting.search.DocumentStore;
+import io.fluxcapacitor.javaclient.persisting.search.IndexOperation;
 import io.fluxcapacitor.javaclient.persisting.search.Search;
 import io.fluxcapacitor.javaclient.persisting.search.Searchable;
 import io.fluxcapacitor.javaclient.publishing.CommandGateway;
@@ -62,6 +63,7 @@ import io.fluxcapacitor.javaclient.tracking.handling.LocalHandler;
 import io.fluxcapacitor.javaclient.tracking.handling.Request;
 import io.fluxcapacitor.javaclient.tracking.handling.authentication.User;
 import io.fluxcapacitor.javaclient.tracking.handling.authentication.UserProvider;
+import lombok.NonNull;
 import lombok.SneakyThrows;
 
 import java.time.Clock;
@@ -582,7 +584,7 @@ public interface FluxCapacitor extends AutoCloseable {
      * @see Aggregate for more info on how to define an event sourced aggregate root
      */
     static <T> Entity<T> loadAggregateFor(Object entityId) {
-        return loadAggregateFor(entityId, Object.class);
+        return loadAggregateFor(entityId, entityId instanceof Id<?> id ? id.getType() : Object.class);
     }
 
     /**
@@ -593,10 +595,11 @@ public interface FluxCapacitor extends AutoCloseable {
      * If the entity is loaded while handling an event its aggregate, the returned entity will automatically be played
      * back to the event currently being handled. Otherwise, the most recent state of the entity is loaded.
      */
-    @SuppressWarnings("unchecked")
+    @SuppressWarnings({"unchecked", "rawtypes"})
     static <T> Entity<T> loadEntity(Object entityId) {
         return (Entity<T>) loadAggregateFor(entityId).getEntity(entityId)
-                .orElseGet(() -> loadAggregate(entityId.toString(), Object.class));
+                .orElseGet(() -> entityId instanceof Id id
+                        ? loadAggregate(id) : loadAggregate(entityId.toString(), Object.class));
     }
 
     /**
@@ -654,6 +657,25 @@ public interface FluxCapacitor extends AutoCloseable {
             return entity.playBackToEvent(message.getMessageId());
         }
         return entity;
+    }
+
+    /**
+     * Prepare given object for indexing for search. This returns a mutable builder that allows defining an id,
+     * collection, etc.
+     * <p>
+     * If the object is annotated with {@link Searchable @Searchable} the collection name and any timestamp or end path
+     * defined there will be used.
+     * <p>
+     * If the object has a property annotated with {@link EntityId}, it will be used as the id of the document.
+     * Otherwise, a random id will be assigned to the document.
+     * <p>
+     * This method returns once the object is stored.
+     *
+     * @see DocumentStore for more advanced uses.
+     * @see Searchable for ways to define collection name etc
+     */
+    static IndexOperation prepareIndex(@NonNull Object object) {
+        return get().documentStore().prepareIndex(object);
     }
 
     /**

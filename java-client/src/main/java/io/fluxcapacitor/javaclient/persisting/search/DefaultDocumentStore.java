@@ -15,6 +15,7 @@
 package io.fluxcapacitor.javaclient.persisting.search;
 
 import io.fluxcapacitor.common.Guarantee;
+import io.fluxcapacitor.common.api.Metadata;
 import io.fluxcapacitor.common.api.search.BulkUpdate;
 import io.fluxcapacitor.common.api.search.Constraint;
 import io.fluxcapacitor.common.api.search.CreateAuditTrail;
@@ -24,6 +25,7 @@ import io.fluxcapacitor.common.api.search.FacetStats;
 import io.fluxcapacitor.common.api.search.GetDocument;
 import io.fluxcapacitor.common.api.search.GetSearchHistogram;
 import io.fluxcapacitor.common.api.search.Group;
+import io.fluxcapacitor.common.api.search.HasDocument;
 import io.fluxcapacitor.common.api.search.SearchDocuments;
 import io.fluxcapacitor.common.api.search.SearchHistogram;
 import io.fluxcapacitor.common.api.search.SearchQuery;
@@ -70,11 +72,11 @@ public class DefaultDocumentStore implements DocumentStore, HasLocalHandlers {
 
     @Override
     public CompletableFuture<Void> index(@NonNull Object object, Object id, Object collection, Instant begin,
-                                         Instant end, Guarantee guarantee, boolean ifNotExists) {
+                                         Instant end, Metadata metadata, Guarantee guarantee, boolean ifNotExists) {
         try {
-            return client.index(
-                    List.of(serializer.toDocument(object, id.toString(), determineCollection(collection), begin, end)),
-                    guarantee, ifNotExists);
+            return client.index(List.of(serializer.toDocument(
+                                        object, id.toString(), determineCollection(collection), begin, end, metadata)),
+                                guarantee, ifNotExists);
         } catch (Exception e) {
             throw new DocumentStoreException(format(
                     "Failed to store a document %s to collection %s", id, collection), e);
@@ -166,6 +168,11 @@ public class DefaultDocumentStore implements DocumentStore, HasLocalHandlers {
     @Override
     public Search search(SearchQuery.Builder searchBuilder) {
         return new DefaultSearch(searchBuilder);
+    }
+
+    @Override
+    public boolean hasDocument(Object id, Object collection) {
+        return client.documentExists(new HasDocument(id.toString(), determineCollection(collection)));
     }
 
     @Override
@@ -361,7 +368,8 @@ public class DefaultDocumentStore implements DocumentStore, HasLocalHandlers {
 
         @Override
         public List<FacetStats> facetStats() {
-            return client.fetchFacetStats(queryBuilder.build());
+            return client.fetchFacetStats(queryBuilder.build())
+                    .stream().filter(s -> !s.getName().startsWith("$metadata/")).toList();
         }
 
         @Override

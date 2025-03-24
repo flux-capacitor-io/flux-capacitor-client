@@ -29,6 +29,7 @@ import com.fasterxml.jackson.databind.node.TextNode;
 import io.fluxcapacitor.common.SearchUtils;
 import io.fluxcapacitor.common.ThrowingFunction;
 import io.fluxcapacitor.common.api.Data;
+import io.fluxcapacitor.common.api.Metadata;
 import io.fluxcapacitor.common.api.search.FacetEntry;
 import io.fluxcapacitor.common.api.search.SerializedDocument;
 import io.fluxcapacitor.common.api.search.SortableEntry;
@@ -140,24 +141,33 @@ public class JacksonInverter implements Inverter<JsonNode> {
     @Override
     @SneakyThrows
     public SerializedDocument toDocument(Object value, String type, int revision, String id, String collection,
-                                         Instant timestamp, Instant end) {
+                                         Instant timestamp, Instant end, Metadata metadata) {
         byte[] data = objectMapper.writeValueAsBytes(value);
         return new SerializedDocument(new Document(id, type, revision, collection,
                                                    timestamp, end, invert(data), () -> summarize(value),
-                                                   getFacets(value), getSortables(value)));
+                                                   getFacets(value, metadata), getSortables(value)));
     }
-    
+
     /*
         Facets
      */
 
-    protected Set<FacetEntry> getFacets(Object value) {
+    protected Set<FacetEntry> getFacets(Object value, Metadata metadata) {
+        return Stream.concat(getFacets(value), asFacets(metadata))
+                .collect(Collectors.toCollection(LinkedHashSet::new));
+    }
+
+    protected Stream<FacetEntry> asFacets(Metadata metadata) {
+        return metadata.entrySet().stream().map(e -> new FacetEntry("$metadata/" + e.getKey(), e.getValue()));
+    }
+
+    protected Stream<FacetEntry> getFacets(Object value) {
         if (value == null) {
-            return emptySet();
+            return Stream.empty();
         }
         var properties = ReflectionUtils.getAnnotatedProperties(value.getClass(), Facet.class);
         return properties.stream().flatMap(p -> ofNullable(ReflectionUtils.getValue(p, value)).stream()
-                .flatMap(o -> getFacets(p, o))).collect(Collectors.toCollection(LinkedHashSet::new));
+                .flatMap(o -> getFacets(p, o)));
     }
 
     protected Stream<FacetEntry> getFacets(AccessibleObject holder, Object propertyValue) {
@@ -165,7 +175,7 @@ public class JacksonInverter implements Inverter<JsonNode> {
             case null -> Stream.empty();
             case Collection<?> collection -> collection.stream().flatMap(v -> getFacets(holder, v));
             case Map<?, ?> map -> map.entrySet().stream().flatMap(e -> getFacets(holder, e.getValue()).map(
-                    f -> f.toBuilder().name("%s/%s".formatted(f.getName(), String.valueOf(e.getKey()))).build()));
+                        f -> f.toBuilder().name("%s/%s".formatted(f.getName(), String.valueOf(e.getKey()))).build()));
             default -> {
                 String name = getAnnotation(holder, Facet.class).map(Facet::value).filter(s -> !s.isBlank())
                         .orElseGet(() -> getPropertyName(holder));
@@ -174,7 +184,7 @@ public class JacksonInverter implements Inverter<JsonNode> {
                     String stringValue = propertyValue.toString();
                     yield stringValue.isBlank() ? Stream.empty() : Stream.of(new FacetEntry(name, stringValue));
                 }
-                yield getFacets(propertyValue).stream().map(
+                yield getFacets(propertyValue).map(
                         f -> f.toBuilder().name("%s/%s".formatted(name, f.getName())).build());
             }
         };
@@ -238,19 +248,13 @@ public class JacksonInverter implements Inverter<JsonNode> {
     }
 
     protected EntryType getEntryType(JsonToken token) {
-        switch (token) {
-            case VALUE_STRING:
-                return EntryType.TEXT;
-            case VALUE_NUMBER_INT:
-            case VALUE_NUMBER_FLOAT:
-                return EntryType.NUMERIC;
-            case VALUE_TRUE:
-            case VALUE_FALSE:
-                return EntryType.BOOLEAN;
-            case VALUE_NULL:
-                return EntryType.NULL;
-        }
-        throw new IllegalArgumentException("Unsupported value token: " + token);
+        return switch (token) {
+            case VALUE_STRING -> EntryType.TEXT;
+            case VALUE_NUMBER_INT, VALUE_NUMBER_FLOAT -> EntryType.NUMERIC;
+            case VALUE_TRUE, VALUE_FALSE -> EntryType.BOOLEAN;
+            case VALUE_NULL -> EntryType.NULL;
+            default -> throw new IllegalArgumentException("Unsupported value token: " + token);
+        };
     }
 
     protected void registerValue(EntryType type, String value, String path, Map<Entry, List<Path>> valueMap) {
@@ -283,7 +287,7 @@ public class JacksonInverter implements Inverter<JsonNode> {
             String path = root;
             while (!token.isStructEnd()) {
                 if (token == JsonToken.FIELD_NAME) {
-                    String fieldName = parser.getCurrentName();
+                    String fieldName = parser.currentName();
                     fieldName = SearchUtils.escapeFieldName(fieldName);
                     path = root + fieldName;
                     token = parser.nextToken();

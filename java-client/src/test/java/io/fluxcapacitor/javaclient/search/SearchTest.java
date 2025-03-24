@@ -62,6 +62,7 @@ import static io.fluxcapacitor.common.api.search.constraints.LookAheadConstraint
 import static io.fluxcapacitor.common.api.search.constraints.MatchConstraint.match;
 import static io.fluxcapacitor.common.api.search.constraints.NotConstraint.not;
 import static io.fluxcapacitor.common.api.search.constraints.QueryConstraint.query;
+import static io.fluxcapacitor.javaclient.FluxCapacitor.prepareIndex;
 import static java.util.Collections.emptyList;
 import static java.util.Collections.singletonList;
 import static java.util.Collections.singletonMap;
@@ -76,6 +77,16 @@ public class SearchTest {
     void storeSearchable() {
         TestFixture.create().givenDocument(new SomeSearchable("foo", Instant.now()))
                 .whenSearching(SomeSearchable.class)
+                .expectResult(r -> r.size() == 1)
+                .mapResult(List::getFirst)
+                .expectResult(s -> Objects.equals(s.getId(), "foo"));
+    }
+
+    @Test
+    void storeViaIndexOperation() {
+        TestFixture.create().given(fc -> prepareIndex(new SomeSearchable("foo", Instant.now()))
+                        .addMetadata("metafoo", "metabar").indexAndWait())
+                .whenSearching(SomeSearchable.class, s -> s.matchMetadata("metafoo", "metabar"))
                 .expectResult(r -> r.size() == 1)
                 .mapResult(List::getFirst)
                 .expectResult(s -> Objects.equals(s.getId(), "foo"));

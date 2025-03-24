@@ -52,6 +52,7 @@ import io.fluxcapacitor.common.api.search.GetFacetStats;
 import io.fluxcapacitor.common.api.search.GetFacetStatsResult;
 import io.fluxcapacitor.common.api.search.GetSearchHistogram;
 import io.fluxcapacitor.common.api.search.GetSearchHistogramResult;
+import io.fluxcapacitor.common.api.search.HasDocument;
 import io.fluxcapacitor.common.api.search.IndexDocuments;
 import io.fluxcapacitor.common.api.search.SearchDocuments;
 import io.fluxcapacitor.common.api.search.SearchDocumentsResult;
@@ -130,6 +131,7 @@ import io.fluxcapacitor.common.api.tracking.StorePosition;
         @JsonSubTypes.Type(value = GetSearchHistogram.class, name = "getSearchHistogram"),
         @JsonSubTypes.Type(value = GetSearchHistogramResult.class, name = "getSearchHistogramResult"),
         @JsonSubTypes.Type(value = GetDocument.class, name = "getDocument"),
+        @JsonSubTypes.Type(value = HasDocument.class, name = "hasDocument"),
         @JsonSubTypes.Type(value = GetDocumentResult.class, name = "getDocumentResult"),
         @JsonSubTypes.Type(value = DeleteCollection.class, name = "deleteCollection"),
         @JsonSubTypes.Type(value = DeleteDocuments.class, name = "deleteDocuments"),

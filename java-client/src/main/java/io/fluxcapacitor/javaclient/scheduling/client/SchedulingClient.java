@@ -33,6 +33,10 @@ public interface SchedulingClient extends AutoCloseable {
 
     CompletableFuture<Void> cancelSchedule(String scheduleId, Guarantee guarantee);
 
+    default boolean hasSchedule(String scheduleId) {
+        return getSchedule(scheduleId) != null;
+    }
+
     SerializedSchedule getSchedule(String scheduleId);
 
     @Override

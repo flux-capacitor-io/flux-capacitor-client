@@ -12,16 +12,7 @@
  * limitations under the License.
  */
 
-package io.fluxcapacitor.common.caching;
+package io.fluxcapacitor.common.reflection.typeregistry.empty.inner;
 
-import lombok.Value;
-
-@Value
-public class CacheEvictionEvent {
-    Object id;
-    Reason reason;
-
-    public enum Reason {
-        manual, size, memoryPressure
-    }
+public class ChildOfEmpty {
 }

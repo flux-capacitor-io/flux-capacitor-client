@@ -15,10 +15,12 @@
 package io.fluxcapacitor.common.serialization;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
+import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.JavaType;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.ObjectMapper.DefaultTypeResolverBuilder;
 import com.fasterxml.jackson.databind.introspect.AnnotatedMember;
 import com.fasterxml.jackson.databind.introspect.JacksonAnnotationIntrospector;
 import com.fasterxml.jackson.databind.json.JsonMapper;
@@ -41,7 +43,7 @@ import java.util.Objects;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
-import static com.fasterxml.jackson.annotation.JsonTypeInfo.As.PROPERTY;
+import static com.fasterxml.jackson.annotation.JsonTypeInfo.Id;
 import static com.fasterxml.jackson.databind.DeserializationFeature.ACCEPT_SINGLE_VALUE_AS_ARRAY;
 import static com.fasterxml.jackson.databind.DeserializationFeature.ADJUST_DATES_TO_CONTEXT_TIME_ZONE;
 import static com.fasterxml.jackson.databind.DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES;
@@ -54,7 +56,8 @@ import static com.fasterxml.jackson.databind.cfg.JsonNodeFeature.STRIP_TRAILING_
 
 public class JsonUtils {
     public static JsonMapper writer = JsonMapper.builder()
-            .addModule(new StripStringsModule()).addModule(new NullCollectionsAsEmptyModule()).addModule(new Jdk8Module())
+            .addModule(new StripStringsModule()).addModule(new NullCollectionsAsEmptyModule())
+            .addModule(new Jdk8Module())
             .findAndAddModules()
             .disable(FAIL_ON_EMPTY_BEANS).disable(WRITE_DATES_AS_TIMESTAMPS).disable(WRITE_DURATIONS_AS_TIMESTAMPS)
             .enable(WRITE_DATES_WITH_ZONE_ID)
@@ -65,7 +68,8 @@ public class JsonUtils {
             .build();
 
     public static JsonMapper reader = writer.rebuild()
-            .activateDefaultTyping(LaissezFaireSubTypeValidator.instance, JAVA_LANG_OBJECT, PROPERTY)
+            .setDefaultTyping(new DefaultTypeResolverBuilder(JAVA_LANG_OBJECT, LaissezFaireSubTypeValidator.instance)
+                                      .init(Id.CLASS, new GlobalTypeIdResolver()).inclusion(JsonTypeInfo.As.PROPERTY))
             .build();
 
     @SneakyThrows

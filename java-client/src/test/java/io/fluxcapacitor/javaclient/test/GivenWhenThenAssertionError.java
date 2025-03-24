@@ -14,9 +14,9 @@
 
 package io.fluxcapacitor.javaclient.test;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.ObjectWriter;
 import io.fluxcapacitor.common.api.Metadata;
+import io.fluxcapacitor.common.serialization.JsonUtils;
 import io.fluxcapacitor.javaclient.common.Message;
 import lombok.SneakyThrows;
 import lombok.Value;
@@ -28,15 +28,10 @@ import org.opentest4j.AssertionFailedError;
 import java.util.Collection;
 import java.util.Objects;
 
-import static com.fasterxml.jackson.databind.DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES;
-import static com.fasterxml.jackson.databind.SerializationFeature.FAIL_ON_EMPTY_BEANS;
-import static com.fasterxml.jackson.databind.SerializationFeature.WRITE_DATES_AS_TIMESTAMPS;
 import static java.util.stream.Collectors.toList;
 
 public class GivenWhenThenAssertionError extends AssertionFailedError {
-    public static ObjectWriter formatter = new ObjectMapper()
-            .findAndRegisterModules().disable(FAIL_ON_EMPTY_BEANS)
-            .disable(WRITE_DATES_AS_TIMESTAMPS).disable(FAIL_ON_UNKNOWN_PROPERTIES).writerWithDefaultPrettyPrinter();
+    public static ObjectWriter formatter = JsonUtils.reader.writerWithDefaultPrettyPrinter();
 
     public GivenWhenThenAssertionError(String message) {
         super(message);

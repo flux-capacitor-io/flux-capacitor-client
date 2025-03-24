@@ -16,7 +16,6 @@ package io.fluxcapacitor.javaclient.tracking.handling.errorreporting;
 
 import io.fluxcapacitor.common.api.Metadata;
 import io.fluxcapacitor.common.handling.HandlerInvoker;
-import io.fluxcapacitor.javaclient.common.ClientUtils;
 import io.fluxcapacitor.javaclient.common.Message;
 import io.fluxcapacitor.javaclient.common.exception.FunctionalException;
 import io.fluxcapacitor.javaclient.common.exception.TechnicalException;
@@ -31,6 +30,7 @@ import java.util.concurrent.CompletionStage;
 import java.util.function.Function;
 
 import static io.fluxcapacitor.common.ObjectUtils.unwrapException;
+import static io.fluxcapacitor.javaclient.common.ClientUtils.isLocalHandler;
 import static java.lang.String.format;
 
 @AllArgsConstructor
@@ -42,10 +42,10 @@ public class ErrorReportingInterceptor implements HandlerInterceptor {
     @Override
     public Function<DeserializingMessage, Object> interceptHandling(Function<DeserializingMessage, Object> function,
                                                                     HandlerInvoker invoker) {
-        if (ClientUtils.isLocalHandler(invoker)) {
-            return function;
-        }
         return message -> {
+            if (isLocalHandler(invoker, message)) {
+                return function.apply(message);
+            }
             try {
                 Object result = function.apply(message);
                 if (result instanceof CompletionStage<?> s) {

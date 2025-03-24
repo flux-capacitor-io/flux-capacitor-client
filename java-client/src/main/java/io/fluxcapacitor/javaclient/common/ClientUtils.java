@@ -77,7 +77,8 @@ public class ClientUtils {
     private static final BiFunction<Class<?>, java.lang.reflect.Executable, Optional<LocalHandler>> localHandlerCache =
             memoize((target, method) -> getAnnotation(method, LocalHandler.class)
                     .or(() -> Optional.ofNullable(getTypeAnnotation(target, LocalHandler.class)))
-                    .or(() -> getPackageAnnotation(target.getPackage(), LocalHandler.class)));
+                    .or(() -> getPackageAnnotation(target.getPackage(), LocalHandler.class))
+                    .filter(LocalHandler::value));
 
     private static final BiFunction<Class<?>, java.lang.reflect.Executable, Optional<TrackSelf>> trackSelfCache =
             memoize((target, method) -> getAnnotation(method, TrackSelf.class)
@@ -106,12 +107,13 @@ public class ClientUtils {
         }
     }
 
+    @SuppressWarnings("BooleanMethodIsAlwaysInverted")
     public static boolean isSelfTracking(Class<?> target, Executable method) {
         return trackSelfCache.apply(target, method).isPresent();
     }
 
-    public static Optional<TrackSelf> getTrackSelfAnnotation(Class<?> target, java.lang.reflect.Executable method) {
-        return trackSelfCache.apply(target, method);
+    public static Optional<LocalHandler> getLocalHandlerAnnotation(HandlerInvoker handlerInvoker) {
+        return localHandlerCache.apply(handlerInvoker.getTargetClass(), handlerInvoker.getMethod());
     }
 
     public static Optional<LocalHandler> getLocalHandlerAnnotation(Class<?> target,
@@ -119,17 +121,26 @@ public class ClientUtils {
         return localHandlerCache.apply(target, method);
     }
 
-    public static boolean isLocalHandler(Class<?> target, java.lang.reflect.Executable method) {
-        return getLocalHandlerAnnotation(target, method).map(LocalHandler::value).orElse(false);
+    public static boolean isLocalHandler(HandlerInvoker invoker, HasMessage message) {
+        if (invoker.getMethod() == null) {
+            return false;
+        }
+        return getLocalHandlerAnnotation(invoker.getTargetClass(), invoker.getMethod()).isPresent()
+               || isLocalSelfHandler(invoker, message);
     }
 
-    public static boolean isLocalHandler(HandlerInvoker invoker) {
-        return invoker.getMethod() != null && isLocalHandler(invoker.getTargetClass(), invoker.getMethod());
+    public static boolean isLocalSelfHandler(HandlerInvoker invoker, HasMessage message) {
+        return isSelfHandler(invoker, message)
+               && !isSelfTracking(invoker.getTargetClass(), invoker.getMethod());
     }
 
-    public static boolean isTrackingHandler(Class<?> target, java.lang.reflect.Executable method) {
-        return getLocalHandlerAnnotation(target, method).map(l -> !l.value() || l.allowExternalMessages())
-                .orElse(true);
+    static boolean isSelfHandler(HandlerInvoker invoker, HasMessage message) {
+        return Objects.equals(invoker.getTargetClass(), message.getPayloadClass());
+    }
+
+    @SuppressWarnings("SameParameterValue")
+    static boolean isTrackingHandler(Class<?> target, java.lang.reflect.Executable method) {
+        return getLocalHandlerAnnotation(target, method).map(LocalHandler::allowExternalMessages).orElse(true);
     }
 
     public static <T> MemoizingSupplier<T> memoize(Supplier<T> supplier) {

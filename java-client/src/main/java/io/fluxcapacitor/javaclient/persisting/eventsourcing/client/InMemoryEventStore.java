@@ -106,4 +106,9 @@ public class InMemoryEventStore extends InMemoryMessageStore implements EventSto
                 .map(e -> Relationship.builder().entityId(request.getEntityId()).aggregateId(e.getKey())
                         .aggregateType(e.getValue()).build()).toList();
     }
+
+    @Override
+    public String toString() {
+        return "InMemoryEventStore";
+    }
 }

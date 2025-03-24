@@ -30,6 +30,7 @@ import io.fluxcapacitor.javaclient.publishing.ResultGateway;
 import io.fluxcapacitor.javaclient.tracking.client.DefaultTracker;
 import io.fluxcapacitor.javaclient.tracking.handling.HandlerFactory;
 import io.fluxcapacitor.javaclient.tracking.handling.Invocation;
+import io.fluxcapacitor.javaclient.tracking.handling.LocalHandler;
 import io.fluxcapacitor.javaclient.web.WebRequest;
 import lombok.AllArgsConstructor;
 import lombok.Synchronized;
@@ -58,6 +59,7 @@ import java.util.function.Function;
 import java.util.stream.Stream;
 
 import static io.fluxcapacitor.common.ObjectUtils.unwrapException;
+import static io.fluxcapacitor.javaclient.common.ClientUtils.getLocalHandlerAnnotation;
 import static io.fluxcapacitor.javaclient.common.ClientUtils.waitForResults;
 import static io.fluxcapacitor.javaclient.common.serialization.DeserializingMessage.handleBatch;
 import static java.lang.String.format;
@@ -67,7 +69,8 @@ import static java.util.stream.Collectors.toMap;
 @AllArgsConstructor
 @Slf4j
 public class DefaultTracking implements Tracking {
-    private final HandlerFilter handlerFilter = ClientUtils::isTrackingHandler;
+    private final HandlerFilter handlerFilter = (t, m) -> getLocalHandlerAnnotation(t, m)
+            .map(LocalHandler::allowExternalMessages).orElse(true);
     private final MessageType messageType;
     private final ResultGateway resultGateway;
     private final List<ConsumerConfiguration> configurations;

@@ -30,17 +30,10 @@
     <url>https://flux-capacitor.io</url>
 
     <properties>
-        <hibernate-validator.version>8.0.1.Final</hibernate-validator.version>
+        <hibernate-validator.version>8.0.2.Final</hibernate-validator.version>
     </properties>
 
     <dependencies>
-        <dependency>
-            <groupId>com.google.auto.service</groupId>
-            <artifactId>auto-service</artifactId>
-            <version>1.1.1</version>
-            <scope>provided</scope>
-        </dependency>
-
         <!--flux-capacitor common-->
         <dependency>
             <groupId>io.flux-capacitor</groupId>
@@ -59,7 +52,7 @@
         <dependency>
             <groupId>io.jooby</groupId>
             <artifactId>jooby</artifactId>
-            <version>3.5.5</version>
+            <version>3.6.1</version>
         </dependency>
 
         <!--websocket client-->
@@ -110,7 +103,7 @@
         <dependency>
             <groupId>org.jboss.resteasy</groupId>
             <artifactId>resteasy-undertow</artifactId>
-            <version>6.2.10.Final</version>
+            <version>6.2.12.Final</version>
             <scope>test</scope>
             <exclusions>
                 <exclusion>
@@ -118,14 +111,6 @@
                     <artifactId>undertow-core</artifactId>
                 </exclusion>
             </exclusions>
-        </dependency>
-
-        <!--annotation processing-->
-        <dependency>
-            <groupId>org.jooq</groupId>
-            <artifactId>joor</artifactId>
-            <version>0.9.15</version>
-            <scope>test</scope>
         </dependency>
 
         <dependency>

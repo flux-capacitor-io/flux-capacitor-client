@@ -16,11 +16,12 @@ package io.fluxcapacitor.javaclient.tracking.handling;
 
 import io.fluxcapacitor.common.Registration;
 import io.fluxcapacitor.common.handling.HandlerFilter;
-import io.fluxcapacitor.javaclient.common.ClientUtils;
+
+import static io.fluxcapacitor.javaclient.common.ClientUtils.getLocalHandlerAnnotation;
 
 public interface HasLocalHandlers {
     default Registration registerHandler(Object target) {
-        return registerHandler(target, ClientUtils::isLocalHandler);
+        return registerHandler(target, (t, m) -> getLocalHandlerAnnotation(t, m).isPresent());
     }
 
     boolean hasLocalHandlers();

@@ -100,6 +100,22 @@ class GivenWhenThenSchedulingTest {
                 .expectNoCommands();
     }
 
+    @Test
+    void scheduleIndexAlwaysNew() {
+        Instant now = subject.getCurrentTime();
+        String scheduleId = "now";
+        TestFixture.createAsync(new Object() {
+            @HandleSchedule
+            void handle(String payload) {
+                FluxCapacitor.publishEvent(payload);
+            }
+        }).whenExecuting(fc -> {
+            FluxCapacitor.schedule("foo1", scheduleId, now);
+            FluxCapacitor.cancelSchedule(scheduleId);
+            FluxCapacitor.schedule("foo2", scheduleId, now);
+        }).expectEvents("foo1", "foo2");
+    }
+
     @Nested
     class CronSchedules {
         private final Instant start = Instant.parse("2023-07-01T12:10:00Z");

@@ -14,6 +14,7 @@
 
 package io.fluxcapacitor.common.api.search.constraints;
 
+import io.fluxcapacitor.common.api.HasId;
 import io.fluxcapacitor.common.api.search.Constraint;
 import io.fluxcapacitor.common.api.search.FacetEntry;
 import io.fluxcapacitor.common.api.search.NoOpConstraint;
@@ -38,19 +39,27 @@ public class FacetConstraint implements Constraint {
             return NoOpConstraint.instance;
         }
         var normalizedName = normalizePath(name);
-        if (value instanceof Collection<?>) {
-            List<Constraint> constraints =
-                    ((Collection<?>) value).stream().filter(Objects::nonNull)
-                            .map(v -> new FacetConstraint(new FacetEntry(normalizedName, v.toString())))
-                            .collect(toList());
-            return switch (constraints.size()) {
-                case 0 -> NoOpConstraint.instance;
+        switch (value) {
+            case Collection<?> objects -> {
+                List<Constraint> constraints =
+                        objects.stream().filter(Objects::nonNull)
+                                .map(v -> new FacetConstraint(new FacetEntry(normalizedName, v.toString())))
+                                .collect(toList());
+                return switch (constraints.size()) {
+                    case 0 -> NoOpConstraint.instance;
                 case 1 -> constraints.getFirst();
-                default -> AnyConstraint.any(constraints);
-            };
-        } else {
-            return value == null
-                    ? NoOpConstraint.instance : new FacetConstraint(new FacetEntry(normalizedName, value.toString()));
+                    default -> AnyConstraint.any(constraints);
+                };
+            }
+            case HasId id -> {
+                return new FacetConstraint(new FacetEntry(normalizedName, id.getId()));
+            }
+            case null -> {
+                return NoOpConstraint.instance;
+            }
+            default -> {
+                return new FacetConstraint(new FacetEntry(normalizedName, value.toString()));
+            }
         }
     }
 

@@ -17,8 +17,6 @@ package io.fluxcapacitor.javaclient.persisting.repository;
 import io.fluxcapacitor.common.api.modeling.Relationship;
 import io.fluxcapacitor.common.api.modeling.RepairRelationships;
 import io.fluxcapacitor.common.api.modeling.UpdateRelationships;
-import io.fluxcapacitor.common.caching.Cache;
-import io.fluxcapacitor.common.caching.NoOpCache;
 import io.fluxcapacitor.common.reflection.ReflectionUtils;
 import io.fluxcapacitor.javaclient.FluxCapacitor;
 import io.fluxcapacitor.javaclient.common.serialization.DeserializingMessage;
@@ -35,6 +33,8 @@ import io.fluxcapacitor.javaclient.modeling.ImmutableAggregateRoot;
 import io.fluxcapacitor.javaclient.modeling.ModifiableAggregateRoot;
 import io.fluxcapacitor.javaclient.modeling.NoOpEntity;
 import io.fluxcapacitor.javaclient.modeling.SideEffectFreeEntity;
+import io.fluxcapacitor.javaclient.persisting.caching.Cache;
+import io.fluxcapacitor.javaclient.persisting.caching.NoOpCache;
 import io.fluxcapacitor.javaclient.persisting.eventsourcing.AggregateEventStream;
 import io.fluxcapacitor.javaclient.persisting.eventsourcing.EventSourcingException;
 import io.fluxcapacitor.javaclient.persisting.eventsourcing.EventStore;
@@ -361,6 +361,10 @@ public class DefaultAggregateRepository implements AggregateRepository {
         }
 
         public void commit(Entity<?> after, List<AppliedEvent> unpublishedEvents, Entity<?> before) {
+            if (after.type() != null && !Objects.equals(after.type(), type)) {
+                delegates.apply(after.type()).commit(after, unpublishedEvents, before);
+                return;
+            }
             try {
                 aggregateCache.<Entity<?>>compute(after.id().toString(), (stringId, current) ->
                         current == null || Objects.equals(before.lastEventId(), current.lastEventId())

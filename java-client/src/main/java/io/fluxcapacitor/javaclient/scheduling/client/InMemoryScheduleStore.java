@@ -17,7 +17,6 @@ package io.fluxcapacitor.javaclient.scheduling.client;
 import io.fluxcapacitor.common.Guarantee;
 import io.fluxcapacitor.common.api.SerializedMessage;
 import io.fluxcapacitor.common.api.scheduling.SerializedSchedule;
-import io.fluxcapacitor.javaclient.FluxCapacitor;
 import io.fluxcapacitor.javaclient.common.serialization.Serializer;
 import io.fluxcapacitor.javaclient.scheduling.Schedule;
 import io.fluxcapacitor.javaclient.tracking.client.InMemoryMessageStore;
@@ -33,6 +32,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentSkipListMap;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.stream.Stream;
 
 import static io.fluxcapacitor.common.MessageType.SCHEDULE;
@@ -46,6 +46,7 @@ import static java.util.stream.Collectors.toList;
 public class InMemoryScheduleStore extends InMemoryMessageStore implements SchedulingClient {
 
     private final ConcurrentSkipListMap<Long, String> scheduleIdsByIndex = new ConcurrentSkipListMap<>();
+    private final AtomicLong minScheduleIndex = new AtomicLong();
     private volatile Clock clock = Clock.systemUTC();
 
     public InMemoryScheduleStore() {
@@ -74,10 +75,12 @@ public class InMemoryScheduleStore extends InMemoryMessageStore implements Sched
     public synchronized CompletableFuture<Void> schedule(Guarantee guarantee, SerializedSchedule... schedules) {
         List<SerializedSchedule> filtered = Arrays.stream(schedules)
                 .filter(s -> !s.isIfAbsent() || !scheduleIdsByIndex.containsValue(s.getScheduleId())).toList();
-        long now = FluxCapacitor.currentClock().millis();
+        long now = clock.millis();
         for (SerializedSchedule schedule : filtered) {
             cancelSchedule(schedule.getScheduleId());
-            long index = indexFromMillis(Math.max(now, schedule.getTimestamp()));
+
+            long index = schedule.getTimestamp() > now ? indexFromMillis(schedule.getTimestamp())
+                    : minScheduleIndex.updateAndGet(i -> Math.max(indexFromMillis(now), i + 1));
             while (scheduleIdsByIndex.putIfAbsent(index, schedule.getScheduleId()) != null) {
                 index++;
             }
@@ -139,5 +142,10 @@ public class InMemoryScheduleStore extends InMemoryMessageStore implements Sched
         scheduleIdsByIndex.headMap(maxIndexFromMillis(
                 clock.millis() - messageExpiration.toMillis()), true).clear();
         super.purgeExpiredMessages(messageExpiration);
+    }
+
+    @Override
+    public String toString() {
+        return "InMemoryScheduleStore";
     }
 }

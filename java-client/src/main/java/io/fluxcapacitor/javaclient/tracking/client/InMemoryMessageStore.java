@@ -112,4 +112,11 @@ public class InMemoryMessageStore implements MessageStore {
     @Override
     public void close() {
     }
+
+    @Override
+    public String toString() {
+        return "InMemoryMessageStore{" +
+               "messageType=" + messageType +
+               '}';
+    }
 }
