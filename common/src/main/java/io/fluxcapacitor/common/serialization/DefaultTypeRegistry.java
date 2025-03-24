@@ -59,7 +59,9 @@ public class DefaultTypeRegistry implements TypeRegistry {
         this.fullTypeNames = new TreeSet<>(candidates);
         Map<String, String> types = new TreeMap<>();
         for (String fqn : candidates) {
-            types.putIfAbsent(getSimpleName(fqn), fqn);
+            if (fqn != null && !fqn.isBlank()) {
+                types.putIfAbsent(getSimpleName(fqn), fqn);
+            }
         }
         this.types = types;
     }
