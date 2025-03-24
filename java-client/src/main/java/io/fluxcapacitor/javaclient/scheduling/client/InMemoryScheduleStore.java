@@ -17,14 +17,11 @@ package io.fluxcapacitor.javaclient.scheduling.client;
 import io.fluxcapacitor.common.Guarantee;
 import io.fluxcapacitor.common.api.SerializedMessage;
 import io.fluxcapacitor.common.api.scheduling.SerializedSchedule;
-import io.fluxcapacitor.javaclient.FluxCapacitor;
 import io.fluxcapacitor.javaclient.common.serialization.Serializer;
 import io.fluxcapacitor.javaclient.scheduling.Schedule;
-import io.fluxcapacitor.javaclient.tracking.IndexUtils;
 import io.fluxcapacitor.javaclient.tracking.client.InMemoryMessageStore;
 import lombok.NonNull;
 import lombok.SneakyThrows;
-import lombok.Value;
 import lombok.extern.slf4j.Slf4j;
 
 import java.time.Clock;
@@ -35,6 +32,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentSkipListMap;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.stream.Stream;
 
 import static io.fluxcapacitor.common.MessageType.SCHEDULE;
@@ -47,7 +45,8 @@ import static java.util.stream.Collectors.toList;
 @Slf4j
 public class InMemoryScheduleStore extends InMemoryMessageStore implements SchedulingClient {
 
-    private final ConcurrentSkipListMap<Long, Entry> scheduleIdsByIndex = new ConcurrentSkipListMap<>();
+    private final ConcurrentSkipListMap<Long, String> scheduleIdsByIndex = new ConcurrentSkipListMap<>();
+    private final AtomicLong minScheduleIndex = new AtomicLong();
     private volatile Clock clock = Clock.systemUTC();
 
     public InMemoryScheduleStore() {
@@ -60,10 +59,9 @@ public class InMemoryScheduleStore extends InMemoryMessageStore implements Sched
 
     @Override
     protected Collection<SerializedMessage> filterMessages(Collection<SerializedMessage> messages) {
-        long msThreshold = clock.millis();
+        long maximumIndex = maxIndexFromMillis(clock.millis());
         return super.filterMessages(messages).stream()
-                .filter(m -> IndexUtils.millisFromIndex(m.getIndex()) <= msThreshold && scheduleIdsByIndex.containsKey(
-                        m.getIndex()))
+                .filter(m -> m.getIndex() <= maximumIndex && scheduleIdsByIndex.containsKey(m.getIndex()))
                 .collect(toList());
     }
 
@@ -76,42 +74,34 @@ public class InMemoryScheduleStore extends InMemoryMessageStore implements Sched
     @Override
     public synchronized CompletableFuture<Void> schedule(Guarantee guarantee, SerializedSchedule... schedules) {
         List<SerializedSchedule> filtered = Arrays.stream(schedules)
-                .filter(s -> !s.isIfAbsent() || !hasSchedule(s.getScheduleId())).toList();
-        long now = FluxCapacitor.currentClock().millis();
+                .filter(s -> !s.isIfAbsent() || !scheduleIdsByIndex.containsValue(s.getScheduleId())).toList();
+        long now = clock.millis();
         for (SerializedSchedule schedule : filtered) {
-            long index = indexFromMillis(Math.max(now, schedule.getTimestamp()));
-            while (scheduleIdsByIndex.containsKey(index)) {
+            cancelSchedule(schedule.getScheduleId());
+
+            long index = schedule.getTimestamp() > now ? indexFromMillis(schedule.getTimestamp())
+                    : minScheduleIndex.updateAndGet(i -> Math.max(indexFromMillis(now), i + 1));
+            while (scheduleIdsByIndex.putIfAbsent(index, schedule.getScheduleId()) != null) {
                 index++;
             }
-            Entry entry = new Entry(schedule.getScheduleId());
-            cancelSchedule(schedule.getScheduleId());
             schedule.getMessage().setIndex(index);
-            if (scheduleIdsByIndex.put(index, entry) != null) {
-                log.warn("Overwriting existing schedule with index {}, id {}", index, schedule.getScheduleId());
-            }
         }
         return super.append(filtered.stream().map(SerializedSchedule::getMessage).toList());
     }
 
     @Override
     public synchronized CompletableFuture<Void> cancelSchedule(String scheduleId, Guarantee guarantee) {
-        scheduleIdsByIndex.entrySet().stream().filter(e -> scheduleId.equals(e.getValue().getScheduleId()))
-                .toList().forEach(e -> scheduleIdsByIndex.computeIfPresent(e.getKey(), (k, v) -> v.invalidate()));
+        scheduleIdsByIndex.values().removeIf(s -> s.equals(scheduleId));
         return CompletableFuture.completedFuture(null);
     }
 
     @Override
     public synchronized SerializedSchedule getSchedule(String scheduleId) {
-        return scheduleIdsByIndex.entrySet().stream().filter(e -> scheduleId.equals(e.getValue().getScheduleId()))
-                .findFirst().filter(e -> e.getValue().isPresent()).map(e -> {
+        return scheduleIdsByIndex.entrySet().stream().filter(e -> scheduleId.equals(e.getValue())).findFirst()
+                .map(e -> {
                     SerializedMessage message = getMessage(e.getKey());
                     return new SerializedSchedule(scheduleId, millisFromIndex(e.getKey()), message, false);
                 }).orElse(null);
-    }
-
-    @Override
-    public boolean hasSchedule(String scheduleId) {
-        return scheduleIdsByIndex.containsValue(new Entry(scheduleId));
     }
 
     @Override
@@ -131,19 +121,19 @@ public class InMemoryScheduleStore extends InMemoryMessageStore implements Sched
     }
 
     public synchronized List<Schedule> removeExpiredSchedules(Serializer serializer) {
-        Map<Long, Entry> expiredEntries = scheduleIdsByIndex.headMap(maxIndexFromMillis(clock.millis()), true);
+        Map<Long, String> expiredEntries = scheduleIdsByIndex.headMap(maxIndexFromMillis(clock.millis()), true);
         List<Schedule> result = asList(expiredEntries, serializer);
         expiredEntries.clear();
         return result;
     }
 
     @SuppressWarnings("OptionalGetWithoutIsPresent")
-    protected List<Schedule> asList(Map<Long, Entry> scheduleIdsByIndex, Serializer serializer) {
-        return scheduleIdsByIndex.entrySet().stream().filter(e -> e.getValue().isPresent()).map(e -> {
+    protected List<Schedule> asList(Map<Long, String> scheduleIdsByIndex, Serializer serializer) {
+        return scheduleIdsByIndex.entrySet().stream().map(e -> {
             SerializedMessage m = getMessage(e.getKey());
             return new Schedule(
                     serializer.deserializeMessages(Stream.of(m), SCHEDULE).findFirst().get().getPayload(),
-                    m.getMetadata(), e.getValue().getScheduleId(), timestampFromIndex(e.getKey()));
+                    m.getMetadata(), e.getValue(), timestampFromIndex(e.getKey()));
         }).toList();
     }
 
@@ -157,22 +147,5 @@ public class InMemoryScheduleStore extends InMemoryMessageStore implements Sched
     @Override
     public String toString() {
         return "InMemoryScheduleStore";
-    }
-
-    @Value
-    protected static class Entry {
-        String scheduleId;
-
-        public Entry invalidate() {
-            return new Entry(null);
-        }
-
-        public boolean isPresent() {
-            return scheduleId != null;
-        }
-
-        public boolean isEmpty() {
-            return !isPresent();
-        }
     }
 }

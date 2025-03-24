@@ -21,7 +21,6 @@ import io.fluxcapacitor.javaclient.scheduling.Periodic;
 import io.fluxcapacitor.javaclient.scheduling.Schedule;
 import io.fluxcapacitor.javaclient.test.GivenWhenThenAssertionError;
 import io.fluxcapacitor.javaclient.test.TestFixture;
-import io.fluxcapacitor.javaclient.tracking.IndexUtils;
 import io.fluxcapacitor.javaclient.tracking.handling.HandleCommand;
 import io.fluxcapacitor.javaclient.tracking.handling.HandleSchedule;
 import lombok.AllArgsConstructor;
@@ -103,13 +102,18 @@ class GivenWhenThenSchedulingTest {
 
     @Test
     void scheduleIndexAlwaysNew() {
-        Instant deadline = subject.getCurrentTime().plusSeconds(10);
-        String scheduleId = "new";
-        subject.givenSchedules(new Schedule("foo", scheduleId, deadline))
-                .given(fc -> FluxCapacitor.cancelSchedule(scheduleId))
-                .givenSchedules(new Schedule("foo", scheduleId, deadline))
-                .whenApplying(fc -> FluxCapacitor.get().client().getSchedulingClient().getSchedule(scheduleId))
-                .expectResult(s -> s.getMessage().getIndex() > IndexUtils.indexFromTimestamp(deadline));
+        Instant now = subject.getCurrentTime();
+        String scheduleId = "now";
+        TestFixture.createAsync(new Object() {
+            @HandleSchedule
+            void handle(String payload) {
+                FluxCapacitor.publishEvent(payload);
+            }
+        }).whenExecuting(fc -> {
+            FluxCapacitor.schedule("foo1", scheduleId, now);
+            FluxCapacitor.cancelSchedule(scheduleId);
+            FluxCapacitor.schedule("foo2", scheduleId, now);
+        }).expectEvents("foo1", "foo2");
     }
 
     @Nested
