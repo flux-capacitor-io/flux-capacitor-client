@@ -25,7 +25,7 @@ import io.fluxcapacitor.common.api.search.bulkupdate.IndexDocument;
 import io.fluxcapacitor.common.api.search.constraints.FacetConstraint;
 import io.fluxcapacitor.common.api.tracking.Read;
 import io.fluxcapacitor.common.search.Facet;
-import io.fluxcapacitor.common.search.Sortable;
+import io.fluxcapacitor.common.search.Indexed;
 import io.fluxcapacitor.common.serialization.JsonUtils;
 import io.fluxcapacitor.javaclient.FluxCapacitor;
 import io.fluxcapacitor.javaclient.common.serialization.jackson.JacksonSerializer;
@@ -549,7 +549,8 @@ public class SearchTest {
 
         private final Instant now = Instant.now();
 
-        private final SomeDocument a = new SomeDocument().toBuilder().symbols("aaa").build();
+        private final SomeDocument a = new SomeDocument().toBuilder().symbols("aaa")
+                .someNumber(new BigDecimal("50")).build();
         private final SomeDocument b = new SomeDocument();
         private final Given testFixture = TestFixture.create().atFixedTime(now)
                 .givenDocument(a, "id1", "test", now)
@@ -578,14 +579,22 @@ public class SearchTest {
         void sortOnField() {
             testFixture.whenApplying(
                             fc -> fc.documentStore().search("test").sortBy("symbols").fetchAll())
-                    .expectResult(List.of(a, b));
+                    .expectResult(List.of(a, b))
+                    .andThen()
+                    .whenApplying(
+                            fc -> fc.documentStore().search("test").sortBy("someNumber").fetchAll())
+                    .expectResult(List.of(b, a));
         }
 
         @Test
         void sortOnFieldDesc() {
             testFixture.whenApplying(
                             fc -> fc.documentStore().search("test").sortBy("symbols", true).fetchAll())
-                    .expectResult(List.of(b, a));
+                    .expectResult(List.of(b, a))
+                    .andThen()
+                    .whenApplying(
+                            fc -> fc.documentStore().search("test").sortBy("someNumber", true).fetchAll())
+                    .expectResult(List.of(a, b));
         }
 
         @Test
@@ -719,12 +728,14 @@ public class SearchTest {
         private static final String ID = "123A45B67c";
 
         String someId;
+        @Indexed
         BigDecimal longNumber;
         String foo;
+        @Indexed
         BigDecimal someNumber;
         Map<String, Object> booleans;
         List<Map<String, Object>> mapList;
-        @Sortable
+        @Indexed
         String symbols;
         String weirdChars;
         Map<String, ?> status;

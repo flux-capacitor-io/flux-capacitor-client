@@ -17,8 +17,8 @@ package io.fluxcapacitor.common.search;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import io.fluxcapacitor.common.SearchUtils;
 import io.fluxcapacitor.common.api.search.FacetEntry;
+import io.fluxcapacitor.common.api.search.IndexedEntry;
 import io.fluxcapacitor.common.api.search.SearchDocuments;
-import io.fluxcapacitor.common.api.search.SortableEntry;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.EqualsAndHashCode;
@@ -68,7 +68,7 @@ public class Document {
     @Builder.Default
     Set<FacetEntry> facets = Collections.emptySet();
     @Builder.Default
-    Set<SortableEntry> sortables = Collections.emptySet();
+    Set<IndexedEntry> indexes = Collections.emptySet();
 
     public Optional<Entry> getEntryAtPath(String queryPath) {
         return getMatchingEntries(Path.pathPredicate(queryPath)).findFirst();
@@ -78,6 +78,10 @@ public class Document {
         return entries.entrySet().stream()
                 .filter(e -> e.getValue().stream().anyMatch(pathPredicate))
                 .map(Map.Entry::getKey);
+    }
+
+    public Stream<IndexedEntry> getIndexedEntries(Predicate<Path> pathPredicate) {
+        return indexes.stream().filter(e -> pathPredicate.test(e.getPath()));
     }
 
     public Document filterPaths(Predicate<Path> pathFilter) {
@@ -112,8 +116,7 @@ public class Document {
                     Predicate<Path> pathPredicate = Path.pathPredicate(queryPath);
                     Comparator<Document> valueComparator =
                             Comparator.nullsLast(Comparator.comparing(d -> {
-                                var matchingEntries
-                                        = d.getSortables().stream().filter(o -> pathPredicate.test(o.getPath()));
+                                Stream<IndexedEntry> matchingEntries = d.getIndexedEntries(pathPredicate);
                                 return (reversed ? matchingEntries.max(naturalOrder()) :
                                         matchingEntries.min(naturalOrder())).orElse(null);
                             }, Comparator.nullsLast(naturalOrder())));

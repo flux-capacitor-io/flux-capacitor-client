@@ -50,12 +50,12 @@ public class SerializedDocument {
     Supplier<Document> document;
     String summary;
     Set<FacetEntry> facets;
-    Set<SortableEntry> sortables;
+    Set<IndexedEntry> indexes;
 
-    @ConstructorProperties({"id", "timestamp", "end", "collection", "document", "summary", "facets", "sortables"})
+    @ConstructorProperties({"id", "timestamp", "end", "collection", "document", "summary", "facets", "indexes"})
     public SerializedDocument(String id, Long timestamp, Long end, String collection, Data<byte[]> document,
-                              String summary, Set<FacetEntry> facets, Set<SortableEntry> sortables) {
-        this(id, timestamp, end, collection, () -> document, null, summary, facets, sortables);
+                              String summary, Set<FacetEntry> facets, Set<IndexedEntry> indexes) {
+        this(id, timestamp, end, collection, () -> document, null, summary, facets, indexes);
     }
 
     public SerializedDocument(Document document) {
@@ -63,13 +63,13 @@ public class SerializedDocument {
              Optional.ofNullable(document.getEnd()).map(Instant::toEpochMilli).orElse(null),
              document.getCollection(), null, () -> document,
              Optional.ofNullable(document.getSummary()).map(Supplier::get).orElse(null), document.getFacets(),
-             document.getSortables());
+             document.getIndexes());
     }
 
     @SuppressWarnings("unused")
     private SerializedDocument(String id, Long timestamp, Long end, String collection, Supplier<Data<byte[]>> data,
                                Supplier<Document> document, String summary, Set<FacetEntry> facets,
-                               Set<SortableEntry> sortables) {
+                               Set<IndexedEntry> indexes) {
         if (data == null && document == null) {
             throw new IllegalStateException("Either the serialized data or deserialized document should be supplied");
         }
@@ -80,10 +80,10 @@ public class SerializedDocument {
         this.data = data == null ? memoize(() -> DefaultDocumentSerializer.INSTANCE.serialize(document.get())) : data;
         this.document = document == null
                 ? memoize(() -> DefaultDocumentSerializer.INSTANCE.deserialize(data.get())
-                .toBuilder().facets(facets).sortables(sortables).build()) : document;
+                .toBuilder().facets(facets).indexes(indexes).build()) : document;
         this.summary = summary;
         this.facets = facets;
-        this.sortables = sortables;
+        this.indexes = indexes;
     }
 
     public Long getEnd() {

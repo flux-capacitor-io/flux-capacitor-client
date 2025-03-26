@@ -31,8 +31,8 @@ import io.fluxcapacitor.common.ThrowingFunction;
 import io.fluxcapacitor.common.api.Data;
 import io.fluxcapacitor.common.api.Metadata;
 import io.fluxcapacitor.common.api.search.FacetEntry;
+import io.fluxcapacitor.common.api.search.IndexedEntry;
 import io.fluxcapacitor.common.api.search.SerializedDocument;
-import io.fluxcapacitor.common.api.search.SortableEntry;
 import io.fluxcapacitor.common.reflection.ReflectionUtils;
 import io.fluxcapacitor.common.search.Document.Entry;
 import io.fluxcapacitor.common.search.Document.EntryType;
@@ -60,6 +60,7 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.SortedMap;
 import java.util.TreeMap;
+import java.util.TreeSet;
 import java.util.function.Function;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
@@ -76,6 +77,7 @@ import static io.fluxcapacitor.common.reflection.ReflectionUtils.getTypeAnnotati
 import static io.fluxcapacitor.common.reflection.ReflectionUtils.isConstant;
 import static java.util.Collections.emptySet;
 import static java.util.Optional.ofNullable;
+import static java.util.function.Function.identity;
 import static java.util.stream.Collectors.joining;
 import static java.util.stream.Collectors.toList;
 import static java.util.stream.Collectors.toMap;
@@ -105,7 +107,8 @@ public class JacksonInverter implements Inverter<JsonNode> {
 
     protected static Function<Member, Boolean> searchIgnoreCache = memoize(
             m -> {
-                Optional<? extends Annotation> result = getMemberAnnotation(m.getDeclaringClass(), m.getName(), SearchExclude.class)
+                Optional<? extends Annotation> result =
+                        getMemberAnnotation(m.getDeclaringClass(), m.getName(), SearchExclude.class)
                                 .or(() -> ofNullable(getTypeAnnotation(m.getDeclaringClass(), SearchExclude.class)));
                 return result
                         .map(a -> a instanceof SearchExclude s
@@ -145,7 +148,8 @@ public class JacksonInverter implements Inverter<JsonNode> {
         byte[] data = objectMapper.writeValueAsBytes(value);
         return new SerializedDocument(new Document(id, type, revision, collection,
                                                    timestamp, end, invert(data), () -> summarize(value),
-                                                   getFacets(value, metadata), getSortables(value)));
+                                                   getFacets(value, metadata),
+                                                   getIndexed(value)));
     }
 
     /*
@@ -175,7 +179,7 @@ public class JacksonInverter implements Inverter<JsonNode> {
             case null -> Stream.empty();
             case Collection<?> collection -> collection.stream().flatMap(v -> getFacets(holder, v));
             case Map<?, ?> map -> map.entrySet().stream().flatMap(e -> getFacets(holder, e.getValue()).map(
-                        f -> f.toBuilder().name("%s/%s".formatted(f.getName(), String.valueOf(e.getKey()))).build()));
+                    f -> f.toBuilder().name("%s/%s".formatted(f.getName(), String.valueOf(e.getKey()))).build()));
             default -> {
                 String name = getAnnotation(holder, Facet.class).map(Facet::value).filter(s -> !s.isBlank())
                         .orElseGet(() -> getPropertyName(holder));
@@ -191,35 +195,42 @@ public class JacksonInverter implements Inverter<JsonNode> {
     }
 
     /*
-        Sortables
+        Indexed entries
      */
 
-    protected Set<SortableEntry> getSortables(Object value) {
+    protected Set<IndexedEntry> getIndexed(Object value) {
         if (value == null) {
             return emptySet();
         }
-        var properties = ReflectionUtils.getAnnotatedProperties(value.getClass(), Sortable.class);
-        return properties.stream().flatMap(p -> ofNullable(ReflectionUtils.getValue(p, value)).stream()
-                .flatMap(o -> getSortables(p, o))).collect(Collectors.toCollection(LinkedHashSet::new));
+        return new TreeSet<>(getIndexedEntries(value).filter(e -> e.getValue() != null).collect(
+                toMap(e -> e.getPath().getShortValue(), identity(), (a, b) -> b.compareTo(a) > 0 ? b : a)).values());
     }
 
-    protected Stream<SortableEntry> getSortables(AccessibleObject holder, Object propertyValue) {
+    protected Stream<IndexedEntry> getIndexedEntries(Object value) {
+        if (value == null) {
+            return Stream.empty();
+        }
+        var properties = ReflectionUtils.getAnnotatedProperties(value.getClass(), Indexed.class);
+        return properties.stream().flatMap(p -> ofNullable(ReflectionUtils.getValue(p, value)).stream()
+                .flatMap(o -> getIndexedEntries(p, o)));
+    }
+
+    protected Stream<IndexedEntry> getIndexedEntries(AccessibleObject holder, Object propertyValue) {
         return switch (propertyValue) {
             case null -> Stream.empty();
-            case Collection<?> collection -> collection.stream().flatMap(v -> getSortables(holder, v));
-            case Map<?, ?> map -> map.entrySet().stream().flatMap(e -> getSortables(holder, e.getValue()).map(
-                    f -> f.toBuilder().name("%s/%s".formatted(f.getName(), String.valueOf(e.getKey()))).build()));
+            case Collection<?> collection -> collection.stream().flatMap(v -> getIndexedEntries(holder, v));
+            case Map<?, ?> map -> map.entrySet().stream().flatMap(e -> getIndexedEntries(holder, e.getValue()).map(
+                    f -> f.withName("%s/%s".formatted(f.getName(), String.valueOf(e.getKey())))));
             default -> {
-                String name = getAnnotation(holder, Sortable.class).map(Sortable::value).filter(s -> !s.isBlank())
+                String name = getAnnotation(holder, Indexed.class).map(Indexed::value).filter(s -> !s.isBlank())
                         .orElseGet(() -> getPropertyName(holder));
                 if (isConstant(propertyValue)
-                    || ReflectionUtils.getTypeAnnotation(propertyValue.getClass(), Sortable.class) != null) {
+                    || ReflectionUtils.getTypeAnnotation(propertyValue.getClass(), Indexed.class) != null) {
                     Object value = propertyValue instanceof String ps ? ps.toLowerCase() :
                             isConstant(propertyValue) ? propertyValue : propertyValue.toString().toLowerCase();
-                    yield Stream.of(new SortableEntry(name, value));
+                    yield Stream.of(new IndexedEntry(name, value));
                 }
-                yield getSortables(propertyValue).stream().map(
-                        f -> f.toBuilder().name("%s/%s".formatted(name, f.getName())).build());
+                yield getIndexedEntries(propertyValue).map(f -> f.withName("%s/%s".formatted(name, f.getName())));
             }
         };
     }
