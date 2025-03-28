@@ -15,6 +15,8 @@
 package io.fluxcapacitor.javaclient.modeling;
 
 import io.fluxcapacitor.common.api.search.Constraint;
+import io.fluxcapacitor.common.api.search.bulkupdate.DeleteDocument;
+import io.fluxcapacitor.common.api.search.bulkupdate.IndexDocument;
 import io.fluxcapacitor.common.api.search.constraints.MatchConstraint;
 import io.fluxcapacitor.common.reflection.ReflectionUtils;
 import io.fluxcapacitor.javaclient.FluxCapacitor;
@@ -42,9 +44,13 @@ import static io.fluxcapacitor.javaclient.common.ClientUtils.memoize;
 public class DefaultHandlerRepository implements HandlerRepository {
 
     public static Function<Class<?>, HandlerRepository> repositorySupplier(Supplier<DocumentStore> documentStore) {
-        return memoize(type -> new DefaultHandlerRepository(
-                documentStore.get(), ClientUtils.getSearchParameters(type).getCollection(),
-                type, ReflectionUtils.getTypeAnnotation(type, Stateful.class)));
+        return memoize(type -> {
+            Stateful stateful = ReflectionUtils.getTypeAnnotation(type, Stateful.class);
+            var defaultRepo = new DefaultHandlerRepository(
+                    documentStore.get(), ClientUtils.getSearchParameters(type).getCollection(), type, stateful);
+            return Optional.ofNullable(stateful).filter(Stateful::commitInBatch)
+                    .<HandlerRepository>map(s -> new BatchingHandlerRepository(defaultRepo)).orElse(defaultRepo);
+        });
     }
 
     private final DocumentStore documentStore;
@@ -53,7 +59,8 @@ public class DefaultHandlerRepository implements HandlerRepository {
     private final Function<Object, Instant> timestampFunction;
     private final Function<Object, Instant> endFunction;
 
-    public DefaultHandlerRepository(DocumentStore documentStore, String collection, Class<?> type, Stateful annotation) {
+    public DefaultHandlerRepository(DocumentStore documentStore, String collection, Class<?> type,
+                                    Stateful annotation) {
         this.documentStore = documentStore;
         this.collection = collection;
         this.type = type;
@@ -125,12 +132,22 @@ public class DefaultHandlerRepository implements HandlerRepository {
     }
 
     @SneakyThrows
-    public CompletableFuture<?> set(Object value, Object id) {
+    public CompletableFuture<?> put(Object id, Object value) {
         return documentStore.index(value, id, collection, timestampFunction.apply(value), endFunction.apply(value));
     }
 
     @SneakyThrows
     public CompletableFuture<?> delete(Object id) {
         return documentStore.deleteDocument(id, collection);
+    }
+
+    @Override
+    public CompletableFuture<?> put(Map<Object, Object> handlersById) {
+        return documentStore.bulkUpdate(handlersById.entrySet().stream().map(e -> {
+            Object value = e.getValue();
+            String id = e.getKey().toString();
+            return value == null ? new DeleteDocument(id, collection) :
+                    new IndexDocument(value, id, collection, timestampFunction.apply(value), endFunction.apply(value));
+        }).toList());
     }
 }

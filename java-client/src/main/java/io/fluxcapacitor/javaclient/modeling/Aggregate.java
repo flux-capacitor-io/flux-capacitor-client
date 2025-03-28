@@ -139,7 +139,7 @@ public @interface Aggregate {
 
     /**
      * Determines whether changes to this aggregate should be committed at end of the current message batch of the
-     * current tracker or the end of the current message.
+     * current tracker or at the end of the current message.
      * <p>
      * If a change is made outside the context of a message batch or current message, any change will always be
      * committed immediately.

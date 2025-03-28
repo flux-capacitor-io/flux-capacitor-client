@@ -125,7 +125,7 @@ public class StatefulHandler implements Handler<DeserializingMessage> {
         List<HandlerInvoker> invokers = new ArrayList<>();
         for (Entry<?> entry : matches) {
             handlerMatcher.getInvoker(entry.getValue(), message)
-                    .filter(i -> alreadyFiltered(i) || canTrackerHandle(message, entry.getId()))
+                    .filter(i -> alreadyFiltered(i) || canTrackerHandle(message, entry.getId().toString()))
                     .map(i -> new StatefulHandlerInvoker(i, entry, message))
                     .ifPresent(invokers::add);
         }
@@ -212,7 +212,7 @@ public class StatefulHandler implements Handler<DeserializingMessage> {
                 collection.forEach(this::handleResult);
             } else if (getTargetClass().isInstance(result)) {
                 if (currentEntry == null || !Objects.equals(currentEntry.getValue(), result)) {
-                    repository.set(result, computeId(result)).get();
+                    repository.put(computeId(result), result).get();
                 }
             } else if (result == null && expectResult() && getMethod() instanceof Method m
                        && (getTargetClass().isAssignableFrom(m.getReturnType())
