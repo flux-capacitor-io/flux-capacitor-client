@@ -27,6 +27,7 @@ import lombok.With;
 
 import java.beans.ConstructorProperties;
 import java.time.Instant;
+import java.util.Collections;
 import java.util.Optional;
 import java.util.Set;
 import java.util.function.Supplier;
@@ -76,8 +77,15 @@ public class SerializedDocument {
         this.collection = collection;
         this.data = data == null ? memoize(() -> DefaultDocumentSerializer.INSTANCE.serialize(document.get())) : data;
         this.document = document == null
-                ? memoize(() -> DefaultDocumentSerializer.INSTANCE.deserialize(data.get())
-                .toBuilder().facets(facets).build()) : document;
+                ? memoize(() -> {
+            Data<byte[]> d = data.get();
+            return DefaultDocumentSerializer.INSTANCE.canDeserialize(d)
+                    ? DefaultDocumentSerializer.INSTANCE.deserialize(d).toBuilder().facets(facets).build()
+                    : new Document(id, d.getType(), d.getRevision(), collection,
+                                   Optional.ofNullable(timestamp).map(Instant::ofEpochMilli).orElse(null),
+                                   Optional.ofNullable(end).map(Instant::ofEpochMilli).orElse(null),
+                                   Collections.emptyMap(), () -> summary, facets);
+        }) : document;
         this.summary = summary;
         this.facets = facets;
     }

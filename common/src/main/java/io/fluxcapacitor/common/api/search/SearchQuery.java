@@ -70,11 +70,14 @@ public class SearchQuery {
     }
 
     public boolean matches(SerializedDocument d) {
+        if (!collections.contains(d.getCollection())) {
+            return false;
+        }
         return matches(d.deserializeDocument());
     }
 
     @SuppressWarnings("RedundantIfStatement")
-    public boolean matches(Document d) {
+    boolean matches(Document d) {
         if (!decomposeConstraints().matches(d)) {
             return false;
         }
@@ -86,9 +89,6 @@ public class SearchQuery {
             (before.equals(since) ? d.getTimestamp().compareTo(before) > 0 :
                     (beforeInclusive ? d.getTimestamp().compareTo(before) > 0 :
                             d.getTimestamp().compareTo(before) >= 0))) {
-            return false;
-        }
-        if (!collections.contains(d.getCollection())) {
             return false;
         }
         return true;
