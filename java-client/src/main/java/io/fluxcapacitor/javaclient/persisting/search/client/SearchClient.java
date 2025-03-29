@@ -28,11 +28,16 @@ import io.fluxcapacitor.common.api.search.SearchQuery;
 import io.fluxcapacitor.common.api.search.SerializedDocument;
 import io.fluxcapacitor.javaclient.persisting.search.SearchHit;
 
+import java.time.Instant;
 import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
+import java.util.stream.IntStream;
 import java.util.stream.Stream;
+
+import static java.util.stream.Collectors.groupingBy;
+import static java.util.stream.Collectors.toList;
 
 public interface SearchClient extends AutoCloseable {
 
@@ -40,7 +45,9 @@ public interface SearchClient extends AutoCloseable {
 
     Stream<SearchHit<SerializedDocument>> search(SearchDocuments searchDocuments, int fetchSize);
 
-    boolean documentExists(HasDocument request);
+    default boolean documentExists(HasDocument request) {
+        return fetch(new GetDocument(request.getId(), request.getCollection())).isPresent();
+    }
 
     Optional<SerializedDocument> fetch(GetDocument request);
 
@@ -58,11 +65,38 @@ public interface SearchClient extends AutoCloseable {
 
     List<DocumentStats> fetchStatistics(SearchQuery query, List<String> fields, List<String> groupBy);
 
-    SearchHistogram fetchHistogram(GetSearchHistogram request);
+    default SearchHistogram fetchHistogram(GetSearchHistogram request) {
+        SearchQuery query = request.getQuery();
+        List<Long> results = IntStream.range(0, request.getResolution()).mapToLong(i -> 0L).boxed().collect(toList());
+        if (query.getSince() == null) {
+            return new SearchHistogram(null, query.getBefore(), results);
+        }
+        if (query.getBefore() == null) {
+            query = query.toBuilder().before(Instant.now()).build();
+        }
+        long min = query.getSince().toEpochMilli();
+        long delta = query.getBefore().toEpochMilli() - min;
+        long step = Math.min(1, delta / request.getResolution());
+
+        search(SearchDocuments.builder().query(query).build(), -1)
+                .map(h -> h.getValue().deserializeDocument())
+                .collect(groupingBy(d -> (d.getTimestamp().toEpochMilli() - min) / step))
+                .forEach((bucket, hits) -> results.set(bucket.intValue(), (long) hits.size()));
+        return new SearchHistogram(query.getSince(), query.getBefore(), results);
+    }
 
     List<FacetStats> fetchFacetStats(SearchQuery query);
 
-    CompletableFuture<Void> bulkUpdate(Collection<DocumentUpdate> updates, Guarantee guarantee);
+    default CompletableFuture<Void> bulkUpdate(Collection<DocumentUpdate> updates, Guarantee guarantee) {
+        updates.stream().collect(groupingBy(DocumentUpdate::getType)).forEach((type, list) -> {
+            switch (type) {
+                case delete -> list.forEach(u -> delete(u.getId(), u.getCollection(), guarantee));
+                case index -> index(list.stream().map(DocumentUpdate::getObject).toList(), guarantee, false);
+                case indexIfNotExists -> index(list.stream().map(DocumentUpdate::getObject).toList(), guarantee, true);
+            }
+        });
+        return CompletableFuture.completedFuture(null);
+    }
 
     @Override
     void close();

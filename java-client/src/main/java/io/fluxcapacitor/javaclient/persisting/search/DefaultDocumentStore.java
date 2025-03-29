@@ -74,12 +74,24 @@ public class DefaultDocumentStore implements DocumentStore, HasLocalHandlers {
     public CompletableFuture<Void> index(@NonNull Object object, Object id, Object collection, Instant begin,
                                          Instant end, Metadata metadata, Guarantee guarantee, boolean ifNotExists) {
         try {
-            return client.index(List.of(serializer.toDocument(
-                                        object, id.toString(), determineCollection(collection), begin, end, metadata)),
-                                guarantee, ifNotExists);
+            return index(
+                    serializer.toDocument(object, id.toString(), determineCollection(collection), begin, end, metadata),
+                    guarantee, ifNotExists);
+        } catch (DocumentStoreException e) {
+            throw e;
         } catch (Exception e) {
             throw new DocumentStoreException(format(
                     "Failed to store a document %s to collection %s", id, collection), e);
+        }
+    }
+
+    @Override
+    public CompletableFuture<Void> index(SerializedDocument document, Guarantee guarantee, boolean ifNotExists) {
+        try {
+            return client.index(List.of(document), guarantee, ifNotExists);
+        } catch (Exception e) {
+            throw new DocumentStoreException(format(
+                    "Failed to store a document %s to collection %s", document.getId(), document.getCollection()), e);
         }
     }
 
@@ -346,8 +358,9 @@ public class DefaultDocumentStore implements DocumentStore, HasLocalHandlers {
 
         @SuppressWarnings({"unchecked", "rawtypes"})
         protected <T> Stream<SearchHit<T>> fetchHitStream(Integer maxSize, Class<T> type, int fetchSize) {
+            SearchQuery query = queryBuilder.build();
             Stream<SearchHit<SerializedDocument>> hitStream = client.search(
-                    SearchDocuments.builder().query(queryBuilder.build()).maxSize(maxSize).sorting(sorting)
+                    SearchDocuments.builder().query(query).maxSize(maxSize).sorting(sorting)
                             .pathFilters(pathFilters).skip(skip).build(), fetchSize);
             if (SerializedDocument.class.equals(type)) {
                 return (Stream) hitStream;

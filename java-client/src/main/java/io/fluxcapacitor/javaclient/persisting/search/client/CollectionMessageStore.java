@@ -49,6 +49,6 @@ public class CollectionMessageStore implements MessageStore {
 
     @Override
     public void setRetentionTime(Duration retentionPeriod) {
-        //no op
+        searchClient.setRetentionTime(retentionPeriod);
     }
 }
