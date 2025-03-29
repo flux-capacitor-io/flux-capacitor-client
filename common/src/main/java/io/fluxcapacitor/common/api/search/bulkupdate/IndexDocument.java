@@ -16,12 +16,14 @@ package io.fluxcapacitor.common.api.search.bulkupdate;
 
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import io.fluxcapacitor.common.api.search.BulkUpdate;
+import io.fluxcapacitor.common.api.search.SerializedDocument;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.NonNull;
 import lombok.Value;
 
 import java.time.Instant;
+import java.util.Optional;
 
 import static io.fluxcapacitor.common.api.search.BulkUpdate.Type.index;
 
@@ -29,8 +31,15 @@ import static io.fluxcapacitor.common.api.search.BulkUpdate.Type.index;
 @AllArgsConstructor
 @Builder(toBuilder = true)
 public class IndexDocument implements BulkUpdate {
+    public static IndexDocument fromDocument(SerializedDocument document) {
+        return new IndexDocument(document, document.getId(), document.getCollection(),
+                                 Optional.ofNullable(document.getTimestamp()).map(Instant::ofEpochMilli).orElse(null),
+                                 Optional.ofNullable(document.getEnd()).map(Instant::ofEpochMilli).orElse(null));
+    }
+
     @JsonTypeInfo(use = JsonTypeInfo.Id.CLASS)
-    @NonNull Object object;
+    @NonNull
+    Object object;
     String id;
     Object collection;
     Instant timestamp;
