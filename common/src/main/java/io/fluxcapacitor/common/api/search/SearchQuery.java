@@ -70,7 +70,7 @@ public class SearchQuery {
     }
 
     public boolean matches(SerializedDocument d) {
-        if (!collections.contains(d.getCollection())) {
+        if (d == null || !collections.contains(d.getCollection())) {
             return false;
         }
         return matches(d.deserializeDocument());

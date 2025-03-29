@@ -622,7 +622,8 @@ public class DefaultFluxCapacitor implements FluxCapacitor {
                                               new PayloadParameterResolver(),
                                               new EntityParameterResolver()));
 
-            var handlerRepositorySupplier = DefaultHandlerRepository.repositorySupplier(documentStoreSupplier);
+            var handlerRepositorySupplier = DefaultHandlerRepository.repositorySupplier(documentStoreSupplier,
+                                                                                        documentSerializer);
             documentStore.set(new DefaultDocumentStore(
                     client.getSearchClient(), documentSerializer,
                     client.getSearchClient() instanceof InMemorySearchStore searchStore

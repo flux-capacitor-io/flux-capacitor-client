@@ -52,8 +52,8 @@ public @interface Association {
      * if the associated value can be found in a stored Handler at the given path.
      * <p>
      * If this is left empty and the annotation is on a field or getter, the name of field is used to filter any
-     * matches. If this is left empty and the annotation is on a handler method, any Handler containing the
-     * associated value is matched, regardless of the path of the value in the matched Handler.
+     * matches. If this is left empty and the annotation is on a handler method, any Handler containing the associated
+     * value is matched, regardless of the path of the value in the matched Handler.
      */
     String path() default "";
 
@@ -71,14 +71,18 @@ public @interface Association {
     Class<?>[] excludedClasses() default {};
 
     /**
-     * Returns whether metadata properties of messages should be checked for possible association with a stored handler.
+     * Returns whether metadata properties of messages should be checked for possible association with a stored
+     * handler.
      */
     boolean excludeMetadata() default false;
 
     /**
      * Returns whether the message matched by this handler should always be applied to any stored handlers. All other
      * configuration in this annotation will be ignored. This setting only has an effect if it is used in an annotation
-     * of a handler method. I.e. it has no effect the association is on a field or getter of the handler.
+     * of a handler method. I.e. it has no effect if the association is on a field or getter of the handler.
+     * <p>
+     * Note: be very careful using this when there are many stored handlers, as each handler will be fetched and
+     * updated. In that case it is prudent to look for alternatives.
      */
     boolean always() default false;
 

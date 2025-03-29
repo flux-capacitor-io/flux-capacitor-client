@@ -122,6 +122,13 @@ class GivenWhenThenSpringTest {
         }
 
         @Test
+        void createAndUpdateInSameBatch() {
+            testFixture.whenExecuting(
+                    fc -> FluxCapacitor.publishEvents(new StaticEvent("bla"), new StaticEvent("bla")))
+                    .expectCommands(1, 2);
+        }
+
+        @Test
         void constructorHandlerIsCreated() {
             testFixture.whenEvent(new StaticEvent("bla"))
                     .expectCommands("constructor:1");
@@ -137,7 +144,7 @@ class GivenWhenThenSpringTest {
 
 
 
-        @Stateful
+        @Stateful(commitInBatch = true)
         @SearchExclude
         @Value
         @Builder(toBuilder = true)
