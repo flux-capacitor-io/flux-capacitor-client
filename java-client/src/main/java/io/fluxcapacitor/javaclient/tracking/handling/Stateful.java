@@ -71,5 +71,5 @@ public @interface Stateful {
      * Determines whether changes to stateful handlers should be committed at end of the current message batch of the
      * current tracker or at the end of the current message.
      */
-    boolean commitInBatch() default true;
+    boolean commitInBatch() default false;
 }

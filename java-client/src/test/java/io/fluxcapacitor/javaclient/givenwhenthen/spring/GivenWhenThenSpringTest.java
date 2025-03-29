@@ -144,7 +144,7 @@ class GivenWhenThenSpringTest {
 
 
 
-        @Stateful
+        @Stateful(commitInBatch = true)
         @SearchExclude
         @Value
         @Builder(toBuilder = true)
