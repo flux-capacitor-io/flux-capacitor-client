@@ -15,7 +15,7 @@
 package io.fluxcapacitor.javaclient.common;
 
 public interface Entry<T> {
-    Object getId();
+    String getId();
 
     T getValue();
 }

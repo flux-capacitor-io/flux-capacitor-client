@@ -74,24 +74,12 @@ public class DefaultDocumentStore implements DocumentStore, HasLocalHandlers {
     public CompletableFuture<Void> index(@NonNull Object object, Object id, Object collection, Instant begin,
                                          Instant end, Metadata metadata, Guarantee guarantee, boolean ifNotExists) {
         try {
-            return index(
-                    serializer.toDocument(object, id.toString(), determineCollection(collection), begin, end, metadata),
-                    guarantee, ifNotExists);
-        } catch (DocumentStoreException e) {
-            throw e;
+            return client.index(List.of(serializer.toDocument(
+                                        object, id.toString(), determineCollection(collection), begin, end, metadata)),
+                                guarantee, ifNotExists);
         } catch (Exception e) {
             throw new DocumentStoreException(format(
                     "Failed to store a document %s to collection %s", id, collection), e);
-        }
-    }
-
-    @Override
-    public CompletableFuture<Void> index(SerializedDocument document, Guarantee guarantee, boolean ifNotExists) {
-        try {
-            return client.index(List.of(document), guarantee, ifNotExists);
-        } catch (Exception e) {
-            throw new DocumentStoreException(format(
-                    "Failed to store a document %s to collection %s", document.getId(), document.getCollection()), e);
         }
     }
 

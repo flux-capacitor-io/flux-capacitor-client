@@ -14,119 +14,96 @@
 
 package io.fluxcapacitor.javaclient.modeling;
 
+import io.fluxcapacitor.common.api.search.BulkUpdate;
+import io.fluxcapacitor.common.api.search.SearchQuery;
+import io.fluxcapacitor.common.api.search.SerializedDocument;
+import io.fluxcapacitor.common.api.search.bulkupdate.DeleteDocument;
+import io.fluxcapacitor.common.api.search.bulkupdate.IndexDocument;
 import io.fluxcapacitor.javaclient.common.Entry;
+import io.fluxcapacitor.javaclient.persisting.search.DocumentSerializer;
 import lombok.AllArgsConstructor;
+import lombok.Getter;
 import lombok.SneakyThrows;
 import lombok.Value;
-import lombok.extern.slf4j.Slf4j;
 
 import java.util.Collection;
+import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
+import java.util.stream.Stream;
 
 import static io.fluxcapacitor.javaclient.common.serialization.DeserializingMessage.computeForBatchIfAbsent;
 import static io.fluxcapacitor.javaclient.common.serialization.DeserializingMessage.getCurrent;
 import static io.fluxcapacitor.javaclient.common.serialization.DeserializingMessage.whenBatchCompletes;
 
 @AllArgsConstructor
-@Slf4j
 public class BatchingHandlerRepository implements HandlerRepository {
 
-    private final HandlerRepository delegate;
+    private final DefaultHandlerRepository delegate;
+    private final DocumentSerializer documentSerializer;
 
     @Override
     public Collection<? extends Entry<?>> findByAssociation(Map<Object, String> associations) {
-        return updateWithCurrentEntries(delegate.findByAssociation(associations));
+        if (associations.isEmpty()) {
+            return Collections.emptyList();
+        }
+        var query = SearchQuery.builder().constraint(delegate.asConstraint(associations))
+                .collection(delegate.getCollection()).build();
+        return Stream.concat(updates().values().stream().filter(u -> query.matches(u.getDocument())),
+                             removeOutdatedValues(delegate.findByAssociation(associations))).toList();
     }
 
     @Override
     public Collection<? extends Entry<?>> getAll() {
-        return updateWithCurrentEntries(delegate.getAll());
+        return Stream.concat(updates().values().stream(),
+                             removeOutdatedValues(delegate.getAll())).toList();
     }
 
-    protected Collection<? extends Entry<?>> updateWithCurrentEntries(Collection<? extends Entry<?>> delegateResult) {
-        var currentHandlers = handlersForBatch();
-        return delegateResult.stream().map(e -> Optional.ofNullable(currentHandlers.get(e.getId()))
-                .<Entry<?>>map(v -> new SimpleEntry(e.getId(), v)).orElse(e)).toList();
-    }
-
-    @Override
-    public Entry<?> get(Object id) {
-        return new SimpleEntry(id, handlersForBatch().computeIfAbsent(id.toString(), k -> delegate.get(k).getValue()));
+    protected Stream<? extends Entry<?>> removeOutdatedValues(Collection<? extends Entry<?>> delegateResult) {
+        var updates = updates();
+        return delegateResult.stream().filter(e -> !updates.containsKey(e.getId()));
     }
 
     @Override
     public CompletableFuture<?> put(Object id, Object value) {
         if (getCurrent() == null) {
-            return delegate.put(id, value);
+            return value == null ? delegate.delete(id) : delegate.put(id, value);
         }
-        handlersForBatch().put(id.toString(), value);
+        updates().put(id.toString(), new Update(id.toString(), value));
         return CompletableFuture.completedFuture(null);
     }
 
     @Override
     public CompletableFuture<?> delete(Object id) {
-        return getCurrent() == null ? delegate.delete(id) : put(id, null);
+        return put(id, null);
     }
 
-    @Override
-    public CompletableFuture<?> put(Map<Object, Object> handlersById) {
-        return delegate.put(handlersById);
-    }
-
-    protected Map<Object, Object> handlersForBatch() {
+    protected Map<Object, Update> updates() {
         return computeForBatchIfAbsent(this, __ -> {
-            Map<Object, Object> map = new LinkedHashMap<>();
-            whenBatchCompletes(e -> putAndWait(map));
+            Map<Object, Update> map = new LinkedHashMap<>();
+            whenBatchCompletes(e -> flushUpdates(map));
             return map;
         });
     }
 
     @SneakyThrows
-    protected void putAndWait(Map<Object, Object> map) {
-        put(map).get();
+    protected void flushUpdates(Map<Object, Update> map) {
+        List<BulkUpdate> updates = map.values().stream().map(update -> update.getValue() == null ?
+                DeleteDocument.builder().id(update.getId()).collection(delegate.getCollection())
+                        .build() : IndexDocument.fromDocument(update.getDocument())).toList();
+        delegate.getDocumentStore().bulkUpdate(updates).get();
     }
 
     @Value
-    protected static class SimpleEntry implements Entry<Object> {
-        Object id, value;
-    }
+    protected class Update implements Entry<Object> {
+        String id;
+        Object value;
 
-    protected static class LocalHandlerRepository implements HandlerRepository {
-
-        private final Map<Object, Object> handlers = new LinkedHashMap<>();
-
-        @Override
-        public Collection<? extends Entry<?>> findByAssociation(Map<Object, String> associations) {
-            return List.of();
-        }
-
-        @Override
-        public Collection<? extends Entry<?>> getAll() {
-            return List.of();
-        }
-
-        @Override
-        public Entry<?> get(Object id) {
-            return null;
-        }
-
-        @Override
-        public CompletableFuture<?> put(Object id, Object value) {
-            return null;
-        }
-
-        @Override
-        public CompletableFuture<?> delete(Object id) {
-            return null;
-        }
-
-        @Override
-        public CompletableFuture<?> put(Map<Object, Object> handlersById) {
-            return null;
-        }
+        @Getter(lazy = true)
+        SerializedDocument document = value == null ? null : documentSerializer.toDocument(
+                value, id, delegate.getCollection(), delegate.getTimestampFunction().apply(value),
+                delegate.getEndFunction().apply(value));
     }
 }

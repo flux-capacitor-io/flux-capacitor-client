@@ -18,7 +18,6 @@ import io.fluxcapacitor.common.Guarantee;
 import io.fluxcapacitor.common.api.Metadata;
 import io.fluxcapacitor.common.api.search.BulkUpdate;
 import io.fluxcapacitor.common.api.search.SearchQuery;
-import io.fluxcapacitor.common.api.search.SerializedDocument;
 import io.fluxcapacitor.common.reflection.ReflectionUtils;
 import io.fluxcapacitor.javaclient.common.ClientUtils;
 import io.fluxcapacitor.javaclient.modeling.EntityId;
@@ -113,8 +112,6 @@ public interface DocumentStore {
 
     CompletableFuture<Void> index(@NotNull Object object, Object id, Object collection, Instant begin, Instant end,
                                   Metadata metadata, Guarantee guarantee, boolean ifNotExists);
-
-    CompletableFuture<Void> index(@NotNull SerializedDocument document, Guarantee guarantee, boolean ifNotExists);
 
     default CompletableFuture<Void> index(Collection<?> objects, Object collection) {
         return index(objects, collection, v -> getAnnotatedPropertyValue(v, EntityId.class).map(Object::toString)
