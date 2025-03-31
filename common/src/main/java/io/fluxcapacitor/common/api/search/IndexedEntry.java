@@ -16,6 +16,7 @@ package io.fluxcapacitor.common.api.search;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import io.fluxcapacitor.common.search.Document.Path;
+import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.Value;
 import lombok.With;
@@ -27,6 +28,7 @@ import java.math.RoundingMode;
 import java.util.Comparator;
 
 @Value
+@AllArgsConstructor
 public class IndexedEntry implements Comparable<IndexedEntry> {
     private static final int DECIMALS = 6;
     private static final BigDecimal SCALE = BigDecimal.TEN.pow(DECIMALS);
@@ -46,13 +48,12 @@ public class IndexedEntry implements Comparable<IndexedEntry> {
     String value;
 
     public IndexedEntry(String name, Object value) {
-        this.name = name;
-        this.value = switch (value) {
+        this(name, switch (value) {
             case null -> null;
             case Boolean b -> b.toString();
             case Number n -> toSortableString(n);
             default -> value.toString();
-        };
+        });
     }
 
     @Getter(lazy = true)

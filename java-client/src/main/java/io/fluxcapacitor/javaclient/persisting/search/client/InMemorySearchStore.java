@@ -41,7 +41,6 @@ import lombok.Setter;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.Collection;
-import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -60,6 +59,7 @@ import java.util.function.Predicate;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
+import static java.util.Comparator.comparing;
 import static java.util.function.Function.identity;
 import static java.util.stream.Collectors.groupingBy;
 import static java.util.stream.Collectors.mapping;
@@ -68,7 +68,8 @@ import static java.util.stream.Collectors.toMap;
 
 @AllArgsConstructor
 public class InMemorySearchStore implements SearchClient {
-    protected static final Function<SerializedDocument, String> identifier = d -> asIdentifier(d.getCollection(), d.getId());
+    protected static final Function<SerializedDocument, String> identifier =
+            d -> asIdentifier(d.getCollection(), d.getId());
 
     protected static String asIdentifier(String collection, String documentId) {
         return collection + "/" + documentId;
@@ -99,12 +100,13 @@ public class InMemorySearchStore implements SearchClient {
     @Override
     public Stream<SearchHit<SerializedDocument>> search(SearchDocuments searchDocuments, int fetchSize) {
         SearchQuery query = searchDocuments.getQuery();
-        Stream<Document> documentStream = documents.values().stream().map(SerializedDocument::deserializeDocument)
-                .filter(query::matches);
-        documentStream = documentStream.sorted(Document.createComparator(searchDocuments));
+        Stream<SerializedDocument> documentStream = documents.values().stream().filter(query::matches);
+        documentStream = documentStream.sorted(
+                comparing(SerializedDocument::deserializeDocument, Document.createComparator(searchDocuments)));
         if (!searchDocuments.getPathFilters().isEmpty()) {
             Predicate<Document.Path> pathFilter = searchDocuments.computePathFilter();
-            documentStream = documentStream.map(d -> d.filterPaths(pathFilter));
+            documentStream = documentStream.map(d -> d.deserializeDocument().filterPaths(pathFilter))
+                    .map(SerializedDocument::new);
         }
         if (searchDocuments.getSkip() > 0) {
             documentStream = documentStream.skip(searchDocuments.getSkip());
@@ -116,9 +118,7 @@ public class InMemorySearchStore implements SearchClient {
         if (searchDocuments.getMaxSize() != null) {
             documentStream = documentStream.limit(searchDocuments.getMaxSize());
         }
-        return documentStream
-                .map(d -> new SearchHit<>(d.getId(), d.getCollection(), d.getTimestamp(), d.getEnd(),
-                                          () -> new SerializedDocument(d)));
+        return documentStream.map(SearchHit::fromDocument);
     }
 
     @Override
@@ -156,8 +156,8 @@ public class InMemorySearchStore implements SearchClient {
 
     @Override
     public List<DocumentStats> fetchStatistics(SearchQuery query, List<String> fields, List<String> groupBy) {
-        return DocumentStats.compute(documents.values().stream().map(SerializedDocument::deserializeDocument)
-                                             .filter(query::matches), fields, groupBy);
+        return DocumentStats.compute(documents.values().stream().filter(query::matches)
+                                             .map(SerializedDocument::deserializeDocument), fields, groupBy);
     }
 
     @Override
@@ -187,7 +187,7 @@ public class InMemorySearchStore implements SearchClient {
                 .collect(groupingBy(identity(), TreeMap::new, toList())).values().stream().map(group -> {
                     FacetEntry first = group.getFirst();
                     return new FacetStats(first.getName(), first.getValue(), group.size());
-                }).sorted(Comparator.comparing(FacetStats::getCount).reversed()).toList();
+                }).sorted(comparing(FacetStats::getCount).reversed()).toList();
     }
 
     @Override

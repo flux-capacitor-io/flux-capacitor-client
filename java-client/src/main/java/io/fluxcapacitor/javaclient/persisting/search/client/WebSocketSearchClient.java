@@ -24,7 +24,6 @@ import io.fluxcapacitor.javaclient.persisting.search.SearchHit;
 import jakarta.websocket.ClientEndpoint;
 
 import java.net.URI;
-import java.time.Instant;
 import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
@@ -74,11 +73,7 @@ public class WebSocketSearchClient extends AbstractWebsocketClient implements Se
         if (maxSize != null) {
             documentStream = documentStream.limit(maxSize);
         }
-        return documentStream.map(d -> new SearchHit<>(d.getId(), d.getCollection(),
-                                                       d.getTimestamp() == null ? null :
-                                                               Instant.ofEpochMilli(d.getTimestamp()),
-                                                       d.getEnd() == null ? null : Instant.ofEpochMilli(d.getEnd()),
-                                                       () -> d));
+        return documentStream.map(SearchHit::fromDocument);
     }
 
     @Override

@@ -14,6 +14,7 @@
 
 package io.fluxcapacitor.javaclient.persisting.search;
 
+import io.fluxcapacitor.common.api.search.SerializedDocument;
 import io.fluxcapacitor.javaclient.common.Entry;
 import lombok.AccessLevel;
 import lombok.Getter;
@@ -25,6 +26,14 @@ import java.util.function.Supplier;
 
 @Value
 public class SearchHit<T> implements Entry<T> {
+
+    public static SearchHit<SerializedDocument> fromDocument(SerializedDocument document) {
+        return new SearchHit<>(document.getId(), document.getCollection(),
+                               document.getTimestamp() == null ? null : Instant.ofEpochMilli(document.getTimestamp()),
+                               document.getEnd() == null ? null : Instant.ofEpochMilli(document.getEnd()),
+                               () -> document);
+    }
+
     String id;
     String collection;
     Instant timestamp;

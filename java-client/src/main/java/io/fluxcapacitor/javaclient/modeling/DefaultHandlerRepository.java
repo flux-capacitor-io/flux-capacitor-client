@@ -15,13 +15,17 @@
 package io.fluxcapacitor.javaclient.modeling;
 
 import io.fluxcapacitor.common.api.search.Constraint;
+import io.fluxcapacitor.common.api.search.constraints.AnyConstraint;
 import io.fluxcapacitor.common.api.search.constraints.MatchConstraint;
 import io.fluxcapacitor.common.reflection.ReflectionUtils;
 import io.fluxcapacitor.javaclient.FluxCapacitor;
 import io.fluxcapacitor.javaclient.common.ClientUtils;
 import io.fluxcapacitor.javaclient.common.Entry;
+import io.fluxcapacitor.javaclient.persisting.search.DocumentSerializer;
 import io.fluxcapacitor.javaclient.persisting.search.DocumentStore;
 import io.fluxcapacitor.javaclient.tracking.handling.Stateful;
+import lombok.AccessLevel;
+import lombok.Getter;
 import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
 
@@ -39,12 +43,19 @@ import java.util.function.Supplier;
 import static io.fluxcapacitor.javaclient.common.ClientUtils.memoize;
 
 @Slf4j
+@Getter(AccessLevel.PROTECTED)
 public class DefaultHandlerRepository implements HandlerRepository {
 
-    public static Function<Class<?>, HandlerRepository> repositorySupplier(Supplier<DocumentStore> documentStore) {
-        return memoize(type -> new DefaultHandlerRepository(
-                documentStore.get(), ClientUtils.getSearchParameters(type).getCollection(),
-                type, ReflectionUtils.getTypeAnnotation(type, Stateful.class)));
+    public static Function<Class<?>, HandlerRepository> repositorySupplier(Supplier<DocumentStore> documentStore,
+                                                                           DocumentSerializer documentSerializer) {
+        return memoize(type -> {
+            Stateful stateful = ReflectionUtils.getTypeAnnotation(type, Stateful.class);
+            var defaultRepo = new DefaultHandlerRepository(
+                    documentStore.get(), ClientUtils.getSearchParameters(type).getCollection(), type, stateful);
+            return Optional.ofNullable(stateful).filter(Stateful::commitInBatch)
+                    .<HandlerRepository>map(s -> new BatchingHandlerRepository(
+                            defaultRepo, documentSerializer)).orElse(defaultRepo);
+        });
     }
 
     private final DocumentStore documentStore;
@@ -53,7 +64,8 @@ public class DefaultHandlerRepository implements HandlerRepository {
     private final Function<Object, Instant> timestampFunction;
     private final Function<Object, Instant> endFunction;
 
-    public DefaultHandlerRepository(DocumentStore documentStore, String collection, Class<?> type, Stateful annotation) {
+    public DefaultHandlerRepository(DocumentStore documentStore, String collection, Class<?> type,
+                                    Stateful annotation) {
         this.documentStore = documentStore;
         this.collection = collection;
         this.type = type;
@@ -97,10 +109,14 @@ public class DefaultHandlerRepository implements HandlerRepository {
         if (associations.isEmpty()) {
             return Collections.emptyList();
         }
-        var constraints = associations.entrySet().stream().map(e -> MatchConstraint.match(
-                e.getKey(), e.getValue())).toArray(Constraint[]::new);
-        return documentStore.search(collection).any(constraints).streamHits()
+        var constraint = asConstraint(associations);
+        return documentStore.search(collection).constraint(constraint).streamHits()
                 .filter(h -> type.isAssignableFrom(h.getValue().getClass())).toList();
+    }
+
+    protected Constraint asConstraint(Map<Object, String> associations) {
+        return AnyConstraint.any(associations.entrySet().stream().map(e -> MatchConstraint.match(
+                e.getKey(), e.getValue())).toArray(Constraint[]::new));
     }
 
     @Override
@@ -109,23 +125,8 @@ public class DefaultHandlerRepository implements HandlerRepository {
                 .filter(h -> type.isAssignableFrom(h.getValue().getClass())).toList();
     }
 
-    @Override
-    public Entry<?> get(Object id) {
-        return documentStore.fetchDocument(id, collection).map(v -> new Entry<>() {
-            @Override
-            public String getId() {
-                return id.toString();
-            }
-
-            @Override
-            public Object getValue() {
-                return v;
-            }
-        }).orElse(null);
-    }
-
     @SneakyThrows
-    public CompletableFuture<?> set(Object value, Object id) {
+    public CompletableFuture<?> put(Object id, Object value) {
         return documentStore.index(value, id, collection, timestampFunction.apply(value), endFunction.apply(value));
     }
 

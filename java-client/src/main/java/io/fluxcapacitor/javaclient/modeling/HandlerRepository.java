@@ -26,9 +26,7 @@ public interface HandlerRepository {
 
     Collection<? extends Entry<?>> getAll();
 
-    Entry<?> get(Object id);
-
-    CompletableFuture<?> set(Object value, Object id);
+    CompletableFuture<?> put(Object id, Object value);
 
     CompletableFuture<?> delete(Object id);
 }

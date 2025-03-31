@@ -15,6 +15,8 @@
 package io.fluxcapacitor.javaclient.common.serialization;
 
 import io.fluxcapacitor.common.MessageType;
+import io.fluxcapacitor.common.ObjectUtils;
+import io.fluxcapacitor.common.ThrowingConsumer;
 import io.fluxcapacitor.common.api.Metadata;
 import io.fluxcapacitor.common.api.SerializedMessage;
 import io.fluxcapacitor.javaclient.FluxCapacitor;
@@ -28,6 +30,7 @@ import lombok.AccessLevel;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NonNull;
+import lombok.SneakyThrows;
 import lombok.Synchronized;
 import lombok.Value;
 import lombok.experimental.NonFinal;
@@ -245,14 +248,15 @@ public class DeserializingMessage implements HasMessage {
         return StreamSupport.stream(new MessageSpliterator(batch.spliterator()), false);
     }
 
-    public static void whenBatchCompletes(Consumer<Throwable> handler) {
+    @SneakyThrows
+    public static void whenBatchCompletes(ThrowingConsumer<Throwable> executable) {
         if (current.get() == null) {
-            handler.accept(null);
+            executable.accept(null);
         } else {
             if (batchCompletionHandlers.get() == null) {
                 batchCompletionHandlers.set(new LinkedHashSet<>());
             }
-            batchCompletionHandlers.get().add(handler);
+            batchCompletionHandlers.get().add(ObjectUtils.asConsumer(executable));
         }
     }
 

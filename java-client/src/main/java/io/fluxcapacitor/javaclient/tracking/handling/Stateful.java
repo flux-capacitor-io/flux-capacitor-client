@@ -66,4 +66,10 @@ public @interface Stateful {
      * be useful in case the handlers need to e.g. be presented in an overview.
      */
     String endPath() default "";
+
+    /**
+     * Determines whether changes to stateful handlers should be committed at end of the current message batch of the
+     * current tracker or at the end of the current message.
+     */
+    boolean commitInBatch() default false;
 }

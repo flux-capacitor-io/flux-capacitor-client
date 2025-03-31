@@ -152,14 +152,15 @@ public class DefaultDocumentStore implements DocumentStore, HasLocalHandlers {
 
     public DocumentUpdate serializeAction(BulkUpdate update) {
         String collection = determineCollection(update.getCollection());
-        DocumentUpdate.Builder builder = DocumentUpdate.builder()
-                .collection(collection).id(update.getId()).type(update.getType());
+        var builder = DocumentUpdate.builder().collection(collection).id(update.getId()).type(update.getType());
         if (update instanceof IndexDocument u) {
-            return builder.object(serializer.toDocument(
-                    u.getObject(), u.getId(), collection, u.getTimestamp(), u.getEnd())).build();
+            var document = u.getObject() instanceof SerializedDocument s
+                    ? s : serializer.toDocument(u.getObject(), u.getId(), collection, u.getTimestamp(), u.getEnd());
+            return builder.object(document).build();
         } else if (update instanceof IndexDocumentIfNotExists u) {
-            return builder.object(serializer.toDocument(
-                    u.getObject(), u.getId(), collection, u.getTimestamp(), u.getEnd())).build();
+            var document = u.getObject() instanceof SerializedDocument s
+                    ? s : serializer.toDocument(u.getObject(), u.getId(), collection, u.getTimestamp(), u.getEnd());
+            return builder.object(document).build();
         }
         return builder.build();
     }
@@ -345,8 +346,9 @@ public class DefaultDocumentStore implements DocumentStore, HasLocalHandlers {
 
         @SuppressWarnings({"unchecked", "rawtypes"})
         protected <T> Stream<SearchHit<T>> fetchHitStream(Integer maxSize, Class<T> type, int fetchSize) {
+            SearchQuery query = queryBuilder.build();
             Stream<SearchHit<SerializedDocument>> hitStream = client.search(
-                    SearchDocuments.builder().query(queryBuilder.build()).maxSize(maxSize).sorting(sorting)
+                    SearchDocuments.builder().query(query).maxSize(maxSize).sorting(sorting)
                             .pathFilters(pathFilters).skip(skip).build(), fetchSize);
             if (SerializedDocument.class.equals(type)) {
                 return (Stream) hitStream;

@@ -212,7 +212,7 @@ public class StatefulHandler implements Handler<DeserializingMessage> {
                 collection.forEach(this::handleResult);
             } else if (getTargetClass().isInstance(result)) {
                 if (currentEntry == null || !Objects.equals(currentEntry.getValue(), result)) {
-                    repository.set(result, computeId(result)).get();
+                    repository.put(computeId(result), result).get();
                 }
             } else if (result == null && expectResult() && getMethod() instanceof Method m
                        && (getTargetClass().isAssignableFrom(m.getReturnType())
