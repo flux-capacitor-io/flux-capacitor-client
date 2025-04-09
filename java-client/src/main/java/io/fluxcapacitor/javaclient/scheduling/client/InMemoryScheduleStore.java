@@ -112,6 +112,7 @@ public class InMemoryScheduleStore extends InMemoryMessageStore implements Sched
     public synchronized void setClock(@NonNull Clock clock) {
         synchronized (this) {
             this.clock = clock;
+            this.minScheduleIndex.set(0L);
             notifyMonitors();
         }
     }

@@ -208,6 +208,21 @@ class GivenWhenThenSchedulingTest {
                     }).whenTimeElapses(Duration.ofMinutes(10))
                     .expectNoEvents().expectNoSchedules();
         }
+
+        @Test
+        void testScheduleExpiresBeforeEarlierScheduleIfClockIsChanged() {
+            Object schedule = "schedule";
+            TestFixture.create(new Object() {
+                        @HandleSchedule
+                        @Periodic(cron = "0 * * * *")
+                        void handle(Object schedule) {
+                            FluxCapacitor.publishEvent(schedule);
+                        }
+                    })
+                    .atFixedTime(start)
+                    .whenScheduleExpires(schedule)
+                    .expectEvents(schedule);
+        }
     }
 
     @Nested
