@@ -226,9 +226,7 @@ public class JacksonInverter implements Inverter<JsonNode> {
                         .orElseGet(() -> getPropertyName(holder));
                 if (isConstant(propertyValue)
                     || ReflectionUtils.getTypeAnnotation(propertyValue.getClass(), Indexed.class) != null) {
-                    Object value = propertyValue instanceof String ps ? ps.toLowerCase() :
-                            isConstant(propertyValue) ? propertyValue : propertyValue.toString().toLowerCase();
-                    yield Stream.of(new IndexedEntry(name, value));
+                    yield Stream.of(new IndexedEntry(name, propertyValue));
                 }
                 yield getIndexedEntries(propertyValue).map(f -> f.withName("%s/%s".formatted(name, f.getName())));
             }
