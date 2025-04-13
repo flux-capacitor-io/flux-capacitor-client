@@ -51,23 +51,26 @@ public class SerializedDocument {
     Supplier<Document> document;
     String summary;
     Set<FacetEntry> facets;
+    Set<IndexedEntry> indexes;
 
-    @ConstructorProperties({"id", "timestamp", "end", "collection", "document", "summary", "facets"})
+    @ConstructorProperties({"id", "timestamp", "end", "collection", "document", "summary", "facets", "indexes"})
     public SerializedDocument(String id, Long timestamp, Long end, String collection, Data<byte[]> document,
-                              String summary, Set<FacetEntry> facets) {
-        this(id, timestamp, end, collection, () -> document, null, summary, facets);
+                              String summary, Set<FacetEntry> facets, Set<IndexedEntry> indexes) {
+        this(id, timestamp, end, collection, () -> document, null, summary, facets, indexes);
     }
 
     public SerializedDocument(Document document) {
         this(document.getId(), Optional.ofNullable(document.getTimestamp()).map(Instant::toEpochMilli).orElse(null),
              Optional.ofNullable(document.getEnd()).map(Instant::toEpochMilli).orElse(null),
              document.getCollection(), null, () -> document,
-             Optional.ofNullable(document.getSummary()).map(Supplier::get).orElse(null), document.getFacets());
+             Optional.ofNullable(document.getSummary()).map(Supplier::get).orElse(null), document.getFacets(),
+             document.getIndexes());
     }
 
     @SuppressWarnings("unused")
     private SerializedDocument(String id, Long timestamp, Long end, String collection, Supplier<Data<byte[]>> data,
-                               Supplier<Document> document, String summary, Set<FacetEntry> facets) {
+                               Supplier<Document> document, String summary, Set<FacetEntry> facets,
+                               Set<IndexedEntry> indexes) {
         if (data == null && document == null) {
             throw new IllegalStateException("Either the serialized data or deserialized document should be supplied");
         }
@@ -80,14 +83,15 @@ public class SerializedDocument {
                 ? memoize(() -> {
             Data<byte[]> d = data.get();
             return DefaultDocumentSerializer.INSTANCE.canDeserialize(d)
-                    ? DefaultDocumentSerializer.INSTANCE.deserialize(d).toBuilder().facets(facets).build()
+                    ? DefaultDocumentSerializer.INSTANCE.deserialize(d).toBuilder().facets(facets).indexes(indexes).build()
                     : new Document(id, d.getType(), d.getRevision(), collection,
                                    Optional.ofNullable(timestamp).map(Instant::ofEpochMilli).orElse(null),
                                    Optional.ofNullable(end).map(Instant::ofEpochMilli).orElse(null),
-                                   Collections.emptyMap(), () -> summary, facets);
+                                   Collections.emptyMap(), () -> summary, facets, indexes);
         }) : document;
         this.summary = summary;
         this.facets = facets;
+        this.indexes = indexes;
     }
 
     public Long getEnd() {

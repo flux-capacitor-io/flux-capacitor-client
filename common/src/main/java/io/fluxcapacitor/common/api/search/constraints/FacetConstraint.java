@@ -47,7 +47,7 @@ public class FacetConstraint implements Constraint {
                                 .collect(toList());
                 return switch (constraints.size()) {
                     case 0 -> NoOpConstraint.instance;
-                    case 1 -> constraints.getFirst();
+                case 1 -> constraints.getFirst();
                     default -> AnyConstraint.any(constraints);
                 };
             }
