@@ -50,7 +50,7 @@ public class IndexDocuments extends Command {
 
     @Override
     public String routingKey() {
-        return documents.getFirst().getId();
+        return documents.stream().findFirst().map(SerializedDocument::getId).orElse(null);
     }
 
     @Value
