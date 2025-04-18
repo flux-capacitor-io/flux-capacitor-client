@@ -20,8 +20,6 @@ import io.fluxcapacitor.common.api.Metadata;
 import io.fluxcapacitor.common.api.SerializedMessage;
 import io.fluxcapacitor.common.serialization.Revision;
 import io.fluxcapacitor.javaclient.FluxCapacitor;
-import io.fluxcapacitor.javaclient.common.serialization.jackson.JacksonSerializer;
-import io.fluxcapacitor.javaclient.configuration.DefaultFluxCapacitor;
 import io.fluxcapacitor.javaclient.modeling.Aggregate;
 import io.fluxcapacitor.javaclient.modeling.Entity;
 import io.fluxcapacitor.javaclient.persisting.eventsourcing.Apply;
@@ -43,9 +41,7 @@ import static org.wildfly.common.Assert.assertTrue;
 public class GivenWhenThenUpcasterChainTest {
     private static final String aggregateId = "test";
 
-    private final TestFixture testFixture = TestFixture.create(
-            DefaultFluxCapacitor.builder().replaceSerializer(
-                    new JacksonSerializer(List.of(new JsonNodeUpcaster()))), new Handler());
+    private final TestFixture testFixture = TestFixture.create(new Handler()).registerCasters(new JsonNodeUpcaster());
 
     @Test
     void testUpcastingWithDataInput() {

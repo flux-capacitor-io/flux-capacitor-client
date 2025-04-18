@@ -14,6 +14,7 @@
 
 package io.fluxcapacitor.javaclient.common.serialization.casting;
 
+import io.fluxcapacitor.common.Registration;
 import io.fluxcapacitor.common.api.Data;
 import io.fluxcapacitor.common.api.SerializedObject;
 import io.fluxcapacitor.common.serialization.Converter;
@@ -23,9 +24,9 @@ import lombok.Getter;
 import lombok.Value;
 import lombok.With;
 
+import java.util.Arrays;
 import java.util.Collection;
-import java.util.Comparator;
-import java.util.List;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Stream;
@@ -34,62 +35,71 @@ import static java.lang.String.format;
 import static java.util.function.Function.identity;
 import static java.util.stream.Collectors.toMap;
 
-public class DefaultCasterChain<T> {
+public class DefaultCasterChain<T, S extends SerializedObject<T>> implements CasterChain<S, S> {
 
-    private static final Comparator<AnnotatedCaster<?>> upcasterComparator =
-            Comparator.<AnnotatedCaster<?>, Integer>comparing(u -> u.getParameters().revision())
-                    .thenComparing(u -> u.getParameters().type());
-
-    private static final Comparator<AnnotatedCaster<?>> downcasterComparator =
-            Comparator.<AnnotatedCaster<?>, Integer>comparing(u -> u.getParameters().revision()).reversed()
-                    .thenComparing(u -> u.getParameters().type());
-
-    @SuppressWarnings({"rawtypes", "unchecked"})
-    public static <T> Caster<SerializedObject<byte[]>, SerializedObject<?>> createUpcaster(Collection<?> casterCandidates,
-                                                                         Converter<byte[], T> converter) {
-        Caster<ConvertingSerializedObject<byte[], T>, ? extends ConvertingSerializedObject> casterChain =
-                create(casterCandidates, converter.getOutputType(), false);
-        return (stream, desiredRevision) -> {
-            Stream<ConvertingSerializedObject<byte[], T>> converted =
-                    stream.map(s -> new ConvertingSerializedObject<>(s, converter));
-            Stream<? extends ConvertingSerializedObject> casted = casterChain.cast(converted);
-            return (Stream) casted.map(ConvertingSerializedObject::getResult);
-        };
+    public static <BEFORE, INTERNAL> CasterChain<SerializedObject<BEFORE>, SerializedObject<?>> createUpcaster(
+            Collection<?> casterCandidates, Converter<BEFORE, INTERNAL> converter) {
+        return create(casterCandidates, converter, false);
     }
 
-    public static <T, S extends SerializedObject<T>> Caster<S, S> create(Collection<?> casterCandidates,
-                                                                         Class<T> dataType, boolean down) {
-        List<AnnotatedCaster<T>> upcasterList =
-                CastInspector.getCasters(down ? Downcast.class : Upcast.class, casterCandidates, dataType,
-                                         down ? downcasterComparator : upcasterComparator);
-        DefaultCasterChain<T> casterChain = new DefaultCasterChain<>(upcasterList, down);
-        return casterChain::cast;
+    public static <T, S extends SerializedObject<T>> CasterChain<S, S> createUpcaster(
+            Collection<?> casterCandidates, Class<T> dataType) {
+        return create(casterCandidates, dataType, false);
+    }
+
+    public static <T, S extends SerializedObject<T>> CasterChain<S, S> createDowncaster(
+            Collection<?> casterCandidates, Class<T> dataType) {
+        return create(casterCandidates, dataType, true);
+    }
+
+    protected static <BEFORE, INTERNAL> CasterChain<SerializedObject<BEFORE>, SerializedObject<?>> create(
+            Collection<?> casterCandidates, Converter<BEFORE, INTERNAL> converter, boolean down) {
+        return create(casterCandidates, converter.getOutputType(), down)
+                .intercept(i -> new ConvertingSerializedObject<>(i, converter),
+                           o -> ((ConvertingSerializedObject<?, ?>) o).getResult());
+    }
+
+    protected static <T, S extends SerializedObject<T>> CasterChain<S, S> create(
+            Collection<?> casterCandidates, Class<T> dataType, boolean down) {
+        return new DefaultCasterChain<>(casterCandidates, dataType, down);
     }
 
     private final Map<DataRevision, AnnotatedCaster<T>> casters;
     private final boolean down;
+    private final Class<T> dataType;
 
-    protected DefaultCasterChain(Collection<AnnotatedCaster<T>> casters, boolean down) {
-        this.casters =
-                casters.stream().collect(toMap(u -> new DataRevision(u.getParameters()), identity(), (a, b) -> {
-                    throw new DeserializationException(
-                            format("Failed to create caster chain. Methods '%s' and '%s' both apply to the same data revision.",
-                                   a, b));
-                }));
+    protected DefaultCasterChain(Collection<?> casterCandidates, Class<T> dataType, boolean down) {
+        this.casters = CastInspector.getCasters(down ? Downcast.class : Upcast.class, casterCandidates, dataType)
+                .stream().collect(toMap(u -> new DataRevision(u.getParameters()), identity(), (a, b) -> {
+                    throw new DeserializationException(format(
+                            "Failed to create CasterChain. Methods '%s' and '%s' both apply to the same data revision.",
+                            a, b));
+                }, HashMap::new));
         this.down = down;
+        this.dataType = dataType;
     }
 
-    protected <S extends SerializedObject<T>> Stream<S> cast(Stream<S> input, Integer desiredRevision) {
-        return doCast(input, desiredRevision);
+    @Override
+    public Registration registerCasterCandidates(Object... candidates) {
+        return CastInspector.getCasters(down ? Downcast.class : Upcast.class, Arrays.asList(candidates), dataType)
+                .stream().<Registration>map(c -> {
+                    DataRevision dataRevision = new DataRevision(c.getParameters());
+                    if (casters.putIfAbsent(dataRevision, c) != null) {
+                        throw new DeserializationException(format(
+                                "Failed to register candidate. A caster for %s already exists.", dataRevision));
+                    }
+                    return () -> casters.remove(dataRevision);
+                }).reduce(Registration::merge).orElseGet(Registration::noOp);
     }
 
-    protected <S extends SerializedObject<T>> Stream<S> doCast(Stream<S> input, Integer desiredRevision) {
+    @Override
+    public Stream<S> cast(Stream<? extends S> input, Integer desiredRevision) {
         return input.flatMap(i -> {
             boolean completed = desiredRevision != null
                                 && (down ? i.getRevision() <= desiredRevision : i.getRevision() >= desiredRevision);
             return completed ? Stream.of(i)
                     : Optional.ofNullable(casters.get(new DataRevision(i.getType(), i.getRevision())))
-                    .map(caster -> doCast(caster.cast(i), desiredRevision))
+                    .map(caster -> cast(caster.cast(i), desiredRevision))
                     .orElseGet(() -> Stream.of(i));
         });
     }

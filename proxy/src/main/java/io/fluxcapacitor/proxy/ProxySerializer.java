@@ -14,6 +14,7 @@
 
 package io.fluxcapacitor.proxy;
 
+import io.fluxcapacitor.common.Registration;
 import io.fluxcapacitor.common.api.Data;
 import io.fluxcapacitor.common.api.SerializedObject;
 import io.fluxcapacitor.javaclient.common.serialization.DeserializingObject;
@@ -46,7 +47,17 @@ public class ProxySerializer implements Serializer {
     }
 
     @Override
-    public Serializer registerTypeCaster(String s, String s1) {
+    public Registration registerUpcasters(Object... casterCandidates) {
+        throw new UnsupportedOperationException();
+    }
+
+    @Override
+    public Registration registerDowncasters(Object... casterCandidates) {
+        throw new UnsupportedOperationException();
+    }
+
+    @Override
+    public Registration registerTypeCaster(String s, String s1) {
         throw new UnsupportedOperationException();
     }
 

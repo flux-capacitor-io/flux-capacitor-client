@@ -14,15 +14,21 @@
 
 package io.fluxcapacitor.javaclient.common.serialization.casting;
 
+import java.util.function.Function;
 import java.util.stream.Stream;
 
 @FunctionalInterface
 public interface Caster<I, O> {
 
-    default Stream<O> cast(Stream<I> input) {
+    default Stream<? extends O> cast(Stream<? extends I> input) {
         return cast(input, null);
     }
 
-    Stream<O> cast(Stream<I> input, Integer desiredRevision);
+    Stream<? extends O> cast(Stream<? extends I> input, Integer desiredRevision);
+
+    default <BEFORE, AFTER> Caster<BEFORE, AFTER> intercept(Function<BEFORE, ? extends I> before,
+                                                            Function<? super O, AFTER> after) {
+        return (inputStream, rev) -> cast(inputStream.map(before), rev).map(after);
+    }
 
 }

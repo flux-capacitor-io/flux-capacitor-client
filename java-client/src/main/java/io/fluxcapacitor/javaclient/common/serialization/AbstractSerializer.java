@@ -14,11 +14,12 @@
 
 package io.fluxcapacitor.javaclient.common.serialization;
 
+import io.fluxcapacitor.common.Registration;
 import io.fluxcapacitor.common.api.Data;
 import io.fluxcapacitor.common.api.SerializedObject;
 import io.fluxcapacitor.common.reflection.ReflectionUtils;
 import io.fluxcapacitor.common.serialization.Converter;
-import io.fluxcapacitor.javaclient.common.serialization.casting.Caster;
+import io.fluxcapacitor.javaclient.common.serialization.casting.CasterChain;
 import io.fluxcapacitor.javaclient.common.serialization.casting.DefaultCasterChain;
 import lombok.Getter;
 import lombok.SneakyThrows;
@@ -53,15 +54,15 @@ import static java.nio.charset.StandardCharsets.UTF_8;
 
 @Slf4j
 public abstract class AbstractSerializer<I> implements Serializer {
-    private final Caster<SerializedObject<byte[]>, SerializedObject<?>> upcasterChain;
-    private final Caster<Data<I>, Data<I>> downcasterChain;
+    private final CasterChain<SerializedObject<byte[]>, SerializedObject<?>> upcasterChain;
+    private final CasterChain<Data<I>, Data<I>> downcasterChain;
     @Getter
     private final String format;
     private final Map<String, String> typeCasters = new ConcurrentHashMap<>();
 
     protected AbstractSerializer(Collection<?> casterCandidates, Converter<byte[], I> converter, String format) {
         this.upcasterChain = DefaultCasterChain.createUpcaster(casterCandidates, converter);
-        this.downcasterChain = DefaultCasterChain.create(casterCandidates, converter.getOutputType(), true);
+        this.downcasterChain = DefaultCasterChain.createDowncaster(casterCandidates, converter.getOutputType());
         this.format = format;
     }
 
@@ -212,9 +213,19 @@ public abstract class AbstractSerializer<I> implements Serializer {
     }
 
     @Override
-    public Serializer registerTypeCaster(String oldType, String newType) {
+    public Registration registerUpcasters(Object... casterCandidates) {
+        return upcasterChain.registerCasterCandidates(casterCandidates);
+    }
+
+    @Override
+    public Registration registerDowncasters(Object... casterCandidates) {
+        return downcasterChain.registerCasterCandidates(casterCandidates);
+    }
+
+    @Override
+    public Registration registerTypeCaster(String oldType, String newType) {
         typeCasters.put(oldType, newType);
-        return this;
+        return () -> typeCasters.remove(oldType);
     }
 
     @Override

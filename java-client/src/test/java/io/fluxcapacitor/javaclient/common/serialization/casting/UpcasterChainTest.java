@@ -43,7 +43,7 @@ class UpcasterChainTest {
     private Caster<Data<String>, Data<String>> subject = create(Collections.singleton(upcasterStub));
 
     private static <S extends SerializedObject<String>> Caster<S, S> create(Collection<?> upcasters) {
-        return DefaultCasterChain.create(upcasters, String.class, false);
+        return DefaultCasterChain.createUpcaster(upcasters, String.class);
     }
 
     @Test

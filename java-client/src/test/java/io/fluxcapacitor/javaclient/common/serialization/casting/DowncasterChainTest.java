@@ -26,7 +26,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 class DowncasterChainTest {
 
     private final Downcasters downcasters = new Downcasters();
-    private final Caster<Data<String>, Data<String>> subject = DefaultCasterChain.create(List.of(downcasters), String.class, true);
+    private final Caster<Data<String>, Data<String>> subject = DefaultCasterChain.createDowncaster(List.of(downcasters), String.class);
 
     @Test
     void inputIsDowncasted() {

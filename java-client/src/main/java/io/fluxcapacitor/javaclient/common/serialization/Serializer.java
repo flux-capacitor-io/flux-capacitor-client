@@ -15,6 +15,7 @@
 package io.fluxcapacitor.javaclient.common.serialization;
 
 import io.fluxcapacitor.common.MessageType;
+import io.fluxcapacitor.common.Registration;
 import io.fluxcapacitor.common.api.Data;
 import io.fluxcapacitor.common.api.SerializedMessage;
 import io.fluxcapacitor.common.api.SerializedObject;
@@ -138,7 +139,15 @@ public interface Serializer extends ContentFilter {
 
     <V> V clone(Object value);
 
-    Serializer registerTypeCaster(String oldType, String newType);
+    Registration registerUpcasters(Object... casterCandidates);
+
+    Registration registerDowncasters(Object... casterCandidates);
+
+    default Registration registerCasters(Object... casterCandidates) {
+        return registerUpcasters(casterCandidates).merge(registerDowncasters(casterCandidates));
+    }
+
+    Registration registerTypeCaster(String oldType, String newType);
 
     String upcastType(String type);
 

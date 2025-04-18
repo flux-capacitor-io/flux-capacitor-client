@@ -27,7 +27,6 @@ import java.lang.reflect.ParameterizedType;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
-import java.util.Comparator;
 import java.util.List;
 import java.util.Optional;
 import java.util.function.BiFunction;
@@ -45,14 +44,13 @@ public class CastInspector {
     }
 
     public static <T> List<AnnotatedCaster<T>> getCasters(Class<? extends Annotation> castAnnotation,
-                                                          Collection<?> candidateTargets, Class<T> dataType,
-                                                          Comparator<AnnotatedCaster<?>> casterComparator) {
+                                                          Collection<?> candidateTargets, Class<T> dataType) {
         List<AnnotatedCaster<T>> result = new ArrayList<>();
         for (Object caster : candidateTargets) {
-            getAllMethods(caster.getClass()).forEach(m -> createCaster(caster, m, dataType, castAnnotation)
+            var casterInstance = ReflectionUtils.asInstance(caster);
+            getAllMethods(casterInstance.getClass()).forEach(m -> createCaster(casterInstance, m, dataType, castAnnotation)
                     .ifPresent(result::add));
         }
-        result.sort(casterComparator);
         return result;
     }
 

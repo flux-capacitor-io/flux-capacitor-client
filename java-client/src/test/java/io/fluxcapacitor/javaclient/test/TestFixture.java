@@ -407,6 +407,16 @@ public class TestFixture implements Given, When {
         return registerHandlers(Arrays.asList(handlers));
     }
 
+    /**
+     * Registers objects containing methods for up or down casting with the serializer used by the test fixture.
+     *
+     * @see io.fluxcapacitor.javaclient.common.serialization.casting.Upcast for information on upcasting.
+     * @see io.fluxcapacitor.javaclient.common.serialization.casting.Downcast for information on downcasting.
+     */
+    public TestFixture registerCasters(Object... casterCandidates) {
+        return modifyFixture(fixture -> fixture.getFluxCapacitor().serializer().registerCasters(casterCandidates));
+    }
+
     @Override
     public TestFixture withClock(Clock clock) {
         return modifyFixture(fixture -> fixture.setClock(clock));
