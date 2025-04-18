@@ -75,12 +75,16 @@ public interface HasMessage extends HasMetadata {
     }
 
     default Optional<String> getRoutingKey(String propertyName) {
+        return getRoutingKey(propertyName, true);
+    }
+
+    default Optional<String> getRoutingKey(String propertyName, boolean warnIfMissing) {
         String result = getMetadata().get(propertyName);
         if (result == null) {
             result = readProperty(propertyName, getPayload())
                     .map(Object::toString).orElse(null);
         }
-        if (result == null && warnedAboutMissingProperty.apply(getPayloadClass(), propertyName)
+        if (result == null && warnIfMissing && warnedAboutMissingProperty.apply(getPayloadClass(), propertyName)
                 .compareAndSet(false, true)) {
             LoggerFactory.getLogger(HasMessage.class).warn(
                     "Did not find property (field, method, or metadata key) '{}' for routing key on message {} (id {})",

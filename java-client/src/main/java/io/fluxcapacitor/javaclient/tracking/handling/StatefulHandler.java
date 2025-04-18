@@ -116,7 +116,7 @@ public class StatefulHandler implements Handler<DeserializingMessage> {
                         }
                         String routingKey = ReflectionUtils.getAnnotatedProperty(targetClass, EntityId.class)
                                 .map(ReflectionUtils::getPropertyName)
-                                .flatMap(message::getRoutingKey)
+                                .flatMap(propertyName -> message.getRoutingKey(propertyName, false))
                                 .orElseGet(message::getMessageId);
                         return canTrackerHandle(message, routingKey);
                     })
