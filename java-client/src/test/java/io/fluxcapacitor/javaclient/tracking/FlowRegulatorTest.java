@@ -34,7 +34,7 @@ class FlowRegulatorTest {
         @Test
         void consumerIsPaused() {
             testFixture
-                    .consumerTimeout(Duration.ofMillis(800))
+                    .consumerTimeout(Duration.ofMillis(700))
                     .registerHandlers(PauseOnceHandler.class)
                     .whenEvent("123")
                     .expectMetrics(PauseTrackerEvent.class)

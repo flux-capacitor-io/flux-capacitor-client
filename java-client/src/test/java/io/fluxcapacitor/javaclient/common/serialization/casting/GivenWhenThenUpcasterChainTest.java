@@ -56,10 +56,14 @@ public class GivenWhenThenUpcasterChainTest {
     }
 
     @Test
+    void whenUpcast() {
+        testFixture.whenUpcasting("create-model-revision-0.json")
+                .expectResult(new CreateModel("patchedContent"));
+    }
+
+    @Test
     void droppedCommandDoesNotInvokeHandler() {
-        testFixture.whenExecuting(fc -> FluxCapacitor.sendAndForgetCommand(
-                        testFixture.parseObject("dropped-create-model-revision-0.json", getClass())))
-                .expectNoEvents().expectNoErrors();
+        testFixture.whenCommand("dropped-create-model-revision-0.json").expectNoEvents().expectNoErrors();
     }
 
     @Test

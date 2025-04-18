@@ -34,8 +34,8 @@ import java.util.List;
 import java.util.function.UnaryOperator;
 
 /**
- * Interface of the `when` phase of a behavioral given-when-Then<?> test. Here you specify the action you want to test the
- * behavior of.
+ * Interface of the `when` phase of a behavioral given-when-Then<?> test. Here you specify the action you want to test
+ * the behavior of.
  * <p>
  * Only effects of the `when` phase will be reported in the `then` phase, i.e. effects of the `given` phase will *not*
  * be reported.
@@ -133,16 +133,16 @@ public interface When {
     /**
      * Test expected behavior of handling the given message for given custom topic, including any side effects.
      * <p>
-     * The message may be an instance of {@link Message} in which case it will be issued as is. Otherwise, the
-     * message issued using the passed value as payload without additional metadata.
+     * The message may be an instance of {@link Message} in which case it will be issued as is. Otherwise, the message
+     * issued using the passed value as payload without additional metadata.
      */
     Then<Object> whenCustom(String topic, Object message);
 
     /**
      * Test expected behavior of handling the given request for given custom topic, including any side effects.
      * <p>
-     * The request may be an instance of {@link Message} in which case it will be issued as is. Otherwise, the request is
-     * issued using the passed value as payload without additional metadata.
+     * The request may be an instance of {@link Message} in which case it will be issued as is. Otherwise, the request
+     * is issued using the passed value as payload without additional metadata.
      */
     @SuppressWarnings("unchecked")
     default <R> Then<R> whenCustom(String topic, Request<R> request) {
@@ -150,13 +150,14 @@ public interface When {
     }
 
     /**
-     * Test expected result of the given request for given custom topic issued by the given user (or side effects if any).
+     * Test expected result of the given request for given custom topic issued by the given user (or side effects if
+     * any).
      * <p>
      * The given {@code user} may be an instance of {@link User} or an object representing the user's id. In the latter
      * case, the test fixture will use the {@link UserProvider} to provide the user by id.
      * <p>
-     * The request may be an instance of {@link Message} in which case it will be issued as is. Otherwise, the request is
-     * issued using the passed value as payload without additional metadata.
+     * The request may be an instance of {@link Message} in which case it will be issued as is. Otherwise, the request
+     * is issued using the passed value as payload without additional metadata.
      */
     @SuppressWarnings("unchecked")
     default <R> Then<R> whenCustomByUser(Object user, String topic, Request<R> request) {
@@ -164,13 +165,14 @@ public interface When {
     }
 
     /**
-     * Test expected result of the given message for given custom topic issued by the given user (or side effects if any).
+     * Test expected result of the given message for given custom topic issued by the given user (or side effects if
+     * any).
      * <p>
      * The given {@code user} may be an instance of {@link User} or an object representing the user's id. In the latter
      * case, the test fixture will use the {@link UserProvider} to provide the user by id.
      * <p>
-     * The message may be an instance of {@link Message} in which case it will be issued as is. Otherwise, the message is
-     * issued using the passed value as payload without additional metadata.
+     * The message may be an instance of {@link Message} in which case it will be issued as is. Otherwise, the message
+     * is issued using the passed value as payload without additional metadata.
      */
     Then<Object> whenCustomByUser(Object user, String topic, Object message);
 
@@ -280,6 +282,13 @@ public interface When {
      * Test expected behavior after simulating a time advance by the given duration.
      */
     Then<?> whenTimeElapses(Duration duration);
+
+    /**
+     * Test upcasting the given value.
+     * <p>
+     * The value may be a {@link Data} or string referring to a serialized Data resource.
+     */
+    <R> Then<R> whenUpcasting(Object value);
 
     /**
      * Test expected (side) effect of the given action.

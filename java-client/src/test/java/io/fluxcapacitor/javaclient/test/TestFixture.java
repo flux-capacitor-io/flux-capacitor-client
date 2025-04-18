@@ -614,43 +614,50 @@ public class TestFixture implements Given, When {
     @Override
     public Then<Object> whenCommand(Object command) {
         Message message = trace(command);
-        return whenApplying(fc -> getDispatchResult(fc.commandGateway().send(message)));
+        return whenApplying(fc -> message.getPayload() == null
+                ? null : getDispatchResult(fc.commandGateway().send(message)));
     }
 
     @Override
     public Then<Object> whenCommandByUser(Object user, Object command) {
         Message message = trace(command);
-        return whenApplying(fc -> getDispatchResult(fc.commandGateway().send(addUser(getUser(user), message))));
+        return whenApplying(fc -> message.getPayload() == null
+                ? null : getDispatchResult(fc.commandGateway().send(addUser(getUser(user), message))));
     }
 
     @Override
     public Then<Object> whenQuery(Object query) {
         Message message = trace(query);
-        return whenApplying(fc -> getDispatchResult(fc.queryGateway().send(message)));
+        return whenApplying(fc -> message.getPayload() == null
+                ? null : getDispatchResult(fc.queryGateway().send(message)));
     }
 
     @Override
     public Then<Object> whenQueryByUser(Object user, Object query) {
         Message message = trace(query);
-        return whenApplying(fc -> getDispatchResult(fc.queryGateway().send(addUser(getUser(user), message))));
+        return whenApplying(fc -> message.getPayload() == null
+                ? null : getDispatchResult(fc.queryGateway().send(addUser(getUser(user), message))));
     }
 
     @Override
     public Then<Object> whenCustom(String topic, Object request) {
         Message message = trace(request);
-        return whenApplying(fc -> getDispatchResult(fc.customGateway(topic).send(message)));
+        return whenApplying(fc -> message.getPayload() == null
+                ? null : getDispatchResult(fc.customGateway(topic).send(message)));
     }
 
     @Override
     public Then<Object> whenCustomByUser(Object user, String topic, Object request) {
         Message message = trace(request);
-        return whenApplying(fc -> getDispatchResult(fc.customGateway(topic).send(addUser(getUser(user), message))));
+        return whenApplying(fc -> message.getPayload() == null
+                ? null : getDispatchResult(fc.customGateway(topic).send(addUser(getUser(user), message))));
     }
 
     @Override
     public Then<?> whenEvent(Object event) {
         Message message = trace(event);
-        return whenExecuting(fc -> fc.eventGateway().publish(message, Guarantee.STORED).get());
+        return message.getPayload() == null ? whenNothingHappens()
+                : whenExecuting(fc -> fc.eventGateway().publish(message, Guarantee.STORED).get());
     }
 
     @Override
@@ -688,6 +695,12 @@ public class TestFixture implements Given, When {
     @SneakyThrows
     public Then<?> whenTimeElapses(Duration duration) {
         return whenExecuting(fc -> advanceTimeBy(duration));
+    }
+
+    @Override
+    public <R> Then<R> whenUpcasting(Object value) {
+        Class<?> callerClass = ReflectionUtils.getCallerClass();
+        return whenApplying(fc -> parseObject(value, callerClass));
     }
 
     @Override
