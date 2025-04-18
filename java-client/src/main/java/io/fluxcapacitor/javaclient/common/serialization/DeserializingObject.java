@@ -25,7 +25,7 @@ import java.util.function.Function;
 import static io.fluxcapacitor.common.ObjectUtils.memoize;
 
 @ToString(exclude = "objectFunction")
-public class DeserializingObject<T, S extends SerializedObject<T, S>> {
+public class DeserializingObject<T, S extends SerializedObject<T>> {
     private final S serializedObject;
     private final MemoizingFunction<Class<?>, Object> objectFunction;
 

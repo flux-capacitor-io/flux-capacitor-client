@@ -21,7 +21,7 @@ import lombok.With;
 
 @lombok.Data
 @AllArgsConstructor
-public class SerializedMessage implements SerializedObject<byte[], SerializedMessage>, HasMetadata {
+public class SerializedMessage implements SerializedObject<byte[]>, HasMetadata {
 
     @NonNull
     private Data<byte[]> data;

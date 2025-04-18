@@ -30,7 +30,7 @@ public class ProxySerializer implements Serializer {
     }
 
     @Override
-    public <I extends SerializedObject<byte[], I>> Stream<DeserializingObject<byte[], I>> deserialize(
+    public <I extends SerializedObject<byte[]>> Stream<DeserializingObject<byte[], I>> deserialize(
             Stream<I> stream, UnknownTypeStrategy unknownTypeStrategy) {
         throw new UnsupportedOperationException();
     }

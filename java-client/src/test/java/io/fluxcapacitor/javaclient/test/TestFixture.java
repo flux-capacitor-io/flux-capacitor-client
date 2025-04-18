@@ -950,9 +950,9 @@ public class TestFixture implements Given, When {
         }
         if (object instanceof SerializedMessage s) {
             object = fluxCapacitor.serializer().deserializeMessage(s, EVENT).toMessage();
-        } else if (object instanceof SerializedObject<?, ?> s) {
-            SerializedObject<byte[], ?> eventBytes = s.data().getValue() instanceof byte[]
-                    ? (SerializedObject<byte[], ?>) s : fluxCapacitor.serializer().serialize(s);
+        } else if (object instanceof SerializedObject<?> s) {
+            SerializedObject<byte[]> eventBytes = s.data().getValue() instanceof byte[]
+                    ? (SerializedObject<byte[]>) s : fluxCapacitor.serializer().serialize(s);
             object = fluxCapacitor.serializer().deserialize(eventBytes);
         }
         return (T) object;

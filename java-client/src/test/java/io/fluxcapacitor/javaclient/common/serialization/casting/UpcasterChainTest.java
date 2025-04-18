@@ -42,7 +42,7 @@ class UpcasterChainTest {
     private final UpcasterStub upcasterStub = new UpcasterStub();
     private Caster<Data<String>, Data<String>> subject = create(Collections.singleton(upcasterStub));
 
-    private static <S extends SerializedObject<String, S>> Caster<S, S> create(Collection<?> upcasters) {
+    private static <S extends SerializedObject<String>> Caster<S, S> create(Collection<?> upcasters) {
         return DefaultCasterChain.create(upcasters, String.class, false);
     }
 
@@ -154,9 +154,9 @@ class UpcasterChainTest {
 
     @Test
     void testUpcastingWithTypeConversion() {
-        Caster<SerializedObject<byte[], ?>, SerializedObject<?, ?>> subject
+        Caster<SerializedObject<byte[]>, SerializedObject<?>> subject
                 = DefaultCasterChain.createUpcaster(Collections.singleton(upcasterStub), new StringConverter());
-        Stream<? extends SerializedObject<?, ?>> result =
+        Stream<? extends SerializedObject<?>> result =
                 subject.cast(Stream.of(new Data<>("input".getBytes(), "mapPayload", 0, null)));
         assertEquals(singletonList(new Data<>("mappedPayload", "mapPayload", 1, null)),
                      result.map(SerializedObject::data).collect(toList()));

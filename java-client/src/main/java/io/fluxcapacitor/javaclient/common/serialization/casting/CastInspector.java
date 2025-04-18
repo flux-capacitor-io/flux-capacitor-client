@@ -70,16 +70,16 @@ public class CastInspector {
         if (ensureAccessible(method).getReturnType().equals(void.class)) {
             return new AnnotatedCaster<>(method, castParameters, i -> Stream.empty());
         }
-        Function<SerializedObject<T, ?>, Object> invokeFunction = invokeFunction(method, target, dataType);
-        BiFunction<SerializedObject<T, ?>, Supplier<Object>, Stream<SerializedObject<T, ?>>> resultMapper =
+        Function<SerializedObject<T>, Object> invokeFunction = invokeFunction(method, target, dataType);
+        BiFunction<SerializedObject<T>, Supplier<Object>, Stream<SerializedObject<T>>> resultMapper =
                 mapResult(castParameters, method, dataType);
         return new AnnotatedCaster<>(method, castParameters, d -> resultMapper.apply(d, () -> invokeFunction.apply(d)));
     }
 
-    private static <T> Function<SerializedObject<T, ?>, Object> invokeFunction(Method method, Object target,
+    private static <T> Function<SerializedObject<T>, Object> invokeFunction(Method method, Object target,
                                                                                Class<T> dataType) {
         var parameterFunctions =
-                Arrays.stream(method.getGenericParameterTypes()).<Function<SerializedObject<T, ?>, ?>>map(pt -> {
+                Arrays.stream(method.getGenericParameterTypes()).<Function<SerializedObject<T>, ?>>map(pt -> {
                     if (pt instanceof ParameterizedType parameterizedType) {
                         if (parameterizedType.getRawType().equals(Data.class) && dataType
                                 .isAssignableFrom((Class<?>) parameterizedType.getActualTypeArguments()[0])) {
@@ -120,7 +120,7 @@ public class CastInspector {
     }
 
     @SuppressWarnings("unchecked")
-    private static <T> BiFunction<SerializedObject<T, ?>, Supplier<Object>, Stream<SerializedObject<T, ?>>> mapResult(
+    private static <T> BiFunction<SerializedObject<T>, Supplier<Object>, Stream<SerializedObject<T>>> mapResult(
             CastParameters annotation, Method method, Class<T> dataType) {
         if (dataType.isAssignableFrom(method.getReturnType())) {
             return (s, o) -> Stream

@@ -53,7 +53,7 @@ import static java.nio.charset.StandardCharsets.UTF_8;
 
 @Slf4j
 public abstract class AbstractSerializer<I> implements Serializer {
-    private final Caster<SerializedObject<byte[], ?>, SerializedObject<?, ?>> upcasterChain;
+    private final Caster<SerializedObject<byte[]>, SerializedObject<?>> upcasterChain;
     private final Caster<Data<I>, Data<I>> downcasterChain;
     @Getter
     private final String format;
@@ -145,9 +145,9 @@ public abstract class AbstractSerializer<I> implements Serializer {
 
     @SuppressWarnings({"unchecked", "rawtypes"})
     @Override
-    public <S extends SerializedObject<byte[], S>> Stream<DeserializingObject<byte[], S>> deserialize(
+    public <S extends SerializedObject<byte[]>> Stream<DeserializingObject<byte[], S>> deserialize(
             Stream<S> dataStream, UnknownTypeStrategy unknownTypeStrategy) {
-        return upcasterChain.cast((Stream<SerializedObject<byte[], ?>>) dataStream)
+        return upcasterChain.cast((Stream<SerializedObject<byte[]>>) dataStream)
                 .map(s -> {
                     String type = s.data().getType();
                     String upcastedType = upcastType(type);
@@ -262,7 +262,7 @@ public abstract class AbstractSerializer<I> implements Serializer {
     }
 
     @SuppressWarnings({"unchecked", "rawtypes"})
-    protected Stream<DeserializingObject<byte[], ?>> deserializeOtherFormat(SerializedObject<byte[], ?> s) {
+    protected Stream<DeserializingObject<byte[], ?>> deserializeOtherFormat(SerializedObject<byte[]> s) {
         return Stream.of(new DeserializingObject(s, (Function<Class<?>, Object>) type -> {
             try {
                 if (Object.class.equals(type)) {
@@ -284,7 +284,7 @@ public abstract class AbstractSerializer<I> implements Serializer {
         }));
     }
 
-    protected Stream<DeserializingObject<byte[], ?>> deserializeUnknownType(SerializedObject<?, ?> serializedObject) {
+    protected Stream<DeserializingObject<byte[], ?>> deserializeUnknownType(SerializedObject<?> serializedObject) {
         return Stream.empty();
     }
 

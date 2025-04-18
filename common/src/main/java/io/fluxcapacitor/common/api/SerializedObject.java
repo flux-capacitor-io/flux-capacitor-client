@@ -14,10 +14,10 @@
 
 package io.fluxcapacitor.common.api;
 
-public interface SerializedObject<T, S extends SerializedObject<T, S>> {
+public interface SerializedObject<T> {
     Data<T> data();
 
-    S withData(Data<T> data);
+    SerializedObject<T> withData(Data<T> data);
 
     default int getRevision() {
         return data().getRevision();

@@ -26,7 +26,7 @@ import java.util.function.Supplier;
 
 @Value
 @ToString(exclude = "value")
-public class Data<T> implements SerializedObject<T, Data<T>> {
+public class Data<T> implements SerializedObject<T> {
     public static final String JSON_FORMAT = "application/json";
     public static final String DOCUMENT_FORMAT = "document";
 

@@ -25,17 +25,17 @@ public class AnnotatedCaster<T> {
     private final Method method;
     @Getter
     private final CastParameters parameters;
-    private final Function<SerializedObject<T, ?>, Stream<SerializedObject<T, ?>>> castFunction;
+    private final Function<SerializedObject<T>, Stream<SerializedObject<T>>> castFunction;
 
     public AnnotatedCaster(Method method, CastParameters castParameters,
-                           Function<SerializedObject<T, ?>, Stream<SerializedObject<T, ?>>> castFunction) {
+                           Function<SerializedObject<T>, Stream<SerializedObject<T>>> castFunction) {
         this.method = method;
         this.parameters = castParameters;
         this.castFunction = castFunction;
     }
 
     @SuppressWarnings("unchecked")
-    public <S extends SerializedObject<T, S>> Stream<S> cast(S input) {
+    public <S extends SerializedObject<T>> Stream<S> cast(S input) {
         return parameters.type().equals(input.data().getType()) && parameters.revision() == input.data().getRevision()
                 ? (Stream<S>) castFunction.apply(input) : Stream.of(input);
     }

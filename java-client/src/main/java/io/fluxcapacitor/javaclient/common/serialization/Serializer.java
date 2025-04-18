@@ -58,7 +58,7 @@ public interface Serializer extends ContentFilter {
      * @throws DeserializationException if deserialization fails
      */
     @SuppressWarnings({"unchecked", "rawtypes"})
-    default <T> T deserialize(SerializedObject<byte[], ?> data) {
+    default <T> T deserialize(SerializedObject<byte[]> data) {
         List<DeserializingObject<T, ?>> list = deserialize((Stream) Stream.of(data), UnknownTypeStrategy.FAIL).toList();
         if (list.size() != 1) {
             throw new DeserializationException(
@@ -78,7 +78,7 @@ public interface Serializer extends ContentFilter {
      * @throws DeserializationException if deserialization fails
      */
     @SuppressWarnings({"unchecked", "rawtypes"})
-    default <T> T deserialize(SerializedObject<byte[], ?> data, Class<T> type) {
+    default <T> T deserialize(SerializedObject<byte[]> data, Class<T> type) {
         List<DeserializingObject<T, ?>> list = deserialize((Stream) Stream.of(data), UnknownTypeStrategy.AS_INTERMEDIATE).toList();
         if (list.size() != 1) {
             throw new DeserializationException(
@@ -107,7 +107,7 @@ public interface Serializer extends ContentFilter {
      * @param <I>                 the type of the serialized object
      * @return a stream containing deserialization results
      */
-    <I extends SerializedObject<byte[], I>> Stream<DeserializingObject<byte[], I>> deserialize(
+    <I extends SerializedObject<byte[]>> Stream<DeserializingObject<byte[], I>> deserialize(
             Stream<I> dataStream, UnknownTypeStrategy unknownTypeStrategy);
 
     default Stream<DeserializingMessage> deserializeMessages(Stream<SerializedMessage> dataStream,

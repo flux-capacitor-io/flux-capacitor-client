@@ -45,7 +45,7 @@ public class DefaultCasterChain<T> {
                     .thenComparing(u -> u.getParameters().type());
 
     @SuppressWarnings({"rawtypes", "unchecked"})
-    public static <T> Caster<SerializedObject<byte[], ?>, SerializedObject<?, ?>> createUpcaster(Collection<?> casterCandidates,
+    public static <T> Caster<SerializedObject<byte[]>, SerializedObject<?>> createUpcaster(Collection<?> casterCandidates,
                                                                          Converter<byte[], T> converter) {
         Caster<ConvertingSerializedObject<byte[], T>, ? extends ConvertingSerializedObject> casterChain =
                 create(casterCandidates, converter.getOutputType(), false);
@@ -57,7 +57,7 @@ public class DefaultCasterChain<T> {
         };
     }
 
-    public static <T, S extends SerializedObject<T, S>> Caster<S, S> create(Collection<?> casterCandidates,
+    public static <T, S extends SerializedObject<T>> Caster<S, S> create(Collection<?> casterCandidates,
                                                                          Class<T> dataType, boolean down) {
         List<AnnotatedCaster<T>> upcasterList =
                 CastInspector.getCasters(down ? Downcast.class : Upcast.class, casterCandidates, dataType,
@@ -79,11 +79,11 @@ public class DefaultCasterChain<T> {
         this.down = down;
     }
 
-    protected <S extends SerializedObject<T, S>> Stream<S> cast(Stream<S> input, Integer desiredRevision) {
+    protected <S extends SerializedObject<T>> Stream<S> cast(Stream<S> input, Integer desiredRevision) {
         return doCast(input, desiredRevision);
     }
 
-    protected <S extends SerializedObject<T, S>> Stream<S> doCast(Stream<S> input, Integer desiredRevision) {
+    protected <S extends SerializedObject<T>> Stream<S> doCast(Stream<S> input, Integer desiredRevision) {
         return input.flatMap(i -> {
             boolean completed = desiredRevision != null
                                 && (down ? i.getRevision() <= desiredRevision : i.getRevision() >= desiredRevision);
@@ -107,15 +107,15 @@ public class DefaultCasterChain<T> {
 
     @AllArgsConstructor
     protected static class ConvertingSerializedObject<I, O>
-            implements SerializedObject<O, ConvertingSerializedObject<I, O>>, HasSource<SerializedObject<I, ?>> {
+            implements SerializedObject<O>, HasSource<SerializedObject<I>> {
 
         @Getter
-        private final SerializedObject<I, ?> source;
+        private final SerializedObject<I> source;
         private final Converter<I, O> converter;
         @With
         private Data<O> data;
 
-        public ConvertingSerializedObject(SerializedObject<I, ?> source, Converter<I, O> converter) {
+        public ConvertingSerializedObject(SerializedObject<I> source, Converter<I, O> converter) {
             this.source = source;
             this.converter = converter;
         }
@@ -139,7 +139,7 @@ public class DefaultCasterChain<T> {
         }
 
         @SuppressWarnings({"rawtypes", "unchecked"})
-        public SerializedObject<?, ?> getResult() {
+        public SerializedObject<?> getResult() {
             if (data == null) {
                 Data converted = converter.convertFormat(source.data());
                 return converted == source.data() ? source : source.withData(converted);
