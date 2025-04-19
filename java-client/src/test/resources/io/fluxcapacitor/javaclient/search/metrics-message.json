@@ -1,4 +1,5 @@
 {
+  "@class" : "com.fasterxml.jackson.databind.JsonNode",
   "metadata": {
     "$consumer": "audittrail:QUERY",
     "$clientName": "audittrail",

@@ -277,8 +277,7 @@ public class SearchTest {
 
     @Test
     void testMetricsMessageExample() {
-        JsonNode jsonNode = JsonUtils.fromFile("metrics-message.json", JsonNode.class);
-        TestFixture.create().givenDocuments("test", jsonNode)
+        TestFixture.create().givenDocuments("test", "metrics-message.json")
                 .<JsonNode>whenSearching("test", query("106193501828612100", "messageIndex"))
                 .expectResult(r -> !r.isEmpty() && r.getFirst().get("payload") != null);
     }

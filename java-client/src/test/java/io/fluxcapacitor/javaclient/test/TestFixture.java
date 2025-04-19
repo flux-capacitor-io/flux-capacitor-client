@@ -28,7 +28,6 @@ import io.fluxcapacitor.common.application.SimplePropertySource;
 import io.fluxcapacitor.common.handling.Handler;
 import io.fluxcapacitor.common.handling.HandlerFilter;
 import io.fluxcapacitor.common.handling.HandlerInvoker;
-import io.fluxcapacitor.common.reflection.ReflectionUtils;
 import io.fluxcapacitor.common.serialization.JsonUtils;
 import io.fluxcapacitor.javaclient.FluxCapacitor;
 import io.fluxcapacitor.javaclient.common.ClientUtils;
@@ -104,6 +103,7 @@ import static io.fluxcapacitor.common.ObjectUtils.newThreadFactory;
 import static io.fluxcapacitor.common.ObjectUtils.run;
 import static io.fluxcapacitor.common.ObjectUtils.tryCatch;
 import static io.fluxcapacitor.common.api.Data.JSON_FORMAT;
+import static io.fluxcapacitor.common.reflection.ReflectionUtils.getCallerClass;
 import static io.fluxcapacitor.common.reflection.ReflectionUtils.ifClass;
 import static io.fluxcapacitor.javaclient.common.ClientUtils.getLocalHandlerAnnotation;
 import static io.fluxcapacitor.javaclient.common.Message.asMessage;
@@ -376,7 +376,7 @@ public class TestFixture implements Given, When {
             HandlerFilter handlerFilter = (c, e) -> true;
             var registration = fc.apply(f -> handlers.stream().flatMap(
                             h -> Stream.concat(localHandlerRegistries(f).map(r -> r.registerHandler(h, handlerFilter)),
-                                                    ClientUtils.getTopics(CUSTOM, h).stream()
+                                               ClientUtils.getTopics(CUSTOM, h).stream()
                                                        .map(topic -> f.customGateway(topic).registerHandler(h, handlerFilter))))
                     .reduce(Registration::merge).orElse(Registration.noOp()));
             fixture.registration = fixture.registration.merge(registration);
@@ -453,7 +453,7 @@ public class TestFixture implements Given, When {
 
     @Override
     public TestFixture givenCommands(Object... commands) {
-        Class<?> callerClass = ReflectionUtils.getCallerClass();
+        Class<?> callerClass = getCallerClass();
         for (Object command : commands) {
             givenModification(fixture -> fixture.asMessages(callerClass, command).forEach(
                     c -> fixture.getDispatchResult(fixture.getFluxCapacitor().commandGateway().send(c))));
@@ -463,7 +463,7 @@ public class TestFixture implements Given, When {
 
     @Override
     public TestFixture givenCommandsByUser(Object user, Object... commands) {
-        Class<?> callerClass = ReflectionUtils.getCallerClass();
+        Class<?> callerClass = getCallerClass();
         for (Object command : commands) {
             givenModification(
                     fixture -> fixture.asMessages(callerClass, command).map(c -> fixture.addUser(getUser(user), c))
@@ -475,7 +475,7 @@ public class TestFixture implements Given, When {
 
     @Override
     public TestFixture givenCustom(String topic, Object... requests) {
-        Class<?> callerClass = ReflectionUtils.getCallerClass();
+        Class<?> callerClass = getCallerClass();
         for (Object request : requests) {
             givenModification(fixture -> fixture.asMessages(callerClass, request).forEach(
                     c -> fixture.getDispatchResult(fixture.getFluxCapacitor().customGateway(topic).send(c))));
@@ -485,7 +485,7 @@ public class TestFixture implements Given, When {
 
     @Override
     public TestFixture givenCustomByUser(Object user, String topic, Object... requests) {
-        Class<?> callerClass = ReflectionUtils.getCallerClass();
+        Class<?> callerClass = getCallerClass();
         for (Object request : requests) {
             givenModification(
                     fixture -> fixture.asMessages(callerClass, request).map(c -> fixture.addUser(getUser(user), c))
@@ -497,14 +497,14 @@ public class TestFixture implements Given, When {
 
     @Override
     public TestFixture givenAppliedEvents(String aggregateId, Class<?> aggregateClass, Object... events) {
-        Class<?> callerClass = ReflectionUtils.getCallerClass();
+        Class<?> callerClass = getCallerClass();
         return givenModification(fixture -> fixture.applyEvents(aggregateId, aggregateClass, fixture.getFluxCapacitor(),
                                                                 fixture.asMessages(callerClass, events).toList()));
     }
 
     @Override
     public TestFixture givenEvents(Object... events) {
-        Class<?> callerClass = ReflectionUtils.getCallerClass();
+        Class<?> callerClass = getCallerClass();
         for (Object event : events) {
             givenModification(fixture -> fixture.asMessages(callerClass, event)
                     .forEach(e -> fixture.getFluxCapacitor().eventGateway().publish(e)));
@@ -514,27 +514,32 @@ public class TestFixture implements Given, When {
 
     @Override
     public TestFixture givenDocument(Object document, Object id, Object collection, Instant timestamp, Instant end) {
+        Class<?> callerClass = getCallerClass();
         return givenModification(fixture -> fixture.getFluxCapacitor().documentStore()
-                .index(document, id, collection, timestamp, end).get());
+                .index(fixture.parseObject(document, callerClass), id, collection, timestamp, end).get());
     }
 
     @Override
     public TestFixture givenDocument(Object document) {
-        givenModification(fixture -> fixture.getFluxCapacitor().documentStore().index(document).get());
-        return this;
+        Class<?> callerClass = getCallerClass();
+        return givenModification(
+                fixture -> fixture.getFluxCapacitor().documentStore().index(fixture.parseObject(document, callerClass))
+                        .get());
     }
 
     @Override
     public TestFixture givenDocuments(Object collection, Object firstDocument, Object... otherDocuments) {
+        Class<?> callerClass = getCallerClass();
         for (Object document : Stream.concat(Stream.of(firstDocument), Arrays.stream(otherDocuments)).toList()) {
-            givenModification(fixture -> fixture.getFluxCapacitor().documentStore().index(document, collection).get());
+            givenModification(fixture -> fixture.getFluxCapacitor().documentStore()
+                    .index(fixture.<Object>parseObject(document, callerClass), collection).get());
         }
         return this;
     }
 
     @Override
     public TestFixture givenSchedules(Schedule... schedules) {
-        Class<?> callerClass = ReflectionUtils.getCallerClass();
+        Class<?> callerClass = getCallerClass();
         givenModification(fixture -> fixture.asMessages(callerClass, (Object[]) schedules).forEach(
                 s -> run(() -> fluxCapacitor.scheduler().schedule((Schedule) s, false, Guarantee.STORED).get())));
         return this;
@@ -542,19 +547,17 @@ public class TestFixture implements Given, When {
 
     @Override
     public TestFixture givenScheduledCommands(Schedule... commands) {
-        Class<?> callerClass = ReflectionUtils.getCallerClass();
+        Class<?> callerClass = getCallerClass();
         givenModification(fixture -> fixture.asMessages(callerClass, (Object[]) commands).forEach(
-                s -> run(() -> fluxCapacitor.scheduler().scheduleCommand((Schedule) s, false, Guarantee.STORED).get())));
+                s -> run(
+                        () -> fluxCapacitor.scheduler().scheduleCommand((Schedule) s, false, Guarantee.STORED).get())));
         return this;
     }
 
     @Override
     public TestFixture givenWebRequest(WebRequest webRequest) {
-        Class<?> callerClass = ReflectionUtils.getCallerClass();
-        return givenModification(fixture -> {
-            WebRequest request = fixture.parseObject(webRequest, callerClass);
-            fixture.executeWebRequest(request);
-        });
+        Class<?> callerClass = getCallerClass();
+        return givenModification(fixture -> fixture.executeWebRequest(fixture.parseObject(webRequest, callerClass)));
     }
 
     @Override
@@ -679,7 +682,7 @@ public class TestFixture implements Given, When {
 
     @Override
     public Then<?> whenEventsAreApplied(String aggregateId, Class<?> aggregateClass, Object... events) {
-        Class<?> callerClass = ReflectionUtils.getCallerClass();
+        Class<?> callerClass = getCallerClass();
         return whenExecuting(fc -> applyEvents(aggregateId, aggregateClass, fc,
                                                asMessages(callerClass, events).collect(toList())));
     }
@@ -716,7 +719,7 @@ public class TestFixture implements Given, When {
 
     @Override
     public <R> Then<R> whenUpcasting(Object value) {
-        Class<?> callerClass = ReflectionUtils.getCallerClass();
+        Class<?> callerClass = getCallerClass();
         return whenApplying(fc -> parseObject(value, callerClass));
     }
 
@@ -964,14 +967,14 @@ public class TestFixture implements Given, When {
 
     @SuppressWarnings("unchecked")
     protected <M extends Message> M trace(Object object) {
-        Class<?> callerClass = ReflectionUtils.getCallerClass();
+        Class<?> callerClass = getCallerClass();
         M result = (M) fluxCapacitor.apply(fc -> asMessage(parseObject(object, callerClass)));
         setTracedMessage(result);
         return result;
     }
 
     protected Message addUser(User user, Object value) {
-        Class<?> callerClass = ReflectionUtils.getCallerClass();
+        Class<?> callerClass = getCallerClass();
         return fluxCapacitor.apply(fc -> asMessage(parseObject(value, callerClass)).addUser(user));
     }
 
@@ -1019,7 +1022,8 @@ public class TestFixture implements Given, When {
         private final List<Schedule> publishedSchedules = new CopyOnWriteArrayList<>();
         private final Set<String> interceptedMessageIds = new CopyOnWriteArraySet<>();
 
-        protected void interceptClientDispatch(MessageType messageType, String topic, List<SerializedMessage> messages) {
+        protected void interceptClientDispatch(MessageType messageType, String topic,
+                                               List<SerializedMessage> messages) {
             if (testFixture.isCollectingResults()) {
                 try {
                     testFixture.fluxCapacitor.serializer()
@@ -1054,7 +1058,8 @@ public class TestFixture implements Given, When {
                 testFixture.consumers.entrySet().stream()
                         .filter(t -> {
                             var consumer = t.getKey();
-                            return (((consumer.getMessageType() == messageType && Objects.equals(consumer.getTopic(), topic))
+                            return (((consumer.getMessageType() == messageType && Objects.equals(consumer.getTopic(),
+                                                                                                 topic))
                                      || (consumer.getMessageType() == NOTIFICATION && messageType == EVENT))
                                     && Optional.ofNullable(consumer.getConfiguration().getTypeFilter())
                                             .map(f -> message.getPayload().getClass().getName().matches(f))
