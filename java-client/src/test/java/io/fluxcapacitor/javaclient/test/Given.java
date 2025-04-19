@@ -14,7 +14,6 @@
 
 package io.fluxcapacitor.javaclient.test;
 
-import io.fluxcapacitor.common.Guarantee;
 import io.fluxcapacitor.common.ThrowingConsumer;
 import io.fluxcapacitor.common.api.Data;
 import io.fluxcapacitor.javaclient.FluxCapacitor;
@@ -33,9 +32,6 @@ import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.Arrays;
-import java.util.UUID;
-
-import static io.fluxcapacitor.common.ObjectUtils.run;
 
 /**
  * Interface of the `given` phase of a behavioral given-when-then test. Here you specify everything that happened prior
@@ -128,7 +124,7 @@ public interface Given extends When {
      * The document will be stored in the given {@code collection} with random id and without start or end timestamp.
      */
     default Given givenDocument(Object document, Object collection) {
-        return givenDocument(document, UUID.randomUUID().toString(), collection);
+        return givenDocument(document, getFluxCapacitor().identityProvider().nextTechnicalId(), collection);
     }
 
     /**
@@ -169,17 +165,12 @@ public interface Given extends When {
     /**
      * Specify one or more schedules that have been issued prior to the behavior you want to test.
      */
-    default Given givenSchedules(Schedule... schedules) {
-        return given(fc -> Arrays.stream(schedules).forEach(
-                s -> run(() -> fc.scheduler().schedule(s, false, Guarantee.STORED).get())));
-    }
+    Given givenSchedules(Schedule... schedules);
 
     /**
      * Specify one or more scheduled commands that have been issued prior to the behavior you want to test.
      */
-    default Given givenScheduledCommands(Schedule... commands) {
-        return given(fc -> Arrays.stream(commands).forEach(s -> fc.scheduler().scheduleCommand(s)));
-    }
+    Given givenScheduledCommands(Schedule... commands);
 
     /**
      * Specify one or more expired schedules that have been issued prior to the behavior you want to test.
@@ -189,7 +180,8 @@ public interface Given extends When {
      */
     default Given givenExpiredSchedules(Object... schedules) {
         return givenSchedules(
-                Arrays.stream(schedules).map(p -> new Schedule(p, UUID.randomUUID().toString(), getCurrentTime()))
+                Arrays.stream(schedules).map(p -> new Schedule(
+                        p, getFluxCapacitor().identityProvider().nextTechnicalId(), getCurrentTime()))
                         .toArray(Schedule[]::new));
     }
 

@@ -101,6 +101,7 @@ import static io.fluxcapacitor.common.MessageType.EVENT;
 import static io.fluxcapacitor.common.MessageType.NOTIFICATION;
 import static io.fluxcapacitor.common.MessageType.SCHEDULE;
 import static io.fluxcapacitor.common.ObjectUtils.newThreadFactory;
+import static io.fluxcapacitor.common.ObjectUtils.run;
 import static io.fluxcapacitor.common.ObjectUtils.tryCatch;
 import static io.fluxcapacitor.common.api.Data.JSON_FORMAT;
 import static io.fluxcapacitor.common.reflection.ReflectionUtils.ifClass;
@@ -473,7 +474,7 @@ public class TestFixture implements Given, When {
     }
 
     @Override
-    public Given givenCustom(String topic, Object... requests) {
+    public TestFixture givenCustom(String topic, Object... requests) {
         Class<?> callerClass = ReflectionUtils.getCallerClass();
         for (Object request : requests) {
             givenModification(fixture -> fixture.asMessages(callerClass, request).forEach(
@@ -483,7 +484,7 @@ public class TestFixture implements Given, When {
     }
 
     @Override
-    public Given givenCustomByUser(Object user, String topic, Object... requests) {
+    public TestFixture givenCustomByUser(Object user, String topic, Object... requests) {
         Class<?> callerClass = ReflectionUtils.getCallerClass();
         for (Object request : requests) {
             givenModification(
@@ -528,6 +529,22 @@ public class TestFixture implements Given, When {
         for (Object document : Stream.concat(Stream.of(firstDocument), Arrays.stream(otherDocuments)).toList()) {
             givenModification(fixture -> fixture.getFluxCapacitor().documentStore().index(document, collection).get());
         }
+        return this;
+    }
+
+    @Override
+    public TestFixture givenSchedules(Schedule... schedules) {
+        Class<?> callerClass = ReflectionUtils.getCallerClass();
+        givenModification(fixture -> fixture.asMessages(callerClass, (Object[]) schedules).forEach(
+                s -> run(() -> fluxCapacitor.scheduler().schedule((Schedule) s, false, Guarantee.STORED).get())));
+        return this;
+    }
+
+    @Override
+    public TestFixture givenScheduledCommands(Schedule... commands) {
+        Class<?> callerClass = ReflectionUtils.getCallerClass();
+        givenModification(fixture -> fixture.asMessages(callerClass, (Object[]) commands).forEach(
+                s -> run(() -> fluxCapacitor.scheduler().scheduleCommand((Schedule) s, false, Guarantee.STORED).get())));
         return this;
     }
 

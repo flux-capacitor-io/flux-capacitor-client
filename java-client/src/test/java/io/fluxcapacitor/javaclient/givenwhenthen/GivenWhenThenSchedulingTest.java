@@ -63,6 +63,14 @@ class GivenWhenThenSchedulingTest {
     }
 
     @Test
+    void testGivenScheduleFromJsonFile() {
+        Instant deadline = subject.getCurrentTime().plusSeconds(10);
+        subject.givenSchedules(new Schedule("scheduling/yields-command.json", "test", deadline))
+                .whenTimeAdvancesTo(deadline)
+                .expectCommands("commandFromJson");
+    }
+
+    @Test
     void testGivenExpiredSchedule() {
         Duration delay = Duration.ofMinutes(10);
         YieldsNewSchedule schedule = new YieldsNewSchedule(delay.toMillis());
@@ -449,6 +457,15 @@ class GivenWhenThenSchedulingTest {
                         new Schedule("some command", "testId", deadline).addMetadata("a", "b"))
                 .whenTimeAdvancesTo(deadline)
                 .expectCommands("some command");
+    }
+
+    @Test
+    void testScheduledCommandFromJson() {
+        Instant deadline = subject.getCurrentTime().plusSeconds(10);
+        subject.givenScheduledCommands(
+                        new Schedule("scheduling/command.json", "testId", deadline).addMetadata("a", "b"))
+                .whenTimeAdvancesTo(deadline)
+                .expectCommands("commandFromJson");
     }
 
     @Test

@@ -1,0 +1,4 @@
+{
+  "@class": "GivenWhenThenSchedulingTest$YieldsCommand",
+  "command" : "commandFromJson"
+}
