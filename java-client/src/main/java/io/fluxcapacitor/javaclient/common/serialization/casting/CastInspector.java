@@ -24,6 +24,8 @@ import io.fluxcapacitor.javaclient.common.serialization.DeserializationException
 import java.lang.annotation.Annotation;
 import java.lang.reflect.Method;
 import java.lang.reflect.ParameterizedType;
+import java.lang.reflect.Type;
+import java.lang.reflect.WildcardType;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -48,8 +50,9 @@ public class CastInspector {
         List<AnnotatedCaster<T>> result = new ArrayList<>();
         for (Object caster : candidateTargets) {
             var casterInstance = ReflectionUtils.asInstance(caster);
-            getAllMethods(casterInstance.getClass()).forEach(m -> createCaster(casterInstance, m, dataType, castAnnotation)
-                    .ifPresent(result::add));
+            getAllMethods(casterInstance.getClass()).forEach(
+                    m -> createCaster(casterInstance, m, dataType, castAnnotation)
+                            .ifPresent(result::add));
         }
         return result;
     }
@@ -75,24 +78,43 @@ public class CastInspector {
     }
 
     private static <T> Function<SerializedObject<T>, Object> invokeFunction(Method method, Object target,
-                                                                               Class<T> dataType) {
+                                                                            Class<T> dataType) {
         var parameterFunctions =
-                Arrays.stream(method.getGenericParameterTypes()).<Function<SerializedObject<T>, ?>>map(pt -> {
-                    if (pt instanceof ParameterizedType parameterizedType) {
-                        if (parameterizedType.getRawType().equals(Data.class) && dataType
-                                .isAssignableFrom((Class<?>) parameterizedType.getActualTypeArguments()[0])) {
-                            return SerializedObject::data;
+                Arrays.stream(method.getGenericParameterTypes()).<Function<SerializedObject<T>, ?>>map(type -> {
+                    switch (type) {
+                        case ParameterizedType pt -> {
+                            Type actualTypeArgument;
+                            if (pt.getRawType().equals(Data.class)) {
+                                Type[] actualTypeArguments = pt.getActualTypeArguments();
+                                if (actualTypeArguments.length == 0) {
+                                    return SerializedObject::data;
+                                }
+                                actualTypeArgument = actualTypeArguments[0];
+                                if (actualTypeArgument instanceof WildcardType wt) {
+                                    Type[] upperBounds = wt.getUpperBounds();
+                                    if (upperBounds.length == 0) {
+                                        return SerializedObject::data;
+                                    }
+                                    actualTypeArgument = upperBounds[0];
+                                }
+                            } else {
+                                actualTypeArgument = pt.getRawType();
+                            }
+                            if (actualTypeArgument instanceof Class<?> c && (dataType.isAssignableFrom(c) || c.equals(
+                                    Object.class))) {
+                                return SerializedObject::data;
+                            }
                         }
-                        if (dataType.isAssignableFrom((Class<?>) parameterizedType.getRawType())) {
-                            return s -> s.data().getValue();
+                        case Class<?> c -> {
+                            if (dataType.isAssignableFrom(c)) {
+                                return s -> s.data().getValue();
+                            }
+                            if (SerializedMessage.class.isAssignableFrom(c)) {
+                                return s -> s instanceof HasSource<?> i
+                                            && i.getSource() instanceof SerializedMessage m ? m : null;
+                            }
                         }
-                    } else if (pt instanceof Class<?> c) {
-                        if (dataType.isAssignableFrom(c)) {
-                            return s -> s.data().getValue();
-                        }
-                        if (SerializedMessage.class.isAssignableFrom(c)) {
-                            return s -> s instanceof HasSource<?> i
-                                        && i.getSource() instanceof SerializedMessage m ? m : null;
+                        case null, default -> {
                         }
                     }
                     throw new DeserializationException(String.format(

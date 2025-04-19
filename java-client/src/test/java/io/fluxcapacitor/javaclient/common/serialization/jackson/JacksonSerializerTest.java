@@ -275,7 +275,7 @@ class JacksonSerializerTest {
         }
 
         @Upcast(type = TYPE, revision = 2)
-        public Data<ObjectNode> upcastFrom2(Data<ObjectNode> input) {
+        public Data<?> upcastFrom2(Data<?> input) {
             return new Data<>(input.getValue(), input.getType(), 3, Data.JSON_FORMAT);
         }
 
