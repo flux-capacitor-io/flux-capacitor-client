@@ -513,18 +513,18 @@ public class TestFixture implements Given, When {
     }
 
     @Override
-    public TestFixture givenDocument(Object document, Object id, Object collection, Instant timestamp, Instant end) {
-        Class<?> callerClass = getCallerClass();
-        return givenModification(fixture -> fixture.getFluxCapacitor().documentStore()
-                .index(fixture.parseObject(document, callerClass), id, collection, timestamp, end).get());
-    }
-
-    @Override
     public TestFixture givenDocument(Object document) {
         Class<?> callerClass = getCallerClass();
         return givenModification(
                 fixture -> fixture.getFluxCapacitor().documentStore().index(fixture.parseObject(document, callerClass))
                         .get());
+    }
+
+    @Override
+    public TestFixture givenDocument(Object document, Object id, Object collection, Instant timestamp, Instant end) {
+        Class<?> callerClass = getCallerClass();
+        return givenModification(fixture -> fixture.getFluxCapacitor().documentStore()
+                .index(fixture.parseObject(document, callerClass), id, collection, timestamp, end).get());
     }
 
     @Override

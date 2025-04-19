@@ -111,7 +111,7 @@ public interface Given extends When {
     Given givenEvents(Object... events);
 
     /**
-     * Specify a documents that has been stored for search prior to the behavior you want to test.
+     * Specify a document that has been stored for search prior to the behavior you want to test.
      * <p>
      * If the object is (meta-)annotated with {@link Searchable @Searchable} the settings in the annotation will be used
      * for collection name, timestamp path etc.
@@ -161,6 +161,15 @@ public interface Given extends When {
      * The documents will be stored in the given {@code collection} with random id and without start or end timestamp.
      */
     Given givenDocuments(Object collection, Object firstDocument, Object... otherDocuments);
+
+    /**
+     * Specify a stateful handler that has been stored for search prior to the behavior you want to test.
+     *
+     * @see io.fluxcapacitor.javaclient.tracking.handling.Stateful for information on how to create a stateful handler.
+     */
+    default Given givenStateful(Object stateful) {
+        return givenDocument(stateful);
+    }
 
     /**
      * Specify one or more schedules that have been issued prior to the behavior you want to test.
