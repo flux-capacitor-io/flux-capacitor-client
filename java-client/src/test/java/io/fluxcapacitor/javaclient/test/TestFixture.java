@@ -979,7 +979,7 @@ public class TestFixture implements Given, When {
     }
 
     @SuppressWarnings("unchecked")
-    public <T> T parseObject(Object object, Class<?> callerClass) {
+    protected <T> T parseObject(Object object, Class<?> callerClass) {
         if (object instanceof WebRequest message
             && message.getPayload() instanceof String payload && payload.endsWith(".json")) {
             return (T) message.toBuilder().payload(JsonUtils.fromFile(callerClass, payload, JsonNode.class))
