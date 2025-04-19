@@ -118,7 +118,7 @@ public class CastInspector {
                         }
                     }
                     throw new DeserializationException(String.format(
-                            "Parameter in upcaster method '%s' is of unexpected type. Expected Data<%s> or %s.",
+                            "Parameter in caster method '%s' is of unexpected type. Expected Data<%s> or %s.",
                             method, dataType.getName(), dataType.getName()));
                 }).toList();
         var invoker = DefaultMemberInvoker.asInvoker(method);
@@ -135,7 +135,7 @@ public class CastInspector {
                 return invoker.invoke(target, args);
             };
         } catch (Throwable e) {
-            throw new DeserializationException("Exception while upcasting using method: " + invoker.getMember(), e);
+            throw new DeserializationException("Exception while casting using method: " + invoker.getMember(), e);
         }
     }
 
@@ -175,7 +175,7 @@ public class CastInspector {
         }
 
         throw new DeserializationException(String.format(
-                "Unexpected return type of upcaster method '%s'. Expected Data<%s>, %s, Optional<Data<%s>>, Optional<%s>, Stream<Data<%s>> or void",
+                "Unexpected return type of caster method '%s'. Expected Data<%s>, %s, Optional<Data<%s>>, Optional<%s>, Stream<Data<%s>> or void",
                 method, dataType.getName(), dataType.getName(), dataType.getName(), dataType.getName(),
                 dataType.getName()));
     }
