@@ -35,6 +35,7 @@ import java.time.temporal.ChronoUnit;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicReference;
 
 import static io.fluxcapacitor.javaclient.FluxCapacitor.publishEvent;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -117,19 +118,20 @@ class GivenWhenThenSchedulingTest {
     }
 
     @Test
-    void scheduleIndexAlwaysNew() {
-        Instant now = subject.getCurrentTime();
-        String scheduleId = "now";
-        TestFixture.createAsync(new Object() {
-            @HandleSchedule
-            void handle(String payload) {
-                FluxCapacitor.publishEvent(payload);
-            }
-        }).whenExecuting(fc -> {
-            FluxCapacitor.schedule("foo1", scheduleId, now);
-            FluxCapacitor.cancelSchedule(scheduleId);
-            FluxCapacitor.schedule("foo2", scheduleId, now);
-        }).expectEvents("foo1", "foo2");
+    void scheduleIndexCurrentTimeAlwaysNew() {
+        String scheduleId = "test1323";
+        AtomicReference<Long> firstIndex = new AtomicReference<>();
+        TestFixture.createAsync().spy()
+                .whenExecuting(fc -> FluxCapacitor.schedule("foo1", scheduleId, subject.getCurrentTime()))
+                .expectThat(fc -> firstIndex.set(fc.client().getSchedulingClient().getSchedule(scheduleId).getMessage().getIndex()))
+                .andThen()
+                .whenExecuting(fc -> FluxCapacitor.cancelSchedule(scheduleId))
+                .expectTrue(fc -> fc.scheduler().getSchedule(scheduleId).isEmpty())
+                .andThen()
+                .whenExecuting(fc -> FluxCapacitor.schedule("foo2", scheduleId, subject.getCurrentTime()))
+                .expectTrue(fc -> !firstIndex.get().equals(fc.client().getSchedulingClient()
+                                                                   .getSchedule(scheduleId).getMessage().getIndex()));
+
     }
 
     @Nested
