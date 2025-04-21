@@ -52,6 +52,7 @@ import static com.fasterxml.jackson.annotation.JsonTypeInfo.Id;
 import static com.fasterxml.jackson.databind.DeserializationFeature.ACCEPT_SINGLE_VALUE_AS_ARRAY;
 import static com.fasterxml.jackson.databind.DeserializationFeature.ADJUST_DATES_TO_CONTEXT_TIME_ZONE;
 import static com.fasterxml.jackson.databind.DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES;
+import static com.fasterxml.jackson.databind.DeserializationFeature.USE_BIG_DECIMAL_FOR_FLOATS;
 import static com.fasterxml.jackson.databind.ObjectMapper.DefaultTyping.JAVA_LANG_OBJECT;
 import static com.fasterxml.jackson.databind.SerializationFeature.FAIL_ON_EMPTY_BEANS;
 import static com.fasterxml.jackson.databind.SerializationFeature.WRITE_DATES_AS_TIMESTAMPS;
@@ -64,13 +65,14 @@ public class JsonUtils {
     public static JsonMapper writer = JsonMapper.builder()
             .addModule(new StripStringsModule()).addModule(new NullCollectionsAsEmptyModule())
             .addModule(new Jdk8Module())
-            .findAndAddModules()
             .disable(FAIL_ON_EMPTY_BEANS).disable(WRITE_DATES_AS_TIMESTAMPS).disable(WRITE_DURATIONS_AS_TIMESTAMPS)
             .enable(WRITE_DATES_WITH_ZONE_ID)
             .disable(ADJUST_DATES_TO_CONTEXT_TIME_ZONE).disable(FAIL_ON_UNKNOWN_PROPERTIES)
             .enable(ACCEPT_SINGLE_VALUE_AS_ARRAY)
             .disable(STRIP_TRAILING_BIGDECIMAL_ZEROES)
+            .enable(USE_BIG_DECIMAL_FOR_FLOATS)
             .serializationInclusion(JsonInclude.Include.NON_NULL)
+            .findAndAddModules()
             .build();
 
     public static JsonMapper reader = writer.rebuild()
