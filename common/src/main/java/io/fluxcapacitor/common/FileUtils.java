@@ -74,21 +74,27 @@ public class FileUtils {
 
     @SneakyThrows
     public static String loadFile(URI uri, Charset charset) {
-        return loadFile(new File(uri), charset);
+        return loadFile(uri.toURL(), charset);
     }
 
+    @SneakyThrows
+    public static String loadFile(URL url, Charset charset) {
+        try (InputStream inputStream = url.openStream()) {
+            return new Scanner(inputStream, charset).useDelimiter("\\A").next();
+        } catch (Exception e) {
+            log.error("File not found {}", url, e);
+            throw e;
+        }
+    }
+
+    @SneakyThrows
     public static String loadFile(File file) {
         return loadFile(file, UTF_8);
     }
 
     @SneakyThrows
     public static String loadFile(File file, Charset charset) {
-        try (InputStream inputStream = new FileInputStream(file)) {
-            return new Scanner(inputStream, charset).useDelimiter("\\A").next();
-        } catch (Exception e) {
-            log.error("File not found {}", file, e);
-            throw e;
-        }
+        return loadFile(file.toURI().toURL(), charset);
     }
 
     public static Optional<String> tryLoadFile(String fileName) {
