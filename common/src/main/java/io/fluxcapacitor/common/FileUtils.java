@@ -22,6 +22,7 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileWriter;
 import java.io.InputStream;
+import java.net.URI;
 import java.net.URL;
 import java.nio.charset.Charset;
 import java.util.Collections;
@@ -58,8 +59,8 @@ public class FileUtils {
     @SuppressWarnings("ConstantConditions")
     @SneakyThrows
     public static String loadFile(Class<?> referencePoint, String fileName, Charset charset) {
-        try (InputStream inputStream = referencePoint.getResourceAsStream(fileName)) {
-            return new Scanner(inputStream, charset).useDelimiter("\\A").next();
+        try {
+            return loadFile(referencePoint.getResource(fileName).toURI(), charset);
         } catch (NullPointerException e) {
             log.error("Resource {} not found in package {}", fileName, referencePoint.getPackageName());
             throw e;
@@ -67,9 +68,23 @@ public class FileUtils {
     }
 
     @SneakyThrows
+    public static String loadFile(URI uri) {
+        return loadFile(uri, UTF_8);
+    }
+
+    @SneakyThrows
+    public static String loadFile(URI uri, Charset charset) {
+        return loadFile(new File(uri), charset);
+    }
+
     public static String loadFile(File file) {
+        return loadFile(file, UTF_8);
+    }
+
+    @SneakyThrows
+    public static String loadFile(File file, Charset charset) {
         try (InputStream inputStream = new FileInputStream(file)) {
-            return new Scanner(inputStream, UTF_8).useDelimiter("\\A").next();
+            return new Scanner(inputStream, charset).useDelimiter("\\A").next();
         } catch (Exception e) {
             log.error("File not found {}", file, e);
             throw e;
@@ -91,8 +106,8 @@ public class FileUtils {
     @SuppressWarnings("ConstantConditions")
     @SneakyThrows
     public static Optional<String> tryLoadFile(Class<?> referencePoint, String fileName, Charset charset) {
-        try (InputStream inputStream = referencePoint.getResourceAsStream(fileName)) {
-            return Optional.ofNullable(new Scanner(inputStream, charset).useDelimiter("\\A").next());
+        try {
+            return tryLoadFile(new File(referencePoint.getResource(fileName).toURI()), charset);
         } catch (Exception ignored) {
             return Optional.empty();
         }
@@ -100,8 +115,13 @@ public class FileUtils {
 
     @SneakyThrows
     public static Optional<String> tryLoadFile(File file) {
+        return tryLoadFile(file, UTF_8);
+    }
+
+    @SneakyThrows
+    public static Optional<String> tryLoadFile(File file, Charset charset) {
         try (InputStream inputStream = new FileInputStream(file)) {
-            return Optional.ofNullable(new Scanner(inputStream, UTF_8).useDelimiter("\\A").next());
+            return Optional.ofNullable(new Scanner(inputStream, charset).useDelimiter("\\A").next());
         } catch (Exception ignored) {
             return Optional.empty();
         }

@@ -42,7 +42,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 class GivenWhenThenSchedulingTest {
 
     private static final String atStartOfDay = "0 0 * * *";
-    private TestFixture subject = TestFixture.create(new CommandHandler(), new ScheduleHandler());
+    private final TestFixture subject = TestFixture.create(new CommandHandler(), new ScheduleHandler());
 
     @Test
     void testExpectCommandAfterDeadline() {
@@ -68,6 +68,14 @@ class GivenWhenThenSchedulingTest {
         subject.givenSchedules(new Schedule("scheduling/yields-command.json", "test", deadline))
                 .whenTimeAdvancesTo(deadline)
                 .expectCommands("commandFromJson");
+    }
+
+    @Test
+    void testGivenScheduleFromExtendedJsonFile() {
+        Instant deadline = subject.getCurrentTime().plusSeconds(10);
+        subject.givenSchedules(new Schedule("scheduling/extended/yields-command-extended.json", "test", deadline))
+                .whenTimeAdvancesTo(deadline)
+                .expectCommands("otherCommand");
     }
 
     @Test
@@ -420,7 +428,7 @@ class GivenWhenThenSchedulingTest {
 
     @Test
     void testAlteredPayloadNonPeriodic() {
-        subject = TestFixture.create(new AlteredPayloadNonPeriodicHandler());
+        TestFixture subject = TestFixture.create(new AlteredPayloadNonPeriodicHandler());
         Instant deadline = subject.getCurrentTime().plusSeconds(1);
         subject.givenSchedules(new Schedule(new YieldsAlteredSchedule(), "test", deadline))
                 .whenTimeAdvancesTo(deadline).expectOnlyNewSchedules(new YieldsAlteredSchedule(1));
@@ -428,7 +436,7 @@ class GivenWhenThenSchedulingTest {
 
     @Test
     void testAlteredPayloadNonPeriodicReturningSchedule() {
-        subject = TestFixture.create(new AlteredPayloadNonPeriodicHandlerReturningSchedule());
+        TestFixture subject = TestFixture.create(new AlteredPayloadNonPeriodicHandlerReturningSchedule());
         Instant deadline = subject.getCurrentTime().plusSeconds(1);
         subject.givenSchedules(new Schedule(new YieldsAlteredSchedule(), "test", deadline))
                 .whenTimeAdvancesTo(deadline).expectOnlyNewSchedules(new YieldsAlteredSchedule(1));

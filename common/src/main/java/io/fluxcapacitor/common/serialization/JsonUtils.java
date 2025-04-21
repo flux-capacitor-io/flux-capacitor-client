@@ -31,8 +31,11 @@ import com.fasterxml.jackson.datatype.jdk8.Jdk8Module;
 import io.fluxcapacitor.common.FileUtils;
 import io.fluxcapacitor.common.reflection.ReflectionUtils;
 import lombok.SneakyThrows;
+import lombok.extern.slf4j.Slf4j;
 
 import java.io.InputStream;
+import java.net.URI;
+import java.net.URL;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashMap;
@@ -40,7 +43,9 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Function;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 import static com.fasterxml.jackson.annotation.JsonTypeInfo.Id;
@@ -54,6 +59,7 @@ import static com.fasterxml.jackson.databind.SerializationFeature.WRITE_DATES_WI
 import static com.fasterxml.jackson.databind.SerializationFeature.WRITE_DURATIONS_AS_TIMESTAMPS;
 import static com.fasterxml.jackson.databind.cfg.JsonNodeFeature.STRIP_TRAILING_BIGDECIMAL_ZEROES;
 
+@Slf4j
 public class JsonUtils {
     public static JsonMapper writer = JsonMapper.builder()
             .addModule(new StripStringsModule()).addModule(new NullCollectionsAsEmptyModule())
@@ -72,6 +78,8 @@ public class JsonUtils {
                                       .init(Id.CLASS, new GlobalTypeIdResolver()).inclusion(JsonTypeInfo.As.PROPERTY))
             .build();
 
+    private static final Pattern extendsPattern = Pattern.compile("(\"@extends\"\\s*:\\s*\"([^\"]+)\"\\s*,?)");
+
     @SneakyThrows
     public static Object fromFile(String fileName) {
         return fromFile(ReflectionUtils.getCallerClass(), fileName);
@@ -82,10 +90,49 @@ public class JsonUtils {
         return Arrays.stream(fileNames).map(f -> JsonUtils.fromFile(callerClass, f)).collect(Collectors.toList());
     }
 
-    @SuppressWarnings("unchecked")
+    @SuppressWarnings({"unchecked"})
     @SneakyThrows
     public static <T> T fromFile(Class<?> referencePoint, String fileName) {
-        return (T) reader.readValue(FileUtils.loadFile(referencePoint, fileName), Object.class);
+        String content = getContent(referencePoint, fileName);
+        return (T) reader.readValue(content, Object.class);
+    }
+
+    @SneakyThrows
+    protected static String getContent(Class<?> referencePoint, String fileName) {
+        URL resource = referencePoint.getResource(fileName);
+        if (resource == null) {
+            log.error("Resource {} not found in package {}", fileName, referencePoint.getPackageName());
+            throw new IllegalArgumentException("File not found: " + fileName);
+        }
+        return getContent(resource.toURI());
+    }
+
+    @SneakyThrows
+    protected static String getContent(URI fileUri) {
+        String content = FileUtils.loadFile(fileUri);
+        AtomicReference<String> extendsReference = new AtomicReference<>();
+        content = extendsPattern.matcher(content).replaceFirst(m -> {
+            extendsReference.set(m.group(2));
+            return "";
+        });
+        String extendsFile = extendsReference.get();
+        if (extendsFile != null) {
+            String extendsContent;
+            if (extendsFile.startsWith("/")) {
+                URL extendsResource = JsonUtils.class.getResource(extendsFile);
+                if (extendsResource == null) {
+                    log.error("Resource {} not found", extendsFile);
+                    throw new IllegalArgumentException("File not found: " + extendsFile);
+                }
+                extendsContent = getContent(extendsResource.toURI());
+            } else {
+                extendsContent = getContent(fileUri.resolve(extendsFile));
+            }
+            var baseNode = reader.readTree(extendsContent);
+            reader.readerForUpdating(baseNode).readValue(reader.readTree(content));
+            content = reader.writeValueAsString(baseNode);
+        }
+        return content;
     }
 
     @SneakyThrows
