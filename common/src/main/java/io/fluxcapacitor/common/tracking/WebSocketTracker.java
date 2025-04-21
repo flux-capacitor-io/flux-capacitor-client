@@ -24,12 +24,18 @@ import lombok.experimental.Accessors;
 
 import java.util.Objects;
 import java.util.function.Consumer;
+import java.util.function.Function;
 import java.util.function.Predicate;
 import java.util.regex.Pattern;
+
+import static io.fluxcapacitor.common.ObjectUtils.memoize;
 
 @Getter
 @AllArgsConstructor
 public class WebSocketTracker implements Tracker {
+    private static final Function<String, Predicate<String>> typeFilterCache = memoize(
+            s -> s == null ? __ -> true : Pattern.compile(s).asMatchPredicate());
+
     private final String consumerName;
     private final MessageType messageType;
     private final String clientId;
@@ -64,19 +70,12 @@ public class WebSocketTracker implements Tracker {
         this.deadline = System.currentTimeMillis() + read.getMaxTimeout();
         this.purgeDelay = read.getPurgeTimeout();
         this.maxSize = read.getMaxSize();
-        this.typeFilter = toPredicate(read.getTypeFilter());
+        this.typeFilter = typeFilterCache.apply(read.getTypeFilter());
         this.filterMessageTarget = read.isFilterMessageTarget();
         this.ignoreSegment = read.isIgnoreSegment() || messageType == MessageType.NOTIFICATION;
         this.clientControlledIndex = read.isClientControlledIndex() || messageType == MessageType.NOTIFICATION;
         this.singleTracker = read.isSingleTracker();
         this.handler = handler;
-    }
-
-    private static Predicate<String> toPredicate(String typeFilter) {
-        if (typeFilter == null) {
-            return s -> true;
-        }
-        return Pattern.compile(typeFilter).asMatchPredicate();
     }
 
     @Override
