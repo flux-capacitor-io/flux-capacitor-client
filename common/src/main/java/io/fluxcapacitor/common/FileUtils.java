@@ -78,16 +78,6 @@ public class FileUtils {
     }
 
     @SneakyThrows
-    public static String loadFile(URL url, Charset charset) {
-        try (InputStream inputStream = url.openStream()) {
-            return new Scanner(inputStream, charset).useDelimiter("\\A").next();
-        } catch (Exception e) {
-            log.error("File not found {}", url, e);
-            throw e;
-        }
-    }
-
-    @SneakyThrows
     public static String loadFile(File file) {
         return loadFile(file, UTF_8);
     }
@@ -95,6 +85,20 @@ public class FileUtils {
     @SneakyThrows
     public static String loadFile(File file, Charset charset) {
         return loadFile(file.toURI().toURL(), charset);
+    }
+
+    @SneakyThrows
+    public static String loadFile(URL url, Charset charset) {
+        if (url.getFile() == null || url.getFile().isEmpty()) {
+            log.error("Not a file url: {}", url);
+            throw new IllegalArgumentException("Not a file url: " + url);
+        }
+        try (InputStream inputStream = url.openStream()) {
+            return new Scanner(inputStream, charset).useDelimiter("\\A").next();
+        } catch (Exception e) {
+            log.error("File not found {}", url, e);
+            throw e;
+        }
     }
 
     public static Optional<String> tryLoadFile(String fileName) {
