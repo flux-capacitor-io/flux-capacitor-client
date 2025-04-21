@@ -12,7 +12,7 @@
  * limitations under the License.
  */
 
-@RegisterType
+@RegisterType(contains = ".inner.")
 package io.fluxcapacitor.common.reflection.typeregistry.empty;
 
 import io.fluxcapacitor.common.serialization.RegisterType;

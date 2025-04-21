@@ -15,8 +15,10 @@
 package io.fluxcapacitor.common.serialization;
 
 import com.google.auto.service.AutoService;
+import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.SneakyThrows;
+import lombok.Value;
 
 import javax.annotation.processing.AbstractProcessor;
 import javax.annotation.processing.ProcessingEnvironment;
@@ -30,11 +32,16 @@ import javax.lang.model.element.TypeElement;
 import javax.tools.FileObject;
 import java.io.Writer;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.LinkedHashSet;
+import java.util.List;
 import java.util.Scanner;
 import java.util.Set;
 import java.util.TreeSet;
+import java.util.function.Predicate;
+import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import static io.fluxcapacitor.common.ObjectUtils.call;
@@ -49,7 +56,7 @@ public class TypeRegistryProcessor extends AbstractProcessor {
     public static final String TYPES_FILE = "META-INF/" + TypeRegistry.class.getName();
     private static final String PREFIXES_FILE = "META-INF/type-registry-prefixes";
 
-    private final Set<String> roundPrefixes = new LinkedHashSet<>();
+    private final Set<Prefix> roundPrefixes = new LinkedHashSet<>();
     @Getter(lazy = true)
     private final FileObject typesResource =
             call(() -> processingEnv.getFiler().getResource(CLASS_OUTPUT, "", TYPES_FILE));
@@ -91,7 +98,7 @@ public class TypeRegistryProcessor extends AbstractProcessor {
     }
 
     @SneakyThrows
-    Stream<String> getStoredTypes(Set<String> prefixes) {
+    Stream<String> getStoredTypes(Set<Prefix> prefixes) {
         if (isNewProcess()) {
             return Stream.empty();
         }
@@ -99,8 +106,7 @@ public class TypeRegistryProcessor extends AbstractProcessor {
         try (Scanner scanner = new Scanner(getTypesResource().openInputStream())) {
             while (scanner.hasNextLine()) {
                 String type = scanner.nextLine();
-                String canonicalType = type.replace("$", ".");
-                if (isType(type) && prefixes.stream().anyMatch(canonicalType::startsWith)) {
+                if (isType(type) && prefixes.stream().anyMatch(p -> p.matches(type))) {
                     result.add(type);
                 }
             }
@@ -108,21 +114,22 @@ public class TypeRegistryProcessor extends AbstractProcessor {
         return result.stream();
     }
 
-    Stream<String> getNewTypes(Set<String> prefixes) {
+    Stream<String> getNewTypes(Set<Prefix> prefixes) {
         return processingEnv.getElementUtils().getAllModuleElements().stream().flatMap(this::getClasses)
-                .filter(t -> prefixes.stream().anyMatch(prefix -> t.getQualifiedName().toString().startsWith(prefix)))
+                .filter(t -> prefixes.stream().anyMatch(prefix -> prefix.matches(t.getQualifiedName().toString())))
                 .map(c -> processingEnv.getElementUtils().getBinaryName(c).toString());
     }
 
     @SneakyThrows
-    Set<String> updateAndGetPrefixes() {
-        Set<String> prefixes = new TreeSet<>(roundPrefixes);
+    Set<Prefix> updateAndGetPrefixes() {
+        Set<Prefix> prefixes = new LinkedHashSet<>(roundPrefixes);
         FileObject resource = getPrefixesResource();
         if (resource.getLastModified() != 0) {
             try (Scanner scanner = new Scanner(resource.openInputStream())) {
                 while (scanner.hasNextLine()) {
-                    String prefix = scanner.nextLine();
-                    if (isPackage(prefix) || isType(prefix)) {
+                    Prefix prefix = new Prefix(scanner.nextLine());
+                    String root = prefix.getRoot();
+                    if (isPackage(root) || isType(root)) {
                         prefixes.add(prefix);
                     }
                 }
@@ -130,8 +137,9 @@ public class TypeRegistryProcessor extends AbstractProcessor {
         }
         resource = processingEnv.getFiler().createResource(CLASS_OUTPUT, "", PREFIXES_FILE);
         try (Writer resourceWriter = resource.openWriter()) {
-            for (String prefix : prefixes) {
-                if (isPackage(prefix) || isType(prefix)) {
+            for (Prefix prefix : prefixes) {
+                String root = prefix.getRoot();
+                if (isPackage(root) || isType(root)) {
                     resourceWriter.write(prefix + "\n");
                 }
             }
@@ -139,10 +147,12 @@ public class TypeRegistryProcessor extends AbstractProcessor {
         return prefixes;
     }
 
-    Stream<String> getPrefixes(Element element) {
+    Stream<Prefix> getPrefixes(Element element) {
         try {
-            if (element.getAnnotation(RegisterType.class) != null) {
-                return Stream.of(((QualifiedNameable) element).getQualifiedName().toString());
+            RegisterType registerType = element.getAnnotation(RegisterType.class);
+            if (registerType != null) {
+                String root = ((QualifiedNameable) element).getQualifiedName().toString();
+                return Stream.of(new Prefix(root, Arrays.asList(registerType.contains())));
             }
         } catch (Throwable ignored) {
         }
@@ -171,5 +181,32 @@ public class TypeRegistryProcessor extends AbstractProcessor {
     @Override
     public SourceVersion getSupportedSourceVersion() {
         return SourceVersion.latest();
+    }
+
+    @Value
+    @AllArgsConstructor
+    static class Prefix {
+        String root;
+        List<String> filters;
+
+        @Getter(lazy = true)
+        Predicate<String> filterMatch = getFilters().stream().map(Pattern::compile)
+                .map(Pattern::asPredicate).reduce(Predicate::or).orElse(s -> true);
+
+        public Prefix(String storedPrefix) {
+            var parts = storedPrefix.split(",");
+            root = parts[0];
+            filters = Arrays.stream(parts).skip(1).toList();
+        }
+
+        public boolean matches(String type) {
+            type = type.replace("$", ".");
+            return type.startsWith(root) && getFilterMatch().test(type);
+        }
+
+        @Override
+        public String toString() {
+            return Stream.concat(Stream.of(root), filters.stream()).collect(Collectors.joining(","));
+        }
     }
 }
