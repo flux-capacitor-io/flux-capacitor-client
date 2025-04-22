@@ -1,4 +1,4 @@
 {
-  "@extends": "../yields-command.json",
+  "@extend": "../yields-command.json",
   "command" : "otherCommand"
 }

@@ -80,7 +80,7 @@ public class JsonUtils {
                                       .init(Id.CLASS, new GlobalTypeIdResolver()).inclusion(JsonTypeInfo.As.PROPERTY))
             .build();
 
-    private static final Pattern extendsPattern = Pattern.compile("(\"@extends\"\\s*:\\s*\"([^\"]+)\"\\s*,?)");
+    private static final Pattern extendsPattern = Pattern.compile("(\"@extends?\"\\s*:\\s*\"([^\"]+)\"\\s*,?)");
 
     @SneakyThrows
     public static Object fromFile(String fileName) {
