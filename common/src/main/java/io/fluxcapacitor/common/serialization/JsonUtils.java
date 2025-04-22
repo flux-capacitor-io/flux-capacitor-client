@@ -128,7 +128,7 @@ public class JsonUtils {
                 }
                 extendsContent = getContent(extendsResource.toURI());
             } else {
-                extendsContent = getContent(fileUri.resolve(extendsFile));
+                extendsContent = getContent(FileUtils.safeResolve(fileUri, extendsFile));
             }
             var baseNode = reader.readTree(extendsContent);
             reader.readerForUpdating(baseNode).readValue(reader.readTree(content));

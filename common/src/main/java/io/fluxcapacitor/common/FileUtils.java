@@ -67,6 +67,13 @@ public class FileUtils {
         }
     }
 
+    public static URI safeResolve(URI base, String relativePath) {
+        if (base.getScheme().equals("jar")) {
+            return URI.create("jar:" + URI.create(base.getSchemeSpecificPart()).resolve(relativePath));
+        }
+        return base.resolve(relativePath);
+    }
+
     @SneakyThrows
     public static String loadFile(URI uri) {
         return loadFile(uri, UTF_8);
