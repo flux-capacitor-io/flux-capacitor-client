@@ -18,41 +18,63 @@ import io.fluxcapacitor.common.Registration;
 import io.fluxcapacitor.common.ThrowingRunnable;
 import lombok.extern.slf4j.Slf4j;
 
+import java.time.Clock;
 import java.util.Set;
 import java.util.concurrent.CopyOnWriteArraySet;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Supplier;
 
 import static io.fluxcapacitor.common.ObjectUtils.newThreadFactory;
 import static io.fluxcapacitor.common.TimingUtils.isMissedDeadline;
 
 @Slf4j
 public class InMemoryTaskScheduler implements TaskScheduler {
-    private static final int defaultDelay = 100;
+    public static int defaultDelay = 100;
+    public static Supplier<Clock> defaultClockSupplier = Clock::systemUTC;
+
     private final ScheduledExecutorService executorService;
+    private final Supplier<Clock> clockSupplier;
     private final Set<Task> tasks = new CopyOnWriteArraySet<>();
 
     public InMemoryTaskScheduler() {
-        this(defaultDelay);
+        this(defaultClockSupplier);
+    }
+
+    public InMemoryTaskScheduler(Supplier<Clock> clockSupplier) {
+        this(defaultDelay, clockSupplier);
     }
 
     public InMemoryTaskScheduler(String threadName) {
-        this(defaultDelay, threadName);
+        this(threadName, defaultClockSupplier);
+    }
+
+    public InMemoryTaskScheduler(String threadName, Supplier<Clock> clockSupplier) {
+        this(defaultDelay, threadName, clockSupplier);
     }
 
     public InMemoryTaskScheduler(int delay) {
-        this(delay, "InMemoryTaskScheduler");
+        this(delay, defaultClockSupplier);
+    }
+
+    public InMemoryTaskScheduler(int delay, Supplier<Clock> clockSupplier) {
+        this(delay, "InMemoryTaskScheduler", clockSupplier);
     }
 
     public InMemoryTaskScheduler(int delay, String threadName) {
+        this(delay, threadName, defaultClockSupplier);
+    }
+
+    public InMemoryTaskScheduler(int delay, String threadName, Supplier<Clock> clockSupplier) {
         this.executorService = Executors.newSingleThreadScheduledExecutor(newThreadFactory(threadName));
+        this.clockSupplier = clockSupplier;
         executorService.scheduleWithFixedDelay(this::executeExpiredTasks, delay, delay, TimeUnit.MILLISECONDS);
     }
 
-    private void executeExpiredTasks() {
+    public void executeExpiredTasks() {
         tasks.forEach(task -> {
-            if (isMissedDeadline(task.deadline) && tasks.remove(task)) {
+            if (isMissedDeadline(clock(), task.deadline) && tasks.remove(task)) {
                 try {
                     task.runnable.run();
                 } catch (Throwable e) {
@@ -67,6 +89,11 @@ public class InMemoryTaskScheduler implements TaskScheduler {
         Task schedulerTask = new Task(task, deadline);
         tasks.add(schedulerTask);
         return () -> tasks.remove(schedulerTask);
+    }
+
+    @Override
+    public Clock clock() {
+        return clockSupplier.get();
     }
 
     @Override

@@ -17,6 +17,7 @@ package io.fluxcapacitor.common;
 import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
 
+import java.time.Clock;
 import java.time.Duration;
 import java.time.temporal.ChronoUnit;
 import java.time.temporal.TemporalUnit;
@@ -124,6 +125,10 @@ public class TimingUtils {
     }
 
     public static boolean isMissedDeadline(long deadline) {
-        return System.currentTimeMillis() > deadline;
+        return isMissedDeadline(Clock.systemUTC(), deadline);
+    }
+
+    public static boolean isMissedDeadline(Clock clock, long deadline) {
+        return clock.millis() >= deadline;
     }
 }
