@@ -58,7 +58,7 @@ class BatchInterceptorTest {
         };
         var configuration = ConsumerConfiguration.builder().name("test").build();
         Consumer<MessageBatch> invocation = BatchInterceptor.join(Arrays.asList(outerInterceptor, innerInterceptor))
-                .intercept(function, new Tracker("test", "0", COMMAND, null, configuration, null));
+                .intercept(function, new Tracker("0", COMMAND, null, configuration, null));
         assertEquals(emptyList(), invokedInstances);
         invocation.accept(new MessageBatch(new int[]{0, 128}, emptyList(), 0L, Position.newPosition()));
         assertEquals(Arrays.asList(outerInterceptor, innerInterceptor, function), invokedInstances);

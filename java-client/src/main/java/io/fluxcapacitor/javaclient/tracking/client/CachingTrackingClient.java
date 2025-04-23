@@ -70,8 +70,7 @@ public class CachingTrackingClient implements TrackingClient {
     }
 
     @Override
-    public CompletableFuture<MessageBatch> read(String consumer, String trackerId, Long lastIndex,
-                                                ConsumerConfiguration config) {
+    public CompletableFuture<MessageBatch> read(String trackerId, Long lastIndex, ConsumerConfiguration config) {
         if (started.compareAndSet(false, true)) {
             ConsumerConfiguration cacheFillerConfig = ConsumerConfiguration.builder()
                     .ignoreSegment(true)
@@ -86,7 +85,7 @@ public class CachingTrackingClient implements TrackingClient {
         }
         if (lastIndex != null && cache.containsKey(lastIndex)) {
             Instant deadline = now().plus(config.getMaxWaitDuration());
-            return delegate.claimSegment(consumer, trackerId, lastIndex, config).thenCompose(r -> {
+            return delegate.claimSegment(trackerId, lastIndex, config).thenCompose(r -> {
                 Long minIndex = r.getPosition().lowestIndexForSegment(r.getSegment()).orElse(null);
                 if (minIndex != null) {
                     CompletableFuture<MessageBatch> result = new CompletableFuture<>();
@@ -94,19 +93,19 @@ public class CachingTrackingClient implements TrackingClient {
                     if (!messageBatch.isEmpty()) {
                         result.complete(messageBatch);
                     } else {
-                        waitForMessages(consumer, trackerId,
+                        waitForMessages(trackerId,
                                         ofNullable(messageBatch.getLastIndex()).orElse(minIndex),
                                         config, r, deadline, result);
                     }
                     return result;
                 }
-                return delegate.read(consumer, trackerId, lastIndex, config);
+                return delegate.read(trackerId, lastIndex, config);
             });
         }
-        return delegate.read(consumer, trackerId, lastIndex, config);
+        return delegate.read(trackerId, lastIndex, config);
     }
 
-    private void waitForMessages(String consumer, String trackerId, long minIndex,
+    private void waitForMessages(String trackerId, long minIndex,
                                  ConsumerConfiguration config,
                                  ClaimSegmentResult claimResult, Instant deadline,
                                  CompletableFuture<MessageBatch> future) {
@@ -124,9 +123,9 @@ public class CachingTrackingClient implements TrackingClient {
                 } finally {
                     if (atomicIndex.get() > minIndex) {
                         try {
-                            storePosition(consumer, claimResult.getSegment(), atomicIndex.get()).get();
+                            storePosition(config.getName(), claimResult.getSegment(), atomicIndex.get()).get();
                         } catch (Exception e) {
-                            log.error("Failed to update position of {}", consumer, e);
+                            log.error("Failed to update position of {}", config.getName(), e);
                         }
                     }
                 }
@@ -195,9 +194,9 @@ public class CachingTrackingClient implements TrackingClient {
     }
 
     @Override
-    public CompletableFuture<ClaimSegmentResult> claimSegment(String consumer, String trackerId, Long lastIndex,
+    public CompletableFuture<ClaimSegmentResult> claimSegment(String trackerId, Long lastIndex,
                                                               ConsumerConfiguration config) {
-        return delegate.claimSegment(consumer, trackerId, lastIndex, config);
+        return delegate.claimSegment(trackerId, lastIndex, config);
     }
 
     @Override

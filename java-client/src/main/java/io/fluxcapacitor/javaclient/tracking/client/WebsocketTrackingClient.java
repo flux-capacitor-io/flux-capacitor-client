@@ -65,10 +65,10 @@ public class WebsocketTrackingClient extends AbstractWebsocketClient implements 
     }
 
     @Override
-    public CompletableFuture<MessageBatch> read(String consumer, String trackerId, Long lastIndex,
+    public CompletableFuture<MessageBatch> read(String trackerId, Long lastIndex,
                                                 ConsumerConfiguration configuration) {
         return this.<ReadResult>send(new Read(messageType,
-                        consumer, trackerId, configuration.getMaxFetchSize(),
+                        configuration.getName(), trackerId, configuration.getMaxFetchSize(),
                         configuration.getMaxWaitDuration().toMillis(), configuration.getTypeFilter(),
                         configuration.filterMessageTarget(), configuration.ignoreSegment(),
                         configuration.singleTracker(), configuration.clientControlledIndex(), lastIndex,
@@ -76,10 +76,10 @@ public class WebsocketTrackingClient extends AbstractWebsocketClient implements 
                 .thenApply(ReadResult::getMessageBatch);
     }
 
-    public CompletableFuture<ClaimSegmentResult> claimSegment(String consumer, String trackerId, Long lastIndex,
-                                           ConsumerConfiguration config) {
+    public CompletableFuture<ClaimSegmentResult> claimSegment(String trackerId, Long lastIndex,
+                                                              ConsumerConfiguration config) {
         return send(new ClaimSegment(messageType,
-                consumer, trackerId, config.getMaxWaitDuration().toMillis(), config.clientControlledIndex(),
+                config.getName(), trackerId, config.getMaxWaitDuration().toMillis(), config.clientControlledIndex(),
                 config.getTypeFilter(), config.filterMessageTarget(), lastIndex,
                 Optional.ofNullable(config.getPurgeDelay()).map(Duration::toMillis).orElse(null)));
     }

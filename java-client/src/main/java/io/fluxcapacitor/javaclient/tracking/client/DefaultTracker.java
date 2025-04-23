@@ -150,7 +150,7 @@ public class DefaultTracker implements Runnable, Registration {
                                      @Nullable String topic, ConsumerConfiguration config, Client client) {
         List<DefaultTracker> trackers = IntStream.range(0, config.getThreads())
                 .mapToObj(i -> new DefaultTracker(consumer, config, new Tracker(
-                        config.getName(), config.getTrackerIdFactory().apply(client), messageType, topic, config, null),
+                        config.getTrackerIdFactory().apply(client), messageType, topic, config, null),
                                                   client.getTrackingClient(messageType, topic))).toList();
         for (int i = 0; i < trackers.size(); i++) {
             new Thread(threadGroup, trackers.get(i),
@@ -165,7 +165,7 @@ public class DefaultTracker implements Runnable, Registration {
                                      TrackingClient trackingClient, String topic) {
         List<DefaultTracker> trackers = IntStream.range(0, config.getThreads())
                 .mapToObj(i -> new DefaultTracker(consumer, config, new Tracker(
-                        config.getName(), UUID.randomUUID().toString(), trackingClient.getMessageType(), topic,
+                        UUID.randomUUID().toString(), trackingClient.getMessageType(), topic,
                         config, null), trackingClient)).toList();
         for (int i = 0; i < trackers.size(); i++) {
             new Thread(threadGroup, trackers.get(i),
@@ -234,7 +234,7 @@ public class DefaultTracker implements Runnable, Registration {
     }
 
     protected MessageBatch fetch(Long lastIndex) {
-        return retryOnFailure(() -> trackingClient.readAndWait(tracker.getName(), tracker.getTrackerId(),
+        return retryOnFailure(() -> trackingClient.readAndWait(tracker.getTrackerId(),
                                                                lastIndex, tracker.getConfiguration()),
                               retryDelay, e -> running.get());
     }

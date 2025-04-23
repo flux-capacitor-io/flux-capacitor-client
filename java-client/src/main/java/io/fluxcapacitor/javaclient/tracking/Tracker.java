@@ -35,7 +35,6 @@ public class Tracker {
         return Optional.ofNullable(current.get());
     }
 
-    String name;
     String trackerId;
     MessageType messageType;
     String topic;
@@ -45,6 +44,10 @@ public class Tracker {
     @EqualsAndHashCode.Exclude
     @ToString.Exclude
     MessageBatch messageBatch;
+
+    public String getName() {
+        return configuration.getName();
+    }
     
     public boolean canHandle(DeserializingMessage message, String routingKey) {
         if (messageBatch == null || messageBatch.getPosition() == null) {

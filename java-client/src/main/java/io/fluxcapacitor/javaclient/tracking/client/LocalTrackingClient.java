@@ -90,11 +90,11 @@ public class LocalTrackingClient implements TrackingClient, GatewayClient, HasMe
     }
 
     @Override
-    public CompletableFuture<MessageBatch> read(String consumer, String trackerId, Long lastIndex,
+    public CompletableFuture<MessageBatch> read(String trackerId, Long lastIndex,
                                                 ConsumerConfiguration config) {
         CompletableFuture<MessageBatch> result = new CompletableFuture<>();
         trackingStrategy.getBatch(
-                new WebSocketTracker(new Read(messageType, consumer, trackerId, config.getMaxFetchSize(),
+                new WebSocketTracker(new Read(messageType, config.getName(), trackerId, config.getMaxFetchSize(),
                                               config.getMaxWaitDuration().toMillis(), config.getTypeFilter(),
                                               config.filterMessageTarget(), config.ignoreSegment(),
                                               config.singleTracker(), config.clientControlledIndex(),
@@ -112,10 +112,10 @@ public class LocalTrackingClient implements TrackingClient, GatewayClient, HasMe
     }
 
     @Override
-    public CompletableFuture<ClaimSegmentResult> claimSegment(String consumer, String trackerId, Long lastIndex,
+    public CompletableFuture<ClaimSegmentResult> claimSegment(String trackerId, Long lastIndex,
                                                               ConsumerConfiguration config) {
         CompletableFuture<ClaimSegmentResult> result = new CompletableFuture<>();
-        Read read = new Read(messageType, consumer, trackerId, config.getMaxFetchSize(),
+        Read read = new Read(messageType, config.getName(), trackerId, config.getMaxFetchSize(),
                              config.getMaxWaitDuration().toMillis(), config.getTypeFilter(),
                              config.filterMessageTarget(), config.ignoreSegment(),
                              config.singleTracker(), config.clientControlledIndex(),
