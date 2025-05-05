@@ -22,15 +22,17 @@ import io.fluxcapacitor.javaclient.publishing.DispatchInterceptor;
 import io.fluxcapacitor.javaclient.tracking.Tracker;
 import lombok.AllArgsConstructor;
 
+import static io.fluxcapacitor.javaclient.web.HttpRequestMethod.isWebsocket;
+
 @AllArgsConstructor
 public class WebsocketResponseInterceptor implements DispatchInterceptor {
     @Override
     public Message interceptDispatch(Message message, MessageType messageType, String topic) {
         DeserializingMessage currentMessage = DeserializingMessage.getCurrent();
         if (currentMessage != null && currentMessage.getMessageType() == MessageType.WEBREQUEST) {
-            HttpRequestMethod requestMethod = WebRequest.getMethod(currentMessage.getMetadata());
-            if (requestMethod != null && requestMethod.isWebsocket()) {
-                if (requestMethod == HttpRequestMethod.WS_HANDSHAKE) {
+            String requestMethod = WebRequest.getMethod(currentMessage.getMetadata());
+            if (isWebsocket(requestMethod)) {
+                if (HttpRequestMethod.WS_HANDSHAKE.equals(requestMethod)) {
                     message = message.addMetadata(
                             "clientId", FluxCapacitor.getOptionally().map(fc -> fc.client().id()).orElse(null),
                             "trackerId", Tracker.current().map(Tracker::getTrackerId).orElse(null));

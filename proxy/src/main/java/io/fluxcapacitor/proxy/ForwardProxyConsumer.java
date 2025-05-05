@@ -139,7 +139,7 @@ public class ForwardProxyConsumer implements Consumer<List<SerializedMessage>> {
                 .version(HttpClient.Version.valueOf(settings.getHttpVersion().name()))
                 .timeout(settings.getTimeout());
         getHeaders(request.getMetadata()).forEach((name, values) -> values.forEach(v -> builder.header(name, v)));
-        builder.uri(uri).method(WebRequest.getMethod(request.getMetadata()).name(), getBodyPublisher(request));
+        builder.uri(uri).method(WebRequest.getMethod(request.getMetadata()), getBodyPublisher(request));
         return builder.build();
     }
 

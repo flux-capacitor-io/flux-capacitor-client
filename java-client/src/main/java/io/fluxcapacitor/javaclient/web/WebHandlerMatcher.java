@@ -66,7 +66,7 @@ public class WebHandlerMatcher implements HandlerMatcher<Object, DeserializingMe
             for (WebPattern pattern : webPatterns) {
                 String origin = pattern.getOrigin();
                 var router = origin == null ? this.router : subRouters.computeIfAbsent(origin, __ -> new RouterImpl());
-                router.route(pattern.getMethod().name(), root + pattern.getPath(), ctx -> m);
+                router.route(pattern.getMethod(), root + pattern.getPath(), ctx -> m);
             }
         }
         subRouters.forEach((origin, subRouter) -> this.router.mount(ctx -> {

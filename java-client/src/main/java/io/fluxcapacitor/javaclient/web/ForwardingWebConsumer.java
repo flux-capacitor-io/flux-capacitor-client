@@ -109,7 +109,7 @@ public class ForwardingWebConsumer implements AutoCloseable {
         try {
             HttpRequest.Builder builder = HttpRequest.newBuilder()
                     .uri(new URI(host + WebRequest.getUrl(m.getMetadata())))
-                    .method(WebRequest.getMethod(m.getMetadata()).name(),
+                    .method(WebRequest.getMethod(m.getMetadata()),
                             m.getData().getValue().length == 0 ? HttpRequest.BodyPublishers.noBody() :
                                     ofByteArray(m.getData().getValue()));
 

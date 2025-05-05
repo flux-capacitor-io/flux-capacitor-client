@@ -107,6 +107,7 @@ import static io.fluxcapacitor.common.reflection.ReflectionUtils.getCallerClass;
 import static io.fluxcapacitor.common.reflection.ReflectionUtils.ifClass;
 import static io.fluxcapacitor.javaclient.common.ClientUtils.getLocalHandlerAnnotation;
 import static io.fluxcapacitor.javaclient.common.Message.asMessage;
+import static io.fluxcapacitor.javaclient.web.HttpRequestMethod.isWebsocket;
 import static java.util.Collections.emptyList;
 import static java.util.concurrent.Executors.newFixedThreadPool;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
@@ -698,7 +699,7 @@ public class TestFixture implements Given, When {
         return whenApplying(fc -> {
             var response = executeWebRequest(message);
             if (response != null && synchronous
-                && (response.getPayload() != null || !request.getMethod().isWebsocket())) {
+                && (response.getPayload() != null || !isWebsocket(request.getMethod()))) {
                 registerWebResponse(response);
             }
             return response;
@@ -759,7 +760,7 @@ public class TestFixture implements Given, When {
 
     @SneakyThrows
     protected WebResponse executeWebRequest(WebRequest request) {
-        if (request.getMethod().isWebsocket() && !request.getMetadata().containsKey("sessionId")) {
+        if (isWebsocket(request.getMethod()) && !request.getMetadata().containsKey("sessionId")) {
             request = request.addMetadata("sessionId", "testSession");
         }
         if (!headers.isEmpty()) {

@@ -87,7 +87,7 @@ public class DefaultWebRequestContext implements DefaultContext, WebRequestConte
     @Getter(lazy = true)
     URI uri = URI.create(WebRequest.getUrl(metadata));
     @Getter(lazy = true)
-    String method = WebRequest.getMethod(metadata).name();
+    String method = WebRequest.getMethod(metadata);
     @Getter(lazy = true)
     String requestPath = getUri().getRawPath();
     @Getter(lazy = true)

@@ -32,15 +32,17 @@ import java.util.Set;
 import java.util.concurrent.CopyOnWriteArraySet;
 import java.util.function.BiFunction;
 
+import static io.fluxcapacitor.javaclient.web.HttpRequestMethod.isWebsocket;
+
 public class WebsocketHandlerDecorator implements HandlerDecorator {
     private final Set<String> websocketPaths = new CopyOnWriteArraySet<>();
 
     @Override
     public Handler<DeserializingMessage> wrap(Handler<DeserializingMessage> handler) {
         var methods = ReflectionUtils.getAllMethods(handler.getTargetClass()).stream()
-                .flatMap(m -> WebUtils.getWebPatterns(m).stream()).filter(p -> p.getMethod().isWebsocket()).toList();
+                .flatMap(m -> WebUtils.getWebPatterns(m).stream()).filter(p -> isWebsocket(p.getMethod())).toList();
         if (!methods.isEmpty()) {
-            methods.stream().filter(p -> p.getMethod() == HttpRequestMethod.WS_HANDSHAKE)
+            methods.stream().filter(p -> HttpRequestMethod.WS_HANDSHAKE.equals(p.getMethod()))
                     .map(WebPattern::getPath).distinct().forEach(websocketPaths::add);
             var pathsRequiringHandshake = methods.stream().map(WebPattern::getPath).distinct()
                     .filter(websocketPaths::add).toList();
@@ -70,7 +72,7 @@ public class WebsocketHandlerDecorator implements HandlerDecorator {
 
         protected boolean matches(DeserializingMessage message) {
             return message.getMessageType() == MessageType.WEBREQUEST
-                   && WebRequest.getMethod(message.getMetadata()) == HttpRequestMethod.WS_HANDSHAKE
+                   && HttpRequestMethod.WS_HANDSHAKE.equals(WebRequest.getMethod(message.getMetadata()))
                    && paths.contains(WebRequest.getUrl(message.getMetadata()));
         }
 

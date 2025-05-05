@@ -60,7 +60,7 @@ public class WebRequest extends Message {
     }
 
     @NonNull String path;
-    @NonNull HttpRequestMethod method;
+    @NonNull String method;
     @NonNull Map<String, List<String>> headers;
 
     @Getter(lazy = true)
@@ -69,7 +69,7 @@ public class WebRequest extends Message {
             .map(WebUtils::parseRequestCookieHeader).orElse(Collections.emptyList());
 
     private WebRequest(Builder builder) {
-        super(builder.payload(), builder.metadata.with("url", builder.url(), "method", builder.method().name(),
+        super(builder.payload(), builder.metadata.with("url", builder.url(), "method", builder.method(),
                                                        "headers", builder.headers()));
         this.path = builder.url();
         this.method = builder.method();
@@ -176,14 +176,9 @@ public class WebRequest extends Message {
                 .orElseThrow(() -> new IllegalStateException("WebRequest is malformed: url is missing"));
     }
 
-    public static HttpRequestMethod getMethod(Metadata metadata) {
-        return Optional.ofNullable(metadata.get("method")).map(m -> {
-            try {
-                return HttpRequestMethod.valueOf(m);
-            } catch (Exception e) {
-                throw new IllegalStateException("WebRequest is malformed: unrecognized http method");
-            }
-        }).orElseThrow(() -> new IllegalStateException("WebRequest is malformed: http method is missing"));
+    public static String getMethod(Metadata metadata) {
+        return Optional.ofNullable(metadata.get("method"))
+                .orElseThrow(() -> new IllegalStateException("WebRequest is malformed: http method is missing"));
     }
 
     @SuppressWarnings("unchecked")
@@ -209,7 +204,7 @@ public class WebRequest extends Message {
     @FieldDefaults(level = AccessLevel.PRIVATE)
     public static class Builder {
         String url;
-        HttpRequestMethod method;
+        String method;
         final Map<String, List<String>> headers = WebUtils.emptyHeaderMap();
         boolean acceptGzipEncoding = true;
 
