@@ -25,6 +25,7 @@ import io.fluxcapacitor.javaclient.tracking.handling.authentication.FixedUserPro
 import io.fluxcapacitor.javaclient.tracking.handling.authentication.MockUser;
 import io.fluxcapacitor.javaclient.tracking.handling.authentication.RequiresUser;
 import io.fluxcapacitor.javaclient.tracking.handling.authentication.UnauthenticatedException;
+import io.fluxcapacitor.javaclient.tracking.handling.authentication.User;
 import io.fluxcapacitor.javaclient.web.path.ClassPathHandler;
 import io.fluxcapacitor.javaclient.web.path.PackagePathHandler;
 import lombok.SneakyThrows;
@@ -52,7 +53,8 @@ public class HandleWebTest {
 
     @Nested
     class GenericTests {
-        private final TestFixture testFixture = TestFixture.create(new Handler());
+        private final TestFixture testFixture = TestFixture.create(DefaultFluxCapacitor.builder().registerUserProvider(
+                new FixedUserProvider(() -> null)), new Handler());
 
         @Test
         void testGet() {
@@ -191,11 +193,23 @@ public class HandleWebTest {
 
         @Test
         void testPostPayloadRequiringUser_invalidWithoutUser() {
-            TestFixture.create(DefaultFluxCapacitor.builder().registerUserProvider(
-                            new FixedUserProvider(() -> null)), new Handler())
-                    .whenWebRequest(WebRequest.builder().method(POST).url("/requiresUser")
+            testFixture.whenWebRequest(WebRequest.builder().method(POST).url("/requiresUser")
                                             .payload(new PayloadRequiringUser()).build())
                     .expectExceptionalResult(UnauthenticatedException.class);
+        }
+
+        @Test
+        void testGetUser_validWithUser() {
+            TestFixture.create(DefaultFluxCapacitor.builder().registerUserProvider(
+                            new FixedUserProvider(new MockUser())), new Handler())
+                    .whenGet("/getUser")
+                    .expectResult(User.class);
+        }
+
+        @Test
+        void testGetUser_timeoutWithoutUser() {
+            testFixture.whenGet("/getUser")
+                    .expectExceptionalResult(TimeoutException.class);
         }
 
         @Test
@@ -216,7 +230,7 @@ public class HandleWebTest {
                 return "getViaPath";
             }
 
-            @HandleWeb(value = "/get", method = GET)
+            @HandleGet("/get")
             String get() {
                 return "get";
             }
@@ -269,6 +283,12 @@ public class HandleWebTest {
             @HandleWeb(value = "/requiresUser", method = POST)
             Object post(PayloadRequiringUser body) {
                 return body;
+            }
+
+            @HandleGet("/getUser")
+            @RequiresUser
+            Object getUser(User user) {
+                return user;
             }
 
             @HandleWeb(value = "/json", method = POST)
