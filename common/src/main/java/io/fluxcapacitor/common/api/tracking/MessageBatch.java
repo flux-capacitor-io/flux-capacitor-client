@@ -20,6 +20,7 @@ import lombok.Value;
 
 import java.util.Arrays;
 import java.util.List;
+import java.util.stream.Stream;
 
 @Value
 public class MessageBatch {
@@ -27,6 +28,23 @@ public class MessageBatch {
     List<SerializedMessage> messages;
     Long lastIndex;
     Position position;
+
+    public MessageBatch filter(Long minIndex, Long maxIndexExclusive) {
+        if (messages.isEmpty() || (minIndex == null && maxIndexExclusive == null)) {
+            return this;
+        }
+        Stream<SerializedMessage> messageStream = messages.stream();
+        if (minIndex != null) {
+            messageStream = messageStream.filter(m -> m.getIndex() >= minIndex);
+        }
+        if (maxIndexExclusive != null) {
+            messageStream = messageStream.filter(m -> m.getIndex() < maxIndexExclusive);
+        }
+        var filteredMessages = messageStream.toList();
+        var newLastIndex = lastIndex != null && maxIndexExclusive != null && maxIndexExclusive <= lastIndex ?
+                Long.valueOf(maxIndexExclusive - 1L) : lastIndex;
+        return new MessageBatch(segment, filteredMessages, newLastIndex, position);
+    }
 
     @JsonIgnore
     public boolean isEmpty() {
@@ -41,10 +59,10 @@ public class MessageBatch {
     @Override
     public String toString() {
         return "MessageBatch{" +
-                "segment=" + Arrays.toString(segment) +
-                ", lastIndex=" + lastIndex +
-                ", message count=" + messages.size() +
-                '}';
+               "segment=" + Arrays.toString(segment) +
+               ", lastIndex=" + lastIndex +
+               ", message count=" + messages.size() +
+               '}';
     }
 
     @JsonIgnore

@@ -112,20 +112,22 @@ public class ConsumerConfigurationTest {
         Long nowIndex = 107544261427200000L;
         TestFixture.createAsync(DefaultFluxCapacitor.builder()
                                         .addConsumerConfiguration(ConsumerConfiguration.builder()
-                                                                          .name("minIndex")
-                                                                          .exclusive(false).minIndex(nowIndex).build(),
+                                                                          .name("maxIndex")
+                                                                          .maxIndexExclusive(nowIndex)
+                                                                          .exclusive(false)
+                                                                          .build(),
                                                                   MessageType.COMMAND)
                                         .addConsumerConfiguration(ConsumerConfiguration.builder()
-                                                                          .name("maxIndex")
-                                                                          .maxIndexExclusive(nowIndex).build(),
-                                                                  MessageType.COMMAND)
-                                        .configureDefaultConsumer(COMMAND, c -> c.toBuilder().name("default").build()),
+                                                                          .name("minIndex")
+                                                                          .minIndex(nowIndex)
+                                                                          .maxIndexExclusive(nowIndex + 1L)
+                                                                          .build(),
+                                                                  MessageType.COMMAND),
                                 new Handler())
                 .withClock(nowClock)
-
                 .whenCommand(new Command())
                 .expectEvents("minIndex")
-                .expectResult("minIndex");
+                .expectNoEventsLike("maxIndex");
     }
 
     @Test
