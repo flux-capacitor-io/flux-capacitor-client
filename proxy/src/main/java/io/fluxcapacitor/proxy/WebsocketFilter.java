@@ -14,7 +14,6 @@
 
 package io.fluxcapacitor.proxy;
 
-import io.fluxcapacitor.javaclient.web.HttpRequestMethod;
 import io.fluxcapacitor.javaclient.web.WebRequest;
 import jakarta.servlet.Filter;
 import jakarta.servlet.FilterChain;
@@ -45,7 +44,7 @@ public class WebsocketFilter implements Filter {
                 {
                     var builder = WebRequest.builder()
                             .url(r.getServletPath() + (r.getQueryString() == null ? "" : ("?" + r.getQueryString())))
-                            .method(HttpRequestMethod.valueOf(r.getMethod()));
+                            .method(r.getMethod());
                     r.getHeaderNames().asIterator().forEachRemaining(
                             name -> r.getHeaders(name).asIterator().forEachRemaining(
                                     value -> builder.header(name, value)));

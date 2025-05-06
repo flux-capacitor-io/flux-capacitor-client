@@ -104,7 +104,7 @@ public class ProxyRequestHandler implements HttpHandler, AutoCloseable {
     protected WebRequest createWebRequest(HttpServerExchange se, byte[] payload) {
         var builder = WebRequest.builder()
                 .url(se.getRelativePath() + (se.getQueryString().isBlank() ? "" : ("?" + se.getQueryString())))
-                .method(HttpRequestMethod.valueOf(se.getRequestMethod().toString())).payload(payload)
+                .method(se.getRequestMethod().toString()).payload(payload)
                 .acceptGzipEncoding(false);
         se.getRequestHeaders().forEach(
                 header -> header.forEach(value -> builder.header(header.getHeaderName().toString(), value)));
@@ -112,7 +112,7 @@ public class ProxyRequestHandler implements HttpHandler, AutoCloseable {
     }
 
     protected WebRequest tryUpgrade(WebRequest webRequest, HttpServerExchange se) {
-        if (webRequest.getMethod() == HttpRequestMethod.GET
+        if (HttpRequestMethod.GET.equals(webRequest.getMethod())
             && "Upgrade".equalsIgnoreCase(webRequest.getHeader("Connection"))
             && "websocket".equalsIgnoreCase(webRequest.getHeader("Upgrade"))) {
             var requestBuilder = webRequest.toBuilder();
@@ -168,7 +168,7 @@ public class ProxyRequestHandler implements HttpHandler, AutoCloseable {
     @SneakyThrows
     protected void handleResponse(SerializedMessage responseMessage, WebRequest webRequest, HttpServerExchange se) {
         int statusCode = WebResponse.getStatusCode(responseMessage.getMetadata());
-        if (statusCode < 300 && webRequest.getMethod() == HttpRequestMethod.WS_HANDSHAKE) {
+        if (statusCode < 300 && HttpRequestMethod.WS_HANDSHAKE.equals(webRequest.getMethod())) {
             se.addQueryParam("_clientId", responseMessage.getMetadata().get("clientId"));
             se.addQueryParam("_trackerId", responseMessage.getMetadata().get("trackerId"));
             websocketHandler.handleRequest(se);

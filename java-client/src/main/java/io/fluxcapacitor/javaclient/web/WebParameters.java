@@ -22,12 +22,11 @@ import java.util.stream.Stream;
 @Value
 public class WebParameters {
     String[] value;
-    HttpRequestMethod[] method;
+    String[] method;
     boolean disabled;
 
     public Stream<WebPattern> getWebPatterns() {
-        Stream<HttpRequestMethod> methodStream = method.length == 0
-                ? Arrays.stream(HttpRequestMethod.values()) : Arrays.stream(method);
+        Stream<String> methodStream = Arrays.stream(method);
         return methodStream.flatMap(method -> switch (value.length) {
             case 0 -> Stream.of(new WebPattern("", method));
             case 1 -> Stream.of(new WebPattern(value[0], method));

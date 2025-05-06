@@ -35,7 +35,7 @@ public class WebPattern {
     }
 
     String uri;
-    HttpRequestMethod method;
+    String method;
 
     @Getter(lazy = true, value = AccessLevel.PRIVATE)
     Matcher matcher = uriMatcher(uri);

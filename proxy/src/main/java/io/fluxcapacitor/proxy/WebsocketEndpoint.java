@@ -97,8 +97,8 @@ public class WebsocketEndpoint extends Endpoint {
         log.warn("Error in session {}", session.getId(), error);
     }
 
-    protected void sendRequest(Session session, HttpRequestMethod method, byte[] payload) {
-        Metadata metadata = getContext(session).metadata().with("method", method.name());
+    protected void sendRequest(Session session, String method, byte[] payload) {
+        Metadata metadata = getContext(session).metadata().with("method", method);
         var request = new SerializedMessage(new Data<>(payload, null, 0, "unknown"),
                                             metadata, FluxCapacitor.generateId(),
                                             FluxCapacitor.currentClock().millis());

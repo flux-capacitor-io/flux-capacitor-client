@@ -14,25 +14,40 @@
 
 package io.fluxcapacitor.javaclient.web;
 
-import lombok.AllArgsConstructor;
-import lombok.Getter;
+public interface HttpRequestMethod {
 
-import java.util.Arrays;
-import java.util.Collection;
+    /**
+     * A constant representing a wildcard HTTP request method, used to match any method in HTTP routing or
+     * handling scenarios.
+     */
+    String ANY = "*";
 
-@Getter
-@AllArgsConstructor
-public enum HttpRequestMethod {
-    GET, POST, PUT, PATCH, DELETE, HEAD, OPTIONS, TRACE,
-    WS_HANDSHAKE(true), WS_OPEN(true), WS_MESSAGE(true), WS_CLOSE(true), WS_PONG(true);
+    /*
+        Standard HTTP request methods
+     */
 
-    HttpRequestMethod() {
-        this(false);
+    String GET = "GET";
+    String POST = "POST";
+    String PUT = "PUT";
+    String PATCH = "PATCH";
+    String DELETE = "DELETE";
+    String HEAD = "HEAD";
+    String OPTIONS = "OPTIONS";
+    String TRACE = "TRACE";
+
+    /*
+        For requests over websocket
+     */
+    String WS_HANDSHAKE = "WS_HANDSHAKE";
+    String WS_OPEN = "WS_OPEN";
+    String WS_MESSAGE = "WS_MESSAGE";
+    String WS_PONG = "WS_PONG";
+    String WS_CLOSE = "WS_CLOSE";
+
+    static boolean isWebsocket(String requestMethod) {
+        return switch (requestMethod) {
+            case WS_MESSAGE, WS_HANDSHAKE, WS_OPEN, WS_CLOSE, WS_PONG -> true;
+            case null, default -> false;
+        };
     }
-
-    private final boolean websocket;
-
-    @Getter
-    private static final Collection<HttpRequestMethod> standardMethods
-            = Arrays.stream(HttpRequestMethod.values()).filter(m -> !m.isWebsocket()).toList();
 }

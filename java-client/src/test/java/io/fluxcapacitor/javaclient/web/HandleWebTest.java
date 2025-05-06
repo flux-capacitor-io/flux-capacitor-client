@@ -41,6 +41,7 @@ import java.util.concurrent.TimeoutException;
 import static io.fluxcapacitor.javaclient.web.HttpRequestMethod.GET;
 import static io.fluxcapacitor.javaclient.web.HttpRequestMethod.POST;
 import static io.fluxcapacitor.javaclient.web.HttpRequestMethod.PUT;
+import static io.fluxcapacitor.javaclient.web.HttpRequestMethod.TRACE;
 import static io.fluxcapacitor.javaclient.web.HttpRequestMethod.WS_HANDSHAKE;
 import static io.fluxcapacitor.javaclient.web.HttpRequestMethod.WS_MESSAGE;
 import static io.fluxcapacitor.javaclient.web.HttpRequestMethod.WS_OPEN;
@@ -335,6 +336,23 @@ public class HandleWebTest {
         }
 
         @Test
+        void testCustomMethod() {
+            testFixture
+                    .whenWebRequest(WebRequest.builder().method("CUSTOM").url("/string3").payload("payload").build())
+                    .expectResult("payload");
+        }
+
+        @Test
+        void testAnyMethod() {
+            testFixture
+                    .whenPut("/string4", "payload")
+                    .expectResult("payload")
+                    .andThen()
+                    .whenWebRequest(WebRequest.builder().method(TRACE).url("/string4").payload("payload").build())
+                    .expectResult("payload");
+        }
+
+        @Test
         void testPutOrPost2() {
             testFixture
                     .whenPost("/string2", "payload")
@@ -361,6 +379,16 @@ public class HandleWebTest {
             @HandlePost("/string2")
             @HandlePut("/string2")
             String putOrPost2(String body) {
+                return body;
+            }
+
+            @HandleWeb(value = "/string3", method = "CUSTOM")
+            String customMethod(String body) {
+                return body;
+            }
+
+            @HandleWeb(value = "/string4")
+            String anyMethod(String body) {
                 return body;
             }
         }

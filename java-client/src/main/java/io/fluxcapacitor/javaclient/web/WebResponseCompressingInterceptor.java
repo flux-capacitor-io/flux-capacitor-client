@@ -27,6 +27,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
+import static io.fluxcapacitor.javaclient.web.HttpRequestMethod.isWebsocket;
 import static java.util.Collections.emptyList;
 
 public class WebResponseCompressingInterceptor implements DispatchInterceptor {
@@ -51,8 +52,8 @@ public class WebResponseCompressingInterceptor implements DispatchInterceptor {
         if (request == null || request.getMessageType() != MessageType.WEBREQUEST) {
             return false;
         }
-        HttpRequestMethod requestMethod = WebRequest.getMethod(request.getMetadata());
-        if (requestMethod == null || requestMethod.isWebsocket()) {
+        String requestMethod = WebRequest.getMethod(request.getMetadata());
+        if (requestMethod == null || isWebsocket(requestMethod)) {
             return false;
         }
         return WebRequest.getHeaders(request.getMetadata()).getOrDefault("Accept-Encoding", emptyList())
