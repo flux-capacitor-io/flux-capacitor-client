@@ -14,9 +14,18 @@
 
 package io.fluxcapacitor.javaclient.web;
 
-import java.util.Set;
-
 public interface HttpRequestMethod {
+
+    /**
+     * A constant representing a wildcard HTTP request method, used to match any method in HTTP routing or
+     * handling scenarios.
+     */
+    String ANY = "*";
+
+    /*
+        Standard HTTP request methods
+     */
+
     String GET = "GET";
     String POST = "POST";
     String PUT = "PUT";
@@ -25,18 +34,20 @@ public interface HttpRequestMethod {
     String HEAD = "HEAD";
     String OPTIONS = "OPTIONS";
     String TRACE = "TRACE";
-    String LOCK = "LOCK";
-    String UNLOCK = "UNLOCK";
 
+    /*
+        For requests over websocket
+     */
     String WS_HANDSHAKE = "WS_HANDSHAKE";
     String WS_OPEN = "WS_OPEN";
     String WS_MESSAGE = "WS_MESSAGE";
     String WS_PONG = "WS_PONG";
     String WS_CLOSE = "WS_CLOSE";
 
-    Set<String> WEBSOCKET_METHODS = Set.of(WS_MESSAGE, WS_HANDSHAKE, WS_OPEN, WS_CLOSE, WS_PONG);
-
     static boolean isWebsocket(String requestMethod) {
-        return WEBSOCKET_METHODS.contains(requestMethod);
+        return switch (requestMethod) {
+            case WS_MESSAGE, WS_HANDSHAKE, WS_OPEN, WS_CLOSE, WS_PONG -> true;
+            case null, default -> false;
+        };
     }
 }

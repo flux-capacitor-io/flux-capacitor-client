@@ -30,6 +30,6 @@ import java.lang.annotation.Target;
 public @interface HandleWeb {
     String[] value() default {};
     boolean disabled() default false;
-    String[] method();
+    String[] method() default HttpRequestMethod.ANY;
     boolean passive() default false;
 }

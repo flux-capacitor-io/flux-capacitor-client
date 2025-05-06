@@ -42,6 +42,7 @@ import static java.util.stream.Stream.concat;
 
 public class WebHandlerMatcher implements HandlerMatcher<Object, DeserializingMessage> {
     private final Router router = new RouterImpl();
+    private final boolean hasAnyHandlers;
 
     public static WebHandlerMatcher create(
             Class<?> c, List<ParameterResolver<? super DeserializingMessage>> parameterResolvers,
@@ -54,6 +55,7 @@ public class WebHandlerMatcher implements HandlerMatcher<Object, DeserializingMe
 
     protected WebHandlerMatcher(List<MethodHandlerMatcher<DeserializingMessage>> methodHandlerMatchers) {
         Map<String, Router> subRouters = new HashMap<>();
+        boolean hasAnyHandlers = false;
         for (MethodHandlerMatcher<DeserializingMessage> m : methodHandlerMatchers) {
             String root = ReflectionUtils.<Path>getMethodAnnotation(m.getExecutable(), Path.class)
                     .or(() -> Optional.ofNullable(getTypeAnnotation(m.getTargetClass(), Path.class)))
@@ -66,6 +68,9 @@ public class WebHandlerMatcher implements HandlerMatcher<Object, DeserializingMe
             for (WebPattern pattern : webPatterns) {
                 String origin = pattern.getOrigin();
                 var router = origin == null ? this.router : subRouters.computeIfAbsent(origin, __ -> new RouterImpl());
+                if (HttpRequestMethod.ANY.equals(pattern.getMethod())) {
+                    hasAnyHandlers = true;
+                }
                 router.route(pattern.getMethod(), root + pattern.getPath(), ctx -> m);
             }
         }
@@ -75,6 +80,7 @@ public class WebHandlerMatcher implements HandlerMatcher<Object, DeserializingMe
             }
             throw new UnsupportedOperationException("Unknown context class: " + ctx.getClass());
         }, subRouter));
+        this.hasAnyHandlers = hasAnyHandlers;
     }
 
     @Override
@@ -97,9 +103,12 @@ public class WebHandlerMatcher implements HandlerMatcher<Object, DeserializingMe
         if (message.getMessageType() != MessageType.WEBREQUEST) {
             return Optional.empty();
         }
-        var context = getWebRequestContext(message);
-        return Optional.of(router.match(context)).filter(Router.Match::matches)
-                .map(match -> (MethodHandlerMatcher<DeserializingMessage>) match.execute(context));
+        DefaultWebRequestContext context = getWebRequestContext(message);
+        Optional<Router.Match> match = Optional.of(router.match(context)).filter(Router.Match::matches);
+        if (match.isEmpty() && hasAnyHandlers) {
+            match = Optional.of(router.match(context.withMethod(HttpRequestMethod.ANY))).filter(Router.Match::matches);
+        }
+        return match.map(m -> (MethodHandlerMatcher<DeserializingMessage>) m.execute(context));
     }
 
 }

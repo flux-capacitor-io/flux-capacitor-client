@@ -36,10 +36,11 @@ import io.jooby.ValueNode;
 import io.jooby.WebSocket;
 import io.jooby.buffer.DataBuffer;
 import io.jooby.internal.RouterImpl;
+import lombok.AllArgsConstructor;
 import lombok.Getter;
-import lombok.RequiredArgsConstructor;
 import lombok.Setter;
 import lombok.Value;
+import lombok.With;
 import lombok.experimental.Accessors;
 import lombok.experimental.Delegate;
 import lombok.experimental.NonFinal;
@@ -71,8 +72,13 @@ import java.util.stream.Stream;
 import static java.util.stream.Collectors.toMap;
 
 @Value
-@RequiredArgsConstructor
+@AllArgsConstructor
 public class DefaultWebRequestContext implements DefaultContext, WebRequestContext {
+
+    public static DefaultWebRequestContext getCurrentWebRequestContext() {
+        return Optional.ofNullable(DeserializingMessage.getCurrent()).map(
+                DefaultWebRequestContext::getWebRequestContext).orElse(null);
+    }
 
     public static DefaultWebRequestContext getWebRequestContext(DeserializingMessage message) {
         return message.computeContextIfAbsent(DefaultWebRequestContext.class, DefaultWebRequestContext::new);
@@ -86,8 +92,8 @@ public class DefaultWebRequestContext implements DefaultContext, WebRequestConte
 
     @Getter(lazy = true)
     URI uri = URI.create(WebRequest.getUrl(metadata));
-    @Getter(lazy = true)
-    String method = WebRequest.getMethod(metadata);
+    @With
+    String method;
     @Getter(lazy = true)
     String requestPath = getUri().getRawPath();
     @Getter(lazy = true)
@@ -139,6 +145,7 @@ public class DefaultWebRequestContext implements DefaultContext, WebRequestConte
         }
         bodySupplier = () -> message.getSerializedObject().getData().getValue();
         metadata = message.getMetadata();
+        method = WebRequest.getMethod(metadata);
     }
 
     @NotNull

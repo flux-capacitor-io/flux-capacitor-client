@@ -26,10 +26,8 @@ public class WebParameters {
     boolean disabled;
 
     public Stream<WebPattern> getWebPatterns() {
-        if (method.length == 0) {
-            throw new IllegalArgumentException("At least one method is required");
-        }
-        return Arrays.stream(method).flatMap(method -> switch (value.length) {
+        Stream<String> methodStream = Arrays.stream(method);
+        return methodStream.flatMap(method -> switch (value.length) {
             case 0 -> Stream.of(new WebPattern("", method));
             case 1 -> Stream.of(new WebPattern(value[0], method));
             default -> Arrays.stream(value).map(v -> new WebPattern(v, method));
