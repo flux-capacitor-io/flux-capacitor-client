@@ -98,7 +98,9 @@ public class HandleWebTest {
         void testPostString() {
             testFixture.whenWebRequest(WebRequest.builder().method(POST).url("/string").payload("payload").build())
                     .expectResult("payload")
-                    .<WebResponse>expectResultMessage(r -> r.getStatus() == 200);
+                    .<WebResponse>expectResultMessage(r -> r.getStatus() == 200)
+                    .mapResult(r -> (String) r)
+                    .expectResult("payload");
         }
 
         @Test
