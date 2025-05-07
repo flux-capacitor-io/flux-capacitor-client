@@ -84,6 +84,13 @@ public class ResultValidator<R> implements Then<R> {
     @SuppressWarnings("unchecked")
     @Override
     public <MR> Then<MR> mapResult(Function<? super R, ? extends MR> resultMapper) {
+        if (result instanceof HasMessage m) {
+            try {
+                return (Then<MR>) withResult(resultMapper.apply((R) result));
+            } catch (ClassCastException ignored) {
+            }
+            return (Then<MR>) withResult(resultMapper.apply(m.getPayload()));
+        }
         return (Then<MR>) withResult(resultMapper.apply((R) result));
     }
 
